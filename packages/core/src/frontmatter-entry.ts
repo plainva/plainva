@@ -107,6 +107,10 @@ const WRITE_QUOTED_IN_BRACKETS = { ...WRITE_QUOTED, flowCollectionPadding: false
  * (`yamlWriters.test.ts` holds that line).
  */
 function written(value: unknown, options: object = WRITE): string {
+  // A value that leads back to itself stands in the data as one mark
+  // (`dataOfBlock`); written from the data, the mark would become text in the
+  // note. Such a value is written where it stands, or not at all.
+  if (holdsCycleMark(value)) throw new FrontmatterSurgicalError("Frontmatter is not a YAML map whose entry with a value that leads back to itself can be written anew");
   // Two equal objects in a value are two values, not one with a reference to it.
   return new Document(value, { aliasDuplicateObjects: false }).toString(options);
 }
@@ -265,7 +269,53 @@ export function dataOfBlock(doc: Document): Data {
   } catch {
     throw new FrontmatterSurgicalError("Frontmatter is not a YAML map that can be read: a reference in it leads nowhere");
   }
-  return isRecord(data) ? data : {};
+  if (data === null || data === undefined) return {};
+  // A set or an ordered map is no map of properties (`parseBlockYaml` refuses
+  // them; a document from elsewhere is held to the same rule).
+  if (!isPlainObject(data)) throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
+  // A value that leads back to itself (`a: &x [*x]`) is data no comparison
+  // ends on. The index reads it as the text it is written with; here it is
+  // one mark that stays the same before and after a write of another entry,
+  // so the note can be written around it (open-items plan 3.144 no. 7:
+  // every write to such a note was refused). The value itself keeps its
+  // anchor, so it is refused where it stands (ADR 0009, decision 6).
+  const out: Data = {};
+  for (const key of Object.keys(data)) put(out, key, withoutCycles(data[key], new Set()));
+  return out;
+}
+
+/** What stands where a value leads back to one that holds it. */
+const CYCLE = "\u0000plainva-cycle\u0000";
+
+/** Whether a value holds the mark of a value that leads back to itself (`withoutCycles`). */
+export function holdsCycleMark(value: unknown): boolean {
+  if (value === CYCLE) return true;
+  if (Array.isArray(value)) return value.some(holdsCycleMark);
+  if (isPlainObject(value)) return Object.keys(value).some((key) => holdsCycleMark(value[key]));
+  return false;
+}
+
+/** A value with every place that leads back into itself replaced by one mark. */
+function withoutCycles(value: unknown, path: Set<unknown>): unknown {
+  if (typeof value !== "object" || value === null || value instanceof Date) return value;
+  if (path.has(value)) return CYCLE;
+  path.add(value);
+  let out: unknown = value;
+  if (Array.isArray(value)) {
+    const items = value.map((item) => withoutCycles(item, path));
+    if (items.some((item, i) => item !== value[i])) out = items;
+  } else if (isPlainObject(value)) {
+    let changed = false;
+    const copy: Data = {};
+    for (const key of Object.keys(value)) {
+      const next = withoutCycles(value[key], path);
+      if (next !== value[key]) changed = true;
+      put(copy, key, next);
+    }
+    if (changed) out = copy;
+  }
+  path.delete(value);
+  return out;
 }
 
 /** Stands for "nothing stands there" where a value is looked up by its path. */
@@ -326,10 +376,16 @@ function withoutPath(before: Data, path: readonly string[]): Data {
  * The name the index gives a key. It reads the block as data, where every key
  * is a text: `2024:` is listed as "2024", `true:` as "true", a key without a
  * name (`~:`) as "". Null for a key that is no scalar.
+ *
+ * A key that is an alias (`*k : Anna`) is named by what it stands for, as the
+ * index names it. Found by its own text alone it was found under no name: a
+ * delete changed nothing and the panel said it had, and a write put a second
+ * entry `owner: Bob` beside it (open-items plan 3.144 no. 9).
  */
-function nameOf(pair: Pair): string | null {
-  if (!isScalar(pair.key)) return null;
-  const name = pair.key.value;
+function nameOf(pair: Pair, doc: Document): string | null {
+  const key = isAlias(pair.key) ? pair.key.resolve(doc) : pair.key;
+  if (!isScalar(key)) return null;
+  const name = key.value;
   return typeof name === "string" ? name : name === null || name === undefined ? "" : String(name);
 }
 
@@ -341,9 +397,9 @@ function nameOf(pair: Pair): string | null {
  * Where two keys have one name (`"2024":` and `2024:`), it is the LAST of
  * them: that is the one whose value the block says under the name.
  */
-function pairOf(map: YAMLMap, key: string): Pair | null {
+function pairOf(map: YAMLMap, key: string, doc: Document): Pair | null {
   for (let i = map.items.length - 1; i >= 0; i--) {
-    if (nameOf(map.items[i]) === key) return map.items[i];
+    if (nameOf(map.items[i], doc) === key) return map.items[i];
   }
   return null;
 }
@@ -468,17 +524,27 @@ function contentEnd(node: unknown): number {
 
 /**
  * Where an entry of a map stands that is written line by line. Null where it
- * does not begin its line — `- a: 1` under a list item —: such an entry has no
- * lines of its own.
+ * does not begin its line, or where only the dash of a list item stands in
+ * front of it.
+ *
+ * The first entry of a map that is an item of a list (`- uid: 007`) stands
+ * on the line of the dash. Its place begins at its key, and its lines are
+ * indented as far as the key stands: that is where the next entry of the same
+ * map stands. Without a place of its own, a change of any field in such a
+ * map wrote the whole item anew from its values — `- uid: 007   # why` came
+ * back as `- uid: 7`, the comment gone (open-items plan 3.72 no. 8).
  */
 function pairPlace(text: string, pair: Pair): PairPlace | null {
   const token = (pair as { srcToken?: CST.CollectionItem }).srcToken;
   if (!token) return null;
   const head = token.start.find((t) => !isTrivia(t))?.offset ?? token.key?.offset ?? token.sep?.[0]?.offset;
   if (head === undefined) return null;
-  const from = lineStart(text, head);
-  const indent = text.slice(from, head);
-  if (!/^ *$/.test(indent)) return null;
+  const lineFrom = lineStart(text, head);
+  const lead = text.slice(lineFrom, head);
+  const behindDash = /^ *- +$/.test(lead);
+  if (!/^ *$/.test(lead) && !behindDash) return null;
+  const from = behindDash ? head : lineFrom;
+  const indent = behindDash ? " ".repeat(lead.length) : lead;
   const colonEnd = colonEndOf(pair);
   const end = Math.max(rangeOf(pair.key)?.[1] ?? head, colonEnd ?? 0, contentEnd(pair.value));
   return { from, head, indent, colonEnd, ...linesThrough(text, from, end) };
@@ -671,6 +737,14 @@ function scalarEdit(place: Place, node: unknown, data: unknown, indent: string |
   return [{ from: range[0], to, text: lines[0] + lines.slice(1).map((line) => place.eol + (line ? indent + line : line)).join("") }];
 }
 
+/**
+ * Whether a map keeps one of its keys: only then is it changed field by field.
+ * A map that keeps none is another map, written anew — field by field, its
+ * first field would go from behind the dash and the new one would stand
+ * indented in its place (`-     id: 2`).
+ */
+const sharesKey = (before: unknown, after: Data): boolean => isRecord(before) && Object.keys(after).some((key) => has(before, key));
+
 /** A list written line by line that becomes another one: item by item. */
 function blockSeqEdits(place: Place, seq: YAMLSeq, data: readonly unknown[], options: object = WRITE): Edit[] | null {
   const places = itemPlaces(place.text, seq);
@@ -694,7 +768,16 @@ function blockSeqEdits(place: Place, seq: YAMLSeq, data: readonly unknown[], opt
       edits.push({ from: at.from, to: at.to, text: lines });
       continue;
     }
-    const inPlace = isScalarData(data[step.next]) ? scalarEdit(place, seq.items[step.old], data[step.next], at.indent, options) : null;
+    // A scalar where it stands; a map, field by field, where its item is one (3.72 no. 8).
+    // An item with a tag of its own (`- !!str 5`) that takes a value of another
+    // kind is written anew, alone: its new characters behind the old tag would
+    // say the old kind, and the whole list was written from its values (3.72 no. 9).
+    const otherKind = isScalar(seq.items[step.old]) && !!(seq.items[step.old] as Scalar).tag && typeof old[step.old] !== typeof data[step.next];
+    const inPlace = isScalarData(data[step.next])
+      ? otherKind ? null : scalarEdit(place, seq.items[step.old], data[step.next], at.indent, options)
+      : isMap(seq.items[step.old]) && isRecord(data[step.next]) && sharesKey(old[step.old], data[step.next] as Data)
+        ? valueEdits(place, seq.items[step.old], data[step.next], at.indent, options)
+        : null;
     edits.push(...(inPlace ?? [{ from: at.from, to: at.to, text: asLines(itemLines(data[step.next], options), at.indent, place.eol) }]));
   }
   return edits;
@@ -739,15 +822,28 @@ function flowMapEdits(place: Place, map: YAMLMap, data: Data): Edit[] | null {
   const entries: Array<string | null> = [];
   const held = new Set<string>();
   for (const [i, pair] of map.items.entries()) {
-    const name = nameOf(pair);
+    const name = nameOf(pair, place.doc);
     if (name === null || held.has(name)) return null;
     held.add(name);
     if (!has(data, name)) continue;
-    entries.push(sameData(jsOf(place, pair.value), data[name]) ? place.text.slice(spans[i].from, spans[i].to) : inBraces(name, data[name]));
+    entries.push(sameData(jsOf(place, pair.value), data[name]) ? place.text.slice(spans[i].from, spans[i].to) : withValueInBraces(place, spans[i], pair, name, data[name]));
   }
   for (const key of Object.keys(data)) if (!held.has(key)) entries.push(inBraces(key, data[key]));
   if (entries.length === 0 || entries.includes(null)) return null;
   return [{ from: spans[0].from, to: spans[spans.length - 1].to, text: entries.join(separator) }];
+}
+
+/**
+ * An entry between braces whose value changes: its key keeps its characters,
+ * and only the value is written — `{2024: 007}` set to 8 is `{2024: 8}`, not
+ * `{"2024": 8}` written from its name (open-items plan 3.72 no. 9). Where the
+ * value cannot be found in the entry, the entry is written from its name.
+ */
+function withValueInBraces(place: Place, span: Span, pair: Pair, name: string, data: unknown): string | null {
+  const range = rangeOf(pair.value);
+  if (!range || range[0] < span.from || range[1] > span.to || range[1] <= range[0]) return inBraces(name, data);
+  const value = inBrackets(data, isScalar(pair.value) ? pair.value : null);
+  return value === null ? inBraces(name, data) : place.text.slice(span.from, range[0]) + value + place.text.slice(range[1], span.to);
 }
 
 /** A map written line by line that becomes another one: entry by entry. */
@@ -755,9 +851,11 @@ function blockMapEdits(place: Place, map: YAMLMap, data: Data, options: object =
   const edits: Edit[] = [];
   const held = new Set<string>();
   for (const pair of map.items) {
-    const name = nameOf(pair);
+    const name = nameOf(pair, place.doc);
     if (name === null || held.has(name)) return null;
     held.add(name);
+    // An entry that says what it said is left alone — it need not have a place of its own.
+    if (has(data, name) && sameData(jsOf(place, pair.value), data[name])) continue;
     const inner = has(data, name) ? pairEdits(place, map, pair, data[name], options) : removal(place, map, pair);
     if (!inner) return null;
     edits.push(...inner);
@@ -855,7 +953,15 @@ function newEntry(place: Place, map: YAMLMap, key: string, data: unknown, option
 function removal(place: Place, map: YAMLMap, pair: Pair): Edit[] | null {
   if (!map.flow) {
     const at = pairPlace(place.text, pair);
-    return at ? [{ from: at.from, to: at.to, text: "" }] : null;
+    if (!at) return null;
+    let to = commentsBehind(place.text, at);
+    // The first entry of a list item's map goes from behind the dash; the next
+    // entry, indented as far as it stood, moves up behind the dash in its place.
+    if (at.from === at.head && at.from !== lineStart(place.text, at.head)) {
+      const next = place.text.slice(to, to + at.indent.length + 1);
+      if (next.length > at.indent.length && /^ *$/.test(next.slice(0, at.indent.length)) && next[at.indent.length] !== " ") to += at.indent.length;
+    }
+    return [{ from: at.from, to, text: "" }];
   }
   const spans = pairSpans(place.text, map);
   const i = map.items.indexOf(pair);
@@ -863,6 +969,25 @@ function removal(place: Place, map: YAMLMap, pair: Pair): Edit[] | null {
   // Between braces an entry goes with the comma that set it apart: the one behind it, or the one in front of the last.
   if (i < spans.length - 1) return [{ from: spans[i].from, to: spans[i + 1].from, text: "" }];
   return [{ from: i > 0 ? spans[i - 1].to : spans[i].from, to: spans[i].to, text: "" }];
+}
+
+/**
+ * Where an entry ends with the comment lines behind it that stand further in
+ * than its key — under a list, they are the list's (`tags:`, `  - a`,
+ * `  # note`). Removed without them, the entry left such a line standing
+ * where it no longer meant anything (open-items plan 3.72 no. 9). A comment
+ * that stands as far in as the key, or less, is the next entry's, and stays.
+ */
+function commentsBehind(text: string, at: PairPlace): number {
+  let end = at.to;
+  while (end < text.length) {
+    const lineBreak = lineEnd(text, end);
+    const line = text.slice(end, lineBreak);
+    const lead = line.length - line.trimStart().length;
+    if (!line.trimStart().startsWith("#") || lead <= at.indent.length || !/^ *$/.test(line.slice(0, lead))) break;
+    end = behindBreak(text, lineBreak);
+  }
+  return end;
 }
 
 /** The changes that put `data` at the path. */
@@ -874,7 +999,7 @@ function setEdits(place: Place, path: readonly string[], data: unknown, options:
   for (let depth = 0; ; depth++) {
     /** What the entry at this depth has to say. */
     const below = nested(path.slice(depth + 1), data);
-    const pair = pairOf(map, path[depth]);
+    const pair = pairOf(map, path[depth], place.doc);
     if (!pair) return newEntry(place, map, path[depth], below, options);
     // The last key of the path — or one on the way that holds no map yet (`plainva:` with nothing behind it).
     if (depth === path.length - 1 || !isMap(pair.value)) return pairEdits(place, map, pair, below, options);
@@ -885,7 +1010,7 @@ function setEdits(place: Place, path: readonly string[], data: unknown, options:
 /** The entry at the top of a path, written anew to say `data` — for a change that could not be made in its place. */
 function topAnew(place: Place, key: string, data: unknown): Edit[] | null {
   const root = place.doc.contents;
-  const pair = isMap(root) ? pairOf(root, key) : null;
+  const pair = isMap(root) ? pairOf(root, key, place.doc) : null;
   if (!isMap(root) || !pair) return null;
   if (root.flow) {
     const range = rangeOf(pair.value);
@@ -910,7 +1035,7 @@ function endAnew(place: Place, path: readonly string[], data: unknown, options: 
   for (let depth = 0; ; depth++) {
     if (map.flow) return null;
     const below = nested(path.slice(depth + 1), data);
-    const pair = pairOf(map, path[depth]);
+    const pair = pairOf(map, path[depth], place.doc);
     if (!pair) return newEntry(place, map, path[depth], below, options);
     if (depth === path.length - 1 || !isMap(pair.value)) {
       const at = pairPlace(place.text, pair);
@@ -931,7 +1056,7 @@ function topQuoted(place: Place, key: string, data: unknown): Edit[] | null {
   const root = place.doc.contents;
   if (!isMap(root)) return [{ from: place.text.length, to: place.text.length, text: asLines(entryLines(key, data, WRITE_QUOTED), "", place.eol) }];
   if (root.flow) return null;
-  const pair = pairOf(root, key);
+  const pair = pairOf(root, key, place.doc);
   if (!pair) return newEntry(place, root, key, data, WRITE_QUOTED);
   const at = pairPlace(place.text, pair);
   return at ? anew(place, at, data, WRITE_QUOTED) : null;
@@ -1094,8 +1219,8 @@ export function removeEntry(content: string, path: readonly string[]): string {
   const way: Array<{ map: YAMLMap; pair: Pair; name: string }> = [];
   let map = root;
   for (const [depth, key] of path.entries()) {
-    const pair = pairOf(map, key);
-    const name = pair && nameOf(pair);
+    const pair = pairOf(map, key, split.doc);
+    const name = pair && nameOf(pair, split.doc);
     if (!pair || name === null) return content;
     way.push({ map, pair, name });
     if (depth === path.length - 1) break;
@@ -1149,10 +1274,10 @@ export function renameEntryKey(content: string, from: string, to: string): strin
   const place = placeOf(split);
   const root = split.doc.contents;
   if (!place || !isMap(root)) return content;
-  const pair = pairOf(root, from);
-  const name = pair && nameOf(pair);
+  const pair = pairOf(root, from, split.doc);
+  const name = pair && nameOf(pair, split.doc);
   if (!pair || name === null) return content;
-  if (pairOf(root, to)) throw new FrontmatterSurgicalError(`Cannot rename '${from}' to '${to}': target key already exists`);
+  if (pairOf(root, to, split.doc)) throw new FrontmatterSurgicalError(`Cannot rename '${from}' to '${to}': target key already exists`);
 
   const before = dataOfBlock(place.doc);
   const after: Data = {};

@@ -15,6 +15,7 @@ import { canRepeat, consumePendingNew, describeRule, isMirroredNamespace, isRecu
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { TaskDuplicatesNotice } from "./TaskDuplicatesNotice";
 import { TaskNamesNotice } from "./TaskNamesNotice";
+import { TemplateKeysNotice } from "./TemplateKeysNotice";
 import { TaskCaptureBar } from "./TaskCaptureBar";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -1072,6 +1073,13 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       }}
     />
   ) : null;
+  const templateKeysNotice = (
+    <TemplateKeysNotice
+      reloadKey={`${fileTreeVersion}:${refreshTick}`}
+      templateFolder={templateFolder}
+      onChanged={() => setRefreshTick((x) => x + 1)}
+    />
+  );
   const duplicatesNotice = (
     <TaskDuplicatesNotice
       db={duplicatesDb}
@@ -1170,6 +1178,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       {list !== "all" ? (
         <div className="pv-planner-scroll">
           {namesNotice}
+          {templateKeysNotice}
           {duplicatesNotice}
           {loading ? null : (
             <TaskPlannerList
@@ -1193,6 +1202,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       ) : (
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>
         {namesNotice}
+        {templateKeysNotice}
         {duplicatesNotice}
         {taskDb && (
           <div data-testid="task-db-section" style={{ margin: "0 0.7rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>

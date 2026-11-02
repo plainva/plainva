@@ -2,7 +2,7 @@ import { isAnswerableToken, isCursorToken, scanTemplate, replaceTemplateTokens, 
 import { parse as parseYaml } from "yaml";
 import { deleteFrontmatterPath, editorTextOf, wikiLinkParts, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
-import { resolveTemplate, type TemplateContext } from "./templateEngine";
+import { inLineEndsOf, resolveTemplate, type TemplateContext } from "./templateEngine";
 import { isFileNotFound } from "../lib/movedNote";
 
 /**
@@ -61,7 +61,8 @@ export interface FinalizedTemplate {
  * {{cursor}} as a caret offset; ALL {{cursor}} markers are stripped so no
  * literal token can leak into a note. An escaped `\{{prompt:…}}` keeps its
  * text (minus the backslash) — that is how the token can be written down.
- * Pure — assumes resolveTemplate has already run.
+ * Pure — assumes resolveTemplate has already run. An answer takes the line
+ * ends of the text it goes into (`inLineEndsOf`, Sammelplan § 3.143 Nr. 3).
  *
  * Given what `resolveTemplate` returned, only the tokens it left for this step
  * are filled (Sammelplan § 3.143 Nr. 1): it has already taken the backslash
@@ -75,7 +76,7 @@ export function finalizeTemplate(text: string | ResolvedTemplate, answers: Recor
     if (!isAnswerable(token)) return token.raw;
     if (token.escaped) return token.raw.slice(1);
     const label = labelOf(token.arg!);
-    return Object.prototype.hasOwnProperty.call(answers, label) ? answers[label] : "";
+    return Object.prototype.hasOwnProperty.call(answers, label) ? inLineEndsOf(text, answers[label]) : "";
   });
   const at = filled.indexOf(CURSOR_TOKEN);
   return { text: filled.split(CURSOR_TOKEN).join(""), cursor: at < 0 ? null : at };
@@ -98,7 +99,7 @@ function finalizeResolved(resolved: ResolvedTemplate, answers: Record<string, st
       value = "";
     } else if (token && isAnswerable(token)) {
       const label = labelOf(token.arg!);
-      value = Object.prototype.hasOwnProperty.call(answers, label) ? answers[label] : "";
+      value = Object.prototype.hasOwnProperty.call(answers, label) ? inLineEndsOf(resolved.text, answers[label]) : "";
     }
     parts.push(value);
     length += value.length;

@@ -1,4 +1,4 @@
-import { CST, Scalar, isAlias, isMap, isScalar, isSeq, type YAMLMap } from "yaml";
+import { CST, Scalar, YAMLMap, isAlias, isMap, isScalar, isSeq, type Document, type Pair } from "yaml";
 import { frontmatterSpan, splitDocument, type SplitDocument } from "./frontmatter-block.js";
 import { changeScalars, removeEntry, renameEntryKey, setEntries, setEntry } from "./frontmatter-entry.js";
 
@@ -22,10 +22,9 @@ export { FrontmatterSurgicalError, frontmatterSpan, noteBodyOf, noteWithoutPrope
 /**
  * Whether the property writers refuse the block at the top of a note: YAML
  * that does not parse, or YAML that is no map — a list, a line of prose, a
- * number (`parseBlockYaml`). The index's reader reads a block of prose or a
- * number as one without properties (ADR 0009, addendum 2026-10-22); the
- * properties panel and the phone's sheet ask here as well, and say what a
- * write would say.
+ * number, a set (`parseBlockYaml`). The index's reader asks the same rule
+ * since 2026-11-02 (open-items plan 3.144 no. 1); before, it read a block of
+ * prose or a number as one without properties.
  */
 export function propertiesBlockRefused(content: string): boolean {
   try {
@@ -61,19 +60,32 @@ export function setFrontmatterPath(
 }
 
 /**
- * Reads the value at a nested frontmatter path (e.g. ["plainva", "tasks"]).
- * Read-only and total: returns undefined when the content has no parseable
- * frontmatter, the path is empty, or the key is absent — it never throws, so
- * hot read paths (task/graph aggregation) can call it per note safely.
+ * The name the index gives the key of an entry — what `dataOfBlock` and the
+ * index's reader list it under: `2024:` is "2024", `~:` is "", a key that
+ * is an alias (`*k :`) the name of what it stands for, and a key that is a
+ * map (`{{title}}:` in a template) the text YAML makes of it. Asked of the
+ * one entry, so it is the library's own answer, not a second rule. Undefined
+ * where the entry cannot be read.
  *
- * Collections come back as PLAIN JS values, not yaml AST nodes: `getIn` returns
- * the node for a list/map, so a caller reading e.g. `plainva.blocks` would get
- * a YAMLSeq and `Array.isArray` would quietly say false. Scalars were already
- * plain values, so this only ever widens what callers can read.
+ * Until 2026-11-02 the two readers below found only keys that are texts: a
+ * comment card on `2024:` was told the key did not exist, while every writer
+ * found it (open-items plan 3.72 no. 3).
  */
+function indexNameOf(pair: Pair, doc: Document): string | undefined {
+  const one = new YAMLMap();
+  one.items.push(pair);
+  try {
+    return Object.keys(one.toJS(doc) as object)[0];
+  } catch {
+    return undefined;
+  }
+}
+
 /**
- * The top-level frontmatter keys, in document order; `[]` when the note has no
- * frontmatter or its YAML cannot be parsed.
+ * The top-level frontmatter keys, in document order, by the names the index
+ * gives them (`indexNameOf`); `[]` when the note has no frontmatter or its
+ * YAML cannot be parsed. A key without a name (`~:`) and `__proto__` are
+ * not listed: no property can be either.
  *
  * The read-only counterpart to the surgical writers, and deliberately cheap: a
  * property comment (plan Stufe E, E2) has to ask "does the key I was written
@@ -92,12 +104,24 @@ export function frontmatterKeys(content: string): string[] {
   if (!split.hadFrontmatter || !isMap(split.doc.contents)) return [];
   const keys: string[] = [];
   for (const item of split.doc.contents.items) {
-    const key = item.key;
-    if (isScalar(key) && typeof key.value === "string" && key.value) keys.push(key.value);
+    const name = indexNameOf(item, split.doc);
+    if (name && name !== "__proto__" && !keys.includes(name)) keys.push(name);
   }
   return keys;
 }
 
+/**
+ * Reads the value at a nested frontmatter path (e.g. ["plainva", "tasks"]),
+ * each key found by the name the index gives it (`indexNameOf`) — the last
+ * of two with one name, as the index holds it.
+ * Read-only and total: returns undefined when the content has no parseable
+ * frontmatter, the path is empty, or the key is absent — it never throws, so
+ * hot read paths (task/graph aggregation) can call it per note safely.
+ *
+ * Collections come back as PLAIN JS values, not yaml AST nodes: a caller
+ * reading e.g. `plainva.blocks` would otherwise get a YAMLSeq and
+ * `Array.isArray` would quietly say false.
+ */
 export function readFrontmatterPath(content: string, path: readonly string[]): unknown {
   if (path.length === 0) return undefined;
   let split: SplitDocument;
@@ -107,8 +131,29 @@ export function readFrontmatterPath(content: string, path: readonly string[]): u
     return undefined;
   }
   if (!split.hadFrontmatter || split.doc.contents === null) return undefined;
-  const value = split.doc.getIn(path);
-  return isNode(value) ? value.toJSON() : value;
+  const { doc } = split;
+  let at: unknown = doc.contents;
+  for (const key of path) {
+    if (isAlias(at)) at = at.resolve(doc);
+    // A list is stepped into by the place of an item ("0", "1", …), as before.
+    if (isSeq(at)) {
+      if (!/^(?:0|[1-9]\d*)$/.test(key) || Number(key) >= at.items.length) return undefined;
+      at = at.items[Number(key)];
+      continue;
+    }
+    if (!isMap(at)) return undefined;
+    let found: Pair | undefined;
+    for (let i = at.items.length - 1; i >= 0 && !found; i--) if (indexNameOf(at.items[i], doc) === key) found = at.items[i];
+    if (!found) return undefined;
+    at = found.value;
+  }
+  if (isAlias(at)) at = at.resolve(doc);
+  if (isScalar(at)) return at.value;
+  try {
+    return isNode(at) ? at.toJSON() : at;
+  } catch {
+    return undefined;
+  }
 }
 
 /** A yaml AST node (list/map) as opposed to an already-plain scalar value. */
@@ -154,23 +199,19 @@ function renamedTag(value: unknown, written: string | null, inList: boolean, old
 }
 
 /**
- * The same under `tag`, which the index does not read as tags: a text that is
- * the tag or one of its children, compared whole, as before 2026-10-22.
- */
-function renamedTagText(value: unknown, old: string, next: string): unknown {
-  if (typeof value !== "string") return value;
-  if (value === old) return next;
-  return value.startsWith(old + "/") ? next + value.slice(old.length) : value;
-}
-
-/**
- * Renames a tag value inside the `tags`/`tag` frontmatter key — the exact tag and
+ * Renames a tag value inside the `tags` frontmatter key — the exact tag and
  * its children (`old/sub` -> `new/sub`) — where it stands: the characters of the
  * tag change, in the quotes it has, and nothing else in the note does (a text
  * of several tags over several lines is written anew, see `renamedTag`). Returns
  * the content unchanged (and changed=false) when there is no parseable
  * frontmatter or no matching tag. The inline `#tag` rewrite in the body is the
  * caller's job.
+ *
+ * `tag:` in the singular is no tag: the index does not read it as one, and
+ * neither does Obsidian since 1.9, which dropped `tag`, `alias` and
+ * `cssclass` for their plurals. It is a property like any other, and a rename
+ * of a tag leaves it as it is (open-items plan 3.144 no. 4: it renamed a
+ * whole text under `tag:` the index never listed under the tag).
  */
 export function renameFrontmatterTag(
   content: string,
@@ -186,12 +227,7 @@ export function renameFrontmatterTag(
   } catch {
     return { content, changed: false };
   }
-  const result = changeScalars(
-    content,
-    ["tags", "tag"],
-    (value, written, inList, key) => (key === "tags" ? renamedTag(value, written, inList, o, n) : renamedTagText(value, o, n)),
-    split
-  );
+  const result = changeScalars(content, ["tags"], (value, written, inList) => renamedTag(value, written, inList, o, n), split);
   return result.changed > 0 ? { content: result.content, changed: true } : { content, changed: false };
 }
 

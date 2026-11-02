@@ -468,6 +468,32 @@ export class VaultQueryService {
   }
 
   /**
+   * The notes that carry one of the two keys a TEMPLATE carries for itself:
+   * `plainva.tasks: false` (its tasks stay out of the tasks view) or
+   * `plainva.templateFor` (the databases it is the template of). A note made
+   * from a template by a version up to 0.8.5 took them over (open-items plan
+   * 3.136 no. 1, decision E2); which of them are left over and which were set
+   * on purpose only the person can tell, so this only lists them — the
+   * caller leaves out the template folder. Read from the index's copy of each
+   * note's text, as `listTasks` reads it.
+   */
+  async listTemplateKeyNotes(): Promise<Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }>> {
+    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
+      `SELECT path, title, content FROM fts_notes WHERE content LIKE '%templateFor%' OR content LIKE '%tasks%'`,
+      [],
+    );
+    const out: Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }> = [];
+    for (const r of rows) {
+      if (!r.path || !r.content) continue;
+      const hidesTasks = readFrontmatterPath(r.content, ["plainva", "tasks"]) === false;
+      const templateFor = readFrontmatterPath(r.content, ["plainva", "templateFor"]) != null;
+      if (!hidesTasks && !templateFor) continue;
+      out.push({ path: r.path, title: r.title || r.path.split("/").pop()!.replace(/\.md$/i, ""), hidesTasks, templateFor });
+    }
+    return out.sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  /**
    * Sets `file.tasks` on every row: "done/total" of the note's GFM checkboxes
    * (`taskProgressOf`), "" when it has none. A board card renders the value as
    * a progress bar; any view can show it as a column. Rows whose note is not

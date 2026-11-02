@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-10-29
+Laatst bijgewerkt: 2026-11-02
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -108,6 +108,7 @@ Je hoeft dit veld niet met de hand te schrijven:
 - **Verbergen uit taken** — rechts in de kopregel van elke notitie staat een oog-icoon; met één klik wordt de marker in de notitie geschreven en wordt deze verborgen.
 - **Verborgen tonen** — deze optie in de balk bovenaan brengt de verborgen notities terug (gedimd), elk met een icoon **Weer in taken tonen** dat de marker verwijdert.
 - **Sjablonen verbergen** — als je sjabloonmap notities met selectievakjes bevat, verschijnt rechtsboven een knop **Sjablonen verbergen** die de marker in één keer bij al deze notities aanbrengt.
+- **Notities met sleutels uit een sjabloon** — een notitie die tot versie 0.8.5 uit een sjabloon is gemaakt, kan de eigen sleutels van het sjabloon hebben overgenomen (`plainva.tasks: false`, `plainva.templateFor`); haar taken ontbreken dan hier. Zijn er zulke notities buiten de sjablonenmap, dan somt een melding ze op, elk met een vakje: **Sleutels verwijderen…** haalt de twee sleutels uit de aangevinkte, verder verandert er niets aan. Haal het vinkje weg bij een notitie die je bewust hebt verborgen; **Verbergen** legt de melding weg tot er een notitie bij komt.
 
 Nieuw aangemaakte sjablonen dragen de marker automatisch. Maak je een notitie **vanuit** een sjabloon, dan wordt de marker weer verwijderd — de nieuwe notitie is echte inhoud en de taken erin worden gewoon getoond.
 

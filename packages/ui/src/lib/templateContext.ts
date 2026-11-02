@@ -33,6 +33,12 @@ export interface TemplateVault {
   dailyFolder: string;
   /** Moment-style file-name format of the daily notes; empty means the default. */
   dailyFormat: string;
+  /**
+   * Set where the vault's settings could not be read: folder and format of
+   * its daily notes are unknown, and `{{daily}}` stays as it is written
+   * instead of pointing into the vault's root (open-items plan 3.143 no. 5).
+   */
+  dailyUnknown?: true;
 }
 
 /**
@@ -69,7 +75,7 @@ export async function withVaultContext(ctx: TemplateContext, vault: TemplateVaul
   const next: TemplateContext = { ...ctx };
   if (vault) {
     if (next.vaultName === undefined) next.vaultName = vault.name;
-    if (next.dailyPath === undefined) next.dailyPath = dailyPathFrom(next.day ?? journalToday(next.now), vault);
+    if (next.dailyPath === undefined && !vault.dailyUnknown) next.dailyPath = dailyPathFrom(next.day ?? journalToday(next.now), vault);
   }
   // The shared setting reports Monday when it cannot be read; a template must
   // not fail over it.

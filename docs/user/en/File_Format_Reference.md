@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-10-29
+Last reviewed: 2026-11-02
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -52,9 +52,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-A block may be empty: `---` directly followed by `---` is a block without properties, not two dividers — the note's text begins on the line after it. Plainva leaves no empty block behind: when the last property is removed, the two `---` lines go with it. They only stay where the text itself begins with a `---` line, which would otherwise be read as the start of a block.
+A block may be empty: `---` directly followed by `---` is a block without properties, not two dividers — the note's text begins on the line after it. Plainva leaves no empty block behind: when the last property is removed, the two `---` lines go with it. They only stay where the text itself begins with a `---` line, which would otherwise be read as the start of a block. A block that holds nothing but a comment stays, with the comment.
 
-A block Plainva cannot read as properties is left exactly as it is: text between the two `---` lines that is not YAML, or YAML that is a list instead of `key: value` lines. **Properties** says so instead of showing no properties, and changing a property of such a note — there, in a database, on a pinboard, in the task list, or its icon and colour — changes nothing and says so: **Property could not be saved**, followed by the reason. Correct the block in the note's text and the change goes through. A single value in an unexpected form does not make a block unreadable: Plainva reads it as what is written there — an empty `tags:` is a note without tags, a number among the tags (`- 2024`) is the tag `2024`, a number as `title` is that title, and a `timestamp` that is a date is a property like any other.
+A block Plainva cannot read as properties is left exactly as it is: text between the two `---` lines that is not YAML, or YAML that is a list instead of `key: value` lines. A single line of text, a number or a set (`!!set`) between the two lines is such a block as well: search, links and databases read no property from it either. **Properties** says so instead of showing no properties, and changing a property of such a note — there, in a database, on a pinboard, in the task list, or its icon and colour — changes nothing and says so: **Property could not be saved**, followed by the reason. Correct the block in the note's text and the change goes through. A single value in an unexpected form does not make a block unreadable: Plainva reads it as what is written there — an empty `tags:` is a note without tags, a number among the tags (`- 2024`) is the tag `2024`, a number as `title` is that title, and a `timestamp` that is a date is a property like any other. `tag` and `alias` in the singular are ordinary properties — as in Obsidian since 1.9 —, so a tag is only what stands under `tags`.
 
 ### OKF frontmatter fields
 

@@ -99,15 +99,16 @@ describe("replaceCheckboxWithLink", () => {
   });
 
   it("counts exactly like scanTasks where a carriage return of its own stands between two checkboxes", () => {
-    // `scanTasks` reads the file split at "\n": "- [ ] b\r- [ ] c" is ONE task
-    // there, and "d" the third. Counted in the text an editor holds, the line
-    // was two, and promoting "d" replaced "c" (finding 2026-10-22).
+    // Both count lines where an editor ends them (`sourceLines.ts`, open-items plan
+    // 3.142 no. 3): "- [ ] b\r- [ ] c" is two tasks, and "d" the fourth. Counted
+    // two ways, promoting "d" replaced "c" (finding 2026-10-22).
     const content = "- [ ] a\n- [ ] b\r- [ ] c\n- [ ] d\n";
-    expect(scanTasks(content).map((t) => t.text)[2]).toBe("d");
-    expect(replaceCheckboxWithLink(content, 2, "Tasks/d").content).toBe("- [ ] a\n- [ ] b\r- [ ] c\n- [[Tasks/d]]\n");
-    // The one task the scan sees in "- [ ] b\r- [ ] c": its checkbox is replaced, and what follows it stays.
+    expect(scanTasks(content).map((t) => t.text)).toEqual(["a", "b", "c", "d"]);
+    expect(replaceCheckboxWithLink(content, 3, "Tasks/d").content).toBe("- [ ] a\n- [ ] b\r- [ ] c\n- [[Tasks/d]]\n");
+    // "b" is a line of its own: its checkbox is replaced, its line end and what follows it stay.
     expect(replaceCheckboxWithLink(content, 1, "Tasks/b").content).toBe("- [ ] a\n- [[Tasks/b]]\r- [ ] c\n- [ ] d\n");
-    // A note from a classic Mac is one line for the scan: the rest of the note stays in it.
+    expect(replaceCheckboxWithLink(content, 2, "Tasks/c").content).toBe("- [ ] a\n- [ ] b\r- [[Tasks/c]]\n- [ ] d\n");
+    // A note from a classic Mac: only the box's line changes, the rest of the note stays.
     expect(replaceCheckboxWithLink("- [ ] a\rSome text\rMore text\r", 0, "Tasks/a").content).toBe("- [[Tasks/a]]\rSome text\rMore text\r");
     // A carriage return in front of the box (line ends "\n\r") belongs to the line before it, and stays.
     expect(replaceCheckboxWithLink("text\n\r- [ ] a\n", 0, "X").content).toBe("text\n\r- [[X]]\n");

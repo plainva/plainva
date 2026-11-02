@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-10-29
+Última revisão: 2026-11-02
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -108,6 +108,7 @@ Você não precisa escrever esse campo manualmente:
 - **Ocultar das tarefas** — um ícone de olho fica à direita da linha de cabeçalho de cada nota; um clique grava o marcador nessa nota e a oculta.
 - **Mostrar ocultas** — esta opção na barra de filtros traz de volta as notas ocultas (esmaecidas), cada uma com um ícone para **Mostrar nas tarefas novamente** (que remove o marcador).
 - **Ocultar modelos** — se sua pasta de modelos contém notas com caixas de seleção, um botão **Ocultar modelos** aparece no canto superior direito e grava o marcador em todas elas de uma só vez.
+- **Notas com chaves de um modelo** — uma nota criada a partir de um modelo até a versão 0.8.5 pode ter herdado as chaves próprias do modelo (`plainva.tasks: false`, `plainva.templateFor`), e então as tarefas dela faltam aqui. Quando existem notas assim fora da pasta de modelos, um aviso as lista, cada uma com uma caixa: **Remover chaves…** tira as duas chaves das marcadas, nada mais muda nelas. Desmarque uma nota que você ocultou de propósito; **Ocultar** guarda o aviso até que outra nota entre na lista.
 
 Modelos recém-criados carregam o marcador automaticamente. Quando você cria uma nota **a partir de** um modelo, ele é removido novamente — a nova nota é conteúdo real e mostra suas tarefas normalmente.
 

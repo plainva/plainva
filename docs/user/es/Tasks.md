@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-10-29
+Última actualización: 2026-11-02
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -108,6 +108,7 @@ No tienes que escribir este campo a mano:
 - **Ocultar de las tareas** — un icono de ojo se encuentra a la derecha de la fila de encabezado de cada nota; un clic escribe el marcador en esa nota y la oculta.
 - **Mostrar ocultas** — esta opción en la barra de filtros trae de vuelta las notas ocultas (atenuadas), cada una con un icono **Volver a mostrar en tareas** que elimina el marcador.
 - **Ocultar plantillas** — si tu carpeta de plantillas contiene notas con casillas, aparece un botón **Ocultar plantillas** arriba a la derecha que estampa el marcador en todas ellas a la vez.
+- **Notas con claves de una plantilla** — una nota creada a partir de una plantilla hasta la versión 0.8.5 puede haber heredado las claves propias de la plantilla (`plainva.tasks: false`, `plainva.templateFor`), y entonces sus tareas faltan aquí. Cuando hay notas así fuera de la carpeta de plantillas, un aviso las enumera, cada una con una casilla: **Quitar claves…** quita las dos claves de las marcadas y nada más cambia en ellas. Quita la marca de una nota que ocultaste a propósito; **Ocultar** retira el aviso hasta que se añada otra nota.
 
 Las plantillas recién creadas llevan el marcador automáticamente. Cuando creas una nota **a partir de** una plantilla, se elimina de nuevo — la nota nueva es contenido real y muestra sus tareas con normalidad.
 

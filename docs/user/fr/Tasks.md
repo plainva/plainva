@@ -108,6 +108,7 @@ Vous n'avez pas besoin d'écrire ce champ à la main :
 - **Masquer des tâches** — une icône en forme d'œil se trouve à droite de la ligne d'en-tête de chaque note ; un clic écrit le marqueur dans cette note et la masque.
 - **Afficher les masqués** — cette option dans la barre de filtres fait réapparaître les notes masquées (estompées), chacune avec une icône **Réafficher dans les tâches** qui retire le marqueur.
 - **Masquer les modèles** — si votre dossier de modèles contient des notes avec des cases à cocher, un bouton **Masquer les modèles** apparaît en haut à droite et appose le marqueur sur toutes en une fois.
+- **Notes avec des clés d'un modèle** — une note créée à partir d'un modèle jusqu'à la version 0.8.5 a pu reprendre les clés propres au modèle (`plainva.tasks: false`, `plainva.templateFor`) ; ses tâches manquent alors ici. Lorsque de telles notes existent hors du dossier des modèles, un avis les liste, chacune avec une case : **Retirer les clés…** retire les deux clés des notes cochées, rien d'autre n'y change. Décochez une note que vous avez masquée exprès ; **Masquer** range l'avis jusqu'à ce qu'une autre note s'ajoute.
 
 Les modèles nouvellement créés portent le marqueur automatiquement. Quand vous créez une note **à partir** d'un modèle, il est retiré à nouveau — la nouvelle note est du contenu réel et affiche normalement ses tâches.
 

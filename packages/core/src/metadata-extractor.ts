@@ -1,5 +1,5 @@
-import { parseDocument, isAlias, isMap, isScalar, isSeq, type Document, type YAMLMap } from "yaml";
-import { FrontmatterSurgicalError, yamlLinesOf } from "./frontmatter-block.js";
+import { isAlias, isMap, isScalar, isSeq, type Document, type YAMLMap } from "yaml";
+import { FrontmatterSurgicalError, parseBlockYaml, yamlLinesOf } from "./frontmatter-block.js";
 import { MarkdownAst, MarkdownYamlNode } from "./markdown-ast.js";
 import { READ_LIST_FIELDS, READ_TEXT_FIELDS, readableFrontmatterSchema, ReadableFrontmatter } from "./metadata.js";
 
@@ -43,12 +43,15 @@ export type ExtractedFrontmatterResult =
  * schema against it); only a number under `okf_version` is now the text it is
  * written with (`1.0`, not `1`).
  *
- * Not read, as before: YAML that cannot be parsed, a reference that leads
- * nowhere (`title: *Draft*`), and a block that is a list. A block that holds
- * no entry, only a text or a number, or a set, an ordered map or a date at its
- * top (`!!set`, `!!omap`, `!!timestamp`), reads as one without properties;
- * the writers refuse all of them but the empty block and the set, and the
- * panel and the phone's sheet say so (`propertiesBlockRefused`).
+ * Not read: YAML that cannot be parsed, a reference that leads nowhere
+ * (`title: *Draft*`), and a block that is no map — a list, a line of prose, a
+ * number, a set, an ordered map or a date at its top (`!!set`, `!!omap`,
+ * `!!timestamp`). The reader asks the one rule the writers ask
+ * (`parseBlockYaml`; open-items plan 3.144 no. 1, decision E15): until
+ * 2026-11-02 it read a block of prose, a number or a set as one without
+ * properties while every write to it was refused, so "has none" and "cannot
+ * be written" were two answers to one block. A block that holds no entry —
+ * no line, blank lines, comments only — is one without properties.
  */
 export function extractFrontmatter(ast: MarkdownAst): ExtractedFrontmatterResult {
   const yamlNode = ast.children.find((node): node is MarkdownYamlNode => node.type === "yaml");
@@ -63,27 +66,19 @@ export function extractFrontmatter(ast: MarkdownAst): ExtractedFrontmatterResult
   let doc: Document;
   let said: unknown;
   try {
-    // `logLevel: "error"`: what the library would print as a warning — a key
-    // that is a map, `{{title}}:` in a template — is no failure of the
-    // block, and the index reads every note on every full pass.
-    doc = parseDocument(yaml, { logLevel: "error" });
-    if (doc.errors.length > 0) throw doc.errors[0];
+    doc = parseBlockYaml(yaml);
     said = doc.toJS();
   } catch (e) {
     return { success: false, error: e instanceof Error ? e : new Error(String(e)) };
   }
 
-  if (typeof said !== "object" || said === null) {
-    return { success: true, data: {} };
-  }
-  if (Array.isArray(said)) {
-    return { success: false, error: new FrontmatterSurgicalError("Frontmatter is not a YAML map") };
-  }
   const map = doc.contents;
-  // A set, an ordered map or a date at the top of the block (`!!set`,
-  // `!!omap`, `!!timestamp`) names no property, as before.
-  if (!isMap(map) || !plainRecord(said)) {
+  // No entry: no line, blank lines, comments only.
+  if (map === null || said === null || said === undefined) {
     return { success: true, data: {} };
+  }
+  if (!isMap(map) || !plainRecord(said)) {
+    return { success: false, error: new FrontmatterSurgicalError("Frontmatter is not a YAML map") };
   }
 
   const read = said;

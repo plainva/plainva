@@ -1,5 +1,6 @@
 import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
 import { createFenceTracker } from "../markdownFence.js";
+import { joinSourceLines, sourceLinesOf } from "../sourceLines.js";
 import { GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
 import { nextTasksDates, readTasksMetadata, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
 import { htmlInputTagRanges, readHtmlCheckbox, withHtmlCheckboxChecked } from "./htmlCheckbox.js";
@@ -27,15 +28,18 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
   if (!task || (checked ? task.state === "done" : task.state === "open")) return { content, changed: false };
   const date = new Date(), today = options.today ?? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   if (tasksDayNumber(today) === null) throw new Error("invalid_task_completion_day");
-  const lines = content.split("\n"), raw = lines[task.line], cr = raw.endsWith("\r") ? "\r" : "";
+  // The scan's lines (`sourceLines.ts`): each keeps the line end it has. A
+  // successor took everything behind the box up to the next `\n` — in a note
+  // whose lines end in `\r`, the rest of the note (open-items plan 3.142 no. 2).
+  const lines = sourceLinesOf(content), raw = lines[task.line].text, eol = lines[task.line].eol || "\n";
   const match = GFM_TASK_LINE.exec(raw)!;
   // A byte order mark belongs to the file, not to its first line: the line's
   // own lead is what stands behind it. (The pattern's leading blanks take the
   // mark in, and a successor built from them carried a second one.)
   const mark = task.line === 0 && raw.charCodeAt(0) === 0xfeff ? raw[0] : "";
   const lead = match[1].slice(mark.length);
-  const suffix = match[3].replace(/\r$/, "");
-  let body = raw.slice(match[0].length).replace(/\r$/, "");
+  const suffix = match[3];
+  let body = raw.slice(match[0].length);
   const metadata = readTasksMetadata(body);
   const hasFields = [metadata.created, metadata.completed, metadata.due, metadata.start, metadata.scheduled, metadata.cancelled, metadata.taskId, metadata.recurrence].some(value => value !== null);
   let successor: string | null = null;
@@ -55,16 +59,16 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
         nextBody = setTasksField(nextBody, "cancelled", null);
         if (metadata.created) nextBody = setTasksField(nextBody, "created", today);
         for (const field of ["due", "scheduled", "start"] as const) if (nextDates[field]) nextBody = setTasksField(nextBody, field, nextDates[field]);
-        successor = lead + " " + suffix + nextBody + cr;
+        successor = lead + " " + suffix + nextBody;
       }
     }
   }
   if (hasFields) body = setTasksField(body, "completed", checked ? today : null);
-  lines[task.line] = lead + (checked ? "x" : " ") + suffix + body + cr;
-  if (successor !== null) lines.splice(task.line, 0, successor);
+  lines[task.line] = { text: lead + (checked ? "x" : " ") + suffix + body, eol: lines[task.line].eol };
+  if (successor !== null) lines.splice(task.line, 0, { text: successor, eol });
   // The mark goes back in front of whatever line is the first one now.
-  lines[0] = mark + lines[0];
-  return { content: lines.join("\n"), changed: true };
+  lines[0] = { ...lines[0], text: mark + lines[0].text };
+  return { content: joinSourceLines(lines), changed: true };
 }
 
 /**
@@ -75,19 +79,17 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
 export function rewriteChecklistTaskText(content: string, index: number, rewrite: (text: string) => string): ChecklistMutationResult {
   const task = scanTasks(content)[index];
   if (!task) return { content, changed: false };
-  const lines = content.split("\n"), raw = lines[task.line], cr = raw.endsWith("\r") ? "\r" : "";
+  const lines = sourceLinesOf(content), raw = lines[task.line].text;
   const match = GFM_TASK_LINE.exec(raw)!;
-  const body = raw.slice(match[0].length).replace(/\r$/, "");
+  const body = raw.slice(match[0].length);
   const next = rewrite(body);
   if (next === body) return { content, changed: false };
-  // An empty box in a `\r\n` note: the blank the pattern asks for behind the
-  // bracket IS the line's `\r`. It is put back at the end — it used to stay
-  // where it was, in the middle of the line. And a text set behind a box that
-  // had nothing behind it gets the blank that makes the line a task line.
-  const head = match[0].endsWith("\r") ? match[0].slice(0, -1) : match[0];
+  // The line end stays the line's own (`sourceLines.ts`). A text set behind a
+  // box that had nothing behind it gets the blank that makes the line a task line.
+  const head = match[0];
   const gap = head.endsWith("]") && next !== "" && !/^\s/.test(next) ? " " : "";
-  lines[task.line] = head + gap + next + cr;
-  return { content: lines.join("\n"), changed: true };
+  lines[task.line] = { text: head + gap + next, eol: lines[task.line].eol };
+  return { content: joinSourceLines(lines), changed: true };
 }
 
 /** Sets or clears the priority mark of one checkbox (1 = high … 3 = low, 0 = none). */
@@ -115,10 +117,10 @@ export function setChecklistTaskState(content: string, index: number, state: Tas
   if (state === "open" || state === "done") return setChecklistTaskDone(content, index, state === "done", options);
   const task = scanTasks(content)[index];
   if (!task || task.state === state) return { content, changed: false };
-  const lines = content.split("\n"), raw = lines[task.line];
+  const lines = sourceLinesOf(content), raw = lines[task.line].text;
   const match = GFM_TASK_LINE.exec(raw)!;
-  lines[task.line] = match[1] + taskBoxChar(state) + raw.slice(match[1].length + 1);
-  return { content: lines.join("\n"), changed: true };
+  lines[task.line] = { text: match[1] + taskBoxChar(state) + raw.slice(match[1].length + 1), eol: lines[task.line].eol };
+  return { content: joinSourceLines(lines), changed: true };
 }
 
 /**
@@ -138,20 +140,20 @@ export function setChecklistTaskState(content: string, index: number, state: Tas
  * writer (plan Befunde 24.09., E6).
  */
 export function setHtmlCheckboxChecked(content: string, index: number, checked: boolean): ChecklistMutationResult {
-  const lines = content.split("\n");
+  const lines = sourceLinesOf(content);
   let ordinal = 0;
   const fence = createFenceTracker();
   for (let i = 0; i < lines.length; i++) {
-    if (fence.step(lines[i]) !== null) continue;
-    const line = lines[i];
+    const line = lines[i].text;
+    if (fence.step(line) !== null) continue;
     for (const range of htmlInputTagRanges(line)) {
       const tag = line.slice(range.from, range.to);
       const box = readHtmlCheckbox(tag);
       if (!box) continue;
       if (ordinal++ !== index) continue;
       if (box.checked === checked) return { content, changed: false };
-      lines[i] = line.slice(0, range.from) + withHtmlCheckboxChecked(tag, checked) + line.slice(range.to);
-      return { content: lines.join("\n"), changed: true };
+      lines[i] = { text: line.slice(0, range.from) + withHtmlCheckboxChecked(tag, checked) + line.slice(range.to), eol: lines[i].eol };
+      return { content: joinSourceLines(lines), changed: true };
     }
   }
   return { content, changed: false };

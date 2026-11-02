@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-10-29
+Dernière mise à jour : 2026-11-02
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -44,7 +44,7 @@ Avant toute modification, l'assistant sauvegarde le fichier dans `.plainva/backu
 
 ### Une note créée à partir d'un modèle manque dans la vue Tâches
 
-Une note que vous avez créée à partir d'un modèle jusqu'à la version 0.8.5 — y compris une note quotidienne — peut avoir hérité d'un réglage de son modèle qui masque ses tâches. Recherchez `"tasks: false"` dans le vault — **avec** les guillemets, sinon vous trouverez aussi des notes où les deux mots apparaissent simplement par hasard. Dans les résultats, la ligne se trouve dans le frontmatter sous un bloc `plainva:` ; supprimez-y `tasks: false` (et `templateFor:` s'il est présent) et la note revient. Laissez la ligne dans les modèles eux-mêmes, où elle a sa place. Les notes nouvellement créées à partir d'un modèle n'en héritent plus.
+Une note que vous avez créée à partir d'un modèle jusqu'à la version 0.8.5 — y compris une note quotidienne — peut avoir hérité d'un réglage de son modèle qui masque ses tâches. Recherchez `"tasks: false"` dans le vault — **avec** les guillemets, sinon vous trouverez aussi des notes où les deux mots apparaissent simplement par hasard. Dans les résultats, la ligne se trouve dans le frontmatter sous un bloc `plainva:` ; supprimez-y `tasks: false` (et `templateFor:` s'il est présent) et la note revient. Laissez la ligne dans les modèles eux-mêmes, où elle a sa place. Les notes nouvellement créées à partir d'un modèle n'en héritent plus. La vue des tâches trouve désormais ces notes pour vous : un avis au-dessus des tâches les liste, et **Retirer les clés…** retire les deux clés de celles que vous cochez.
 
 ## Synchronisation
 

@@ -15,7 +15,7 @@
  * level (acceptable for a clipboard paste). Pure and unit-testable.
  */
 
-import { readAtxHeading, readBlockquoteLine, readMarkdownListItem } from "@plainva/core";
+import { createFenceTracker, readAtxHeading, readBlockquoteLine, readMarkdownListItem, readQuoteDepth, stripQuoteMarkers, type FenceLineKind } from "@plainva/core";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
 
 function escapeHtml(s: string): string {
@@ -75,7 +75,6 @@ function inlineToHtml(line: string): string {
   return inlineNodesToHtml(parseInlineMarkdown(line));
 }
 
-const OPEN_FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 const THEMATIC_BREAK_RE = /^\s{0,3}([-*_=])(?:[ \t]*\1){2,}[ \t]*$/;
 
 function isTableSeparatorRow(line: string): boolean {
@@ -98,6 +97,12 @@ function splitTableCells(line: string): string[] {
 export function markdownToHtml(md: string): string {
   if (!md) return "";
   const lines = md.split("\n");
+  // Fenced code by the one rule every scanner reads (core `markdownFence.ts`;
+  // open-items plan 3.159 no. 4, decision E16): a fence in a quote or a
+  // callout included. A pattern of its own here knew no quote, so the code of
+  // a fenced block in a callout went into a mail as Markdown read as text.
+  const fence = createFenceTracker();
+  const fenceKinds: Array<FenceLineKind | null> = lines.map((line) => fence.step(line));
   const out: string[] = [];
   let para: string[] = [];
   const flushPara = () => {
@@ -111,20 +116,20 @@ export function markdownToHtml(md: string): string {
   while (i < lines.length) {
     const raw = lines[i];
 
-    // Fenced code block — content emitted verbatim (escaped), never inline-parsed.
-    const open = OPEN_FENCE_RE.exec(raw);
-    if (open) {
+    // Fenced code block — content emitted verbatim (escaped), never inline-parsed;
+    // in a quote, without the quote's markers and inside a quote.
+    if (fenceKinds[i] === "open") {
       flushPara();
-      const fence = open[1];
-      const closeRe = new RegExp(`^\\s{0,3}${fence[0]}{${fence.length},}\\s*$`);
+      const depth = readQuoteDepth(raw).depth;
       i++;
       const code: string[] = [];
-      while (i < lines.length && !closeRe.test(lines[i])) {
-        code.push(lines[i]);
+      while (i < lines.length && fenceKinds[i] === "code") {
+        code.push(stripQuoteMarkers(lines[i], depth));
         i++;
       }
-      if (i < lines.length) i++; // skip the closing fence
-      out.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+      if (fenceKinds[i] === "close") i++; // skip the closing fence
+      const block = `<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`;
+      out.push(depth > 0 ? `<blockquote>${block}</blockquote>` : block);
       continue;
     }
 
@@ -176,6 +181,8 @@ export function markdownToHtml(md: string): string {
       flushPara();
       const inner: string[] = [];
       while (i < lines.length) {
+        // A fence in the quote is code of its own (above), not quoted prose.
+        if (fenceKinds[i] !== null) break;
         const quote = readBlockquoteLine(lines[i]);
         if (!quote) break;
         inner.push(quote.text);

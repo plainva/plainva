@@ -41,6 +41,18 @@ function checkPlan(plan: ShareImportPlan, share: PendingShare, vaultId: string):
   if (j !== undefined && (!j || !/^\d{4}-\d{2}-\d{2}$/.test(j.date) || !/^\d{2}:\d{2}$/.test(j.time) || typeof j.heading !== "string" || !j.heading.trim() || j.heading.length > 200
     || typeof j.text !== "string" || !j.text.trim() || new TextEncoder().encode(j.text).length > SHARE_LIMITS.textBytes + 16384 || plan.noteText !== "")) throw new Error("SHARE_INVALID");
 }
+/**
+ * A plan that passes its own check, before it is laid down. A plan was laid
+ * down first and checked after: one that failed — a text over the limit, made
+ * from a shared text and a large template of a task database — stayed in the
+ * list, failed every further attempt the same way and held its file name for
+ * other shares (open-items plan 3.129 no. 2). Now it is refused before anything
+ * is planned or written, as an unsafe task folder already was.
+ */
+function checkedPlan(plan: ShareImportPlan, share: PendingShare, vaultId: string): ShareImportPlan {
+  checkPlan(plan, share, vaultId);
+  return plan;
+}
 async function readFile(port: ShareTargetPort, shareId: string, file: SharedFile, guard: () => Promise<void>) {
   const bytes = new Uint8Array(file.size);
   for (let offset = 0; offset < file.size; offset += SHARE_LIMITS.chunkBytes) {
@@ -128,7 +140,7 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
       // journal writes further lines as continuation lines of the entry.
       const text = [share.subject.trim(), share.text.trim(), ...links].filter(Boolean).join("\n") || title;
       const { notePath, ...stamp } = journal;
-      return validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText: "", files, journal: { ...stamp, text } } })).entry);
+      return validateShare((await port.beginImport({ id: share.id, plan: checkedPlan({ version: 1, vaultId: ctx.vaultId, notePath, noteText: "", files, journal: { ...stamp, text } }, share, ctx.vaultId) })).entry);
     } else {
       const task = ctx.asTask ? await ctx.asTask({ title, body: [share.text, ...links].filter(Boolean).join("\n\n") }) : null;
       const folder = task ? task.folder : ctx.folder;
@@ -154,7 +166,7 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
       // plan's size check leaves 16 KB beyond the shared text for it, the
       // heading and the links.
       const noteText = task ? task.text : withOkfDefaults(["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n", ctx.noteType);
-      return validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText, files } })).entry);
+      return validateShare((await port.beginImport({ id: share.id, plan: checkedPlan({ version: 1, vaultId: ctx.vaultId, notePath, noteText, files }, share, ctx.vaultId) })).entry);
     }
   });
   const plan = share.plan!;

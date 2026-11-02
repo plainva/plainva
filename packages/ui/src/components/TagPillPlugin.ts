@@ -31,7 +31,7 @@ export type OpenTagFn = (tag: string) => void;
  */
 const SKIP = new Set([
   "FencedCode", "CodeBlock", "HTMLBlock", "CommentBlock", "ProcessingInstructionBlock",
-  "InlineCode", "Link", "Image", "URL", "Autolink", "HTMLTag", "Comment",
+  "InlineCode", "Link", "WikiLink", "Image", "URL", "Autolink", "HTMLTag", "Comment",
 ]);
 
 function skipped(state: EditorState, pos: number): boolean {

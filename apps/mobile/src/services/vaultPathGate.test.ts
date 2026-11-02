@@ -63,3 +63,15 @@ describe("a vault path set on the phone (3.127 no. 4)", () => {
     expect(getMobileSettings().templateFolder).toBe("Vorlagen");
   });
 });
+
+describe("the template rules set on the phone (P10, 3.127 no. 4)", () => {
+  it("are refused where a folder or a template points under .plainva, and taken inside the vault", async () => {
+    const before = getMobileSettings().folderTemplates;
+    await updateMobileSettings({ folderTemplates: [{ folder: ".plainva/x", template: "Templates/A.md" }] });
+    expect(getMobileSettings().folderTemplates).toEqual(before);
+    await updateMobileSettings({ typeTemplates: [{ type: "Person", template: ".plainva/T.md" }] });
+    expect(state.errors).toEqual([".plainva/x", ".plainva/T.md"]);
+    await updateMobileSettings({ folderTemplates: [{ folder: "Projects", template: "Templates/A.md" }] });
+    expect(getMobileSettings().folderTemplates).toEqual([{ folder: "Projects", template: "Templates/A.md" }]);
+  });
+});

@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-10-29
+Ultimo aggiornamento: 2026-11-02
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -108,6 +108,7 @@ Non devi scrivere questo campo a mano:
 - **Nascondi dalle attività** — un'icona a forma di occhio si trova a destra della riga di intestazione di ogni nota; un clic scrive il marcatore in quella nota e la nasconde.
 - **Mostra nascoste** — questa opzione nella barra dei filtri fa ricomparire le note nascoste (attenuate), ciascuna con un'icona **Mostra di nuovo nelle attività** (che rimuove il marcatore).
 - **Nascondi modelli** — se la cartella dei tuoi modelli contiene note con caselle di controllo, in alto a destra compare il pulsante **Nascondi modelli**, che scrive il marcatore in tutte contemporaneamente.
+- **Note con chiavi di un modello** — una nota creata da un modello fino alla versione 0.8.5 può aver ripreso le chiavi proprie del modello (`plainva.tasks: false`, `plainva.templateFor`), e allora le sue attività mancano qui. Quando esistono note simili fuori dalla cartella dei modelli, un avviso le elenca, ciascuna con una casella: **Rimuovi chiavi…** toglie le due chiavi da quelle spuntate, nient'altro cambia in esse. Togli la spunta a una nota che hai nascosto di proposito; **Nascondi** mette via l'avviso finché non se ne aggiunge un'altra.
 
 I modelli appena creati portano il marcatore automaticamente. Quando crei una nota **a partire da** un modello, il marcatore viene rimosso di nuovo — la nuova nota è contenuto reale e mostra le sue attività normalmente.
 

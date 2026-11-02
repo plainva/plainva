@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-10-29
+Stan na: 2026-11-02
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -44,7 +44,7 @@ Przed każdą zmianą kreator tworzy kopię zapasową pliku w `.plainva/backups/
 
 ### Notatka utworzona z szablonu nie pojawia się w widoku Zadania
 
-Notatka utworzona z szablonu do wersji 0.8.5 włącznie — także notatka dzienna — mogła odziedziczyć po swoim szablonie ustawienie, które ukrywa jej zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. W samych szablonach zostaw ten wiersz — tam jest jego miejsce. Notatki nowo utworzone z szablonu już tego nie dziedziczą.
+Notatka utworzona z szablonu do wersji 0.8.5 włącznie — także notatka dzienna — mogła odziedziczyć po swoim szablonie ustawienie, które ukrywa jej zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. W samych szablonach zostaw ten wiersz — tam jest jego miejsce. Notatki nowo utworzone z szablonu już tego nie dziedziczą. Widok zadań sam znajduje teraz takie notatki: komunikat nad zadaniami je wymienia, a **Usuń klucze…** usuwa oba klucze z tych, które zaznaczysz.
 
 ## Synchronizacja
 

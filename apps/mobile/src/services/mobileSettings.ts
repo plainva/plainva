@@ -26,6 +26,7 @@ import {
   recoverPersonalDesign,
   setDayBoundary,
   setExtraTextExtensions,
+  isVaultPathSetting,
   refusedVaultPaths,
   refuseVaultPathSetting,
   VAULT_PATH_SETTINGS_MOBILE,
@@ -487,8 +488,20 @@ export function updateMobileSettings(patch: Partial<Omit<MobileSettings, "custom
   // or file setting points under .plainva or out of the vault. The field asks
   // first (`FolderField`); what still arrives here is refused and said.
   const refused = refusedVaultPaths(patch as Record<string, unknown>, (key) => VAULT_PATH_SETTINGS_MOBILE.has(key));
+  // The template rules name a folder and a template each: the same rule for
+  // every path in them. Only the profile import asked it (P10, 3.127 no. 4);
+  // a rule set here kept a folder or template under .plainva.
+  const refusedRulePaths: string[] = [];
+  for (const rule of patch.folderTemplates ?? []) for (const path of [rule.folder, rule.template]) if (!isVaultPathSetting(path)) refusedRulePaths.push(path);
+  if (refusedRulePaths.length > 0) refused.push("folderTemplates");
+  const typeRulePaths = (patch.typeTemplates ?? []).map((rule) => rule.template).filter((path) => !isVaultPathSetting(path));
+  if (typeRulePaths.length > 0) {
+    refused.push("typeTemplates");
+    refusedRulePaths.push(...typeRulePaths);
+  }
   if (refused.length > 0) {
-    for (const key of refused) refuseVaultPathSetting(String((patch as Record<string, unknown>)[key]));
+    for (const key of refused) if (key !== "folderTemplates" && key !== "typeTemplates") refuseVaultPathSetting(String((patch as Record<string, unknown>)[key]));
+    if (refusedRulePaths.length > 0) refuseVaultPathSetting(refusedRulePaths[0]);
     patch = Object.fromEntries(Object.entries(patch).filter(([key]) => !refused.includes(key))) as typeof patch;
     if (Object.keys(patch).length === 0) {
       window.dispatchEvent(new CustomEvent("m-settings-changed"));

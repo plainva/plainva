@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-10-29
+Stan na: 2026-11-02
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -52,9 +52,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-Blok może być pusty: `---`, po którym bezpośrednio następuje `---`, to blok bez właściwości, a nie dwa separatory — treść notatki zaczyna się w następnej linii. Plainva nie zostawia pustego bloku: gdy usuwana jest ostatnia właściwość, obie linie `---` znikają razem z nią. Pozostają tylko wtedy, gdy sama treść zaczyna się od linii `---`, która w przeciwnym razie zostałaby odczytana jako początek bloku.
+Blok może być pusty: `---`, po którym bezpośrednio następuje `---`, to blok bez właściwości, a nie dwa separatory — treść notatki zaczyna się w następnej linii. Plainva nie zostawia pustego bloku: gdy usuwana jest ostatnia właściwość, obie linie `---` znikają razem z nią. Pozostają tylko wtedy, gdy sama treść zaczyna się od linii `---`, która w przeciwnym razie zostałaby odczytana jako początek bloku. Blok, w którym został tylko komentarz, zostaje razem z komentarzem.
 
-Blok, którego Plainva nie potrafi odczytać jako właściwości, pozostaje dokładnie taki, jaki jest: tekst między dwiema liniami `---`, który nie jest YAML-em, albo YAML będący listą zamiast linii `klucz: wartość`. Sekcja **Właściwości** mówi o tym, zamiast nie pokazywać żadnych właściwości, a zmiana właściwości takiej notatki — tam, w bazie danych, na tablicy korkowej, na liście zadań albo jej ikony i koloru — niczego nie zmienia, a Plainva o tym informuje: **Nie udało się zapisać właściwości**, a dalej przyczyna. Popraw blok w treści notatki, a zmiana zostanie zapisana. Pojedyncza wartość w nieoczekiwanej postaci nie czyni bloku nieczytelnym: Plainva odczytuje ją tak, jak jest zapisana — puste `tags:` to notatka bez tagów, liczba wśród tagów (`- 2024`) to tag `2024`, liczba jako `title` to ten tytuł, a `timestamp` będący datą to zwykła właściwość.
+Blok, którego Plainva nie potrafi odczytać jako właściwości, pozostaje dokładnie taki, jaki jest: tekst między dwiema liniami `---`, który nie jest YAML-em, albo YAML będący listą zamiast linii `klucz: wartość`. Pojedynczy wiersz tekstu, liczba lub zbiór (`!!set`) między dwiema liniami to również taki blok: także wyszukiwanie, linki i bazy danych nie odczytują z niego żadnej właściwości. Sekcja **Właściwości** mówi o tym, zamiast nie pokazywać żadnych właściwości, a zmiana właściwości takiej notatki — tam, w bazie danych, na tablicy korkowej, na liście zadań albo jej ikony i koloru — niczego nie zmienia, a Plainva o tym informuje: **Nie udało się zapisać właściwości**, a dalej przyczyna. Popraw blok w treści notatki, a zmiana zostanie zapisana. Pojedyncza wartość w nieoczekiwanej postaci nie czyni bloku nieczytelnym: Plainva odczytuje ją tak, jak jest zapisana — puste `tags:` to notatka bez tagów, liczba wśród tagów (`- 2024`) to tag `2024`, liczba jako `title` to ten tytuł, a `timestamp` będący datą to zwykła właściwość. `tag` i `alias` w liczbie pojedynczej to zwykłe właściwości — jak w Obsidianie od wersji 1.9 —, więc tagiem jest tylko to, co stoi pod `tags`.
 
 ### Pola frontmatter OKF
 

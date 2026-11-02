@@ -195,24 +195,41 @@ export function noteWithoutProperties(content: string): string {
  * comments only — is a block without entries. Anything else is an anomaly that
  * is refused and never repaired (ADR 0009, decision point 2): YAML that does
  * not parse, and YAML that is no map — text between two rules, a list, a
- * number, a `null` that is spelt out. The writers ask here, and so does the
+ * number, a `null` that is spelt out — and a map YAML gives another kind:
+ * `!!set` (a set of names, no values) or any other of YAML's own tags at the
+ * top that is not `!!map`. The writers ask here, the index's reader does
+ * (`extractFrontmatter`, open-items plan 3.144 no. 1: it read a block of prose
+ * as one without properties while every write refused it), and so does the
  * sanitizer for published slices: a block that cannot be written by its
- * property names cannot be filtered by them either.
+ * property names cannot be filtered by them either. A `!!set` block used to
+ * pass here and leave the sanitizer with no names, so a note went out without
+ * its block and an empty report (3.128 no. 4).
  *
  * `sourceTokens` keeps, on every node, the token it was read from (see
  * `splitDocument`).
  */
 export function parseBlockYaml(yaml: string, options: { sourceTokens?: boolean } = {}): Document {
-  const doc = options.sourceTokens ? parseDocument(yaml, { keepSourceTokens: true }) : parseDocument(yaml);
+  // `logLevel: "error"`: what the library would print as a warning — a key
+  // that is a map, `{{title}}:` in a template — is no failure of the block,
+  // and the index reads every note on every full pass.
+  const doc = parseDocument(yaml, options.sourceTokens ? { keepSourceTokens: true, logLevel: "error" } : { logLevel: "error" });
   if (doc.errors.length > 0) {
     throw new FrontmatterSurgicalError(
       `Frontmatter is not parseable YAML: ${doc.errors[0].message}`
     );
   }
-  if (doc.contents !== null && !isMap(doc.contents)) {
+  if (doc.contents !== null && (!isMap(doc.contents) || !isPlainMapTag(doc.contents.tag))) {
     throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
   }
   return doc;
+}
+
+/** YAML's own tags begin so; of them, only the map's is a map of properties. */
+const YAML_TAG = "tag:yaml.org,2002:";
+
+/** Whether a map's tag leaves it a map of properties: none, `!!map`, or a tag of somebody else's (`!foo`), which YAML reads as a map. */
+function isPlainMapTag(tag: string | undefined): boolean {
+  return !tag || !tag.startsWith(YAML_TAG) || tag === `${YAML_TAG}map`;
 }
 
 export interface SplitDocument {

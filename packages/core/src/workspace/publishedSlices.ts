@@ -1,8 +1,8 @@
-import { stringify } from "yaml";
+import { CST, Lexer, stringify } from "yaml";
 import { sha256Hex, utf8Encode } from "./encoding.js";
 import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
 import { byteOrderMarkOf, composeNote, FrontmatterSurgicalError, frontmatterSpan, parseBlockYaml } from "../frontmatter-block.js";
-import { dataOfBlock } from "../frontmatter-entry.js";
+import { dataOfBlock, holdsCycleMark, removeEntry, sameData } from "../frontmatter-entry.js";
 import { nextWhere } from "../linkScan.js";
 import type { WorkspaceCapability } from "./documents.js";
 import type { WorkspaceListPage, WorkspaceObjectInfo, WorkspaceObjectStore, WorkspaceRequestOptions } from "./objectStore.js";
@@ -589,6 +589,72 @@ function publishableProperties(yaml: string): Record<string, unknown> {
   }
 }
 
+/** Stands where a comment was taken out of a line, until the line is put together again. */
+const TAKEN = String.fromCharCode(0);
+
+/**
+ * The block of the published copy: the note's own block with the entries the
+ * policy withholds taken out and every comment with them — the entries that go
+ * out keep the characters they are written with.
+ *
+ * It used to be written anew from the values as they were READ: `plz: 01067`
+ * went out as `1067`, `id: 12345678901234567890` without its last digits,
+ * `0x1F` as `31` (open-items plan 3.72 no. 2). The note itself was never
+ * touched; its copy was not the note.
+ *
+ * Written anew it still is where the note's text cannot be the copy's: an
+ * entry that goes is referred to by one that stays (its anchor would go with
+ * it), or what is left does not read as exactly the entries that go out. A
+ * comment never leaves — it could say what was withheld — and so a comment is
+ * taken out by the YAML lexer, which knows a `#` in a text from one that
+ * begins a comment.
+ */
+function publishedBlock(yaml: string, withheld: readonly string[], clean: Record<string, unknown>, newline: string): string {
+  const anew = (): string => {
+    // A value that leads back to itself cannot be written from its data (`holdsCycleMark`): the note is refused.
+    if (holdsCycleMark(clean)) throw new WorkspaceProtocolError("format", FRONTMATTER_REFUSED);
+    return stringify(clean).trimEnd().replace(/\n/g, newline);
+  };
+  let kept: string | null = null;
+  try {
+    let note = `---${newline}${yaml}${newline}---${newline}`;
+    for (const key of withheld) note = removeEntry(note, [key]);
+    const span = frontmatterSpan(note);
+    if (span) {
+      const text = withoutComments(span.yaml);
+      if (sameData(dataOfBlock(parseBlockYaml(text)), clean)) kept = text;
+    }
+  } catch {
+    kept = null;
+  }
+  return kept ?? anew();
+}
+
+/** YAML without its comments; a line that held nothing else goes, a line with a value loses the blanks in front of its comment. */
+function withoutComments(yaml: string): string {
+  let text = "";
+  for (const token of new Lexer().lex(yaml)) {
+    const type = CST.tokenType(token);
+    // The lexer's own marks are no characters of the text.
+    if (type === "doc-mode" || type === "scalar" || type === "flow-error-end" || type === "byte-order-mark") continue;
+    text += type === "comment" ? TAKEN : token;
+  }
+  if (!text.includes(TAKEN)) return text;
+  const lines = text.split(/(\r\n|\r|\n)/);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += 2) {
+    const line = lines[i];
+    const end = lines[i + 1] ?? "";
+    if (!line.includes(TAKEN)) {
+      out.push(line + end);
+      continue;
+    }
+    const left = line.split(TAKEN).join("").trimEnd();
+    if (left !== "") out.push(left + end);
+  }
+  return out.join("").replace(/(?:\r\n|\r|\n)$/, "");
+}
+
 /**
  * Creates a non-round-trippable Markdown projection for an external slice.
  *
@@ -639,12 +705,15 @@ export function projectPublishedMarkdown(input: {
   if (block) {
     const newline = markdown[block.yamlStart - 2] === "\r" ? "\r\n" : "\n";
     const clean: Record<string, unknown> = {};
+    const withheld: string[] = [];
     for (const [key, value] of Object.entries(publishableProperties(block.yaml))) {
       const normalized = normalizePropertyKey(key);
-      if (privateKeys.has(normalized) || !allow.has(normalized)) removedProperties.add(key);
-      else clean[key] = value;
+      if (privateKeys.has(normalized) || !allow.has(normalized)) {
+        removedProperties.add(key);
+        withheld.push(key);
+      } else clean[key] = value;
     }
-    const yaml = Object.keys(clean).length ? stringify(clean).trimEnd().replace(/\n/g, newline) : "";
+    const yaml = Object.keys(clean).length ? publishedBlock(block.yaml, withheld, clean, newline) : "";
     markdown = composeNote({ byteOrderMark: byteOrderMarkOf(markdown), yaml, body: markdown.slice(block.end), eol: newline });
   }
 

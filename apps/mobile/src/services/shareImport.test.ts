@@ -180,6 +180,17 @@ describe("durable inbound transfers", () => {
       expect(f.files.writeBinaryFile).not.toHaveBeenCalled();
     }
   });
+  it("'as a task' refuses a note over the plan's size limit before the plan is laid down (open-items plan 3.129 no. 2)", async () => {
+    // A large template of the task database and a long shared text: the plan
+    // was laid down and checked after, so it stayed in the list and failed
+    // every further attempt the same way, holding its file name.
+    const f = fixture();
+    const huge = "x".repeat(SHARE_LIMITS.textBytes + 16385);
+    await expect(importSharedContent(f.port, f.get(), { ...f.context, asTask: async () => ({ folder: "Tasks", text: huge }) })).rejects.toThrow("SHARE_INVALID");
+    expect(f.port.beginImport).not.toHaveBeenCalled();
+    expect(f.files.writeTextFile).not.toHaveBeenCalled();
+  });
+
   it("'as a task' refuses a folder that is not a safe vault path, before anything is planned or written", async () => {
     const f = fixture();
     await expect(importSharedContent(f.port, f.get(), { ...f.context, asTask: async () => ({ folder: "../outside", text: "x" }) })).rejects.toThrow("SHARE_INVALID");

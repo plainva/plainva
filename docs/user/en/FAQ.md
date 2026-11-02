@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-10-29
+Last reviewed: 2026-11-02
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -44,7 +44,7 @@ Before any change, the wizard backs the file up to `.plainva/backups/okf-convers
 
 ### A note made from a template is missing from the Tasks view
 
-A note you created from a template up to version 0.8.5 — a daily note included — may have inherited a setting from its template that hides its tasks. Search the vault for `"tasks: false"` — **with** the quotes, or you will also find notes where both words merely happen to occur. In the hits, the line sits in the frontmatter under a `plainva:` block; delete `tasks: false` there (and `templateFor:` if present) and the note comes back. Leave the line in the templates themselves; that is where it belongs. Notes newly created from a template no longer inherit it.
+A note you created from a template up to version 0.8.5 — a daily note included — may have inherited a setting from its template that hides its tasks. Search the vault for `"tasks: false"` — **with** the quotes, or you will also find notes where both words merely happen to occur. In the hits, the line sits in the frontmatter under a `plainva:` block; delete `tasks: false` there (and `templateFor:` if present) and the note comes back. Leave the line in the templates themselves; that is where it belongs. Notes newly created from a template no longer inherit it. The task view now finds such notes for you: a notice above the tasks lists them, and **Remove keys…** takes both keys out of the ones you tick.
 
 ## Sync
 

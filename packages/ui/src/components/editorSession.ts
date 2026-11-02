@@ -22,6 +22,7 @@ import { tasksQueryBlockField, type TasksQueryHost } from "./tasksQueryLive";
 import { anchorAwareHtmlBlock } from "./anchorBlockParser";
 import { frontmatterBlock } from "./frontmatterBlockParser";
 import { boundedInlineSyntax } from "../lib/boundedMarkdown";
+import { wikiLinkInlineSyntax } from "./wikiLinkInline";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { tagPillPlugin } from "./TagPillPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
@@ -568,8 +569,10 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // A block whose inline syntax is over the parse budget is read as written,
     // as in the reading view (open-items plan 3.133 no. 4).
     // The properties block is one node (Sammelplan 3.46): a fence or an `<!--`
-    // in a YAML value no longer runs to the end of the note.
-    markdown({ base: markdownLanguage, codeLanguages, extensions: [frontmatterBlock, anchorAwareHtmlBlock, boundedInlineSyntax] }),
+    // in a YAML value no longer runs to the end of the note. A wiki link is
+    // read before anything is read into it, as the index reads it: its name
+    // stands as written (3.133 no. 2, E9; wikiLinkInline.ts).
+    markdown({ base: markdownLanguage, codeLanguages, extensions: [frontmatterBlock, anchorAwareHtmlBlock, boundedInlineSyntax, wikiLinkInlineSyntax] }),
     EditorView.lineWrapping,
     // Right-to-left text (issue 111): each line runs the way its block's
     // first strong character says, read from the source behind the Markdown

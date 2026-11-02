@@ -15,7 +15,7 @@
  * verbatim (never inline-stripped). Pure and unit-testable.
  */
 
-import { peelBlockquotes, readAtxHeading, readMarkdownListItem } from "@plainva/core";
+import { createFenceTracker, peelBlockquotes, readAtxHeading, readMarkdownListItem, readQuoteDepth, stripQuoteMarkers } from "@plainva/core";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
 
 /** Flatten parsed inline nodes to plain text, dropping every formatting mark. */
@@ -57,7 +57,6 @@ function inlineToPlainText(line: string): string {
   return inlineNodesToPlainText(parseInlineMarkdown(line));
 }
 
-const OPEN_FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 // Thematic break (---, ***, ___) and setext underlines (===) — a whole line of
 // one repeated mark. Dropped from the plain-text output.
 const THEMATIC_BREAK_RE = /^\s{0,3}([-*_=])(?:[ \t]*\1){2,}[ \t]*$/;
@@ -126,21 +125,23 @@ export function markdownToPlainText(md: string): string {
   if (!md) return md;
   const lines = md.split("\n");
   const out: string[] = [];
-  let fence: string | null = null; // the opening fence run (``` / ~~~), or null
+  // Fenced code by the one rule every scanner reads (core `markdownFence.ts`;
+  // open-items plan 3.159 no. 4, decision E16), a fence in a quote or a
+  // callout included: its lines verbatim, without the quote's markers; the
+  // fence lines are dropped.
+  const fence = createFenceTracker();
+  let depth = 0;
 
   for (const raw of lines) {
-    if (fence !== null) {
-      // Inside a fenced code block: emit content verbatim; a matching (or
-      // longer) fence of the same kind closes it. The fence lines are dropped.
-      const closeRe = new RegExp(`^\\s{0,3}${fence[0]}{${fence.length},}\\s*$`);
-      if (closeRe.test(raw)) fence = null;
-      else out.push(raw);
+    const kind = fence.step(raw);
+    if (kind === "open") {
+      depth = readQuoteDepth(raw).depth;
       continue;
     }
-    const open = OPEN_FENCE_RE.exec(raw);
-    if (open) {
-      fence = open[1];
-      continue; // drop the opening fence line
+    if (kind === "close") continue;
+    if (kind === "code") {
+      out.push(stripQuoteMarkers(raw, depth));
+      continue;
     }
     const stripped = stripBlockLine(raw);
     if (stripped !== null) out.push(stripped);

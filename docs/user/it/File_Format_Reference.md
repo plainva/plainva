@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-10-29
+Ultimo aggiornamento: 2026-11-02
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -52,9 +52,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-Un blocco può essere vuoto: `---` seguito direttamente da `---` è un blocco senza proprietà, non due separatori — il testo della nota inizia alla riga successiva. Plainva non lascia alcun blocco vuoto: quando viene rimossa l'ultima proprietà, le due righe `---` spariscono con essa. Restano solo quando il testo stesso inizia con una riga `---`, che altrimenti verrebbe letta come l'inizio di un blocco.
+Un blocco può essere vuoto: `---` seguito direttamente da `---` è un blocco senza proprietà, non due separatori — il testo della nota inizia alla riga successiva. Plainva non lascia alcun blocco vuoto: quando viene rimossa l'ultima proprietà, le due righe `---` spariscono con essa. Restano solo quando il testo stesso inizia con una riga `---`, che altrimenti verrebbe letta come l'inizio di un blocco. Un blocco che contiene solo un commento resta, con il commento.
 
-Un blocco che Plainva non riesce a leggere come proprietà viene lasciato esattamente com'è: testo tra le due righe `---` che non è YAML, oppure YAML che è un elenco anziché righe `chiave: valore`. **Proprietà** lo segnala invece di non mostrare alcuna proprietà, e modificare una proprietà di una nota del genere — lì, in un database, su una bacheca appunti, nell'elenco delle attività, oppure la sua icona e il suo colore — non cambia nulla, e Plainva lo dice: **Impossibile salvare la proprietà**, seguito dal motivo. Correggi il blocco nel testo della nota e la modifica andrà a buon fine. Un singolo valore in una forma inattesa non rende illeggibile un blocco: Plainva lo legge così com'è scritto — un `tags:` vuoto è una nota senza tag, un numero tra i tag (`- 2024`) è il tag `2024`, un numero come `title` è quel titolo, e un `timestamp` che è una data è una proprietà come le altre.
+Un blocco che Plainva non riesce a leggere come proprietà viene lasciato esattamente com'è: testo tra le due righe `---` che non è YAML, oppure YAML che è un elenco anziché righe `chiave: valore`. Anche una sola riga di testo, un numero o un insieme (`!!set`) tra le due linee è un blocco del genere: nemmeno la ricerca, i link e i database ne leggono proprietà. **Proprietà** lo segnala invece di non mostrare alcuna proprietà, e modificare una proprietà di una nota del genere — lì, in un database, su una bacheca appunti, nell'elenco delle attività, oppure la sua icona e il suo colore — non cambia nulla, e Plainva lo dice: **Impossibile salvare la proprietà**, seguito dal motivo. Correggi il blocco nel testo della nota e la modifica andrà a buon fine. Un singolo valore in una forma inattesa non rende illeggibile un blocco: Plainva lo legge così com'è scritto — un `tags:` vuoto è una nota senza tag, un numero tra i tag (`- 2024`) è il tag `2024`, un numero come `title` è quel titolo, e un `timestamp` che è una data è una proprietà come le altre. `tag` e `alias` al singolare sono proprietà normali — come in Obsidian dalla 1.9 —, quindi un tag è solo ciò che sta sotto `tags`.
 
 ### Campi frontmatter OKF
 

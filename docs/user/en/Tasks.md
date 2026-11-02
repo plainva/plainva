@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-10-29
+Last updated: 2026-11-02
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -108,6 +108,7 @@ You do not have to write this field by hand:
 - **Hide from tasks** — an eye icon sits at the right of each note's header row; one click writes the marker into that note and hides it.
 - **Show hidden** — this option in the filter bar brings the hidden notes back (dimmed), each with an icon to **show it again** (which removes the marker).
 - **Hide templates** — if your template folder holds notes with checkboxes, a **Hide templates** button appears at the top right and stamps the marker into all of them at once.
+- **Notes with keys from a template** — a note made from a template up to version 0.8.5 may have taken over the template's own keys (`plainva.tasks: false`, `plainva.templateFor`), and its tasks are then missing here. When such notes exist outside the template folder, a notice lists them with a box each: **Remove keys…** takes the two keys out of the ticked ones, nothing else in them changes. Untick a note you hid on purpose; **Hide** puts the notice away until another note joins the list.
 
 Newly created templates carry the marker automatically. When you create a note **from** a template, it is removed again — the new note is real content and shows its tasks normally.
 

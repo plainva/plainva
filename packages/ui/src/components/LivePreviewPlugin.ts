@@ -343,10 +343,19 @@ class TableWidget extends WidgetType {
     // Cell DISPLAY renders the inline-markdown subset (bold, links, <br>, …);
     // editing keeps the raw markdown in the <input>.
     const handlers = view.state.facet(tableLinkHandlers);
-    const renderCell = (cell: HTMLTableCellElement, raw: string) => {
-      cell.textContent = "";
-      cell.appendChild(renderInlineMarkdown(raw, handlers));
+    // A cell's content, without what a comment hangs on it: the speech bubble
+    // and the corner triangle (`decorateAnchorTarget`) are the cell's for as
+    // long as the widget stands. Emptied with the content, they were gone after
+    // a cell was opened and closed unchanged — nothing rebuilt the widget, as
+    // nothing had changed (open-items plan 3.131 no. 3).
+    const setCellContent = (cell: HTMLTableCellElement, content: Node) => {
+      for (const child of [...cell.childNodes]) {
+        if (child instanceof HTMLElement && /(?:^|\s)cm-anchor-/.test(child.className)) continue;
+        child.remove();
+      }
+      cell.insertBefore(content, cell.firstChild);
     };
+    const renderCell = (cell: HTMLTableCellElement, raw: string) => setCellContent(cell, renderInlineMarkdown(raw, handlers));
 
     const openCellEditor = (cell: HTMLTableCellElement, kind: "header" | "body", rowIndex: number, colIndex: number) => {
       if (cell.querySelector("textarea")) return; // already editing this cell
@@ -369,8 +378,7 @@ class TableWidget extends WidgetType {
       // stand in a tall, thin stack. The cell keeps the width it had.
       const heldWidth = cell.style.minWidth;
       cell.style.minWidth = `${cell.getBoundingClientRect().width}px`;
-      cell.textContent = "";
-      cell.appendChild(input);
+      setCellContent(cell, input);
       fitFieldHeight(input);
       input.focus();
       input.select();

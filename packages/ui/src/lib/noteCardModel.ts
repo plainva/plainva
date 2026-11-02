@@ -17,7 +17,7 @@ import { embedKindOf } from "./imageTarget";
 
 import * as yaml from "yaml";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
-import { createFenceTracker, readQuoteDepth, stripQuoteMarkers } from "@plainva/core";
+import { createFenceTracker, readQuoteDepth, sourceLinesOf, stripQuoteMarkers } from "@plainva/core";
 import { TASK_LINE_RE } from "./taskToggle";
 
 export type NoteCardBlock =
@@ -85,7 +85,8 @@ export function inlineToPlain(nodes: InlineNode[]): string {
 
 /** Split "---" frontmatter off; returns body lines and the parsed fm (or null). */
 function splitFrontmatter(content: string): { fm: Record<string, unknown> | null; body: string[] } {
-  const lines = content.split("\n");
+  // The task scan's lines (`sourceLines.ts`): the card counts its checkboxes as a tick writes them.
+  const lines = sourceLinesOf(content).map((line) => line.text);
   if (lines[0]?.trim() !== "---") return { fm: null, body: lines };
   for (let i = 1; i < lines.length; i++) {
     const t = lines[i].trim();

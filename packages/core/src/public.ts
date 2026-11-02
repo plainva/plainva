@@ -6,7 +6,6 @@ export * from "./markdown-serializer.js";
 export * from "./noteSource.js";
 export * from "./metadata.js";
 export * from "./metadata-extractor.js";
-export * from "./metadata-updater.js";
 export * from "./frontmatter-string-updater.js";
 export * from "./frontmatter-surgical.js";
 export * from "./ast-scanner.js";

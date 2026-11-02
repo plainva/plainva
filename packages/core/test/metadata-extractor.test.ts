@@ -50,8 +50,9 @@ describe("Frontmatter Extractor", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error).toBeInstanceOf(Error);
-      expect(result.error.name).toBe("YAMLParseError");
+      // The writers' one refusal (`parseBlockYaml`), which names the parser's reason.
+      expect(result.error).toBeInstanceOf(FrontmatterSurgicalError);
+      expect(result.error.message).toMatch(/^Frontmatter is not parseable YAML: /);
     }
   });
 
@@ -187,14 +188,11 @@ describe("a block is read field by field (ADR 0009, addendum 2026-10-22)", () =>
   });
 
   it("answers as the old schema did where YAML names a key in another way, or holds one it never handed out", () => {
-    // A key that is an alias names what it stands for; `__proto__` was never handed out, at no depth;
-    // a set, an ordered map or a date at the top of the block names no property.
+    // A key that is an alias names what it stands for; `__proto__` was never handed out, at no depth.
+    // (A set, an ordered map or a date at the top of the block is refused since 2026-11-02, below.)
     const same: Array<[string, unknown]> = [
       ["x: &k tags\n*k : foo", { tags: ["foo"], x: "tags" }],
       ["a:\n  __proto__: x\n  b: 1\nc: [{__proto__: y, d: 2}]", { a: { b: 1 }, c: [{ d: 2 }] }],
-      ["!!set {title, x}", {}],
-      ["!!omap [title: 1, x: 2]", {}],
-      ["!!timestamp 2026-01-01", {}],
     ];
     for (const [yaml, expected] of same) {
       const old = oldReader(yaml);
@@ -213,7 +211,7 @@ describe("a block is read field by field (ADR 0009, addendum 2026-10-22)", () =>
   it("still does not read YAML that does not parse, nor a block that is a list", () => {
     const broken = readBlock("title: [unclosed\nowner: Anna");
     expect(broken.success).toBe(false);
-    if (!broken.success) expect(broken.error.name).toBe("YAMLParseError");
+    if (!broken.success) expect(broken.error.message).toMatch(/^Frontmatter is not parseable YAML: /);
     expect(readBlock("a: 1\na: 2").success).toBe(false);
     const list = readBlock("- a\n- b");
     expect(list.success).toBe(false);
@@ -223,8 +221,17 @@ describe("a block is read field by field (ADR 0009, addendum 2026-10-22)", () =>
     }
   });
 
-  it("reads a block that holds only a text or a number as one without properties, as before", () => {
-    for (const yaml of ["just some words", "42", "null", "# a comment"]) expect(dataOf(yaml)).toEqual({});
+  it("refuses a block that is a text, a number, a set, an ordered map or a date, as the writers do (3.144 no. 1, E15)", () => {
+    // Until 2026-11-02 the reader read them as a block without properties while every write refused them.
+    for (const yaml of ["just some words", "42", "null", "!!set {title, x}", "!!omap [title: 1, x: 2]", "!!timestamp 2026-01-01"]) {
+      const result = readBlock(yaml);
+      expect(result.success, yaml).toBe(false);
+      if (!result.success) expect(result.error.message, yaml).toBe("Frontmatter is not a YAML map");
+    }
+  });
+
+  it("reads a block without an entry as one without properties", () => {
+    for (const yaml of ["# a comment", "", "\n\n"]) expect(dataOf(yaml)).toEqual({});
   });
 
   it("reads a number under okf_version as it is written — the one answer that is not the old one", () => {

@@ -22,6 +22,7 @@ import { SwipeRow } from "../components/SwipeRow";
 import { useTaskRowActions, type NoteTaskRef } from "../components/useTaskRowActions";
 import { TaskDuplicatesSheet } from "../components/TaskDuplicatesSheet";
 import { TaskNamesNotice } from "../components/TaskNamesNotice";
+import { TemplateKeysNotice } from "../components/TemplateKeysNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLinkTargetLookup } from "../lib/useLinkTargetLookup";
@@ -769,6 +770,7 @@ export function TasksScreen({
       </div>
 
       <TaskNamesNotice vault={vault} reloadKey={`${bump}:${tick}`} onChanged={() => setTick((x) => x + 1)} />
+      <TemplateKeysNotice vault={vault} reloadKey={`${bump}:${tick}`} templateFolder={getMobileSettings().templateFolder || "Templates"} onChanged={() => setTick((x) => x + 1)} />
 
       {dupes.visible && (
         <div className="m-dupes-notice">

@@ -480,6 +480,15 @@ const STRETCHES: Stretch[] = [
     how: "every template hidden at once: one message that counts", says: [COUNTED],
   },
   {
+    file: "packages/ui/src/lib/templateKeys.ts", at: "export function withoutTemplateKeys(", span: 400, calls: { [del]: 2 },
+    how: "thrown on to the change of the note it is handed to, listed next", never: THROWN_ON, passesOn: ["withoutTemplateKeys"],
+  },
+  {
+    file: "packages/ui/src/hooks/useTemplateKeyCleanup.ts", at: "const remove = async ()", span: 1200, calls: { withoutTemplateKeys: 1 },
+    how: "keys taken out of the picked notes (open-items plan 3.136 no. 1): a note that cannot be written is counted, and the notice of both shells says the count (database.bulkSetPartial)",
+    says: [/failed \+= 1;/],
+  },
+  {
     file: "packages/ui/src/lib/taskDueWrite.ts", at: "export async function applyTaskDueChanges(", span: 6000, calls: { [set]: 1, [del]: 1 },
     how: "collected in failed, with how many tasks were to move — not in skipped, whose sentence is \"changed in the meantime\": only a note that is gone is skipped",
     says: [/if \(isFileNotFound\(e\)\) out\.skipped \+= 1;\s*else out\.failed\.push\(\{ path: change\.path, message: reasonOf\(e\), tasks: 1 \}\);/, /if \(isFileNotFound\(e\)\) out\.skipped \+= list\.length;\s*else out\.failed\.push\(\{ path, message: reasonOf\(e\), tasks: list\.length \}\);/],

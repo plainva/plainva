@@ -1374,3 +1374,49 @@ test('bookmarks are arranged by dragging a row or with Alt+Arrow, and the order 
   await page.mouse.up();
   await expect.poll(onDisk).toEqual(['file:Alpha.md', 'file:Beta.md', 'folder:Notes', 'file:Todo.md']);
 });
+
+test('notes that took over a template\'s keys: the notice lists them, and only the ticked ones lose the keys (open-items plan 3.136 no. 1, E2)', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const keys = '---\nplainva:\n  tasks: false\n  templateFor: ["[[Tasks.base]]"]\n---\n';
+    fs['/test-vault/Templates'] = { isDir: true };
+    fs['/test-vault/Templates/Daily.md'] = keys + '# Daily\n- [ ] example task\n';
+    fs['/test-vault/Journal'] = { isDir: true };
+    // A daily note made from that template by an older version: its task is missing.
+    fs['/test-vault/Journal/2026-10-01.md'] = keys + '# 2026-10-01\n- [ ] water the plants\n';
+    // A note hidden on purpose with the eye: the person keeps it hidden.
+    fs['/test-vault/Notes/Hidden.md'] = '---\nplainva:\n  tasks: false\n---\n# Hidden\n- [ ] secret task\n';
+  });
+  await openVault(page);
+  await openTasks(page);
+
+  const notice = page.getByTestId('template-keys-notice');
+  await expect(page.getByTestId('template-keys-banner')).toHaveText(/: 2$/, { timeout: 20000 });
+  // The template itself is not offered: the keys belong there.
+  await expect(notice.getByTestId('template-keys-row')).toHaveCount(2);
+  await expect(notice.getByTestId('template-keys-row').nth(0)).toContainText('2026-10-01');
+  await expect(notice.getByTestId('template-keys-row').nth(1)).toContainText('Hidden');
+  await expect(page.getByRole('button', { name: /water the plants/ })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('template-keys-notice.png') });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: `${process.env.PLAINVA_EVIDENCE}/desktop-template-keys-notice.png` });
+
+  // Untick the note hidden on purpose, then remove — after the question.
+  await notice.getByTestId('template-keys-pick').nth(1).uncheck();
+  await notice.getByTestId('template-keys-remove').click();
+  await page.getByRole('dialog').getByRole('button', { name: /^(Entfernen|Remove)$/ }).click();
+
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Journal/2026-10-01.md']))
+    .toBe('# 2026-10-01\n- [ ] water the plants\n');
+  const files = await page.evaluate(() => ({
+    hidden: (window as any).mockFs['/test-vault/Notes/Hidden.md'],
+    template: (window as any).mockFs['/test-vault/Templates/Daily.md'],
+  }));
+  expect(files.hidden).toContain('tasks: false');
+  expect(files.template).toContain('templateFor');
+  // The note's task is back, and the notice now lists what is left.
+  await expect(page.getByRole('button', { name: /water the plants/ })).toBeVisible();
+  await expect(notice.getByTestId('template-keys-row')).toHaveCount(1);
+  await notice.getByTestId('template-keys-hide').click();
+  await expect(notice).toHaveCount(0);
+});

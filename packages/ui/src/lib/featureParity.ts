@@ -565,21 +565,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-20",
   },
   {
-    id: "properties-empty-state",
-    title: "A note without properties says so in the properties surface",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The desktop's properties section shows \"No properties\" for a note " +
-      "without a block (PropertiesSection.tsx). The phone's note sheet shows " +
-      "an empty properties part with no line at all (NoteContextSheet.tsx); it " +
-      "speaks only for a block it cannot read. Written down on 2026-10-30; " +
-      "open-items plan 3.144 no. 6, to be closed together with no. 1 there.",
-    verified: "2026-10-30",
-  },
-  {
     id: "read-mode-edit-verb",
     title: "Switch from reading to writing at the marked passage",
     area: "editor",

@@ -10,7 +10,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS, withColumnValues } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
@@ -1696,7 +1696,8 @@ export function BaseViewer({
   // ones got it. A note that turns out to hold a value there — the index was
   // behind — keeps it.
   const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string): Promise<string[]> => {
-    const result = await rewriteNoteProperties(adapter, paths, (props) => (isEmptyPropertyValue(props[col]) ? { ...props, [col]: "" } : null));
+    // Under the key the note carries the property, in any casing (3.144 no. 3).
+    const result = await rewriteNoteProperties(adapter, paths, (props) => withColumnValues(props, [col], (value) => (isEmptyPropertyValue(value) ? "" : undefined)));
     reportRewrite(result, "Failed to add property to file");
     return result.written;
   };
@@ -2365,14 +2366,11 @@ export function BaseViewer({
     // Rewrite the affected frontmatter values in every matching note.
     const notConverted = new Set<string>();
     if (vaultAdapter) {
-      const result = await rewriteNoteProperties(vaultAdapter, dbData.map((row) => String(row['file.path'])), (props) => {
-        let changed = false;
-        for (const f of fields) {
-          const nv = convert(props[f]);
-          if (nv !== props[f]) { props[f] = nv; changed = true; }
-        }
-        return changed ? props : null;
-      });
+      // Each value under the key the note carries it, in any casing: a note
+      // with `Frist:` under the column `frist` was left as it was (3.144 no. 3).
+      const result = await rewriteNoteProperties(vaultAdapter, dbData.map((row) => String(row['file.path'])), (props) =>
+        withColumnValues(props, fields, (value) => convert(value))
+      );
       reportRewrite(result, "Failed to convert date field type in");
       for (const failure of result.failed) notConverted.add(failure.path);
     }

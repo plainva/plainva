@@ -1045,3 +1045,43 @@ test("subtasks under their task, bullets as a preview, links as their text — a
     sql.close();
   }
 });
+
+test("notes that took over a template's keys (open-items plan 3.136 no. 1, E2): the notice lists them, and only the ticked ones lose the keys", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const keys = '---\nplainva:\n  tasks: false\n  templateFor: ["[[Tasks.base]]"]\n---\n';
+  try {
+    await start(page, context, sql, [
+      ["Templates/Daily.md", `${keys}# Daily\n- [ ] example task\n`],
+      // A daily note made from that template by an older version: its task is missing.
+      ["Journal/2026-09-19.md", `${keys}# 2026-09-19\n- [ ] water the plants\n`],
+      // Hidden on purpose with the eye: the person keeps it hidden.
+      ["Hidden.md", "---\nplainva:\n  tasks: false\n---\n# Hidden\n- [ ] secret task\n"],
+    ]);
+    await openTasks(page);
+
+    const notice = page.getByTestId("template-keys-notice");
+    await expect(page.getByTestId("template-keys-banner")).toHaveText("Notes with keys from a template: 2", { timeout: 20_000 });
+    await expect(notice.getByTestId("template-keys-row")).toHaveCount(2);
+    await expect(notice.getByTestId("template-keys-row").nth(0)).toContainText("Hidden");
+    await expect(notice.getByTestId("template-keys-row").nth(1)).toContainText("2026-09-19");
+    await page.screenshot({ path: test.info().outputPath("phone-template-keys-notice.png") });
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: `${process.env.PLAINVA_EVIDENCE}/phone-template-keys-notice.png` });
+
+    // Untick the note hidden on purpose; remove asks first.
+    await notice.getByTestId("template-keys-pick").nth(0).uncheck();
+    await notice.getByTestId("template-keys-remove").click();
+    await expect(page.getByText("Remove the template keys?", { exact: true })).toBeVisible();
+    await page.getByTestId("confirm-act").click();
+    await expect(page.locator(".pv-toast").filter({ hasText: "Template keys removed from notes: 1" })).toBeVisible();
+
+    await expect.poll(() => readFile(page, "Journal/2026-09-19.md")).toBe("# 2026-09-19\n- [ ] water the plants\n");
+    expect(await readFile(page, "Hidden.md")).toBe("---\nplainva:\n  tasks: false\n---\n# Hidden\n- [ ] secret task\n");
+    expect(await readFile(page, "Templates/Daily.md")).toBe(`${keys}# Daily\n- [ ] example task\n`);
+    await expect(notice.getByTestId("template-keys-row")).toHaveCount(1, { timeout: 20_000 });
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});

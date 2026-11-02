@@ -310,10 +310,9 @@ export function imagePreviewPlugin(
         const text = view.state.sliceDoc(from, to);
 
         for (const embed of findMediaEmbeds(text)) {
-          // Escaped, or inside code or a comment, the embed is text that
-          // shows the syntax (the tour's `![[skizze.svg|240]]`), as in the
-          // read view and for note embeds. A picture in an HTML block is
-          // still drawn, as it always was (literalSyntax.ts).
+          // Escaped, or inside code, a comment or an HTML block, the embed is
+          // text that shows the syntax (the tour's `![[skizze.svg|240]]`), as
+          // in the read view and for note embeds (literalSyntax.ts, E12).
           if (isEscapedAt(text, embed.start)) continue;
           if (isLiteralAt(view.state, from + embed.start)) continue;
           const source = resolveImageSource(embed.target, vaultRoot, lookup);

@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-10-29
+Última revisão: 2026-11-02
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -44,7 +44,7 @@ Antes de qualquer alteração, o assistente faz backup do arquivo em `.plainva/b
 
 ### Uma nota criada a partir de um modelo está faltando na visão Tarefas
 
-Uma nota que você criou a partir de um modelo até a versão 0.8.5 — inclusive uma nota diária — pode ter herdado uma configuração do modelo dela que oculta suas tarefas. Pesquise no vault por `"tasks: false"` — **com** as aspas, ou você também encontrará notas em que as duas palavras aparecem apenas por coincidência. Nos resultados, a linha fica no frontmatter dentro de um bloco `plainva:`; exclua ali `tasks: false` (e `templateFor:`, se presente) e a nota volta a aparecer. Deixe a linha nos próprios modelos; é lá que ela deve ficar. Notas recém-criadas a partir de um modelo não herdam mais isso.
+Uma nota que você criou a partir de um modelo até a versão 0.8.5 — inclusive uma nota diária — pode ter herdado uma configuração do modelo dela que oculta suas tarefas. Pesquise no vault por `"tasks: false"` — **com** as aspas, ou você também encontrará notas em que as duas palavras aparecem apenas por coincidência. Nos resultados, a linha fica no frontmatter dentro de um bloco `plainva:`; exclua ali `tasks: false` (e `templateFor:`, se presente) e a nota volta a aparecer. Deixe a linha nos próprios modelos; é lá que ela deve ficar. Notas recém-criadas a partir de um modelo não herdam mais isso. A visão de tarefas agora encontra essas notas para você: um aviso acima das tarefas as lista, e **Remover chaves…** tira as duas chaves das que você marcar.
 
 ## Sincronização
 

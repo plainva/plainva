@@ -301,7 +301,9 @@ describe("lists, item by item", () => {
     ["every item another one: each in its place", ["tags:", "  - a", "  - b"], ["x", "y", "z"], ["tags:", "  - x", "  - y", "  - z"]],
     ["an item without a value gets one", ["tags:", "  -", "  - b"], ["a", "b"], ["tags:", "  - a", "  - b"]],
     ["an item that is a map: a new one in the list's form", ["verified:", "  - by: human:Anna", "    at: 2026-10-01T10:00:00Z"], [{ by: "human:Anna", at: "2026-10-01T10:00:00Z" }, { by: "human:Ben", at: "2026-10-12T10:00:00Z" }], ["verified:", "  - by: human:Anna", "    at: 2026-10-01T10:00:00Z", "  - by: human:Ben", "    at: 2026-10-12T10:00:00Z"]],
-    ["an item that is a map and changes is written anew, the others stay", ["blocks:", "  - uid: 007", "    account: x", "  - uid: 008   # kept"], [{ uid: 7, account: "y" }, { uid: 8 }], ["blocks:", "  - uid: 7", "    account: y", "  - uid: 008   # kept"]],
+    // A map that keeps a key is changed field by field (open-items plan 3.72 no. 8): `007` keeps its characters.
+    ["an item that is a map and changes: field by field, the others stay", ["blocks:", "  - uid: 007", "    account: x", "  - uid: 008   # kept"], [{ uid: 7, account: "y" }, { uid: 8 }], ["blocks:", "  - uid: 007", "    account: y", "  - uid: 008   # kept"]],
+    ["an item that is a map and keeps none of its keys is written anew", ["blocks:", "  - uid: 007", "  - uid: 008   # kept"], [{ id: 1 }, { uid: 8 }], ["blocks:", "  - id: 1", "  - uid: 008   # kept"]],
     ["a placeholder as a template holds one stays as it is written", ["aliases:", "  - {{alias}}", "tags:", "  - x"], undefined, ["aliases:", "  - {{alias}}", "tags:", "  - x", "  - y"]],
     ["in brackets with blanks inside", ["tags: [ a, b ]"], ["a", "b", "c"], ["tags: [ a, b, c ]"]],
     ["in brackets without blanks", ["tags: [a,b]"], ["b", "c"], ["tags: [b,c]"]],

@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-10-30
+Laatst bijgewerkt: 2026-11-02
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -44,7 +44,7 @@ Vóór elke wijziging maakt de wizard een back-up van het bestand naar `.plainva
 
 ### Een notitie uit een sjabloon ontbreekt in het Taken-overzicht
 
-Een notitie die je tot en met versie 0.8.5 uit een sjabloon hebt aangemaakt — ook een dagelijkse notitie — kan van dat sjabloon een instelling hebben geërfd die haar taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Laat de regel in de sjablonen zelf staan; daar hoort hij. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
+Een notitie die je tot en met versie 0.8.5 uit een sjabloon hebt aangemaakt — ook een dagelijkse notitie — kan van dat sjabloon een instelling hebben geërfd die haar taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Laat de regel in de sjablonen zelf staan; daar hoort hij. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer. De takenweergave vindt zulke notities nu zelf: een melding boven de taken somt ze op, en **Sleutels verwijderen…** haalt beide sleutels uit de notities die je aanvinkt.
 
 ## Sync
 

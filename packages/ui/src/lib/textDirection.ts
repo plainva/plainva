@@ -32,6 +32,8 @@ import { wikiLinkParts } from "@plainva/core";
  * directions out.
  */
 
+import { createFenceTracker, type FenceTracker } from "@plainva/core";
+
 export type TextDirection = "ltr" | "rtl";
 
 /**
@@ -188,7 +190,6 @@ export function firstStrongDirection(text: string): TextDirection | null {
 // Line structure
 
 const QUOTE_PREFIX = /^[ \t]{0,3}>[ \t]?/;
-const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})/;
 const HEADING = /^[ \t]{0,3}(#{1,6})(?=[ \t]|$)[ \t]*/;
 const LIST_MARKER = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]+|$)/;
 const TASK_BOX = /^\[[ xX/-]\](?:[ \t]+|$)/;
@@ -207,10 +208,18 @@ interface ClassifiedLine {
 }
 
 interface ScanState {
-  fence: { char: string; length: number } | null;
+  /**
+   * Fenced code by the one rule every scanner reads (core `markdownFence.ts`;
+   * open-items plan 3.159 no. 4, decision E16): a fence belongs to the quote
+   * it was opened in, and a line at a shallower level ends it. A pattern of
+   * its own here closed a fence opened in a callout at any level.
+   */
+  fence: FenceTracker;
   math: boolean;
   frontmatter: boolean;
 }
+
+const newScanState = (): ScanState => ({ fence: createFenceTracker(), math: false, frontmatter: false });
 
 function stripQuotes(line: string): { rest: string; depth: number } {
   let rest = line;
@@ -233,22 +242,18 @@ function classify(raw: string, index: number, state: ScanState): ClassifiedLine 
     return { kind: "code", content: "", quoteDepth: 0 };
   }
   const { rest, depth } = stripQuotes(line);
-  if (state.fence) {
-    const close = FENCE_OPEN.exec(rest);
-    if (close && close[1][0] === state.fence.char && close[1].length >= state.fence.length && rest.slice(close[0].length).trim() === "") {
-      state.fence = null;
-    }
-    return { kind: "code", content: "", quoteDepth: depth };
+  if (state.fence.inFence) {
+    if (state.fence.step(line) !== null) return { kind: "code", content: "", quoteDepth: depth };
+    // A line at a shallower level has ended the quote, and the fence with it: it is read as any other line.
   }
   if (state.math) {
     if (rest.includes("$$")) state.math = false;
     return { kind: "code", content: "", quoteDepth: depth };
   }
-  // A fence may open inside a list item, behind its marker.
+  // A fence may open inside a list item, behind its marker: the tracker is
+  // handed the line with its quote markers and without the marker.
   const behindMarker = rest.replace(LIST_MARKER, "");
-  const fence = FENCE_OPEN.exec(behindMarker);
-  if (fence && !(fence[1][0] === "`" && behindMarker.slice(fence[0].length).includes("`"))) {
-    state.fence = { char: fence[1][0], length: fence[1].length };
+  if (state.fence.step(line.slice(0, line.length - rest.length) + behindMarker) === "open") {
     return { kind: "code", content: "", quoteDepth: depth };
   }
   if (MATH_FENCE.test(rest)) {
@@ -286,7 +291,7 @@ interface Block {
  */
 export function lineDirections(source: string | Iterable<string>): TextDirection[] {
   const lines = typeof source === "string" ? source.split("\n") : source;
-  const state: ScanState = { fence: null, math: false, frontmatter: false };
+  const state = newScanState();
   const kinds: LineKind[] = [];
   const depths: number[] = [];
   const blocks: Block[] = [];
@@ -361,7 +366,7 @@ export function lineDirections(source: string | Iterable<string>): TextDirection
  */
 export function textDirectionOf(source: string, fallback: TextDirection = "ltr"): TextDirection {
   const lines = source.split("\n");
-  const state: ScanState = { fence: null, math: false, frontmatter: false };
+  const state = newScanState();
   for (let i = 0; i < lines.length; i++) {
     const line = classify(lines[i], i, state);
     if (line.kind === "code" || line.kind === "blank") continue;

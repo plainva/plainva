@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-10-29
+Stan na: 2026-11-02
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -108,6 +108,7 @@ Nie musisz zapisywać tego pola ręcznie:
 - **Ukryj z zadań** — ikona oka znajduje się po prawej stronie wiersza nagłówka każdej notatki; jedno kliknięcie zapisuje znacznik w tej notatce i ją ukrywa.
 - **Pokaż ukryte** — ta opcja na pasku filtrów przywraca ukryte notatki (przyciemnione), każda z ikoną **Pokaż ponownie w zadaniach** (która usuwa znacznik).
 - **Ukryj szablony** — jeśli Twój folder szablonów zawiera notatki z polami wyboru, w prawym górnym rogu pojawia się przycisk **Ukryj szablony**, który jednocześnie zapisuje znacznik we wszystkich nich.
+- **Notatki z kluczami z szablonu** — notatka utworzona z szablonu do wersji 0.8.5 mogła przejąć własne klucze szablonu (`plainva.tasks: false`, `plainva.templateFor`) i wtedy jej zadań tu brakuje. Gdy takie notatki istnieją poza folderem szablonów, komunikat wymienia je, każdą z polem wyboru: **Usuń klucze…** usuwa oba klucze z zaznaczonych, nic więcej się w nich nie zmienia. Odznacz notatkę, którą ukryłeś celowo; **Ukryj** chowa komunikat, dopóki nie dojdzie kolejna notatka.
 
 Nowo utworzone szablony automatycznie niosą znacznik. Gdy tworzysz notatkę **z** szablonu, znacznik jest ponownie usuwany — nowa notatka to prawdziwa treść i normalnie pokazuje swoje zadania.
 

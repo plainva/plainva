@@ -37,6 +37,7 @@ import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { frontmatterSpan } from "../frontmatter-block.js";
 import { findInlineTagsInLine } from "../tagRule.js";
 import { createFenceTracker } from "../markdownFence.js";
+import { SOURCE_LINE_END, sourceLinesOf } from "../sourceLines.js";
 
 export interface ScannedTask {
   /** 0-based line index of the task in the content. */
@@ -162,15 +163,19 @@ const PRIORITY_RANK_OF: Record<TasksPriorityLevel, 0 | 1 | 2 | 3> = { highest: 1
 function propertiesLineCount(content: string): number {
   const span = frontmatterSpan(content);
   if (!span) return 0;
-  let count = 0;
-  for (let k = 0; k < span.end; k++) if (content.charCodeAt(k) === 10) count++;
+  // Counted by the line ends the scan splits at (`sourceLines.ts`).
+  const count = content.slice(0, span.end).match(new RegExp(SOURCE_LINE_END.source, "g"))?.length ?? 0;
   // A block that ends at the end of the text has no line break behind it.
   return span.end === content.length ? count + 1 : count;
 }
 
-/** Extracts every GFM task checkbox from a note's raw markdown, in order. */
+/**
+ * Extracts every GFM task checkbox from a note's raw markdown, in order. Its
+ * lines are the editor's (`sourceLines.ts`): a carriage return of its own
+ * ends one, as `\n` and `\r\n` do — and `line` counts them so.
+ */
 export function scanTasks(content: string): ScannedTask[] {
-  const lines = content.split("\n");
+  const lines = sourceLinesOf(content).map((line) => line.text);
   const out: ScannedTask[] = [];
   const fence = createFenceTracker();
   let ordinal = 0;

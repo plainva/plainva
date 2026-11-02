@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-10-29
+Stand: 2026-11-02
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -108,6 +108,7 @@ Dieses Feld musst Du nicht von Hand schreiben:
 - **Aus Aufgaben ausblenden** — Am rechten Rand jeder Notiz-Kopfzeile sitzt ein Augen-Symbol; ein Klick schreibt den Marker in genau diese Notiz und blendet sie aus.
 - **Ausgeblendete anzeigen** — Diese Option in der Filterleiste zeigt die ausgeblendeten Notizen wieder an (gedimmt), jeweils mit einem Symbol zum **Wiedereinblenden** (das den Marker entfernt).
 - **Vorlagen ausblenden** — Enthält Dein Vorlagen-Ordner Notizen mit Checkboxen, erscheint oben rechts ein Knopf **Vorlagen ausblenden**, der den Marker in einem Rutsch in alle diese Notizen schreibt.
+- **Notizen mit Schlüsseln aus einer Vorlage** — Eine Notiz, die bis Version 0.8.5 aus einer Vorlage entstand, kann die eigenen Schlüssel der Vorlage übernommen haben (`plainva.tasks: false`, `plainva.templateFor`); ihre Aufgaben fehlen dann hier. Gibt es solche Notizen außerhalb des Vorlagen-Ordners, listet ein Hinweis sie mit je einem Kästchen auf: **Schlüssel entfernen …** nimmt die beiden Schlüssel aus den angehakten heraus, sonst ändert sich nichts an ihnen. Nimm den Haken bei einer Notiz weg, die Du absichtlich ausgeblendet hast; **Ausblenden** legt den Hinweis weg, bis eine weitere Notiz dazukommt.
 
 Neu erstellte Vorlagen tragen den Marker automatisch. Erstellst Du eine Notiz **aus** einer Vorlage, wird er wieder entfernt — die neue Notiz ist echter Inhalt und zeigt ihre Aufgaben ganz normal.
 

@@ -62,9 +62,10 @@ async function open(text: string) {
   for (let i = 0; i < 8; i++) await act(async () => { await Promise.resolve(); });
   const keys = [...host.querySelectorAll(".m-prop-key")].map((el) => el.textContent ?? "");
   const hint = host.querySelector('[data-testid="props-unreadable"]')?.textContent ?? null;
+  const none = host.querySelector('[data-testid="props-none"]')?.textContent ?? null;
   await act(async () => { root.unmount(); });
   host.remove();
-  return { keys, hint };
+  return { keys, hint, none };
 }
 
 describe("the phone's sheet shows a note's properties as the reader reads them", () => {
@@ -77,17 +78,25 @@ describe("the phone's sheet shows a note's properties as the reader reads them",
   it.each([
     ["a YAML list", "---\n- a\n- list\n---\nText\n"],
     ["YAML that cannot be parsed", "---\ntitle: [unclosed\nowner: Anna\n---\nText\n"],
-    // The reader reads these two as a block without properties; the writers refuse them.
+    // The reader refuses these two as the writers do (3.144 no. 1, E15).
     ["a line of prose between the two rules", "---\nA line between two rules\n---\nText\n"],
     ["a number between the two rules", "---\n42\n---\nText\n"],
   ])("says a block it cannot read, instead of showing nothing: %s", async (_label, note) => {
-    const { keys, hint } = await open(note);
+    const { keys, hint, none } = await open(note);
     expect(hint).toBe(UNREADABLE_SENTENCE);
+    expect(none).toBeNull();
     expect(keys).not.toContain("owner");
   });
 
   it("says nothing of the kind for a note it can read, or one without a block", async () => {
     expect((await open("---\nowner: Anna\n---\nText\n")).hint).toBeNull();
     expect((await open("Text\n")).hint).toBeNull();
+  });
+
+  it("says that a note has no properties, as the desktop's panel does (3.144 no. 6)", async () => {
+    const NONE = (en as { properties: { noProperties: string } }).properties.noProperties;
+    expect((await open("Text\n")).none).toBe(NONE);
+    expect((await open("---\n# only a comment\n---\nText\n")).none).toBe(NONE);
+    expect((await open("---\nowner: Anna\n---\nText\n")).none).toBeNull();
   });
 });

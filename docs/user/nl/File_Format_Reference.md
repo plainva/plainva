@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-10-29
+Laatst bijgewerkt: 2026-11-02
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -52,9 +52,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-Een blok mag leeg zijn: `---` direct gevolgd door `---` is een blok zonder eigenschappen, niet twee scheidingslijnen — de tekst van de notitie begint op de regel erna. Plainva laat geen leeg blok achter: wordt de laatste eigenschap verwijderd, dan verdwijnen de twee `---`-regels mee. Ze blijven alleen staan als de tekst zelf met een `---`-regel begint, die anders als het begin van een blok zou worden gelezen.
+Een blok mag leeg zijn: `---` direct gevolgd door `---` is een blok zonder eigenschappen, niet twee scheidingslijnen — de tekst van de notitie begint op de regel erna. Plainva laat geen leeg blok achter: wordt de laatste eigenschap verwijderd, dan verdwijnen de twee `---`-regels mee. Ze blijven alleen staan als de tekst zelf met een `---`-regel begint, die anders als het begin van een blok zou worden gelezen. Een blok waarin alleen nog een opmerking staat, blijft staan, met de opmerking.
 
-Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, of YAML dat een lijst is in plaats van `sleutel: waarde`-regels. **Eigenschappen** meldt dat in plaats van geen eigenschappen te tonen, en wijzig je bij zo'n notitie een eigenschap — daar, in een database, op een prikbord, in de takenlijst, of het pictogram en de kleur ervan —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging. Eén waarde in een onverwachte vorm maakt een blok niet onleesbaar: Plainva leest haar zoals ze er staat — een lege `tags:` is een notitie zonder tags, een getal tussen de tags (`- 2024`) is de tag `2024`, een getal als `title` is die titel, en een `timestamp` die een datum is, is een eigenschap als elke andere.
+Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, of YAML dat een lijst is in plaats van `sleutel: waarde`-regels. Eén regel tekst, een getal of een verzameling (`!!set`) tussen de twee lijnen is ook zo'n blok: ook zoeken, links en databases lezen er geen eigenschap uit. **Eigenschappen** meldt dat in plaats van geen eigenschappen te tonen, en wijzig je bij zo'n notitie een eigenschap — daar, in een database, op een prikbord, in de takenlijst, of het pictogram en de kleur ervan —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging. Eén waarde in een onverwachte vorm maakt een blok niet onleesbaar: Plainva leest haar zoals ze er staat — een lege `tags:` is een notitie zonder tags, een getal tussen de tags (`- 2024`) is de tag `2024`, een getal als `title` is die titel, en een `timestamp` die een datum is, is een eigenschap als elke andere. `tag` en `alias` in het enkelvoud zijn gewone eigenschappen — zoals in Obsidian sinds 1.9 —, een tag is dus alleen wat onder `tags` staat.
 
 ### OKF-frontmattervelden
 

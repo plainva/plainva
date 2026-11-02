@@ -63,15 +63,21 @@ export function updateFrontmatterString(content: string, newProps: Record<string
   const gone = Object.keys(said).filter((key) => has(read, key) && !has(newProps, key));
   const fresh = Object.keys(newProps).filter((key) => !has(said, key));
   let next = content;
+  let renamed: string | null = null;
   if (gone.length === 1 && fresh.length === 1 && says(gone[0], newProps[fresh[0]])) {
+    const before = next;
     next = renameEntryKey(next, gone[0], fresh[0]);
+    // Where the entry could not be renamed where it stands, the new key is written below.
+    if (next !== before) renamed = fresh[0];
   } else {
     for (const key of gone) next = removeEntry(next, [key]);
   }
   for (const [key, value] of Object.entries(newProps)) {
-    // A renamed entry comes by here as well: where its YAML says the handed
-    // value already, nothing is written; where only the reader read it so —
-    // a text under `tags`, which is no list under another name — it is.
+    // A renamed entry is the panel's rule: only its name changes. Its value
+    // stays as it is written — `tags: a, b` under another name is still that
+    // text, `title: 2024` still the number. The value the reader read was
+    // written under the new name here (open-items plan 3.144 no. 8).
+    if (key === renamed) continue;
     if (!says(key, value)) next = setEntry(next, [key], value);
   }
   return next;

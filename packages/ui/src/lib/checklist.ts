@@ -14,7 +14,7 @@
  * the same list style, or at the end when the note has none. Editing the
  * wording is what the note is for.
  */
-import { createFenceTracker, editInShape, taskBoxState, type TaskBoxState } from "@plainva/core";
+import { createFenceTracker, editInShape, sourceLinesOf, taskBoxState, type TaskBoxState } from "@plainva/core";
 import { TASK_LINE_RE } from "./taskToggle";
 
 export interface TaskProgress {
@@ -46,7 +46,9 @@ export interface TaskLine {
 }
 
 export function listTaskLines(content: string): TaskLine[] {
-  const lines = content.split("\n");
+  // The task scan's lines (`sourceLines.ts`): a carriage return of its own ends
+  // one too, or the ordinals here would not be the ones a tick is written by.
+  const lines = sourceLinesOf(content).map((line) => line.text);
   const out: TaskLine[] = [];
   const fence = createFenceTracker();
   let ordinal = 0;

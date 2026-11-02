@@ -321,6 +321,19 @@ function resolveWeekday(arg: string | null, now: Date, weekStart: number): strin
 }
 
 /**
+ * A value that goes into a text, with the line ends of that text: `\r\n`
+ * where the text has them, else `\n` — every `\r\n` and carriage return of
+ * its own in the value turned. An answer pre-filled from the clipboard of
+ * Windows carried its `\r\n` into a note or a mail whose text is `\n`
+ * (open-items plan 3.143 no. 3).
+ */
+export function inLineEndsOf(text: string, value: string): string {
+  if (!value.includes("\r") && !text.includes("\r\n")) return value;
+  const lf = value.replace(/\r\n?/g, "\n");
+  return text.includes("\r\n") ? lf.replace(/\n/g, "\r\n") : lf;
+}
+
+/**
  * Fills everything that needs no user input and collects what does.
  *
  * Unknown tokens are left ALONE on purpose: a typo like `{{titel}}` stays
@@ -410,7 +423,7 @@ export function resolveTemplate(
           unresolved.push(raw);
           return "";
         }
-        return value;
+        return inLineEndsOf(text, value);
       }
       case "clipboard": {
         // Deliberately NOT inserted silently (decision E7): a password manager
