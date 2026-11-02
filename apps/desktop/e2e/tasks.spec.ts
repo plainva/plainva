@@ -1323,6 +1323,36 @@ test('the capture fields offer notes after [[ and tags after # (plan Befunde 202
   expect(errors).toEqual([]);
 });
 
+test('the journal capture asks before Escape takes what was typed: Cancel keeps it, Discard closes, an empty one closes at once (finding 2026-10-22)', async ({ page }, testInfo) => {
+  await openVault(page);
+  const dialog = page.getByTestId('journal-capture-dialog');
+  const field = dialog.getByTestId('journal-capture-input');
+  const question = page.getByRole('dialog', { name: /^(Discard your input\?|Eingaben verwerfen\?)$/ });
+
+  // Nothing typed: Escape closes at once, nothing asks.
+  await page.keyboard.press('Control+Shift+J');
+  await expect(field).toBeVisible();
+  await field.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(question).toHaveCount(0);
+
+  // Typed: Escape asks first. THE DEFECT: the entry went without a word.
+  await page.keyboard.press('Control+Shift+J');
+  await field.fill('The heron was back on the railing');
+  await field.press('Escape');
+  await expect(question).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('journal-capture-discard-question.png') });
+  await question.getByRole('button', { name: /^(Cancel|Abbrechen)$/ }).click();
+  await expect(question).toHaveCount(0);
+  await expect(field).toHaveValue('The heron was back on the railing');
+
+  // The dialog's own Cancel asks the same; Discard closes.
+  await dialog.getByRole('button', { name: /^(Cancel|Abbrechen)$/ }).click();
+  await question.getByRole('button', { name: /^(Discard|Verwerfen)$/ }).click();
+  await expect(dialog).toBeHidden();
+});
+
 test('bookmarks are arranged by dragging a row or with Alt+Arrow, and the order is the file\'s (plan Befunde 2026-10-06, W6)', async ({ page }) => {
   await page.addInitScript(() => {
     const fs = (window as any).mockFs;

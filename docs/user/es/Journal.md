@@ -1,6 +1,6 @@
 # Diario
 
-Última actualización: 2026-10-29
+Última actualización: 2026-11-02
 
 El diario es la forma rápida de anotar algo sin abrir una nota: un pensamiento, una llamada, una línea sobre el día. Cada entrada es una línea de lista normal con una hora — `- 14:05 El router está en el sótano` — bajo un encabezado de la **nota diaria de hoy**. No hay ningún formato de archivo nuevo ni una base de datos: las entradas viven en tus notas diarias, legibles en cualquier editor y compatibles con los plugins de diario de Obsidian (Thino, Knomo).
 
@@ -8,7 +8,7 @@ El diario es la forma rápida de anotar algo sin abrir una nota: un pensamiento,
 
 Un campo, un **Enter**. Plainva pone la hora; tú solo escribes el texto. Las etiquetas, los enlaces y una segunda línea se escriben sin más — el texto es Markdown normal. Tras `[[` el campo sugiere notas y tras `#` etiquetas, como el editor: `Enter` o `Tab` toma la sugerencia resaltada, `Esc` cierra la lista.
 
-- **En el escritorio:** `Ctrl+Shift+J` abre el campo **Entrada de diario** desde cualquier lugar de Plainva. El mismo campo está en el menú **＋** de la barra lateral, en la paleta de comandos y en el menú de la bandeja del sistema (**Entrada de diario**). `Enter` guarda, `Shift+Enter` empieza una nueva línea, `Esc` descarta.
+- **En el escritorio:** `Ctrl+Shift+J` abre el campo **Entrada de diario** desde cualquier lugar de Plainva. El mismo campo está en el menú **＋** de la barra lateral, en la paleta de comandos y en el menú de la bandeja del sistema (**Entrada de diario**). `Enter` guarda, `Shift+Enter` empieza una nueva línea, `Esc` cierra; si ya has escrito algo, Plainva pregunta primero **¿Descartar los datos introducidos?**, igual que **Cancelar** y cualquier otro diálogo en el que escribes.
 - **En el teléfono:** el botón **＋** ofrece **Entrada de diario**; la pantalla del diario tiene su propio botón de lápiz. Un toque largo sobre el icono de la app también ofrece **Entrada de diario** — como acceso directo de la app en Android, como acción rápida en iOS. Ahí, `Enter` sigue siendo un salto de línea; **Guardar entrada** guarda.
 - **Desde el panel para compartir (teléfono):** elige Plainva y marca **Al diario** — el texto y el enlace se convierten en la entrada, los archivos compartidos van a la carpeta de adjuntos y se incrustan.
 - **Con una imagen:** el campo del teléfono tiene **Añadir foto**; en el escritorio pegas una imagen desde el portapapeles en el campo. La imagen va a donde van los adjuntos y se incrusta en la entrada.

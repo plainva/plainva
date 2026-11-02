@@ -1,6 +1,6 @@
 # Diário
 
-Última revisão: 2026-10-29
+Última revisão: 2026-11-02
 
 O diário é o jeito rápido de anotar algo sem abrir uma nota: um pensamento, um telefonema, uma linha sobre o dia. Cada entrada é uma linha de lista comum com uma hora — `- 14:05 O roteador fica no porão` — sob um título da **nota diária de hoje**. Não há um novo formato de arquivo nem um banco de dados: as entradas vivem nas suas notas diárias, legíveis em qualquer editor e compatíveis com os plugins de diário do Obsidian (Thino, Knomo).
 
@@ -8,7 +8,7 @@ O diário é o jeito rápido de anotar algo sem abrir uma nota: um pensamento, u
 
 Um campo, um **Enter**. O Plainva carimba a hora; você só digita o texto. Tags, links e uma segunda linha são simplesmente digitados — o texto é Markdown comum. Depois de `[[` o campo sugere notas e depois de `#` tags, como o editor: `Enter` ou `Tab` aceita a sugestão destacada, `Esc` fecha a lista.
 
-- **No desktop:** `Ctrl+Shift+J` abre o campo **Entrada de diário** de qualquer lugar no Plainva. O mesmo campo está no menu **＋** da barra lateral, na paleta de comandos e no menu da área de notificação (**Entrada de diário**). `Enter` salva, `Shift+Enter` começa uma nova linha, `Esc` descarta.
+- **No desktop:** `Ctrl+Shift+J` abre o campo **Entrada de diário** de qualquer lugar no Plainva. O mesmo campo está no menu **＋** da barra lateral, na paleta de comandos e no menu da área de notificação (**Entrada de diário**). `Enter` salva, `Shift+Enter` começa uma nova linha, `Esc` fecha; se você já escreveu algo, o Plainva pergunta primeiro **Descartar o que foi inserido?** — como **Cancelar** e qualquer outra caixa de diálogo em que você digita.
 - **No telefone:** o botão **＋** oferece **Entrada de diário**; a tela do diário tem seu próprio botão de caneta. Um toque longo no ícone do aplicativo também oferece **Entrada de diário** — como atalho do aplicativo no Android, como ação rápida no iOS. Ali, `Enter` continua sendo uma quebra de linha; **Salvar entrada** salva.
 - **Pela folha de compartilhamento (telefone):** escolha o Plainva e marque **Para o diário** — o texto e o link viram a entrada, arquivos compartilhados vão para a pasta de anexos e são incorporados.
 - **Com uma imagem:** o campo do telefone tem **Adicionar foto**; no desktop você cola uma imagem da área de transferência no campo. A imagem vai para onde os anexos ficam e é incorporada na entrada.

@@ -14,6 +14,7 @@ import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
 import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { getAppVersion } from "./services/whatsNew";
+import { installDiscardQuestion } from "./services/discardQuestionInstall";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
@@ -90,6 +91,8 @@ setPlatformServices({
   noteAccountRemoved: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
   noteAccountAdded: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
 });
+// "Discard your input?" for every dialog that holds typed input (finding 2026-10-22).
+installDiscardQuestion();
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP
 // to the Tauri http plugin with the Origin-free relay for token POSTs. The

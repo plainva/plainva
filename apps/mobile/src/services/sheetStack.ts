@@ -37,6 +37,12 @@ export function registerSheet(close: Close): () => void {
 export function closeTopSheet(): boolean {
   const close = stack[stack.length - 1];
   if (!close) return false;
+  // A field that commits when it is left (a database filter's value) is left
+  // first: the back press unmounts it, and an unmounted field hears no blur -
+  // its value went with the sheet (finding 2026-10-22, BaseConfigSheet). A tap
+  // beside the sheet and a drag on its grip move the focus themselves.
+  const focused = typeof document === "undefined" ? null : document.activeElement;
+  if (focused instanceof HTMLElement && focused !== document.body) focused.blur();
   close();
   return true;
 }

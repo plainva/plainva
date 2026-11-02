@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ICON, Modal } from "@plainva/ui";
+import { ICON, Modal, useDiscardGuard } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { TextInput, SelectField } from "@plainva/ui";
 
@@ -18,6 +18,8 @@ export function MissingRequirementDialog({ viewName, requiredType, availableColu
   const [mode, setMode] = useState<'existing' | 'new'>('new');
   const [selectedColumn, setSelectedColumn] = useState(availableColumns.length > 0 ? availableColumns[0] : "");
   const [newColumnName, setNewColumnName] = useState("");
+  // A new property's name typed and not yet created is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(newColumnName.trim() !== "", onCancel);
 
   const isDateReq = requiredType === "date" || requiredType === "datetime";
   const [dateType, setDateType] = useState<"date" | "datetime">("date");
@@ -36,12 +38,12 @@ export function MissingRequirementDialog({ viewName, requiredType, availableColu
 
   return (
     <Modal
-      onClose={onCancel}
+      onClose={cancel}
       title={t("database.missingField", "Pflichtfeld fehlt")}
       size="sm"
       footer={
         <>
-          <Button onClick={onCancel}>{t("common.cancel", "Abbrechen")}</Button>
+          <Button onClick={cancel}>{t("common.cancel", "Abbrechen")}</Button>
           <Button variant="primary" onClick={handleConfirm} disabled={confirmDisabled}>
             {t("common.confirm", "Bestätigen")}
           </Button>

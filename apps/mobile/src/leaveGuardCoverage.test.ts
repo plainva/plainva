@@ -70,6 +70,7 @@ describe("leave guard coverage", () => {
 const SHEETS_WITHOUT_TYPED_INPUT: Record<string, string> = {
   "EditorHost.tsx": "table size steppers and a date picked once; nothing typed stays in a sheet",
   "components/EmojiPickSheet.tsx": "the field searches; every pick commits at once",
+  "components/HailingSheet.tsx": "an easter egg: a line to try, kept after a miss so the next try can change it - not work",
   "components/MobileDialogHost.tsx": "a prompt's Cancel is its answer to the question that opened it",
   "screens/base/BaseConfigSheet.tsx": "every control writes the view at once",
   "screens/GraphScreen.tsx": "the field filters the graph and sits outside the tools sheet",

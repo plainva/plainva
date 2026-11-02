@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
-import { Button, ICON, Modal, Segmented } from "@plainva/ui";
+import { Button, ICON, Modal, Segmented, useDiscardGuard } from "@plainva/ui";
 import { nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule } from "@plainva/ui";
 import { calendarDay } from "@plainva/ui";
 
@@ -33,6 +33,11 @@ export function RepeatTaskModal({ taskTitle, initial, currentDue, onCancel, onSu
   const [freq, setFreq] = useState<RepeatFreq>(initial?.freq ?? "weekly");
   const [interval, setIntervalValue] = useState(String(initial?.interval ?? 1));
   const [from, setFrom] = useState<RepeatFrom>(initial?.from ?? "due");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(
+    freq !== (initial?.freq ?? "weekly") || interval !== String(initial?.interval ?? 1) || from !== (initial?.from ?? "due"),
+    onCancel,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +77,7 @@ export function RepeatTaskModal({ taskTitle, initial, currentDue, onCancel, onSu
   return (
     <Modal
       title={t("tasks.repeat", { defaultValue: "Wiederholung" })}
-      onClose={onCancel}
+      onClose={cancel}
       size="sm"
       testId="task-repeat-modal"
       footer={
@@ -82,7 +87,7 @@ export function RepeatTaskModal({ taskTitle, initial, currentDue, onCancel, onSu
               {t("tasks.repeatNone", { defaultValue: "Nicht wiederholen" })}
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
+          <Button variant="ghost" size="sm" onClick={cancel} disabled={busy}>
             {t("common.cancel", { defaultValue: "Abbrechen" })}
           </Button>
           <Button

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { InfoTip, Banner, Button, ICON, Modal, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
+import { InfoTip, Banner, Button, ICON, Modal, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
@@ -143,6 +143,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   // nothing stores it, because a code that could be read back later would be a
   // second way into a publication that only membership should open.
   const [publicationInvite, setPublicationInvite] = useState<{ displayName: string; memberId: string; invite: string } | null>(null);
+  // A recipient's name typed and not yet invited is asked about (finding 2026-10-22).
+  const closeRecipient = useDiscardGuard(recipientFor !== null && publicationInvite === null && recipientName.trim() !== "", () => { setRecipientFor(null); setPublicationInvite(null); });
   // Withdrawal (S6). Both are confirmations rather than immediate actions,
   // because neither is undoable: the object store is put-only, so what a
   // recipient already copied stays readable to them forever. The dialog has to
@@ -888,7 +890,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
         </Modal>
       )}
       {recipientFor && (
-        <Modal title={t("workspaceSecurity.inviteRecipient", { defaultValue: "Invite recipient" })} onClose={() => { setRecipientFor(null); setPublicationInvite(null); }} size="md">
+        <Modal title={t("workspaceSecurity.inviteRecipient", { defaultValue: "Invite recipient" })} onClose={closeRecipient} size="md">
           <div className="pv-security-wizard">
             {publicationInvite ? (<>
               <Banner kind="success" rounded>{t("workspaceSecurity.publicationInviteHint", { defaultValue: "Send this code through a secure channel. It opens this publication only - never the vault it came from." })}</Banner>
@@ -904,7 +906,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
               <SettingRow label={t("workspaceSecurity.publications", { defaultValue: "Publications" })}><strong>{recipientFor.name}</strong></SettingRow>
               <label className="pv-security-field"><span>{t("workspaceSecurity.name")}</span><TextInput autoFocus value={recipientName} onChange={(event) => setRecipientName(event.target.value)} /></label>
               <div className="pv-security-actions">
-                <Button variant="ghost" disabled={busy} onClick={() => setRecipientFor(null)}>{t("common.cancel")}</Button>
+                <Button variant="ghost" disabled={busy} onClick={closeRecipient}>{t("common.cancel")}</Button>
                 <Button variant="primary" disabled={busy || !recipientName.trim()} onClick={() => {
                   const target = recipientFor;
                   const displayName = recipientName.trim();

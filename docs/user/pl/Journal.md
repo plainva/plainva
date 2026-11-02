@@ -1,6 +1,6 @@
 # Dziennik
 
-Stan na: 2026-10-29
+Stan na: 2026-11-02
 
 Dziennik to szybki sposób na zapisanie czegoś bez otwierania notatki: myśl, telefon, zdanie o dniu. Każdy wpis to zwykły wiersz listy z godziną — `- 14:05 Router stoi w piwnicy` — pod nagłówkiem **dzisiejszej notatki dziennej**. Nie ma nowego formatu pliku ani bazy danych: wpisy żyją w Twoich notatkach dziennych, czytelne w dowolnym edytorze i zgodne z wtyczkami Obsidian do prowadzenia dziennika (Thino, Knomo).
 
@@ -8,7 +8,7 @@ Dziennik to szybki sposób na zapisanie czegoś bez otwierania notatki: myśl, t
 
 Jedno pole, jeden **Enter**. Godzinę stempluje Plainva; Ty wpisujesz tylko tekst. Tagi, linki i drugi wiersz po prostu dopisujesz — tekst to zwykły Markdown. Po `[[` pole podpowiada notatki, a po `#` tagi, tak jak edytor: `Enter` lub `Tab` przyjmuje zaznaczoną podpowiedź, `Esc` zamyka listę.
 
-- **Na komputerze:** `Ctrl+Shift+J` otwiera pole **Wpis dziennika** z dowolnego miejsca w Plainvie. To samo pole znajduje się w menu **＋** paska bocznego, w palecie poleceń i w menu zasobnika systemowego (**Wpis dziennika**). `Enter` zapisuje, `Shift+Enter` zaczyna nowy wiersz, `Esc` odrzuca.
+- **Na komputerze:** `Ctrl+Shift+J` otwiera pole **Wpis dziennika** z dowolnego miejsca w Plainvie. To samo pole znajduje się w menu **＋** paska bocznego, w palecie poleceń i w menu zasobnika systemowego (**Wpis dziennika**). `Enter` zapisuje, `Shift+Enter` zaczyna nowy wiersz, `Esc` zamyka; jeśli coś już wpisano, Plainva najpierw pyta **Odrzucić wpisane dane?** — tak jak **Anuluj** i każde inne okno dialogowe, w którym piszesz.
 - **Na telefonie:** przycisk **＋** oferuje **Wpis dziennika**; ekran dziennika ma własny przycisk pióra. Długie przytrzymanie ikony aplikacji również oferuje **Wpis dziennika** — na Androidzie jako skrót aplikacji, na iOS jako szybka akcja. `Enter` pozostaje tam złamaniem wiersza; **Zapisz wpis** zapisuje.
 - **Z arkusza udostępniania (telefon):** wybierz Plainva i zaznacz **Do dziennika** — tekst i link stają się wpisem, udostępnione pliki trafiają do folderu załączników i zostają osadzone.
 - **Ze zdjęciem:** pole na telefonie ma przycisk **Dodaj zdjęcie**; na komputerze wklejasz obraz ze schowka do pola. Zdjęcie trafia tam, gdzie inne załączniki, i zostaje osadzone we wpisie.

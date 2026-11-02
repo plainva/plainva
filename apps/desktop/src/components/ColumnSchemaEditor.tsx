@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, AlertTriangle, GripVertical, ChevronDown, Lock, Type } from "lucide-react";
-import { ICON, Modal, Button } from "@plainva/ui";
+import { ICON, Modal, Button, useDiscardGuard } from "@plainva/ui";
+import { sameStoredValue } from "@plainva/core";
 import { Select, type SelectOption } from "./Select";
 import { useRowDrag } from "./base/useRowDrag";
 import { PALETTE_NAMES, PALETTE_SWATCH, chipClass, groupOptions, mergeObservedOptions, type CuratedOption } from "@plainva/ui";
@@ -91,6 +92,11 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
   const [relationBase, setRelationBase] = useState<string>(schema.relationBase || "");
   const [relationLimit, setRelationLimit] = useState<string>(schema.relationLimit === "one" ? "one" : "");
   const [name, setName] = useState<string>(column);
+  // What the property is set to here and not yet saved is asked about
+  // (finding 2026-10-22). The reverse link's two fields are left out: an
+  // effect fills them in after the dialog opened.
+  const [opened] = useState(() => ({ input, options, rollup, relationBase, relationLimit, name }));
+  const cancel = useDiscardGuard(!sameStoredValue({ input, options, rollup, relationBase, relationLimit, name }, opened), onClose);
   // "Auf Ziel anzeigen" (Notion "Show on related database"): checkbox + name of
   // the reverse column in the TARGET base, pre-filled from the target's config.
   const [showOnTarget, setShowOnTarget] = useState(false);
@@ -256,7 +262,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
 
   return (
     <Modal
-      onClose={onClose}
+      onClose={cancel}
       title={t("properties.editColumn", { column })}
       size="md"
       footer={
@@ -267,7 +273,7 @@ export function ColumnSchemaEditor({ column, schema, baseFiles, currentBasePath,
             </Button>
           ) : null}
           <div style={{ flex: 1 }} />
-          <Button variant="ghost" onClick={onClose}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
+          <Button variant="ghost" onClick={cancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
           <Button variant="primary" onClick={save} disabled={!renameValid || !reverseNameValid}>{t("common.save", { defaultValue: "Speichern" })}</Button>
         </>
       }

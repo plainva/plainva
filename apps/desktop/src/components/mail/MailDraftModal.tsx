@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, ChipField, FloatingWindow, ICON, IconButton, mailboxesSwitchedOn, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
+import { askDiscard, Banner, Button, ChipField, FloatingWindow, ICON, IconButton, mailboxesSwitchedOn, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { AlertTriangle, Ban, FileText, Paperclip, RefreshCw, RotateCw, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
@@ -194,22 +194,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   );
 
   /**
-   * "Discard your input?" — asked before a changed draft is thrown away. One
-   * question at a time: a second way out taken while it stands (Escape, then
-   * the window's own close button) joins the question that is already open.
+   * "Discard your input?" — asked before a changed draft is thrown away. The
+   * question every dialog with typed input asks (`askDiscard`, shared since
+   * 2026-11-02), one at a time: a second way out taken while it stands
+   * (Escape, then the window's own close button) joins the open question.
    */
-  const asking = useRef<Promise<boolean> | null>(null);
-  const confirmDiscard = useCallback((): Promise<boolean> => {
-    asking.current ??= appConfirm({
-      title: t("mobile.leaveTitle"),
-      message: t("mobile.leaveCompose"),
-      kind: "danger",
-      confirmLabel: t("mobile.leaveDiscard"),
-    }).finally(() => {
-      asking.current = null;
-    });
-    return asking.current;
-  }, [t]);
+  const confirmDiscard = useCallback((): Promise<boolean> => askDiscard(t("mobile.leaveCompose")), [t]);
 
   /**
    * The way out that discards: Escape, the close button, "Cancel". It asks when

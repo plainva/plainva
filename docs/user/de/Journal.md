@@ -1,6 +1,6 @@
 # Journal
 
-Stand: 2026-10-29
+Stand: 2026-11-02
 
 Das Journal ist der schnelle Weg, etwas festzuhalten, ohne eine Notiz zu öffnen: ein Gedanke, ein Telefonat, eine Zeile zum Tag. Jeder Eintrag ist eine gewöhnliche Listenzeile mit Uhrzeit — `- 14:05 Router steht im Keller` — unter einer Überschrift der **heutigen Tagesnotiz**. Es gibt kein neues Dateiformat und keine Datenbank: Die Einträge leben in Deinen Tagesnotizen, lesbar in jedem Editor und verträglich mit den Journal-Plugins von Obsidian (Thino, Knomo).
 
@@ -8,7 +8,7 @@ Das Journal ist der schnelle Weg, etwas festzuhalten, ohne eine Notiz zu öffnen
 
 Ein Feld, ein **Enter**. Die Uhrzeit setzt Plainva; Du tippst nur den Text. Tags, Links und eine zweite Zeile tippst Du einfach mit — der Text ist gewöhnliches Markdown. Nach `[[` schlägt das Feld Notizen vor, nach `#` Tags, wie der Editor: `Enter` oder `Tab` übernimmt den markierten Vorschlag, `Esc` schließt die Liste.
 
-- **Am Desktop:** `Strg+Umschalt+J` öffnet das Feld **Journal-Eintrag** von überall in Plainva. Dasselbe Feld steht im **＋**-Menü der Seitenleiste, in der Befehlspalette und im Menü des Infobereichs (**Journal-Eintrag**). `Enter` speichert, `Umschalt+Enter` beginnt eine neue Zeile, `Esc` verwirft.
+- **Am Desktop:** `Strg+Umschalt+J` öffnet das Feld **Journal-Eintrag** von überall in Plainva. Dasselbe Feld steht im **＋**-Menü der Seitenleiste, in der Befehlspalette und im Menü des Infobereichs (**Journal-Eintrag**). `Enter` speichert, `Umschalt+Enter` beginnt eine neue Zeile, `Esc` schließt; hast Du schon etwas geschrieben, fragt Plainva zuerst **Eingaben verwerfen?** — wie bei **Abbrechen** und jedem anderen Dialog, in den Du tippst.
 - **Am Telefon:** Der **＋**-Knopf bietet **Journal-Eintrag** an; der Journal-Bildschirm hat einen eigenen Stift-Knopf. Auch ein langer Druck auf das App-Symbol bietet **Journal-Eintrag** an — unter Android als App-Verknüpfung, unter iOS als Schnellaktion. `Enter` bleibt dort ein Zeilenumbruch; **Eintrag speichern** speichert.
 - **Aus dem Teilen-Menü (Telefon):** Wähle Plainva und setze **Ins Journal** — Text und Link werden der Eintrag, geteilte Dateien landen im Anhang-Ordner und werden eingebettet.
 - **Mit Bild:** Das Feld am Telefon hat **Foto hinzufügen**; am Desktop fügst Du ein Bild aus der Zwischenablage in das Feld ein. Das Bild kommt dorthin, wo Anhänge liegen, und wird im Eintrag eingebettet.

@@ -1090,27 +1090,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-14",
   },
   {
-    id: "sheet-discard-question",
-    title: "Asking before a sheet or dialog closes over typed input",
-    area: "platform",
-    kind: "decision",
-    desktop: "partial",
-    desktopReason:
-      "Different interaction model. The phone's sheets go away by gestures that " +
-      "happen by accident - a tap beside the sheet (half the screen with the " +
-      "keyboard up), a drag on the grip, the system back button - so since " +
-      "2026-11-02 (Sammelplan 3.139 Nr. 3) every sheet holding typed input asks " +
-      "first (useSheetGuard, guarded by leaveGuardCoverage.test.ts). The desktop's " +
-      "dialogs are Modals closed by Escape, their X or a backdrop click, deliberate " +
-      "acts in a window whose tabs and panes stay rendered; its long-text dialog, " +
-      "the mail composer, asks the same question (MailDraftModal). Only the topmost " +
-      "phone screen is rendered, which is also why the phone alone holds a " +
-      "program step (a connect run's next screen, a vault reload) back behind a " +
-      "notice while someone types (screenStep.ts).",
-    mobile: "yes",
-    verified: "2026-11-02",
-  },
-  {
     id: "side-panels",
     title: "Side panels beside the editor, shown and hidden at will",
     area: "platform",

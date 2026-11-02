@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RepeatTaskSheet } from "./RepeatTaskSheet";
+import { SheetGrip } from "./SheetGrip";
+import { TextInput } from "@plainva/ui";
 import { CommentsSheet } from "./CommentsSheet";
 import { activeLeaveGuard, armLeaveGuard, armedLeaveGuards, resetLeaveGuard } from "../services/leaveGuard";
 import { askBeforeLeaving } from "../services/leaveQuestion";
@@ -107,6 +109,27 @@ describe("a sheet with typed input", () => {
     await settle();
     await act(async () => answer(true));
     await settle();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("Android back leaves a field that commits on leaving before the sheet goes", async () => {
+    // A database filter's value is written when its field is left; a back
+    // press unmounted the field first, and the value went with the sheet.
+    const committed: string[] = [];
+    const onClose = vi.fn();
+    await act(async () => root.render(
+      <div className="m-sheet-backdrop">
+        <div className="pv-sheet m-sheet">
+          <SheetGrip onClose={onClose} />
+          <TextInput aria-label="filter value" defaultValue="" onBlur={(e) => committed.push(e.target.value)} />
+        </div>
+      </div>,
+    ));
+    const field = document.querySelector<HTMLInputElement>('input[aria-label="filter value"]')!;
+    field.focus();
+    field.value = "Berlin";
+    await act(async () => { closeTopSheet(); });
+    expect(committed, "the value was committed before the sheet closed").toEqual(["Berlin"]);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
