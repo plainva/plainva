@@ -41,8 +41,15 @@
      short enough that nobody sits in front of a white window wondering. */
   var STARTUP_GRACE_MS = 8000;
 
-  var shown = false;
+  /* What is on screen: null, "unsupported" or "startup". */
+  var shown = null;
   var errors = [];
+  /* How many of those errors arrived while nothing had rendered yet. Only
+     such an error is a boot failure, and it is counted when it ARRIVES: by
+     the guard's next look the app may have rendered, and the bare number of
+     errors cannot tell a boot failure from a failed request of the running
+     app (open-items plan 3.91). */
+  var bootErrors = 0;
 
   /* The app is up as soon as React has put anything into #root. That is the
      only mount signal available from outside the module graph — and it must be
@@ -78,6 +85,12 @@
     );
     document.body.appendChild(box);
     return box;
+  }
+
+  function removeOverlay() {
+    var box = document.getElementById(OVERLAY_ID);
+    if (box && box.parentNode) box.parentNode.removeChild(box);
+    shown = null;
   }
 
   function block(parent, heading, lines) {
@@ -137,7 +150,7 @@
      be pasted into an issue. */
   function showUnsupported(missing) {
     if (shown) return;
-    shown = true;
+    shown = "unsupported";
     var box = mountOverlay();
 
     block(box, "Plainva can't start on this system", [
@@ -163,8 +176,12 @@
   /* The net for what the feature probe does not know about — the NEXT baseline
      step, a broken chunk, a plugin that is missing on this platform. */
   function showStartupFailure() {
-    if (shown) return;
-    shown = true;
+    /* The engine diagnosis says more than any later error. A startup overlay
+       that is already up (the timeout's) is drawn again, so an error arriving
+       after it is named instead of "No error was reported". */
+    if (shown === "unsupported") return;
+    removeOverlay();
+    shown = "startup";
     var box = mountOverlay();
 
     block(box, "Plainva didn't start", [
@@ -184,7 +201,9 @@
     errors.push("[" + label + "] " + describe(value));
     /* Only a boot failure takes over the screen. Once the app is up it owns its
        own error handling, and covering it would hide a working program. */
-    if (!appHasMounted()) showStartupFailure();
+    if (appHasMounted()) return;
+    bootErrors++;
+    showStartupFailure();
   }
 
   /* The two features that mark the supported floor, each reported BY NAME.
@@ -222,18 +241,19 @@
 
     /* The timeout's claim is "nothing rendered", and a slow boot can disprove
        it a moment later - a loaded machine, a cold disk, six browsers on one
-       box. An ERROR keeps the screen for good (record() made that call while
-       the state was genuinely unknown); a merely LATE mount does not: the app
-       is demonstrably running, and leaving "Plainva didn't start" on top of it
-       hides a working program and swallows every click into it. Found by the
-       E2E suite, where 47 tests clicked into this overlay over an app that had
-       rendered fine (2026-08-24). */
+       box. An error BEFORE the first render keeps the screen for good; a
+       merely LATE mount does not: the app is demonstrably running, and
+       leaving "Plainva didn't start" on top of it hides a working program and
+       swallows every click into it. Found by the E2E suite, where 47 tests
+       clicked into this overlay over an app that had rendered fine
+       (2026-08-24). An error AFTER the first render does not keep it either,
+       even when it comes before this interval's next look (3.91). The phone's
+       guard carries the same rule; both files are ES5 without imports, so it
+       is written twice rather than shared. */
     var watch = window.setInterval(function () {
-      if (errors.length || !appHasMounted()) return;
+      if (bootErrors || !appHasMounted()) return;
       window.clearInterval(watch);
-      var box = document.getElementById(OVERLAY_ID);
-      if (box && box.parentNode) box.parentNode.removeChild(box);
-      shown = false;
+      removeOverlay();
     }, 250);
   }, STARTUP_GRACE_MS);
 

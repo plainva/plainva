@@ -924,25 +924,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-29",
   },
   {
-    id: "boot-guard-late-mount",
-    title: "The start guard clears its overlay once a slow start has rendered",
-    area: "platform",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Both shells show \"Plainva didn't start\" when nothing rendered in time " +
-      "(desktop after 8 s, phone after 12 s). The desktop's guard looks every " +
-      "250 ms whether the app has rendered since and then removes the overlay; " +
-      "the phone's guard (apps/mobile/public/boot-guard.js) never removes it, so " +
-      "a first start slower than 12 s leaves it over the running app. The " +
-      "desktop's clearing has its own hole (an error right after the first " +
-      "render holds the overlay for good); both are open-items plan 3.91. Both " +
-      "files are ES5 without imports, so the rule cannot be shared, only " +
-      "written alike. Written down on 2026-10-30.",
-    verified: "2026-10-30",
-  },
-  {
     id: "camera-capture",
     title: "Insert a photo from camera or gallery",
     area: "platform",

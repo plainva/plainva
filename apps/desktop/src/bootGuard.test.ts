@@ -73,6 +73,87 @@ describe.each(SHELLS)("boot guard ($name)", ({ guard, html: htmlPath }) => {
     }
   });
 
+  /** Runs the guard in a fresh document with fake timers; `fire` dispatches a
+   *  window event to the listeners the guard registered. Open-items plan 3.91. */
+  function runGuard() {
+    const doc = document.implementation.createHTMLDocument();
+    const root = doc.createElement("div");
+    root.id = "root";
+    doc.body.appendChild(root);
+    const listeners: Record<string, Array<(e: unknown) => void>> = {};
+    const scope: Record<string, unknown> = {
+      addEventListener(type: string, fn: (e: unknown) => void) {
+        (listeners[type] ??= []).push(fn);
+      },
+      setTimeout,
+      setInterval,
+      clearInterval,
+    };
+    new Function("window", "document", "navigator", "RegExp", "structuredClone", source)(
+      scope,
+      doc,
+      { userAgent: "test engine" },
+      RegExp,
+      () => {},
+    );
+    return {
+      scope,
+      overlay: () => doc.getElementById("plainva-boot-failure"),
+      mount: () => root.appendChild(doc.createElement("main")),
+      fire: (type: string, event: unknown) => (listeners[type] ?? []).forEach((fn) => fn(event)),
+    };
+  }
+
+  it("takes its overlay back when a slow start renders after the timeout", () => {
+    vi.useFakeTimers();
+    try {
+      const guard = runGuard();
+      vi.advanceTimersByTime(13_000);
+      expect(guard.overlay()?.textContent).toContain("Plainva didn't start");
+      guard.mount();
+      vi.advanceTimersByTime(500);
+      expect(guard.overlay()).toBeNull();
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it("an error after the first render does not hold the timeout's overlay over the running app", () => {
+    vi.useFakeTimers();
+    try {
+      const guard = runGuard();
+      vi.advanceTimersByTime(13_000);
+      guard.mount();
+      // Between the first render and the guard's next look: a failed request
+      // of the running app, not a boot failure.
+      guard.fire("unhandledrejection", { reason: new Error("sync failed") });
+      vi.advanceTimersByTime(500);
+      expect(guard.overlay()).toBeNull();
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it("an error before the first render keeps the overlay, and names the error", () => {
+    vi.useFakeTimers();
+    try {
+      const guard = runGuard();
+      vi.advanceTimersByTime(13_000);
+      guard.fire("error", { error: new Error("chunk failed") });
+      guard.mount();
+      vi.advanceTimersByTime(500);
+      const text = guard.overlay()?.textContent ?? "";
+      expect(text).toContain("Plainva didn't start");
+      expect(text).toContain("chunk failed");
+      expect(text).not.toContain("No error was reported");
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it("is loaded as a classic, blocking script — not a module", () => {
     // A module would be deferred AND parsed as part of the module graph: dead
     // in exactly the case it exists for.
