@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { installMailFixture } from "../scripts/screenshot-services.mjs";
-import { leaveApp, returnToApp, waitForVaultDirectory } from "./exampleVault";
+import { leaveApp, readVaultFile, returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 
 /**
  * Mail on the phone, against the locally routed Graph fixture (plan Befunde
@@ -573,6 +573,60 @@ test("a folder with no messages says so — again after another folder", async (
     await expect(empty).toHaveCount(0);
     await openFolder(page, "Entwürfe");
     await expect(empty).toBeVisible();
+  } finally {
+    await sql.close();
+  }
+});
+
+/**
+ * "+ .eml" on a message filed before (open-items plan 3.77): the raw copy goes
+ * into the note that is there, once. Both shells call one rule for it now
+ * (`addEmlToMailNote`); the desktop added it to a new note only.
+ */
+test("+ .eml gives a note filed before its raw copy, once", async ({ page, context }) => {
+  test.setTimeout(90_000);
+  const { mail, sql } = await bootMail(context, page);
+  try {
+    await openFolder(page, "Archiv");
+    const row = page.locator("button.m-mailrow", { hasText: "Nur Text" });
+    await row.click();
+    await expect(page.getByTestId("mail-text")).toBeVisible();
+    const filed = (ending: string) =>
+      page.evaluate(async (end) => {
+        try {
+          const listing = await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readdir({ path: "vault/Mail", directory: "DATA" });
+          return listing.files.map((file) => file.name).filter((name) => name.endsWith(end)).sort();
+        } catch {
+          return [];
+        }
+      }, ending);
+
+    // Filed without the raw copy first.
+    await page.getByRole("button", { name: /^Save as note$/ }).click();
+    await expect.poll(() => filed(".md"), { timeout: 15_000 }).toHaveLength(1);
+    const [note] = await filed(".md");
+    await expect(page.locator(".cm-content")).toBeVisible({ timeout: 15_000 });
+    await back(page);
+    await expect(page.getByTestId("mail-text")).toBeVisible();
+
+    // "+ .eml" now: the note is there, and gets the raw copy.
+    await page.getByTestId("mail-message-menu").click();
+    await page.getByRole("button", { name: "+ .eml" }).click();
+    await expect.poll(() => filed(".eml"), { timeout: 15_000 }).toHaveLength(1);
+    const [eml] = await filed(".eml");
+    await expect.poll(() => readVaultFile(page, `Mail/${note}`)).toContain(`[[Mail/${eml}]]`);
+    await expect(page.locator(".pv-toast").filter({ hasText: "Raw copy added" })).toHaveCount(1);
+    expect(mail.raws).toEqual(["fixture-text-links"]);
+
+    // Once: a second "+ .eml" fetches nothing and adds nothing.
+    await back(page);
+    await expect(page.getByTestId("mail-text")).toBeVisible();
+    await page.getByTestId("mail-message-menu").click();
+    await page.getByRole("button", { name: "+ .eml" }).click();
+    await expect(page.locator(".pv-toast").filter({ hasText: "A note for this email already exists" })).toHaveCount(1, { timeout: 15_000 });
+    expect(await filed(".eml")).toEqual([eml]);
+    expect(mail.raws).toEqual(["fixture-text-links"]);
+    expect((await readVaultFile(page, `Mail/${note}`)).split(`[[Mail/${eml}]]`)).toHaveLength(2);
   } finally {
     await sql.close();
   }

@@ -1510,17 +1510,18 @@ describe("mail files, says and deletes carefully", () => {
   it("captures a task the same way every other task is created", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
     expect(screen).toMatch(/createTaskInDatabase\(/);
-    expect(screen).toMatch(/saveEmlFile\(/);
+    // The raw copy through the one rule both shells call (open-items plan 3.77).
+    expect(screen).toMatch(/addEmlToMailNote\(/);
     // The raw copy costs a second fetch of the whole message — only on demand.
     //
     // This used to read `mode === "eml" && res.created`, which pinned a DEFECT
     // rather than the intent (S20): capturing the same message a second time
     // skipped the .eml without a word, and the toast said only that the note
     // existed. The rule is that the fetch is gated on the MODE; whether the
-    // note happens to be new decides nothing.
-    expect(screen).toMatch(/if \(mode === "eml"\) \{/);
+    // note happens to be new decides nothing. The fetch is handed to the shared
+    // rule as a function: it runs only where the note links no raw copy yet.
     expect(screen, "the raw fetch must stay inside the eml branch").toMatch(
-      /if \(mode === "eml"\) \{[\s\S]*?fetchRawMessage\(/,
+      /mode === "eml"\s*\?\s*await addEmlToMailNote\(\{[^}]*fetchRaw: \(\) => fetchRawMessage\(/,
     );
   });
 

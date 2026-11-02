@@ -24,6 +24,7 @@ export * from "./mailOut";
 export * from "./junk";
 export * from "./remoteImages";
 export * from "./mailLinks";
+export * from "./mailtoDraft";
 export * from "./MailLinkViews";
 export * from "./sieveScript";
 export * from "./net/sieve";

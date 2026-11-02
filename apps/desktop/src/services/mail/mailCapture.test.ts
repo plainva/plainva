@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
-import { buildEmailNoteContent, captureMailAsNote, isEmptyMailNote, mailDayKey, mailNoteStem, saveEmlFile, type MailCaptureAdapter } from "@plainva/ui/mail";
+import { addEmlToMailNote, buildEmailNoteContent, captureMailAsNote, isEmptyMailNote, mailCaptureNotice, mailDayKey, mailNoteStem, saveEmlFile, type MailCaptureAdapter } from "@plainva/ui/mail";
 import type { MailMessage } from "@plainva/ui/mail";
 
 function fakeAdapter(initial: Record<string, string> = {}) {
@@ -265,5 +265,48 @@ describe("a second capture fills a note that holds no text of its message", () =
     expect(isEmptyMailNote("# Rechnung Q3\n# Noch eine\n")).toBe(false);
     // A line before the title is text too.
     expect(isEmptyMailNote("Vorweg.\n# Rechnung Q3\n")).toBe(false);
+  });
+});
+
+/**
+ * "+ .eml" on a note filed before (open-items plan 3.77). The desktop added
+ * the raw copy to a NEW note only: capturing a message again opened its note
+ * without the copy, and without a word. Both shells call this one rule now.
+ */
+describe("+ .eml gives the note its raw copy where it links none", () => {
+  const RAW = btoa("From: a@example.org\r\nSubject: Rechnung Q3\r\n\r\nBody");
+
+  it("adds the raw copy to a note filed before, once, and says so", async () => {
+    const { adapter, files } = fakeAdapter();
+    const note = await captureMailAsNote({ adapter, message: msg(), accountId: "acc1", mailbox: "INBOX", folder: "Mail" });
+    let fetched = 0;
+    const fetchRaw = async () => {
+      fetched++;
+      return RAW;
+    };
+    // The note is there now: a second capture with "+ .eml".
+    const again = await captureMailAsNote({ adapter, message: msg(), accountId: "acc1", mailbox: "INBOX", folder: "Mail" });
+    expect(again.created).toBe(false);
+    const eml = await addEmlToMailNote({ adapter, message: msg(), note: again, folder: "Mail", fetchRaw });
+    expect(eml).toEqual({ emlPath: "Mail/2026-07-20 Rechnung Q3.eml", added: true });
+    expect(files.get(note.path)).toMatch(/\n\n\[\[Mail\/2026-07-20 Rechnung Q3\.eml\]\]\n$/);
+    expect(mailCaptureNotice(again, eml.added)).toBe("mail.emlAdded");
+    // A third time: the note links one, nothing is fetched or written.
+    const before = files.get(note.path);
+    expect(await addEmlToMailNote({ adapter, message: msg(), note: again, folder: "Mail", fetchRaw })).toEqual({ emlPath: null, added: false });
+    expect(fetched).toBe(1);
+    expect(files.get(note.path)).toBe(before);
+    expect([...files.keys()].filter((p) => p.endsWith(".eml"))).toHaveLength(1);
+    expect(mailCaptureNotice(again, false)).toBe("mail.noteExists");
+  });
+
+  it("adds it to a new note as before", async () => {
+    const { adapter, files } = fakeAdapter();
+    const note = await captureMailAsNote({ adapter, message: msg(), accountId: "acc1", mailbox: "INBOX", folder: "Mail" });
+    const eml = await addEmlToMailNote({ adapter, message: msg(), note, folder: "Mail", fetchRaw: async () => RAW });
+    expect(eml).toEqual({ emlPath: "Mail/2026-07-20 Rechnung Q3.eml", added: true });
+    expect(files.get(note.path)).toContain("anbei die Rechnung.\n\n[[Mail/2026-07-20 Rechnung Q3.eml]]\n");
+    expect(mailCaptureNotice(note, eml.added)).toBe("mail.captured");
+    expect(mailCaptureNotice({ created: false, filled: true }, true)).toBe("mail.noteFilled");
   });
 });

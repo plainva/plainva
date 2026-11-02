@@ -639,11 +639,16 @@ fn parse_message(raw: &[u8]) -> Result<mail_parser::Message<'_>, String> {
 /// file when it is in neither body (the calendar of an invitation, a named
 /// text file). `mail_fetch_message` numbers this list and
 /// `attachment_contents` reads it, so the numbers of one message are one.
+///
+/// The one part of a message that is shown as its text although the parser
+/// calls it a file (`whole_message_text_part`) is not one of them.
 fn attachment_parts<'m>(parsed: &'m mail_parser::Message<'_>) -> Vec<mail_parser::MessagePart<'m>> {
     use mail_parser::PartKind;
+    let shown = whole_message_text_part(parsed).map(|part| part.id());
     parsed
         .root()
         .parts()
+        .filter(|part| Some(part.id()) != shown)
         .filter(|part| {
             part.is_attachment()
                 || match part.kind() {
@@ -664,12 +669,95 @@ fn attachment_parts<'m>(parsed: &'m mail_parser::Message<'_>) -> Vec<mail_parser
 /// a message really has; the phone's parser and Microsoft Graph report only
 /// those, so the same mail gave one quote here and another there (finding
 /// 2026-10-09). This reports the part, and nothing made from another one.
+///
+/// A message of one part in another text type has that part's text
+/// (`whole_message_text_part`).
 fn plain_text_body(parsed: &mail_parser::Message<'_>) -> Option<String> {
-    let part = parsed.text_body().next()?;
+    let Some(part) = parsed.text_body().next() else {
+        let part = whole_message_text_part(parsed)?;
+        return Some(match part.text() {
+            Some(text) => text.into_owned(),
+            None => String::from_utf8_lossy(&part.decoded()).into_owned(),
+        });
+    };
     match part.kind() {
         mail_parser::PartKind::Text => part.text().map(|text| text.into_owned()),
         _ => None,
     }
+}
+
+/// The message's own HTML body, when it has one: the first HTML part of its
+/// HTML body, not the first part of that body.
+///
+/// `body_html(0)` answers for a message without any HTML too — with markup
+/// mail-parser makes out of the text, a `<br/>` for every line break. The
+/// reader shows a message with HTML in its frame and one without in its text
+/// view, so over IMAP no message ever reached the text view on the desktop:
+/// the addresses in a plain-text mail were no links, and a run of blanks — an
+/// indented line, a table made of spaces — fell together (open-items plan
+/// 3.76). In a multipart/mixed whose first part is an empty text and whose
+/// second is the HTML, it was the empty text made into markup: a reply quoted
+/// nothing. The phone's reader and Microsoft Graph report the HTML a message
+/// has, and nothing made from another part; so does this now.
+fn html_body(parsed: &mail_parser::Message<'_>) -> Option<String> {
+    parsed
+        .html_body()
+        .find(|part| matches!(part.kind(), mail_parser::PartKind::Html))
+        .and_then(|part| part.text().map(|html| html.into_owned()))
+}
+
+/// Subtypes of text that are data for a program, not words for a person: an
+/// invitation, a contact card. The phone's reader (`DATA_TEXT` in
+/// `packages/ui/src/mail/net/mime.ts`) holds the same list.
+const DATA_TEXT_SUBTYPES: [&str; 5] = ["calendar", "x-vcalendar", "vcard", "x-vcard", "directory"];
+
+/// A token as RFC 2045 spells a type or a subtype.
+fn is_media_token(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"!#$%&'*+.^_`|~-".contains(&byte))
+}
+
+/// The one part of a message that is not divided into any, where it is words
+/// the reader shows as the message's text although they are not text/plain
+/// (open-items plan 3.78 no. 12).
+///
+/// mail-parser lists a text of another subtype — `text/markdown`,
+/// `text/x-patch`, `text/enriched` — as an attachment, and a Content-Type the
+/// rule cannot read as a type (`text` without a subtype, `text/plain
+/// charset=us-ascii` without its semicolon) too. Such a message opened here
+/// with no text and one file named "attachment"; on the phone it opened empty.
+/// By the rule it is plain text (RFC 2046, 4.1.4; RFC 2045, 5.2), on both
+/// shells now: not one attached as a file, and not one that is data
+/// (`DATA_TEXT_SUBTYPES`). Inside a multipart such a part stays what it was —
+/// the attachment question of the parity catalog's `mail-attachment-list`.
+fn whole_message_text_part<'m>(parsed: &'m mail_parser::Message<'_>) -> Option<mail_parser::MessagePart<'m>> {
+    if parsed.text_body().len() > 0 || parsed.html_body().len() > 0 {
+        return None;
+    }
+    let part = parsed.root_part();
+    if part.is_multipart() || part.is_message() {
+        return None;
+    }
+    if part
+        .content_disposition()
+        .is_some_and(|disposition| disposition.ctype().eq_ignore_ascii_case("attachment"))
+    {
+        return None;
+    }
+    let words = match part.content_type() {
+        None => true,
+        Some(ct) => match ct.subtype() {
+            Some(sub) if is_media_token(ct.ctype()) && is_media_token(sub) => {
+                let sub = sub.to_ascii_lowercase();
+                ct.ctype().eq_ignore_ascii_case("text") && sub != "html" && !DATA_TEXT_SUBTYPES.contains(&sub.as_str())
+            }
+            // No type the rule can read: text/plain.
+            _ => true,
+        },
+    };
+    words.then_some(part)
 }
 
 /// The raw message as the frontend receives it: standard base64, with padding
@@ -697,7 +785,8 @@ fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<M
                     Some(sub) => format!("{}/{}", c.ctype(), sub),
                     None => c.ctype().to_string(),
                 })
-                .unwrap_or_else(|| "application/octet-stream".to_string()),
+                // A part of a digest that names no type is an enclosed message.
+                .unwrap_or_else(|| if part.is_message() { "message/rfc822" } else { "application/octet-stream" }.to_string()),
             size: part_contents(&part).len(),
         })
         .collect();
@@ -708,7 +797,7 @@ fn message_from_raw(raw: &[u8], uid: u32, uid_validity: Option<u32>) -> Result<M
         to: address_text(parsed.headers().value(mail_parser::HeaderName::To).and_then(|h| h.as_address())),
         date_ts: parsed.date().map(|d| d.to_timestamp() * 1000).unwrap_or(0),
         text: plain_text_body(&parsed),
-        html: parsed.body_html(0).map(|c| c.to_string()),
+        html: html_body(&parsed),
         attachments,
         uid_validity,
         provider_message_id: parsed.message_id().map(str::to_string),
@@ -1869,8 +1958,8 @@ mod tests {
 
     /// In a multipart/digest a part that names no type of its own is an
     /// enclosed message (RFC 2046, 5.1.5): this parser has no text for the
-    /// digest and lists the enclosed messages as files. The phone's reader does
-    /// not know that default (parity catalog, `mail-digest-parts`);
+    /// digest and lists the enclosed messages as files, of the type they are.
+    /// The phone's reader reads it so since open-items plan 3.78 no. 13;
     /// `imapClient.test.ts` holds the same message for it.
     #[test]
     fn a_digest_part_without_a_type_is_an_enclosed_message() {
@@ -1878,6 +1967,71 @@ mod tests {
         let parsed = parse_message(digest).expect("parses");
         assert_eq!(plain_text_body(&parsed), None);
         assert_eq!(attachment_parts(&parsed).len(), 2);
+        let message = message_from_raw(digest, 1, None).expect("parses");
+        assert_eq!((message.text, message.html), (None, None));
+        assert_eq!(message.attachments.iter().map(|file| file.mime.as_str()).collect::<Vec<_>>(), vec!["message/rfc822", "message/rfc822"]);
+        let files = attachment_contents(digest, &[0]).expect("reads");
+        assert_eq!(fetched_bytes(&files[0]), b"From: anna@example.org\r\nSubject: Erste\r\n\r\nText der ersten.".to_vec());
+    }
+
+    /// A message has HTML only where it has an HTML part (open-items plan
+    /// 3.76): a plain-text mail reaches the reader's text view, where its
+    /// addresses are links and its blanks stay. mail-parser made markup out of
+    /// the text — a `<br/>` for each line break — and the reader showed that.
+    /// `imapClient.test.ts` holds the same messages for the phone's reader.
+    #[test]
+    fn a_plain_text_message_has_no_html() {
+        let plain = b"Subject: Reise\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHallo,\r\n\r\n  eingerueckt:  https://nordlicht.example/r?id=1\r\n";
+        let message = message_from_raw(plain, 1, None).expect("parses");
+        assert_eq!(message.text.as_deref(), Some("Hallo,\r\n\r\n  eingerueckt:  https://nordlicht.example/r?id=1\r\n"));
+        assert_eq!(message.html, None);
+        // Without any MIME header line, the same.
+        assert_eq!(message_from_raw(b"Subject: Reise\r\n\r\nNur Text.\r\n", 1, None).expect("parses").html, None);
+
+        // An empty text first, the HTML behind it: the HTML is the message's,
+        // not the empty text made into markup.
+        let mixed = b"Subject: Reise\r\nContent-Type: multipart/mixed; boundary=\"b\"\r\n\r\n--b\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n\r\n--b\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Hallo Marco,</p>\r\n--b--\r\n";
+        let message = message_from_raw(mixed, 1, None).expect("parses");
+        assert_eq!(message.text.as_deref(), Some(""));
+        assert_eq!(message.html.as_deref(), Some("<p>Hallo Marco,</p>"));
+
+        // Both versions: the HTML version.
+        let both = b"Subject: Reise\r\nContent-Type: multipart/alternative; boundary=\"a\"\r\n\r\n--a\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHallo\r\n--a\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Hallo</p>\r\n--a--\r\n";
+        assert_eq!(message_from_raw(both, 1, None).expect("parses").html.as_deref(), Some("<p>Hallo</p>"));
+    }
+
+    /// A message of one part in another text type is shown as its text
+    /// (open-items plan 3.78 no. 12): mail-parser lists such a part as an
+    /// attachment, so the message opened with no text and one file named
+    /// "attachment" (on the phone: empty). `imapClient.test.ts` holds the same
+    /// messages for the phone's reader.
+    #[test]
+    fn a_message_of_one_part_in_another_text_type_is_its_text() {
+        let words = "# Reise\r\n\r\nGr\u{00fc}\u{00df}e aus M\u{00fc}nchen.\r\n";
+        for kind in ["text/markdown; charset=utf-8", "text/x-patch", "text/enriched", "text", "text/plain charset=utf-8", "", "TEXT/Markdown"] {
+            let raw = format!("Subject: Reise\r\nContent-Type: {kind}\r\n\r\n{words}");
+            let message = message_from_raw(raw.as_bytes(), 1, None).expect("parses");
+            assert_eq!((kind, message.text.as_deref(), message.html.as_deref(), message.attachments.len()), (kind, Some(words), None, 0));
+        }
+        // In base64 too.
+        let encoded = format!(
+            "Subject: Reise\r\nContent-Type: text/markdown; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n{}\r\n",
+            base64::engine::general_purpose::STANDARD.encode(words)
+        );
+        assert_eq!(message_from_raw(encoded.as_bytes(), 1, None).expect("parses").text.as_deref(), Some(words));
+        // Attached as a file, it is a file and no text.
+        let attached = format!("Subject: Reise\r\nContent-Type: text/markdown; name=\"reise.md\"\r\nContent-Disposition: attachment; filename=\"reise.md\"\r\n\r\n{words}");
+        let message = message_from_raw(attached.as_bytes(), 1, None).expect("parses");
+        assert_eq!(message.text, None);
+        assert_eq!(message.attachments.iter().map(|file| file.name.as_str()).collect::<Vec<_>>(), vec!["reise.md"]);
+        // Data is no text: an invitation, a contact card, a file.
+        for kind in ["text/calendar; method=REQUEST", "text/vcard", "application/pdf"] {
+            let raw = format!("Subject: Reise\r\nContent-Type: {kind}\r\n\r\nBEGIN:X\r\n");
+            assert_eq!((kind, message_from_raw(raw.as_bytes(), 1, None).expect("parses").text), (kind, None));
+        }
+        // Inside a multipart a part with an empty Content-Type is plain text.
+        let empty = b"Subject: Reise\r\nContent-Type: multipart/mixed; boundary=\"b\"\r\n\r\n--b\r\nContent-Type: \r\n\r\nHallo Marco,\r\n--b--\r\n";
+        assert_eq!(message_from_raw(empty, 1, None).expect("parses").text.as_deref(), Some("Hallo Marco,"));
     }
 
     /// P9.1: the thread headers of an envelope, read out of the header block the
@@ -2043,7 +2197,8 @@ Der Text der weitergeleiteten.\r\n\
     const OUTLOOK_RELATED: &[u8] = b"From: Ben <ben@example.org>\r\nTo: anna@example.org; carla@example.org\r\nSubject: Bild\r\nMIME-Version: 1.0\r\nContent-Type: multipart/related; boundary=r; type=\"multipart/alternative\"\r\n\r\n--r\r\nContent-Type: multipart/alternative; boundary=a\r\n\r\n--a\r\nContent-Type: text/plain; charset=us-ascii\r\n\r\nSiehe Bild.\r\n--a\r\nContent-Type: text/html; charset=us-ascii\r\n\r\n<p>Siehe <img src=\"cid:image001.png@01DA\"></p>\r\n--a--\r\n--r\r\nContent-Type: image/png; name=\"image001.png\"\r\nContent-Description: image001.png\r\nContent-Disposition: inline; filename=\"image001.png\"; size=4\r\nContent-ID: <image001.png@01DA>\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw==\r\n--r--\r\n";
 
     /// What the reader receives from the other shapes - as mail-parser 0.11
-    /// read them, and 1.0 reads them the same. Behind the picture of
+    /// read them, and 1.0 reads them the same; `html` is only an HTML part
+    /// the message has (open-items plan 3.76). Behind the picture of
     /// `UNNAMED_FILES` lies the one place 1.0 would read them otherwise:
     /// `a_picture_the_body_would_show_is_still_a_file`.
     #[test]
@@ -2064,7 +2219,7 @@ Der Text der weitergeleiteten.\r\n\
                 "uid": 7, "uidValidity": 3,
                 "subject": "", "from": "anna@example.org", "to": "",
                 "dateTs": 1_784_721_600_000_i64,
-                "text": "Nur Text.\r\n", "html": "<html><body>Nur Text.<br/></body></html>",
+                "text": "Nur Text.\r\n", "html": null,
                 "attachments": [], "files": [],
             })
         );
@@ -2074,7 +2229,7 @@ Der Text der weitergeleiteten.\r\n\
                 "uid": 7, "uidValidity": 3,
                 "subject": "Dateien", "from": "anna@example.org", "to": "",
                 "dateTs": 0,
-                "text": "Siehe unten.", "html": "<html><body>Siehe unten.</body></html>",
+                "text": "Siehe unten.", "html": null,
                 "attachments": [
                     { "index": 0, "name": "foto.jpg", "mime": "image/jpeg", "size": 3 },
                     { "index": 1, "name": "attachment", "mime": "application/octet-stream", "size": 3 },

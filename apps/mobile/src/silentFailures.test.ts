@@ -218,19 +218,25 @@ describe("a write that fails is said for what it is", () => {
 describe("saving with .eml saves the .eml", () => {
   const text = strip(read("screens", "MailMessageScreen.tsx"));
 
+  // The decision lives in the shared core since open-items plan 3.77 — the
+  // desktop calls it too (`addEmlToMailNote`, `mailCaptureNotice`), and
+  // `apps/desktop/src/services/mail/mailCapture.test.ts` holds its behaviour.
+  const shared = strip(readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "mail", "mailCapture.ts"), "utf8"));
+
   it("decides on the raw copy, not on whether the note is new", () => {
     // `mode === "eml" && res.created` skipped the whole point of the action
     // the second time a message was captured — and the toast said only that
     // the note already existed.
     expect(text, "the .eml must not hang on res.created").not.toMatch(/mode === "eml" && res\.created/);
-    expect(text).toMatch(/if \(mode === "eml"\) \{/);
+    expect(text).toMatch(/mode === "eml"\s*\?\s*await addEmlToMailNote\(\{ adapter: vault\.files, message, note: res,/);
     // Read by the shared linear reader since plan Befunde 24.09., E6 (was an
     // inline `[[….eml]]` pattern, quadratic on a run of "[").
-    expect(text, "an already linked raw copy must not be written twice").toMatch(/if \(!hasEmlWikiLink\(existing\)\)/);
+    expect(shared, "an already linked raw copy must not be written twice").toMatch(/if \(hasEmlWikiLink\(existing\)\) return \{ emlPath: null, added: false \};/);
   });
 
   it("says that the raw copy was added", () => {
-    expect(text).toMatch(/mail\.emlAdded/);
+    expect(text).toMatch(/t\(mailCaptureNotice\(res, eml\.added\)/);
+    expect(shared).toMatch(/mail\.emlAdded/);
     for (const lang of LANGS) {
       expect(dict(lang).mail?.emlAdded, `${lang} lacks mail.emlAdded`).toBeTruthy();
     }

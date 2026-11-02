@@ -1,10 +1,10 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
+import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, PenLine, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
 import { Banner, Button, EmptyState, ICON, IconButton, mailboxesSwitchedOn, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, useWeekStartDay, type LinkTarget, type MailRowCaps } from "@plainva/ui";
 import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
-import { firstAngleValue, nameBeforeAngle, trimChars, updateVaultText } from "@plainva/core";
+import { firstAngleValue, nameBeforeAngle, trimChars } from "@plainva/core";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { mailSnoozedKey } from "../../services/settingsProfile";
@@ -33,8 +33,8 @@ import { listMailAccounts, mailAccountKind, releaseMailSessions, type MailAccoun
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
-import { attachMailLinks, LinkTargetText, MailPlainText, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
-import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
+import { attachMailLinks, LinkTargetText, MailPlainText, mailtoDraft, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
+import { addEmlToMailNote, captureMailAsNote, mailCaptureNotice, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { fetchAttachment, formatAttachmentSize, forwardSource, saveMailAttachment, type ForwardSource, type MailAttachmentInfo } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, isTrashMailbox, isJunkFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, rowAddress, unifiedId, addressRows, uidOf, inPlace } from "@plainva/ui/mail";
@@ -1502,14 +1502,25 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * link under the pointer or holding the keyboard focus is shown in the bar
    * at the foot of the reading area.
    */
+  const openLink = useStableHandler((link: LinkTarget) => {
+    // A mail address opens Plainva's composer, from the mailbox the message
+    // lies in, as on the phone (open-items plan 3.82). It went to the
+    // system's mail program, under that program's sender — or nowhere.
+    const draft = mailtoDraft(link.href);
+    if (draft) {
+      composeMail({ accountId: messageAccountId, to: draft.to, subject: draft.subject, markdown: draft.body });
+      return;
+    }
+    void openUrl(link.href).catch(() => {});
+  });
   const linkEvents = useMemo(
     () => ({
-      onOpen: (link: LinkTarget) => void openUrl(link.href).catch(() => {}),
+      onOpen: openLink,
       onPoint: setPointedLink,
       // A right click on a link: what the phone offers behind a hold.
       onHold: (link: LinkTarget, at: { x: number; y: number }) => setLinkMenu({ link, ...at }),
     }),
-    []
+    [openLink]
   );
   const detachFrameLinks = useRef<(() => void) | null>(null);
   useEffect(() => () => detachFrameLinks.current?.(), []);
@@ -1866,22 +1877,20 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // text gets it now (finding 2026-10-09, decision b) - a rule never.
         const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: from.id, mailbox: origin.mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true });
         const touched = [res.path];
-        if (withEml && res.created) {
-          const raw = await fetchRawMessage(vaultPath, from, origin.mailbox, message.id);
-          const emlPath = await saveEmlFile(vaultAdapter, message, raw, folder);
-          await updateVaultText(vaultAdapter, res.path, (content) => `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
-          touched.push(emlPath);
-        }
-        if (res.created) {
+        // "+ .eml" adds the raw copy to a note filed before as well, where it
+        // links none — the phone's rule, one function for both (open-items
+        // plan 3.77). It was asked of a NEW note only here.
+        const eml = withEml
+          ? await addEmlToMailNote({ adapter: vaultAdapter, message, note: res, folder, fetchRaw: () => fetchRawMessage(vaultPath, from, origin.mailbox, message.id) })
+          : { emlPath: null, added: false };
+        if (eml.emlPath) touched.push(eml.emlPath);
+        if (res.created || res.filled || eml.added) {
           if (indexer) await applyIndexChanges(indexer, { added: touched }).catch(() => undefined);
           triggerFileTreeUpdate(touched);
-          toast.info(t("mail.captured", { defaultValue: "E-Mail abgelegt: {{name}}", name: res.path.split("/").pop() }));
-        } else if (res.filled) {
-          if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
-          // An editor that holds the note takes the text: the chain does not report its own writes.
-          window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: res.path } }));
-          toast.info(t("mail.noteFilled", { name: res.path.split("/").pop() }));
+          // An editor that holds the note takes what was written into it: the chain does not report its own writes.
+          if (!res.created) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: res.path } }));
         }
+        toast.info(t(mailCaptureNotice(res, eml.added), { name: res.path.split("/").pop() }));
         onOpenPath(res.path, true);
       } catch (e) {
         toast.error(mailErrorText(e, t));
@@ -2775,11 +2784,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     {linkMenu && (
       <MenuSurface open at={{ x: linkMenu.x, y: linkMenu.y }} onClose={() => setLinkMenu(null)} ariaLabel={`${linkMenu.link.before}${linkMenu.link.host}${linkMenu.link.after}`}>
         <MenuItem
-          icon={<ExternalLink size={ICON.ui} />}
+          icon={linkMenu.link.kind === "mailto" ? <PenLine size={ICON.ui} /> : <ExternalLink size={ICON.ui} />}
           data-testid="mail-link-open"
-          onSelect={() => void openUrl(linkMenu.link.href).catch(() => {})}
+          onSelect={() => openLink(linkMenu.link)}
         >
-          {linkMenu.link.kind === "web" ? t("mail.linkOpenBrowser") : t("mail.linkOpen")}
+          {linkMenu.link.kind === "web" ? t("mail.linkOpenBrowser") : linkMenu.link.kind === "mailto" ? t("mail.newMessage") : t("mail.linkOpen")}
         </MenuItem>
         <MenuItem
           icon={<Copy size={ICON.ui} />}

@@ -1,4 +1,4 @@
-import { trimChars } from "@plainva/core";
+import { hasEmlWikiLink, trimChars } from "@plainva/core";
 import { applyTextShape, noteBodyOf, readTextShape, updateVaultText, upsertFrontmatterKeys, readFrontmatterPath, type OkfSource, type TextUpdateFiles } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { safeFileStem } from "../lib/fileStem";
@@ -252,6 +252,56 @@ async function fillEmptyMailNote(adapter: MailCaptureAdapter, path: string, mess
   if (!text) return false;
   const update = await updateVaultText(adapter, path, (current) => (isEmptyMailNote(current) ? withMailText(current, text) : null));
   return update.changed || !!update.conflict?.changed;
+}
+
+export interface AddEmlOptions {
+  adapter: MailCaptureAdapter;
+  message: Pick<MailMessage, "subject" | "dateTs">;
+  /** The note the message is filed in, as `captureMailAsNote` reported it. */
+  note: Pick<CaptureMailResult, "path" | "created">;
+  folder: string;
+  /** The raw message as base64; asked only where the note needs it. */
+  fetchRaw: () => Promise<string>;
+}
+
+export interface AddEmlResult {
+  /** The raw copy that was saved; null where the note already linked one. */
+  emlPath: string | null;
+  /** The note links the raw copy now and did not before. */
+  added: boolean;
+}
+
+/**
+ * "+ .eml": gives the note of a message its raw copy, where it links none —
+ * one decision for both shells (open-items plan 3.77).
+ *
+ * What decides is whether the note already links a raw copy, not whether this
+ * capture made the note. The desktop asked the second: capturing a message
+ * that was filed before opened its note without the raw copy, and without a
+ * word — the thing asked for fell away, while the phone and the user guide
+ * added it. The raw copy is fetched only when it is needed: it is the whole
+ * message over the wire again. It goes into the note as the note lies there
+ * when it is written, through the chain's one entry; a link that came in
+ * meanwhile is not doubled.
+ */
+export async function addEmlToMailNote(opts: AddEmlOptions): Promise<AddEmlResult> {
+  const { adapter, note } = opts;
+  const existing = note.created ? "" : await adapter.readTextFile(note.path);
+  if (hasEmlWikiLink(existing)) return { emlPath: null, added: false };
+  const raw = await opts.fetchRaw();
+  const emlPath = await saveEmlFile(adapter, opts.message, raw, opts.folder);
+  const update = await updateVaultText(adapter, note.path, (content) => (hasEmlWikiLink(content) ? null : `${content.trimEnd()}\n\n[[${emlPath}]]\n`));
+  return { emlPath, added: update.changed };
+}
+
+/** What a capture says when it is done — the same message in both shells, as a locale key. */
+export function mailCaptureNotice(
+  note: Pick<CaptureMailResult, "created" | "filled">,
+  emlAdded: boolean,
+): "mail.captured" | "mail.noteFilled" | "mail.emlAdded" | "mail.noteExists" {
+  if (note.created) return "mail.captured";
+  if (note.filled) return "mail.noteFilled";
+  return emlAdded ? "mail.emlAdded" : "mail.noteExists";
 }
 
 /** Saves the raw RFC822 message as a `.eml` next to the notes (binary write

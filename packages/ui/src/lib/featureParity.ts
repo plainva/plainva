@@ -743,17 +743,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "shows): every part that is not text is a file, and a text or HTML part that " +
       "is in neither body - an embedded image without a name, a named text part, " +
       "the calendar alternative of an invitation, an attached message. The phone's " +
-      "(net/mime.ts) lists a part only when it carries a file name or is marked as " +
-      "an attachment, and never a text part that is not marked so. Both list a " +
-      "named picture of a multipart/mixed with or without a disposition (held by " +
-      "the same messages in imapClient.test.ts and mail_imap.rs). The same message " +
+      "(net/mime.ts) lists a part only when it carries a file name, is marked as " +
+      "an attachment or is an enclosed message, and never a text part that is not " +
+      "marked so. Both list a named picture of a multipart/mixed with or without a " +
+      "disposition, and an enclosed message with or without a name - the parts of " +
+      "a digest that name no type among them (held by the same messages in " +
+      "imapClient.test.ts and mail_imap.rs, open-items plan 3.78 no. 13). A " +
+      "message of one part in another text type is its text on both (3.78 no. " +
+      "12), not a file. The same message " +
       "can still show more files on the desktop - one for every unnamed part, the " +
       "logo of a signature included -, and a forward then carries them from there, " +
       "each counted against what a forward loads on its own. A Microsoft mailbox " +
       "is not affected: both shells read Graph's list. " +
       "Closing this means one rule for what counts, held by the same example " +
       "messages against both parsers (finding 2026-10-11).",
-    verified: "2026-10-30",
+    verified: "2026-11-02",
   },
   {
     id: "mail-base64-reading",
@@ -780,45 +784,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-30",
   },
   {
-    id: "mail-digest-parts",
-    title: "The parts of a digest that name no type of their own",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "In a multipart/digest a part that names no type of its own is an enclosed " +
-      "message (RFC 2046, 5.1.5); without any header line it begins with the empty " +
-      "line. For an IMAP mailbox the desktop's parser (mail-parser, mail_imap.rs) " +
-      "reads it so: the digest has no text of its own, and the enclosed messages " +
-      "are listed as files. The phone's reader (net/mime.ts) does not know that " +
-      "default and reads such a part as plain text: the first enclosed message, " +
-      "its header lines included, is shown as the text of the digest, and none is " +
-      "listed. Closing this means the default in the phone's reader together with " +
-      "one rule for which parts count as attachments (mail-attachment-list): the " +
-      "default alone would leave such a digest empty on the phone, which lists no " +
-      "enclosed message without a file name. Held on each side by the same " +
-      "message, in imapClient.test.ts and in mail_imap.rs (finding 2026-10-21).",
-    verified: "2026-10-21",
-  },
-  {
-    id: "mail-eml-on-existing-note",
-    title: "\"+ .eml\" adds the original to a note captured before",
-    area: "pim",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "The desktop fetches and stores the original only when the note is " +
-      "created in the same step (MailView.tsx, withEml && res.created); a note " +
-      "that exists opens without its original and without a word. The phone " +
-      "asks whether the note already links an original (hasEmlWikiLink) and adds " +
-      "it otherwise, which is what the user guide promises for both. Closing " +
-      "this lifts the decision into packages/ui/src/mail. Written down on " +
-      "2026-10-30; open-items plan 3.77.",
-    mobile: "yes",
-    verified: "2026-10-30",
-  },
-  {
     id: "mail-imap-opening-line",
     title: "The opening words of a message in the list of an IMAP mailbox",
     area: "pim",
@@ -839,23 +804,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "(written down with the fix to the line's reading, finding 2026-10-12).",
     mobile: "yes",
     verified: "2026-10-13",
-  },
-  {
-    id: "mail-mailto-opens-composer",
-    title: "A mail address in a message opens Plainva's composer",
-    area: "pim",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "The desktop's reader hands every link to the system, a mailto: link " +
-      "included (MailView.tsx, openUrl on click and under Open in the link " +
-      "menu): the system's mail program opens, under its own sender, or " +
-      "nothing when none is registered. The phone opens Plainva's composer with " +
-      "recipient, subject and body from the link and the message's mailbox " +
-      "(MailMessageScreen.tsx, openLink). Written down on 2026-10-30; open-items " +
-      "plan 3.82.",
-    mobile: "yes",
-    verified: "2026-10-30",
   },
   {
     id: "note-copy-as-email",

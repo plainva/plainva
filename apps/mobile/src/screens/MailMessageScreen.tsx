@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
-import { hasEmlWikiLink, updateVaultText } from "@plainva/core";
 import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
 import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
@@ -20,7 +19,9 @@ import {
   cachedMessage,
   captureMailAsNote,
   fetchRawMessage,
-  saveEmlFile,
+  addEmlToMailNote,
+  mailCaptureNotice,
+  mailtoDraft,
   mailDayKey,
   fetchAttachment,
   forwardSource,
@@ -223,19 +224,10 @@ export function MailMessageScreen({
    */
   const [linkSheet, setLinkSheet] = useState<LinkTarget | null>(null);
   const openLink = useStableHandler((link: LinkTarget) => {
-    if (link.kind === "mailto") {
-      let to = "";
-      let subject = "";
-      let body = "";
-      try {
-        const url = new URL(link.href);
-        to = decodeURIComponent(url.pathname);
-        subject = url.searchParams.get("subject") ?? "";
-        body = url.searchParams.get("body") ?? "";
-      } catch {
-        /* an address the parser refuses opens an empty draft */
-      }
-      onReply({ accountId, to, subject, body });
+    // A mail address: the composer, as on the desktop (`mailtoDraft`, open-items plan 3.82).
+    const draft = mailtoDraft(link.href);
+    if (draft) {
+      onReply({ accountId, ...draft });
       return;
     }
     void getPlatformServices()
@@ -531,35 +523,17 @@ export function MailMessageScreen({
       const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true });
       // The index hears of what was filed now, not at the next full scan (finding 2026-10-12).
       const filed = [res.path];
-      let emlAdded = false;
-      if (mode === "eml") {
-        // S20: this was gated on `res.created`. Capturing the same message a
-        // second time therefore skipped the .eml WITHOUT A WORD — precisely the
-        // thing that was asked for fell away. What decides is whether a raw
-        // copy is already linked, not whether the note happens to be new.
-        const existing = res.created ? "" : await vault.files.readTextFile(res.path);
-        if (!hasEmlWikiLink(existing)) {
-          // The raw copy is fetched only when asked for: it is the whole message
-          // over the wire again, which on a phone connection is not free.
-          const raw = await fetchRawMessage(vaultId, account, mailbox, messageId);
-          const emlPath = await saveEmlFile(vault.files, message, raw, folder);
-          filed.push(emlPath);
-          // Into the note as it lies there now: the raw copy took its time.
-          emlAdded = (await updateVaultText(vault.files, res.path, (content) => (hasEmlWikiLink(content) ? null : `${content.trimEnd()}\n\n[[${emlPath}]]\n`))).changed;
-        }
-      }
+      // S20: what decides is whether a raw copy is already linked, not whether
+      // the note happens to be new — one rule for both shells (`addEmlToMailNote`).
+      const eml =
+        mode === "eml"
+          ? await addEmlToMailNote({ adapter: vault.files, message, note: res, folder, fetchRaw: () => fetchRawMessage(vaultId, account, mailbox, messageId) })
+          : { emlPath: null, added: false };
+      if (eml.emlPath) filed.push(eml.emlPath);
       void vault.reindexPaths(filed);
       // An editor that holds the note takes what was written into it: the chain does not report its own writes.
-      if (res.filled || emlAdded) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: res.path, vaultId: vault.vaultId } }));
-      toast.success(
-        res.created
-          ? t("mail.captured", { name: res.path })
-          : res.filled
-            ? t("mail.noteFilled", { name: res.path })
-            : emlAdded
-              ? t("mail.emlAdded", { name: res.path })
-              : t("mail.noteExists")
-      );
+      if (res.filled || eml.added) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: res.path, vaultId: vault.vaultId } }));
+      toast.success(t(mailCaptureNotice(res, eml.added), { name: res.path }));
       onOpenNote(res.path);
     } catch (e) {
       toast.error(describe(e, t));

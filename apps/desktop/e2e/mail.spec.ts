@@ -4071,6 +4071,124 @@ test('a plain-text message has links, with the same bar', async ({ page }) => {
   await expect(page.getByTestId('mail-view')).toBeVisible();
 });
 
+/**
+ * A long plain-text mail in the text view (open-items plan 3.76). Over IMAP
+ * the desktop's command reported every plain-text mail with HTML that
+ * mail-parser made out of the text, so the reader showed it in the frame: no
+ * links, and a run of blanks fell together. The command reports `html: null`
+ * for it now (`a_plain_text_message_has_no_html` in `mail_imap.rs`), which is
+ * the shape the double answers with here: what the text view does with a long
+ * real mail — its lines, indents and a table of blanks, a long address.
+ */
+test('a long plain-text mail keeps its lines, its blanks and its links in the text view', async ({ page }, testInfo) => {
+  const text =
+    'Hallo Marco,\n\nhier die Zahlen für das dritte Quartal, wie besprochen:\n\n' +
+    '  Monat      Umsatz     Kosten\n  Juli       12.400      8.100\n  August     11.900      7.950\n  September  13.250      8.420\n\n' +
+    'Die ausführliche Fassung liegt unter https://nordlicht.example/kunden/berichte/2026/q3/umsatz-und-kosten-ausfuehrlich?format=pdf&ref=mail-2026-10 bereit.\n\n' +
+    'Eine sehr lange Zeile ohne Umbruch, damit man sieht, wie der Text an der Breite des Lesebereichs umbricht und nicht seitlich aus dem Fenster läuft, auch wenn der Absender keinen einzigen Zeilenumbruch gesetzt hat.\n\n' +
+    '> Zitat aus der letzten Mail:\n> Bitte bis Freitag.\n\nViele Grüße\nAnna\n-- \nAnna Beispiel · buchhaltung@nordlicht.example\n';
+  await page.addInitScript((body: string) => {
+    (window as any).__fullMessage = { html: null, text: body, attachments: [] };
+  }, text);
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  const view = page.getByTestId('mail-text');
+  await expect(view).toBeVisible();
+  await expect(page.getByTestId('mail-frame')).toHaveCount(0);
+  expect(await view.evaluate((el: HTMLElement) => el.textContent)).toBe(text);
+  // Blanks stay blanks, lines stay lines.
+  expect(await view.evaluate((el: HTMLElement) => getComputedStyle(el).whiteSpace)).toBe('pre-wrap');
+  // A web address is a link; a mail address in a plain text is not, on either shell.
+  await expect(view.locator('a.pv-maillink')).toHaveCount(1);
+  // The long line breaks at the width of the reading area: nothing runs out sideways.
+  expect(await view.evaluate((el: HTMLElement) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-plain-text-long.png') });
+});
+
+/**
+ * A mail address in a message opens Plainva's composer (open-items plan
+ * 3.82), from the mailbox the message lies in, with recipient, subject and
+ * text from the link — the phone has done it so since M1. The desktop handed
+ * it to the system's mail program. The phone holds the same in
+ * `apps/mobile/e2e-prod/mail.spec.ts`.
+ */
+test('a mail address in a message of the second mailbox opens the composer from that mailbox', async ({ page }, testInfo) => {
+  await openSecondMailbox(page, {
+    html: '<p>Fragen an die <a id="mail" href="mailto:buchhaltung@nordlicht.example?subject=Frage%20zu%20Q3&amp;body=Hallo%20Buchhaltung">Buchhaltung</a>.</p>',
+    text: null,
+  });
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect.poll(() => page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => !!el.contentDocument?.querySelector('#mail'))).toBe(true);
+
+  // A click: the composer, addressed — not the system's mail program.
+  await page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => (el.contentDocument!.querySelector('#mail') as HTMLElement).click());
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'buchhaltung@nordlicht.example' })).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Frage zu Q3');
+  await expect(page.getByTestId('draft-body')).toContainText('Hallo Buchhaltung');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-mailto-composer.png') });
+  expect(await page.evaluate(() => (window as any).__openedUrls ?? [])).toEqual([]);
+  await page.getByTestId('draft-close').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // The link's own menu names it as the phone does, and goes the same way.
+  const at = await hoverInFrame(page, '#mail');
+  await page.mouse.click(at.x, at.y, { button: 'right' });
+  await expect(page.getByTestId('mail-link-open')).toHaveText('New message');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-mailto-menu.png') });
+  await page.getByTestId('mail-link-open').click();
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'buchhaltung@nordlicht.example' })).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__openedUrls ?? [])).toEqual([]);
+});
+
+/**
+ * "+ .eml" on a message filed before (open-items plan 3.77): the desktop
+ * fetched and stored the raw copy only when the note was new in the same
+ * step; a note that was there opened without it, without a word. One rule for
+ * both shells now (`addEmlToMailNote`); the phone holds the same in
+ * `apps/mobile/e2e-prod/mail.spec.ts`.
+ */
+test('"+ .eml" gives a note filed before its raw copy, once', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const subject = page.getByTestId('mail-subject');
+  const open = async () => {
+    await page.getByTestId('ribbon-mail').click();
+    await page.getByTestId('mail-envelope').first().click();
+    await expect(subject).toHaveText('Rechnung Q3');
+  };
+  const files = (ending: string) =>
+    page.evaluate((end: string) => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Mail/') && p.endsWith(end)).sort(), ending);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+
+  // Filed without the raw copy first.
+  await page.getByTestId('mail-capture-note').click();
+  await expect.poll(() => files('.md')).toHaveLength(1);
+  const [note] = await files('.md');
+  await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
+
+  // "+ .eml" now: the note that is there gets the raw copy, and the editor that holds it shows the link.
+  await open();
+  await page.getByTestId('mail-capture-eml').click();
+  await expect.poll(() => files('.eml')).toHaveLength(1);
+  const [eml] = await files('.eml');
+  const link = `[[${eml.slice('/test-vault/'.length)}]]`;
+  await expect.poll(() => page.evaluate((p: string) => (window as any).mockFs[p] as string, note)).toContain(link);
+  await expect(page.locator('.pv-toast').filter({ hasText: /Raw copy added|Rohkopie/ })).toHaveCount(1);
+  expect(await files('.md')).toEqual([note]);
+
+  // Once: a second "+ .eml" adds nothing and says the note is there.
+  await open();
+  await page.getByTestId('mail-capture-eml').click();
+  await expect(page.locator('.pv-toast').filter({ hasText: /already exists|schon eine Notiz/ })).toHaveCount(1);
+  expect(await files('.eml')).toEqual([eml]);
+  expect((await page.evaluate((p: string) => (window as any).mockFs[p] as string, note)).split(link)).toHaveLength(2);
+});
+
 test('spam: "always load remote images" does not reach into the junk folder, and the release holds for one view', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     (window as any).__withJunk = true;

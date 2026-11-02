@@ -150,7 +150,7 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
     })) : null,
   }]));
   const everything = () => [...messages, ...Object.values(others).flat(), ...[...accounts.values()].flatMap(a => a.inbox ?? [])];
-  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [], uploads: [], moves: [], deletes: [] };
+  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [], uploads: [], moves: [], deletes: [], raws: [] };
   /**
    * The list of a folder (by id) of the fixture's own mailbox: the inbox is
    * `messages`, every other folder a list in `others`, made when first moved
@@ -237,6 +237,14 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
         return route.fulfill({ json: { value: inFolder, "@odata.count": inFolder.length } });
       }
       if (path.endsWith("/messageRules")) return route.fulfill({ json: { value: [] } });
+      // The raw message ("+ .eml"): its subject and text as a MIME message. `observed.raws` counts what was asked.
+      const raw = /^\/me\/messages\/([^/]+)\/\$value$/.exec(path);
+      const rawItem = raw && everything().find(m => m.id === raw[1]);
+      if (rawItem) {
+        observed.raws.push(rawItem.id);
+        const text = rawItem.body?.content ?? rawItem.bodyPreview ?? "";
+        return route.fulfill({ status: 200, contentType: "message/rfc822", body: `Subject: ${rawItem.subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${text}\r\n` });
+      }
       const message = /^\/me\/messages\/([^/]+)$/.exec(path);
       if (message) {
         const item = everything().find(m => m.id === message[1]);
