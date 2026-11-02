@@ -50,7 +50,9 @@ test("the editor shows the picture, formats the text behind a fence in the prope
     const bold = content.getByText("bold", { exact: true });
     await expect.poll(() => bold.evaluate((el) => Number(getComputedStyle(el).fontWeight))).toBeGreaterThanOrEqual(600);
 
-    const picture = content.locator("img").first();
+    const picture = content.locator('img[alt="Zoom one.svg"]');
+    await picture.scrollIntoViewIfNeeded();
+    await expect(picture).toHaveAttribute("src", /^blob:/);
     await expect.poll(() => picture.evaluate((el) => (el as HTMLImageElement).complete ? (el as HTMLImageElement).naturalWidth : 0)).toBe(160);
 
     await expect(content.locator('[data-link-target="Target"]')).toHaveText("the target");

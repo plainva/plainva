@@ -61,12 +61,15 @@ test('the live view shows the picture, formats the text behind a fence in the pr
   await expect.poll(() => bold.evaluate((el) => Number(getComputedStyle(el).fontWeight))).toBeGreaterThanOrEqual(600);
 
   // 3.42: the encoded name finds `Zoom one.svg`.
-  const picture = content.locator('img').first();
+  const picture = content.locator('img[alt="Zoom one.svg"]');
+  await picture.scrollIntoViewIfNeeded();
+  await expect(picture).toHaveAttribute('src', /^blob:/);
   await expect.poll(() => picture.evaluate((el) => (el as HTMLImageElement).complete ? (el as HTMLImageElement).naturalWidth : 0)).toBe(160);
 
   // 3.133 no. 1: the link names the note, without the backslash, and shows its alias.
   await expect(content.locator('[data-link-target="Target"]')).toHaveText('the target');
-  await expect(content.locator('.cm-wiki-link--unresolved')).toHaveCount(0);
+  // (This vault's index is fixed and does not list Target, so the link is drawn as not created yet.)
+  await expect(content.locator('[data-link-target$="\\\\"]')).toHaveCount(0);
 
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('editor-note-parts.png') });
 });

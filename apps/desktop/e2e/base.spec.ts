@@ -2132,7 +2132,7 @@ test('Base "Neu": without a template of the database, the folder rule and then t
     (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
     (window as any).mockFs['/test-vault/Templates/Projekt.md'] = '---\ntype: Projekt\n---\n\n# {{title}}\n\nAus der Ordnerregel\n';
     const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
-    (window as any).__E2E_STORE_SEED = {
+    (window as any).__storeOverrides = {
       [`folderTemplates_${b64('/test-vault')}`]: [{ folder: 'Projekte', template: 'Projekt.md' }],
     };
   });
@@ -2152,7 +2152,7 @@ test('Base "Neu": a type rule gives an entry its template where no folder rule r
     (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
     (window as any).mockFs['/test-vault/Templates/Standard.md'] = '---\nquelle: Typregel\n---\n\n# {{title}}\n\nAus der Typregel\n';
     const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
-    (window as any).__E2E_STORE_SEED = {
+    (window as any).__storeOverrides = {
       [`typeTemplates_${b64('/test-vault')}`]: [{ type: 'Note', template: 'Standard.md' }],
     };
   });
