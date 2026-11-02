@@ -64,7 +64,18 @@ for (const shell of ["desktop"] as const) {
       return (window as PinboardProbeWindow).pinboardProbe.imageRequests.includes('Inbox/Note-99.png');
     })).toBe(true);
     await expect(distantCard).toHaveAttribute('data-card-status', 'ready');
-    await expect(distantCard.locator('img')).toBeInViewport();
+    // Its picture is shown where the scroll brought it. Asked once, right after
+    // the read, it failed under load (Sammelplan § 3.141 Nr. 4b): the heights
+    // were still settling and Masonry moved the card on, below the bottom the
+    // poll had scrolled to. So the scroll follows it until it stays in view.
+    await expect.poll(() => page.evaluate(() => {
+      const container = document.querySelector<HTMLElement>('#host > div')!;
+      container.scrollTop = container.scrollHeight;
+      const picture = document.querySelector<HTMLImageElement>('[data-pinboard-path="Inbox/Note-99.md"] img');
+      if (!picture) return false;
+      const shown = picture.getBoundingClientRect(), view = container.getBoundingClientRect();
+      return shown.bottom > view.top && shown.top < view.bottom && shown.height > 0;
+    })).toBe(true);
     await page.evaluate(() => { document.querySelector<HTMLElement>('#host > div')!.scrollTop = 0; });
     await page.locator('[data-pinboard-chip="group1"]').click();
     await page.evaluate(() => { document.querySelector<HTMLElement>('#host > div')!.scrollTop = 850; });

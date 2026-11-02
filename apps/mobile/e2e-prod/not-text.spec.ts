@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
 
 /**
  * A file whose name says text and whose bytes are not UTF-8, on the phone
@@ -80,8 +80,7 @@ test("what was typed into a note that another program saves in Windows-1252 mean
   // shows the note as what it is now, with the card that leads to the text.
   await expect(page.getByTestId("note-not-text")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("This note was changed elsewhere")).toBeVisible();
-  const copies = await page.evaluate(async () => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readdir({ path: "vault", directory: "DATA" as never })).files
-    .map((file) => file.name).filter((name) => name.startsWith("Alt.CONFLICT-")));
+  const copies = (await vaultFolderNames(page)).filter((name) => name.startsWith("Alt.CONFLICT-"));
   expect(copies).toHaveLength(1);
   await expect(page.locator("code", { hasText: copies[0] })).toBeVisible();
   const kept = await page.evaluate(async (name) => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/" + name, directory: "DATA" as never, encoding: "utf8" as never })).data, copies[0]);

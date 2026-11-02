@@ -76,3 +76,34 @@ export async function readVaultFile(page: Page, path: string): Promise<string> {
     path: "vault/" + file, directory: "DATA", encoding: "utf8",
   })).data), path);
 }
+
+/**
+ * The entries of a folder below the app's data directory (`vault/Zettel`,
+ * `drafts`), read while the app may be writing into it.
+ *
+ * The web build's file system plugin lists a folder by its names and then
+ * reads each entry; an entry the app removes in between (a draft renamed, a
+ * leftover cleaned up) makes it throw "Cannot read properties of undefined
+ * (reading 'type')". Thrown inside `expect.poll`, that ended the wait instead
+ * of letting it ask again (CI run 37938033761, Sammelplan § 3.92 Nr. 2) — a
+ * race of the test with the app, not a fault of the app. So a listing that
+ * fails is asked again a few times before the failure stands.
+ */
+export async function folderEntries(page: Page, folder: string): Promise<Array<{ name: string; type: string }>> {
+  return page.evaluate(async (dir) => {
+    const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return (await fs.readdir({ path: dir, directory: "DATA" as never })).files.map((file) => ({ name: file.name, type: file.type }));
+      } catch (error) {
+        if (attempt >= 10) throw error;
+        await new Promise((done) => setTimeout(done, 50));
+      }
+    }
+  }, folder);
+}
+
+/** The names in a vault folder (`""` for its top), sorted. */
+export async function vaultFolderNames(page: Page, folder = ""): Promise<string[]> {
+  return (await folderEntries(page, folder ? `vault/${folder}` : "vault")).map((entry) => entry.name).sort();
+}

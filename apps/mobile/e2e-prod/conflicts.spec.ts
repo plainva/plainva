@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { seedExampleNote, type MobileTestGlobals } from "./exampleVault";
+import { readVaultFile, seedExampleNote, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
 
 async function read(page: Page, path: string) {
   return page.evaluate(async path => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/" + path, directory: "DATA", encoding: "utf8" })).data, path);
@@ -37,12 +37,11 @@ test("a real mobile conflict keeps one editable local copy through saves, reload
     await editor.click();
     await page.keyboard.press("ControlOrMeta+A");
     await page.keyboard.insertText(latest.slice("---\ntype: Note\n---\n".length));
-    await expect.poll(async () => page.evaluate(async () => {
-      const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
-      const copies = (await fs.readdir({ path: "vault", directory: "DATA" })).files.filter(file => file.name.includes(".CONFLICT-"));
+    await expect.poll(async () => {
+      const copies = (await vaultFolderNames(page)).filter(name => name.includes(".CONFLICT-"));
       if (copies.length !== 1) return null;
-      return (await fs.readFile({ path: "vault/" + copies[0].name, directory: "DATA", encoding: "utf8" })).data;
-    })).toBe(latest);
+      return readVaultFile(page, copies[0]);
+    }).toBe(latest);
     expect(await read(page, "Example.md")).toBe(foreign);
   }
   await expect(page.getByText("You are editing your conflict copy. It will sync after you merge it.")).toBeVisible();
@@ -60,7 +59,7 @@ test("a real mobile conflict keeps one editable local copy through saves, reload
   await page.getByRole("button", { name: "Replace file and delete conflict copy", exact: true }).click();
   await expect(comparison).not.toBeVisible();
   expect(await read(page, "Example.md")).toBe(latest);
-  const remaining = await page.evaluate(async () => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readdir({ path: "vault", directory: "DATA" })).files.filter(file => file.name.includes(".CONFLICT-")));
+  const remaining = (await vaultFolderNames(page)).filter(name => name.includes(".CONFLICT-"));
   expect(remaining).toHaveLength(0);
   expect(errors).toEqual([]);
 });

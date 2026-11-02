@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readVaultFile, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { readVaultFile, waitForVaultDirectory, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
 
 /**
  * A note keeps its line ends when it is edited (maintainer, 2026-10-09) —
@@ -29,9 +29,7 @@ async function vaultWith(page: Page, files: Record<string, string>) {
   await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
 }
 
-const conflictCopies = (page: Page) => page.evaluate(async () =>
-  (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readdir({ path: "vault", directory: "DATA" })).files
-    .map((file) => file.name).filter((name) => name.includes(".CONFLICT-")));
+const conflictCopies = async (page: Page) => (await vaultFolderNames(page)).filter((name) => name.includes(".CONFLICT-"));
 
 test("an edit of a note with \\r\\n and a mark changes the edited line, and nothing else in the file", async ({ page }) => {
   await vaultWith(page, { "From Windows.md": NOTE });

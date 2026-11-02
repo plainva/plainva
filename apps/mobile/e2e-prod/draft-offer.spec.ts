@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, folderEntries } from "./exampleVault";
 
 /**
  * An offered draft stays until it is restored or discarded (open-items plan
@@ -51,7 +51,7 @@ test("an offered draft survives typing on and leaving the note, and goes once it
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.insertText("First.");
   await expect.poll(() => note(page), { timeout: 20_000 }).toContain("First.");
-  const vaultDir = await page.evaluate(async () => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readdir({ path: "drafts", directory: "DATA" as never })).files[0]?.name);
+  const vaultDir = (await folderEntries(page, "drafts"))[0]?.name;
   expect(vaultDir).toBeTruthy();
   await back(page);
   // An earlier run left a draft of the note, in the first journal's shape.

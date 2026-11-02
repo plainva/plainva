@@ -3,6 +3,7 @@ import { test, expect, type Locator, type Page, type TestInfo } from '@playwrigh
 import AxeBuilder from '@axe-core/playwright';
 import { DatabaseSync } from 'node:sqlite';
 import { segmentedIndexText } from '../../../packages/core/src/vault/spacelessText';
+import { pickCompletion } from './completion';
 
 test.beforeEach(async ({ page }) => {
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -853,10 +854,7 @@ test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ p
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/icon');
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ })
-    .first()
-    .click();
+  await pickCompletion(page, /Dokument-Icon|Document icon/);
 
   // Emoji picker opens; search finds the rocket, selecting it writes the
   // plainva.icon frontmatter which the live-mode header widget renders.
@@ -887,10 +885,7 @@ test('Document header: an icon picked for a note whose block is no YAML map says
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/icon');
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ })
-    .first()
-    .click();
+  await pickCompletion(page, /Dokument-Icon|Document icon/);
   const picker = page.getByRole('dialog');
   await expect(picker).toBeVisible();
   await page.keyboard.type('rocket');
@@ -924,10 +919,7 @@ test('Emoji: /emoji inserts a Unicode emoji into the text via the picker', async
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/emoji');
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /Emoji/i })
-    .first()
-    .click();
+  await pickCompletion(page, /Emoji/i);
 
   // The emoji-only picker opens (no icon-set mode switch); search + pick the
   // rocket. Unlike /icon this writes the CHARACTER into the note body.
@@ -957,10 +949,7 @@ test('Emoji: typing :name autocompletes to the emoji character', async ({ page }
 
   // The `:` source shows the emoji completion; picking it inserts the Unicode
   // character (never a literal ":rocket:" shortcode).
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /rocket/i })
-    .first()
-    .click();
+  await pickCompletion(page, /rocket/i);
 
   await expect(editor).toContainText('🚀', { timeout: 10000 });
   await expect(editor).not.toContainText(':rocket');
@@ -2082,7 +2071,16 @@ for (const occupied of [false, true]) test(`Create vault online: ${occupied ? 'a
   // Dismiss the folder picker and use the bucket root. The creation flow must
   // then check a complete inventory before scaffolding any local files.
   await expect(page.getByTestId('cloudacct-status-files')).toHaveAttribute('data-state', 'ok');
-  await page.keyboard.press('Escape');
+  // The picker opens with the "connected" state, but it hears Escape only once
+  // it has mounted its key handler: an Escape pressed the moment the state read
+  // "ok" fell on nothing, and the open picker then hid the next step (Sammelplan
+  // § 3.171 Nr. 12). So: the picker first, then Escape until it is gone.
+  const picker = page.getByRole('dialog', { name: /Select Vault Folder|Vault Ordner auswählen/ });
+  await expect(picker).toBeVisible();
+  await expect(async () => {
+    if (await picker.count()) await page.keyboard.press('Escape');
+    await expect(picker).toHaveCount(0, { timeout: 1_000 });
+  }).toPass();
   await expect(page.getByText(/\(PARA\)/)).toBeVisible();
 
   // Local folder -> scaffold runs BEFORE the vault opens.
@@ -3640,7 +3638,7 @@ test('Icon picker: both modes share one head zone, categories and recents (P4.2)
     await page.keyboard.press('Control+End');
     await page.keyboard.press('Enter');
     await page.keyboard.type('/icon');
-    await page.locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ }).first().click();
+    await pickCompletion(page, /Dokument-Icon|Document icon/);
     const picker = page.getByTestId('emoji-picker');
     await expect(picker).toBeVisible();
     return picker;

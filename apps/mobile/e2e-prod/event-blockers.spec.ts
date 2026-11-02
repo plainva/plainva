@@ -35,13 +35,28 @@ test("a blocker carries the chain mark, asks what a change was meant for, and a 
 
     // A second calendar, an event in the first and its blocker in the second —
     // plus an ordinary appointment that must stay unmarked.
-    const now = new Date();
-    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    //
+    // Placed around the time of the run, not at fixed hours: at 09:00 and
+    // 12:00 the test failed whenever CI ran at half past (the now-line lay
+    // across the middle of the event and took the click, run 38390308784,
+    // Sammelplan § 3.72 Nr. 12). Now the event and its blocker always hold
+    // the current minute, so every run clicks THROUGH the now-line — which
+    // takes no pointer events — and "Lunch" lies hours away from both.
+    const now = Date.now();
+    const today = new Date(now);
+    const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const HOUR = 3600_000;
+    // On the whole minute, as a provider's events are: the edit sheet works in
+    // minutes, and a start with seconds reads as moved after a title edit.
+    const MINUTE = 60_000;
+    const from = Math.max(midnight, Math.min(Math.floor((now - HOUR / 2) / MINUTE) * MINUTE, midnight + 23 * HOUR));
+    const to = from + HOUR;
+    const lunch = today.getHours() >= 12 ? midnight + 2 * HOUR : midnight + 20 * HOUR;
     sql.run("plainva-index", "INSERT OR REPLACE INTO pim_calendars (account_id, cal_id, name, color, selected, read_only) VALUES (?, ?, ?, ?, 1, 0)", ["pim-fixture-1", "family", "Family", "#b5651d"]);
     const insert = "INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, all_day, block_of) VALUES (?, ?, ?, ?, ?, ?, 0, ?)";
-    sql.run("plainva-index", insert, ["pim-fixture-1", "primary", "k3-source", "Board meeting", midnight + 9 * 3600_000, midnight + 10 * 3600_000, null]);
-    sql.run("plainva-index", insert, ["pim-fixture-1", "family", "k3-blocker", "Busy", midnight + 9 * 3600_000, midnight + 10 * 3600_000, "k3-source"]);
-    sql.run("plainva-index", insert, ["pim-fixture-1", "primary", "k3-plain", "Lunch", midnight + 12 * 3600_000, midnight + 13 * 3600_000, null]);
+    sql.run("plainva-index", insert, ["pim-fixture-1", "primary", "k3-source", "Board meeting", from, to, null]);
+    sql.run("plainva-index", insert, ["pim-fixture-1", "family", "k3-blocker", "Busy", from, to, "k3-source"]);
+    sql.run("plainva-index", insert, ["pim-fixture-1", "primary", "k3-plain", "Lunch", lunch, lunch + HOUR, null]);
     await page.reload();
     await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
 

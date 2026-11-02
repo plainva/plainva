@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createHash } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
+import { pickCompletion } from './completion';
 
 // E2E of the `.base` database viewer (plan Base-Erweiterungen W7): table with
 // property filter + sort rules, pointer-driven board card drag, and the
@@ -359,6 +360,9 @@ test.beforeEach(async ({ page }) => {
       '8': [{ key: 'status', value: 'Erledigt', type: 'text' }],
       '9': [{ key: 'frist', value: '2026-08-01', type: 'text' }],
     };
+    // A test adds rows of its own from an init script of its own, which runs after this one.
+    (window as any).__dbFiles = dbFiles;
+    (window as any).__dbProps = dbProps;
     dbProps['1'].push({ key: 'plainva', value: '{"header_color":"#ABC","icon":"lucide:pin"}', type: 'object' });
     dbProps['2'].push({ key: 'plainva', value: '{"header_color":"#2a7f7b","icon":"lucide:future-icon"}', type: 'object' });
     // Property-scoped link rows (links.property_key) backing reverse columns.
@@ -2736,8 +2740,16 @@ test('pinboard: renaming a note in the tree retargets its pinned arrangement in 
   const tree = page.getByTestId('file-tree');
   await tree.getByText('Zettel', { exact: true }).click();
   // The mock index titles carry the relative path, so the row reads "Zettel/Idee".
-  await tree.getByText(/(^|\/)Idee$/).click({ button: 'right' });
-  await page.getByText(/^(Umbenennen|Rename)$/).click();
+  // The menu closes on any scroll of the page, by its contract (Menu.tsx), and
+  // the tree is still taking in the pin's write here. Twice in CI the open
+  // menu went from under the click and the test ran into its 30 s (Sammelplan
+  // § 3.25, cause not proven — the CI keeps the trace of such an attempt now).
+  // A menu that closed before its entry was pressed is opened again; what is
+  // tested is the rename and the arrangement, not this timing.
+  await expect(async () => {
+    await tree.getByText(/(^|\/)Idee$/).click({ button: 'right' });
+    await page.getByText(/^(Umbenennen|Rename)$/).click({ timeout: 2_000 });
+  }).toPass();
   const field = tree.locator('input');
   await expect(field).toBeVisible();
   await field.fill('Idee Neu');
@@ -2807,12 +2819,11 @@ test('pinboard: "Entry" opens New entry with the real editor — completion, sla
   await page.keyboard.type('[[Ide');
   const completion = page.locator('.cm-tooltip-autocomplete');
   await expect(completion).toBeVisible();
-  const firstOption = completion.locator('li[role="option"]').first();
-  await expect(firstOption).toContainText('Idee');
+  await expect(completion.locator('li[role="option"]').first()).toContainText('Idee');
   // A click, not Enter: the menu ignores keys for its first 75 ms (CodeMirror's
   // interactionDelay), and a click also proves the menu is reachable above the
   // window's overlay.
-  await firstOption.click();
+  await pickCompletion(page, 'Idee');
   await page.keyboard.press('Enter');
   // The slash menu opens inside the window too.
   await page.keyboard.type('/');
@@ -2981,7 +2992,7 @@ test('pinboard: a slash command in New entry reaches the entry, not the note beh
   await dlg.getByTestId('pinboard-entry-title').fill('Aus der Notiz');
   await dlg.getByTestId('pinboard-entry-title').press('Enter');
   await page.keyboard.type('/icon');
-  await page.locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ }).first().click();
+  await pickCompletion(page, /Dokument-Icon|Document icon/);
   // The picker opens over the entry and takes the keyboard.
   const picker = page.getByTestId('emoji-picker');
   await expect(picker).toBeVisible();
@@ -3566,4 +3577,71 @@ test('the calendar view title opens the date jump picker, and a picked day is sh
   await expect(page.getByTestId('base-cal-jump-picker')).toHaveCount(0);
   await expect(title).not.toHaveText(before);
   await expect(page.getByTestId(`base-day-${year}-03-03`)).toBeVisible();
+});
+
+/*
+ * A new entry of a database embedded in a note links itself into its host —
+ * and never replaces a link the host carries (Sammelplan § 3.134 Nr. 1, fixed
+ * in App 752717010). The desktop asked the INDEX whether the host's
+ * single-value slot was taken; where the index was behind the note, or did
+ * not take its block at all (an empty `tags:`), it said "empty" and the link
+ * was replaced without a word. Here the index knows both hosts and none of
+ * their links: one host whose slot is empty gets the new entry, the other
+ * keeps the link it carries.
+ *
+ * Its own pair of databases, so the host's database is the only one that
+ * claims the host's folder — an embedded database scopes itself to its host
+ * only where one database governs the host.
+ */
+test('Embedded database: a new entry fills the host\'s empty single link, and never replaces one the index does not know of (§ 3.134)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Auftraege'] = { isDir: true };
+    fs['/test-vault/Firmen'] = { isDir: true };
+    fs['/test-vault/Auftraege.base'] = [
+      'filters:', '  and:', '    - file.folder == "Auftraege"',
+      'properties:', '  note.firma:', '    plainva:', '      input: relation', '      relationBase: Firmen.base', '      relationLimit: one',
+      'views:', '  - type: table', '    name: Tabelle', '    order:', '      - file.name', '      - note.firma', '',
+    ].join('\n');
+    fs['/test-vault/Firmen.base'] = [
+      'filters:', '  and:', '    - file.folder == "Firmen"',
+      'properties:', '  note.auftraege:', '    plainva:', '      reverseOf:', '        base: Auftraege.base', '        property: firma',
+      'views:', '  - type: table', '    name: Tabelle', '    order:', '      - file.name', '      - note.auftraege', '',
+    ].join('\n');
+    fs['/test-vault/Firmen/Initech.md'] = '# Initech\n';
+    // Its link stands in a block the index did not take (the empty `tags:`).
+    fs['/test-vault/Auftraege/Taken.md'] = '---\nfirma: "[[Initech]]"\ntags:\n---\n# Taken\n\n![[Firmen.base]]\n';
+    fs['/test-vault/Auftraege/Open.md'] = '---\nstatus: offen\n---\n# Open\n\n![[Firmen.base]]\n';
+    (window as any).__dbFiles.push(
+      { id: 'a1', path: 'Auftraege/Taken.md', title: 'Taken', mtime_local: 1750000020000, size_bytes: 10 },
+      { id: 'a2', path: 'Auftraege/Open.md', title: 'Open', mtime_local: 1750000021000, size_bytes: 10 },
+      { id: 'f1', path: 'Firmen/Initech.md', title: 'Initech', mtime_local: 1750000022000, size_bytes: 10 },
+    );
+    (window as any).__dbProps['a2'] = [{ key: 'status', value: 'offen', type: 'text' }];
+  });
+  await page.goto('/');
+  const create = (embed: ReturnType<Page['locator']>) => embed.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]');
+  const file = (path: string) => page.evaluate((p) => (window as any).mockFs[`/test-vault/${p}`] as string | undefined, path);
+  const firmen = async () => (await page.evaluate(() => Object.keys((window as any).mockFs)))
+    .filter((p) => p.startsWith('/test-vault/Firmen/') && p !== '/test-vault/Firmen/Initech.md');
+
+  // The host with an empty slot: the new entry is linked into it.
+  await openTreeNote(page, 'Auftraege', 'Open');
+  const embed = page.locator('main .cm-note-embed').first();
+  await expect(create(embed)).toBeVisible({ timeout: 15000 });
+  await create(embed).click();
+  await expect.poll(firmen).toHaveLength(1);
+  const [first] = await firmen();
+  const firstName = first.split('/').pop()!.replace(/\.md$/, '');
+  await expect.poll(async () => (await file('Auftraege/Open.md'))?.split('\n').find((line) => line.startsWith('firma:'))).toContain(`[[${firstName}]]`);
+  await page.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();
+
+  // The host whose link the index does not know: it keeps it, and says why nothing was linked.
+  await page.locator('aside[aria-label="Left Sidebar"] [data-tree-path="Auftraege/Taken.md"]').click();
+  await expect(page.locator('main .cm-content').first()).toContainText('Taken');
+  await expect(create(embed)).toBeVisible({ timeout: 15000 });
+  await create(embed).click();
+  await expect.poll(firmen).toHaveLength(2);
+  await expect(page.locator('.pv-toast', { hasText: /Nicht verknüpft|Not linked/ })).toBeVisible();
+  expect(await file('Auftraege/Taken.md')).toBe('---\nfirma: "[[Initech]]"\ntags:\n---\n# Taken\n\n![[Firmen.base]]\n');
 });

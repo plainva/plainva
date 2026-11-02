@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
 
 /**
  * The pinboard's "New entry" on the phone (plan Befunde 2026-09-24, E17): the
@@ -25,11 +25,8 @@ views:
 const note = (title: string, tags: string[]) =>
   `---\ntype: Note\n${tags.length ? `tags:\n${tags.map((t) => `  - ${t}`).join("\n")}\n` : ""}---\n# ${title}\n\nText of ${title}\n`;
 
-const listFolder = (page: Page, folder: string) =>
-  page.evaluate(async (dir) => {
-    const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
-    return (await fs.readdir({ path: `vault/${dir}`, directory: "DATA" })).files.map((f) => f.name).sort();
-  }, folder);
+/** Read while the app tidies the folder: `vaultFolderNames` asks again where the listing raced it (§ 3.92 Nr. 2). */
+const listFolder = (page: Page, folder: string) => vaultFolderNames(page, folder);
 
 const readNote = (page: Page, path: string) =>
   page.evaluate(async (file) => {

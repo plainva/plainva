@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { returnToApp, waitForVaultDirectory, type MobileTestGlobals, folderEntries } from "./exampleVault";
 import { installShareInbox } from "./shareInbox";
 
 /**
@@ -106,11 +106,8 @@ function readFile(page: Page, path: string): Promise<string | null> {
   }, path);
 }
 
-function listFolder(page: Page, folder: string): Promise<string[]> {
-  return page.evaluate(async (dir) => {
-    const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
-    return (await fs.readdir({ path: `vault/${dir}`, directory: "DATA" })).files.filter((f) => f.type === "file").map((f) => f.name).sort();
-  }, folder);
+async function listFolder(page: Page, folder: string): Promise<string[]> {
+  return (await folderEntries(page, `vault/${folder}`)).filter((f) => f.type === "file").map((f) => f.name).sort();
 }
 
 /** Every file below `folder` with its text, sorted by path. */
