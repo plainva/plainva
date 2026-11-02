@@ -136,6 +136,7 @@ export * from "./lib/headingAnchor";
 export * from "./lib/anchorJump";
 export * from "./lib/palette";
 export * from "./lib/recentsFile";
+export * from "./lib/deviceOwnFiles";
 export * from "./lib/recentsByDay";
 export * from "./lib/renameNote";
 export * from "./lib/startrekQuotes";

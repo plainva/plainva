@@ -1,6 +1,6 @@
 # Graf
 
-Stan na: 2026-10-22
+Stan na: 2026-11-02
 
 Graf Plainva to narzędzie do pracy, nie plakat: pokazuje, gdzie jesteś, co jest połączone, czego brakuje — i możesz działać na tym bezpośrednio. Istnieje JEDEN silnik grafu w trzech odsłonach.
 
@@ -51,5 +51,5 @@ Na telefonie ten widok ma taką samą obsługę jak mapa sejfu: przyciski powię
 ## Ograniczenia
 
 - Graf pokazuje notatki (pliki), nie poszczególne akapity.
-- Przypięcia i odrzucone sugestie żyją pod `.plainva/` i nie podróżują z synchronizacją — podstawowy układ mapy jest identyczny na każdym urządzeniu.
+- Przypięcia i odrzucone sugestie żyją pod `.plainva/` i nie podróżują z synchronizacją — podstawowy układ mapy jest identyczny na każdym urządzeniu. Każde urządzenie trzyma je we własnym pliku (`graph.<urządzenie>.json`): nawet gdy usługa plików, taka jak Dropbox czy iCloud Drive, przenosi folder sejfu między urządzeniami, żadne nie nadpisuje układu innego.
 - Sugestie to czysta analiza sejfu; nic nie opuszcza Twojego komputera.

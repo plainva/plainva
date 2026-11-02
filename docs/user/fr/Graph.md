@@ -51,5 +51,5 @@ Sur le téléphone, cette vue reprend la prise en main de la carte du vault : bo
 ## Limites
 
 - Le graphe montre des notes (fichiers), pas des paragraphes individuels.
-- Les épingles et suggestions ignorées se trouvent sous `.plainva/` et ne voyagent pas avec la synchronisation — la disposition de base est identique sur chaque appareil.
+- Les épingles et suggestions ignorées se trouvent sous `.plainva/` et ne voyagent pas avec la synchronisation — la disposition de base est identique sur chaque appareil. Chaque appareil les garde dans un fichier à lui (`graph.<appareil>.json`) : même quand un service de fichiers comme Dropbox ou iCloud Drive transporte le dossier du vault entre appareils, aucun n’écrase la disposition d’un autre.
 - Les suggestions sont de pures analyses du vault ; rien ne quitte votre machine.

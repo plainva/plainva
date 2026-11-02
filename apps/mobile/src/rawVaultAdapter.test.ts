@@ -60,7 +60,7 @@ const HISTORY =
 const VERSIONS_LAYER = "the versions layer's own control — when a version is taken and how long it is kept; no file of the user's is written";
 const BOOKMARKS =
   "`.plainva/bookmarks.json` is the app's own file: no version, never queued, and since 2026-10-20 no conflict check either — no link of the chain keeps anything about what the app writes under `.plainva`, so what is kept of it does not depend on the level (`own-files-chain.test.ts` in the core). It is written where the settings profile writes it, which carries the list between devices";
-const RECENTS = "`.plainva/recents.json`, the notes opened last on this device: the app's own file, never versioned, never synced";
+const RECENTS = "`.plainva/recents.<device>.json`, the notes opened last on this device: the app's own file, never versioned, never synced";
 const COMMENTS =
   "the comment files under `.plainva/sync` go up as a sideband of the sync, and are read and written where its steps read them (see `mobileCommentStore`)";
 const SIDEBAND = "the settings profile and the key file are sideband files of the sync (`.plainva/sync`), read and written where the sync's own steps read them";
@@ -142,8 +142,11 @@ const SITES: Record<string, Site[]> = {
     ["handed to toggleBookmarkOnDisk", 1, BOOKMARKS],
     ["handed to moveBookmarkOnDisk", 1, BOOKMARKS],
     ["handed to removeBookmarksOnDisk", 1, BOOKMARKS],
-    // pushRecent, and forgetRecent behind "Remove from list" in the Recent list (E8, 2026-10-24).
-    ["calls writeTextFile", 2, RECENTS],
+    // getRecents, pushRecent, and forgetRecent behind "Remove from list" in the Recent list (E8, 2026-10-24),
+    // since decision E7 of the bug clearing plan in this device's own file through the shared functions.
+    ["handed to readRecentsOnDisk", 1, RECENTS],
+    ["handed to pushRecentOnDisk", 1, RECENTS],
+    ["handed to forgetRecentOnDisk", 1, RECENTS],
   ],
 };
 

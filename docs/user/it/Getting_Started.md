@@ -215,7 +215,7 @@ In una finestra separata o in una seconda finestra completa, fai clic destro sul
 
 Aggiungi un segnalibro dal menu contestuale di un file o una cartella. I segnalibri di cartelle hanno un’icona dedicata: su mobile aprono la cartella, sul desktop la espandono nell’albero. Rinomine e spostamenti in Plainva aggiornano anche i segnalibri di sottocartelle e file. Le destinazioni mancanti restano indicate; rimuovi esplicitamente questi segnalibri. Per cambiare l'ordine, trascina un segnalibro al suo posto nella barra laterale — oppure premi `Alt+↑` / `Alt+↓` sulla riga attiva; sul telefono il titolo **Segnalibri** apre l'elenco, dove trascini la maniglia in fondo a una riga.
 
-All’apertura di un vault, Plainva importa automaticamente i segnalibri di file e cartelle da Obsidian, gruppi compresi. Tipo e percorso evitano duplicati. Il file di Obsidian resta invariato. I profili trasportano le cartelle separatamente; un vecchio profilo senza questo campo conserva i segnalibri di cartelle esistenti.
+All’apertura di un vault, Plainva riprende i segnalibri di file e cartelle da Obsidian, gruppi compresi, ciascuno una sola volta: un segnalibro che rimuovi in Plainva non torna, uno che aggiungi più tardi in Obsidian arriva comunque. Tipo e percorso evitano duplicati. Il file di Obsidian resta invariato. I profili trasportano le cartelle separatamente; un vecchio profilo senza questo campo conserva i segnalibri di cartelle esistenti.
 
 <!-- planner-capture-2026-09-20 -->
 ## Un elenco di cose da fare sulle tue note

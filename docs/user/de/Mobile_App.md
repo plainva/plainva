@@ -119,7 +119,7 @@ Die Felder aus [OKF 0.2](OKF.md) — Herkunft, Prüfung, Status, Veraltet-ab —
 
 ## Graph
 
-Die **Vault-Karte** zeigt Deinen Vault als Knoten und Kanten. Ein Tipp auf eine Ordner-Blase klappt sie auf, ein Tipp auf eine Notiz öffnet sie; die Chips darüber filtern nach Notiztyp, Tag und Kantenart. Ziehst Du einen Knoten, **merkt sich die Karte, wohin Du ihn gelegt hast** — die gemerkte Anordnung liegt in `.plainva/graph.json` und bleibt bewusst auf diesem Gerät, wie der Suchindex.
+Die **Vault-Karte** zeigt Deinen Vault als Knoten und Kanten. Ein Tipp auf eine Ordner-Blase klappt sie auf, ein Tipp auf eine Notiz öffnet sie; die Chips darüber filtern nach Notiztyp, Tag und Kantenart. Ziehst Du einen Knoten, **merkt sich die Karte, wohin Du ihn gelegt hast** — die gemerkte Anordnung liegt in `.plainva/graph.<Gerät>.json` und bleibt bewusst auf diesem Gerät, wie der Suchindex.
 
 **Langes Drücken** auf einen Knoten öffnet sein Menü: öffnen (bzw. Ordner entfalten/einklappen), **Fokus auf Auswahl** und, wenn der Knoten festgesteckt ist, **Pin lösen**. Ein langes Drücken auf eine **Kante** nennt beide Enden und öffnet die eine oder andere Notiz. Ziehst Du eine Notiz **auf eine andere**, bietet Plainva an, sie zu **verlinken** — als Text-Link am Notizende oder über eine Relation der zugehörigen Datenbank; eine Relation, die genau einen Eintrag erlaubt, fragt vorher nach, weil sie den bisherigen Wert ersetzt. Der Chip **Auswählen** macht aus dem Ziehen auf freier Fläche ein Auswahlrechteck (auf dem Telefon gibt es keine Zusatztaste); markierte Notizen lassen sich gemeinsam löschen — durch denselben Rückfrage-Dialog wie eine einzelne. **Als SVG exportieren…** gibt die Karte an das Teilen-Menü Deines Geräts weiter.
 

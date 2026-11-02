@@ -119,7 +119,7 @@ Pola [OKF 0.2](OKF.md) — pochodzenie, sprawdzenie, status, nieaktualność —
 
 ## Graf
 
-**Mapa sejfu** pokazuje Twój sejf jako węzły i krawędzie. Dotknięcie bąbelka folderu rozwija go, dotknięcie notatki ją otwiera; plakietki powyżej filtrują według typu notatki, tagu i rodzaju krawędzi. Przeciągnij węzeł, a **mapa zapamięta jego położenie** — zapamiętany układ znajduje się w `.plainva/graph.json` i celowo pozostaje na tym urządzeniu, tak jak indeks wyszukiwania.
+**Mapa sejfu** pokazuje Twój sejf jako węzły i krawędzie. Dotknięcie bąbelka folderu rozwija go, dotknięcie notatki ją otwiera; plakietki powyżej filtrują według typu notatki, tagu i rodzaju krawędzi. Przeciągnij węzeł, a **mapa zapamięta jego położenie** — zapamiętany układ znajduje się w `.plainva/graph.<urządzenie>.json` i celowo pozostaje na tym urządzeniu, tak jak indeks wyszukiwania.
 
 **Długie przytrzymanie** węzła otwiera jego menu: otwórz (albo rozwiń/zwiń w przypadku folderu), **Skup na zaznaczeniu** oraz, jeśli węzeł jest przypięty, **Odepnij**. Długie przytrzymanie **krawędzi** wymienia oba jej końce i otwiera jedną lub drugą notatkę. Przeciągnij jedną notatkę **na drugą**, a Plainva zaproponuje, by je **połączyć** — jako link tekstowy na końcu notatki albo przez relację odpowiedniej bazy danych; relacja dopuszczająca dokładnie jeden wpis pyta wcześniej, ponieważ zastępuje bieżącą wartość. Plakietka **Zaznacz** zamienia przeciągnięcie po pustym miejscu w prostokąt zaznaczenia (telefon nie ma klawisza modyfikującego); zaznaczone notatki można usunąć razem, przez to samo potwierdzenie co pojedynczą. **Eksportuj jako SVG…** przekazuje mapę do arkusza udostępniania Twojego urządzenia.
 

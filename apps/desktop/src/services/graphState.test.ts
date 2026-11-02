@@ -29,6 +29,33 @@ function fakeAdapter(initial?: string): IVaultAdapter & { written: Record<string
 }
 
 describe("graphState", () => {
+  it("two views loading at once both get the file's pins, and the second one's change keeps them", async () => {
+    // The second caller used to get "loaded" over the EMPTY state while the first read was under way:
+    // no pins shown, and its first change (the overlay mode a map sets as it opens) wrote the empty state.
+    const raw = JSON.stringify({ version: 1, vaultLayout: 2, pins: { "base:a.base#Map": { N: { x: 1, y: 2 } } }, dismissedSuggestions: [] });
+    const adapter = fakeAdapter(raw);
+    // A disk takes its time: the second view asks while the first read is under way.
+    const read = adapter.readTextFile;
+    let release!: () => void;
+    const disk = new Promise<void>((resolve) => (release = resolve));
+    adapter.readTextFile = async (path: string) => {
+      await disk;
+      return read(path);
+    };
+    const store = new GraphStateStore(adapter);
+    const first = store.load();
+    const second = store.load();
+    // The second caller waits for the read rather than being answered over the empty state.
+    expect(await Promise.race([second.then(() => "answered"), Promise.resolve().then(() => "waiting")])).toBe("waiting");
+    release();
+    await second;
+    expect(store.getPins("base:a.base#Map")).toEqual({ N: { x: 1, y: 2 } });
+    store.setMapMode("heatmap");
+    await store.flush();
+    await first;
+    expect(JSON.parse(adapter.written[".plainva/graph.json"]).pins["base:a.base#Map"]).toEqual({ N: { x: 1, y: 2 } });
+  });
+
   it("roundtrips special context and node names without touching prototypes", async () => {
     const raw = '{"version":1,"vaultLayout":2,"pins":{"__proto__":{"constructor":{"x":1,"y":2}},"constructor":{"__proto__":{"x":3,"y":4}}},"pinModes":{"__proto__":false}}';
     const adapter = fakeAdapter(raw), store = new GraphStateStore(adapter);

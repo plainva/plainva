@@ -251,6 +251,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
+  // What was opened while the strip of this vault was still being read: the
+  // read (its own file, the device id first — E7) can end after a quick first
+  // open, and must not take that open back off the strip.
+  const openedWhileLoadingRecents = useRef<string[] | null>(null);
   const { bookmarks, toggleBookmark, moveBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
   // The two sides need different floors (plan P3): on the left a narrow strip
   // still works — file names simply truncate — while on the right no section is
@@ -328,6 +332,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // contract owns the grammar, the click must not wait for a write.
     onOpenPath: (p) => {
       setRecentPaths((prev) => [p, ...prev.filter((x) => x !== p)].slice(0, RECENTS_MAX));
+      openedWhileLoadingRecents.current?.unshift(p);
       if (vaultAdapter) void recentsModule().then((m) => m.pushRecent(vaultAdapter, p)).catch(() => undefined);
     },
     // (P7.2 continues below the hook: the per-kind right-sidebar apply effect
@@ -654,15 +659,20 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       setRecentPaths([]);
       return;
     }
+    const opened: string[] = [];
+    openedWhileLoadingRecents.current = opened;
+    const settle = (paths: string[]) => {
+      if (cancelled) return;
+      if (openedWhileLoadingRecents.current === opened) openedWhileLoadingRecents.current = null;
+      const front = [...new Set(opened)];
+      setRecentPaths([...front, ...paths.filter((p) => !front.includes(p))].slice(0, RECENTS_MAX));
+    };
     void recentsModule().then((m) => m.loadRecents(vaultAdapter, vaultPath))
-      .then((paths) => {
-        if (!cancelled) setRecentPaths(paths);
-      })
-      .catch(() => {
-        if (!cancelled) setRecentPaths([]);
-      });
+      .then(settle)
+      .catch(() => settle([]));
     return () => {
       cancelled = true;
+      if (openedWhileLoadingRecents.current === opened) openedWhileLoadingRecents.current = null;
     };
   }, [vaultPath, vaultAdapter]);
 

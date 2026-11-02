@@ -119,7 +119,7 @@ Los campos de [OKF 0.2](OKF.md) — procedencia, revisión, estado, caducidad �
 
 ## Grafo
 
-El **mapa del vault** muestra tu vault como nodos y aristas. Tocar una burbuja de carpeta la despliega, tocar una nota la abre; los chips de arriba filtran por tipo de nota, etiqueta y tipo de arista. Arrastra un nodo y **el mapa recuerda dónde lo colocaste** — la disposición recordada vive en `.plainva/graph.json` y permanece deliberadamente en este dispositivo, como el índice de búsqueda.
+El **mapa del vault** muestra tu vault como nodos y aristas. Tocar una burbuja de carpeta la despliega, tocar una nota la abre; los chips de arriba filtran por tipo de nota, etiqueta y tipo de arista. Arrastra un nodo y **el mapa recuerda dónde lo colocaste** — la disposición recordada vive en `.plainva/graph.<dispositivo>.json` y permanece deliberadamente en este dispositivo, como el índice de búsqueda.
 
 **Mantener pulsado** un nodo abre su menú: abrir (o desplegar/contraer para una carpeta), **Enfocar la selección** y, si el nodo está anclado, **Desanclar**. Mantener pulsada una **arista** indica ambos extremos y abre una u otra nota. Arrastra una nota **sobre otra** y Plainva ofrece **enlazarlas** — como un enlace de texto al final de la nota, o mediante una relación de la base de datos correspondiente; una relación que permite exactamente una entrada pregunta antes, porque reemplaza el valor actual. El chip **Seleccionar** convierte un arrastre sobre una zona vacía en un rectángulo de selección (un teléfono no tiene tecla modificadora); las notas seleccionadas se pueden eliminar juntas, con la misma confirmación que una sola. **Exportar como SVG…** entrega el mapa al menú para compartir de tu dispositivo.
 

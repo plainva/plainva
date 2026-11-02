@@ -119,7 +119,7 @@ I campi di [OKF 0.2](OKF.md) — provenienza, revisione, stato, scadenza — ven
 
 ## Grafo
 
-La **mappa del vault** mostra il tuo vault come nodi e archi. Toccare una bolla di cartella la dispiega, toccare una nota la apre; i chip sopra filtrano per tipo di nota, tag e tipo di arco. Trascina un nodo e **la mappa ricorda dove lo hai messo** — la disposizione memorizzata si trova in `.plainva/graph.json` e resta volutamente su questo dispositivo, come l'indice di ricerca.
+La **mappa del vault** mostra il tuo vault come nodi e archi. Toccare una bolla di cartella la dispiega, toccare una nota la apre; i chip sopra filtrano per tipo di nota, tag e tipo di arco. Trascina un nodo e **la mappa ricorda dove lo hai messo** — la disposizione memorizzata si trova in `.plainva/graph.<dispositivo>.json` e resta volutamente su questo dispositivo, come l'indice di ricerca.
 
 **Tenere premuto** un nodo apre il suo menu: apri (o espandi/comprimi per una cartella), **Focus sulla selezione** e, se il nodo è fissato, **Sblocca**. Tenere premuto un **arco** indica entrambe le estremità e apre l'una o l'altra nota. Trascina una nota **su un'altra** e Plainva propone di **collegarle** — come un link testuale alla fine della nota, oppure tramite una relazione del database corrispondente; una relazione che consente esattamente una voce chiede conferma prima, perché sostituisce il valore attuale. Il chip **Seleziona** trasforma un trascinamento su un'area vuota in un rettangolo di selezione (un telefono non ha un tasto modificatore); le note selezionate possono essere eliminate insieme, con la stessa conferma di una singola. **Esporta come SVG…** consegna la mappa al foglio di condivisione del tuo dispositivo.
 

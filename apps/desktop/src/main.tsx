@@ -84,6 +84,10 @@ setPlatformServices({
   // Names the version in the `generated` stamps of the machine write paths
   // (import, mail capture, task sync) — OKF 0.2 provenance, plan P3b.
   appVersion: getAppVersion,
+  // Names this device's own files under `.plainva/` (map pins, recently opened):
+  // the id the sync sidebands use, so devices sharing a vault folder never
+  // write one file (decision E7, Sammelplan § 3.127 Nr. 3).
+  deviceId: () => import("./services/settingsProfile").then((m) => m.getDeviceId()),
   // Readable keychain names (P6). Registered here so the shared mail module
   // uses them too — mobile registers nothing and keeps the legacy shape.
   keychainSlotName,

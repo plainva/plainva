@@ -79,11 +79,10 @@ import {
   ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
   conflictCopyPath,
   importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, type BookmarkEntry,
-  parseRecentsFile,
-  pushRecentEntry,
-  dropRecentEntry,
+  readRecentsOnDisk,
+  pushRecentOnDisk,
+  forgetRecentOnDisk,
   renameFileWithLinkUpdates,
-  serializeRecentsFile,
   parkTemplateCaret,
   sweepPinboardRefs,
   carryTemplateAssignments,
@@ -1500,8 +1499,8 @@ export const vaultOps = {
       .map((e) => ({ path: e.path, title: noteTitle(e.path), mtime: e.mtime }));
   },
 
-  /* ---- B2: real MRU (last OPENED, .plainva/recents.json — device-local,
-     shared contract with the desktop in @plainva/ui). mtime `recent()` above
+  /* ---- B2: real MRU (last OPENED, this device's own `.plainva/recents.<device>.json`
+     — decision E7 — shared contract with the desktop in @plainva/ui). mtime `recent()` above
      stays the first-run fallback: it surfaces synced files, not opens. ---- */
 
   async getRecents(
@@ -1509,7 +1508,7 @@ export const vaultOps = {
     limit: number,
   ): Promise<Array<{ path: string; title: string; openedAt?: number }>> {
     try {
-      const entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
+      const entries = await readRecentsOnDisk(v.adapter);
       const out: Array<{ path: string; title: string; openedAt?: number }> = [];
       for (const e of entries) {
         if (out.length >= limit) break;
@@ -1549,24 +1548,14 @@ export const vaultOps = {
    * since P4. It drops the entry, never the file.
    */
   async forgetRecent(v: MobileVault, path: string): Promise<void> {
-    const entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
-    await v.adapter.writeTextFile(".plainva/recents.json", serializeRecentsFile(dropRecentEntry(entries, path)));
+    await forgetRecentOnDisk(v.adapter, path);
     window.dispatchEvent(new CustomEvent("m-recents-changed"));
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {
     if (!/\.md$/i.test(path) || path.startsWith(".")) return;
     try {
-      let entries: ReturnType<typeof parseRecentsFile> = [];
-      try {
-        entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
-      } catch {
-        /* first use */
-      }
-      await v.adapter.writeTextFile(
-        ".plainva/recents.json",
-        serializeRecentsFile(pushRecentEntry(entries, path, Date.now())),
-      );
+      await pushRecentOnDisk(v.adapter, path, Date.now());
     } catch {
       /* recents are best-effort; never block opening a note */
     }

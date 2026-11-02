@@ -115,8 +115,17 @@ export function renameBookmarksOnDisk(io: BookmarksIO, from: string, to: string)
   return updateBookmarksOnDisk(io, (current) => current.map((e) => e.path === from || e.path.startsWith(from + "/")
     ? { ...e, path: to + e.path.slice(from.length) } : e));
 }
-/** Automatic import is additive and shares the mutation lane with star clicks.
- * The source is always read-only; removing a bookmark does not edit Obsidian. */
+/**
+ * Obsidian's bookmarks come over ONCE each (decision E7, Sammelplan § 3.127
+ * Nr. 2). The import is additive and shares the mutation lane with star
+ * clicks; the source is always read-only — removing a bookmark does not edit
+ * Obsidian. It used to run at every open of the vault, so a bookmark removed
+ * in Plainva that Obsidian's file still named was back the next time. Now the
+ * vault remembers which of Obsidian's bookmarks it has taken over
+ * (`OBSIDIAN_IMPORT_FILE`): such a one never comes again, while a bookmark set
+ * in Obsidian later still arrives. The memory is written after the list, so an
+ * import that did not land is tried again rather than forgotten.
+ */
 const imported = new WeakMap<BookmarksIO, Promise<void>>();
 export async function importObsidianBookmarks(io: BookmarksIO): Promise<BookmarkEntry[]> {
   let pending = imported.get(io);
@@ -129,7 +138,27 @@ export async function importObsidianBookmarks(io: BookmarksIO): Promise<Bookmark
 async function importOnce(io: BookmarksIO): Promise<void> {
   let entries: BookmarkEntry[] = [];
   try { entries = parseBookmarksFile(await io.readTextFile(".obsidian/bookmarks.json")).entries; } catch { /* no import source */ }
-  if (entries.length) await mergeBookmarksOnDisk(io, entries);
+  if (!entries.length) return;
+  await onBookmarksLane(io, async () => {
+    const taken = await readImportedObsidianKeys(io);
+    const fresh = entries.filter((e) => !taken.has(bookmarkKey(e)));
+    if (!fresh.length) return;
+    const current = await readBookmarksOnDisk(io);
+    const next = deduplicateBookmarks([...current, ...fresh]);
+    if (!sameStoredValue(current, next)) await io.writeTextFile(BOOKMARKS_FILE, serializeBookmarksFile(next));
+    for (const e of fresh) taken.add(bookmarkKey(e));
+    await io.writeTextFile(OBSIDIAN_IMPORT_FILE, JSON.stringify({ version: 1, bookmarks: [...taken].sort() }, null, 2));
+  });
+}
+/** The keys (`bookmarkKey`) of Obsidian's bookmarks this vault has taken over; none when the memory is missing or unreadable. */
+async function readImportedObsidianKeys(io: Pick<BookmarksIO, "readTextFile">): Promise<Set<string>> {
+  try {
+    const parsed: unknown = JSON.parse(await io.readTextFile(OBSIDIAN_IMPORT_FILE));
+    const keys = parsed && typeof parsed === "object" ? (parsed as { bookmarks?: unknown }).bookmarks : undefined;
+    return new Set(Array.isArray(keys) ? keys.filter((k): k is string => typeof k === "string") : []);
+  } catch {
+    return new Set();
+  }
 }
 export function validBookmarkPaths(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(validBookmarkPath);
@@ -217,3 +246,5 @@ export function restoreBookmarksFile(io: BookmarksFileIO, snapshot: BookmarksFil
 
 /** Where the list lives; carried by the settings profile, never note sync. */
 export const BOOKMARKS_FILE = ".plainva/bookmarks.json";
+/** Which of Obsidian's bookmarks this vault has taken over (`importObsidianBookmarks`). */
+export const OBSIDIAN_IMPORT_FILE = ".plainva/obsidian-import.json";

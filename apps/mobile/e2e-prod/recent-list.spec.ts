@@ -78,11 +78,14 @@ test("the Recent heading opens the whole list, grouped by day and newest first",
     await expect.poll(order).toEqual(["Old.md", "Projects/Beta.md", "Delta.md"]);
     const onDisk = await page.evaluate(async () => {
       const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
-      const recents = JSON.parse(String((await fs.readFile({ path: "vault/.plainva/recents.json", directory: "DATA", encoding: "utf8" })).data)) as { items: Array<{ path: string }> };
+      const read = async (name: string) => (JSON.parse(String((await fs.readFile({ path: "vault/.plainva/" + name, directory: "DATA", encoding: "utf8" })).data)) as { items: Array<{ path: string }> }).items.map((i) => i.path);
+      // The list is this device's own file (decision E7); it started from the shared file of
+      // older versions, which stays as it was for them.
+      const own = (await fs.readdir({ path: "vault/.plainva", directory: "DATA" })).files.map((f: { name: string }) => f.name).filter((n: string) => /^recents\..+\.json$/.test(n));
       const gamma = await fs.stat({ path: "vault/Gamma.md", directory: "DATA" }).then(() => true, () => false);
-      return { paths: recents.items.map((i) => i.path), gamma };
+      return { own: own.length, paths: own.length === 1 ? await read(own[0]) : [], shared: await read("recents.json"), gamma };
     });
-    expect(onDisk).toEqual({ paths: ["Old.md", "Projects/Beta.md", "Delta.md"], gamma: true });
+    expect(onDisk).toEqual({ own: 1, paths: ["Old.md", "Projects/Beta.md", "Delta.md"], shared: ["Projects/Beta.md", "Delta.md", "Old.md"], gamma: true });
 
     // A tap opens the note, like everywhere else.
     await list.locator('[data-recent-path="Delta.md"]').click();

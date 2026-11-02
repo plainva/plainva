@@ -41,6 +41,16 @@ export interface PlatformServices {
    */
   appVersion?(): Promise<string>;
   /**
+   * This device's stable id — the one the sync sidebands already use
+   * (deletion journal, comment files, settings tiebreak). Shared code names
+   * the app's per-device files under `.plainva/` with it (`deviceOwnFiles.ts`:
+   * pins of the map, the recently opened notes), so two devices that share a
+   * vault folder through a file service never write the same file. Optional
+   * only for hosts without a device (tests, tools): those keep the one shared
+   * file of older versions.
+   */
+  deviceId?(): Promise<string>;
+  /**
    * Remembers that a shared account was removed on this device, so the next
    * settings-profile import does not bring it back and the deletion travels to
    * the other devices (the shells' `noteAccountRemovedLocally`). Optional: a

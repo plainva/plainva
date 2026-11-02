@@ -215,7 +215,7 @@ En una ventana separada o en una segunda ventana completa, haz clic derecho en l
 
 Añade un marcador desde el menú contextual de un archivo o una carpeta. Los marcadores de carpetas muestran un icono de carpeta: en el móvil abren la carpeta y en el escritorio la expanden en el árbol. Mover o renombrar elementos en Plainva actualiza también los marcadores de subcarpetas y archivos. Los destinos ausentes permanecen señalados; elimina esos marcadores expresamente. Para cambiar el orden, arrastra un marcador a su sitio en la barra lateral — o pulsa `Alt+↑` / `Alt+↓` en la fila enfocada; en el teléfono, el título **Marcadores** abre la lista, donde arrastras el asa al final de una fila.
 
-Al abrir una bóveda, Plainva importa automáticamente los marcadores de archivos y carpetas de Obsidian, incluidos los grupos. El tipo y la ruta evitan duplicados. El archivo de Obsidian no cambia. Los perfiles de configuración transportan las carpetas por separado; un perfil antiguo sin ese campo conserva los marcadores de carpetas existentes.
+Al abrir una bóveda, Plainva adopta los marcadores de archivos y carpetas de Obsidian, incluidos los grupos, cada uno una sola vez: un marcador que quitas en Plainva no vuelve, y uno que añades más tarde en Obsidian sí llega. El tipo y la ruta evitan duplicados. El archivo de Obsidian no cambia. Los perfiles de configuración transportan las carpetas por separado; un perfil antiguo sin ese campo conserva los marcadores de carpetas existentes.
 
 <!-- planner-capture-2026-09-20 -->
 ## Una lista de pendientes sobre tus notas

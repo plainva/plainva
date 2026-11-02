@@ -1,6 +1,6 @@
 # Graph
 
-Stand: 2026-10-22
+Stand: 2026-11-02
 
 Plainvas Graph ist kein Poster, sondern ein Arbeitswerkzeug: Er zeigt Dir, wo Du bist, was zusammenhängt, was fehlt — und Du kannst direkt darin arbeiten. Es gibt EINE Graph-Engine mit drei Erscheinungsformen.
 
@@ -51,5 +51,5 @@ Auf dem Telefon trägt diese Ansicht dieselbe Bedienung wie die Vault-Karte: Zoo
 ## Grenzen
 
 - Der Graph zeigt Notizen (Dateien), keine einzelnen Absätze.
-- Pins und verworfene Vorschläge liegen unter `.plainva/` und wandern nicht mit dem Sync — das Grund-Layout ist auf jedem Gerät identisch.
+- Pins und verworfene Vorschläge liegen unter `.plainva/` und wandern nicht mit dem Sync — das Grund-Layout ist auf jedem Gerät identisch. Jedes Gerät hält sie in einer eigenen Datei (`graph.<Gerät>.json`): Auch wenn ein Dateidienst wie Dropbox oder iCloud Drive den Vault-Ordner zwischen Geräten trägt, überschreibt kein Gerät die Anordnung eines anderen.
 - Vorschläge sind reine Vault-Analysen; nichts verlässt Deinen Rechner.
