@@ -1280,6 +1280,69 @@ describe("SyncWorker", () => {
       expect(statusSpy.mock.calls.at(-1)?.[1]).toContain("cannot be synced here and are skipped: flagged.md");
     });
 
+    describe("a name this device's file system refuses (Sammelplan § 3.158 Nr. 7)", () => {
+      const listing = () => target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["Q: what.md", "e2"], ["c.md", "e3"]]) });
+      beforeEach(() => {
+        target.download.mockImplementation(async (p: string) => new TextEncoder().encode(`content ${p}`));
+      });
+
+      it("is skipped and named when the write says the name is invalid, and the first cycle completes", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        listing();
+        vault.writeTextFile.mockImplementation(async (p: string) => {
+          if (p === "Q: what.md") throw new Error("temp create failed: The filename, directory name, or volume label syntax is incorrect. (os error 123)");
+        });
+
+        await worker.runCycle();
+
+        expect(vault.writeTextFile.mock.calls.map((c: any[]) => c[0])).toEqual(expect.arrayContaining(["a.md", "c.md"]));
+        expect(spy).toHaveBeenCalledWith({ skipped: ["Q: what.md"], conflictCopies: [] });
+      });
+
+      it("is skipped when the platform gives no reason but the name breaks a file-system rule and no such file exists here", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        listing();
+        vault.exists.mockResolvedValue(false);
+        vault.writeTextFile.mockImplementation(async (p: string) => {
+          if (p === "Q: what.md") throw new Error("Unable to write file");
+        });
+
+        await worker.runCycle();
+
+        expect(spy).toHaveBeenCalledWith({ skipped: ["Q: what.md"], conflictCopies: [] });
+      });
+
+      it("a write that fails for an ordinary name still holds the first cycle", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["b.md", "e2"]]) });
+        vault.writeTextFile.mockImplementation(async (p: string) => {
+          if (p === "b.md") throw new Error("Unable to write file");
+        });
+
+        await worker.runCycle();
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+
+      it("a portable-rule name whose write failed on the network still holds the first cycle", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        listing();
+        vault.exists.mockResolvedValue(false);
+        target.download.mockImplementation(async (p: string) => {
+          if (p === "Q: what.md") throw new Error("network timeout");
+          return new TextEncoder().encode(`content ${p}`);
+        });
+
+        await worker.runCycle();
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
+
     describe("a file refused for good (review 2026-10-27)", () => {
       // The vault database's store of refused files, as SyncStateRepository keeps it.
       let refused: Map<string, { path: string; reason: string; etag: string; attempts: number; retryAt: number }>;

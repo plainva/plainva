@@ -14,6 +14,7 @@ import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, UnsyncableFileError, type SyncErrorKind } from "./errorKind.js";
 import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js";
+import { localNameRefusal } from "./localNameRefusal.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
@@ -1992,8 +1993,12 @@ export class SyncWorker {
         // before the push, fail-closed (settings-sync plan §3.5/A3).
         if (e instanceof FatalSyncProtocolError) throw e;
         const never = refusedForGood(e);
-        if (never) {
-          await markRefused(path, never.reason, etag);
+        // A name this device's file system will not store is refused for good
+        // too (Sammelplan § 3.158 Nr. 7): it used to count as an ordinary
+        // failure and hold the vault's first cycle for a file no retry brings.
+        const reason = never?.reason ?? await localNameRefusal(path, e, (p) => this.vault.exists(p));
+        if (reason) {
+          await markRefused(path, reason, etag);
           flushChangedPaths();
           return;
         }
