@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseTaskRemind, planReminders, readTaskSnoozes, snoozeMoment, snoozeTask, taskReminderSubjects, taskSnoozeKey, type ReminderRule } from "@plainva/ui";
+import { scanTasks, type TaskRecord } from "@plainva/core";
+import { checkboxReminderKey, checkboxReminderSubjects, dueTaskRows, parseTaskRemind, planReminders, readTaskSnoozes, relocateReminderLine, snoozeMoment, snoozeTask, taskReminderSubjects, taskSnoozeKey, type ReminderRule } from "@plainva/ui";
 
 /**
  * Plan Aufgaben-Oberfläche, B4: a task with a time reminds at ITS time (its own
@@ -93,5 +94,82 @@ describe("task reminders", () => {
     expect(readTaskSnoozes("vault-b", NOW, storage)).toEqual({});
     storage.data.set(taskSnoozeKey("vault-a"), "not json");
     expect(readTaskSnoozes("vault-a", NOW, storage)).toEqual({});
+  });
+});
+
+
+/**
+ * Checkbox tasks with a due time (Sammelplan § 3.145 Nr. 1, decision E3): a box
+ * `- [ ] … 📅 YYYY-MM-DD HH:MM` reminds like a task note with a time — derived
+ * from the index's task lines, keyed by note and line (not by position), never
+ * written into the note.
+ */
+const notesOf = (files: Record<string, string>): TaskRecord[] =>
+  Object.entries(files).flatMap(([path, content]) =>
+    scanTasks(content).map((task) => ({ path, title: path.replace(/\.md$/, ""), excluded: /tasks: false/.test(content), ...task })),
+  );
+const checkboxPlan = (files: Record<string, string>, rule = RULE, snoozes?: Record<string, number>) =>
+  planReminders(checkboxReminderSubjects(notesOf(files), { ...WINDOW, snoozes }), rule, WINDOW).reminders.map((r) => [r.subject.key, r.at, r.subject.title]);
+
+describe("checkbox reminders", () => {
+  it("a box with a due date and a time reminds at its time, by the task rule; one without a time does not", () => {
+    expect(
+      checkboxPlan(
+        {
+          "Haushalt.md": [
+            "- [ ] Bob anrufen 📅 2026-09-21 14:30",
+            "- [ ] Steuer 📅 2026-09-21",
+            "- [x] Erledigt 📅 2026-09-21 10:00",
+            "- [-] Abgesagt 📅 2026-09-21 11:00",
+            "- [/] Angefangen 📅 2026-09-22 08:15",
+            "- [ ] Ohne Datum 14:30",
+          ].join("\n"),
+        },
+        { ...RULE, taskTimedLeadMinutes: 10 },
+      ),
+    ).toEqual([
+      ["checkbox:Haushalt.md#Bob anrufen 📅 2026-09-21 14:30", at(2026, 9, 21, 14, 20), "Bob anrufen"],
+      ["checkbox:Haushalt.md#Angefangen 📅 2026-09-22 08:15", at(2026, 9, 22, 8, 5), "Angefangen"],
+    ]);
+  });
+
+  it("the subject carries its line — what a tap opens and what Done ticks", () => {
+    const [subject] = checkboxReminderSubjects(notesOf({ "A.md": "# A\n\n- [ ] Eins\n- [ ] Zwei 📅 2026-09-21 09:00 🆔 zwei" }), WINDOW);
+    expect(subject).toMatchObject({ kind: "task", allDay: false, line: { path: "A.md", ordinal: 1, text: "Zwei 📅 2026-09-21 09:00 🆔 zwei", taskId: "zwei" } });
+    expect(subject.key).toBe(checkboxReminderKey("A.md", { text: "", taskId: "zwei" }));
+  });
+
+  it("the key follows the line, not its position: a line inserted above changes nothing", () => {
+    const before = checkboxPlan({ "A.md": "- [ ] Zwei 📅 2026-09-21 09:00" });
+    const after = checkboxPlan({ "A.md": "- [ ] Neu\n- [ ] Zwei 📅 2026-09-21 09:00" });
+    expect(after).toEqual(before);
+    // Two identical lines are two tasks — two reminders, not one.
+    expect(checkboxPlan({ "A.md": "- [ ] Gießen 📅 2026-09-21 09:00\n- [ ] Gießen 📅 2026-09-21 09:00" }).map(([key]) => key)).toEqual([
+      "checkbox:A.md#Gießen 📅 2026-09-21 09:00",
+      "checkbox:A.md#Gießen 📅 2026-09-21 09:00~2",
+    ]);
+  });
+
+  it("a note that opts out of task aggregation stays out, and 'Later' parks one moment by the line's key", () => {
+    expect(checkboxPlan({ "Vorlage.md": "---\nplainva:\n  tasks: false\n---\n- [ ] X 📅 2026-09-21 09:00" })).toEqual([]);
+    const key = "checkbox:A.md#Zwei 📅 2026-09-20 09:00";
+    expect(checkboxPlan({ "A.md": "- [ ] Zwei 📅 2026-09-20 09:00" }, RULE, { [key]: NOW + 3_600_000 })).toEqual([[key, NOW + 3_600_000, "Zwei"]]);
+  });
+
+  it("the row of a box carries its time — the one rule for due values, 00:00 stays a day", () => {
+    const rows = dueTaskRows({ notes: notesOf({ "A.md": "- [ ] Mit 📅 2026-09-21 14:30\n- [ ] Mitternacht 📅 2026-09-21 00:00\n- [ ] Ohne 📅 2026-09-21" }) });
+    expect(rows.map((row) => [row.title, row.dueMinutes])).toEqual([
+      ["Mit", 870],
+      ["Mitternacht", null],
+      ["Ohne", null],
+    ]);
+  });
+
+  it("finds the line again after its note was renamed, and only where it is unambiguous", () => {
+    const line = { path: "Alt.md", ordinal: 0, text: "Bob anrufen 📅 2026-09-21 14:30" };
+    expect(relocateReminderLine(notesOf({ "Alt.md": "- [ ] x\n- [ ] Bob anrufen 📅 2026-09-21 14:30" }), line)).toEqual({ ...line, ordinal: 1 });
+    expect(relocateReminderLine(notesOf({ "Ordner/Neu.md": "- [ ] Bob anrufen 📅 2026-09-21 14:30" }), line)).toEqual({ ...line, path: "Ordner/Neu.md" });
+    expect(relocateReminderLine(notesOf({ "B.md": "- [ ] Bob anrufen 📅 2026-09-21 14:30", "C.md": "- [ ] Bob anrufen 📅 2026-09-21 14:30" }), line)).toBeNull();
+    expect(relocateReminderLine(notesOf({ "Alt.md": "- [ ] anderes" }), line)).toBeNull();
   });
 });

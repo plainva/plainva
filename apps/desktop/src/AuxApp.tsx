@@ -3,7 +3,7 @@ import { useTabTransferSource } from "./hooks/useTabTransfer";
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyState, ICON, IconButton, toast } from "@plainva/ui";
+import { EmptyState, ICON, IconButton, setPendingSearchJump, toast } from "@plainva/ui";
 import { ArrowLeftToLine, PanelRight } from "lucide-react";
 import { RightSidebar, type SectionId } from "./components/RightSidebar";
 import { windowStateKey } from "./services/windowContext";
@@ -232,7 +232,12 @@ export function AuxApp() {
     void getWindowBus()
       .then(async (bus) => {
         const un = await bus.onBroadcast("set-content", (payload) => {
-          if (payload.label === label && payload.path) openInFocusedPane(payload.path, true);
+          if (payload.label !== label || !payload.path) return;
+          // A place in the note (a checkbox reminder's line) is parked before
+          // the note opens and poked after, for a note already on screen.
+          if (payload.term) setPendingSearchJump({ path: payload.path, term: payload.term });
+          openInFocusedPane(payload.path, true);
+          if (payload.term) window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: payload.path } }));
         });
         if (cancelled) un();
         else stop = un;

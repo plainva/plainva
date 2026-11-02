@@ -794,9 +794,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "the desktop keep its own timers). The OS notification therefore cannot carry " +
       "Done or Later; the toast that accompanies it opens the task, where ticking it " +
       "off is one click. Task time, the task lead and the per-task `remind` exception " +
-      "apply on both shells (plan Aufgaben-Oberflaeche B4, 2026-09-20).",
+      "apply on both shells (plan Aufgaben-Oberflaeche B4, 2026-09-20). The same holds for " +
+      "the reminder of a checkbox task with a due time, which opens its note at the line " +
+      "(Sammelplan 3.145 no. 1, E3, 2026-11-02).",
     mobile: "yes",
-    verified: "2026-09-20",
+    verified: "2026-11-02",
   },
   {
     id: "back-history",

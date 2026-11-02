@@ -1,6 +1,7 @@
 import { buildWindowQuery, windowStatePrefix, type VaultWindowRole, type WindowPreset } from "./windowContext";
 import { getSettingsStore } from "./settingsStore";
 import { getWindowBus } from "./windowBus";
+import { setPendingSearchJump } from "@plainva/ui";
 import { forgetComposeDraft, stashComposeDraft, type ComposeSnapshot } from "./mail/composeHandoff";
 import { isVirtualPath } from "../components/graph/virtualPaths";
 import { heldVaults, releaseHolder } from "./vaultRuntimes";
@@ -705,9 +706,15 @@ export async function showContentInVaultWindow(opts: {
   path: string;
   /** True when the central window is the one showing this vault. */
   ownerShows: boolean;
+  /** Where in the note to land (the search jump's term) — a checkbox reminder opens at its line. */
+  term?: string;
 }): Promise<boolean> {
   if (opts.ownerShows) {
+    // Parked before the note opens, poked after: a note that is already open
+    // in the focused pane takes the jump from the poke.
+    if (opts.term) setPendingSearchJump({ path: opts.path, term: opts.term });
     window.dispatchEvent(new CustomEvent("plainva-window-show-content", { detail: { path: opts.path } }));
+    if (opts.term) window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: opts.path } }));
     return true;
   }
   const target =
@@ -718,7 +725,7 @@ export async function showContentInVaultWindow(opts: {
   const focused = await focusAuxWindow(target.label);
   if (!focused) return false;
   const bus = await getWindowBus();
-  await bus.broadcast("set-content", { label: target.label, path: opts.path }, opts.vaultPath);
+  await bus.broadcast("set-content", { label: target.label, path: opts.path, ...(opts.term ? { term: opts.term } : {}) }, opts.vaultPath);
   return true;
 }
 

@@ -167,6 +167,12 @@ export interface PathReindexOptions {
    * for a path whose second look found nothing to do.
    */
   onFollowedLate?: () => void;
+  /**
+   * Told that a call changed the index — a note saved, a box ticked, a file
+   * pulled or removed. Whoever derives something from the index and is not a
+   * screen (the reminders, E3) hears of it here, once per call.
+   */
+  onFollowed?: () => void;
   /** How long a path that failed waits for its second attempt. */
   retryDelayMs?: number;
 }
@@ -226,6 +232,7 @@ export function createPathReindexer(
   return async (paths) => {
     if (!indexer) return;
     const first = await pass(indexer, paths);
+    if (first.followed > 0) options.onFollowed?.();
     if (first.failed.length === 0) return;
     // A removal that failed is tried again after the full scan under way: a
     // removal that is left to that scan is reported by it. (Or the index could
@@ -233,7 +240,10 @@ export function createPathReindexer(
     if (first.removalWaits) await indexer.whenIdle?.();
     await wait(retryDelayMs);
     const second = await pass(indexer, first.failed);
-    if (second.followed > 0) options.onFollowedLate?.();
+    if (second.followed > 0) {
+      options.onFollowedLate?.();
+      options.onFollowed?.();
+    }
     if (second.failed.length > 0) options.onLeftBehind?.(second.failed.length);
   };
 }

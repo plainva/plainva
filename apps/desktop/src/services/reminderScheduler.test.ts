@@ -43,8 +43,9 @@ vi.mock("@plainva/ui/i18n", () => ({
   default: { language: "de", t: (key: string) => key },
 }));
 
-import { announceReminder, reminderStateStore, startReminderScheduler } from "./reminderScheduler";
-import { remindEventsKey, reminderCalendarsKey, reminderLeadKey, remindTasksKey } from "./reminderSettings";
+import { scanTasks, type TaskRecord } from "@plainva/core";
+import { announceReminder, REMINDER_SOURCES_CHANGED, reminderStateStore, startReminderScheduler } from "./reminderScheduler";
+import { remindCheckboxesKey, remindEventsKey, reminderCalendarsKey, reminderLeadKey, remindTasksKey } from "./reminderSettings";
 
 const VAULT = "/v";
 const NOW = Date.parse("2026-08-12T09:00:00Z");
@@ -352,5 +353,107 @@ describe("announceReminder", () => {
     announceReminder(reminder("event"), deps);
     expect(focus).not.toHaveBeenCalled();
     focus.mockRestore();
+  });
+});
+
+/**
+ * Checkbox tasks with a due time (Sammelplan § 3.145 Nr. 1, decision E3): a box
+ * `- [ ] … 📅 YYYY-MM-DD HH:MM` reminds like a task note with a time, behind
+ * its own switch per vault; the toast opens the note AT the line. Derived from
+ * the index on every plan — and a task reminder is asked once more at its
+ * moment, so a task ticked off inside the arming horizon is not announced.
+ */
+describe("desktop reminder scheduler: checkbox tasks", () => {
+  const listTasks = vi.fn<() => Promise<TaskRecord[]>>();
+  const openNoteAt = vi.fn();
+  const withIndex = { ...deps, queryService: { ...deps.queryService, listTasks }, openNoteAt };
+  /** A local `YYYY-MM-DD HH:MM` this many minutes from now on the fake clock. */
+  const stamp = (minutes: number) => {
+    const d = new Date(Date.now() + minutes * 60_000);
+    const two = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`;
+  };
+  const note = (path: string, content: string): TaskRecord[] => scanTasks(content).map((task) => ({ path, title: path, excluded: false, ...task }));
+
+  beforeEach(() => {
+    store.set(remindEventsKey(VAULT), false);
+    listTasks.mockReset();
+    openNoteAt.mockReset();
+    listTasks.mockResolvedValue([]);
+  });
+
+  it("announces a box with a due time at its time, only while its switch is on", async () => {
+    listTasks.mockResolvedValue(note("Haushalt.md", `- [ ] Bob anrufen 📅 ${stamp(30)}\n- [ ] Ohne Zeit 📅 ${stamp(30).slice(0, 10)}`));
+    const off = startReminderScheduler(withIndex);
+    await settle();
+    await vi.advanceTimersByTimeAsync(31 * 60_000);
+    expect(listTasks).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+    off();
+
+    store.set(remindCheckboxesKey(VAULT), true);
+    const text = `Bob anrufen 📅 ${stamp(30)}`;
+    listTasks.mockResolvedValue(note("Haushalt.md", `- [ ] Bob anrufen 📅 ${stamp(30)}\n- [ ] Ohne Zeit 📅 ${stamp(30).slice(0, 10)}`));
+    const stop = startReminderScheduler(withIndex);
+    await settle();
+    expect(reminderStateStore.get()).toMatchObject({ tasks: 1, events: 0, reason: "ok" });
+    await vi.advanceTimersByTimeAsync(30 * 60_000);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify.mock.calls[0][0].title).toContain("Bob anrufen");
+    // The toast opens the note at the line — asked of the index once more.
+    toasts.info.mock.calls[0][1].run();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(openNoteAt).toHaveBeenCalledWith("Haushalt.md", text);
+    expect(deps.openNote).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("a box ticked off after its reminder was armed is not announced", async () => {
+    store.set(remindCheckboxesKey(VAULT), true);
+    const line = `- [ ] Bob anrufen 📅 ${stamp(25)}`;
+    listTasks.mockResolvedValue(note("Haushalt.md", line));
+    const stop = startReminderScheduler(withIndex);
+    await settle();
+    // The five-minute tick arms it (due in under six minutes) ...
+    await vi.advanceTimersByTimeAsync(20 * 60_000);
+    // ... and then it is ticked off in the note.
+    listTasks.mockResolvedValue(note("Haushalt.md", line.replace("[ ]", "[x]")));
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    expect(notify).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("a task note ticked off after its reminder was armed is not announced either", async () => {
+    // The same class for the task database: an armed timer used to fire
+    // whatever happened to the task in the meantime.
+    store.set(remindTasksKey(VAULT), true);
+    const day = stamp(25).slice(0, 10);
+    const minutes = Number(stamp(25).slice(11, 13)) * 60 + Number(stamp(25).slice(14, 16));
+    const task = { id: "db:T/a.md", source: "database", state: "open", priority: 0, path: "T/a.md", title: "Müll", due: day, dueMinutes: minutes, done: false, repeats: false };
+    overlay.mockResolvedValue({ tasks: [task], completion: null, dueKey: "faellig" });
+    const stop = startReminderScheduler(deps);
+    await settle();
+    await vi.advanceTimersByTimeAsync(20 * 60_000);
+    overlay.mockResolvedValue({ tasks: [{ ...task, done: true, state: "done" }], completion: null, dueKey: "faellig" });
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    expect(notify).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("plans again a few seconds after the vault changed, not only at the next tick", async () => {
+    store.set(remindCheckboxesKey(VAULT), true);
+    const stop = startReminderScheduler(withIndex);
+    await settle();
+    // A box written now, due in three minutes: the next tick would come after it.
+    listTasks.mockResolvedValue(note("Haushalt.md", `- [ ] Gleich 📅 ${stamp(3)}`));
+    window.dispatchEvent(new CustomEvent(REMINDER_SOURCES_CHANGED, { detail: { vaultPath: VAULT } }));
+    await vi.advanceTimersByTimeAsync(4 * 60_000);
+    expect(notify).toHaveBeenCalledTimes(1);
+    // Another vault's change is not this scheduler's business.
+    listTasks.mockClear();
+    window.dispatchEvent(new CustomEvent(REMINDER_SOURCES_CHANGED, { detail: { vaultPath: "/other" } }));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(listTasks).not.toHaveBeenCalled();
+    stop();
   });
 });

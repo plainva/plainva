@@ -817,6 +817,28 @@ describe("the door itself", () => {
     await reindex(["busy.ini", "broken.ini"]);
     expect(seen).toMatchObject({ late: 1, left: 1 });
   });
+
+  it("says once per call that the index moved — and nothing when nothing moved (the reminders re-plan from it, E3)", async () => {
+    let followed = 0;
+    let busy = true;
+    const reindex = createPathReindexer({
+      async indexFile(file) {
+        if (file.path === "busy.md" && busy) { busy = false; throw new Error("Already in transaction"); }
+        return true;
+      },
+      async indexPath() { return "unchanged"; },
+    }, {
+      getFileInfo: async (p) => { if (p === "never-indexed.tmp") throw new VaultFileNotFoundError(p); return info(p); },
+    }, { retryDelayMs: 0, onFollowed: () => { followed += 1; } });
+
+    await reindex(["a.md", "b.md"]);
+    expect(followed).toBe(1);
+    await reindex(["never-indexed.tmp"]);
+    expect(followed).toBe(1);
+    // Followed only at the second attempt: told then.
+    await reindex(["busy.md"]);
+    expect(followed).toBe(2);
+  });
 });
 
 describe("what a pass sets off", () => {
@@ -925,6 +947,8 @@ describe("the wiring: one door, and everything goes through it", () => {
     expect(service).not.toMatch(/indexTurns\.take\(/);
     // What the door followed late is told to the screens once more.
     expect(service).toContain("onFollowedLate: () => window.dispatchEvent(new CustomEvent(\"m-vault-changed\")),");
+    // ...and every move of the index to the reminders, which derive from it (E3).
+    expect(service).toContain("onFollowed: () => window.dispatchEvent(new CustomEvent(\"m-paths-indexed\")),");
   });
 
   it("both sync workers hand their changed paths to it", () => {

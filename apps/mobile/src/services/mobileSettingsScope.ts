@@ -107,6 +107,10 @@ export interface VaultScopedSettings {
   reminderAllDayAtMinutes: number;
   /** Remind of tasks whose due date falls in the window. */
   remindTasks: boolean;
+  /** Remind of checkbox tasks in notes whose due date carries a time
+   *  (`📅 2026-11-02 14:30`) — their own switch, off by default (Sammelplan
+   *  § 3.145 Nr. 1, E3). Device-local like the other reminder settings. */
+  remindCheckboxes: boolean;
   /** Tasks whose due date carries no time: a day and a time of their own
    *  (E1) — 0 = the morning OF the due day, 1 = the evening before. They used
    *  to borrow the all-day rule, which meant "19:00 the night before" with no
@@ -255,6 +259,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "reminderAllDayLeadDays",
   "reminderAllDayAtMinutes",
   "remindTasks",
+  "remindCheckboxes",
   "reminderTaskLeadDays",
   "reminderTaskAtMinutes",
   "reminderTaskTimedLead",
@@ -324,6 +329,7 @@ export function vaultDefaults(): VaultScopedSettings {
     reminderTaskAtMinutes: 9 * 60,
     reminderTaskTimedLead: 0,
     remindTasks: false,
+    remindCheckboxes: false,
     reminderCalendars: [],
     calendarOverlays: [],
     mailFolder: profileDefault<string>("mailFolder")!,
@@ -386,6 +392,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     reminderTaskAtMinutes: src.reminderTaskAtMinutes ?? d.reminderTaskAtMinutes,
     reminderTaskTimedLead: src.reminderTaskTimedLead ?? d.reminderTaskTimedLead,
     remindTasks: src.remindTasks ?? d.remindTasks,
+    remindCheckboxes: src.remindCheckboxes ?? d.remindCheckboxes,
     reminderCalendars: src.reminderCalendars ?? d.reminderCalendars,
     calendarOverlays: src.calendarOverlays ?? d.calendarOverlays,
     mailFolder: src.mailFolder ?? d.mailFolder,

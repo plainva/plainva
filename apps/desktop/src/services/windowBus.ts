@@ -117,7 +117,8 @@ export interface BroadcastMap {
   /** Owner to one window: bring this content forward (dedup / focus routing). */
   "focus-content": { label: string; path: string };
   /** Owner to one window: show this content instead of what it has open. */
-  "set-content": { label: string; path: string | null };
+  /** `term`: where in the note to land — a checkbox reminder opens its note at its line. */
+  "set-content": { label: string; path: string | null; term?: string };
   /**
    * Owner to one FULL window: select this path in your file tree and come
    * forward (finding 2026-09-07). The answer to "reveal in tree" from a window

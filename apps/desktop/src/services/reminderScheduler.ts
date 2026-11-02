@@ -1,7 +1,10 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import {
+  checkboxJumpTerm,
+  checkboxReminderSubjects,
   planReminders,
   readTaskSnoozes,
+  relocateReminderLine,
   reminderText,
   taskReminderSubjects,
   toast,
@@ -46,6 +49,13 @@ const PLAN_INTERVAL_MS = 5 * 60_000;
 /** Timers are armed for this horizon: one planning interval plus slack, so a
  * reminder due right after a tick is still armed by the tick before it. */
 const ARM_HORIZON_MS = PLAN_INTERVAL_MS + 60_000;
+/**
+ * A change in the vault re-plans after this quiet spell: a checkbox given a
+ * time, ticked or deleted is planned anew within seconds instead of at the
+ * next five-minute tick — which could come after its moment. Debounced,
+ * because typing saves often and every plan reads the vault's task lines.
+ */
+const VAULT_CHANGE_QUIET_MS = 3_000;
 
 export interface ReminderSchedulerDeps {
   vaultPath: string;
@@ -54,6 +64,12 @@ export interface ReminderSchedulerDeps {
   queryService: DueTaskDeps["queryService"] | null;
   /** Brings a note to the front (the toast action). */
   openNote: (path: string) => void;
+  /**
+   * Brings a note to the front at the place where `term` stands — a checkbox
+   * reminder opens its note at its line (E3). Without it the note opens at
+   * the top.
+   */
+  openNoteAt?: (path: string, term: string) => void;
   /** Opens the calendar at a day (the toast action for an appointment). */
   openCalendar: (day: string) => void;
   /** The next upcoming appointment, as one line — the tray menu shows it
@@ -111,9 +127,32 @@ export function announceReminder(reminder: PlannedReminder, deps: ReminderSchedu
 
   const action =
     subject.kind === "task"
-      ? { label: i18n.t("reminders.actionOpenTask"), run: () => deps.openNote(subject.key) }
+      ? { label: i18n.t("reminders.actionOpenTask"), run: () => void openTask(subject, deps) }
       : { label: i18n.t("reminders.actionOpenCalendar"), run: () => deps.openCalendar(localDay(subject.startTs)) };
   toast.info(`${title} · ${body}`, action);
+}
+
+/**
+ * Opens what a task reminder is about. A task note is its path. A checkbox
+ * opens its note AT its line — the jump the calendar's checkbox rows make —
+ * and the line is asked of the index first: the toast may be clicked minutes
+ * later, after the note was renamed or moved (E3).
+ */
+async function openTask(subject: ReminderSubject, deps: ReminderSchedulerDeps): Promise<void> {
+  const planned = subject.line;
+  if (!planned) {
+    deps.openNote(subject.key);
+    return;
+  }
+  let line = planned;
+  try {
+    const notes = await deps.queryService?.listTasks?.();
+    if (notes) line = relocateReminderLine(notes, planned) ?? planned;
+  } catch {
+    /* The index could not answer: the note where the line was planned. */
+  }
+  if (deps.openNoteAt) deps.openNoteAt(line.path, checkboxJumpTerm(line.text));
+  else deps.openNote(line.path);
 }
 
 /**
@@ -177,7 +216,7 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
       // `enabled` alone made task reminders a SUB-setting of appointment
       // reminders — switching appointments off switched tasks off too, with
       // nothing anywhere saying so. Either one on is reason enough to plan.
-      if (!settings.enabled && !settings.tasks) {
+      if (!settings.enabled && !settings.tasks && !settings.checkboxes) {
         disarm();
         setReminderState({ events: 0, tasks: 0, lastRunTs: null, reason: "off" });
         return;
@@ -229,7 +268,18 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
               armed.delete(key);
               if (stopped) return;
               fired.add(key);
-              announceReminder(reminder, deps);
+              // An appointment's armed reminder is a commitment (above). A
+              // task's is checked once more at its moment: ticked, deleted,
+              // moved or given another time inside the arming horizon, it is
+              // no longer due — and being reminded of something one has
+              // finished is how reminders stop being trusted (E3).
+              if (reminder.subject.kind !== "task") {
+                announceReminder(reminder, deps);
+                return;
+              }
+              void stillPlanned(reminder, deps).then((still) => {
+                if (still && !stopped) announceReminder(reminder, deps);
+              });
             },
             Math.max(0, delay)
           )
@@ -241,20 +291,55 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
   };
 
   const onPimChanged = () => void plan();
+  let quiet: ReturnType<typeof setTimeout> | null = null;
+  const onVaultChanged = (e: Event) => {
+    const vault = (e as CustomEvent<{ vaultPath?: string } | undefined>).detail?.vaultPath;
+    if (vault !== undefined && vault !== deps.vaultPath) return;
+    if (quiet) clearTimeout(quiet);
+    quiet = setTimeout(() => {
+      quiet = null;
+      void plan();
+    }, VAULT_CHANGE_QUIET_MS);
+  };
 
   timeouts.push(setTimeout(() => void plan(), INITIAL_DELAY_MS));
   intervals.push(setInterval(() => void plan(), PLAN_INTERVAL_MS));
   window.addEventListener("plainva-pim-changed", onPimChanged);
   window.addEventListener("plainva-reminders-changed", onPimChanged);
+  window.addEventListener(REMINDER_SOURCES_CHANGED, onVaultChanged);
 
   return () => {
     stopped = true;
     disarm();
+    if (quiet) clearTimeout(quiet);
     timeouts.forEach(clearTimeout);
     intervals.forEach(clearInterval);
     window.removeEventListener("plainva-pim-changed", onPimChanged);
     window.removeEventListener("plainva-reminders-changed", onPimChanged);
+    window.removeEventListener(REMINDER_SOURCES_CHANGED, onVaultChanged);
   };
+}
+
+/**
+ * The vault's files changed (the index moved on): task reminders may have
+ * changed with them. The vault context says it; the scheduler re-plans after
+ * a quiet spell.
+ */
+export const REMINDER_SOURCES_CHANGED = "plainva-reminder-sources-changed";
+
+/** Whether a task reminder is still due at its moment, asked of the vault as it is now. */
+async function stillPlanned(reminder: PlannedReminder, deps: ReminderSchedulerDeps): Promise<boolean> {
+  try {
+    const settings = await loadReminderSettings(await getSettingsStore(), deps.vaultPath);
+    const now = reminder.at - 1;
+    // Tasks only: the appointments are not asked (their switch off here).
+    const { subjects } = await collectSubjects(deps, { ...settings, enabled: false }, now, now + WINDOW_DAYS * 86_400_000);
+    const same = subjects.filter((s) => s.key === reminder.subject.key);
+    return planReminders(same, settings.rule, { now, windowEndTs: reminder.at }).reminders.some((r) => r.at === reminder.at);
+  } catch {
+    // The vault could not be asked: announce rather than swallow it.
+    return true;
+  }
 }
 
 /**
@@ -312,16 +397,14 @@ async function collectSubjects(
     }
   }
 
-  let reason: ReminderReason = settings.tasks ? "ok" : "tasksOff";
+  // "Switched off" only when neither kind of task reminds: with checkbox
+  // reminders on, the task count is theirs and nothing is off.
+  let reason: ReminderReason = settings.tasks || settings.checkboxes ? "ok" : "tasksOff";
 
   if (settings.tasks && deps.queryService) {
     try {
-      // DECISION, not a gap (feedback round 2026-09-01, E3): only the task
-      // DATABASE feeds reminders. "Tasks created in Plainva" means "created in
-      // the task database". Do not read this line as an omission. (Its first
-      // reason — a checkbox has no date to plan from — no longer holds: the
-      // day surfaces read a checkbox's `📅` since TestFlight 136; whether
-      // reminders follow is the maintainer's call, Sammelplan § 3.145.)
+      // The task DATABASE, behind its switch. Checkbox tasks have their own
+      // switch below (Sammelplan § 3.145 Nr. 1, decision E3 of 30.10.).
       //
       // Asked separately so the two silences stay distinguishable: no database
       // configured at all, versus one whose due column is not typed as a date.
@@ -345,6 +428,18 @@ async function collectSubjects(
       // must not pass unmentioned either, which is what it used to do.
       reason = "taskDbUnreadable";
       console.warn("[reminderScheduler] due tasks unavailable", e);
+    }
+  }
+
+  // Checkbox tasks with a due date AND a time, from the index's task lines —
+  // derived anew on every plan, so a ticked, deleted or moved line is simply
+  // no longer there. One rule with the phone (`checkboxReminderSubjects`).
+  if (settings.checkboxes && deps.queryService?.listTasks) {
+    try {
+      const notes = await deps.queryService.listTasks();
+      subjects.push(...checkboxReminderSubjects(notes, { now, windowEndTs, snoozes: readTaskSnoozes(deps.vaultPath, now) }));
+    } catch (e) {
+      console.warn("[reminderScheduler] checkbox tasks unavailable", e);
     }
   }
 

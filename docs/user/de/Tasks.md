@@ -112,6 +112,18 @@ Dieses Feld musst Du nicht von Hand schreiben:
 
 Neu erstellte Vorlagen tragen den Marker automatisch. Erstellst Du eine Notiz **aus** einer Vorlage, wird er wieder entfernt — die neue Notiz ist echter Inhalt und zeigt ihre Aufgaben ganz normal.
 
+## Erinnerungen für Checkboxen
+
+Eine Checkbox erinnert Dich, wenn ihr Fälligkeitsdatum eine Uhrzeit trägt: Schreib die Uhrzeit direkt hinter das Datum, als `HH:MM` im 24-Stunden-Format (`00:00` zählt als keine Uhrzeit).
+
+```markdown
+- [ ] Bob anrufen 📅 2026-11-02 14:30
+```
+
+Einschalten kannst Du das unter **Einstellungen → Kalender → Erinnerungen** mit **Checkboxen mit Uhrzeit** — je Vault und auf diesem Gerät, aus, bis Du es einschaltest. Die Erinnerung kommt zu dieser Uhrzeit, abzüglich des Vorlaufs unter **Vorlauf für Aufgaben mit Uhrzeit**. Am Telefon bietet sie **Abhaken**, **In 1 Stunde** und **Morgen früh** an, wie die Erinnerung einer Aufgabe aus der Aufgaben-Datenbank; am Desktop bietet der Hinweis daneben **Aufgabe öffnen** an. So oder so landest Du in der Notiz an der Zeile der Aufgabe, auch nachdem die Notiz umbenannt oder verschoben wurde.
+
+Eine Checkbox, die Du abhakst, löschst oder auf eine andere Uhrzeit setzt, wird binnen Sekunden neu eingeplant. Eine Checkbox mit Datum, aber ohne Uhrzeit erinnert nicht, und Notizen mit `plainva.tasks: false` bleiben draußen. Plainva schreibt für eine Erinnerung nichts in die Notiz. Das Tasks-Plugin von Obsidian kennt keine Uhrzeit: Ein `📅`-Datum, hinter dem eine Uhrzeit steht, liest es nicht mehr.
+
 ## Obsidian-Kompatibilität
 
 Aufgaben sind gewöhnliche GFM-Checkboxen (GitHub Flavored Markdown). Plainva fügt nie eine Sondersyntax hinzu: Dieselben `- [ ]`-Zeilen werden in Obsidian als Checkboxen dargestellt und lesen sich in jedem Editor sauber. Die Konventionen `📅 Datum` und `#tag` sind der übliche Obsidian-Tasks-Stil, aber sie sind nur Text in Deiner Notiz.
@@ -234,7 +246,7 @@ Die Aufgabenansicht öffnet sich auf **Heute**. Die Listen — am Desktop eine L
 
 **Das Datum einer Aufgabe ist der Weg, es zu ändern.** Tippe oder klicke auf das Datum einer Aufgabe (innerhalb eines Tages: auf ihre Uhrzeit), und die Datumswahl öffnet sich — am Desktop unter dem Datum, am Telefon als Blatt. **Fälligkeit ändern** im Menü der Zeile öffnet dieselbe Datumswahl; so bekommt auch eine Aufgabe ohne Datum eines. Am Telefon wählen **Neue Aufgabe** und die Datumszelle einer Datenbank ihren Tag aus demselben Kalender, nicht aus dem Datumsrad des Systems. Eine Checkbox in einer Notiz — im Editor, in der Leseansicht und im Journal — ist am Telefon auf den Finger zugeschnitten. Ein Eintrag der Aufgaben-Datenbank behält seine Uhrzeit, eine Checkbox bekommt oder ändert ihr `📅`-Datum. An der Überschrift **Überfällig** verschiebt **Alle auf heute** alle überfälligen Aufgaben in einem Schritt auf heute. Beides bestätigt ein Hinweis, der **Rückgängig** anbietet. Im Erfassungsfeld schlägt `[[` Notizen vor und `#` Tags, wie im Editor: `Enter` oder `Tab` übernimmt den markierten Vorschlag, `Esc` schließt die Liste.
 
-**Schnellwahl und Uhrzeit.** Über dem Kalender stehen **Heute**, **Morgen**, **Dieses Wochenende**, **Nächste Woche** und **Kein Datum**, jeweils mit dem Wochentag. Dieses Wochenende ist der kommende Samstag — heute, wenn Samstag oder Sonntag ist; Nächste Woche ist der erste Tag der nächsten Woche, wie unter **Wochenbeginn** eingestellt. Unten hat **Uhrzeit** einen Schalter: aus ist die Aufgabe ganztägig fällig, an wählst Du daneben die Zeit. Eine Schnellwahl oder ein Tag behält eine schon gesetzte Uhrzeit; um nur die Uhrzeit zu ändern, tippe auf **Fertig**. Ein Eintrag der Aufgaben-Datenbank speichert die Uhrzeit in seinem Fälligkeitswert (`2026-10-26T10:00`). Eine Checkbox in einer Notiz trägt nur einen Tag — das `📅` des Tasks-Plugins kennt keine Uhrzeit —, deshalb sagt der Wähler das dort, statt den Schalter anzubieten. Zeigt die Fälligkeitsspalte der Datenbank nur Tage, bietet Plainva einmal **Auf Datum & Uhrzeit umstellen** an.
+**Schnellwahl und Uhrzeit.** Über dem Kalender stehen **Heute**, **Morgen**, **Dieses Wochenende**, **Nächste Woche** und **Kein Datum**, jeweils mit dem Wochentag. Dieses Wochenende ist der kommende Samstag — heute, wenn Samstag oder Sonntag ist; Nächste Woche ist der erste Tag der nächsten Woche, wie unter **Wochenbeginn** eingestellt. Unten hat **Uhrzeit** einen Schalter: aus ist die Aufgabe ganztägig fällig, an wählst Du daneben die Zeit. Eine Schnellwahl oder ein Tag behält eine schon gesetzte Uhrzeit; um nur die Uhrzeit zu ändern, tippe auf **Fertig**. Ein Eintrag der Aufgaben-Datenbank speichert die Uhrzeit in seinem Fälligkeitswert (`2026-10-26T10:00`). Für eine Checkbox in einer Notiz setzt der Wähler nur den Tag — das `📅` des Tasks-Plugins kennt keine Uhrzeit — und sagt das dort, statt den Schalter anzubieten; eine Uhrzeit, die Du selbst hinter das Datum schreibst (siehe *Erinnerungen für Checkboxen*), bleibt stehen, wenn sich der Tag ändert. Zeigt die Fälligkeitsspalte der Datenbank nur Tage, bietet Plainva einmal **Auf Datum & Uhrzeit umstellen** an.
 
 Weitere Wege hinein: **Neue Aufgabe** im Tray-Menü am Desktop (wenn Plainva im Hintergrund weiterläuft), unter Android der Startmenü-Eintrag **Neue Aufgabe** (App-Symbol gedrückt halten) und am Telefon **Als Aufgabe anlegen**, wenn Du etwas an Plainva teilst — Text und Anhänge landen in der Notiz der Aufgabe. Wie eine Aufgabe mit Uhrzeit erinnert, steht unter [Kalender & externe Aufgaben](Calendar_and_Tasks.md).
 

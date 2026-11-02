@@ -2,6 +2,7 @@ import { stripTasksPriority, tasksDescription, type TaskRecord } from "@plainva/
 import type { TaskDbRow } from "./taskDatabase";
 import type { PlannerRow, TaskPriority } from "./taskPlanner";
 import { calendarDay } from "./today";
+import { parseDueValue } from "../pim/dueTime";
 
 /**
  * The two task sources in the planner's one row shape (plan Aufgaben-Oberfläche,
@@ -61,7 +62,10 @@ export function plannerRowsFromTasks(tasks: readonly TaskRecord[]): PlannerRow[]
     noteTitle: task.title,
     state: task.state ?? (task.done ? "done" : "open"),
     due: task.due,
-    dueMinutes: null,
+    // A time written after the date (`📅 2026-11-02 14:30`), read by the one
+    // rule for due values (`parseDueValue`): 00:00 stays a day, as it does
+    // in a database column. What the reminder of a checkbox plans from (E3).
+    dueMinutes: task.due && task.dueTime ? parseDueValue(`${task.due} ${task.dueTime}`)?.minutes ?? null : null,
     priority: task.priority ?? 0,
     tags: task.tags,
     repeats: task.recurrence !== undefined,

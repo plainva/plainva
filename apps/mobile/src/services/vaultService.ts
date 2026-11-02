@@ -1065,6 +1065,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       // The batch was announced to the screens when it was handed over; what
       // got through only now is not in the lists they drew then.
       onFollowedLate: () => window.dispatchEvent(new CustomEvent("m-vault-changed")),
+      // The index moved on — the reminders re-plan what they derive from it (E3).
+      onFollowed: () => window.dispatchEvent(new CustomEvent("m-paths-indexed")),
     }),
     dispose: async () => {
       clearPinboardCache(queryService ?? files);

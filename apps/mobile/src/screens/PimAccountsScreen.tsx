@@ -115,6 +115,7 @@ export function PimAccountsScreen({
   const duplicates = useMemo(() => reviewDuplicatePimRows(accounts), [accounts]);
   const [remindEvents, setRemindEvents] = useState(() => getMobileSettings().remindEvents);
   const [remindTasks, setRemindTasks] = useState(() => getMobileSettings().remindTasks);
+  const [remindCheckboxes, setRemindCheckboxes] = useState(() => getMobileSettings().remindCheckboxes);
   const [lead, setLead] = useState(() => getMobileSettings().reminderLeadMinutes);
   const [allDayDays, setAllDayDays] = useState(() => getMobileSettings().reminderAllDayLeadDays);
   const [allDayAt, setAllDayAt] = useState(() => getMobileSettings().reminderAllDayAtMinutes);
@@ -907,7 +908,21 @@ export function PimAccountsScreen({
                 title={t("reminders.tasksNoTime")}
               />
             ) : null}
-            {remindTasks ? (
+            {/* Checkbox tasks with a due time (Sammelplan § 3.145 Nr. 1, E3): a
+                switch of their own, off by default, as on the desktop. How to
+                write the time is behind the ⓘ. */}
+            <Row
+              data-testid="reminder-checkboxes"
+              end={<Switch
+                checked={remindCheckboxes}
+                label={t("reminders.checkboxes")}
+                onChange={(next) => saveReminder({ remindCheckboxes: next }, () => setRemindCheckboxes(next))}
+              />}
+              info={t("reminders.checkboxesDesc")}
+              title={t("reminders.checkboxes")}
+            />
+            {/* The lead of a task with a time applies to a checkbox with one too. */}
+            {remindTasks || remindCheckboxes ? (
               <Row
                 data-testid="reminder-task-timed-lead"
                 end={<><span className="m-prop-val">{taskTimedLead === 0 ? t("reminders.leadAtTime") : leadLabel(taskTimedLead)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}

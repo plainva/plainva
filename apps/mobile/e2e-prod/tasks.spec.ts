@@ -867,7 +867,7 @@ test("change due date with quick choices and a time: Next week at 10:00 lands in
     await noteRow.getByTestId("task-due").click();
     await expect(sheet).toBeVisible();
     await expect(sheet.getByTestId("task-due-time-switch")).toHaveCount(0);
-    await expect(sheet.getByTestId("task-due-timerow")).toContainText("A checkbox in a note carries a day only");
+    await expect(sheet.getByTestId("task-due-timerow")).toContainText("Here a checkbox gets a day only.");
     await sheet.getByTestId("task-due-quick-none").click();
     await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace(" 📅 2026-09-19", ""));
     expect(errors).toEqual([]);

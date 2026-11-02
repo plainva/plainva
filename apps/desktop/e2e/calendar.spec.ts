@@ -205,10 +205,14 @@ test.beforeEach(async ({ page }) => {
           // Meeting-note template (plan Befunde 24.09., E24): a test opts in via fs.__meetingTemplate.
           if (String(args.key || '').startsWith('meetingNoteTemplate_')) return fs.__meetingTemplate ? [fs.__meetingTemplate, true] : [null, false];
           if (String(args.key || '').startsWith('cloudAccounts_')) return [[{ id: 'ca1', family: 'webdav', label: 'Testkonto', services: { calendar: { pimAccountId: 'a1' } } }], true];
+          // Reminder switches (E3): a test opts in via fs.__reminders = { remindCheckboxes: true, ... }.
+          const reminderKey = String(args.key || '').match(/^(remindEvents|remindTasks|remindCheckboxes)_/)?.[1];
+          if (reminderKey && fs.__reminders?.[reminderKey] !== undefined) return [fs.__reminders[reminderKey], true];
           if (String(args.key || '').startsWith('mailAccounts_')) return [[{ id: 'm1', label: 'me@example.org', host: 'imap.example.org', port: 993, user: 'me@example.org', smtpHost: 'smtp.example.org', smtpPort: 587 }], true];
           return [null, false];
         }
-        if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
+        if (cmd === 'plugin:store|set') { ((window as any).__storeSets ??= []).push([args?.key, args?.value]); return null; }
+        if (cmd === 'plugin:store|save') return null;
         // What the system browser was asked to open (E25).
         if (cmd === 'plugin:opener|open_url') { ((window as any).__opened ??= []).push(args?.url); return null; }
         if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
@@ -1474,20 +1478,75 @@ test('reminder settings: rows appear, the condition is stated, the calendar filt
   await expect(card).toBeVisible();
   // Off by default: one row, nothing else — the settings do not describe a
   // machinery that is not running.
-  // Two switches from the start (P3/E3): appointments AND due tasks stand
-  // side by side; the task switch no longer hides behind the appointment one.
-  await expect(card.getByRole('switch')).toHaveCount(2);
+  // Three switches from the start (P3/E3, and E3 of 30.10. for checkboxes):
+  // appointments, due tasks and checkboxes with a time stand side by side.
+  await expect(card.getByRole('switch')).toHaveCount(3);
 
   await card.getByRole('switch').first().click();
   // Mockup order: lead time, all-day, due tasks, calendar filter.
   await expect(card.getByTestId('reminder-lead')).toBeVisible();
   await expect(card.getByTestId('reminder-allday')).toBeVisible();
-  await expect(card.getByRole('switch')).toHaveCount(2);
+  await expect(card.getByRole('switch')).toHaveCount(3);
   await expect(card.getByTestId('reminder-calendars').getByRole('checkbox')).toHaveCount(2);
   // The all-day label names a time of day, so its placeholder must be filled.
   await expect(card.getByTestId('reminder-allday')).not.toContainText('{{');
   // The condition, in the settings rather than in fine print.
   await expect(card).toContainText(/solange Plainva läuft|while Plainva is running/);
+});
+
+test('checkboxes with a time: their own switch per vault, off by default, with the way to write the time behind the info (E3)', async ({ page }, testInfo) => {
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dlg.getByRole('button', { name: /^(Kalender|Calendar)$/ }).click();
+  const card = dlg.getByRole('group', { name: /Erinnerungen|Reminders/ });
+  const toggle = card.getByTestId('reminder-checkboxes');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  // Off: the task lead belongs to no switch that is on, so it is not offered.
+  await expect(card.getByTestId('reminder-task-timed-lead')).toHaveCount(0);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  // Stored per vault (the key carries the vault), and the lead of a task with a
+  // time now applies — to a checkbox with one as well.
+  await expect.poll(() => page.evaluate(() => ((window as any).__storeSets ?? []).filter(([k]: [string]) => String(k).startsWith('remindCheckboxes_')).map(([, v]: [string, unknown]) => v))).toEqual([true]);
+  await expect(card.getByTestId('reminder-task-timed-lead')).toBeVisible();
+  // The info names the spelling the reminder reads.
+  await card.getByRole('button', { name: /^(Mehr zu Checkboxen mit Uhrzeit|More about Checkboxes with a time)$/ }).click();
+  await expect(page.locator('.pv-infotip-panel')).toContainText('📅 2026-11-02 14:30');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('checkbox-reminders-switch.png') });
+});
+
+test('a checkbox with a due time is announced at its time, and the notice opens the note at its line (E3)', async ({ page }) => {
+  // The clock is the page's own: the scheduler waits 20 s after the vault opens
+  // and arms a reminder up to six minutes ahead — both are jumped over.
+  await page.clock.install({ time: new Date(2026, 10, 2, 9, 0, 0) });
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs.__reminders = { remindCheckboxes: true };
+    fs['/test-vault/Haushalt.md'] = '# Haushalt\n\n- [ ] Müll rausbringen\n- [ ] Bob anrufen 📅 2026-11-02 09:03\n- [ ] Steuer 📅 2026-11-02\n';
+    // The system's notifications: granted, and recorded instead of shown.
+    const shown: Array<{ title: string; body?: string }> = ((window as any).__notified = []);
+    class FakeNotification {
+      static permission = 'granted';
+      static requestPermission = async () => 'granted';
+      constructor(title: string, options?: { body?: string }) { shown.push({ title, body: options?.body }); }
+      addEventListener() {}
+      close() {}
+    }
+    Object.defineProperty(window, 'Notification', { configurable: true, writable: true, value: FakeNotification });
+  });
+  await openVault(page);
+  await page.clock.fastForward('00:30');
+  // The plan runs and arms the box due at 09:03; nothing is announced yet.
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => (window as any).__notified.length)).toBe(0);
+  await page.clock.fastForward('03:00');
+  await expect.poll(() => page.evaluate(() => (window as any).__notified.map((n: { title: string }) => n.title)), { timeout: 10_000 }).toEqual(['Bob anrufen']);
+  // Nothing was written into the note for it.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Haushalt.md'])).not.toContain('⏰');
+  // The notice beside it opens the note, at the line.
+  await page.locator('.pv-toast-action', { hasText: /Aufgabe öffnen|Open task/ }).click();
+  await expect(page.locator('.cm-content')).toContainText('Bob anrufen', { timeout: 10_000 });
 });
 
 // --- S18: database views shown in the calendar (plan P9a) ----------------

@@ -1,4 +1,7 @@
-import type { ReminderSubject } from "./reminderPlan";
+import type { TaskRecord } from "@plainva/core";
+import type { ReminderLine, ReminderSubject } from "./reminderPlan";
+import { dueTaskRows } from "../lib/dueTasks";
+import { isOpenState, type PlannerRow } from "../lib/taskPlanner";
 
 /**
  * Tasks as reminder subjects (plan Aufgaben-Oberfläche, B4), shared by both
@@ -15,8 +18,12 @@ import type { ReminderSubject } from "./reminderPlan";
  *   replaces the task's regular reminder until it has passed.
  */
 export interface TaskReminderSource {
-  /** Note path — the subject's identity. */
+  /** Note path — the subject's identity, unless `key` names another. */
   path: string;
+  /** The identity when the path is not enough: a checkbox (`checkboxReminderKey`). */
+  key?: string;
+  /** A checkbox task: the line it stands on (`ReminderSubject.line`). */
+  reminderLine?: ReminderLine;
   title: string;
   /** Day key `YYYY-MM-DD`. */
   due: string | null;
@@ -47,14 +54,15 @@ export function taskReminderSubjects(
     if (!y || !m || !d) continue;
     const timed = task.dueMinutes !== undefined;
     const startTs = new Date(y, m - 1, d, 0, task.dueMinutes ?? 0).getTime();
-    const snoozedTo = opts.snoozes?.[task.path];
+    const key = task.key ?? task.path;
+    const snoozedTo = opts.snoozes?.[key];
     const snoozed = snoozedTo !== undefined && snoozedTo > opts.now;
     // An overdue task is only of interest here while a "later" is parked for it.
     if (!snoozed && (startTs > opts.windowEndTs + 86_400_000 || startTs < opts.now - 86_400_000)) continue;
     const own = parseTaskRemind(task.remind);
     if (own && own.length === 0) continue;
     out.push({
-      key: task.path,
+      key,
       kind: "task",
       title: task.title,
       startTs,
@@ -67,9 +75,85 @@ export function taskReminderSubjects(
       ...(snoozed ? { reminders: [(startTs - snoozedTo) / 60_000] } : own && timed ? { reminders: own } : {}),
       accountId: "",
       calendarId: "",
+      ...(task.reminderLine ? { line: task.reminderLine } : {}),
     });
   }
   return out;
+}
+
+/* ---------------------------------------------------------- checkbox tasks */
+
+/**
+ * Checkbox tasks as reminder sources (Sammelplan § 3.145 Nr. 1, decision E3):
+ * a box in a note that carries a due date WITH a time — `📅 2026-11-02 14:30`
+ * — reminds like a task note with a time, by the same rule
+ * (`taskReminderSubjects`), behind its own switch per vault. A box with a
+ * date and no time does not: a vault written in Obsidian carries hundreds of
+ * those, and a notification for each at nine in the morning is noise nobody
+ * asked for. Nothing is written into the note for a reminder.
+ *
+ * Derived from the index's task lines each time, never stored: a line that is
+ * ticked, deleted or given another time is simply not there (or there with
+ * another moment) the next time the reminders are planned. Which boxes take
+ * part is `dueTaskRows` — a note that opts out of task aggregation
+ * (`plainva.tasks: false`) stays out, as on every day surface.
+ */
+export function checkboxReminderSources(rows: readonly PlannerRow[]): TaskReminderSource[] {
+  const out: TaskReminderSource[] = [];
+  // Two identical lines in one note are two tasks: the second one gets a
+  // counter. Counted over every row, finished ones too, so ticking the first
+  // does not hand its identity to the second.
+  const seen = new Map<string, number>();
+  for (const row of rows) {
+    if (row.source !== "note" || !row.line) continue;
+    const base = checkboxReminderKey(row.path, row.line);
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    if (!row.due || row.dueMinutes === null) continue;
+    out.push({
+      key: n > 1 ? `${base}~${n}` : base,
+      path: row.path,
+      title: row.title,
+      due: row.due,
+      dueMinutes: row.dueMinutes,
+      done: !isOpenState(row.state),
+      reminderLine: { path: row.path, ordinal: row.line.ordinal, text: row.line.text, ...(row.line.taskId ? { taskId: row.line.taskId } : {}) },
+    });
+  }
+  return out;
+}
+
+/** The checkbox reminders of a vault's task lines (`listTasks`). */
+export function checkboxReminderSubjects(
+  notes: readonly TaskRecord[],
+  opts: { now: number; windowEndTs: number; snoozes?: Readonly<Record<string, number>> }
+): ReminderSubject[] {
+  return taskReminderSubjects(checkboxReminderSources(dueTaskRows({ notes })), opts);
+}
+
+/**
+ * A checkbox's identity for its reminder: the note and the line — by the
+ * Tasks plugin's `🆔` when the line has one, else by its text. Not by its
+ * position: a line inserted above must not turn one task's reminder (and a
+ * "Later" parked for it) into its neighbour's.
+ */
+export function checkboxReminderKey(path: string, line: Pick<ReminderLine, "text" | "taskId">): string {
+  return `checkbox:${path}#${line.taskId ? `id:${line.taskId}` : line.text}`;
+}
+
+/**
+ * Where a checkbox reminder's line stands NOW, asked of the index when the
+ * reminder is acted on: in its own note if it is still there, else in the one
+ * other note that holds the same line — the note was renamed or moved since
+ * the reminder was planned. Null when no note, or more than one, holds it.
+ */
+export function relocateReminderLine(notes: readonly TaskRecord[], line: ReminderLine): ReminderLine | null {
+  const same = (task: TaskRecord) => (line.taskId ? task.taskId === line.taskId : task.text === line.text);
+  const found = notes.filter(same);
+  const here = found.filter((task) => task.path === line.path);
+  const pick = here.length > 0 ? here.find((task) => task.ordinal === line.ordinal) ?? here[0] : new Set(found.map((task) => task.path)).size === 1 ? found[0] : null;
+  if (!pick) return null;
+  return { path: pick.path, ordinal: pick.ordinal, text: pick.text, ...(pick.taskId ? { taskId: pick.taskId } : {}) };
 }
 
 /* ------------------------------------------------------------------ "later" */

@@ -28,6 +28,7 @@ import {
   reminderTaskTimedLeadKey,
   reminderTaskLeadKey,
   remindTasksKey,
+  remindCheckboxesKey,
   type ReminderSettings as Settings,
 } from "../../services/reminderSettings";
 
@@ -316,8 +317,22 @@ export function ReminderSettings() {
         />
       )}
 
-      {/* A task with a time reminds at ITS time; this is how long before (E10). */}
-      {settings.tasks && (
+      {/* Checkbox tasks with a due time (Sammelplan § 3.145 Nr. 1, E3): a switch
+          of their own, equal to the other two, off by default — a vault from
+          Obsidian can hold hundreds of dated boxes, and only a box whose date
+          carries a time reminds. How to write the time is behind the ⓘ. */}
+      <SettingRow label={t("reminders.checkboxes")} info={t("reminders.checkboxesDesc")}>
+        <Switch
+          checked={settings.checkboxes}
+          label={t("reminders.checkboxes")}
+          onChange={(on) => void save({ ...settings, checkboxes: on }, remindCheckboxesKey(vaultPath ?? ""), on)}
+          testId="reminder-checkboxes"
+        />
+      </SettingRow>
+
+      {/* A task with a time reminds at ITS time; this is how long before (E10).
+          It applies to a checkbox with a time as well, so it stands under both. */}
+      {(settings.tasks || settings.checkboxes) && (
         <SettingRow label={t("reminders.tasksTimedLead")} info={t("reminders.tasksTimedLeadDesc")}>
           <Select
             ariaLabel={t("reminders.tasksTimedLead")}
@@ -329,13 +344,13 @@ export function ReminderSettings() {
         </SettingRow>
       )}
 
-      {(settings.enabled || settings.tasks) && diagnosis && (
+      {(settings.enabled || settings.tasks || settings.checkboxes) && diagnosis && (
         <SettingCardNote>
           {t("reminders.diagPlanned", diagnosis.planned)}
           {diagnosis.reasonKey ? ` ${t(diagnosis.reasonKey)}` : ""}
         </SettingCardNote>
       )}
-      {(settings.enabled || settings.tasks) && <SettingCardNote>{t("reminders.desktopWindow")}</SettingCardNote>}
+      {(settings.enabled || settings.tasks || settings.checkboxes) && <SettingCardNote>{t("reminders.desktopWindow")}</SettingCardNote>}
     </SettingCard>
   );
 }

@@ -112,6 +112,18 @@ Nie musisz zapisywać tego pola ręcznie:
 
 Nowo utworzone szablony automatycznie niosą znacznik. Gdy tworzysz notatkę **z** szablonu, znacznik jest ponownie usuwany — nowa notatka to prawdziwa treść i normalnie pokazuje swoje zadania.
 
+## Przypomnienia dla pól wyboru
+
+Pole wyboru przypomina Ci o zadaniu, gdy jego termin ma godzinę: wpisz godzinę zaraz po dacie, jako `HH:MM` w formacie 24-godzinnym (`00:00` liczy się jako brak godziny).
+
+```markdown
+- [ ] Zadzwonić do Boba 📅 2026-11-02 14:30
+```
+
+Włączasz to w **Ustawieniach → Kalendarz → Przypomnienia** przełącznikiem **Pola wyboru z godziną** — dla każdego vaulta i na tym urządzeniu, wyłączone, dopóki go nie włączysz. Przypomnienie przychodzi o tej godzinie, minus wyprzedzenie z **Wyprzedzenie dla zadań z godziną**. Na telefonie oferuje **Odhacz**, **Za 1 godzinę** i **Jutro rano**, jak przypomnienie zadania z bazy zadań; na komputerze komunikat obok oferuje **Otwórz zadanie**. Tak czy inaczej trafiasz do notatki w wierszu zadania, także po zmianie nazwy lub przeniesieniu notatki.
+
+Pole wyboru, które odhaczysz, usuniesz lub któremu dasz inną godzinę, zostaje zaplanowane na nowo w ciągu kilku sekund. Pole wyboru z datą, ale bez godziny, nie przypomina, a notatki z `plainva.tasks: false` pozostają poza tym. Plainva nie zapisuje niczego w notatce z powodu przypomnienia. Wtyczka Tasks w Obsidianie nie zna godzin: nie odczytuje już daty `📅`, po której stoi godzina.
+
 ## Zgodność z Obsidian
 
 Zadania to zwykłe pola wyboru GFM (GitHub-Flavored Markdown). Plainva nigdy nie dodaje specjalnej składni: te same linie `- [ ]` renderują się jako pola wyboru w Obsidian i czytelnie wyświetlają się w dowolnym edytorze. Konwencje `📅 data` i `#tag` to typowy styl wtyczki Obsidian Tasks, ale w Twojej notatce są to zwykły tekst.
@@ -234,7 +246,7 @@ Nad listami znajduje się pole szybkiego dodawania; na telefonie **+ Nowe zadani
 
 **Data zadania jest sposobem na jej zmianę.** Naciśnij datę zadania (w obrębie dnia: jego godzinę), a otworzy się wybór daty — na komputerze pod datą, na telefonie jako arkusz. **Zmień termin** w menu wiersza otwiera ten sam wybór; tak też zadanie bez daty ją dostaje. Na telefonie **Nowe zadanie** i komórka daty bazy danych wybierają dzień z tego samego kalendarza, a nie z systemowego pokrętła daty. Pole wyboru w notatce — w edytorze, w widoku czytania i w dzienniku — ma na telefonie rozmiar dostosowany do palca. Wpis bazy zadań zachowuje swoją godzinę, pole wyboru dostaje lub zmienia swoją datę `📅`. Przy nagłówku **Zaległe** przycisk **Wszystkie na dziś** przenosi jednym ruchem wszystkie zaległe zadania na dziś. Jedno i drugie potwierdza komunikat z opcją **Cofnij**. W polu zapisu `[[` podpowiada notatki, a `#` tagi, tak jak w edytorze: `Enter` lub `Tab` przyjmuje zaznaczoną podpowiedź, `Esc` zamyka listę.
 
-**Szybkie wybory i godzina.** Nad kalendarzem są **Dziś**, **Jutro**, **Ten weekend**, **Przyszły tydzień** i **Brak daty**, każdy z dniem tygodnia. Ten weekend to najbliższa sobota — dziś, jeśli jest sobota lub niedziela; przyszły tydzień to pierwszy dzień następnego tygodnia, zgodnie z ustawieniem **Początek tygodnia**. Na dole **Godzina** ma przełącznik: wyłączony — zadanie ma termin na cały dzień; włączony — obok wybierasz godzinę. Szybki wybór lub dzień zachowują już ustawioną godzinę; aby zmienić tylko godzinę, naciśnij **Gotowe**. Wpis bazy zadań zapisuje godzinę w wartości terminu (`2026-10-26T10:00`). Pole wyboru w notatce ma tylko dzień — `📅` wtyczki Tasks nie zna godziny — więc wybór mówi o tym tam zamiast oferować przełącznik. Jeśli kolumna terminu w bazie pokazuje tylko dni, Plainva raz proponuje **Przełącz na datę i godzinę**.
+**Szybkie wybory i godzina.** Nad kalendarzem są **Dziś**, **Jutro**, **Ten weekend**, **Przyszły tydzień** i **Brak daty**, każdy z dniem tygodnia. Ten weekend to najbliższa sobota — dziś, jeśli jest sobota lub niedziela; przyszły tydzień to pierwszy dzień następnego tygodnia, zgodnie z ustawieniem **Początek tygodnia**. Na dole **Godzina** ma przełącznik: wyłączony — zadanie ma termin na cały dzień; włączony — obok wybierasz godzinę. Szybki wybór lub dzień zachowują już ustawioną godzinę; aby zmienić tylko godzinę, naciśnij **Gotowe**. Wpis bazy zadań zapisuje godzinę w wartości terminu (`2026-10-26T10:00`). Dla pola wyboru w notatce wybór ustawia tylko dzień — `📅` wtyczki Tasks nie zna godziny — i mówi o tym tam zamiast oferować przełącznik; godzina, którą sam wpiszesz po dacie (zob. *Przypomnienia dla pól wyboru*), zostaje, gdy dzień się zmienia. Jeśli kolumna terminu w bazie pokazuje tylko dni, Plainva raz proponuje **Przełącz na datę i godzinę**.
 
 Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (gdy Plainva działa dalej w tle), w Androidzie skrót w launcherze **Nowe zadanie** (przytrzymanie ikony aplikacji), oraz na telefonie **Utwórz jako zadanie**, gdy udostępnisz coś Plainvie — tekst i załączniki trafiają do notatki zadania. To, jak przypomina zadanie z godziną, opisano w [Kalendarz i zadania zewnętrzne](Calendar_and_Tasks.md).
 

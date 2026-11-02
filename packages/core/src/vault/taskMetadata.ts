@@ -8,11 +8,24 @@ export interface TasksMetadata {
   cancelled: string | null;
   recurrence: string | null; repeatRule: TasksRepeatRule | null;
   unsafeRecurrence: boolean;
+  /**
+   * A time of day written right after the due date, `📅 2026-11-02 14:30`
+   * (24-hour `HH:MM`): the time a checkbox is due at, which is what its
+   * reminder plans from (Sammelplan § 3.145 Nr. 1). The Tasks plugin knows no
+   * time; Plainva reads this one spelling and never writes it on its own.
+   */
+  dueTime: string | null;
 }
 type Field = "created" | "completed" | "due" | "scheduled" | "start" | "cancelled" | "taskId" | "recurrence";
-interface Token { field: Field; from: number; to: number; value: string }
+interface Token {
+  field: Field; from: number; to: number; value: string;
+  /** Due date only: the time of day after it, and where that ends. */
+  time?: string; timeTo?: number;
+}
 const symbols: Record<string, Field> = { "➕": "created", "✅": "completed", "📅": "due", "⏳": "scheduled", "🛫": "start", "❌": "cancelled", "🆔": "taskId", "🔁": "recurrence" };
 const markers = /(?:^|(?<=\s))(➕|✅|📅|⏳|🛫|❌|🆔|🔁)\uFE0F?\s*/gu;
+/** `HH:MM` right after the due date, standing on its own (not `14:30h`, not `14:305`). */
+const dueTimeAfter = /^[ \t]+([01]\d|2[0-3]):([0-5]\d)(?=\s|$)/;
 const boundary = /\s(?=[➕✅📅⏳🛫🆔🔁⛔🏁🔺⏫🔼🔽⏬❌]|#[\p{L}\p{N}]|\^[\w-]+(?:\s|$))/u;
 
 /** Civil calendar days, validated without interpreting the device timezone. */
@@ -37,17 +50,22 @@ function tokens(text: string, ranges = codeSpanRanges(text)): Token[] {
     if (!outsideCode(text, from, ranges)) continue;
     const field = symbols[match[1]], tail = text.slice(start);
     const raw = field === "recurrence" ? tail.split(boundary, 1)[0].trimEnd() : tail.match(/^\S+/)?.[0] ?? "";
-    if (field === "recurrence" || (field === "taskId" ? /^[A-Za-z0-9_-]{1,256}$/.test(raw) : tasksDayNumber(raw) !== null)) out.push({ field, from, to: start + raw.length, value: raw });
+    if (field === "recurrence" || (field === "taskId" ? /^[A-Za-z0-9_-]{1,256}$/.test(raw) : tasksDayNumber(raw) !== null)) {
+      const to = start + raw.length;
+      const time = field === "due" ? dueTimeAfter.exec(text.slice(to)) : null;
+      out.push(time ? { field, from, to, value: raw, time: `${time[1]}:${time[2]}`, timeTo: to + time[0].length } : { field, from, to, value: raw });
+    }
   }
   return out;
 }
 export function readTasksMetadata(text: string): TasksMetadata {
-  const result: TasksMetadata = { created: null, completed: null, due: null, scheduled: null, start: null, cancelled: null, taskId: null, recurrence: null, repeatRule: null, unsafeRecurrence: false };
+  const result: TasksMetadata = { created: null, completed: null, due: null, scheduled: null, start: null, cancelled: null, taskId: null, recurrence: null, repeatRule: null, unsafeRecurrence: false, dueTime: null };
   const ranges = codeSpanRanges(text), found = tokens(text, ranges), counts = new Map<Field, number>();
   for (const token of found) counts.set(token.field, (counts.get(token.field) ?? 0) + 1);
   for (const token of found) {
     if (counts.get(token.field) !== 1) { result.unsafeRecurrence = true; continue; }
     result[token.field] = token.value;
+    if (token.field === "due" && token.time) result.dueTime = token.time;
   }
   // Unsupported directives and malformed/duplicated dates remain verbatim.
   const validOffsets = new Set(found.map(token => token.from));
@@ -86,10 +104,16 @@ export function tasksDescription(text: string): string {
   const found = tokens(text), counts = new Map<Field, number>();
   for (const token of found) counts.set(token.field, (counts.get(token.field) ?? 0) + 1);
   let result = text;
-  for (const token of found.reverse()) if (counts.get(token.field) === 1) result = result.slice(0, token.from) + result.slice(token.to);
+  // A due date's time goes with it: it is part of the field, not of the words.
+  for (const token of found.reverse()) if (counts.get(token.field) === 1) result = result.slice(0, token.from) + result.slice(token.timeTo ?? token.to);
   return result.replace(/\s{2,}/g, " ").trim();
 }
-/** Surgical replacement leaves unknown fields and surrounding Markdown alone. */
+/**
+ * Surgical replacement leaves unknown fields and surrounding Markdown alone.
+ * A new due date keeps the time written after the old one (a task due at 14:30
+ * moved to Friday is due Friday at 14:30); taking the date away takes its time
+ * along, which would otherwise stand in the text as a bare `14:30`.
+ */
 export function setTasksField(text: string, field: Field, value: string | null): string {
   const found = tokens(text).filter(t => t.field === field);
   if (found.length > 1) return text;
@@ -97,7 +121,7 @@ export function setTasksField(text: string, field: Field, value: string | null):
   if (found.length) {
     const token = found[0];
     const start = value === null && token.from > 0 && text[token.from - 1] === " " ? token.from - 1 : token.from;
-    return text.slice(0, start) + (value === null ? "" : symbol + " " + value) + text.slice(token.to);
+    return text.slice(0, start) + (value === null ? "" : symbol + " " + value) + text.slice(value === null ? token.timeTo ?? token.to : token.to);
   }
   if (value === null) return text;
   const tail = text.trimEnd(), block = /\^[A-Za-z0-9_-]+$/.exec(tail);

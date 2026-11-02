@@ -65,7 +65,7 @@ describe("loadTaskOverlay", () => {
       ["note", "Drucker einrichten", "2026-08-09", "note:Haushalt.md#0"],
     ]);
     expect(out.tasks[1].line).toEqual({ ordinal: 0, text: "Drucker einrichten 📅 2026-08-09" });
-    // The reminders ask for the database alone (decision E3, 2026-09-01).
+    // Without `notes`, the database alone (the reminders' database source).
     expect((await loadTaskOverlay(withNotes)).tasks.map((t) => t.source)).toEqual(["database"]);
     // Without a task database the checkboxes are still a calendar's.
     store.get.mockResolvedValue(null);

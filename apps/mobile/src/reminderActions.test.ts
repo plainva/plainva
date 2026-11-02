@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -6,15 +7,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * to 14 days ahead, so "the appointment is gone" is ordinary, not exceptional.
  */
 
-const { cache, meetingNote, setTaskDone, toasts } = vi.hoisted(() => ({
+const { cache, meetingNote, setTaskDone, toasts, vault, update, syncSoon, jump } = vi.hoisted(() => ({
   cache: { getEventByUid: vi.fn() },
   meetingNote: vi.fn(),
   setTaskDone: vi.fn(),
   toasts: { info: vi.fn(), error: vi.fn() },
+  vault: { vaultId: "v1", queryService: { listTasks: vi.fn() } },
+  update: vi.fn(),
+  syncSoon: vi.fn(),
+  jump: vi.fn(),
 }));
 vi.mock("./services/pim/pimService", () => ({ getPimCache: () => cache, openMeetingNoteFor: meetingNote }));
 vi.mock("./services/taskCompletionAction", () => ({ setTaskDone }));
-vi.mock("@plainva/ui", () => ({ toast: toasts }));
+vi.mock("./services/vaultService", () => ({ getMobileVault: async () => vault, vaultOps: { update } }));
+vi.mock("./services/syncService", () => ({ syncSoon }));
+vi.mock("./services/reminderScheduler", () => ({ rescheduleReminders: vi.fn() }));
+vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => ({ reminderTaskAtMinutes: 540 }) }));
+vi.mock("@plainva/ui", async () => {
+  const actual = await vi.importActual<typeof import("@plainva/ui")>("@plainva/ui");
+  return { ...actual, toast: toasts, setPendingSearchJump: jump };
+});
 // Resources are not loaded here, so the real `t` would swallow the data it was
 // given. This keeps the message AND its parameters visible to the assertions.
 vi.mock("@plainva/ui/i18n", () => ({
@@ -36,8 +48,9 @@ const intent = (over: Partial<Parameters<typeof runReminderIntent>[0]>) => ({
 
 describe("runReminderIntent", () => {
   beforeEach(() => {
-    for (const fn of [cache.getEventByUid, meetingNote, setTaskDone, host.openNote, host.openCalendar, toasts.info, toasts.error]) fn.mockReset();
+    for (const fn of [cache.getEventByUid, meetingNote, setTaskDone, host.openNote, host.openCalendar, toasts.info, toasts.error, vault.queryService.listTasks, update, syncSoon, jump]) fn.mockReset();
     setTaskDone.mockResolvedValue({ changed: true });
+    vault.queryService.listTasks.mockResolvedValue([]);
   });
 
   it("ticks a task off from the notification and says so", async () => {
@@ -88,5 +101,61 @@ describe("runReminderIntent", () => {
   it("brings the calendar to the front on a plain tap of an appointment", async () => {
     await runReminderIntent(intent({ action: "open" }), host);
     expect(host.openCalendar).toHaveBeenCalled();
+  });
+});
+
+/**
+ * A checkbox task's reminder (Sammelplan § 3.145 Nr. 1, E3): the notification
+ * carries its line, a tap opens the note AT the line, and "Done" ticks that
+ * line through the ordinary write of a note — asked of the index first, so a
+ * note renamed since the reminder was planned is still found.
+ */
+describe("runReminderIntent: a checkbox task", () => {
+  const line = { path: "Haushalt.md", ordinal: 1, text: "Bob anrufen 📅 2026-08-12 14:30" };
+  const NOTE = "# Haushalt\n\n- [ ] Müll\n- [ ] Bob anrufen 📅 2026-08-12 14:30\n";
+  const box = (path: string, ordinal: number, text: string) => ({ path, title: path, excluded: false, line: ordinal + 2, ordinal, done: false, state: "open", text, tags: [], due: "2026-08-12", dueTime: "14:30" });
+
+  it("ticks its line — not the box above — and says so", async () => {
+    let written: string | null = null;
+    update.mockImplementation(async (_v: unknown, _path: string, change: (text: string) => string | null) => {
+      written = change(NOTE);
+      return { changed: written !== null };
+    });
+    const told: unknown[] = [];
+    const listen = (e: Event) => told.push((e as CustomEvent).detail);
+    window.addEventListener("m-external-update", listen);
+    await runReminderIntent(intent({ kind: "task", uid: "checkbox:Haushalt.md#" + line.text, action: "done", line }), host);
+    expect(update).toHaveBeenCalledWith(vault, "Haushalt.md", expect.any(Function));
+    // An editor holding the note takes the new line.
+    window.removeEventListener("m-external-update", listen);
+    expect(told).toEqual([{ path: "Haushalt.md", vaultId: "v1" }]);
+    expect(written).toMatch(/- \[ \] Müll\n- \[x\] Bob anrufen 📅 2026-08-12 14:30 ✅ \d{4}-\d{2}-\d{2}\n$/);
+    expect(syncSoon).toHaveBeenCalled();
+    expect(toasts.info).toHaveBeenCalledWith("reminders.taskDone");
+    // A box is no task note: the database's completion is not asked.
+    expect(setTaskDone).not.toHaveBeenCalled();
+  });
+
+  it("opens the note at the line on a plain tap", async () => {
+    vault.queryService.listTasks.mockResolvedValue([box("Haushalt.md", 1, line.text)]);
+    await runReminderIntent(intent({ kind: "task", uid: "checkbox:Haushalt.md#" + line.text, action: "open", line }), host);
+    expect(jump).toHaveBeenCalledWith({ path: "Haushalt.md", term: line.text.slice(0, 40) });
+    expect(host.openNote).toHaveBeenCalledWith("Haushalt.md");
+  });
+
+  it("follows the note it was renamed to since the reminder was planned", async () => {
+    vault.queryService.listTasks.mockResolvedValue([box("Archiv/Haushalt 2026.md", 0, line.text)]);
+    update.mockResolvedValue({ changed: true });
+    await runReminderIntent(intent({ kind: "task", uid: "checkbox:Haushalt.md#" + line.text, action: "open", line }), host);
+    expect(host.openNote).toHaveBeenCalledWith("Archiv/Haushalt 2026.md");
+    await runReminderIntent(intent({ kind: "task", uid: "checkbox:Haushalt.md#" + line.text, action: "done", line }), host);
+    expect(update).toHaveBeenCalledWith(vault, "Archiv/Haushalt 2026.md", expect.any(Function));
+  });
+
+  it("says what failed when the note cannot be written", async () => {
+    update.mockRejectedValue(new Error("locked"));
+    await runReminderIntent(intent({ kind: "task", uid: "checkbox:Haushalt.md#" + line.text, action: "done", line }), host);
+    expect(toasts.error).toHaveBeenCalled();
+    expect(toasts.info).not.toHaveBeenCalled();
   });
 });

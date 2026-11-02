@@ -30,11 +30,15 @@ export const reminderTaskAtKey = (v: string) => `reminderTaskAtMinutes_${b64(v)}
 /** Lead of a task that carries a time of day (plan Aufgaben-Oberfläche, E10). */
 export const reminderTaskTimedLeadKey = (v: string) => `reminderTaskTimedLeadMinutes_${b64(v)}`;
 export const reminderCalendarsKey = (v: string) => `reminderCalendars_${b64(v)}`;
+/** Checkbox tasks with a due time (`📅 2026-11-02 14:30`), Sammelplan § 3.145 Nr. 1 (E3). */
+export const remindCheckboxesKey = (v: string) => `remindCheckboxes_${b64(v)}`;
 
 export interface ReminderSettings {
   enabled: boolean;
   rule: ReminderRule;
   tasks: boolean;
+  /** Checkbox tasks in notes with a due date and a time — their own switch, off by default (E3). */
+  checkboxes: boolean;
   /** `accountId + " " + calendarId`; EMPTY means all — so a calendar connected
    * later reminds by default rather than falling through a list written before
    * it existed. */
@@ -56,6 +60,7 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
     taskTimedLeadMinutes: 0,
   },
   tasks: false,
+  checkboxes: false,
   calendars: [],
 };
 
@@ -77,6 +82,7 @@ export async function loadReminderSettings(store: ISettingsStore, vaultPath: str
       taskTimedLeadMinutes: num(await store.get(reminderTaskTimedLeadKey(vaultPath)), d.rule.taskTimedLeadMinutes ?? 0, 0),
     },
     tasks: (await store.get<boolean>(remindTasksKey(vaultPath))) ?? d.tasks,
+    checkboxes: (await store.get<boolean>(remindCheckboxesKey(vaultPath))) ?? d.checkboxes,
     calendars: Array.isArray(calendars) ? calendars.filter((c): c is string => typeof c === "string") : d.calendars,
   };
 }

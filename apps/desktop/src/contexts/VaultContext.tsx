@@ -44,7 +44,7 @@ import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePe
 import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
-import { startReminderScheduler } from "../services/reminderScheduler";
+import { REMINDER_SOURCES_CHANGED, startReminderScheduler } from "../services/reminderScheduler";
 import { requestCalendarDay } from "../services/pim/calendarNav";
 import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
 import { showContentInVaultWindow } from "../services/windowManager";
@@ -2230,8 +2230,8 @@ export const VaultProvider: React.FC<{
     const adapter = state.vaultAdapter;
     if (!vaultPath || !adapter) return;
     const ownerShows = shownVault === vaultPath;
-    const show = (path: string) => {
-      void showContentInVaultWindow({ vaultPath, path, ownerShows }).catch((e) =>
+    const show = (path: string, term?: string) => {
+      void showContentInVaultWindow({ vaultPath, path, ownerShows, ...(term ? { term } : {}) }).catch((e) =>
         console.warn("[VaultContext] could not show the reminder's note", e),
       );
     };
@@ -2240,7 +2240,8 @@ export const VaultProvider: React.FC<{
       cache: state.pimRuntime?.cache ?? null,
       vaultAdapter: adapter,
       queryService: state.queryService ?? null,
-      openNote: show,
+      openNote: (path) => show(path),
+      openNoteAt: (path, term) => show(path, term),
       onNextChanged: (text, at) => reportTrayNext(vaultPath, text, at),
       openCalendar: (day) => {
         // Park the day first: the calendar tab reads it when it mounts, so a
@@ -2254,6 +2255,14 @@ export const VaultProvider: React.FC<{
       forgetTrayNext(vaultPath);
     };
   }, [isClient, shownVault, state.vaultPath, state.vaultAdapter, state.queryService, state.pimRuntime]);
+
+  // The index moved on: task reminders may have changed with it — a checkbox
+  // given a time, ticked, deleted or moved (E3). The scheduler re-plans after
+  // a quiet spell; addressed with the vault, as two runtimes share a window.
+  useEffect(() => {
+    if (isClient || !state.vaultPath || state.fileTreeVersion === 0) return;
+    window.dispatchEvent(new CustomEvent(REMINDER_SOURCES_CHANGED, { detail: { vaultPath: state.vaultPath } }));
+  }, [isClient, state.vaultPath, state.fileTreeVersion]);
 
   // Retention settings changed in the settings modal: push the new policy into
   // the live BackupVaultAdapter without reloading the vault.

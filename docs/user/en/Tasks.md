@@ -112,6 +112,18 @@ You do not have to write this field by hand:
 
 Newly created templates carry the marker automatically. When you create a note **from** a template, it is removed again — the new note is real content and shows its tasks normally.
 
+## Reminders for checkboxes
+
+A checkbox reminds you when its due date carries a time: write the time right after the date, as `HH:MM` in 24-hour form (`00:00` counts as no time).
+
+```markdown
+- [ ] Call Bob 📅 2026-11-02 14:30
+```
+
+Switch it on under **Settings → Calendar → Reminders** with **Checkboxes with a time** — per vault and on this device, off until you switch it on. The reminder comes at that time, minus the lead under **Lead time for tasks with a time**. On the phone it offers **Tick off**, **In 1 hour** and **Tomorrow morning**, like the reminder of a task from the task database; on the desktop the notice beside it offers **Open task**. Either way you land in the note at the task's line, also after the note was renamed or moved.
+
+A checkbox you tick off, delete or give another time is planned anew within seconds. A checkbox with a date but no time does not remind, and notes with `plainva.tasks: false` stay out. Plainva writes nothing into the note for a reminder. The Obsidian Tasks plugin knows no time of day: it no longer reads a `📅` date that is followed by a time.
+
 ## Obsidian compatibility
 
 Tasks are ordinary GFM (GitHub-Flavored Markdown) checkboxes. Plainva never adds a special syntax: the same `- [ ]` lines render as checkboxes in Obsidian and read cleanly in any editor. The `📅 date` and `#tag` conventions are the common Obsidian-Tasks style, but they are just text in your note.
@@ -234,7 +246,7 @@ Above the lists sits the capture field; on the phone **+ New task** and the **�
 
 **A task's date is the way to change it.** Press the date on a task (inside a day, its time) and the date picker opens — under the date on the desktop, as a sheet on the phone. **Change due date** in the row's menu opens the same picker; that is also how a task without a date gets one. On the phone, **New task** and the date cell of a database pick their day from the same calendar, not from the system's date wheel. A checkbox in a note — in the editor, the reading view and the journal — is sized for a finger on the phone. An entry of the task database keeps its time of day, a checkbox gets or changes its `📅` date. At the **Overdue** heading, **All to today** moves every overdue task to today in one step. Both are confirmed by a notice that offers **Undo**. In the capture field, `[[` suggests notes and `#` suggests tags, as in the editor: `Enter` or `Tab` takes the highlighted suggestion, `Esc` closes the list.
 
-**Quick choices and a time.** Above the calendar the picker lists **Today**, **Tomorrow**, **This weekend**, **Next week** and **No date**, each with its weekday. This weekend is the coming Saturday — today, if it is Saturday or Sunday; next week is the first day of next week as set under **Week starts on**. At the bottom, **Time** has a switch: off, the task is due all day; on, you pick the time beside it. A quick choice or a day keeps a time that is already set; to change only the time, press **Done**. An entry of the task database stores the time in its due value (`2026-10-26T10:00`). A checkbox in a note keeps a day only — the `📅` of the Tasks plugin has no time — so the picker says so there instead of offering the switch. If the database's due column shows days only, Plainva offers once to **Switch to date & time**.
+**Quick choices and a time.** Above the calendar the picker lists **Today**, **Tomorrow**, **This weekend**, **Next week** and **No date**, each with its weekday. This weekend is the coming Saturday — today, if it is Saturday or Sunday; next week is the first day of next week as set under **Week starts on**. At the bottom, **Time** has a switch: off, the task is due all day; on, you pick the time beside it. A quick choice or a day keeps a time that is already set; to change only the time, press **Done**. An entry of the task database stores the time in its due value (`2026-10-26T10:00`). For a checkbox in a note the picker sets the day only — the `📅` of the Tasks plugin has no time — and says so there instead of offering the switch; a time you write after the date yourself (see *Reminders for checkboxes*) stays when the day moves. If the database's due column shows days only, Plainva offers once to **Switch to date & time**.
 
 More ways in: **New task** in the tray menu on the desktop (when Plainva keeps running in the background), on Android the launcher shortcut **New task** (press and hold the app icon), and on the phone **Create as a task** when you share something to Plainva — the text and the attachments end up in the task's note. How a task with a time reminds you is described under [Calendar & external tasks](Calendar_and_Tasks.md).
 

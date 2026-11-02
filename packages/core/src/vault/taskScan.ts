@@ -54,6 +54,8 @@ export interface ScannedTask {
   tags: string[];
   /** ISO date (YYYY-MM-DD) from a `📅` marker in the task text, or null. */
   due: string | null;
+  /** `HH:MM` written right after the `📅` date (`📅 2026-11-02 14:30`); absent when none is. */
+  dueTime?: string;
   created?: string;
   completed?: string;
   scheduled?: string;
@@ -244,6 +246,7 @@ export function scanTasks(content: string): ScannedTask[] {
       text,
       tags,
       due: metadata.due,
+      ...(metadata.due && metadata.dueTime ? { dueTime: metadata.dueTime } : {}),
       ...(metadata.created ? { created: metadata.created } : {}),
       ...(metadata.completed ? { completed: metadata.completed } : {}),
       ...(metadata.scheduled ? { scheduled: metadata.scheduled } : {}),
