@@ -198,6 +198,7 @@ describe("adoptFileAsIndex", () => {
       candidatePath: "Projects/MOC.md",
       folder: "Projects",
       prepare: true,
+      afterMove: async () => {},
     });
 
     expect(result.indexPath).toBe("Projects/index.md");
@@ -225,6 +226,7 @@ describe("adoptFileAsIndex", () => {
       candidatePath: "Projects/Übersicht.md",
       folder: "Projects",
       prepare: false,
+      afterMove: async () => {},
     });
 
     expect(store.get("Projects/index.md")).toBe("---\ntype: MOC\n---\nInhalt mit [[Alpha]]\n");
@@ -244,12 +246,32 @@ describe("adoptFileAsIndex", () => {
         throw new Error("the note was changed although it cannot be moved");
       },
     };
-    const refused = await adoptFileAsIndex({ adapter: chain, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true })
+    const refused = await adoptFileAsIndex({ adapter: chain, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true, afterMove: async () => {} })
       .then(() => null, (error: unknown) => error);
     expect(refused).toMatchObject({ name: "ConflictError", conflictPath: workingCopy });
     // Neither prepared nor moved, and no backup of a note nothing was done to.
     expect(store.get("Projects/MOC.md")).toBe(original);
     expect([...store.keys()].sort()).toEqual(["Projects/Alpha.md", "Projects/MOC.md"]);
+  });
+
+  // Sammelplan § 3.135 Nr. 1: the adoption moved the note past what the shell's
+  // own rename carries along — a bookmark on the overview kept the old path.
+  it("hands the move to the shell's follow-up once the note is at its new path, and only then", async () => {
+    const { store, adapter, queryService } = makeVault({ "Projects/MOC.md": "# Projekte\n" });
+    const moves: Array<[string, string, boolean]> = [];
+    await adoptFileAsIndex({
+      adapter,
+      queryService,
+      candidatePath: "Projects/MOC.md",
+      folder: "Projects",
+      prepare: false,
+      afterMove: async (from, to) => void moves.push([from, to, store.has(to) && !store.has(from)]),
+    });
+    expect(moves).toEqual([["Projects/MOC.md", "Projects/index.md", true]]);
+
+    const refused = makeVault({ "Projects/MOC.md": "# Projekte\n", "Projects/index.md": "# da\n" });
+    await expect(adoptFileAsIndex({ ...refused, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true, afterMove: async (from, to) => void moves.push([from, to, false]) })).rejects.toThrow();
+    expect(moves).toHaveLength(1);
   });
 
   // Finding 2026-10-12: the note was prepared first and the rename refused
@@ -262,7 +284,7 @@ describe("adoptFileAsIndex", () => {
     });
     const before = new Map(store);
 
-    await expect(adoptFileAsIndex({ adapter, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true })).rejects.toThrow(/already exists: Projects\/index\.md/);
+    await expect(adoptFileAsIndex({ adapter, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true, afterMove: async () => {} })).rejects.toThrow(/already exists: Projects\/index\.md/);
 
     expect(new Map(store)).toEqual(before);
   });
@@ -273,7 +295,7 @@ describe("adoptFileAsIndex", () => {
       "Projects/Alpha.md": "# A\n",
     });
 
-    const result = await adoptFileAsIndex({ adapter, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true });
+    const result = await adoptFileAsIndex({ adapter, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true, afterMove: async () => {} });
 
     expect(store.get("Projects/index.md")).toBe("- [MOC](./index.md) und [dort](./index.md#Teil)\n- [Alpha](Alpha.md)\n");
     expect(result.preparation).toEqual({ converted: 3, embeds: 0, unresolved: 0, inLabels: 0 });
@@ -301,7 +323,7 @@ describe("adoptFileAsIndex", () => {
           { source_path: "Start.md", target_path: "Karte der Notizen" },
         ];
 
-        const result = await adoptFileAsIndex({ adapter, queryService, candidatePath: "C# Notes/Map.md", folder: "C# Notes", prepare: true });
+        const result = await adoptFileAsIndex({ adapter, queryService, candidatePath: "C# Notes/Map.md", folder: "C# Notes", prepare: true, afterMove: async () => {} });
 
         const named = JSON.stringify(others);
         expect(store.get("C# Notes/index.md"), named).toBe("# Karte\n");
@@ -323,7 +345,7 @@ describe("adoptFileAsIndex", () => {
           throw new Error("the index is busy");
         };
 
-        const result = await adoptFileAsIndex({ adapter, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare });
+        const result = await adoptFileAsIndex({ adapter, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare, afterMove: async () => {} });
 
         // The note is adopted all the same; what links to it may still name the old file.
         expect(store.has("Projects/index.md"), String(prepare)).toBe(true);

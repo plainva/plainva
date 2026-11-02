@@ -137,7 +137,7 @@ const SITES: Record<string, Site[]> = {
   "services/vaultService.ts": [
     ["builds CapacitorVaultAdapter", 2, `${BOOT}; ${NOT_OPEN} (\`createLocalVault\`)`],
     ["builds ExternalVaultAdapter", 1, BOOT],
-    ["handed to renameBookmarksOnDisk", 3, BOOKMARKS],
+    ["handed to renameBookmarksOnDisk", 4, BOOKMARKS],
     ["handed to importObsidianBookmarks", 1, BOOKMARKS],
     ["handed to toggleBookmarkOnDisk", 1, BOOKMARKS],
     ["handed to moveBookmarkOnDisk", 1, BOOKMARKS],

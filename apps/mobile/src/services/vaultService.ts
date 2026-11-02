@@ -1199,6 +1199,31 @@ export const vaultOps = {
     return { newPath, ...report, ...(followUpError ? { followUpError } : {}) };
   },
 
+  /** Unsaved text of `path` lands before it moves, or nothing moves — as before a rename. */
+  async flushBeforeNoteMove(v: MobileVault, path: string): Promise<void> {
+    await flushBeforeMove(v, path, false);
+  },
+
+  /**
+   * What follows a note that another door moved: the index, the bookmarks,
+   * the drafts, the open screens — the steps `renameReport` takes after its
+   * own move. The overview manager's adoption moved a note past all of them
+   * (Sammelplan § 3.135 Nr. 1); `pendingSaveFlush.test.ts` holds both to the
+   * order of the journal and the notice.
+   */
+  async followNoteMove(v: MobileVault, oldPath: string, newPath: string, changedPaths: readonly string[] = []): Promise<void> {
+    if (v.indexer) {
+      // The index follows the rename (issue 113): reporting the old name as
+      // deleted queued a remote DELETE next to the queued MOVE.
+      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
+      await v.reindexPaths([newPath, ...changedPaths]);
+    }
+    await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
+    notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  },
+
   /** Deletes a note; with sync active the deletion reaches the cloud too. */
   async remove(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<void> {
     // S2: a queued save landing after the delete resurrects the note. Flushing

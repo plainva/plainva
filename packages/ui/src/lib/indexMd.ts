@@ -237,6 +237,14 @@ export async function adoptFileAsIndex(opts: {
   candidatePath: string;
   folder: string;
   prepare: boolean;
+  /**
+   * What the shell's own rename does once a note has moved — its bookmarks,
+   * its open tabs, its drafts — run as soon as the note is at its new path
+   * (Sammelplan § 3.135 Nr. 1). An adoption moved the note past all of it: a
+   * bookmark on the overview pointed at the old path afterwards. Required, so
+   * no shell can adopt without it.
+   */
+  afterMove: (from: string, to: string) => Promise<void>;
 }): Promise<AdoptionResult> {
   const { adapter, queryService, candidatePath, folder, prepare } = opts;
   const indexPath = folder ? `${folder}/index.md` : "index.md";
@@ -280,6 +288,7 @@ export async function adoptFileAsIndex(opts: {
     oldPath: candidatePath,
     newPath: indexPath,
   });
+  await opts.afterMove(candidatePath, indexPath);
 
   let { renamedLinks, changedFiles, linkUpdateFailed } = renamed;
   if (byTitle) {

@@ -74,7 +74,7 @@ describe("vaultOps: pending saves land before a path changes", () => {
     expect(body).toMatch(/throw new MoveBlockedError\(/);
   });
 
-  it.each(["renameReport", "moveNote", "moveFolder"])(
+  it.each(["renameReport", "followNoteMove", "moveNote", "moveFolder"])(
     "%s carries the draft journal to the new path before it reports the move",
     (name) => {
       const body = methodBody(source, name);

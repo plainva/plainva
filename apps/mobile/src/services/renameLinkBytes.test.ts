@@ -204,7 +204,7 @@ describe("adopting a note as the overview of its folder on the phone", () => {
   it("is asked for with the preparation as its choice, and done the way it was answered", () => {
     // What the Overviews screen asks, and what it calls with the answer.
     expect(screen).toMatch(/const answer = await mConfirmOption\(\{\s*title: t\("indexMd\.actionAdopt", \{ file: name \}\),\s*message: t\("indexMd\.renameHint"\),\s*checkbox: \{ label: t\("indexMd\.prepareOption"\), initial: true \},\s*\}\);\s*if \(!answer\.confirmed\) return;/);
-    expect(screen).toMatch(/await adoptFileAsIndex\(\{\s*adapter: vault\.files,\s*queryService: vault\.queryService!,\s*candidatePath: candidate\.path,\s*folder: row\.folder,\s*prepare: answer\.checked,\s*\}\);/);
+    expect(screen).toMatch(/await vaultOps\.flushBeforeNoteMove\(vault, candidate\.path\);\s*const result = await adoptFileAsIndex\(\{\s*adapter: vault\.files,\s*queryService: vault\.queryService!,\s*candidatePath: candidate\.path,\s*folder: row\.folder,\s*prepare: answer\.checked,\s*afterMove: \(from, to\) => vaultOps\.followNoteMove\(vault, from, to\),\s*\}\);/);
     // What was done is said in the desktop's words, and a link that could not be followed is not passed over.
     expect(screen).toMatch(/if \(result\.linkUpdateFailed\) toast\.warning\(t\("dialogs\.renameLinksFailed"\)\);\s*return adoptionSummary\(t, name, result\);/);
   });
@@ -212,7 +212,7 @@ describe("adopting a note as the overview of its folder on the phone", () => {
   it("leaves the adopted note as it is and changes only the target of the links to it", async () => {
     await writeVault({ [OVERVIEW.path]: OVERVIEW.note, ...OVERVIEW.others, [OVERVIEW.linkingPath]: OVERVIEW.linking });
 
-    const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: false });
+    const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: false, afterMove: async () => {} });
 
     expect(result).toMatchObject({ indexPath: OVERVIEW.indexPath, renamedLinks: 2, changedFiles: 1 });
     await expectFile(OVERVIEW.indexPath, OVERVIEW.note);
@@ -222,7 +222,7 @@ describe("adopting a note as the overview of its folder on the phone", () => {
   it("prepares it, through the phone's chain, to the bytes the desktop writes", async () => {
     await writeVault({ [OVERVIEW.path]: OVERVIEW.note, ...OVERVIEW.others, [OVERVIEW.linkingPath]: OVERVIEW.linking });
 
-    const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true });
+    const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true, afterMove: async () => {} });
 
     expect(result).toMatchObject({ indexPath: OVERVIEW.indexPath, renamedLinks: 2, changedFiles: 1, preparation: OVERVIEW.preparation });
     await expectFile(OVERVIEW.indexPath, OVERVIEW.prepared);
@@ -255,7 +255,7 @@ describe("adopting an overview the vault is tied to, on the phone", () => {
     expect(before).toHaveLength(16);
     expect(before.filter((line) => line.endsWith("-> null"))).toEqual([]);
 
-    const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare });
+    const result = await adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare, afterMove: async () => {} });
 
     expect(result).toMatchObject({ indexPath: HUB_OVERVIEW.indexPath, ...(prepare ? HUB_OVERVIEW.preparedReport : HUB_OVERVIEW.adoptedReport) });
     if (!prepare) expect(result.preparation).toBeUndefined();
@@ -280,7 +280,7 @@ describe("adopting an overview the vault is tied to, on the phone", () => {
     const files = { ...HUB_OVERVIEW.before(), [HUB_OVERVIEW.indexPath]: "# Projects\n\nan overview that is there already\n" };
     await writeVault(files);
 
-    await expect(adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare: true })).rejects.toBeInstanceOf(VaultFileExistsError);
+    await expect(adoptFileAsIndex({ adapter: vault.files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare: true, afterMove: async () => {} })).rejects.toBeInstanceOf(VaultFileExistsError);
 
     for (const [path, text] of Object.entries(files)) await expectFile(path, text);
     expect(await raw.exists(".plainva/backups")).toBe(false);

@@ -1,6 +1,7 @@
 import { useWindowBookmarks } from "./hooks/useWindowBookmarks";
 import { useTabTransferSource, useTabTransferTarget } from "./hooks/useTabTransfer";
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
+import { PATH_RENAMED_EVENT, type FileMovedDetail } from "./services/fileMoved";
 const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
@@ -349,6 +350,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // key.
     layoutScope: windowLabel,
   });
+  // A note Plainva moved where no tab strip is at hand (the overview manager's
+  // adoption): the tabs follow it, as after a rename in the file tree.
+  useEffect(() => {
+    const onRenamed = (e: Event) => {
+      const detail = (e as CustomEvent<FileMovedDetail>).detail;
+      if (detail && detail.vaultPath === vaultPath) renameTabPrefix(detail.from, detail.to);
+    };
+    window.addEventListener(PATH_RENAMED_EVENT, onRenamed);
+    return () => window.removeEventListener(PATH_RENAMED_EVENT, onRenamed);
+  }, [vaultPath, renameTabPrefix]);
   useTabTransferTarget(vaultPath, vaultAdapter, layoutReady, !windowLabel, adoptTransferredTab);
   const tabTransfer = useTabTransferSource(vaultPath, windowLabel ?? null, layout, selectTab, closeTab);
 

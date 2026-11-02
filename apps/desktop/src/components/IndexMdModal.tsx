@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
+import { retargetDesktopBookmarks } from "../services/bookmarks";
+import { announcePathRenamed } from "../services/fileMoved";
+import { requestSaveFlush } from "../services/saveFlush";
+import { toast } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { SelectField } from "@plainva/ui";
@@ -91,12 +95,19 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
               : t("indexMd.resultCreated", { entries: result.entries }),
           });
         } else {
+          // What the editor has not written yet goes to the note before it moves.
+          await requestSaveFlush(action.candidatePath, vaultPath ?? undefined);
           const result = await adoptFileAsIndex({
             adapter: vaultAdapter,
             queryService,
             candidatePath: action.candidatePath,
             folder: info.folder,
             prepare,
+            // What a rename in the file tree carries along (Sammelplan § 3.135 Nr. 1).
+            afterMove: async (from, to) => {
+              await retargetDesktopBookmarks(vaultAdapter, from, to).catch(() => toast.error(t("sidebar.bookmarkSaveFailed")));
+              announcePathRenamed({ from, to, vaultPath: vaultPath ?? "" });
+            },
           });
           // One line, the words the phone's notice uses (`adoptionSummary`).
           lines.push({ folder: info.folder, text: adoptionSummary(t, action.candidatePath.split("/").pop() ?? action.candidatePath, result) });

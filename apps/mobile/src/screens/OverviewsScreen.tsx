@@ -21,7 +21,7 @@ import {
 import { AppBar } from "../components/AppBar";
 import { writeOverview } from "../services/indexOverviews";
 import { mConfirmOption } from "../services/mobileDialogs";
-import type { MobileVault } from "../services/vaultService";
+import { vaultOps, type MobileVault } from "../services/vaultService";
 
 /**
  * The vault's OKF overviews, folder by folder (P6).
@@ -124,12 +124,16 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
       });
       if (!answer.confirmed) return;
       await run(async () => {
+        // Unsaved text lands first, and the note's bookmarks, drafts and open
+        // screens follow it, as after a rename (Sammelplan § 3.135 Nr. 1).
+        await vaultOps.flushBeforeNoteMove(vault, candidate.path);
         const result = await adoptFileAsIndex({
           adapter: vault.files,
           queryService: vault.queryService!,
           candidatePath: candidate.path,
           folder: row.folder,
           prepare: answer.checked,
+          afterMove: (from, to) => vaultOps.followNoteMove(vault, from, to),
         });
         await vault.indexer?.indexVaultFull("index.md generation").catch(() => {});
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
