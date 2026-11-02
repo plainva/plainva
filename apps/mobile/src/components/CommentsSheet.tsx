@@ -6,6 +6,7 @@ import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace,
 import { CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 
 /**
  * Comments and suggestions on the phone (Stufe D, D5).
@@ -144,6 +145,8 @@ export function CommentsSheet({
   const { t, i18n } = useTranslation();
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [body, setBody] = useState("");
+  // A comment being written is asked about (finding 2026-10-22).
+  const close = useSheetGuard("comment-compose", body.trim() !== "", () => onClose());
   const [busy, setBusy] = useState(false);
   /** Same two views as the desktop column (K3): what is open, or everything. */
   const [filter, setFilter] = useState<"open" | "all">("open");
@@ -342,9 +345,9 @@ export function CommentsSheet({
   };
 
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <div className="pv-comment-column__head">
           <Segmented
             size="sm"

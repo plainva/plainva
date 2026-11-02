@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SheetGrip } from "../components/SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { useTranslation } from "react-i18next";
 import { Radio } from "lucide-react";
 import { Button, DEFAULT_THEME_NAME, getThemeDef, ICON, LCARS_VARIANTS, matchStarTrekQuote, STAR_TREK_QUOTES, Switch, TextInput } from "@plainva/ui";
@@ -16,6 +17,8 @@ import { FrequencyChips } from "./FrequencyChips";
 export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const close = useSheetGuard("hailing", text.trim() !== "", onClose);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [misses, setMisses] = useState(0);
 
@@ -69,9 +72,9 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
   };
 
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("hailing.prompt")}</p>
         <div className="m-field">
           <TextInput
@@ -120,7 +123,7 @@ export function HailingSheet({ onClose, onChanged }: { onClose: () => void; onCh
           </>
         )}
         <div className="m-btnrow">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close}>
             {t("common.close", { defaultValue: "Schließen" })}
           </Button>
           <Button variant="primary" onClick={transmit}>

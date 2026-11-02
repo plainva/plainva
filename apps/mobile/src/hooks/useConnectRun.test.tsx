@@ -7,7 +7,8 @@ import { useConnectRun } from "./useConnectRun";
 import { initialNavState, navTop, type NavState } from "../navigation";
 import { clearConnectQueue, type ConnectQueue } from "../services/connectQueue";
 import { resetFlowVaultForTest, whileEntering } from "../services/flowVault";
-import { activeLeaveGuard, armLeaveGuard, resetLeaveGuard } from "../services/leaveGuard";
+import { activeLeaveGuard, armLeaveGuard, disarmLeaveGuard, resetLeaveGuard } from "../services/leaveGuard";
+import { resetScreenStepsForTest } from "../services/screenStep";
 import { currentMobileDialog, dismissMobileDialog } from "../services/mobileDialogs";
 
 /**
@@ -145,6 +146,7 @@ afterEach(async () => {
   const open = currentMobileDialog();
   if (open) dismissMobileDialog(open);
   resetFlowVaultForTest();
+  resetScreenStepsForTest();
   toast.clearAll();
   resetLeaveGuard();
 });
@@ -410,5 +412,90 @@ describe("a connect run whose vault was deleted", () => {
 
     expect(state.settings.has(QUEUE)).toBe(false);
     expect(state.switched).toEqual([]);
+  });
+});
+
+describe("a connect run in the vault on screen", () => {
+  /** At its calendar step, in its own vault: the run puts the calendar form on top. */
+  const atCalendar = (): ConnectQueue => ({ ...interrupted(), pending: ["calendar"], done: ["files"] });
+
+  it("puts its next screen on top when nothing is at stake", async () => {
+    state.active = "target";
+    state.settings.set(QUEUE, atCalendar());
+    await start();
+    await vi.waitFor(() => expect(navTop(nav)?.kind).toBe("pimaccounts"));
+    expect(offers()).toEqual([]);
+  });
+
+  it("does not put its next screen over a message being written: it offers the step, and its button asks first", async () => {
+    // Finding 2026-10-22 (§ 3.139 Nr. 1): only the screen on top is rendered,
+    // so the next step pushed over a composer took the message with it.
+    state.active = "target";
+    state.settings.set(QUEUE, atCalendar());
+    armLeaveGuard(MESSAGE);
+
+    await start();
+    await quiet();
+
+    expect(navTop(nav), "nothing is put over the message").toBeUndefined();
+    expect(offers().map((o) => o.message)).toEqual(["mobile.connectRunOffer"]);
+
+    // Another sign of life of the run raises nothing new.
+    runChanged();
+    await quiet();
+    expect(offers()).toHaveLength(1);
+    expect(navTop(nav)).toBeUndefined();
+
+    // "Cancel" keeps the message, and the offer stands again.
+    press(offers()[0]);
+    await settle();
+    answer(false);
+    await quiet();
+    expect(navTop(nav)).toBeUndefined();
+    expect(offers()).toHaveLength(1);
+
+    // "Discard": the run's screen goes on top.
+    press(offers()[0]);
+    await settle();
+    answer(true);
+    await vi.waitFor(() => expect(navTop(nav)?.kind).toBe("pimaccounts"));
+    expect(offers()).toEqual([]);
+  });
+
+  it("goes on by itself on its next sign of life once the message is gone", async () => {
+    state.active = "target";
+    state.settings.set(QUEUE, atCalendar());
+    armLeaveGuard(MESSAGE);
+    await start();
+    await quiet();
+    expect(navTop(nav)).toBeUndefined();
+
+    disarmLeaveGuard(MESSAGE.id);
+    runChanged();
+    await vi.waitFor(() => expect(navTop(nav)?.kind).toBe("pimaccounts"));
+    expect(offers(), "the notice goes with the step").toEqual([]);
+  });
+
+  it("is not held back by the run's own form", async () => {
+    state.active = "target";
+    state.settings.set(QUEUE, atCalendar());
+    armLeaveGuard(OWN_FORM);
+    await start();
+    await vi.waitFor(() => expect(navTop(nav)?.kind).toBe("pimaccounts"));
+    expect(offers()).toEqual([]);
+  });
+
+  it("takes its notice down when the run is given up", async () => {
+    state.active = "target";
+    state.settings.set(QUEUE, atCalendar());
+    armLeaveGuard(MESSAGE);
+    await start();
+    await quiet();
+    expect(offers()).toHaveLength(1);
+
+    await clearConnectQueue();
+    await quiet();
+    expect(offers()).toEqual([]);
+    expect(navTop(nav)).toBeUndefined();
   });
 });

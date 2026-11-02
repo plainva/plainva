@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -56,4 +56,46 @@ describe("leave guard coverage", () => {
       expect(armed, `${f} has a password field but arms no guard`).toBe(true);
     }
   });
+});
+
+/**
+ * Every sheet that holds what the person types asks before it goes (finding
+ * 2026-10-22, § 3.139 Nr. 3) — through `useSheetGuard`, or `useGuardedClose`
+ * where the form inside the sheet arms its own guard.
+ *
+ * Read from the files, like the list above: a file that draws a sheet
+ * (`SheetGrip`) and a field must use one of the two, or stand below with the
+ * reason it holds nothing that a close would lose.
+ */
+const SHEETS_WITHOUT_TYPED_INPUT: Record<string, string> = {
+  "EditorHost.tsx": "table size steppers and a date picked once; nothing typed stays in a sheet",
+  "components/EmojiPickSheet.tsx": "the field searches; every pick commits at once",
+  "components/MobileDialogHost.tsx": "a prompt's Cancel is its answer to the question that opened it",
+  "screens/base/BaseConfigSheet.tsx": "every control writes the view at once",
+  "screens/GraphScreen.tsx": "the field filters the graph and sits outside the tools sheet",
+  "screens/JournalScreen.tsx": "the field filters the journal; the sheet is a day jump that commits on pick",
+  "screens/MailListScreen.tsx": "the field searches the mailbox and sits outside the sheet",
+  "screens/PimAccountsScreen.tsx": "the form's values live in the screen, survive the sheet, and the screen arms \"pim-accounts\"",
+};
+
+describe("sheet guard coverage", () => {
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]));
+  const FIELD = /<(TextInput|TextArea|GrowingField|MentionTextArea|JournalCaptureField|TaskCaptureField|PropertyNameInput|SearchField|input|textarea)\b/;
+  const sheets = walk(here)
+    .filter((f) => f.endsWith(".tsx") && !f.includes(".test."))
+    .map((f) => [relative(here, f).split(sep).join("/"), readFileSync(f, "utf8")] as const)
+    .filter(([, src]) => src.includes("<SheetGrip") && FIELD.test(src));
+
+  it("finds the sheets it is about", () => {
+    expect(sheets.map(([f]) => f)).toEqual(expect.arrayContaining(["components/JournalCaptureSheet.tsx", "components/CommentsSheet.tsx", "screens/base/CellEditSheet.tsx"]));
+  });
+
+  for (const [f, src] of sheets) {
+    it(`${f} asks before a close takes what was typed`, () => {
+      const guarded = /\buseSheetGuard\(|\buseGuardedClose\(/.test(src);
+      expect(guarded || f in SHEETS_WITHOUT_TYPED_INPUT, `${f} draws a sheet with a field and neither guards it nor says why not`).toBe(true);
+      expect(guarded && f in SHEETS_WITHOUT_TYPED_INPUT, `${f} is guarded now: take it off the exemption list`).toBe(false);
+    });
+  }
 });

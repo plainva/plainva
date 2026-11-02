@@ -687,7 +687,7 @@ export default function App() {
       )}
 
       <StartupSheets
-        onOpenOkf={() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "okfconversion", path: "" }))}
+        onOpenOkf={() => leaveThen(() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "okfconversion", path: "" })))}
         onReleaseSeen={() => setReleaseDialog("none")}
         releaseDialog={releaseDialog}
         showRelease={onboarded}

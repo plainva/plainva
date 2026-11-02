@@ -53,7 +53,9 @@ import {
   setActiveVault,
   LOCAL_VAULT_ID,
   type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
-import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
+import { getStoredProvider, purgeCredentials, startSyncIfConfigured, stopSyncAndDrain, syncSoon } from "./syncService";
+import { armedLeaveGuards, foreignInputArmed } from "./leaveGuard";
+import { takeScreen } from "./screenStep";
 import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
@@ -319,43 +321,148 @@ export async function previousMobileVault(): Promise<VaultEntry | null> {
   return entry && entry.id !== active.id ? entry : null;
 }
 
+/** The switch under way, by the vault it goes to. */
+let switching: { id: string; done: Promise<void> } | null = null;
+
 /**
  * Activates another registry vault: stops the sync worker, closes the
  * current per-vault database and reboots. Screens listen for the event and
  * reset their stacks.
+ *
+ * One switch at a time (finding 2026-10-22, § 3.139 Nr. 5). Two flows that
+ * end in the same vault — a sign-in coming back to it, a connect run
+ * activating it — each switched for itself: the second stopped the boot the
+ * first had just begun (`bootPromise = null`, its vault never closed) and
+ * dropped the stacks a second time, with whatever the first flow had put on
+ * top after it. A switch to the vault already being switched to is now that
+ * same switch; a switch to another waits for it.
  */
-export async function switchVault(id: string): Promise<void> {
+export function switchVault(id: string): Promise<void> {
+  if (switching?.id === id) return switching.done;
+  const before = switching?.done.catch(() => undefined) ?? Promise.resolve();
+  const mine = { id, done: before.then(() => switchTo(id)) };
+  switching = mine;
+  const over = () => {
+    if (switching === mine) switching = null;
+  };
+  mine.done.then(over, over);
+  return mine.done;
+}
+
+async function switchTo(id: string): Promise<void> {
   // Already opening this very vault: stopping its boot to start it again would only lose the scan so far.
   if (bootPromise && !bootSettled && (await getActiveVaultEntry()).id === id) return;
   const current = await retireBoot();
   if (current?.vaultId === id) return;
-  // Asked for the same vault, this is "try again" on the boot surface: no vault to go back to from there.
-  const leaving = (await getActiveVaultEntry()).id;
-  if (leaving !== id) previousVaultId = leaving;
-  // Pending editor saves must land BEFORE the worker stops and the database
-  // closes — and they land in the vault they were typed in (the coordinator
-  // captured that instance per schedule call).
-  await noteSaver.flushAll();
-  // Drain, don't just flag-stop (P3.4/M4): a cycle still downloading or
-  // writing must finish before dispose() closes the per-vault database.
-  await stopSyncAndDrain();
-  await setActiveVault(id);
-  // Swap the per-vault settings slice (folders, backup retention) to the new
-  // vault BEFORE the next boot reads the backup policy / screens re-read
-  // getMobileSettings() on the event below (package A vault isolation).
-  await reloadMobileSettingsForActiveVault();
+  let leaving: string | undefined;
+  const previous = previousVaultId;
+  try {
+    // Asked for the same vault, this is "try again" on the boot surface: no vault to go back to from there.
+    leaving = (await getActiveVaultEntry()).id;
+    if (leaving !== id) previousVaultId = leaving;
+    // Pending editor saves must land BEFORE the worker stops and the database
+    // closes — and they land in the vault they were typed in (the coordinator
+    // captured that instance per schedule call).
+    await noteSaver.flushAll();
+    // Drain, don't just flag-stop (P3.4/M4): a cycle still downloading or
+    // writing must finish before dispose() closes the per-vault database.
+    await stopSyncAndDrain();
+    await setActiveVault(id);
+    // Swap the per-vault settings slice (folders, backup retention) to the new
+    // vault BEFORE the next boot reads the backup policy / screens re-read
+    // getMobileSettings() on the event below (package A vault isolation).
+    await reloadMobileSettingsForActiveVault();
+  } catch (error) {
+    // A switch that did not happen leaves the vault on screen as it was
+    // (finding 2026-10-22, § 3.139 Nr. 7): it is the active one in the list
+    // again — whoever asked "am I in the new vault?" read "yes" — and its sync
+    // runs again, which the switch had stopped first.
+    previousVaultId = previous;
+    if (leaving !== undefined && leaving !== id) {
+      const now = await getActiveVaultEntry().catch(() => null);
+      if (now?.id !== leaving) {
+        await setActiveVault(leaving).catch((e: unknown) => console.error("[switch] the vault on screen could not be made active again", e));
+        await reloadMobileSettingsForActiveVault().catch(() => {});
+      }
+    }
+    await resumeOnScreen(current, leaving);
+    throw error;
+  }
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));
 }
 
-export async function reloadActiveMobileVault(): Promise<void> {
+/**
+ * The vault on screen after a step that stopped its sync and then failed: the
+ * sync starts again through the one start (so a pause and "files off" are
+ * still asked). Without an open vault — its boot was stopped for the step —
+ * the vault boots again.
+ */
+async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Promise<void> {
+  if (current) {
+    await startSyncIfConfigured(current).catch((e: unknown) => console.error("[switch] sync restart failed", e));
+    return;
+  }
+  bootPromise = null;
+  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: vaultId } }));
+}
+
+/** A reload waiting behind someone else's input (`screenStep.ts`). */
+const RELOAD_STEP = "vault-reload";
+
+/**
+ * Opens the vault on screen again: after its workspace was unlocked, paired,
+ * recovered or lifted, its folder was picked anew, or its index rebuilt.
+ * True: reloaded now. False: it waits — see below.
+ *
+ * Such a step begins at the screen on top and reloads after a key
+ * derivation or the network (finding 2026-10-22, § 3.139 Nr. 2). The reload
+ * drops every stack, so a message begun meanwhile somewhere else went with
+ * it. While a surface that is not the step's own (`own`) holds unsaved input,
+ * the reload waits behind a notice and runs once that input is sent, saved
+ * or discarded — or when the person takes the notice's button, which asks
+ * first. The vault keeps working in the meantime. Its sync does not start
+ * again before the reload: a step that stopped it (lifting the encryption,
+ * resuming a setup) did so because the vault's state changes under it, and
+ * only the reloaded vault starts it in the new state.
+ */
+export async function reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean> {
+  const vaultId = (await getActiveVaultEntry()).id;
+  if (foreignInputArmed(own)) {
+    offerReload(vaultId, own);
+    return false;
+  }
   const current = await retireBoot();
   await noteSaver.flushAll();
   await stopSyncAndDrain();
+  // The drain can take a transfer's length: input begun in it is at stake too.
+  if (current && foreignInputArmed(own)) {
+    offerReload(vaultId, own);
+    return false;
+  }
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+  return true;
+}
+
+function offerReload(vaultId: string, own?: string | readonly string[]): void {
+  takeScreen(RELOAD_STEP, {
+    // A vault switched away from meanwhile has been opened anew already.
+    // What is armed when it runs was given up: by "Discard" at the notice's
+    // button (the question keeps the guards until their surfaces go, and the
+    // reload is what takes them), or there is nothing left by then.
+    run: async () => {
+      const given = armedLeaveGuards().map((g) => g.id);
+      const mine = own === undefined ? [] : typeof own === "string" ? [own] : own;
+      if ((await getActiveVaultEntry()).id === vaultId) await reloadActiveMobileVault([...mine, ...given]);
+    },
+    offer: i18n.t("mobile.vaultReloadOffer"),
+    label: i18n.t("mobile.vaultReloadOfferAction"),
+    own,
+    whenFree: true,
+  });
 }
 
 /**

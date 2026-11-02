@@ -408,7 +408,9 @@ test("quick capture: New task from another tab opens the sheet, what it read sho
     await input.fill("tomorrow");
     await sheet.getByTestId("task-capture-submit").click();
     await expect(sheet.getByRole("alert")).toHaveText("The task needs a title.");
+    // What is typed is not thrown away unasked (finding 2026-10-22): Cancel asks, Discard closes.
     await sheet.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByTestId("confirm-act").click();
     await expect(sheet).toHaveCount(0);
     expect(await listFolder(page, "Aufgaben")).toEqual(["Call the plumber.md", "Order weekly planners.md", "Steuer abgeben.md"]);
     expect(errors).toEqual([]);

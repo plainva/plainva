@@ -142,7 +142,7 @@ const settle = () =>
 
 async function open(draft: MailDraft) {
   await act(async () => {
-    root.render(<MailComposeScreen draft={draft} onBack={nav.pop} onDone={nav.done} vault={vault} />);
+    root.render(<MailComposeScreen draft={draft} onBack={nav.pop} onDone={() => nav.done({ kind: "mailcompose", path: "" })} vault={vault} />);
   });
   await settle();
 }

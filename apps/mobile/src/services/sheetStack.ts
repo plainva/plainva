@@ -28,9 +28,14 @@ export function registerSheet(close: Close): () => void {
 /**
  * Closes the topmost sheet, if any. True means the back press was consumed —
  * the caller must not also pop a screen, or one press would undo two things.
+ *
+ * The entry stays until the sheet unregisters on its way out. A close may ask
+ * first — a sheet holding typed input does (finding 2026-10-22, § 3.139
+ * Nr. 3) — and with "Cancel" the sheet is still there: had the press taken
+ * its entry, the next back would have walked past it to the screen below.
  */
 export function closeTopSheet(): boolean {
-  const close = stack.pop();
+  const close = stack[stack.length - 1];
   if (!close) return false;
   close();
   return true;

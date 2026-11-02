@@ -6,6 +6,7 @@ import {
   useShowWeekNumbers, useWeekStartDay, weekNumbersShown, type CaptureResult, type TaskCaptureApi,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 
 /**
  * Quick capture on the phone (plan Aufgaben-Oberfläche, B2): the desktop's
@@ -36,6 +37,8 @@ export function TaskCaptureSheet({
 }) {
   const { t } = useTranslation();
   const [value, setValue] = useState(initialValue);
+  // What is typed — or was handed over and not yet saved — is asked about (finding 2026-10-22).
+  const close = useSheetGuard("task-capture", value.trim() !== "", onClose);
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
   // Starts on, because choosing a list for the database already WAS the decision;
   // the chip is there so a single task can stay in the vault (same as the desktop).
@@ -110,7 +113,7 @@ export function TaskCaptureSheet({
           />
         )}
         <div className="m-btnrow">
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={close}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" data-testid="task-capture-submit" disabled={busy} onClick={submit}>
@@ -122,16 +125,16 @@ export function TaskCaptureSheet({
   };
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" data-testid="task-capture-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("tasks.newTask")}</p>
         <TaskCaptureField
           autoFocus
           value={value}
           onChange={setValue}
           todayKey={todayKey}
-          onCancel={onClose}
+          onCancel={close}
           onSubmit={(result) => {
             if (busy) return;
             setBusy(true);

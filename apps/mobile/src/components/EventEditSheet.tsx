@@ -16,8 +16,9 @@ import {
   TextInput,
   EVENT_COLOR_PALETTE,
 } from "@plainva/ui";
-import type { PimEventDraft, PimEventRow, PimRecurrenceFreq } from "@plainva/core";
+import { sameStoredValue, type PimEventDraft, type PimEventRow, type PimRecurrenceFreq } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { mSelect } from "../services/mobileDialogs";
 import { MobileSwatchGrid } from "./MobileSwatchGrid";
 
@@ -73,11 +74,14 @@ export function EventEditSheet({
   // The form VALUES are shared (S25): the touched guards live in them, and they
   // are what keeps an edit of the time from resetting who answered an
   // invitation or overwriting a recurrence we could only read half of.
-  const [form, setForm] = useState<EventFormValues>(() => {
+  const [opened] = useState<EventFormValues>(() => {
     if (event) return eventFormFromEvent(event);
     const base = emptyEventForm(localIsoKey(new Date(initial.startTs)), initial.calendarKey);
     return { ...base, startTime: hhmm(initial.startTs), endTime: hhmm(initial.endTs) };
   });
+  const [form, setForm] = useState<EventFormValues>(opened);
+  // Whatever differs from what the sheet opened with is unsaved (finding 2026-10-22).
+  const close = useSheetGuard("event-edit", !sameStoredValue(form, opened), onClose);
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<EventFormValues>) => setForm((prev) => ({ ...prev, ...patch }));
   const setRepeat = (patch: Partial<EventFormValues>) => set({ ...patch, repeatTouched: true });
@@ -104,9 +108,9 @@ export function EventEditSheet({
   };
 
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{event ? t("pim.editEvent") : t("pim.newEvent")}</p>
 
         <TextInput

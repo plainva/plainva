@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
+import { useSheetGuard } from "../../hooks/useSheetGuard";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare } from "lucide-react";
 import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
@@ -7,7 +8,7 @@ import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
 import { buildWikiTargetSet, wikiLinkTextFor, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
-import { wikiTargetChooser } from "@plainva/core";
+import { sameStoredValue, wikiTargetChooser } from "@plainva/core";
 
 /**
  * Typed cell editor (R4.3, desktop useBaseCells contract): the sheet renders
@@ -65,14 +66,16 @@ export function CellEditSheet({
   const isRelation = input === "relation" || input === "link";
   const isDate = input === "date" || input === "datetime";
 
-  const [text, setText] = useState(() => {
+  const [openedText] = useState(() => {
     const raw = Array.isArray(value) ? value.join(", ") : value == null ? "" : String(value);
     // A bare day in a datetime column: the native picker only takes a full
     // moment, so it starts at 00:00 — which stands for "no time" and is written
     // back as the day alone (dateTimeEditorValue; the desktop's picker agrees).
     return input === "datetime" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00` : raw;
   });
-  const [multi, setMulti] = useState<string[]>(() => toArray(value));
+  const [text, setText] = useState(openedText);
+  const [opened] = useState<string[]>(() => toArray(value));
+  const [multi, setMulti] = useState<string[]>(opened);
   // A date comes from the app's calendar, as on the desktop (wish
   // 2026-10-19): the day is picked there, a time beside it.
   const weekStart = useWeekStartDay();
@@ -88,6 +91,13 @@ export function CellEditSheet({
   });
   const pickedTime = input === "datetime" && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text) ? text.slice(11, 16) : text === "" ? startTime : "00:00";
   const [free, setFree] = useState("");
+  // A value typed or ticked and not yet committed is asked about (finding
+  // 2026-10-22); a pick that commits at once never makes the sheet dirty.
+  const close = useSheetGuard(
+    "cell-edit",
+    text !== openedText || free.trim() !== "" || (isMulti && !sameStoredValue(multi, opened)),
+    onClose,
+  );
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Array<{ path: string; title: string }>>([]);
 
@@ -174,9 +184,9 @@ export function CellEditSheet({
     : candidates;
 
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{col}</p>
 
         {isSelect && (

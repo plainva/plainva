@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check } from "lucide-react";
 import { FONT_SLOT_FAMILIES, FontCatalogPicker, fontKindsForSlot, GroupCard, ICON, Row, RowList, SettingField, TextInput, sanitizeFontName, type ContentFontFamily, type FontChoice, type FontSlot } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 
 /**
  * The sheet behind one font slot of Settings › Appearance (issue #82, plan
@@ -28,6 +29,8 @@ export function FontSlotSheet({
 }) {
   const { t } = useTranslation();
   const [other, setOther] = useState("");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const close = useSheetGuard("font-slot", other.trim() !== "", onClose);
   const presetLabel: Record<Exclude<ContentFontFamily, "theme" | "custom">, string> = {
     serif: t("settings.fontSerif"),
     sans: t("settings.fontSans"),
@@ -39,9 +42,9 @@ export function FontSlotSheet({
   ];
   const customName = value.family === "custom" ? value.customName : "";
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{title}</p>
         <div className="m-sheet-scroll">
           <GroupCard>

@@ -119,7 +119,7 @@ const settle = () =>
 /** Renders the composer for a draft — a new screen for a new draft, like a pushed entry. */
 async function open(draft: MailDraft) {
   await act(async () => {
-    root.render(<MailComposeScreen key={draftPath(draft)} draft={draft} onBack={nav.pop} onDone={nav.done} vault={vault} />);
+    root.render(<MailComposeScreen key={draftPath(draft)} draft={draft} onBack={nav.pop} onDone={() => nav.done({ kind: "mailcompose", path: "" })} vault={vault} />);
   });
   await settle();
 }

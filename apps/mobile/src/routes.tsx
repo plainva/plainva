@@ -101,8 +101,9 @@ export interface RouteContext {
   push: (entry: NavEntry) => void;
   pop: () => void;
   /** The exit a screen takes itself once its work is sent or saved. Unlike
-   *  `pop` it does not ask about unsaved input — there is none left to lose. */
-  done: () => void;
+   *  `pop` it does not ask about unsaved input — there is none left to lose.
+   *  It names the screen that leaves: see `NavActions.done`. */
+  done: (entry: NavEntry) => void;
   /** Forward step that drops the current screen. Never `pop()` then `push()` —
    *  `pop` is asynchronous (it asks about unsaved input first), so the push
    *  would run before it and the late pop would close the new screen (#47). */
@@ -490,7 +491,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <MailComposeScreen
       draft={parseDraft(e.path)}
       onBack={c.pop}
-      onDone={c.done}
+      onDone={() => c.done(e)}
       onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
       vault={c.vault}
     />
@@ -535,7 +536,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <SecurityWizardScreen
       flow={(e.path || "workspace") as SecurityWizardFlow}
       onBack={c.pop}
-      onDone={c.done}
+      onDone={() => c.done(e)}
       vault={c.vault}
     />
   ),

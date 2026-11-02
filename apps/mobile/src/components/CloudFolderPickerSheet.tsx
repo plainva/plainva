@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CornerLeftUp, Folder, FolderPlus } from "lucide-react";
 import { Banner, Button, ICON, TextInput } from "@plainva/ui";
@@ -45,6 +46,8 @@ export function CloudFolderPickerSheet({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const close = useSheetGuard("cloud-folder-name", newName.trim() !== "", onClose);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -82,9 +85,9 @@ export function CloudFolderPickerSheet({
   }, [path, listFolders]);
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{title}</p>
         <p className="m-hint">/{path}</p>
         {path && (
@@ -135,7 +138,7 @@ export function CloudFolderPickerSheet({
           </>
         )}
         <div className="m-btnrow">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" onClick={() => onPick(path)}>

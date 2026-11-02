@@ -4,11 +4,20 @@ import i18n from "@plainva/ui/i18n";
 import { CONNECT_RUN_EVENT, advanceOnAccountsChanged, clearConnectQueue, loadConnectQueue } from "../services/connectQueue";
 import { enterFlowVault, releaseFlowVault } from "../services/flowVault";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
-import { navTop, pushEntry, type NavState } from "../navigation";
+import { navTop, pushEntry, type NavEntry, type NavState } from "../navigation";
+import { releaseScreenStep, takeScreen } from "../services/screenStep";
 import { screenForService } from "../routes";
 
 /** One run at a time, so one run can wait for its vault. */
 const RUN_FLOW = "connect-run";
+/** Its next screen, while it waits behind someone else's input. */
+const RUN_STEP = "connect-run-screen";
+/**
+ * The forms a run goes through. What is typed there is what the run connects,
+ * so its next screen is not asked about them; anything else is someone else's
+ * input (`screenStep.ts`).
+ */
+const RUN_FORMS = ["vault-connect", "cloud-connect", "pim-accounts", "mail-imap"] as const;
 /** Runs whose summary was put on screen in this lifetime of the app. */
 const summaryShown = new Set<string>();
 
@@ -20,6 +29,23 @@ async function endRun(run: string): Promise<void> {
 /** Progress follows an exact saved result, including after process restart. */
 export function useConnectRun(setNav: (fn: (state: NavState) => NavState) => void): void {
   useEffect(() => {
+    /**
+     * The run's next screen goes on top — but not over a message being
+     * written (finding 2026-10-22, § 3.139 Nr. 1): the run's event can come
+     * at any time, and only the screen on top is rendered. Then a notice
+     * offers the step, and its button asks first.
+     */
+    const show = (entry: NavEntry, anyFamily = false) => {
+      takeScreen(RUN_STEP, {
+        run: () => setNav((st) => {
+          const top = navTop(st);
+          return top?.kind === entry.kind && (anyFamily || top.family === entry.family) ? st : pushEntry(st, entry);
+        }),
+        offer: i18n.t("mobile.connectRunOffer"),
+        label: i18n.t("mobile.connectRunOfferAction"),
+        own: RUN_FORMS,
+      });
+    };
     let running = false, again = false, alive = true;
     const advance = async () => {
       if (running) { again = true; return; }
@@ -31,6 +57,8 @@ export function useConnectRun(setNav: (fn: (state: NavState) => NavState) => voi
           // A run that is over, or that waits for another vault by now, takes
           // the offer of its old destination with it (`flowVault.ts`).
           releaseFlowVault(RUN_FLOW, q?.context.vaultId);
+          // The same for a screen of a run that is over.
+          if (!q) releaseScreenStep(RUN_STEP);
           if (!q || !alive) continue;
           const run = q.id, target = q.context.vaultId;
           if ((await getActiveVaultEntry()).id !== target) {
@@ -57,17 +85,13 @@ export function useConnectRun(setNav: (fn: (state: NavState) => NavState) => voi
             // account change to advance on: the summary, once per run.
             if (!summaryShown.has(run)) {
               summaryShown.add(run);
-              setNav(st => navTop(st)?.kind === "cloudaccounts" ? st : pushEntry(st, { kind: "cloudaccounts", path: "" }));
+              show({ kind: "cloudaccounts", path: "" }, true);
             }
             continue;
           }
           const result = await advanceOnAccountsChanged(service);
           if (!alive) continue;
-          const entry = result.advanced && !result.next ? { kind: "cloudaccounts" as const, path: "" } : { kind: screenForService(result.advanced ? result.next! : service), path: "", family: q.family };
-          setNav(st => {
-            const top = navTop(st);
-            return top?.kind === entry.kind && top.family === ("family" in entry ? entry.family : undefined) ? st : pushEntry(st, entry);
-          });
+          show(result.advanced && !result.next ? { kind: "cloudaccounts", path: "" } : { kind: screenForService(result.advanced ? result.next! : service), path: "", family: q.family });
         } while (again && alive);
       } catch (error) { toast.error(serviceConnectionMessage(error, i18n.t)); }
       finally { running = false; }

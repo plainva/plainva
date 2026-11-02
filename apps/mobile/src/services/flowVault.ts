@@ -1,6 +1,6 @@
 import { serviceConnectionMessage, toast, toastStore } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { activeLeaveGuard, disarmLeaveGuard } from "./leaveGuard";
+import { armedLeaveGuards, disarmLeaveGuard, foreignInputArmed } from "./leaveGuard";
 import { leaveThen } from "./leaveQuestion";
 import { getActiveVaultEntry, getVaultEntry } from "./vaultRegistry";
 import { switchVault } from "./vaultService";
@@ -77,8 +77,8 @@ interface Offer {
 const offers = new Map<string, Offer>();
 /** Vaults a flow of their own is activating right now (`whileEntering`). */
 const entering = new Map<string, number>();
-/** The guard of the input the person gave up at a notice's button, by the vault it was given up for. */
-const givenUp = new Map<string, string>();
+/** The guards of the input the person gave up at a notice's button, by the vault it was given up for. */
+const givenUp = new Map<string, string[]>();
 let listening = false;
 
 const report = (error: unknown) => toast.error(serviceConnectionMessage(error, i18n.t));
@@ -91,8 +91,7 @@ const entryOf = (vaultId: string) => getVaultEntry(vaultId).catch(() => undefine
  * the guard of the form the flow was started from, where it has one.
  */
 export function foreignInputOnScreen(own?: string): boolean {
-  const guard = activeLeaveGuard();
-  return guard !== null && guard.id !== own;
+  return foreignInputArmed(own);
 }
 
 /** Whether the person has been offered the vault for this flow, and the flow still waits there. */
@@ -121,7 +120,7 @@ function settle(vaultId: string): void {
   // it still armed (`keepArmed` in leaveQuestion.ts) and offer a second time.
   const given = givenUp.get(vaultId);
   givenUp.delete(vaultId);
-  if (given) disarmLeaveGuard(given);
+  for (const id of given ?? []) disarmLeaveGuard(id);
   const offer = offers.get(vaultId);
   if (!offer) return;
   drop(vaultId, offer);
@@ -196,7 +195,7 @@ async function accept(vaultId: string, offer: Offer): Promise<void> {
     return;
   }
   // The input the question is about: "Discard" gives up this one, and no other.
-  const atStake = activeLeaveGuard()?.id;
+  const atStake = armedLeaveGuards().map((g) => g.id);
   leaveThen(
     () => {
       // While the question was up, the flows may have ended, or the vault may
@@ -204,7 +203,7 @@ async function accept(vaultId: string, offer: Offer): Promise<void> {
       // and the input stays.
       if (offers.get(vaultId) !== offer || offer.steps.size === 0) return;
       // What is on screen goes with the switch, and so does its guard.
-      if (atStake) givenUp.set(vaultId, atStake);
+      if (atStake.length > 0) givenUp.set(vaultId, atStake);
       // The switch announces itself (`m-vault-switched`), and that is what lets
       // the flows go on; a vault that was on screen already says nothing — and
       // took nothing off the screen —, hence the second call. A switch that

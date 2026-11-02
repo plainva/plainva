@@ -5,6 +5,7 @@ import { Camera } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { Button, Chip, ICON, JournalCaptureField, PlaceStampButton, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, toast, useJournalDayKey, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { captureJournalEntry } from "../services/journalService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "../services/photoCapture";
@@ -38,6 +39,8 @@ export function JournalCaptureSheet({
 }) {
   const { t } = useTranslation();
   const [value, setValue] = useState(initialText);
+  // What is typed — or was handed over and not yet saved — is asked about (finding 2026-10-22).
+  const close = useSheetGuard("journal-capture", value.trim() !== "", onClose);
   const [asTask, setAsTask] = useState(false);
   const [busy, setBusy] = useState(false);
   const ms = getMobileSettings();
@@ -100,9 +103,9 @@ export function JournalCaptureSheet({
   };
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" data-testid="journal-capture-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("journal.newEntry")}</p>
         <JournalCaptureField
           autoFocus
@@ -113,7 +116,7 @@ export function JournalCaptureSheet({
           asTask={asTask}
           onAsTask={setAsTask}
           onSubmit={submit}
-          onCancel={onClose}
+          onCancel={close}
           onHandover={() => onSwitchToTask(value)}
           disabled={busy}
           target={t("journal.target", { name: target })}
@@ -128,7 +131,7 @@ export function JournalCaptureSheet({
           }
         />
         <div className="m-btnrow">
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={close}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" data-testid="journal-capture-save" disabled={busy || !value.trim()} onClick={submit}>

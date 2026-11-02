@@ -8,6 +8,7 @@ import {
 } from "@plainva/core";
 import { Banner, Button, isPublishedNoteRefusal, publicationErrorText, publicationInstructionText, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { mSelect } from "../services/mobileDialogs";
 
 /**
@@ -56,6 +57,8 @@ export function PublishSliceSheet({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(sliceName);
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const close = useSheetGuard("publish-slice", name !== sliceName, onClose);
   const [mode, setMode] = useState<"exact" | "sanitized">("sanitized");
   const [access, setAccess] = useState<"read" | "comment" | "suggest">("read");
   const [provider, setProvider] = useState<PublishedSliceProvider>("google-drive");
@@ -145,9 +148,9 @@ export function PublishSliceSheet({
     .join(" ");
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" data-testid="publish-slice-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })}</p>
         <p className="m-hint">
           {t("workspaceSecurity.publicationCreateHint", {
@@ -255,7 +258,7 @@ export function PublishSliceSheet({
         )}
 
         <div className="m-btnrow">
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={close}>
             {t("common.cancel")}
           </Button>
           <Button

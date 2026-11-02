@@ -115,7 +115,7 @@ const vault = {
 
 async function open(draft: MailDraft) {
   await act(async () => {
-    root.render(<MailComposeScreen draft={draft} onBack={nav.pop} onDone={nav.done} vault={vault} />);
+    root.render(<MailComposeScreen draft={draft} onBack={nav.pop} onDone={() => nav.done({ kind: "mailcompose", path: "" })} vault={vault} />);
   });
   // The account list arrives a tick later, and the signature with it.
   await act(async () => {});

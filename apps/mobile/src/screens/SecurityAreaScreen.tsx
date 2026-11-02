@@ -246,7 +246,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       const runtime = await completeMobileWorkspacePairing(vault.vaultId, await getMobileWorkspaceObjectStore(vault.vaultId));
       if (!runtime) { toast.info(t("workspaceSecurity.waitingApproval", { defaultValue: "Approval has not arrived yet." })); return; }
       toast.success(t("workspaceSecurity.paired", { defaultValue: "Device paired" }));
-      await reloadActiveMobileVault();
+      await reloadActiveMobileVault("security-area");
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
   };
@@ -273,7 +273,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     try {
       await recoverMobileWorkspace({ vaultId: vault.vaultId, store: await getMobileWorkspaceObjectStore(vault.vaultId), bytes: recoveryBytes, code: recoveryCode, deviceName });
       toast.success(t("workspaceSecurity.recovered", { defaultValue: "Workspace access restored" }));
-      await reloadActiveMobileVault();
+      await reloadActiveMobileVault("security-area");
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
   };
@@ -316,7 +316,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await approveMobileWorkspacePairing(vault.vaultId, await getMobileWorkspaceObjectStore(vault.vaultId), vault.workspaceRuntime, pairPreview.token);
       setPairPreview(null);
       toast.success(t("workspaceSecurity.deviceApproved", { defaultValue: "Device approved" }));
-      await reloadActiveMobileVault();
+      await reloadActiveMobileVault("security-area");
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
   };
@@ -326,7 +326,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     try {
       const unlocked = await unlockMobileWorkspace(vault.vaultId);
       if (!unlocked) throw new Error(t("workspaceSecurity.unlockFailed"));
-      await reloadActiveMobileVault();
+      await reloadActiveMobileVault("security-area");
       await refresh();
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
@@ -647,7 +647,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         onProgress: (done, total) => setResumeProgress({ done, total }),
       });
       toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
-      await reloadActiveMobileVault();
+      await reloadActiveMobileVault("security-area");
       await refresh();
     } catch (error) {
       console.error("[SecurityAreaScreen] resuming setup failed", error);
@@ -678,7 +678,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await vault.syncQueue?.enqueueAllLocalFiles();
       await markMobileEncryptionLift(vault.vaultId);
       toast.info(t("workspaceSecurity.liftEncryptionDone"));
-      await reloadActiveMobileVault();
+      await reloadActiveMobileVault("security-area");
     } catch (error) {
       console.error("[SecurityAreaScreen] lift encryption failed", error);
       toast.error(`${t("workspaceSecurity.liftEncryptionFailed")} ${errorText(error)}`);
@@ -704,7 +704,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     try {
       await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain });
       toast.info(t("workspaceSecurity.decommissionDone"));
-      await reloadActiveMobileVault();
+      await reloadActiveMobileVault("security-area");
     } catch (error) {
       console.error("[SecurityAreaScreen] workspace decommission failed", error);
       toast.error(`${t("workspaceSecurity.decommissionFailed")} ${errorText(error)}`);

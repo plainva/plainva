@@ -368,7 +368,7 @@ export function AddVaultScreen({
   const needsIndex = (
         <EmptyState
           action={
-            <Button data-testid="addvault-needs-index-retry" onClick={() => void reloadActiveMobileVault()} variant="tonal">
+            <Button data-testid="addvault-needs-index-retry" onClick={() => void reloadActiveMobileVault("vault-connect")} variant="tonal">
               {t("sync.retryNow")}
             </Button>
           }

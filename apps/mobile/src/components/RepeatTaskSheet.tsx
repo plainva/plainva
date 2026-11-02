@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarDays } from "lucide-react";
 import { Banner, Button, ICON, calendarDay, nextDueDate, type RepeatFreq, type RepeatFrom, type RepeatRule, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 
 /**
  * Repetition of a task on the phone (S24) — the mobile shape of the desktop's
@@ -39,6 +40,12 @@ export function RepeatTaskSheet({
   const [freq, setFreq] = useState<RepeatFreq>(initial?.freq ?? "weekly");
   const [interval, setIntervalValue] = useState(String(initial?.interval ?? 1));
   const [from, setFrom] = useState<RepeatFrom>(initial?.from ?? "due");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const close = useSheetGuard(
+    "repeat-task",
+    freq !== (initial?.freq ?? "weekly") || interval !== String(initial?.interval ?? 1) || from !== (initial?.from ?? "due"),
+    onClose,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,9 +78,9 @@ export function RepeatTaskSheet({
   };
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" data-testid="task-repeat-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("tasks.repeat")}</p>
         <p className="m-hint">{taskTitle}</p>
         <p className="m-hint">{t("tasks.repeatHint")}</p>
@@ -137,7 +144,7 @@ export function RepeatTaskSheet({
               {t("tasks.repeatNone")}
             </Button>
           )}
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={close}>
             {t("common.cancel")}
           </Button>
           <Button

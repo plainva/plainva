@@ -26,6 +26,7 @@ import { DeviceSignInBadge } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
 import { FolderField } from "../components/FolderField";
 import { SheetGrip } from "../components/SheetGrip";
+import { useGuardedClose } from "../hooks/useSheetGuard";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { ConnectRunFooter, ConnectRunFrame } from "../components/ConnectRunFrame";
 import { useConnectionRun } from "../hooks/useConnectionRun";
@@ -111,6 +112,10 @@ export function MailAccountsScreen({
   const [kind, setKind] = useState<"microsoft" | "imap">(mailPreset?.backend ?? "microsoft");
   /** Account being edited (B4) — the same form serves adding and editing. */
   const [editing, setEditing] = useState<MailAccountConfig | null>(null);
+  // The IMAP form in the sheet arms its own guard ("mail-imap"); every way out
+  // of the sheet asks it (finding 2026-10-22).
+  const dropForm = useCallback(() => { setFormOpen(false); setEditing(null); }, []);
+  const closeForm = useGuardedClose("mail-imap", dropForm);
   const [accountEmail, setAccountEmail] = useState("");
   const imapAvailable = hasNativeMailSocket();
   // Bumped on every reload, so the orphan notice re-checks after a sign-in or
@@ -704,9 +709,9 @@ export function MailAccountsScreen({
           the fold, so nothing appeared to happen at all (feedback 2026-08-15,
           point 4). */}
       {formOpen && (
-        <div className={mailRun ? "m-connect-form" : "m-sheet-backdrop"} onClick={mailRun ? undefined : () => { setFormOpen(false); setEditing(null); }}>
+        <div className={mailRun ? "m-connect-form" : "m-sheet-backdrop"} onClick={mailRun ? undefined : closeForm}>
           <div className={mailRun ? "m-settings" : "pv-sheet m-sheet"} onClick={(e) => e.stopPropagation()}>
-            {!mailRun && <SheetGrip onClose={() => { setFormOpen(false); setEditing(null); }} />}
+            {!mailRun && <SheetGrip onClose={closeForm} />}
             <p className="m-sheet-title">
               {editing
                 ? t("common.edit")
@@ -723,7 +728,7 @@ export function MailAccountsScreen({
                 available={imapAvailable}
                 busy={busy}
                 editing={editing ?? undefined}
-                onCancel={() => { setEditing(null); setFormOpen(false); if (mailRun) void skipConnectStep("mail").catch((error: unknown) => toast.error(serviceConnectionMessage(error, t))); }}
+                onCancel={mailRun ? () => { setEditing(null); setFormOpen(false); void skipConnectStep("mail").catch((error: unknown) => toast.error(serviceConnectionMessage(error, t))); } : closeForm}
                 onSubmit={(v) => void submitImap(v)}
                 onUseMicrosoft={mailRun ? undefined : () => { setEditing(null); setKind("microsoft"); }}
                 prefill={editing ? undefined : { user: accountEmail || runSecrets.email || runSecrets.user, pass: runSecrets.password }}
