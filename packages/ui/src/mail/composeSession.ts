@@ -8,6 +8,7 @@ import { composeLinkPlugin } from "./composeLinks";
 import { applyComposeCommand, detectSlash, type ComposeCommandId } from "./composeMarkdown";
 import { spellcheckAttr, spellcheckFor, subscribeSpellcheck } from "../lib/spellcheck";
 import { spellcheckExemptions } from "../components/spellcheckExemptions";
+import { opensWithProperties } from "../components/editorFrontmatter";
 
 /**
  * The compose editor's engine, shared by both shells (G3b).
@@ -71,6 +72,9 @@ export function createComposeSession(opts: ComposeSessionOptions): ComposeSessio
   const extensions: Extension[] = [
     ...(opts.extraKeys && opts.extraKeys.length > 0 ? [Prec.highest(keymap.of([...opts.extraKeys]))] : []),
     markdown(),
+    // A message has no properties block (Sammelplan § 3.46): a `---` line at
+    // its start and one further down leave the text between them prose.
+    opensWithProperties.of(false),
     markdownDecorationPlugin(true),
     markdownTheme(),
     // Markdown links render and open externally; deliberately NOT the note

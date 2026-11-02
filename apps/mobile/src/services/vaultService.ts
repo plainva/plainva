@@ -35,7 +35,7 @@ import {
   formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
-import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
+import { isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -1688,7 +1688,7 @@ export const vaultOps = {
   async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string, kind?: "wiki" | "markdown"): Promise<string | null> {
     if (!target.trim()) return null;
     // Without a kind the text may carry a wiki link's alias: the name ends at the bar.
-    const named = markdownLinkTarget(kind === undefined ? target.split("|")[0] : target).target;
+    const named = markdownLinkTarget(kind === undefined ? target.slice(0, wikiLinkParts(target).headEnd) : target).target;
     const asMarkdown = kind === "markdown" || (kind === undefined && (named.includes("/") || /\.(md|base)$/i.test(named)));
     if (asMarkdown) {
       const answer = await this.resolveMarkdownLink(v, named, hostPath);

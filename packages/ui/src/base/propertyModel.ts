@@ -10,7 +10,7 @@
  * active-flags into the note.
  */
 
-import { isSimpleEmail } from "@plainva/core";
+import { isSimpleEmail, wikiLinkParts } from "@plainva/core";
 
 export type PropertyType =
   | "text"
@@ -289,10 +289,11 @@ export function parseWikiLinkValue(
   if (!m) return null;
   let inner = m[1];
   let alias: string | undefined;
-  const pipe = inner.indexOf("|");
-  if (pipe !== -1) {
-    alias = inner.slice(pipe + 1).trim() || undefined;
-    inner = inner.slice(0, pipe);
+  // The core's reading of the bar: `[[Note\|alias]]` names "Note" (Sammelplan § 3.133 Nr. 1).
+  const parts = wikiLinkParts(inner);
+  if (parts.alias !== undefined) {
+    alias = parts.alias.trim() || undefined;
+    inner = inner.slice(0, parts.headEnd);
   }
   let anchor: string | undefined;
   const anchorIdx = inner.search(/[#^]/);

@@ -353,6 +353,7 @@ export * from "./adapters/pathGuard";
 export * from "./components/anchorHighlight";
 export * from "./components/anchorMarkerHide";
 export * from "./components/anchorBlockParser";
+export * from "./components/frontmatterBlockParser";
 export * from "./components/anchorRegion";
 export * from "./components/AtMentionPlugin";
 export * from "./components/DocIcon";

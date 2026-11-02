@@ -1,3 +1,4 @@
+import { wikiLinkParts } from "@plainva/core";
 /**
  * Status-bar embed statistics (#1).
  *
@@ -42,7 +43,7 @@ export function computeEmbedInfo(content: string, counts: ReadonlyMap<string, nu
   let m: RegExpExecArray | null;
   while ((m = EMBED_RE.exec(content)) !== null) {
     // Strip an optional #section and |alias, keep the file reference.
-    const ref = m[1].split("#")[0].split("|")[0].trim();
+    const ref = m[1].slice(0, wikiLinkParts(m[1]).headEnd).split("#")[0].trim();
     if (!ref) continue;
     if (IMAGE_RE.test(ref)) continue;
     if (ref.toLowerCase().endsWith(".base")) baseNames.add(basename(ref));

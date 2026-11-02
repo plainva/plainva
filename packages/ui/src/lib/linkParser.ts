@@ -1,5 +1,5 @@
 import { delimitedText, markdownLinks } from "@plainva/core";
-import { splitLinkAnchor } from './linkAnchor';
+import { readWikiLinkInner } from './linkAnchor';
 
 export type ParsedLink =
   | { type: 'wiki', target: string, anchor?: string }
@@ -23,9 +23,8 @@ export function segmentInlineText(text: string): InlineSegment[] {
   const matches: Array<{ index: number; end: number; segment: InlineSegment }> = [];
   for (const part of delimitedText(text, "[[", "]]")) {
     if (!part.inner || part.inner.includes("]")) continue;
-    const [rawTarget, alias] = part.inner.split("|");
-    const { target, anchor } = splitLinkAnchor(rawTarget);
-    matches.push({ index: part.index, end: part.end, segment: { type: "wiki", target, display: (alias ?? rawTarget).trim() || target, ...(anchor ? { anchor } : {}) } });
+    const { target, anchor, head, alias } = readWikiLinkInner(part.inner);
+    matches.push({ index: part.index, end: part.end, segment: { type: "wiki", target, display: (alias ?? head).trim() || target, ...(anchor ? { anchor } : {}) } });
   }
   for (const part of markdownLinks(text)) {
     if (!part.destination || /\s/.test(part.destination)) continue;
@@ -51,7 +50,7 @@ export function findLinkAtOffset(text: string, offset: number): ParsedLink | nul
   for (const part of delimitedText(text, "[[", "]]")) {
     if (/[\r\n\u2028\u2029]/.test(part.inner)) continue;
     if (offset >= part.index && offset <= part.end) {
-      const { target, anchor } = splitLinkAnchor(part.inner.split("|")[0]);
+      const { target, anchor } = readWikiLinkInner(part.inner);
       return anchor ? { type: "wiki", target, anchor } : { type: "wiki", target };
     }
   }

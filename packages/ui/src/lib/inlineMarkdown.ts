@@ -1,6 +1,6 @@
 import { bracketLinkMatcher, findInlineTags, markdownDestinationUrl, nextWhere, readHtmlCheckbox, trimEndChars, wikiLinkMatcher } from "@plainva/core";
 import { tagSegments } from "../base/propertyModel";
-import { splitLinkAnchor } from "./linkAnchor";
+import { readWikiLinkInner } from "./linkAnchor";
 import { tagColorAttrs } from "./tagColor";
 /**
  * Minimal inline-markdown renderer for widget content (P4, 2026-07-05).
@@ -230,11 +230,10 @@ function parseRange(text: string, depth: number): InlineNode[] {
       out.push({ kind: "code", text: tok.slice(1, -1) });
     } else if (/^!?\[\[/.test(tok)) {
       const inner = tok.replace(/^!?\[\[/, "").slice(0, -2);
-      const [rawTarget, ...aliasParts] = inner.split("|");
       // The anchor stays with the link (issue #92): `[[#Heading]]` is a link
-      // to a place in the same note, not text.
-      const { target, anchor } = splitLinkAnchor(rawTarget);
-      const display = (aliasParts.join("|") || rawTarget).trim() || target;
+      // to a place in the same note, not text. `[[Note\|alias]]` names "Note" (§ 3.133 Nr. 1).
+      const { target, anchor, head, alias } = readWikiLinkInner(inner);
+      const display = (alias || head).trim() || target;
       if (target || anchor) out.push(anchor ? { kind: "wikiLink", target, display, anchor } : { kind: "wikiLink", target, display });
       else pushText(out, tok);
     } else if (/^!?\[/.test(tok)) {

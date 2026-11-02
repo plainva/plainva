@@ -1,3 +1,4 @@
+import { wikiLinkParts } from "@plainva/core";
 /**
  * Right-to-left text in a note (issue 111, plan Issues und Diskussionen
  * 2026-09-30, Teil R, decision E7).
@@ -152,8 +153,8 @@ export function firstStrongDirection(text: string): TextDirection | null {
         const end = text.indexOf("]]", i + 2);
         if (end >= 0) {
           const inner = text.slice(i + 2, end);
-          const pipe = inner.indexOf("|");
-          const shown = pipe < 0 ? inner.replace(/#\^?/, " ") : inner.slice(pipe + 1);
+          const { alias } = wikiLinkParts(inner);
+          const shown = alias === undefined ? inner.replace(/#\^?/, " ") : alias;
           const dir = firstStrongDirection(shown);
           if (dir) return dir;
           i = end + 2;

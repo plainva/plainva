@@ -56,7 +56,7 @@ import { syncSoon } from "../../services/syncService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments } from "../../services/mobileComments";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import { wikiLinkParts, type WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
@@ -1133,8 +1133,9 @@ export function BaseScreen({
         let rel = String(first)
           .trim()
           .replace(/^!?\[\[/, "")
-          .replace(/\]\]$/, "")
-          .split("|")[0];
+          .replace(/\]\]$/, "");
+        // In front of the bar and of the backslash of `\|` (Sammelplan § 3.133 Nr. 1).
+        rel = rel.slice(0, wikiLinkParts(rel).headEnd);
         if (!rel) continue;
         try {
           if (!(await vault.files.exists(rel))) {

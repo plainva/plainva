@@ -18,7 +18,7 @@ import { onCompletedTap } from "./completedTap";
 import { scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
-import { frontmatterLines } from "./editorFrontmatter";
+import { frontmatterLines, frontmatterLinesOf } from "./editorFrontmatter";
 
 const HIDE = Decoration.replace({});
 
@@ -655,7 +655,7 @@ export function markdownDecorationPlugin(isLive: boolean) {
           // any inline decoration inside them or it would overlap the block widget.
           const inactiveTableRanges: [number, number][] = [];
 
-          const frontmatterEnd = isLive ? frontmatterLines(state.doc)?.end ?? 0 : 0;
+          const frontmatterEnd = isLive ? frontmatterLinesOf(state)?.end ?? 0 : 0;
 
           for (const { from, to } of view.visibleRanges) {
             tree.iterate({

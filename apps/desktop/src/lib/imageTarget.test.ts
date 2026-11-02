@@ -49,6 +49,20 @@ describe("imageTarget", () => {
     expect(line.slice(found[1].start, found[1].end)).toBe("![[foto.png|300]]");
   });
 
+  // Sammelplan § 3.42: Obsidian writes `![a](Zoom%20one.svg)` when wikilinks are
+  // off; the reading view decoded the target, the editor, the cards and the
+  // journal looked for a file named `Zoom%20one.svg`.
+  it("reads the target of the markdown form as the file it names, as the reading view does", () => {
+    const found = findImageEmbeds("![a](Zoom%20one.svg) ![b](Anh%C3%A4nge/Foto%20%231.png \"t\") ![c](<Mein Bild.png>) ![d](bad%zz.png)");
+    expect(found.map((f) => f.target)).toEqual(["Zoom one.svg", "Anhänge/Foto #1.png", "Mein Bild.png", "bad%zz.png"]);
+    expect(imageCandidates(found[0].target, { notePath: "Notes/x.md" })).toEqual(["Zoom one.svg", "Notes/Zoom one.svg"]);
+    // An address on the web stays as written: decoding would change where it points.
+    expect(findImageEmbeds("![w](https://example.com/a%2Fb%20c.png) ![e](data:image/png;base64,AA%3D%3D)").map((f) => f.target))
+      .toEqual(["https://example.com/a%2Fb%20c.png", "data:image/png;base64,AA%3D%3D"]);
+    // The wiki form is written decoded and stays so: `%20` there is part of the name.
+    expect(findImageEmbeds("![[Foto%20eins.png]]")[0].target).toBe("Foto%20eins.png");
+  });
+
   it("leaves note embeds to the note-embed plugin", () => {
     expect(findImageEmbeds("![[Some Note]] ![[Other#heading]]")).toEqual([]);
   });

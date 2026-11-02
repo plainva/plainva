@@ -1,4 +1,4 @@
-import type { Text } from "@codemirror/state";
+import { Facet, type EditorState, type Text } from "@codemirror/state";
 
 /**
  * The properties block of a note as the editor holds it: lines, not a string.
@@ -57,12 +57,12 @@ export interface FrontmatterLines {
   end: number;
 }
 
-const BYTE_ORDER_MARK = 0xfeff;
+export const BYTE_ORDER_MARK = 0xfeff;
 const SPACE = 0x20;
 const TAB = 0x09;
 
 /** Whether a line is a fence from `at` on: `---` and nothing but blanks behind it. */
-function isFence(line: string, at: number): boolean {
+export function isFence(line: string, at: number): boolean {
   if (!line.startsWith("---", at)) return false;
   for (let i = at + 3; i < line.length; i++) {
     const code = line.charCodeAt(i);
@@ -114,6 +114,22 @@ export function frontmatterLines(doc: Text): FrontmatterLines | null {
     known.set(doc, block);
   }
   return block;
+}
+
+/**
+ * Whether the document is a note, which may open with a properties block
+ * (Sammelplan § 3.46). The composer of mails and events edits a message: a
+ * message that begins with a `---` line and has another further down has no
+ * properties block, and its text in between is prose — formatted and spell
+ * checked. The composer says so; every other editor is a note's.
+ */
+export const opensWithProperties = Facet.define<boolean, boolean>({
+  combine: (values) => (values.length === 0 ? true : values[values.length - 1]),
+});
+
+/** Where the properties block of this editor's document is: null in a message, which has none. */
+export function frontmatterLinesOf(state: EditorState): FrontmatterLines | null {
+  return state.facet(opensWithProperties) ? frontmatterLines(state.doc) : null;
 }
 
 /** The YAML between the two fences, without the line break that ends it; "" for a block without a line. */

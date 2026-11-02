@@ -1,6 +1,6 @@
 import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
-import { deleteFrontmatterPath, editorTextOf, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
+import { deleteFrontmatterPath, editorTextOf, wikiLinkParts, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
 import { resolveTemplate, type TemplateContext } from "./templateEngine";
 import { isFileNotFound } from "../lib/movedNote";
@@ -146,8 +146,8 @@ function templateForTargetOf(value: unknown): string | null {
   let inner = value.trim();
   const wiki = /^\[\[([^[\]]+)\]\]$/.exec(inner);
   if (wiki) inner = wiki[1];
-  const pipe = inner.indexOf("|");
-  if (pipe !== -1) inner = inner.slice(0, pipe);
+  // In front of the alias bar and of the backslash of `\|` (Sammelplan § 3.133 Nr. 1).
+  inner = inner.slice(0, wikiLinkParts(inner).headEnd);
   const anchor = inner.search(/[#^]/);
   if (anchor !== -1) inner = inner.slice(0, anchor);
   inner = inner.trim();
