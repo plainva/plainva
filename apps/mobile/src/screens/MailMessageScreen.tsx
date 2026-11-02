@@ -18,6 +18,7 @@ import {
   cacheMessage,
   cachedMessage,
   captureMailAsNote,
+  writeReplyNote,
   fetchRawMessage,
   addEmlToMailNote,
   mailCaptureNotice,
@@ -345,6 +346,7 @@ export function MailMessageScreen({
       : { icon: <MailOpen size={ICON.head} />, label: t("mail.markRead"), onClick: () => { setMenu(false); setSeenByHand(true); } },
     { icon: <ListChecks size={ICON.head} />, label: t("mail.captureTask"), onClick: () => { setMenu(false); void capture("task"); } },
     { icon: <FileText size={ICON.head} />, label: t("mail.captureWithEml"), onClick: () => { setMenu(false); void capture("eml"); } },
+    { icon: <Reply size={ICON.head} />, label: t("mail.replyNote"), testId: "mail-reply-note", onClick: () => { setMenu(false); void replyAsNote(); } },
     { icon: <Ban size={ICON.head} />, label: junkLabel, onClick: () => { setMenu(false); void reportJunk(); } },
     { icon: <Trash2 size={ICON.head} />, label: t("mail.delete"), danger: true, onClick: () => { setMenu(false); void remove(); } },
   ];
@@ -535,6 +537,25 @@ export function MailMessageScreen({
       if (res.filled || eml.added) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: res.path, vaultId: vault.vaultId } }));
       toast.success(t(mailCaptureNotice(res, eml.added), { name: res.path }));
       onOpenNote(res.path);
+    } catch (e) {
+      toast.error(describe(e, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * "Reply as note" (Sammelplan § 3.171 Nr. 6: the desktop's only): a vault
+   * note addressed at the sender, the original quoted below, naming the
+   * mailbox the message is in (E6) — the one building block of both shells.
+   */
+  const replyAsNote = async () => {
+    if (!message || !account) return;
+    setBusy(true);
+    try {
+      const path = await writeReplyNote({ files: vault.files, message, folder: getMobileSettings().mailFolder || "Mail", account });
+      void vault.reindexPaths([path]);
+      onOpenNote(path);
     } catch (e) {
       toast.error(describe(e, t));
     } finally {

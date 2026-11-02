@@ -2,9 +2,9 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, PenLine, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
 import { Banner, Button, EmptyState, ICON, IconButton, mailboxesSwitchedOn, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, useWeekStartDay, type LinkTarget, type MailRowCaps } from "@plainva/ui";
-import { loadCloudAccounts } from "../../services/cloudAccounts";
+import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
-import { firstAngleValue, nameBeforeAngle, trimChars } from "@plainva/core";
+import { firstAngleValue, nameBeforeAngle } from "@plainva/core";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { mailSnoozedKey } from "../../services/settingsProfile";
@@ -29,15 +29,15 @@ import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
-import { listMailAccounts, mailAccountKind, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
+import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccountsChanged, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
 import { attachMailLinks, LinkTargetText, MailPlainText, mailtoDraft, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
-import { addEmlToMailNote, captureMailAsNote, mailCaptureNotice, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
+import { addEmlToMailNote, captureMailAsNote, mailCaptureNotice, mailDayKey, writeReplyNote } from "@plainva/ui/mail";
 import { fetchAttachment, formatAttachmentSize, forwardSource, saveMailAttachment, type ForwardSource, type MailAttachmentInfo } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
-import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, isTrashMailbox, isJunkFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, rowAddress, unifiedId, addressRows, uidOf, inPlace } from "@plainva/ui/mail";
+import { buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, isTrashMailbox, isJunkFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, rowAddress, unifiedId, addressRows, uidOf, inPlace } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import {
   clampMailColumns,
@@ -590,6 +590,20 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     activeDocument.set({ path: MAIL_TAB_PATH, content: "", kind: "virtual", meta: { info } });
   }, [isActivePane, unified, mailbox, delimiter, total, unseen, t]);
 
+  // Read again whenever a mailbox is connected, changed or removed, or mail is
+  // switched on or off for an account (Sammelplan § 3.47 (d)): the view kept
+  // the list it opened with until the tab was opened anew.
+  const [accountsRead, setAccountsRead] = useState(0);
+  useEffect(() => {
+    if (!vaultPath) return;
+    const again = () => setAccountsRead((n) => n + 1);
+    const stop = onMailAccountsChanged(vaultPath, again);
+    window.addEventListener(CLOUD_ACCOUNTS_EVENT, again);
+    return () => {
+      stop();
+      window.removeEventListener(CLOUD_ACCOUNTS_EVENT, again);
+    };
+  }, [vaultPath]);
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -597,13 +611,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       // A mailbox whose account has mail switched off for the vault is not read (E3).
       const list = mailboxesSwitchedOn(await listMailAccounts(vaultPath), await loadCloudAccounts(vaultPath).catch(() => []));
       if (!alive) return;
-      setAccounts(list);
+      // An unchanged mailbox stays the same object: everything that hangs on
+      // `account` (the folders, the open message) would read anew otherwise.
+      setAccounts((prev) => keepUnchangedAccounts(prev, list));
       setAccountId((prev) => (list.some((a) => a.id === prev) ? prev : list[0]?.id ?? ""));
     })();
     return () => {
       alive = false;
     };
-  }, [vaultPath]);
+  }, [vaultPath, accountsRead]);
 
   // Folder column (mail-client E1): the account's mailboxes, inbox first. The
   // read-only login command already returns the mailbox list, so this needs no
@@ -1988,22 +2004,17 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const replyAsNote = useCallback(async () => {
     if (!vaultAdapter || !message) return;
     try {
-      const folder = await mailFolder();
-      const dir = trimChars(folder, "/");
-      const prefix = dir ? dir + "/" : "";
-      const dayKey = mailDayKey({ dateTs: Date.now() });
-      const stem = mailNoteStem(dayKey, `Re ${message.subject.trim().replace(/^(re|aw|antw):\s*/i, "") || "E-Mail"}`);
-      let path = prefix + stem + ".md";
-      for (let n = 2; await vaultAdapter.exists(path); n++) path = prefix + `${stem} ${n}.md`;
-      if (dir) await vaultAdapter.createDir(dir).catch(() => undefined);
-      await vaultAdapter.writeTextFile(path, buildReplyNoteContent(message, dayKey));
+      // The note names the mailbox the MESSAGE lies in (E6) — in "All
+      // inboxes" the row's, not the one on screen.
+      const originId = openOrigin?.accountId ?? accountId;
+      const path = await writeReplyNote({ files: vaultAdapter, message, folder: await mailFolder(), account: accounts.find((a) => a.id === originId) });
       if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
       triggerFileTreeUpdate([path]);
       onOpenPath(path, true);
     } catch (e) {
       toast.error(mailErrorText(e, t));
     }
-  }, [vaultAdapter, message, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath, t]);
+  }, [vaultAdapter, message, openOrigin, accountId, accounts, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath, t]);
 
   // Real reply / reply-all: open the compose window (SMTP send), NOT a vault
   // note. Subject "Re: …", recipients from the sender (reply) or sender + the
@@ -2732,7 +2743,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   className="pv-mail-frame"
                 />
               ) : (
-                <MailPlainText text={message.text ?? ""} events={linkEvents} className="pv-mail-text" data-testid="mail-text" />
+                <MailPlainText text={message.text ?? ""} events={linkEvents} data-testid="mail-text" />
               )}
             </div>
             {/* Where the link leads — bottom-left of the message, where every

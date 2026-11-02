@@ -13,6 +13,9 @@ import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
 import { mailTransport } from "./transport";
 
+/** The property of a reply note that names the mailbox it leaves from (E6). */
+export const REPLY_NOTE_MAILBOX = "mailbox";
+
 /**
  * Mail export, draft storage and explicit submission through the user's SMTP
  * provider. Copy and mailto remain available without submitting a message.
@@ -194,13 +197,15 @@ export function resolveDraftsMailbox(
 }
 
 /** Reply note: a NORMAL vault note addressed at the sender, with the
- * original quoted below — written in Plainva, sent later via draft/mailto. */
-export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text" | "html">, dayKey: string): string {
+ * original quoted below — written in Plainva, sent later via draft/mailto.
+ * `mailbox` is the address of the mailbox the message is in: sent later, the
+ * note leaves from there (decision E6, `noteMailPrefill`). */
+export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text" | "html">, dayKey: string, mailbox?: string): string {
   const subject = message.subject.trim().replace(/^(re|aw|antw):\s*/i, "");
   const title = `Re: ${subject || "E-Mail"}`;
   let content = buildNewNoteContent("Email", title);
   try {
-    content = upsertFrontmatterKeys(content, { to: message.from || undefined, date: dayKey });
+    content = upsertFrontmatterKeys(content, { to: message.from || undefined, [REPLY_NOTE_MAILBOX]: mailbox || undefined, date: dayKey });
   } catch {
     /* best effort */
   }

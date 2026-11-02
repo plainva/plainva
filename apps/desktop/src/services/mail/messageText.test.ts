@@ -409,6 +409,19 @@ describe("what the reader hides, the text leaves out", () => {
     expect(mailMessageText({ text: null, html })).toBe("Doch sichtbar\n\nSichtbar");
   });
 
+  it("a closed details, a popover and a style with a comment stay in the reader's frame as they were sent, and what they hide is not in the text (§ 3.84)", () => {
+    const html =
+      '<details id="fold"><summary>Mehr</summary><p>Zugeklappt</p></details>' +
+      '<div id="pop" popover>Auf Anforderung</div>' +
+      '<div id="note" style="display:/**/none">Mit Kommentar</div><p>Sichtbar</p>';
+    const frame = inFrame(html);
+    expect(frame.querySelector("#fold")?.hasAttribute("open")).toBe(false);
+    expect(frame.querySelector("#fold summary")?.textContent).toBe("Mehr");
+    expect(frame.querySelector("#pop")?.hasAttribute("popover")).toBe(true);
+    expect(frame.querySelector("#note")?.getAttribute("style")).toContain("/**/");
+    expect(mailMessageText({ text: null, html })).toBe("Mehr\n\nSichtbar");
+  });
+
   it("a style sheet is gone from the reader's frame, so a class hides nothing and the text has the element", () => {
     const html = '<style>.pre { display: none }</style><div class="pre">Im Leser zu sehen</div><p>Sichtbar</p>';
     expect(inFrame(html).querySelector("style")).toBeNull();

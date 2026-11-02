@@ -165,7 +165,7 @@ async function settle() {
 const byTestId = <T extends HTMLElement>(id: string) => document.querySelector(`[data-testid="${id}"]`) as T | null;
 const composers = () => document.querySelectorAll('[data-testid="draft-form"]').length;
 const value = (id: string) => byTestId<HTMLInputElement | HTMLTextAreaElement>(id)!.value;
-const files = () => [...document.querySelectorAll<HTMLElement>('[data-testid="draft-attachments"]')].map((chip) => chip.textContent?.trim());
+const files = () => [...document.querySelectorAll<HTMLElement>('[data-testid="draft-attachments"]')].map((chip) => chip.querySelector(".pv-mail-attach-name")?.textContent?.trim());
 /** Everyone in the To field: the confirmed chips and whatever is still being typed. */
 const recipients = () =>
   [...[...document.querySelectorAll<HTMLElement>('[data-testid="draft-to-chip"]')].map((chip) => chip.textContent?.trim()), value("draft-to")].filter(Boolean);

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { AlertTriangle, Ban, FileText, Mail, Paperclip, RefreshCw, RotateCw, Send, X } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, templateBodyOf } from "@plainva/ui";
+import { accountInputProps, Banner, Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, templateBodyOf } from "@plainva/ui";
 import { applyTemplateInteractive } from "../services/templateInteractive";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
@@ -53,7 +53,7 @@ if (typeof document !== "undefined") {
   });
 }
 import type { CarriedRow, ForwardSource, MailAccountConfig, MailAttachment } from "@plainva/ui/mail";
-import { appendDraft, bytesToBase64, carriedFailureText, carriedLimitText, carriedRowNote, composeChanged, guessAttachmentMime, leftBehindText, listMailboxesFor, resolveDraftsMailbox, sendMail, sendableAttachment, senderKey, senderOptions, splitSenderKey, useCarriedFiles, withSignature, withoutSignature } from "@plainva/ui/mail";
+import { appendDraft, attachedFileNote, bytesToBase64, carriedFailureText, senderForAddress, carriedLimitText, carriedRowNote, composeChanged, guessAttachmentMime, leftBehindText, listMailboxesFor, resolveDraftsMailbox, sendMail, sendableAttachment, senderKey, senderOptions, splitSenderKey, useCarriedFiles, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mConfirm, mSelect, mTargets } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listActiveMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
@@ -92,6 +92,12 @@ export interface MailDraft {
    * draft are empty and are not read.
    */
   refused?: number;
+  /**
+   * The address to send from, where the draft names one: a reply note's
+   * `mailbox:` (decision E6, `noteMailPrefill`). The mailbox that sends as it
+   * starts, with that address; where none does, `accountId` decides as before.
+   */
+  from?: string;
 }
 
 /**
@@ -291,12 +297,15 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
     void listActiveMobileMailAccounts().then((rows) => {
       setAccounts(rows);
       setAccountsLoaded(true);
-      const account = rows.find((a) => a.id === accountId) ?? rows[0];
+      // A draft that names its address (a reply note, E6) starts from the
+      // mailbox that sends as it; a message that comes back from the one it was sent from.
+      const named = resent ? null : senderForAddress(rows, draft.from);
+      const account = rows.find((a) => a.id === (named?.accountId ?? accountId)) ?? rows[0];
       if (account?.id !== accountId) setAccountId(account?.id ?? "");
       const options = account ? senderOptions(account) : [];
       // A message that comes back keeps the address it was sent from, and its
       // text is as it was sent — signature included, so none is put in again.
-      const first = resent && options.includes(resent.fromAddress) ? resent.fromAddress : (options[0] ?? "");
+      const first = resent && options.includes(resent.fromAddress) ? resent.fromAddress : named && named.accountId === account?.id ? named.address : (options[0] ?? "");
       setFromAddress(first);
       if (account && !resent) {
         const sign = (b: string) => withSignature(b, account, first);
@@ -467,18 +476,18 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
 
         <label className="m-field">
           <span>{t("mail.draftTo")}</span>
-          <TextInput value={to} onChange={(e) => setTo(e.target.value)} inputMode="email" placeholder="name@example.com" />
+          <TextInput {...accountInputProps("recipients")} value={to} onChange={(e) => setTo(e.target.value)} placeholder="name@example.com" />
         </label>
 
         {showCcBcc ? (
           <>
             <label className="m-field">
               <span>{t("mail.cc")}</span>
-              <TextInput value={cc} onChange={(e) => setCc(e.target.value)} inputMode="email" />
+              <TextInput {...accountInputProps("recipients")} value={cc} onChange={(e) => setCc(e.target.value)} />
             </label>
             <label className="m-field">
               <span>{t("mail.bcc")}</span>
-              <TextInput value={bcc} onChange={(e) => setBcc(e.target.value)} inputMode="email" />
+              <TextInput {...accountInputProps("recipients")} value={bcc} onChange={(e) => setBcc(e.target.value)} />
             </label>
           </>
         ) : (
@@ -529,7 +538,7 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
                 <span>
                   {stays ? <Ban size={ICON.meta} /> : <Paperclip size={ICON.meta} />} {a.name}
                 </span>
-                <small>{stays ? t("mail.fileState.tooLarge") : a.mime}</small>
+                <small>{attachedFileNote(a, stays, t, i18n.language)}</small>
               </span>
               <IconButton
                 label={t("mail.removeAttachment")}

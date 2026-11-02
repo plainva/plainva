@@ -1,6 +1,7 @@
 import { mailAccountKind, type MailAccountConfig } from "./mailAccounts";
 import { GRAPH_FILE_LIMIT } from "./graphMail";
 import { guessAttachmentMime, type MailAttachment } from "./mailOut";
+import { mailFailureWords } from "./mailErrorText";
 import type { AttachmentFetchFailure, AttachmentFetchResult, MailAttachmentInfo, MailMessage } from "./types";
 
 /**
@@ -424,14 +425,16 @@ export function leftBehindText(left: readonly LeftBehind[], t: Translate): strin
 /**
  * Why the first file that did not come did not come, as a sentence for the
  * line under the files — or null when every file is here or on its way.
- * A failure with words of its own (the server's) keeps them.
+ * A failure with words of its own (the server's) keeps them, read as a
+ * person reads them (`mailFailureWords`, § 3.95 Nr. 6): a busy service in our
+ * words, of a JSON answer its message.
  */
 export function carriedFailureText(rows: readonly CarriedRow[], t: Translate): string | null {
   const failed = rows.find((row) => row.state === "failed");
   if (!failed) return null;
   const failure = failed.file.failure ?? "failed";
   const sentence = t(`mail.fileFailure.${failure}`);
-  return failure === "failed" && failed.file.detail ? `${sentence} (${failed.file.detail})` : sentence;
+  return failure === "failed" && failed.file.detail ? `${sentence} (${mailFailureWords(failed.file.detail, t)})` : sentence;
 }
 
 /**
@@ -450,6 +453,18 @@ export function carriedRowNote(row: CarriedRow, t: Translate, locale?: string): 
     return `${size} · ${t(row.why === "overTotal" ? "mail.fileState.overTotal" : "mail.fileState.tooLarge")}`;
   }
   return size;
+}
+
+/**
+ * The same for a file attached by hand (or brought along with a note): its
+ * size, and "too large" where the sending mailbox does not take it (Sammelplan
+ * § 3.95 Nr. 7). The phone showed the raw type there
+ * (`text/markdown; charset=utf-8`) right under a file of the original that
+ * showed its size; the desktop showed nothing.
+ */
+export function attachedFileNote(file: MailAttachment, stays: boolean, t: Translate, locale?: string): string {
+  const size = formatAttachmentSize(base64Size(file.contentBase64), locale);
+  return stays ? `${size} · ${t("mail.fileState.tooLarge")}` : size;
 }
 
 /**

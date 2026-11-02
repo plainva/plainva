@@ -1,6 +1,7 @@
 import { FAMILY_SERVICES, type CloudProviderFamily, type CloudServiceId } from "./cloudAccounts";
 import { MAIL_PRESETS, presetById, presetForEmail, suiteProvider, type MailPreset, type ProviderAuthMode } from "./providerCatalog";
 import { ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "./docsLinks";
+import { accountInputProps, type AccountInputProps } from "./machineText";
 
 /**
  * The sign-in step of connecting an account, for EVERY provider (settings
@@ -57,6 +58,24 @@ export interface ConnectField {
   /** What the catalog already knows, prefilled into the field. */
   prefill?: string;
   placeholder?: string;
+}
+
+/**
+ * The keyboard rule of a text field of the sign-in step, the same in both shells
+ * (`accountInputProps`). A free text of the step — a user name, an S3 prefix —
+ * is machine text too.
+ */
+export function connectFieldInputProps(input: ConnectField["input"]): AccountInputProps {
+  switch (input) {
+    case "email":
+    case "address":
+    case "keyId":
+    case "secret":
+    case "port":
+      return accountInputProps(input);
+    default:
+      return accountInputProps("user");
+  }
 }
 
 export interface ConnectText {

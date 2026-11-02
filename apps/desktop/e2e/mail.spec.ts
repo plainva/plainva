@@ -1636,10 +1636,11 @@ test('mail: the cache is read before the network, and the banner says so (P7.1)'
     (window as any).__cachedEnvelopes = [
       { id: '77', subject: 'Aus dem Cache', sender: 'Cache <cache@example.org>', date_ts: Date.now(), seen: 1, flagged: 0, preview: 'lokal' },
     ];
-    (window as any).__cachedBody = JSON.stringify({
+    // Stored in the body form of this build (`MAIL_BODY_FORMAT`, § 3.83).
+    (window as any).__cachedBody = JSON.stringify({ format: 2, message: {
       id: '77', subject: 'Aus dem Cache', from: 'Cache <cache@example.org>',
       date: new Date().toISOString(), text: 'Aus dem lokalen Cache', html: null, attachments: [],
-    });
+    } });
     // Without a slow server the refresh lands before Playwright can look, and
     // the test would be measuring the mock rather than the app.
     (window as any).__slowList = 1500;
@@ -1916,6 +1917,40 @@ test('a reply goes out from the mailbox the message is in, not from the first on
   const sent = await sendFromSecondMailbox(page);
   expect(sent.to).toBe('anna@example.org');
   expect(sent.subject).toBe('Re: Rechnung Q3');
+});
+
+/**
+ * Decision E6 (Sammelplan § 3.58 Nr. 3): a reply note names the mailbox the
+ * message is in, and sent later it starts from there — it started from the
+ * first mailbox stored, whatever the message was answered from.
+ */
+test('a reply note names its mailbox, and the note sent later starts from it (E6)', async ({ page }) => {
+  await openSecondMailbox(page);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-reply-note').click();
+  const reply = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const p = Object.keys(fs).find((k) => k.includes('/Mail/') && k.includes('Re Rechnung'));
+      return p ? (fs[p] as string) : null;
+    });
+  await expect.poll(reply).toContain('mailbox: zweit@example.net');
+  expect(await reply()).toContain('to: Anna Beispiel <anna@example.org>');
+
+  await expect(page.locator('.cm-content').getByText('Re: Rechnung Q3').first()).toBeVisible();
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await expect(palette).toBeVisible();
+  await palette.getByRole('textbox').fill('draft');
+  await palette.getByRole('button', { name: /email draft|E-Mail-Entwurf/i }).click();
+  await expectSecondMailbox(page);
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.screenshot({ path: test.info().outputPath('reply-note-from-its-mailbox.png') });
+  }
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('Anna Beispiel <anna@example.org>');
 });
 
 test('a forward goes out from the mailbox the message is in', async ({ page }) => {

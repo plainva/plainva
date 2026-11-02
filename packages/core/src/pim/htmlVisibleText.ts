@@ -78,18 +78,35 @@ function noSize(value: string): boolean {
 
 /** Font sizes that say "as the parent's". */
 const SIZE_OF_PARENT = new Set(["inherit", "unset", "revert", "revert-layer", "larger", "smaller"]);
+/** Font sizes named by a word: each one a size to read. */
+const NAMED_SIZE = new Set(["xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large", "xxx-large", "math", "initial"]);
+/** Units measured against the parent's font: of a parent of no size, nothing. */
+const UNITS_OF_PARENT = new Set(["%", "em", "ex", "ch", "cap", "ic", "lh"]);
+/** Every other unit a length can have. */
+const UNITS = new Set([
+  "px", "pt", "pc", "cm", "mm", "in", "q", "rem", "rex", "rch", "rcap", "ric", "rlh",
+  "vw", "vh", "vi", "vb", "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh", "cqw", "cqh", "cqi", "cqb", "cqmin", "cqmax",
+]);
 
 /**
  * Whether a font size leaves nothing to read — `undefined` where the parent's
- * answer stands: the size is measured against the parent's, or the value is a
- * number without a unit, which is no font size and so no declaration at all.
+ * answer stands: the size is measured against the parent's, or the value is no
+ * font size at all (a number without a unit, a negative length, a word that
+ * names no size), which a browser drops like any declaration it cannot read
+ * (Sammelplan § 3.84: such a value under a font of no size read as readable).
+ * A function (`calc(`, `var(`) is not worked out: it reads as a size to read.
  */
 function unreadableSize(value: string): boolean | undefined {
-  const amount = parseFloat(value);
-  if (amount === 0) return true;
-  const relative = SIZE_OF_PARENT.has(value) || value.endsWith("%") || (value.endsWith("em") && !value.endsWith("rem"));
-  const unitless = !Number.isNaN(amount) && /^[+\d.]+$/.test(value);
-  return relative || unitless ? undefined : noSize(value);
+  if (SIZE_OF_PARENT.has(value)) return undefined;
+  if (NAMED_SIZE.has(value)) return false;
+  if (/^[a-z-]+\(/.test(value)) return false;
+  const length = /^\+?(\d+(?:\.\d*)?|\.\d+)([a-z%]*)$/.exec(value);
+  if (!length) return undefined;
+  const amount = parseFloat(length[1]);
+  const unit = length[2];
+  if (amount === 0 && (unit === "" || UNITS_OF_PARENT.has(unit) || UNITS.has(unit))) return true;
+  if (UNITS.has(unit)) return noSize(value);
+  return undefined;
 }
 
 /**
@@ -102,8 +119,11 @@ function unreadableSize(value: string): boolean | undefined {
  */
 function inlineStyle(node: MarkupNode): Map<string, string> {
   const declared = new Map<string, string>();
-  const style = attributeOf(node, "style") ?? "";
-  if (!style || /url\s*\(/i.test(style)) return declared;
+  const written = attributeOf(node, "style") ?? "";
+  if (!written || /url\s*\(/i.test(written)) return declared;
+  // A comment is nothing to a browser, wherever it stands — `display:/**/none`
+  // is `display: none` (Sammelplan § 3.84). One left open runs to the end.
+  const style = written.replace(/\/\*[\s\S]*?(?:\*\/|$)/g, " ");
   const weighty = new Set<string>();
   for (const declaration of style.split(";")) {
     const colon = declaration.indexOf(":");
@@ -123,8 +143,9 @@ function inlineStyle(node: MarkupNode): Map<string, string> {
 /**
  * Whether the element is off the screen with everything inside it, whatever
  * that may declare for itself: `display: none` (the `hidden` attribute is that,
- * and so is a dialog nobody opened — unless the element's own style gives
- * another display), `opacity: 0`, or a box of no size that clips what
+ * and so is a dialog nobody opened or a popover — unless the element's own
+ * style gives another display; of a closed `details` the walk reads the
+ * summary only), `opacity: 0`, or a box of no size that clips what
  * overflows. That is how a sender hides a preview line or a tracking text from
  * the reader, and what is hidden from the reader is not part of what the
  * reader can quote.
@@ -138,7 +159,8 @@ function inlineStyle(node: MarkupNode): Map<string, string> {
  */
 function takenOffScreen(name: string, node: MarkupNode, declared: Map<string, string>): boolean {
   const display = declared.get("display");
-  const hiddenAsItStands = attributeOf(node, "hidden") !== null || (name === "dialog" && attributeOf(node, "open") === null);
+  // A popover is shown only on request, like a dialog nobody opened (§ 3.84).
+  const hiddenAsItStands = attributeOf(node, "hidden") !== null || attributeOf(node, "popover") !== null || (name === "dialog" && attributeOf(node, "open") === null);
   if (display === undefined ? hiddenAsItStands : display === "none") return true;
   if (parseFloat(declared.get("opacity") ?? "1") === 0) return true;
   const clips = ["overflow", "overflow-x", "overflow-y"].some(name => declared.get(name) === "hidden" || declared.get(name) === "clip");
@@ -329,7 +351,13 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
     const space = declared.get("white-space");
     if (name === "pre" || (space !== undefined && KEEPS_LINES.has(space))) pre++;
     else if (space === "normal" || space === "nowrap") pre = 0;
-    push(step.childNodes);
+    if (name === "details" && attributeOf(step, "open") === null) {
+      // Closed, a details shows its summary and nothing else, as the reader
+      // first shows it (Sammelplan § 3.84): what is folded away is not what
+      // somebody read and quotes.
+      const summary = Array.from(step.childNodes ?? []).find(child => elementName(child) === "summary");
+      if (summary) stack.push(summary);
+    } else push(step.childNodes);
   }
   endLine();
 

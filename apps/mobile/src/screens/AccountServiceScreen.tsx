@@ -455,7 +455,7 @@ function MailPart({ mailAccountId }: { mailAccountId: string }) {
       </RowList></GroupCard>
       <GroupCard><RowList>
         <SettingField label={t("mail.senders")} hint={t("mail.sendersEnter")} info={t("mail.sendersHint")}>
-          <TextArea rows={3} value={senders} onChange={(e) => setSenders(e.target.value)} onBlur={() => void persist({ senders: senders.split("\n").map((line) => line.trim()).filter(Boolean) })} data-testid="mail-senders" purpose="address" />
+          <TextArea rows={3} value={senders} onChange={(e) => setSenders(e.target.value)} onBlur={() => void persist({ senders: senders.split("\n").map((line) => line.trim()).filter(Boolean) })} data-testid="mail-senders" purpose="address" inputMode="email" />
         </SettingField>
       </RowList></GroupCard>
     </>

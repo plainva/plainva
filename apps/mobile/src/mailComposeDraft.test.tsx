@@ -150,7 +150,8 @@ const question = () => {
 describe("a draft that arrives with a file on it", () => {
   it("shows the file, and takes it off again", async () => {
     await open(fromNote());
-    expect(files()).toEqual(["Angebot.mdtext/markdown; charset=utf-8"]);
+    // Its size under its name, like a file of a forwarded original - not its raw type (§ 3.95 Nr. 7).
+    expect(files()).toEqual(["Angebot.md10 B"]);
     await tap(q("compose-attachment-remove"));
     expect(files()).toEqual([]);
   });
@@ -223,7 +224,7 @@ describe("leaving the composer", () => {
     expect(activeLeaveGuard()).toBeNull();
     await tap(q("compose-attach"));
     await tap(q("pick-file"));
-    expect(files()).toEqual(["Skizze.pngimage/png"]);
+    expect(files()).toEqual(["Skizze.png4 B"]);
     expect(activeLeaveGuard()?.id).toBe("mail-compose");
     await tap(q("compose-attachment-remove"));
     expect(activeLeaveGuard(), "back to how it opened: nothing to lose").toBeNull();

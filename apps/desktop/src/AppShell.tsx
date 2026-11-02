@@ -1913,8 +1913,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
                   // The composer is hosted beside this shell (MailComposeHost), so
                   // the palette asks for it the way the editor and the mail view do.
+                  const { noteMailPrefill } = await import("@plainva/ui/mail");
+                  const { to, from } = noteMailPrefill(content);
                   window.dispatchEvent(new CustomEvent("plainva-compose-mail", {
-                    detail: { subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined },
+                    detail: { subject: title, markdown: stripFrontmatter(content), to, fromAddress: from },
                   }));
                 } catch (e) {
                   console.error("[App] draft prefill failed", e);

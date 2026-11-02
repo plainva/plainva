@@ -171,7 +171,7 @@ const BASE64_VALUE = (() => {
  * still gives up at a character that is no base64: parity catalog,
  * `mail-base64-reading`.
  */
-function base64Bytes(s: string): Uint8Array {
+export function base64Bytes(s: string): Uint8Array {
   const out = new Uint8Array(Math.ceil((s.length * 3) / 4));
   let length = 0;
   /** The characters of the open group, six bits each, and how many they are. */

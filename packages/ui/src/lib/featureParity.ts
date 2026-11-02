@@ -763,28 +763,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-30",
   },
   {
-    id: "mail-imap-opening-line",
-    title: "The opening words of a message in the list of an IMAP mailbox",
-    area: "pim",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "A row of the message list can open with the first words of the message. " +
-      "For a Microsoft mailbox both shells have them (Graph's bodyPreview). For an " +
-      "IMAP mailbox only the phone has: its client takes the first bytes of the " +
-      "body along in the request of the list and reads the line from them " +
-      "(net/imap.ts, previewFromBodyPrefix in net/mime.ts), and shows it as the " +
-      "third line of a row (MailListScreen.tsx). The desktop's client " +
-      "(mail_imap.rs) does not ask for them, so the one place the desktop shows " +
-      "the words - the rows of an opened conversation - falls back to the " +
-      "sender's address there (MailView.tsx). Closing this means the same request " +
-      "in mail_imap.rs and the same reading of it; whether the desktop's list row " +
-      "itself should open with the words is a separate question of its design " +
-      "(written down with the fix to the line's reading, finding 2026-10-12).",
-    mobile: "yes",
-    verified: "2026-10-13",
-  },
-  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

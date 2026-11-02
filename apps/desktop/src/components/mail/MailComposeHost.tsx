@@ -42,15 +42,15 @@ export function MailComposeHost() {
   // request rather than a setter: with a composer open it replaces an
   // untouched draft, and asks before a changed one goes
   // (services/mail/composeHost.ts).
-  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; accountId?: string; forward?: ForwardSource }>();
+  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; accountId?: string; fromAddress?: string; forward?: ForwardSource }>();
   useEffect(() => {
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as
     // attachment, the mail view, an event's invitation, the command palette).
     const onComposeMail = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; accountId?: string; forward?: ForwardSource } | undefined;
+      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; accountId?: string; fromAddress?: string; forward?: ForwardSource } | undefined;
       // A forward names the message whose files it carries (`forward`); the
       // composer loads them, and checks the reference before it asks anyone.
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, forward: detail.forward });
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, fromAddress: detail.fromAddress, forward: detail.forward });
     };
     window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => window.removeEventListener("plainva-compose-mail", onComposeMail);
@@ -66,6 +66,7 @@ export function MailComposeHost() {
         attachments={mailDraft.attachments}
         initialTo={mailDraft.to}
         initialAccountId={mailDraft.accountId}
+        initialFromAddress={mailDraft.fromAddress}
         forward={mailDraft.forward}
         suspended={isLoading}
         onPopOut={(snap) => void popOutCompose(vaultPath, snap)}

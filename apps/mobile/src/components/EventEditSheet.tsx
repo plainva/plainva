@@ -282,6 +282,7 @@ export function EventEditSheet({
           onChange={(e) => set({ attendees: e.target.value, attendeesTouched: true })}
           placeholder={t("pim.attendeesHint")}
           purpose="address"
+          inputMode="email"
           rows={2}
           value={form.attendees}
         />

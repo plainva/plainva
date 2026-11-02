@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../../hooks/useLeaveGuard";
-import { Banner, Button, connectAccessPlan, connectSecretLabelKey, getPlatformServices, presetById, presetForEmail, TextInput } from "@plainva/ui";
+import { accountInputProps, Banner, Button, connectAccessPlan, connectSecretLabelKey, foldMachineText, getPlatformServices, presetById, presetForEmail, TextInput } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -89,7 +89,10 @@ export function MailImapForm({
     t("mobile.leaveCredentials"),
   );
   // The address wins; the tile fills the gap when it matches nothing.
-  const preset = presetForEmail(email) ?? (presetId ? presetById(presetId) : null);
+  // Read as a machine reads it: a keyboard set to Japanese types full-width forms
+  // no preset and no server answers to (§ 3.43; the connect step does the same).
+  const address = foldMachineText(email);
+  const preset = presetForEmail(address) ?? (presetId ? presetById(presetId) : null);
 
   // The address picks the preset — but never over values the user typed, and
   // never over the account being edited.
@@ -113,12 +116,12 @@ export function MailImapForm({
     <label className="m-field">
       <span>{label}</span>
       <TextInput
+        {...accountInputProps("address")}
         value={effective[key]}
         onChange={(e) => {
           setServerTouched(true);
           setServer((s) => ({ ...s, [key]: e.target.value }));
         }}
-        autoCapitalize="none"
       />
     </label>
   );
@@ -127,8 +130,8 @@ export function MailImapForm({
     <label className="m-field">
       <span>{label}</span>
       <TextInput
+        {...accountInputProps("port")}
         value={String(effective[key])}
-        inputMode="numeric"
         onChange={(e) => {
           setServerTouched(true);
           const n = Number(e.target.value.replace(/\D/g, ""));
@@ -147,9 +150,8 @@ export function MailImapForm({
         <span>{t("mail.emailAddress")}</span>
         <TextInput
           value={email}
+          {...accountInputProps("email")}
           onChange={(e) => setEmail(e.target.value)}
-          inputMode="email"
-          autoCapitalize="none"
           placeholder="name@example.com"
         />
       </label>
@@ -199,7 +201,7 @@ export function MailImapForm({
       <label className="m-field">
         <span>{t(connectSecretLabelKey(plan.secret ?? "password"))}</span>
         <TextInput
-          type="password"
+          {...accountInputProps("secret")}
           value={pass}
           onChange={(e) => setPass(e.target.value)}
           placeholder={editing ? t("mail.passwordKeep") : undefined}
@@ -224,12 +226,12 @@ export function MailImapForm({
         disabled={busy || !available || !complete}
         onClick={() =>
           onSubmit({
-            label: email.trim(),
-            host: effective.host.trim(),
+            label: address,
+            host: foldMachineText(effective.host),
             port: effective.port,
-            smtpHost: effective.smtpHost.trim(),
+            smtpHost: foldMachineText(effective.smtpHost),
             smtpPort: effective.smtpPort,
-            user: email.trim(),
+            user: address,
             pass,
           })
         }

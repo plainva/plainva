@@ -3452,6 +3452,8 @@
     "sendReopen": "もう一度開く",
     "sendTooLarge": "メールサーバーがこのサイズのメッセージを受け付けません。",
     "sendUploadFailed": "「{{name}}」を Microsoft のメールボックスにアップロードできなかったため、メッセージは送信されていません。もう一度送信すると再試行します。",
+    "serviceBusy": "メールサービスが現在応答していません。少し待ってからもう一度お試しください。",
+    "sendFailedMany_other": "{{count}} 件のメッセージを送信できませんでした。最新: {{reason}}",
     "offlineCopy": "オフライン — この端末に残っている最後のコピーを表示しています。",
     "sendingGroup": "送信",
     "signature": "署名",

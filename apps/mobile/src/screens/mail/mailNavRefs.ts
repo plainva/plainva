@@ -69,6 +69,8 @@ export function parseDraft(path: string): MailDraft {
       ...(forward ? { forward } : {}),
       // A message the mail server refused, named by the id it is held under.
       ...(typeof d.refused === "number" && Number.isInteger(d.refused) && d.refused > 0 ? { refused: d.refused } : {}),
+      // The address a reply note names (E6); a string or nothing.
+      ...(typeof d.from === "string" && d.from.trim() ? { from: d.from.trim() } : {}),
     };
   } catch {
     return { accountId: "", to: "", subject: "", body: "" };

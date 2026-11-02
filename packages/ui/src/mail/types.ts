@@ -120,6 +120,15 @@ export interface RawImapEnvelope {
   /** See MailEnvelope.preview — built from the truncated body prefix. */
   preview?: string;
   /**
+   * What the opening line is read from where the transport did not read it
+   * itself (the desktop's Rust client, Sammelplan § 3.78 Nr. 11): the
+   * message's CONTENT-TYPE and CONTENT-TRANSFER-ENCODING header lines and the
+   * first bytes of its body, each base64. `mailClient` reads them with the
+   * phone's own reader (`previewFromBodyPrefix`), so the line is the same.
+   */
+  openingHead?: string;
+  openingBody?: string;
+  /**
    * Thread headers AS THE SERVER WROTE THEM (findings P9.1): both transports
    * forward the header value and `mailClient` runs the one shared normaliser
    * over it. The Rust path parses with mail-parser (brackets already stripped),

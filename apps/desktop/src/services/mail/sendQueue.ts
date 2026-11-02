@@ -75,7 +75,8 @@ const say = (key: string, options?: Record<string, unknown>): string => i18n.t(k
  */
 function refusedSends(): HeldSends<MailSendRequest> {
   refused ??= new HeldSends<MailSendRequest>({
-    text: (reason) => ({ message: i18n.t("mail.sendFailed", { reason }), action: i18n.t("mail.sendReopen") }),
+    // One notice for every held message: above one it counts them (§ 3.95 Nr. 14).
+    text: (reason, count) => ({ message: count > 1 ? i18n.t("mail.sendFailedMany", { count, reason }) : i18n.t("mail.sendFailed", { reason }), action: i18n.t("mail.sendReopen") }),
     open: async (id, req) => {
       try {
         // Loaded on demand: the window manager is the owner's, and a compose
@@ -133,6 +134,11 @@ function refusedSnapshot(id: number, req: MailSendRequest): ComposeSnapshot {
 /** The compose window of a refused message has collected it: it lives there now. */
 export function releaseRefusedSend(id: number | undefined): void {
   refused?.claim(id);
+}
+
+/** Tests only: no message held, as on a fresh start (one notice counts them all). */
+export function resetRefusedSendsForTests(): void {
+  refused = null;
 }
 
 /**

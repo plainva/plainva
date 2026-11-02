@@ -31,7 +31,7 @@ import {
   Link2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
-import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
+import { buildMailtoUrl, noteMailPrefill, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
 import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
@@ -102,7 +102,7 @@ export function NoteScreen({
   /** Retargets the open nav entry after a rename (path changes). */
   onRenamed: (newPath: string) => void;
   /** Opens Plainva's own composer with the note in it (S30). */
-  onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[] }) => void;
+  onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[]; to?: string; from?: string }) => void;
   /** Opens the command palette over this note; its note commands then act on it. */
   onOpenCommands?: () => void;
 }) {
@@ -995,7 +995,9 @@ export function NoteScreen({
     void getPlatformServices().openExternal(res.url).catch(() => toast.error(t("mail.mailtoFailed")));
   };
 
-  const composeMail = () => onComposeMail?.({ subject: title, body: noteBody() });
+  // A reply note brings its recipient and its mailbox (`to:`, `mailbox:`; E6),
+  // as on the desktop — the phone opened an empty "To" and the first mailbox.
+  const composeMail = () => onComposeMail?.({ subject: title, body: noteBody(), ...noteMailPrefill(doc ?? "") });
 
   /** Live preview ↔ Markdown source; the editor owns the mode, this screen the label. */
   const toggleSource = () => {

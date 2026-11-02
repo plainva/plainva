@@ -50,6 +50,7 @@ export * from "./carriedFiles";
 export * from "./useCarriedFiles";
 export * from "./attachmentSave";
 export * from "./mailCapture";
+export * from "./replyNote";
 export * from "./mailCache";
 export * from "./autoRead";
 export * from "./snooze";

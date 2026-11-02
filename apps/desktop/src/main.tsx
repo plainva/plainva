@@ -107,6 +107,19 @@ if (isOwnerWindow) {
   registerMailSignIn();
 }
 
+/**
+ * A mailbox connected, changed or removed in one window reaches the composers
+ * and mail tabs of the others (Sammelplan § 3.47 (d)). Every window that draws
+ * mail installs it; without a bus the local event still works.
+ */
+function installMailAccountsRelayQuietly(): void {
+  void import("./services/mail/mailAccountsRelay")
+    .then(({ installMailAccountsRelay }) => installMailAccountsRelay())
+    .catch(() => {
+      /* no bus: one window, the local event is enough */
+    });
+}
+
 // First render waits for the active locale bundle (P2.8): locales are lazy
 // chunks now, and rendering before the bundle arrives would flash raw keys.
 void i18nReady.then(async () => {
@@ -160,6 +173,7 @@ void i18nReady.then(async () => {
     // this registration routes it to the owner, which stays the only refresher.
     const { registerClientMailPlatform } = await import("./services/mail/tauriMailTransport");
     registerClientMailPlatform();
+    installMailAccountsRelayQuietly();
     root.render(
       <React.StrictMode>
         <ErrorBoundary>
@@ -178,6 +192,7 @@ void i18nReady.then(async () => {
     return;
   }
 
+  installMailAccountsRelayQuietly();
   root.render(
     <React.StrictMode>
       <ErrorBoundary>

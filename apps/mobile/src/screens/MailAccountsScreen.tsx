@@ -5,7 +5,7 @@ import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
-import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
+import { accountInputProps, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -736,7 +736,7 @@ export function MailAccountsScreen({
             {msShowId ? (
               <GroupCard><RowList>
                 <SettingField label={t("settings.clientId")}>
-                  <TextInput onChange={(e) => setMsClientId(e.target.value)} value={msClientId} placeholder="00000000-0000-0000-0000-000000000000" />
+                  <TextInput {...accountInputProps("keyId")} onChange={(e) => setMsClientId(e.target.value)} value={msClientId} placeholder="00000000-0000-0000-0000-000000000000" />
                 </SettingField>
               </RowList></GroupCard>
             ) : (

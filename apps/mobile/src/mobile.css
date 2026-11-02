@@ -4418,13 +4418,9 @@ textarea {
   border: none;
   background: var(--bg-primary);
 }
+/* Placement only: how the text looks is the shared `.pv-mailtext`. */
 .m-mailtext {
-  margin: 0;
   padding: var(--space-3);
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--font-content);
-  font-size: var(--text-md);
 }
 /* A held link opens the app's sheet (M1) - not the system's link preview. */
 .m-mailtext .pv-maillink {

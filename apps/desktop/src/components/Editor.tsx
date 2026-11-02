@@ -31,7 +31,7 @@ import { answerEditorPathProbe } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
-import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
+import { frontmatterBlockOf, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
 import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
@@ -1123,9 +1123,14 @@ export const Editor: React.FC<{
   const handleMenuSendMail = () => {
     if (!activePath) return;
     // Strip the YAML frontmatter from the body (it must not travel in the mail)
-    // and lift a reply-as-note `to:` into the recipient field.
+    // and lift a reply-as-note `to:` into the recipient field and its
+    // `mailbox:` into the sender (E6).
     const text = currentDocText();
-    window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject: noteTitleFromPath(), markdown: stripFrontmatter(text), to: frontmatterToAddress(text) ?? undefined } }));
+    const subject = noteTitleFromPath();
+    void import("@plainva/ui/mail").then(({ noteMailPrefill }) => {
+      const { to, from } = noteMailPrefill(text);
+      window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject, markdown: stripFrontmatter(text), to, fromAddress: from } }));
+    });
   };
   const handleMenuSendMailAttachment = () => {
     if (!activePath) return;

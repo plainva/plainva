@@ -3,7 +3,7 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus } from "lucide-react";
-import { AccountFailureNote, Banner, Button, calendarTargetForFamily, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily, InfoTip, pimAccountFailure, pimProviderName, travelsWithVault } from "@plainva/ui";
+import { accountInputProps, AccountFailureNote, Banner, Button, calendarTargetForFamily, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily, InfoTip, pimAccountFailure, pimProviderName, travelsWithVault } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessFamily, type AccessResolution } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -982,13 +982,13 @@ export function PimAccountsScreen({
               <>
                 <p className="m-hint">{t("pim.connectCaldavShort")}<InfoTip label={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })} info={t("pim.connectCaldavHint")} /></p>
                 <SettingField label={t("pim.caldavUrl", { defaultValue: "CalDAV-URL" })}>
-                  <TextInput purpose="address" inputMode="url" onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
+                  <TextInput {...accountInputProps("address")} onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
                 </SettingField>
                 <SettingField label={t("mobile.syncUser", { defaultValue: "Benutzer" })}>
-                  <TextInput onChange={(e) => setUser(e.target.value)} value={user} />
+                  <TextInput {...accountInputProps("user")} onChange={(e) => setUser(e.target.value)} value={user} />
                 </SettingField>
                 <SettingField label={t("mobile.syncPassword", { defaultValue: "Passwort" })}>
-                  <TextInput type="password" onChange={(e) => setPass(e.target.value)} value={pass} />
+                  <TextInput {...accountInputProps("secret")} onChange={(e) => setPass(e.target.value)} value={pass} />
                 </SettingField>
                 <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()} data-testid="pim-caldav-connect">
                   <Plus size={ICON.ui} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}

@@ -22,6 +22,8 @@ export interface MailDraftSeed {
   to?: string;
   /** The mailbox the draft is written from, where the asker has one (the mail view). */
   accountId?: string;
+  /** The address to send from, where the draft names one (a reply note, E6). */
+  fromAddress?: string;
   /** A forward names the message whose files it carries; the composer loads them. */
   forward?: ForwardSource;
 }
@@ -134,7 +136,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
     // --- local: the floating composer -----------------------------------------
     const onComposeMail = (e: Event) => {
       const detail = (e as CustomEvent).detail as MailDraftSeed | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, forward: detail.forward });
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, fromAddress: detail.fromAddress, forward: detail.forward });
     };
 
     // --- local: the template picker, the context sidebar ----------------------

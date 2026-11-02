@@ -11,6 +11,7 @@ import {
   SettingCardNote,
   SettingRow,
   TextInput,
+  connectFieldInputProps,
   getPlatformServices,
   isInsecurePublicUrl,
   serviceConnectionFailure,
@@ -127,9 +128,7 @@ export const ConnectFieldsCard: React.FC<{
         return (
           <SettingRow key={field.id} label={t(field.labelKey)} wide={!port}>
             <TextInput
-              type={field.input === "secret" ? "password" : field.input === "email" ? "email" : "text"}
-              purpose={field.input === "address" ? "address" : field.input === "keyId" ? "secret" : undefined}
-              autoComplete={field.input === "secret" ? "new-password" : "off"}
+              {...connectFieldInputProps(field.input)}
               value={value}
               placeholder={field.placeholder}
               disabled={disabled}

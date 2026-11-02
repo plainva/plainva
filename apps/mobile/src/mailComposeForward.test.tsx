@@ -421,7 +421,8 @@ describe("a mailbox that does not take every file", () => {
     await tap(q("pick-file"));
     const row = q("compose-attachment")!;
     expect(row.dataset.state).toBe("left");
-    expect(row.querySelector("small")?.textContent).toBe(i18n.t("mail.fileState.tooLarge"));
+    // Its size and why it stays, as a file of the original says it (§ 3.95 Nr. 7).
+    expect(row.querySelector("small")?.textContent).toMatch(new RegExp(`^[0-9.,]+ MB · ${i18n.t("mail.fileState.tooLarge")}$`));
     expect(q("compose-files-limit")?.textContent).toBe(mailboxBound());
 
     await type(recipient(), "ben@example.org");

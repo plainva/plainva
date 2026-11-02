@@ -552,15 +552,6 @@
   border: none;
   background: var(--bg-primary);
 }
-.pv-mail-text {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-family: inherit;
-  font-size: var(--text-md);
-  color: var(--text-main);
-  line-height: 1.6;
-}
 
 /* Vault-capture bar — Plainva's differentiator: pull the message INTO the
    vault. Distinct from the mail-action toolbar, sitting at the reader's foot. */

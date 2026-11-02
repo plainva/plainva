@@ -43,7 +43,8 @@ export function LinkTargetText({ link }: { link: LinkTarget }) {
  * character for character and rendered as elements — never as HTML — and the
  * links answer through the same wiring as the links of an HTML body
  * (`attachMailLinks`): the shell opens them, and is told which one is pointed
- * at or held.
+ * at or held. How the text looks is the component's (`.pv-mailtext`), the
+ * same in both shells; `className` only places it.
  */
 export function MailPlainText({
   text,
@@ -79,7 +80,7 @@ export function MailPlainText({
   }, [holds, points, holdMs, segments]);
 
   return (
-    <pre ref={ref} className={className} data-testid={testId}>
+    <pre ref={ref} className={className ? `pv-mailtext ${className}` : "pv-mailtext"} data-testid={testId}>
       {segments.map((segment, index) =>
         segment.kind === "link" ? (
           <a key={index} className="pv-maillink" href={segment.href} rel="noreferrer noopener">

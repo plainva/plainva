@@ -5,8 +5,9 @@ import type { MailMessage } from "./types";
 /** The two parts of a message its text can come from. */
 export type MailBodyParts = Pick<MailMessage, "text" | "html">;
 
-/** The attributes `htmlToVisibleText` reads off an element. */
-const READ_ATTRIBUTES = ["style", "hidden", "open", "start"];
+/** The attributes `htmlToVisibleText` reads off an element — every one it
+ * asks for: a copy without `popover` showed what the reader hides (§ 3.84). */
+const READ_ATTRIBUTES = ["style", "hidden", "popover", "open", "start"];
 
 /** A node of the copied tree — plain data, in the shape `htmlToVisibleText` walks. */
 interface CopiedNode {

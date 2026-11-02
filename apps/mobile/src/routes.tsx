@@ -416,7 +416,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
         // instead (2026-08-20).
         c.push({
           kind: "mailcompose",
-          path: draftPath({ accountId: "", to: "", subject: d.subject, body: d.body, attachments: d.attachments }),
+          path: draftPath({ accountId: "", to: d.to ?? "", subject: d.subject, body: d.body, attachments: d.attachments, ...(d.from ? { from: d.from } : {}) }),
         })
       }
       onOpenCommands={() => {

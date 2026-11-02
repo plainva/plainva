@@ -83,6 +83,46 @@ pub struct MailEnvelope {
     pub message_id: Option<String>,
     pub in_reply_to: Option<String>,
     pub references: Option<String>,
+    /// What the list's opening words are read from (Sammelplan § 3.78 Nr. 11):
+    /// the message's CONTENT-TYPE and CONTENT-TRANSFER-ENCODING header lines
+    /// and the first bytes of its body, each base64 — taken along in the same
+    /// FETCH, as the phone's client does. They are not read here: the shared
+    /// TypeScript side (`openingLine` in mailClient.ts) reads them with the
+    /// phone's own reader, so the line is one line on both shells.
+    pub opening_head: Option<String>,
+    pub opening_body: Option<String>,
+}
+
+/// Body bytes taken along per message for the opening line — the phone's
+/// `PREVIEW_BYTES` (net/imap.ts).
+const OPENING_BYTES: u32 = 1024;
+
+/// What every list of envelopes asks the server for: flags, structure, arrival,
+/// the header fields an envelope and its opening line read, and the body's
+/// first bytes. One string for the three lists, so none asks for less.
+fn envelope_fetch_items() -> String {
+    format!(
+        "(UID FLAGS BODYSTRUCTURE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES CONTENT-TYPE CONTENT-TRANSFER-ENCODING)] BODY.PEEK[TEXT]<0.{OPENING_BYTES}>)"
+    )
+}
+
+/// The header lines of a fetched header block that say how its body is
+/// written: CONTENT-TYPE and CONTENT-TRANSFER-ENCODING, with their folded
+/// continuation lines, as the server sent them. Pure over the bytes.
+fn body_form_lines(header_bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut keep = false;
+    for line in header_bytes.split_inclusive(|b| *b == b'\n') {
+        let folded = matches!(line.first(), Some(b' ') | Some(b'\t'));
+        if !folded {
+            let lower = line.to_ascii_lowercase();
+            keep = lower.starts_with(b"content-type:") || lower.starts_with(b"content-transfer-encoding:");
+        }
+        if keep {
+            out.extend_from_slice(line);
+        }
+    }
+    out
 }
 
 #[derive(Serialize, Clone)]
@@ -546,7 +586,11 @@ fn fetch_to_envelope(f: &imap::types::Fetch, uid_validity: Option<u32>) -> Optio
     let seen = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Seen));
     let flagged = f.flags().iter().any(|fl| matches!(fl, imap::types::Flag::Flagged));
     let has_attachments = f.bodystructure().map(body_has_attachment);
-    Some(MailEnvelope { uid, uid_validity, has_attachments, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references })
+    // The body's first bytes say nothing about themselves: the header lines
+    // that do come along. No body asked for (or none answered): no line.
+    let opening_body = f.text().map(|body| base64::engine::general_purpose::STANDARD.encode(body));
+    let opening_head = opening_body.as_ref().map(|_| base64::engine::general_purpose::STANDARD.encode(body_form_lines(f.header().unwrap_or_default())));
+    Some(MailEnvelope { uid, uid_validity, has_attachments, subject, from, date_ts, seen, flagged, message_id, in_reply_to, references, opening_head, opening_body })
 }
 
 #[tauri::command]
@@ -589,10 +633,7 @@ pub async fn mail_list_envelopes(
             }
             let set = uids.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
             let fetches = session
-                .uid_fetch(
-                    set,
-                    "(UID FLAGS BODYSTRUCTURE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])",
-                )
+                .uid_fetch(set, envelope_fetch_items())
                 .map_err(|e| format!("fetch failed: {e}"))?;
             let mut messages: Vec<MailEnvelope> = Vec::new();
             for f in fetches.iter() {
@@ -1412,7 +1453,7 @@ pub async fn mail_search_envelopes(
             }
             let set = ordered.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
             let fetches = session
-                .uid_fetch(set, "(UID FLAGS BODYSTRUCTURE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
+                .uid_fetch(set, envelope_fetch_items())
                 .map_err(|e| format!("fetch failed: {e}"))?;
             let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(|f| fetch_to_envelope(f, selected.uid_validity)).collect();
             // The server may return the set in any order; sort newest first by date.
@@ -1446,7 +1487,7 @@ pub async fn mail_list_flagged_envelopes(
             }
             let set = ordered.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
             let fetches = session
-                .uid_fetch(set, "(UID FLAGS BODYSTRUCTURE INTERNALDATE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES)])")
+                .uid_fetch(set, envelope_fetch_items())
                 .map_err(|e| format!("fetch failed: {e}"))?;
             let mut messages: Vec<MailEnvelope> = fetches.iter().filter_map(|f| fetch_to_envelope(f, selected.uid_validity)).collect();
             messages.sort_by_key(|m| std::cmp::Reverse(m.date_ts));
@@ -2250,6 +2291,39 @@ Der Text der weitergeleiteten.\r\n\
                 "files": ["iVBORw=="],
             })
         );
+    }
+
+    /// Sammelplan § 3.78 Nr. 11: the lists of an IMAP mailbox take the body's
+    /// first bytes along, with the header lines that say how they are written —
+    /// the phone's request, read by the phone's reader on the TypeScript side.
+    #[test]
+    fn envelope_lists_take_the_opening_bytes_along() {
+        let items = envelope_fetch_items();
+        assert!(items.contains("BODY.PEEK[TEXT]<0.1024>"), "{items}");
+        assert!(items.contains("CONTENT-TYPE CONTENT-TRANSFER-ENCODING)]"), "{items}");
+        // The answer to that request is read as the body's text, partial origin and all.
+        let answer = b"* 3 FETCH (UID 7 BODY[TEXT]<0> {14}\r\nGr=C3=BC=C3=9F)\r\n";
+        let (_, response) = imap_proto::parse_response(answer).expect("parses");
+        let imap_proto::Response::Fetch(_, attributes) = response else { panic!("not a fetch") };
+        let text = attributes.iter().find_map(|a| match a {
+            imap_proto::types::AttributeValue::BodySection {
+                section: Some(imap_proto::types::SectionPath::Full(imap_proto::types::MessageSection::Text)),
+                data: Some(body),
+                ..
+            } => Some(body.to_vec()),
+            _ => None,
+        });
+        assert_eq!(text.as_deref(), Some(&b"Gr=C3=BC=C3=9F"[..]));
+    }
+
+    #[test]
+    fn keeps_only_the_header_lines_that_say_how_a_body_is_written() {
+        let block = b"From: a@example.org\r\nContent-Type: text/plain;\r\n charset=utf-8\r\nSubject: Hi\r\ncontent-transfer-encoding: quoted-printable\r\n\r\n";
+        assert_eq!(
+            String::from_utf8_lossy(&body_form_lines(block)),
+            "Content-Type: text/plain;\r\n charset=utf-8\r\ncontent-transfer-encoding: quoted-printable\r\n"
+        );
+        assert!(body_form_lines(b"From: a@example.org\r\n\r\n").is_empty());
     }
 
     #[test]

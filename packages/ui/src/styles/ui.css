@@ -4429,6 +4429,11 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-linktarget__url b { color: var(--text-main); font-weight: 600; }
 .pv-linktarget__note::before { content: " · "; }
 [data-warn] > .pv-linktarget, [data-warn] > .pv-linktarget .pv-linktarget__url b { color: inherit; }
+/* A plain-text mail body (MailPlainText), one rule for both shells: the text in
+   the content font, as a note's text is, kept as it was sent. The desktop's read
+   in the font of the surrounding chrome, the phone's in the content font; each
+   shell only places it (padding). */
+.pv-mailtext { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-content); font-size: var(--text-md); line-height: 1.6; color: var(--text-main); }
 /* An address in a plain-text mail (M1) - a link like the ones of an HTML body. */
 .pv-maillink { color: var(--accent-color); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 /* "Join · Teams" sits under the time, as wide as its words, not as the column. */

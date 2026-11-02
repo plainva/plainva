@@ -35,6 +35,7 @@ import {
   shownConnectFields,
   Switch,
   TextInput,
+  connectFieldInputProps,
   WizardSteps,
   type AccessFamily,
   type AccessResolution,
@@ -578,12 +579,7 @@ function ConnectForm({ fields, values, disabled, onChange }: {
           return (
             <SettingField key={field.id} label={t(field.labelKey)}>
               <TextInput
-                type={field.input === "secret" ? "password" : field.input === "email" ? "email" : "text"}
-                purpose={field.input === "address" ? "address" : field.input === "keyId" ? "secret" : undefined}
-                inputMode={field.input === "port" ? "numeric" : field.input === "address" ? "url" : field.input === "email" ? "email" : undefined}
-                autoCapitalize="none"
-                autoCorrect="off"
-                autoComplete={field.input === "secret" ? "new-password" : "off"}
+                {...connectFieldInputProps(field.input)}
                 value={value}
                 placeholder={field.placeholder}
                 disabled={disabled}
