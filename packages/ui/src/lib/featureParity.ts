@@ -364,27 +364,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-21",
   },
   {
-    id: "base-new-entry-template-caret",
-    title: "A new database entry opens with the keyboard where its template's cursor stands",
-    area: "database",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "Both shells place the caret a template leaves in a new entry ({{cursor}}). On the " +
-      "phone \"Entry\" opens the note as a screen, and a note just made opens to be written " +
-      "in: the keyboard is at that place at once. On the desktop the entry opens in the peek " +
-      "window beside the database, so that title and properties can be filled in first. Its " +
-      "editor holds the place while properties and text are written, and the keyboard stays " +
-      "where it was: entered with the keyboard, the text is written from the template's place, " +
-      "a click chooses its own; renaming the entry in the window shows it in a new editor, " +
-      "and the place is gone. Meant to close by the window taking the keyboard when the " +
-      "template has a cursor; put off on 2026-10-22, when the window learned to take the " +
-      "caret, until the maintainer decides that behaviour, listed in the maintainer's " +
-      "open-items plan.",
-    mobile: "yes",
-    verified: "2026-10-22",
-  },
-  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",
@@ -1192,6 +1171,26 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "the same stack as the app bar's arrow.",
     mobile: "yes",
     verified: "2026-10-29",
+  },
+  {
+    id: "today-day-view",
+    title: "Today: one screen for a day - its daily note, appointments, due tasks, journal and the notes edited on it",
+    area: "platform",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "The phone's Today screen puts a day together on one surface: the day strip, the " +
+      "daily note card, the day's appointments and what is due in one order " +
+      "(buildDayAgenda, dueTasksForDay), the journal of the day and the notes edited " +
+      "on it. The desktop has each part elsewhere - the daily note from the sidebar " +
+      "calendar and the ribbon, the appointments in the calendar's Day and Agenda views, " +
+      "what is due in the task view's Today list, the journal in its sidebar section - " +
+      "but no surface that shows them together, and no list of the notes edited on a " +
+      "day. Found in the bug-clearing round (2026-11-01) as an asymmetry nobody had " +
+      "written down. Meant to close with a desktop Today view built from the same " +
+      "shared blocks; listed in the maintainer's open-items plan (Sammelplan § 3.171 Nr. 6).",
+    mobile: "yes",
+    verified: "2026-11-02",
   },
   {
     id: "window-bounds-restore",

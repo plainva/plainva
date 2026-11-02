@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { composeWindowTitle } from "./windowTitle";
 
 /**
@@ -26,6 +28,25 @@ describe("composeWindowTitle", () => {
 
   it("falls back to the app name with nothing open", () => {
     expect(composeWindowTitle({ vaultCount: 0 })).toBe("Plainva");
+  });
+
+  it("calls the vault by the name it has in Plainva (Sammelplan § 3.171 Nr. 4)", () => {
+    // A vault renamed in the settings kept its folder's name in the title bar.
+    expect(composeWindowTitle({ vaultPath: "/home/me/Notes", vaultName: "Work", vaultCount: 1 })).toBe("Work — Plainva");
+    expect(composeWindowTitle({ subject: "Tasks", vaultPath: "/home/me/Notes", vaultName: "Work", vaultCount: 2 }))
+      .toBe("Tasks — Work — Plainva");
+    // No name of its own: the folder's.
+    expect(composeWindowTitle({ vaultPath: "/home/me/Notes", vaultName: null, vaultCount: 1 })).toBe("Notes — Plainva");
+  });
+
+  it("is composed in one place, with the vault's name, in every window", () => {
+    // The three shells of a window name it through the hook that knows the
+    // vault's own name; composing a title by hand would bring the folder back.
+    for (const file of ["../App.tsx", "../FullApp.tsx", "../AuxApp.tsx"]) {
+      const source = readFileSync(resolve(__dirname, file), "utf8");
+      expect(source, file).toContain("useWindowTitle(");
+      expect(source, file).not.toContain("composeWindowTitle(");
+    }
   });
 
   it("reads the folder name off either separator", () => {

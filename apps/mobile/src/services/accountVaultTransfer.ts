@@ -9,7 +9,7 @@ import { fileGrantProbe, getAccountToken, saveAccountToken } from "./accountBrok
 import { bindRunTokenToAccount } from "./connectConsent";
 import { runServices } from "./connectQueue";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { finishConnectVault, loadConnectQueue, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome, releaseConnectVault } from "./connectQueue";
+import { finishConnectVault, loadConnectQueue, markConnectVaultCommitted, outcomeBelongsToRun, prepareConnectVault, recordConnectOutcome, releaseConnectVault } from "./connectQueue";
 import { CONNECT_FORM_GUARD, foreignInputOnScreen, whileEntering } from "./flowVault";
 import { copyProfilePreferences } from "./profileImportJournal";
 import { setFilesConnectProgress } from "./filesConnectProgress";
@@ -84,6 +84,17 @@ export async function abandonPreparedFiles(): Promise<"connected" | "released"> 
   if (q.outcomes.files?.state === "connected") return "connected";
   const id = q.preparedVaultId;
   if (!id) return "released";
+  // The copy went through and the run was cut off before the vault was
+  // listed or activated - the app ended in between (Sammelplan § 3.160 Nr. 1).
+  // That vault is there: the step is finished, not skipped, and nothing of it
+  // is taken back. It is listed if it was not yet; the switch to it stays the
+  // run's (`useConnectRun`), or the person's.
+  const committed = q.preparedCommitted;
+  if (committed) {
+    if (!committed.existing && !(await getVaultEntry(id))) await addVault({ id, name: committed.name, provider: committed.provider as MobileSyncProvider["provider"] });
+    await finishConnectVault(q.context, id, committed.accountId);
+    return "connected";
+  }
   await releaseConnectVault(q.context, id);
   await discardPreparedContainer(id, q.sourceVaultId);
   return "released";
@@ -228,6 +239,9 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
     await bindRunTokenToAccount(id, run.family, runServices(run));
   } finally { await db.close(); }
+  // Everything is written: from here on the vault is the person's, even if the
+  // app ends before it is listed and activated.
+  await markConnectVaultCommitted(context, id, { accountId, name, provider: p.provider, existing: !!existing });
   if (!existing) await addVault({ id, name, provider: p.provider });
   // From the committed result to the active vault is this flow's own stretch.
   // The run's event reaches `useConnectRun` in between, and what it sees there

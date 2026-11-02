@@ -79,7 +79,14 @@ export function CellEditSheet({
   const [showWeeks] = useShowWeekNumbers();
   const pickedDay = /^\d{4}-\d{2}-\d{2}/.test(text) ? text.slice(0, 10) : null;
   // A stored moment may separate day and time with a space (`2026-10-21 14:30`).
-  const pickedTime = input === "datetime" && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text) ? text.slice(11, 16) : "00:00";
+  // An empty cell starts at today and now, as the desktop's picker does: the
+  // calendar shows today as the picked day, and "OK" writes what it shows
+  // (Sammelplan § 3.132 Nr. 5 - it wrote nothing, and the cell stayed empty).
+  const [startTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  });
+  const pickedTime = input === "datetime" && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text) ? text.slice(11, 16) : text === "" ? startTime : "00:00";
   const [free, setFree] = useState("");
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Array<{ path: string; title: string }>>([]);
@@ -304,9 +311,9 @@ export function CellEditSheet({
                 />
                 <IconButton
                   label={t("common.ok", { defaultValue: "OK" })}
-                  // Nothing picked: OK keeps what the cell holds (empty stays empty,
-                  // a value that is no date stays as it is), as before.
-                  onClick={() => onCommit(pickedDay ? dateTimeEditorValue(pickedDay, pickedTime) : text)}
+                  // An empty cell takes the day and time shown; a value that is
+                  // no date stays as it is.
+                  onClick={() => onCommit(pickedDay ? dateTimeEditorValue(pickedDay, pickedTime) : text === "" ? dateTimeEditorValue(calendarDay(), pickedTime) : text)}
                 >
                   <Check size={ICON.head} />
                 </IconButton>

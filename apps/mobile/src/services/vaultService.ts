@@ -203,11 +203,24 @@ export async function discardPreparedContainer(vaultId: string, sourceVaultId?: 
   // A copy that broke off may have written a slot before the record naming it
   // (third review 2026-10-28): the copy takes its ids from the vault it came
   // from, so those name every slot it can have written.
+  //
+  // The vault the run started in need not be the one open now (Sammelplan
+  // § 3.160 Nr. 2): the person may have switched before the copy was turned
+  // down. Its index is read where it lies then - the open one, or its own
+  // database opened for this (`openPreparedVaultDatabase`); only reading the
+  // open one left the slots of such a copy behind.
   const current = sourceVaultId && bootPromise ? await bootPromise.catch(() => null) : null;
-  const sourceDb = current && current.vaultId === sourceVaultId ? current.db : null;
-  const sourcePim = sourceDb
-    ? await new PimCacheRepository(sourceDb).listAccounts().then((rows) => rows.map((row) => row.id)).catch(() => [] as string[])
-    : [];
+  const sourcePim = !sourceVaultId
+    ? []
+    : current && current.vaultId === sourceVaultId
+      ? current.db
+        ? await new PimCacheRepository(current.db).listAccounts().then((rows) => rows.map((row) => row.id)).catch(() => [] as string[])
+        : []
+      : await openPreparedVaultDatabase(sourceVaultId)
+          .then(async (db) => {
+            try { return (await new PimCacheRepository(db).listAccounts()).map((row) => row.id); } finally { await db.close().catch(() => {}); }
+          })
+          .catch(() => [] as string[]);
   const also = sourceVaultId
     ? {
         cloud: await loadCloudAccounts(sourceVaultId).then((rows) => rows.map((r) => r.id)).catch(() => [] as string[]),

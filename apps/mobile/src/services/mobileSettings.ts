@@ -31,6 +31,8 @@ import {
   VAULT_PATH_SETTINGS_MOBILE,
   type CustomThemeSpec,
   type CustomThemeDesign,
+  setVaultWeekStartScope,
+  WEEK_START_CHANGED_EVENT,
 } from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Capacitor } from "@capacitor/core";
@@ -363,6 +365,8 @@ function applySettings(): void {
   setSpellcheckOn(live().spellcheck === true);
 }
 
+let weekStartFollowsSettings = false;
+
 export async function initMobileSettings(): Promise<void> {
   media = window.matchMedia("(prefers-color-scheme: dark)");
   media.addEventListener("change", () => {
@@ -396,6 +400,18 @@ export async function initMobileSettings(): Promise<void> {
     activeVaultId = LOCAL_VAULT_ID;
   }
   applySettings();
+  // The week start of the open vault (decision E4): kept in its per-vault
+  // record and carried by the settings profile; "" follows the device's own
+  // choice. A switch of vaults and a profile that arrives both change the
+  // settings - the calendars and pickers on screen ask again then.
+  setVaultWeekStartScope({
+    read: async () => live().weekStart,
+    write: (value) => updateMobileSettings({ weekStart: value }),
+  });
+  if (!weekStartFollowsSettings) {
+    weekStartFollowsSettings = true;
+    window.addEventListener("m-settings-changed", () => window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT)));
+  }
   if (live().language) await changeAppLanguage(live().language).catch(() => {});
   await getPlatformServices().loadSettings().then(store => recoverPersonalDesign(store, async () => live().customTheme,
     async design => { await updateMobileSettings({ customTheme: design }); })).catch(() => {

@@ -711,10 +711,11 @@ export function PinboardView({
   );
 
   return (
-    /* The page class already decides scrolling, the page edge and the strip the
-       bar and the FAB hover over — this used to state all three again, with its
-       own numbers. */
-    <div className="m-page m-pinboard" ref={containerRef}>
+    /* Not a page of its own: the board stands inside the database page, and
+       that page decides scrolling, the page edge and the strip the bar and the
+       FAB hover over. It carried the page class itself as well, and the edge
+       and the strip came twice (Sammelplan § 3.43). */
+    <div className="m-pinboard" ref={containerRef}>
       {previews.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={previews.retry}>{t("pinboard.retry")}</Button></div>}
       {search.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={search.retry}>{t("pinboard.retry")}</Button></div>}
       {!!searchText.trim() && !search.busy && !search.failed && visibleSections.pinned.length + visibleSections.unpinned.length === 0 && <p role="status">{t("pinboard.noMatches")}</p>}

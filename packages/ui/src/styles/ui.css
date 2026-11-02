@@ -1052,7 +1052,10 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-toasts {
   position: fixed;
   right: var(--space-4);
-  bottom: calc(28px + var(--space-3)); /* above the status bar */
+  /* Above the status bar. A shell whose bottom edge holds something else
+     names its own clearance: the phone's floating bar and its "+" (Sammelplan
+     § 3.48), in mobile.css. */
+  bottom: var(--pv-toast-bottom, calc(28px + var(--space-3)));
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;

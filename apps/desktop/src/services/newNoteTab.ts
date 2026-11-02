@@ -1,4 +1,5 @@
 import { getSettingsStore } from "./settingsStore";
+import { notifyAppearanceChanged } from "./appearanceSync";
 
 /**
  * "Open new notes in a new tab" (issue 135, 2026-10-19): a new note used to
@@ -32,6 +33,8 @@ export async function setStoredNewNotesInNewTab(on: boolean): Promise<void> {
   const store = await getSettingsStore();
   await store.set(KEY, on);
   await store.save();
+  // Every window holds the answer in memory; the others read it again.
+  notifyAppearanceChanged();
 }
 
 /** Fills the cache from the store; call once at app start (main.tsx). */

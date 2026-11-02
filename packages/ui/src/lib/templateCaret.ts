@@ -149,10 +149,10 @@ export type TemplateCaretSurface = "pane" | "preview";
 
 /**
  * Hands the caret parked for `path` to the editor of `surface`, and says
- * whether the text gets the keyboard with it. The one question an editor of
- * the desktop asks the store; `null` is an editor that is neither — a second
- * pane the person is not working in —, and it leaves the caret for the one the
- * note opens in.
+ * whether the text gets the keyboard with it - it does, wherever it is taken.
+ * The one question an editor of the desktop asks the store; `null` is an editor
+ * that is neither — a second pane the person is not working in —, and it
+ * leaves the caret for the one the note opens in.
  *
  * A preview takes the caret of its note like a pane does (finding 2026-10-12).
  * It used not to ask at all: only the active pane did, and a new database
@@ -160,17 +160,16 @@ export type TemplateCaretSurface = "pane" | "preview";
  * that showed the entry later — a place counted when the note was written,
  * whatever had been typed in the window since.
  *
- * In a preview the caret is PLACED and the keyboard stays where it is. The
- * window opens beside the work so that title and properties can be filled in
- * first. The place is the selection of the window's editor from then on, so it
- * moves with what is written in the window — a property in front of the text,
- * a word above it: the text is written from there once it gets the keyboard
- * without a place being chosen, and a click chooses its own. The place lasts
- * as long as that editor: a rename and a step through the window's history
- * show the note in a new one. The phone opens a new entry as a note screen
- * that is written in at once, with the keyboard at the caret (`EditorHost`,
- * `freshNote.ts`) - the difference is in the parity catalog
- * (`base-new-entry-template-caret`).
+ * A preview takes the keyboard with it (maintainer decision E5 of the
+ * bug-clearing plan, 2026-10-30). Until then the window left the keyboard
+ * where it was - on "+ Entry" behind it -, so that title and properties could
+ * be filled in first; typing went nowhere until the text was clicked. Only a
+ * template with `{{cursor}}` parks a caret, so a template that says where the
+ * writing starts is written there at once - on the desktop as on the phone,
+ * which opens a new entry as a note screen with the keyboard at the caret
+ * (`EditorHost`, `freshNote.ts`). The place is the selection of the window's
+ * editor from then on; a rename of the entry hands it on to the editor that
+ * shows the new name (`handTemplateCaretAcrossRename`).
  */
 export function takeTemplateCaret(
   path: string | null,
@@ -178,7 +177,57 @@ export function takeTemplateCaret(
 ): { path: string; offset: number; focus: boolean } | null {
   if (surface === null) return null;
   const caret = consumePendingTemplateCaret(path);
-  return caret ? { ...caret, focus: surface === "pane" } : null;
+  return caret ? { ...caret, focus: true } : null;
+}
+
+/**
+ * A window's note was renamed, and the window shows it under its new name in a
+ * new editor (Sammelplan § 3.140 Nr. 1). The caret went with the old editor:
+ * the new one opened at the start of the note, in the hidden properties block,
+ * and gave nothing on to a tab either. Now the place the old editor held
+ * (`doc`, its text, and its selection) is parked for the new name, counted in
+ * the note as it is after the rename (`renamed`, the FILE): a rename carries a
+ * heading that repeats the old name, and that moves what stands behind it.
+ *
+ * Only for a note made in this session - the rename has carried the mark
+ * along (`followFreshNoteMove`) -, and not for a caret still in the
+ * properties block, the same rules as `handTemplateCaretOver`.
+ */
+export function handTemplateCaretAcrossRename(path: string, doc: string, selection: { head: number }, renamed: string): void {
+  if (!isFreshNote(path) || selection.head <= 0 || selection.head < textStartOf(doc)) return;
+  const next = editorTextOf(renamed);
+  const offset = placeAcrossChange(doc, next, selection.head);
+  if (offset < textStartOf(next)) return;
+  // Parked through the one way into the store, as a place in the file.
+  parkTemplateCaret(path, renamed, fileOffsetFor(renamed, offset));
+}
+
+/** The first place in `file` that an editor counts as `offset` (the inverse of `templateCaretInEditor`). */
+function fileOffsetFor(file: string, offset: number): number {
+  let low = 0;
+  let high = file.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (templateCaretInEditor(file, middle) < offset) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+/**
+ * Where `head`, a place in `before`, stands in `after`: unchanged in front of
+ * what changed, moved by the difference behind it, at the end of the new text
+ * inside it.
+ */
+function placeAcrossChange(before: string, after: string, head: number): number {
+  let front = 0;
+  const shorter = Math.min(before.length, after.length);
+  while (front < shorter && before.charCodeAt(front) === after.charCodeAt(front)) front++;
+  let back = 0;
+  while (back < shorter - front && before.charCodeAt(before.length - 1 - back) === after.charCodeAt(after.length - 1 - back)) back++;
+  if (head <= front) return head;
+  if (head >= before.length - back) return head + (after.length - before.length);
+  return after.length - back;
 }
 
 /**

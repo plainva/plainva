@@ -24,7 +24,7 @@ import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createIndexNotices, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
@@ -2486,7 +2486,8 @@ export const VaultProvider: React.FC<{
         return result;
       } catch (e) {
         console.error("[VaultContext] vault refresh failed", e);
-        if (!opts?.silent) {
+        // One notice for one failure: the scan's own names the reason.
+        if (!opts?.silent && !indexFailureSaid(e)) {
           toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
         }
         throw e;
@@ -2542,7 +2543,7 @@ export const VaultProvider: React.FC<{
       toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
     } catch (e) {
       console.error("[VaultContext] index rebuild failed", e);
-      toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
+      if (!indexFailureSaid(e)) toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
     } finally {
       setState(s => ({ ...s, isLoading: false }));
     }

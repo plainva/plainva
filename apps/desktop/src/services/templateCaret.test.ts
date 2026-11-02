@@ -1,10 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { editorTextOf, upsertFrontmatterKeys } from "@plainva/core";
 import {
   clearPendingTemplateCaret,
   consumePendingTemplateCaret,
+  handTemplateCaretAcrossRename,
   handTemplateCaretOver,
+  isFreshNote,
+  notifyFileOps,
   markFreshNote,
   parkTemplateCaret,
   resetFreshNotesForTests,
@@ -238,17 +241,19 @@ describe("takeTemplateCaret: the editor that is handed the parked caret", () => 
   it("hands a preview window the caret of the note it shows, and leaves none for the tab that opens the note later", () => {
     parkTemplateCaret(PATH, entry.content, entry.caret);
     const taken = takeTemplateCaret(PATH, "preview");
-    expect(taken).toEqual({ path: PATH, offset: entry.caret, focus: false });
+    expect(taken).toEqual({ path: PATH, offset: entry.caret, focus: true });
     expect(editorTextOf(entry.content).slice(taken!.offset)).toBe(BEHIND);
     expect(takeTemplateCaret(PATH, "pane")).toBeNull();
     expect(consumePendingTemplateCaret(PATH)).toBeNull();
   });
 
-  it("gives the text the keyboard in the pane the person works in, and leaves the keyboard alone in a preview", () => {
+  it("gives the text the keyboard in the pane the person works in, and in a preview too (E5)", () => {
     parkTemplateCaret(PATH, entry.content, entry.caret);
     expect(takeTemplateCaret(PATH, "pane")).toEqual({ path: PATH, offset: entry.caret, focus: true });
+    // A template that says where the writing starts is written there at once,
+    // in the peek window as in a pane - and as on the phone.
     parkTemplateCaret(PATH, entry.content, entry.caret);
-    expect(takeTemplateCaret(PATH, "preview")?.focus).toBe(false);
+    expect(takeTemplateCaret(PATH, "preview")?.focus).toBe(true);
   });
 
   it("hands over the place in the text an editor holds, for a template with Windows line ends and a byte order mark too", () => {
@@ -269,7 +274,7 @@ describe("takeTemplateCaret: the editor that is handed the parked caret", () => 
     parkTemplateCaret(PATH, entry.content, entry.caret);
     expect(takeTemplateCaret("Notes/B.md", "preview")).toBeNull();
     expect(takeTemplateCaret(null, "preview")).toBeNull();
-    expect(takeTemplateCaret(PATH, "preview")).toEqual({ path: PATH, offset: entry.caret, focus: false });
+    expect(takeTemplateCaret(PATH, "preview")).toEqual({ path: PATH, offset: entry.caret, focus: true });
   });
 
   it("has nothing to hand over for an entry without a template or without a cursor marker", () => {
@@ -332,5 +337,59 @@ describe("handTemplateCaretOver: a window hands its note on with the caret it ho
     expect(takeTemplateCaret(PATH, "pane")).toBeNull();
     handTemplateCaretOver(PATH, DOC, { head: DOC.indexOf("# Eintrag") });
     expect(takeTemplateCaret(PATH, "pane")?.offset).toBe(DOC.indexOf("# Eintrag"));
+  });
+});
+
+/**
+ * A new entry renamed in its window (Sammelplan § 3.140 Nr. 1). The window
+ * shows it under the new name in a new editor; the mark "just made" hung on the
+ * old path and the caret went with the old editor.
+ */
+describe("a note made in this session, renamed", () => {
+  // `notifyFileOps` announces the move on the window as well.
+  beforeAll(() => { vi.stubGlobal("window", new EventTarget()); });
+  afterAll(() => { vi.unstubAllGlobals(); });
+  beforeEach(() => {
+    clearPendingTemplateCaret();
+    resetFreshNotesForTests();
+  });
+
+  it("stays one under its new name, for every move both shells announce - a folder takes its notes along", () => {
+    markFreshNote("Projekte/Cockpit_4.md");
+    notifyFileOps([{ type: "move", from: "Projekte/Cockpit_4.md", to: "Projekte/Kundenprojekt.md" }]);
+    expect(isFreshNote("Projekte/Cockpit_4.md")).toBe(false);
+    expect(isFreshNote("Projekte/Kundenprojekt.md")).toBe(true);
+    notifyFileOps([{ type: "move", from: "Projekte", to: "Archiv/Projekte", isFolder: true }]);
+    expect(isFreshNote("Archiv/Projekte/Kundenprojekt.md")).toBe(true);
+    // A note that was there before is not made one by moving it.
+    notifyFileOps([{ type: "move", from: "Alt.md", to: "Neu.md" }]);
+    expect(isFreshNote("Neu.md")).toBe(false);
+  });
+
+  const BEFORE = "---\ntype: Projekt\n---\n# Cockpit_4\n\nZiel: Angebot (bis Freitag)\n";
+  const AFTER = "---\ntype: Projekt\n---\n# Kundenprojekt\n\nZiel: Angebot (bis Freitag)\n";
+
+  it("hands the editor of the new name the place the window's editor held, behind a heading the rename carried", () => {
+    markFreshNote("Projekte/Kundenprojekt.md");
+    const head = BEFORE.indexOf(" (bis Freitag)");
+    handTemplateCaretAcrossRename("Projekte/Kundenprojekt.md", BEFORE, { head }, AFTER);
+    const taken = takeTemplateCaret("Projekte/Kundenprojekt.md", "preview");
+    expect(taken?.focus).toBe(true);
+    expect(AFTER.slice(taken!.offset)).toBe(" (bis Freitag)\n");
+  });
+
+  it("counts in the editor's text when the renamed file has Windows line ends", () => {
+    markFreshNote("N.md");
+    const head = BEFORE.indexOf(" (bis Freitag)");
+    handTemplateCaretAcrossRename("N.md", BEFORE, { head }, AFTER.replace(/\n/g, "\r\n"));
+    expect(AFTER.slice(takeTemplateCaret("N.md", "pane")!.offset)).toBe(" (bis Freitag)\n");
+  });
+
+  it("parks nothing for a note that was there before, or for a caret in the properties block", () => {
+    handTemplateCaretAcrossRename("N.md", BEFORE, { head: BEFORE.indexOf(" (bis") }, AFTER);
+    expect(takeTemplateCaret("N.md", "pane")).toBeNull();
+    markFreshNote("N.md");
+    handTemplateCaretAcrossRename("N.md", BEFORE, { head: 5 }, AFTER);
+    expect(takeTemplateCaret("N.md", "pane")).toBeNull();
   });
 });

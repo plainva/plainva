@@ -93,6 +93,9 @@ describe("profile field catalog", () => {
       "syncIntervalSeconds",
       "taskDatabase",
       "templateFolder",
+      // Decision E4 of the bug-clearing plan: the week start is a vault
+      // convention - a template's weekday gave two devices two dates.
+      "weekStart",
     ]);
   });
 

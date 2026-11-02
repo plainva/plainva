@@ -9,6 +9,8 @@
  *    which fire the beforeinput/input events CodeMirror already handles.
  */
 
+import { selectAll } from "@codemirror/commands";
+import { EditorView } from "@codemirror/view";
 import { markdownToPlainText } from "./markdownToPlainText";
 
 export type EditableKind = "input" | "textarea" | "contenteditable";
@@ -115,6 +117,20 @@ export function insertIntoEditable(t: EditableTarget, text: string): void {
  */
 export function selectAllInEditable(t: EditableTarget): void {
   if (t.kind === "contenteditable") {
+    // A CodeMirror editor selects through its own command (Sammelplan § 3.141
+    // Nr. 1). The platform's "select all" changes the page's selection, and
+    // CodeMirror renders only the lines in view: "Select all" from the menu
+    // over the editor left the editor's selection collapsed at the end of
+    // the note, with nothing selected. The editor's root, not its text:
+    // `findFromDOM` looks for the text inside what it is given, and an editor
+    // nested in the text (an embed) would answer first.
+    const root = t.el.closest<HTMLElement>(".cm-editor");
+    const view = root ? EditorView.findFromDOM(root) : null;
+    if (view) {
+      view.focus();
+      selectAll(view);
+      return;
+    }
     t.el.focus();
     document.execCommand("selectAll");
     return;

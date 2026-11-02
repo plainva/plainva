@@ -115,7 +115,8 @@ import type { PimRuntime } from "./pim/pimRuntime";
 import { mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey } from "@plainva/ui";
+import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
+import { weekStartKey } from "./weekStartVault";
 import { recoverDesktopAccountRepair, repairDesktopAccounts } from "./accountRepair";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
@@ -149,6 +150,7 @@ const mailRemoteImagesKey = (v: string) => `mailRemoteImages_${b64(v)}`;
 export const mailSnoozedKey = (v: string) => `mailSnoozed_${b64(v)}`;
 const syncIntervalKey = (v: string) => `syncIntervalSeconds_${b64(v)}`;
 const defaultCalendarKey = (v: string) => `defaultCalendar_${b64(v)}`;
+// The vault's week start (decision E4): the key `weekStartVault.ts` reads and writes.
 const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
 const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
 const profileImportJournalKey = (v: string) => `settingsSyncImportJournal_${b64(v)}`;
@@ -293,6 +295,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   mailSnoozed: mailSnoozedKey,
   syncIntervalSeconds: syncIntervalKey,
   defaultCalendar: defaultCalendarKey,
+  weekStart: weekStartKey,
   backupSnapshotIntervalSeconds: backupSnapshotIntervalKey,
   backupMaxCountPerFile: backupMaxCountKey,
   backupMaxAgeDays: backupMaxAgeDaysKey,
@@ -580,6 +583,7 @@ export async function applyProfileValues(
     window.dispatchEvent(new CustomEvent("plainva-cloud-accounts-changed", { detail: { vaultPath } }));
     window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
     window.dispatchEvent(new CustomEvent(BAR_LAYOUT_CHANGED_EVENT));
+    window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT));
   }
 }
 

@@ -401,8 +401,10 @@ pub fn run() {
                     let _ = win.set_title(title);
                 }
             }
-            // The main window where it was at the last close (issue #135).
+            // The main window where it was at the last close (issue #135),
+            // and only then on the screen: it is created hidden.
             window_state::restore(app.handle());
+            window_state::show_main(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -468,8 +470,15 @@ pub fn run() {
             mail_imap::mail_release_sessions,
             mail_smtp::mail_send
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Quitting from the tray (`app.exit`) closes no window first, so
+            // no close request writes the window's place: it is written here.
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                window_state::flush(app);
+            }
+        });
 }
 
 #[cfg(test)]

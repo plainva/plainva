@@ -29,6 +29,12 @@ const LazyBaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default:
 // the canvas editor into every note peek.
 const LazyImageViewer = lazy(() => import("./ImageViewer").then((m) => ({ default: m.ImageViewer })));
 
+/** What the window's editor holds when the entry is renamed: its text and where its caret stands. */
+export interface PeekCaret {
+  doc: string;
+  selection: { head: number };
+}
+
 export function BasePeekModal({
   path,
   onClose,
@@ -50,7 +56,12 @@ export function BasePeekModal({
    * so an entry opened from a database had no way to be renamed or deleted —
    * you had to find the note in the file tree. The host supplies both.
    */
-  onRename?: (path: string) => void;
+  /**
+   * `caret` is the place the window's editor holds when the rename is asked
+   * for: the host hands it to the editor that shows the new name
+   * (`handTemplateCaretAcrossRename`, Sammelplan § 3.140 Nr. 1).
+   */
+  onRename?: (path: string, caret?: PeekCaret) => void;
   onDelete?: (path: string) => void;
 }) {
   const { t } = useTranslation();
@@ -129,11 +140,16 @@ export function BasePeekModal({
   // The phone has no such window: a new entry opens as its note screen. The
   // editor's root, not its text: `findFromDOM` looks for the text inside what
   // it is given, and an editor nested in the text would answer first.
-  const handCaretOver = () => {
+  const caretNow = (): PeekCaret | undefined => {
     const root = bodyRef.current?.querySelector<HTMLElement>(".pv-peek-main .cm-editor");
     const view = root ? EditorView.findFromDOM(root) : null;
-    if (view) handTemplateCaretOver(current, view.state.doc.toString(), view.state.selection.main);
+    return view ? { doc: view.state.doc.toString(), selection: { head: view.state.selection.main.head } } : undefined;
   };
+  const handCaretOver = () => {
+    const caret = caretNow();
+    if (caret) handTemplateCaretOver(current, caret.doc, caret.selection);
+  };
+  const rename = () => onRename?.(current, caretNow());
 
   const title = current.split(/[/\\]/).pop()?.replace(/\.(md|base)$/i, "") || current;
   const propsLabel = t("rightPanel.properties", { defaultValue: "Eigenschaften" });
@@ -175,7 +191,7 @@ export function BasePeekModal({
           <span
             className="pv-peek-title"
             data-tip={onRename && !isBase ? t("database.entryRenameHint") : current}
-            onDoubleClick={onRename && !isBase ? () => onRename(current) : undefined}
+            onDoubleClick={onRename && !isBase ? rename : undefined}
           >
             {title}
           </span>
@@ -253,7 +269,7 @@ export function BasePeekModal({
               <MenuSurface open anchorRef={menuBtnRef} align="right" onClose={() => setMenuOpen(false)} ariaLabel={t("database.entryActions")}>
                 <MenuLabel>{t("database.entry")}</MenuLabel>
                 {onRename && (
-                  <MenuItem data-testid="peek-menu-rename" onSelect={() => { setMenuOpen(false); onRename(current); }}>
+                  <MenuItem data-testid="peek-menu-rename" onSelect={() => { setMenuOpen(false); rename(); }}>
                     {t("database.entryRename")}
                   </MenuItem>
                 )}

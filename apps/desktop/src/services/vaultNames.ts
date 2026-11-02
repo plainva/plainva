@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { getSettingsStore } from "./settingsStore";
+import { notifyAppearanceChanged } from "./appearanceSync";
 
 /**
  * The name a vault goes by in Plainva on this device (Sammelplan § 3.169 Nr. 3).
@@ -99,6 +100,19 @@ export async function renameVault(vaultPath: string, name: string): Promise<void
   }
   await store.save();
   notify();
+  // Every other window names the vault too - its title bar first of all
+  // (Sammelplan § 3.171 Nr. 4) - and keeps the names it read in memory.
+  notifyAppearanceChanged();
+}
+
+/**
+ * Reads every name this window has asked for again: another window renamed a
+ * vault (`appearanceSync.ts`).
+ */
+export function reloadVaultNames(): void {
+  const known = new Set([...loading, ...names.keys()]);
+  loading.clear();
+  for (const path of known) load(path);
 }
 
 /** Drops the remembered name after "forget this vault" removed the setting. */

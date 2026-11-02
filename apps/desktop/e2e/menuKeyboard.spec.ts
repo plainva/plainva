@@ -208,6 +208,68 @@ test("a database's ⋮ menu opened from the keyboard: Enter on the button opens 
   await expect(page.getByRole('dialog').filter({ hasText: /Tabelle exportieren|Export table/ })).toBeVisible();
 });
 
+test('a menu over a file being renamed is steered from the name field: the arrow keys mark an entry, Enter picks it, and the field keeps its keyboard (E11)', async ({ page }) => {
+  await openApp(page);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const tree = page.getByTestId('file-tree');
+  await tree.getByText('Welcome', { exact: true }).click({ button: 'right' });
+  await openMenu(page).getByRole('menuitem', { name: /^(Umbenennen|Rename)/ }).click();
+  const name = tree.getByRole('textbox');
+  await expect(name).toBeFocused();
+  await name.fill('Halb getippt');
+
+  // The menu over the field - opened with the menu key, Shift+F10 or the
+  // mouse - could not be reached from the keyboard: the field keeps it.
+  await name.click({ button: 'right' });
+  const menu = openMenu(page);
+  await expect(menu).toBeVisible();
+  await expect(name).toBeFocused();
+  const marked = menu.locator('.pv-menu-item.is-active');
+  await expect(marked).toHaveCount(0);
+
+  // Like a list of suggestions: the arrows mark an entry, the field keeps the keyboard and its text.
+  await page.keyboard.press('ArrowDown');
+  await expect(marked).toHaveCount(1);
+  await expect(entries(menu).first()).toHaveClass(/is-active/);
+  await page.keyboard.press('ArrowDown');
+  await expect(entries(menu).nth(1)).toHaveClass(/is-active/);
+  await page.keyboard.press('ArrowUp');
+  await expect(entries(menu).first()).toHaveClass(/is-active/);
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue('Halb getippt');
+
+  // Walk to "Copy path" and pick it with Enter: the menu acts, the rename goes on.
+  const copyPath = menu.getByRole('menuitem', { name: /^(Pfad kopieren|Copy path)$/i });
+  for (let i = 0; i < 30 && !(await copyPath.evaluate((el) => el.classList.contains('is-active'))); i++) await page.keyboard.press('ArrowDown');
+  await expect(copyPath).toHaveClass(/is-active/);
+  await page.evaluate(() => navigator.clipboard.writeText(''));
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Welcome');
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue('Halb getippt');
+});
+
+test('"Select all" in the menu over the editor selects the whole note, and the next key replaces it (Sammelplan 3.141 no. 1)', async ({ page }) => {
+  await openApp(page);
+  await page.getByTestId('file-tree').getByText('Welcome', { exact: true }).click();
+  const content = page.locator('.cm-content').first();
+  await expect(content).toBeVisible({ timeout: 15000 });
+  const line = page.locator('.cm-line').filter({ hasText: 'Hello.' }).first();
+  await line.getByText('Hello.').dblclick({ position: { x: 8, y: 6 } });
+  await line.getByText('Hello.').click({ button: 'right', position: { x: 8, y: 6 } });
+  const menu = openMenu(page);
+  await expect(menu).toBeVisible();
+  // It used to leave the editor's selection collapsed at the end of the note.
+  await menu.getByRole('menuitem', { name: /^(Alles auswählen|Select all)$/ }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(content).toBeFocused();
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString() ?? '')).toMatch(/Welcome[\s\S]*Hello\./);
+  await page.keyboard.type('Neu');
+  // The whole note was replaced: one line is left, and it is what was typed.
+  await expect(content.locator('.cm-line')).toHaveText(['Neu']);
+});
+
 test('a right-click on a selection in the editor: the menu takes the keyboard, Escape gives the editor back its focus and its selection, and Paste picked from the keyboard lands on that selection', async ({ page }) => {
   await openApp(page);
   await page.getByTestId('file-tree').getByText('Welcome', { exact: true }).click();

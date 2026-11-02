@@ -2277,18 +2277,29 @@ async function newEntryFromCursorTemplate(page: Page) {
 /** An editor takes a parked caret in the effect that follows its load: two frames on, whatever it was handed has been applied. */
 const twoFrames = (page: Page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))));
 
-test('Base "Neu": the caret of a template is placed in the peek window, the keyboard stays where it was, and the place holds while a property is filled in', async ({ page }) => {
+test('Base "Neu": the peek window takes the keyboard at the caret of a template, and the place holds while a property is filled in', async ({ page }) => {
   const peek = await newEntryFromCursorTemplate(page);
   const text = peek.locator('.cm-content');
+  /** The page's caret stands in the line the template names (CodeMirror puts it there an event after the focus). */
+  const caretInActiveLine = () => page.evaluate(() => {
+    const node = document.getSelection()?.focusNode;
+    const element = node instanceof Element ? node : node?.parentElement;
+    return !!element?.closest('.pv-peek-card .cm-activeLine');
+  });
 
   // Placed: the line the caret is on is the one the template names …
   await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel:\s+\(bis Freitag\)$/);
-  // … and opening the window did not take the keyboard into the text.
-  await expect(text).not.toBeFocused();
+  // … and the window took the keyboard there (decision E5 of the bug-clearing
+  // plan): a template that says where the writing starts is written there at
+  // once, as on the phone. It used to stay on "+ Entry" behind the window.
+  await expect(text).toBeFocused();
+  await expect.poll(caretInActiveLine).toBe(true);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath('peek-template-caret.png') });
+  await page.keyboard.type('Angebot');
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot \(bis Freitag\)$/);
 
-  // What the window opens for comes first: a property is filled in. The block
-  // in front of the text grows, and the place is the editor's — it moves along.
+  // A property is filled in. The block in front of the text grows, and the
+  // place is the editor's — it moves along.
   await peek.locator('.pv-peek-actions').getByRole('button', { name: /Eigenschaften|Properties/ }).click();
   const zweck = peek.locator('.pv-peek-side .pv-property-text textarea');
   await expect(zweck).toHaveValue('Angebot');
@@ -2296,19 +2307,12 @@ test('Base "Neu": the caret of a template is placed in the peek window, the keyb
   await zweck.press('Enter');
   await expect.poll(() => cursorEntry(page)).toContain('zweck: Angebot für die Erweiterung, bis zur Freigabe durch das Team\n');
 
-  // The text gets the keyboard without a place being chosen — what Tab does —
-  // and writing starts where the template says. CodeMirror puts its place into
-  // the page once it has seen the focus, an event later; keys typed before that
-  // go where the browser put the caret (in CI the first ones did, 22.10.). A
-  // person does not type within that moment — the test waits for it.
+  // Back in the text without a place being chosen — what Tab does —, the
+  // writing goes on where it stopped.
   await text.focus();
   await expect(text).toBeFocused();
-  await expect.poll(() => page.evaluate(() => {
-    const node = document.getSelection()?.focusNode;
-    const element = node instanceof Element ? node : node?.parentElement;
-    return !!element?.closest('.pv-peek-card .cm-activeLine');
-  })).toBe(true);
-  await page.keyboard.type('Angebot schreiben');
+  await expect.poll(caretInActiveLine).toBe(true);
+  await page.keyboard.type(' schreiben');
   await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot schreiben \(bis Freitag\)$/);
   await expect.poll(() => cursorEntry(page)).toContain('\nZiel: Angebot schreiben (bis Freitag)\n');
 });
@@ -2334,6 +2338,36 @@ test('Base "Neu": opened as a tab from the peek window, a new entry goes on wher
   await expect(tab).toBeFocused();
   await page.keyboard.type('!');
   await expect.poll(() => cursorEntry(page)).toContain('# Cockpit_4 für den Kunden!\n');
+});
+
+test('Base "Neu": renamed in its peek window, a new entry stays open for writing and keeps its caret (Sammelplan 3.140 no. 1)', async ({ page }) => {
+  // "Read mode" as the default view: a note made a minute ago still opens to
+  // be written in - the mark hung on the old name, so the renamed entry came
+  // back for reading, without a caret and without a way to switch in the window.
+  await page.addInitScript(() => { (window as any).__storeOverrides = { ...((window as any).__storeOverrides ?? {}), defaultViewMode: 'read' }; });
+  const peek = await newEntryFromCursorTemplate(page);
+  await expect(peek.locator('.cm-content')).toBeFocused();
+  await page.keyboard.type('Angebot');
+  await expect.poll(() => cursorEntry(page)).toContain('\nZiel: Angebot (bis Freitag)\n');
+
+  // The title is one of the two things the window opens for.
+  await peek.locator('.pv-peek-title').dblclick();
+  const dlg = page.getByRole('dialog', { name: /Umbenennen|Rename/ });
+  await expect(dlg).toBeVisible();
+  await dlg.getByRole('textbox').fill('Kundenprojekt');
+  await dlg.getByRole('button', { name: /Confirm|Bestätigen/ }).click();
+  const renamed = () => page.evaluate(() => String((window as any).mockFs['/test-vault/Projekte/Kundenprojekt.md']));
+  await expect.poll(renamed).toContain('# Kundenprojekt\n');
+  await expect(peek.locator('.pv-peek-title')).toContainText('Kundenprojekt');
+
+  // A new editor shows the new name: written in, with the keyboard where the
+  // writing stopped - behind a heading that grew by four letters.
+  const text = peek.locator('.cm-content');
+  await expect(text).toContainText('(bis Freitag)', { timeout: 15000 });
+  await expect(text).toBeFocused();
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot \(bis Freitag\)$/);
+  await page.keyboard.type(' schreiben');
+  await expect.poll(renamed).toContain('\nZiel: Angebot schreiben (bis Freitag)\n');
 });
 
 // What a database's template is resolved WITH (Sammelplan § 3.97). The view
@@ -2942,6 +2976,68 @@ test('pinboard: Enter in the title before the editor has loaded still moves on t
     .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Vorab.md']))
     .toContain('Danach im Text');
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Vorab.md'])).toContain('# Vorab\n');
+});
+
+test('pinboard: New entry - the first click into a long draft puts the caret where it lands and does not scroll away (Sammelplan 3.140 no. 2)', async ({ page }) => {
+  // A template longer than the window, with its cursor at the end: the window
+  // set that place when the text got the focus - and a click focuses the text
+  // BEFORE CodeMirror sets the caret to the click, so the view scrolled to the
+  // end while the caret went to the click.
+  const lines = Array.from({ length: 80 }, (_, i) => `Zeile ${i + 1}`).join('\n');
+  await page.goto('/');
+  await page.evaluate((template) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Templates/Langvorlage.md'] = template;
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      newItemTemplate: Templates/Langvorlage.md');
+  }, `${lines}\n\nEnde: {{cursor}}\n`);
+  await openBase(page, 'Pinnwand');
+  await expect(page.locator('[data-pinboard-card]')).toHaveCount(3);
+  await page.getByTestId('base-new-entry').click();
+  const dlg = page.getByTestId('pinboard-entry');
+  await expect(dlg).toBeVisible();
+  const content = dlg.locator('.cm-content');
+  await expect(content).toContainText('Zeile 3', { timeout: 15000 });
+  await expect(content).not.toBeFocused();
+
+  const third = dlg.locator('.cm-line', { hasText: /^Zeile 3$/ });
+  await third.click();
+  await expect(content).toBeFocused();
+  await expect(dlg.locator('.cm-activeLine')).toHaveText('Zeile 3');
+  // Two frames for any scroll the focus asked for: the line clicked is still in view.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))));
+  const scroller = dlg.locator('.cm-scroller');
+  const [box, view] = await Promise.all([third.boundingBox(), scroller.boundingBox()]);
+  expect(box!.y).toBeGreaterThanOrEqual(view!.y - 1);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(view!.y + view!.height + 1);
+  await page.keyboard.type('!');
+  await expect(dlg.locator('.cm-activeLine')).toHaveText('Zeile 3!');
+
+  // From the title, the keyboard still enters at the template's place.
+  await dlg.getByTestId('pinboard-entry-title').fill('Lang');
+  await dlg.getByTestId('pinboard-entry-title').press('Enter');
+  await expect(content).toBeFocused();
+});
+
+test('pinboard: a right-click into the filter field of a card\'s label menu opens no menu over it (Sammelplan 3.141 no. 2)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await cards.first().click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /^Labels$/ }).click();
+  const labels = page.getByRole('menu', { name: /^Labels$/ });
+  await expect(labels).toBeVisible();
+  const filter = labels.getByRole('textbox', { name: /Label suchen|Search labels/ });
+  await expect(filter).toBeFocused();
+  await filter.fill('ide');
+
+  // The app's text menu used to open over the label menu here, and a press on
+  // its entries closed the label menu under it as a press beside it.
+  await filter.click({ button: 'right' });
+  await expect(page.getByRole('menu', { name: /^(Kontextmenü|Context menu)$/ })).toHaveCount(0);
+  await expect(labels).toBeVisible();
+  await expect(filter).toBeFocused();
+  await expect(filter).toHaveValue('ide');
 });
 
 test('pinboard: New entry takes over the ACTIVE label as a removable chip', async ({ page }) => {

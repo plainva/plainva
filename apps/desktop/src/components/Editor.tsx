@@ -1962,7 +1962,7 @@ export const Editor: React.FC<{
   //
   // Who is handed the caret, and whether the text gets the keyboard with it,
   // is one rule (`takeTemplateCaret`): the pane the person works in, and a
-  // window for the note it shows — placed there, without the keyboard.
+  // window for the note it shows — both with the keyboard (decision E5).
   const caretRafRef = useRef(0);
   const startTemplateCaret = (caret: { path: string; offset: number; focus: boolean }) => {
     cancelAnimationFrame(caretRafRef.current);

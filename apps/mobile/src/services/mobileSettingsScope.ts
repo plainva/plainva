@@ -202,6 +202,12 @@ export interface VaultScopedSettings {
   meetingTemplate: string;
   defaultCalendar: string;
   /**
+   * The day this vault's week starts on (decision E4): "monday", "saturday",
+   * "sunday", or "" = not said, the device's choice applies. Travels with the
+   * profile (`weekStart`); read through `setVaultWeekStartScope`.
+   */
+  weekStart: string;
+  /**
    * The calendars' own colours, chosen on their account's calendar page (plan
    * "Verbinden", V3): "<accountId> <calendarId>" -> hex. Per vault and
    * device-local, like the desktop's key: the provider's colour is what travels.
@@ -268,6 +274,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "meetingFolder",
   "meetingTemplate",
   "defaultCalendar",
+  "weekStart",
   "calendarColors",
   "verifierName",
 ];
@@ -323,6 +330,7 @@ export function vaultDefaults(): VaultScopedSettings {
     meetingFolder: profileDefault<string>("meetingFolder")!,
     meetingTemplate: profileDefault<string>("meetingNoteTemplate")!,
     defaultCalendar: profileDefault<string>("defaultCalendar")!,
+    weekStart: profileDefault<string>("weekStart")!,
     calendarColors: {},
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
     commentAnchors: profileDefault<boolean>("commentAnchors")!,
@@ -384,6 +392,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     meetingFolder: src.meetingFolder ?? d.meetingFolder,
     meetingTemplate: src.meetingTemplate ?? d.meetingTemplate,
     defaultCalendar: src.defaultCalendar ?? d.defaultCalendar,
+    weekStart: src.weekStart ?? d.weekStart,
     calendarColors: src.calendarColors ?? d.calendarColors,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,
     commentAnchors: src.commentAnchors ?? d.commentAnchors,

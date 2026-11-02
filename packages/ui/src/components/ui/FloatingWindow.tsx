@@ -19,6 +19,8 @@ import { isModalOpen } from "./Modal";
  * it have the key, and asks before a changed draft goes.
  */
 
+/** How far a press on the head moves before it is a drag of the window, in pixels. */
+const DRAG_START = 3;
 const MARGIN = 8;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -268,16 +270,25 @@ export function FloatingWindow({
   }, [onEscape, escapeScope, id]);
 
   // --- Drag (by head) and resize (bottom-right grip) via pointer capture ---
-  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  //
+  // The head is captured once the press MOVES (Sammelplan § 3.140 Nr. 1): a
+  // capture taken at the press made the head the target of the click that
+  // followed, so a double-click on what the head shows - the peek window's
+  // title, which renames the entry - never reached it.
+  const drag = useRef<{ px: number; py: number; ox: number; oy: number; captured: boolean } | null>(null);
   const onHeadDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest("button")) return; // head buttons stay clickable
     e.preventDefault();
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, ox: rect.x, oy: rect.y };
+    drag.current = { px: e.clientX, py: e.clientY, ox: rect.x, oy: rect.y, captured: false };
   };
   const onHeadMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
+    if (!d.captured) {
+      if (Math.abs(e.clientX - d.px) + Math.abs(e.clientY - d.py) < DRAG_START) return;
+      d.captured = true;
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    }
     setRect((r) => ({
       ...r,
       x: clamp(d.ox + (e.clientX - d.px), MARGIN, Math.max(MARGIN, window.innerWidth - r.w - MARGIN)),

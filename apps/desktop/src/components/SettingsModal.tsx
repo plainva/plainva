@@ -43,6 +43,7 @@ import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
 import { getStoredTagColors, setStoredTagColors, DEFAULT_TAG_COLORS } from "../services/tagColors";
 import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "@plainva/ui";
+import { notifyAppearanceChanged } from "../services/appearanceSync";
 import { getStoredAppFonts, setStoredAppFonts, defaultAppFontSettings, type AppFontSettings } from "../services/appFonts";
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
@@ -841,7 +842,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       appLanguage={appLanguage}
                       onLanguage={(v) => { void handleLanguageChange(v); }}
                       weekStart={weekStart}
-                      onWeekStart={(v) => { setWeekStart(v); void setWeekStartSetting(v); }}
+                      onWeekStart={(v) => { setWeekStart(v); void setWeekStartSetting(v).then(notifyAppearanceChanged); }}
                       density={density}
                       onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
                       tagColors={tagColors}

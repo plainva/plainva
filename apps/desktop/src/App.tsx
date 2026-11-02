@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } fro
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { useApp } from "./contexts/AppContext";
-import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
+import { useWindowTitle } from "./services/windowTitle";
+import { useVaultWeekStart } from "./services/weekStartVault";
 import { useVault, okfPromptDismissedKey, type SyncProviderId } from "./contexts/VaultContext";
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
@@ -52,7 +53,9 @@ function App() {
 
   // The central window is a workplace too: with a second vault open, its
   // taskbar entry says which one it is (stage D).
-  useOsWindowTitle(composeWindowTitle({ vaultPath, vaultCount: heldVaults.length }));
+  useWindowTitle({ vaultPath, vaultCount: heldVaults.length });
+  // The week start of the vault this window shows (decision E4).
+  useVaultWeekStart(vaultPath);
 
   const [showSettings, setShowSettings] = useState(false);
   // Deep link from the splash's online-vault chooser: open Settings with the

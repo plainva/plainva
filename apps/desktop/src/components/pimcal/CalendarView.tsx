@@ -1932,13 +1932,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           />
         </div>
         <span style={{ flex: 1 }} />
-        {status.status === "syncing" ? (
+        {/* A failed cycle is said once, in the line under this bar
+            (`CalendarSyncNotice`): which account, since when, why. The chip
+            that used to stand here said the same in two words, beside it —
+            and the phone never had it (Sammelplan § 3.43). */}
+        {status.status === "syncing" && (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</span>
-        ) : status.status === "error" ? (
-          <span data-tip={status.message} style={{ fontSize: "var(--text-xs)", color: "var(--error-text)" }}>
-            {t("pim.syncError", { defaultValue: "Sync-Fehler" })}
-          </span>
-        ) : null}
+        )}
         <IconButton
           label={t("pim.showTasks", { defaultValue: "Aufgaben anzeigen" })}
           onClick={() => setShowTasks((v) => !v)}

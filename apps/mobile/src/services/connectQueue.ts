@@ -33,6 +33,14 @@ export interface ConnectQueue {
   createdAt: number;
   preparedVaultId?: string;
   preparedDestinationKey?: string;
+  /**
+   * The copy into the prepared destination went through - everything is
+   * written - and what is left is to list the vault and activate it
+   * (`markConnectVaultCommitted`). A run that is interrupted in that stretch
+   * finishes it when the files step is left, instead of forgetting a vault
+   * that is there (Sammelplan § 3.160 Nr. 1).
+   */
+  preparedCommitted?: { accountId: string; name: string; provider: string; existing: boolean };
   sourceVaultId?: string;
 }
 
@@ -174,9 +182,16 @@ export async function releaseConnectVault(context: ServiceConnectionContext, tar
     const next: ConnectQueue = { ...q, createdAt: Date.now(), outcomes: { ...q.outcomes } };
     delete next.preparedVaultId;
     delete next.preparedDestinationKey;
+    delete next.preparedCommitted;
     delete next.outcomes.files;
     await persist(next);
   });
+}
+/** The copy is written (`ConnectQueue.preparedCommitted`); listing and activation come next. */
+export async function markConnectVaultCommitted(context: ServiceConnectionContext, targetVaultId: string, committed: NonNullable<ConnectQueue["preparedCommitted"]>): Promise<void> {
+  const q = await loadConnectQueue();
+  if (!q || !outcomeBelongsToRun(q, context, "files") || q.preparedVaultId !== targetVaultId) throw new Error("Connection destination changed");
+  await persist({ ...q, preparedCommitted: committed });
 }
 export async function finishConnectVault(context: ServiceConnectionContext, targetVaultId: string, cloudAccountId?: string): Promise<void> {
   const q = await loadConnectQueue();

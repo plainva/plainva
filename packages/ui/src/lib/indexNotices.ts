@@ -35,6 +35,21 @@ export function indexUnavailableText(error: unknown): string {
   return i18n.t("refresh.indexUnavailable", { reason: errorText(error) });
 }
 
+/** Failures a notice has just named, by the error the scan failed with. */
+const said = new WeakSet<object>();
+
+/**
+ * Whether the index notices have named this failure already (Sammelplan § 3.94,
+ * "Restpunkte"): a refresh somebody asked for, failing in its scan, put up two
+ * notices the first time - the scan's, with its reason, and "The vault could
+ * not be re-read." A shell that reports such a failure asks here first and
+ * says nothing more when the reason is on screen. A failure the notices left
+ * unsaid (the same one again) is still said, once, by the shell.
+ */
+export function indexFailureSaid(error: unknown): boolean {
+  return typeof error === "object" && error !== null && said.has(error);
+}
+
 export interface IndexNoticeSink {
   warning(message: string): void;
   error(message: string): void;
@@ -75,6 +90,7 @@ export function createIndexNotices(say: IndexNoticeSink): IndexNotices {
       const text = indexScanFailedText(info.error);
       if (text === failure) return;
       failure = text;
+      if (typeof info.error === "object" && info.error !== null) said.add(info.error);
       say.error(text);
     },
   };

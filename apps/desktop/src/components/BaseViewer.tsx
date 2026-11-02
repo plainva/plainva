@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive } from "../services/templateInteractive";
 import { useTranslation } from "react-i18next";
-import { BaseExportDialog } from "@plainva/ui";
+import { BaseExportDialog, handTemplateCaretAcrossRename } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
@@ -54,7 +54,7 @@ import { ColorPopover } from "./ColorPopover";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { FILE_DAY } from "@plainva/ui";
-import { BasePeekModal } from "./BasePeekModal";
+import { BasePeekModal, type PeekCaret } from "./BasePeekModal";
 import { MissingFileView } from "./MissingFileView";
 import { useOpenFileLookup } from "./useOpenFileLookup";
 import { PinboardEntryModal } from "./base/PinboardEntryModal";
@@ -360,7 +360,7 @@ export function BaseViewer({
   /** Rename an entry from the row menu or the peek. Carries a mirrored H1 (the
    *  state a fresh `{Base}_{n}` entry is in) so the note is not called Task_1 in
    *  its own text after the tree already shows the new name. */
-  const renameEntry = useCallback(async (path: string) => {
+  const renameEntry = useCallback(async (path: string, caret?: PeekCaret) => {
     if (!vaultAdapter) return;
     const current = renameInitialName(path, false);
     const next = await appPrompt({
@@ -395,8 +395,16 @@ export function BaseViewer({
         .catch((e) => { followUpError ??= errorText(e); });
     }
     triggerFileTreeUpdate();
-    if (peekPath === path) setPeekPath(result.newPath);
+    // The window shows the entry under its new name in a new editor: the mark
+    // "just made" moves along (`notifyFileOps`), and the place the window's
+    // editor held is parked for the new one, counted in the note as the rename
+    // left it - with the heading it carried (Sammelplan § 3.140 Nr. 1).
     notifyFileOps([{ type: "move", from: path, to: result.newPath }]);
+    if (caret && peekPath === path) {
+      const renamed = await vaultAdapter.readTextFile(result.newPath).catch(() => null);
+      if (renamed !== null) handTemplateCaretAcrossRename(result.newPath, caret.doc, caret.selection, renamed);
+    }
+    if (peekPath === path) setPeekPath(result.newPath);
     if (followUpError) toast.warning(t("dialogs.movedWithFollowUpError", { name: moveItemName(result.newPath), error: followUpError }));
     else if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
   }, [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, peekPath, t]);
@@ -2911,7 +2919,7 @@ export function BaseViewer({
           onClose={() => setPeekPath(null)}
           onMaximize={(p) => { onOpenPath?.(p, true); setPeekPath(null); }}
           onOpenSplit={onOpenInSplit ? (p) => { onOpenInSplit(p); setPeekPath(null); } : undefined}
-          onRename={(p) => void renameEntry(p)}
+          onRename={(p, caret) => void renameEntry(p, caret)}
           onDelete={(p) => void deleteEntry(p)}
         />
       )}

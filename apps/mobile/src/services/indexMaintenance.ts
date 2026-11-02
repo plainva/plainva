@@ -1,4 +1,4 @@
-import { toast } from "@plainva/ui";
+import { indexFailureSaid, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import type { MobileVault } from "./vaultService";
 
@@ -24,8 +24,10 @@ export async function rebuildVaultIndex(vault: Pick<MobileVault, "indexer">): Pr
     toast.success(i18n.t("settings.rebuildIndexDone"));
     window.dispatchEvent(new CustomEvent("m-index-changed"));
     return true;
-  } catch {
-    toast.warning(i18n.t("settings.rebuildIndexFailed"));
+  } catch (e) {
+    // One notice for one failure: a scan that failed has named its reason
+    // already (Sammelplan § 3.94).
+    if (!indexFailureSaid(e)) toast.warning(i18n.t("settings.rebuildIndexFailed"));
     return false;
   }
 }

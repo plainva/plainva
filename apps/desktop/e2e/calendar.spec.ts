@@ -1735,6 +1735,11 @@ test('an account that is not being synced says so above the calendar, and the ev
   // The reason in words, never the address the request went to.
   await expect(line).not.toContainText('dav.example.org');
   await expect(line).not.toContainText('{{');
+  // A failed cycle is said by this line alone (Sammelplan § 3.43): the bar
+  // above it carried a chip "Sync error" beside it, which the phone never had.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-pim-status', { detail: { status: 'error', message: 'Testkonto: offline' } })));
+  await expect(line).toContainText('Testkonto');
+  await expect(page.getByTestId('calendar-view').getByText(/^(Sync-Fehler|Sync error)$/)).toHaveCount(0);
 
   // The events are still there: the month cell, and the grid of today.
   const todayKey = await page.evaluate(() => (window as any).__todayKey);

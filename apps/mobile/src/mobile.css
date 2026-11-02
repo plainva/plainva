@@ -77,6 +77,26 @@ body,
      task's block-time button was unreachable. Constant for the same reason the
      bar's reservation is. */
   --m-fab-space: calc(var(--m-bar-space) + var(--touch-row) + var(--space-4));
+  /* Where the shared notices stand (Sammelplan § 3.48). They sat on the
+     desktop's status-bar clearance, so on the phone a notice lay over the
+     floating bar - and covered the tab it was about - for as long as it stood.
+     The strip the pages reserve is the one notices keep clear of as well:
+     above the bar, and above the "+" where the screen has one. The notices
+     live outside `.m-app`, so the root answers for them. */
+  --pv-toast-bottom: calc(var(--m-bar-space) + env(safe-area-inset-bottom));
+}
+:root:has(.m-app.has-fab) {
+  --pv-toast-bottom: calc(var(--m-fab-space) + env(safe-area-inset-bottom));
+}
+/* From medium the bar is a rail beside the work: only the "+" is left to keep
+   clear of, as for the pages (`--m-page-bottom` below). */
+:root[data-window="medium"],
+:root[data-window="expanded"] {
+  --pv-toast-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+}
+:root[data-window="medium"]:has(.m-app.has-fab),
+:root[data-window="expanded"]:has(.m-app.has-fab) {
+  --pv-toast-bottom: calc(var(--m-fab-space) - var(--m-bar-space) + var(--m-bar-inset) + env(safe-area-inset-bottom));
 }
 
 body {

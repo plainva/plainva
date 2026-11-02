@@ -18,7 +18,8 @@ import { usePaneLayout } from "./hooks/usePaneLayout";
 import { useAuxBridge } from "./hooks/useAuxBridge";
 import { popOutCompose } from "./services/mail/composeWindow";
 import { currentWindowParams } from "./services/windowContext";
-import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
+import { useWindowTitle } from "./services/windowTitle";
+import { useVaultWeekStart } from "./services/weekStartVault";
 import { useApp } from "./contexts/AppContext";
 import { virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
@@ -204,10 +205,12 @@ export function AuxApp() {
   // A compose window keeps the title the owner gave it: the SUBJECT of the
   // message. Two composers in the taskbar are otherwise two entries called
   // "Plainva", and this window never learns a file name to replace it with.
-  useOsWindowTitle(
+  // The week start of the vault this window shows (decision E4).
+  useVaultWeekStart(params.vaultPath);
+  useWindowTitle(
     params.role === "compose"
       ? null
-      : composeWindowTitle({ subject: title, vaultPath: params.vaultPath, vaultCount: heldVaults.length }),
+      : { subject: title, vaultPath: params.vaultPath, vaultCount: heldVaults.length },
   );
 
   /**
