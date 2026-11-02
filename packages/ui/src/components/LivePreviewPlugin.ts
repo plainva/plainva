@@ -10,7 +10,7 @@ import { isEditorInteractive } from "./editorInteractive";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
 import { isAnchorMarkerText } from "./anchorMarkerHide";
-import { listDepthAt } from "./listIndent";
+import { listDepthAt, listItemTextStart } from "./listIndent";
 import { editorLineDirection } from "./textDirectionExtension";
 import { textDirectionOf, type TextDirection } from "../lib/textDirection";
 import { spellcheckAttr } from "../lib/spellcheck";
@@ -787,30 +787,44 @@ export function markdownDecorationPlugin(isLive: boolean) {
                 if (name === "ListMark") {
                   if (lineActive) return;
                   const text = state.doc.sliceString(node.from, node.to);
-                  // Ordered list numbers stay as-is.
+                  // The whitespace after the marker (one to four spaces, and
+                  // many generators write three: `*   item`, `4.  item`) and a
+                  // task box belong to the marker, not to the text (finding
+                  // 2026-11-02). The preview keeps ONE space as the gap, as
+                  // `- item` has it, and hides the rest - every item reads
+                  // alike, however its source is spaced, as in the reading
+                  // view. The list indent measures the same prefix
+                  // (`listItemTextStart`), so wrapped lines start under the text.
+                  const markLine = state.doc.lineAt(node.from);
+                  const start = listItemTextStart(markLine.text, node.to - markLine.from);
+                  const boxFrom = start.boxFrom === null ? null : markLine.from + start.boxFrom;
+                  const textStart = markLine.from + start.textStart;
+                  // After the box: one space stays, the rest is hidden.
+                  if (boxFrom !== null && textStart > boxFrom + 4) decos.push(HIDE.range(boxFrom + 4, textStart));
                   if (/^[-*+]$/.test(text)) {
-                    // For task items (- [ ] ...) hide the bullet AND the single
-                    // space after it so the checkbox sits flush like a bullet;
-                    // otherwise render a "•" bullet.
-                    const after = state.doc.sliceString(node.to, Math.min(node.to + 5, state.doc.length));
-                    // `[/]` and `[-]` (E12) are no TaskMarker to the parser, so
-                    // their box is drawn from here: same place, same widget.
-                    const other = /^( ?)\[([/-])\](?=\s|$)/.exec(after);
-                    if (other) {
-                      const boxFrom = node.to + other[1].length;
-                      const cancelled = other[2] === "-";
-                      const taskLine = state.doc.lineAt(node.from);
+                    if (boxFrom !== null) {
+                      // A task item: the marker and the whitespace up to the
+                      // box are hidden so the checkbox sits flush like a bullet.
+                      // `[/]` and `[-]` (E12) are no TaskMarker to the parser,
+                      // so their box is drawn from here: same place, same widget.
                       decos.push(HIDE.range(node.from, boxFrom));
-                      decos.push(Decoration.replace({ widget: new TaskWidget(cancelled, boxFrom + 1, cancelled ? "cancelled" : "progress") }).range(boxFrom, boxFrom + 3));
-                      if (cancelled && boxFrom + 4 < taskLine.to) decos.push(Decoration.mark({ class: "cm-md-task-done" }).range(boxFrom + 4, taskLine.to));
-                    } else if (/^\s*\[[ xX]\]/.test(after)) {
-                      decos.push(HIDE.range(node.from, after.startsWith(" ") ? node.to + 1 : node.to));
+                      const kind = state.doc.sliceString(boxFrom + 1, boxFrom + 2);
+                      if (kind === "/" || kind === "-") {
+                        const cancelled = kind === "-";
+                        decos.push(Decoration.replace({ widget: new TaskWidget(cancelled, boxFrom + 1, cancelled ? "cancelled" : "progress") }).range(boxFrom, boxFrom + 3));
+                        if (cancelled && textStart < markLine.to) decos.push(Decoration.mark({ class: "cm-md-task-done" }).range(textStart, markLine.to));
+                      }
                     } else {
                       const foldRange = listFoldRange(state, node.from);
                       decos.push(
                         bulletDecoFor(listDepthAt(state, node.from), foldRange !== null, foldRange !== null && isLineFolded(state, node.from)).range(node.from, node.to),
                       );
+                      if (textStart > node.to + 1) decos.push(HIDE.range(node.to + 1, textStart));
                     }
+                  } else {
+                    // Ordered list numbers stay as they are written.
+                    const end = boxFrom ?? textStart;
+                    if (end > node.to + 1) decos.push(HIDE.range(node.to + 1, end));
                   }
                   return;
                 }
