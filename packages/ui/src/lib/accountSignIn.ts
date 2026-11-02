@@ -1,5 +1,5 @@
 import { refreshDriveAccessToken, refreshOneDriveAccessToken, type FetchFn } from "@plainva/core";
-import { accountServices, type CloudAccountRecord, type CloudServiceId } from "./cloudAccounts";
+import { accountServices, withBoundCard, type CloudAccountRecord, type CloudServiceId } from "./cloudAccounts";
 import { oauthScopeFor, oauthScopesCover, type OAuthFamily } from "./oauthScopes";
 import type { OAuthAccess } from "./oauthAccess";
 import type { StoredAccountToken } from "./tokenBroker";
@@ -411,11 +411,10 @@ export async function bindSignedInAccount(prepared: PreparedSignIn, completed: C
       verifiedProviderIdentity: completed.identity,
       services: { ...latest?.services, ...services },
     };
-    // The vault syncs through one account: a newly bound files service moves
-    // the reference off every other card.
-    const others = current.filter((entry) => entry.id !== cardId)
-      .map((entry) => (filesChanged && entry.services.files ? { ...entry, services: { ...entry.services, files: undefined } } : entry));
-    await ports.saveCards([...others, record]);
+    // Every row this card now carries is its alone (§ 3.107 Nr. 1): a card the
+    // registry reconcile wrote for a row bound here a moment ago gives it up,
+    // and the vault syncs through one account, so the files service moves too.
+    await ports.saveCards(withBoundCard(current, record));
     await ports.afterBinding({ cardId, filesChanged, ...(calendarAccountId ? { calendarAccountId } : {}) });
     const rows = signInResultRows(prepared, completed, failed, errors)
       .map((row) => (row.service === "mail" && passwordMail && row.state === "needsPassword" ? { ...row, state: "active" as const } : row));

@@ -5,6 +5,7 @@ import {
   accountOAuthServices,
   tokenCoversService,
   identityKey,
+  withBoundCard,
   type CloudAccountRecord,
   type CloudProviderFamily,
   type CloudServiceId,
@@ -327,12 +328,10 @@ export async function bindConnectResult(
     record.verifiedProviderIdentity = result.verifiedProviderIdentity;
   }
   try {
-    // A freshly connected files service moves the vault's XOR slot: strip the
-    // files reference from every OTHER account so exactly one card carries it.
-    const others = stored
-      .filter((r) => r.id !== record.id)
-      .map((r) => (result.filesProvider && r.services.files ? { ...r, services: { ...r.services, files: undefined } } : r));
-    await saveCloudAccounts(vaultPath, [...others, record]);
+    // Every row bound here is this card's alone, read fresh: a card the
+    // registry reconcile wrote meanwhile for the new mailbox or calendar gives
+    // it up (§ 3.107 Nr. 1), and the vault's files move off every other card.
+    await saveCloudAccounts(vaultPath, withBoundCard(await loadCloudAccounts(vaultPath), record));
     const persisted = (await loadCloudAccounts(vaultPath)).find(r => r.id === record.id);
     // Content, not text: the store returns `{ calendar, files }` for a written
     // `{ files, calendar }`, and the text comparison failed every files +

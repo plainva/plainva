@@ -7,6 +7,7 @@ import {
   needsConsent,
   prepareSignIn,
   readPreparedSignIn,
+  reconcileCloudAccounts,
   resolveOAuthAccess,
   signInResultRows,
   SignInCardChangedError,
@@ -314,6 +315,34 @@ describe("binding after the sign-in (E2: write everything, then reload once)", (
     const b = bindPorts([other]);
     await bindSignedInAccount(prepared, completedFor(["files"]), b.ports);
     expect(b.stored().find((record) => record.id === "other")?.services).toEqual({ files: undefined, calendar: { pimAccountId: "p" } });
+  });
+
+  it("a reconcile in the middle of the binding leaves no card without the sign-in on the new rows (Sammelplan § 3.107 Nr. 1)", async () => {
+    // What the shells observe once the binding has saved its calendar row and mailbox.
+    const observed = {
+      pim: [{ id: "pim-1", provider: "google" as const, label: ALICE.email }],
+      mail: [{ id: "mail-1", kind: "gmail" as const, label: ALICE.email, user: ALICE.email, host: "imap.gmail.com" }],
+    };
+    const prepared = prepareSignIn({ vaultId: "v", family: "google", add: ["calendar", "mail"], access: OWN_DESKTOP });
+    const b = bindPorts([]);
+    let stray = 0;
+    const reconcile = () => {
+      const next = reconcileCloudAccounts(b.stored(), observed, () => `stray-${++stray}`);
+      void b.ports.saveCards(next);
+    };
+    // The saved row and mailbox raise the events the registry reconcile listens to.
+    const ports = {
+      ...b.ports,
+      bindCalendar: async () => { const bound = { pimAccountId: "pim-1" }; reconcile(); return bound; },
+      bindMail: async () => { const bound = { mailAccountId: "mail-1" }; reconcile(); return bound; },
+    };
+
+    await bindSignedInAccount(prepared, completedFor(["calendar", "mail"]), ports);
+    // The next reconcile, as on the next vault open.
+    reconcile();
+
+    expect(b.stored().map((record) => record.id)).toEqual(["card-1"]);
+    expect(b.stored()[0].services).toEqual({ calendar: { pimAccountId: "pim-1" }, mail: { mailAccountId: "mail-1" } });
   });
 
   it("signing in again rebinds the services the card already has, in place", async () => {

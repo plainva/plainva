@@ -16,6 +16,7 @@ import {
   replaceProtectedSlot,
   resolveOAuthAccess,
   validClientId,
+  withBoundCard,
   type AccessFamily,
   type AccessResolution,
   type DropboxAccessResolution,
@@ -199,7 +200,7 @@ export async function signInCloudAccount(vaultPath: string, getRuntime: () => Pi
     if (!record || !request.mailPassword) throw new Error("nothing to sign in");
     const mailAccountId = await addPasswordMailbox(vaultPath, request.mailPassword);
     const saved = { ...record, services: { ...record.services, mail: { mailAccountId } } };
-    await saveCloudAccounts(vaultPath, [...(await loadCloudAccounts(vaultPath)).filter((entry) => entry.id !== record.id), saved]);
+    await saveCloudAccounts(vaultPath, withBoundCard(await loadCloudAccounts(vaultPath), saved));
     // The mailbox Google refused gives way to the app-password one (E7), with
     // everything the person set on it; filed mails stay notes (review finding 1).
     const replaced = record.services.mail?.mailAccountId;

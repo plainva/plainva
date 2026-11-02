@@ -183,6 +183,14 @@ describe("actual mobile calendar connection lifecycle", () => {
     await expect(pim.addPimAccount("google", "New", googleCreds, context)).rejects.toThrow("accountChanged");
     expect(JSON.parse(state.secrets.get(pimSecretKey("original", "synced"))!).refreshToken).toBe("kept");
   });
+  it("a card still naming a calendar row this device removed takes the new one (Sammelplan § 3.105)", async () => {
+    const context = source();
+    const records = state.settings.get("cloudAccounts_original") as CloudAccountRecord[];
+    state.settings.set("cloudAccounts_original", records.map((r) => r.id === "selected" ? { ...r, services: { ...r.services, calendar: { pimAccountId: "removed" } } } : r));
+    state.rows.set("original", []);
+    const id = await pim.addPimAccount("google", "New", googleCreds, context);
+    expect((state.settings.get("cloudAccounts_original") as CloudAccountRecord[]).find((r) => r.id === "selected")?.services.calendar).toEqual({ pimAccountId: id });
+  });
 });
 
 describe("a refused event write on the phone (issue 119, R2)", () => {

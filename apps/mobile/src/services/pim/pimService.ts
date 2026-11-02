@@ -25,7 +25,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -437,7 +437,11 @@ async function addPimAccountInVault(
     const records = await loadCloudAccounts(owner.vaultId);
     assertCurrent();
     const current = records.find(r => r.id === source.id);
-    if (!current || current.family !== source.family || (current.services.calendar && current.services.calendar.pimAccountId !== connectedId)) throw new ServiceConnectionError("accountChanged");
+    // A card that still names a calendar row this device no longer has is
+    // free to take the new one (Sammelplan § 3.105): only a row that exists
+    // makes the card another connection's.
+    const holds = current?.services.calendar?.pimAccountId;
+    if (!current || current.family !== source.family || (holds && holds !== connectedId && known.some((a) => a.id === holds))) throw new ServiceConnectionError("accountChanged");
     const verified = verifiedProviderIdentityOf({ config }) ?? undefined;
     if (provider === "google" || provider === "microsoft") assertConnectionIdentity(current.verifiedProviderIdentity, verified ?? null);
     const previous = await getPimCredentials(owner.vaultId, connectedId);
@@ -446,7 +450,7 @@ async function addPimAccountInVault(
       assertCurrent();
       await savePimCredentials(owner.vaultId, connectedId, creds);
       assertCurrent();
-      await saveCloudAccounts(owner.vaultId, records.map(r => r.id === source.id ? nextRecord : r));
+      await saveCloudAccounts(owner.vaultId, withBoundCard(records, nextRecord));
       assertCurrent();
       const persisted = (await loadCloudAccounts(owner.vaultId)).find(r => r.id === source.id);
       if (!sameStoredValue(persisted, nextRecord)) throw new ServiceConnectionError("storageFailed");

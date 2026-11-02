@@ -16,9 +16,10 @@ import type {
  * Account-card repair is deliberately narrower than subsystem cleanup.
  *
  * A card only groups references to the PIM, mail and file-sync runtimes. Exact
- * provider identity makes two cards safe to fold into one. The losing runtime
- * rows, caches and credential slots are intentionally left untouched so a
- * later, confirmed cleanup can remove them independently.
+ * provider identity makes two cards candidates to fold into one; the automatic
+ * fold takes only a card that loses nothing by it (`foldsWithoutLoss`, § 3.104):
+ * no row of its own the survivor does not carry, no sign-in of its own. The
+ * guided repair, on a person's word, folds the rest and removes what is left.
  */
 
 export type AccountRepairBindingKind = "account" | "pim" | "mail" | "files";
@@ -161,6 +162,37 @@ function mergeServices(
   return services;
 }
 
+/**
+ * Whether the automatic fold may take `source` into `merged` without leaving
+ * anything behind (Sammelplan § 3.104).
+ *
+ * A card points at one row per service, and its sign-in lies in a slot keyed
+ * by the card. Folding a card whose row differs from the survivor's left that
+ * row without a card (a mailbox asking to sign in again), and folding a card
+ * with a sign-in of its own left that sign-in where no card points (the
+ * survivor's may not cover the service). Such a card stays; two cards of one
+ * account remain a review need for the guided repair, where a person picks
+ * the survivor and the cleanup removes what is left.
+ */
+function foldsWithoutLoss(source: CloudAccountRecord, merged: CloudAccountServices, usable: ReadonlySet<string>): boolean {
+  if (usable.has(accountRepairBindingKey("account", source.id))) return false;
+  return serviceIds(source).every((service) => {
+    const kept = serviceBinding(service, merged);
+    return !kept || kept === serviceBinding(service, source.services);
+  });
+}
+
+/** The survivor's services plus what each folded card brings that it lacks. */
+function foldedServices(target: CloudAccountRecord, sources: readonly CloudAccountRecord[]): CloudAccountServices {
+  const services: CloudAccountServices = { ...target.services };
+  for (const source of sources) {
+    if (!services.calendar && source.services.calendar) services.calendar = { ...source.services.calendar };
+    if (!services.mail && source.services.mail) services.mail = { ...source.services.mail };
+    if (!services.files && source.services.files) services.files = { ...source.services.files };
+  }
+  return services;
+}
+
 function resolveAlias(aliases: Record<string, string> | undefined, logicalId: string): string {
   let current = logicalId;
   const visited = new Set<string>();
@@ -298,17 +330,24 @@ export function planAccountRepair(
     .filter((records) => records.length > 1)
     .map((records) => {
       const target = selectTarget(records, usable);
-      return { target, records: [...records].sort((a, b) => a.id.localeCompare(b.id)) };
+      // Each candidate is held against the survivor as folded so far: two
+      // cards that each bring a different mailbox cannot both fold into it.
+      let services: CloudAccountServices = { ...target.services };
+      const folded: CloudAccountRecord[] = [];
+      for (const record of [...records].sort((a, b) => a.id.localeCompare(b.id))) {
+        if (record.id === target.id || !foldsWithoutLoss(record, services, usable)) continue;
+        folded.push(record);
+        services = foldedServices(target, folded);
+      }
+      return { target, records: [target, ...folded].sort((a, b) => a.id.localeCompare(b.id)), services };
     })
+    .filter(({ records }) => records.length > 1)
     .sort((a, b) => a.target.id.localeCompare(b.target.id));
   const sourceIds = new Set(repairGroups.flatMap(({ target, records }) =>
     records.filter((record) => record.id !== target.id).map((record) => record.id)));
-  const mergedByTarget = new Map(repairGroups.map(({ target, records }) => [
+  const mergedByTarget = new Map(repairGroups.map(({ target, services }) => [
     target.id,
-    {
-      ...target,
-      services: mergeServices(target, records, usable),
-    },
+    { ...target, services },
   ]));
   const accounts = inputAccounts
     .filter((account) => !sourceIds.has(account.id))
