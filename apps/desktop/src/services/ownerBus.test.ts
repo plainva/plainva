@@ -550,14 +550,19 @@ describe("delegated mutations", () => {
     // old text (a conflict copy) and a quick capture write its line twice.
     const { aux, calls, dispose } = await setup({ indexFails: true });
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
     await expect(aux.request("write", { path: "Note.md", content: "hi" })).resolves.toBeUndefined();
     await expect(aux.request("write-binary", { path: "Pic.png", base64: "AA==" })).resolves.toBeUndefined();
     await expect(aux.request("rename", { from: "Old.md", to: "New.md" })).resolves.toBeUndefined();
     await expect(aux.request("delete", { path: "Gone.md" })).resolves.toBeUndefined();
     expect(calls).toEqual(expect.arrayContaining(["write:Note.md", "write-binary:Pic.png", "rename:Old.md->New.md", "delete:Gone.md:single"]));
     // Said as what it is: written, and the index did not follow.
-    expect(errors.mock.calls.map(([message]) => String(message)).filter((message) => /written.*index/i.test(message))).toHaveLength(4);
+    // A write and a binary write say it here; a rename and a deletion are followed by `applyIndexChanges`,
+    // which never throws since Sammelplan 3.111 no. 7 and leaves the path to the watcher, saying so itself.
+    expect(errors.mock.calls.map(([message]) => String(message)).filter((message) => /written.*index/i.test(message))).toHaveLength(2);
+    expect(warnings.mock.calls.map(([message]) => String(message)).filter((message) => /index could not follow/i.test(message)).length).toBeGreaterThanOrEqual(2);
     errors.mockRestore();
+    warnings.mockRestore();
     dispose();
   });
 

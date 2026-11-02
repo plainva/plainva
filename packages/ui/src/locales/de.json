@@ -2100,7 +2100,6 @@
     "overwriteConfirm": "{{path}} existiert bereits und wird neu erzeugt (Backup wird angelegt). Fortfahren?",
     "createOverview": "Übersicht erzeugen",
     "refreshOverview": "Übersicht aktualisieren",
-    "generateFailed": "Die Übersicht konnte nicht geschrieben werden.",
     "overviewsTitle": "Übersichten",
     "overviewsIntro": "OKF-Verzeichnislistings (index.md), eines je Ordner. Ordner ohne Übersicht stehen oben.",
     "overviewsEmpty": "In diesem Vault gibt es noch keine Ordner mit Notizen.",
@@ -4922,6 +4921,22 @@
     "discardHint": "Nur diesen wartenden Eintrag vom Gerät entfernen? Bereits ins Vault geschriebene Dateien bleiben erhalten.",
     "readFailed": "Die wartenden Inhalte konnten nicht gelesen werden. Sie wurden nicht entfernt.",
     "retry": "Erneut versuchen"
+  },
+  "writeFailed": {
+    "openConflict": "Die Datei hat einen offenen Konflikt. Löse zuerst den Konflikt und versuche es dann erneut.",
+    "permission": "Keine Berechtigung, „{{name}}“ zu ändern.",
+    "exists": "„{{name}}“ ist schon vorhanden.",
+    "notFound": "„{{name}}“ ist nicht mehr da.",
+    "checkbox": "Die Checkbox konnte nicht geändert werden: {{reason}}",
+    "newEntry": "Der Eintrag konnte nicht angelegt werden: {{reason}}",
+    "newTemplate": "Die Vorlage konnte nicht angelegt werden: {{reason}}",
+    "newDatabase": "Die Datenbank konnte nicht angelegt werden: {{reason}}",
+    "databaseSave": "Die Datenbank konnte nicht gespeichert werden: {{reason}}",
+    "overview": "Die Übersicht konnte nicht geschrieben werden: {{reason}}",
+    "adopt": "„{{file}}“ konnte nicht als Übersicht übernommen werden: {{reason}}",
+    "promote": "Die Aufgabe konnte nicht verschoben werden: {{reason}}",
+    "promotedCheckboxKept": "Verschoben: {{name}}. Die Checkbox bleibt in ihrer Notiz, weil sich ihre Zeile geändert hatte.",
+    "rewriteSkipped": "Übersprungen, weil die Notiz nicht mehr da ist: {{count}}"
   },
   "inputRejected": {
     "mailHeader": "Absender, Empfänger oder Betreff enthalten Zeilenumbrüche oder ungültige Zeichen. Entferne sie und versuche es erneut.",

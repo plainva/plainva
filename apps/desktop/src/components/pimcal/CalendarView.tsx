@@ -543,7 +543,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           // sentence of a property write, with its reason (finding
           // 2026-10-12). A checkbox says its reason.
           if (task.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
-          else toast.error(errorText(e));
+          else toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
         }
       })();
     },

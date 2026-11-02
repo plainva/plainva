@@ -469,7 +469,9 @@ export const Editor: React.FC<{
       if (indexer) applyIndexChanges(indexer, { added: [folder ? `${folder}/index.md` : "index.md"] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: activePath } }));
     } catch (e) {
+      // Said with its reason, as the phone says it: it ended in the console.
       console.error("[Editor] refreshing the managed index failed", e);
+      toast.error(t("writeFailed.overview", { reason: errorText(e) }));
     }
   };
 
@@ -1528,7 +1530,9 @@ export const Editor: React.FC<{
       triggerFileTreeUpdate();
       embedBaseAtPos(newPath, pos);
     } catch (e) {
+      // Said with its reason, in both shells (Sammelplan § 3.63 no. 1): it ended in the console.
       console.error("Failed to create inline base", e);
+      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
     }
   }, [vaultAdapter, indexer, activePath, t, triggerFileTreeUpdate]);
 

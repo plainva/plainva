@@ -286,6 +286,35 @@ describe("applyIndexChanges", () => {
     expect(calls.indexed).toEqual([]);
   });
 
+  // Sammelplan § 3.111 no. 7: called right after a write that landed, a look
+  // of the index that failed reported a failed operation — and stopped at the
+  // first such path. The watcher indexes what is left.
+  it("never fails the write it follows: goes on past a path it cannot follow and answers it", async () => {
+    const { indexer, calls } = makeReindexer();
+    indexer.indexPath = async (p) => {
+      if (p === "Bad.md") throw new Error("metadata unavailable");
+      calls.indexed.push(p);
+    };
+    const followed = await applyIndexChanges(indexer, { removed: ["Old.md"], added: ["Bad.md", "Good.md"] });
+    expect(followed.leftBehind).toEqual(["Bad.md"]);
+    expect(calls.indexed).toEqual(["Good.md"]);
+    expect(calls.removed).toEqual(["Old.md"]);
+  });
+
+  it("does not index a moved file at its new place when its rows could not be re-keyed (no second row, issue 113)", async () => {
+    const { indexer, calls } = makeReindexer();
+    indexer.relocatePathInIndex = async () => { throw new Error("index locked"); };
+    const followed = await applyIndexChanges(indexer, { moved: [{ from: "A.md", to: "B.md" }], added: ["Ref.md"] });
+    expect(followed.leftBehind).toEqual(["B.md"]);
+    expect(calls.indexed).toEqual(["Ref.md"]);
+  });
+
+  it("does not throw when the full scan fails — the index announces that itself", async () => {
+    const { indexer } = makeReindexer();
+    indexer.indexVaultFull = async () => { throw new Error("scan failed"); };
+    await expect(applyIndexChanges(indexer, { needsFullScan: true })).resolves.toEqual({ leftBehind: [""] });
+  });
+
   it("is a no-op for an empty change (e.g. creating an empty folder)", async () => {
     const { indexer, calls } = makeReindexer();
     await applyIndexChanges(indexer, { added: [] });

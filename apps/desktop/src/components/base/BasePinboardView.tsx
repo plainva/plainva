@@ -379,8 +379,9 @@ export function BasePinboardView({
         toast.info(t("tasks.promoteStale"));
         await afterCardWrite(path, false);
       }
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+    } catch (e) {
+      // The sentence of a checkbox and its reason (Sammelplan § 3.134 no. 2): the bare message stood here.
+      toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
     }
   }, [vaultAdapter, afterCardWrite, t]);
 

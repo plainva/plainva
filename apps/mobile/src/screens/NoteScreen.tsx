@@ -888,7 +888,7 @@ export function NoteScreen({
         await writeOverview(vault, path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
       } catch (e) {
         console.error("[mobile] refreshing the managed index failed", e);
-        toast.error(t("indexMd.generateFailed"));
+        toast.error(t("writeFailed.overview", { reason: errorText(e) }));
       }
     })();
   };
@@ -1017,15 +1017,13 @@ export function NoteScreen({
   const saveAsTemplate = () => {
     void (async () => {
       await noteSaver.flush(path, vault).catch(() => {});
-      const saved = await saveNoteAsTemplateIn(
-        vault.files,
-        getMobileSettings().templateFolder,
-        path,
-      ).catch(() => null);
-      if (saved) {
+      // A template that could not be written says so with its reason, as the
+      // desktop says it (Sammelplan § 3.134 no. 3) — "Export failed." stood here.
+      try {
+        const saved = await saveNoteAsTemplateIn(vault.files, getMobileSettings().templateFolder, path);
         toast.info(t("editor.templateSaved", { name: saved.split("/").pop() }));
-      } else {
-        toast.warning(t("editor.exportFailed"));
+      } catch (e) {
+        toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
       }
     })();
   };

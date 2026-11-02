@@ -2108,7 +2108,6 @@
     "overwriteConfirm": "{{path}} já existe e será regenerado (um backup é criado). Continuar?",
     "createOverview": "Criar visão geral",
     "refreshOverview": "Atualizar visão geral",
-    "generateFailed": "Não foi possível gravar a visão geral.",
     "overviewsTitle": "Visões gerais",
     "overviewsIntro": "Listagens de diretório OKF (index.md), uma por pasta. As pastas sem visão geral vêm primeiro.",
     "overviewsEmpty": "Este cofre ainda não tem pastas com notas.",
@@ -4982,6 +4981,22 @@
     "discardHint": "Remover apenas esta entrada pendente do dispositivo? Os arquivos já gravados no vault serão mantidos.",
     "readFailed": "Não foi possível ler o conteúdo pendente. Ele não foi removido.",
     "retry": "Tentar novamente"
+  },
+  "writeFailed": {
+    "openConflict": "O arquivo tem um conflito aberto. Resolva o conflito primeiro e tente novamente.",
+    "permission": "Sem permissão para alterar “{{name}}”.",
+    "exists": "“{{name}}” já existe.",
+    "notFound": "“{{name}}” não está mais lá.",
+    "checkbox": "Não foi possível alterar a caixa de seleção: {{reason}}",
+    "newEntry": "Não foi possível criar a entrada: {{reason}}",
+    "newTemplate": "Não foi possível criar o modelo: {{reason}}",
+    "newDatabase": "Não foi possível criar o banco de dados: {{reason}}",
+    "databaseSave": "Não foi possível salvar o banco de dados: {{reason}}",
+    "overview": "Não foi possível gravar a visão geral: {{reason}}",
+    "adopt": "“{{file}}” não pôde virar a visão geral: {{reason}}",
+    "promote": "Não foi possível mover a tarefa: {{reason}}",
+    "promotedCheckboxKept": "Movido: {{name}}. A caixa de seleção fica na nota porque a linha dela tinha mudado.",
+    "rewriteSkipped": "Ignoradas porque a nota não existe mais: {{count}}"
   },
   "inputRejected": {
     "mailHeader": "O remetente, os destinatários ou o assunto contêm quebras de linha ou caracteres inválidos. Remova-os e tente novamente.",

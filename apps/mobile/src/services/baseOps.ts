@@ -380,7 +380,7 @@ export async function deleteBaseProperty(
 ): Promise<NoteRewriteResult> {
   const nc = deletePropertyFromConfig(config, name);
   await saveBaseConfig(v, basePath, nc);
-  const result = cleanNotes ? await removePropertyAcrossNotes(noteFiles(v), rowPaths, name) : { written: [], unchanged: [], failed: [] };
+  const result = cleanNotes ? await removePropertyAcrossNotes(noteFiles(v), rowPaths, name) : { written: [], unchanged: [], failed: [], skipped: [] };
   syncSoon();
   return result;
 }

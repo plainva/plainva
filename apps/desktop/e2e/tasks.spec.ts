@@ -228,12 +228,15 @@ test.beforeEach(async ({ page }) => {
           const root = String(args.rootId).replace(/^mock-root:/, '');
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
+          // A test lets the disk refuse a file (`fs.__refused`), as the OS does for a read-only one.
+          if ((fs.__refused ?? []).includes(p)) throw 'Access is denied. (os error 5)';
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
           return null;
         }
         if (cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
           const rawPath = options?.headers?.path ? decodeURIComponent(options.headers.path) : args?.path || '';
           const p = rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
+          if ((fs.__refused ?? []).includes(p)) throw 'Access is denied. (os error 5)';
           const str = cmd === 'plugin:fs|write_text_file' ? new TextDecoder().decode(new Uint8Array(args)) : new TextDecoder().decode(new Uint8Array(args.data || args));
           fs[p] = str;
           return null;
@@ -334,6 +337,23 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
   await page.getByTestId('tasks-filter-all').click();
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /done thing/ })).toBeVisible();
+});
+
+test('a checkbox whose note refuses the write says so, with its reason, and stays as the note is (Sammelplan 3.134 no. 2)', async ({ page }, testInfo) => {
+  await openVault(page);
+  await openTasks(page);
+  await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
+  // The disk refuses the note from now on.
+  await page.evaluate(() => { (window as any).mockFs.__refused = ['/test-vault/Todo.md']; });
+  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=../preceding-sibling::button[1]').click();
+
+  // The box used to spring back without a word, the reason only in the console.
+  const said = page.locator('.pv-toast--error', { hasText: /The checkbox could not be changed: Access is denied\. \(os error 5\)|Die Checkbox konnte nicht geändert werden: Access is denied/ });
+  await expect(said).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath('checkbox-refused.png') });
+  // The note is what it was, and the task is still open.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('- [ ] buy milk');
+  await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
 });
 
 test('hiding a note writes plainva.tasks: false and drops it until "show hidden"', async ({ page }) => {

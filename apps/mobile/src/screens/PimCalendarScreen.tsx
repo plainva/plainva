@@ -370,7 +370,7 @@ export function PimCalendarScreen({
         // its reason.
         .catch((e) => {
           if (row.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
-          else toast.error(errorText(e));
+          else toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
         });
     },
     [t]

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Pencil, Trash2, X } from "lucide-react";
-import { baseStemOf, Button, Chip, chipPaletteIndex, type CuratedOption, errorText, ICON, IconButton, isValidNewPropertyName, isValidReverseColumnName, mergeObservedOptions, notesCarryingProperty, PALETTE_NAMES, parseBaseConfig, type PropertyType, renameRefusedText, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
+import { baseStemOf, sayRewriteOutcome, Button, Chip, chipPaletteIndex, type CuratedOption, errorText, ICON, IconButton, isValidNewPropertyName, isValidReverseColumnName, mergeObservedOptions, notesCarryingProperty, PALETTE_NAMES, parseBaseConfig, type PropertyType, renameRefusedText, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
 import { mActions, mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { deleteBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
 import { vaultOps } from "../../services/vaultService";
@@ -149,9 +149,8 @@ export function PropertyEditSheet({
           toast.error(renameRefusedText(column, outcome.refused));
           return;
         }
-        if (outcome.status === "renamed" && outcome.result.failed.length > 0) {
-          toast.error(t("database.bulkSetPartial", { done: outcome.result.written.length, failed: outcome.result.failed.length }));
-        }
+        // A note that was gone when its turn came is skipped, not failed (decision E20).
+        if (outcome.status === "renamed") sayRewriteOutcome(outcome.result, toast);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         return;
@@ -285,7 +284,7 @@ export function PropertyEditSheet({
       // the sheet closes on it.
       try {
         const result = await deleteBaseProperty(vault, basePath, config, column, paths, mode === "notes");
-        if (result.failed.length > 0) toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+        sayRewriteOutcome(result, toast);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         return;

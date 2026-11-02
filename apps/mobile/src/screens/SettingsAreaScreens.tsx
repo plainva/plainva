@@ -6,7 +6,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
 import { ZipBackupGroup } from "../components/ZipBackupGroup";
-import { placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
+import { errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
 import { noteTypeOf } from "../services/newNote";
@@ -226,7 +226,12 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
         priorityKey: t("tasks.dbPriorityKey"),
         priorityOptions: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")],
-      }).catch(() => null);
+      }).catch((e: unknown) => {
+        // Said with its reason (Sammelplan § 3.63 no. 1): a refusal — a member
+        // without write access in an encrypted workspace — said nothing here.
+        toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
+        return null;
+      });
       if (!path) return;
       update({ taskDatabase: path });
       // The phone has no watcher to find the new file: the index is told

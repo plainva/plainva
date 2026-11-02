@@ -39,7 +39,7 @@ import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
 import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "@plainva/ui";
 import { writeRelationLink } from "../services/graphRelationTargets";
-import { assertFileStillThere, isFileNotFound, moveItemName, toast } from "@plainva/ui";
+import { assertFileStillThere, isFileNotFound, moveItemName, sayRewriteOutcome, toast } from "@plainva/ui";
 import { requestSaveFlush } from "../services/saveFlush";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { appConfirm, appPrompt } from "../services/appDialogs";
@@ -430,7 +430,7 @@ export function BaseViewer({
       if (indexer) await applyIndexChanges(indexer, { added: [copy] });
       triggerFileTreeUpdate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(errorText(e));
     }
   }, [vaultAdapter, indexer, triggerFileTreeUpdate, t]);
 
@@ -843,8 +843,8 @@ export function BaseViewer({
         triggerFileTreeUpdate(result.written);
       }
     }
-    if (result.failed.length > 0) {
-      toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+    if (result.failed.length > 0 || result.skipped.length > 0) {
+      sayRewriteOutcome(result, toast);
     } else if (result.cancelled) {
       toast.info(t("database.bulkSetCancelled", { done: result.written.length }));
     } else {
@@ -984,6 +984,20 @@ export function BaseViewer({
     saveConfig({ ...dbConfig, views });
   };
 
+  /** The layout a view keeps beside the database's config - its type, its columns, its grouping, its cover - as the config says it. */
+  const showViewLayout = (config: any, index: number): boolean => {
+    const view = config?.views?.[index];
+    if (!view) return false;
+    setCurrentViewType(view.type || "table");
+    const savedOrder: string[] = Array.isArray(view.order) ? view.order : [];
+    setVisibleColumns(savedOrder.length > 0 ? savedOrder.map((c: string) => c.replace(/^note\./, "")) : ["file.name", ...commonColumns]);
+    setBoardGroupBy(view.groupBy ?? null);
+    setCoverImageProperty(view.coverImage ?? null);
+    return true;
+  };
+  /** Counts the saves of the config: a failed save puts the view's layout back only if none came after it. */
+  const saveTurn = useRef(0);
+
   // Switching the active view re-derives its layout/columns and re-queries so the data
   // is sorted by that view. Runs on index change only — local column edits (same index)
   // must not be clobbered. The first run (mount) is handled by the load effect.
@@ -991,13 +1005,7 @@ export function BaseViewer({
   useEffect(() => {
     if (!didMountViewSync.current) { didMountViewSync.current = true; return; }
     if (suppressViewSyncRef.current) { suppressViewSyncRef.current = false; return; }
-    const view = dbConfig?.views?.[activeViewIndex];
-    if (!view) return;
-    setCurrentViewType(view.type || "table");
-    const savedOrder: string[] = Array.isArray(view.order) ? view.order : [];
-    setVisibleColumns(savedOrder.length > 0 ? savedOrder.map((c) => c.replace(/^note\./, "")) : ["file.name", ...commonColumns]);
-    setBoardGroupBy(view.groupBy ?? null);
-    setCoverImageProperty(view.coverImage ?? null);
+    if (!showViewLayout(dbConfig, activeViewIndex)) return;
     if (queryService) queryForActiveView(dbConfig, activeViewIndex).then((d) => setDbData(d)).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeViewIndex]);
@@ -1148,7 +1156,9 @@ export function BaseViewer({
       // properties can be filled in immediately.
       setPeekPath(path);
     } catch (e) {
+      // Said with its reason (Sammelplan § 3.134 no. 3): the button came free and nothing else happened.
       console.error("[BaseViewer] creating a new base item failed", e);
+      toast.error(t("writeFailed.newEntry", { reason: errorText(e) }));
     } finally {
       setNewItemBusy(false);
     }
@@ -1369,11 +1379,12 @@ export function BaseViewer({
         basePath: activePath,
         allFilePaths: rows.map((r) => r.path),
       });
-      if (!path) return;
       if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       onOpenPath?.(path, true);
     } catch (e) {
+      // Said with its reason (Sammelplan § 3.134 no. 3), as the phone says it.
       console.error("[BaseViewer] creating a template failed", e);
+      toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
     }
   };
 
@@ -1529,6 +1540,7 @@ export function BaseViewer({
     const newText = serializeBaseConfig(newConfig);
     const shownConfig = dbConfig;
     const shownText = content;
+    const save = ++saveTurn.current;
     try {
       // Optimistic UI update to prevent stuck screens
       setContent(newText);
@@ -1549,9 +1561,15 @@ export function BaseViewer({
       }
       setDbConfig((shown: any) => (shown === newConfig ? shownConfig : shown));
       setContent((shown) => (shown === newText ? shownText : shown));
+      // What the caller set ahead of the save - the columns shown, the view
+      // type, the grouping, the cover - goes back with it, unless a later
+      // save changed the view since (Sammelplan 3.71 no. 5): it stayed, and
+      // the next save that landed wrote it along.
+      if (save === saveTurn.current && shownConfig) showViewLayout(shownConfig, activeViewIndex);
       if (moved) lookForFile();
       console.error("Failed to save database config", e);
-      toast.error(t("editor.saveFailed"));
+      // With its reason (Sammelplan 3.87 no. 1): an open conflict is named as one.
+      toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
       return false;
     }
     setPendingConfig(null);
@@ -1660,9 +1678,10 @@ export function BaseViewer({
   // What the loops over many notes say when some could not be written: one
   // message with both counts. Each of them used to log the note to the console
   // and then show every row as changed (finding 2026-10-09).
-  const reportRewrite = (result: { written: string[]; failed: { path: string; message: string }[] }, what: string) => {
+  // A note that was gone when its turn came is skipped, not failed (decision E20).
+  const reportRewrite = (result: { written: string[]; failed: { path: string; message: string }[]; skipped: string[] }, what: string) => {
     for (const failure of result.failed) console.error(what, failure.path, failure.message);
-    if (result.failed.length > 0) toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+    sayRewriteOutcome(result, toast);
   };
 
   // Writes a property (empty) into the notes that lack it and answers which
@@ -2925,7 +2944,7 @@ export function BaseViewer({
                 data-testid={`schedule-into-${c.value}`}
                 onClick={() => {
                   const p = scheduleTarget;
-                  void scheduleEntry(p, c.value).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+                  void scheduleEntry(p, c.value).catch((e) => toast.error(errorText(e)));
                 }}
               >
                 {c.label}

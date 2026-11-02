@@ -1,6 +1,7 @@
 import { updateFrontmatterString, updateVaultText } from "@plainva/core";
 import { createLimiter } from "../lib/concurrencyLimiter";
 import { writableProperties, writeNoteProperty, type PropertyWriteAdapter } from "./writeProperty";
+import { isVanishedNote } from "./noteRewrite";
 
 /**
  * Setting ONE column to ONE value across many notes (plan Mehrfachauswahl, P5).
@@ -51,6 +52,8 @@ export interface BulkSetResult {
   written: string[];
   /** Paths that failed, with the reason, in the order they failed. */
   failed: { path: string; message: string }[];
+  /** Paths that were no longer there: skipped, not failed (decision E20, `isVanishedNote`). */
+  skipped: string[];
   /** True when the run stopped early because the caller asked it to. */
   cancelled: boolean;
 }
@@ -66,6 +69,7 @@ export async function bulkSetProperty(
   const total = paths.length;
   const written: string[] = [];
   const failed: { path: string; message: string }[] = [];
+  const skipped: string[] = [];
   let done = 0;
   let cancelled = false;
 
@@ -83,7 +87,8 @@ export async function bulkSetProperty(
           await writeNoteProperty(adapter, path, column, value);
           written.push(path);
         } catch (e) {
-          failed.push({ path, message: e instanceof Error ? e.message : String(e) });
+          if (isVanishedNote(e)) skipped.push(path);
+          else failed.push({ path, message: e instanceof Error ? e.message : String(e) });
         }
         done += 1;
         onProgress?.(done, total);
@@ -91,7 +96,7 @@ export async function bulkSetProperty(
     )
   );
 
-  return { written, failed, cancelled };
+  return { written, failed, skipped, cancelled };
 }
 
 export interface RewriteResult {
@@ -99,6 +104,8 @@ export interface RewriteResult {
   written: string[];
   /** Paths that failed, with the reason, in the order they failed. */
   failed: { path: string; message: string }[];
+  /** Paths that were no longer there: skipped, not failed (decision E20, `isVanishedNote`). */
+  skipped: string[];
 }
 
 /**
@@ -118,6 +125,7 @@ export async function rewriteNoteProperties(
 ): Promise<RewriteResult> {
   const written: string[] = [];
   const failed: { path: string; message: string }[] = [];
+  const skipped: string[] = [];
   for (const path of paths) {
     try {
       // Whether the note is one to change is said by the note itself, as it
@@ -130,8 +138,9 @@ export async function rewriteNoteProperties(
       });
       if (change(writableProperties(update.before)) !== null) written.push(path);
     } catch (e) {
-      failed.push({ path, message: e instanceof Error ? e.message : String(e) });
+      if (isVanishedNote(e)) skipped.push(path);
+      else failed.push({ path, message: e instanceof Error ? e.message : String(e) });
     }
   }
-  return { written, failed };
+  return { written, failed, skipped };
 }

@@ -1,6 +1,6 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
 import { copyFileContent, frontmatterSpan, toPathIdentity, updateVaultText, type VaultQueryService } from "@plainva/core";
-import { carryTemplateAssignments, errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
+import { carryTemplateAssignments, errorText, landedAtDestination, logDiagnostic, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
 
@@ -288,6 +288,14 @@ export interface RenameReindexer {
 }
 
 /**
+ * What the index could not follow after a write: the paths it left to the
+ * watcher and the next full scan. Never a failure of the write itself.
+ */
+export interface IndexFollowUp {
+  leftBehind: string[];
+}
+
+/**
  * Apply the smallest index update for a structural change so the sidebar
  * refreshes without a full-vault reindex — a full scan on every create/delete/
  * move/rename was the visible lag (Issue #9). `needsFullScan` (e.g. a folder
@@ -304,6 +312,14 @@ export interface RenameReindexer {
  * queued remote DELETE for a path whose MOVE was already queued (issue 113).
  * Moves are relocated before a full scan too, so the scan finds every row at
  * its new place and has nothing to report as vanished.
+ *
+ * It never throws (Sammelplan § 3.111 no. 7). Its callers call it right
+ * after a write that has landed — a new note, an attachment, a moved file,
+ * a ticked task — and about 25 of them caught nothing: a look of the index
+ * that failed right after the write reported a failed operation for one that
+ * had succeeded, the file there and the watcher about to index it. What it
+ * could not follow it answers and writes to the diagnostics, as the phone's
+ * door (`pathReindex.ts`) does; a caller that draws from the index can ask.
  */
 export async function applyIndexChanges(
   indexer: RenameReindexer,
@@ -313,16 +329,42 @@ export async function applyIndexChanges(
     moved?: ReadonlyArray<{ from: string; to: string }>;
     needsFullScan?: boolean;
   }
-): Promise<void> {
-  for (const { from, to } of changes.moved ?? []) await indexer.relocatePathInIndex(from, to);
+): Promise<IndexFollowUp> {
+  const leftBehind: string[] = [];
+  // Each path on its own: a look that fails leaves that one path to the
+  // watcher, not the rest of the list (Sammelplan § 3.111 no. 7) — the first
+  // such path stopped the loop.
+  const step = async (path: string, work: () => Promise<unknown>): Promise<boolean> => {
+    try {
+      await work();
+      return true;
+    } catch (error) {
+      console.warn("[fileActions] the index could not follow a path; the watcher or the next scan does", path, error);
+      leftBehind.push(path);
+      return false;
+    }
+  };
+  // A move whose rows could not be re-keyed is not indexed at its new place:
+  // a second row beside the old one would read to the next scan as a file
+  // that vanished (issue 113). The watcher follows the move.
+  const unmoved = new Set<string>();
+  for (const { from, to } of changes.moved ?? []) {
+    if (!(await step(to, () => indexer.relocatePathInIndex(from, to)))) unmoved.add(to);
+  }
   if (changes.needsFullScan) {
-    await indexer.indexVaultFull("folder moved in the app");
-    return;
+    // A scan that fails is announced by the index itself (`onFullScanFailed`, issue 125).
+    await step("", () => indexer.indexVaultFull("folder moved in the app"));
+  } else {
+    for (const path of changes.removed ?? []) await step(path, () => indexer.removePathFromIndex(path));
+    for (const path of new Set([...(changes.moved ?? []).map((m) => m.to), ...(changes.added ?? [])])) {
+      if (!unmoved.has(path)) await step(path, () => indexer.indexPath(path));
+    }
   }
-  for (const path of changes.removed ?? []) await indexer.removePathFromIndex(path);
-  for (const path of new Set([...(changes.moved ?? []).map((m) => m.to), ...(changes.added ?? [])])) {
-    await indexer.indexPath(path);
+  if (leftBehind.length > 0) {
+    // Counts only, as every line of the diagnostics export (the phone's door says the same).
+    logDiagnostic("index", `${leftBehind.length} path(s) the index was told of could not be followed — left to the watcher and the next full scan`);
   }
+  return { leftBehind };
 }
 
 /**
@@ -550,12 +592,12 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
       // A moved folder changes many descendant paths → full scan; moved files
       // just relocate.
       const anyFolder = moved.some((o) => o.isFolder);
-      const indexError = await followUp(() => applyIndexChanges(deps.indexer!, {
+      // What the index cannot follow it leaves to the watcher: no failure of the move (Sammelplan § 3.111 no. 7).
+      await applyIndexChanges(deps.indexer, {
         needsFullScan: anyFolder,
         moved: moved.map((o) => ({ from: o.from, to: o.to })),
         added: anyFolder ? [] : sweptBases,
-      }));
-      if (indexError) followUpErrors.push({ name: moved.map((o) => o.to.split("/").pop()).join(", "), error: indexError });
+      });
     }
   }
   return { moved, errors, followUpErrors, sweptBases, linkUpdateFailed };

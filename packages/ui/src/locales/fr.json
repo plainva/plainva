@@ -2108,7 +2108,6 @@
     "overwriteConfirm": "{{path}} existe déjà et sera régénéré (une sauvegarde est créée). Continuer ?",
     "createOverview": "Créer un aperçu",
     "refreshOverview": "Actualiser l’aperçu",
-    "generateFailed": "L’aperçu n’a pas pu être écrit.",
     "overviewsTitle": "Aperçus",
     "overviewsIntro": "Listes de répertoire OKF (index.md), une par dossier. Les dossiers sans aperçu viennent en premier.",
     "overviewsEmpty": "Ce coffre n’a pas encore de dossiers contenant des notes.",
@@ -4982,6 +4981,22 @@
     "discardHint": "Supprimer uniquement cette entrée en attente de l’appareil ? Les fichiers déjà écrits dans le vault seront conservés.",
     "readFailed": "Impossible de lire le contenu en attente. Il n’a pas été supprimé.",
     "retry": "Réessayer"
+  },
+  "writeFailed": {
+    "openConflict": "Le fichier a un conflit ouvert. Résolvez d’abord le conflit, puis réessayez.",
+    "permission": "Pas d’autorisation pour modifier « {{name}} ».",
+    "exists": "« {{name}} » existe déjà.",
+    "notFound": "« {{name}} » n’est plus là.",
+    "checkbox": "La case à cocher n’a pas pu être modifiée : {{reason}}",
+    "newEntry": "L’entrée n’a pas pu être créée : {{reason}}",
+    "newTemplate": "Le modèle n’a pas pu être créé : {{reason}}",
+    "newDatabase": "La base de données n’a pas pu être créée : {{reason}}",
+    "databaseSave": "La base de données n’a pas pu être enregistrée : {{reason}}",
+    "overview": "L’aperçu n’a pas pu être écrit : {{reason}}",
+    "adopt": "« {{file}} » n’a pas pu devenir l’aperçu : {{reason}}",
+    "promote": "La tâche n’a pas pu être déplacée : {{reason}}",
+    "promotedCheckboxKept": "Déplacé : {{name}}. La case à cocher reste dans sa note, car sa ligne avait changé.",
+    "rewriteSkipped": "Ignorées, car la note n’existe plus : {{count}}"
   },
   "inputRejected": {
     "mailHeader": "L’expéditeur, les destinataires ou l’objet contiennent des sauts de ligne ou des caractères non valides. Supprimez-les et réessayez.",

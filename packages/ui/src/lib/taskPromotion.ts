@@ -163,7 +163,20 @@ export interface PromoteTaskOptions {
 }
 
 export type PromoteTaskResult =
-  | { ok: true; notePath: string; title: string }
+  | {
+      ok: true;
+      notePath: string;
+      title: string;
+      /**
+       * The task note exists, but the checkbox stays in its note beside it
+       * (Sammelplan § 3.87 no. 5): `"changed"` — its line was not found again
+       * where it is written (the note changed after the guard); `"refused"` —
+       * the note did not take the link, `keptReason` says why. Both shells say
+       * it; it ended in the console, under a toast that said "Moved".
+       */
+      checkboxKept: null | "changed" | "refused";
+      keptReason?: unknown;
+    }
   | { ok: false; reason: "dbUnreadable" | "noFolder" | "stale" };
 
 interface BaseConfigShape {
@@ -264,12 +277,19 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
     const replaced = replaceCheckboxWithLink(fresh, same[0].ordinal, linkTarget, title);
     return replaced.changed ? replaced.content : null;
   };
-  const update = await updateVaultText(adapter, sourcePath, linked);
-  // The task note exists either way. A source that changed under the step
-  // keeps its checkbox, and says so where somebody looks for the reason.
-  if (linked(update.before) === null) console.warn(`[taskPromotion] ${sourcePath}: the task's line was not found again; its checkbox stays beside the new note`);
+  // The task note exists either way: what follows can keep the checkbox, never
+  // undo the move. Thrown, a refusal here said "Moving failed" about a task
+  // note that had been written.
+  let update: Awaited<ReturnType<typeof updateVaultText>>;
+  try {
+    update = await updateVaultText(adapter, sourcePath, linked);
+  } catch (error) {
+    console.warn(`[taskPromotion] ${sourcePath}: the link could not be written; its checkbox stays beside the new note`, error);
+    return { ok: true, notePath, title, checkboxKept: "refused", keptReason: error };
+  }
+  if (linked(update.before) === null) return { ok: true, notePath, title, checkboxKept: "changed" };
 
-  return { ok: true, notePath, title };
+  return { ok: true, notePath, title, checkboxKept: null };
 }
 
 export interface CreateTaskOptions {

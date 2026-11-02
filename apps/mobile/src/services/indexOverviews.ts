@@ -1,4 +1,5 @@
 import {
+  errorText,
   folderIndexState,
   generateIndexForFolder,
   toast,
@@ -60,6 +61,6 @@ export async function generateOverviewForFolder(v: MobileVault, folder: string):
     );
   } catch (e) {
     console.error("[mobile] index.md generation failed", e);
-    toast.error(i18n.t("indexMd.generateFailed"));
+    toast.error(i18n.t("writeFailed.overview", { reason: errorText(e) }));
   }
 }

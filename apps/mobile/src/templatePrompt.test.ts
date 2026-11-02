@@ -6,6 +6,7 @@ vi.mock("./services/mobileSettings", () => ({
   getMobileSettings: () => ({ templateFolder: "Templates", defaultNoteType: "Note" }),
 }));
 
+import { toast } from "@plainva/ui";
 import { createTemplatePrompt } from "./services/templatePrompt";
 import type { MobileVault } from "./services/vaultService";
 
@@ -71,6 +72,25 @@ describe("creating a template on the phone", () => {
     const { vault } = fakeVault();
 
     expect(await createTemplatePrompt(vault, t)).toBe("Templates/Q3-Review.md");
+  });
+
+  it("says why a template could not be written — the folder's own reason, not \"Export failed.\"", async () => {
+    // Sammelplan § 3.134 no. 3: a folder that could not be created came back
+    // as null, and the phone warned "Export failed." without a reason.
+    prompt.mockResolvedValue({ value: "Meeting", cancelled: false });
+    const { vault, files } = fakeVault();
+    (vault.files as unknown as { createDir: () => Promise<void> }).createDir = async () => { throw new Error("Permission denied: Templates"); };
+    const said = vi.spyOn(toast, "error").mockImplementation(() => undefined as never);
+    const warned = vi.spyOn(toast, "warning");
+    try {
+      expect(await createTemplatePrompt(vault, t)).toBeNull();
+      expect(said).toHaveBeenCalledWith("writeFailed.newTemplate");
+      expect(warned).not.toHaveBeenCalled();
+      expect(files.size).toBe(0);
+    } finally {
+      said.mockRestore();
+      warned.mockRestore();
+    }
   });
 
   it("numbers a collision instead of overwriting the existing template", async () => {

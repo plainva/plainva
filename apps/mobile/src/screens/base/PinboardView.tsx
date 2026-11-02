@@ -338,8 +338,9 @@ export function PinboardView({
         await vault.reindexPaths([path]).catch(() => {});
         onMutated();
       }
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
+    } catch (e) {
+      // The sentence of a checkbox and its reason (Sammelplan § 3.134 no. 2): the bare message stood here.
+      toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
     }
   }, [vault, onMutated, t]);
 
@@ -461,8 +462,8 @@ export function PinboardView({
       // Cascade-aware shared delete flow (plan Kaskadenloeschung) — pinboard
       // cards can be relation targets.
       const done = await confirmDeleteFile(vault, path, noteDisplayName(path.split("/").pop() ?? path), t).catch(
-        (e: any) => {
-          toast.error(String(e?.message ?? e));
+        (e: unknown) => {
+          toast.error(errorText(e));
           return false;
         }
       );

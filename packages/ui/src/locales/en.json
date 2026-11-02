@@ -2100,7 +2100,6 @@
     "overwriteConfirm": "{{path}} already exists and will be regenerated (a backup is created). Continue?",
     "createOverview": "Create overview",
     "refreshOverview": "Refresh overview",
-    "generateFailed": "The overview could not be written.",
     "overviewsTitle": "Overviews",
     "overviewsIntro": "OKF directory listings (index.md), one per folder. Folders that have none come first.",
     "overviewsEmpty": "This vault has no folders with notes yet.",
@@ -4922,6 +4921,22 @@
     "discardHint": "Remove only this waiting entry from the device? Files already written to the vault will remain.",
     "readFailed": "Waiting content could not be read. It has not been removed.",
     "retry": "Try again"
+  },
+  "writeFailed": {
+    "openConflict": "The file has an open conflict. Resolve the conflict first, then try again.",
+    "permission": "No permission to change “{{name}}”.",
+    "exists": "“{{name}}” already exists.",
+    "notFound": "“{{name}}” is no longer there.",
+    "checkbox": "The checkbox could not be changed: {{reason}}",
+    "newEntry": "The entry could not be created: {{reason}}",
+    "newTemplate": "The template could not be created: {{reason}}",
+    "newDatabase": "The database could not be created: {{reason}}",
+    "databaseSave": "The database could not be saved: {{reason}}",
+    "overview": "The overview could not be written: {{reason}}",
+    "adopt": "“{{file}}” could not become the overview: {{reason}}",
+    "promote": "The task could not be moved: {{reason}}",
+    "promotedCheckboxKept": "Moved: {{name}}. The checkbox stays in its note because its line had changed.",
+    "rewriteSkipped": "Skipped because the note is no longer there: {{count}}"
   },
   "inputRejected": {
     "mailHeader": "The sender, recipients or subject contain line breaks or invalid characters. Remove them and try again.",

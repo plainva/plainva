@@ -2108,7 +2108,6 @@
     "overwriteConfirm": "{{path}} esiste già e verrà rigenerato (verrà creato un backup). Continuare?",
     "createOverview": "Crea panoramica",
     "refreshOverview": "Aggiorna panoramica",
-    "generateFailed": "Non è stato possibile scrivere la panoramica.",
     "overviewsTitle": "Panoramiche",
     "overviewsIntro": "Elenchi di directory OKF (index.md), uno per cartella. Le cartelle senza panoramica vengono per prime.",
     "overviewsEmpty": "Questo vault non ha ancora cartelle con note.",
@@ -4982,6 +4981,22 @@
     "discardHint": "Rimuovere solo questo elemento in attesa dal dispositivo? I file già scritti nel vault rimarranno.",
     "readFailed": "Impossibile leggere i contenuti in attesa. Non sono stati rimossi.",
     "retry": "Riprova"
+  },
+  "writeFailed": {
+    "openConflict": "Il file ha un conflitto aperto. Risolvi prima il conflitto, poi riprova.",
+    "permission": "Nessuna autorizzazione a modificare «{{name}}».",
+    "exists": "«{{name}}» esiste già.",
+    "notFound": "«{{name}}» non c’è più.",
+    "checkbox": "Impossibile modificare la casella di controllo: {{reason}}",
+    "newEntry": "Impossibile creare la voce: {{reason}}",
+    "newTemplate": "Impossibile creare il modello: {{reason}}",
+    "newDatabase": "Impossibile creare il database: {{reason}}",
+    "databaseSave": "Impossibile salvare il database: {{reason}}",
+    "overview": "Non è stato possibile scrivere la panoramica: {{reason}}",
+    "adopt": "«{{file}}» non è potuto diventare la panoramica: {{reason}}",
+    "promote": "Impossibile spostare l’attività: {{reason}}",
+    "promotedCheckboxKept": "Spostato: {{name}}. La casella di controllo resta nella sua nota perché la sua riga era cambiata.",
+    "rewriteSkipped": "Saltate perché la nota non c’è più: {{count}}"
   },
   "inputRejected": {
     "mailHeader": "Il mittente, i destinatari o l’oggetto contengono interruzioni di riga o caratteri non validi. Rimuovili e riprova.",

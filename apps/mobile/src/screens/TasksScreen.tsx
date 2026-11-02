@@ -387,13 +387,14 @@ export function TasksScreen({
         }
         setTasks((prev) => prev.map((tk) => (tk.path === task.path && tk.ordinal === task.ordinal ? optimistic(tk) : tk)));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // The sentence of a checkbox and its reason, as the desktop says it (Sammelplan § 3.134 no. 2): the bare message stood here.
+        toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
       } finally {
         gate.finish();
         setTick(value => value + 1);
       }
     },
-    [gate, vault, setTasks]
+    [gate, vault, setTasks, t]
   );
   const toggle = useCallback(
     (task: TaskRecord) => {

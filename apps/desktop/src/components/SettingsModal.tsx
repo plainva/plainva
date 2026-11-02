@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, toast } from "@plainva/ui";
+import { clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -637,7 +637,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       setTaskDatabase(path);
       void persistFeature(section, taskDatabaseKey(section), path);
     } catch (e) {
-      toast.error(String(e));
+      // The sentence and its reason, as the phone says it (Sammelplan § 3.63 no. 1): the raw text stood here.
+      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
     }
   };
 

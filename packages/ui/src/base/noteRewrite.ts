@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, frontmatterKeys, FrontmatterSurgicalError, renameFrontmatterKey, updateVaultText } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterKeys, FrontmatterSurgicalError, renameFrontmatterKey, updateVaultText, VaultFileNotFoundError } from "@plainva/core";
 import i18n from "i18next";
 import { errorText } from "../lib/errorText";
 import { noteDisplayName } from "../lib/noteTitle";
@@ -33,6 +33,44 @@ export interface NoteRewriteResult {
   unchanged: string[];
   /** Paths that failed, with the reason, in the order they failed. */
   failed: NoteRewriteFailure[];
+  /**
+   * Paths that were no longer there when their turn came: skipped, not failed
+   * (decision E20, Sammelplan § 3.71 no. 6). A note that is gone holds nothing
+   * to rename or remove — the rule a due date and a template follow-up have
+   * kept since § 3.71.
+   */
+  skipped: string[];
+}
+
+/**
+ * A note that was no longer there when a loop over many notes reached it: the
+ * vault's own "not found", also where it crossed a boundary as a plain object.
+ * One rule for every such loop of both shells (decision E20).
+ */
+export function isVanishedNote(error: unknown): boolean {
+  return error instanceof VaultFileNotFoundError || (error as { code?: unknown } | null)?.code === "FILE_NOT_FOUND";
+}
+
+/** Where the outcome of a loop over many notes is said: the toast store of either shell. */
+export interface RewriteNoticeSink {
+  error(message: string): void;
+  warning(message: string): void;
+}
+
+/**
+ * What both shells say after a loop over many notes: one count of the notes
+ * written and the notes that failed — and, apart from them, how many were
+ * skipped because they were gone. A vanished note used to be counted as
+ * failed by the rename and the removal of a property, and as skipped by a due
+ * date; one rule now (decision E20).
+ */
+export function sayRewriteOutcome(
+  result: { written: readonly string[]; failed: readonly unknown[]; skipped?: readonly string[] },
+  say: RewriteNoticeSink
+): void {
+  if (result.failed.length > 0) say.error(i18n.t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+  const skipped = result.skipped?.length ?? 0;
+  if (skipped > 0) say.warning(i18n.t("writeFailed.rewriteSkipped", { count: skipped }));
 }
 
 export interface NoteRewriteOptions {
@@ -101,7 +139,7 @@ export async function rewriteNoteTexts(
   change: (text: string) => string,
   options: NoteRewriteOptions = {}
 ): Promise<NoteRewriteResult> {
-  const result: NoteRewriteResult = { written: [], unchanged: [], failed: [] };
+  const result: NoteRewriteResult = { written: [], unchanged: [], failed: [], skipped: [] };
   let done = 0;
   for (const path of paths) {
     try {
@@ -113,7 +151,8 @@ export async function rewriteNoteTexts(
       if (change(update.before) === update.before) result.unchanged.push(path);
       else result.written.push(path);
     } catch (e) {
-      result.failed.push({ path, message: reasonOf(e) });
+      if (isVanishedNote(e)) result.skipped.push(path);
+      else result.failed.push({ path, message: reasonOf(e) });
     }
     done += 1;
     options.onProgress?.(done, paths.length);

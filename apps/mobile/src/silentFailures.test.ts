@@ -152,7 +152,7 @@ describe("a write that fails is said for what it is", () => {
   it("the database screen does not announce a retry for its own file or for a folder", () => {
     const text = strip(read("screens", "base", "BaseScreen.tsx"));
     expect(text).not.toMatch(/mobile\.saveRetry/);
-    expect(from(text, "const persistConfig = useStableHandler(", 1000)).toMatch(/toast\.error\(t\("editor\.saveFailed"\)\);/);
+    expect(from(text, "const persistConfig = useStableHandler(", 1300)).toMatch(/toast\.error\(t\("writeFailed\.databaseSave", \{ reason: errorText\(e\) \}\)\);/);
     expect(from(text, "const askStorageFolder = useCallback(", 1500)).toMatch(/toast\.error\(t\("database\.createFolderFailed"\)\);\s*return null;/);
   });
 
@@ -177,7 +177,7 @@ describe("a write that fails is said for what it is", () => {
     expect(from(text, "export async function runReminderIntent(", 900)).toMatch(/toast\.error\(i18n\.t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/);
     const calendar = from(strip(read("screens", "PimCalendarScreen.tsx")), "const toggleTask = useCallback(", 1400);
     // A database entry's tick gets the sentence of a property write; a checkbox in a note says its reason.
-    expect(calendar).toMatch(/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(errorText\(e\)\);/);
+    expect(calendar).toMatch(/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(t\("writeFailed\.checkbox", \{ reason: errorText\(e\) \}\)\);/);
     expect(calendar).not.toMatch(/e instanceof Error \? e\.message/);
   });
 
@@ -192,10 +192,11 @@ describe("a write that fails is said for what it is", () => {
     const rename = from(text, "const rename = () => {", 1600);
     expect(rename).toMatch(/const outcome = await renameBaseProperty\(/);
     expect(rename, "a refusal leaves the sheet open on the property as it is").toMatch(/toast\.error\(renameRefusedText\(column, outcome\.refused\)\);\s*return;/);
-    expect(rename).toMatch(/database\.bulkSetPartial/);
+    // The one rule of both shells (`sayRewriteOutcome`): a count of what failed, a vanished note as skipped (decision E20).
+    expect(rename).toMatch(/sayRewriteOutcome\(outcome\.result, toast\)/);
     const remove = from(text, "const remove = () => {", 1400);
     expect(remove).toMatch(/const result = await deleteBaseProperty\(/);
-    expect(remove).toMatch(/if \(result\.failed\.length > 0\) toast\.error\(t\("database\.bulkSetPartial"/);
+    expect(remove).toMatch(/sayRewriteOutcome\(result, toast\);/);
     // Neither loop of the service swallows a note any more.
     const ops = strip(read("services", "baseOps.ts"));
     expect(from(ops, "export async function renameBaseProperty(", 700)).not.toMatch(/catch/);

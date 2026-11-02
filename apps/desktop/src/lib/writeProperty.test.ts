@@ -211,6 +211,6 @@ describe("rewriteNoteProperties", () => {
 
   it("no notes, nothing to report", async () => {
     const { adapter } = vault({});
-    expect(await rewriteNoteProperties(adapter, [], fill)).toEqual({ written: [], failed: [] });
+    expect(await rewriteNoteProperties(adapter, [], fill)).toEqual({ written: [], failed: [], skipped: [] });
   });
 });

@@ -2092,7 +2092,6 @@
     "overwriteConfirm": "{{path}}は既に存在し、再生成されます（バックアップが作成されます）。続行しますか？",
     "createOverview": "概要を作成",
     "refreshOverview": "概要を更新",
-    "generateFailed": "概要を書き込めませんでした。",
     "overviewsTitle": "概要",
     "overviewsIntro": "OKF のディレクトリ一覧（index.md）をフォルダーごとに。概要がないフォルダーが先頭に並びます。",
     "overviewsEmpty": "この保管庫にはまだノートを含むフォルダーがありません。",
@@ -4862,6 +4861,22 @@
     "discardHint": "この待機中の項目だけを端末から削除しますか？Vaultに書き込み済みのファイルは残ります。",
     "readFailed": "待機中の内容を読み込めませんでした。内容は削除されていません。",
     "retry": "再試行"
+  },
+  "writeFailed": {
+    "openConflict": "このファイルには未解決の競合があります。先に競合を解決してから、もう一度お試しください。",
+    "permission": "「{{name}}」を変更する権限がありません。",
+    "exists": "「{{name}}」はすでに存在します。",
+    "notFound": "「{{name}}」はもうありません。",
+    "checkbox": "チェックボックスを変更できませんでした: {{reason}}",
+    "newEntry": "エントリーを作成できませんでした: {{reason}}",
+    "newTemplate": "テンプレートを作成できませんでした: {{reason}}",
+    "newDatabase": "データベースを作成できませんでした: {{reason}}",
+    "databaseSave": "データベースを保存できませんでした: {{reason}}",
+    "overview": "概要を書き込めませんでした: {{reason}}",
+    "adopt": "「{{file}}」を概要にできませんでした: {{reason}}",
+    "promote": "タスクを移動できませんでした: {{reason}}",
+    "promotedCheckboxKept": "移動しました: {{name}}。行が変更されていたため、チェックボックスはノートに残ります。",
+    "rewriteSkipped": "ノートがもうないためスキップしました: {{count}} 件"
   },
   "inputRejected": {
     "mailHeader": "差出人、宛先、または件名に改行や無効な文字が含まれています。削除してから、もう一度お試しください。",

@@ -8,7 +8,7 @@ import { toast } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { SelectField } from "@plainva/ui";
-import { Checkbox } from "@plainva/ui";
+import { Checkbox, errorText } from "@plainva/ui";
 import {
   collectFolderIndexInfos,
   generateIndexForFolder,
@@ -115,7 +115,16 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
           if (result.linkUpdateFailed) lines.push({ folder: info.folder, text: t("dialogs.renameLinksFailed"), error: true });
         }
       } catch (e) {
-        lines.push({ folder: info.folder, text: e instanceof Error ? e.message : String(e), error: true });
+        // In words, with the file it was about (Sammelplan § 3.135 no. 3): the
+        // raw English of the vault stood here ("File or directory already exists: …").
+        const reason = errorText(e);
+        lines.push({
+          folder: info.folder,
+          text: action.kind === "adopt"
+            ? t("writeFailed.adopt", { file: action.candidatePath.split("/").pop() ?? action.candidatePath, reason })
+            : t("writeFailed.overview", { reason }),
+          error: true,
+        });
       }
     }
     try {
@@ -207,7 +216,10 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                       <option value="generate">
                         {info.hasIndex ? t("indexMd.actionRegenerate") : t("indexMd.actionGenerate")}
                       </option>
-                      {info.candidates.map((c) => (
+                      {/* A folder that has an index.md takes no other note as its overview: the
+                          adoption is refused, so it is not offered (Sammelplan § 3.135 no. 3) —
+                          as on the phone. */}
+                      {!info.hasIndex && info.candidates.map((c) => (
                         <option key={c.path} value={`adopt:${c.path}`}>
                           {t("indexMd.actionAdopt", { file: c.path.split("/").pop() })}
                         </option>

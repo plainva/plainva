@@ -149,7 +149,7 @@ export function TodayScreen({
       // property write gets, as on the task screen; a checkbox says its reason.
       .catch((e) => {
         if (row.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
-        else toast.error(errorText(e));
+        else toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
       });
   };
   const reloadDue = useCallback(() => setDueTick((x) => x + 1), []);

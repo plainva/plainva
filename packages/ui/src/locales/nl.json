@@ -2100,7 +2100,6 @@
     "overwriteConfirm": "{{path}} bestaat al en wordt opnieuw gegenereerd (er wordt een back-up gemaakt). Doorgaan?",
     "createOverview": "Overzicht maken",
     "refreshOverview": "Overzicht bijwerken",
-    "generateFailed": "Het overzicht kon niet worden geschreven.",
     "overviewsTitle": "Overzichten",
     "overviewsIntro": "OKF-mappenlijsten (index.md), één per map. Mappen zonder overzicht staan bovenaan.",
     "overviewsEmpty": "Deze kluis heeft nog geen mappen met notities.",
@@ -4922,6 +4921,22 @@
     "discardHint": "Alleen dit wachtende item van het apparaat verwijderen? Bestanden die al in de vault staan blijven bewaard.",
     "readFailed": "De wachtende inhoud kon niet worden gelezen. Ze is niet verwijderd.",
     "retry": "Opnieuw proberen"
+  },
+  "writeFailed": {
+    "openConflict": "Het bestand heeft een open conflict. Los eerst het conflict op en probeer het dan opnieuw.",
+    "permission": "Geen toestemming om “{{name}}” te wijzigen.",
+    "exists": "“{{name}}” bestaat al.",
+    "notFound": "“{{name}}” is er niet meer.",
+    "checkbox": "Het selectievakje kon niet worden gewijzigd: {{reason}}",
+    "newEntry": "Het item kon niet worden aangemaakt: {{reason}}",
+    "newTemplate": "Het sjabloon kon niet worden aangemaakt: {{reason}}",
+    "newDatabase": "De database kon niet worden aangemaakt: {{reason}}",
+    "databaseSave": "De database kon niet worden opgeslagen: {{reason}}",
+    "overview": "Het overzicht kon niet worden geschreven: {{reason}}",
+    "adopt": "“{{file}}” kon niet het overzicht worden: {{reason}}",
+    "promote": "De taak kon niet worden verplaatst: {{reason}}",
+    "promotedCheckboxKept": "Verplaatst: {{name}}. Het selectievakje blijft in de notitie, omdat de regel intussen was gewijzigd.",
+    "rewriteSkipped": "Overgeslagen omdat de notitie er niet meer is: {{count}}"
   },
   "inputRejected": {
     "mailHeader": "De afzender, ontvangers of het onderwerp bevatten regeleinden of ongeldige tekens. Verwijder ze en probeer het opnieuw.",

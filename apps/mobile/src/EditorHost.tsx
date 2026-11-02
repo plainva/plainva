@@ -1299,7 +1299,11 @@ export function EditorHost({
           embedBaseAt(created, pos);
           syncSoon();
         } catch (error) {
+          // Said with its reason, in both shells (Sammelplan § 3.63 no. 1): a
+          // refusal — a member without write access in an encrypted workspace —
+          // ended in the console.
           console.error("[EditorHost] creating an inline base failed", error);
+          toast.error(t("writeFailed.newDatabase", { reason: errorText(error) }));
         }
       })();
     };

@@ -2092,7 +2092,6 @@
     "overwriteConfirm": "{{path}}已存在，将被重新生成（会创建备份）。是否继续？",
     "createOverview": "生成概览",
     "refreshOverview": "更新概览",
-    "generateFailed": "无法写入概览。",
     "overviewsTitle": "概览",
     "overviewsIntro": "OKF 目录清单（index.md），每个文件夹一个。没有概览的文件夹排在前面。",
     "overviewsEmpty": "此保险库还没有包含笔记的文件夹。",
@@ -4862,6 +4861,22 @@
     "discardHint": "仅从设备移除此待处理的项目？已写入 Vault 的文件将保留。",
     "readFailed": "无法读取待处理的内容。内容尚未删除。",
     "retry": "重试"
+  },
+  "writeFailed": {
+    "openConflict": "此文件有未解决的冲突。请先解决冲突，然后重试。",
+    "permission": "没有权限更改“{{name}}”。",
+    "exists": "“{{name}}”已存在。",
+    "notFound": "“{{name}}”已不存在。",
+    "checkbox": "无法更改复选框：{{reason}}",
+    "newEntry": "无法创建条目：{{reason}}",
+    "newTemplate": "无法创建模板：{{reason}}",
+    "newDatabase": "无法创建数据库：{{reason}}",
+    "databaseSave": "无法保存数据库：{{reason}}",
+    "overview": "无法写入概览：{{reason}}",
+    "adopt": "无法将“{{file}}”设为概览：{{reason}}",
+    "promote": "无法移动任务：{{reason}}",
+    "promotedCheckboxKept": "已移动：{{name}}。由于该行已更改，复选框保留在笔记中。",
+    "rewriteSkipped": "因笔记已不存在而跳过：{{count}} 项"
   },
   "inputRejected": {
     "mailHeader": "发件人、收件人或主题中包含换行符或无效字符。请删除后重试。",

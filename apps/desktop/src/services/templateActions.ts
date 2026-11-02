@@ -17,24 +17,24 @@ import { getConfiguredNoteType } from "./newNote";
 
 type TemplateFsAdapter = SharedTemplateFsAdapter;
 
-/** Creates a fresh template in the vault's template folder; null on failure. */
+/** Creates a fresh template in the vault's template folder; a failure throws its reason. */
 export async function createNewTemplate(
   adapter: TemplateFsAdapter,
   vaultPath: string,
   stem: string,
   assignTo?: { basePath: string; allFilePaths: readonly string[] }
-): Promise<string | null> {
+): Promise<string> {
   const folder = await getTemplateFolder(vaultPath);
   const noteType = await getConfiguredNoteType(vaultPath);
   return createTemplateIn(adapter, { folder, noteType }, stem, assignTo);
 }
 
-/** Copies an existing note verbatim into the template folder; null on failure. */
+/** Copies an existing note verbatim into the template folder; a failure throws its reason. */
 export async function saveNoteAsTemplate(
   adapter: TemplateFsAdapter,
   vaultPath: string,
   notePath: string
-): Promise<string | null> {
+): Promise<string> {
   const folder = await getTemplateFolder(vaultPath);
   return saveNoteAsTemplateIn(adapter, folder, notePath);
 }

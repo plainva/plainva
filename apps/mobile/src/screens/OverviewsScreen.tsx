@@ -6,6 +6,7 @@ import {
   adoptionSummary,
   Button,
   EmptyState,
+  errorText,
   GroupCard,
   ICON,
   Row,
@@ -74,15 +75,20 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
     void load();
   }, [load]);
 
-  /** Runs one piece of work on the vault; what it answers is the notice shown when it is done. */
-  const run = async (work: () => Promise<string>) => {
+  /**
+   * Runs one piece of work on the vault; what it answers is the notice shown
+   * when it is done, and a failure is said with its reason (Sammelplan § 3.135
+   * no. 3) — every refused adoption, an open conflict included, read "The
+   * overview could not be written."
+   */
+  const run = async (work: () => Promise<string>, failed: (reason: string) => string = (reason) => t("writeFailed.overview", { reason })) => {
     setBusy(true);
     try {
       toast.success(await work());
       await load();
     } catch (e) {
       console.error("[mobile] overview run failed", e);
-      toast.error(t("indexMd.generateFailed"));
+      toast.error(failed(errorText(e)));
     } finally {
       setBusy(false);
     }
@@ -140,7 +146,7 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
         // Said as after any rename: a link that could not be followed still names the old file.
         if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
         return adoptionSummary(t, name, result);
-      });
+      }, (reason) => t("writeFailed.adopt", { file: name, reason }));
     })();
 
   const missingCount = foldersMissingIndex(rows ?? []).length;

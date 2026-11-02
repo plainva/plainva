@@ -2116,7 +2116,6 @@
     "overwriteConfirm": "{{path}} już istnieje i zostanie wygenerowany ponownie (powstanie kopia zapasowa). Kontynuować?",
     "createOverview": "Utwórz przegląd",
     "refreshOverview": "Odśwież przegląd",
-    "generateFailed": "Nie udało się zapisać przeglądu.",
     "overviewsTitle": "Przeglądy",
     "overviewsIntro": "Listy katalogów OKF (index.md), po jednej na folder. Foldery bez przeglądu są na górze.",
     "overviewsEmpty": "Ten sejf nie ma jeszcze folderów z notatkami.",
@@ -5042,6 +5041,22 @@
     "discardHint": "Usunąć z urządzenia tylko ten oczekujący wpis? Pliki już zapisane w vaulcie pozostaną.",
     "readFailed": "Nie udało się odczytać oczekującej zawartości. Nie została usunięta.",
     "retry": "Spróbuj ponownie"
+  },
+  "writeFailed": {
+    "openConflict": "Plik ma otwarty konflikt. Najpierw rozwiąż konflikt, a potem spróbuj ponownie.",
+    "permission": "Brak uprawnień do zmiany „{{name}}”.",
+    "exists": "„{{name}}” już istnieje.",
+    "notFound": "„{{name}}” już nie istnieje.",
+    "checkbox": "Nie udało się zmienić pola wyboru: {{reason}}",
+    "newEntry": "Nie udało się utworzyć wpisu: {{reason}}",
+    "newTemplate": "Nie udało się utworzyć szablonu: {{reason}}",
+    "newDatabase": "Nie udało się utworzyć bazy danych: {{reason}}",
+    "databaseSave": "Nie udało się zapisać bazy danych: {{reason}}",
+    "overview": "Nie udało się zapisać przeglądu: {{reason}}",
+    "adopt": "„{{file}}” nie mógł zostać przeglądem: {{reason}}",
+    "promote": "Nie udało się przenieść zadania: {{reason}}",
+    "promotedCheckboxKept": "Przeniesiono: {{name}}. Pole wyboru zostaje w notatce, bo jego wiersz się zmienił.",
+    "rewriteSkipped": "Pominięto, bo notatki już nie ma: {{count}}"
   },
   "inputRejected": {
     "mailHeader": "Nadawca, odbiorcy lub temat zawierają podziały wierszy albo nieprawidłowe znaki. Usuń je i spróbuj ponownie.",

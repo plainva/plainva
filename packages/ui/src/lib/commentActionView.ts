@@ -1,8 +1,23 @@
-import { CommentActionNotStartedError, CommentOperationError, PendingCommentActionError, type CommentOperation, type CommentOperationService } from "@plainva/core";
+import { CommentActionNotStartedError, CommentOperationError, OPEN_CONFLICT_MESSAGE, PendingCommentActionError, type CommentOperation, type CommentOperationService } from "@plainva/core";
+
+/**
+ * A remark's write refused because its note has an open conflict (Sammelplan
+ * § 3.87 no. 2): the chain writes no whole text over somebody's draft. It
+ * read "The operation was not fully saved. Retrying continues its pending
+ * steps." — and retrying could not get past the conflict; the conflict is
+ * what has to be resolved first. Recognised by the cause's message, which is
+ * what is left of it where it crossed a window boundary.
+ */
+function refusedByOpenConflict(error: CommentOperationError): boolean {
+  const cause = (error as { cause?: unknown }).cause;
+  const message = cause instanceof Error ? cause.message : typeof cause === "string" ? cause : (cause as { message?: unknown } | null)?.message;
+  return typeof message === "string" && message.startsWith(OPEN_CONFLICT_MESSAGE);
+}
 
 export function commentActionErrorKey(error: unknown): string | null {
   if (error instanceof PendingCommentActionError) return "comments.operationPendingFirst";
   if (error instanceof CommentActionNotStartedError) return "comments.operationEditorChanged";
+  if (error instanceof CommentOperationError && error.reason === "storage" && refusedByOpenConflict(error)) return "writeFailed.openConflict";
   if (error instanceof CommentOperationError) return error.reason === "needs-review" ? "comments.operationNeedsReview"
     : error.reason === "context" ? "comments.operationContextChanged" : "comments.operationSaveFailed";
   if (error instanceof Error) {

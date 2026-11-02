@@ -433,7 +433,11 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           triggerFileTreeUpdate([res.notePath, task.path]);
           notifyFileOps([{ type: "create", path: res.notePath }]);
         }
-        toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: res.title }));
+        // The task note is there; a checkbox that stayed beside it is said
+        // (Sammelplan § 3.87 no. 5) — it ended in the console under "Moved".
+        if (res.checkboxKept === "changed") toast.warning(t("writeFailed.promotedCheckboxKept", { name: res.title }));
+        else toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: res.title }));
+        if (res.checkboxKept === "refused") toast.error(t("writeFailed.checkbox", { reason: errorText(res.keptReason) }));
         // A promoted checkbox is a task created in that database like any
         // other — otherwise it would depend on WHERE a task was born whether
         // it reaches the provider.
@@ -441,7 +445,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         setRefreshTick((x) => x + 1);
       } catch (e) {
         console.error("[TasksView] promoting a task failed", e);
-        toast.error(t("tasks.promoteFailed", { defaultValue: "Verschieben fehlgeschlagen." }));
+        toast.error(t("writeFailed.promote", { reason: errorText(e) }));
       }
     },
     [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, sendToProvider, t]
@@ -668,7 +672,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         if (done.next === null) { taskMutationGate.finish(); return; }
         setTasks((prev) => prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? optimistic(t2) : t2)));
       } catch (error) {
+        // Said with its reason (Sammelplan § 3.134 no. 2): the box sprang back without a word.
         console.error("[TasksView] updating a checkbox task failed", task.path, error);
+        toast.error(t("writeFailed.checkbox", { reason: errorText(error) }));
         taskMutationGate.finish();
         setRefreshTick((x) => x + 1);
         return;
@@ -676,22 +682,18 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       // The overview reads from fts_notes, not directly from the file. Await
       // the targeted index update before publishing fileTreeVersion; doing
       // this in the opposite order briefly resurrected completed tasks.
+      // The Markdown write already succeeded. Where the index could not follow,
+      // keep the truthful optimistic row instead of replacing it from a
+      // known-stale index snapshot.
       let reindexed = false;
       try {
-        if (indexer) {
-          await applyIndexChanges(indexer, { added: [task.path] });
-          reindexed = true;
-        }
-      } catch (error) {
-        // The Markdown write already succeeded. Keep the truthful optimistic
-        // row instead of replacing it from a known-stale index snapshot.
-        console.error("[TasksView] reindexing a checkbox task failed", task.path, error);
+        if (indexer) reindexed = (await applyIndexChanges(indexer, { added: [task.path] })).leftBehind.length === 0;
       } finally {
         taskMutationGate.finish();
       }
       if (reindexed) triggerFileTreeUpdate([task.path]);
     },
-    [vaultAdapter, indexer, triggerFileTreeUpdate, taskMutationGate, setTasks]
+    [vaultAdapter, indexer, triggerFileTreeUpdate, taskMutationGate, setTasks, t]
   );
   const toggle = useCallback(
     (task: TaskRecord) => {

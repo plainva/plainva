@@ -1,4 +1,4 @@
-import { createTemplateIn, toast } from "@plainva/ui";
+import { createTemplateIn, errorText, toast } from "@plainva/ui";
 import type { TFunction } from "i18next";
 import { mPrompt } from "./mobileDialogs";
 import { getMobileSettings } from "./mobileSettings";
@@ -27,14 +27,18 @@ export async function createTemplatePrompt(
   const name = value?.trim().replace(/[\\/]/g, "-");
   if (cancelled || !name) return null;
 
-  const created = await createTemplateIn(
-    vault.files,
-    { folder: getMobileSettings().templateFolder, noteType: configuredNoteType() },
-    name,
-  ).catch(() => null);
-
-  if (!created) toast.warning(t("editor.exportFailed"));
-  return created;
+  // A template that could not be written says so, with its reason, as the
+  // desktop says it (Sammelplan § 3.134 no. 3) — "Export failed." stood here.
+  try {
+    return await createTemplateIn(
+      vault.files,
+      { folder: getMobileSettings().templateFolder, noteType: configuredNoteType() },
+      name,
+    );
+  } catch (e) {
+    toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
+    return null;
+  }
 }
 
 /**

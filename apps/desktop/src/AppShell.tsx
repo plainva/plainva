@@ -60,7 +60,7 @@ import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
-import { toast } from "@plainva/ui";
+import { errorText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
@@ -1839,12 +1839,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               void import("./services/templateActions")
                 .then(async ({ createNewTemplate }) => {
                   const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
-                  if (!path) return;
                   if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
                   markFreshNote(path);
                   openInFocusedPane(path, true);
                 })
-                .catch((e) => console.error("[App] creating a template failed", e));
+                .catch((e) => {
+                  // Said with its reason (Sammelplan § 3.134 no. 3), as the database menu and the phone say it.
+                  console.error("[App] creating a template failed", e);
+                  toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
+                });
             },
             saveActiveAsTemplate: () => {
               const p = activePath;
@@ -1852,11 +1855,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               void import("./services/templateActions")
                 .then(async ({ saveNoteAsTemplate }) => {
                   const saved = await saveNoteAsTemplate(vaultAdapter, vaultPath, p);
-                  if (!saved) return;
                   if (indexer) applyIndexChanges(indexer, { added: [saved] }).then(() => triggerFileTreeUpdate()).catch(() => {});
                   toast.info(t("editor.templateSaved", { name: saved.split("/").pop() ?? saved }));
                 })
-                .catch((e) => console.error("[App] saving note as template failed", e));
+                .catch((e) => {
+                  console.error("[App] saving note as template failed", e);
+                  toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
+                });
             },
             // Mail-raus (stage 6): three SMTP-free ways out of the vault.
             copyNoteAsEmail: () => {

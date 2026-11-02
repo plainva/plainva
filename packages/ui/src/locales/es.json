@@ -2108,7 +2108,6 @@
     "overwriteConfirm": "{{path}} ya existe y se regenerará (se crea una copia de seguridad). ¿Continuar?",
     "createOverview": "Crear resumen",
     "refreshOverview": "Actualizar resumen",
-    "generateFailed": "No se pudo escribir el resumen.",
     "overviewsTitle": "Resúmenes",
     "overviewsIntro": "Listados de directorio OKF (index.md), uno por carpeta. Las carpetas sin resumen aparecen primero.",
     "overviewsEmpty": "Esta bóveda todavía no tiene carpetas con notas.",
@@ -4982,6 +4981,22 @@
     "discardHint": "¿Eliminar solo esta entrada pendiente del dispositivo? Se conservarán los archivos ya escritos en el vault.",
     "readFailed": "No se pudo leer el contenido pendiente. No se ha eliminado.",
     "retry": "Reintentar"
+  },
+  "writeFailed": {
+    "openConflict": "El archivo tiene un conflicto abierto. Resuelve primero el conflicto y vuelve a intentarlo.",
+    "permission": "Sin permiso para cambiar «{{name}}».",
+    "exists": "«{{name}}» ya existe.",
+    "notFound": "«{{name}}» ya no está.",
+    "checkbox": "No se pudo cambiar la casilla de verificación: {{reason}}",
+    "newEntry": "No se pudo crear la entrada: {{reason}}",
+    "newTemplate": "No se pudo crear la plantilla: {{reason}}",
+    "newDatabase": "No se pudo crear la base de datos: {{reason}}",
+    "databaseSave": "No se pudo guardar la base de datos: {{reason}}",
+    "overview": "No se pudo escribir el resumen: {{reason}}",
+    "adopt": "«{{file}}» no pudo convertirse en el resumen: {{reason}}",
+    "promote": "No se pudo mover la tarea: {{reason}}",
+    "promotedCheckboxKept": "Movido: {{name}}. La casilla de verificación se queda en su nota porque su línea había cambiado.",
+    "rewriteSkipped": "Omitidas porque la nota ya no está: {{count}}"
   },
   "inputRejected": {
     "mailHeader": "El remitente, los destinatarios o el asunto contienen saltos de línea o caracteres no válidos. Elimínalos e inténtalo de nuevo.",

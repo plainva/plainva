@@ -202,4 +202,39 @@ describe("promoteTask", () => {
     expect(res).toMatchObject({ ok: true, notePath: "Aufgaben/Review.md" });
     expect(files.get("Notes/Plan.md")).toContain("- [[Aufgaben/Review|Review]]");
   });
+
+  // Sammelplan § 3.87 no. 5: the task note was written, the checkbox stayed —
+  // and both shells said "Moved", the reason only in the console.
+  it("answers that the checkbox stayed when its line changed after the guard", async () => {
+    const { adapter, files } = memoryAdapter({ "Aufgaben.base": db.content, "Notes/Plan.md": "- [ ] Review\n" });
+    // The note changes between the guard and the link: the new task note is written in between.
+    const write = adapter.writeTextFile;
+    adapter.writeTextFile = async (p: string, c: string) => {
+      await write(p, c);
+      if (p.startsWith("Aufgaben/")) files.set("Notes/Plan.md", "- [ ] Review it later\n");
+    };
+    const res = await promoteTask(promoteOpts({ adapter, task: { ordinal: 0, text: "Review", tags: [], due: null, done: false } }));
+    expect(res).toMatchObject({ ok: true, notePath: "Aufgaben/Review.md", checkboxKept: "changed" });
+    expect(files.get("Notes/Plan.md")).toBe("- [ ] Review it later\n");
+  });
+
+  it("answers that the checkbox stayed when the note refused the link — the task note is there", async () => {
+    const { adapter, files } = memoryAdapter({ "Aufgaben.base": db.content, "Notes/Plan.md": "- [ ] Review\n" });
+    const write = adapter.writeTextFile;
+    const refusal = new Error("Permission denied: Notes/Plan.md");
+    adapter.writeTextFile = async (p: string, c: string) => {
+      if (p === "Notes/Plan.md") throw refusal;
+      await write(p, c);
+    };
+    const res = await promoteTask(promoteOpts({ adapter, task: { ordinal: 0, text: "Review", tags: [], due: null, done: false } }));
+    expect(res).toMatchObject({ ok: true, notePath: "Aufgaben/Review.md", checkboxKept: "refused", keptReason: refusal });
+    expect(files.has("Aufgaben/Review.md")).toBe(true);
+    expect(files.get("Notes/Plan.md")).toBe("- [ ] Review\n");
+  });
+
+  it("answers nothing kept when the link was written", async () => {
+    const { adapter } = memoryAdapter({ "Aufgaben.base": db.content, "Notes/Plan.md": "- [ ] Review\n" });
+    const res = await promoteTask(promoteOpts({ adapter, task: { ordinal: 0, text: "Review", tags: [], due: null, done: false } }));
+    expect(res).toMatchObject({ ok: true, checkboxKept: null });
+  });
 });
