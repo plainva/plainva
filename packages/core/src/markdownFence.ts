@@ -30,7 +30,12 @@
  * (inside list items it stands deeper than three blanks), and a line that
  * ends a list item does not end a fence opened in it. Those two are the known
  * differences to a full parser; they need list containers, which a line
- * scanner does not have.
+ * scanner does not have. A closing run stands at most three blanks deeper
+ * than the opening one: a run indented four inside a fence — an example of a
+ * fence in a code block — is code, and a closer in a list item stands within
+ * its item's content as the opener does, so none is lost. CommonMark bounds
+ * the closer by its container's column, which a line scanner does not know;
+ * the opener's stands in for it, and a tab counts as one blank.
  *
  * Written by hand, without patterns that can backtrack (plan Befunde 24.09.).
  */
@@ -84,6 +89,8 @@ export function stripQuoteMarkers(line: string, depth: number): string {
 interface FenceRun {
   marker: "`" | "~";
   length: number;
+  /** How many blanks stand before the run behind its quote markers: a tab counts as one, as leniently as the rest. */
+  indent: number;
   /** What stands behind the run on its line. */
   after: string;
 }
@@ -96,7 +103,7 @@ function readFenceRun(rest: string): FenceRun | null {
   let end = k;
   while (rest[end] === marker) end++;
   if (end - k < 3) return null;
-  return { marker, length: end - k, after: rest.slice(end) };
+  return { marker, length: end - k, indent: k, after: rest.slice(end) };
 }
 
 const onlyBlanks = (text: string): boolean => {
@@ -105,7 +112,7 @@ const onlyBlanks = (text: string): boolean => {
 };
 
 export function createFenceTracker(): FenceTracker {
-  let open: { marker: "`" | "~"; length: number; depth: number } | null = null;
+  let open: { marker: "`" | "~"; length: number; depth: number; indent: number } | null = null;
   return {
     get inFence() {
       return open !== null;
@@ -116,7 +123,7 @@ export function createFenceTracker(): FenceTracker {
         if (depth >= open.depth) {
           if (depth === open.depth) {
             const run = readFenceRun(rest);
-            if (run && run.marker === open.marker && run.length >= open.length && onlyBlanks(run.after)) {
+            if (run && run.marker === open.marker && run.length >= open.length && run.indent <= open.indent + 3 && onlyBlanks(run.after)) {
               open = null;
               return "close";
             }
@@ -128,7 +135,7 @@ export function createFenceTracker(): FenceTracker {
       }
       const run = readFenceRun(rest);
       if (!run || (run.marker === "`" && run.after.includes("`"))) return null;
-      open = { marker: run.marker, length: run.length, depth };
+      open = { marker: run.marker, length: run.length, depth, indent: run.indent };
       return "open";
     },
   };
