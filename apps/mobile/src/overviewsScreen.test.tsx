@@ -194,7 +194,7 @@ describe("adopting a note as a folder's overview", () => {
   });
 
   it("asks with the preparation as its choice, preset, and adopts the way it was answered", async () => {
-    adoption = { ...ADOPTED, renamedLinks: 3, changedFiles: 2, preparation: { converted: 4, embeds: 1, unresolved: 0, inLabels: 2 } };
+    adoption = { ...ADOPTED, renamedLinks: 3, changedFiles: 2, preparation: { converted: 4, embeds: 1, unresolved: 0, inLabels: 2, sectionLinks: 0 } };
     await render();
     await tap(row());
 

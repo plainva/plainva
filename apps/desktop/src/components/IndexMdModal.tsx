@@ -15,6 +15,8 @@ import {
   adoptFileAsIndex,
   adoptionSummary,
   foldersMissingIndex,
+  pinOverviewLinks,
+  planOverviewLinkPins,
   type FolderIndexInfo,
 } from "../services/indexMd";
 
@@ -24,7 +26,12 @@ interface ResultLine {
   folder: string;
   text: string;
   error?: boolean;
+  /** About the whole run, not one folder: said without a folder in front. */
+  plain?: boolean;
 }
+
+/** Where an adopted note lands: the folder's `index.md`. */
+const indexPathOf = (folder: string) => (folder ? `${folder}/index.md` : "index.md");
 
 /**
  * index.md manager (Gesamtplan W7): per folder the user chooses to skip,
@@ -39,6 +46,10 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   const [infos, setInfos] = useState<FolderIndexInfo[] | null>(null);
   const [actions, setActions] = useState<Record<string, FolderAction>>({});
   const [prepare, setPrepare] = useState(true);
+  // Links to other overviews the chosen adoptions would take over, offered to
+  // be written with their folder (Sammelplan § 3.135 Nr. 6) — as on the phone.
+  const [pinLinks, setPinLinks] = useState(true);
+  const [pinCount, setPinCount] = useState<{ key: string; links: number } | null>(null);
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<ResultLine[] | null>(null);
 
@@ -52,6 +63,21 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   }, [vaultAdapter, queryService, vaultPath]);
 
   const actionFor = (folder: string): FolderAction => actions[folder] ?? { kind: "skip" };
+  const adoptions = (infos ?? []).flatMap((info) => {
+    const action = actions[info.folder];
+    return action?.kind === "adopt" ? [{ candidatePath: action.candidatePath, indexPath: indexPathOf(info.folder) }] : [];
+  });
+  const adoptionKey = JSON.stringify(adoptions);
+  useEffect(() => {
+    const wanted = JSON.parse(adoptionKey) as { candidatePath: string; indexPath: string }[];
+    if (!queryService || wanted.length === 0) return;
+    let alive = true;
+    planOverviewLinkPins(queryService, wanted)
+      .then((pins) => { if (alive) setPinCount({ key: adoptionKey, links: pins.links }); })
+      .catch((e) => console.warn("[IndexMdModal] counting the links to other overviews failed", e));
+    return () => { alive = false; };
+  }, [queryService, adoptionKey]);
+  const offeredPins = pinCount && pinCount.key === adoptionKey && adoptions.length > 0 ? pinCount.links : 0;
   const selectedCount = infos?.filter((i) => actionFor(i.folder).kind !== "skip").length ?? 0;
   const missingFolders = infos ? foldersMissingIndex(infos) : [];
   const missingCount = missingFolders.length;
@@ -73,6 +99,20 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     if (!vaultAdapter || !queryService || !infos) return;
     setRunning(true);
     const lines: ResultLine[] = [];
+    // Before any note moves: a link written with its folder leads there
+    // whatever the run does afterwards (`planOverviewLinkPins`). Read again
+    // here — what was counted for the offer may be older than the vault.
+    if (pinLinks && offeredPins > 0) {
+      try {
+        const done = await pinOverviewLinks(vaultAdapter, await planOverviewLinkPins(queryService, adoptions));
+        for (const path of done.changedPaths) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
+        if (done.pinned > 0) lines.push({ folder: "", plain: true, text: t("indexMd.resultPinned", { links: done.pinned }) });
+        if (done.failed) lines.push({ folder: "", plain: true, error: true, text: t("indexMd.pinFailed") });
+      } catch (e) {
+        console.warn("[IndexMdModal] writing the links to other overviews failed", e);
+        lines.push({ folder: "", plain: true, error: true, text: t("indexMd.pinFailed") });
+      }
+    }
     for (const info of infos) {
       const action = actionFor(info.folder);
       if (action.kind === "skip") continue;
@@ -236,6 +276,14 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
               {t("indexMd.prepareOption")}
             </Checkbox>
           </div>
+          {offeredPins > 0 && (
+            <div style={{ margin: "var(--space-1) 0 var(--space-1)" }}>
+              <Checkbox checked={pinLinks} onChange={(e) => setPinLinks(e.target.checked)} data-testid="indexmd-pin-links">
+                {t("indexMd.pinOption", { links: offeredPins })}
+              </Checkbox>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("indexMd.pinHint")}</div>
+            </div>
+          )}
           <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("indexMd.renameHint")}</div>
         </>
       )}
@@ -244,7 +292,7 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         <ul style={{ margin: "0.3rem 0 0.6rem 1.1rem", padding: 0, fontSize: "var(--text-ui)" }}>
           {results.map((r, i) => (
             <li key={i} style={{ color: r.error ? "var(--error-text)" : undefined }}>
-              <strong>{folderLabel(r.folder)}:</strong> {r.text}
+              {!r.plain && <><strong>{folderLabel(r.folder)}:</strong>{" "}</>}{r.text}
             </li>
           ))}
           {results.length === 0 && <li>{t("indexMd.nothingDone")}</li>}

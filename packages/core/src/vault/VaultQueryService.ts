@@ -798,6 +798,36 @@ export class VaultQueryService {
   }
 
   /**
+   * Every link that names a file of this name at its END — the name alone or
+   * behind folders, for a note with or without `.md` —, in any spelling the
+   * link rule reads as the same name, wherever it leads now. Out of live
+   * notes, ordered by note and line. The candidates `getBacklinks` resolves
+   * for one file, asked for a NAME: a new file of that name can take any of
+   * them over (an adoption that makes a note `index.md` takes over every bare
+   * `[[index]]` the link rule then finds it for, Sammelplan § 3.135 Nr. 6).
+   */
+  async linksNamingFile(fileName: string): Promise<LinkRecord[]> {
+    const isNote = /\.md$/i.test(fileName);
+    const patterns = new Set<string>();
+    for (const spelling of likeAnySpelling(isNote ? fileName.replace(/\.md$/i, "") : fileName)) {
+      for (const tail of isNote ? [spelling, `${spelling}.md`] : [spelling]) {
+        patterns.add(tail);
+        patterns.add(`%/${tail}`);
+      }
+    }
+    if (patterns.size === 0) return [];
+    return this.db.query<LinkRecord>(
+      `SELECT f.path as source_path, l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
+       FROM links l
+       JOIN files f ON f.id = l.source_id
+       WHERE (f.is_deleted IS NULL OR f.is_deleted = 0)
+         AND (${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")})
+       ORDER BY f.path COLLATE NOCASE ASC, l.line_number ASC`,
+      [...patterns]
+    );
+  }
+
+  /**
    * All notes whose frontmatter property `propertyKey` links to one of
    * `targetPaths` (link-target resolution identical to getBacklinks). Powers
    * computed reverse-relation columns. Self-links are excluded, sources are

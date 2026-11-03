@@ -108,7 +108,7 @@ function namesFolder(target: string): boolean {
 const folderOfPath = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 
 /** `toPath` as a path read from `fromFolder`: `Note.md`, `Sub/Note.md`, `../Other/Note.md`. */
-function pathFromFolder(fromFolder: string, toPath: string): string {
+export function pathFromFolder(fromFolder: string, toPath: string): string {
   const from = fromFolder ? fromFolder.split("/") : [];
   const to = toPath.split("/");
   let common = 0;

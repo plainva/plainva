@@ -57,7 +57,9 @@ export type MobileDialog =
        * answer.
        */
       checkbox?: { label: string; initial: boolean };
-      resolve: (ok: boolean, checked?: boolean) => void;
+      /** A second such decision, where the act carries two (`mConfirmOption`). */
+      also?: { label: string; initial: boolean };
+      resolve: (ok: boolean, checked?: boolean, also?: boolean) => void;
     })
   | (BaseRequest & {
       kind: "select";
@@ -185,9 +187,17 @@ export function mConfirmOption(opts: {
   confirmLabel?: string;
   cancelLabel?: string;
   checkbox: { label: string; initial: boolean };
-}): Promise<{ confirmed: boolean; checked: boolean }> {
+  /**
+   * A second option of the same act, beneath the first — adopting a note as
+   * an overview prepares it and may write other links with their folder
+   * (Sammelplan § 3.135 Nr. 6), as the desktop's dialog offers both.
+   */
+  also?: { label: string; initial: boolean };
+}): Promise<{ confirmed: boolean; checked: boolean; also?: boolean }> {
   return new Promise((resolve) => {
-    const answer = (ok: boolean, checked?: boolean) => resolve({ confirmed: ok, checked: checked ?? opts.checkbox.initial });
+    // `also` answers only where it was asked.
+    const answer = (ok: boolean, checked?: boolean, also?: boolean) =>
+      resolve({ confirmed: ok, checked: checked ?? opts.checkbox.initial, ...(opts.also ? { also: also ?? opts.also.initial } : {}) });
     queue = [...queue, { kind: "confirm", id: nextId++, ...opts, resolve: answer }];
     emit();
   });

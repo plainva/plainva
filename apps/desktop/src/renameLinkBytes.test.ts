@@ -185,7 +185,7 @@ describe("adopting a note as the overview of its folder, prepared for it", () =>
     const plain = `${MARK}# Map\r\n\r\n* just *text*\r\n`;
     await writeVault({ [OVERVIEW.path]: plain });
     const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true, afterMove: async () => {} });
-    expect(result.preparation).toEqual({ converted: 0, embeds: 0, unresolved: 0, inLabels: 0 });
+    expect(result.preparation).toEqual({ converted: 0, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 0 });
     await expectFile(OVERVIEW.indexPath, plain);
   });
 });

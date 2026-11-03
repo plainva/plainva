@@ -38,6 +38,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
   const [text, setText] = useState(dialog.kind === "prompt" ? (dialog.initial ?? "") : "");
   const [filter, setFilter] = useState("");
   const [checked, setChecked] = useState(dialog.kind === "prompt" || dialog.kind === "confirm" ? (dialog.checkbox?.initial ?? false) : false);
+  const [alsoChecked, setAlsoChecked] = useState(dialog.kind === "confirm" ? (dialog.also?.initial ?? false) : false);
   // A single choice shows its new mark, THEN closes (E21). Called before the
   // kind branches below, which return early.
   const beat = useChoiceBeat<string>((value) => {
@@ -124,6 +125,13 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
             </Checkbox>
           </div>
         )}
+        {dialog.kind === "confirm" && dialog.also && (
+          <div className="m-sheet-option">
+            <Checkbox checked={alsoChecked} data-testid="confirm-option-also" onChange={(e) => setAlsoChecked(e.target.checked)}>
+              {dialog.also.label}
+            </Checkbox>
+          </div>
+        )}
 
         {dialog.kind === "confirm" && (
           <div className="m-btnrow">
@@ -137,7 +145,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
               data-testid="confirm-act"
               variant={dialog.danger ? "danger" : "primary"}
               onClick={() => {
-                dialog.resolve(true, checked);
+                dialog.resolve(true, checked, alsoChecked);
                 dismissMobileDialog(dialog);
               }}
             >

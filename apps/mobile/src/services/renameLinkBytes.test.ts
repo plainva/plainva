@@ -203,10 +203,14 @@ describe("adopting a note as the overview of its folder on the phone", () => {
 
   it("is asked for with the preparation as its choice, and done the way it was answered", () => {
     // What the Overviews screen asks, and what it calls with the answer.
-    expect(screen).toMatch(/const answer = await mConfirmOption\(\{\s*title: t\("indexMd\.actionAdopt", \{ file: name \}\),\s*message: t\("indexMd\.renameHint"\),\s*checkbox: \{ label: t\("indexMd\.prepareOption"\), initial: true \},\s*\}\);\s*if \(!answer\.confirmed\) return;/);
-    expect(screen).toMatch(/await vaultOps\.flushBeforeNoteMove\(vault, candidate\.path\);\s*const result = await adoptFileAsIndex\(\{\s*adapter: vault\.files,\s*queryService: vault\.queryService!,\s*candidatePath: candidate\.path,\s*folder: row\.folder,\s*prepare: answer\.checked,\s*afterMove: \(from, to\) => vaultOps\.followNoteMove\(vault, from, to\),\s*\}\);/);
+    // With the second option, offered where links to other overviews would be
+    // taken over (Sammelplan § 3.135 Nr. 6).
+    expect(screen).toMatch(/const answer = await mConfirmOption\(\{\s*title: t\("indexMd\.actionAdopt", \{ file: name \}\),\s*message: offered > 0 \? `\$\{t\("indexMd\.renameHint"\)\} \$\{t\("indexMd\.pinHint"\)\}` : t\("indexMd\.renameHint"\),\s*checkbox: \{ label: t\("indexMd\.prepareOption"\), initial: true \},\s*also: offered > 0 \? \{ label: t\("indexMd\.pinOption", \{ links: offered \}\), initial: true \} : undefined,\s*\}\);\s*if \(!answer\.confirmed\) return;/);
+    // Unsaved text lands first, before any link is written or the note moves.
+    expect(screen).toMatch(/await vaultOps\.flushBeforeNoteMove\(vault, candidate\.path\);[\s\S]*?let pinned = 0;/);
+    expect(screen).toMatch(/if \(answer\.also && offered > 0\) \{[\s\S]*?\}\s*const result = await adoptFileAsIndex\(\{\s*adapter: vault\.files,\s*queryService: vault\.queryService!,\s*candidatePath: candidate\.path,\s*folder: row\.folder,\s*prepare: answer\.checked,\s*afterMove: \(from, to\) => vaultOps\.followNoteMove\(vault, from, to\),\s*\}\);/);
     // What was done is said in the desktop's words, and a link that could not be followed is not passed over.
-    expect(screen).toMatch(/if \(result\.linkUpdateFailed\) toast\.warning\(t\("dialogs\.renameLinksFailed"\)\);\s*return adoptionSummary\(t, name, result\);/);
+    expect(screen).toMatch(/if \(result\.linkUpdateFailed\) toast\.warning\(t\("dialogs\.renameLinksFailed"\)\);\s*return adoptionSummary\(t, name, result, pinned\);/);
   });
 
   it("leaves the adopted note as it is and changes only the target of the links to it", async () => {

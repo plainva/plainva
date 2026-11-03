@@ -9,6 +9,8 @@ export {
   collectFolderIndexInfos,
   foldersMissingIndex,
   generateIndexForFolder,
+  pinOverviewLinks,
+  planOverviewLinkPins,
   type AdoptionResult,
   type FolderIndexInfo,
   type IndexMdAdapter,

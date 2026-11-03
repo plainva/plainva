@@ -8,7 +8,10 @@ import {
   isReservedOkfName,
   noteWithoutProperties,
   replaceVaultText,
+  resolveLinkRow,
+  buildLinkTargetIndex,
   VaultFileExistsError,
+  type TextUpdateFiles,
   type FrontmatterLinkRename,
   type IndexCandidate,
   type LinkRecord,
@@ -16,7 +19,8 @@ import {
   type WikilinkConversionResult,
 } from "@plainva/core";
 import { backupIndexFile, generateIndexForFolder, listMarkdownPaths } from "./indexMdGenerate";
-import { applyLinkUpdates, planLinkUpdates, renameFileWithLinkUpdates, type LinkUpdatePlan, type RenameAdapter } from "./renameNote";
+import { applyLinkUpdates, pathFromFolder, planLinkUpdates, renameFileWithLinkUpdates, type LinkUpdatePlan, type RenameAdapter } from "./renameNote";
+
 
 // Generation moved into @plainva/ui (2026-08-20) so the phone shares it;
 // re-exported so every existing import path keeps working and the unchanged
@@ -307,14 +311,117 @@ export async function adoptFileAsIndex(opts: {
  * What an adoption did, in the one line both shells show: the desktop's
  * dialog in its list of results, the phone in its notice. The numbers a
  * preparation leaves behind are part of it — the embeds and the wikilinks it
- * could not convert, and the wikilinks it did not convert because they stand
- * in a link's label.
+ * could not convert, the wikilinks it did not convert because they stand in a
+ * link's label, and the links to a section of the note itself, which lead
+ * where they led (counted on their own, Sammelplan § 3.135 Nr. 2: they read
+ * as "unresolvable"). `pinned` is the number of links to other overviews
+ * written with their folder on the way (`planOverviewLinkPins`).
  */
-export function adoptionSummary(t: TFunction, file: string, result: AdoptionResult): string {
+export function adoptionSummary(t: TFunction, file: string, result: AdoptionResult, pinned = 0): string {
   const extras: string[] = [];
   if (result.renamedLinks > 0) extras.push(t("indexMd.resultLinks", { links: result.renamedLinks, files: result.changedFiles }));
+  if (pinned > 0) extras.push(t("indexMd.resultPinned", { links: pinned }));
   const left = result.preparation;
   if (left && (left.embeds > 0 || left.unresolved > 0)) extras.push(t("indexMd.resultPrepLeftovers", { embeds: left.embeds, unresolved: left.unresolved }));
   if (left && left.inLabels > 0) extras.push(t("indexMd.resultPrepInLabels", { links: left.inLabels }));
+  if (left && left.sectionLinks > 0) extras.push(t("indexMd.resultPrepSectionLinks", { links: left.sectionLinks }));
   return `${t("indexMd.resultAdopted", { file })}${extras.length ? ` (${extras.join("; ")})` : ""}`;
+}
+
+/** The links to other overviews an adoption would take over, and the way each keeps its own. */
+export interface OverviewLinkPins {
+  /** The rewrites, as a rename's plan: each link written with the folder of the overview it leads to. */
+  plan: LinkUpdatePlan;
+  /** How many links that is — what the offer counts. */
+  links: number;
+  /** Some links could not be read or cannot be written so that they keep leading there. */
+  failed: boolean;
+}
+
+/**
+ * The links an adoption would let tip over to the new overview, and how each
+ * keeps leading where it leads (Sammelplan § 3.135 Nr. 6).
+ *
+ * `index.md` is the name of every folder's overview. A link that names one
+ * only by that name — `[[index]]`, `[[index#Part]]`, `[x](index.md)` — leads
+ * wherever the link rule finds an `index.md` first: the vault's own (step 2),
+ * the one in the linking note's folder, the shortest path. Since 13b a rename
+ * writes a link to a folder's overview with its folder; links written before,
+ * or by Obsidian, still name it bare and tip over as soon as an adoption puts
+ * a new `index.md` where the rule looks first — an adoption at the vault's
+ * root takes them all.
+ *
+ * Read against the index before anything is written: where every link that
+ * names an `index.md` leads now, and where it leads once the adopted notes are
+ * at their new paths. A link that changes its way — and leads to another file
+ * than the adopted note, whose links the rename itself follows — is written
+ * with the folder of the overview it leads to now (`[[Projects/index]]`, for a
+ * Markdown link the path from its note's folder), so the rule reads it back
+ * there. A link no such name brings back is left and counted in `failed`, as
+ * is a name a wiki link cannot carry (`applyLinkUpdates` says so).
+ *
+ * The plan is applied BEFORE the adoptions (`pinOverviewLinks`): a link
+ * written with its folder leads there whatever else the run changes, so a
+ * pinned link is right even where an adoption is refused afterwards.
+ */
+export async function planOverviewLinkPins(
+  queryService: Pick<VaultQueryService, "linkTargets" | "linksNamingFile">,
+  adoptions: readonly { candidatePath: string; indexPath: string }[],
+): Promise<OverviewLinkPins> {
+  const plan: LinkUpdatePlan = { oldPath: "", newPath: "", sources: [] };
+  if (adoptions.length === 0) return { plan, links: 0, failed: false };
+  let files: Awaited<ReturnType<VaultQueryService["linkTargets"]>>;
+  let rows: LinkRecord[];
+  try {
+    files = await queryService.linkTargets();
+    rows = await queryService.linksNamingFile("index.md");
+  } catch (e) {
+    console.warn("[indexMd] reading the links to the overviews failed", e);
+    return { plan, links: 0, failed: true };
+  }
+  const moved = new Map(adoptions.map((a) => [a.candidatePath, a.indexPath]));
+  const landsAt = (path: string) => moved.get(path) ?? path;
+  const before = buildLinkTargetIndex(files);
+  const after = buildLinkTargetIndex(files.map((file) => (moved.has(file.path) ? { ...file, path: moved.get(file.path)! } : file)));
+
+  const folderOf = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+  const bySource = new Map<string, { body: Map<string, { raw: string; target: string; kind: "wiki" | "markdown" }>; frontmatter: Map<string, FrontmatterLinkRename> }>();
+  let links = 0;
+  let failed = false;
+  for (const row of rows) {
+    const linkType = row.property_key ? null : row.link_type;
+    const was = resolveLinkRow(row.source_path, row.target_path, linkType, before);
+    // Nowhere before, or the adopted note itself: the rename follows that one.
+    if (was === null || moved.has(was)) continue;
+    const from = landsAt(row.source_path);
+    if (resolveLinkRow(from, row.target_path, linkType, after) === was) continue;
+    const markdown = linkType === "markdown-link";
+    const target = markdown ? pathFromFolder(folderOf(from), was) : /\.md$/i.test(row.target_path) ? was : was.replace(/\.md$/i, "");
+    if (resolveLinkRow(from, target, linkType, after) !== was) {
+      failed = true;
+      continue;
+    }
+    if (!bySource.has(row.source_path)) bySource.set(row.source_path, { body: new Map(), frontmatter: new Map() });
+    const source = bySource.get(row.source_path)!;
+    if (row.property_key) source.frontmatter.set(`${row.property_key}\n${row.target_path}`, { key: row.property_key, oldTarget: row.target_path, newTarget: target });
+    else source.body.set(`${markdown ? "markdown" : "wiki"}\n${row.target_path}`, { raw: row.target_path, target, kind: markdown ? "markdown" : "wiki" });
+    links++;
+  }
+  for (const [path, source] of bySource) plan.sources.push({ path, body: [...source.body.values()], frontmatter: [...source.frontmatter.values()] });
+  return { plan, links, failed };
+}
+
+/**
+ * Writes the links of `planOverviewLinkPins` with their folder — before the
+ * adoptions, while every source is still at the path the plan names. What
+ * the shells report: how many links, which notes changed (an open editor of
+ * one is told), and whether a link was left as it was.
+ */
+export async function pinOverviewLinks(
+  adapter: TextUpdateFiles,
+  pins: OverviewLinkPins,
+): Promise<{ pinned: number; changedPaths: string[]; failed: boolean }> {
+  if (pins.plan.sources.length === 0) return { pinned: 0, changedPaths: [], failed: pins.failed };
+  const applied = await applyLinkUpdates(adapter, pins.plan);
+  return { pinned: applied.renamedLinks, changedPaths: applied.changedPaths, failed: pins.failed || applied.failed };
 }

@@ -5,8 +5,11 @@ import {
   adoptFileAsIndex,
   adoptionSummary,
   foldersMissingIndex,
+  pinOverviewLinks,
+  planOverviewLinkPins,
   type IndexMdAdapter,
 } from "./indexMd";
+import { resolveLinkTarget } from "@plainva/core";
 
 describe("foldersMissingIndex (WP4)", () => {
   it("returns only the folders without an index.md, preserving order", () => {
@@ -298,7 +301,7 @@ describe("adoptFileAsIndex", () => {
     const result = await adoptFileAsIndex({ adapter, queryService, candidatePath: "Projects/MOC.md", folder: "Projects", prepare: true, afterMove: async () => {} });
 
     expect(store.get("Projects/index.md")).toBe("- [MOC](./index.md) und [dort](./index.md#Teil)\n- [Alpha](Alpha.md)\n");
-    expect(result.preparation).toEqual({ converted: 3, embeds: 0, unresolved: 0, inLabels: 0 });
+    expect(result.preparation).toEqual({ converted: 3, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 0 });
     expect(result.linkUpdateFailed).toBe(false);
   });
 
@@ -357,6 +360,93 @@ describe("adoptFileAsIndex", () => {
   });
 });
 
+// Sammelplan § 3.135 Nr. 6: a link that names an overview only as `index`
+// leads wherever the rule finds an `index.md` first, and an adoption that puts
+// a new one there takes it over. The adoption offers to write such links with
+// their folder, before anything moves.
+describe("planOverviewLinkPins / pinOverviewLinks", () => {
+  type Row = { source_path: string; target_path: string; link_type: string; property_key?: string | null };
+  function withLinks(files: Record<string, string>, rows: Row[]) {
+    const vault = makeVault(files);
+    vault.queryService.linksNamingFile = async () => rows;
+    return vault;
+  }
+  const corpus = (store: Map<string, string>) => [...store.keys()].filter((p) => !p.startsWith(".plainva/")).map((path) => ({ path, title: null }));
+
+  it("writes the links the adoption would take over with their folder, so they keep leading where they led", async () => {
+    const { store, adapter, queryService } = withLinks(
+      {
+        "Other/index.md": "# Other\n",
+        "Projects/MOC.md": "# Projects\n",
+        "Projects/Plan.md": "See [[index]], [[index#Part|there]] and [x](index.md).\n",
+        "Projects/Task.md": "---\nup: \"[[index]]\"\n---\nText.\n",
+        "Start.md": "Home: [[index]]\n",
+      },
+      [
+        { source_path: "Projects/Plan.md", target_path: "index", link_type: "wikilink" },
+        { source_path: "Projects/Plan.md", target_path: "index", link_type: "wikilink" },
+        { source_path: "Projects/Plan.md", target_path: "index.md", link_type: "markdown-link" },
+        { source_path: "Projects/Task.md", target_path: "index", link_type: "wikilink", property_key: "up" },
+        { source_path: "Start.md", target_path: "index", link_type: "wikilink" },
+      ],
+    );
+    const adoption = [{ candidatePath: "Projects/MOC.md", indexPath: "Projects/index.md" }];
+    // The finding: after the adoption the bare links in Projects/ lead to the new overview.
+    const after = [...corpus(store).filter((f) => f.path !== "Projects/MOC.md"), { path: "Projects/index.md", title: null }];
+    expect(resolveLinkTarget("Projects/Plan.md", "index", corpus(store))).toBe("Other/index.md");
+    expect(resolveLinkTarget("Projects/Plan.md", "index", after)).toBe("Projects/index.md");
+
+    const pins = await planOverviewLinkPins(queryService, adoption);
+    // The root note's link keeps its way (the shorter path still answers): it is left alone.
+    expect(pins).toMatchObject({ links: 4, failed: false });
+    const done = await pinOverviewLinks(adapter, pins);
+    expect(done).toEqual({ pinned: 4, changedPaths: ["Projects/Plan.md", "Projects/Task.md"], failed: false });
+    expect(store.get("Projects/Plan.md")).toBe("See [[Other/index]], [[Other/index#Part|there]] and [x](../Other/index.md).\n");
+    expect(store.get("Projects/Task.md")).toBe("---\nup: \"[[Other/index]]\"\n---\nText.\n");
+    expect(store.get("Start.md")).toBe("Home: [[index]]\n");
+    // And they lead there after the adoption.
+    expect(resolveLinkTarget("Projects/Plan.md", "Other/index", after)).toBe("Other/index.md");
+    expect(resolveLinkTarget("Projects/Plan.md", "../Other/index.md", after)).toBe("Other/index.md");
+  });
+
+  it("an adoption at the vault's root takes every bare link: each keeps the overview it led to", async () => {
+    const { store, adapter, queryService } = withLinks(
+      { "Other/index.md": "# Other\n", "Home.md": "# Home\n", "Start.md": "[[index]] and [[Home]]\n" },
+      [{ source_path: "Start.md", target_path: "index", link_type: "wikilink" }],
+    );
+    const pins = await planOverviewLinkPins(queryService, [{ candidatePath: "Home.md", indexPath: "index.md" }]);
+    expect(pins.links).toBe(1);
+    await pinOverviewLinks(adapter, pins);
+    expect(store.get("Start.md")).toBe("[[Other/index]] and [[Home]]\n");
+  });
+
+  it("leaves a link that led nowhere and a link to the adopted note itself - the rename follows that one", async () => {
+    const { queryService } = withLinks(
+      { "Projects/MOC.md": "# Projects\n", "Projects/Plan.md": "[[index]] [[Projects/MOC]]\n" },
+      [
+        { source_path: "Projects/Plan.md", target_path: "index", link_type: "wikilink" },
+        { source_path: "Projects/Plan.md", target_path: "Projects/MOC", link_type: "wikilink" },
+      ],
+    );
+    const pins = await planOverviewLinkPins(queryService, [{ candidatePath: "Projects/MOC.md", indexPath: "Projects/index.md" }]);
+    expect(pins).toMatchObject({ links: 0, failed: false });
+    expect(pins.plan.sources).toEqual([]);
+  });
+
+  it("says that the links could not be read instead of offering nothing", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { queryService } = makeVault({ "Projects/MOC.md": "# P\n" });
+      queryService.linksNamingFile = async () => {
+        throw new Error("the index is busy");
+      };
+      expect(await planOverviewLinkPins(queryService, [{ candidatePath: "Projects/MOC.md", indexPath: "Projects/index.md" }])).toMatchObject({ links: 0, failed: true });
+    } finally {
+      warned.mockRestore();
+    }
+  });
+});
+
 describe("adoptionSummary", () => {
   // The texts are their keys with their values: which sentence is said, and with which numbers.
   const t = ((key: string, values?: Record<string, unknown>) => `${key}${values ? JSON.stringify(values) : ""}`) as never;
@@ -365,15 +455,22 @@ describe("adoptionSummary", () => {
   it("names the adopted note, and nothing else where nothing else happened", () => {
     expect(adoptionSummary(t, "MOC.md", adopted)).toBe('indexMd.resultAdopted{"file":"MOC.md"}');
     // A preparation that converted every link has left nothing to mention.
-    expect(adoptionSummary(t, "MOC.md", { ...adopted, preparation: { converted: 4, embeds: 0, unresolved: 0, inLabels: 0 } })).toBe('indexMd.resultAdopted{"file":"MOC.md"}');
+    expect(adoptionSummary(t, "MOC.md", { ...adopted, preparation: { converted: 4, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 0 } })).toBe('indexMd.resultAdopted{"file":"MOC.md"}');
+  });
+
+  it("counts the links to a section of the note and the pinned links on their own", () => {
+    const result = { ...adopted, preparation: { converted: 2, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 3 } };
+    expect(adoptionSummary(t, "MOC.md", result, 2)).toBe(
+      'indexMd.resultAdopted{"file":"MOC.md"} (indexMd.resultPinned{"links":2}; indexMd.resultPrepSectionLinks{"links":3})'
+    );
   });
 
   it("adds the links that followed and what a preparation left as it was — a wikilink in a link's label counted on its own", () => {
-    const result = { ...adopted, renamedLinks: 3, changedFiles: 2, preparation: { converted: 4, embeds: 1, unresolved: 0, inLabels: 2 } };
+    const result = { ...adopted, renamedLinks: 3, changedFiles: 2, preparation: { converted: 4, embeds: 1, unresolved: 0, inLabels: 2, sectionLinks: 0 } };
     expect(adoptionSummary(t, "MOC.md", result)).toBe(
       'indexMd.resultAdopted{"file":"MOC.md"} (indexMd.resultLinks{"links":3,"files":2}; indexMd.resultPrepLeftovers{"embeds":1,"unresolved":0}; indexMd.resultPrepInLabels{"links":2})'
     );
-    expect(adoptionSummary(t, "MOC.md", { ...adopted, preparation: { converted: 0, embeds: 0, unresolved: 0, inLabels: 1 } })).toBe(
+    expect(adoptionSummary(t, "MOC.md", { ...adopted, preparation: { converted: 0, embeds: 0, unresolved: 0, inLabels: 1, sectionLinks: 0 } })).toBe(
       'indexMd.resultAdopted{"file":"MOC.md"} (indexMd.resultPrepInLabels{"links":1})'
     );
   });

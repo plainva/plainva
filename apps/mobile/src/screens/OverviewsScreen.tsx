@@ -15,6 +15,8 @@ import {
   collectFolderIndexInfos,
   folderIndexState,
   foldersMissingIndex,
+  pinOverviewLinks,
+  planOverviewLinkPins,
   toast,
   type FolderIndexInfo,
   type FolderIndexState,
@@ -123,16 +125,31 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
       const candidate = row.candidates[0];
       if (!candidate || !vault.queryService) return;
       const name = candidate.path.split("/").pop() ?? candidate.path;
+      const adoption = [{ candidatePath: candidate.path, indexPath: row.folder ? `${row.folder}/index.md` : "index.md" }];
+      // Links to other overviews this adoption would take over, offered to be
+      // written with their folder (Sammelplan § 3.135 Nr. 6) — as the desktop's
+      // dialog offers it.
+      const offered = (await planOverviewLinkPins(vault.queryService, adoption).catch(() => null))?.links ?? 0;
       const answer = await mConfirmOption({
         title: t("indexMd.actionAdopt", { file: name }),
-        message: t("indexMd.renameHint"),
+        message: offered > 0 ? `${t("indexMd.renameHint")} ${t("indexMd.pinHint")}` : t("indexMd.renameHint"),
         checkbox: { label: t("indexMd.prepareOption"), initial: true },
+        also: offered > 0 ? { label: t("indexMd.pinOption", { links: offered }), initial: true } : undefined,
       });
       if (!answer.confirmed) return;
       await run(async () => {
         // Unsaved text lands first, and the note's bookmarks, drafts and open
         // screens follow it, as after a rename (Sammelplan § 3.135 Nr. 1).
         await vaultOps.flushBeforeNoteMove(vault, candidate.path);
+        // Before the note moves: a link written with its folder leads there
+        // whatever happens next. Read again — the count may be older.
+        let pinned = 0;
+        if (answer.also && offered > 0) {
+          const done = await pinOverviewLinks(vault.files, await planOverviewLinkPins(vault.queryService!, adoption));
+          pinned = done.pinned;
+          for (const path of done.changedPaths) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+          if (done.failed) toast.warning(t("indexMd.pinFailed"));
+        }
         const result = await adoptFileAsIndex({
           adapter: vault.files,
           queryService: vault.queryService!,
@@ -145,7 +162,7 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
         // Said as after any rename: a link that could not be followed still names the old file.
         if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
-        return adoptionSummary(t, name, result);
+        return adoptionSummary(t, name, result, pinned);
       }, (reason) => t("writeFailed.adopt", { file: name, reason }));
     })();
 
