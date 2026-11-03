@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-11-02
+Última actualización: 2026-11-03
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -243,7 +243,7 @@ Todo lo específico de Plainva (colores, representación del tablero, relaciones
 
 Si un script o un asistente de IA escribe archivos `.base` sin pasar por Plainva, hay tres reglas estrictas importantes — rompe una y Obsidian se niega a abrir todo el archivo:
 
-- **Solo las claves de nivel superior `filters`, `formulas`, `properties`, `views`.** Nunca añadas otra clave de nivel superior; todos los extras de Plainva van bajo subclaves anidadas `plainva:`.
+- **Solo las claves de nivel superior `filters`, `formulas`, `properties`, `summaries`, `views`.** Nunca añadas otra clave de nivel superior; todos los extras de Plainva van bajo subclaves anidadas `plainva:`.
 - **Cada vista necesita un `name` de tipo string no vacío.**
 - **Un objeto `filters` lleva exactamente uno de `and` / `or` / `not` por nivel** (nunca dos uno al lado del otro).
 

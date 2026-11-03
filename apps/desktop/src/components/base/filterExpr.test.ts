@@ -99,6 +99,27 @@ describe("filter groups: UI model (plan Base-Filtergruppen P9)", () => {
     expect(group.items.map((i: any) => i.rule?.value)).toEqual(["1", "2"]);
   });
 
+  it("names every condition the query cannot apply, at every level (shown as not applied)", () => {
+    const cfg = {
+      filters: {
+        and: [
+          'status == "x"',
+          "price > 2",
+          { or: ['a == "1"', "file.inFolder(\"Old\")"] },
+          { or: ['file.hasTag("t")'] },
+          { and: ['x == "1"', { or: ["a && b", 'y == "2"'] }] },
+        ],
+      },
+    };
+    const model = buildUIFilterModel(cfg);
+    expect(model.entries.map((e) => e.kind)).toEqual(["rule", "rawString", "group", "opaque", "opaque"]);
+    const [, raw, group, sourceGroup, nested] = model.entries as any[];
+    expect(raw.applied).toBe(false);
+    expect(group.items.map((i: any) => i.applied)).toEqual([true, false]);
+    expect(sourceGroup.unapplied).toEqual([]);
+    expect(nested.unapplied).toEqual(["a && b"]);
+  });
+
   it("derives topLogic any from entries in the or-list", () => {
     expect(buildUIFilterModel({ filters: { or: ['a == "1"'] } }).topLogic).toBe("any");
     expect(buildUIFilterModel({ filters: { or: ['file.hasTag("t")'] } }).topLogic).toBe("all"); // sources do not count

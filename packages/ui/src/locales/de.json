@@ -1233,6 +1233,8 @@
     "addRule": "Regel hinzufügen",
     "complexFilter": "Komplexer Filter (nicht editierbar)",
     "complexFilterTip": "Verschachtelter Filter aus Obsidian – bleibt erhalten und wird angewendet, ist hier aber nicht editierbar.",
+    "filterNotApplied": "Nicht angewendet: Plainva kann diese Bedingung nicht lesen, sie filtert nichts.",
+    "filterPartlyNotApplied": "Nicht angewendet, weil Plainva sie nicht lesen kann: {{conditions}}",
     "noSort": "Keine Sortierung – Standardreihenfolge",
     "sortColumn": "Sortierspalte",
     "addSort": "Sortierung hinzufügen",

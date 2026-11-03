@@ -101,7 +101,7 @@ Questi valori provengono dal file, non dal suo frontmatter. Ogni riga di un data
 | `file.mtime` | Ultima modifica, in millisecondi |
 | `file.ctime` | Creazione, in millisecondi, dove il file system la fornisce |
 | `file.size` | Dimensione in byte |
-| `file.tags` | Tutti i tag della nota, nel frontmatter e nel testo, ciascuno con `#`; valorizzato quando un filtro o una bacheca appunti ne ha bisogno |
+| `file.tags` | Tutti i tag della nota, nel frontmatter e nel testo, ciascuno con `#`; valorizzato quando un filtro, una bacheca appunti o una vista che mostra la colonna o ordina in base a essa ne ha bisogno |
 | `file.tasks` | Avanzamento delle caselle di controllo come `done/total`; valorizzato per le bacheche e per una vista che mostra la colonna |
 | `file.day` | Il giorno a cui corrisponde il nome del file di una nota giornaliera, secondo la cartella e il formato del vault; sola lettura, e solo il campo data di un calendario o di una cronologia può usarlo |
 | `file.revision` | Un marcatore interno di modifica; non farci affidamento |
@@ -118,7 +118,7 @@ Il `filters` di primo livello contiene le **origini** — quali note appartengon
 
 | Origine | Espressione |
 |---|---|
-| Cartella | `file.folder == "Projects/Active"` — la cartella e tutte le sue sottocartelle; `"/"` è l'intero vault |
+| Cartella | `file.folder == "Projects/Active"` — la cartella e tutte le sue sottocartelle; `""` e `"/"` sono l'intero vault |
 | Tag | `file.hasTag("project")` — la nota porta esattamente questo tag; un `#` iniziale viene ignorato |
 
 Più origini si combinano con `and` oppure `or` come qualsiasi altra condizione. Un database senza origini contiene tutte le note del vault. Gli allegati, i file riservati `index.md` e `log.md` e i file o le cartelle il cui nome inizia con un punto non sono mai righe.
@@ -158,11 +158,11 @@ Un oggetto `filters` ha esattamente uno tra `and`, `or` e `not` a ogni livello; 
 | `or` | almeno una voce corrisponde |
 | `not` | nessuna voce corrisponde |
 
-Plainva valuta qualsiasi profondità. Il pannello dei filtri modifica un livello di gruppi sotto **Tutte** o **Almeno una** (**Aggiungi gruppo**); una struttura più profonda appare come **Filtro complesso (non modificabile)**, resta nel file e viene applicata. Un file più vecchio con `and` e `or` affiancati sullo stesso livello viene letto come «tutte quelle di `and` e almeno una di `or`» e scritto nella forma valida al successivo salvataggio.
+Plainva valuta qualsiasi profondità. Il pannello dei filtri modifica un livello di gruppi sotto **Tutte** o **Almeno una** (**Aggiungi gruppo**); una struttura più profonda appare come **Filtro complesso (non modificabile)**, resta nel file e viene applicata — una condizione al suo interno che Plainva non sa leggere viene indicata sotto di essa come non applicata. Un file più vecchio con `and` e `or` affiancati sullo stesso livello viene letto come «tutte quelle di `and` e almeno una di `or`» e scritto nella forma valida al successivo salvataggio.
 
 ### Cosa Plainva non sa leggere
 
-Sono comprese solo le forme nelle due tabelle qui sopra. Tutto il resto — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, un numero senza virgolette (`price > 2`), `&&` e `||` dentro una stessa stringa, l'aritmetica, le funzioni di data come `now()`, oppure `this` — resta nel file e viene mostrato nel pannello dei filtri così com'è, ma Plainva non lo applica. La vista mostra allora più note dello stesso filtro in Obsidian.
+Sono comprese solo le forme nelle due tabelle qui sopra. Tutto il resto — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, un numero senza virgolette (`price > 2`), `&&` e `||` dentro una stessa stringa, l'aritmetica, le funzioni di data come `now()`, oppure `this` — resta nel file e viene mostrato nel pannello dei filtri così com'è, con la nota **Non applicata: Plainva non riesce a leggere questa condizione, quindi non filtra nulla.** La vista mostra allora più note dello stesso filtro in Obsidian.
 
 ## Formule
 
@@ -197,7 +197,7 @@ Obsidian conosce `table`, `list` e `cards`. Gli altri tipi di vista di Plainva s
 | **Grafo** (`graph`) | `table` | `graph` |
 | **Bacheca appunti** (`pinboard`) | `table` | `pinboard` |
 
-Bacheca, Calendario, Cronologia, Grafo e Bacheca appunti sono offerti come **Tipo di vista** solo finché **Consenti le estensioni Plainva per i file .base** è attivo. Un `type` che Plainva non conosce viene mostrato come tabella.
+Bacheca, Calendario, Cronologia, Grafo e Bacheca appunti sono offerti come **Tipo di vista** solo finché **Consenti le estensioni Plainva per i file .base** è attivo. Un `type` che Plainva non conosce viene mostrato come tabella e resta nel file così com'è finché non scegli un altro **Tipo di vista**.
 
 ### Opzioni della vista (`views[i].plainva`)
 
@@ -206,7 +206,7 @@ All'interno del blocco `plainva` una proprietà si scrive nuda (`status`), non c
 | Chiave | Tipi di vista | Valore |
 |---|---|---|
 | `render` | Bacheca, Calendario, Cronologia, Grafo, Bacheca appunti | Il tipo di vista, vedi sopra |
-| `groupBy` | Bacheca | La proprietà di cui sono fatte le colonne |
+| `groupBy` | Bacheca | La proprietà di cui sono fatte le colonne; in sua assenza, la proprietà del `groupBy` proprio di Obsidian della vista |
 | `boardLaneBy` | Bacheca | Una seconda proprietà per **Corsie per** |
 | `boardWipLimits` | Bacheca | Mappa valore della colonna → numero massimo di schede (**Limite WIP**), numeri interi maggiori di 0 |
 | `boardColorMode` | Bacheca | `column` tinge l'intera colonna; se assente = solo il chip dell'intestazione |
@@ -265,7 +265,7 @@ I numeri sono arrotondati a due decimali, e viene letta anche la virgola decimal
 ## Ordinamento e raggruppamento
 
 - **Ordina** — `sort` è un elenco di regole; decide prima la prima regola, la successiva solo tra righe uguali. I numeri si ordinano come numeri, tutto il resto come testo (le date ISO nell'ordine giusto). Le righe senza valore vengono per ultime in entrambe le direzioni. Senza una regola, vengono per prime le note modificate più di recente. Plainva legge anche `field` al posto di `property`, e `asc`/`desc` in qualsiasi grafia di maiuscole e minuscole.
-- **Raggruppamento** — la bacheca raggruppa per `plainva.groupBy`, con corsie per `plainva.boardLaneBy`. Il `groupBy` proprio di Obsidian di una vista resta nel file, ma Plainva non raggruppa una tabella con esso.
+- **Raggruppamento** — la bacheca raggruppa per `plainva.groupBy`, con corsie per `plainva.boardLaneBy`. Una vista che porta invece il `groupBy` proprio di Obsidian raggruppa la sua bacheca per quella proprietà, e una modifica del raggruppamento viene scritta in esso (il suo `direction` resta). Plainva non raggruppa una tabella con esso.
 
 ## Incorporare un database e `this`
 
@@ -286,9 +286,9 @@ I numeri sono arrotondati a due decimali, e viene letta anche la virgola decimal
 
 Plainva legge un `.base`, cambia solo ciò che hai cambiato nell'app e riscrive l'intero file da capo — come YAML con terminatori di riga LF e senza BOM, quindi i commenti e la spaziatura di un file scritto a mano non vengono conservati. Di ciò che non conosce:
 
-- **Conservato:** qualsiasi altra chiave di primo livello, `formulas`, il `summaries` di primo livello, `displayName` e ogni altra chiave di una voce di `properties` fuori dal suo blocco `plainva`, le chiavi di una vista che Plainva non usa (`limit`, `groupBy`, `image`, …), le chiavi sconosciute nel blocco `plainva` di una vista e le condizioni di filtro che non sa leggere.
-- **Non conservato:** le chiavi nel blocco `plainva` di una colonna che questa versione di Plainva non conosce, e un'aggregazione che non sa leggere — entrambe spariscono dopo il successivo salvataggio. Una vista di un tipo che Plainva non conosce viene riscritta come `type: table`.
-- **Posizione:** le chiavi che una vista conserva appartengono al suo posto nell'elenco. Attualmente, eliminare o spostare una vista in Plainva le lascia al vecchio posto, dove le riceve la vista successiva.
+- **Conservato:** qualsiasi altra chiave di primo livello, `formulas`, il `summaries` di primo livello, `displayName` e ogni altra chiave di una voce di `properties`, le chiavi sconosciute nel blocco `plainva` di una colonna o di una vista, un'aggregazione che Plainva non sa leggere, le chiavi di una vista che Plainva non usa (`limit`, `image`, …), un tipo di vista che non conosce e le condizioni di filtro che non sa leggere. Un valore che Plainva capisce ma che non hai modificato mantiene la grafia del file (`status` o `note.status`, un'opzione scritta come testo semplice).
+- **Riscritto:** solo le vecchie forme proprie di Plainva — una mappa `columns:` di primo livello passa in `properties`, `and` e `or` affiancati sullo stesso livello assumono la forma valida, e una vista che versioni molto vecchie salvavano come `type: board` diventa `type: table` con `plainva.render`.
+- **Posizione:** le chiavi che una vista conserva appartengono a quella vista. Eliminare o spostare una vista in Plainva le porta con sé, e **Duplica** le copia nella nuova vista.
 
 ## Differenze rispetto a Obsidian Bases
 
@@ -300,8 +300,8 @@ Plainva legge un `.base`, cambia solo ciò che hai cambiato nell'app e riscrive 
 | `file.folder == "X"` | Solo le note direttamente in `X` | `X` e tutte le sue sottocartelle |
 | `file.hasTag("x")` | Anche `#x/child` | Esattamente `#x` |
 | `file.name` | Il nome del file | La proprietà `title`, se la nota ne ha una |
-| `limit`, `groupBy` della vista | Applicati | Conservati, non applicati |
-| Tipi di vista | `table`, `list`, `cards` e tipi dei plugin | Otto tipi; quelli sconosciuti come tabella |
+| `limit`, `groupBy` della vista | Applicati | `limit` conservato, non applicato; `groupBy` raggruppa una bacheca, non una tabella |
+| Tipi di vista | `table`, `list`, `cards` e tipi dei plugin | Otto tipi; uno sconosciuto viene mostrato come tabella e conservato nel file |
 | `![[db.base#View]]` | Apre quella vista | La vista usata per ultima |
 | Blocco di codice ` ```base ` | Un database | Un blocco di codice |
 | I blocchi `plainva` di Plainva | Ignorati | Bacheca, calendario, cronologia, grafo, bacheca appunti, relazioni, aggregazioni, tipi di campo |

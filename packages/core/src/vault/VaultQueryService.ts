@@ -1,6 +1,6 @@
 import { trimEndChars } from "../textScan.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
+import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, isWholeVaultFolder, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
 import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
@@ -10,6 +10,14 @@ import { formatTaskProgress, scanTasks, taskProgressOf, type ScannedTask } from 
 
 /** Whether any view of the config renders `file.tasks`: a board (its cards
  * carry the checklist progress) or a view whose column order names it. */
+/** True when a view shows the `file.tags` column or sorts by it — then the rows need their tags. */
+function viewReadsTags(config: any): boolean {
+  const views: any[] = Array.isArray(config?.views) ? config.views : [];
+  return views.some((v) =>
+    (Array.isArray(v?.order) && v.order.includes("file.tags")) ||
+    (Array.isArray(v?.sort) && v.sort.some((s: any) => s && (s.property ?? s.field) === "file.tags")));
+}
+
 function needsTaskProgress(config: any): boolean {
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   return views.some((v) => v?.type === "board" || (Array.isArray(v?.order) && v.order.includes("file.tasks")));
@@ -1302,7 +1310,7 @@ export class VaultQueryService {
         const source = parseDatabaseSourceFilter(filter);
         if (source?.kind === "folder") {
           const folder = source.value;
-          if (folder === "/") return "1=1";
+          if (isWholeVaultFolder(folder)) return "1=1";
           return folderPathClause(folder);
         }
         
@@ -1311,9 +1319,9 @@ export class VaultQueryService {
           return `EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND t.tag = ?)`;
         }
       } else if (typeof filter === "object" && filter !== null) {
-        if (filter.field === 'file.folder' && filter.value) {
+        if (filter.field === 'file.folder' && filter.value != null) {
           const folder = String(filter.value);
-          if (folder === "/") return "1=1";
+          if (isWholeVaultFolder(folder)) return "1=1";
           return folderPathClause(folder, true);
         }
       }
@@ -1494,33 +1502,37 @@ export class VaultQueryService {
     // any source condition inside a mixed or-list. `file.hasTag` outside SQL
     // needs the tag table. Filter pickers request the same bulk data over the
     // unfiltered source, so values remain selectable when the view is empty.
-    if (residualAnd.length > 0 || residualOr.length > 0 || options.includeFilterMetadata || pinboard) {
-      const rootNode = {
-        and: [...residualAnd, ...(residualOr.length > 0 ? [{ or: residualOr }] : [])],
-      };
-      let tagsByPath: Map<string, Set<string>> | null = null;
-      if ((filterNeedsTags(rootNode) || options.includeFilterMetadata || pinboard) && finalResult.length > 0) {
-        tagsByPath = new Map();
-        for (let i = 0; i < fileIds.length; i += chunkSize) {
-          const chunk = fileIds.slice(i, i + chunkSize);
-          if (chunk.length === 0) break;
-          const placeholders = chunk.map(() => "?").join(",");
-          const tagRows = await this.db.query(
-            `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE t.file_id IN (${placeholders})`,
-            chunk
-          );
-          for (const tr of tagRows) {
-            const p = String(tr.path ?? tr.PATH ?? "");
-            const tag = String(tr.tag ?? tr.TAG ?? "").replace(/^#/, "");
-            if (!p || !tag) continue;
-            if (!tagsByPath.has(p)) tagsByPath.set(p, new Set());
-            tagsByPath.get(p)!.add(tag);
-          }
-        }
-        for (const row of finalResult) {
-          row["file.tags"] = [...(tagsByPath.get(String(row["file.path"] ?? "")) ?? [])].map((tag) => `#${tag}`);
+    //
+    // `file.tags` comes from the tag table, so it is filled only where
+    // something reads it: a filter, the filter pickers, a pinboard, or a view
+    // that shows the column or sorts by it.
+    const rootNode = {
+      and: [...residualAnd, ...(residualOr.length > 0 ? [{ or: residualOr }] : [])],
+    };
+    let tagsByPath: Map<string, Set<string>> | null = null;
+    if ((filterNeedsTags(rootNode) || options.includeFilterMetadata || pinboard || viewReadsTags(config)) && finalResult.length > 0) {
+      tagsByPath = new Map();
+      for (let i = 0; i < fileIds.length; i += chunkSize) {
+        const chunk = fileIds.slice(i, i + chunkSize);
+        if (chunk.length === 0) break;
+        const placeholders = chunk.map(() => "?").join(",");
+        const tagRows = await this.db.query(
+          `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE t.file_id IN (${placeholders})`,
+          chunk
+        );
+        for (const tr of tagRows) {
+          const p = String(tr.path ?? tr.PATH ?? "");
+          const tag = String(tr.tag ?? tr.TAG ?? "").replace(/^#/, "");
+          if (!p || !tag) continue;
+          if (!tagsByPath.has(p)) tagsByPath.set(p, new Set());
+          tagsByPath.get(p)!.add(tag);
         }
       }
+      for (const row of finalResult) {
+        row["file.tags"] = [...(tagsByPath.get(String(row["file.path"] ?? "")) ?? [])].map((tag) => `#${tag}`);
+      }
+    }
+    if (residualAnd.length > 0 || residualOr.length > 0 || options.includeFilterMetadata || pinboard) {
       const predicate = buildFilterNodePredicate(rootNode, {
         hasTag: (row, tag) => {
           const set = tagsByPath?.get(String(row["file.path"] ?? ""));

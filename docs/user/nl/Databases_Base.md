@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-11-02
+Laatst bijgewerkt: 2026-11-03
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -243,7 +243,7 @@ Alles wat Plainva-specifiek is (kleuren, bordweergave, relaties, opslagmap) staa
 
 Als een script of een KI-assistent `.base`-bestanden schrijft zonder de weg via Plainva te gaan, gelden drie harde regels — bij een overtreding weigert Obsidian het hele bestand te openen:
 
-- **Alleen de top-level sleutels `filters`, `formulas`, `properties`, `views`.** Voeg nooit een andere top-level sleutel toe; alle Plainva-extra's staan onder geneste `plainva:`-subsleutels.
+- **Alleen de top-level sleutels `filters`, `formulas`, `properties`, `summaries`, `views`.** Voeg nooit een andere top-level sleutel toe; alle Plainva-extra's staan onder geneste `plainva:`-subsleutels.
 - **Elke weergave heeft een niet-lege string-`name`.**
 - **Een `filters`-object draagt per niveau exact één van `and` / `or` / `not`** (nooit twee naast elkaar).
 

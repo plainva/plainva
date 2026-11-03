@@ -3741,3 +3741,60 @@ test('Embedded database: a new entry fills the host\'s empty single link, and ne
   await expect(page.locator('.pv-toast', { hasText: /Nicht verknüpft|Not linked/ })).toBeVisible();
   expect(await file('Auftraege/Taken.md')).toBe('---\nfirma: "[[Initech]]"\ntags:\n---\n# Taken\n\n![[Firmen.base]]\n');
 });
+
+// --- Findings of the .base reference (03.11.) --------------------------------
+// A condition Plainva cannot read stays in the file but filters nothing; the
+// panel showed it as written and said nothing. And deleting a view handed its
+// native keys (`limit`) to the next view, which lost its own (`image`).
+test('An unreadable filter is marked as not applied; deleting a view leaves the other its own keys', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Rawfilter.base'] = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Projekte"',
+      'views:',
+      '  - type: table',
+      '    name: Erste',
+      '    limit: 7',
+      '    order:',
+      '      - file.name',
+      '      - note.status',
+      '    filters:',
+      '      and:',
+      `        - 'status == "active"'`,
+      '        - prio > 2',
+      '        - and:',
+      `            - 'status == "active"'`,
+      '            - or:',
+      `                - 'a && b'`,
+      `                - 'prio == "1"'`,
+      '  - type: cards',
+      '    name: Zweite',
+      '    image: note.cover',
+      '    cardSize: 180',
+      '',
+    ].join('\n');
+  });
+  await page.goto('/');
+  await openBase(page, 'Rawfilter');
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
+
+  const notes = page.locator('.base-config-panel').getByTestId('filter-not-applied');
+  await expect(notes).toHaveCount(2);
+  await expect(notes.nth(0)).toHaveText(/Nicht angewendet: Plainva kann diese Bedingung nicht lesen|Not applied: Plainva cannot read this condition/);
+  await expect(notes.nth(1)).toHaveText(/(Nicht angewendet, weil Plainva sie nicht lesen kann|Not applied, because Plainva cannot read it): a && b/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('desktop-filter-not-applied.png') });
+
+  // Delete the first (active) view from its tab menu.
+  await page.locator('.base-view-tabs').getByRole('button', { name: /^(Ansichts-Optionen|View options)$/ }).click();
+  await page.getByRole('menuitem', { name: /^(Löschen|Delete)$/ }).click();
+  const base = () => page.evaluate(() => String((window as any).mockFs['/test-vault/Rawfilter.base']));
+  await expect.poll(base).not.toContain('name: Erste');
+  const written = await base();
+  expect(written).toContain('name: Zweite');
+  expect(written).toContain('image: note.cover');
+  expect(written).toContain('cardSize: 180');
+  expect(written).toContain('type: cards');
+  expect(written).not.toContain('limit: 7');
+});

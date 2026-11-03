@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-03
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -243,7 +243,7 @@ Tout ce qui est spécifique à Plainva (couleurs, rendu du board, relations, dos
 
 Un fichier `.base` est du YAML texte brut, donc un outil, un script ou un assistant IA peut le modifier directement — sans passer par l'interface de Plainva. Trois règles strictes :
 
-- Seules ces clés de premier niveau sont autorisées : `filters`, `formulas`, `properties`, `views`. En ajouter une autre fait rejeter le fichier entier par Obsidian.
+- Seules ces clés de premier niveau sont autorisées : `filters`, `formulas`, `properties`, `summaries`, `views`. En ajouter une autre fait rejeter le fichier entier par Obsidian.
 - Chaque vue a besoin d'un `name` en chaîne non vide.
 - Un objet `filters` porte exactement un de `and` / `or` / `not` à chaque niveau — jamais deux côte à côte.
 

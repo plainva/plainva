@@ -1237,6 +1237,8 @@
     "addRule": "Añadir regla",
     "complexFilter": "Filtro complejo (no editable)",
     "complexFilterTip": "Filtro anidado de Obsidian: se conserva y se aplica, pero aquí no se puede editar.",
+    "filterNotApplied": "No se aplica: Plainva no puede leer esta condición, así que no filtra nada.",
+    "filterPartlyNotApplied": "No se aplica porque Plainva no puede leerlo: {{conditions}}",
     "noSort": "Sin orden — secuencia predeterminada",
     "sortColumn": "Columna de orden",
     "addSort": "Añadir orden",

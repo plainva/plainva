@@ -7,7 +7,7 @@
 // "empty"/"notEmpty" are UI aliases for `col == ""` / `col != ""` (the stored
 // string stays plain Obsidian syntax) — relation filters use them (P11).
 
-import { DATABASE_METADATA, normalizeDatabaseFilterValue, parseDatabaseSourceFilter, readFilterComparison } from "@plainva/core";
+import { DATABASE_METADATA, normalizeDatabaseFilterValue, parseDatabaseSourceFilter, readFilterComparison, unappliedFilterConditions } from "@plainva/core";
 
 export type FilterOp = "==" | "!=" | "contains" | "notContains" | ">" | "<" | ">=" | "<=" | "empty" | "notEmpty";
 
@@ -115,13 +115,16 @@ export interface UIGroupItem {
   idx: number;
   raw: string;
   rule: PropertyFilterRule | null;
+  /** False when the query cannot apply this condition (it stays in the file, but filters nothing). */
+  applied: boolean;
 }
 
 export type UIFilterEntry =
   | { kind: "rule"; ref: FilterEntryRef; raw: string; rule: PropertyFilterRule }
-  | { kind: "rawString"; ref: FilterEntryRef; raw: string }
+  | { kind: "rawString"; ref: FilterEntryRef; raw: string; applied: boolean }
   | { kind: "group"; ref: FilterEntryRef; logic: "all" | "any"; items: UIGroupItem[] }
-  | { kind: "opaque"; ref: FilterEntryRef; raw: any };
+  // `unapplied`: the conditions inside that the query cannot apply.
+  | { kind: "opaque"; ref: FilterEntryRef; raw: any; unapplied: string[] };
 
 export interface UIFilterModel {
   topLogic: "all" | "any";
@@ -158,7 +161,7 @@ export function buildUIFilterModel(config: any): UIFilterModel {
         entries.push(
           rule
             ? { kind: "rule", ref: { list, idx }, raw: f, rule }
-            : { kind: "rawString", ref: { list, idx }, raw: f }
+            : { kind: "rawString", ref: { list, idx }, raw: f, applied: unappliedFilterConditions(f).length === 0 }
         );
       } else if (isEditableGroup(f)) {
         const key = groupKeyOf(f)!;
@@ -166,10 +169,15 @@ export function buildUIFilterModel(config: any): UIFilterModel {
           kind: "group",
           ref: { list, idx },
           logic: key === "and" ? "all" : "any",
-          items: (f[key] as string[]).map((raw, i) => ({ idx: i, raw, rule: parsePropertyFilter(raw) })),
+          items: (f[key] as string[]).map((raw, i) => ({
+            idx: i,
+            raw,
+            rule: parsePropertyFilter(raw),
+            applied: unappliedFilterConditions(raw).length === 0,
+          })),
         });
       } else {
-        entries.push({ kind: "opaque", ref: { list, idx }, raw: f });
+        entries.push({ kind: "opaque", ref: { list, idx }, raw: f, unapplied: unappliedFilterConditions(f) });
       }
       if (list === "or") anyInOr = true;
     });

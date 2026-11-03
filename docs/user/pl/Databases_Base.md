@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-11-02
+Stan na: 2026-11-03
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -244,7 +244,7 @@ Wszystko specyficzne dla Plainva (kolory, renderowanie tablicy, relacje, folder 
 Plik `.base` to zwykły YAML, więc narzędzie, skrypt lub AI może go edytować bezpośrednio, bez przechodzenia przez ten interfejs. Trzy twarde zasady:
 
 - **Notatka jest źródłem prawdy.** Wartości właściwości znajdują się we frontmatter notatek, nigdy w `.base`. Zmieniasz wartość, edytując notatkę, nie plik `.base`.
-- **`.base` używa tylko czterech kluczy najwyższego poziomu Obsidian** (`filters`, `formulas`, `properties`, `views`). Dodanie innego klucza najwyższego poziomu sprawia, że Obsidian odrzuca cały plik.
+- **`.base` używa tylko czterech kluczy najwyższego poziomu Obsidian** (`filters`, `formulas`, `properties`, `summaries`, `views`). Dodanie innego klucza najwyższego poziomu sprawia, że Obsidian odrzuca cały plik.
 - **Każdy widok potrzebuje niepustego stringa `name`, a `filters` niesie na każdym poziomie dokładnie jedno z `and` / `or` / `not`.**
 
 Częsta pułapka: klucze w mapie `properties:` i w liście `order:` widoku są z przedrostkiem `note.` (np. `note.status`), ale te same klucze wewnątrz wyrażeń filtra i podkluczy `plainva` (jak `groupBy`) są gołe (`status`).

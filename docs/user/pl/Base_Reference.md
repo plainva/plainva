@@ -101,7 +101,7 @@ Te wartości pochodzą z pliku, nie z jego frontmatter. Każdy wiersz bazy danyc
 | `file.mtime` | Czas ostatniej modyfikacji, w milisekundach |
 | `file.ctime` | Czas utworzenia, w milisekundach, o ile system plików go podaje |
 | `file.size` | Rozmiar w bajtach |
-| `file.tags` | Wszystkie tagi notatki, z frontmatter i z tekstu, każdy z `#`; wypełniane, gdy potrzebuje ich filtr lub tablica korkowa |
+| `file.tags` | Wszystkie tagi notatki, z frontmatter i z tekstu, każdy z `#`; wypełniane, gdy potrzebuje ich filtr, tablica korkowa lub widok, który pokazuje kolumnę albo według niej sortuje |
 | `file.tasks` | Postęp listy zadań jako `done/total`; wypełniane dla tablic i dla widoku, który pokazuje kolumnę |
 | `file.day` | Dzień, który oznacza nazwa pliku notatki dziennej, według folderu i formatu vaultu; tylko do odczytu i tylko pole daty kalendarza lub osi czasu może go użyć |
 | `file.revision` | Wewnętrzny znacznik zmiany; nie polegaj na nim |
@@ -118,7 +118,7 @@ Te wartości pochodzą z pliku, nie z jego frontmatter. Każdy wiersz bazy danyc
 
 | Źródło | Wyrażenie |
 |---|---|
-| Folder | `file.folder == "Projects/Active"` — folder i wszystkie jego podfoldery; `"/"` to cały vault |
+| Folder | `file.folder == "Projects/Active"` — folder i wszystkie jego podfoldery; `""` i `"/"` to cały vault |
 | Tag | `file.hasTag("project")` — notatka niesie dokładnie ten tag; początkowy `#` jest ignorowany |
 
 Kilka źródeł łączy się przez `and` lub `or` jak każdy inny warunek. Baza danych bez źródeł zawiera każdą notatkę vaultu. Załączniki, zarezerwowane `index.md` i `log.md` oraz pliki lub foldery, których nazwa zaczyna się od kropki, nigdy nie są wierszami.
@@ -158,11 +158,11 @@ Obiekt `filters` ma na każdym poziomie dokładnie jedno z `and`, `or` i `not`; 
 | `or` | pasuje co najmniej jeden wpis |
 | `not` | nie pasuje żaden wpis |
 
-Plainva oblicza dowolną głębokość. Panel filtrów edytuje jeden poziom grup pod **Wszystkie** lub **Dowolny** (**Dodaj grupę**); głębsza struktura pojawia się jako **Filtr złożony (bez możliwości edycji)**, pozostaje w pliku i jest stosowana. Starszy plik z `and` i `or` obok siebie na jednym poziomie jest odczytywany jako „wszystkie z `and` i jedno z `or`” i przy następnym zapisie zapisywany w prawidłowej formie.
+Plainva oblicza dowolną głębokość. Panel filtrów edytuje jeden poziom grup pod **Wszystkie** lub **Dowolny** (**Dodaj grupę**); głębsza struktura pojawia się jako **Filtr złożony (bez możliwości edycji)**, pozostaje w pliku i jest stosowana — warunek w niej, którego Plainva nie potrafi odczytać, jest wymieniony pod nią jako niezastosowany. Starszy plik z `and` i `or` obok siebie na jednym poziomie jest odczytywany jako „wszystkie z `and` i jedno z `or`” i przy następnym zapisie zapisywany w prawidłowej formie.
 
 ### Czego Plainva nie potrafi odczytać
 
-Rozumiane są tylko formy z dwóch powyższych tabel. Wszystko inne — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, liczba bez cudzysłowów (`price > 2`), `&&` i `||` w jednym ciągu, arytmetyka, funkcje dat takie jak `now()` czy `this` — pozostaje w pliku i jest pokazywane w panelu filtrów tak, jak zapisano, ale Plainva tego nie stosuje. Widok pokazuje wtedy więcej notatek niż ten sam filtr w Obsidian.
+Rozumiane są tylko formy z dwóch powyższych tabel. Wszystko inne — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, liczba bez cudzysłowów (`price > 2`), `&&` i `||` w jednym ciągu, arytmetyka, funkcje dat takie jak `now()` czy `this` — pozostaje w pliku i jest pokazywane w panelu filtrów tak, jak zapisano, z uwagą **Nie zastosowano: Plainva nie potrafi odczytać tego warunku, więc niczego nie filtruje.** Widok pokazuje wtedy więcej notatek niż ten sam filtr w Obsidian.
 
 ## Formuły
 
@@ -197,7 +197,7 @@ Obsidian zna `table`, `list` i `cards`. Pozostałe typy widoków Plainva są zap
 | **Graf** (`graph`) | `table` | `graph` |
 | **Tablica korkowa** (`pinboard`) | `table` | `pinboard` |
 
-Tablica, Kalendarz, Oś czasu, Graf i Tablica korkowa są oferowane jako **Typ widoku** tylko wtedy, gdy włączone jest **Zezwól na rozszerzenia Plainva dla plików .base**. `type`, którego Plainva nie zna, jest pokazywany jako tabela.
+Tablica, Kalendarz, Oś czasu, Graf i Tablica korkowa są oferowane jako **Typ widoku** tylko wtedy, gdy włączone jest **Zezwól na rozszerzenia Plainva dla plików .base**. `type`, którego Plainva nie zna, jest pokazywany jako tabela i pozostaje w pliku tak, jak zapisano, dopóki nie wybierzesz innej wartości w polu **Typ widoku**.
 
 ### Opcje widoku (`views[i].plainva`)
 
@@ -206,7 +206,7 @@ Wewnątrz bloku `plainva` właściwość zapisuje się bez przedrostka (`status`
 | Klucz | Typy widoków | Wartość |
 |---|---|---|
 | `render` | Tablica, Kalendarz, Oś czasu, Graf, Tablica korkowa | Typ widoku, zob. wyżej |
-| `groupBy` | Tablica | Właściwość, z której powstają kolumny |
+| `groupBy` | Tablica | Właściwość, z której powstają kolumny; bez niego właściwość własnego `groupBy` widoku z Obsidian |
 | `boardLaneBy` | Tablica | Druga właściwość dla **Tory według** |
 | `boardWipLimits` | Tablica | Mapa wartość kolumny → najwięcej kart (**Limit WIP**), liczby całkowite większe od 0 |
 | `boardColorMode` | Tablica | `column` zabarwia całą kolumnę; brak = tylko chip w nagłówku |
@@ -265,7 +265,7 @@ Liczby są zaokrąglane do dwóch miejsc po przecinku, odczytywany jest też prz
 ## Sortowanie i grupowanie
 
 - **Sortowanie** — `sort` to lista reguł; pierwsza reguła rozstrzyga najpierw, następna tylko między równymi wierszami. Liczby sortują się jako liczby, wszystko inne jako tekst (daty ISO we właściwej kolejności). Wiersze bez wartości trafiają na koniec w obu kierunkach. Bez reguły na początku są ostatnio zmienione notatki. Plainva odczytuje też `field` zamiast `property` oraz `asc`/`desc` w dowolnej wielkości liter.
-- **Grupowanie** — tablica grupuje według `plainva.groupBy`, z torami według `plainva.boardLaneBy`. Własne `groupBy` widoku z Obsidian jest zachowywane w pliku, ale Plainva nie grupuje według niego tabeli.
+- **Grupowanie** — tablica grupuje według `plainva.groupBy`, z torami według `plainva.boardLaneBy`. Widok, który zamiast tego ma własne `groupBy` z Obsidian, grupuje swoją tablicę według tej właściwości, a zmiana grupowania jest w nim zapisywana (jego `direction` pozostaje). Plainva nie grupuje według niego tabeli.
 
 ## Osadzanie bazy danych i `this`
 
@@ -286,9 +286,9 @@ Liczby są zaokrąglane do dwóch miejsc po przecinku, odczytywany jest też prz
 
 Plainva odczytuje `.base`, zmienia tylko to, co zostało zmienione w aplikacji, i zapisuje cały plik od nowa — jako YAML z końcami wierszy LF i bez BOM, więc komentarze i odstępy pliku pisanego ręcznie nie są zachowywane. Z tego, czego nie zna:
 
-- **Zachowywane:** każdy inny klucz najwyższego poziomu, `formulas`, `summaries` najwyższego poziomu, `displayName` i każdy inny klucz wpisu `properties` poza jego blokiem `plainva`, klucze widoku, których Plainva nie używa (`limit`, `groupBy`, `image`, …), nieznane klucze w bloku `plainva` widoku oraz warunki filtrów, których nie potrafi odczytać.
-- **Niezachowywane:** klucze w bloku `plainva` kolumny, których ta wersja Plainva nie zna, oraz agregacja, której nie potrafi odczytać — oba znikają po następnym zapisie. Widok typu, którego Plainva nie zna, jest zapisywany z powrotem jako `type: table`.
-- **Położenie:** klucze, które zachowuje widok, należą do jego miejsca na liście. Obecnie usunięcie lub przeniesienie widoku w Plainva zostawia je na starym miejscu, gdzie otrzymuje je następny widok.
+- **Zachowywane:** każdy inny klucz najwyższego poziomu, `formulas`, `summaries` najwyższego poziomu, `displayName` i każdy inny klucz wpisu `properties`, nieznane klucze w bloku `plainva` kolumny lub widoku, agregacja, której Plainva nie potrafi odczytać, klucze widoku, których Plainva nie używa (`limit`, `image`, …), typ widoku, którego nie zna, oraz warunki filtrów, których nie potrafi odczytać. Wartość, którą Plainva rozumie, ale której nie zmieniono, zachowuje zapis z pliku (`status` lub `note.status`, opcja zapisana zwykłym tekstem).
+- **Przepisywane:** tylko własne stare formy Plainva — mapa `columns:` najwyższego poziomu przechodzi do `properties`, `and` i `or` obok siebie na jednym poziomie przyjmują prawidłową formę, a widok, który bardzo stare wersje zapisały jako `type: board`, staje się `type: table` z `plainva.render`.
+- **Położenie:** klucze, które zachowuje widok, należą do tego widoku. Usunięcie lub przeniesienie widoku w Plainva zabiera je ze sobą, a **Duplikuj** kopiuje je do nowego widoku.
 
 ## Różnice względem Bases w Obsidian
 
@@ -300,8 +300,8 @@ Plainva odczytuje `.base`, zmienia tylko to, co zostało zmienione w aplikacji, 
 | `file.folder == "X"` | Tylko notatki bezpośrednio w `X` | `X` i wszystkie jego podfoldery |
 | `file.hasTag("x")` | Także `#x/child` | Dokładnie `#x` |
 | `file.name` | Nazwa pliku | Właściwość `title`, jeśli notatka ją ma |
-| `limit`, `groupBy` widoku | Stosowane | Zachowywane, niestosowane |
-| Typy widoków | `table`, `list`, `cards` i typy wtyczek | Osiem typów; nieznane jako tabela |
+| `limit`, `groupBy` widoku | Stosowane | `limit` zachowywane, niestosowane; `groupBy` grupuje tablicę, nie tabelę |
+| Typy widoków | `table`, `list`, `cards` i typy wtyczek | Osiem typów; nieznany jest pokazywany jako tabela i zachowywany w pliku |
 | `![[db.base#View]]` | Otwiera ten widok | Ostatnio używany widok |
 | Blok kodu ` ```base ` | Baza danych | Blok kodu |
 | Bloki `plainva` Plainva | Ignorowane | Tablica, kalendarz, oś czasu, graf, tablica korkowa, relacje, agregacje, typy pól |

@@ -126,6 +126,9 @@ button.base-cell-comments:focus-visible { outline: 2px solid var(--accent-color)
 .base-cfg-badge { font-size: var(--text-xs); color: var(--accent-color); background: var(--bg-hover); padding: 1px 5px; border-radius: var(--radius-xs); margin-left: auto; flex-shrink: 0; }
 .base-cfg-iconbtn { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 2px; flex-shrink: 0; }
 .base-cfg-empty { font-size: var(--text-sm); color: var(--text-faint); }
+/* A filter entry shown as written; the second line says when the query cannot apply it. */
+.base-cfg-rawfilter { display: flex; flex-direction: column; gap: 2px; min-width: 0; word-break: break-all; }
+.base-cfg-notapplied { display: flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--warning-text); word-break: normal; }
 .base-cfg-chiprow { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: var(--bg-primary); padding: 4px 8px; border-radius: var(--radius-xs); font-size: var(--text-sm); color: var(--text-main); }
 .base-cfg-delbtn { background: transparent; border: none; cursor: pointer; color: var(--error-text); display: flex; }
 .base-cfg-input { padding: 4px; border-radius: var(--radius-xs); background: var(--bg-primary); color: var(--text-main); border: 1px solid var(--border-color); font-size: var(--text-sm); }

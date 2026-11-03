@@ -1233,6 +1233,8 @@
     "addRule": "Add rule",
     "complexFilter": "Complex filter (not editable)",
     "complexFilterTip": "Nested filter from Obsidian – it is kept and applied, but cannot be edited here.",
+    "filterNotApplied": "Not applied: Plainva cannot read this condition, so it filters nothing.",
+    "filterPartlyNotApplied": "Not applied, because Plainva cannot read it: {{conditions}}",
     "noSort": "No sort – default order",
     "sortColumn": "Sort column",
     "addSort": "Add sort",

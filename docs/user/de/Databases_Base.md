@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-11-02
+Stand: 2026-11-03
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -243,7 +243,7 @@ Alles Plainva-Spezifische (Farben, Board-Darstellung, Relationen, Ablage-Ordner)
 
 Wenn ein Skript oder ein KI-Assistent `.base`-Dateien schreibt, ohne den Weg über Plainva zu gehen, zählen drei harte Regeln — bei einem Verstoß weigert sich Obsidian, die ganze Datei zu öffnen:
 
-- **Nur die Top-Level-Schlüssel `filters`, `formulas`, `properties`, `views`.** Niemals einen weiteren Top-Level-Schlüssel ergänzen; alle Plainva-Extras liegen unter verschachtelten `plainva:`-Unterschlüsseln.
+- **Nur die Top-Level-Schlüssel `filters`, `formulas`, `properties`, `summaries`, `views`.** Niemals einen weiteren Top-Level-Schlüssel ergänzen; alle Plainva-Extras liegen unter verschachtelten `plainva:`-Unterschlüsseln.
 - **Jede View braucht einen nicht-leeren String-`name`.**
 - **Ein `filters`-Objekt trägt pro Ebene genau eines von `and` / `or` / `not`** (nie zwei nebeneinander).
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { ChoiceMark } from "../../components/ChoiceMark";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mActions, mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
 import { getMobileSettings } from "../../services/mobileSettings";
 import { useSettingsState } from "../../hooks/useSettingsState";
@@ -1238,6 +1238,7 @@ export function BaseConfigSheet({
                     })
                   }
                   raw={item.raw}
+                  notApplied={item.applied ? null : t("database.filterNotApplied")}
                 />
               ),
             )}
@@ -1275,6 +1276,13 @@ export function BaseConfigSheet({
               })
             }
             raw={entry.kind === "rawString" ? entry.raw : JSON.stringify(entry.raw)}
+            notApplied={
+              entry.kind === "rawString"
+                ? entry.applied ? null : t("database.filterNotApplied")
+                : entry.unapplied.length > 0
+                  ? t("database.filterPartlyNotApplied", { conditions: entry.unapplied.join(", ") })
+                  : null
+            }
           />
         ))}
         <div className="m-turninto">
@@ -1405,12 +1413,24 @@ function FilterRuleRow({
   );
 }
 
-/** Filter entry the mobile editor cannot parse: shown verbatim, removable. */
-function RawFilterRow({ raw, onRemove }: { raw: string; onRemove: () => void }) {
+/**
+ * Filter entry the mobile editor cannot parse: shown verbatim, removable —
+ * and, when the query cannot apply it either, saying so visibly (it stays in
+ * the file but filters nothing).
+ */
+function RawFilterRow({ raw, notApplied, onRemove }: { raw: string; notApplied: string | null; onRemove: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="m-row m-row--split">
-      <span className="m-row-main m-row--static m-rawfilter">{raw}</span>
+      <div className="m-row-main m-row--static m-rawfilter-cell">
+        <div className="m-rawfilter">{raw}</div>
+        {notApplied && (
+          <div className="m-rawfilter-note" data-testid="filter-not-applied">
+            <AlertTriangle size={ICON.meta} aria-hidden="true" />
+            <span>{notApplied}</span>
+          </div>
+        )}
+      </div>
       <IconButton label={t("common.delete")} onClick={onRemove}>
         <X size={ICON.head} />
       </IconButton>

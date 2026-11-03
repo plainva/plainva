@@ -101,7 +101,7 @@ These values come from the file, not from its frontmatter. Each row of a databas
 | `file.mtime` | Last modified, in milliseconds |
 | `file.ctime` | Created, in milliseconds, where the file system reports it |
 | `file.size` | Size in bytes |
-| `file.tags` | All tags of the note, frontmatter and text, each with `#`; filled when a filter or a pinboard needs them |
+| `file.tags` | All tags of the note, frontmatter and text, each with `#`; filled when a filter, a pinboard or a view that shows or sorts by the column needs them |
 | `file.tasks` | Checkbox progress as `done/total`; filled for boards and for a view that shows the column |
 | `file.day` | The day a daily note's file name stands for, by the vault's folder and format; read-only, and only the date field of a calendar or timeline can use it |
 | `file.revision` | An internal change marker; do not rely on it |
@@ -118,7 +118,7 @@ The top-level `filters` holds the **sources** — which notes belong to the data
 
 | Source | Expression |
 |---|---|
-| Folder | `file.folder == "Projects/Active"` — the folder and all its subfolders; `"/"` is the whole vault |
+| Folder | `file.folder == "Projects/Active"` — the folder and all its subfolders; `""` and `"/"` are the whole vault |
 | Tag | `file.hasTag("project")` — the note carries exactly this tag; a leading `#` is ignored |
 
 Several sources combine with `and` or `or` like any other condition. A database without sources contains every note of the vault. Attachments, the reserved `index.md` and `log.md`, and files or folders whose name starts with a dot are never rows.
@@ -158,11 +158,11 @@ A `filters` object has exactly one of `and`, `or` and `not` on each level; its e
 | `or` | at least one entry matches |
 | `not` | no entry matches |
 
-Plainva evaluates any depth. The filter panel edits one level of groups under **All** or **Any** (**Add group**); a deeper structure appears as **Complex filter (not editable)**, stays in the file and is applied. An older file with `and` and `or` side by side on one level is read as "all of `and` and one of `or`" and written in the valid form on the next save.
+Plainva evaluates any depth. The filter panel edits one level of groups under **All** or **Any** (**Add group**); a deeper structure appears as **Complex filter (not editable)**, stays in the file and is applied — a condition inside it that Plainva cannot read is named below it as not applied. An older file with `and` and `or` side by side on one level is read as "all of `and` and one of `or`" and written in the valid form on the next save.
 
 ### What Plainva cannot read
 
-Only the forms in the two tables above are understood. Anything else — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, a number without quotes (`price > 2`), `&&` and `||` inside one string, arithmetic, date functions such as `now()`, or `this` — stays in the file and is shown in the filter panel as written, but Plainva does not apply it. The view then shows more notes than the same filter does in Obsidian.
+Only the forms in the two tables above are understood. Anything else — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, a number without quotes (`price > 2`), `&&` and `||` inside one string, arithmetic, date functions such as `now()`, or `this` — stays in the file and is shown in the filter panel as written, with the note **Not applied: Plainva cannot read this condition, so it filters nothing.** The view then shows more notes than the same filter does in Obsidian.
 
 ## Formulas
 
@@ -197,7 +197,7 @@ Obsidian knows `table`, `list` and `cards`. Plainva's other view types are store
 | **Graph** (`graph`) | `table` | `graph` |
 | **Pinboard** (`pinboard`) | `table` | `pinboard` |
 
-Board, Calendar, Timeline, Graph and Pinboard are offered as a **View type** only while **Allow Plainva extensions for .base files** is on. A `type` Plainva does not know is shown as a table.
+Board, Calendar, Timeline, Graph and Pinboard are offered as a **View type** only while **Allow Plainva extensions for .base files** is on. A `type` Plainva does not know is shown as a table and stays in the file as written until you choose another **View type**.
 
 ### View options (`views[i].plainva`)
 
@@ -206,7 +206,7 @@ Inside the `plainva` block a property is written bare (`status`), not as `note.s
 | Key | View types | Value |
 |---|---|---|
 | `render` | Board, Calendar, Timeline, Graph, Pinboard | The view type, see above |
-| `groupBy` | Board | The property the columns are made of |
+| `groupBy` | Board | The property the columns are made of; without it, the property of Obsidian's own `groupBy` of the view |
 | `boardLaneBy` | Board | A second property for **Swimlanes by** |
 | `boardWipLimits` | Board | Map of column value → most cards (**WIP limit**), whole numbers above 0 |
 | `boardColorMode` | Board | `column` tints the whole column; absent = only the header chip |
@@ -265,7 +265,7 @@ Numbers are rounded to two decimals, and a decimal comma is read as well. A colu
 ## Sorting and grouping
 
 - **Sort** — `sort` is a list of rules; the first rule decides first, the next one only between equal rows. Numbers sort as numbers, everything else as text (ISO dates in the right order). Rows without a value come last in both directions. Without a rule, the most recently changed notes come first. Plainva also reads `field` for `property`, and `asc`/`desc` in any case.
-- **Grouping** — the board groups by `plainva.groupBy`, with swimlanes by `plainva.boardLaneBy`. Obsidian's own `groupBy` of a view is kept in the file, but Plainva does not group a table by it.
+- **Grouping** — the board groups by `plainva.groupBy`, with swimlanes by `plainva.boardLaneBy`. A view that carries Obsidian's own `groupBy` instead groups its board by that property, and a change of the grouping is written into it (its `direction` stays). Plainva does not group a table by it.
 
 ## Embedding a database, and `this`
 
@@ -286,9 +286,9 @@ Numbers are rounded to two decimals, and a decimal comma is read as well. A colu
 
 Plainva reads a `.base`, changes only what you changed in the app, and writes the whole file anew — as YAML with LF line endings and without a BOM, so comments and the spacing of a hand-written file are not kept. Of what it does not know:
 
-- **Kept:** any other top-level key, `formulas`, the top-level `summaries`, `displayName` and every other key of a `properties` entry outside its `plainva` block, the keys of a view Plainva does not use (`limit`, `groupBy`, `image`, …), unknown keys in a view's `plainva` block, and filter conditions it cannot read.
-- **Not kept:** keys in a column's `plainva` block that this version of Plainva does not know, and a rollup it cannot read — both are gone after the next save. A view of a type Plainva does not know is written back as `type: table`.
-- **Position:** the keys a view keeps belong to its place in the list. Currently, deleting or moving a view in Plainva leaves them at the old place, where the next view receives them.
+- **Kept:** any other top-level key, `formulas`, the top-level `summaries`, `displayName` and every other key of a `properties` entry, unknown keys in the `plainva` block of a column or a view, a rollup Plainva cannot read, the keys of a view Plainva does not use (`limit`, `image`, …), a view type it does not know, and filter conditions it cannot read. A value Plainva understands but you did not change keeps the spelling of the file (`status` or `note.status`, an option written as plain text).
+- **Rewritten:** only Plainva's own old forms — a top-level `columns:` map moves into `properties`, `and` and `or` side by side on one level become the valid form, and a view that very old versions saved as `type: board` becomes `type: table` with `plainva.render`.
+- **Position:** the keys a view keeps belong to that view. Deleting or moving a view in Plainva takes them along, and **Duplicate** copies them to the new view.
 
 ## Differences to Obsidian Bases
 
@@ -300,8 +300,8 @@ Plainva reads a `.base`, changes only what you changed in the app, and writes th
 | `file.folder == "X"` | Only notes directly in `X` | `X` and all its subfolders |
 | `file.hasTag("x")` | Also `#x/child` | Exactly `#x` |
 | `file.name` | The file name | The `title` property if the note has one |
-| View `limit`, `groupBy` | Applied | Kept, not applied |
-| View types | `table`, `list`, `cards` and plugin types | Eight types; unknown ones as a table |
+| View `limit`, `groupBy` | Applied | `limit` kept, not applied; `groupBy` groups a board, not a table |
+| View types | `table`, `list`, `cards` and plugin types | Eight types; an unknown one is shown as a table and kept in the file |
 | `![[db.base#View]]` | Opens that view | The view last used |
 | ` ```base ` code block | A database | A code block |
 | Plainva's `plainva` blocks | Ignored | Board, calendar, timeline, graph, pinboard, relations, rollups, field types |

@@ -101,7 +101,7 @@ Ces valeurs viennent du fichier, pas de son frontmatter. Chaque ligne d'une base
 | `file.mtime` | Dernière modification, en millisecondes |
 | `file.ctime` | Création, en millisecondes, lorsque le système de fichiers l'indique |
 | `file.size` | Taille en octets |
-| `file.tags` | Tous les tags de la note, frontmatter et texte, chacun avec `#` ; rempli lorsqu'un filtre ou un tableau d'affichage en a besoin |
+| `file.tags` | Tous les tags de la note, frontmatter et texte, chacun avec `#` ; rempli lorsqu'un filtre, un tableau d'affichage ou une vue qui affiche la colonne ou trie selon elle en a besoin |
 | `file.tasks` | Progression des cases à cocher sous la forme `done/total` ; rempli pour les boards et pour une vue qui affiche la colonne |
 | `file.day` | Le jour que représente le nom de fichier d'une note quotidienne, d'après le dossier et le format du vault ; en lecture seule, et seul le champ de date d'un calendrier ou d'une chronologie peut l'utiliser |
 | `file.revision` | Un repère de modification interne ; ne vous y fiez pas |
@@ -118,7 +118,7 @@ Le `filters` de premier niveau contient les **sources** — les notes qui appart
 
 | Source | Expression |
 |---|---|
-| Dossier | `file.folder == "Projects/Active"` — le dossier et tous ses sous-dossiers ; `"/"` désigne le vault entier |
+| Dossier | `file.folder == "Projects/Active"` — le dossier et tous ses sous-dossiers ; `""` et `"/"` désignent le vault entier |
 | Tag | `file.hasTag("project")` — la note porte exactement ce tag ; un `#` initial est ignoré |
 
 Plusieurs sources se combinent avec `and` ou `or` comme n'importe quelle autre condition. Une base de données sans source contient toutes les notes du vault. Les pièces jointes, les fichiers réservés `index.md` et `log.md`, ainsi que les fichiers ou dossiers dont le nom commence par un point ne sont jamais des lignes.
@@ -158,11 +158,11 @@ Un objet `filters` porte exactement un des éléments `and`, `or` et `not` à ch
 | `or` | au moins une entrée correspond |
 | `not` | aucune entrée ne correspond |
 
-Plainva évalue n'importe quelle profondeur. Le panneau de filtre modifie un niveau de groupes sous **Toutes** ou **Au moins une** (**Ajouter un groupe**) ; une structure plus profonde apparaît comme **Filtre complexe (non modifiable)**, reste dans le fichier et est appliquée. Un ancien fichier avec `and` et `or` côte à côte au même niveau est lu comme « tous ceux de `and` et un de ceux de `or` », puis réécrit sous la forme valide à la prochaine sauvegarde.
+Plainva évalue n'importe quelle profondeur. Le panneau de filtre modifie un niveau de groupes sous **Toutes** ou **Au moins une** (**Ajouter un groupe**) ; une structure plus profonde apparaît comme **Filtre complexe (non modifiable)**, reste dans le fichier et est appliquée — une condition qu'elle contient et que Plainva ne sait pas lire est signalée en dessous comme non appliquée. Un ancien fichier avec `and` et `or` côte à côte au même niveau est lu comme « tous ceux de `and` et un de ceux de `or` », puis réécrit sous la forme valide à la prochaine sauvegarde.
 
 ### Ce que Plainva ne sait pas lire
 
-Seules les formes des deux tableaux ci-dessus sont comprises. Tout le reste — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, un nombre sans guillemets (`price > 2`), `&&` et `||` dans une même chaîne, l'arithmétique, les fonctions de date comme `now()`, ou `this` — reste dans le fichier et s'affiche tel quel dans le panneau de filtre, mais Plainva ne l'applique pas. La vue montre alors plus de notes que le même filtre dans Obsidian.
+Seules les formes des deux tableaux ci-dessus sont comprises. Tout le reste — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, un nombre sans guillemets (`price > 2`), `&&` et `||` dans une même chaîne, l'arithmétique, les fonctions de date comme `now()`, ou `this` — reste dans le fichier et s'affiche tel quel dans le panneau de filtre, avec la mention **Non appliquée : Plainva ne sait pas lire cette condition, elle ne filtre donc rien.** La vue montre alors plus de notes que le même filtre dans Obsidian.
 
 ## Formules
 
@@ -197,7 +197,7 @@ Obsidian connaît `table`, `list` et `cards`. Les autres types de vue de Plainva
 | **Graphe** (`graph`) | `table` | `graph` |
 | **Tableau d'affichage** (`pinboard`) | `table` | `pinboard` |
 
-Kanban, Calendrier, Chronologie, Graphe et Tableau d'affichage ne sont proposés comme **Type de vue** que tant que **Autoriser les extensions Plainva pour les fichiers .base** est activé. Un `type` que Plainva ne connaît pas s'affiche comme un tableau.
+Kanban, Calendrier, Chronologie, Graphe et Tableau d'affichage ne sont proposés comme **Type de vue** que tant que **Autoriser les extensions Plainva pour les fichiers .base** est activé. Un `type` que Plainva ne connaît pas s'affiche comme un tableau et reste tel quel dans le fichier jusqu'à ce que vous choisissiez un autre **Type de vue**.
 
 ### Options de vue (`views[i].plainva`)
 
@@ -206,7 +206,7 @@ Dans le bloc `plainva`, une propriété s'écrit nue (`status`), pas comme `note
 | Clé | Types de vue | Valeur |
 |---|---|---|
 | `render` | Kanban, Calendrier, Chronologie, Graphe, Tableau d'affichage | Le type de vue, voir ci-dessus |
-| `groupBy` | Kanban | La propriété dont sont faites les colonnes |
+| `groupBy` | Kanban | La propriété dont sont faites les colonnes ; à défaut, la propriété du `groupBy` propre à Obsidian pour la vue |
 | `boardLaneBy` | Kanban | Une seconde propriété pour **Couloirs par** |
 | `boardWipLimits` | Kanban | Table valeur de colonne → nombre maximal de cartes (**Limite de WIP**), nombres entiers supérieurs à 0 |
 | `boardColorMode` | Kanban | `column` teinte toute la colonne ; absent = seulement la puce d'en-tête |
@@ -265,7 +265,7 @@ Les nombres sont arrondis à deux décimales, et une virgule décimale est lue a
 ## Tri et regroupement
 
 - **Tri** — `sort` est une liste de règles ; la première décide en premier, la suivante seulement entre lignes égales. Les nombres se trient comme des nombres, tout le reste comme du texte (les dates ISO dans le bon ordre). Les lignes sans valeur viennent en dernier dans les deux sens. Sans règle, les notes modifiées le plus récemment viennent en premier. Plainva lit aussi `field` pour `property`, et `asc`/`desc` quelle que soit la casse.
-- **Regroupement** — le kanban regroupe d'après `plainva.groupBy`, avec des couloirs d'après `plainva.boardLaneBy`. Le `groupBy` propre à Obsidian pour une vue est conservé dans le fichier, mais Plainva ne regroupe pas un tableau d'après lui.
+- **Regroupement** — le kanban regroupe d'après `plainva.groupBy`, avec des couloirs d'après `plainva.boardLaneBy`. Une vue qui porte à la place le `groupBy` propre à Obsidian regroupe son kanban d'après cette propriété, et un changement de regroupement y est écrit (son `direction` est conservé). Plainva ne regroupe pas un tableau d'après lui.
 
 ## Intégrer une base de données, et `this`
 
@@ -286,9 +286,9 @@ Les nombres sont arrondis à deux décimales, et une virgule décimale est lue a
 
 Plainva lit un `.base`, ne modifie que ce que vous avez modifié dans l'application, et réécrit le fichier en entier — en YAML avec des fins de ligne LF et sans BOM, de sorte que les commentaires et la mise en forme d'un fichier écrit à la main ne sont pas conservés. Parmi ce qu'il ne connaît pas :
 
-- **Conservé :** toute autre clé de premier niveau, `formulas`, le `summaries` de premier niveau, `displayName` et toute autre clé d'une entrée de `properties` en dehors de son bloc `plainva`, les clés d'une vue que Plainva n'utilise pas (`limit`, `groupBy`, `image`, …), les clés inconnues dans le bloc `plainva` d'une vue, et les conditions de filtre qu'il ne sait pas lire.
-- **Non conservé :** les clés du bloc `plainva` d'une colonne que cette version de Plainva ne connaît pas, et une agrégation qu'il ne sait pas lire — les deux disparaissent à la prochaine sauvegarde. Une vue d'un type que Plainva ne connaît pas est réécrite comme `type: table`.
-- **Position :** les clés qu'une vue conserve appartiennent à sa place dans la liste. Actuellement, supprimer ou déplacer une vue dans Plainva les laisse à l'ancien emplacement, où la vue suivante les reçoit.
+- **Conservé :** toute autre clé de premier niveau, `formulas`, le `summaries` de premier niveau, `displayName` et toute autre clé d'une entrée de `properties`, les clés inconnues dans le bloc `plainva` d'une colonne ou d'une vue, une agrégation que Plainva ne sait pas lire, les clés d'une vue que Plainva n'utilise pas (`limit`, `image`, …), un type de vue qu'il ne connaît pas, et les conditions de filtre qu'il ne sait pas lire. Une valeur que Plainva comprend mais que vous n'avez pas modifiée garde la graphie du fichier (`status` ou `note.status`, une option écrite en texte brut).
+- **Réécrit :** uniquement les anciennes formes propres à Plainva — une table `columns:` de premier niveau passe dans `properties`, `and` et `or` côte à côte au même niveau prennent la forme valide, et une vue que de très anciennes versions enregistraient comme `type: board` devient `type: table` avec `plainva.render`.
+- **Position :** les clés qu'une vue conserve appartiennent à cette vue. Supprimer ou déplacer une vue dans Plainva les emporte avec elle, et **Dupliquer** les copie dans la nouvelle vue.
 
 ## Différences avec Obsidian Bases
 
@@ -300,8 +300,8 @@ Plainva lit un `.base`, ne modifie que ce que vous avez modifié dans l'applicat
 | `file.folder == "X"` | Seulement les notes directement dans `X` | `X` et tous ses sous-dossiers |
 | `file.hasTag("x")` | Aussi `#x/child` | Exactement `#x` |
 | `file.name` | Le nom du fichier | La propriété `title` si la note en a une |
-| `limit`, `groupBy` d'une vue | Appliqués | Conservés, non appliqués |
-| Types de vue | `table`, `list`, `cards` et types de plugins | Huit types ; les inconnus comme un tableau |
+| `limit`, `groupBy` d'une vue | Appliqués | `limit` conservé, non appliqué ; `groupBy` regroupe un kanban, pas un tableau |
+| Types de vue | `table`, `list`, `cards` et types de plugins | Huit types ; un type inconnu s'affiche comme un tableau et reste dans le fichier |
 | `![[db.base#View]]` | Ouvre cette vue | La dernière vue utilisée |
 | Bloc de code ` ```base ` | Une base de données | Un bloc de code |
 | Blocs `plainva` de Plainva | Ignorés | Kanban, calendrier, chronologie, graphe, tableau d'affichage, relations, agrégations, types de champ |

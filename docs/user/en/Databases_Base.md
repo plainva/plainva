@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-11-02
+Last reviewed: 2026-11-03
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -243,7 +243,7 @@ Everything Plainva-specific (colors, board rendering, relations, storage folder)
 
 If a script or an AI assistant writes `.base` files without going through Plainva, three hard rules matter — break one and Obsidian refuses to open the whole file:
 
-- **Only the top-level keys `filters`, `formulas`, `properties`, `views`.** Never add another top-level key; all Plainva extras go under nested `plainva:` sub-keys.
+- **Only the top-level keys `filters`, `formulas`, `properties`, `summaries`, `views`.** Never add another top-level key; all Plainva extras go under nested `plainva:` sub-keys.
 - **Every view needs a non-empty string `name`.**
 - **A `filters` object carries exactly one of `and` / `or` / `not` per level** (never two side by side).
 

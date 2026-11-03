@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-11-02
+Stand: 2026-11-03
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -199,7 +199,7 @@ Eine `.base`-Datei ist YAML. Sie speichert eine *Ansicht* über Notizen — welc
 
 ### Harte Regeln — bei einem Verstoß lehnt Obsidian die ganze Datei ab
 
-- **Nur diese Top-Level-Schlüssel:** `filters`, `formulas`, `properties`, `views`. Niemals einen weiteren Top-Level-Schlüssel ergänzen. (Historisch machte ein Top-Level-`columns:` jede Datei kaputt — dieses Muster nicht wiederbeleben.)
+- **Nur diese Top-Level-Schlüssel:** `filters`, `formulas`, `properties`, `summaries`, `views`. Niemals einen weiteren Top-Level-Schlüssel ergänzen. (Historisch machte ein Top-Level-`columns:` jede Datei kaputt — dieses Muster nicht wiederbeleben.)
 - **Jede View braucht einen nicht-leeren String-`name`.**
 - **Ein `filters`-Objekt trägt auf jeder Ebene genau eines von `and` / `or` / `not`** — nie zwei nebeneinander.
 
@@ -603,7 +603,7 @@ Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, di
 - **`.plainva/`** enthält Backups und internen Zustand. Niemals daraus Programmlogik lesen oder hineinschreiben.
 - **Unbekannte Schlüssel sind heilig.** Wenn Du eine `.base` oder eine Notiz neu schreibst, trage jeden Schlüssel unverändert mit, den Du nicht ändern wolltest. Plainva selbst erhält unbekannte `.base`-Schlüssel über eine interne Rohkopie; ein Fremd-Schreiber sollte dasselbe tun (parsen → nur das Gemeinte ändern → serialisieren).
 - **Werte ändern sich in der Notiz, nicht in der `.base`.** Um eine Zelle zu setzen, bearbeite das Frontmatter der Notiz. Die `.base` entscheidet nur, welche Notizen und Spalten gezeigt werden.
-- **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `views` hinaus.
+- **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `summaries` / `views` hinaus.
 - **Encoding:** UTF-8. Neue Dateien: LF-Zeilenenden, kein BOM. Eine Notiz oder Textdatei, die schon CRLF-Zeilenenden oder ein BOM hat, behält sie — Plainva ändert sie nicht, und ein Werkzeug sollte es auch nicht tun. Die eine Ausnahme ist eine `.base`: Plainva schreibt sie neu, mit LF und ohne BOM, sobald sich ihre Konfiguration ändert. Ein Wagenrücklauf allein als Zeilenende (alte Mac-Dateien) wird gelesen, aber nicht bewahrt: Plainva speichert eine solche Datei mit LF, sobald es sie zum ersten Mal ändert.
 
 ## Siehe auch

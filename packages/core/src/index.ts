@@ -57,7 +57,7 @@ export * from "./vault/rollup.js";
 export * from "./vault/obsidianRollup.js";
 export * from "./vault/summary.js";
 export * from "./vault/databaseMetadata.js";
-export { parseDatabaseSourceFilter } from "./vault/databaseQueryHelpers.js";
+export { parseDatabaseSourceFilter, unappliedFilterConditions } from "./vault/databaseQueryHelpers.js";
 
 // Sync exports
 export * from "./sync/SyncQueue.js";

@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-03
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -199,7 +199,7 @@ Un fichier `.base` est du YAML. Il stocke une *vue* sur des notes — quelles no
 
 ### Règles strictes — en enfreindre une fait rejeter le fichier entier par Obsidian
 
-- **Seulement ces clés de premier niveau :** `filters`, `formulas`, `properties`, `views`. N'ajoutez jamais une autre clé de premier niveau. (Historiquement, une clé `columns:` de premier niveau cassait chaque fichier — ne réintroduisez pas ce motif.)
+- **Seulement ces clés de premier niveau :** `filters`, `formulas`, `properties`, `summaries`, `views`. N'ajoutez jamais une autre clé de premier niveau. (Historiquement, une clé `columns:` de premier niveau cassait chaque fichier — ne réintroduisez pas ce motif.)
 - **Chaque vue a besoin d'un `name` en chaîne non vide.**
 - **Un objet `filters` porte exactement un de `and` / `or` / `not` à chaque niveau** — jamais deux côte à côte.
 
@@ -603,7 +603,7 @@ Règles : les chemins épinglés ne sont pas répétés dans `pinboardOrder`. Le
 - **`.plainva/`** contient les sauvegardes et l'état interne. N'y lisez jamais de logique de programme et n'y écrivez jamais.
 - **Les clés inconnues sont sacrées.** Quand vous réécrivez une `.base` ou une note, reportez chaque clé que vous n'aviez pas l'intention de changer. Plainva lui-même préserve les clés `.base` inconnues via une copie brute interne ; un rédacteur tiers devrait faire de même (analyser → ne changer que ce que vous voulez → sérialiser).
 - **Les valeurs changent dans la note, pas dans la `.base`.** Pour définir une cellule, modifiez le frontmatter de la note. La `.base` décide seulement quelles notes et colonnes sont affichées.
-- **N'ajoutez pas de clés `.base` de premier niveau** au-delà de `filters` / `formulas` / `properties` / `views`.
+- **N'ajoutez pas de clés `.base` de premier niveau** au-delà de `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Encodage :** UTF-8. Nouveaux fichiers : fins de ligne LF, pas de BOM. Une note ou un fichier texte qui a déjà des fins de ligne CRLF ou un BOM les garde — Plainva ne les change pas, et un outil ne devrait pas le faire non plus. Seule exception : un `.base`, que Plainva réécrit, avec des LF et sans BOM, chaque fois que sa configuration change. Un retour chariot seul comme fin de ligne (anciens fichiers Mac) est lu, mais n'est pas conservé : Plainva enregistre un tel fichier avec des LF la première fois qu'il le modifie.
 
 ## Voir aussi

@@ -316,7 +316,8 @@ describe("baseFormat round-trip", () => {
     };
     const round = parseBaseConfig(serializeBaseConfig(original));
     expect(round.columns).toEqual(original.columns);
-    expect(round.views).toEqual(original.views);
+    // Each parsed view also carries its own on-disk copy (`_obsidian`).
+    expect(round.views.map(({ _obsidian, ...v }: any) => v)).toEqual(original.views);
     expect(round.filters).toEqual(original.filters);
   });
 
@@ -632,13 +633,11 @@ describe("baseFormat file icon color (Base-UX2 P7)", () => {
     const config = {
       iconColor: "#2f6f6f",
       columns: {},
-      views: [{ type: "table", name: "A" }, { type: "board", name: "B" }],
-      _obsidian: {
-        views: [
-          { type: "table", name: "A" },
-          { type: "table", name: "B", plainva: { render: "board", fileIconColor: "#c94f4f" } },
-        ],
-      },
+      views: [
+        { type: "table", name: "A", _obsidian: { type: "table", name: "A" } },
+        { type: "board", name: "B", _obsidian: { type: "table", name: "B", plainva: { render: "board", fileIconColor: "#c94f4f" } } },
+      ],
+      _obsidian: {},
     };
     const out = yaml.parse(serializeBaseConfig(config));
     expect(out.views[0].plainva.fileIconColor).toBe("#2f6f6f");
@@ -728,8 +727,8 @@ describe("baseFormat pinboard keys (pinboardOrder, pinboardPinned, pinboardFilte
   it("drops the key entirely when the color is removed or invalid", () => {
     const config = {
       columns: {},
-      views: [{ type: "table", name: "A" }],
-      _obsidian: { views: [{ type: "table", name: "A", plainva: { fileIconColor: "#c94f4f" } }] },
+      views: [{ type: "table", name: "A", _obsidian: { type: "table", name: "A", plainva: { fileIconColor: "#c94f4f" } } }],
+      _obsidian: {},
     };
     const out = yaml.parse(serializeBaseConfig(config));
     expect(out.views[0].plainva).toBeUndefined();

@@ -1233,6 +1233,8 @@
     "addRule": "Regel toevoegen",
     "complexFilter": "Complex filter (niet bewerkbaar)",
     "complexFilterTip": "Genest filter uit Obsidian – blijft behouden en wordt toegepast, maar kan hier niet worden bewerkt.",
+    "filterNotApplied": "Niet toegepast: Plainva kan deze voorwaarde niet lezen, dus ze filtert niets.",
+    "filterPartlyNotApplied": "Niet toegepast, omdat Plainva het niet kan lezen: {{conditions}}",
     "noSort": "Geen sortering – standaardvolgorde",
     "sortColumn": "Sorteerkolom",
     "addSort": "Sortering toevoegen",

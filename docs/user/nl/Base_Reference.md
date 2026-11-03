@@ -101,7 +101,7 @@ Deze waarden komen uit het bestand, niet uit de frontmatter. Elke rij van een da
 | `file.mtime` | Laatst gewijzigd, in milliseconden |
 | `file.ctime` | Aangemaakt, in milliseconden, als het bestandssysteem dat meldt |
 | `file.size` | Grootte in bytes |
-| `file.tags` | Alle tags van de notitie, uit frontmatter en tekst, elk met `#`; gevuld wanneer een filter of een prikbord ze nodig heeft |
+| `file.tags` | Alle tags van de notitie, uit frontmatter en tekst, elk met `#`; gevuld wanneer een filter, een prikbord of een weergave die de kolom toont of erop sorteert ze nodig heeft |
 | `file.tasks` | Voortgang van de selectievakjes als `done/total`; gevuld voor borden en voor een weergave die de kolom toont |
 | `file.day` | De dag waar de bestandsnaam van een dagnotitie voor staat, volgens de map en het formaat van de vault; alleen-lezen, en alleen het datumveld van een kalender of tijdlijn kan het gebruiken |
 | `file.revision` | Een interne wijzigingsmarkering; reken er niet op |
@@ -118,7 +118,7 @@ De `filters` op het hoogste niveau bevatten de **bronnen** — welke notities bi
 
 | Bron | Uitdrukking |
 |---|---|
-| Map | `file.folder == "Projects/Active"` — de map en al haar submappen; `"/"` is de hele vault |
+| Map | `file.folder == "Projects/Active"` — de map en al haar submappen; `""` en `"/"` zijn de hele vault |
 | Tag | `file.hasTag("project")` — de notitie draagt precies deze tag; een voorafgaande `#` wordt genegeerd |
 
 Meerdere bronnen worden met `and` of `or` gecombineerd, net als elke andere voorwaarde. Een database zonder bronnen bevat elke notitie van de vault. Bijlagen, de gereserveerde `index.md` en `log.md`, en bestanden of mappen waarvan de naam met een punt begint, zijn nooit rijen.
@@ -158,11 +158,11 @@ Een `filters`-object heeft op elk niveau precies één van `and`, `or` en `not`;
 | `or` | minstens één item overeenkomt |
 | `not` | geen enkel item overeenkomt |
 
-Plainva evalueert elke diepte. Het filterpaneel bewerkt één niveau groepen onder **Alle** of **Minstens één** (**Groep toevoegen**); een diepere structuur verschijnt als **Complex filter (niet bewerkbaar)**, blijft in het bestand staan en wordt toegepast. Een ouder bestand met `and` en `or` naast elkaar op één niveau wordt gelezen als "alles van `and` en één van `or`" en bij het volgende opslaan in de geldige vorm geschreven.
+Plainva evalueert elke diepte. Het filterpaneel bewerkt één niveau groepen onder **Alle** of **Minstens één** (**Groep toevoegen**); een diepere structuur verschijnt als **Complex filter (niet bewerkbaar)**, blijft in het bestand staan en wordt toegepast — een voorwaarde daarin die Plainva niet kan lezen, wordt eronder als niet toegepast genoemd. Een ouder bestand met `and` en `or` naast elkaar op één niveau wordt gelezen als "alles van `and` en één van `or`" en bij het volgende opslaan in de geldige vorm geschreven.
 
 ### Wat Plainva niet kan lezen
 
-Alleen de vormen in de twee tabellen hierboven worden begrepen. Al het andere — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, een getal zonder aanhalingstekens (`price > 2`), `&&` en `||` binnen één tekenreeks, rekenkunde, datumfuncties zoals `now()`, of `this` — blijft in het bestand staan en wordt in het filterpaneel getoond zoals het er staat, maar Plainva past het niet toe. De weergave toont dan meer notities dan hetzelfde filter in Obsidian.
+Alleen de vormen in de twee tabellen hierboven worden begrepen. Al het andere — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, een getal zonder aanhalingstekens (`price > 2`), `&&` en `||` binnen één tekenreeks, rekenkunde, datumfuncties zoals `now()`, of `this` — blijft in het bestand staan en wordt in het filterpaneel getoond zoals het er staat, met de opmerking **Niet toegepast: Plainva kan deze voorwaarde niet lezen, dus ze filtert niets.** De weergave toont dan meer notities dan hetzelfde filter in Obsidian.
 
 ## Formules
 
@@ -197,7 +197,7 @@ Obsidian kent `table`, `list` en `cards`. De andere weergavetypen van Plainva wo
 | **Graaf** (`graph`) | `table` | `graph` |
 | **Prikbord** (`pinboard`) | `table` | `pinboard` |
 
-Bord, Kalender, Tijdlijn, Graaf en Prikbord worden alleen als **Weergavetype** aangeboden zolang **Plainva-extensies voor .base-bestanden toestaan** aan staat. Een `type` dat Plainva niet kent, wordt als tabel getoond.
+Bord, Kalender, Tijdlijn, Graaf en Prikbord worden alleen als **Weergavetype** aangeboden zolang **Plainva-extensies voor .base-bestanden toestaan** aan staat. Een `type` dat Plainva niet kent, wordt als tabel getoond en blijft zoals het er staat in het bestand totdat je een ander **Weergavetype** kiest.
 
 ### Weergaveopties (`views[i].plainva`)
 
@@ -206,7 +206,7 @@ Binnen het `plainva`-blok wordt een eigenschap kaal geschreven (`status`), niet 
 | Sleutel | Weergavetypen | Waarde |
 |---|---|---|
 | `render` | Bord, Kalender, Tijdlijn, Graaf, Prikbord | Het weergavetype, zie hierboven |
-| `groupBy` | Bord | De eigenschap waaruit de kolommen bestaan |
+| `groupBy` | Bord | De eigenschap waaruit de kolommen bestaan; zonder deze de eigenschap van de eigen `groupBy` van Obsidian voor de weergave |
 | `boardLaneBy` | Bord | Een tweede eigenschap voor **Banen op** |
 | `boardWipLimits` | Bord | Map van kolomwaarde → maximaal aantal kaarten (**WIP-limiet**), gehele getallen boven 0 |
 | `boardColorMode` | Bord | `column` tint de hele kolom; ontbreekt de sleutel, dan alleen de chip in de kop |
@@ -265,7 +265,7 @@ Getallen worden op twee decimalen afgerond, en een decimale komma wordt ook gele
 ## Sorteren en groeperen
 
 - **Sortering** — `sort` is een lijst met regels; de eerste regel beslist eerst, de volgende alleen tussen gelijke rijen. Getallen sorteren als getallen, al het andere als tekst (ISO-datums in de juiste volgorde). Rijen zonder waarde komen in beide richtingen laatst. Zonder regel komen de recentst gewijzigde notities eerst. Plainva leest ook `field` voor `property`, en `asc`/`desc` in elke schrijfwijze met hoofd- of kleine letters.
-- **Groepering** — het bord groepeert op `plainva.groupBy`, met banen op `plainva.boardLaneBy`. De eigen `groupBy` van Obsidian voor een weergave blijft in het bestand staan, maar Plainva groepeert een tabel er niet mee.
+- **Groepering** — het bord groepeert op `plainva.groupBy`, met banen op `plainva.boardLaneBy`. Een weergave die in plaats daarvan de eigen `groupBy` van Obsidian heeft, groepeert haar bord op die eigenschap, en een wijziging van de groepering wordt daarin geschreven (de `direction` ervan blijft). Plainva groepeert een tabel er niet mee.
 
 ## Een database insluiten, en `this`
 
@@ -286,9 +286,9 @@ Getallen worden op twee decimalen afgerond, en een decimale komma wordt ook gele
 
 Plainva leest een `.base`, wijzigt alleen wat je in de app hebt gewijzigd, en schrijft het hele bestand opnieuw — als YAML met LF-regeleinden en zonder BOM, dus opmerkingen en de opmaak van een met de hand geschreven bestand blijven niet behouden. Van wat het niet kent:
 
-- **Bewaard:** elke andere sleutel op het hoogste niveau, `formulas`, de `summaries` op het hoogste niveau, `displayName` en elke andere sleutel van een item in `properties` buiten zijn `plainva`-blok, de sleutels van een weergave die Plainva niet gebruikt (`limit`, `groupBy`, `image`, …), onbekende sleutels in het `plainva`-blok van een weergave, en filtervoorwaarden die het niet kan lezen.
-- **Niet bewaard:** sleutels in het `plainva`-blok van een kolom die deze versie van Plainva niet kent, en een aggregatie die het niet kan lezen — beide zijn na het volgende opslaan weg. Een weergave van een type dat Plainva niet kent, wordt teruggeschreven als `type: table`.
-- **Positie:** de sleutels die een weergave bewaart, horen bij haar plaats in de lijst. Het verwijderen of verplaatsen van een weergave in Plainva laat ze momenteel op de oude plaats staan, waar de volgende weergave ze krijgt.
+- **Bewaard:** elke andere sleutel op het hoogste niveau, `formulas`, de `summaries` op het hoogste niveau, `displayName` en elke andere sleutel van een item in `properties`, onbekende sleutels in het `plainva`-blok van een kolom of een weergave, een aggregatie die Plainva niet kan lezen, de sleutels van een weergave die Plainva niet gebruikt (`limit`, `image`, …), een weergavetype dat het niet kent, en filtervoorwaarden die het niet kan lezen. Een waarde die Plainva begrijpt maar die je niet hebt gewijzigd, behoudt de schrijfwijze van het bestand (`status` of `note.status`, een optie geschreven als platte tekst).
+- **Herschreven:** alleen Plainva's eigen oude vormen — een `columns:`-map op het hoogste niveau verhuist naar `properties`, `and` en `or` naast elkaar op één niveau krijgen de geldige vorm, en een weergave die heel oude versies als `type: board` opsloegen, wordt `type: table` met `plainva.render`.
+- **Positie:** de sleutels die een weergave bewaart, horen bij die weergave. Het verwijderen of verplaatsen van een weergave in Plainva neemt ze mee, en **Dupliceren** kopieert ze naar de nieuwe weergave.
 
 ## Verschillen met Obsidian Bases
 
@@ -300,8 +300,8 @@ Plainva leest een `.base`, wijzigt alleen wat je in de app hebt gewijzigd, en sc
 | `file.folder == "X"` | Alleen notities direct in `X` | `X` en al haar submappen |
 | `file.hasTag("x")` | Ook `#x/child` | Precies `#x` |
 | `file.name` | De bestandsnaam | De eigenschap `title` als de notitie die heeft |
-| `limit`, `groupBy` van een weergave | Toegepast | Bewaard, niet toegepast |
-| Weergavetypen | `table`, `list`, `cards` en plug-intypen | Acht typen; onbekende als tabel |
+| `limit`, `groupBy` van een weergave | Toegepast | `limit` bewaard, niet toegepast; `groupBy` groepeert een bord, geen tabel |
+| Weergavetypen | `table`, `list`, `cards` en plug-intypen | Acht typen; een onbekend type wordt als tabel getoond en blijft in het bestand |
 | `![[db.base#View]]` | Opent die weergave | De laatst gebruikte weergave |
 | Codeblok ` ```base ` | Een database | Een codeblok |
 | De `plainva`-blokken van Plainva | Genegeerd | Bord, kalender, tijdlijn, graaf, prikbord, relaties, aggregaties, veldtypen |

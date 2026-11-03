@@ -1229,6 +1229,8 @@
     "addRule": "添加规则",
     "complexFilter": "复杂筛选（不可编辑）",
     "complexFilterTip": "来自Obsidian的嵌套筛选——会保留并生效，但无法在此编辑。",
+    "filterNotApplied": "未生效：Plainva 无法读取此条件，因此它不会筛选任何内容。",
+    "filterPartlyNotApplied": "未生效，因为 Plainva 无法读取：{{conditions}}",
     "noSort": "不排序——默认顺序",
     "sortColumn": "排序列",
     "addSort": "添加排序",

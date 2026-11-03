@@ -33,6 +33,15 @@ export function isSourceFilter(filter: string): boolean {
   return parseDatabaseSourceFilter(filter) !== null;
 }
 
+/**
+ * True when a folder source names the whole vault: `"/"`, or `""` — the vault
+ * root, which holds every folder. One rule for the SQL pushdown and the
+ * in-memory evaluator, so a source means the same wherever it is applied.
+ */
+export function isWholeVaultFolder(folder: string): boolean {
+  return folder === "" || folder === "/";
+}
+
 /** Anchored source recognition: a quoted property value is never SQL syntax. */
 export function parseDatabaseSourceFilter(filter: string): { kind: "folder" | "tag"; value: string } | null {
   const folder = filter.match(SOURCE_FOLDER_RE);
@@ -184,7 +193,7 @@ export function buildFilterNodePredicate(
     const folder = node.match(SOURCE_FOLDER_RE);
     if (folder) {
       const value = unescapeValue(folder[1]);
-      if (value === "/" || value === "") return () => true;
+      if (isWholeVaultFolder(value)) return () => true;
       // Same Unicode mismatch the SQL pushdown answers by querying both forms
       // (96a0766e): macOS indexes vault paths decomposed while a `.base` keeps
       // the visually identical folder name composed. This evaluator runs for
@@ -226,6 +235,28 @@ export function buildFilterNodePredicate(
   if (parts.length === 0) return null;
   if (parts.length === 1) return parts[0];
   return (row) => parts.every((p) => p(row));
+}
+
+/**
+ * The condition strings inside a filter node that the evaluator cannot apply
+ * (a form it does not read: `price > 2`, `file.inFolder(…)`, `a && b`, …).
+ * They stay in the file and, being neutral, let more rows through than the
+ * filter says — so every surface that shows a filter names them as not
+ * applied. Empty when everything in the node is applied.
+ */
+export function unappliedFilterConditions(node: any): string[] {
+  if (typeof node === "string") {
+    if (!node.trim()) return [];
+    return buildFilterNodePredicate(node, { hasTag: () => false }) ? [] : [node];
+  }
+  if (!node || typeof node !== "object" || Array.isArray(node)) return [];
+  const out: string[] = [];
+  for (const key of ["and", "or", "not"] as const) {
+    const list = (node as any)[key];
+    if (list == null) continue;
+    for (const child of Array.isArray(list) ? list : [list]) out.push(...unappliedFilterConditions(child));
+  }
+  return out;
 }
 
 export interface SortRule {

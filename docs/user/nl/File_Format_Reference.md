@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-11-02
+Laatst bijgewerkt: 2026-11-03
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -199,7 +199,7 @@ Een `.base`-bestand is YAML. Het bewaart een *weergave* over notities — welke 
 
 ### Harde regels — bij een overtreding wijst Obsidian het hele bestand af
 
-- **Alleen deze top-level sleutels:** `filters`, `formulas`, `properties`, `views`. Voeg nooit een andere top-level sleutel toe. (Historisch brak een top-level `columns:`-sleutel elk bestand — herintroduceer dat patroon niet.)
+- **Alleen deze top-level sleutels:** `filters`, `formulas`, `properties`, `summaries`, `views`. Voeg nooit een andere top-level sleutel toe. (Historisch brak een top-level `columns:`-sleutel elk bestand — herintroduceer dat patroon niet.)
 - **Elke weergave heeft een niet-lege string-`name`.**
 - **Een `filters`-object draagt op elk niveau exact één van `and` / `or` / `not`** — nooit twee naast elkaar.
 
@@ -603,7 +603,7 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 - **`.plainva/`** bevat back-ups en interne status. Lees er nooit programmalogica uit en schrijf er nooit naar.
 - **Onbekende sleutels zijn heilig.** Als je een `.base` of een notitie herschrijft, draag dan elke sleutel mee die je niet van plan was te wijzigen. Plainva zelf bewaart onbekende `.base`-sleutels via een interne rauwe kopie; een externe schrijver zou hetzelfde moeten doen (parsen → alleen wijzigen wat je bedoelt → serialiseren).
 - **Waarden veranderen in de notitie, niet in de `.base`.** Om een cel te zetten, bewerk je de frontmatter van de notitie. De `.base` bepaalt alleen welke notities en kolommen worden getoond.
-- **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `views`.
+- **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Encoding:** UTF-8. Nieuwe bestanden: LF-regeleinden, geen BOM. Een notitie of tekstbestand dat al CRLF-regeleinden of een BOM heeft, houdt die — Plainva verandert ze niet, en een tool hoort dat ook niet te doen. De enige uitzondering is een `.base`: Plainva schrijft die opnieuw, met LF en zonder BOM, zodra de configuratie verandert. Een regeleinde dat alleen uit een wagenterugloop (CR) bestaat (oude Mac-bestanden), wordt gelezen, maar niet bewaard: Plainva slaat zo'n bestand met LF op zodra het dat bestand voor het eerst wijzigt.
 
 ## Zie ook

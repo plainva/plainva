@@ -101,7 +101,7 @@ Diese Werte stammen aus der Datei, nicht aus ihrem Frontmatter. Jede Zeile einer
 | `file.mtime` | Zuletzt geändert, in Millisekunden |
 | `file.ctime` | Erstellt, in Millisekunden, soweit das Dateisystem es meldet |
 | `file.size` | Größe in Bytes |
-| `file.tags` | Alle Tags der Notiz, aus Frontmatter und Text, jeweils mit `#`; gefüllt, wenn ein Filter oder eine Pinnwand sie braucht |
+| `file.tags` | Alle Tags der Notiz, aus Frontmatter und Text, jeweils mit `#`; gefüllt, wenn ein Filter, eine Pinnwand oder eine Ansicht, die die Spalte zeigt oder nach ihr sortiert, sie braucht |
 | `file.tasks` | Fortschritt der Kontrollkästchen als `done/total`; gefüllt für Boards und für eine Ansicht, die die Spalte zeigt |
 | `file.day` | Der Tag, für den der Dateiname einer Tagesnotiz steht, nach Ordner und Format des Vaults; nur lesbar, und nur das Datumsfeld eines Kalenders oder einer Zeitleiste kann es verwenden |
 | `file.revision` | Eine interne Änderungsmarke; verlass Dich nicht darauf |
@@ -118,7 +118,7 @@ Der `filters`-Schlüssel auf oberster Ebene enthält die **Quellen** — welche 
 
 | Quelle | Ausdruck |
 |---|---|
-| Ordner | `file.folder == "Projects/Active"` — der Ordner und alle Unterordner; `"/"` ist der ganze Vault |
+| Ordner | `file.folder == "Projects/Active"` — der Ordner und alle Unterordner; `""` und `"/"` sind der ganze Vault |
 | Tag | `file.hasTag("project")` — die Notiz trägt genau diesen Tag; ein führendes `#` wird ignoriert |
 
 Mehrere Quellen werden wie jede andere Bedingung mit `and` oder `or` verknüpft. Eine Datenbank ohne Quellen enthält jede Notiz des Vaults. Anhänge, die reservierten Dateien `index.md` und `log.md` sowie Dateien oder Ordner, deren Name mit einem Punkt beginnt, sind nie Zeilen.
@@ -158,11 +158,11 @@ Ein `filters`-Objekt hat auf jeder Ebene genau eines von `and`, `or` und `not`; 
 | `or` | mindestens ein Eintrag zutrifft |
 | `not` | kein Eintrag zutrifft |
 
-Plainva wertet jede Tiefe aus. Das Filter-Panel bearbeitet eine Ebene von Gruppen unter **Alle** oder **Beliebige** (**Gruppe hinzufügen**); eine tiefere Struktur erscheint als **Komplexer Filter (nicht editierbar)**, bleibt in der Datei und wird angewendet. Eine ältere Datei mit `and` und `or` nebeneinander auf einer Ebene wird als „alle aus `and` und eines aus `or`“ gelesen und beim nächsten Speichern in der gültigen Form geschrieben.
+Plainva wertet jede Tiefe aus. Das Filter-Panel bearbeitet eine Ebene von Gruppen unter **Alle** oder **Beliebige** (**Gruppe hinzufügen**); eine tiefere Struktur erscheint als **Komplexer Filter (nicht editierbar)**, bleibt in der Datei und wird angewendet — eine Bedingung darin, die Plainva nicht lesen kann, wird darunter als nicht angewendet genannt. Eine ältere Datei mit `and` und `or` nebeneinander auf einer Ebene wird als „alle aus `and` und eines aus `or`“ gelesen und beim nächsten Speichern in der gültigen Form geschrieben.
 
 ### Was Plainva nicht lesen kann
 
-Verstanden werden nur die Formen in den beiden Tabellen oben. Alles andere — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, eine Zahl ohne Anführungszeichen (`price > 2`), `&&` und `||` innerhalb einer Zeichenkette, Arithmetik, Datumsfunktionen wie `now()` oder `this` — bleibt in der Datei und wird im Filter-Panel wie geschrieben angezeigt, aber Plainva wendet es nicht an. Die Ansicht zeigt dann mehr Notizen als derselbe Filter in Obsidian.
+Verstanden werden nur die Formen in den beiden Tabellen oben. Alles andere — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, eine Zahl ohne Anführungszeichen (`price > 2`), `&&` und `||` innerhalb einer Zeichenkette, Arithmetik, Datumsfunktionen wie `now()` oder `this` — bleibt in der Datei und wird im Filter-Panel wie geschrieben angezeigt, mit dem Hinweis **Nicht angewendet: Plainva kann diese Bedingung nicht lesen, sie filtert nichts.** Die Ansicht zeigt dann mehr Notizen als derselbe Filter in Obsidian.
 
 ## Formeln
 
@@ -197,7 +197,7 @@ Obsidian kennt `table`, `list` und `cards`. Die übrigen Ansichtstypen von Plain
 | **Graph** (`graph`) | `table` | `graph` |
 | **Pinnwand** (`pinboard`) | `table` | `pinboard` |
 
-Board, Kalender, Zeitleiste, Graph und Pinnwand werden als **Ansichtstyp** nur angeboten, solange **Plainva-Erweiterungen für .base Dateien erlauben** eingeschaltet ist. Ein `type`, den Plainva nicht kennt, wird als Tabelle gezeigt.
+Board, Kalender, Zeitleiste, Graph und Pinnwand werden als **Ansichtstyp** nur angeboten, solange **Plainva-Erweiterungen für .base Dateien erlauben** eingeschaltet ist. Ein `type`, den Plainva nicht kennt, wird als Tabelle gezeigt und bleibt wie geschrieben in der Datei, bis Du einen anderen **Ansichtstyp** wählst.
 
 ### Ansichtsoptionen (`views[i].plainva`)
 
@@ -206,7 +206,7 @@ Innerhalb des `plainva`-Blocks steht eine Eigenschaft ohne Präfix (`status`), n
 | Schlüssel | Ansichtstypen | Wert |
 |---|---|---|
 | `render` | Board, Kalender, Zeitleiste, Graph, Pinnwand | Der Ansichtstyp, siehe oben |
-| `groupBy` | Board | Die Eigenschaft, aus der die Spalten bestehen |
+| `groupBy` | Board | Die Eigenschaft, aus der die Spalten bestehen; ohne sie die Eigenschaft des eigenen `groupBy` der Ansicht von Obsidian |
 | `boardLaneBy` | Board | Eine zweite Eigenschaft für **Spuren nach** |
 | `boardWipLimits` | Board | Zuordnung Spaltenwert → höchste Kartenzahl (**WIP-Limit**), ganze Zahlen über 0 |
 | `boardColorMode` | Board | `column` tönt die ganze Spalte; fehlt der Schlüssel, nur der Chip in der Überschrift |
@@ -265,7 +265,7 @@ Zahlen werden auf zwei Dezimalstellen gerundet, und auch ein Dezimalkomma wird g
 ## Sortierung und Gruppierung
 
 - **Sortierung** — `sort` ist eine Liste von Regeln; die erste Regel entscheidet zuerst, die nächste nur zwischen gleichen Zeilen. Zahlen werden als Zahlen sortiert, alles andere als Text (ISO-Daten in der richtigen Reihenfolge). Zeilen ohne Wert stehen in beiden Richtungen zuletzt. Ohne Regel stehen die zuletzt geänderten Notizen zuerst. Plainva liest außerdem `field` für `property` und `asc`/`desc` in beliebiger Schreibweise.
-- **Gruppierung** — das Board gruppiert nach `plainva.groupBy`, mit Spuren nach `plainva.boardLaneBy`. Das eigene `groupBy` einer Ansicht von Obsidian bleibt in der Datei erhalten, aber Plainva gruppiert eine Tabelle nicht danach.
+- **Gruppierung** — das Board gruppiert nach `plainva.groupBy`, mit Spuren nach `plainva.boardLaneBy`. Eine Ansicht, die stattdessen das eigene `groupBy` von Obsidian trägt, gruppiert ihr Board nach dieser Eigenschaft, und eine Änderung der Gruppierung wird dort hineingeschrieben (dessen `direction` bleibt). Plainva gruppiert eine Tabelle nicht danach.
 
 ## Eine Datenbank einbetten, und `this`
 
@@ -286,9 +286,9 @@ Zahlen werden auf zwei Dezimalstellen gerundet, und auch ein Dezimalkomma wird g
 
 Plainva liest eine `.base`, ändert nur, was Du in der App geändert hast, und schreibt die ganze Datei neu — als YAML mit LF-Zeilenenden und ohne BOM, sodass Kommentare und die Abstände einer von Hand geschriebenen Datei nicht erhalten bleiben. Von dem, was es nicht kennt:
 
-- **Behalten:** jeder andere Schlüssel auf oberster Ebene, `formulas`, die `summaries` der obersten Ebene, `displayName` und jeder andere Schlüssel eines `properties`-Eintrags außerhalb seines `plainva`-Blocks, die Schlüssel einer Ansicht, die Plainva nicht verwendet (`limit`, `groupBy`, `image`, …), unbekannte Schlüssel im `plainva`-Block einer Ansicht und Filterbedingungen, die es nicht lesen kann.
-- **Nicht behalten:** Schlüssel im `plainva`-Block einer Spalte, die diese Version von Plainva nicht kennt, und eine Auswertung, die es nicht lesen kann — beides ist nach dem nächsten Speichern weg. Eine Ansicht eines Typs, den Plainva nicht kennt, wird als `type: table` zurückgeschrieben.
-- **Position:** Die Schlüssel, die eine Ansicht behält, gehören zu ihrem Platz in der Liste. Derzeit lässt Plainva sie beim Löschen oder Verschieben einer Ansicht am alten Platz zurück, wo die nächste Ansicht sie erhält.
+- **Behalten:** jeder andere Schlüssel auf oberster Ebene, `formulas`, die `summaries` der obersten Ebene, `displayName` und jeder andere Schlüssel eines `properties`-Eintrags, unbekannte Schlüssel im `plainva`-Block einer Spalte oder einer Ansicht, eine Auswertung, die Plainva nicht lesen kann, die Schlüssel einer Ansicht, die Plainva nicht verwendet (`limit`, `image`, …), ein Ansichtstyp, den es nicht kennt, und Filterbedingungen, die es nicht lesen kann. Ein Wert, den Plainva versteht, den Du aber nicht geändert hast, behält die Schreibweise der Datei (`status` oder `note.status`, eine als reiner Text geschriebene Option).
+- **Neu geschrieben:** nur Plainvas eigene alte Formen — eine `columns:`-Map auf oberster Ebene wandert nach `properties`, `and` und `or` nebeneinander auf einer Ebene werden zur gültigen Form, und eine Ansicht, die sehr alte Versionen als `type: board` gespeichert haben, wird zu `type: table` mit `plainva.render`.
+- **Position:** Die Schlüssel, die eine Ansicht behält, gehören zu dieser Ansicht. Beim Löschen oder Verschieben einer Ansicht in Plainva wandern sie mit, und **Duplizieren** kopiert sie in die neue Ansicht.
 
 ## Unterschiede zu Obsidian Bases
 
@@ -300,8 +300,8 @@ Plainva liest eine `.base`, ändert nur, was Du in der App geändert hast, und s
 | `file.folder == "X"` | Nur Notizen direkt in `X` | `X` und alle Unterordner |
 | `file.hasTag("x")` | Auch `#x/child` | Genau `#x` |
 | `file.name` | Der Dateiname | Die Eigenschaft `title`, falls die Notiz eine hat |
-| `limit`, `groupBy` einer Ansicht | Angewendet | Behalten, nicht angewendet |
-| Ansichtstypen | `table`, `list`, `cards` und Plugin-Typen | Acht Typen; unbekannte als Tabelle |
+| `limit`, `groupBy` einer Ansicht | Angewendet | `limit` behalten, nicht angewendet; `groupBy` gruppiert ein Board, keine Tabelle |
+| Ansichtstypen | `table`, `list`, `cards` und Plugin-Typen | Acht Typen; ein unbekannter wird als Tabelle gezeigt und bleibt in der Datei |
 | `![[db.base#View]]` | Öffnet diese Ansicht | Die zuletzt verwendete Ansicht |
 | ` ```base `-Codeblock | Eine Datenbank | Ein Codeblock |
 | `plainva`-Blöcke von Plainva | Ignoriert | Board, Kalender, Zeitleiste, Graph, Pinnwand, Relationen, Auswertungen, Feldtypen |

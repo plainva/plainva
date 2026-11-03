@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-11-02
+Ultimo aggiornamento: 2026-11-03
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -244,7 +244,7 @@ Tutto ciò che è specifico di Plainva (colori, rendering della bacheca, relazio
 I file `.base` sono YAML in chiaro — puoi modificarli direttamente con uno strumento, uno script o un assistente IA, senza passare dall'interfaccia di Plainva. Tre regole ferree:
 
 - **La nota è la fonte di verità.** I valori delle proprietà vivono nel frontmatter delle note, mai nella `.base`. La `.base` decide solo quali note e colonne vengono mostrate.
-- **Solo quattro chiavi di primo livello:** `filters`, `formulas`, `properties`, `views`. Aggiungerne un'altra fa rifiutare l'intero file a Obsidian.
+- **Solo quattro chiavi di primo livello:** `filters`, `formulas`, `properties`, `summaries`, `views`. Aggiungerne un'altra fa rifiutare l'intero file a Obsidian.
 - **Conserva le chiavi sconosciute.** Non "ripulire" ciò che non riconosci durante un ciclo di lettura/scrittura.
 
 Una trappola comune: le chiavi della mappa `properties:` e le liste `order:`/`sort:` di una vista usano il prefisso `note.` (ad es. `note.status`), ma dentro le espressioni di filtro e le sotto-chiavi `plainva` (come `groupBy`) si usa la chiave bare (`status`).

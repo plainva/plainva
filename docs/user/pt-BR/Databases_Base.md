@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-11-02
+Última revisão: 2026-11-03
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -243,7 +243,7 @@ Tudo o que é específico do Plainva (cores, renderização do quadro, relaçõe
 
 Se um script ou um assistente de IA escrever arquivos `.base` sem passar pelo Plainva, três regras rígidas importam — violar uma delas faz o Obsidian recusar-se a abrir o arquivo inteiro:
 
-- **Apenas as chaves de nível superior `filters`, `formulas`, `properties`, `views`.** Nunca adicione outra chave de nível superior; todos os extras do Plainva vão sob subchaves aninhadas `plainva:`.
+- **Apenas as chaves de nível superior `filters`, `formulas`, `properties`, `summaries`, `views`.** Nunca adicione outra chave de nível superior; todos os extras do Plainva vão sob subchaves aninhadas `plainva:`.
 - **Toda visualização precisa de um `name` em string não vazia.**
 - **Um objeto `filters` carrega exatamente um entre `and` / `or` / `not` por nível** (nunca dois lado a lado).
 

@@ -101,7 +101,7 @@ Estos valores proceden del archivo, no de su frontmatter. Cada fila de una base 
 | `file.mtime` | Última modificación, en milisegundos |
 | `file.ctime` | Creación, en milisegundos, cuando el sistema de archivos la informa |
 | `file.size` | Tamaño en bytes |
-| `file.tags` | Todas las etiquetas de la nota, del frontmatter y del texto, cada una con `#`; se rellena cuando un filtro o un tablón las necesita |
+| `file.tags` | Todas las etiquetas de la nota, del frontmatter y del texto, cada una con `#`; se rellena cuando un filtro, un tablón o una vista que muestra la columna u ordena por ella las necesita |
 | `file.tasks` | Progreso de las casillas como `done/total`; se rellena para los tableros y para una vista que muestra la columna |
 | `file.day` | El día que representa el nombre de archivo de una nota diaria, según la carpeta y el formato del vault; solo lectura, y solo el campo de fecha de un calendario o una cronología puede usarlo |
 | `file.revision` | Un marcador interno de cambios; no cuentes con él |
@@ -118,7 +118,7 @@ El `filters` de nivel superior contiene las **fuentes**: qué notas pertenecen a
 
 | Fuente | Expresión |
 |---|---|
-| Carpeta | `file.folder == "Projects/Active"` — la carpeta y todas sus subcarpetas; `"/"` es todo el vault |
+| Carpeta | `file.folder == "Projects/Active"` — la carpeta y todas sus subcarpetas; `""` y `"/"` son todo el vault |
 | Etiqueta | `file.hasTag("project")` — la nota lleva exactamente esta etiqueta; un `#` inicial se ignora |
 
 Varias fuentes se combinan con `and` u `or` como cualquier otra condición. Una base de datos sin fuentes contiene todas las notas del vault. Los adjuntos, los archivos reservados `index.md` y `log.md`, y los archivos o carpetas cuyo nombre empieza por un punto nunca son filas.
@@ -158,11 +158,11 @@ Un objeto `filters` tiene exactamente uno de `and`, `or` y `not` en cada nivel; 
 | `or` | coincide al menos una entrada |
 | `not` | no coincide ninguna entrada |
 
-Plainva evalúa cualquier profundidad. El panel de filtros edita un nivel de grupos bajo **Todas** o **Cualquiera** (**Añadir grupo**); una estructura más profunda aparece como **Filtro complejo (no editable)**, permanece en el archivo y se aplica. Un archivo antiguo con `and` y `or` uno junto al otro en un mismo nivel se lee como «todas las de `and` y una de `or`» y se escribe en la forma válida en el próximo guardado.
+Plainva evalúa cualquier profundidad. El panel de filtros edita un nivel de grupos bajo **Todas** o **Cualquiera** (**Añadir grupo**); una estructura más profunda aparece como **Filtro complejo (no editable)**, permanece en el archivo y se aplica — una condición dentro de ella que Plainva no puede leer se indica debajo como no aplicada. Un archivo antiguo con `and` y `or` uno junto al otro en un mismo nivel se lee como «todas las de `and` y una de `or`» y se escribe en la forma válida en el próximo guardado.
 
 ### Lo que Plainva no puede leer
 
-Solo se entienden las formas de las dos tablas anteriores. Todo lo demás — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, un número sin comillas (`price > 2`), `&&` y `||` dentro de una misma cadena, aritmética, funciones de fecha como `now()`, o `this` — permanece en el archivo y se muestra tal cual en el panel de filtros, pero Plainva no lo aplica. La vista muestra entonces más notas que el mismo filtro en Obsidian.
+Solo se entienden las formas de las dos tablas anteriores. Todo lo demás — `file.inFolder(…)`, `file.hasLink(…)`, `file.hasProperty(…)`, un número sin comillas (`price > 2`), `&&` y `||` dentro de una misma cadena, aritmética, funciones de fecha como `now()`, o `this` — permanece en el archivo y se muestra tal cual en el panel de filtros, con la nota **No se aplica: Plainva no puede leer esta condición, así que no filtra nada.** La vista muestra entonces más notas que el mismo filtro en Obsidian.
 
 ## Fórmulas
 
@@ -197,7 +197,7 @@ Obsidian conoce `table`, `list` y `cards`. Los demás tipos de vista de Plainva 
 | **Grafo** (`graph`) | `table` | `graph` |
 | **Tablón** (`pinboard`) | `table` | `pinboard` |
 
-Tablero, Calendario, Cronología, Grafo y Tablón se ofrecen como **Tipo de vista** solo mientras **Permitir extensiones de Plainva para archivos .base** está activado. Un `type` que Plainva no conoce se muestra como una tabla.
+Tablero, Calendario, Cronología, Grafo y Tablón se ofrecen como **Tipo de vista** solo mientras **Permitir extensiones de Plainva para archivos .base** está activado. Un `type` que Plainva no conoce se muestra como una tabla y permanece tal cual en el archivo hasta que elijas otro **Tipo de vista**.
 
 ### Opciones de vista (`views[i].plainva`)
 
@@ -206,7 +206,7 @@ Dentro del bloque `plainva` una propiedad se escribe sin prefijo (`status`), no 
 | Clave | Tipos de vista | Valor |
 |---|---|---|
 | `render` | Tablero, Calendario, Cronología, Grafo, Tablón | El tipo de vista, ver arriba |
-| `groupBy` | Tablero | La propiedad de la que se forman las columnas |
+| `groupBy` | Tablero | La propiedad de la que se forman las columnas; sin ella, la propiedad del propio `groupBy` de Obsidian en la vista |
 | `boardLaneBy` | Tablero | Una segunda propiedad para **Carriles por** |
 | `boardWipLimits` | Tablero | Mapa de valor de columna → máximo de tarjetas (**Límite de WIP**), números enteros mayores que 0 |
 | `boardColorMode` | Tablero | `column` tiñe toda la columna; si falta = solo el chip del encabezado |
@@ -265,7 +265,7 @@ Los números se redondean a dos decimales, y también se lee una coma decimal. U
 ## Orden y agrupación
 
 - **Orden** — `sort` es una lista de reglas; la primera decide en primer lugar y la siguiente solo entre filas iguales. Los números se ordenan como números, todo lo demás como texto (las fechas ISO en el orden correcto). Las filas sin valor van al final en ambas direcciones. Sin ninguna regla, las notas modificadas más recientemente van primero. Plainva también lee `field` en lugar de `property`, y `asc`/`desc` en cualquier capitalización.
-- **Agrupación** — el tablero agrupa por `plainva.groupBy`, con carriles por `plainva.boardLaneBy`. El propio `groupBy` de Obsidian en una vista se conserva en el archivo, pero Plainva no agrupa una tabla por él.
+- **Agrupación** — el tablero agrupa por `plainva.groupBy`, con carriles por `plainva.boardLaneBy`. Una vista que lleva en su lugar el propio `groupBy` de Obsidian agrupa su tablero por esa propiedad, y un cambio de la agrupación se escribe en él (su `direction` se mantiene). Plainva no agrupa una tabla por él.
 
 ## Incrustar una base de datos y `this`
 
@@ -286,9 +286,9 @@ Los números se redondean a dos decimales, y también se lee una coma decimal. U
 
 Plainva lee un `.base`, cambia solo lo que cambiaste en la app y escribe el archivo entero de nuevo — como YAML con saltos de línea LF y sin BOM, de modo que los comentarios y el espaciado de un archivo escrito a mano no se conservan. De lo que no conoce:
 
-- **Se conserva:** cualquier otra clave de nivel superior, `formulas`, el `summaries` de nivel superior, `displayName` y cualquier otra clave de una entrada de `properties` fuera de su bloque `plainva`, las claves de una vista que Plainva no usa (`limit`, `groupBy`, `image`, …), las claves desconocidas en el bloque `plainva` de una vista y las condiciones de filtro que no puede leer.
-- **No se conserva:** las claves del bloque `plainva` de una columna que esta versión de Plainva no conoce, y una agregación que no puede leer — ambas desaparecen tras el próximo guardado. Una vista de un tipo que Plainva no conoce se escribe de nuevo como `type: table`.
-- **Posición:** las claves que conserva una vista pertenecen a su lugar en la lista. Actualmente, eliminar o mover una vista en Plainva las deja en el lugar antiguo, donde las recibe la vista siguiente.
+- **Se conserva:** cualquier otra clave de nivel superior, `formulas`, el `summaries` de nivel superior, `displayName` y cualquier otra clave de una entrada de `properties`, las claves desconocidas en el bloque `plainva` de una columna o de una vista, una agregación que Plainva no puede leer, las claves de una vista que Plainva no usa (`limit`, `image`, …), un tipo de vista que no conoce y las condiciones de filtro que no puede leer. Un valor que Plainva entiende pero que no has cambiado conserva la grafía del archivo (`status` o `note.status`, una opción escrita como texto plano).
+- **Se reescribe:** solo las formas antiguas propias de Plainva — un mapa `columns:` de nivel superior pasa a `properties`, `and` y `or` uno junto al otro en un mismo nivel pasan a la forma válida, y una vista que versiones muy antiguas guardaron como `type: board` pasa a ser `type: table` con `plainva.render`.
+- **Posición:** las claves que conserva una vista pertenecen a esa vista. Eliminar o mover una vista en Plainva se las lleva consigo, y **Duplicar** las copia a la nueva vista.
 
 ## Diferencias con Obsidian Bases
 
@@ -300,8 +300,8 @@ Plainva lee un `.base`, cambia solo lo que cambiaste en la app y escribe el arch
 | `file.folder == "X"` | Solo las notas directamente en `X` | `X` y todas sus subcarpetas |
 | `file.hasTag("x")` | También `#x/child` | Exactamente `#x` |
 | `file.name` | El nombre del archivo | La propiedad `title` si la nota la tiene |
-| `limit`, `groupBy` de la vista | Se aplican | Se conservan, no se aplican |
-| Tipos de vista | `table`, `list`, `cards` y tipos de plugins | Ocho tipos; los desconocidos como tabla |
+| `limit`, `groupBy` de la vista | Se aplican | `limit` se conserva, no se aplica; `groupBy` agrupa un tablero, no una tabla |
+| Tipos de vista | `table`, `list`, `cards` y tipos de plugins | Ocho tipos; uno desconocido se muestra como tabla y se conserva en el archivo |
 | `![[db.base#View]]` | Abre esa vista | La última vista usada |
 | Bloque de código ` ```base ` | Una base de datos | Un bloque de código |
 | Los bloques `plainva` de Plainva | Se ignoran | Tablero, calendario, cronología, grafo, tablón, relaciones, agregaciones, tipos de campo |

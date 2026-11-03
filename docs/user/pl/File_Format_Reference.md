@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-11-02
+Stan na: 2026-11-03
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -199,7 +199,7 @@ Plik `.base` to YAML. Przechowuje *widok* na notatki — jakie notatki (źródł
 
 ### Zasady twarde — złamanie jednej sprawia, że Obsidian odrzuca cały plik
 
-- **Tylko te klucze najwyższego poziomu:** `filters`, `formulas`, `properties`, `views`. Nigdy nie dodawaj innego klucza najwyższego poziomu. (Historycznie klucz najwyższego poziomu `columns:` psuł każdy plik — nie wprowadzaj ponownie tego wzorca.)
+- **Tylko te klucze najwyższego poziomu:** `filters`, `formulas`, `properties`, `summaries`, `views`. Nigdy nie dodawaj innego klucza najwyższego poziomu. (Historycznie klucz najwyższego poziomu `columns:` psuł każdy plik — nie wprowadzaj ponownie tego wzorca.)
 - **Każdy widok potrzebuje niepustego stringa `name`.**
 - **Obiekt `filters` niesie dokładnie jedno z `and` / `or` / `not` na każdym poziomie** — nigdy dwa obok siebie.
 
@@ -603,7 +603,7 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 - **`.plainva/`** przechowuje kopie zapasowe i stan wewnętrzny. Nigdy nie czytaj z niego logiki programu ani do niego nie zapisuj.
 - **Nieznane klucze są święte.** Gdy przepisujesz `.base` lub notatkę, przenieś każdy klucz, którego nie zamierzałeś zmienić, bez zmian. Sam Plainva zachowuje nieznane klucze `.base` przez wewnętrzną surową kopię; zewnętrzny program piszący powinien robić to samo (sparsuj → zmień tylko to, co zamierzasz → zserializuj).
 - **Wartości zmieniają się w notatce, nie w `.base`.** Aby ustawić komórkę, edytuj frontmatter notatki. `.base` decyduje tylko o tym, które notatki i kolumny są pokazywane.
-- **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `views`.
+- **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Kodowanie:** UTF-8. Nowe pliki: zakończenia linii LF, bez BOM. Notatka lub plik tekstowy, który ma już zakończenia linii CRLF albo BOM, zachowuje je — Plainva ich nie zmienia i narzędzie też nie powinno. Jedynym wyjątkiem jest `.base`: Plainva zapisuje go na nowo, z LF i bez BOM, za każdym razem, gdy zmienia się jego konfiguracja. Sam znak powrotu karetki (CR) jako zakończenie linii (stare pliki z Maca) jest odczytywany, ale nie jest zachowywany: przy pierwszej zmianie takiego pliku Plainva zapisuje go z LF.
 
 ## Zobacz też

@@ -1237,6 +1237,8 @@
     "addRule": "Ajouter une règle",
     "complexFilter": "Filtre complexe (non modifiable)",
     "complexFilterTip": "Filtre imbriqué provenant d'Obsidian – il est conservé et appliqué, mais ne peut pas être modifié ici.",
+    "filterNotApplied": "Non appliquée : Plainva ne sait pas lire cette condition, elle ne filtre donc rien.",
+    "filterPartlyNotApplied": "Non appliqué, car Plainva ne sait pas le lire : {{conditions}}",
     "noSort": "Aucun tri – ordre par défaut",
     "sortColumn": "Colonne de tri",
     "addSort": "Ajouter un tri",

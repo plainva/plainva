@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-11-02
+Last reviewed: 2026-11-03
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -199,7 +199,7 @@ A `.base` file is YAML. It stores a *view* over notes — which notes (sources),
 
 ### Hard rules — break one and Obsidian rejects the whole file
 
-- **Only these top-level keys:** `filters`, `formulas`, `properties`, `views`. Never add another top-level key. (Historically a top-level `columns:` key broke every file — do not reintroduce that pattern.)
+- **Only these top-level keys:** `filters`, `formulas`, `properties`, `summaries`, `views`. Never add another top-level key. (Historically a top-level `columns:` key broke every file — do not reintroduce that pattern.)
 - **Every view needs a non-empty string `name`.**
 - **A `filters` object carries exactly one of `and` / `or` / `not` at each level** — never two side by side.
 
@@ -603,7 +603,7 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 - **`.plainva/`** holds backups and internal state. Never read program logic into it or write to it.
 - **Unknown keys are sacred.** When you rewrite a `.base` or a note, carry through every key you did not intend to change. Plainva itself preserves unknown `.base` keys via an internal raw copy; a third-party writer should do the same (parse → change only what you mean → serialize).
 - **Values change in the note, not the `.base`.** To set a cell, edit the note's frontmatter. The `.base` only decides which notes and columns are shown.
-- **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `views`.
+- **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Encoding:** UTF-8. New files: LF line endings, no BOM. A note or text file that already has CRLF line endings or a BOM keeps them — Plainva does not change them, and a tool should not either. A `.base` is the one exception: Plainva writes it anew, with LF and without a BOM, whenever its configuration changes. A carriage return on its own as a line ending (old Mac files) is read but not kept: Plainva saves such a file with LF the first time it changes it.
 
 ## See also

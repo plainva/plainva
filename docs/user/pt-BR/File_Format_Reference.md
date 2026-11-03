@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-11-02
+Última revisão: 2026-11-03
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -199,7 +199,7 @@ Um arquivo `.base` é YAML. Ele armazena uma *visualização* sobre notas — qu
 
 ### Regras rígidas — violar uma delas faz o Obsidian rejeitar o arquivo inteiro
 
-- **Apenas estas chaves de nível superior:** `filters`, `formulas`, `properties`, `views`. Nunca adicione outra chave de nível superior. (Historicamente, uma chave `columns:` de nível superior quebrava todo arquivo — não reintroduza esse padrão.)
+- **Apenas estas chaves de nível superior:** `filters`, `formulas`, `properties`, `summaries`, `views`. Nunca adicione outra chave de nível superior. (Historicamente, uma chave `columns:` de nível superior quebrava todo arquivo — não reintroduza esse padrão.)
 - **Toda visualização precisa de um `name` em string não vazia.**
 - **Um objeto `filters` carrega exatamente um entre `and` / `or` / `not` em cada nível** — nunca dois lado a lado.
 
@@ -603,7 +603,7 @@ Regras: caminhos fixados não são repetidos em `pinboardOrder`. Cartões que n�
 - **`.plainva/`** guarda backups e estado interno. Nunca leia lógica de programa dali nem escreva ali.
 - **Chaves desconhecidas são sagradas.** Ao reescrever uma `.base` ou uma nota, carregue adiante toda chave que você não pretendia alterar. O próprio Plainva preserva chaves desconhecidas de `.base` por meio de uma cópia bruta interna; um escritor de terceiros deve fazer o mesmo (analisar → alterar apenas o que você pretende → serializar).
 - **Os valores mudam na nota, não na `.base`.** Para definir uma célula, edite o frontmatter da nota. A `.base` só decide quais notas e colunas são exibidas.
-- **Não adicione chaves de nível superior em `.base`** além de `filters` / `formulas` / `properties` / `views`.
+- **Não adicione chaves de nível superior em `.base`** além de `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Codificação:** UTF-8. Arquivos novos: quebras de linha LF, sem BOM. Uma nota ou um arquivo de texto que já tem quebras de linha CRLF ou um BOM os mantém — o Plainva não os altera, e uma ferramenta também não deveria. A única exceção é um `.base`: o Plainva o escreve de novo, com LF e sem BOM, sempre que sua configuração muda. Um retorno de carro sozinho como quebra de linha (arquivos antigos de Mac) é lido, mas não é mantido: o Plainva salva um arquivo assim com LF na primeira vez que o altera.
 
 ## Veja também

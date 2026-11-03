@@ -101,7 +101,7 @@ Plainva为一列添加的所有内容都存放在`properties.<id>.plainva`之下
 | `file.mtime` | 最后修改时间，以毫秒计 |
 | `file.ctime` | 创建时间，以毫秒计，前提是文件系统会报告它 |
 | `file.size` | 大小，以字节计 |
-| `file.tags` | 笔记的所有标签（Frontmatter和正文中的），每个都带`#`；在筛选或便签板需要时才会填充 |
+| `file.tags` | 笔记的所有标签（Frontmatter和正文中的），每个都带`#`；在筛选、便签板或显示该列、按该列排序的视图需要时才会填充 |
 | `file.tasks` | 待办进度，格式为`done/total`；用于看板，以及显示该列的视图 |
 | `file.day` | 日记的文件名所代表的那一天，按仓库的文件夹和格式推算；只读，只有日历或时间轴的日期字段可以使用它 |
 | `file.revision` | 内部的变更标记；请勿依赖它 |
@@ -118,7 +118,7 @@ Plainva为一列添加的所有内容都存放在`properties.<id>.plainva`之下
 
 | 来源 | 表达式 |
 |---|---|
-| 文件夹 | `file.folder == "Projects/Active"`——该文件夹及其所有子文件夹；`"/"`是整个仓库 |
+| 文件夹 | `file.folder == "Projects/Active"`——该文件夹及其所有子文件夹；`""`和`"/"`都是整个仓库 |
 | 标签 | `file.hasTag("project")`——笔记带有恰好这个标签；开头的`#`会被忽略 |
 
 多个来源可以像其他条件一样用`and`或`or`组合。没有来源的数据库包含仓库中的每一篇笔记。附件、保留的`index.md`和`log.md`，以及名称以点开头的文件或文件夹，永远不会成为行。
@@ -158,11 +158,11 @@ Plainva为一列添加的所有内容都存放在`properties.<id>.plainva`之下
 | `or` | 至少一个条目匹配 |
 | `not` | 没有任何条目匹配 |
 
-Plainva可以计算任意深度。筛选面板在**全部**或**任一**之下编辑一层分组（**添加组**）；更深的结构会显示为 **复杂筛选（不可编辑）**，保留在文件中并且会生效。同一层上并排带有`and`和`or`的旧文件，会被读作“`and`全部满足，且`or`中满足一个”，并在下次保存时以有效的形式写出。
+Plainva可以计算任意深度。筛选面板在**全部**或**任一**之下编辑一层分组（**添加组**）；更深的结构会显示为 **复杂筛选（不可编辑）**，保留在文件中并且会生效——其中Plainva无法读取的条件会在它下方标明为未生效。同一层上并排带有`and`和`or`的旧文件，会被读作“`and`全部满足，且`or`中满足一个”，并在下次保存时以有效的形式写出。
 
 ### Plainva无法读取的内容
 
-只有以上两张表中的写法能被识别。其他任何内容——`file.inFolder(…)`、`file.hasLink(…)`、`file.hasProperty(…)`、不带引号的数字（`price > 2`）、同一个字符串中的`&&`和`||`、算术运算、`now()`之类的日期函数，或者`this`——都会保留在文件中，并在筛选面板中按原样显示，但Plainva不会应用它们。这样一来，视图显示的笔记会比Obsidian中同一个筛选显示的更多。
+只有以上两张表中的写法能被识别。其他任何内容——`file.inFolder(…)`、`file.hasLink(…)`、`file.hasProperty(…)`、不带引号的数字（`price > 2`）、同一个字符串中的`&&`和`||`、算术运算、`now()`之类的日期函数，或者`this`——都会保留在文件中，并在筛选面板中按原样显示，同时附有提示 **未生效：Plainva 无法读取此条件，因此它不会筛选任何内容。** 这样一来，视图显示的笔记会比Obsidian中同一个筛选显示的更多。
 
 ## 公式
 
@@ -197,7 +197,7 @@ Obsidian认识`table`、`list`和`cards`。Plainva的其他视图类型存储为
 | **关系图**（`graph`） | `table` | `graph` |
 | **便签板**（`pinboard`） | `table` | `pinboard` |
 
-只有在**允许对.base文件使用Plainva扩展功能**开启时，看板、日历、时间轴、关系图和便签板才会作为**视图类型**提供。Plainva不认识的`type`会显示为表格。
+只有在**允许对.base文件使用Plainva扩展功能**开启时，看板、日历、时间轴、关系图和便签板才会作为**视图类型**提供。Plainva不认识的`type`会显示为表格，并按原样保留在文件中，直到你选择其他**视图类型**。
 
 ### 视图选项（`views[i].plainva`）
 
@@ -206,7 +206,7 @@ Obsidian认识`table`、`list`和`cards`。Plainva的其他视图类型存储为
 | 键 | 视图类型 | 值 |
 |---|---|---|
 | `render` | 看板、日历、时间轴、关系图、便签板 | 视图类型，见上文 |
-| `groupBy` | 看板 | 构成各列的属性 |
+| `groupBy` | 看板 | 构成各列的属性；没有它时，使用该视图中Obsidian自己的`groupBy`的属性 |
 | `boardLaneBy` | 看板 | 用于**泳道依据**的第二个属性 |
 | `boardWipLimits` | 看板 | 列的值 → 最多卡片数的映射（**WIP限制**），大于0的整数 |
 | `boardColorMode` | 看板 | `column`为整列着色；缺省 = 只有表头标签着色 |
@@ -265,7 +265,7 @@ Obsidian认识`table`、`list`和`cards`。Plainva的其他视图类型存储为
 ## 排序与分组
 
 - **排序**——`sort`是一个规则列表；第一条规则先起决定作用，下一条只在各行相等时才起作用。数字按数字排序，其他一切按文本排序（ISO日期顺序正确）。在两个方向上，没有值的行都排在最后。没有规则时，最近更改的笔记排在最前面。Plainva也会把`field`读作`property`，并且`asc`/`desc`不分大小写。
-- **分组**——看板按`plainva.groupBy`分组，泳道按`plainva.boardLaneBy`。Obsidian自己的视图`groupBy`会保留在文件中，但Plainva不会据此对表格分组。
+- **分组**——看板按`plainva.groupBy`分组，泳道按`plainva.boardLaneBy`。如果视图带的是Obsidian自己的`groupBy`，看板就按该属性分组，更改分组时也会写入其中（其`direction`保持不变）。Plainva不会据此对表格分组。
 
 ## 嵌入数据库与`this`
 
@@ -286,9 +286,9 @@ Obsidian认识`table`、`list`和`cards`。Plainva的其他视图类型存储为
 
 Plainva读取一个`.base`，只更改你在应用中更改的内容，然后把整个文件重新写出——格式为YAML，换行符为LF，不带BOM，因此手写文件中的注释和排版不会保留。对于它不认识的内容：
 
-- **保留：** 任何其他顶层键、`formulas`、顶层`summaries`、`displayName`以及`properties`条目中`plainva`块之外的所有其他键、Plainva不使用的视图键（`limit`、`groupBy`、`image`……）、视图`plainva`块中的未知键，以及它无法读取的筛选条件。
-- **不保留：** 列的`plainva`块中本版本Plainva不认识的键，以及它无法读取的汇总——两者在下次保存后都会消失。Plainva不认识的视图类型会被写回为`type: table`。
-- **位置：** 视图保留的键属于它在列表中的位置。目前，在Plainva中删除或移动一个视图时，这些键会留在原处，由下一个视图接收。
+- **保留：** 任何其他顶层键、`formulas`、顶层`summaries`、`displayName`以及`properties`条目中的所有其他键、列或视图`plainva`块中的未知键、Plainva无法读取的汇总、Plainva不使用的视图键（`limit`、`image`……）、它不认识的视图类型，以及它无法读取的筛选条件。Plainva能理解但你没有更改的值会保留文件中的写法（`status`或`note.status`、以纯文本写出的选项）。
+- **重写：** 只有Plainva自己的旧形式——顶层`columns:`映射会移入`properties`，同一层上并排的`and`和`or`会改为有效形式，非常旧的版本以`type: board`保存的视图会变为带`plainva.render`的`type: table`。
+- **位置：** 视图保留的键属于该视图。在Plainva中删除或移动视图时，这些键会随之一起移动，**创建副本**会把它们复制到新视图。
 
 ## 与Obsidian Bases的差异
 
@@ -300,8 +300,8 @@ Plainva读取一个`.base`，只更改你在应用中更改的内容，然后把
 | `file.folder == "X"` | 仅直接位于`X`中的笔记 | `X`及其所有子文件夹 |
 | `file.hasTag("x")` | 同时包含`#x/child` | 恰好是`#x` |
 | `file.name` | 文件名 | 笔记有`title`属性时用它 |
-| 视图`limit`、`groupBy` | 应用 | 保留，不应用 |
-| 视图类型 | `table`、`list`、`cards`和插件类型 | 八种类型；未知的显示为表格 |
+| 视图`limit`、`groupBy` | 应用 | `limit`保留，不应用；`groupBy`对看板分组，不对表格分组 |
+| 视图类型 | `table`、`list`、`cards`和插件类型 | 八种类型；未知的显示为表格并保留在文件中 |
 | `![[db.base#View]]` | 打开该视图 | 上次使用的视图 |
 | ` ```base ` 代码块 | 数据库 | 代码块 |
 | Plainva的`plainva`块 | 忽略 | 看板、日历、时间轴、关系图、便签板、关联、汇总、字段类型 |

@@ -1241,6 +1241,8 @@
     "addRule": "Dodaj regułę",
     "complexFilter": "Filtr złożony (bez możliwości edycji)",
     "complexFilterTip": "Zagnieżdżony filtr z Obsidian – zostaje zachowany i stosowany, ale nie można go tutaj edytować.",
+    "filterNotApplied": "Nie zastosowano: Plainva nie potrafi odczytać tego warunku, więc niczego nie filtruje.",
+    "filterPartlyNotApplied": "Nie zastosowano, bo Plainva nie potrafi tego odczytać: {{conditions}}",
     "noSort": "Bez sortowania – kolejność domyślna",
     "sortColumn": "Kolumna sortowania",
     "addSort": "Dodaj sortowanie",

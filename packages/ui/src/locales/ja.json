@@ -1229,6 +1229,8 @@
     "addRule": "ルールを追加",
     "complexFilter": "複雑なフィルター（編集不可）",
     "complexFilterTip": "Obsidianからのネストされたフィルターです——保持され適用されますが、ここでは編集できません。",
+    "filterNotApplied": "適用されていません：Plainvaはこの条件を読み取れないため、何も絞り込みません。",
+    "filterPartlyNotApplied": "Plainvaが読み取れないため適用されていません：{{conditions}}",
     "noSort": "並べ替えなし——デフォルトの順序",
     "sortColumn": "並べ替え列",
     "addSort": "並べ替えを追加",
