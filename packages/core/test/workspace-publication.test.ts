@@ -39,6 +39,7 @@ import {
   sealInlinePvo1,
   publishedSliceAccessCapabilities,
   refreshWorkspacePublications,
+  pendingPublicationChanges,
   runPublicationRefresh,
   workspaceDocumentHash,
   workspaceRecipientGroupIds,
@@ -1429,6 +1430,111 @@ describe("refreshWorkspacePublications", () => {
     expect(state.saved.at(-1)!.lastError).not.toContain("hidden-value");
     expect(state.saved.at(-1)!.lastError).not.toContain("unclosed");
     expect((await made.outer.list(`.pvws/publications/${made.handle.publicationId}/objects`)).items).toEqual([]);
+  });
+
+  it("goes past a refused note: the notes behind it go out, and the reason names every note it went past", async () => {
+    // The run stopped at the first note the sanitizer refused, so every note
+    // behind it - a cleaned-up version among them - waited until an unrelated
+    // note was corrected (open-items plan 3.128 no. 1).
+    const OBJ_DRAFT = "db".repeat(16);
+    const OBJ_AFTER = "dc".repeat(16);
+    const OBJ_BROKEN = "dd".repeat(16);
+    const made = await makePublication();
+    const files: Record<string, string> = {
+      "Projects/Draft.md": "---\nSalary 4800, hidden-value\n---\nNot ready.\n",
+      "Projects/After.md": "---\ntitle: After\nsalary: 4800\n---\nShipped.\n",
+      "Projects/Broken.md": "---\ntitle: \"unclosed\n---\nText.\n",
+    };
+    const objects = [
+      object({ objectId: OBJ_DRAFT, path: "Projects/Draft.md" }),
+      object({ objectId: OBJ_AFTER, path: "Projects/After.md" }),
+      object({ objectId: OBJ_BROKEN, path: "Projects/Broken.md" }),
+    ];
+    const ids = [OBJ_DRAFT, OBJ_AFTER, OBJ_BROKEN];
+    const state = fakeState([makeRecord(made.handle)], objects);
+    const run = () => refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async (path: string) => files[path] },
+      policy: { slices: [slice(ids)] },
+      store: made.outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => made.handle.runtime,
+    });
+
+    const [outcome] = await run();
+    expect(outcome.planned).toBe(3);
+    expect(outcome.applied).toBe(1);
+    expect(outcome.error).toBe(`${PUBLISHED_NOTE_REFUSED}Projects/Draft.md\nProjects/Broken.md`);
+    const kept = state.saved.at(-1)!;
+    expect(kept.lastError).toBe(outcome.error);
+    expect(kept.lastError).not.toContain("hidden-value");
+    expect(kept.manifest.objects.map((entry) => entry.sourceObjectId)).toEqual([OBJ_AFTER]);
+    expect(await readPublishedText(made, OBJ_AFTER)).toBe("---\ntitle: After\n---\nShipped.\n");
+    // Still pending: the two notes are planned again until they are corrected.
+    expect(pendingPublicationChanges({ slice: slice(ids), objects, manifest: kept.manifest, mode: "sanitized" })).toBe(2);
+
+    files["Projects/Draft.md"] = "---\ntitle: Draft\n---\nReady.\n";
+    files["Projects/Broken.md"] = "---\ntitle: closed\n---\nText.\n";
+    const [resumed] = await run();
+    expect(resumed.error).toBeNull();
+    expect(resumed.applied).toBe(2);
+    expect(state.saved.at(-1)!.lastError).toBeNull();
+  });
+
+  it("publishes notes alone where it sanitizes, every text file where it is exact", async () => {
+    // A sanitized publication read every text file of its slice as a note: a
+    // YAML file of several documents went out without its first one, a link
+    // in a .json value was neutralized (open-items plan 3.128 no. 2). It holds
+    // notes alone now.
+    const OBJ_YAML = "de".repeat(16);
+    const OBJ_JSON = "df".repeat(16);
+    const files: Record<string, string> = {
+      "Projects/Q3.md": "# Q3\n",
+      "Projects/multi.yaml": "---\na: 1\n---\nb: 2\n",
+      "Projects/data.json": '{ "see": "[[Private/Plan]]" }\n',
+    };
+    const objects = [
+      object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" }),
+      object({ objectId: OBJ_YAML, path: "Projects/multi.yaml" }),
+      object({ objectId: OBJ_JSON, path: "Projects/data.json" }),
+    ];
+    const ids = [OBJ_TEXT, OBJ_YAML, OBJ_JSON];
+    const refresh = (made: Awaited<ReturnType<typeof makePublication>>, state: ReturnType<typeof fakeState>) =>
+      refreshWorkspacePublications({
+        state: state.store,
+        vault: { readTextFile: async (path: string) => files[path] },
+        policy: { slices: [slice(ids)] },
+        store: made.outer,
+        workspaceId: WORKSPACE,
+        openPublicationRuntime: async () => made.handle.runtime,
+      });
+
+    const sanitized = await makePublication();
+    const sanitizedState = fakeState([makeRecord(sanitized.handle)], objects);
+    const [first] = await refresh(sanitized, sanitizedState);
+    expect(first).toEqual({ publicationId: sanitized.handle.publicationId, planned: 1, applied: 1, error: null, skipped: null });
+    expect(sanitizedState.saved.at(-1)!.manifest.objects.map((entry) => entry.sourceObjectId)).toEqual([OBJ_TEXT]);
+    expect(pendingPublicationChanges({ slice: slice(ids), objects, manifest: sanitizedState.saved.at(-1)!.manifest, mode: "sanitized" })).toBe(0);
+
+    const exact = await makePublication({ mode: "exact" });
+    const exactRecord = makeRecord(exact.handle);
+    const exactState = fakeState([{ ...exactRecord, config: { ...exactRecord.config, mode: "exact" } }], objects);
+    const [all] = await refresh(exact, exactState);
+    expect(all.applied).toBe(3);
+    expect(await readPublishedText(exact, OBJ_YAML)).toBe(files["Projects/multi.yaml"]);
+    expect(await readPublishedText(exact, OBJ_JSON)).toBe(files["Projects/data.json"]);
+  });
+
+  it("withdraws a text file that is no note from a sanitized publication that held it", () => {
+    // A publication made before held the file; the next refresh takes it back.
+    const OBJ_YAML = "e0".repeat(16);
+    const objects = [object({ objectId: OBJ_YAML, path: "Projects/multi.yaml" })];
+    const manifest = {
+      ...emptyPublicationManifest("e1".repeat(16)),
+      objects: [{ sourceObjectId: OBJ_YAML, path: "Projects/multi.yaml", sourceRevisionId: REV_1, publishedRevisionId: REV_1 }],
+    };
+    expect(pendingPublicationChanges({ slice: slice([OBJ_YAML]), objects, manifest, mode: "sanitized" })).toBe(1);
+    expect(pendingPublicationChanges({ slice: slice([OBJ_YAML]), objects, manifest, mode: "exact" })).toBe(0);
   });
 
   it("hands a note with such a block out as it is where the publication is exact", async () => {

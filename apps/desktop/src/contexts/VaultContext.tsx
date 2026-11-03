@@ -3008,7 +3008,7 @@ export const VaultProvider: React.FC<{
     const slices = new Map(runtime.policy.payload.slices.map((slice) => [slice.sliceId, slice]));
     const pending: Record<string, number> = {};
     for (const record of records) {
-      pending[record.publicationId] = pendingPublicationChanges({ slice: slices.get(record.sliceId), objects, manifest: record.manifest });
+      pending[record.publicationId] = pendingPublicationChanges({ slice: slices.get(record.sliceId), objects, manifest: record.manifest, mode: record.config.mode });
     }
     return pending;
   };

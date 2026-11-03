@@ -11,6 +11,7 @@ import {
   projectPublishedMarkdown,
   projectPublishedNote,
   publishedSliceProviderInstructions,
+  refusedNotePaths,
 } from "../src/index.js";
 import { splitDocument } from "../src/frontmatter-block.js";
 import { dataOfBlock } from "../src/frontmatter-entry.js";
@@ -318,6 +319,17 @@ describe("the sanitizer, for a note whose path is known", () => {
     expect(String(refusal)).not.toContain("4800");
   });
 
+  it("names several notes, one per line, and reads them back from the reason", () => {
+    // A refresh goes past every refused note and keeps one reason for all of
+    // them (open-items plan 3.128 no. 1); a record written before names one.
+    const several = new PublishedNoteRefusedError(["Shared/A.md", "Shared/B.md"]);
+    expect(several.message).toBe(`${PUBLISHED_NOTE_REFUSED}Shared/A.md\nShared/B.md`);
+    expect(several.path).toBe("Shared/A.md");
+    expect(refusedNotePaths(several)).toEqual(["Shared/A.md", "Shared/B.md"]);
+    expect(refusedNotePaths(`${PUBLISHED_NOTE_REFUSED}Shared/Old.md`)).toEqual(["Shared/Old.md"]);
+    expect(refusedNotePaths(new Error("provider rejected the upload"))).toBeNull();
+  });
+
   it("names a note whose YAML does not parse the same way", () => {
     // Refused before as well, but by a sentence without a note in it.
     const refusal = refusalOf("---\ntitle: \"unclosed\nsecret: hidden-value\n---\nBody.\n", "Shared/Deep/Other.md");
@@ -563,26 +575,51 @@ describe("published projection preview", () => {
     expect(preview.unchanged).toBe(true);
   });
 
-  it("ends at a note the sanitizer refuses, and names it", () => {
-    // The numbers used to carry on. The note's block was counted as so many
-    // removed properties - one for every character of its text -, and with the
-    // most "removals" of the slice the note became the sample: a preview that
-    // showed the text going, and said it was properties.
-    const withDraft = [...objects, { path: "Shared/Draft.md", markdown: "---\nSalary 4800, hidden-value\n---\nText." }];
-    let preview: ReturnType<typeof previewPublishedProjection> | null = null;
-    let refusal: unknown = null;
-    try {
-      preview = previewPublishedProjection({ mode: "sanitized", objects: withDraft });
-    } catch (error) {
-      refusal = error;
-    }
-    // No numbers for a publication that does not come about: the refresh stops
-    // at the same note.
-    expect(preview).toBeNull();
-    expect(refusal).toBeInstanceOf(PublishedNoteRefusedError);
-    expect((refusal as PublishedNoteRefusedError).path).toBe("Shared/Draft.md");
-    expect(String(refusal)).not.toContain("hidden-value");
-    expect(String(refusal)).not.toContain("4800");
+  it("goes past a note the sanitizer refuses, names it, and shows the rest", () => {
+    // The preview ended at such a note, because the refresh stopped there too.
+    // The refresh goes past it now (open-items plan 3.128 no. 1): the preview
+    // is the preview of the notes that go out, and names the ones that do not.
+    // The numbers never count the refused note's block - one "removed
+    // property" for every character of its text, as they once did.
+    const draft = { path: "Shared/Draft.md", markdown: "---\nSalary 4800, hidden-value\n---\nText." };
+    const broken = { path: "Shared/Broken.md", markdown: "---\ntitle: \"unclosed\n---\nText." };
+    const preview = previewPublishedProjection({ mode: "sanitized", objects: [draft, ...objects, broken] });
+    expect(preview.refused).toEqual(["Shared/Draft.md", "Shared/Broken.md"]);
+    expect(preview.objectCount).toBe(2);
+    expect(preview.neutralizedLinks).toEqual(["Private/Plan"]);
+    expect(preview.sample?.path).toBe("Shared/Deep/Other.md");
+    expect(JSON.stringify(preview)).not.toContain("hidden-value");
+    expect(JSON.stringify(preview)).not.toContain("4800");
+  });
+
+  it("holds notes alone in a sanitized publication, and names every other text file it leaves out", () => {
+    // Every text file of a slice went through the rules of a note. A YAML file
+    // of several documents lost its first one as "removed properties", a link
+    // in a value of a .json was neutralized as in a note (open-items plan 3.128
+    // no. 2). A sanitized publication leaves such files out and says so; an
+    // exact one hands them out as they are.
+    const files = [
+      ...objects,
+      { path: "Shared/settings.yaml", markdown: "---\nsecret: hidden-value\n---\nb: 2\n" },
+      { path: "Shared/data.json", markdown: '{ "see": "[[Private/Plan]]" }' },
+      { path: "Shared/Board.MD", markdown: "# Board\n" },
+    ];
+    const sanitized = previewPublishedProjection({ mode: "sanitized", objects: files });
+    expect(sanitized.leftOut).toEqual(["Shared/settings.yaml", "Shared/data.json"]);
+    expect(sanitized.objectCount).toBe(3);
+    expect(sanitized.removedProperties).not.toContain("secret");
+    expect(sanitized.refused).toEqual([]);
+    // The notes' links are read against the files that go out: a link to the
+    // YAML file is a link out of the publication.
+    const linking = previewPublishedProjection({
+      mode: "sanitized",
+      objects: [{ path: "Shared/Note.md", markdown: "See [s](Shared/settings.yaml)." }, files[2]],
+    });
+    expect(linking.neutralizedLinks).toEqual(["Shared/settings.yaml"]);
+
+    const exact = previewPublishedProjection({ mode: "exact", objects: files });
+    expect(exact.leftOut).toEqual([]);
+    expect(exact.objectCount).toBe(5);
   });
 
   it("hands an exact publication's note out as it is, whatever stands at its top", () => {

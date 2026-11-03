@@ -14,14 +14,16 @@ import { PublishSliceSheet } from "../../mobile/src/components/PublishSliceSheet
  * (finding 2026-10-09).
  *
  * A sanitized publication refuses a note whose block at the top cannot be read
- * as properties, and the preview ends at that note. Both shells then say the
- * same sentence in the same place: where the preview's numbers would stand —
- * the review step of the desktop's wizard, the banner of the phone's sheet —,
- * and it stays there.
+ * as properties. It goes past that note and publishes the rest (open-items
+ * plan 3.128 no. 1), so the preview shows the numbers of the rest and both
+ * shells say the same sentence beside them, naming every such note — the
+ * review step of the desktop's wizard, the answer of the phone's sheet. The
+ * text files a sanitized copy leaves out because they are no notes (no. 2)
+ * are named there too.
  *
- * Before, the desktop said it in a toast and the review step went on reading
- * "Reading the covered notes…" for good; the phone showed the thrown message
- * as it came, protocol sentence or error code.
+ * Before, the preview ended at the first such note; before that, the desktop
+ * said it in a toast and the review step went on reading "Reading the covered
+ * notes…" for good, and the phone showed the thrown message as it came.
  */
 
 vi.mock("react-i18next", async () => {
@@ -60,15 +62,17 @@ async function click(element: Element | null | undefined): Promise<void> {
 }
 
 const DRAFT = { path: "Shared/Draft.md", markdown: "---\nSalary 4800, hidden-value\n---\nText." };
+const DATA = { path: "Shared/data.json", markdown: '{ "see": "[[Private/Plan]]" }' };
 const CLEAN = { path: "Shared/Note.md", markdown: "---\ntitle: A\nbudget_eur: 1\n---\nText." };
 
-/** The real preview of core over a slice: its answer, or what it throws. */
+/** The real preview of core over a slice. */
 function previewOf(objects: Array<{ path: string; markdown: string }>): PublishedProjectionPreview {
   return previewPublishedProjection({ mode: "sanitized", objects });
 }
 
-/** The sentence both shells have to show, as the English catalogue has it. */
-const SENTENCE = String(en.workspaceSecurity.publicationNoteRefused).split("{{path}}").join(DRAFT.path);
+/** The sentences both shells have to show, as the English catalogue has them. */
+const SENTENCE = String(en.workspaceSecurity.publicationNotesRefused).split("{{paths}}").join(DRAFT.path);
+const LEFT_OUT = String(en.workspaceSecurity.projectionLeftOut).split("{{paths}}").join(DATA.path);
 const t = (key: string, vars?: Record<string, unknown>) => {
   const value = key.split(".").reduce<unknown>((obj, part) => (obj as Record<string, unknown> | undefined)?.[part], en);
   return Object.entries(vars ?? {}).reduce((text, [k, v]) => text.split(`{{${k}}}`).join(String(v)), typeof value === "string" ? value : key);
@@ -76,10 +80,10 @@ const t = (key: string, vars?: Record<string, unknown>) => {
 
 describe("the sentence itself", () => {
   it("names the note and none of its words", () => {
-    let refusal: unknown = null;
-    try { previewOf([CLEAN, DRAFT]); } catch (error) { refusal = error; }
-    expect(publicationErrorText(refusal, t)).toBe(SENTENCE);
-    expect(SENTENCE).toContain("“Shared/Draft.md”");
+    const preview = previewOf([CLEAN, DRAFT]);
+    expect(preview.refused).toEqual([DRAFT.path]);
+    expect(publicationErrorText(new Error(`published note frontmatter is invalid: ${DRAFT.path}`), t)).toBe(SENTENCE);
+    expect(SENTENCE).toContain("Shared/Draft.md");
     expect(SENTENCE).not.toContain("hidden-value");
   });
 });
@@ -112,13 +116,21 @@ describe("desktop: the review step of the slice wizard", () => {
   }
 
   it("says why there is no preview, where the numbers would stand", async () => {
-    const { host, onPublicationPreview } = await reviewStep({ publicationPreviewError: SENTENCE });
+    const { host, onPublicationPreview } = await reviewStep({ publicationPreviewError: "Shared/Note.md could not be read" });
     // The preview was asked for on the way out of the decision step …
     expect(onPublicationPreview).toHaveBeenCalledTimes(1);
-    // … and its refusal is on the page, not the promise that notes are being read.
-    expect(host.textContent).toContain(SENTENCE);
+    // … and its failure is on the page, not the promise that notes are being read.
+    expect(host.textContent).toContain("Shared/Note.md could not be read");
     expect(host.textContent).not.toContain(en.workspaceSecurity.projectionLoading);
     expect(host.querySelector(".pv-security-preview")).toBeNull();
+  });
+
+  it("shows the rest and names the note it goes past and the file it leaves out", async () => {
+    const { host } = await reviewStep({ publicationPreview: previewOf([CLEAN, DRAFT, DATA]) });
+    expect(host.textContent).toContain(SENTENCE);
+    expect(host.textContent).toContain(LEFT_OUT);
+    expect(host.textContent).not.toContain("hidden-value");
+    expect(host.querySelector(".pv-security-preview")?.textContent).toContain(CLEAN.path);
   });
 
   it("says that it is reading for as long as there is neither an answer nor a reason", async () => {
@@ -146,35 +158,22 @@ describe("phone: the sheet that publishes a slice", () => {
     );
   }
 
-  it("names the note the preview stopped at, in words", async () => {
-    const host = await sheet({ onPreview: async () => previewOf([CLEAN, DRAFT]) });
+  it("shows the rest and names the note the preview goes past, in words", async () => {
+    const host = await sheet({ onPreview: async () => previewOf([CLEAN, DRAFT, DATA]) });
     await click(host.querySelector('[data-testid="publish-preview"]'));
-    expect(host.textContent).toContain(SENTENCE);
+    const result = host.querySelector('[data-testid="publish-preview-result"]');
+    expect(result?.textContent).toContain(SENTENCE);
+    expect(result?.textContent).toContain(LEFT_OUT);
+    expect(result?.textContent).toContain(CLEAN.path);
     // Neither the protocol's sentence nor anything the note says.
     expect(host.textContent).not.toContain("frontmatter is invalid");
     expect(host.textContent).not.toContain("hidden-value");
-    expect(host.querySelector('[data-testid="publish-preview-result"]')).toBeNull();
   });
 
-  it("takes an earlier answer back when the next reading is refused", async () => {
-    // Numbers beside the reason why there are none would be numbers for a
-    // publication that does not come about.
-    let notes = [CLEAN];
-    const host = await sheet({ onPreview: async () => previewOf(notes) });
-    await click(host.querySelector('[data-testid="publish-preview"]'));
-    expect(host.querySelector('[data-testid="publish-preview-result"]')?.textContent).toContain(CLEAN.path);
-
-    notes = [CLEAN, DRAFT];
-    await click(host.querySelector('[data-testid="publish-preview"]'));
-    expect(host.querySelector('[data-testid="publish-preview-result"]')).toBeNull();
-    expect(host.textContent).toContain(SENTENCE);
-  });
-
-  it("keeps a refusal with the mode it was asked in", async () => {
-    // An exact copy hands the note out as it is: that the note cannot be
-    // published is the answer of the sanitized copy alone - and asking for the
-    // exact copy's preview does not take it away.
-    const host = await sheet({ onPreview: async (mode) => previewPublishedProjection({ mode, objects: [CLEAN, DRAFT] }) });
+  it("keeps the names with the mode they were asked in", async () => {
+    // An exact copy hands every file out as it is: what the sanitized copy
+    // goes past or leaves out is its answer alone.
+    const host = await sheet({ onPreview: async (mode) => previewPublishedProjection({ mode, objects: [CLEAN, DRAFT, DATA] }) });
     await click(host.querySelector('[data-testid="publish-preview"]'));
     expect(host.textContent).toContain(SENTENCE);
     await click(host.querySelector('[data-testid="publish-mode-exact"]'));
@@ -182,9 +181,13 @@ describe("phone: the sheet that publishes a slice", () => {
     await click(host.querySelector('[data-testid="publish-preview"]'));
     expect(host.querySelector('[data-testid="publish-preview-result"]')).not.toBeNull();
     expect(host.textContent).not.toContain(SENTENCE);
+    expect(host.textContent).not.toContain(LEFT_OUT);
+    // Back to the sanitized copy, the exact copy's answer is not its answer.
     await click(host.querySelector('[data-testid="publish-mode-sanitized"]'));
-    expect(host.textContent).toContain(SENTENCE);
     expect(host.querySelector('[data-testid="publish-preview-result"]')).toBeNull();
+    await click(host.querySelector('[data-testid="publish-preview"]'));
+    expect(host.textContent).toContain(SENTENCE);
+    expect(host.textContent).toContain(LEFT_OUT);
   });
 
   it("says a failure that is not about a note in every mode, and keeps no answer it stopped", async () => {

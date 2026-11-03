@@ -46,6 +46,7 @@ import type { WorkspaceObjectStore } from "./objectStore.js";
 import { createPersonalWorkspaceBootstrap, personalWorkspaceRuntime, type PersonalWorkspaceRuntime } from "./personal.js";
 import { assertCanonicalVaultPath } from "./path.js";
 import { addWorkspaceMemberToPolicy, createWorkspacePolicySuccessor } from "./policy.js";
+import { PublishedNoteRefusedError } from "./publishedSlices.js";
 import { sealInlinePvo1, type Pvo1Recipient } from "./pvo1.js";
 import {
   derivePublicationId,
@@ -568,12 +569,14 @@ export type PublicationRefreshItem = PublicationPublishItem | PublicationRetract
  * author believes they took it back.
  *
  * Retractions come FIRST. They need no projection and no read of the vault,
- * so nothing about another note can stop them - while a publish can be
- * refused (a note whose properties block cannot be read, finding 2026-10-09),
- * and `runPublicationRefresh` stops at the first item that fails. Behind a
- * refused note the withdrawal of another one waited until that note was
+ * so nothing about another note can stop them - while a publish can fail at
+ * the provider, and `runPublicationRefresh` stops at the first item that does.
+ * Behind a refused note (one whose properties block cannot be read, finding
+ * 2026-10-09) the withdrawal of another one waited until that note was
  * corrected: the publication went on handing out what its author had taken
- * back, for a reason that had nothing to do with it.
+ * back, for a reason that had nothing to do with it. The run goes past a
+ * refused note since (open-items plan 3.128 no. 1); a provider's failure
+ * still stops it.
  */
 export function planPublicationRefresh(input: {
   manifest: PublicationManifest;
@@ -639,6 +642,8 @@ export interface PublicationRefreshResult {
   stoppedAt: PublicationRefreshItem | null;
   error: string | null;
   aborted: boolean;
+  /** The notes the run went past because the sanitizer refuses them, by path. */
+  refused: string[];
 }
 
 export interface RunPublicationRefreshInput {
@@ -669,14 +674,24 @@ export interface RunPublicationRefreshInput {
  * failure would report a refresh as done while a note quietly kept its old text.
  * No withdrawal waits behind such a stop: `planPublicationRefresh` puts the
  * retractions first.
+ *
+ * One failure is the note's own, not the run's: a note the sanitizer refuses
+ * (`PublishedNoteRefusedError`). The run goes past it — the notes behind it,
+ * a cleaned-up version among them, used to wait until an unrelated note was
+ * corrected (open-items plan 3.128 no. 1) — and ends with a reason that names
+ * every note it went past. Nothing is written for such a note and the
+ * manifest keeps what it held, so the next refresh plans it again and it goes
+ * out once corrected; the reason stays on the record until then. A failure of
+ * the provider still stops the run.
  */
 export async function runPublicationRefresh(input: RunPublicationRefreshInput): Promise<PublicationRefreshResult> {
   let manifest = input.manifest;
   const applied: PublishedObjectWrite[] = [];
+  const refused: string[] = [];
   const total = input.plan.length;
 
   for (const item of input.plan) {
-    if (input.signal?.aborted) return { manifest, applied, stoppedAt: item, error: null, aborted: true };
+    if (input.signal?.aborted) return { manifest, applied, stoppedAt: item, error: null, aborted: true, refused };
     try {
       const change: PublicationChange =
         item.action === "retract"
@@ -718,12 +733,17 @@ export async function runPublicationRefresh(input: RunPublicationRefreshInput): 
       await input.persist?.(manifest);
       input.onProgress?.(applied.length, total);
     } catch (error) {
-      if (input.signal?.aborted) return { manifest, applied, stoppedAt: item, error: null, aborted: true };
+      if (input.signal?.aborted) return { manifest, applied, stoppedAt: item, error: null, aborted: true, refused };
+      if (error instanceof PublishedNoteRefusedError) {
+        refused.push(...error.paths);
+        continue;
+      }
       const message = error instanceof Error ? error.message : String(error);
-      return { manifest, applied, stoppedAt: item, error: message.slice(0, 1000), aborted: false };
+      return { manifest, applied, stoppedAt: item, error: message.slice(0, 1000), aborted: false, refused };
     }
   }
-  return { manifest, applied, stoppedAt: null, error: null, aborted: false };
+  const error = refused.length > 0 ? new PublishedNoteRefusedError(refused).message : null;
+  return { manifest, applied, stoppedAt: null, error, aborted: false, refused };
 }
 
 

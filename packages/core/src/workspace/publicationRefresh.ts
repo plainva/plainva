@@ -28,7 +28,7 @@ import {
   type PublicationSourceObject,
   type PublicationManifest,
 } from "./publication.js";
-import { publicationStoreFor, projectPublishedNote } from "./publishedSlices.js";
+import { publicationStoreFor, projectPublishedNote, publishedInMode, type PublishedSliceMode } from "./publishedSlices.js";
 import type { WorkspaceObjectStore } from "./objectStore.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
 import type { WorkspaceObjectRecord, WorkspacePublicationRecord, WorkspaceStateStore } from "./state.js";
@@ -111,14 +111,21 @@ export function publishableObjects(
   );
 }
 
-/** The covered objects in the shape a refresh plan needs, keyed for the projection step. */
+/**
+ * The covered objects in the shape a refresh plan needs, keyed for the
+ * projection step. A sanitized publication covers the notes alone
+ * (`publishedInMode`, open-items plan 3.128 no. 2): a text file that is no note
+ * it held before is withdrawn by the next refresh, like any object that left.
+ */
 function coveredSourceObjects(
   slice: WorkspacePolicySlice,
   objects: readonly WorkspaceObjectRecord[],
+  mode: PublishedSliceMode,
 ): { covered: PublicationSourceObject[]; byId: Map<string, WorkspaceObjectRecord> } {
   const covered: PublicationSourceObject[] = [];
   const byId = new Map<string, WorkspaceObjectRecord>();
   for (const object of publishableObjects(slice.materializedObjectIds, objects)) {
+    if (!publishedInMode(object.path, mode)) continue;
     covered.push({ sourceObjectId: object.objectId, path: object.path, sourceRevisionId: object.currentRevisionId! });
     byId.set(object.objectId, object);
   }
@@ -151,9 +158,11 @@ export function pendingPublicationChanges(input: {
   slice: WorkspacePolicySlice | undefined;
   objects: readonly WorkspaceObjectRecord[];
   manifest: PublicationManifest;
+  /** The publication's mode: a sanitized one covers notes alone. */
+  mode: PublishedSliceMode;
 }): number {
   if (!input.slice) return 0;
-  const { covered } = coveredSourceObjects(input.slice, input.objects);
+  const { covered } = coveredSourceObjects(input.slice, input.objects, input.mode);
   return planPublicationRefresh({ manifest: input.manifest, covered }).length;
 }
 
@@ -192,7 +201,7 @@ export async function refreshWorkspacePublications(
       continue;
     }
 
-    const { covered, byId } = coveredSourceObjects(slice, objects);
+    const { covered, byId } = coveredSourceObjects(slice, objects, record.config.mode);
     const plan = planPublicationRefresh({ manifest: record.manifest, covered });
     if (plan.length === 0) {
       // A stale reason would keep reporting a publication as broken long after
@@ -235,7 +244,7 @@ export async function refreshWorkspacePublications(
       const markdown = await input.vault.readTextFile(item.path);
       const source = byId.get(item.sourceObjectId);
       // By its path, so a note the sanitizer refuses is named in the reason the
-      // record keeps: the run stops there, and the person publishing has to
+      // record keeps: the run goes past it, and the person publishing has to
       // find that one note among everything the slice covers.
       const text =
         record.config.mode === "exact"

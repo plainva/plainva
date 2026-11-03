@@ -748,6 +748,7 @@ export async function mobilePublicationPendingCounts(input: {
       slice: slices.get(record.sliceId),
       objects,
       manifest: record.manifest,
+      mode: record.config.mode,
     });
   }
   return pending;

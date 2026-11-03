@@ -390,10 +390,13 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(dialog).toMatch(/publicationPreviewError \? <Banner kind="error" rounded>\{publicationPreviewError\}<\/Banner> : <SettingCardNote>\{t\("workspaceSecurity\.projectionLoading"/);
     const sheet = readFileSync(new URL("../../../../mobile/src/components/PublishSliceSheet.tsx", import.meta.url), "utf8");
     expect(sheet).not.toMatch(/setError\(e instanceof Error \? e\.message/);
-    // A failed creation and a failed preview, both through the shared text; a
-    // refused note's reason is kept with the mode it was asked in, any other
-    // failure of a preview stands for every mode.
+    // A failed creation and a failed preview, both through the shared text. A
+    // refused note is no failure of the preview since the publication goes
+    // past it (open-items plan 3.128 no. 1): it is named beside the numbers,
+    // by the shared notices.
     expect(sheet.match(/setError\(publicationErrorText\(e, t\)\)/g)).toHaveLength(1);
-    expect(sheet).toMatch(/setPreviewError\(\{ mode: refused \? mode : null, text: publicationErrorText\(e, t\) \}\)/);
+    expect(sheet).toMatch(/setPreviewError\(publicationErrorText\(e, t\)\)/);
+    expect(sheet).toContain("publicationPreviewNotices(shown, t)");
+    expect(dialog).toContain("publicationPreviewNotices(publicationPreview, t)");
   });
 });

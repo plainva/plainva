@@ -10,7 +10,7 @@
  * advice, and a second copy is how desktop and mobile come to tell a publisher
  * two different things about the same folder.
  */
-import { PUBLISHED_NOTE_REFUSED, type PublishedSliceInstruction, type PublishedSlicePermissionHint } from "@plainva/core";
+import { PUBLISHED_NOTE_REFUSED, refusedNotePaths, type PublishedSliceInstruction, type PublishedSlicePermissionHint } from "@plainva/core";
 
 /** Fallbacks, so a missing translation degrades to English instead of a blank line. */
 const DEFAULTS: Record<string, string> = {
@@ -100,27 +100,50 @@ export function isPublishedNoteRefusal(error: unknown): boolean {
 /**
  * Turn a thrown publication error into a sentence, or leave it alone.
  *
- * One of them carries a value: the note a sanitized publication will not
- * publish because the block at its top cannot be read as properties
- * (`projectPublishedNote` in core). The sentence names that note — a slice is
- * many notes, and the reason is of no use without the one it is about. It is
- * said the same way wherever it arrives: thrown out of the preview on either
- * shell, or read back from the publication's record on its row.
+ * One of them carries values: the notes a sanitized publication does not
+ * publish because the block at their top cannot be read as properties
+ * (`projectPublishedNote` in core). The sentence names those notes — a slice
+ * is many notes, and the reason is of no use without the ones it is about. A
+ * refresh goes past them and publishes the rest (open-items plan 3.128 no. 1),
+ * and the sentence says that too. It is said the same way wherever it
+ * arrives: in the preview on either shell, or read back from the
+ * publication's record on its row.
  */
 export function publicationErrorText(
   error: unknown,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
   const raw = error instanceof Error ? error.message : String(error);
-  if (isPublishedNoteRefusal(error)) {
-    return t("workspaceSecurity.publicationNoteRefused", {
+  const refused = refusedNotePaths(error);
+  if (refused) {
+    return t("workspaceSecurity.publicationNotesRefused", {
       defaultValue:
-        "“{{path}}” cannot be published: the block at the top of the note cannot be read as properties. Correct it in the note's text; until then the publication is not fully refreshed.",
-      path: raw.slice(PUBLISHED_NOTE_REFUSED.length),
+        "Not published, because the block at the top of the note cannot be read as properties: {{paths}}. Correct it in the note's text; the other notes are published.",
+      paths: refused.join(", "),
     });
   }
   const key = PUBLICATION_ERROR_KEYS[raw];
   return key ? t(`workspaceSecurity.${key}`, { defaultValue: raw }) : raw;
+}
+
+/**
+ * What a preview says beside its numbers, in the one wording of both shells:
+ * the notes a sanitized publication goes past because their block cannot be
+ * read as properties (the same sentence the row shows after a refresh), and
+ * the text files it leaves out because they are no notes (open-items plan
+ * 3.128 nos. 1 and 2). Null where there is nothing to say.
+ */
+export function publicationPreviewNotices(
+  preview: { refused: readonly string[]; leftOut: readonly string[] },
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): { refused: string | null; leftOut: string | null } {
+  return {
+    refused: preview.refused.length > 0 ? publicationErrorText(`${PUBLISHED_NOTE_REFUSED}${preview.refused.join("\n")}`, t) : null,
+    leftOut:
+      preview.leftOut.length > 0
+        ? t("workspaceSecurity.projectionLeftOut", { defaultValue: "Files that are not notes stay out of a sanitized copy: {{paths}}", paths: preview.leftOut.join(", ") })
+        : null,
+  };
 }
 
 /**
@@ -144,6 +167,9 @@ export function publicationStatusText(
   input: { lastError: string | null; pending: number },
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
+  // Notes a refresh went past are no failure of the refresh: it published the
+  // rest (open-items plan 3.128 no. 1). The row names them, not "Refresh failed".
+  if (input.lastError && isPublishedNoteRefusal(input.lastError)) return publicationErrorText(input.lastError, t);
   if (input.lastError) {
     return t("workspaceSecurity.publicationRefreshFailed", {
       defaultValue: "Refresh failed: {{reason}}",
