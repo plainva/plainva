@@ -6,10 +6,9 @@
   outputs =
     { self, nixpkgs }:
     let
-      # The desktop app is built and released for x86_64 Linux only (the deb,
-      # rpm and AppImage on a release page all come from the ubuntu-22.04
-      # runner). Add systems here once a release or a build exists for them —
-      # `plainva-bin` additionally needs a matching release artifact.
+      # The desktop app is released for x86_64 Linux only (the deb, rpm and
+      # AppImage on a release page all come from the ubuntu-22.04 runner). Add
+      # systems here once a release artifact exists for them.
       systems = [ "x86_64-linux" ];
 
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
@@ -18,16 +17,13 @@
       packages = forAllSystems (
         pkgs:
         let
-          plainva = pkgs.callPackage ./nix/plainva.nix { src = self; };
+          # The compiled binary from the GitHub release: nothing is built, and a
+          # release moves one version and one hash. See nix/plainva-bin.nix.
+          plainva-bin = pkgs.callPackage ./nix/plainva-bin.nix { };
         in
         {
-          inherit plainva;
-
-          # The compiled binary from the GitHub release, for a fast install
-          # without a Rust and frontend build. See nix/plainva-bin.nix.
-          plainva-bin = pkgs.callPackage ./nix/plainva-bin.nix { };
-
-          default = plainva;
+          inherit plainva-bin;
+          default = plainva-bin;
         }
       );
 
@@ -38,11 +34,5 @@
       });
 
       formatter = forAllSystems (pkgs: pkgs.nixfmt);
-
-      # `nix flake check` builds the source package; the binary package is left
-      # out on purpose, so a check does not download a release artifact.
-      checks = forAllSystems (pkgs: {
-        inherit (self.packages.${pkgs.stdenv.hostPlatform.system}) plainva;
-      });
     };
 }

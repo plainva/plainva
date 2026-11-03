@@ -28,11 +28,10 @@
   libsoup_3,
   webkitgtk_4_1,
   libayatana-appindicator,
-  # Bump both together when a new desktop release is published:
-  #   nix store prefetch-file --json --hash-type sha256 \
-  #     https://github.com/plainva/plainva/releases/download/vX.Y.Z/Plainva_X.Y.Z_amd64.deb
-  version ? "0.8.4",
-  hash ? "sha256-83EIWX8ptKeuKEu77yCvLY59p6r9HpPPvZb/73jIxDw=",
+  # Bump both together when a desktop release is published; nix/README.md shows
+  # how to compute the hash, with Nix or from the digest on the release page.
+  version ? "0.8.6",
+  hash ? "sha256-q8z4SoAvR21ftugzwwwIaslUQs6GFlcM3oDzXKUIm4c=",
 }:
 
 stdenvNoCC.mkDerivation (finalAttrs: {
@@ -66,6 +65,18 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   dontConfigure = true;
   dontBuild = true;
+
+  # The release binary updates itself from the release page, which cannot work
+  # here: it would try to install the next release over a read-only store path.
+  # This variable tells the app that Nix owns its updates — it then never asks
+  # the update feed, and Settings → About & diagnostics → Updates says
+  # "Updated through Nix" instead of offering a check
+  # (apps/desktop/src/services/appUpdate.ts). wrapGAppsHook3 writes it into the
+  # wrapper of bin/plainva-desktop, which the .desktop entry starts too.
+  # Releases up to 0.8.6 do not read it yet; the first release after 0.8.6 does.
+  preFixup = ''
+    gappsWrapperArgs+=(--set PLAINVA_UPDATES_MANAGED_BY Nix)
+  '';
 
   unpackPhase = ''
     runHook preUnpack

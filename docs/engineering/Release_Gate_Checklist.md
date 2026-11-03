@@ -82,6 +82,7 @@ is "update Android System WebView".
 - [ ] **After publishing the release**, the **Updater manifest** workflow ran green and the fixed endpoint serves the new version: `curl -fsSL https://github.com/plainva/plainva/releases/download/updater/latest.json | jq .version`. Nothing else moves the manifest — a release that is published but never copied there updates nobody on ≥ 0.8.1. (Repair: `gh workflow run updater-manifest.yml -f tag=vX.Y.Z`.)
 - [ ] Install version N, publish version N+1 as a release, wait/trigger it in the app: the update toast appears, Settings → Updates installs it, the app relaunches as N+1.
 - [ ] Signature counter-check: a tampered artifact (or wrong pubkey) is REJECTED.
+- [ ] **Nix package:** `nix/plainva-bin.nix` points at the new `.deb` — `version` and `hash` moved together in a commit on `main` (the hash comes from the release asset's digest without Nix; see `nix/README.md`, "Updating the release hash"). The app does not update itself there, so until this moves every Nix user stays on the previous release; a version without its matching hash fails the download for all of them.
 
 ## 3. Sync round trip
 
