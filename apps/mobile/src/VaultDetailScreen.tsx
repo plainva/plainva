@@ -8,15 +8,17 @@ import {
   resumeSyncHere,
   subscribeSyncStatus,
   syncNow,
+  nameCollisionResolver,
 } from "./services/syncService";
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, isExternalVault, type VaultEntry } from "./services/vaultRegistry";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, pickVaultFolder, type VaultFolderAccess } from "./platform/vaultFolder";
-import { deleteVault, reloadActiveMobileVault, switchVault, type MobileVault } from "./services/vaultService";
+import { deleteVault, reloadActiveMobileVault, switchVault, vaultOps, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { getMobileSettings } from "./services/mobileSettings";
-import { Banner, Button, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
+import { groupNameCollisions } from "@plainva/core";
+import { Banner, Button, NameCollisionsNotice, resolveNameCollisionCases, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 import { syncStateLabel } from "./components/syncSubtitle";
 
@@ -73,6 +75,8 @@ export function VaultSyncScreen({
 }) {
   const { t } = useTranslation();
   const status = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
+  // The cases the worker described; the bare pairs, grouped, until it has.
+  const collisionCases = status.collisionCases.length > 0 || status.collisions.length === 0 ? status.collisionCases : groupNameCollisions(status.collisions);
   const entry = useVaultEntry(vaultId);
   const [busy, setBusy] = useState(false);
   const isActive = activeVault.vaultId === vaultId;
@@ -231,23 +235,31 @@ export function VaultSyncScreen({
           <Banner kind="error" rounded>{t("sync.rootMissingBody")}</Banner>
         )}
         {isActive && status.message && !status.listingIncomplete && !status.rootMissing && <Banner kind={status.status === "retrying" ? "info" : "error"} rounded>{status.message}</Banner>}
-        {isActive && status.collisions.length > 0 && (
+        {isActive && collisionCases.length > 0 && (
           // A decision, not a failure: the sync keeps running for every other
-          // file (finding 2026-08-21).
-          <Banner kind="warning" rounded>
-            <strong>{t("sync.collisionTitle")}</strong>
-            <InfoTip label={t("sync.collisionTitle")} info={t("sync.collisionBody")} />
-            <p className="m-hint">{t("sync.collisionHint")}</p>
-            <ul className="m-collide">
-              {status.collisions.map((c) => (
-                <li key={`${c.path}|${c.twin}`}>
-                  {c.path}
-                  <span aria-hidden="true"> ↔ </span>
-                  {c.twin}
-                </li>
-              ))}
-            </ul>
-          </Banner>
+          // file (finding 2026-08-21). One case per name with what tells the
+          // copies apart, and the two actions - the desktop's card (finding
+          // 2026-11-03).
+          <NameCollisionsNotice
+            cases={collisionCases}
+            confirm={(o) => mConfirm(o)}
+            onResolve={(action) =>
+              resolveNameCollisionCases(action, collisionCases, {
+                ...(nameCollisionResolver() ? { resolveTwins: nameCollisionResolver()! } : {}),
+                listPaths: async (folder) => (await activeVault.files.listDir(folder, false)).map((e) => e.path),
+                rename: async (from, to) => {
+                  if (/\.md$/i.test(from)) {
+                    const name = to.slice(to.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+                    return (await vaultOps.renameReport(activeVault, from, name)).newPath === to;
+                  }
+                  // Not a note: the plain rename, as the desktop's for an attachment.
+                  await activeVault.files.renameItem(from, to);
+                  await vaultOps.followNoteMove(activeVault, from, to);
+                  return true;
+                },
+              })
+            }
+          />
         )}
         {/* Signed out on this phone: the status says "Sign-in needed" and leads
             to the account, where the sign-in is - as the desktop's sync dialog

@@ -4400,3 +4400,104 @@ test('the settings search stays on the rail of the second level of Security & Sh
   await expect(dialog.getByTestId('settings-nav')).toBeVisible();
   await expect(dialog.locator('.pv-setpage[data-active="true"] [data-setting-found]')).toContainText(/Wochenbeginn|Week starts on/);
 });
+
+// --- Same name, two files: the sync page's collision card (finding 2026-11-03) ---
+
+/**
+ * "Same name, two files" on the desktop's sync page (finding 2026-11-03). The
+ * card printed every pair as `Aufgaben/Notiz.md ↔ Aufgaben/Notiz.md` — the same
+ * name in its composed and its decomposed Unicode form looks the same — and
+ * offered nothing. It now lists each case once with what tells the copies
+ * apart, and acts: twin spellings through the sync worker (core tests run that
+ * against a byte-exact WebDAV server, the phone's end-to-end test through the
+ * built app), a letter-case pair through the app's own rename, shown here.
+ *
+ * The cases are the facts the worker hands the shell (`onNameCollisionCases`),
+ * set on the store the way the worker's callback sets them.
+ */
+
+const COLLISION_NAME = 'Brötchen holen.md'.normalize('NFC');
+const COLLISION_OTHER = 'Käse kaufen.md'.normalize('NFC');
+
+async function openSyncPageWithCollisions(page: Page) {
+  // A vault whose files go through a WebDAV account: the Sync area is there.
+  await page.addInitScript(() => {
+    const slot = 'webdav_credentials_' + btoa('/test-vault');
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'keychain_get' && args?.key === slot) {
+        return JSON.stringify({ url: 'https://dav.example.org/files/anna/', user: 'anna', pass: 'secret' });
+      }
+      return orig(cmd, args, options);
+    };
+    Object.assign((window as any).mockFs, { '/test-vault/Ideen/idee.md': '# Idee\n\nhier\n' });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.evaluate(async ({ name, other }) => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    const nfc = `Aufgaben/${name}`;
+    const otherNfc = `Aufgaben/${other}`;
+    syncStatusStore.set('/test-vault', {
+      collisionCases: [
+        { key: nfc.toLowerCase(), kind: 'spelling', path: nfc, others: [nfc.normalize('NFD')], described: true, synced: { size: 1562, modifiedMs: Date.UTC(2026, 8, 22, 13, 59) }, other: { size: 1562, modifiedMs: Date.UTC(2026, 8, 22, 13, 58) }, where: { here: false, remote: true }, identical: true, action: 'remove-duplicate' },
+        { key: otherNfc.toLowerCase(), kind: 'spelling', path: otherNfc, others: [otherNfc.normalize('NFD')], described: true, synced: { size: 349, modifiedMs: Date.UTC(2026, 8, 22, 13, 59) }, other: { size: 372, modifiedMs: Date.UTC(2026, 8, 23, 8, 15) }, where: { here: true, remote: true }, identical: false, action: 'keep-both' },
+        { key: 'ideen/idee.md', kind: 'case', path: 'Ideen/idee.md', others: ['Ideen/Idee.md'], described: true, synced: { size: 13, modifiedMs: null }, other: null, where: { here: false, remote: true }, identical: null, action: 'keep-both' },
+      ],
+    });
+  }, { name: COLLISION_NAME, other: COLLISION_OTHER });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Synchronisation|Sync)$/ }).click();
+  return dialog;
+}
+
+async function collisionEvidence(page: Page, info: TestInfo, name: string) {
+  if (!process.env.PLAINVA_EVIDENCE) return;
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.waitForTimeout(150);
+    await page.getByTestId('sync-collisions').screenshot({ path: info.outputPath(`${name}-${scheme}.png`) });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+}
+
+test('the collision card lists each case once with what tells the copies apart, never X ↔ X', async ({ page }, info) => {
+  const dialog = await openSyncPageWithCollisions(page);
+  const card = dialog.getByTestId('sync-collisions');
+  await expect(card).toBeVisible();
+  await expect(card).not.toContainText('↔');
+  const rows = card.getByTestId('sync-collision-case');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText(COLLISION_NAME);
+  await expect(rows.nth(0)).toContainText(/zweimal vorhanden · identisch|exists twice · identical/);
+  await expect(rows.nth(1)).toContainText(/unterschiedlich|different/);
+  await expect(rows.nth(1)).toContainText('349 B');
+  await expect(rows.nth(1)).toContainText('372 B');
+  await expect(rows.nth(2)).toContainText('idee.md / Idee.md');
+  await expect(card.getByTestId('sync-collisions-remove')).toHaveText(/\(1\)$/);
+  await expect(card.getByTestId('sync-collisions-keep')).toHaveText(/\(2\)$/);
+  await collisionEvidence(page, info, 'desktop-collision-card');
+});
+
+test('Keep both gives this device\'s file of a letter-case pair a free name through the app\'s rename', async ({ page }) => {
+  const dialog = await openSyncPageWithCollisions(page);
+  // Only the letter-case pair: twin spellings go to the sync worker, which
+  // this mock vault does not run against a server.
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    const cases = syncStatusStore.get('/test-vault').collisionCases.filter((c: { kind: string }) => c.kind === 'case');
+    syncStatusStore.set('/test-vault', { collisionCases: cases });
+  });
+  const card = dialog.getByTestId('sync-collisions');
+  await expect(card.getByTestId('sync-collision-case')).toHaveCount(1);
+  await card.getByTestId('sync-collisions-keep').click();
+  // Asked first, in the app's own dialog.
+  await expect(page.getByText(/Beide behalten\?|Keep both\?/)).toBeVisible();
+  await page.locator('.pv-modal-footer button.pv-btn--primary, .pv-modal-footer button.pv-btn--danger').last().click();
+  await expect
+    .poll(async () => page.evaluate(() => Object.keys((window as any).mockFs).filter((k) => k.startsWith('/test-vault/Ideen/')).sort()), { timeout: 8000 })
+    .toEqual(['/test-vault/Ideen/idee (2).md']);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Ideen/idee (2).md'])).toBe('# Idee\n\nhier\n');
+});

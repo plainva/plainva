@@ -26,10 +26,14 @@ import {
   travellingAreas,
   type CloudAccountRecord,
   type SyncDiagnostics,
+  NameCollisionsNotice,
+  resolveNameCollisionCases,
 } from "@plainva/ui";
+import { groupNameCollisions, type JournalCheckResult } from "@plainva/core";
+import { renameToName } from "../../services/fileActions";
 import { AreaHead } from "./AppPages";
 import { useVault } from "../../contexts/VaultContext";
-import { syncStatusStore } from "../../services/syncStatusStore";
+import { syncStatusStore, useSyncStatus } from "../../services/syncStatusStore";
 import { getSettingsStore } from "../../services/settingsStore";
 import {
   settingsSyncEnabledKey,
@@ -52,7 +56,6 @@ import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { getSyncRootFolder } from "../../services/cloudAccountsActions";
 import { AccountMark, familyLabel } from "./cloudAccountsShared";
-import type { JournalCheckResult } from "@plainva/core";
 
 /**
  * The Sync settings page after the cloud-accounts split (mockup screen 5):
@@ -85,7 +88,7 @@ export interface SyncPageProps {
 
 export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const { t, i18n } = useTranslation();
-  const { backupAdapter, syncWorker } = useVault();
+  const { backupAdapter, syncWorker, vaultAdapter, queryService } = useVault();
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
@@ -268,7 +271,15 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       ? familyLabel(familyOfSyncProvider(provider))
       : "";
 
-  const collisions = p.isActiveVault ? syncStatusStore.get(p.selectedVault).collisions : [];
+  // The cases the worker described; the bare pairs, grouped, until it has.
+  // Subscribed: the card follows the worker's report, and goes once a pair is resolved.
+  const liveSync = useSyncStatus(p.isActiveVault ? p.selectedVault : null);
+  const syncSnapshot = p.isActiveVault ? liveSync : null;
+  const collisionCases = !syncSnapshot
+    ? []
+    : syncSnapshot.collisionCases.length > 0 || syncSnapshot.collisions.length === 0
+      ? syncSnapshot.collisionCases
+      : groupNameCollisions(syncSnapshot.collisions);
   const errorHistory = p.isActiveVault ? syncStatusStore.getErrorHistory(p.selectedVault) : [];
   /** The chain in one word, for its row on the page (B2) — the same words as the phone's row. */
   const chainState = !settingsSyncOn
@@ -490,23 +501,24 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       <AreaHead areaId="sync" />
 
       {/* A decision, not a failure (finding 2026-08-21): every other file keeps
-          syncing. On top of the page, where a bar belongs (B1). */}
-      {collisions.length > 0 && (
-        <Banner kind="warning" rounded data-testid="sync-collisions">
-          <strong>{t("sync.collisionTitle")}</strong>
-          <InfoTip label={t("sync.collisionTitle")} info={t("sync.collisionBody")} />
-          <div style={{ marginTop: "0.3rem" }}>{t("sync.collisionHint")}</div>
-          <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.1rem", fontSize: "var(--text-sm)", overflowWrap: "anywhere" }}>
-            {collisions.map((c) => (
-              <li key={`${c.path}|${c.twin}`}>
-                {c.path}
-                <span aria-hidden="true"> ↔ </span>
-                {c.twin}
-              </li>
-            ))}
-          </ul>
-        </Banner>
-      )}
+          syncing. On top of the page, where a bar belongs (B1). One case per
+          name with what tells the copies apart, and the two actions (finding
+          2026-11-03) - the same card as the phone's. */}
+      <NameCollisionsNotice
+        cases={collisionCases}
+        confirm={appConfirm}
+        onResolve={(action) =>
+          resolveNameCollisionCases(action, collisionCases, {
+            ...(syncWorker?.resolveNameCollisions ? { resolveTwins: syncWorker.resolveNameCollisions.bind(syncWorker) } : {}),
+            listPaths: async (folder) => (vaultAdapter ? (await vaultAdapter.listDir(folder, false)).map((e) => e.path) : []),
+            rename: async (from, to) => {
+              if (!vaultAdapter) return false;
+              const result = await renameToName({ adapter: vaultAdapter, queryService, oldPath: from, newName: to.slice(to.lastIndexOf("/") + 1), isFolder: false });
+              return result.ok;
+            },
+          })
+        }
+      />
 
       {/* "Connection" and "Behaviour" are one group since the cloud folder and
           the interval moved to the account's files page (B1, move 18): the

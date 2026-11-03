@@ -74,6 +74,40 @@ held and reported, and so is a MKCOL of a folder the remote holds in other
 letter case. A DELETE of a path that exists here under the same identity is
 dropped as stale.
 
+### The card and its two actions
+
+The worker reports the pairs (`onNameCollisions`) and, right after, the same
+collisions as one case per name (`onNameCollisionCases`, `nameTwins.ts`):
+where the second copy lives (here, in the cloud), size and time of each copy,
+and whether its bytes are the same as the composed file's. A cloud copy is
+downloaded once per ETag. The worker keeps what the last full listing showed
+(`remoteView`, updated by change listings), so a cloud twin stays on the card
+between two full listings. Both shells render it with `NameCollisionsNotice`
+(`packages/ui`) and offer two actions, each behind a question:
+
+- **Remove duplicates** (`resolveNameCollisions("remove-duplicate")`): only a
+  twin whose every copy has the same bytes as the composed file at that
+  moment. Here, through the backup adapter (it snapshots the file first);
+  in the cloud, after a snapshot of the bytes in the composed file's version
+  history (`BackupVaultAdapter.keepSnapshot`), by the twin's own stored
+  spelling through the same target call every remote deletion takes.
+- **Keep both** (`"keep-both"`): a twin with other bytes becomes a file of its
+  own under a free composed name (`freeCopyPath`: `Name (2).md`, free in
+  letter case and Unicode form, here and in the cloud). The copy here is
+  renamed; the cloud's copy is written here first and checked; either is
+  queued as a new file, then the twin goes. A copy that equals the composed
+  file or an existing numbered copy is not written twice. A letter-case pair
+  is kept by renaming this device's file to a free name through the shell's
+  own rename, so links follow (`resolveNameCollisionCases`).
+
+Both run between cycles, never beside one, on a fresh full listing, and
+compare again before they act. A twin's removal never goes through the queue
+(the engine drops a queued twin DELETE) or the deletion journal (it names
+paths by identity, so an entry would make every other device delete the
+composed note). After a cloud removal the worker lists again; should the
+composed file be gone too, the copy here goes up again as a new file. The
+composed file is never touched.
+
 ## Migration
 
 `migratePathIdentity` runs in one transaction and skips rows that are
@@ -121,3 +155,5 @@ listing did not show, per pass.
 - `test/path-identity-migration.test.ts` — with and without twins,
   idempotent, interrupted.
 - `test/sync/push-twin-delete.test.ts` — the O2 locks as they stand now.
+- `test/sync/name-twins.test.ts` — the card's cases and both actions through
+  the whole chain against a byte-exact WebDAV server, here and in the cloud.

@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-10-30
+Stand: 2026-11-03
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -189,7 +189,12 @@ Der Sync-Fehlerdialog bewahrt den genauen fehlgeschlagenen Versuch, auch wenn ei
 
 Google Drive unterscheidet beim Suchen keine Groß- und Kleinschreibung, und Windows und macOS legen `Notiz.md` und `notiz.md` in derselben Datei ab. Dasselbe Zeichen kann außerdem auf zwei Arten gespeichert sein: `ü` als ein Zeichen oder als `u` mit angehängtem Trema. Bei dieser **Schreibweise** meint Plainva jetzt dieselbe Datei und synchronisiert normal weiter, solange es nur eine Entsprechung gibt.
 
-Unterscheiden sich zwei Namen dagegen in der **Groß- und Kleinschreibung**, sind es zwei Dateien. Plainva ändert und löscht dann nichts, sondern zeigt die Karte **Zwei Schreibweisen, eine Datei** mit beiden Namen — mobil auf der Seite **Synchronisation**, am Desktop in den Sync-Einstellungen. Alle übrigen Dateien werden weiter synchronisiert. Benenne eine der beiden Notizen um, dann verschwindet die Karte von selbst.
+Manchmal liegen trotzdem zwei Dateien nebeneinander, deren Namen genau gleich aussehen — eine in jeder Form, oft ein Überbleibsel einer älteren Version, die von einem iPhone oder Mac abgeglichen hat. Und zwei Namen können sich nur in der **Groß- und Kleinschreibung** unterscheiden. Dann gleicht Plainva eine der beiden ab, löscht nichts von selbst und zeigt die Karte **Gleicher Name, zwei Dateien** — mobil auf der Seite **Synchronisation**, am Desktop in den Sync-Einstellungen. Alle übrigen Dateien werden weiter synchronisiert. Die Karte nennt jeden Namen einmal mit seinem Ordner und sagt, was die beiden Dateien unterscheidet: **identisch** oder Größe und Änderungszeit jeder Datei.
+
+- **Doppelte entfernen** entfernt die zweite Datei überall dort, wo sie Byte für Byte der abgeglichenen gleicht — hier und in der Cloud. Plainva vergleicht unmittelbar vorher noch einmal, legt den Inhalt im Versionsverlauf der abgeglichenen Datei ab und fasst die abgeglichene Datei selbst nie an.
+- **Beide behalten** gibt jeder abweichenden zweiten Datei einen freien Namen wie `Notiz (2).md`; danach wird sie abgeglichen wie jede andere Datei. Ein Name, der sich nur in der Groß- und Kleinschreibung unterscheidet, wird genauso umbenannt, und Links darauf ziehen mit.
+
+Ist nichts mehr zu entscheiden, verschwindet die Karte von selbst.
 
 Die neue Anmeldung deckt nicht alle Dienste ab. Deine bisherigen Zugänge bleiben erhalten. Melde Dich erneut an und erlaube alle angezeigten Dienste. Die Kontozuordnung hat sich geändert. Öffne die aktuellen Kontoeinstellungen und melde Dich erneut an.
 

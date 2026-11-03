@@ -32,7 +32,7 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
 import { CommentStoreLockedError, SettingsOnlySync } from "@plainva/core";
-import type { JournalCheckResult } from "@plainva/core";
+import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
 import { installCommentFaultReporter } from "../services/commentFaults";
@@ -98,6 +98,11 @@ export interface VaultSyncWorker {
    * such a log.
    */
   verifyDeletionJournal?: (onProgress?: (done: number, total: number) => void) => Promise<JournalCheckResult>;
+  /**
+   * The collision card's two actions for twin spellings (finding 2026-11-03).
+   * Only the plain sync worker has them: the encrypted one stores no names.
+   */
+  resolveNameCollisions?: (action: NameCollisionAction) => Promise<NameTwinResolution>;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
   /** One settings push outside a cycle, the last act before files go off for the vault (review of plan "Verbinden", finding 4). */
   pushSettingsNow?: () => Promise<void>;
@@ -1636,6 +1641,10 @@ export const VaultProvider: React.FC<{
             // exist (finding 2026-08-21).
             syncWorker.onNameCollisions = (collisions) => {
               syncStatusStore.set(path, { collisions });
+            };
+            // The same, as cases the card can tell apart and act on (finding 2026-11-03).
+            syncWorker.onNameCollisionCases = (collisionCases) => {
+              syncStatusStore.set(path, { collisionCases });
             };
             syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires

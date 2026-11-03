@@ -433,6 +433,16 @@ export class SyncQueue {
   }
 
   /**
+   * Drops every queued operation of exactly `path` (byte for byte). For a twin
+   * spelling resolved from the collision card (nameTwins.ts): its held write
+   * would otherwise be rewritten to the composed identity once the twin is
+   * gone, and push the composed file for nothing.
+   */
+  async discardOperationsOf(path: string): Promise<void> {
+    await this.db.execute(`DELETE FROM offline_queue WHERE file_path = ? OR new_path = ?`, [path, path]);
+  }
+
+  /**
    * Enqueues write operations only for local files the remote has NOT confirmed yet
    * (no `remote_etag` in sync_state) and that aren't already queued. Run once after the
    * first successful pull so a fresh index (e.g. after the DB was rebuilt) does not

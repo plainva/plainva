@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-10-30
+Stan na: 2026-11-03
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -189,7 +189,12 @@ Okno błędu zachowuje dokładny nieudany przebieg, nawet gdy automatyczna prób
 
 Google Drive podczas wyszukiwania nie rozróżnia wielkości liter, a Windows i macOS przechowują `Notatka.md` i `notatka.md` w tym samym pliku. Ten sam znak może być poza tym zapisany na dwa sposoby: `ü` jako jeden znak albo jako `u` z dołączoną diarezą. Przy takim **zapisie** Plainva rozumie teraz, że chodzi o ten sam plik, i synchronizuje dalej normalnie, dopóki istnieje tylko jedno dopasowanie.
 
-Jeśli natomiast dwie nazwy różnią się **wielkością liter**, są to dwa pliki. Plainva niczego wtedy nie zmienia ani nie usuwa, lecz pokazuje kartę **Dwie pisownie, jeden plik** z obiema nazwami — na telefonie na stronie **Synchronizacja**, na komputerze w ustawieniach synchronizacji. Wszystkie pozostałe pliki są nadal synchronizowane. Zmień nazwę jednej z notatek, a karta zniknie sama.
+Czasem jednak obok siebie leżą dwa pliki, których nazwy wyglądają dokładnie tak samo — każdy w innej formie, często pozostałość po starszej wersji, która synchronizowała z iPhone’a lub Maca. Dwie nazwy mogą też różnić się tylko **wielkością liter**. Wtedy Plainva synchronizuje jeden z nich, niczego nie usuwa sama i pokazuje kartę **Ta sama nazwa, dwa pliki** — na telefonie na stronie **Synchronizacja**, na komputerze w ustawieniach synchronizacji. Wszystkie pozostałe pliki są nadal synchronizowane. Karta podaje każdą nazwę raz, razem z folderem, i mówi, co odróżnia oba pliki: **identyczne** albo rozmiar i czas zmiany każdego z nich.
+
+- **Usuń duplikaty** usuwa drugi plik wszędzie tam, gdzie jest bajt po bajcie taki sam jak synchronizowany — tutaj i w chmurze. Plainva porównuje jeszcze raz tuż przedtem, zachowuje treść w historii wersji synchronizowanego pliku i nigdy nie dotyka samego synchronizowanego pliku.
+- **Zachowaj oba** nadaje każdemu różniącemu się drugiemu plikowi wolną nazwę, np. `Notatka (2).md`; od tej chwili jest synchronizowany jak każdy inny plik. Nazwa różniąca się tylko wielkością liter zostaje zmieniona w ten sam sposób, a linki do niej podążają za nią.
+
+Gdy nie ma już nic do zdecydowania, karta znika sama.
 
 Nowe logowanie nie obejmuje wszystkich usług. Zachowano Twój dotychczasowy dostęp. Zaloguj się ponownie i zezwól na wszystkie wymienione usługi. Powiązanie konta uległo zmianie. Otwórz aktualne ustawienia konta i zaloguj się ponownie.
 

@@ -445,6 +445,7 @@ export * from "./lib/templateKeys";
 export * from "./pim/taskNameCleanup";
 export * from "./pim/taskSyncPause";
 export * from "./components/TaskNameCleanupNotice";
+export * from "./components/NameCollisionsNotice";
 export * from "./components/TemplateKeysNotice";
 export * from "./components/TaskPlannerList";
 export * from "./components/TasksQueryBlock";

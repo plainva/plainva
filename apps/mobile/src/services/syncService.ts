@@ -18,6 +18,9 @@ import {
   type ISyncTarget,
   type WorkspaceObjectStore,
   type NameCollision,
+  type NameCollisionAction,
+  type NameCollisionCase,
+  type NameTwinResolution,
   type ListingIncompleteInfo,
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
@@ -130,6 +133,11 @@ interface SyncState {
    */
   collisions: readonly NameCollision[];
   /**
+   * The same collisions as cases the card shows and acts on (finding
+   * 2026-11-03): one per name, with what tells the copies apart.
+   */
+  collisionCases: readonly NameCollisionCase[];
+  /**
    * The remote listing contradicts itself (finding 2026-09-20): files it does
    * not carry were asked for one by one and exist. Facts for the sync screen —
    * nothing was deleted, and the way on is "check again". Null otherwise.
@@ -139,7 +147,7 @@ interface SyncState {
   rootMissing: boolean;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], listingIncomplete: null, rootMissing: false };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], listingIncomplete: null, rootMissing: false };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -203,6 +211,7 @@ function setState(next: {
     // Survives a status change: the pair is still there whether the cycle
     // succeeded or failed, and only the worker's next report clears it.
     collisions: state.collisions,
+    collisionCases: state.collisionCases,
     // Same rule: raised and lowered by the worker's own report, not by a status.
     listingIncomplete: next.status === "off" ? null : state.listingIncomplete,
     rootMissing: next.rootMissing ?? false,
@@ -224,6 +233,25 @@ function setProgress(progress: { current: number; total: number } | null): void 
 export function subscribeSyncStatus(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/** The cases the worker described (finding 2026-11-03); an empty list stays the same array. */
+function setCollisionCases(collisionCases: readonly NameCollisionCase[]): void {
+  if (collisionCases.length === 0 && state.collisionCases.length === 0) return;
+  state = { ...state, collisionCases };
+  for (const fn of listeners) fn();
+}
+
+type NameTwinResolver = (action: NameCollisionAction) => Promise<NameTwinResolution>;
+let nameTwinResolver: NameTwinResolver | null = null;
+
+/**
+ * The collision card's two actions for twin spellings (finding 2026-11-03):
+ * null while no plain file sync runs - the encrypted workspace worker stores
+ * no names, so it has no twins.
+ */
+export function nameCollisionResolver(): NameTwinResolver | null {
+  return nameTwinResolver;
 }
 
 function setCollisions(collisions: readonly NameCollision[]): void {
@@ -761,6 +789,7 @@ export function stopSync(): void {
   settingsOnlySync = null;
   deletionJournal = null;
   journalChecker = null;
+  nameTwinResolver = null;
 }
 
 /**
@@ -783,6 +812,7 @@ async function stopAndDrainNow(): Promise<void> {
   await settingsOnly?.stopAndDrain();
   deletionJournal = null;
   journalChecker = null;
+  nameTwinResolver = null;
   if (w) await w.stopAndDrain();
 }
 
@@ -1237,7 +1267,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       .catch((e) => console.error("[syncService] could not store the Drive folder id", e));
   };
   journalChecker = (onProgress) => w.verifyDeletionJournal(onProgress);
+  nameTwinResolver = (action) => w.resolveNameCollisions(action);
   w.onNameCollisions = setCollisions;
+  w.onNameCollisionCases = setCollisionCases;
   w.onProgress = (p) => {
     setProgress(p ? { current: p.current, total: p.total } : null);
   };

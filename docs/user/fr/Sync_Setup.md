@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-03
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -189,7 +189,12 @@ La boîte de dialogue conserve l’erreur exacte même si une nouvelle tentative
 
 Google Drive ne distingue pas les majuscules des minuscules lors de ses recherches, et Windows et macOS enregistrent `Note.md` et `note.md` dans le même fichier. Un même caractère peut en outre être enregistré de deux façons : `ü` comme un seul caractère, ou comme `u` suivi d'un tréma. Pour cette **écriture**, Plainva considère désormais qu'il s'agit du même fichier et poursuit la synchronisation normalement, tant qu'il n'y a qu'une seule correspondance.
 
-En revanche, si deux noms diffèrent par la **casse**, ce sont deux fichiers. Plainva ne modifie ni ne supprime alors rien et affiche la carte **Deux écritures, un seul fichier** avec les deux noms — sur mobile sur la page **Synchronisation**, sur l'ordinateur dans les paramètres de synchronisation. Tous les autres fichiers continuent d'être synchronisés. Renommez l'une des deux notes et la carte disparaît d'elle-même.
+Il arrive pourtant que deux fichiers se trouvent côte à côte avec des noms exactement identiques en apparence — un dans chaque forme, souvent un reste d’une ancienne version qui synchronisait depuis un iPhone ou un Mac. Et deux noms peuvent ne différer que par la **casse**. Plainva synchronise alors l’un des deux, ne supprime rien de lui-même et affiche la carte **Même nom, deux fichiers** — sur mobile sur la page **Synchronisation**, sur l'ordinateur dans les paramètres de synchronisation. Tous les autres fichiers continuent d'être synchronisés. La carte cite chaque nom une seule fois avec son dossier et indique ce qui distingue les deux fichiers : **identiques**, ou la taille et l’heure de modification de chacun.
+
+- **Supprimer les doublons** supprime le second fichier partout où il est identique octet pour octet au fichier synchronisé — ici et dans le cloud. Plainva compare une dernière fois juste avant, conserve le contenu dans l’historique des versions du fichier synchronisé et ne touche jamais au fichier synchronisé lui-même.
+- **Conserver les deux** donne à chaque second fichier différent un nom libre comme `Note (2).md` ; il se synchronise ensuite comme n’importe quel autre fichier. Un nom qui ne diffère que par la casse est renommé de la même façon, et les liens qui y mènent suivent.
+
+Quand il ne reste plus rien à décider, la carte disparaît d'elle-même.
 
 La nouvelle connexion ne couvre pas tous les services. Tes accès précédents sont conservés. Reconnecte-toi et autorise tous les services indiqués. Le rattachement du compte a changé. Ouvre les réglages actuels du compte et reconnecte-toi.
 

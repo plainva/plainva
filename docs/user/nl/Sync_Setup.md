@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-10-30
+Laatst bijgewerkt: 2026-11-03
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -189,7 +189,12 @@ Het foutvenster bewaart de exacte mislukte poging, ook als een automatische nieu
 
 Google Drive maakt bij het zoeken geen onderscheid tussen hoofd- en kleine letters, en Windows en macOS bewaren `Notitie.md` en `notitie.md` in hetzelfde bestand. Hetzelfde teken kan bovendien op twee manieren zijn opgeslagen: `ü` als één teken, of als `u` met een los trema. Bij die **schrijfwijze** bedoelt Plainva nu hetzelfde bestand en synchroniseert gewoon door, zolang er maar één overeenkomst is.
 
-Verschillen twee namen daarentegen in **hoofdlettergebruik**, dan zijn het twee bestanden. Plainva wijzigt en verwijdert dan niets en toont de kaart **Twee schrijfwijzen, één bestand** met beide namen — mobiel op de pagina **Synchronisatie**, op de desktop in de synchronisatie-instellingen. Alle andere bestanden worden gewoon verder gesynchroniseerd. Hernoem een van beide notities en de kaart verdwijnt vanzelf.
+Soms staan er toch twee bestanden naast elkaar waarvan de namen er precies hetzelfde uitzien — elk in een andere vorm, vaak een overblijfsel van een oudere versie die vanaf een iPhone of Mac synchroniseerde. En twee namen kunnen alleen in **hoofdlettergebruik** verschillen. Plainva synchroniseert dan een van beide, verwijdert niets uit zichzelf en toont de kaart **Zelfde naam, twee bestanden** — mobiel op de pagina **Synchronisatie**, op de desktop in de synchronisatie-instellingen. Alle andere bestanden worden gewoon verder gesynchroniseerd. De kaart noemt elke naam één keer met zijn map en zegt wat de twee bestanden onderscheidt: **identiek**, of de grootte en wijzigingstijd van elk bestand.
+
+- **Dubbele verwijderen** verwijdert het tweede bestand overal waar het byte voor byte gelijk is aan het gesynchroniseerde — hier en in de cloud. Plainva vergelijkt vlak daarvoor nog een keer, bewaart de inhoud in de versiegeschiedenis van het gesynchroniseerde bestand en raakt het gesynchroniseerde bestand zelf nooit aan.
+- **Beide behouden** geeft elk afwijkend tweede bestand een vrije naam zoals `Notitie (2).md`; daarna wordt het gesynchroniseerd zoals elk ander bestand. Een naam die alleen in hoofdlettergebruik verschilt, wordt op dezelfde manier hernoemd, en links ernaartoe gaan mee.
+
+Is er niets meer te beslissen, dan verdwijnt de kaart vanzelf.
 
 De nieuwe aanmelding dekt niet alle diensten. Je bestaande aanmeldingen zijn behouden. Meld je opnieuw aan en geef alle vermelde diensten toestemming. De accountkoppeling is gewijzigd. Open de huidige accountinstellingen en meld je opnieuw aan.
 

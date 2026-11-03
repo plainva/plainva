@@ -1,6 +1,6 @@
 # Compatibilité de synchronisation de Plainva
 
-Dernière mise à jour : 2026-10-21
+Dernière mise à jour : 2026-11-03
 
 Si un service WebDAV, CalDAV ou S3 renvoie une page de connexion ou un inventaire incomplet, Plainva signale une erreur de synchronisation. Cette réponse n’est pas interprétée comme un dossier ou une liste de calendriers vide et n’entraîne aucune suppression déduite de son contenu. Cela s’applique sur ordinateur comme sur mobile.
 
@@ -14,7 +14,7 @@ Les entrées de journal que deux appareils ajoutent à la même note quotidienne
 
 Un dossier que vous créez dans Plainva est créé dans le cloud à l'intérieur du dossier du vault. Jusqu'à la version 0.8.3, Plainva créait en plus un dossier vide du même nom au premier niveau de Google Drive, OneDrive ou Dropbox, ou du bucket S3 lorsque le vault utilise un préfixe. Plainva ne supprime pas ces copies lui-même ; après avoir vérifié qu'un tel dossier de premier niveau est vide et ne fait pas partie du dossier de votre vault, vous pouvez le supprimer.
 
-Les lettres accentuées peuvent être enregistrées de deux façons : `ü` comme un seul caractère, ou comme `u` suivi d'un tréma combinant. macOS et iOS conservent le plus souvent la seconde forme (par exemple pour un dossier créé dans le Finder), beaucoup de serveurs et d'autres systèmes la première. Plainva traite les deux comme le même nom : il lit et écrit le fichier ou le dossier qui existe déjà, sous la forme dans laquelle cet appareil ou le cloud l'enregistre, et ne renomme rien. Les noms que vous créez dans Plainva sont enregistrés sous la première forme. Ce n'est que lorsqu'un dossier contient réellement les deux formes côte à côte, ou lorsque deux noms ne diffèrent que par la casse, que Plainva affiche la paire sous **Deux écritures, un seul fichier** : il laisse la seconde écriture en dehors de la synchronisation et ne supprime rien, ni ici ni dans le cloud. Renommez l'un des deux et la synchronisation reprend normalement.
+Les lettres accentuées peuvent être enregistrées de deux façons : `ü` comme un seul caractère, ou comme `u` suivi d'un tréma combinant. macOS et iOS conservent le plus souvent la seconde forme (par exemple pour un dossier créé dans le Finder), beaucoup de serveurs et d'autres systèmes la première. Plainva traite les deux comme le même nom : il lit et écrit le fichier ou le dossier qui existe déjà, sous la forme dans laquelle cet appareil ou le cloud l'enregistre, et ne renomme rien. Les noms que vous créez dans Plainva sont enregistrés sous la première forme. Ce n’est que lorsqu’un dossier contient réellement les deux formes côte à côte, ou lorsque deux noms ne diffèrent que par la casse, que Plainva affiche le nom sous **Même nom, deux fichiers** : il laisse le second fichier hors de la synchronisation et ne supprime rien de lui-même, ni ici ni dans le cloud. Sur la carte, **Supprimer les doublons** supprime un second fichier identique au fichier synchronisé, et **Conserver les deux** donne à un fichier différent un nom propre.
 
 Plainva synchronise les vaults via des adaptateurs de synchronisation interchangeables. Cette page montre quels services vous pouvez utiliser aujourd'hui — directement intégrés, via le protocole WebDAV, ou via le propre client de synchronisation de bureau du fournisseur.
 

@@ -139,6 +139,21 @@ export class BackupVaultAdapter implements IVaultAdapter {
     await this.performBackup(path, true, true);
   }
 
+  /**
+   * Keeps `bytes` as a snapshot in the version history of `path`, whatever
+   * lies on disk there. For content that is about to go and has no file of
+   * its own here: the cloud's copy of a twin spelling, removed as a duplicate
+   * of `path` (nameTwins.ts). Taken in full, like a deletion's snapshot.
+   */
+  async keepSnapshot(path: string, bytes: Uint8Array): Promise<void> {
+    if (isPlainvaInternalPath(path)) return;
+    const existing = await this.listFileBackups(path);
+    const ts = this.now();
+    await this.inner.writeBinaryFile(makeBackupPath(path, ts), bytes);
+    this.lastSnapshotAt.set(path, ts);
+    await this.rotate(existing);
+  }
+
   /** Lists existing snapshots of exactly this file, sorted oldest first. */
   private async listFileBackups(path: string): Promise<FileBackupEntry[]> {
     let files: VaultFileInfo[];

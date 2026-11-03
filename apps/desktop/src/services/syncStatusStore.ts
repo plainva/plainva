@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, WorkspaceSyncFailureKind, ListingIncompleteInfo } from "@plainva/core";
+import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, NameCollisionCase, WorkspaceSyncFailureKind, ListingIncompleteInfo } from "@plainva/core";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { connectionErrorText, logDiagnostic } from "@plainva/ui";
 
@@ -55,6 +55,11 @@ export interface SyncStatusSnapshot {
    */
   collisions: readonly NameCollision[];
   /**
+   * The same collisions as cases the card shows and acts on (finding
+   * 2026-11-03): one per name, with what tells the copies apart.
+   */
+  collisionCases: readonly NameCollisionCase[];
+  /**
    * The remote listing contradicts itself (finding 2026-09-20): files it does
    * not carry were asked for one by one and exist. Facts, not a sentence — the
    * dialog says it in the user's language and offers "check again" instead of
@@ -63,7 +68,7 @@ export interface SyncStatusSnapshot {
   listingIncomplete?: ListingIncompleteInfo | null;
 }
 
-const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [], listingIncomplete: null };
+const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [], collisionCases: [], listingIncomplete: null };
 
 const listeners = new Set<() => void>();
 

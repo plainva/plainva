@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-10-30
+Last updated: 2026-11-03
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -189,7 +189,12 @@ The sync error dialog preserves the exact failed attempt even when an automatic 
 
 Google Drive matches names case-insensitively when it searches, and Windows and macOS store `Note.md` and `note.md` in the same file. The same character can also be stored two ways: `ü` as one character, or as `u` with a trailing diaeresis. For that **spelling** Plainva now means the same file and keeps syncing normally, as long as there is only one match.
 
-When two names differ in **capitalization**, however, they are two files. Plainva then changes and deletes nothing and shows the card **Two spellings, one file** with both names — on mobile on the **Sync** page, on the desktop in the sync settings. Every other file keeps syncing. Rename one of the two notes and the card disappears by itself.
+Sometimes two files still lie side by side whose names look exactly the same — one in each form, often a leftover from an older version that synced from an iPhone or a Mac. And two names can differ only in **capitalization**. Plainva then syncs one of them, deletes nothing on its own and shows the card **Same name, two files** — on mobile on the **Sync** page, on the desktop in the sync settings. Every other file keeps syncing. The card names each name once with its folder and says what tells the two files apart: **identical**, or the size and modification time of each.
+
+- **Remove duplicates** removes the second file wherever it is the same byte for byte as the synced one — here and in the cloud. Plainva compares once more right before, keeps the content in the synced file's version history and never touches the synced file itself.
+- **Keep both** gives each differing second file a free name such as `Note (2).md`; from then on it syncs like any other file. A name that differs only in capitalization is renamed the same way, and links to it follow.
+
+Once nothing is left to decide, the card disappears by itself.
 
 The new sign-in does not cover every service. Your existing sign-ins were kept. Sign in again and allow every listed service. The account binding changed. Open the current account settings and sign in again.
 

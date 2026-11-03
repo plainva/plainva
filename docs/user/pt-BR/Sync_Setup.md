@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-10-30
+Última revisão: 2026-11-03
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -189,7 +189,12 @@ A janela mantém a tentativa exata que falhou, mesmo quando uma nova tentativa a
 
 O Google Drive não diferencia maiúsculas de minúsculas ao pesquisar, e Windows e macOS guardam `Nota.md` e `nota.md` no mesmo arquivo. Além disso, um mesmo caractere pode ser armazenado de duas formas: `ü` como um único caractere, ou como `u` seguido de trema. Para essa **grafia**, o Plainva agora entende que é o mesmo arquivo e continua sincronizando normalmente, desde que haja apenas uma correspondência.
 
-Já se dois nomes diferem em **maiúsculas e minúsculas**, são dois arquivos. O Plainva não altera nem apaga nada e mostra o cartão **Duas grafias, um arquivo** com os dois nomes: no celular na página **Sincronização**, no computador nas configurações de sincronização. Todos os outros arquivos continuam sincronizando. Renomeie uma das duas notas e o cartão desaparece sozinho.
+Às vezes, mesmo assim, há dois arquivos lado a lado cujos nomes parecem exatamente iguais — um em cada forma, muitas vezes uma sobra de uma versão anterior que sincronizava a partir de um iPhone ou Mac. E dois nomes podem diferir apenas em **maiúsculas e minúsculas**. Então o Plainva sincroniza um deles, não apaga nada por conta própria e mostra o cartão **Mesmo nome, dois arquivos**: no celular na página **Sincronização**, no computador nas configurações de sincronização. Todos os outros arquivos continuam sincronizando. O cartão cita cada nome uma vez com sua pasta e diz o que distingue os dois arquivos: **idênticos**, ou o tamanho e a hora de modificação de cada um.
+
+- **Remover duplicados** remove o segundo arquivo onde ele for igual byte a byte ao sincronizado — aqui e na nuvem. O Plainva compara mais uma vez logo antes, guarda o conteúdo no histórico de versões do arquivo sincronizado e nunca mexe no arquivo sincronizado em si.
+- **Manter os dois** dá a cada segundo arquivo diferente um nome livre como `Nota (2).md`; a partir daí ele sincroniza como qualquer outro arquivo. Um nome que difere apenas em maiúsculas e minúsculas é renomeado da mesma forma, e os links para ele acompanham.
+
+Quando não resta nada a decidir, o cartão desaparece sozinho.
 
 O novo login não abrange todos os serviços. Seus acessos anteriores foram mantidos. Entre novamente e permita todos os serviços listados. O vínculo da conta mudou. Abra as configurações atuais da conta e entre novamente.
 

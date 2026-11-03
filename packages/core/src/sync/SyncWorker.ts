@@ -1,5 +1,5 @@
 import { SyncEngine } from "./SyncEngine.js";
-import { ISyncTarget, type ListingMetrics, type RemotePresence } from "./ISyncTarget.js";
+import { ISyncTarget, type ListingMetrics, type PullResult, type RemotePresence } from "./ISyncTarget.js";
 import type { OwnDeletionRegister } from "./ownDeletions.js";
 import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
@@ -10,6 +10,16 @@ import { isTextFile, mergeableText } from "./fileType.js";
 import { editorTextOf } from "../textFileShape.js";
 import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
+import {
+  describeNameCollisions,
+  groupNameCollisions,
+  resolveTwinSpellings,
+  type NameCollisionAction,
+  type NameCollisionCase,
+  type NameTwinContext,
+  type NameTwinResolution,
+  type RemoteFacts,
+} from "./nameTwins.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, UnsyncableFileError, type SyncErrorKind } from "./errorKind.js";
@@ -490,6 +500,28 @@ export class SyncWorker {
    * down again; emitting the current truth means a renamed pair clears itself.
    */
   public onNameCollisions?: (collisions: readonly NameCollision[]) => void;
+  /**
+   * The same collisions as cases the card can show and act on, one per name
+   * (nameTwins.ts): the facts that tell the copies apart and what can be done.
+   * Emitted right after `onNameCollisions`, every cycle, empty included.
+   */
+  public onNameCollisionCases?: (cases: readonly NameCollisionCase[]) => void;
+  /**
+   * The cloud as the listings showed it: a full listing replaces it, a change
+   * listing updates it. A change listing names only what changed, so a twin
+   * the cloud holds is known between two full listings from here - the card
+   * stays up instead of vanishing every cycle in between.
+   */
+  private readonly remoteView = new Map<string, RemoteFacts>();
+  /** The cloud copies of twins, per ETag, so the card downloads each once. */
+  private readonly twinDownloads = new Map<string, { etag: string; bytes: Uint8Array | null }>();
+  /** A resolution of the card runs (one at a time). */
+  private resolvingNames = false;
+  /**
+   * What the last cycle reported, push side included: a twin on this disk that
+   * no sync row knows is reported only by the engine holding its upload.
+   */
+  private lastNameCollisions: readonly NameCollision[] = [];
   /**
    * Fired for local files changed by the running cycle (pulled writes, conflict
    * files or mirrored deletions). The desktop wires this to a re-index + file-tree
@@ -1530,6 +1562,81 @@ export class SyncWorker {
     }
   }
 
+  /** Keeps `remoteView` in step with a listing (see there). */
+  private updateRemoteView(result: PullResult, full: boolean): void {
+    if (full) this.remoteView.clear();
+    for (const [path, etag] of result.etagMap) {
+      const modifiedMs = result.mtimeMap?.get(path);
+      this.remoteView.set(path, modifiedMs === undefined ? { etag } : { etag, modifiedMs });
+    }
+    for (const path of result.deleted ?? []) this.remoteView.delete(path);
+  }
+
+  /** What the card's facts and actions need of this worker (nameTwins.ts). */
+  private nameTwinContext(): NameTwinContext {
+    const vault = this.vault as IVaultAdapter & { keepSnapshot?: (path: string, bytes: Uint8Array) => Promise<void> };
+    return {
+      vault: this.vault,
+      target: this.target,
+      queue: this.queue,
+      stateRepo: this.stateRepo,
+      remote: (path) => this.remoteView.get(path),
+      remotePaths: () => this.remoteView.keys(),
+      ...(typeof vault.keepSnapshot === "function" ? { keepSnapshot: (path: string, bytes: Uint8Array) => vault.keepSnapshot!(path, bytes) } : {}),
+      touch: () => this.noteCycleActivity(),
+      relist: async () => {
+        const listing = await this.target.pull();
+        this.updateRemoteView(listing, true);
+        return new Set(listing.etagMap.keys());
+      },
+    };
+  }
+
+  /**
+   * The card's two actions (finding 2026-11-03): removes the twin spellings
+   * whose bytes are the same as their composed file, or keeps the differing
+   * ones as files of their own (`resolveTwinSpellings`). Runs between cycles,
+   * never beside one, on a fresh full listing; the next cycle follows at once
+   * and takes the card down for what was resolved. Letter-case cases are the
+   * shell's: it renames them through its own rename path.
+   */
+  public async resolveNameCollisions(action: NameCollisionAction): Promise<NameTwinResolution> {
+    if (!this.isRunning) throw new Error("the sync is not running");
+    if (this.resolvingNames) throw new Error("a resolution is already running");
+    this.resolvingNames = true;
+    try {
+      while (this.isSyncing) {
+        const cycle = this.currentCycle;
+        await (cycle ? cycle.catch(() => undefined) : new Promise((r) => setTimeout(r, 50)));
+      }
+      if (!this.isRunning) throw new Error("the sync is not running");
+      // Holds the next cycle back: executeCycle returns while this is set.
+      this.isSyncing = true;
+      try {
+        const ctx = this.nameTwinContext();
+        const listing = await this.target.pull();
+        this.updateRemoteView(listing, true);
+        const collisions: NameCollision[] = [...this.lastNameCollisions];
+        await this.reportTwinSpellings(new Set(listing.etagMap.keys()), await this.stateRepo.getAllStates(), false, collisions);
+        const changed: string[] = [];
+        const result = await resolveTwinSpellings(ctx, groupNameCollisions(collisions), action, changed);
+        if (changed.length > 0) {
+          try {
+            this.onFilesChanged?.([...new Set(changed)]);
+          } catch (e) {
+            console.error("[SyncWorker] onFilesChanged failed:", e);
+          }
+        }
+        return result;
+      } finally {
+        this.isSyncing = false;
+      }
+    } finally {
+      this.resolvingNames = false;
+      if (this.isRunning) this.triggerFullListing();
+    }
+  }
+
   /**
    * Twin spellings (ADR 0016): a name the remote lists, or this device's sync
    * state still carries, that is not NFC is a second spelling standing next
@@ -1550,11 +1657,14 @@ export class SyncWorker {
       const pair = { path, twin: toPathIdentity(path) };
       if (!collisions.some((c) => c.path === pair.path && c.twin === pair.twin)) collisions.push(pair);
     };
-    for (const path of remotePaths) {
+    // What the cloud holds is known from the last full listing on (a change
+    // listing carries only what changed).
+    const inCloud = (path: string) => remotePaths.has(path) || this.remoteView.has(path);
+    for (const path of new Set([...remotePaths, ...this.remoteView.keys()])) {
       if (isTwinSpelling(path) && !isLocalOnlyPath(path)) report(path);
     }
     for (const path of [...stateMap.keys()]) {
-      if (!isTwinSpelling(path) || remotePaths.has(path) || isLocalOnlyPath(path)) continue;
+      if (!isTwinSpelling(path) || inCloud(path) || isLocalOnlyPath(path)) continue;
       let here: boolean;
       try {
         here = await this.holdsLocalIdentity(path);
@@ -2107,6 +2217,7 @@ export class SyncWorker {
       const now = Date.now();
       const pullMs = now - pullStartedAt;
       const remotePaths = new Set(pullResult.etagMap.keys());
+      this.updateRemoteView(pullResult, doFullListing);
       // The first whole listing this worker sees, before anything of this
       // device goes up in the cycle: what a binding decides from the folder it
       // found (third review 2026-10-27, starter content held back).
@@ -2765,10 +2876,27 @@ export class SyncWorker {
       // shell is the only side that can ask for one in the user's language
       // (finding 2026-08-21). An empty list is what takes the notice down again
       // once the pair has been renamed.
+      this.lastNameCollisions = [...nameCollisions];
       try {
         this.onNameCollisions?.(nameCollisions);
       } catch (e) {
         console.error("[SyncWorker] onNameCollisions failed:", e);
+      }
+      if (this.onNameCollisionCases && alive()) {
+        let cases: NameCollisionCase[];
+        try {
+          cases = await describeNameCollisions(this.nameTwinContext(), nameCollisions, this.twinDownloads);
+        } catch (e) {
+          console.warn("[SyncWorker] could not describe the name collisions", e);
+          cases = groupNameCollisions(nameCollisions);
+        }
+        const reported = new Set(nameCollisions.flatMap((c) => [c.path, c.twin]));
+        for (const path of [...this.twinDownloads.keys()]) if (!reported.has(path)) this.twinDownloads.delete(path);
+        try {
+          this.onNameCollisionCases(cases);
+        } catch (e) {
+          console.error("[SyncWorker] onNameCollisionCases failed:", e);
+        }
       }
 
       const incompleteNow = incompleteListing();
