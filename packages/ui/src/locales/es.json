@@ -2113,6 +2113,7 @@
     "prepareOption": "Preparar los archivos adoptados para OKF (quitar el frontmatter, convertir los wikilinks de este archivo en enlaces Markdown)",
     "pinOption": "Escribir los enlaces a otros resúmenes con su carpeta, para que sigan llevando allí ({{links}})",
     "pinHint": "Un enlace que nombra un resumen solo como “index” llevaría al nuevo.",
+    "pinHintMany": "Un enlace que nombra un resumen solo como “index” llevaría a uno de los nuevos.",
     "renameHint": "Un index.md usado como nota normal puede renombrarse en el árbol de archivos; los enlaces se actualizan automáticamente.",
     "running": "Ejecutando…",
     "runButton": "Ejecutar {{count}} acción(es)",

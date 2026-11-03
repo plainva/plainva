@@ -18,11 +18,12 @@ import {
   pinOverviewLinks,
   planOverviewLinkPins,
   toast,
+  withPinnedLinks,
   type FolderIndexInfo,
   type FolderIndexState,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
-import { writeOverview } from "../services/indexOverviews";
+import { pinLinksBeforeNewOverviews, writeOverview } from "../services/indexOverviews";
 import { mConfirmOption } from "../services/mobileDialogs";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 
@@ -81,12 +82,15 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
    * Runs one piece of work on the vault; what it answers is the notice shown
    * when it is done, and a failure is said with its reason (Sammelplan § 3.135
    * no. 3) — every refused adoption, an open conflict included, read "The
-   * overview could not be written."
+   * overview could not be written." A work that was called off answers null:
+   * nothing is said.
    */
-  const run = async (work: () => Promise<string>, failed: (reason: string) => string = (reason) => t("writeFailed.overview", { reason })) => {
+  const run = async (work: () => Promise<string | null>, failed: (reason: string) => string = (reason) => t("writeFailed.overview", { reason })) => {
     setBusy(true);
     try {
-      toast.success(await work());
+      const said = await work();
+      if (said === null) return;
+      toast.success(said);
       await load();
     } catch (e) {
       console.error("[mobile] overview run failed", e);
@@ -97,15 +101,22 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
   };
   const written = (count: number) => t("indexMd.bulkDone", { count });
 
+  // A new overview takes over a link that names another folder's overview
+  // only as `index` (P21): asked first where that would happen — for the whole
+  // run at once, in one count —, written before any overview exists.
   const generateOne = (folder: string) =>
     void run(async () => {
+      const pins = await pinLinksBeforeNewOverviews(vault, [folder], { title: t("indexMd.createOverview"), confirmLabel: t("indexMd.createOverview") });
+      if (!pins) return null;
       await writeOverview(vault, folder);
-      return written(1);
+      return withPinnedLinks(t, written(1), pins.pinned);
     });
 
   const generateAllMissing = () =>
     void run(async () => {
       const missing = foldersMissingIndex(rows ?? []);
+      const pins = await pinLinksBeforeNewOverviews(vault, missing, { title: t("indexMd.generateAllMissing", { count: missing.length }) });
+      if (!pins) return null;
       // One at a time and tolerant per folder: a run that stops at the first
       // unreadable folder leaves the rest of the vault unexplained.
       let done = 0;
@@ -117,7 +128,7 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
           console.warn("[mobile] overview skipped", folder, e);
         }
       }
-      return written(done);
+      return withPinnedLinks(t, written(done), pins.pinned);
     });
 
   const adopt = (row: FolderRow) =>

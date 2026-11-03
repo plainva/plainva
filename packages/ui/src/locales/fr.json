@@ -2113,6 +2113,7 @@
     "prepareOption": "Préparer les fichiers adoptés pour l'OKF (retirer le frontmatter, convertir les liens wiki de ce fichier en liens Markdown)",
     "pinOption": "Écrire les liens vers d'autres aperçus avec leur dossier, pour qu'ils y mènent toujours ({{links}})",
     "pinHint": "Un lien qui ne nomme un aperçu que par « index » mènerait au nouveau.",
+    "pinHintMany": "Un lien qui ne nomme un aperçu que par « index » mènerait à l’un des nouveaux.",
     "renameHint": "Un index.md utilisé comme note normale peut être renommé dans l'arborescence de fichiers — les liens sont mis à jour automatiquement.",
     "running": "Exécution en cours…",
     "runButton": "Exécuter {{count}} action(s)",

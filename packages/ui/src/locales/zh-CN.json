@@ -2097,6 +2097,7 @@
     "prepareOption": "为OKF整理被采用的文件（移除Frontmatter，将此文件的Wiki链接转换为Markdown链接）",
     "pinOption": "将指向其他概览的链接写上所在文件夹，使其继续指向原处（{{links}}）",
     "pinHint": "仅以“index”指向某个概览的链接会改为指向新的概览。",
+    "pinHintMany": "仅以“index”指向某个概览的链接会改为指向其中一个新的概览。",
     "renameHint": "被用作普通笔记的index.md可以在文件树中重命名——链接会自动更新。",
     "running": "正在执行…",
     "runButton": "执行{{count}}项操作",

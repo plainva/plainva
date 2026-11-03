@@ -2,10 +2,14 @@ import {
   errorText,
   folderIndexState,
   generateIndexForFolder,
+  newOverviewPlacements,
+  pinLinksBeforeOverviews,
   toast,
+  withPinnedLinks,
   type FolderIndexState,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import { mConfirmOption } from "./mobileDialogs";
 import { getActiveVaultEntry } from "./vaultRegistry";
 import type { MobileVault } from "./vaultService";
 
@@ -50,15 +54,47 @@ export async function writeOverview(v: MobileVault, folder: string): Promise<{ p
   return { path: result.indexPath, entries: result.entries, overwrote: result.overwrote };
 }
 
+/**
+ * Before overviews are generated in `folders` (P21, maintainer 03.11.): a new
+ * index.md takes over a link that names another folder's overview only as
+ * `index`. Where that would happen, the sheet asks — counted, preset — to
+ * write such links with their folder first, as the adoption sheet and the
+ * desktop ask (`pinLinksBeforeOverviews`); where nothing would, nothing is
+ * asked. `null`: the question was cancelled, and nothing is generated.
+ */
+export async function pinLinksBeforeNewOverviews(
+  v: MobileVault,
+  folders: readonly string[],
+  question: { title: string; confirmLabel?: string },
+): Promise<{ pinned: number } | null> {
+  if (!v.queryService) return { pinned: 0 };
+  const done = await pinLinksBeforeOverviews({
+    queryService: v.queryService,
+    adapter: v.files,
+    placements: newOverviewPlacements(folders),
+    ask: async (links) => {
+      const answer = await mConfirmOption({
+        title: question.title,
+        message: i18n.t(folders.length > 1 ? "indexMd.pinHintMany" : "indexMd.pinHint"),
+        confirmLabel: question.confirmLabel,
+        checkbox: { label: i18n.t("indexMd.pinOption", { links }), initial: true },
+      });
+      return answer.confirmed ? answer.checked : null;
+    },
+    changed: (path) => window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: v.vaultId } })),
+  });
+  if (done?.failed) toast.warning(i18n.t("indexMd.pinFailed"));
+  return done;
+}
+
 /** The folder-sheet tap: writes, then says which of the two things it did. */
 export async function generateOverviewForFolder(v: MobileVault, folder: string): Promise<void> {
   try {
+    const pins = await pinLinksBeforeNewOverviews(v, [folder], { title: i18n.t("indexMd.createOverview"), confirmLabel: i18n.t("indexMd.createOverview") });
+    if (!pins) return;
     const r = await writeOverview(v, folder);
-    toast.success(
-      r.overwrote
-        ? i18n.t("indexMd.resultUpdated", { entries: r.entries })
-        : i18n.t("indexMd.resultCreated", { entries: r.entries }),
-    );
+    const did = i18n.t(r.overwrote ? "indexMd.resultUpdated" : "indexMd.resultCreated", { entries: r.entries });
+    toast.success(withPinnedLinks(i18n.t, did, pins.pinned));
   } catch (e) {
     console.error("[mobile] index.md generation failed", e);
     toast.error(i18n.t("writeFailed.overview", { reason: errorText(e) }));

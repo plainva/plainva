@@ -2121,6 +2121,7 @@
     "prepareOption": "Przygotuj przejęte pliki do OKF (usuń frontmatter, zamień wikilinki tego pliku na linki Markdown)",
     "pinOption": "Zapisz linki do innych przeglądów z ich folderem, aby nadal tam prowadziły ({{links}})",
     "pinHint": "Link, który wskazuje przegląd tylko jako „index”, prowadziłby do nowego.",
+    "pinHintMany": "Link, który wskazuje przegląd tylko jako „index”, prowadziłby do jednego z nowych.",
     "renameHint": "Plik index.md używany jako zwykła notatka można przemianować w drzewie plików — linki zostaną zaktualizowane automatycznie.",
     "running": "Wykonywanie…",
     "runButton": "Wykonaj akcje ({{count}})",

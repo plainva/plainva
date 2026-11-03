@@ -2105,6 +2105,7 @@
     "prepareOption": "Prepare adopted files for OKF (remove frontmatter, convert this file's wikilinks to markdown links)",
     "pinOption": "Write links to other overviews with their folder, so they keep leading there ({{links}})",
     "pinHint": "A link that names an overview only as “index” would lead to the new one.",
+    "pinHintMany": "A link that names an overview only as “index” would lead to one of the new ones.",
     "renameHint": "An index.md used as a regular note can be renamed in the file tree — links are updated automatically.",
     "running": "Running…",
     "runButton": "Run {{count}} action(s)",

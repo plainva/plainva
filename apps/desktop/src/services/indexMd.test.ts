@@ -5,8 +5,11 @@ import {
   adoptFileAsIndex,
   adoptionSummary,
   foldersMissingIndex,
+  newOverviewPlacements,
+  pinLinksBeforeOverviews,
   pinOverviewLinks,
   planOverviewLinkPins,
+  withPinnedLinks,
   type IndexMdAdapter,
 } from "./indexMd";
 import { resolveLinkTarget } from "@plainva/core";
@@ -444,6 +447,137 @@ describe("planOverviewLinkPins / pinOverviewLinks", () => {
     } finally {
       warned.mockRestore();
     }
+  });
+
+  // P21 (maintainer, 03.11.): generating an overview puts a NEW `index.md`
+  // into a folder - "Create overview" for one folder, or every folder without
+  // one at once - and takes such links over exactly as an adoption does.
+  it("plans the generated overviews of a whole run together: a link tipped over by either is written with its folder", async () => {
+    const { store, adapter, queryService } = withLinks(
+      {
+        "Other/index.md": "# Other\n",
+        "Other/Note.md": "Up: [[index]]\n",
+        "Projects/Plan.md": "See [[index]] and [[Other/index]].\n",
+        "Areas/Note.md": "Back to [x](index.md).\n",
+      },
+      [
+        { source_path: "Projects/Plan.md", target_path: "index", link_type: "wikilink" },
+        { source_path: "Projects/Plan.md", target_path: "Other/index", link_type: "wikilink" },
+        { source_path: "Areas/Note.md", target_path: "index.md", link_type: "markdown-link" },
+        { source_path: "Other/Note.md", target_path: "index", link_type: "wikilink" },
+      ],
+    );
+    const generated = newOverviewPlacements(["Projects", "Areas"]);
+    expect(generated).toEqual([{ indexPath: "Projects/index.md" }, { indexPath: "Areas/index.md" }]);
+    // The finding, for each new file: the bare link in its folder would lead to it.
+    const after = [...corpus(store), { path: "Projects/index.md", title: null }, { path: "Areas/index.md", title: null }];
+    expect(resolveLinkTarget("Projects/Plan.md", "index", after)).toBe("Projects/index.md");
+    expect(resolveLinkTarget("Areas/Note.md", "index.md", after)).toBe("Areas/index.md");
+
+    const pins = await planOverviewLinkPins(queryService, generated);
+    // One count for the run: the link in Projects/ (taken by the one new file)
+    // and the one in Areas/ (taken by the other). The link written with its
+    // folder already and the one in Other/, which still leads to its own
+    // folder's overview, are left alone.
+    expect(pins).toMatchObject({ links: 2, failed: false });
+    const done = await pinOverviewLinks(adapter, pins);
+    expect(done).toEqual({ pinned: 2, changedPaths: ["Projects/Plan.md", "Areas/Note.md"], failed: false });
+    expect(store.get("Projects/Plan.md")).toBe("See [[Other/index]] and [[Other/index]].\n");
+    expect(store.get("Areas/Note.md")).toBe("Back to [x](../Other/index.md).\n");
+    expect(store.get("Other/Note.md")).toBe("Up: [[index]]\n");
+    expect(resolveLinkTarget("Areas/Note.md", "../Other/index.md", after)).toBe("Other/index.md");
+  });
+
+  it("a generated overview at the vault's root takes every bare link: each keeps the overview it led to", async () => {
+    const { store, adapter, queryService } = withLinks(
+      { "Other/index.md": "# Other\n", "Other/Note.md": "Up: [[index]]\n", "Start.md": "[[index]]\n" },
+      [
+        { source_path: "Start.md", target_path: "index", link_type: "wikilink" },
+        { source_path: "Other/Note.md", target_path: "index", link_type: "wikilink" },
+      ],
+    );
+    const pins = await planOverviewLinkPins(queryService, newOverviewPlacements([""]));
+    expect(pins.links).toBe(2);
+    await pinOverviewLinks(adapter, pins);
+    expect(store.get("Start.md")).toBe("[[Other/index]]\n");
+    expect(store.get("Other/Note.md")).toBe("Up: [[Other/index]]\n");
+  });
+
+  it("a run that adopts in one folder and generates in another is planned as one", async () => {
+    const { store, adapter, queryService } = withLinks(
+      {
+        "Other/index.md": "# Other\n",
+        "Projects/MOC.md": "# Projects\n",
+        "Projects/Plan.md": "[[index]]\n",
+        "Areas/Note.md": "[[index]]\n",
+      },
+      [
+        { source_path: "Projects/Plan.md", target_path: "index", link_type: "wikilink" },
+        { source_path: "Areas/Note.md", target_path: "index", link_type: "wikilink" },
+      ],
+    );
+    const pins = await planOverviewLinkPins(queryService, [
+      { candidatePath: "Projects/MOC.md", indexPath: "Projects/index.md" },
+      ...newOverviewPlacements(["Areas"]),
+    ]);
+    expect(pins.links).toBe(2);
+    await pinOverviewLinks(adapter, pins);
+    expect(store.get("Projects/Plan.md")).toBe("[[Other/index]]\n");
+    expect(store.get("Areas/Note.md")).toBe("[[Other/index]]\n");
+  });
+
+  it("regenerating an overview that is there takes nothing over: nothing to offer", async () => {
+    const { queryService } = withLinks(
+      { "Other/index.md": "# Other\n", "Projects/index.md": "# Projects\n", "Projects/Plan.md": "[[index]]\n" },
+      [{ source_path: "Projects/Plan.md", target_path: "index", link_type: "wikilink" }],
+    );
+    // In another spelling, too: the file system the overview is written to does not tell the two apart.
+    for (const folder of ["Projects", "projects"]) {
+      expect(await planOverviewLinkPins(queryService, newOverviewPlacements([folder]))).toMatchObject({ links: 0, failed: false });
+    }
+  });
+});
+
+// P21: the offer both shells make before an overview is generated.
+describe("pinLinksBeforeOverviews", () => {
+  const vault = () => {
+    const v = makeVault({ "Other/index.md": "# Other\n", "Projects/Plan.md": "See [[index]].\n" });
+    v.queryService.linksNamingFile = async () => [{ source_path: "Projects/Plan.md", target_path: "index", link_type: "wikilink" }];
+    return v;
+  };
+
+  it("asks with the count and, on a yes, writes the links before any overview exists and names the notes it wrote", async () => {
+    const { store, adapter, queryService } = vault();
+    const ask = vi.fn(async () => true);
+    const changed: string[] = [];
+    const done = await pinLinksBeforeOverviews({ queryService, adapter, placements: newOverviewPlacements(["Projects"]), ask, changed: (p) => changed.push(p) });
+    expect(ask).toHaveBeenCalledWith(1);
+    expect(done).toEqual({ pinned: 1, failed: false });
+    expect(changed).toEqual(["Projects/Plan.md"]);
+    expect(store.get("Projects/Plan.md")).toBe("See [[Other/index]].\n");
+    expect(store.has("Projects/index.md")).toBe(false);
+  });
+
+  it("a no leaves the links, a cancel says so (nothing is generated then either)", async () => {
+    const { store, adapter, queryService } = vault();
+    const placements = newOverviewPlacements(["Projects"]);
+    expect(await pinLinksBeforeOverviews({ queryService, adapter, placements, ask: async () => false, changed: () => {} })).toEqual({ pinned: 0, failed: false });
+    expect(await pinLinksBeforeOverviews({ queryService, adapter, placements, ask: async () => null, changed: () => {} })).toBeNull();
+    expect(store.get("Projects/Plan.md")).toBe("See [[index]].\n");
+  });
+
+  it("asks nothing where nothing would be taken over", async () => {
+    const { adapter, queryService } = vault();
+    const ask = vi.fn(async () => true);
+    // Other/ has its overview: regenerating it takes no link over.
+    expect(await pinLinksBeforeOverviews({ queryService, adapter, placements: newOverviewPlacements(["Other"]), ask, changed: () => {} })).toEqual({ pinned: 0, failed: false });
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it("the result line counts the links written on the way, and only then", () => {
+    const t = ((key: string, o?: Record<string, unknown>) => `${key}${o ? JSON.stringify(o) : ""}`) as never;
+    expect(withPinnedLinks(t, "1 overview written", 0)).toBe("1 overview written");
+    expect(withPinnedLinks(t, "1 overview written", 2)).toBe('1 overview written (indexMd.resultPinned{"links":2})');
   });
 });
 

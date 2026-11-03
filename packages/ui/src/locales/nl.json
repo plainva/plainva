@@ -2105,6 +2105,7 @@
     "prepareOption": "Overgenomen bestanden voorbereiden voor OKF (frontmatter verwijderen, wikilinks van dit bestand omzetten naar Markdown-links)",
     "pinOption": "Links naar andere overzichten met hun map schrijven, zodat ze daarheen blijven leiden ({{links}})",
     "pinHint": "Een link die een overzicht alleen als “index” noemt, zou naar het nieuwe leiden.",
+    "pinHintMany": "Een link die een overzicht alleen als “index” noemt, zou naar een van de nieuwe leiden.",
     "renameHint": "Een index.md die als gewone notitie wordt gebruikt, kun je in de bestandsboom hernoemen — links worden automatisch bijgewerkt.",
     "running": "Bezig…",
     "runButton": "{{count}} actie(s) uitvoeren",

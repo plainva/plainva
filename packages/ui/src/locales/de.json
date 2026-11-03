@@ -2105,6 +2105,7 @@
     "prepareOption": "Übernommene Dateien OKF-konform aufbereiten (Frontmatter entfernen, Wikilinks dieser Datei zu Markdown-Links)",
     "pinOption": "Links auf andere Übersichten mit ihrem Ordner schreiben, damit sie weiter dorthin führen ({{links}})",
     "pinHint": "Ein Link, der eine Übersicht nur als „index“ nennt, würde zur neuen führen.",
+    "pinHintMany": "Ein Link, der eine Übersicht nur als „index“ nennt, würde zu einer der neuen führen.",
     "renameHint": "Eine als normale Notiz genutzte index.md kannst du im Dateibaum umbenennen — Links werden dabei automatisch aktualisiert.",
     "running": "Wird ausgeführt…",
     "runButton": "{{count}} Aktion(en) ausführen",
