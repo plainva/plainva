@@ -609,6 +609,8 @@
     "updateErrorNoRelease": "目前还没有公开的更新（发行版）。",
     "updateInstallError": "安装时出错：{{error}}",
     "updates": "更新",
+    "updatesManagedBy": "通过 {{manager}} 更新",
+    "updatesManagedByDesc": "此安装不会自行更新。Plainva 的下一个版本将通过你的包管理器提供。",
     "useOwnAppId": "使用你自己的应用 ID",
     "username": "用户名",
     "vaultNotOpenHint": "仓库未打开 — 更改会在下次打开时生效。",

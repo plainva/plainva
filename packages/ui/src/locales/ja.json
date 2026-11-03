@@ -609,6 +609,8 @@
     "updateErrorNoRelease": "現在、公開されているアップデート（リリース）はまだありません。",
     "updateInstallError": "インストール中にエラーが発生しました: {{error}}",
     "updates": "アップデート",
+    "updatesManagedBy": "{{manager}} で更新",
+    "updatesManagedByDesc": "このインストールは自動で更新されません。Plainva の次のバージョンはパッケージマネージャーから届きます。",
     "useOwnAppId": "独自のアプリ ID を使用",
     "username": "ユーザー名",
     "vaultNotOpenHint": "保管庫は開かれていません — 変更は次回開いたときに反映されます。",

@@ -51,7 +51,7 @@ import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/link
 import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK } from "../services/spellcheck";
 import { DEFAULT_NEW_NOTES_IN_NEW_TAB, getStoredNewNotesInNewTab, setStoredNewNotesInNewTab } from "../services/newNoteTab";
 import type { Update } from "@tauri-apps/plugin-updater";
-import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
+import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, getUpdatesManagedBy, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
@@ -263,9 +263,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [updateAvailable, setUpdateAvailable] = useState<Update | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [autoUpdateCheckEnabled, setAutoUpdateCheckEnabled] = useState(true);
+  // A package manager (Nix) that updates this installation replaces the update controls with one line.
+  const [updatesManagedBy, setUpdatesManagedBy] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
     void getAutoUpdateCheck().then((v) => { if (alive) setAutoUpdateCheckEnabled(v); });
+    void getUpdatesManagedBy().then((v) => { if (alive) setUpdatesManagedBy(v); });
     return () => { alive = false; };
   }, []);
 
@@ -662,6 +665,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     } else if (result.status === "none") {
       setUpdateAvailable(null);
       setUpdateStatus(t("settings.noUpdate", "Du bist auf dem neuesten Stand."));
+    } else if (result.status === "managed") {
+      setUpdateAvailable(null);
+      setUpdatesManagedBy(result.by);
+      setUpdateStatus("");
     } else if (result.status === "no-release") {
       setUpdateStatus(t("settings.updateErrorNoRelease", "Aktuell sind noch keine öffentlichen Updates (Releases) verfügbar."));
     } else {
@@ -907,6 +914,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onReportIssue={() => { void handleReportIssue(); }}
                       updates={{
                         autoUpdateCheckEnabled,
+                        managedBy: updatesManagedBy,
                         onAutoUpdateCheck: (val) => { setAutoUpdateCheckEnabled(val); void setAutoUpdateCheck(val); },
                         updateStatus,
                         updateAvailable: !!updateAvailable && !isUpdating,

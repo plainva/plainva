@@ -611,6 +611,8 @@
     "updateErrorNoRelease": "Aktuell sind noch keine öffentlichen Updates (Releases) verfügbar.",
     "updateInstallError": "Fehler beim Installieren: {{error}}",
     "updates": "Updates",
+    "updatesManagedBy": "Aktualisiert über {{manager}}",
+    "updatesManagedByDesc": "Diese Installation aktualisiert sich nicht selbst. Die nächste Version von Plainva kommt über Deinen Paketmanager.",
     "useOwnAppId": "Eigene App-ID verwenden",
     "username": "Benutzername",
     "vaultNotOpenHint": "Vault nicht geöffnet — Änderungen wirken beim nächsten Öffnen.",

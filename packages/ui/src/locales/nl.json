@@ -611,6 +611,8 @@
     "updateErrorNoRelease": "Er zijn nog geen openbare updates (releases) beschikbaar.",
     "updateInstallError": "Fout bij het installeren: {{error}}",
     "updates": "Updates",
+    "updatesManagedBy": "Bijgewerkt via {{manager}}",
+    "updatesManagedByDesc": "Deze installatie werkt zichzelf niet bij. De volgende versie van Plainva komt via je pakketbeheerder.",
     "useOwnAppId": "Eigen app-ID gebruiken",
     "username": "Gebruikersnaam",
     "vaultNotOpenHint": "Vault niet geopend — wijzigingen worden actief zodra je hem de volgende keer opent.",

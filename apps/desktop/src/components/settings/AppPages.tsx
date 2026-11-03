@@ -413,6 +413,8 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
 /** The update controls: a group of About & diagnostics on the desktop (E10). */
 export interface UpdatesGroupProps {
   autoUpdateCheckEnabled: boolean;
+  /** The package manager that updates this installation (Nix); `null` when Plainva updates itself. */
+  managedBy?: string | null;
   onAutoUpdateCheck: (v: boolean) => void;
   updateStatus: string;
   updateAvailable: boolean;
@@ -429,6 +431,15 @@ export interface UpdatesGroupProps {
  */
 const UpdatesGroup: React.FC<UpdatesGroupProps> = (p) => {
   const { t } = useTranslation();
+  if (p.managedBy) {
+    // A copy a package manager installed cannot replace itself (the Nix store is
+    // read-only): no switch, no button — the line says who brings the next version.
+    return (
+      <SettingCard label={t("settings.updates", "Updates")} testId="about-updates">
+        <SettingRow label={t("settings.updatesManagedBy", { manager: p.managedBy })} desc={t("settings.updatesManagedByDesc")} />
+      </SettingCard>
+    );
+  }
   return (
     <SettingCard label={t("settings.updates", "Updates")} testId="about-updates">
       <SettingRow label={t("settings.autoUpdateCheck")} info={t("settings.autoUpdateCheckDesc")}>

@@ -432,6 +432,7 @@ pub fn run() {
             tray::tray_disable,
             tray::tray_set_next,
             session::desktop_session_kind,
+            app_identity::app_updates_managed_by,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
             checked_fs::checked_path_exists,

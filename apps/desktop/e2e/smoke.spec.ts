@@ -2943,6 +2943,37 @@ test('Settings APP pages: groups as the settings plan orders them, explanations 
   await shoot('about');
 });
 
+test('Settings About: a copy a package manager updates (Nix) offers no update check, it says who brings the next version', async ({ page }, testInfo) => {
+  // PR #124: the Nix package wraps the release binary and sets
+  // PLAINVA_UPDATES_MANAGED_BY=Nix; the shell answers `app_updates_managed_by`.
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'app_updates_managed_by') return 'Nix';
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Über & Diagnose|About & diagnostics)$/ }).click();
+  const updates = dialog.getByTestId('about-updates');
+  await expect(updates).toContainText(/Aktualisiert über Nix|Updated through Nix/);
+  await expect(updates).toContainText(/Paketmanager|package manager/);
+  await expect(updates.getByRole('switch')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /^(Nach Updates suchen|Check for Updates)$/ })).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) {
+    await updates.scrollIntoViewIfNeeded();
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`about-updates-nix-${mode}.png`) });
+    }
+  }
+});
+
 test('Settings VAULT pages: notes & filing and the journal are two pages, OKF and restore moved, explanations behind the info button', async ({ page }, testInfo) => {
   // Settings plan 2026-10-29, § 3.6-3.9 (E9): "Content & structure" became two
   // pages, the OKF commands joined Maintenance, restoring deleted files joined
