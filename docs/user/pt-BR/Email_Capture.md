@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-11-02
+Última revisão: 2026-11-03
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -104,7 +104,7 @@ Quando uma mensagem traz o cabeçalho `List-Unsubscribe`, o Plainva mostra no le
 
 ## Adiar
 
-Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. A semana que vem é o primeiro dia da próxima semana conforme **Início da semana** — o mesmo dia do prazo de uma tarefa. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente.
+Há correio que não é urgente nem está resolvido. **Adiar** tira uma mensagem da lista até um momento que você escolhe — mais tarde hoje, amanhã de manhã, no fim de semana ou na semana que vem. A semana que vem é o primeiro dia da próxima semana conforme **Início da semana** — o mesmo dia do prazo de uma tarefa. No computador a opção fica no menu de contexto da linha; no celular é também um gesto de deslizar. O botão **Adiados** os traz de volta à vista; a partir dali, **Trazer agora** devolve a mensagem à lista imediatamente. O aviso que confirma o adiamento oferece **Desfazer** — no telefone, que não tem o botão **Adiados**, é o caminho de volta antes da hora.
 
 Duas coisas que merecem ser ditas com clareza. Primeiro, adiar é um **marcador do próprio Plainva**, não um recurso do servidor: nem IMAP nem Microsoft têm algo assim. O marcador viaja com a sincronização de configurações, então uma mensagem adiada no celular também descansa no computador — em outro programa de e-mail ela está na caixa de entrada como sempre. Segundo, adiar esconde a mensagem apenas na pasta em que ela está — onde quer que essa pasta seja exibida, em "Todas as caixas de entrada" e também em uma conversa; a busca e **Marcadas** continuam mostrando a mensagem. Adiado significa "fora do caminho", não "sumiu".
 

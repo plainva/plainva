@@ -477,6 +477,35 @@ test("all inboxes: a row put aside leaves the merged list and its own inbox", as
   }
 });
 
+test("all inboxes: Undo on the notice of a snooze brings the row back, in the merged list and in its own inbox", async ({ page, context }) => {
+  // Decision E17: snooze is offered here, put aside where the row lies - and
+  // a snooze by mistake is taken back from its notice. The phone has no list
+  // of snoozed messages to take it back from.
+  test.setTimeout(120_000);
+  const { sql } = await bootTwoMailboxes(context, page);
+  try {
+    await showAllInboxes(page, 7);
+    const offered = await swipeOpen(page, page.locator(".m-swipe").filter({ hasText: "Kontoauszug" }));
+    await offered.filter({ hasText: /Snooze/ }).click();
+    await page.getByRole("button", { name: "Later today" }).click();
+    await expect(rows(page)).toHaveCount(6);
+    const notice = page.locator(".pv-toast").filter({ hasText: /Snoozed until/ });
+    await expect(notice).toBeVisible();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("all-inboxes-snooze-notice.png") });
+    await notice.locator(".pv-toast-action").click();
+    await expect(rows(page)).toHaveCount(7);
+    await expect(rows(page).filter({ hasText: "Kontoauszug" })).toHaveCount(1);
+    // In its own mailbox's inbox it is there too.
+    await page.locator(".m-mboxline").click();
+    await page.locator(".m-row", { hasText: SECOND_BOX.address }).click();
+    await expect(page.locator(".m-mboxline-acct")).toHaveText(SECOND_BOX.address);
+    await expect(rows(page)).toHaveCount(4, { timeout: 15000 });
+    await expect(rows(page).filter({ hasText: "Kontoauszug" })).toHaveCount(1);
+  } finally {
+    await sql.close();
+  }
+});
+
 test("all inboxes: back from a message, the merged list is still what is shown", async ({ page, context }) => {
   // The list is built anew when the reader closes, and it came back as the
   // first mailbox's inbox (open-items plan 3.110 no. 3).

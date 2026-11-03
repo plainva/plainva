@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-03
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -104,7 +104,7 @@ Lorsqu'un message porte l'en-tête `List-Unsubscribe`, Plainva affiche un bouton
 
 ## Reporter
 
-Certains courriers ne sont pas urgents sans être réglés pour autant. **Reporter** retire un message de la liste jusqu'à un moment que tu choisis : plus tard aujourd'hui, demain matin, ce week-end ou la semaine prochaine. La semaine prochaine, c'est le premier jour de la semaine suivante selon **Début de la semaine** — le même jour que pour l'échéance d'une tâche. Sur l'ordinateur, l'entrée se trouve dans le menu contextuel de la ligne ; sur le téléphone, c'est en plus un geste de balayage. Le bouton **Reportés** les fait réapparaître ; de là, **Ramener maintenant** remet un message dans la liste sur-le-champ.
+Certains courriers ne sont pas urgents sans être réglés pour autant. **Reporter** retire un message de la liste jusqu'à un moment que tu choisis : plus tard aujourd'hui, demain matin, ce week-end ou la semaine prochaine. La semaine prochaine, c'est le premier jour de la semaine suivante selon **Début de la semaine** — le même jour que pour l'échéance d'une tâche. Sur l'ordinateur, l'entrée se trouve dans le menu contextuel de la ligne ; sur le téléphone, c'est en plus un geste de balayage. Le bouton **Reportés** les fait réapparaître ; de là, **Ramener maintenant** remet un message dans la liste sur-le-champ. L'avis qui confirme le report propose **Annuler** — sur le téléphone, qui n'a pas de bouton **Reportés**, c'est le moyen de revenir en arrière avant l'heure.
 
 Deux points à dire franchement. D'abord, reporter est un **marqueur propre à Plainva**, pas une fonction du serveur : ni IMAP ni Microsoft ne connaissent cela. Le marqueur voyage avec la synchronisation des réglages, donc un message reporté sur le téléphone se repose aussi sur l'ordinateur — dans un autre logiciel de messagerie, il est simplement dans la boîte de réception. Ensuite, reporter ne masque le message que dans le dossier où il se trouve — où que ce dossier soit affiché, dans « Toutes les boîtes » et dans une conversation aussi ; la recherche et **Marqués** l'affichent toujours. Reporté veut dire « pas dans mes pattes », pas « disparu ».
 

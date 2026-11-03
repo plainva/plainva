@@ -766,6 +766,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-30",
   },
   {
+    id: "mail-snoozed-list",
+    title: "Look at the snoozed messages and bring one back early",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's mail list has a button for the messages put aside (mail-filter-snoozed): it shows " +
+      "them, and each offers \"Bring back now\". The phone hides a snoozed message until its time and has " +
+      "no such list, so there a message comes back early only through the Undo of its snooze's notice " +
+      "(decision E17) or on the desktop - the marker travels with the vault's settings. Nothing of the " +
+      "platform stands in the way: the row actions already carry \"Bring back now\" (rowActions). Found " +
+      "on 2026-11-03 while the snooze notice got its Undo; reported for the maintainer's open-items plan.",
+    verified: "2026-11-03",
+  },
+  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

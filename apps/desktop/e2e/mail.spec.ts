@@ -2844,6 +2844,31 @@ test('all inboxes: a row put aside leaves the merged list and its own folder, an
   await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(0);
 });
 
+test('all inboxes: Undo on the notice of a snooze brings the row back, in the merged list and in its own folder', async ({ page }) => {
+  // Decision E17: snooze is offered in "All inboxes", put aside where the row
+  // lies - and a snooze by mistake is taken back from its notice, as a move to
+  // the trash is.
+  await openFirstMailbox(page, { __secondTrash: true });
+  await showAllInboxes(page);
+  await rowOf(page, 'Privat').click({ button: 'right' });
+  await page.getByTestId('mail-ctx-snooze').click();
+  await page.getByTestId('mail-snooze-laterToday').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+  await expect(page.getByTestId('mail-filter-snoozed')).toHaveCount(1);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('all-inboxes-snooze-notice.png') });
+  await page.locator('.pv-toast').filter({ hasText: /Snoozed until|Zurückgestellt bis/ }).locator('.pv-toast-action').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+  await expect(rowOf(page, 'Privat')).toHaveCount(1);
+  // Nothing is put aside any more: the way to the snoozed messages goes too.
+  await expect(page.getByTestId('mail-filter-snoozed')).toHaveCount(0);
+  // And in its own folder it is there.
+  await page.getByTestId('mail-all-inboxes').click();
+  await accountChooser(page).click();
+  await page.getByRole('option', { name: 'Privat', exact: true }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/);
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(1);
+});
+
 test('a folder with no messages says so — again after another folder, and after a refresh', async ({ page }) => {
   // "No messages." waits for the list of the folder that is shown; once that
   // list is in, it must come, every time.

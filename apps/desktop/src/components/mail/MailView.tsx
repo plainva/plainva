@@ -19,6 +19,7 @@ import {
   removeSnooze,
   SNOOZE_PRESETS,
   snoozeUntil,
+  undoSnoozes,
   type SnoozeEntry,
   type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
@@ -468,25 +469,44 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * Sent in a conversation was then hidden nowhere it actually is (open-items
    * plan 3.137 no. 5).
    */
+  /**
+   * The Undo of a snooze's notice (decision E17): each message stands as it
+   * stood before, read against the list as it is when Undo is pressed — the
+   * notice outlives the render it was made in.
+   */
+  const undoSnooze = useStableHandler((before: SnoozeEntry[], added: SnoozeEntry[]) => {
+    const next = undoSnoozes(snoozed, before, added);
+    setSnoozed(next);
+    void persistSnoozes(next);
+  });
+
   const snoozeMessages = useCallback(
     async (ids: string[], preset: SnoozePreset) => {
       if (ids.length === 0) return;
       const until = snoozeUntil(preset, new Date(), weekStart);
+      const before = snoozed;
       let next: SnoozeEntry[] = snoozed;
+      const added: SnoozeEntry[] = [];
       for (const id of ids) {
         const entry = snoozeEntryFor(id, until);
-        if (entry) next = addSnooze(next, entry);
+        if (!entry) continue;
+        next = addSnooze(next, entry);
+        added.push(entry);
       }
-      setSnoozed(next);
       setSnoozeMenu(null);
+      // A row without an address names no folder to put it aside in: nothing
+      // was put aside, and the notice must not say it was.
+      if (added.length === 0) return;
+      setSnoozed(next);
       await persistSnoozes(next);
       toast.info(
         t("mail.snoozedUntil", {
           when: new Date(until).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
-        })
+        }),
+        { label: t("common.undo"), run: () => undoSnooze(before, added) }
       );
     },
-    [snoozed, persistSnoozes, weekStart, t, i18n.language]
+    [snoozed, persistSnoozes, weekStart, t, i18n.language, undoSnooze]
   );
 
   const unsnoozeMessages = useCallback(

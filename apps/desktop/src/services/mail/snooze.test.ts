@@ -10,6 +10,7 @@ import {
   filterSnoozedRows,
   snoozeEntryFor,
   snoozeUntil,
+  undoSnoozes,
   unifiedId,
   type SnoozeEntry,
 } from "@plainva/ui/mail";
@@ -212,6 +213,34 @@ describe("filterSnoozedRows — rows named by their address (plan P1)", () => {
     expect(filterSnoozedRows([inbox], [snoozeEntryFor(inbox.id, 50)!], 100)).toEqual([inbox]);
     expect(filterSnoozedRows([{ id: "42" }], [entry({ until: 900 })], 100)).toEqual([{ id: "42" }]);
     expect(snoozeEntryFor("42", 900)).toBeNull();
+  });
+});
+
+describe("undoSnoozes — the Undo of a snooze's notice (decision E17)", () => {
+  const later = at("2026-08-11T12:00:00").getTime();
+  it("takes the messages it put aside back, and leaves every other entry", () => {
+    const other = entry({ id: "7" });
+    const added = [entry({ id: "1", until: later }), entry({ id: "2", account: "a2", folder: "Posteingang", until: later })];
+    const state = [other, ...added];
+    expect(undoSnoozes(state, [other], added)).toEqual([other]);
+  });
+
+  it("gives a message put aside again its earlier time, not none", () => {
+    const earlier = entry({ id: "1" });
+    const retimed = entry({ id: "1", until: later });
+    expect(undoSnoozes([retimed], [earlier], [retimed])).toEqual([earlier]);
+  });
+
+  it("leaves an entry that changed after the snooze it undoes", () => {
+    const first = entry({ id: "1", until: later });
+    const again = entry({ id: "1", until: later + 3600_000 });
+    expect(undoSnoozes([again], [], [first])).toEqual([again]);
+  });
+
+  it("goes by the address: the same number in another folder stays put aside", () => {
+    const inbox = entry({ id: "2", folder: "INBOX", until: later });
+    const sent = entry({ id: "2", folder: "Sent", until: later });
+    expect(undoSnoozes([sent, inbox], [sent], [inbox])).toEqual([sent]);
   });
 });
 

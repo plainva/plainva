@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-11-02
+Ultimo aggiornamento: 2026-11-03
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -104,7 +104,7 @@ Quando un messaggio porta l'intestazione `List-Unsubscribe`, Plainva mostra nel 
 
 ## Rimandare
 
-C'è posta che non è urgente ma nemmeno conclusa. **Rimanda** toglie un messaggio dall'elenco fino a un momento che scegli: più tardi oggi, domani mattina, nel fine settimana o la prossima settimana. La prossima settimana è il primo giorno della settimana successiva secondo **Inizio settimana**: lo stesso giorno della scadenza di un'attività. Sul computer la voce sta nel menu contestuale della riga; sul telefono è anche un gesto di scorrimento. Il pulsante **Rimandati** li riporta alla vista; da lì **Riporta ora** rimette subito un messaggio nell'elenco.
+C'è posta che non è urgente ma nemmeno conclusa. **Rimanda** toglie un messaggio dall'elenco fino a un momento che scegli: più tardi oggi, domani mattina, nel fine settimana o la prossima settimana. La prossima settimana è il primo giorno della settimana successiva secondo **Inizio settimana**: lo stesso giorno della scadenza di un'attività. Sul computer la voce sta nel menu contestuale della riga; sul telefono è anche un gesto di scorrimento. Il pulsante **Rimandati** li riporta alla vista; da lì **Riporta ora** rimette subito un messaggio nell'elenco. L'avviso che conferma il rinvio offre **Annulla**: sul telefono, che non ha il pulsante **Rimandati**, è il modo per tornare indietro prima dell'ora.
 
 Due cose da dire chiaramente. Primo: rimandare è un **contrassegno di Plainva**, non una funzione del server — né IMAP né Microsoft conoscono qualcosa del genere. Il contrassegno viaggia con la sincronizzazione delle impostazioni, quindi un messaggio rimandato sul telefono riposa anche sul computer; in un altro programma di posta sta normalmente nella posta in arrivo. Secondo: rimandare nasconde il messaggio soltanto nella cartella in cui si trova — ovunque venga mostrata quella cartella, anche in «Tutte le caselle» e in una conversazione; la ricerca e **Contrassegnati** continuano a mostrarlo. Rimandato significa «non tra i piedi», non «sparito».
 

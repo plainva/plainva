@@ -139,6 +139,30 @@ export function addSnooze(state: SnoozeState, entry: SnoozeEntry): SnoozeEntry[]
   return [...state.filter((e) => keyOf(e) !== key), entry];
 }
 
+/**
+ * Takes back what one "put aside" did — the Undo of its notice, in both
+ * shells (decision E17). Each message it noted stands as it stood before: not
+ * put aside, or put aside until the time it had (putting a message aside again
+ * re-times it, and taking that back must not bring it back early). An entry
+ * that changed since — the message put aside once more — is left, and so is
+ * every entry of another message.
+ */
+export function undoSnoozes(state: SnoozeState, before: SnoozeState, added: readonly SnoozeEntry[]): SnoozeEntry[] {
+  const undone = new Map(added.map((e) => [keyOf(e), e]));
+  const earlier = new Map(before.map((e) => [keyOf(e), e]));
+  const out: SnoozeEntry[] = [];
+  for (const e of state) {
+    const mine = undone.get(keyOf(e));
+    if (!mine || mine.until !== e.until) {
+      out.push(e);
+      continue;
+    }
+    const prior = earlier.get(keyOf(e));
+    if (prior) out.push(prior);
+  }
+  return out;
+}
+
 /** Removes an entry — "bring it back now". */
 export function removeSnooze(state: SnoozeState, at: { account: string; folder: string; id: string }): SnoozeEntry[] {
   const key = snoozeKey(at.account, at.folder, at.id);

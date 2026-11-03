@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Ban, CheckSquare, ChevronDown, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
-import { addSnooze, filterSnoozedRows, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeEntryFor, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
+import { addSnooze, filterSnoozedRows, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeEntryFor, snoozeUntil, undoSnoozes, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
 import { useFloatingSelectionSpace } from "../hooks/useFloatingSelectionSpace";
@@ -1151,6 +1151,17 @@ export function MailListScreen({
    * would let the same message come back on one machine and stay hidden on the
    * other.
    */
+  /**
+   * The Undo of a snooze's notice (decision E17), as on the desktop: the
+   * message stands as it stood before, read against the list as it is when
+   * Undo is tapped.
+   */
+  const undoSnooze = useStableHandler((before: SnoozeEntry[], added: SnoozeEntry[]) => {
+    const next = undoSnoozes(snoozed, before, added);
+    setSnoozed(next);
+    void persistSnoozed(next);
+  });
+
   const swipeSnooze = async (m: MailEnvelope) => {
     const chosenPreset = (await mActions({
       title: t("mail.snooze"),
@@ -1163,13 +1174,15 @@ export function MailListScreen({
     // early or never left its own folder (open-items plan 3.137 no. 5).
     const entry = snoozeEntryFor(m.id, until);
     if (!entry) return;
+    const before = snoozed;
     const next = addSnooze(snoozed, entry);
     setSnoozed(next);
     await persistSnoozed(next);
     toast.info(
       t("mail.snoozedUntil", {
         when: new Date(until).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
-      })
+      }),
+      { label: t("common.undo"), run: () => undoSnooze(before, [entry]) }
     );
   };
 
