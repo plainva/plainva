@@ -262,6 +262,7 @@ Das Format entspricht Obsidians Bases-Format; Plainva schreibt seine Erweiterung
 ## Siehe auch
 
 - [Dateiformat-Referenz](File_Format_Reference.md) — der genaue `.base`-Formatvertrag für Werkzeuge und das Bearbeiten von Hand
+- [Datenbank-Referenz (.base)](Base_Reference.md) — jeder Schlüssel, jede Filterform, jeder Ansichtstyp und jede Zusammenfassung, die Plainva unterstützt, und wo es von Obsidian abweicht
 - [Notizen & Markdown](Notes_and_Markdown.md) — Eigenschaften/Frontmatter im Detail
 - [OKF](OKF.md) — einheitliche `type`-Felder machen Datenbanken verlässlicher
 
@@ -295,7 +296,7 @@ Ein Filter verändert die sichtbare Auswahl, nicht die Dateien. Die angebotenen 
 
 Öffne **Tabelle exportieren** im Datenbankmenü auf dem Desktop oder über das Exportsymbol in der mobilen Kopfleiste. Der Dialog zeigt den aktuellen Zeilenumfang und die Spalten der Ansicht.
 
-**Formeln (.base)** erstellt eine Tabelle mit einer festen Auswahl der aktuellen Zeilen. Diese Berechnungen über gespeicherte Relationen bleiben Formeln: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Öffne die Datei im selben Vault mit den verknüpften Notizen. Nicht unterstützte Berechnungen oder Rückbeziehungen werden im Dialog benannt; dann steht der Werteexport zur Verfügung.
+**Formeln (.base)** erstellt eine Tabelle mit einer festen Auswahl der aktuellen Zeilen. Diese Berechnungen über gespeicherte Relationen bleiben Formeln: **Anzahl**, **Ohne Wert**, **Mit Wert**, **Angehakt**, **Nicht angehakt**. Öffne die Datei im selben Vault mit den verknüpften Notizen. Nicht unterstützte Berechnungen oder Rückbeziehungen werden im Dialog benannt; dann steht der Werteexport zur Verfügung.
 
 **Werte (.csv)** enthält die aktuellen berechneten Werte und Dateipfade. Sie aktualisieren sich später nicht; Listen bleiben als JSON erhalten. Formelähnliche Texte werden für Tabellenprogramme als Text geschützt. Beide Optionen erzeugen einen Export, ohne Berechnungen in die Originalnotizen zu schreiben.
 

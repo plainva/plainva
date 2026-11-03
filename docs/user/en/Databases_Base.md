@@ -262,6 +262,7 @@ The format matches Obsidian's Bases format; Plainva writes its extensions exclus
 ## See also
 
 - [File Format Reference](File_Format_Reference.md) — the exact on-disk `.base` contract for tools and hand-editing
+- [Database Reference (.base)](Base_Reference.md) — every key, filter form, view type and summary Plainva supports, and where it differs from Obsidian
 - [Notes & Markdown](Notes_and_Markdown.md) — properties/frontmatter in detail
 - [OKF](OKF.md) — what a uniform `type` buys you in practice
 
@@ -295,7 +296,7 @@ A filter changes the visible set, not the files. Available values still come fro
 
 Open **Export table** in the desktop database menu or use the export icon in the mobile app bar. The dialog shows the current result count and view columns.
 
-**Formulas (.base)** creates a table with a fixed selection of the current rows. These calculations through stored relations remain formulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Open the file in the same vault with the linked notes. Unsupported calculations or reverse relations are named in the dialog; use the values export for them.
+**Formulas (.base)** creates a table with a fixed selection of the current rows. These calculations through stored relations remain formulas: **Count**, **Without a value**, **With a value**, **Checked**, **Unchecked**. Open the file in the same vault with the linked notes. Unsupported calculations or reverse relations are named in the dialog; use the values export for them.
 
 **Values (.csv)** contains current calculated values and file paths. Values will not update later; lists remain JSON. Formula-like text is protected as text for spreadsheet apps. Both options create an export without writing calculated properties into the original notes.
 

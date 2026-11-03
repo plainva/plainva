@@ -262,6 +262,7 @@ El formato coincide con el formato Bases de Obsidian; Plainva escribe sus extens
 ## Ver también
 
 - [Referencia del formato de archivo](File_Format_Reference.md) — el contrato exacto en disco de `.base` para herramientas y edición manual
+- [Referencia de bases de datos (.base)](Base_Reference.md) — cada clave, forma de filtro, tipo de vista y resumen que Plainva admite, y en qué se diferencia de Obsidian
 - [Notas y Markdown](Notes_and_Markdown.md) — propiedades/frontmatter en detalle
 - [OKF](OKF.md) — qué aporta en la práctica un `type` uniforme
 
@@ -295,7 +296,7 @@ El filtro cambia la selección visible, no los archivos. Los valores se ofrecen 
 
 Abre **Exportar tabla** en el menú de la base de datos de escritorio o usa el icono de exportación de la barra móvil. El diálogo muestra el número de filas del resultado y las columnas de la vista.
 
-**Fórmulas (.base)** crea una tabla con una selección fija de las filas actuales. Estos cálculos mediante relaciones guardadas siguen siendo fórmulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Abre el archivo en la misma bóveda con las notas enlazadas. El diálogo indica los cálculos no compatibles y las relaciones inversas; usa la exportación de valores para esas columnas.
+**Fórmulas (.base)** crea una tabla con una selección fija de las filas actuales. Estos cálculos mediante relaciones guardadas siguen siendo fórmulas: **Recuento**, **Sin valor**, **Con valor**, **Marcado**, **No marcado**. Abre el archivo en la misma bóveda con las notas enlazadas. El diálogo indica los cálculos no compatibles y las relaciones inversas; usa la exportación de valores para esas columnas.
 
 **Valores (.csv)** contiene los valores calculados actuales y las rutas de los archivos. Los valores no se actualizarán; las listas permanecen como JSON. Los textos similares a fórmulas se protegen como texto para las hojas de cálculo. Ninguna opción escribe propiedades calculadas en las notas originales.
 

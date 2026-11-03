@@ -13,6 +13,7 @@ Plainva是一款Markdown仓库编辑器：你的笔记就是电脑上某个文�
 | [快速上手](Getting_Started.md) | 打开或新建仓库、界面介绍、编辑器模式、标签页与分屏 |
 | [笔记与Markdown](Notes_and_Markdown.md) | Markdown文件如何工作：写作、格式化、属性（Frontmatter）、图标、链接、模板、图片 |
 | [数据库（.base）](Databases_Base.md) | 把笔记当作数据库查看——视图、筛选、属性、关联、新建条目（类似Notion，但基于文件） |
+| [数据库参考（.base）](Base_Reference.md) | `.base`文件可以包含的一切，以及Plainva对它们的处理：键、筛选、视图类型、汇总、限制，以及与Obsidian的差异 |
 | [从其他应用导入](Import.md) | 从Notion、Evernote、Google Keep、Simplenote、Logseq或一个Markdown文件夹中导入笔记——以及每种导入方式无法迁移的内容 |
 | [OKF](OKF.md) | Open Knowledge Format（0.2 版）：`type`、来源与审阅标记、bundle 版本、index.md管理与可选的仓库转换 |
 | [文件格式参考](File_Format_Reference.md) | 仓库中每个文件在磁盘上的精确格式——面向直接编辑笔记和`.base`文件的工具、脚本或AI |

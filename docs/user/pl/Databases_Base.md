@@ -262,6 +262,7 @@ Format odpowiada formatowi Bases Obsidian; Plainva zapisuje swoje rozszerzenia w
 ## Zobacz też
 
 - [Dokumentacja formatu plików](File_Format_Reference.md) — dokładny kontrakt `.base` na dysku dla narzędzi i ręcznej edycji
+- [Dokumentacja baz danych (.base)](Base_Reference.md) — każdy klucz, forma filtra, typ widoku i podsumowanie obsługiwane przez Plainva oraz miejsca, w których różni się od Obsidian
 - [Notatki i Markdown](Notes_and_Markdown.md) — właściwości/frontmatter w szczegółach
 - [OKF](OKF.md) — co w praktyce daje jednolity `type`
 
@@ -295,7 +296,7 @@ Filtr zmienia widoczny zbiór, nie pliki. Proponowane wartości pochodzą z cał
 
 Otwórz **Eksportuj tabelę** w menu bazy danych na komputerze lub użyj ikony eksportu na pasku aplikacji mobilnej. Okno pokazuje bieżącą liczbę wierszy wyniku i kolumny widoku.
 
-**Formuły (.base)** tworzy tabelę ze stałym wyborem bieżących wierszy. Te obliczenia przez zapisane relacje pozostają formułami: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Otwórz plik w tym samym sejfie z powiązanymi notatkami. Okno wskazuje nieobsługiwane obliczenia i relacje odwrotne; dla tych kolumn użyj eksportu wartości.
+**Formuły (.base)** tworzy tabelę ze stałym wyborem bieżących wierszy. Te obliczenia przez zapisane relacje pozostają formułami: **Liczba**, **Bez wartości**, **Z wartością**, **Zaznaczone**, **Niezaznaczone**. Otwórz plik w tym samym sejfie z powiązanymi notatkami. Okno wskazuje nieobsługiwane obliczenia i relacje odwrotne; dla tych kolumn użyj eksportu wartości.
 
 **Wartości (.csv)** zawiera bieżące obliczone wartości i ścieżki plików. Wartości nie będą aktualizowane; listy pozostają w formacie JSON. Tekst przypominający formuły jest chroniony jako tekst w arkuszach kalkulacyjnych. Żadna opcja nie zapisuje obliczonych właściwości w oryginalnych notatkach.
 

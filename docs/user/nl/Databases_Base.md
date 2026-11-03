@@ -262,6 +262,7 @@ Het formaat komt overeen met Obsidians Bases-formaat; Plainva schrijft zijn uitb
 ## Zie ook
 
 - [Bestandsformaat-referentie](File_Format_Reference.md) — het exacte `.base`-contract op schijf voor tools en handmatig bewerken
+- [Database-referentie (.base)](Base_Reference.md) — elke sleutel, filtervorm, elk weergavetype en elke samenvatting die Plainva ondersteunt, en waar het verschilt van Obsidian
 - [Notities & Markdown](Notes_and_Markdown.md) — eigenschappen/frontmatter in detail
 - [OKF](OKF.md) — wat een uniform `type` je in de praktijk oplevert
 
@@ -295,7 +296,7 @@ Het filter verandert de zichtbare selectie, niet de bestanden. Keuzewaarden kome
 
 Open **Tabel exporteren** in het databasemenu op de desktop of via het exportpictogram in de mobiele appbalk. Het venster toont het huidige aantal resultaatrijen en de kolommen van de weergave.
 
-**Formules (.base)** maakt een tabel met een vaste selectie van de huidige rijen. Deze berekeningen via opgeslagen relaties blijven formules: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Open het bestand in dezelfde kluis met de gekoppelde notities. Niet-ondersteunde berekeningen en omgekeerde relaties staan in het venster; gebruik daarvoor de waardenexport.
+**Formules (.base)** maakt een tabel met een vaste selectie van de huidige rijen. Deze berekeningen via opgeslagen relaties blijven formules: **Aantal**, **Zonder waarde**, **Met waarde**, **Aangevinkt**, **Niet aangevinkt**. Open het bestand in dezelfde kluis met de gekoppelde notities. Niet-ondersteunde berekeningen en omgekeerde relaties staan in het venster; gebruik daarvoor de waardenexport.
 
 **Waarden (.csv)** bevat de huidige berekende waarden en bestandspaden. Waarden worden later niet bijgewerkt; lijsten blijven JSON. Formuleachtige tekst wordt als tekst beschermd voor spreadsheets. Geen van beide opties schrijft berekende eigenschappen in de oorspronkelijke notities.
 

@@ -262,6 +262,7 @@ Le format correspond au format Bases d'Obsidian ; Plainva écrit ses extensions 
 ## Voir aussi
 
 - [Référence du format de fichier](File_Format_Reference.md) — le contrat exact sur le disque des fichiers .base pour les outils et l'édition à la main
+- [Référence des bases de données (.base)](Base_Reference.md) — chaque clé, forme de filtre, type de vue et synthèse que Plainva prend en charge, et où il diffère d'Obsidian
 - [Notes & Markdown](Notes_and_Markdown.md) — les propriétés/le frontmatter en détail
 - [OKF](OKF.md) — ce qu'un `type` uniforme apporte concrètement
 
@@ -295,7 +296,7 @@ Le filtre change l’affichage, pas les fichiers. Les valeurs proposées viennen
 
 Ouvrez **Exporter le tableau** dans le menu de la base sur ordinateur ou via l’icône d’export de la barre mobile. Le dialogue indique le nombre de lignes du résultat et les colonnes de la vue.
 
-**Formules (.base)** crée un tableau contenant une sélection fixe des lignes actuelles. Ces calculs via des relations enregistrées restent des formules : **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Ouvrez le fichier dans le même vault avec les notes liées. Les calculs non pris en charge et les relations inverses sont indiqués dans le dialogue ; utilisez l’export des valeurs pour ces colonnes.
+**Formules (.base)** crée un tableau contenant une sélection fixe des lignes actuelles. Ces calculs via des relations enregistrées restent des formules : **Nombre**, **Sans valeur**, **Avec une valeur**, **Coché**, **Non coché**. Ouvrez le fichier dans le même vault avec les notes liées. Les calculs non pris en charge et les relations inverses sont indiqués dans le dialogue ; utilisez l’export des valeurs pour ces colonnes.
 
 **Valeurs (.csv)** contient les valeurs calculées actuelles et les chemins des fichiers. Les valeurs ne seront pas actualisées ; les listes restent au format JSON. Les textes ressemblant à des formules sont protégés comme texte pour les tableurs. Aucune des options n’écrit de propriétés calculées dans les notes d’origine.
 
