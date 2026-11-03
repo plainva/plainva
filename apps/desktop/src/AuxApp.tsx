@@ -527,11 +527,8 @@ export function AuxApp() {
             onResolved={(outcome) => {
               bridge.closeCompare();
               closeTabsByPrefix(outcome.conflictPath);
-              if (outcome.mergedContent !== null) {
-                // Same adoption path as a version restore: the open editor
-                // takes the merged text without re-dirtying or racing a save.
-                window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: outcome.originalPath, content: outcome.mergedContent } }));
-              }
+              // The open editor of the file heard of the answer from the
+              // comparison itself, whichever it was (§ 3.86 no. 7).
               triggerFileTreeUpdate(outcome.touched);
             }}
           />

@@ -39,6 +39,21 @@ export interface SyncState {
    */
   pulled_sha256?: string | null;
   pulled_mtime?: number | null;
+  /**
+   * The hash of a version of this file whose bytes are no UTF-8 although its
+   * name says text (a `.csv` in Windows-1252, a note in UTF-16), as the sync,
+   * the index or an open of the file found it (Sammelplan § 3.86 no. 2).
+   *
+   * Where it is the hash the local marker names, no writer can hold a reading
+   * of that version — the app hands out none (`readExactText`) — and the
+   * chain knows a text written over a file converted back to UTF-8 since did
+   * not start from it (`ConflictAwareVaultAdapter`). A row without a base
+   * text says nothing of the kind: an upload streamed from disk, a row an
+   * older version wrote. A hash rather than a flag: it stops speaking for the
+   * row once the marker names another version, whoever moved it; the sync
+   * takes it off when it records a version that is text.
+   */
+  not_text_sha256?: string | null;
 }
 
 export class SyncStateRepository {
@@ -298,12 +313,17 @@ export class SyncStateRepository {
    */
   async recordSyncedBase(
     path: string,
-    base: { sha256: string; etag: string | null; text: string | null },
+    base: { sha256: string; etag: string | null; text: string | null; notText?: boolean },
     local?: { sha256: string; expected?: string | null }
   ): Promise<void> {
-    const columns = ["path", "base_sha256", "base_etag", "base_text"];
-    const params: unknown[] = [path, base.sha256, base.etag, base.text];
-    const updates = ["base_sha256 = excluded.base_sha256", "base_etag = excluded.base_etag", "base_text = excluded.base_text"];
+    // `notText` says the version's bytes were in hand and are no UTF-8 under
+    // a name that says text (`SyncState.not_text_sha256`); a version that is
+    // text takes the mark off, and one whose bytes were never in hand says
+    // nothing either way.
+    const notText = base.notText ? base.sha256 : null;
+    const columns = ["path", "base_sha256", "base_etag", "base_text", "not_text_sha256"];
+    const params: unknown[] = [path, base.sha256, base.etag, base.text, notText];
+    const updates = ["base_sha256 = excluded.base_sha256", "base_etag = excluded.base_etag", "base_text = excluded.base_text", "not_text_sha256 = excluded.not_text_sha256"];
     if (local) {
       columns.push("local_sha256");
       params.push(local.sha256);
@@ -436,6 +456,22 @@ export class SyncStateRepository {
     writer: { execute(query: string, params?: unknown[]): Promise<void> } = this.db
   ): Promise<void> {
     await writer.execute(`UPDATE sync_state SET base_text = NULL WHERE path = ? AND base_text IS NOT NULL`, [path]);
+  }
+
+  /**
+   * Records that the version of `path` with the hash `sha256` is no text by
+   * its bytes (`SyncState.not_text_sha256`) — or, with null, takes that off.
+   * `writer` as in `updateLocalHashAndBaseText`: the index writes it in its
+   * batch, beside the marker it records.
+   */
+  async markNotText(
+    path: string,
+    sha256: string | null,
+    writer: { execute(query: string, params?: unknown[]): Promise<void> } = this.db
+  ): Promise<void> {
+    // Only a row that is there: the mark speaks of the marker beside it, and
+    // a path without a row has none to speak of.
+    await writer.execute(`UPDATE sync_state SET not_text_sha256 = ? WHERE path = ?`, [sha256, path]);
   }
 
   /**

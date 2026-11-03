@@ -835,6 +835,12 @@ export class VaultIndexer {
     if (!read.exact && (isNewLocalFile || !oldSyncState)) {
       await this.syncRepo.clearBaseText(fileInfo.path, writer);
     }
+    // And the row says the version it now names is no text (§ 3.86 no. 2):
+    // no reading of it was handed out, so a text written over the file once
+    // another program made it UTF-8 again did not start from it.
+    if (!read.exact && isNewLocalFile) {
+      await this.syncRepo.markNotText(fileInfo.path, sha256, writer);
+    }
 
     // A brand-new local file is indexed (and visible) but was never enqueued for sync.
     // Buffer it; the host is notified after the transaction commits (see flush below).
@@ -940,6 +946,8 @@ export class VaultIndexer {
     // the one an earlier file under this name left in its row.
     if (isNewLocalFile && textLike && textContent === null) {
       await this.syncRepo.clearBaseText(fileInfo.path, writer);
+      // …and the row says that version is no text (§ 3.86 no. 2, as for a note above).
+      await this.syncRepo.markNotText(fileInfo.path, sha256, writer);
     }
   }
 

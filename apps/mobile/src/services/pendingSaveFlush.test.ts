@@ -135,6 +135,9 @@ describe("the two callers that rewrite notes they do not own", () => {
     const flush = guard.search(/noteSaver\.flush\(originalPath, vault\)/);
     expect(flush, "the shared resolution guard must flush the original").toBeGreaterThan(-1);
     expect(flush).toBeLessThan(guard.indexOf("assertComparisonUnchanged"));
-    expect(adopt.indexOf("await run(")).toBeLessThan(adopt.search(/vaultOps\.save\(/));
+    // The copy's text takes the note's place through the one way of both
+    // shells, inside the guard (`settleConflictText`, Sammelplan § 3.86 no. 8).
+    expect(adopt.indexOf("await run(")).toBeGreaterThan(-1);
+    expect(adopt.indexOf("await run(")).toBeLessThan(adopt.search(/settleConflictText\(/));
   });
 });

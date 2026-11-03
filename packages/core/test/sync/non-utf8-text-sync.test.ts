@@ -426,6 +426,23 @@ for (const reader of ["replaces", "refuses"] as const) {
       expect([...a.problems(), ...b.problems()]).toEqual([]);
     });
 
+    it("pulled as it is, then converted to UTF-8 by another program on this device: a writer that reads it writes into it, without a conflict copy (Sammelplan § 3.86 no. 2)", async () => {
+      const before = windows1252("id;name\r\n1;Grün\r\n2;Blau\r\n");
+      const after = utf8("id;name\r\n1;Grün\r\n2;Blau\r\n");
+      const { b, remoteBytes } = await synced(reader, "Data.csv", before);
+      // The row of the device that pulled it says the version it names is no text.
+      expect((await b.db.queryOne<{ not_text_sha256: string | null }>("SELECT not_text_sha256 FROM sync_state WHERE path = ?", ["Data.csv"]))?.not_text_sha256).toBe(await sha256(before));
+      await b.put("Data.csv", after);
+      const read = await b.app.readTextFile("Data.csv");
+      await b.app.writeTextFile("Data.csv", `${read}3;Rot\r\n`);
+      expect(await b.bytes("Data.csv")).toEqual(utf8("id;name\r\n1;Grün\r\n2;Blau\r\n3;Rot\r\n"));
+      expect(await b.files()).toEqual(["Data.csv"]);
+      await b.cycle();
+      expect(remoteBytes("Data.csv")).toEqual(utf8("id;name\r\n1;Grün\r\n2;Blau\r\n3;Rot\r\n"));
+      expect(await b.files()).toEqual(["Data.csv"]);
+      expect(b.problems()).toEqual([]);
+    });
+
     it("a version with replacement characters arrives from a device that still decodes such files: it is taken, and the file in the other encoding stays next to it", async () => {
       const first = windows1252("id;name\r\n1;Grün\r\n2;Blau\r\n3;Rot\r\n");
       const { a, b, serve, uploads, remoteFiles } = await synced(reader, "Data.csv", first);

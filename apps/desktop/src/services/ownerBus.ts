@@ -321,8 +321,10 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       if (!deps.vaultAdapter.resolveConflict) throw new Error("Conflict-safe editing is unavailable");
       const session = await deps.vaultAdapter.getConflictSession?.(path);
       await deps.vaultAdapter.resolveConflict(path, resolution);
+      // The copy that went: the open conflict's working copy, or the copy beside the file it named (§ 3.86 no. 8).
+      const gone = resolution.copyPath ?? session?.workingCopyPath;
       await afterLanded("conflict-resolve", path, async () => {
-        if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
+        if (deps.indexer && gone) await applyIndexChanges(deps.indexer, { removed: [gone], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
         deps.refresh();
         await indexAfterWrite(path);
       });
@@ -331,8 +333,9 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
       if (!deps.vaultAdapter.resolveConflictBytes) throw new Error("Conflict-safe editing is unavailable");
       const session = await deps.vaultAdapter.getConflictSession?.(path);
       await deps.vaultAdapter.resolveConflictBytes(path, resolution);
+      const gone = resolution.copyPath ?? session?.workingCopyPath;
       await afterLanded("conflict-resolve-bytes", path, async () => {
-        if (deps.indexer && session) await applyIndexChanges(deps.indexer, { removed: [session.workingCopyPath], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
+        if (deps.indexer && gone) await applyIndexChanges(deps.indexer, { removed: [gone], added: [path, ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])] });
         deps.refresh();
         await indexAfterWrite(path);
       });

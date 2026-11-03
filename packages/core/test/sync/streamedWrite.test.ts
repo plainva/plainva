@@ -101,7 +101,9 @@ describe("streamed writes (issue #48)", () => {
     expect((base!.params as any[]).slice(0, 4)).toEqual(["Huge.md", bigMarkdown.sha256, "etag-1", null]);
     const guarded = db.queries.find((q) => q.query.includes("ELSE sync_state.local_sha256"));
     expect(guarded, "the conflict-race guard still applies").toBe(base);
-    expect((guarded!.params as any[])[4]).toBe(bigMarkdown.sha256);
+    // The bytes were never in hand: no "no text" mark either (§ 3.86 no. 2); then the local marker.
+    expect((guarded!.params as any[])[4]).toBeNull();
+    expect((guarded!.params as any[])[5]).toBe(bigMarkdown.sha256);
   });
 
   it("falls back to the buffer when the target cannot stream", async () => {

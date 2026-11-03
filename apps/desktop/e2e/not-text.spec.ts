@@ -420,3 +420,62 @@ test('a draft in a journal file of the old name is offered at its own note — n
   await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Kapitel 1.md']), { timeout: 20000 }).toContain('Left unsaved.');
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Kapitel 2.md'])).toBe('# Kapitel 2\n\nSaved.\n');
 });
+
+// Sammelplan § 3.86 no. 7: "Keep both files" and "Delete conflict copy" end an
+// open conflict as "take the copy" does — and the open editor hears of it. It
+// used to go on showing the working copy's text under the banner of a conflict
+// that was over; only taking the copy handed a text on.
+for (const exit of [
+  { id: 'compare-keep-both', name: 'keep both' },
+  { id: 'compare-discard', name: 'delete the copy' },
+] as const) {
+  test(`after "${exit.name}" in the comparison, the open editor shows the note again, not the working copy`, async ({ page }) => {
+    if (process.env.PLAINVA_EVIDENCE) page.on('console', (message) => { if (/Conflict|Editor|conflict/.test(message.text())) console.log('PAGE:', message.text()); });
+    await open(page, 'Start');
+    const editor = page.locator('.cm-content').first();
+    await expect(editor).toContainText('A note in UTF-8.', { timeout: 20000 });
+    // Typed into the note, and before it is saved another program changes the
+    // same line: the save cannot merge, or the editor notices the change with
+    // the typing still unsaved — either way the typing goes to a working copy.
+    const foreign = '# Start\n\nChanged by another program.\n';
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('End');
+    await page.keyboard.press('Shift+Home');
+    await page.keyboard.insertText('Typed here.');
+    await page.evaluate((text) => { (window as any).mockFs['/test-vault/Start.md'] = text; }, foreign);
+    // The save cannot merge: what was typed goes to a working copy, and the banner says so.
+    const banner = page.locator('.pv-banner', { hasText: 'You are editing your conflict copy' });
+    await expect(banner).toBeVisible({ timeout: 20000 });
+    const working = await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Start.CONFLICT-')));
+    expect(working).toHaveLength(1);
+    await banner.getByRole('button', { name: 'Resolve conflict…' }).click();
+    await expect(page.getByTestId('compare-modal')).toBeVisible();
+    await page.getByTestId(exit.id).click();
+    // The confirmation's own button: the last one of the dialog on top ("Delete" is a danger button, not a primary one).
+    await page.locator('.pv-modal-footer').last().locator('button').last().click();
+    await expect(page.getByTestId('compare-modal')).not.toBeVisible({ timeout: 10000 });
+    // The note is the other program's again, and the banner of the conflict is gone.
+    await expect(editor).toContainText('Changed by another program.', { timeout: 20000 });
+    await expect(editor).not.toContainText('Typed here.');
+    await expect(banner).toHaveCount(0);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath(`conflict-${exit.id}-desktop.png`) });
+    const state = await page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      return { note: fs['/test-vault/Start.md'], copies: Object.keys(fs).filter((p) => p.startsWith('/test-vault/Start.CONFLICT-')), kept: Object.keys(fs).filter((p) => p.startsWith('/test-vault/Start (Version')).map((p) => fs[p]) };
+    });
+    expect(state.note).toBe(foreign);
+    expect(state.copies).toEqual([]);
+    if (exit.id === 'compare-keep-both') {
+      expect(state.kept).toHaveLength(1);
+      expect(String(state.kept[0])).toContain('Typed here.');
+    } else expect(state.kept).toEqual([]);
+    // Typing goes into the note now, not into a working copy that is gone.
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.insertText('After the answer.');
+    await expect.poll(() => page.evaluate(() => String((window as any).mockFs['/test-vault/Start.md'])), { timeout: 20000 }).toContain('After the answer.');
+    expect(await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Start.CONFLICT-')).length)).toBe(0);
+  });
+}

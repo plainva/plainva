@@ -4,7 +4,7 @@ import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
-import { mergeableText } from "./fileType.js";
+import { isTextFile, mergeableText } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 import { unsyncableCopyPath } from "./unsyncablePaths.js";
 
@@ -843,7 +843,9 @@ export class SyncEngine {
              // used to keep under the new hash, is the text of another version
              // (§ 3.102 no. 2).
              const textContent = op.content ? mergeableText(syncedPath, op.content) : null;
-             await this.stateRepo.recordSyncedBase(syncedPath, { sha256: shaStr, etag, text: textContent }, { sha256: shaStr, expected: expectedLocalSha });
+             // Bytes in hand that are no UTF-8 under a name that says text: the row says so (§ 3.86 no. 2).
+             const notText = !!op.content && textContent === null && isTextFile(syncedPath);
+             await this.stateRepo.recordSyncedBase(syncedPath, { sha256: shaStr, etag, text: textContent, notText }, { sha256: shaStr, expected: expectedLocalSha });
              // The push round-trip completed and the base advanced: retire the
              // push-journal entry (see setPendingPushSha above).
              await this.stateRepo.clearPendingPushSha(syncedPath);

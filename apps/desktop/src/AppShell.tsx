@@ -1760,11 +1760,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               closeTabsByPrefix(outcome.conflictPath);
               // The fork record follows its file (C36); the governance card re-reads.
               if (outcome.forkId) void discardLocalFork(outcome.forkId).catch(console.error);
-              if (outcome.mergedContent !== null) {
-                // Same adoption path as a version restore: the open editor
-                // takes the merged text without re-dirtying or racing a save.
-                window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: outcome.originalPath, content: outcome.mergedContent } }));
-              }
+              // The open editor of the file heard of the answer from the
+              // comparison itself, whichever it was (§ 3.86 no. 7).
               void (async () => {
                 if (indexer) {
                   for (const p of outcome.touched) await indexer.indexPath(p).catch(console.error);

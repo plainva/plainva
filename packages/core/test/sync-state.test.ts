@@ -25,13 +25,14 @@ describe("SyncStateRepository", () => {
     expect(db.queries.length).toBe(1);
     const q = db.queries[0];
     expect(q.query).toContain("INSERT INTO sync_state");
-    for (const column of ["base_sha256", "base_etag", "base_text"]) expect(q.query).toContain(`${column} = excluded.${column}`);
+    for (const column of ["base_sha256", "base_etag", "base_text", "not_text_sha256"]) expect(q.query).toContain(`${column} = excluded.${column}`);
     // local_sha256 only advances when still at the expected marker or unset:
     // a save landing during the upload keeps its newer hash.
     expect(q.query).toMatch(
       /local_sha256 = CASE\s+WHEN sync_state\.local_sha256 IS NULL OR sync_state\.local_sha256 = \? THEN excluded\.local_sha256\s+ELSE sync_state\.local_sha256\s+END/
     );
-    expect(q.params).toEqual(["note.md", "pushedSha", "e1", "pushed text", "pushedSha", "expectedSha"]);
+    // The version is text: no "no text" mark (§ 3.86 no. 2).
+    expect(q.params).toEqual(["note.md", "pushedSha", "e1", "pushed text", null, "pushedSha", "expectedSha"]);
   });
 
   it("recordSyncedBase on a real database: the row names the version it holds, the guard keeps a newer marker", async () => {

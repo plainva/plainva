@@ -1,7 +1,7 @@
 import type { IVaultAdapter } from "./IVaultAdapter.js";
 import { withPathMutation } from "./pathMutation.js";
 import { mergeEditorText } from "../conflict-resolver.js";
-import { copyFileContent, fileSha256 } from "./localText.js";
+import { copyFileContent, fileSha256, isNotTextFileError, readExactText } from "./localText.js";
 
 export type ConflictWriter = "adapter" | "editor-save" | "editor-external" | "sync-pull";
 
@@ -69,6 +69,13 @@ export interface ConflictResolution {
   content: string;
   disposition?: "adopt" | "discard";
   keepCopyAs?: string;
+  /**
+   * The copy the comparison looked at. Where it is no working copy of an open
+   * conflict — a copy the sync left beside the file —, the chain settles it
+   * in the same gate it checks it in (Sammelplan § 3.86 no. 8). Absent: the
+   * file's open conflict, as before.
+   */
+  copyPath?: string;
 }
 
 /**
@@ -89,6 +96,8 @@ export interface ConflictBytesResolution {
    */
   disposition: "adopt" | "discard";
   keepCopyAs?: string;
+  /** As in `ConflictResolution`: a copy beside the file that is no working copy is settled in the gate it is checked in. */
+  copyPath?: string;
 }
 
 export interface ConflictSessionGate {
@@ -126,6 +135,20 @@ export function decodeConflictSession(value: string): ConflictEditSession {
       || (s.resolution.keepCopyAs !== undefined && !safePath(s.resolution.keepCopyAs))))) throw new Error("Invalid conflict session state");
   return s;
 }
+
+/**
+ * What a file of a conflict holds where its bytes are no UTF-8 — the working
+ * copy or the file, saved in another encoding by another program since
+ * (Sammelplan § 3.86 no. 6). The sessions read their files by their bytes
+ * (`readExactText`): such a file is set aside byte for byte, and it is no
+ * text any comparison saw.
+ */
+const NOT_TEXT: unique symbol = Symbol("not text");
+type SideText = string | null | typeof NOT_TEXT;
+
+/** The hash a side is compared by: a text's, none for a missing file, and one no text has for a file that is no text. */
+const sideHash = async (side: SideText): Promise<string | null> =>
+  side === null ? null : side === NOT_TEXT ? "not text" : conflictHash(side);
 
 export async function conflictHash(text: string): Promise<string> {
   const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -340,7 +363,7 @@ export class ConflictSessions {
   private async recoverDraft(session: ConflictEditSession): Promise<void> {
     if (session.pendingText === null) {
       const current = await this.readOrNull(session.workingCopyPath);
-      if (current !== null && await conflictHash(current) === session.workingHash) return;
+      if (typeof current === "string" && await conflictHash(current) === session.workingHash) return;
       // Keep our last confirmed text through a foreign overwrite or missing
       // working file, including when no editor remained alive to hold it.
       session.pendingText = session.draftText;
@@ -348,8 +371,14 @@ export class ConflictSessions {
     }
     const targetHash = await conflictHash(session.pendingText);
     const disk = await this.readOrNull(session.workingCopyPath);
-    const diskHash = disk === null ? null : await conflictHash(disk);
-    if (diskHash !== session.workingHash && diskHash !== targetHash && disk !== null) {
+    const diskHash = await sideHash(disk);
+    if (disk === NOT_TEXT) {
+      // Saved in another encoding by another program (§ 3.86 no. 6): set
+      // aside as the bytes it is. A reading of it is not what was there — the
+      // one kind of reader replaces those bytes, the other refuses the file,
+      // and the session stopped at it.
+      await this.preserveBytes(session);
+    } else if (diskHash !== session.workingHash && diskHash !== targetHash && disk !== null) {
       // A genuinely foreign working-copy change is another conflict, not an
       // autosave retry. Preserve its bytes before replaying the journal.
       await this.preserveRevision(session, disk);
@@ -357,6 +386,23 @@ export class ConflictSessions {
     if (diskHash !== targetHash) await this.files.writeTextFile(session.workingCopyPath, session.pendingText);
     if (await this.files.readTextFile(session.workingCopyPath) !== session.pendingText) throw new Error("Conflict draft could not be confirmed");
     session.workingHash = targetHash; session.pendingText = null;
+    await this.store.saveConflictSession(session);
+  }
+
+  /**
+   * A working copy that is no text by its bytes, set aside byte for byte
+   * beside the revisions `preserveRevision` keeps, under its own name.
+   */
+  private async preserveBytes(session: ConflictEditSession): Promise<void> {
+    const bytes = await this.files.readBinaryFile(session.workingCopyPath);
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
+    const sha = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+    if (session.foreignCopySnapshot && await fileSha256(this.files, session.foreignCopySnapshot) === sha) return;
+    const name = session.workingCopyPath.slice(session.workingCopyPath.lastIndexOf("/") + 1);
+    const snapshot = `.plainva/conflict-revisions/${crypto.randomUUID()}-${name}`;
+    await this.files.writeBinaryFile(snapshot, bytes);
+    if (await fileSha256(this.files, snapshot) !== sha) throw new Error("Foreign conflict copy could not be preserved");
+    session.foreignCopySnapshot = snapshot;
     await this.store.saveConflictSession(session);
   }
 
@@ -370,21 +416,27 @@ export class ConflictSessions {
   }
 
   async resolve(path: string, resolution: ConflictResolution): Promise<void> {
-    await this.withMutation(path, async gate => {
-      const session = gate.session;
-      if (!session) throw new Error("Conflict session no longer exists");
-      if (session.resolution) { await this.finishResolution(session); return; }
-      await this.recoverDraft(session);
-      const original = await this.readOrNull(session.originalPath);
-      const copy = await this.readOrNull(session.workingCopyPath);
-      if (original !== resolution.originalText || copy !== resolution.copyText) throw new Error("comparisonChanged");
-      if (resolution.keepCopyAs && (!safePath(resolution.keepCopyAs) || await this.files.exists(resolution.keepCopyAs))) throw new Error("comparisonChanged");
-      const content = resolution.disposition === "discard" ? original : resolution.content;
-      if (content === null) throw new Error("Cannot discard a conflict whose original is missing");
-      session.resolution = { content, originalHash: original === null ? null : await conflictHash(original), copyHash: await conflictHash(copy!), ...(resolution.keepCopyAs ? { keepCopyAs: resolution.keepCopyAs } : {}) };
-      await this.store.saveConflictSession(session);
-      await this.finishResolution(session);
-    }, resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
+    await this.withMutation(path, gate => this.resolveLocked(gate, resolution), resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
+  }
+
+  /** `resolve` inside a gate the caller holds — for the file, its working copy and `keepCopyAs`. */
+  async resolveLocked(gate: ConflictSessionGate, resolution: ConflictResolution): Promise<void> {
+    const session = gate.session;
+    if (!session) throw new Error("Conflict session no longer exists");
+    if (session.resolution) { await this.finishResolution(session); return; }
+    await this.recoverDraft(session);
+    // Read by their bytes: a side another program saved in another encoding
+    // is no text the comparison saw (§ 3.86 no. 6), and says so as such.
+    const original = await this.readOrNull(session.originalPath);
+    const copy = await this.readOrNull(session.workingCopyPath);
+    if (original !== resolution.originalText || copy !== resolution.copyText) throw new Error("comparisonChanged");
+    const seenOriginal = original as string | null, seenCopy = copy as string;
+    if (resolution.keepCopyAs && (!safePath(resolution.keepCopyAs) || await this.files.exists(resolution.keepCopyAs))) throw new Error("comparisonChanged");
+    const content = resolution.disposition === "discard" ? seenOriginal : resolution.content;
+    if (content === null) throw new Error("Cannot discard a conflict whose original is missing");
+    session.resolution = { content, originalHash: seenOriginal === null ? null : await conflictHash(seenOriginal), copyHash: await conflictHash(seenCopy), ...(resolution.keepCopyAs ? { keepCopyAs: resolution.keepCopyAs } : {}) };
+    await this.store.saveConflictSession(session);
+    await this.finishResolution(session);
   }
 
   /**
@@ -396,43 +448,50 @@ export class ConflictSessions {
    * working copy goes, or stays beside it under a name of its own.
    */
   async resolveBytes(path: string, resolution: ConflictBytesResolution): Promise<void> {
-    await this.withMutation(path, async gate => {
-      const session = gate.session;
-      if (!session) throw new Error("Conflict session no longer exists");
-      if (session.resolution) throw new Error("Conflict resolution is still being completed");
-      await this.recoverDraft(session);
-      const original = await fileSha256(this.files, session.originalPath);
-      const copy = await fileSha256(this.files, session.workingCopyPath);
-      if (original !== resolution.originalSha256 || copy === null || copy !== resolution.copySha256) throw new Error("comparisonChanged");
-      // Letting the copy go where no file is left would leave nothing at all.
-      if (resolution.disposition === "discard" && !resolution.keepCopyAs && original === null) throw new Error("Cannot discard a conflict whose original is missing");
-      if (resolution.keepCopyAs && (resolution.disposition !== "discard" || !safePath(resolution.keepCopyAs) || await this.files.exists(resolution.keepCopyAs))) {
-        throw new Error("comparisonChanged");
-      }
-      if (resolution.disposition === "adopt") {
-        await copyFileContent(this.files, session.workingCopyPath, session.originalPath);
-        if (await fileSha256(this.files, session.originalPath) !== copy) throw new Error("Conflict resolution could not be confirmed");
-        // The local marker follows the write in the same gate, as in
-        // `finishResolution`; the sync base stays the last confirmed remote one.
-        await this.store.updateLocalHash(session.originalPath, copy);
-        await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
-      } else if (resolution.keepCopyAs) {
-        await this.files.renameItem(session.workingCopyPath, resolution.keepCopyAs);
-      } else {
-        await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
-      }
-      await this.store.removeConflictSession(session.originalPath);
-    }, resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
+    await this.withMutation(path, gate => this.resolveBytesLocked(gate, resolution), resolution.keepCopyAs ? [resolution.keepCopyAs] : []);
+  }
+
+  /** `resolveBytes` inside a gate the caller holds. */
+  async resolveBytesLocked(gate: ConflictSessionGate, resolution: ConflictBytesResolution): Promise<void> {
+    const session = gate.session;
+    if (!session) throw new Error("Conflict session no longer exists");
+    if (session.resolution) throw new Error("Conflict resolution is still being completed");
+    await this.recoverDraft(session);
+    const original = await fileSha256(this.files, session.originalPath);
+    const copy = await fileSha256(this.files, session.workingCopyPath);
+    if (original !== resolution.originalSha256 || copy === null || copy !== resolution.copySha256) throw new Error("comparisonChanged");
+    // Letting the copy go where no file is left would leave nothing at all.
+    if (resolution.disposition === "discard" && !resolution.keepCopyAs && original === null) throw new Error("Cannot discard a conflict whose original is missing");
+    if (resolution.keepCopyAs && (resolution.disposition !== "discard" || !safePath(resolution.keepCopyAs) || await this.files.exists(resolution.keepCopyAs))) {
+      throw new Error("comparisonChanged");
+    }
+    if (resolution.disposition === "adopt") {
+      await copyFileContent(this.files, session.workingCopyPath, session.originalPath);
+      if (await fileSha256(this.files, session.originalPath) !== copy) throw new Error("Conflict resolution could not be confirmed");
+      // The local marker follows the write in the same gate, as in
+      // `finishResolution`; the sync base stays the last confirmed remote one.
+      await this.store.updateLocalHash(session.originalPath, copy);
+      await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+    } else if (resolution.keepCopyAs) {
+      await this.files.renameItem(session.workingCopyPath, resolution.keepCopyAs);
+    } else {
+      await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+    }
+    await this.store.removeConflictSession(session.originalPath);
   }
 
   private async finishResolution(session: ConflictEditSession): Promise<void> {
     const resolution = session.resolution!;
+    // By their bytes (§ 3.86 no. 6): a side saved in another encoding since
+    // has a hash no text has, so the confirmation no longer holds — where it
+    // used to be a reading (the one kind of reader) or a raw error the session
+    // stopped at each time it was looked at (the other).
     const original = await this.readOrNull(session.originalPath);
-    const originalHash = original === null ? null : await conflictHash(original);
+    const originalHash = await sideHash(original);
     const desiredHash = await conflictHash(resolution.content);
     const copy = await this.readOrNull(session.workingCopyPath);
     if ((originalHash !== desiredHash && originalHash !== resolution.originalHash)
-      || (copy !== null && await conflictHash(copy) !== resolution.copyHash)) {
+      || (copy !== null && await sideHash(copy) !== resolution.copyHash)) {
       // New evidence invalidates the old confirmation. Keep the draft and
       // allow a fresh comparison instead of trapping the session in recovery.
       session.resolution = null;
@@ -441,8 +500,8 @@ export class ConflictSessions {
     }
     if (resolution.keepCopyAs) {
       const kept = await this.readOrNull(resolution.keepCopyAs);
-      if (kept === null && copy !== null) await this.files.writeTextFile(resolution.keepCopyAs, copy);
-      if (await conflictHash(await this.files.readTextFile(resolution.keepCopyAs)) !== resolution.copyHash) throw new Error("comparisonChanged");
+      if (kept === null && typeof copy === "string") await this.files.writeTextFile(resolution.keepCopyAs, copy);
+      if (await sideHash(await this.readOrNull(resolution.keepCopyAs)) !== resolution.copyHash) throw new Error("comparisonChanged");
     }
     if (originalHash !== desiredHash) await this.files.writeTextFile(session.originalPath, resolution.content);
     if (await this.files.readTextFile(session.originalPath) !== resolution.content) throw new Error("Conflict resolution could not be confirmed");
@@ -453,7 +512,19 @@ export class ConflictSessions {
     await this.store.removeConflictSession(session.originalPath);
   }
 
-  private async readOrNull(path: string): Promise<string | null> {
-    return await this.files.exists(path) ? this.files.readTextFile(path) : null;
+  /**
+   * A file of the conflict: its text, null where none lies there, `NOT_TEXT`
+   * where its bytes are no UTF-8 (§ 3.86 no. 6). Asked of the bytes, not of
+   * the name and the platform's text reader, which replaces such bytes on the
+   * one platform and refuses the file on the other.
+   */
+  private async readOrNull(path: string): Promise<SideText> {
+    if (!await this.files.exists(path)) return null;
+    try {
+      return await readExactText(this.files, path);
+    } catch (error) {
+      if (isNotTextFileError(error)) return NOT_TEXT;
+      throw error;
+    }
   }
 }

@@ -50,11 +50,13 @@ const SITES: Record<string, Site[]> = {
     ["reads and writes path in writeText", 1, "hands an editor's whole text to the file in the shape the file has (line ends, mark): the read is for the shape only, the text is the editor's"],
   ],
   "vault/ConflictAwareVaultAdapter.ts": [["reads and writes path in writeEditorText (callback)", 1, CHAIN]],
+  "vault/conflictCopy.ts": [
+    ["reads and writes originalPath in settleConflictText", 1, "a comparison's answer over an adapter without the chain's gate (none the shells hand out): the read checks that the file still is what the person compared, and the text written is the one they chose — through the chain it is `resolveConflict`, one step under its gate (Sammelplan § 3.86 no. 8)"],
+  ],
   "vault/ConflictFileStore.ts": [["reads and writes path in write", 1, `${OWN_FILE} — a record of the conflict store, read back to confirm`]],
   "vault/conflictSession.ts": [
     ["reads and writes session.workingCopyPath in recoverDraft", 1, CONFLICT],
     ["reads and writes snapshot in preserveRevision", 1, CONFLICT],
-    ["reads and writes resolution.keepCopyAs in finishResolution", 1, CONFLICT],
     ["reads and writes session.originalPath in finishResolution", 1, CONFLICT],
   ],
 };

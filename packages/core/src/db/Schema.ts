@@ -115,7 +115,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       pending_push_sha TEXT,
       recheck INTEGER,
       pulled_sha256 TEXT,
-      pulled_mtime INTEGER
+      pulled_mtime INTEGER,
+      not_text_sha256 TEXT
     );`,
 
     `CREATE TABLE IF NOT EXISTS meta (
@@ -576,6 +577,17 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     } catch {
       // Column might already exist
     }
+  }
+
+  try {
+    // "The version this row names is no text" (2026-11-03, Sammelplan § 3.86
+    // no. 2): the hash of the bytes the sync, the index or an open found to be
+    // no UTF-8 (`SyncState.not_text_sha256`). Additive and nullable: a row
+    // without it is judged as before, so nothing is guessed about a row an
+    // older version wrote.
+    await db.execute(`ALTER TABLE sync_state ADD COLUMN not_text_sha256 TEXT;`);
+  } catch {
+    // Column might already exist
   }
 
   try {

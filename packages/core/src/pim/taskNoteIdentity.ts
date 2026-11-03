@@ -245,10 +245,22 @@ export async function assertComparisonUnchanged(adapter: TaskFileReader, origina
   if (current !== original || !await adapter.exists(copyPath) || await adapter.readTextFile(copyPath) !== copy) throw new Error("comparisonChanged");
 }
 
-export async function separateTaskConflict(adapter: TaskFileReader & { writeTextFile(path: string, content: string): Promise<void>; deleteItem(path: string): Promise<void> }, originalPath: string, original: string, copyPath: string, copy: string, expectedPath?: string): Promise<string> {
+export async function separateTaskConflict(adapter: TaskFileReader & {
+  writeTextFile(path: string, content: string): Promise<void>;
+  deleteItem(path: string): Promise<void>;
+  resolveConflict?(path: string, resolution: { originalText: string | null; copyText: string; content: string; disposition?: "adopt" | "discard"; copyPath?: string }): Promise<void>;
+}, originalPath: string, original: string, copyPath: string, copy: string, expectedPath?: string): Promise<string> {
   if (classifyTaskNotes(original, copy) !== "different") throw new Error("task_identity_unverified");
   await assertComparisonUnchanged(adapter, originalPath, original, copyPath, copy);
   const path = await preserveDisplacedTask(adapter, originalPath, copy, expectedPath);
+  // The copy goes only while both still are what was compared — checked and
+  // deleted in one step under the chain's gate where there is one, so that a
+  // change of the copy in between is not deleted with it (Sammelplan § 3.86
+  // no. 8; its text lies in `path` as it was compared).
+  if (adapter.resolveConflict) {
+    await adapter.resolveConflict(originalPath, { originalText: original, copyText: copy, content: original, disposition: "discard", copyPath });
+    return path;
+  }
   await assertComparisonUnchanged(adapter, originalPath, original, copyPath, copy);
   await adapter.deleteItem(copyPath);
   return path;

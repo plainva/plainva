@@ -1239,7 +1239,8 @@ export class SyncWorker {
     // text keeps none: the text of another content is no ancestor of this one.
     const remoteText = isTextFile(path) ? mergeableText(path, contentBytes) : null;
     const remoteSha = await sha256Bytes(contentBytes);
-    const recordRemoteAsBase = () => this.stateRepo.recordSyncedBase(path, { sha256: remoteSha, etag: remoteEtag, text: remoteText });
+    // Text by its name and not by its bytes: the row says so (§ 3.86 no. 2).
+    const recordRemoteAsBase = () => this.stateRepo.recordSyncedBase(path, { sha256: remoteSha, etag: remoteEtag, text: remoteText, notText: isTextFile(path) && remoteText === null });
     const localExists = await this.vault.exists(path);
     let writeNeeded = !localExists;
     // Local hash at read time — the no-write path below only adopts the marker
