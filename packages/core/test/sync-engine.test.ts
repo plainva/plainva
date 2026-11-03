@@ -131,10 +131,12 @@ describe("SyncEngine", () => {
     const guarded = db.queries.find((q) => q.query.includes("ELSE sync_state.local_sha256"));
     expect(guarded).toBeDefined();
     const params = guarded!.params as any[];
+    // One statement: path, base hash, base ETag, base text, local marker, guard.
     expect(params[0]).toBe("note.md");
     expect(params[1]).toMatch(/^[0-9a-f]{64}$/); // sha of the pushed bytes
-    expect(params[2]).toBe("v1 content");        // base_text = the pushed content
-    expect(params[3]).toBe("shaV1");             // guard = marker at push start
+    expect(params[3]).toBe("v1 content");        // base_text = the pushed content
+    expect(params[4]).toBe(params[1]);           // the local marker it would adopt
+    expect(params[5]).toBe("shaV1");             // guard = marker at push start
   });
 
   it("skips a non-forced write whose content already equals base_sha256 (already in sync)", async () => {

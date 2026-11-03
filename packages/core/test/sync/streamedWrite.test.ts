@@ -84,7 +84,7 @@ describe("streamed writes (issue #48)", () => {
     expect((baseUpsert!.params as any[])[1]).toBe(BIG_REF.sha256);
   });
 
-  it("keeps no base_text for a streamed write, but still guards the local hash", async () => {
+  it("keeps no base_text for a streamed write — not even the one of the version before —, but still guards the local hash", async () => {
     const target = new StreamingTarget();
     const bigMarkdown: SyncContentRef = { ...BIG_REF, relPath: "Huge.md" };
     const engine = new SyncEngine(queue, target, vault as any, new SyncStateRepository(db), async () => bigMarkdown);
@@ -92,12 +92,16 @@ describe("streamed writes (issue #48)", () => {
 
     await engine.processQueue();
 
-    // Decoding megabytes just to store them would undo the point of streaming.
-    const baseText = db.queries.find((q) => q.query.includes("base_text = excluded.base_text"));
-    expect(baseText).toBeUndefined();
+    // Decoding megabytes just to store them would undo the point of streaming,
+    // and the text of the version before is no text of this one (§ 3.102 no. 2):
+    // hash and an empty text in one statement.
+    const base = db.queries.find((q) => q.query.includes("base_text = excluded.base_text"));
+    expect(base).toBeDefined();
+    expect(base!.query).toContain("base_sha256 = excluded.base_sha256");
+    expect((base!.params as any[]).slice(0, 4)).toEqual(["Huge.md", bigMarkdown.sha256, "etag-1", null]);
     const guarded = db.queries.find((q) => q.query.includes("ELSE sync_state.local_sha256"));
-    expect(guarded, "the conflict-race guard still applies").toBeDefined();
-    expect((guarded!.params as any[])[1]).toBe(bigMarkdown.sha256);
+    expect(guarded, "the conflict-race guard still applies").toBe(base);
+    expect((guarded!.params as any[])[4]).toBe(bigMarkdown.sha256);
   });
 
   it("falls back to the buffer when the target cannot stream", async () => {

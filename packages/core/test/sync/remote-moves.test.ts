@@ -87,7 +87,7 @@ describe("renames from another device arrive as moves", () => {
       updateRemoteId: vi.fn().mockResolvedValue(undefined),
       updateBaseState: vi.fn().mockResolvedValue(undefined),
       recordPulledVersion: vi.fn().mockResolvedValue(undefined),
-      updateBaseText: vi.fn().mockResolvedValue(undefined),
+      recordSyncedBase: vi.fn().mockResolvedValue(undefined),
       clearPendingPushSha: vi.fn().mockResolvedValue(undefined),
       deleteSyncState: vi.fn(async (path: string) => void states.delete(path)),
       getBaseText: vi.fn().mockResolvedValue(null),

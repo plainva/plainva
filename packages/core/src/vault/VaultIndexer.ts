@@ -773,9 +773,15 @@ export class VaultIndexer {
       // local_sha256 for existing files during index, as it would destroy the
       // knowledge of the "base text" for 3-way merges. A base the sync
       // recorded is never ours to write: only the local marker is renewed.
+      //
+      // Nor one the sync recorded after this pass looked at the row: the
+      // statement itself leaves the text of a row that carries a base hash
+      // by now (Sammelplan § 3.102 no. 3). A first upload that ended while a
+      // full pass was under way got the text of a later version under its
+      // own hash — the row named one version and held another.
       if (isNewLocalFile) {
         if (keepsSyncedBase) await this.syncRepo.updateLocalHash(fileInfo.path, sha256, writer);
-        else await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
+        else await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
       }
 
       // Insert links (rows built above): ONE multi-row batch — inserting row
@@ -817,7 +823,7 @@ export class VaultIndexer {
         [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, indexedSyncState]
       );
       if (!oldSyncState) {
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
+        await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
       }
     }
 
@@ -918,8 +924,10 @@ export class VaultIndexer {
 
     if (isNewLocalFile) {
       if (textLike && textContent !== null && !keepsSyncedBase) {
-        // Text-like file: store a base_text so it is mergeable, matching the write path.
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, textContent, writer);
+        // Text-like file: store a base_text so it is mergeable, matching the
+        // write path — unless a sync recorded a base since this pass looked
+        // at the row (as for a note above).
+        await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, textContent, writer);
       } else {
         // Hash only — true binary files have no base_text, and a text file the
         // sync knows keeps the base the sync recorded (see judgeSyncState).

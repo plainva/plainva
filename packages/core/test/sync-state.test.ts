@@ -20,19 +20,43 @@ describe("SyncStateRepository", () => {
     expect(db.queries[0].params).toEqual(["note.md", "hash123", "base text"]);
   });
 
-  it("updateLocalHashAndBaseTextGuarded advances base_text unconditionally but guards local_sha256 (P1)", async () => {
-    await repo.updateLocalHashAndBaseTextGuarded("note.md", "pushedSha", "pushed text", "expectedSha");
+  it("recordSyncedBase writes hash, ETag, text and the local marker in ONE statement (Sammelplan § 3.102 no. 7)", async () => {
+    await repo.recordSyncedBase("note.md", { sha256: "pushedSha", etag: "e1", text: "pushed text" }, { sha256: "pushedSha", expected: "expectedSha" });
     expect(db.queries.length).toBe(1);
     const q = db.queries[0];
     expect(q.query).toContain("INSERT INTO sync_state");
-    // base_text always adopts the pushed content (the new common ancestor)…
-    expect(q.query).toContain("base_text = excluded.base_text");
-    // …while local_sha256 only advances when still at the expected marker or unset:
+    for (const column of ["base_sha256", "base_etag", "base_text"]) expect(q.query).toContain(`${column} = excluded.${column}`);
+    // local_sha256 only advances when still at the expected marker or unset:
     // a save landing during the upload keeps its newer hash.
     expect(q.query).toMatch(
       /local_sha256 = CASE\s+WHEN sync_state\.local_sha256 IS NULL OR sync_state\.local_sha256 = \? THEN excluded\.local_sha256\s+ELSE sync_state\.local_sha256\s+END/
     );
-    expect(q.params).toEqual(["note.md", "pushedSha", "pushed text", "expectedSha"]);
+    expect(q.params).toEqual(["note.md", "pushedSha", "e1", "pushed text", "pushedSha", "expectedSha"]);
+  });
+
+  it("recordSyncedBase on a real database: the row names the version it holds, the guard keeps a newer marker", async () => {
+    const real = await realSqlite();
+    try {
+      const rows = new SyncStateRepository(real);
+      const row = async (path: string) => {
+        const state = await rows.getSyncState(path);
+        return { local: state?.local_sha256 ?? null, baseSha: state?.base_sha256 ?? null, etag: state?.base_etag ?? null, base: state?.base_text ?? null };
+      };
+      await rows.recordSyncedBase("a.md", { sha256: "v1", etag: "e1", text: "one" }, { sha256: "v1" });
+      expect(await row("a.md")).toEqual({ local: "v1", baseSha: "v1", etag: "e1", base: "one" });
+      // A version without a text in hand (a streamed upload, a file that is no UTF-8): no text of the one before.
+      await rows.recordSyncedBase("a.md", { sha256: "v2", etag: null, text: null }, { sha256: "v2", expected: "v1" });
+      expect(await row("a.md")).toEqual({ local: "v2", baseSha: "v2", etag: null, base: null });
+      // A save landed during the round trip: its marker stays.
+      await rows.updateLocalHash("a.md", "saved-meanwhile");
+      await rows.recordSyncedBase("a.md", { sha256: "v3", etag: "e3", text: "three" }, { sha256: "v3", expected: "v2" });
+      expect(await row("a.md")).toEqual({ local: "saved-meanwhile", baseSha: "v3", etag: "e3", base: "three" });
+      // Without `local` the marker is left alone.
+      await rows.recordSyncedBase("a.md", { sha256: "v4", etag: "e4", text: "four" });
+      expect(await row("a.md")).toEqual({ local: "saved-meanwhile", baseSha: "v4", etag: "e4", base: "four" });
+    } finally {
+      await real.close();
+    }
   });
 
   it("updateLocalHashGuarded guards local_sha256 and never touches the base (P1)", async () => {
@@ -68,16 +92,6 @@ describe("SyncStateRepository", () => {
     expect(db.queries.length).toBe(1);
     expect(db.queries[0].query).toBe("UPDATE sync_state SET pending_push_sha = NULL WHERE path = ?");
     expect(db.queries[0].params).toEqual(["note.md"]);
-  });
-
-  it("updateBaseText advances ONLY the merge base text (echo adoption)", async () => {
-    await repo.updateBaseText("note.md", "echo content");
-    expect(db.queries.length).toBe(1);
-    const q = db.queries[0];
-    expect(q.query).toContain("INSERT INTO sync_state (path, base_text)");
-    expect(q.query).toContain("ON CONFLICT(path) DO UPDATE SET base_text = excluded.base_text");
-    expect(q.query).not.toContain("local_sha256");
-    expect(q.params).toEqual(["note.md", "echo content"]);
   });
 
   it("getAllStates loads pending_push_sha into the per-cycle snapshot", async () => {
@@ -126,8 +140,7 @@ describe("SyncStateRepository", () => {
       await rows.updateLocalHashAndUnsyncedBaseText("new.md", "local-2", "text 2");
       expect(await row("new.md")).toEqual({ local: "local-2", baseSha: null, base: "text 2" });
       // A row that carries the sync's base: the marker moves, hash and text of the base stay.
-      await rows.updateBaseState("new.md", "synced-sha", "etag-1");
-      await rows.updateBaseText("new.md", "synced text");
+      await rows.recordSyncedBase("new.md", { sha256: "synced-sha", etag: "etag-1", text: "synced text" });
       await rows.updateLocalHashAndUnsyncedBaseText("new.md", "local-3", "text 3");
       expect(await row("new.md")).toEqual({ local: "local-3", baseSha: "synced-sha", base: "synced text" });
       // Also where the sync recorded a base and no text for it (a file that is no UTF-8, a streamed upload).

@@ -194,8 +194,13 @@ export class SyncStateRepository {
     return rows.length > 0 ? rows[0].path : null;
   }
 
-  // `writer` lets the bulk indexer record this pure-write upsert into its atomic
-  // batch (defaults to the live adapter, so every other caller is unchanged).
+  /**
+   * The local marker and the base text, whatever the row held. Nothing in the
+   * sync or the index writes this way any more: a base the sync recorded is
+   * the sync's (`recordSyncedBase`), and the index records a text only for a
+   * file no sync has seen (`updateLocalHashAndUnsyncedBaseText`). Left for
+   * setting up a row as an earlier version left it.
+   */
   async updateLocalHashAndBaseText(
     path: string,
     localSha256: string,
@@ -250,8 +255,13 @@ export class SyncStateRepository {
    * beforehand: a first upload that finishes in between must not find its base
    * text replaced a moment later.
    */
-  async updateLocalHashAndUnsyncedBaseText(path: string, localSha256: string, text: string): Promise<void> {
-    await this.db.execute(
+  async updateLocalHashAndUnsyncedBaseText(
+    path: string,
+    localSha256: string,
+    text: string,
+    writer: { execute(query: string, params?: unknown[]): Promise<void> } = this.db
+  ): Promise<void> {
+    await writer.execute(
       `INSERT INTO sync_state (path, local_sha256, base_text)
        VALUES (?, ?, ?)
        ON CONFLICT(path) DO UPDATE SET
@@ -262,35 +272,64 @@ export class SyncStateRepository {
   }
 
   /**
-   * Post-sync variant of updateLocalHashAndBaseText: base_text always advances
-   * (the pushed/reconciled content IS the new common ancestor), but local_sha256
-   * is only adopted when it still equals `expectedLocalSha` — the value read when
-   * the network round-trip started — or is unset. An editor save that lands while
-   * the upload is in flight updates local_sha256 first; unconditionally
-   * overwriting it with the older pushed hash made the NEXT save look like an
-   * external modification and produced spurious .CONFLICT files from nothing but
-   * fast consecutive local edits (single-device autosave race).
+   * Records the version this device and the remote now agree on — the merge
+   * base: its hash, its ETag and its text, in ONE statement, after an upload
+   * went through or a pull settled the file (Sammelplan § 3.102 no. 7).
+   *
+   * They used to be two statements, and the order differed by caller: the
+   * worker wrote the text first, the engine the hash. An app that ended in
+   * between — on the phone also a foreign transaction rolled back with the
+   * statements in it (§ 3.89) — left the row naming one version and holding
+   * the text of another. That is no common ancestor; since § 3.93 a merge
+   * does not take it for one, and the file ends as a conflict copy instead.
+   *
+   * `text` is the version's text where it is one, and null where it is none:
+   * a file that is not UTF-8 or no text at all, and a version whose bytes were
+   * never in hand (an upload streamed from disk). The row then holds no text
+   * rather than the text of an earlier version under the new hash (§ 3.102
+   * no. 2).
+   *
+   * `local` adopts the local marker in the same statement. With `expected`,
+   * only while the row still holds that marker (or none): the value read when
+   * the round trip started. A save that landed meanwhile keeps its newer hash —
+   * overwriting it with the older one made the NEXT save look like a change
+   * from outside and produced conflict copies out of nothing but quick edits
+   * (single-device autosave race, P1).
    */
-  async updateLocalHashAndBaseTextGuarded(
+  async recordSyncedBase(
     path: string,
-    localSha256: string,
-    baseText: string,
-    expectedLocalSha: string | null
+    base: { sha256: string; etag: string | null; text: string | null },
+    local?: { sha256: string; expected?: string | null }
   ): Promise<void> {
-    await this.db.execute(
-      `INSERT INTO sync_state (path, local_sha256, base_text)
-       VALUES (?, ?, ?)
-       ON CONFLICT(path) DO UPDATE SET
-         base_text = excluded.base_text,
-         local_sha256 = CASE
+    const columns = ["path", "base_sha256", "base_etag", "base_text"];
+    const params: unknown[] = [path, base.sha256, base.etag, base.text];
+    const updates = ["base_sha256 = excluded.base_sha256", "base_etag = excluded.base_etag", "base_text = excluded.base_text"];
+    if (local) {
+      columns.push("local_sha256");
+      params.push(local.sha256);
+      if (local.expected === undefined) {
+        updates.push("local_sha256 = excluded.local_sha256");
+      } else {
+        updates.push(`local_sha256 = CASE
            WHEN sync_state.local_sha256 IS NULL OR sync_state.local_sha256 = ? THEN excluded.local_sha256
            ELSE sync_state.local_sha256
-         END`,
-      [path, localSha256, baseText, expectedLocalSha]
+         END`);
+        params.push(local.expected);
+      }
+    }
+    await this.db.execute(
+      `INSERT INTO sync_state (${columns.join(", ")})
+       VALUES (${columns.map(() => "?").join(", ")})
+       ON CONFLICT(path) DO UPDATE SET
+         ${updates.join(",\n         ")}`,
+      params
     );
   }
 
-  /** See updateLocalHashAndBaseTextGuarded — variant without base_text (binary files). */
+  /**
+   * Adopts the local marker of a file the sync compared with the remote only
+   * while no concurrent app save changed it since (see `recordSyncedBase`).
+   */
   async updateLocalHashGuarded(path: string, localSha256: string, expectedLocalSha: string | null): Promise<void> {
     await this.db.execute(
       `INSERT INTO sync_state (path, local_sha256)
@@ -348,6 +387,11 @@ export class SyncStateRepository {
     );
   }
 
+  /**
+   * The hash and ETag of the merge base alone, leaving its text as it is. The
+   * sync itself records a base through `recordSyncedBase`, which writes all
+   * three at once; this one sets up a row whose text another call wrote.
+   */
   async updateBaseState(path: string, baseSha256: string | null, baseEtag: string | null): Promise<void> {
     await this.db.execute(
       `INSERT INTO sync_state (path, base_sha256, base_etag)
@@ -376,20 +420,6 @@ export class SyncStateRepository {
   /** Clears the push journal entry once the pushed base is fully recorded (or adopted as an echo). */
   async clearPendingPushSha(path: string): Promise<void> {
     await this.db.execute(`UPDATE sync_state SET pending_push_sha = NULL WHERE path = ?`, [path]);
-  }
-
-  /**
-   * Advances ONLY the merge base text — used when the reconcile adopts our own
-   * echoed upload as the new common ancestor while the local file (and its
-   * local_sha256 marker) stay ahead with unsynced edits.
-   */
-  async updateBaseText(path: string, baseText: string): Promise<void> {
-    await this.db.execute(
-      `INSERT INTO sync_state (path, base_text)
-       VALUES (?, ?)
-       ON CONFLICT(path) DO UPDATE SET base_text = excluded.base_text`,
-      [path, baseText]
-    );
   }
 
   /**
