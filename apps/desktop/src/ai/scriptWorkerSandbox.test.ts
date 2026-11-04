@@ -197,35 +197,35 @@ describe("the script worker's watchdog", () => {
 });
 
 describe("the engine the sandbox runs", () => {
-  // One WebAssembly module, embedded in the package the lockfile pins. A new version of the package is a new engine:
-  // these two numbers change with it, and whoever changes them has looked at what the new module can reach.
-  const ENGINE_SHA256 = "64a0922ad271e4b20a4bc238bf1a9fdc0561113789257813b2bfadb3378b10f7";
-  const ENGINE_IMPORTS = 15;
+  // One WebAssembly module, QuickJS-ng, a file of the package the lockfile pins. A new version of the package is a
+  // new engine: these numbers change with it, and whoever changes them has looked at what the new module can reach.
+  const ENGINE_SHA256 = "b56fe5094b8751c47b8c32fb5ed4d75afe2dbb43412d3d983ac5d1156af456da";
+  const ENGINE_FUNCTION_IMPORTS = 20;
 
-  function embeddedModule(): Uint8Array {
+  function engineModule(): Uint8Array {
     // Resolved from the shared UI package: that is where the engine is a dependency, and where both shells take it from.
-    const entry = createRequire(new URL("../../../../packages/ui/package.json", import.meta.url)).resolve("@tootallnate/quickjs-emscripten");
-    const text = readFileSync(entry.replace(/index\.js$/, "generated/emscripten-module.WASM_RELEASE_SYNC.js"), "utf8");
-    const marker = "data:application/octet-stream;base64,";
-    let best = "";
-    for (let from = text.indexOf(marker); from >= 0; from = text.indexOf(marker, from + 1)) {
-      let end = from + marker.length;
-      while (end < text.length && /[A-Za-z0-9+/=]/.test(text[end]!)) end++;
-      if (end - from - marker.length > best.length) best = text.slice(from + marker.length, end);
-    }
-    return new Uint8Array(Buffer.from(best, "base64"));
+    const file = createRequire(new URL("../../../../packages/ui/package.json", import.meta.url)).resolve("@jitl/quickjs-ng-wasmfile-release-sync/wasm");
+    return new Uint8Array(readFileSync(file));
   }
 
   it("is the module that was looked at: its bytes and what it imports", () => {
     vi.useRealTimers();
-    const bytes = embeddedModule();
+    const bytes = engineModule();
     expect(createHash("sha256").update(bytes).digest("hex")).toBe(ENGINE_SHA256);
     const module = new WebAssembly.Module(bytes as BufferSource);
     const imports = WebAssembly.Module.imports(module);
-    // Functions only — no memory, no table and no global is handed in from outside.
-    expect(imports.map((entry) => entry.kind)).toEqual(Array.from({ length: ENGINE_IMPORTS }, () => "function"));
+    // Functions — the clock, the heap's growth and the host's calls back — and its memory; no table and no global.
+    expect(imports.filter((entry) => entry.kind === "function")).toHaveLength(ENGINE_FUNCTION_IMPORTS);
+    expect(imports.filter((entry) => entry.kind !== "function").map((entry) => entry.kind)).toEqual(["memory"]);
     expect(new Set(imports.map((entry) => entry.module))).toEqual(new Set(["a"]));
-    // Its memory is its own.
-    expect(WebAssembly.Module.exports(module).filter((entry) => entry.kind === "memory")).toHaveLength(1);
+  });
+
+  it("gets a memory of its own: the loader makes a new one for every instance, and the app hands in none", () => {
+    // The module takes its memory as an import (QuickJS-ng's build), so whose memory it is lies with the loader:
+    // emscripten's glue makes a new WebAssembly.Memory for each instance unless `wasmMemory` is handed in.
+    const engine = readFileSync(new URL("../../../../packages/ui/src/ai/scripts/engine.ts", import.meta.url), "utf8");
+    expect(engine).not.toMatch(/wasmMemory/);
+    const glue = readFileSync(createRequire(new URL("../../../../packages/ui/package.json", import.meta.url)).resolve("@jitl/quickjs-ng-wasmfile-release-sync/emscripten-module"), "utf8");
+    expect(glue).toMatch(/\.wasmMemory\?\w+=\w+\.wasmMemory:\w+=new WebAssembly\.Memory\(/);
   });
 });

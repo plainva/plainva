@@ -1,5 +1,5 @@
 import type { SandboxEnd, SandboxJob, SandboxKill, SandboxLogLevel, SandboxUsage } from "@plainva/core";
-import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSRuntime, QuickJSWASMModule } from "@tootallnate/quickjs-emscripten";
+import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSRuntime, QuickJSWASMModule } from "quickjs-emscripten-core";
 
 /**
  * A script inside the engine (ADR 0020 decision 6, plan KI-Harness P5.5).
@@ -97,6 +97,8 @@ const BOOT = [
   "    };",
   "  };",
   '  globalThis.console = Object.freeze({ log: say("log"), info: say("info"), warn: say("warn"), error: say("error"), debug: say("debug") });',
+  // QuickJS-ng brings two names of the web along; a script reaches the language and the host's tools, no more.
+  '  ["performance", "queueMicrotask"].forEach(function (name) { delete globalThis[name]; });',
   "  return main(JSON.parse(inputJson), tools).then(function (value) {",
   "    var json = JSON.stringify(value === undefined ? null : value);",
   '    if (typeof json !== "string") throw new TypeError("The script returned what is no JSON.");',
@@ -176,7 +178,10 @@ function describeError(state: GuestState, now: () => number, handle: QuickJSHand
   const record = dumped && typeof dumped === "object" ? (dumped as { name?: unknown; message?: unknown; stack?: unknown }) : {};
   const name = typeof record.name === "string" ? record.name : "Error";
   const message = typeof record.message === "string" ? record.message : typeof dumped === "string" ? dumped : "";
-  const line = typeof record.stack === "string" ? /main\.js:(\d+)/.exec(record.stack)?.[1] : undefined;
+  // QuickJS-ng names no place for an error a property or a name raises; it names the function's own start
+  // then (line 1, column 1), where no line of the script stands — it begins after the wrapper's opening.
+  const place = typeof record.stack === "string" ? /main\.js:(\d+):(\d+)/.exec(record.stack) : null;
+  const line = place && !(place[1] === "1" && place[2] === "1") ? place[1] : undefined;
   const text = oneLine(`${name}${message ? `: ${message}` : ""}${line ? ` (line ${line})` : ""}`).slice(0, MESSAGE_MAX);
   return { name, message, text, unreadable: dumped === null || dumped === undefined };
 }

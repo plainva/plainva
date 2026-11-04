@@ -172,7 +172,7 @@ test("a script runs for nobody until this phone signed it, then in its box — a
     await run.getByRole("button", { name: "Close", exact: true }).click();
     await expect(run).toHaveCount(0);
 
-    // 5. A script that does not come back: no step of a regular expression is counted, so its worker is ended.
+    // 5. A script that does not come back from a regular expression: it ends at its seconds.
     await waiting.click();
     await expect(approval.getByTestId("ai-script-limits")).toContainText("1 s of computing");
     await approval.getByTestId("ai-skill-approve").click();

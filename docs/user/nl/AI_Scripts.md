@@ -1,6 +1,6 @@
 # Scripts (Beta)
 
-Laatst bijgewerkt: 2026-10-25
+Laatst bijgewerkt: 2026-11-04
 
 Een script is een klein programma voor wat een model slecht kan en een programma elke keer op dezelfde manier doet: tellen, sorteren, vergelijken, optellen. Je schrijft het in JavaScript. Het draait in een afgesloten ruimte binnen Plainva: het kan geen bestand openen, niet het netwerk op en niet wachten tot later. Het roept alleen de hulpmiddelen aan die je ervoor hebt aangevinkt: ze lezen je vault zoals de hulpmiddelen van de AI dat doen, of leggen een voorstel neer waarover jij beslist. Een script verandert zelf niets.
 
@@ -45,7 +45,7 @@ for (const hit of found.results) {
 return { tag: input.tag, count: notes.length, notes };
 ```
 
-De taal is JavaScript op het niveau van ES2020. Er is geen `fetch`, geen timer, geen `import` en geen toegang tot bestanden, en wat een script teruggeeft, moet gegevens zijn die als JSON kunnen worden geschreven. Een hulpmiddel dat weigert — een notitie die niet bestaat, een notitie die het gesprek niet mag lezen — geeft een fout die het script kan opvangen.
+De taal is actueel JavaScript — ES2024, met het meeste van ES2025 — zonder `Intl`. Er is geen `fetch`, geen timer, geen `import` en geen toegang tot bestanden, en wat een script teruggeeft, moet gegevens zijn die als JSON kunnen worden geschreven. Een hulpmiddel dat weigert — een notitie die niet bestaat, een notitie die het gesprek niet mag lezen — geeft een fout die het script kan opvangen.
 
 ## Wat een hulpmiddel teruggeeft
 

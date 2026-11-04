@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
   },
   // The engine of the script sandbox loads inside the script worker, the first time a script runs: pre-bundled, so
   // the dev server does not discover it then and reload the page under the run.
-  optimizeDeps: { include: ["@plainva/ui > @tootallnate/quickjs-emscripten"] },
+  optimizeDeps: { include: ["@plainva/ui > quickjs-emscripten-core", "@plainva/ui > @jitl/quickjs-ng-wasmfile-release-sync", "@plainva/ui > @jitl/quickjs-ng-wasmfile-release-sync/emscripten-module"] },
   // The script worker (packages/ui/src/ai/scripts) is a module worker that loads its engine on demand: that needs
   // code splitting, which only the `es` format has.
   worker: { format: "es" },

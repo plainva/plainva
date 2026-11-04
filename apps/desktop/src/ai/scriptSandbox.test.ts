@@ -98,7 +98,11 @@ describe("a script in the engine", () => {
   it("an error of its own ends the run with what went wrong and where", async () => {
     const thrown = await play("const a = 1;\nconst b = undefinedThing + a;\nreturn b;");
     expect(thrown.end).toMatchObject({ kind: "error" });
-    expect((thrown.end as { message: string }).message).toMatch(/ReferenceError.*undefinedThing.*\(line 2\)/);
+    // QuickJS-ng names no place for an error a name or a property raises: the message then names no line.
+    expect((thrown.end as { message: string }).message).toMatch(/^ReferenceError: undefinedThing is not defined$/);
+    // A throw and a call it names: there the line is the script's own.
+    expect(await play('const a = 1;\nthrow new Error("here");')).toMatchObject({ end: { kind: "error", message: "Error: here (line 2)" } });
+    expect(await play("const a = 1;\nconst b = 2;\nreturn a();")).toMatchObject({ end: { kind: "error", message: expect.stringMatching(/^TypeError: .*\(line 3\)$/) } });
     expect(await play('throw new TypeError("not like this");')).toMatchObject({ end: { kind: "error", message: expect.stringMatching(/^TypeError: not like this/) } });
     expect(await play('throw "a bare text";')).toMatchObject({ end: { kind: "error" } });
     // What it returns must be JSON: a value that is none is an error, not a guess.
@@ -244,6 +248,13 @@ describe("kill: what a script cannot take", () => {
     expect(second.end.usage.fuel).toBe(first.end.usage.fuel);
   });
 
+  it("time: a regular expression that backtracks without end is stopped at its seconds, inside the engine", async () => {
+    // QuickJS-ng asks back while a regular expression backtracks (measured 2026-11-04); the engine of 2021 did not,
+    // and only the worker's watchdog ended such a script. This direct engine has no watchdog: the engine ends it.
+    const played = await withinAsync(4000, () => play('return /^(a+)+$/.test("a".repeat(40) + "!");', { limits: { seconds: 1, fuel: 200_000 } }));
+    expect(played.end).toMatchObject({ kind: "killed", why: "time" });
+  });
+
   it("time: a loop without end is stopped at its seconds", async () => {
     const played = await withinAsync(4000, () => play("for (;;) {}", { limits: { seconds: 1, fuel: 200_000 } }));
     expect(played.end).toMatchObject({ kind: "killed", why: "time" });
@@ -327,10 +338,16 @@ describe("kill: what a script cannot take", () => {
     "return 'x'.repeat(1 << 28).length;",
     "return new Uint8Array(1 << 28).length;",
     "return new Array(1 << 27).fill(0).length;",
-    "let s = 'x'; for (;;) s += s;",
   ])("memory: what does not fit is refused — %s", async (code) => {
     const played = await play(code, { limits: MEMORY_LIMITS });
     expect(played.end, code).toMatchObject({ kind: "killed", why: "memory" });
+  });
+
+  it("memory: a string the engine will not make that long is the script's error, and it took no memory", async () => {
+    // QuickJS-ng joins strings without copying them: doubling a string costs nothing until its length passes the
+    // engine's own bound, and that bound refuses it as the script's error — before the memory limit is near.
+    const played = await play("let s = 'x'; for (;;) s += s;", { limits: MEMORY_LIMITS });
+    expect(played.end).toMatchObject({ kind: "error", message: expect.stringContaining("string too long") });
   });
 
   it("memory: catching the refusal gives it nothing — the memory is not there", async () => {
@@ -354,7 +371,7 @@ describe("kill: what a script cannot take", () => {
 
   it("the stack: a call that never returns is the script's error, not the engine's end", async () => {
     const played = await play("const down = (n) => down(n + 1) + 1; return down(0);");
-    expect(played.end).toMatchObject({ kind: "error", message: expect.stringContaining("stack overflow") });
+    expect(played.end).toMatchObject({ kind: "error", message: expect.stringContaining("RangeError: Maximum call stack size exceeded") });
     // A script may catch it; the engine is still whole.
     expect(valueOf(await play("let depth = 0; const down = () => { depth++; down(); }; try { down(); } catch (e) {} return depth > 100;"))).toBe(true);
     // Calls of the script's own code, however they are dressed, end as that error — never as the engine's end.
@@ -365,7 +382,7 @@ describe("kill: what a script cannot take", () => {
       "const t = {}; t.toString = () => String(t); return String(t);",
     ]) {
       const played = await play(code, { limits: { fuel: 20_000, seconds: 10 } });
-      expect(played.end, code).toMatchObject({ kind: "error", message: expect.stringContaining("stack overflow") });
+      expect(played.end, code).toMatchObject({ kind: "error", message: expect.stringContaining("RangeError: Maximum call stack size exceeded") });
     }
   });
 

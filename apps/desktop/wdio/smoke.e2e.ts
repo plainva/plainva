@@ -9,7 +9,7 @@ import * as mac from "./macos";
  * the same promise for the checks as for the product.
  *
  *  S1  the app starts and the throwaway vault opens
- *  S1b the window compiles WebAssembly, which the scripts' engine needs (ADR 0020)
+ *  S1b the window fetches the scripts' engine from the bundle and compiles it (ADR 0020)
  *  S2  a new note, a typed marker, the marker IN THE FILE on disk
  *  S3  spell checking: the editor is marked for the platform's checker, and on
  *      macOS the WebView's own setting is on (issue #135 — the attribute alone
@@ -179,23 +179,29 @@ describe("Plainva native smoke", () => {
   });
 
   /**
-   * The engine that runs scripts is WebAssembly (ADR 0020, decision 6), and
-   * the window's content security policy has to let it be compiled
-   * (`script-src … 'wasm-unsafe-eval'` in tauri.conf.json). The mocked suites
-   * run in a browser that has no such policy, so only the real window can say
-   * whether it holds: the smallest module there is — eight bytes, a header
-   * and nothing else — compiles, or the policy refuses it. What this asks of
-   * the window is what the scripts' worker asks: a worker has the window's
-   * policy or none.
+   * The engine that runs scripts is WebAssembly (ADR 0020, decision 6):
+   * QuickJS-ng, a module of its own that the bundle ships as an asset. The
+   * mocked suites run in a browser without the window's content security
+   * policy, so only the real window can say whether it holds: the window
+   * fetches the module the way the script worker does — from the bundle's
+   * own address — and compiles it (`script-src … 'wasm-unsafe-eval'` in
+   * tauri.conf.json). What this asks of the window is what the worker asks:
+   * a worker has the window's policy or none.
    */
-  it("S1b lets the window compile WebAssembly", async () => {
-    const outcome = await browser.executeAsync((done: (result: string) => void) => {
-      WebAssembly.compile(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])).then(
-        () => done("compiled"),
-        (error: unknown) => done(`refused: ${error instanceof Error ? error.message : String(error)}`),
-      );
-    });
-    if (outcome !== "compiled") throw new Error(`the window does not compile WebAssembly — ${outcome}`);
+  it("S1b fetches and compiles the scripts' engine from the bundle", async () => {
+    const assets = resolve(process.cwd(), "dist/assets");
+    const engine = existsSync(assets) ? readdirSync(assets).find((name) => /^emscripten-module-[\w-]+\.wasm$/.test(name)) : undefined;
+    if (!engine) throw new Error(`the bundle carries no engine module in ${assets}`);
+    const outcome = await browser.executeAsync((file: string, done: (result: string) => void) => {
+      fetch(`/assets/${file}`)
+        .then((response) => (response.ok ? response.arrayBuffer() : Promise.reject(new Error(`HTTP ${response.status}`))))
+        .then((bytes) => WebAssembly.compile(bytes))
+        .then(
+          (module) => done(`compiled ${WebAssembly.Module.imports(module).length}`),
+          (error: unknown) => done(`refused: ${error instanceof Error ? error.message : String(error)}`),
+        );
+    }, engine);
+    if (!outcome.startsWith("compiled ")) throw new Error(`the window does not compile the engine — ${outcome}`);
   });
 
   it("S2 writes a typed note to the vault on disk", async () => {

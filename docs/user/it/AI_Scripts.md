@@ -1,6 +1,6 @@
 # Script (Beta)
 
-Ultimo aggiornamento: 2026-10-25
+Ultimo aggiornamento: 2026-11-04
 
 Uno script è un piccolo programma per ciò che un modello fa male e che un programma fa ogni volta allo stesso modo: contare, ordinare, confrontare, sommare. Lo scrivi in JavaScript. Gira in un ambiente chiuso dentro Plainva: non può aprire un file, raggiungere la rete né rimandare qualcosa a più tardi. Chiama solo gli strumenti che hai spuntato per lui: questi leggono il tuo vault come fanno gli strumenti dell'IA, oppure lasciano una proposta su cui decidi tu. Da solo, uno script non cambia nulla.
 
@@ -45,7 +45,7 @@ for (const hit of found.results) {
 return { tag: input.tag, count: notes.length, notes };
 ```
 
-Il linguaggio è JavaScript secondo lo standard ES2020. Non ci sono `fetch`, timer, `import` né accesso ai file, e ciò che uno script restituisce deve essere composto da dati che si possono scrivere come JSON. Uno strumento che rifiuta — una nota che non esiste, una nota che la conversazione non può leggere — lancia un errore che lo script può intercettare.
+Il linguaggio è JavaScript attuale — ES2024 e gran parte di ES2025 — senza `Intl`. Non ci sono `fetch`, timer, `import` né accesso ai file, e ciò che uno script restituisce deve essere composto da dati che si possono scrivere come JSON. Uno strumento che rifiuta — una nota che non esiste, una nota che la conversazione non può leggere — lancia un errore che lo script può intercettare.
 
 ## Che cosa restituisce uno strumento
 

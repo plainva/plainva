@@ -1,6 +1,6 @@
 # Skripte (Beta)
 
-Stand: 2026-10-25
+Stand: 2026-11-04
 
 Ein Skript ist ein kleines Programm für das, was ein Modell schlecht kann und ein Programm jedes Mal gleich macht: zählen, sortieren, vergleichen, zusammenrechnen. Du schreibst es in JavaScript. Es läuft in einem geschlossenen Kasten in Plainva: es kann keine Datei öffnen, nicht ins Netz und nicht auf später warten. Es ruft nur die Werkzeuge auf, die Du ihm angekreuzt hast: sie lesen Deinen Vault so, wie die Werkzeuge der KI es tun, oder hinterlassen einen Vorschlag, über den Du entscheidest. Von sich aus ändert ein Skript nichts.
 
@@ -45,7 +45,7 @@ for (const hit of found.results) {
 return { tag: input.tag, count: notes.length, notes };
 ```
 
-Die Sprache ist JavaScript auf dem Stand von ES2020. Es gibt kein `fetch`, keinen Timer, kein `import` und keinen Zugriff auf Dateien, und was ein Skript zurückgibt, muss sich als JSON schreiben lassen. Ein Werkzeug, das ablehnt — eine Notiz, die es nicht gibt, eine Notiz, die das Gespräch nicht lesen darf —, wirft einen Fehler, den das Skript abfangen kann.
+Die Sprache ist aktuelles JavaScript — ES2024, dazu das meiste von ES2025 — ohne `Intl`. Es gibt kein `fetch`, keinen Timer, kein `import` und keinen Zugriff auf Dateien, und was ein Skript zurückgibt, muss sich als JSON schreiben lassen. Ein Werkzeug, das ablehnt — eine Notiz, die es nicht gibt, eine Notiz, die das Gespräch nicht lesen darf —, wirft einen Fehler, den das Skript abfangen kann.
 
 ## Was ein Werkzeug zurückgibt
 

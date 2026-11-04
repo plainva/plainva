@@ -161,11 +161,26 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
        about one thing, and a program that loops would ask without end) and
        no drafts of an e-mail or an appointment, which are on their way out
        of the vault.
-   - **The engine is an interim one.** `@tootallnate/quickjs-emscripten`
-     0.23.0 (QuickJS of 2021, ES2020) was already part of the build; a test
-     pins the module's hash and the functions it imports, so a new version
-     is a new engine that is looked at before it runs anything. It is to be
-     replaced by QuickJS-ng before a public release.
+   - **The engine is QuickJS-ng** (addendum 2026-11-04). Built at first on
+     `@tootallnate/quickjs-emscripten` 0.23.0 (QuickJS of 2021, ES2020),
+     which was already part of the build, it was replaced before the
+     harness reached `main` by QuickJS-ng 0.10 through
+     `quickjs-emscripten-core` with `@jitl/quickjs-ng-wasmfile-release-sync`
+     0.32.0 (MIT): current JavaScript (ES2024 and most of ES2025, no `Intl`).
+     The module is a file of its own in the bundle; the loader reads it from
+     the address the bundler gives it, and makes a new memory for each
+     instance — the module takes its memory as an import, so a test pins
+     that the app hands in none, beside the module's hash and its imports
+     (20 functions and that memory). What changed for a script, each held by
+     a test: `performance` and `queueMicrotask`, which the engine brings, are
+     removed before a script runs; the engine interrupts a regular
+     expression that backtracks, so the time and step limits end it inside
+     the engine as well (measured: about 13,000 interrupts in 1.5 s); an
+     error a name or a property raises carries no place in QuickJS-ng, and
+     its message then names no line rather than a wrong one; doubling a
+     string ends with the engine's length bound ("string too long") as the
+     script's error before the memory limit is near, because strings are
+     joined without copying.
 7. **Chat history lives in app data, not in the vault** — per vault,
    searchable, with adjustable retention, deletable — because transcripts
    contain excerpts that were sent to a provider and would otherwise sync past

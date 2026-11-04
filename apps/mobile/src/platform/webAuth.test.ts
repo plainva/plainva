@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Where a browser sign-in opens (device finding 2026-10-28): the iPhone uses
@@ -28,6 +28,12 @@ vi.mock("@plainva/ui", async (original) => ({
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("openSignInPage", () => {
+  // The first import loads the whole shared UI package (the mock above spreads it), the assistant included: under a
+  // loaded commit hook that alone outlasted a test's 20 seconds. Loaded once here, the cases time the sign-in only.
+  beforeAll(async () => {
+    await import("./webAuth");
+  }, 120_000);
+
   beforeEach(() => {
     state.platform = "ios";
     state.opened = [];

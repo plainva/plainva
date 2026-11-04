@@ -45,7 +45,10 @@ export default defineConfig(async ({ mode }) => ({
       "date-fns/locale/zh-CN",
       "date-fns/locale/ja",
       // The engine of the script sandbox: loaded inside the script worker, the first time a script runs.
-      "@plainva/ui > @tootallnate/quickjs-emscripten",
+      "@plainva/ui > quickjs-emscripten-core",
+      "@plainva/ui > @jitl/quickjs-ng-wasmfile-release-sync",
+      // The variant loads its emscripten module by its own subpath, at the first run: pre-bundled with the rest.
+      "@plainva/ui > @jitl/quickjs-ng-wasmfile-release-sync/emscripten-module",
     ],
   },
   // The script worker (packages/ui/src/ai/scripts) is a module worker that loads its engine on demand: that needs

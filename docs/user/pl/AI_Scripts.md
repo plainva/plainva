@@ -1,6 +1,6 @@
 # Skrypty (Beta)
 
-Stan na: 2026-10-25
+Stan na: 2026-11-04
 
 Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone: czytają one Twój vault tak samo jak narzędzia AI albo zostawiają propozycję, o której decydujesz Ty. Skrypt sam niczego nie zmienia.
 
@@ -45,7 +45,7 @@ for (const hit of found.results) {
 return { tag: input.tag, count: notes.length, notes };
 ```
 
-Językiem jest JavaScript w wersji ES2020. Nie ma `fetch`, timera, `import` ani dostępu do plików, a to, co skrypt zwraca, musi być danymi, które da się zapisać jako JSON. Narzędzie, które odrzuci wywołanie — na przykład gdy notatka nie istnieje albo rozmowa nie może jej czytać — zgłasza błąd, który skrypt może przechwycić.
+Językiem jest aktualny JavaScript — ES2024 i większość ES2025 — bez `Intl`. Nie ma `fetch`, timera, `import` ani dostępu do plików, a to, co skrypt zwraca, musi być danymi, które da się zapisać jako JSON. Narzędzie, które odrzuci wywołanie — na przykład gdy notatka nie istnieje albo rozmowa nie może jej czytać — zgłasza błąd, który skrypt może przechwycić.
 
 ## Co zwraca narzędzie
 

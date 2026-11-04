@@ -4354,8 +4354,8 @@ test('AI skills: a skill changed from outside stays inactive until it is approve
 // real one — the script worker of the bundle, QuickJS as WebAssembly —, the
 // vault is the mock file system and the keychain a map behind `keychain_get`
 // and `keychain_compare_and_set`. Three scripts: one that reads a note, one
-// that never comes back from a regular expression (no step of it is counted,
-// so only ending its worker stops it), and one written in the form.
+// that never comes back from a regular expression (the engine asks back while
+// it backtracks, and the run ends at its seconds), and one written in the form.
 test('AI scripts: a script runs for nobody until this device signed it, then in its box — and is ended when it does not stop', async ({ page }) => {
   test.setTimeout(120_000);
   const DIR = '/test-vault/.agent/scripts';
@@ -4474,7 +4474,7 @@ test('AI scripts: a script runs for nobody until this device signed it, then in 
   await page.keyboard.press('Escape');
   await expect(run).toHaveCount(0);
 
-  // 5. A script that does not come back: no step of a regular expression is counted, so its worker is ended.
+  // 5. A script that does not come back from a regular expression: it ends at its seconds.
   await waiting.click();
   await expect(approval.getByTestId('ai-script-limits')).toContainText('1 s of computing');
   await expect(approval).toContainText('It calls no tools');
