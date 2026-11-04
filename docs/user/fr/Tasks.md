@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-04
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -122,15 +122,15 @@ Une case à cocher vous rappelle sa tâche quand sa date d'échéance porte une 
 
 Activez-le dans **Paramètres → Calendrier → Rappels** avec **Cases à cocher avec une heure** — par vault et sur cet appareil, désactivé jusqu'à ce que vous l'activiez. Le rappel arrive à cette heure, moins l'avance réglée sous **Avance pour les tâches avec une heure**. Sur le téléphone, il propose **Cocher**, **Dans 1 heure** et **Demain matin**, comme le rappel d'une tâche de la base de tâches ; sur l'ordinateur, la notification à côté propose **Ouvrir la tâche**. Dans les deux cas, vous arrivez dans la note à la ligne de la tâche, même après que la note a été renommée ou déplacée.
 
-Une case que vous cochez, supprimez ou à laquelle vous donnez une autre heure est replanifiée en quelques secondes. Une case avec une date mais sans heure ne rappelle rien, et les notes avec `plainva.tasks: false` restent à l'écart. Plainva n'écrit rien dans la note pour un rappel. Le plugin Tasks d'Obsidian ne connaît pas d'heure : il ne lit plus une date `📅` suivie d'une heure.
+Une case que vous cochez, supprimez ou à laquelle vous donnez une autre heure est replanifiée en quelques secondes. Une case avec une date mais sans heure ne rappelle rien, et les notes avec `plainva.tasks: false` restent à l'écart. Plainva n'écrit rien dans la note pour un rappel. Obsidian ne connaît pas d'heure : il ne lit plus une date `📅` suivie d'une heure.
 
 ## Compatibilité Obsidian
 
 Les tâches sont des cases à cocher GFM (GitHub-Flavored Markdown) ordinaires. Plainva n'ajoute jamais de syntaxe spéciale : les mêmes lignes `- [ ]` se rendent comme des cases à cocher dans Obsidian et se lisent proprement dans n'importe quel éditeur. Les conventions `📅 date` et `#tag` correspondent au style courant d'Obsidian-Tasks, mais ce ne sont que du texte dans votre note.
 
-## Requêtes du plugin Tasks
+## Requêtes Tasks depuis Obsidian
 
-Une note écrite pour le plugin Obsidian Tasks peut contenir un bloc de code `tasks` avec une requête. Plainva le dessine sous forme de liste de tâches — dans l'aperçu en direct et en mode lecture, sur le bureau comme sur le téléphone, y compris à l'intérieur d'une citation ou d'un callout :
+Une note venue d'Obsidian peut contenir un bloc de code `tasks` avec une requête. Plainva le dessine sous forme de liste de tâches — dans l'aperçu en direct et en mode lecture, sur le bureau comme sur le téléphone, y compris à l'intérieur d'une citation ou d'un callout :
 
 ````markdown
 ```tasks
@@ -168,7 +168,7 @@ Plainva lit ces lignes du langage de requête de Tasks :
 | Étiquettes | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
 | Sous-éléments | `exclude sub-items` |
 | Combinaison | `AND`, `OR`, `NOT`, `XOR`, avec `( )`, `[ ]`, `{ }` ou `" "` autour des parties |
-| Tri | `sort by …` avec toutes les clés sauf `random`, `status.name` et `id`, au besoin avec `reverse` ; après vos propres lignes, l'ordre par défaut du plugin Tasks, urgence comprise |
+| Tri | `sort by …` avec toutes les clés sauf `random`, `status.name` et `id`, au besoin avec `reverse` ; après vos propres lignes, l'ordre par défaut d'Obsidian, urgence comprise |
 | Regroupement | `group by …`, jusqu'à trois niveaux |
 | Affichage et quantité | `show tree`, `hide backlink`, `hide task count` et similaires, `limit 20`, `limit groups 5`, `explain` |
 | Commentaires et espaces réservés | lignes commençant par `#` ; espaces réservés comme `{{query.file.path}}`, qui renvoient à la note où se trouve la requête |
@@ -177,15 +177,15 @@ Plainva lit ces lignes du langage de requête de Tasks :
 
 Chaque ligne d'une requête relève de l'un de ces trois cas :
 
-- Une ligne que le plugin Tasks connaît et que Plainva ne connaît pas encore — par exemple du code (`filter by function` ; Plainva n'exécute jamais de code issu des notes), des expressions régulières (`regex matches`), des dépendances (`is blocked`), des préréglages ou d'autres formulations de date. Une indication au-dessus de la liste nomme la ligne et la raison ; la ligne est ignorée, si bien que la liste peut afficher plus de tâches que dans Obsidian — ou dans un autre ordre, pour les lignes `sort by` et `group by`.
+- Une ligne qu'Obsidian connaît et que Plainva ne connaît pas encore — par exemple du code (`filter by function` ; Plainva n'exécute jamais de code issu des notes), des expressions régulières (`regex matches`), des dépendances (`is blocked`), des préréglages ou d'autres formulations de date. Une indication au-dessus de la liste nomme la ligne et la raison ; la ligne est ignorée, si bien que la liste peut afficher plus de tâches que dans Obsidian — ou dans un autre ordre, pour les lignes `sort by` et `group by`.
 - Une ligne de mise en page sans équivalent dans Plainva (`hide edit button`, `short mode`, …) est acceptée sans bruit.
-- Une ligne que le plugin Tasks rejette lui aussi (faute de frappe, parenthèses mélangées, date impossible) affiche une erreur avec la ligne et la raison, et aucune liste.
+- Une ligne qu'Obsidian rejette lui aussi (faute de frappe, parenthèses mélangées, date impossible) affiche une erreur avec la ligne et la raison, et aucune liste.
 
 ### Différences avec Obsidian
 
 - « Aujourd'hui » est le jour du calendrier.
 - Les notes avec `plainva.tasks: false` comptent ici ; Obsidian ne connaît pas cette propriété.
-- Le filtre global et la requête globale du plugin Tasks sont nommés dans l'**Explication**, mais pas appliqués.
+- Un filtre global et une requête globale définis dans Obsidian sont nommés dans l'**Explication**, mais pas appliqués.
 - Les caractères d'état personnalisés (`[>]`, `[!]`, …) ne sont pas des tâches dans Plainva.
 
 Les blocs Dataview restent du texte brut.
@@ -240,13 +240,13 @@ La vue Tâches s'ouvre sur **Aujourd'hui**. Les listes — une barre à gauche s
 
 Au-dessus des listes se trouve le champ de saisie ; sur le téléphone, **+ Nouvelle tâche** et le bouton **＋** l'ouvrent sous forme de feuille. Tapez une ligne — `Envoyer offre demain 14h !!! #client chaque semaine` — et appuyez sur Entrée : Plainva crée la tâche dans la base de tâches. Il comprend aujourd'hui, demain, après-demain, les jours de la semaine, « dans 3 jours », « la semaine prochaine », les dates en chiffres, une heure (`14:30`, `14h`), un rythme (quotidien, hebdomadaire, mensuel, annuel, « chaque lundi », « toutes les 2 semaines »), `!`, `!!` et `!!!` pour une priorité basse, moyenne et haute, et `#tags` — les mots dans la langue de l'application, les chiffres et les signes dans n'importe quelle langue. Tout ce qui est reconnu est marqué dans le champ et listé en dessous sous la forme d'un bloc amovible **avant** que quoi que ce soit ne soit enregistré ; retirez un bloc et ses mots recomptent simplement comme titre. Sur le téléphone, des boutons rapides écrivent les mêmes mots pour vous. Si la base de tâches désigne une liste d'un fournisseur, une puce décide si la tâche y est créée aussi.
 
-**Définir la priorité** dans le menu d'une ligne (clic droit sur le bureau, appui long sur le téléphone) propose **haute**, **moyenne**, **basse** et **aucune** ; un drapeau devant le titre l'indique. Dans la base de tâches, la priorité est une colonne à sélection : une base créée maintenant l'a déjà, une plus ancienne l'obtient la première fois que vous définissez une priorité — jamais par simple ouverture. Une case à cocher porte la marque du plugin Obsidian Tasks sur sa ligne : Plainva lit 🔺 et ⏫ comme haute, 🔼 comme moyenne, 🔽 et ⏬ comme basse, et écrit ⏫, 🔼 ou 🔽.
+**Définir la priorité** dans le menu d'une ligne (clic droit sur le bureau, appui long sur le téléphone) propose **haute**, **moyenne**, **basse** et **aucune** ; un drapeau devant le titre l'indique. Dans la base de tâches, la priorité est une colonne à sélection : une base créée maintenant l'a déjà, une plus ancienne l'obtient la première fois que vous définissez une priorité — jamais par simple ouverture. Une case à cocher porte la marque de priorité d'Obsidian sur sa ligne : Plainva lit 🔺 et ⏫ comme haute, 🔼 comme moyenne, 🔽 et ⏬ comme basse, et écrit ⏫, 🔼 ou 🔽.
 
 `- [/]` (**En cours**) et `- [-]` (**Annulée**) sont aussi des tâches. Elles reçoivent leur propre case dans l'éditeur, en mode lecture et dans chaque liste ; en cours compte comme ouverte, annulée comme fermée. Un clic continue de basculer seulement entre ouverte et terminée — il termine une tâche en cours et rouvre une tâche annulée. **Définir l'état** dans le menu de la ligne fixe les deux états ; Plainva ne les écrit jamais de lui-même.
 
 **La date d'une tâche est le moyen de la modifier.** Appuyez sur la date d'une tâche (à l'intérieur d'un jour, sur son heure) et le sélecteur de date s'ouvre — sous la date sur le bureau, en feuille sur le téléphone. **Modifier l'échéance** dans le menu de la ligne ouvre le même sélecteur ; c'est aussi ainsi qu'une tâche sans date en reçoit une. Sur le téléphone, **Nouvelle tâche** et la cellule de date d'une base de données choisissent leur jour dans le même calendrier, et non dans la molette de dates du système. Une case à cocher dans une note — dans l'éditeur, la vue de lecture et le journal — est dimensionnée pour le doigt sur le téléphone. Une entrée de la base de données des tâches garde son heure, une case à cocher reçoit ou change sa date `📅`. À côté du titre **En retard**, **Tout à aujourd'hui** reporte d'un coup toutes les tâches en retard à aujourd'hui. Les deux sont confirmés par un message qui propose **Annuler**. Dans le champ de saisie, `[[` propose des notes et `#` des tags, comme dans l'éditeur : `Entrée` ou `Tab` prend la proposition surlignée, `Esc` ferme la liste.
 
-**Choix rapides et heure.** Au-dessus du calendrier, le sélecteur propose **Aujourd'hui**, **Demain**, **Ce week-end**, **La semaine prochaine** et **Pas de date**, chacun avec son jour de la semaine. Ce week-end est le samedi qui vient — aujourd'hui, si l'on est samedi ou dimanche ; la semaine prochaine est le premier jour de la semaine suivante, selon **Début de la semaine**. En bas, **Heure** a un interrupteur : désactivé, la tâche est due toute la journée ; activé, vous choisissez l'heure à côté. Un choix rapide ou un jour conserve une heure déjà définie ; pour ne changer que l'heure, appuyez sur **Terminé**. Une entrée de la base de tâches enregistre l'heure dans sa valeur d'échéance (`2026-10-26T10:00`). Pour une case à cocher dans une note, le sélecteur ne règle que le jour — le `📅` du plugin Tasks n'a pas d'heure — et l'indique à la place de l'interrupteur ; une heure que vous écrivez vous-même après la date (voir *Rappels pour les cases à cocher*) reste quand le jour change. Si la colonne d'échéance de la base n'affiche que des jours, Plainva propose une fois **Passer à date et heure**.
+**Choix rapides et heure.** Au-dessus du calendrier, le sélecteur propose **Aujourd'hui**, **Demain**, **Ce week-end**, **La semaine prochaine** et **Pas de date**, chacun avec son jour de la semaine. Ce week-end est le samedi qui vient — aujourd'hui, si l'on est samedi ou dimanche ; la semaine prochaine est le premier jour de la semaine suivante, selon **Début de la semaine**. En bas, **Heure** a un interrupteur : désactivé, la tâche est due toute la journée ; activé, vous choisissez l'heure à côté. Un choix rapide ou un jour conserve une heure déjà définie ; pour ne changer que l'heure, appuyez sur **Terminé**. Une entrée de la base de tâches enregistre l'heure dans sa valeur d'échéance (`2026-10-26T10:00`). Pour une case à cocher dans une note, le sélecteur ne règle que le jour — le `📅` d'Obsidian n'a pas d'heure — et l'indique à la place de l'interrupteur ; une heure que vous écrivez vous-même après la date (voir *Rappels pour les cases à cocher*) reste quand le jour change. Si la colonne d'échéance de la base n'affiche que des jours, Plainva propose une fois **Passer à date et heure**.
 
 D'autres façons d'y entrer : **Nouvelle tâche** dans le menu de la zone de notification sur le bureau (quand Plainva continue de tourner en arrière-plan), sur Android le raccourci du lanceur **Nouvelle tâche** (appui long sur l'icône de l'application), et sur le téléphone **Créer comme tâche** quand vous partagez quelque chose vers Plainva — le texte et les pièces jointes finissent dans la note de la tâche. La façon dont une tâche avec une heure vous le rappelle est décrite dans [Calendrier et tâches externes](Calendar_and_Tasks.md).
 
@@ -258,7 +258,7 @@ La case du widget **Aujourd’hui** enregistre une demande : la coche apparaît 
 <!-- task-rows-2026-10-24 -->
 ## Sous-tâches, puces et ce qui est terminé aujourd'hui
 
-**Sous-tâches.** Une case à cocher en retrait sous une autre est sa sous-tâche, comme `show tree` dans le plugin Tasks d'Obsidian. Dans les listes **Aujourd'hui**, **À venir**, **Boîte de réception** et **Terminées**, une tâche porte ses sous-tâches en retrait sous elle — ouvertes et terminées, ces dernières barrées — et une flèche en bout de ligne les replie. Une sous-tâche ayant sa propre date figure aussi à son propre jour ; une sous-tâche sans date est listée sous sa tâche et non seule dans la **Boîte de réception**. La liste **Toutes** garde chaque case à cocher dans l'ordre de sa note.
+**Sous-tâches.** Une case à cocher en retrait sous une autre est sa sous-tâche, comme `show tree` dans les blocs `tasks` d'Obsidian. Dans les listes **Aujourd'hui**, **À venir**, **Boîte de réception** et **Terminées**, une tâche porte ses sous-tâches en retrait sous elle — ouvertes et terminées, ces dernières barrées — et une flèche en bout de ligne les replie. Une sous-tâche ayant sa propre date figure aussi à son propre jour ; une sous-tâche sans date est listée sous sa tâche et non seule dans la **Boîte de réception**. La liste **Toutes** garde chaque case à cocher dans l'ordre de sa note.
 
 **Puces.** Les puces simples en retrait sous une tâche — questions, remarques — s'affichent sous son titre comme un aperçu de deux lignes au plus ; la note garde le reste.
 
