@@ -30,8 +30,8 @@ The release binary updates itself from the release page. A copy in the Nix store
 cannot be replaced that way, so the wrapper sets `PLAINVA_UPDATES_MANAGED_BY=Nix`.
 With it the app never asks the update feed: there is no start-up check and no
 update offer, and **Settings → About & diagnostics → Updates** shows "Updated
-through Nix" instead of the switch and the button. Releases up to 0.8.6 do not
-read the variable yet; from the first release after 0.8.6 on they do.
+through Nix" instead of the switch and the button. Releases from 0.8.7 on read
+the variable; 0.8.6 and earlier did not.
 
 Any other package manager can do the same: set the variable to its name in the
 environment of the app.
@@ -42,17 +42,17 @@ environment of the app.
 
 ```bash
 nix store prefetch-file --json --hash-type sha256 \
-  https://github.com/plainva/plainva/releases/download/v0.8.6/Plainva_0.8.6_amd64.deb
+  https://github.com/plainva/plainva/releases/download/v0.8.7/Plainva_0.8.7_amd64.deb
 ```
 
 Without Nix, from the digest GitHub shows for the release asset (hex SHA-256 to
 the SRI form Nix expects):
 
 ```bash
-gh api repos/plainva/plainva/releases/tags/v0.8.6 \
+gh api repos/plainva/plainva/releases/tags/v0.8.7 \
   --jq '.assets[] | select(.name | endswith("_amd64.deb")) | .digest'
-# sha256:abccf84a…  ->
-echo "sha256-$(echo abccf84a… | xxd -r -p | base64)"
+# sha256:ebbfc1cc…  ->
+echo "sha256-$(echo ebbfc1cc… | xxd -r -p | base64)"
 ```
 
 ## Updating nixpkgs — `flake.lock`
