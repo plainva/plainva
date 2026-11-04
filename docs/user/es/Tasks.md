@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-11-02
+Última actualización: 2026-11-04
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -122,15 +122,15 @@ Una casilla te avisa cuando su fecha de vencimiento lleva una hora: escribe la h
 
 Actívalo en **Ajustes → Calendario → Recordatorios** con **Casillas con hora**: por vault y en este dispositivo, desactivado hasta que lo actives. El recordatorio llega a esa hora, menos la antelación de **Antelación para tareas con hora**. En el teléfono ofrece **Marcar**, **En 1 hora** y **Mañana por la mañana**, como el recordatorio de una tarea de la base de datos de tareas; en el escritorio, el aviso de al lado ofrece **Abrir tarea**. En ambos casos llegas a la nota en la línea de la tarea, también después de que la nota se haya renombrado o movido.
 
-Una casilla que marcas, borras o a la que das otra hora se vuelve a planificar en segundos. Una casilla con fecha pero sin hora no avisa, y las notas con `plainva.tasks: false` quedan fuera. Plainva no escribe nada en la nota para un recordatorio. El plugin Tasks de Obsidian no conoce horas: deja de leer una fecha `📅` seguida de una hora.
+Una casilla que marcas, borras o a la que das otra hora se vuelve a planificar en segundos. Una casilla con fecha pero sin hora no avisa, y las notas con `plainva.tasks: false` quedan fuera. Plainva no escribe nada en la nota para un recordatorio. Obsidian no conoce horas: deja de leer una fecha `📅` seguida de una hora.
 
 ## Compatibilidad con Obsidian
 
 Las tareas son casillas GFM (GitHub-Flavored Markdown) normales. Plainva nunca añade una sintaxis especial: las mismas líneas `- [ ]` se renderizan como casillas en Obsidian y se leen con claridad en cualquier editor. Las convenciones `📅 date` y `#tag` son el estilo habitual de Obsidian-Tasks, pero son solo texto en tu nota.
 
-## Consultas del plugin Tasks
+## Consultas Tasks de Obsidian
 
-Una nota escrita para el plugin Obsidian Tasks puede contener un bloque de código `tasks` con una consulta. Plainva lo dibuja como una lista de tareas — en la vista previa en vivo y en el modo lectura, en el escritorio y en el teléfono, también dentro de una cita o un callout:
+Una nota que viene de Obsidian puede contener un bloque de código `tasks` con una consulta. Plainva lo dibuja como una lista de tareas — en la vista previa en vivo y en el modo lectura, en el escritorio y en el teléfono, también dentro de una cita o un callout:
 
 ````markdown
 ```tasks
@@ -168,7 +168,7 @@ Plainva lee estas líneas del lenguaje de consultas de Tasks:
 | Etiquetas | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
 | Subelementos | `exclude sub-items` |
 | Combinación | `AND`, `OR`, `NOT`, `XOR`, con `( )`, `[ ]`, `{ }` o `" "` alrededor de las partes |
-| Orden | `sort by …` con todas las claves excepto `random`, `status.name` e `id`, si quieres con `reverse`; después de tus propias líneas, el orden predeterminado del plugin Tasks, urgencia incluida |
+| Orden | `sort by …` con todas las claves excepto `random`, `status.name` e `id`, si quieres con `reverse`; después de tus propias líneas, el orden predeterminado de Obsidian, urgencia incluida |
 | Agrupación | `group by …`, hasta tres niveles |
 | Presentación y cantidad | `show tree`, `hide backlink`, `hide task count` y similares, `limit 20`, `limit groups 5`, `explain` |
 | Comentarios y marcadores de posición | líneas que empiezan por `#`; marcadores de posición como `{{query.file.path}}`, que se refieren a la nota en la que está la consulta |
@@ -177,15 +177,15 @@ Plainva lee estas líneas del lenguaje de consultas de Tasks:
 
 Cada línea de una consulta cae en uno de tres casos:
 
-- Una línea que el plugin Tasks conoce y Plainva todavía no — por ejemplo código (`filter by function`; Plainva nunca ejecuta código de las notas), expresiones regulares (`regex matches`), dependencias (`is blocked`), ajustes preestablecidos u otras expresiones de fecha. Un aviso sobre la lista nombra la línea y el motivo; la línea se omite, así que la lista puede mostrar más tareas que en Obsidian — o en otro orden, en las líneas `sort by` y `group by`.
+- Una línea que Obsidian conoce y Plainva todavía no — por ejemplo código (`filter by function`; Plainva nunca ejecuta código de las notas), expresiones regulares (`regex matches`), dependencias (`is blocked`), ajustes preestablecidos u otras expresiones de fecha. Un aviso sobre la lista nombra la línea y el motivo; la línea se omite, así que la lista puede mostrar más tareas que en Obsidian — o en otro orden, en las líneas `sort by` y `group by`.
 - Una línea de presentación sin equivalente en Plainva (`hide edit button`, `short mode`, …) se acepta sin avisar.
-- Una línea que el plugin Tasks también rechaza (una errata, paréntesis mezclados, una fecha imposible) muestra un error con la línea y el motivo, y ninguna lista.
+- Una línea que Obsidian también rechaza (una errata, paréntesis mezclados, una fecha imposible) muestra un error con la línea y el motivo, y ninguna lista.
 
 ### Diferencias con Obsidian
 
 - «Hoy» es el día del calendario.
 - Las notas con `plainva.tasks: false` cuentan aquí; Obsidian no conoce esa propiedad.
-- El filtro global y la consulta global del plugin Tasks se nombran en la **Explicación**, pero no se aplican.
+- Un filtro global y una consulta global definidos en Obsidian se nombran en la **Explicación**, pero no se aplican.
 - Los caracteres de estado personalizados (`[>]`, `[!]`, …) no son tareas en Plainva.
 
 Los bloques de Dataview siguen siendo texto plano.
@@ -240,13 +240,13 @@ La vista de tareas se abre en **Hoy**. Las listas — una barra a la izquierda e
 
 Encima de las listas está el campo de captura; en el teléfono, **+ Nueva tarea** y el botón **＋** lo abren como una hoja. Escribe una línea — `Enviar oferta mañana 14:00 !!! #cliente cada semana` — y pulsa Intro: Plainva crea la tarea en la base de datos de tareas. Entiende hoy, mañana, pasado mañana, los días de la semana, «en 3 días», «la próxima semana», fechas en cifras, una hora (`14:30`, `2 pm`), un ritmo (diario, semanal, mensual, anual, «cada lunes», «cada 2 semanas»), `!`, `!!` y `!!!` para prioridad baja, media y alta, y `#tags` — las palabras en el idioma de la aplicación, cifras y signos en cualquier idioma. Todo lo reconocido queda marcado dentro del campo y se lista debajo como un bloque eliminable **antes** de que se guarde nada; si quitas un bloque, sus palabras vuelven a contar simplemente como título. En el teléfono, unos botones rápidos escriben las mismas palabras por ti. Si la base de datos de tareas nombra una lista de un proveedor, un chip decide si la tarea se crea también allí.
 
-**Establecer prioridad** en el menú de una fila (clic derecho en el escritorio, mantener pulsado en el teléfono) ofrece **alta**, **media**, **baja** y **ninguna**; una bandera delante del título la muestra. En la base de datos de tareas, la prioridad es una columna de selección: una base de datos creada ahora ya la tiene, una más antigua la recibe la primera vez que estableces una prioridad — nunca por el simple hecho de abrirla. Una casilla lleva la marca del plugin Obsidian Tasks en su línea: Plainva lee 🔺 y ⏫ como alta, 🔼 como media, 🔽 y ⏬ como baja, y escribe ⏫, 🔼 o 🔽.
+**Establecer prioridad** en el menú de una fila (clic derecho en el escritorio, mantener pulsado en el teléfono) ofrece **alta**, **media**, **baja** y **ninguna**; una bandera delante del título la muestra. En la base de datos de tareas, la prioridad es una columna de selección: una base de datos creada ahora ya la tiene, una más antigua la recibe la primera vez que estableces una prioridad — nunca por el simple hecho de abrirla. Una casilla lleva la marca de prioridad conocida de Obsidian en su línea: Plainva lee 🔺 y ⏫ como alta, 🔼 como media, 🔽 y ⏬ como baja, y escribe ⏫, 🔼 o 🔽.
 
 `- [/]` (**En curso**) y `- [-]` (**Cancelada**) también son tareas. Reciben su propia casilla en el editor, en el modo de lectura y en cada lista; en curso cuenta como abierta, cancelada como cerrada. Un clic solo sigue alternando entre abierta y hecha — completa una tarea en curso y reabre una cancelada. **Establecer estado** en el menú de la fila fija los dos estados; Plainva no los escribe nunca por su cuenta.
 
 **La fecha de una tarea es la forma de cambiarla.** Pulsa la fecha de una tarea (dentro de un día, su hora) y se abre el selector de fecha: bajo la fecha en el escritorio, como hoja en el teléfono. **Cambiar vencimiento** en el menú de la fila abre el mismo selector; así también recibe fecha una tarea que no la tiene. En el teléfono, **Nueva tarea** y la celda de fecha de una base de datos eligen su día en el mismo calendario, no en la rueda de fechas del sistema. Una casilla en una nota — en el editor, en la vista de lectura y en el diario — tiene en el teléfono un tamaño pensado para el dedo. Una entrada de la base de datos de tareas conserva su hora, una casilla recibe o cambia su fecha `📅`. Junto al título **Atrasadas**, **Todas a hoy** mueve de una vez todas las tareas atrasadas a hoy. Ambas acciones se confirman con un aviso que ofrece **Deshacer**. En el campo de captura, `[[` sugiere notas y `#` etiquetas, como en el editor: `Enter` o `Tab` toma la sugerencia resaltada, `Esc` cierra la lista.
 
-**Opciones rápidas y una hora.** Encima del calendario, el selector ofrece **Hoy**, **Mañana**, **Este fin de semana**, **La próxima semana** y **Sin fecha**, cada una con su día de la semana. Este fin de semana es el próximo sábado — hoy, si es sábado o domingo; la próxima semana es el primer día de la semana siguiente, según **Inicio de semana**. Abajo, **Hora** tiene un interruptor: apagado, la tarea vence todo el día; encendido, eliges la hora al lado. Una opción rápida o un día conservan una hora ya puesta; para cambiar solo la hora, pulsa **Listo**. Una entrada de la base de datos de tareas guarda la hora en su valor de vencimiento (`2026-10-26T10:00`). Para una casilla en una nota el selector solo fija el día — el `📅` del plugin Tasks no tiene hora — y lo dice ahí en lugar de ofrecer el interruptor; una hora que escribas tú tras la fecha (ver *Recordatorios para casillas*) se mantiene cuando cambia el día. Si la columna de vencimiento de la base de datos muestra solo días, Plainva ofrece una vez **Cambiar a fecha y hora**.
+**Opciones rápidas y una hora.** Encima del calendario, el selector ofrece **Hoy**, **Mañana**, **Este fin de semana**, **La próxima semana** y **Sin fecha**, cada una con su día de la semana. Este fin de semana es el próximo sábado — hoy, si es sábado o domingo; la próxima semana es el primer día de la semana siguiente, según **Inicio de semana**. Abajo, **Hora** tiene un interruptor: apagado, la tarea vence todo el día; encendido, eliges la hora al lado. Una opción rápida o un día conservan una hora ya puesta; para cambiar solo la hora, pulsa **Listo**. Una entrada de la base de datos de tareas guarda la hora en su valor de vencimiento (`2026-10-26T10:00`). Para una casilla en una nota el selector solo fija el día — el `📅` de Obsidian no tiene hora — y lo dice ahí en lugar de ofrecer el interruptor; una hora que escribas tú tras la fecha (ver *Recordatorios para casillas*) se mantiene cuando cambia el día. Si la columna de vencimiento de la base de datos muestra solo días, Plainva ofrece una vez **Cambiar a fecha y hora**.
 
 Más formas de entrada: **Nueva tarea** en el menú de la bandeja del sistema en el escritorio (cuando Plainva sigue ejecutándose en segundo plano), en Android el acceso directo del launcher **Nueva tarea** (mantén pulsado el icono de la app), y en el teléfono **Crear como tarea** cuando compartes algo con Plainva — el texto y los archivos adjuntos terminan en la nota de la tarea. Cómo te avisa una tarea con hora se describe en [Calendario y tareas externas](Calendar_and_Tasks.md).
 
@@ -258,7 +258,7 @@ La casilla del widget **Hoy** recoge un encargo: la marca aparece enseguida, la 
 <!-- task-rows-2026-10-24 -->
 ## Subtareas, viñetas y lo hecho hoy
 
-**Subtareas.** Una casilla sangrada bajo otra es su subtarea, como `show tree` en el plugin Tasks de Obsidian. En las listas **Hoy**, **Próximamente**, **Bandeja de entrada** y **Hechas**, una tarea lleva sus subtareas sangradas debajo — abiertas y terminadas, estas tachadas — y una flecha al final de la fila las pliega. Una subtarea con fecha propia aparece además en su propio día; una sin fecha se lista bajo su tarea y no sola en **Bandeja de entrada**. La lista **Todas** mantiene cada casilla en el orden de su nota.
+**Subtareas.** Una casilla sangrada bajo otra es su subtarea, como `show tree` en los bloques `tasks` de Obsidian. En las listas **Hoy**, **Próximamente**, **Bandeja de entrada** y **Hechas**, una tarea lleva sus subtareas sangradas debajo — abiertas y terminadas, estas tachadas — y una flecha al final de la fila las pliega. Una subtarea con fecha propia aparece además en su propio día; una sin fecha se lista bajo su tarea y no sola en **Bandeja de entrada**. La lista **Todas** mantiene cada casilla en el orden de su nota.
 
 **Viñetas.** Las viñetas simples sangradas bajo una tarea — preguntas, notas — se muestran bajo su título como una vista previa de hasta dos líneas; el resto lo guarda la nota.
 

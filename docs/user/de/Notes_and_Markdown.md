@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-02
+Stand: 2026-11-04
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -157,7 +157,7 @@ Eine Tagesnotiz kann auch ein **Journal** tragen: kurze Einträge mit Uhrzeit (`
   ````
 
 - **Fußnoten**: `Text[^1]` und am Ende `[^1]: Die Fußnote.` — der Lesemodus rendert Verweis und Fußnotenapparat mit Sprungmarken. Am schnellsten geht es über den Slash-Befehl **Fußnote** (`/fußnote`): Er fügt den nächsten freien Verweis ein und springt direkt in die Definition am Notizende.
-- **Tasks-Abfragen**: Ein Codeblock `tasks`, geschrieben für das Obsidian-Plugin Tasks, wird in der Live-Vorschau und im Lesemodus als Aufgabenliste gezeichnet — die Aufgaben kannst Du dort direkt abhaken. Die Abfrage selbst bleibt unverändert in der Notiz; siehe [Abfragen aus dem Tasks-Plugin](Tasks.md#abfragen-aus-dem-tasks-plugin).
+- **Tasks-Abfragen**: Ein Codeblock `tasks`, geschrieben für Obsidian, wird in der Live-Vorschau und im Lesemodus als Aufgabenliste gezeichnet — die Aufgaben kannst Du dort direkt abhaken. Die Abfrage selbst bleibt unverändert in der Notiz; siehe [Tasks-Abfragen aus Obsidian](Tasks.md#tasks-abfragen-aus-obsidian).
 
 ## Text von rechts nach links
 

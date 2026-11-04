@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-02
+Stan na: 2026-11-04
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -157,7 +157,7 @@ Notatka dzienna może też nieść **dziennik**: krótkie wpisy z godziną (`- 1
   ````
 
 - **Przypisy**: `Tekst[^1]` plus `[^1]: Treść przypisu.` na końcu — tryb czytania renderuje odnośnik i aparat przypisów ze znacznikami skoku. Najszybciej idzie to przez polecenie slash **Przypis** (`/footnote`) — wstawia kolejny wolny odnośnik i przenosi od razu do definicji na końcu notatki.
-- **Zapytania Tasks**: blok kodu `tasks` napisany dla wtyczki Obsidian Tasks jest rysowany jako lista zadań w podglądzie na żywo i w trybie czytania — zadania można tam od razu zaznaczać. Samo zapytanie zostaje w notatce bez zmian; zob. [Zapytania wtyczki Tasks](Tasks.md#zapytania-wtyczki-tasks).
+- **Zapytania Tasks**: blok kodu `tasks` napisany dla Obsidiana jest rysowany jako lista zadań w podglądzie na żywo i w trybie czytania — zadania można tam od razu zaznaczać. Samo zapytanie zostaje w notatce bez zmian; zob. [Zapytania Tasks z Obsidiana](Tasks.md#zapytania-tasks-z-obsidiana).
 
 ## Tekst od prawej do lewej
 

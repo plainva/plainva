@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-11-02
+Stan na: 2026-11-04
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -122,15 +122,15 @@ Pole wyboru przypomina Ci o zadaniu, gdy jego termin ma godzinę: wpisz godzinę
 
 Włączasz to w **Ustawieniach → Kalendarz → Przypomnienia** przełącznikiem **Pola wyboru z godziną** — dla każdego vaulta i na tym urządzeniu, wyłączone, dopóki go nie włączysz. Przypomnienie przychodzi o tej godzinie, minus wyprzedzenie z **Wyprzedzenie dla zadań z godziną**. Na telefonie oferuje **Odhacz**, **Za 1 godzinę** i **Jutro rano**, jak przypomnienie zadania z bazy zadań; na komputerze komunikat obok oferuje **Otwórz zadanie**. Tak czy inaczej trafiasz do notatki w wierszu zadania, także po zmianie nazwy lub przeniesieniu notatki.
 
-Pole wyboru, które odhaczysz, usuniesz lub któremu dasz inną godzinę, zostaje zaplanowane na nowo w ciągu kilku sekund. Pole wyboru z datą, ale bez godziny, nie przypomina, a notatki z `plainva.tasks: false` pozostają poza tym. Plainva nie zapisuje niczego w notatce z powodu przypomnienia. Wtyczka Tasks w Obsidianie nie zna godzin: nie odczytuje już daty `📅`, po której stoi godzina.
+Pole wyboru, które odhaczysz, usuniesz lub któremu dasz inną godzinę, zostaje zaplanowane na nowo w ciągu kilku sekund. Pole wyboru z datą, ale bez godziny, nie przypomina, a notatki z `plainva.tasks: false` pozostają poza tym. Plainva nie zapisuje niczego w notatce z powodu przypomnienia. Obsidian nie zna godzin: nie odczytuje już daty `📅`, po której stoi godzina.
 
 ## Zgodność z Obsidian
 
-Zadania to zwykłe pola wyboru GFM (GitHub-Flavored Markdown). Plainva nigdy nie dodaje specjalnej składni: te same linie `- [ ]` renderują się jako pola wyboru w Obsidian i czytelnie wyświetlają się w dowolnym edytorze. Konwencje `📅 data` i `#tag` to typowy styl wtyczki Obsidian Tasks, ale w Twojej notatce są to zwykły tekst.
+Zadania to zwykłe pola wyboru GFM (GitHub-Flavored Markdown). Plainva nigdy nie dodaje specjalnej składni: te same linie `- [ ]` renderują się jako pola wyboru w Obsidian i czytelnie wyświetlają się w dowolnym edytorze. Konwencje `📅 data` i `#tag` to typowy styl z Obsidiana, ale w Twojej notatce są to zwykły tekst.
 
-## Zapytania wtyczki Tasks
+## Zapytania Tasks z Obsidiana
 
-Notatka napisana dla wtyczki Obsidian Tasks może zawierać blok kodu `tasks` z zapytaniem. Plainva rysuje go jako listę zadań — w podglądzie na żywo i w trybie czytania, na komputerze i na telefonie, także wewnątrz cytatu lub calloutu:
+Notatka pochodząca z Obsidiana może zawierać blok kodu `tasks` z zapytaniem. Plainva rysuje go jako listę zadań — w podglądzie na żywo i w trybie czytania, na komputerze i na telefonie, także wewnątrz cytatu lub calloutu:
 
 ````markdown
 ```tasks
@@ -168,7 +168,7 @@ Plainva czyta te wiersze języka zapytań Tasks:
 | Tagi | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
 | Elementy podrzędne | `exclude sub-items` |
 | Łączenie | `AND`, `OR`, `NOT`, `XOR`, z `( )`, `[ ]`, `{ }` albo `" "` wokół części |
-| Sortowanie | `sort by …` z każdym kluczem oprócz `random`, `status.name` i `id`, w razie potrzeby z `reverse`; po Twoich własnych wierszach obowiązuje domyślna kolejność wtyczki Tasks, wraz z pilnością |
+| Sortowanie | `sort by …` z każdym kluczem oprócz `random`, `status.name` i `id`, w razie potrzeby z `reverse`; po Twoich własnych wierszach obowiązuje domyślna kolejność z Obsidiana, wraz z pilnością |
 | Grupowanie | `group by …`, do trzech poziomów |
 | Wygląd i liczba | `show tree`, `hide backlink`, `hide task count` i podobne, `limit 20`, `limit groups 5`, `explain` |
 | Komentarze i symbole zastępcze | wiersze zaczynające się od `#`; symbole zastępcze takie jak `{{query.file.path}}`, które odnoszą się do notatki, w której stoi zapytanie |
@@ -177,15 +177,15 @@ Plainva czyta te wiersze języka zapytań Tasks:
 
 Każdy wiersz zapytania należy do jednego z trzech przypadków:
 
-- Wiersz, który wtyczka Tasks zna, a Plainva jeszcze nie — na przykład kod (`filter by function`; Plainva nigdy nie uruchamia kodu z notatek), wyrażenia regularne (`regex matches`), zależności (`is blocked`), ustawienia wstępne albo inne zapisy dat. Wskazówka nad listą podaje wiersz i powód; wiersz jest pomijany, więc lista może pokazywać więcej zadań niż w Obsidian — albo w innej kolejności, w wierszach `sort by` i `group by`.
+- Wiersz, który Obsidian zna, a Plainva jeszcze nie — na przykład kod (`filter by function`; Plainva nigdy nie uruchamia kodu z notatek), wyrażenia regularne (`regex matches`), zależności (`is blocked`), ustawienia wstępne albo inne zapisy dat. Wskazówka nad listą podaje wiersz i powód; wiersz jest pomijany, więc lista może pokazywać więcej zadań niż w Obsidian — albo w innej kolejności, w wierszach `sort by` i `group by`.
 - Wiersz układu bez odpowiednika w Plainva (`hide edit button`, `short mode`, …) jest po cichu przyjmowany.
-- Wiersz, który odrzuca także wtyczka Tasks (literówka, pomieszane nawiasy, niemożliwa data), pokazuje błąd z wierszem i powodem, i żadnej listy.
+- Wiersz, który odrzuca także Obsidian (literówka, pomieszane nawiasy, niemożliwa data), pokazuje błąd z wierszem i powodem, i żadnej listy.
 
 ### Różnice względem Obsidian
 
 - „Dziś” to dzień kalendarzowy.
 - Notatki z `plainva.tasks: false` są tu liczone; Obsidian nie zna tej właściwości.
-- Globalny filtr i globalne zapytanie wtyczki Tasks są wymienione w **Wyjaśnieniu**, ale nie są stosowane.
+- Globalny filtr i globalne zapytanie ustawione w Obsidianie są wymienione w **Wyjaśnieniu**, ale nie są stosowane.
 - Własne znaki stanu (`[>]`, `[!]`, …) nie są w Plainva zadaniami.
 
 Bloki Dataview pozostają zwykłym tekstem.
@@ -240,13 +240,13 @@ Widok zadań otwiera się na liście **Dziś**. Listy — na komputerze pasek po
 
 Nad listami znajduje się pole szybkiego dodawania; na telefonie **+ Nowe zadanie** i przycisk **＋** otwierają je jako arkusz. Wpisz jedną linijkę — `Wysłać ofertę jutro 14:00 !!! #klient co tydzień` — i naciśnij Enter: Plainva utworzy zadanie w bazie zadań. Rozpoznaje dziś, jutro, pojutrze, dni tygodnia, „za 3 dni”, „w przyszłym tygodniu”, daty cyframi, godzinę (`14:30`, `2pm`), rytm (codziennie, co tydzień, co miesiąc, co rok, „w każdy poniedziałek”, „co 2 tygodnie”), `!`, `!!` i `!!!` dla niskiego, średniego i wysokiego priorytetu oraz `#tagi` — słowa w języku aplikacji, cyfry i znaki w dowolnym języku. Wszystko, co zostanie rozpoznane, jest zaznaczone w polu i wypisane pod nim jako usuwalny klocek, **zanim** cokolwiek zostanie zapisane; usuń klocek, a jego słowa po prostu znów liczą się jako tytuł. Na telefonie te same słowa wpisują za Ciebie szybkie przyciski. Jeśli baza zadań wskazuje listę dostawcy, plakietka decyduje, czy zadanie powstanie także tam.
 
-**Ustaw priorytet** w menu wiersza (prawy klik na komputerze, przytrzymanie na telefonie) oferuje **wysoki**, **średni**, **niski** i **brak**; pokazuje go flaga przed tytułem. W bazie zadań priorytet jest kolumną wyboru: baza utworzona teraz już ją ma, starsza otrzymuje ją, gdy pierwszy raz ustawisz priorytet — nigdy przez samo otwarcie. Pole wyboru nosi w swoim wierszu znak wtyczki Obsidian Tasks: Plainva odczytuje 🔺 i ⏫ jako wysoki, 🔼 jako średni, 🔽 i ⏬ jako niski, a zapisuje ⏫, 🔼 lub 🔽.
+**Ustaw priorytet** w menu wiersza (prawy klik na komputerze, przytrzymanie na telefonie) oferuje **wysoki**, **średni**, **niski** i **brak**; pokazuje go flaga przed tytułem. W bazie zadań priorytet jest kolumną wyboru: baza utworzona teraz już ją ma, starsza otrzymuje ją, gdy pierwszy raz ustawisz priorytet — nigdy przez samo otwarcie. Pole wyboru nosi w swoim wierszu znak priorytetu znany z Obsidiana: Plainva odczytuje 🔺 i ⏫ jako wysoki, 🔼 jako średni, 🔽 i ⏬ jako niski, a zapisuje ⏫, 🔼 lub 🔽.
 
 `- [/]` (**W toku**) i `- [-]` (**Anulowane**) to również zadania. W edytorze, w trybie czytania i na każdej liście dostają własne pole; w toku liczy się jako otwarte, anulowane jako zamknięte. Kliknięcie nadal przełącza tylko między otwartym a ukończonym — kończy zadanie w toku i otwiera ponownie anulowane. **Ustaw stan** w menu wiersza ustawia te dwa stany; Plainva nigdy nie zapisuje ich samodzielnie.
 
 **Data zadania jest sposobem na jej zmianę.** Naciśnij datę zadania (w obrębie dnia: jego godzinę), a otworzy się wybór daty — na komputerze pod datą, na telefonie jako arkusz. **Zmień termin** w menu wiersza otwiera ten sam wybór; tak też zadanie bez daty ją dostaje. Na telefonie **Nowe zadanie** i komórka daty bazy danych wybierają dzień z tego samego kalendarza, a nie z systemowego pokrętła daty. Pole wyboru w notatce — w edytorze, w widoku czytania i w dzienniku — ma na telefonie rozmiar dostosowany do palca. Wpis bazy zadań zachowuje swoją godzinę, pole wyboru dostaje lub zmienia swoją datę `📅`. Przy nagłówku **Zaległe** przycisk **Wszystkie na dziś** przenosi jednym ruchem wszystkie zaległe zadania na dziś. Jedno i drugie potwierdza komunikat z opcją **Cofnij**. W polu zapisu `[[` podpowiada notatki, a `#` tagi, tak jak w edytorze: `Enter` lub `Tab` przyjmuje zaznaczoną podpowiedź, `Esc` zamyka listę.
 
-**Szybkie wybory i godzina.** Nad kalendarzem są **Dziś**, **Jutro**, **Ten weekend**, **Przyszły tydzień** i **Brak daty**, każdy z dniem tygodnia. Ten weekend to najbliższa sobota — dziś, jeśli jest sobota lub niedziela; przyszły tydzień to pierwszy dzień następnego tygodnia, zgodnie z ustawieniem **Początek tygodnia**. Na dole **Godzina** ma przełącznik: wyłączony — zadanie ma termin na cały dzień; włączony — obok wybierasz godzinę. Szybki wybór lub dzień zachowują już ustawioną godzinę; aby zmienić tylko godzinę, naciśnij **Gotowe**. Wpis bazy zadań zapisuje godzinę w wartości terminu (`2026-10-26T10:00`). Dla pola wyboru w notatce wybór ustawia tylko dzień — `📅` wtyczki Tasks nie zna godziny — i mówi o tym tam zamiast oferować przełącznik; godzina, którą sam wpiszesz po dacie (zob. *Przypomnienia dla pól wyboru*), zostaje, gdy dzień się zmienia. Jeśli kolumna terminu w bazie pokazuje tylko dni, Plainva raz proponuje **Przełącz na datę i godzinę**.
+**Szybkie wybory i godzina.** Nad kalendarzem są **Dziś**, **Jutro**, **Ten weekend**, **Przyszły tydzień** i **Brak daty**, każdy z dniem tygodnia. Ten weekend to najbliższa sobota — dziś, jeśli jest sobota lub niedziela; przyszły tydzień to pierwszy dzień następnego tygodnia, zgodnie z ustawieniem **Początek tygodnia**. Na dole **Godzina** ma przełącznik: wyłączony — zadanie ma termin na cały dzień; włączony — obok wybierasz godzinę. Szybki wybór lub dzień zachowują już ustawioną godzinę; aby zmienić tylko godzinę, naciśnij **Gotowe**. Wpis bazy zadań zapisuje godzinę w wartości terminu (`2026-10-26T10:00`). Dla pola wyboru w notatce wybór ustawia tylko dzień — `📅` z Obsidiana nie zna godziny — i mówi o tym tam zamiast oferować przełącznik; godzina, którą sam wpiszesz po dacie (zob. *Przypomnienia dla pól wyboru*), zostaje, gdy dzień się zmienia. Jeśli kolumna terminu w bazie pokazuje tylko dni, Plainva raz proponuje **Przełącz na datę i godzinę**.
 
 Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (gdy Plainva działa dalej w tle), w Androidzie skrót w launcherze **Nowe zadanie** (przytrzymanie ikony aplikacji), oraz na telefonie **Utwórz jako zadanie**, gdy udostępnisz coś Plainvie — tekst i załączniki trafiają do notatki zadania. To, jak przypomina zadanie z godziną, opisano w [Kalendarz i zadania zewnętrzne](Calendar_and_Tasks.md).
 
@@ -258,7 +258,7 @@ Pole w widgecie **Dziś** przyjmuje prośbę: ptaszek pojawia się od razu, nota
 <!-- task-rows-2026-10-24 -->
 ## Podzadania, wypunktowania i to, co zrobiono dzisiaj
 
-**Podzadania.** Pole wyboru wcięte pod innym jest jego podzadaniem, tak jak `show tree` we wtyczce Tasks do Obsidiana. Na listach **Dziś**, **Nadchodzące**, **Skrzynka** i **Ukończone** zadanie niesie swoje podzadania wcięte pod sobą — otwarte i ukończone, te drugie przekreślone — a strzałka na końcu wiersza je zwija. Podzadanie z własną datą stoi dodatkowo w swoim dniu; to bez daty jest wymienione pod swoim zadaniem, a nie osobno w **Skrzynka**. Lista **Wszystkie** zachowuje każde pole wyboru w kolejności jego notatki.
+**Podzadania.** Pole wyboru wcięte pod innym jest jego podzadaniem, tak jak `show tree` w blokach `tasks` Obsidiana. Na listach **Dziś**, **Nadchodzące**, **Skrzynka** i **Ukończone** zadanie niesie swoje podzadania wcięte pod sobą — otwarte i ukończone, te drugie przekreślone — a strzałka na końcu wiersza je zwija. Podzadanie z własną datą stoi dodatkowo w swoim dniu; to bez daty jest wymienione pod swoim zadaniem, a nie osobno w **Skrzynka**. Lista **Wszystkie** zachowuje każde pole wyboru w kolejności jego notatki.
 
 **Wypunktowania.** Zwykłe punkty wcięte pod zadaniem — pytania, uwagi — wiersz pokazuje pod tytułem jako podgląd do dwóch linii; resztę trzyma notatka.
 
