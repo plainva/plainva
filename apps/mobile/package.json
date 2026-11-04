@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "dev:isolated": "vite --port 1441 --strictPort",
-    "build": "tsc && vite build",
+    "build": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc && vite build",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit",
     "sync": "cap sync",
     "test": "vitest run",
     "baseline": "node scripts/screenshot-baseline.mjs",
