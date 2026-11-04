@@ -102,7 +102,8 @@ export const config: WebdriverIO.Config = {
         : // `external` + `autoInstallTauriDriver`: the service installs
           // tauri-driver with cargo when it is missing (the workflow sets up the
           // Rust toolchain) and manages the Edge WebDriver on Windows; Linux
-          // needs `webkit2gtk-driver` (installed there). The driver logs at
+          // needs the WebKitGTK WebDriver (installed there; the package is
+          // `webkit2gtk-driver` or, from Ubuntu 26.04, `webkitgtk-webdriver`). The driver logs at
           // debug level: the first runs failed before any test step (on Windows
           // "session not created: DevToolsActivePort file doesn't exist"), and
           // only the driver's own output says why.
