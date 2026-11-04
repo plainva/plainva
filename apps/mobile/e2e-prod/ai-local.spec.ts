@@ -114,7 +114,11 @@ test("AI fully local: the phone's settings say what holds; switched on they list
     const fullyLocal = settings.getByRole("switch", { name: "Fully local" });
     await expect(now).toContainText("Now: Cloud — a provider answers");
     await expect(now).toContainText("New conversations start with Anthropic · m-1.");
-    await expect(settings).toContainText("Only “Fully local” is a switch, because only it promises something.");
+    // What the section means stands behind its info button (settings plan of 2026-10-29): a sheet, read and closed.
+    await settings.getByRole("button", { name: "More about Mode" }).click();
+    await expect(page.locator(".pv-infotip-sheettext")).toContainText("Only “Fully local” is a switch, because only it promises something.");
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 5, y: 5 } });
+    await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
     await expect(fullyLocal).toHaveAttribute("aria-checked", "false");
     await expect(settings.getByTestId("ai-mode-rest")).toHaveCount(0);
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-local-state-mobile.png") });
@@ -128,7 +132,11 @@ test("AI fully local: the phone's settings say what holds; switched on they list
     await expect(settings.getByTestId("ai-mode-setup")).toContainText("Set up a model on this device");
     await expect(settings).toContainText("While “Fully local” is on, this rests");
     await expect(settings.getByTestId("ai-mode-rest").filter({ hasText: "Anthropic" })).toContainText("Stays set up and receives nothing. This profile does not answer: Balanced.");
-    await expect(settings).toContainText("The switch is about the AI.");
+    // What the section means stands behind its info button (settings plan of 2026-10-29): a sheet, read and closed.
+    await settings.getByRole("button", { name: "More about Mode" }).click();
+    await expect(page.locator(".pv-infotip-sheettext")).toContainText("The switch is about the AI.");
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 5, y: 5 } });
+    await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
     await expect.poll(async () => (await seam()).localOnly.at(-1)).toBe(true);
     await expect.poll(async () => (await stored()).localOnly).toBe(true);
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-local-missing-mobile.png") });

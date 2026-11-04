@@ -7947,7 +7947,10 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   await expect(app).toContainText('Now: Hybrid — this device sorts, a provider answers');
   await expect(app).toContainText('New conversations start with Anthropic · m-1.');
   await expect(app).toContainText('reading e-mails and appointments (granite3.3:8b)');
-  await expect(app).toContainText('Only “Fully local” is a switch, because only it promises something.');
+  // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
+  await app.getByRole('button', { name: 'More about Mode' }).click();
+  await expect(page.locator('.pv-infotip-panel')).toContainText('Only “Fully local” is a switch, because only it promises something.');
+  await app.getByRole('button', { name: 'More about Mode' }).click();
   await expect(app.getByTestId('ai-local-only')).toHaveAttribute('aria-checked', 'false');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-state-desktop.png'), animations: 'disabled' });
 
@@ -7973,7 +7976,10 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   await expect(app).toContainText('Ollama · granite3.3:8b answers, the model of the profile “Local”.');
   await expect(app).toContainText('While “Fully local” is on, this rests');
   await expect(app).toContainText('Stays set up and receives nothing. This profile does not answer: Balanced.');
-  await expect(app).toContainText('The switch is about the AI.');
+  // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
+  await app.getByRole('button', { name: 'More about Mode' }).click();
+  await expect(page.locator('.pv-infotip-panel')).toContainText('The switch is about the AI.');
+  await app.getByRole('button', { name: 'More about Mode' }).click();
   await expect(app).toContainText('Anthropic · m-1');
   await expect.poll(async () => (await told()).at(-1)).toBe(true);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-on-desktop.png'), animations: 'disabled' });
@@ -8186,7 +8192,10 @@ test('AI routines: one is set up in two steps and confirmed for a run nobody wat
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
   const settings = dialog.getByTestId('settings-ai-vault');
-  await expect(settings).toContainText('Routines run on this device while Plainva is open.');
+  // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
+  await settings.getByRole('button', { name: 'More about Routines' }).click();
+  await expect(page.locator('.pv-infotip-panel')).toContainText('Routines run on this device while Plainva is open.');
+  await settings.getByRole('button', { name: 'More about Routines' }).click();
   await expect(settings).toContainText('No routine yet.');
   await expect(settings.getByTestId('settings-ai-routine')).toHaveCount(0);
   const add = settings.getByTestId('settings-ai-routine-add');

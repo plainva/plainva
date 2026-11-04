@@ -100,7 +100,11 @@ test("AI routines: the phone sets one up in two steps, confirmed for a run nobod
     await page.getByTestId("nav-settings").first().click();
     await page.getByTestId("settings-area-aiVault").click();
     const settings = page.getByTestId("settings-ai-vault");
-    await expect(settings).toContainText("Routines run on this device while Plainva is open.");
+    // What the section means stands behind its info button (settings plan of 2026-10-29): a sheet, read and closed.
+    await settings.getByRole("button", { name: "More about Routines" }).click();
+    await expect(page.locator(".pv-infotip-sheettext")).toContainText("Routines run on this device while Plainva is open.");
+    await page.locator(".m-sheet-backdrop").click({ position: { x: 5, y: 5 } });
+    await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
     await expect(settings.getByTestId("settings-ai-routine")).toHaveCount(0);
     const add = settings.getByTestId("settings-ai-routine-add");
     await add.scrollIntoViewIfNeeded();
