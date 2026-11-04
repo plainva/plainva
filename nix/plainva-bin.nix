@@ -30,8 +30,8 @@
   libayatana-appindicator,
   # Bump both together when a desktop release is published; nix/README.md shows
   # how to compute the hash, with Nix or from the digest on the release page.
-  version ? "0.8.6",
-  hash ? "sha256-q8z4SoAvR21ftugzwwwIaslUQs6GFlcM3oDzXKUIm4c=",
+  version ? "0.8.7",
+  hash ? "sha256-67/BzEED4eGUQ7Rn93MyrDlxQj3492MM4r3QQfrFIFo=",
 }:
 
 stdenvNoCC.mkDerivation (finalAttrs: {
@@ -73,7 +73,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   # "Updated through Nix" instead of offering a check
   # (apps/desktop/src/services/appUpdate.ts). wrapGAppsHook3 writes it into the
   # wrapper of bin/plainva-desktop, which the .desktop entry starts too.
-  # Releases up to 0.8.6 do not read it yet; the first release after 0.8.6 does.
+  # Releases from 0.8.7 on read it; 0.8.6 and earlier did not.
   preFixup = ''
     gappsWrapperArgs+=(--set PLAINVA_UPDATES_MANAGED_BY Nix)
   '';
