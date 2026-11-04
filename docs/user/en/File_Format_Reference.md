@@ -146,6 +146,7 @@ Plainva-specific note extras are bundled under a single `plainva:` key so other 
 | `tasks` | `false` | Exclude this note's checkboxes from the [Tasks view](Tasks.md) |
 | `templateFor` | list of wiki links to `.base` files | Assigns a **template** to the listed databases (meaningful only for notes inside the template folder) |
 | `pim` | mapping (see below) | Anchor tying the note to an external calendar event, task or email |
+| `ai` | mapping `{cloud, web}`, each `allow` or `deny` | AI privacy policy of this note (see below) |
 
 All of these are optional. If you write none of them, omit the `plainva:` key entirely. Invalid values are ignored on read, never treated as an error.
 
@@ -167,6 +168,54 @@ plainva:
 **The file name is not part of the identity.** A mirrored task is named after its title (`<title>.md`, with the same title `<title> 2.md` and so on); matching goes by the anchor alone. Tools may rename and move the file as long as the anchor stays. Names of the form `<title> — <16 or 64 hex digits>.md` come from the Plainva versions of 12–24 September 2026: the digits are the start of a SHA-256 over provider, identity, list and `uid`. The tasks view offers once to rename them after their titles — only when the digits match the anchor in the same file.
 
 `templateFor` is the field contract of the template assignment (see [databases](Databases_Base.md)): on a note inside the template folder it lists the databases whose **Entry** menu shows the template by default. Values are whole wiki links including the `.base` extension — bare (`"[[Tasks.base]]"` matches the file of that name in any folder, so it survives pure folder moves) or path-qualified (`"[[Projekte/Tasks.base]]"` matches exactly that path). Plainva writes bare links and only qualifies when two same-named `.base` files exist. A scalar instead of a list is tolerated. When an entry is created from the template, `templateFor` — unlike the other `plainva:` keys — is **not** copied into the new note.
+
+### AI privacy policy (`plainva.ai` and `.agent/`)
+
+`plainva: { ai: … }` says where the note's content may go when AI is involved:
+
+- `cloud: deny` — never to a cloud AI recipient: no text, title, file name, link text or summary of it. Local models on the device stay allowed.
+- `web: deny` — never in a task that also uses web access.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Rules for whole folders live in `.agent/policy.yml`. The note's own value wins, otherwise the nearest folder rule:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` are read as `allow`/`deny`; any other value is ignored and never widens anything. The rest of the hidden `.agent/` folder — skills (`skills/<name>/SKILL.md`), memory and conversation notes — belongs to Plainva's assistant. Plainva does not follow a file there that is new or changed until the user has approved it on that device, so a tool should not write into `.agent/` unless the user asked for exactly that.
+
+### The assistant's memory (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Two Markdown files hold what the assistant should know about the user: `.agent/active_memory.md` goes into every new conversation, `.agent/MEMORY.md` is looked up when a question needs it. An entry is a top-level list item (`-`, `*` or `+`); indented lines continue it, headings group entries, and a YAML block at the top of the file and fenced code are skipped. What Plainva knows about an entry stands in one HTML comment behind it:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — the day the entry was added (`YYYY-MM-DD`).
+- `by` — `user`, or `assistant` for a draft the user accepted.
+- `source` — the title of the conversation a draft came from.
+- `deny` — `cloud`, `web` or both: the recipients the entry is kept from, as for a note.
+
+A tool that writes an entry keeps it to one line of at most 500 characters and leaves the comments of other entries as they are. A comment that is damaged — not closed, there twice, or naming a rule Plainva does not know — keeps the entry from every model. An entry without a comment has no rule of its own, so a tool must never drop the comment of an entry it rewrites. What the assistant should do is not written here: rules are lines of `AGENTS.md`.
+
+### The learning log (`.agent/logs/learning.md`)
+
+One line for everything that was accepted from a suggestion of the assistant — a new skill, other instructions for a skill, a rule in `AGENTS.md` — and for every return to an earlier version of a skill: the minute, what changed, and the title of the conversation it came from. Plainva adds lines and reads none of them back.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+The file is a list under a heading and can be shortened or deleted. It holds no word of the model that made the suggestion and never its name. Past 100,000 characters Plainva drops the oldest lines of the list.
 
 ### Links
 
@@ -601,6 +650,7 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 ## Do-not-touch and safety
 
 - **`.plainva/`** holds backups and internal state. Never read program logic into it or write to it.
+- **`.agent/`** holds Plainva's AI policy, skills and memory. Change it only when the user asks for exactly that, and respect `cloud: deny` and `web: deny` (see the AI privacy policy above).
 - **Unknown keys are sacred.** When you rewrite a `.base` or a note, carry through every key you did not intend to change. Plainva itself preserves unknown `.base` keys via an internal raw copy; a third-party writer should do the same (parse → change only what you mean → serialize).
 - **Values change in the note, not the `.base`.** To set a cell, edit the note's frontmatter. The `.base` only decides which notes and columns are shown.
 - **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `summaries` / `views`.

@@ -1,6 +1,6 @@
 # Recherche
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-01
 
 Plainva propose trois façons de rechercher : la recherche en texte intégral dans tout le vault, le sélecteur rapide pour ouvrir des fichiers, et rechercher & remplacer dans une note.
 
@@ -24,6 +24,32 @@ Le champ de recherche s'applique aussi aux autres vues de la barre latérale : d
 - `tag:nom` — uniquement les notes portant ce tag, y compris les tags imbriqués : `tag:projet` trouve aussi `#projet/interne`. `tag:#projet` fonctionne également.
 - Les opérateurs peuvent être niés (`-path:Archives`, `-tag:fait`) et combinés librement avec des termes de recherche : `plan tag:projet -brouillon`.
 - Plusieurs termes sont combinés avec ET. Les caractères spéciaux comme `- ( ) : *` à l'intérieur des termes sont sans danger — Plainva traite la saisie littéralement.
+
+## Recherche par le sens
+
+Avec un modèle local, la recherche trouve aussi les notes d'après ce qu'elles signifient — pas seulement d'après leurs mots, et d'une langue à l'autre : une question en français trouve une note anglaise qui dit la même chose. Le modèle calcule sur cet appareil ; vos notes et les vecteurs calculés à partir d'elles ne le quittent jamais.
+
+Activez-la dans **Paramètres → IA & automatisation → Recherche sémantique** (l'IA doit être activée). Choisissez un modèle — **Granite Embedding Multilingual R2 (97M)** est recommandé — et Plainva affiche sa taille, sa source, sa licence et une durée estimée avant tout téléchargement. Chaque fichier provient d'une version fixe sur huggingface.co et est vérifié par son SHA-256 ; aucune connexion n'est nécessaire. Avant d'intégrer la première note, Plainva vérifie que le modèle calcule correctement sur cet appareil.
+
+Au lieu d'un paquet, vous pouvez choisir **Fournisseur personnel** : le modèle du profil **Embeddings** calcule alors les vecteurs — tout modèle d'embeddings que propose votre fournisseur, par exemple `text-embedding-3-small` chez OpenAI, `gemini-embedding-001` chez Gemini ou `nomic-embed-text` dans Ollama. Avec Ollama ou LM Studio, rien ne quitte votre ordinateur. Avec un cloud, l'aperçu montre une fois ce qui y part — chaque note que vos règles de confidentialité laissent passer, maintenant et à chaque modification, ainsi que vos questions de recherche —, et **Approuver durablement** le démarre ; **Retirer l'approbation** dans les paramètres l'arrête. Les notes que vos règles tiennent à l'écart du cloud restent dehors, et dans un espace chiffré seul un paquet ou un serveur sur cet ordinateur calcule. Si un autre modèle répond sous le même nom — un nouveau `ollama pull`, un serveur déplacé —, Plainva le remarque avant la note suivante et recalcule les vecteurs au lieu de mélanger deux modèles. Si le fournisseur est injoignable, la recherche répond par les mots et le signale. **Inutilisé sur cet appareil** liste les paquets et les vecteurs de modèles que vous n'utilisez plus ; **Supprimer** les efface.
+
+**Mesurer cet appareil** (à côté de **Mettre en pause** pendant qu'un modèle calcule) vérifie cet appareil par rapport aux budgets que Plainva s'impose : le premier passage sur 5 000 sections, une note modifiée retrouvée, une recherche sur 20 000 sections, la mémoire de l'app à son pic et le téléchargement. La mesure se fait avec un texte d'exemple, jamais avec vos notes, et l'intégration attend pendant ce temps ; **Copier les résultats** met les chiffres dans le presse-papiers — par exemple pour vos retours sur la bêta.
+
+Tant qu'un modèle est actif, l'en-tête des résultats propose **Mots**, **Sens** et **Les deux** :
+
+- **Mots** est la recherche en texte intégral décrite plus haut.
+- **Sens** liste les notes dont les sections se rapprochent le plus de votre question ; ouvrir un résultat mène à cette section.
+- **Les deux** (par défaut) classe ensemble les résultats des mots et du sens.
+
+Avec **Sens** et **Les deux**, chaque note apparaît une fois, et une petite étiquette indique ce qui l'a trouvée : **Mots**, **Sens** ou **Mots et sens**. Les opérateurs de recherche (`path:`, `tag:`, `-terme`) limitent aussi les résultats par le sens. Le choix s'applique à cet appareil.
+
+Plainva intègre les notes en arrière-plan, les plus récemment modifiées d'abord ; une note que vous modifiez suit quelques secondes après la fin de la saisie. D'ici là, elle n'est trouvée que par ses mots — un résultat par le sens ne provient jamais de l'ancien texte d'une note. Une ligne sous les résultats indique l'avancement et propose **Mettre en pause**. Sur téléphone, l'intégration ne s'effectue que lorsque Plainva est ouvert. **Retirer (avec ses vecteurs)** dans les paramètres supprime le modèle et tout ce qu'il a calculé.
+
+### Notes connexes
+
+À côté de la note ouverte, Plainva affiche jusqu'à trois notes proches d'elle par le sens mais pas encore liées à elle — sur l'ordinateur dans la section **Connexes** de la barre latérale droite, après **Backlinks** ; sur le téléphone dans l'onglet **Connexes** de la feuille de la note. Elles viennent des vecteurs que la recherche par le sens conserve déjà sur cet appareil : rien n'est envoyé, pas même à un fournisseur personnel. Une suggestion n'apparaît que si une note se distingue nettement du reste du vault ; les copies et le texte commun d'un modèle ne comptent pas. La plupart des notes n'ont donc aucune suggestion, et la section disparaît alors.
+
+Chaque suggestion nomme les deux sections les plus proches — par exemple « Production ↔ Jours de tournage › Répartition » — et les notes vers lesquelles les deux renvoient. **Pourquoi cette suggestion ?** montre le début des deux sections (un clic y mène) ; **Pas utile** masque exactement cette paire sur cet appareil et ne change pas la recherche. **Mettre en pause pour cette note** et **Mettre en pause dans ce vault** se trouvent dans le menu de la section, sur le téléphone sous la liste. **Afficher les notes connexes** dans **Paramètres → IA & automatisation → Recherche sémantique** désactive les suggestions sur cet appareil ; c'est là aussi que vous reprenez un vault ou des notes en pause et rétablissez les suggestions masquées.
 
 ## Sélecteur rapide
 

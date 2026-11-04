@@ -247,9 +247,9 @@ describe("an action added by an app update", () => {
 
   it("arrives beside the action it belongs to instead of landing in the hidden half", async () => {
     // What an install from before the two creation actions looks like: the old
-    // eight ids, all visible. Such an install predates the comment overview and
-    // the journal too, so the same start adopts four ids, each beside the action
-    // it belongs to.
+    // eight ids, all visible. Such an install predates the comment overview, the
+    // journal and the AI button too, so the same start adopts five ids, each
+    // beside the action it belongs to.
     storeValues[barLayoutDefaultKey("ribbon")] = {
       order: ["new", "open", "daily", "graph", "tasks", "calendar", "mail", "palette"],
       visibleCount: 8,
@@ -259,10 +259,10 @@ describe("an action added by an app update", () => {
 
     const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
     expect(stored.order.slice(0, 3)).toEqual(["new", "newFolder", "newBase"]);
-    expect(stored.order.slice(-4)).toEqual(["mail", "comments", "journal", "palette"]);
+    expect(stored.order.slice(-5)).toEqual(["mail", "comments", "journal", "palette", "ai"]);
     // Grown with them: appended at the end they would exist but be hidden, and
     // the update would look like it did nothing.
-    expect(stored.visibleCount).toBe(12);
+    expect(stored.visibleCount).toBe(13);
     expect(visibleAreas(stored)).toContain("newBase");
     expect(visibleAreas(stored)).toContain("comments");
     expect(visibleAreas(stored)).toContain("journal");
@@ -284,7 +284,7 @@ describe("an action added by an app update", () => {
     expect(stored.order.indexOf("comments")).toBe(stored.order.indexOf("mail") + 1);
     // The journal (plan Journal, J5) follows the overview it arrives with.
     expect(stored.order.indexOf("journal")).toBe(stored.order.indexOf("comments") + 1);
-    expect(stored.visibleCount).toBe(12);
+    expect(stored.visibleCount).toBe(13);
     expect(visibleAreas(stored)).toContain("comments");
     expect(visibleAreas(stored)).toContain("journal");
   });
@@ -298,8 +298,42 @@ describe("an action added by an app update", () => {
     await migrateLegacyBarLayouts(null);
 
     const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
-    expect(stored.order.slice(-3)).toEqual(["comments", "journal", "palette"]);
-    expect(stored.visibleCount).toBe(12);
+    expect(stored.order.slice(-4)).toEqual(["comments", "journal", "palette", "ai"]);
+    expect(stored.visibleCount).toBe(13);
+  });
+
+  it("puts the AI button beside the command palette, visible only where the palette is", async () => {
+    // Ctrl+J beside Ctrl+P (plan KI-Harness, P1a). The rail draws the button only
+    // while the per-device AI switch is on, so a visible slot costs nothing when
+    // the AI is off.
+    storeValues[barLayoutDefaultKey("ribbon")] = {
+      order: ["new", "newFolder", "newBase", "open", "palette", "daily", "graph", "tasks", "calendar", "mail", "comments", "journal"],
+      visibleCount: 12,
+    };
+    await migrateLegacyBarLayouts(null);
+    const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
+    expect(stored.order.indexOf("ai")).toBe(stored.order.indexOf("palette") + 1);
+    expect(stored.visibleCount).toBe(13);
+
+    storeValues[barLayoutDefaultKey("ribbon")] = {
+      order: ["new", "open", "daily", "newFolder", "newBase", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette"],
+      visibleCount: 3,
+    };
+    await migrateLegacyBarLayouts(null);
+    const hidden = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
+    expect(hidden.visibleCount).toBe(3);
+    expect(visibleAreas(hidden)).not.toContain("ai");
+  });
+
+  it("counts an id that follows the last visible action as visible", async () => {
+    // The anchor is the last visible slot; the new id lands right behind it,
+    // which is exactly where the old rule ("insertion index < visible count")
+    // cut it off into the hidden half.
+    storeValues[barLayoutDefaultKey("rightSections")] = { order: ["calendar", "outline", "graph"], visibleCount: 1 };
+    await migrateLegacyBarLayouts(null);
+    const stored = storeValues[barLayoutDefaultKey("rightSections")] as { order: string[]; visibleCount: number };
+    expect(stored.order.slice(0, 2)).toEqual(["calendar", "journal"]);
+    expect(visibleAreas(stored)).toEqual(["calendar", "journal"]);
   });
 
   it("leaves them hidden when the action they follow is hidden", async () => {
@@ -317,7 +351,7 @@ describe("an action added by an app update", () => {
 
   it("runs harmlessly on every start once the ids are stored", async () => {
     storeValues[barLayoutDefaultKey("ribbon")] = {
-      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette"],
+      order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette", "ai"],
       visibleCount: 4,
     };
     setSpy.mockClear();

@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, Flag, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Repeat, Rows2, Square, SquareSlash, Star, StarOff,
+  ArrowRight, Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
+  ExternalLink, Eye, EyeOff, Flag, FlaskConical, FolderInput, GitMerge, GraduationCap, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -191,6 +191,102 @@ export function journalRowActions(t: RowActionT, c: JournalRowCaps): RowActionSp
     c.isTask && c.toEntry ? { id: "toEntry", label: t("journal.toEntry", { defaultValue: "Wieder zum Eintrag machen" }), icon: Square, run: c.toEntry } : null,
     c.showInNote ? { id: "showInNote", label: t("journal.showInNote", { defaultValue: "In der Notiz zeigen" }), icon: Eye, run: c.showInNote } : null,
     c.delete ? { id: "delete", label: t("common.delete", { defaultValue: "Löschen" }), icon: Trash2, danger: true, run: c.delete, swipe: true } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
+/* ---------------------------------------------------------- conversation */
+
+export interface ConversationRowCaps {
+  /** "Learn from this conversation" (plan P6-2): opens the dialog that says what would go where; nothing is sent by choosing this. */
+  learn?: () => void;
+  rename?: () => void;
+  delete?: () => void;
+}
+
+/** A conversation in the AI history (plan KI-Harness P1a): the same actions in both shells. */
+export function conversationRowActions(t: RowActionT, c: ConversationRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.learn ? { id: "learn", label: t("ai.learn.action"), icon: GraduationCap, run: c.learn } : null,
+    c.rename ? { id: "rename", label: t("ai.history.rename"), icon: Pencil, run: c.rename } : null,
+    c.delete ? { id: "delete", label: t("ai.history.delete"), icon: Trash2, danger: true, run: c.delete, swipe: true } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
+/* ----------------------------------------------------------------- skill */
+
+export interface SkillRowCaps {
+  run?: () => void;
+  /** Its test scenarios against the chosen model (the regression run, plan P3-8); `testLabel` names the model. */
+  test?: () => void;
+  testLabel?: string;
+  /** The app's own skills: their instructions, read only. A script shows its code and its approval instead, and `showLabel` says so. */
+  showInstructions?: () => void;
+  showLabel?: string;
+  /** The vault's own: the file in the editor (any change asks for an approval again). */
+  edit?: () => void;
+  /** The vault's own (plan P6-2): what the vault's history keeps of its file, and the way back to one. */
+  versions?: () => void;
+  /** The app's own: an own version in the vault, to change there. */
+  copy?: () => void;
+  revoke?: () => void;
+  delete?: () => void;
+}
+
+/** A skill or AGENTS.md in the workshop (plan KI-Harness P3-5): the same actions in both shells. */
+export function skillRowActions(t: RowActionT, c: SkillRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.run ? { id: "run", label: t("ai.workshop.run"), icon: Play, run: c.run } : null,
+    c.test ? { id: "test", label: c.testLabel ?? t("ai.workshop.test.open"), icon: FlaskConical, run: c.test } : null,
+    c.showInstructions ? { id: "showInstructions", label: c.showLabel ?? t("ai.workshop.showInstructions"), icon: Eye, run: c.showInstructions } : null,
+    c.edit ? { id: "edit", label: t("ai.workshop.edit"), icon: Pencil, run: c.edit } : null,
+    c.versions ? { id: "versions", label: t("ai.learn.versions.action"), icon: History, run: c.versions } : null,
+    c.copy ? { id: "copy", label: t("ai.workshop.copy"), icon: Copy, run: c.copy } : null,
+    c.revoke ? { id: "revoke", label: t("ai.workshop.revoke"), icon: ShieldOff, run: c.revoke } : null,
+    c.delete ? { id: "delete", label: t("ai.workshop.delete"), icon: Trash2, danger: true, run: c.delete } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
+/* ---------------------------------------------------------------- memory */
+
+export interface MemoryRowCaps {
+  /** Rewords the entry. */
+  edit?: () => void;
+  /** Into "always included": it then goes with every conversation. */
+  toActive?: () => void;
+  /** Into "on demand": it is then only looked up. */
+  toLong?: () => void;
+  delete?: () => void;
+}
+
+/** An entry of the memory (plan KI-Harness P6): the same actions in both shells. */
+export function memoryRowActions(t: RowActionT, c: MemoryRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.edit ? { id: "edit", label: t("ai.memory.action.edit"), icon: Pencil, run: c.edit } : null,
+    c.toActive ? { id: "toActive", label: t("ai.memory.action.toActive"), icon: Pin, run: c.toActive } : null,
+    c.toLong ? { id: "toLong", label: t("ai.memory.action.toLong"), icon: PinOff, run: c.toLong } : null,
+    c.delete ? { id: "delete", label: t("ai.memory.action.delete"), icon: Trash2, danger: true, run: c.delete } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
+/* ---------------------------------------------------------------- upkeep */
+
+export interface UpkeepRowCaps {
+  /** The one step the hint offers, in the hint's own words (`stepLabel`). */
+  step?: () => void;
+  stepLabel?: string;
+  /** "Don't show again": the device remembers it for this hint as it stands. */
+  dismiss?: () => void;
+}
+
+/** A hint of the upkeep (plan KI-Harness P6-3): its one step, and the way to be left alone — the same in both shells. */
+export function upkeepRowActions(t: RowActionT, c: UpkeepRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.step && c.stepLabel ? { id: "step", label: c.stepLabel, icon: ArrowRight, run: c.step } : null,
+    c.dismiss ? { id: "dismiss", label: t("ai.upkeep.dismiss"), icon: EyeOff, run: c.dismiss } : null,
   ];
   return out.filter((a): a is RowActionSpec => a !== null);
 }

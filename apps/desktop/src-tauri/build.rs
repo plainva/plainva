@@ -16,5 +16,8 @@ fn main() {
         // The app binary already embeds Tauri's full manifest as resource #1.
         // Do not generate a second resource there (CVTRES duplicate resource).
         println!("cargo:rustc-link-arg-bin=plainva-desktop=/MANIFEST:NO");
+        // The MCP helper (src/bin/plainva-mcp.rs) is a binary of this package
+        // too and gets the same resource: the same rule, or its link fails.
+        println!("cargo:rustc-link-arg-bin=plainva-mcp=/MANIFEST:NO");
     }
 }

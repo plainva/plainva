@@ -6,6 +6,8 @@ Plainva nie ma systemu wtyczek, który uruchamiałby cudzy kod. Zamiast tego int
 
 Ta strona wyjaśnia, jak robić to **bezpiecznie**. Dokładny format każdego pliku na poziomie bajtów jest udokumentowany osobno w [Dokumentacji formatu plików](File_Format_Reference.md); ta strona jest praktycznym uzupełnieniem: zasady, przebieg pracy i to, co przekazać asystentowi AI.
 
+Plainva potrafi też uruchamiać w aplikacji Twoje własne małe skrypty: w zamkniętej piaskownicy, która sięga do notatek tylko przez narzędzia asystenta AI — czytając je albo zostawiając propozycję, o której decydujesz Ty — i nigdy nie dotyka żadnego pliku. To coś innego niż skrypty opisane na tej stronie, które pracują na plikach z zewnątrz — zob. [Skrypty](AI_Scripts.md).
+
 ## Dlaczego pliki zamiast piaskownicy wtyczek
 
 - **Bezpieczeństwo.** System wtyczek z kodem oznacza uruchomienie cudzego programu wewnątrz Twojego edytora, z dostępem do Twoich notatek. Zwykłe pliki nie wymagają takiego zaufania: skrypt dotyka tylko folderu, na który go wskażesz, z normalnymi uprawnieniami Twojego systemu operacyjnego.
@@ -54,8 +56,14 @@ Agent AI z dostępem do odczytu i zapisu folderu vaultu to dokładnie ten przypa
 1. **Podaj mu [Dokumentację formatu plików](File_Format_Reference.md).** Jest napisana z myślą o czytelniku maszynowym: kontrakt frontmatter OKF, serializacja właściwość→YAML, pełny schemat `.base` wraz z twardymi zasadami Obsidian, kontrakt `index.md` oraz zasady bezpieczeństwa — wszystko, czego agent potrzebuje, aby edytować pliki bez ich psucia.
 2. **Wskaż mu folder vaultu, nie folder `.plainva/`.** Jasno określ, że `.plainva/` jest niedostępny.
 3. **Proś o atomowe, minimalne edycje.** Agent, który przepisuje całą notatkę, aby zmienić jedną właściwość, powinien zachować resztę frontmatter i treści dosłownie bez zmian.
+4. **Przekaż mu gotowe instrukcje.** Plainva dostarcza [szablon `AGENTS.md`](../../agents/AGENTS.md) do katalogu głównego vaultu i skill w formacie Agent Skills ([`plainva-vault/SKILL.md`](../../agents/skills/plainva-vault/SKILL.md)); oba zawierają reguły z tej strony w formie, którą czytają agenci.
+5. **Przestrzegaj reguły prywatności.** Notatki oznaczone `plainva: { ai: { cloud: deny } }` oraz foldery wpisane tak w `.agent/policy.yml` nie mogą trafić do modelu w chmurze — zobacz [Opis formatu plików](File_Format_Reference.md).
 
 Ponieważ kontrakt jest dokumentem, a nie żywym API, te same instrukcje działają z każdym asystentem, offline czy online.
+
+**Czytanie bez dotykania plików.** Aplikacja AI na tym komputerze — Claude Code, Claude Desktop, edytor — może też czytać sejf przez Plainva zamiast przez folder: widzi tylko foldery, na które zezwolono, obowiązują zasady prywatności i sama niczego nie zmienia — co najwyżej proponuje zmiany, tam gdzie na to pozwolisz. Zob. [Łączenie aplikacji AI](Connect_AI_Apps.md).
+
+**Co pomija bezpośredni zapis.** Plainva zauważa zmiany wprowadzone z zewnątrz i je synchronizuje, ale nie tworzy kopii tekstu, który agent zastępuje: historia wersji zawiera tylko to, co zapisała sama Plainva. Przy większych zmianach trzymaj vault pod kontrolą wersji (Git).
 
 ## Podsumowanie zasad bezpieczeństwa
 
@@ -63,6 +71,7 @@ Ponieważ kontrakt jest dokumentem, a nie żywym API, te same instrukcje działa
 - Zapisuj atomowo (plik tymczasowy + rename).
 - Zachowaj `type`, `okf_version` i nieznane klucze.
 - Nigdy nie zapisuj do `.plainva/`.
+- Nie ruszaj `.agent/`, chyba że ktoś o to prosi; przestrzegaj `cloud: deny`.
 - `.base`: cztery klucze najwyższego poziomu, nazwane widoki, jednokorzeniowe filtry, podklucze `plainva:` na wszystko inne.
 - Vault jest obserwowany — zewnętrzne zmiany pojawiają się w Plainva automatycznie.
 

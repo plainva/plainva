@@ -77,6 +77,33 @@ describe("mobile native comment journal", () => {
     } finally { await db.close(); }
   });
 
+  it("an accepted suggestion keeps what it replaces as a version first — also right after a save, and a decline keeps none (AI harness P5-7)", async () => {
+    const raw = new LocalVaultAdapter(join(root, "vault")); await raw.initialize();
+    const db = await realSqlite();
+    try {
+      let clock = Date.parse("2026-10-08T10:00:00Z");
+      const backup = new BackupVaultAdapter(raw, { now: () => clock });
+      const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), new SyncStateRepository(db));
+      const vault = { vaultId: "vault-a", adapter: raw, files, backup, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
+      await raw.writeTextFile("note.md", "First sentence.\n");
+      // The reader's own save a moment ago: the version history took its one snapshot for these minutes.
+      await files.writeTextFile("note.md", "Old sentence.\n");
+      const versions = async () => Promise.all((await raw.listDir(".plainva/backups", false)).filter((file) => !file.isDirectory).map((file) => raw.readTextFile(file.path)));
+      expect(await versions()).toEqual(["First sentence.\n"]);
+      clock += 5_000;
+      const service = mobileCommentOperations(vault);
+      const decline = await service.prepare({ notePath: "note.md", kind: "decline", markers: [{ path: "note.md", body: "", resolvedCommentId: createWorkspaceObjectId(), suggestionOutcome: "declined" }] });
+      expect((await service.run(decline)).phase).toBe("completed");
+      expect(await versions()).toEqual(["First sentence.\n"]);
+      const apply = await service.prepare({ notePath: "note.md", kind: "apply", text: { before: "Old sentence.\n", intended: "New sentence.\n" },
+        markers: [{ path: "note.md", body: "", resolvedCommentId: createWorkspaceObjectId(), suggestionOutcome: "applied" }] });
+      expect((await service.run(apply)).phase).toBe("completed");
+      expect(await raw.readTextFile("note.md")).toBe("New sentence.\n");
+      // Five seconds after a save an ordinary write keeps nothing; the accept kept exactly the bytes it replaced.
+      expect((await versions()).sort()).toEqual(["First sentence.\n", "Old sentence.\n"]);
+    } finally { await db.close(); }
+  });
+
   it("an accept lands on a note that lies there with \\r\\n and a byte order mark, and the note keeps both (finding 2026-10-08)", async () => {
     const raw = new LocalVaultAdapter(join(root, "vault")); await raw.initialize();
     const db = await realSqlite();

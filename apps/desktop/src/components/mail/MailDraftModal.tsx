@@ -40,6 +40,13 @@ interface MailDraftModalProps {
   /** Optional recipient prefill (reply / reply-all / invite attendees). */
   initialTo?: string;
   /**
+   * Optional Cc/Bcc prefill (AI harness P5-6: a drafted mail the user opens
+   * here names every recipient). With either set, the Cc row opens — a
+   * recipient that is filled in is never out of sight.
+   */
+  initialCc?: string;
+  initialBcc?: string;
+  /**
    * The mailbox the draft is written from: the one a reply's message is in,
    * the one that is open in the mail view (finding 2026-10-09). The composer
    * starts with it and with its signature. Read once, when the composer
@@ -75,6 +82,14 @@ interface MailDraftModalProps {
   restore?: ComposeSnapshot;
   /** Offered as a pop-out button when set (floating variant only). */
   onPopOut?: (snapshot: ComposeSnapshot) => void;
+  /**
+   * Told once what the writer did with the mail (AI harness P5-6): the
+   * transport took it (`sent` — after the undo window, so a send that is taken
+   * back tells nothing), it was stored as a draft at the account (`saved`), or
+   * it moved to a window of its own (`opened`). A composer that is just closed
+   * tells nothing — whoever opened it keeps what it had.
+   */
+  onDone?: (how: "sent" | "saved" | "opened") => void;
   /**
    * The composer waits: it keeps everything written and draws nothing
    * (finding 2026-10-09). Set by the host while the vault under it is loaded
@@ -117,7 +132,7 @@ function carriedIcon(row: CarriedRow) {
   return <Paperclip size={ICON.meta} />;
 }
 
-export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, initialAccountId, initialFromAddress, forward, variant = "floating", restore, onPopOut, suspended = false, onClose }: MailDraftModalProps) {
+export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, initialCc, initialBcc, initialAccountId, initialFromAddress, forward, variant = "floating", restore, onPopOut, onDone, suspended = false, onClose }: MailDraftModalProps) {
   const { t, i18n } = useTranslation();
   const { vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
@@ -133,11 +148,11 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   // Recipients render as chips (like the event attendee field); each stays a
   // comma-joined string for the SMTP/IMAP layer. `*Draft` is the text in flight.
   const [toDraft, setToDraft] = useState("");
-  const [cc, setCc] = useState(restore?.cc ?? "");
+  const [cc, setCc] = useState(restore?.cc ?? initialCc ?? "");
   const [ccDraft, setCcDraft] = useState("");
-  const [bcc, setBcc] = useState(restore?.bcc ?? "");
+  const [bcc, setBcc] = useState(restore?.bcc ?? initialBcc ?? "");
   const [bccDraft, setBccDraft] = useState("");
-  const [showCc, setShowCc] = useState(restore?.showCc ?? false);
+  const [showCc, setShowCc] = useState(restore?.showCc ?? Boolean(initialCc?.trim() || initialBcc?.trim()));
   const [subject, setSubject] = useState(restore?.subject ?? initialSubject);
   const [body, setBody] = useState(restore?.body ?? markdown);
   const [attach, setAttach] = useState<MailAttachment[]>(restore?.attachments ?? attachments ?? []);
@@ -515,12 +530,13 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         bcc: foldRecips(bcc, bccDraft),
       });
       toast.info(t("mail.draftSaved", { defaultValue: "Entwurf im Postfach abgelegt — zum Senden im Mail-Programm öffnen." }));
+      onDone?.("saved");
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, busy, waiting, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, mailbox, body, carried.attachments, ownFiles, leaveBehind, onClose, t]);
+  }, [vaultPath, accounts, accountId, busy, waiting, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, mailbox, body, carried.attachments, ownFiles, leaveBehind, onClose, onDone, t]);
 
   const send = useCallback(async () => {
     const account = accounts.find((a) => a.id === accountId);
@@ -568,13 +584,15 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
         cc: foldRecips(cc, ccDraft),
         bcc: foldRecips(bcc, bccDraft),
         fromAddress,
-      });
+        // Whoever opened this composer for the mail hears "sent" once the transport took it: a send that is undone
+        // in its few seconds, or that the server refuses, tells nothing — and the draft is still theirs to offer.
+      }, onDone ? () => onDone("sent") : undefined);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
-  }, [vaultPath, accounts, accountId, fromAddress, busy, waiting, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, carried.attachments, ownFiles, leaveBehind, onClose, t]);
+  }, [vaultPath, accounts, accountId, fromAddress, busy, waiting, to, toDraft, cc, ccDraft, bcc, bccDraft, subject, body, carried.attachments, ownFiles, leaveBehind, onClose, onDone, t]);
 
   /**
    * Everything the writer has entered, ready to travel to another window.
@@ -604,8 +622,10 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
 
   const popOut = useCallback(() => {
     onPopOut?.(snapshot());
+    // The mail lives on in a window of its own, out of sight of whoever opened this composer.
+    onDone?.("opened");
     onClose();
-  }, [onPopOut, snapshot, onClose]);
+  }, [onPopOut, snapshot, onClose, onDone]);
 
   // A composer that waits (`suspended`) draws no fields, and a recipient field
   // comes back empty. What was typed into one and not yet confirmed is

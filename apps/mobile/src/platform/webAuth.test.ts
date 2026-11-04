@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Where a browser sign-in opens (device finding 2026-10-28): the iPhone uses
@@ -28,6 +28,12 @@ vi.mock("@plainva/ui", async (original) => ({
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("openSignInPage", () => {
+  // The first import loads the whole shared UI package (the mock above spreads it), the assistant included: under a
+  // loaded commit hook that alone outlasted a test's 20 seconds. Loaded once here, the cases time the sign-in only.
+  beforeAll(async () => {
+    await import("./webAuth");
+  }, 120_000);
+
   beforeEach(() => {
     state.platform = "ios";
     state.opened = [];
@@ -60,6 +66,22 @@ describe("openSignInPage", () => {
     await settle();
     expect(state.errors).toHaveLength(1);
     expect(state.routed).toEqual([]);
+  });
+
+  it("tells a caller who waits that the window closed without an answer, and only then", async () => {
+    const { openSignInPage } = await import("./webAuth");
+    const closed: string[] = [];
+    state.start = async () => ({ url: "com.plainva.app://mcp/oauth?code=c&state=s" });
+    await openSignInPage("https://example.test/answered", { onClosed: () => closed.push("answered") });
+    state.start = async () => { throw Object.assign(new Error("closed"), { code: "CANCELLED" }); };
+    await openSignInPage("https://example.test/closed", { onClosed: () => closed.push("closed") });
+    state.start = async () => { throw Object.assign(new Error("the sign-in window could not open"), { code: "FAILED" }); };
+    await openSignInPage("https://example.test/failed", { onClosed: () => closed.push("failed") });
+    state.start = async () => { throw Object.assign(new Error("not implemented"), { code: "UNIMPLEMENTED" }); };
+    await openSignInPage("https://example.test/old-build", { onClosed: () => closed.push("old-build") });
+    await settle();
+    expect(closed).toEqual(["closed", "failed"]);
+    expect(state.opened).toEqual(["https://example.test/old-build"]);
   });
 
   it("opens the browser on Android, and on an iPhone build without the plugin", async () => {

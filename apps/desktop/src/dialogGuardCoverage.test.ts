@@ -25,6 +25,7 @@ const DIALOGS_WITHOUT_TYPED_INPUT: Record<string, string> = {
   "apps/desktop/src/components/import/ImportWizardModal.tsx": "a proposed subfolder and a token asked for this one run; the rest are picks",
   "apps/desktop/src/components/OkfConversionModal.tsx": "two proposed settings, nothing the person wrote",
   "apps/desktop/src/components/ImageViewer.tsx": "Save As and Resize fields are proposals filled in by Plainva, answered like a prompt",
+  "apps/desktop/src/components/ai/MemoryView.tsx": "the field filters the memory list on the page; its one dialog compares two entries and holds no field",
 };
 
 describe("dialog guard coverage", () => {

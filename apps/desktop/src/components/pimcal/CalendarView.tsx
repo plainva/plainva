@@ -5,7 +5,7 @@ import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, M
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, markFreshNote, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -34,9 +34,8 @@ import { loadCalendarOverlays, saveCalendarOverlays } from "../../services/pim/c
 import { compareDueTasks, loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
 import { tickNoteTask, toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
-import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { usePageWheel } from "./pageWheel";
-import { calendarDay, consumePendingNew, checkboxJumpTerm, parkTemplateCaret, setPendingSearchJump, TaskStateIcon } from "@plainva/ui";
+import { calendarDay, consumePendingNew, checkboxJumpTerm, setPendingSearchJump, TaskStateIcon, CALENDAR_GOTO_EVENT, consumeEventSeed, consumePendingCalendarDay, eventFormFromSeed } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -784,6 +783,23 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     () => (calendarOptions.some((c) => c.value === prefDefaultCal) ? prefDefaultCal : calendarOptions[0]?.value ?? ""),
     [calendarOptions, prefDefaultCal]
   );
+  // An appointment somebody else wrote down (AI harness P5-6: a draft of the
+  // assistant's the user opened): the editor opens with its fields filled in,
+  // in the calendar a new event starts in. Nothing is saved before the user
+  // saves. The seed stays parked until the writable calendars are known, and
+  // while another editor is open — that one reads its fields once.
+  const editorFree = editState === null;
+  /** What the sender of that seed hears once the appointment was SAVED; a cancelled editor forgets it. */
+  const seedSaved = useRef<(() => void) | null>(null);
+  useEffect(
+    () =>
+      consumeEventSeed((parked) => {
+        seedSaved.current = parked.onSaved ?? null;
+        setCreateInitial(eventFormFromSeed(parked.seed, defaultCalKey));
+        setEditState({ mode: "create" });
+      }, calendarOptions.length > 0 && editorFree),
+    [calendarOptions.length, defaultCalKey, editorFree],
+  );
   // The edit dialog always shows the event's own calendar as the current
   // selection (see buildEditCalendarOptions — even a read-only/subscribed one),
   // so the picker never falls back to the raw key; create uses the writable list.
@@ -1032,6 +1048,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
       setEditState(null);
       setCreateInitial(null);
+      // Whoever handed this appointment over hears of it once the calendar took it — not before, and not on a failure.
+      const seeded = seedSaved.current;
+      seedSaved.current = null;
       const create = () => {
         const id = pendingEventWrites.reserve();
         const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
@@ -1042,7 +1061,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
           id,
         ).then(
-          () => refreshAfterWrite(),
+          () => {
+            refreshAfterWrite();
+            seeded?.();
+          },
           (error) => reportWriteFailure(error, create),
         );
       };
@@ -1439,10 +1461,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         // Folder, template and rules are read by the vault-bound service; the
         // note itself comes from the builder the phone shares (E24).
         const res = await openMeetingNoteInVault(vaultPath, vaultAdapter, e);
-        if (!res) return; // the template's questions were cancelled — nothing was written
-        if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
-        // A meeting note just written opens to be written in (wish 2026-10-19).
-        if (res.created) markFreshNote(res.path);
+        // Cancelled questions wrote nothing; the caret and the mark of a new note are set where it was made.
+        if (!res) return;
         if (res.created) {
           if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
           triggerFileTreeUpdate([res.path]);
@@ -2418,7 +2438,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
           calendarOptions={editCalendarOptions}
-          onCancel={() => { setEditState(null); setCreateInitial(null); }}
+          onCancel={() => { setEditState(null); setCreateInitial(null); seedSaved.current = null; }}
           onSubmit={submitEventForm}
           onMeetingNote={
             editState.mode === "edit" && editState.event

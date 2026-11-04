@@ -16,6 +16,7 @@ export interface BannerProps {
   /** Replaces the tone's glyph where a notice names its own subject (the
    * eye of a preview, plan Befunde 2026-09-24 E22); the tone stays. */
   icon?: LucideIcon;
+  testId?: string;
 }
 
 const ICONS = {
@@ -31,10 +32,10 @@ const ICONS = {
  * replaces three copy-pasted style objects in Editor.tsx. Status colors come
  * exclusively from the --info/warning/error/success token families.
  */
-export function Banner({ kind, children, actions, rounded, className, icon }: BannerProps) {
+export function Banner({ kind, children, actions, rounded, className, icon, testId }: BannerProps) {
   const Ic = icon ?? ICONS[kind];
   return (
-    <div role={kind === "error" ? "alert" : "status"} className={cx("pv-banner", `pv-banner--${kind}`, rounded && "pv-banner--rounded", className)}>
+    <div role={kind === "error" ? "alert" : "status"} className={cx("pv-banner", `pv-banner--${kind}`, rounded && "pv-banner--rounded", className)} data-testid={testId}>
       <span className="pv-banner-ic"><Ic size={ICON.ui} /></span>
       <span className="pv-banner-msg">{children}</span>
       {actions ? <span className="pv-banner-actions">{actions}</span> : null}

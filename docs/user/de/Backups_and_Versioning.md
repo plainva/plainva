@@ -15,7 +15,7 @@ Aufbewahrung (je Vault einstellbar):
 - **Maximales Alter**: Standard 90 Tage — ältere Versionen werden bei einem täglichen Aufräumlauf **endgültig** entfernt („Unbegrenzt" schaltet das ab)
 - **Große Dateien**: über 5 MB wird nur die neueste Version behalten — siehe unten
 
-Beim Umbenennen oder Verschieben einer Datei wandert ihre Versions-Historie mit.
+Beim Umbenennen oder Verschieben einer Datei wandert ihre Versions-Historie mit. Zwei Dinge werden unabhängig vom Snapshot-Intervall festgehalten: eine Datei, bevor sie gelöscht wird, und eine Notiz, bevor ein übernommener Vorschlag in sie geschrieben wird (siehe [Kommentare & Vorschläge](Comments_and_Suggestions.md)).
 
 **Warum große Dateien anders behandelt werden:** Ein 90-MB-Anhang, den Du immer wieder änderst, könnte den Vault sonst mit hundert Kopien füllen — neun Gigabyte für eine Datei. Oberhalb der Grenze behält Plainva die neueste Version statt des vollen Verlaufs und sagt das einmal pro Vault. Notizen und gewöhnliche Bilder liegen weit darunter und sind nicht betroffen. **Eine Löschung wird immer vollständig gesichert**, egal wie groß die Datei ist: Die neue Fassung einer gespeicherten Datei liegt noch auf der Platte, eine gelöschte nicht — dort ist der Snapshot der einzige Weg zurück.
 

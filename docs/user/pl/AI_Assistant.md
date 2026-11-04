@@ -1,0 +1,300 @@
+# Asystent AI (Beta)
+
+Stan na: 2026-10-29
+
+Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
+
+## Włączanie
+
+Otwórz **Ustawienia → AI & automatyzacja** (część aplikacji) i włącz **Używaj AI na tym urządzeniu**. Bez tego przełącznika nie ma przycisku AI, karty AI ani asystenta. Nic nie zostanie nigdzie wysłane, dopóki o coś nie zapytasz.
+
+## Wybór dostawcy
+
+Plainva nie ma własnej usługi AI: korzysta się z wybranego dostawcy, z własnym kluczem. Każdego dostawcę można wybrać; Plainva podaje ich warunki i czas przechowywania, aby decyzja należała do użytkownika — sama nikogo nie wyklucza.
+
+| Rodzaj | Dostawcy |
+|---|---|
+| Dostawcy w chmurze | Anthropic, OpenAI, Google Gemini |
+| Pośrednicy i własne serwery | OpenRouter, dowolny **serwer kompatybilny z OpenAI** |
+| Na tym komputerze (desktop) | Ollama, LM Studio |
+| Na tym telefonie | Apple (iPhone), Gemini Nano (Android) |
+
+1. W **AI & automatyzacja** wybierz **Dodaj dostawcę** i wskaż jednego z nich. Każdy wpis niesie krótką uwagę o swoich warunkach — na przykład, że w bezpłatnym dostępie Google dane wejściowe mogą czytać ludzie.
+2. Wpisz klucz przyciskiem **Wpisz klucz**. Klucz trafia do bezpiecznego magazynu tego urządzenia; Plainva nigdy nie pokazuje go ponownie — ani AI, ani na ekranie.
+3. **Przetestuj połączenie** wczytuje własną listę modeli dostawcy. Jeśli się nie powiedzie, komunikat mówi dlaczego (odrzucony klucz, brak połączenia, nieznany model).
+
+Taki **serwer kompatybilny z OpenAI** dodaje się, podając jego adres. Plainva pyta jeszcze raz przed dodaniem, w oknie systemu operacyjnego, i wysyła tylko na potwierdzony adres. Zwykłe `http` działa tylko dla serwera na tym urządzeniu; wszystko inne wymaga `https`.
+
+Jeśli nie masz jeszcze klucza: model na tym komputerze (Ollama, LM Studio) nic nie kosztuje, a konsola każdego dostawcy wydaje klucze.
+
+**Model systemu na telefonie.** Na iPhonie z Apple Intelligence (od iPhone'a 15 Pro) **Dodaj dostawcę** proponuje najpierw **Apple**, na niektórych telefonach z Androidem **Gemini Nano**. Nie potrzebuje klucza, nic nie kosztuje i nic nie opuszcza urządzenia — dlatego żaden przegląd nie pyta przed wysłaniem. Jego okno jest małe, około 4000 tokenów na notatki, pytanie i odpowiedź razem: idzie mniej notatek, wcześniejsze tury są skracane i nie używa narzędzi. Wiersz mówi, czy jest gotowy, a jeśli nie, to dlaczego — Apple Intelligence wyłączone, urządzenie, które go nie uruchomi, model, który system jeszcze przygotowuje; na Androidzie **Załaduj model** prosi system o jego pobranie. Model Apple nie zna każdego języka (nie zna polskiego). Jeśli wskazuje go profil **Lokalny**, pisze też streszczenia na telefonie.
+
+## Modele i profile
+
+Cztery profile — **Szybki**, **Zrównoważony**, **Silny** i **Lokalny** — służą do przypisania modeli. Dla każdego wybierz dostawcę i model, z listy dostawcy albo wpisując identyfikator modelu dokładnie tak, jak nazywa go dostawca. **Domyślny dla nowych rozmów** decyduje, którym profilem zaczyna się nowa rozmowa. Plainva nie ogłasza żadnego modelu „najlepszym”.
+
+Piąte miejsce, **Audio**, zawiera model, który transkrybuje notatki głosowe; nigdy nie jest domyślne dla rozmowy.
+
+Szóste miejsce, **Embeddingi**, zawiera model, którym liczy wyszukiwanie po znaczeniu, gdy w **Wyszukiwanie semantyczne** wybierzesz **Własny dostawca** — zobacz [Wyszukiwanie](Search.md).
+
+**Model na tym komputerze.** Serwer na Twoim własnym komputerze podaje nazwy swoich modeli, ale nie informuje, ile któryś z nich może przeczytać naraz ani czy może wywoływać narzędzia. Gdy wybierzesz taki model dla profilu, możesz podać jedno i drugie: **Okno kontekstowe**, w tokenach — zostaw je puste, jeśli nie wiesz — oraz **Może wywoływać narzędzia**. Przy małym oknie Plainva dołącza mniej notatek, i to krótszych, a przed zapytaniem, które by się nie zmieściło, zatrzymuje się, zamiast pozwolić serwerowi po cichu je ucinać; komunikat mówi wtedy, ile tokenów potrzebuje zapytanie i jaką wartość podano. Przy wyłączonych narzędziach model odpowiada na podstawie tego, co idzie razem z zapytaniem: bez narzędzi, bez internetu i bez sprawdzania czegokolwiek. Model na tym urządzeniu dostaje czas: może milczeć nawet piętnaście minut, zanim powie pierwsze słowo, a rozmowa pokazuje upływający czas, dopóki liczy.
+
+## W pełni lokalnie
+
+W **Ustawienia → AI & automatyzacja** (część aplikacji) sekcja **Tryb pracy** pokazuje, czy na tym urządzeniu w tej chwili odpowiada dostawca („Chmura”), czy to urządzenie samo też coś liczy („Hybryda”) — wyszukiwanie po znaczeniu, streszczenia, czytanie e-maili i spotkań —, czy odpowiada model na tym urządzeniu. Ten wiersz to nie wybór, lecz stan: wynika z dostawców i funkcji pomocniczych, które skonfigurujesz.
+
+**W pełni lokalnie** to jedyny przełącznik w tej sekcji, a zarazem obietnica: dopóki jest włączony, odpowiadają tylko modele na tym urządzeniu — serwer na tym komputerze albo własny model systemu na telefonie —, a nic z tego, co przetwarza AI, nie trafia do dostawcy, do internetu ani do innego programu. Dotyczy tego urządzenia, w każdym vaulcie.
+
+- **Kto odpowiada.** Nowa rozmowa zaczyna się od modelu z Twoich własnych profili, który działa na tym urządzeniu: tego z profilu domyślnego, a w przeciwnym razie tego z profilu **Lokalny**, a jeśli i tam go nie ma — tego z pierwszego profilu, który taki model wskazuje. Plainva nie wybiera za Ciebie żadnego modelu — jeśli żaden nie działa na tym urządzeniu, ustawienia i rozmowa mówią o tym i wskazują drogę do skonfigurowania takiego modelu.
+- **Co jest wstrzymane.** Ustawienia to wymieniają: dostawcy pozostają skonfigurowani i niczego nie otrzymują, a ich profile nie odpowiadają; żadna rozmowa nie korzysta z internetu; narzędzia zewnętrzne (MCP) i agenci zewnętrzni nie są używani — łącznie z programem na tym komputerze, bo tego, co przekazuje dalej, Plainva nie widzi; aplikacje AI na tym komputerze nie mogą czytać vaultu; wyszukiwanie po znaczeniu, liczone przez dostawcę, zostaje przy samych słowach; Siri i Skróty nie dostają żadnej listy tytułów. Nic nie jest usuwane: wyłącz przełącznik ponownie, a wszystko będzie tak, jak zostało skonfigurowane.
+- **Rozmowy w toku.** Dopóki przełącznik jest włączony, nie można kontynuować rozmowy, która toczyła się z modelem dostawcy — żadna rozmowa nie zmienia po cichu swojego modelu. Nadal można ją czytać, a **Nowa rozmowa** zaczyna rozmowę z modelem na tym urządzeniu.
+- **Co oznacza „na tym urządzeniu”.** Serwer pod własnym adresem tego komputera albo własny model systemu na urządzeniu. Nie serwer w Twojej sieci domowej i nie Private Cloud Compute firmy Apple: adres poza tym urządzeniem nie jest tym urządzeniem, choćby znajdował się nie wiadomo jak blisko.
+- **Czym ten przełącznik nie jest.** Dotyczy AI. Synchronizacja, e-mail, kalendarze i aktualizacje to osobne funkcje z własnymi przełącznikami. To Ty uruchamiasz pobranie pakietu do wyszukiwania po znaczeniu; nic z Twojego vaultu przy tym nie wychodzi. A własna reguła notatki — nigdy do chmury — obowiązuje bez względu na to, czy przełącznik jest włączony, czy wyłączony.
+
+## Zadawanie pytań
+
+- **Desktop:** przycisk AI na pasku akcji, **Ctrl+J** (⌘J w macOS) lub **Zapytaj AI** w palecie poleceń otwiera asystenta — małe okno nad bieżącą pracą. **Otwórz jako kartę** przenosi tę samą rozmowę do karty AI, gdzie wyświetlana jest lista rozmów.
+- **Telefon:** **Zapytaj AI** w menu ⋮ notatki otwiera arkusz AI nad tą notatką. Obszar **AI** (w arkuszu obszarów albo na pasku nawigacji, jeśli zostanie tam umieszczony) pokazuje rozmowę na pełnym ekranie; **Rozmowy** pokazują wcześniejsze.
+- **Obok notatki:** na komputerze ta sama rozmowa jest ostatnią sekcją prawego paska bocznego, **AI**. Na telefonie lub tablecie to karta **AI** w kontekście notatki — obok **Właściwości** i **Linki zwrotne** — który tablet pokazuje obok notatki.
+
+Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu jej ✕, jeśli trzeba. **Przypnij notatkę…** dodaje kolejne notatki. Asystent potrafi też sam czegoś poszukać: przeszukuje vault, czyta notatki i ich sekcje, bazy danych, linki zwrotne i powiązane notatki, wyświetla listę zadań, spotkań oraz notatek niedawno otwartych lub zmienionych, a także otwiera notatki i widoki. Przy spojrzeniu wstecz — co zmieniło się w danym okresie, jak rozwijała się notatka — czyta historię wersji na tym urządzeniu; usunięty wiersz może policzyć, ale nigdy go nie przeczyta. Sam nie potrafi niczego zmienić, utworzyć ani usunąć; to, co może zamiast tego zaproponować, opisano niżej, w części „Proponowanie zmian”.
+
+Asystent potrafi też coś Ci pokazać: otworzyć notatkę przy nagłówku, pokazać notatkę na grafie, ustawić kalendarz na wybrany dzień, otworzyć widoki, pokazać i ukryć paski boczne. Korzysta w tym celu z poleceń z palety poleceń — i to tylko z tych, które coś pokazują: tych, które tworzą, zmieniają, usuwają, eksportują albo otwierają okno, wywołać nie może.
+
+Każda rozmowa zaczyna się od wiersza „Odpowiedzi pisze AI — ⟨model⟩ przez ⟨dostawca⟩”. Pod każdą odpowiedzią widnieje wiersz z informacją, co dokąd zostało wysłane: ile notatek, w przybliżeniu ile tokenów i — tam, gdzie dostawca publikuje ceny — przybliżony koszt. Tam, gdzie dostawca zgłasza pamięć podręczną, wiersz podaje też, jaką część danych wejściowych z niej odczytał. **Zatrzymaj** kończy odpowiedź w każdej chwili.
+
+Link w odpowiedzi otwiera się dopiero po potwierdzeniu jego adresu, a obrazy w odpowiedziach nigdy nie są wczytywane.
+
+## Co idzie z pytaniem
+
+Do każdego pytania Plainva zbiera to, co może mieć znaczenie — na tym urządzeniu, zanim cokolwiek zostanie wysłane:
+
+- **Gdzie jesteś:** data i godzina, otwarta notatka lub baza danych i zaznaczenie w niej, otwarte karty, zadania z terminem w najbliższym tygodniu, najbliższe spotkania i dzisiejsza notatka dzienna.
+- **Notatki, które mogą mieć znaczenie:** znalezione po Twoich słowach, po linkach otwartej notatki i po tym, co niedawno otwierano lub zmieniano. Najpierw decydują Twoje zasady prywatności; oceniane są wyłącznie notatki, na które pozwalają. Kilka idzie jako sekcje — nie całe notatki —, inne tylko z tytułem i kartą — pierwszym zdaniem swojej sekcji i każdym zdaniem z liczbami, datami, zadaniami, zaprzeczeniami lub linkami, słowo w słowo — albo samą nazwą; asystent doczytuje je, gdy tego potrzebuje.
+
+Notatka, którą rozmowa już zawiera i która od tamtej pory się nie zmieniła, jest wymieniana, a nie wysyłana ponownie. Miejsca z dziennika i wartości nastroju nigdy nie są wysyłane same z siebie.
+
+## Zanim cokolwiek zostanie wysłane
+
+Pierwsze zapytanie w sesji pokazuje przegląd: dokąd idzie (dostawca i model), które notatki i która część każdej z nich, co jeszcze idzie (zaznaczenie, spotkania, zadania), co zostało zatrzymane i w przybliżeniu ile tokenów. **Wyślij** wysyła; **Anuluj** nie wysyła niczego i oddaje Twoje słowa do pola wpisywania; to samo dzieje się po opuszczeniu rozmowy, gdy przegląd jest otwarty — po otwarciu innej, rozpoczęciu nowej lub usunięciu tej; − obok notatki ją pomija. W zakresie, który zatwierdzono, kolejne zapytania idą bez pytania. Przegląd wraca za każdym razem, gdy zakres rośnie: inny model lub dostawca, nowy rodzaj danych, notatki z innego folderu, nowe narzędzia albo znacznie większe zapytanie. Model na tym urządzeniu nigdy nie pyta.
+
+Aby widzieć przegląd przed każdym zapytaniem, włącz **Pytaj przed każdym zapytaniem** — w samym przeglądzie albo w **Ustawienia → AI & automatyzacja**, w sekcji **Wysyłanie**.
+
+Wiersz pod każdą odpowiedzią otwiera przegląd tego, co z nią poszło. Jeśli odpowiedź nie cytuje żadnej z wysłanych notatek, mówi o tym komunikat nad tym wierszem; wtedy sprawdź odpowiedź w notatkach. Jeśli wysłano notatki, wiersz podaje też pokrycie: **pokrycie wysokie**, gdy prawie każde stwierdzenie odpowiedzi wskazuje notatkę, **pokrycie częściowe** lub **pokrycie niskie**, gdy jest ich mniej.
+
+**Z czego powstała odpowiedź.** Po otwarciu wiersz zachowuje też to, na czym opiera się odpowiedź: czas zadania pytania; każdą notatkę z wersją, która poszła — jest to krótki kod — oraz to, czy jest **bez zmian**, czy **zmieniona od tego czasu**, czy **już nie istnieje**; notatki odczytane przez narzędzia asystenta; użyte narzędzia; wersję umiejętności, z którą działał; i to, co zostawił Tobie do decyzji. Plainva zachowuje ścieżki i wersje, nigdy tekst; czy notatka się zmieniła, sprawdza to urządzenie, gdy otworzysz wiersz. **Zapytaj inny model…** zadaje to samo pytanie z tymi samymi notatkami w nowej rozmowie: nic, co znalazłoby wyszukiwanie, nie jest dodawane, notatka, którą masz teraz otwartą, zostaje pominięta, tak samo jak to, co Twoje zasady prywatności zatrzymują dziś przed tym modelem. Przegląd przed wysłaniem pokazuje, co idzie, jak przy każdym zapytaniu, a nowa rozmowa podaje tę, z której pochodzi. Działa to w przypadku pierwszego pytania w rozmowie — późniejsze opiera się na tym, co powiedziano wcześniej — oraz pytań, które zabrały ze sobą tylko notatki.
+
+## Pokaż kontekst
+
+Oko pod polem wpisywania, **Pokaż kontekst**, pokazuje, co zabrałoby następne zapytanie — zanim wyjdzie, dla wybranego teraz modelu. Przy każdej notatce: dlaczego została wybrana (otwarta teraz, przypięta, pasuje do Twoich słów, bliskie znaczeniowo, połączona, wkrótce termin …), która część idzie i w przybliżeniu ile tokenów. Każdą notatkę można
+
+- pominąć w następnym zapytaniu (**Przywróć** ją przywraca),
+- przypiąć do rozmowy,
+- zachować na tym urządzeniu na stałe: to wpisuje do notatki regułę `cloud: deny` (zob. niżej).
+
+Notatki zatrzymywane przez Twoje reguły też są wymienione, żeby było wiadomo, czego brakuje; nigdy nie są oceniane ani wysyłane. **Wyślij z tym kontekstem** wysyła to, co wpisano. W szerokiej karcie AI widok zostaje otwarty jako kolumna obok rozmowy. To, co tutaj przypniesz lub zakryjesz, gdy przegląd przed wysłaniem jest otwarty lub odpowiedź jest jeszcze w drodze, obowiązuje od następnej wiadomości i zostaje przy rozmowie.
+
+Nad notatkami **Wysłano** podaje, ile z tych notatek idzie — na przykład ~870 z 3460 tokenów — a **Zaoszczędzono**, o ile to mniej niż wysłanie w całości wszystkich proponowanych notatek; za pierwszym razem podaje też, ile tokenów by to było. **Pokaż jako ślad na grafie** otwiera graf z otwartą notatką i źródłami zaznaczonymi oraz linkami między nimi.
+
+Gdy tekst, który poszedłby do chmury, wygląda na hasło lub klucz, numer konta lub karty, numer dokumentu lub podatkowy albo dane o zdrowiu, pod notatką pojawia się **Możliwie wrażliwe** i to, co rozpoznano — w **Pokaż kontekst** i w przeglądzie przed wysłaniem. **Zostaw na tym urządzeniu** zapisuje w notatce regułę `cloud: deny`. Numery i sekrety **Zakryj w tej rozmowie** zastępuje znacznikiem w rodzaju `⟦withheld account⟧` w każdej wiadomości tej rozmowy, także gdy model sam czyta notatkę, dopóki nie wybierzesz **Wyślij bez zakrywania**; przegląd liczy je w **Zatrzymano**. Zadania i spotkania mają ten sam wybór w wierszu **Zadania, spotkania i dane otwartej notatki**. Gdy w sesji po raz pierwszy coś takiego poszłoby bez zakrycia, przegląd pyta przed wysłaniem. Sprawdzenie odbywa się na tym urządzeniu; to wskazówka, nie filtr: może coś przeoczyć i nigdy nie zatrzymuje zapytania. Zaznaczony fragment idzie taki, jaki jest; przy modelu na tym urządzeniu wskazówka się nie pojawia.
+
+## Streszczenia
+
+Dzięki **Streszczenia z modelem lokalnym** (w **Ustawienia → AI & automatyzacja**, wyłączone, dopóki ich nie włączysz) model na Twoim komputerze pisze krótkie streszczenia dłuższych sekcji notatek, całych notatek, folderów najwyższego poziomu i vaulta. Działa tylko wtedy, gdy profil **Lokalny** wskazuje serwer na tym komputerze (Ollama, LM Studio; na telefonie model systemu) — nigdy chmura w tle — i tylko gdy Plainva nie ma nic innego do roboty; na telefonie tylko wtedy, gdy jest otwarta. Każde streszczenie jest sprawdzane: streszczenie sekcji musi zachować słowo w słowo każdą liczbę, datę, kwotę, link, tag i każde zaprzeczenie, inaczej idą zdania samej sekcji. Streszczenie jest związane z dokładnie tym tekstem, za który stoi; po zmianie sekcji nie jest używane, dopóki nie powstanie od nowa. Streszczenia folderów i vaulta powstają tylko z notatek, które Twoje zasady wypuszczają do chmury. W **Pokaż kontekst** źródło wysłane jako streszczenie to zaznacza, a **Oryginał** wysyła z następną wiadomością jego własne zdania.
+
+## Z zaznaczeniem
+
+Zaznacz tekst w notatce, a AI zajmie się tylko tym fragmentem.
+
+- **Desktop:** podczas edycji **AI** na pasku zaznaczenia oferuje **Jako propozycja** — **Przepisz**, **Skróć**, **Przetłumacz…**, **Zrób z tego zadania** — oraz **W asystencie** — **Wyjaśnij** i **Pytanie o zaznaczenie…** (**Ctrl+J**, ⌘J w macOS).
+- **Telefon:** **AI** na pasku nad zaznaczeniem — podczas czytania i podczas edycji — otwiera arkusz AI.
+- **W każdej rozmowie:** dopóki w otwartej notatce zaznaczony jest tekst, wiersz **Z zaznaczeniem** nad polem wpisywania oferuje te same akcje.
+
+Akcja propozycji wysyła wyłącznie zaznaczony fragment — nie resztę notatki, nie przypięte notatki, bez narzędzi — i pyta z tym samym przeglądem co pytanie. Odpowiedź wraca do notatki jako runda propozycji, tak jak runda od człowieka: w sekcji **Propozycje** akceptujesz lub odrzucasz każdą zmianę albo całą rundę, a wcześniej w notatce nic się nie zmienia. Wiersz autora rundy brzmi **Plainva AI · ⟨model⟩**, dzięki czemu widać, który fragment napisała AI. **Zrób z tego zadania** dodaje zadania pod fragmentem, zamiast go zastępować. Każda akcja zachowuje swoją rozmowę w historii.
+
+Fragment notatki, którą Twoje reguły trzymają z dala od chmury — albo fragment z linkami do takich notatek lub z danymi o miejscach — nie trafia do żadnego modelu w chmurze. W zaszyfrowanym obszarze roboczym akcje propozycji nie są jeszcze dostępne: propozycje w nim nie mogą jeszcze wskazać AI jako autora.
+
+## W wątku komentarzy
+
+Zwróć się do asystenta w komentarzu, a odpowie w wątku. Wpisz **@** w polu komentarza i wybierz **AI** — pozycję ze znakiem AI — albo wpisz nazwę samodzielnie: **@AI**, **@KI** i **@IA** docierają do niego niezależnie od języka aplikacji. Gdy Twój komentarz zostanie wysłany, wątek pokazuje pod **AI** wiersz **pisze odpowiedź…**; **Zatrzymaj** to przerywa. Odpowiedź pojawia się jako odpowiedź w tym samym wątku, z wierszem autora **Plainva AI · ⟨model⟩**. Inaczej niż propozycja nie czeka na zaakceptowanie — jest uwagą obok notatki, nigdy tekstem w niej — a na urządzeniu, które zadało pytanie, usuwasz ją jak własną.
+
+Wątek trafia do modelu tak jak pytanie: jego komentarze, fragment, do którego jest przypięty, i sama notatka, przez ten sam przegląd. Wątek komentarzy to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Tam, gdzie Twoje reguły trzymają notatkę z dala od chmury, nie trafiają tam również jej komentarze, a zawarte w nich linki do takich notatek są wstrzymywane. Asystenta wywołuje tylko komentarz wysłany na tym urządzeniu; komentarz, który przychodzi przez synchronizację, nigdy tego nie robi, cokolwiek zawiera. Adresy internetowe, które AI wnosi od siebie — w odpowiedzi, propozycji lub transkrypcji — są zapisywane tak, aby nic ich nie otwierało ani nie wczytywało (`https[://]…`); adresy, które zawierał już Twój własny tekst, zostają bez zmian. W zaszyfrowanej przestrzeni nie można jeszcze zwrócić się do asystenta: jej komentarze nie mogą jeszcze wskazać AI jako autora.
+
+## Umiejętności
+
+Umiejętności to instrukcje do powtarzalnej pracy. Trzynaście jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
+
+Skrypty to małe programy, które piszesz do tego, co model robi słabo — liczenia, sortowania, sumowania. Działają w zamkniętej piaskownicy, czytają Twój vault przez te same narzędzia co AI i uruchamiają się dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Skrypty](AI_Scripts.md).
+
+## Rutyny
+
+Rutyna uruchamia umiejętność o ustalonej przez Ciebie porze — poranny przegląd w dni robocze o siódmej, przegląd tygodnia w piątek po południu. Rutynę ustawisz w ustawieniach vaultu, w sekcji **AI & automatyzacja**, w karcie **Rutyny**: wybierz **Nowa rutyna**, a potem podaj nazwę, wskaż umiejętność w polu **Umiejętność**, wpisz zdanie, które umiejętność dostaje za każdym razem (puste: własne zapytanie umiejętności), ustaw dni i godzinę, w polu **Jeśli Plainva była wtedy zamknięta** zdecyduj, co ma się stać — **Nadrób raz** albo **Pomiń** —, a w polu **Model** wskaż model. Rutyną może stać się tylko umiejętność, która jest aktywna na tym urządzeniu i tylko czyta.
+
+Zanim rutyna powstanie, Plainva pokazuje, co obowiązuje w uruchomieniu, którego nikt nie obserwuje, a dopiero Twoje „tak” — przycisk **Skonfiguruj rutynę** — ją tworzy. Rutyna tylko czyta: żadnej propozycji, żadnego szkicu, żadnego internetu, żadnego narzędzia zewnętrznego, żadnego skryptu, żadnego polecenia aplikacji. Ma mały budżet. Jej wynikiem jest notatka w Twoim folderze skrzynki, pod nazwą wziętą z rutyny i dnia, oznaczona jako napisana przez AI, wraz z notatkami, na których się opiera. Przy modelu na tym urządzeniu nic nie opuszcza urządzenia. Przy modelu dostawcy potwierdzasz, co uruchomienie samo zabiera ze sobą — przegląd pokazuje, co to byłoby dziś —, a uruchomienie, które zabrałoby więcej, niczego nie wysyła i czeka na Ciebie. To, co model potem czyta przez swoje narzędzia, rozstrzygają Twoje zasady prywatności, tak jak w każdej rozmowie. Rutyna nie czyta e-maili dla modelu dostawcy: Plainva pyta o to od nowa w każdej sesji, a nie ma nikogo, kto by odpowiedział.
+
+Rutyna nigdy o nic nie pyta. Tam, gdzie potrzebowałaby odpowiedzi — poszłoby więcej, niż obejmuje Twoje potwierdzenie, to urządzenie pyta przed każdym zapytaniem, jej umiejętność została zmieniona od potwierdzenia rutyny, dostawca jej modelu nie jest już skonfigurowany albo jej model nie działa na tym urządzeniu, gdy włączony jest przełącznik **W pełni lokalnie** — jej wiersz mówi, czego potrzebuje, i ma przycisk **Przejrzyj**. Tam widzisz, co uruchomienie wysłałoby teraz i co z tego jest nowe, a przycisk **Potwierdź ponownie** pozwala rutynie znów działać.
+
+Rutyny działają na tym urządzeniu, dopóki Plainva jest otwarta: krótko po otwarciu vaultu, potem mniej więcej raz na minutę oraz gdy aplikacja wraca na pierwszy plan. Plainva nie ma usługi działającej w tle i nie obiecuje dokładnej godziny. Uruchomienie, które przypadło na czas, gdy Plainva była zamknięta, jest nadrabiane raz przy następnym otwarciu — bez względu na to, ile ich było — albo pomijane, zależnie od Twojego ustawienia. Przy opcji **Tylko gdy coś się zmieniło** urządzenie najpierw sprawdza, czy jakaś notatka zmieniła się od czasu, gdy rutyna ostatnio zostawiła notatkę, a jeśli nic się nie zmieniło, nie pyta żadnego modelu. Rutyna należy do urządzenia, na którym ją ustawiono: jest przechowywana w danych aplikacji, a nie w vaulcie, więc żadne inne urządzenie jej nie uruchamia.
+
+Gdy rutyna działa, wiersz w rozmowie mówi o tym i ma przycisk **Zatrzymaj**, a Twoja własna wiadomość czeka, aż rutyna skończy. Przełącznik w wierszu rutyny wstrzymuje ją, a jej menu pozwala uruchomić ją od razu (**Uruchom teraz**), edytować lub usunąć. Notatki, które napisała, zostają. Każde uruchomienie zostawia swoją rozmowę w historii pod nazwą rutyny, a następne ją zastępuje — chyba że jest otwarta albo jest w niej coś od Ciebie: wiadomość, nowy tytuł, notatka przypięta lub zakryta, inny model. Wtedy zostaje.
+
+Rutyna może także prowadzić log folderu. Wybierz w formularzu opcję **Prowadzi log folderu**, a w polu **Folder** wskaż folder — albo opcję **Cały vault**. O porze uruchomienia Plainva sprawdza na tym urządzeniu, które notatki w tym folderze lub w jego podfolderach są nowe albo zostały zmienione od ostatniego wpisu, i pokazuje modelowi z każdej z nich wiersze, które do niej doszły, albo jej początek — najwyżej dwadzieścia notatek na uruchomienie, w jednym zapytaniu, bez żadnego narzędzia. Model pisze jedno zdanie na notatkę. Sam wpis zapisuje Plainva: pod bieżącą datą na górze pliku `log.md` tego folderu, jeden wiersz na notatkę z etykietą **Nowa** albo **Zmieniona**, linkiem do notatki i zdaniem modelu. To jest plik `log.md` z formatu Open Knowledge Format; Plainva tworzy plik tam, gdzie go brakuje, i zostawia w nim wszystko inne bez zmian. Gdy nic się nie zmieniło, żaden model nie jest pytany i nic nie jest zapisywane.
+
+Log nie mówi niczego, co zatrzymują własne reguły notatki. `log.md` nie ma własnych reguł; obowiązują dla niego reguły jego folderu. Notatka z surowszymi regułami niż reguły folderu zostaje w ogóle poza logiem — nie jest wymieniana, a żadnemu modelowi nie jest ona w tym celu pokazywana. To, co usunięto z notatki, nigdy nie jest pokazywane modelowi ani zapisywane: wiersz usunięty przez Ciebie pozostaje usunięty. Folder, który Twoje reguły trzymają z dala od dostawcy, wymaga dla swojego logu modelu na tym urządzeniu. Prowadź log folderu tylko na jednym urządzeniu — w przeciwnym razie dwa urządzenia zapiszą ten sam wpis.
+
+## Podpowiedzi
+
+Obok otwartej notatki Plainva pokazuje najwyżej trzy rzeczy, które sama zauważa — na komputerze w sekcji **Podpowiedzi** prawego paska bocznego, po sekcji **Powiązane**; na telefonie w karcie **Podpowiedzi** arkusza kontekstowego notatki. Link w notatce, który prowadzi donikąd: **Utwórz notatkę** tworzy notatkę tam, gdzie link ją znajdzie, tak jak zrobiłoby to kliknięcie linku. Wiersz, który zaczyna się od TODO i nie jest jeszcze zadaniem: **Jako zadanie** zamienia dokładnie ten wiersz w zadanie (`- [ ] …`) w tym samym miejscu i niczego innego w notatce nie zmienia. A w dzisiejszej notatce dziennej jutrzejsze spotkanie, z którym nie jest jeszcze powiązana żadna notatka: **Utwórz notatkę ze spotkania** robi to, co kalendarz. Nic się nie dzieje bez Twojego kliknięcia, żaden model nie jest pytany i nic nie opuszcza tego urządzenia. Wzmiankę o innej notatce bez linku proponuje graf kontekstowy, powiązane notatki pokazuje **Powiązane** — ani jedno, ani drugie nie powtarza się tutaj.
+
+**Dlaczego ta podpowiedź?** podaje regułę w jednym zdaniu i prowadzi do wiersza; **Nie pokazuj więcej** ukrywa dokładnie tę podpowiedź na tym urządzeniu — jeśli wiersz się zmieni, podpowiedź może pojawić się ponownie. **Wstrzymaj dla tej notatki** i **Wstrzymaj w tym vaulcie** znajdują się w menu sekcji, na telefonie pod listą. W **Ustawienia → AI & automatyzacja** wyłączysz podpowiedzi na tym urządzeniu przełącznikiem **Pokazuj podpowiedzi do otwartej notatki**; tam też wznowisz wstrzymany vault lub wstrzymane notatki i przywrócisz ukryte podpowiedzi.
+
+## Pamięć
+
+To, co AI powinna o Tobie wiedzieć bez przypominania — czym się zajmujesz, jakie odpowiedzi lubisz — jest zapisane w pamięci vaultu: w dwóch plikach, które możesz czytać i edytować. Zawartość miejsca **Zawsze dołączane** trafia do każdej nowej rozmowy, resztę AI sprawdza, gdy pytanie tego wymaga, a bez Twojego „tak” nic nie trafia do pamięci. Zob. [Pamięć](AI_Memory.md). Tam jest też Twój styl pisania: **Mój styl** pod polem wiadomości daje rozmowie to, co to urządzenie zmierzyło w wybranych przez Ciebie notatkach.
+
+## Uczenie się z rozmowy
+
+Rozmowa może nauczyć AI czegoś na później. Polecenie **Naucz się z tej rozmowy** — pod jej ostatnią odpowiedzią — wysyła ją jeszcze raz do modelu, który ją prowadził, i przynosi szkice: wpisy do pamięci, reguły albo inne instrukcje dla jednej z Twoich umiejętności. Nic z tego nie obowiązuje, dopóki tego nie zaakceptujesz. Zob. [Umiejętności](AI_Skills.md).
+
+## Transkrypcja notatki głosowej
+
+Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i na kartach — **Transkrybuj** zamienia nagranie w tekst. Trafia ono bez zmian do modelu profilu **Audio**, przez ten sam przegląd co pytanie; nagranie to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Transkrypcja wraca jako propozycja pod nagraniem, z autorem **Plainva AI · ⟨model⟩** — zaakceptuj ją lub odrzuć w sekcji **Propozycje**. Po włączeniu opcji **Podsumowuj transkrypcje na tym urządzeniu** (w **Ustawienia → AI & automatyzacja**, w sekcji **Streszczenia**) długa transkrypcja dostaje nad sobą krótkie podsumowanie, napisane przez model profilu **Lokalny** na tym urządzeniu i sprawdzone: nie wymienia żadnej liczby, daty ani linku, których nie ma w nagraniu. Bez takiego modelu albo gdy sprawdzenie się nie powiedzie, transkrypcja przychodzi sama.
+
+**Audio** wymaga dostawcy z obsługą audio: OpenAI (na przykład `gpt-4o-transcribe` lub `whisper-1`), Gemini albo własnego zgodnego serwera — serwer na tym komputerze zatrzymuje nagranie na urządzeniu. Można transkrybować nagrania do 11 MB. Nagranie w notatce, którą Twoje reguły trzymają z dala od chmury, nie trafia do żadnego modelu w chmurze, a zaszyfrowane obszary robocze jeszcze tego nie oferują.
+
+## Wyjaśnianie obrazu
+
+Przy każdym obrazie w vaulcie **Wyjaśnij obraz** pyta AI, co ten obraz przedstawia. **Zrób z tego notatkę**, tuż obok, prosi zamiast tego o notatkę: nagłówek, co pokazuje obraz, tekst z obrazu słowo w słowo i — jeśli obraz pokazuje rzeczy do zrobienia — listę zadań. Odpowiedź jest notatką: trafia do Twojego vaultu, gdy naciśniesz **Zachowaj jako notatkę**.
+
+- **Desktop:** na pasku narzędzi otwartego obrazu oraz w menu, które otwiera kliknięcie prawym przyciskiem myszy na obrazie w notatce — podczas edycji i w trybie czytania.
+- **Telefon:** pod otwartym obrazem (przy obrazie w notatce prowadzi tam **Otwórz obraz**).
+
+Obraz trafia wraz z pytaniem do modelu, którym zaczynają się nowe rozmowy — w osobnej rozmowie, w której można pytać dalej: co mówi tabela, co stoi w drugiej kolumnie, co oznacza diagram. Przegląd pokazuje obraz przed wysłaniem; obraz to osobny rodzaj danych, więc przegląd pyta za pierwszym razem.
+
+**To, co idzie, to nie ten plik.** Plainva rysuje obraz, pomniejsza go do najwyżej 1 568 pikseli na dłuższym boku i zapisuje od nowa na potrzeby wysłania. Dlatego idzie bez tego, co plik o nim zapisuje: miejsca wykonania zdjęcia, daty, aparatu. Przegląd pokazuje dokładnie ten obraz, który idzie, wraz z jego rozmiarem. Ta kopia zostaje przy rozmowie na tym urządzeniu, więc później nadal widać, co dostał dostawca; po usunięciu rozmowy kopia znika.
+
+**Reguły.** Obraz w folderze, który Twoje reguły trzymają z dala od chmury, nie trafia do żadnego modelu w chmurze. Nie trafia tam też obraz pokazywany w notatce z regułą `cloud: deny` — niezależnie od tego, gdzie naciśniesz **Wyjaśnij obraz**, także przy otwartym obrazie: przed wysłaniem Plainva sprawdza, które notatki osadzają ten obraz, a jeśli nie może tego ustalić, obraz zostaje na tym urządzeniu. Model na tym urządzeniu pozostaje dozwolony. To, co jest napisane na obrazie, jest treścią — jak tekst notatki — a nie instrukcją: rozmowa, którą rozpoczyna **Wyjaśnij obraz**, może coś sprawdzić w Twoim vaulcie, ale nie może korzystać z internetu i niczego nie wywołuje w aplikacji.
+
+**Które modele czytają obrazy.** Większość modeli w chmurze to potrafi. Model systemu na telefonie nie, a **Wyjaśnij obraz** o tym informuje. Gdy lista dostawcy mówi, że model nie czyta obrazów, przegląd daje o tym znać przed wysłaniem. Jeśli dostawca odrzuci zapytanie, wybierz inny model pod rozmową i zapytaj jeszcze raz — obraz nadal w niej jest.
+
+## W internecie
+
+Asystent nie może korzystać z internetu, dopóki tego nie dopuścisz — i to trzykrotnie:
+
+1. **Dla vaultu.** W **Ustawienia → AI & automatyzacja** (część vaultu) włącz **AI może korzystać z internetu w tym vaulcie**. Dla każdego vaultu przełącznik jest wyłączony, dopóki nie zdecydujesz, i obowiązuje tylko na tym urządzeniu.
+2. **Dla rozmowy.** Przed pierwszą wiadomością nowej rozmowy naciśnij ikonę globusa pod polem wpisywania — **Pozwól tej rozmowie korzystać z internetu**. To, czy rozmowa może korzystać z internetu, rozstrzyga się na jej początku; aby to zmienić, zacznij nową rozmowę. Rozmowa, która może z niego korzystać, mówi o tym w pierwszym wierszu. Uruchomienie umiejętności **Badanie tematu** to ten sam wybór: jej rozmowa może korzystać z internetu — zob. [Umiejętności](AI_Skills.md).
+3. **Dla każdego zapytania.** Dopóki Twoje notatki są w rozmowie, każda strona, którą asystent chce odczytać, i każde wyszukiwanie, które chce wykonać, pytają najpierw — z pełnym adresem lub szukanymi słowami; to wszystko, co w tym celu opuszcza Twoje urządzenie. **Odczytaj stronę** lub **Szukaj** przepuszcza to jedno zapytanie; **Nie odczytuj** lub **Nie szukaj** je pomija, a asystent działa dalej bez niego.
+
+**Czym jest zapytanie.** Odczytanie strony to jedno zapytanie z tego urządzenia do witryny, jak otwarcie strony w przeglądarce — bez ciasteczek, bez logowania i bez niczego z Twoich notatek; jak przy każdej wizycie, witryna widzi Twój adres IP. Odczytywane są tylko publiczne strony przez `https`; adresy w Twojej sieci domowej lub firmowej są odrzucane. Wyszukiwanie idzie do dostawcy Twojego modelu — Anthropic, OpenAI, Google Gemini albo OpenRouter —, który wyszukuje dokładnie tymi słowami, które Ci pokazano; dostawcy mogą naliczać opłaty za wyszukiwania osobno. Model na tym urządzeniu potrafi odczytywać strony, ale nie potrafi wyszukiwać, a model systemu na telefonie w ogóle nie może korzystać z internetu.
+
+**Skąd pochodzi adres.** Pytanie mówi, czy adres pochodzi od Ciebie, czy podała go notatka lub wynik — albo czy model sam go zbudował. Adres zbudowany przez model może zawierać coś z Twoich notatek: przeczytaj go, zanim go przepuścisz.
+
+**Witryny bez potwierdzenia.** Przy **Zawsze dla ⟨witryna⟩** w pytaniu albo w **Witryny bez potwierdzenia** w ustawieniach vaultu strony danej witryny są odczytywane bez pytania — dopóki adres pochodzi od Ciebie, z notatki lub z wyniku. Adres zbudowany przez model pyta zawsze.
+
+**Co czyta asystent.** Nigdy samej strony. Drugie zapytanie do tego samego modelu, bez żadnych narzędzi, czyta stronę i pisze krótki raport: streszczenie, stwierdzenia z fragmentem, na którym się opierają, oraz linki, które naprawdę są na stronie. Strona, która próbuje dawać asystentowi instrukcje, dociera więc do niego jako raport o stronie — nigdy jako strona, z którą pracuje. Pod odpowiedzią **Odczytano w sieci** wymienia odczytane strony, a wiersz pod nią otwiera wszystko, o co zapytano.
+
+**Notatki, które zostają poza rozmową.** Notatka lub folder z ustawieniem **Dostęp do sieci: nigdy** (zob. Zasady prywatności niżej) nie istnieje dla rozmowy, która może korzystać z internetu: nie ma jej ani w kontekście, ani w narzędziach, a linki do niej są wstrzymywane.
+
+Link w odpowiedzi, którego adres model zbudował sam, jest oznaczony, a pytanie przed otwarciem mówi o tym. Jeśli odpowiedź w ogóle nie nadejdzie — brak połączenia, dostawca nie odpowiada —, rozmowa wymienia zamiast niej notatki, które najlepiej pasują do Twojego pytania.
+
+## E-mail i spotkania
+
+**Spotkania.** Asystent wymienia spotkania z Twoich połączonych kalendarzy — dzień, godzinę i tytuł, na życzenie także miejsce i uczestników — oraz odczytuje pojedyncze spotkanie ze szczegółami: organizatora, uczestników wraz z ich odpowiedziami i Twoją własną. Nigdy nie dostaje linku do spotkania online; ten zostaje w kalendarzu.
+
+**E-mail.** Jeśli w tym vaulcie połączone są konta e-mail, asystent może wyszukiwać i czytać wiadomości. E-mail nie należy do narzędzi, z którymi zaczyna się rozmowa: asystent szuka go dopiero wtedy, gdy Twoje pytanie tego wymaga, a przy pierwszym dostępie Plainva pyta — **Czytać Twoje e-maile?** **Zezwól** obowiązuje dla tego dostawcy do zamknięcia Plainvy; inny model albo inny dostawca pyta ponownie. **Nie zezwalaj** pomija dostęp, a asystent działa dalej bez niego. Model na tym urządzeniu nie pyta, ponieważ w jego przypadku nic nie opuszcza urządzenia.
+
+**Co z tego czyta asystent.** Z wyszukiwania widzi datę, nadawcę i temat wiadomości — nigdy ich tekst. Tekstu wiadomości ani opisu spotkania nigdy nie czyta sam: napisały je inne osoby, a kto pisze e-mail albo zaproszenie, może to napisać właśnie dla tego czytelnika. Drugi czytelnik, bez żadnych narzędzi, czyta je i pisze krótki raport — streszczenie, stwierdzenia z fragmentem, na którym się opierają, oraz linki, które naprawdę w nich są. Jeśli model na tym urządzeniu jest ustawiony jako **Lokalny** w **Modele i profile**, to on jest tym czytelnikiem, a sam tekst nie opuszcza urządzenia; do dostawcy trafia tylko raport. W przeciwnym razie czyta dostawca rozmowy, w osobnym zapytaniu, bez narzędzi. Pytanie mówi Ci z góry, kto czyta.
+
+**Co się nie zmienia.** Asystent tylko czyta: wiadomość, którą przeczytał, pozostaje nieprzeczytana, nic nie jest przenoszone, odpisywane ani usuwane, a załączników nie otwiera — podaje tylko ich nazwy. Pod odpowiedzią widzisz, ile wiadomości przeczytano, a wiersz pod nią mówi, kto przeczytał tekst. E-mail albo spotkanie, które pisze dla Ciebie, to zawsze tylko szkic, który wysyłasz lub zapisujesz samodzielnie — zobacz **Proponowanie zmian** poniżej.
+
+## Narzędzia zewnętrzne (MCP)
+
+Asystent może korzystać z narzędzi serwerów podłączanych samodzielnie, przez Model Context Protocol (MCP) — systemu zgłoszeń, wiki, bazy danych zespołu. To kierunek odwrotny do opisanego w [Łączenie aplikacji AI](Connect_AI_Apps.md): tam inne aplikacje czytają vault przez Plainva; tutaj asystent Plainva pyta inne serwery. Nic z serwera nie jest używane, zanim nie zostanie sprawdzone, co on oferuje, a każde wywołanie jest pokazywane, zanim zostanie wysłane.
+
+**Dodawanie serwera.** W **Ustawienia → AI & automatyzacja** (część vaultu), w sekcji **Narzędzia zewnętrzne (MCP)**, wybierz **Dodaj serwer…**. Nadaj mu własną nazwę i podaj adres (`https://…`), a jeśli serwer tego wymaga, także token dostępu — trafia on do bezpiecznego magazynu tego urządzenia i nigdy nie jest pokazywany ponownie. Na komputerze serwerem może być też **Program na tym komputerze**: plik do uruchomienia, jego argumenty i wartości dla jego środowiska. Plainva uruchamia go bezpośrednio, bez powłoki, a w piaskownicy tam, gdzie komputer ma taką, z której Plainva może skorzystać. System pokazuje adres albo całe polecenie jeszcze raz, zanim zostanie zapamiętane. Na telefonie serwer jest zawsze adresem.
+
+**Logowanie.** Niektóre serwery zamiast tokenu wymagają zalogowania. Sprawdzenie serwera pokazuje wtedy **Serwer wymaga zalogowania.** Wybierz **Zaloguj się…**: Plainva pyta serwer, gdzie znajduje się jego logowanie, otwiera tę stronę w przeglądarce — na iPhonie w systemowym oknie logowania — i czeka na Twój powrót. To, co otrzymuje, pozostaje w bezpiecznym magazynie tego urządzenia i trafia tylko do tego serwera; ani Ty, ani AI nigdy tego nie widzicie. Jest odnawiane bez Twojego udziału, dopóki serwer na to pozwala, a gdy wygaśnie, sprawdzenie poprosi o ponowne zalogowanie. Jeśli usługa logowania nie pozwala aplikacjom rejestrować się samodzielnie, Plainva pyta o **Identyfikator klienta**, który podał Ci operator serwera. **Wyloguj się** usuwa logowanie; logowanie i zapisany token dostępu zastępują się nawzajem.
+
+**Sprawdzanie serwera.** Dopiero co dodany serwer niczego jeszcze nie oferuje. Jego sprawdzenie pokazuje, co jest zarejestrowane i co serwer wymienia: jego własny opis, narzędzia z ich opisami — własnymi słowami serwera — oraz prompty. **Zatwierdź** dopuszcza dokładnie te teksty, na tym urządzeniu. Zanim serwer zostanie użyty, Plainva ponownie wczytuje to, co on wymienia, i porównuje z tym, co zostało zatwierdzone; jeśli coś się różni, serwer jest zablokowany do ponownego sprawdzenia, a sprawdzenie mówi, co się zmieniło.
+
+**Na co pozwala vault.** Każdy vault decyduje sam: czy korzysta z serwera (**Używaj ⟨serwer⟩ w tym vaulcie**), które z jego narzędzi asystent może wywoływać — żadne nie jest zaznaczone —, oraz w polu **Notatki, które mogą towarzyszyć wywołaniu**, czy **Żadne**, **Wybrane foldery**, czy **Cały vault**. Zaznaczyć można także narzędzie, które nie deklaruje, że tylko czyta; jego wiersz podaje, co wywołanie może wtedy zrobić na serwerze: coś zmienić albo coś zmienić, nadpisać lub usunąć. Zaznaczenie obowiązuje dla tego, co narzędzie deklarowało w chwili zaznaczenia: jeśli później zadeklaruje, że może więcej, zostanie ponownie zaoferowane dopiero po ponownym zaznaczeniu.
+
+**W rozmowie.** Narzędzia serwerów nie należą do narzędzi, z którymi zaczyna się rozmowa: asystent szuka ich dopiero wtedy, gdy pytanie tego wymaga, a przegląd przed wysłaniem wymienia serwery, do których należą. Każde pojedyncze wywołanie najpierw pyta — **Wywołać ⟨serwer⟩?** — pokazując narzędzie i dokładnie to, co zostałoby wysłane. **Wywołaj** przepuszcza to jedno wywołanie, **Nie wywołuj** je pomija, a opcji „zawsze” nie ma. Narzędzie, które może coś zmienić, pyta innymi słowami — **Pozwolić ⟨serwer⟩ coś zmienić?** —, dodaje, że Plainva nie może tego cofnąć, a jego przycisk to **Wykonaj**. Wywołanie w ogóle nie wychodzi, jeśli rozmowa przeczytała notatkę leżącą poza tym, na co vault pozwala temu serwerowi, albo notatkę trzymaną z dala od chmury. To, co wraca, jest traktowane jak tekst kogoś obcego: asystent go czyta i nie przyjmuje z niego żadnych poleceń.
+
+**Pytania serwera.** Niektóre serwery potrzebują od Ciebie informacji w trakcie wywołania — na przykład, w którym projekcie szukać — albo chcą, żebyś zalogował się w usłudze, z której korzystają w Twoim imieniu. W sprawdzeniu serwera, w **W tym vaulcie**, pozwala na to **⟨serwer⟩ może zadawać Ci pytania**; jest wyłączone, dopóki tego nie zaznaczysz, a serwer, który mimo to pyta, nie dostaje odpowiedzi. Pytanie pojawia się nad polem wpisywania jako własna karta Plainva — **⟨serwer⟩ ma pytanie** —, z tym, co pisze serwer, jako jego cytatem i polami, o które prosi: **Odpowiedz** wysyła to, co wypełniono — gdy serwer o nic nie prosi, **Potwierdź** wyraża zgodę —, **Odrzuć** odmawia, **Anuluj** przerywa. Jeśli serwer chce, żebyś otworzył stronę, pojawia się karta **⟨serwer⟩ prosi o otwarcie strony** z pełnym adresem i osobno wyróżnioną domeną; Plainva otwiera ją w przeglądarce dopiero po **Otwórz w przeglądarce**, a wywołanie idzie dalej po **Dalej**. Plainva przekazuje odpowiedź tylko do tego serwera i nigdy do AI — choć to, co odeśle serwer, może o niej wspominać; historia odnotowuje tylko, że padło pytanie i jak się skończyło. Serwer nie może w ten sposób prosić o hasła, klucze ani dane płatnicze: Plainva nie pokazuje takiego pytania — **Plainva zablokowała pytanie od ⟨serwer⟩** mówi, o co pytano —, a serwer dostaje odmowę.
+
+**Prompty.** Serwer może oferować prompty — gotowe zapytania. Znajdują się pod pustą rozmową i uruchamia je wyłącznie użytkownik. Za pierwszym razem Plainva pokazuje, w co prompt się rozwija, zanim zostanie wysłany jako Twoja wiadomość; od tej pory dokładnie ten tekst idzie bez pytania, a inny tekst blokuje serwer.
+
+**Umiejętności.** Serwer może też wnosić umiejętności — przewodniki po swoich narzędziach. Każda czeka w **Umiejętności**, **Z serwerów**, aż ją tam zatwierdzisz; zobacz [Umiejętności](AI_Skills.md).
+
+**Co przechowuje Plainva.** Adres albo polecenie jest zapamiętywane na tym urządzeniu, zapisane wartości — w jego bezpiecznym magazynie; zatwierdzenie leży we własnych danych Plainva, nigdy w vaulcie — kto może pisać w vaulcie, nie może więc zatwierdzić serwera. W sekcji **Ostatnie wywołania w tym vaulcie** sprawdzenie wymienia, kiedy wywołano narzędzie, które i jak się to skończyło — nigdy to, co zostało powiedziane. **Usuń serwer** usuwa serwer z tego urządzenia, dla każdego vaultu.
+
+Rozmowa rozpoczęta przez umiejętność, działanie na zaznaczeniu i odpowiedź w wątku komentarzy nie sięgają po narzędzia zewnętrzne, podobnie jak model systemowy na telefonie.
+
+## Agenci zewnętrzni
+
+Na komputerze Plainva może też uruchomić agenta AI innego producenta w folderze vaultu — program zainstalowany samodzielnie, do którego logujesz się samodzielnie. Taki agent nie jest asystentem: czyta i wysyła sam, a Twoje zasady prywatności i przegląd przed wysłaniem go nie obejmują. Co Plainva kontroluje w jego sesji, a czego nie: [Agenci zewnętrzni](External_Agents.md).
+
+## Proponowanie zmian
+
+Asystent może zaproponować więcej niż odpowiedź — i nic z tego, co proponuje, nie trafia do Twojego vaultu, dopóki tego nie powiesz. Są trzy formy, a każda czeka tam, gdzie o niej decydujesz.
+
+- **Propozycja w notatce.** Gdy poprosisz o zmianę w istniejącej notatce, asystent zostawia ją w notatce jako propozycje: na marginesie, podpisane „Plainva AI · ⟨model⟩”, każda zmiana do zaakceptowania lub odrzucenia osobno — tak jak propozycje człowieka, zobacz [Komentarze i propozycje](Comments_and_Suggestions.md). Przy akceptacji notatka w dotychczasowej postaci jest najpierw zachowywana jako wersja — historia wersji zawsze zna więc drogę powrotną. Pod odpowiedzią wiersz podaje nazwę notatki; naciśnięcie go otwiera notatkę. Wartość jednej z właściwości notatki jest proponowana w ten sam sposób: karta pokazuje właściwość z przekreśloną obecną wartością i tą, którą by miała, a właściwość, której notatka jeszcze nie ma, oznacza jako nową. Jeśli w chwili Twojej decyzji właściwość ma już inną wartość, karta informuje, że propozycja już nie pasuje. Asystent nie może zaproponować tego, kto utworzył notatkę ani kto za nią ręczy (zobacz [OKF](OKF.md)), ani właściwości, które Plainva prowadzi dla siebie. W bazie danych wartość zaproponowana dla wpisu pojawia się także w komórce tego wpisu, gdzie ją zastosujesz albo odrzucisz bez otwierania notatki — zob. [Bazy danych (.base)](Databases_Base.md).
+- **Szkic.** Nowa notatka, zadanie albo wpis dziennika pozostaje szkicem: karta pod odpowiedzią mówi, czym by się stał i dokąd by trafił. **Utwórz** go tworzy — notatkę w folderze podanym na karcie (**Folder skrzynki**, jeśli asystent nie wskazał innego), zadanie odczytane z jego słów tak, jakby zostały wpisane w pole szybkiego dodawania, wpis w dzienniku dnia podanego na karcie. **Pokaż** rozwija najpierw tekst notatki; **Odrzuć** wyrzuca szkic. Notatka utworzona ze szkicu mówi, kto ją napisał (`generated`, zobacz [OKF](OKF.md)), i wymienia notatki, na których opierała się rozmowa. Tam, gdzie nowe zadania trafiają także na listę zadań Twojego dostawcy, karta zadania ma przełącznik pola szybkiego dodawania, **Twórz też w „…”**: jest włączony, a zadanie zostanie utworzone także tam, chyba że go wyłączysz. Wpis bazy danych jest szkicowany w ten sam sposób: jego karta podaje bazę danych i właściwości, które wpis by miał, a **Utwórz** zapisuje go jako notatkę w folderze, w którym ta baza danych przechowuje swoje wpisy — z tymi właściwościami i wszystkim, co czyni tam notatkę wpisem. Baza danych, która nie ma jeszcze folderu zapisu nowych wpisów, przyjmie taki szkic dopiero wtedy, gdy samodzielnie utworzysz jej pierwszy wpis.
+- **Plan.** Zmiany nazwy, przeniesienia ani usunięcia notatki nie da się sprawdzić kawałek po kawałku, więc asystent pyta: pytanie nad polem wprowadzania pokazuje, co by się stało — nową nazwę oraz ile linków w ilu notatkach za nią podąży, albo folder docelowy, z ostrzeżeniem, jeśli notatka straciłaby przy tym zasadę prywatności swojego folderu. Po Twoim „tak” Plainva robi to tak, jak wtedy, gdy robisz to samodzielnie; asystent dowiaduje się tylko, czy to nastąpiło. Przy usuwaniu pytanie jedynie otwiera okno usuwania Plainva: nic nie znika, zanim tam nie potwierdzisz. O jedną z własnych zasad prywatności notatki asystent pyta w ten sam sposób i nigdy nie zostawia jej jako propozycji: pytanie podaje zasadę oraz to, czy zostałaby zapisana w notatce, czy z niej usunięta — z ostrzeżeniem, jeśli notatka mogłaby potem znów trafiać do modeli w chmurze lub do rozmów korzystających z internetu. Po Twojej zgodzie Plainva ją zapisuje; zasada obowiązuje od tej chwili i nie cofa tego, co rozmowa już wysłała.
+
+**E-mail i spotkanie.** Tam, gdzie w tym vaulcie połączone jest konto e-mail albo kalendarz przyjmujący spotkania, asystent może też przygotować szkic e-maila albo spotkania. Niczego z tego nie wysyła ani nie zapisuje. Karta wymienia wszystkich adresatów — **Do**, **DW** i **UDW** albo **Uczestnicy** — i wskazuje każdy adres, który nie został wpisany przez Ciebie w tej rozmowie: asystent mógł go wziąć z notatki, z e-maila albo ze strony internetowej, więc go sprawdź. **Otwórz w Poczcie** otwiera e-mail jako nową wiadomość z już wypełnionymi polami, **Otwórz w Kalendarzu** otwiera spotkanie w edytorze wydarzeń kalendarza; tam zmieniasz, co chcesz, a **Wyślij** albo **Zapisz** to Twój własny krok. Uczestnicy dostają przy zapisaniu zaproszenie od dostawcy Twojego kalendarza, jak przy każdym spotkaniu, które wpisujesz samodzielnie. Szkic zostaje na liście, dopóki e-mail rzeczywiście nie wyjdzie albo kalendarz nie przyjmie spotkania: zamknięcie wiadomości, cofnięcie wysyłki w ciągu jej kilku sekund albo kalendarz, który odmawia, zostawiają go tam, gdzie był. E-mail odłożony przez **Zapisz roboczą** leży odtąd wśród wersji roboczych Twojej skrzynki i również znika z listy; na desktopie dotyczy to także wiadomości przeniesionej do osobnego okna.
+
+Przy bazie danych asystent pracuje także bez rozmowy: **Wypełnij „…” z pomocą AI…** czyta notatkę każdego wpisu, który nie ma wartości w kolumnie, i proponuje ją dla każdego z nich, a w ustawieniach filtra zdanie staje się regułami filtra, które widzisz, zanim zaczną obowiązywać. Zanim cokolwiek zostanie wysłane, przegląd jak zawsze pokazuje, co wychodzi — przy kolumnie notatki tych wpisów, każda w osobnym zapytaniu; przy filtrze tylko kolumny bazy danych z ich nazwami, rodzajami i opcjami oraz Twoje zdanie, nigdy wpis. Jedno i drugie opisano w [Bazy danych (.base)](Databases_Base.md).
+
+Wszystko, co czeka, znajduje się na jednej liście: **Oczekujące**, segment karty AI na desktopie i ekranu **Rozmowy** na telefonie. Lista wymienia notatki, w których leżą propozycje AI, oraz szkice tego urządzenia, każdy z informacją, kto go zostawił. Szkice są przechowywane na urządzeniu, na którym powstały, tak jak rozmowy; propozycje należą do komentarzy notatki i razem z nimi docierają na Twoje pozostałe urządzenia.
+
+Trzy ograniczenia obowiązują niezależnie od tego, o co poprosisz asystenta. Adres internetowy, który asystent wnosi do propozycji lub szkicu, jest zapisywany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`); adres wpisany przez Ciebie pozostaje bez zmian. Atrybut HTML, który wczytałby taki adres, dostaje nazwę w nawiasach kwadratowych (`[src]=…`). Gdy asystent zmienia notatkę, sprawdzane jest tylko to, co zmienia: Twój własny kod i Twój HTML w innych miejscach pozostają bez zmian. Tylko `<style>` lub `<form>` przed zmianą oraz `<base>` w dowolnym miejscu notatki są zapisywane jako tekst — w przeciwnym razie to, co następuje, zostałoby odczytane jako arkusz stylów, jako część formularza albo jako adres względem tej bazy. Rozmowa, która przeczytała notatkę trzymaną z dala od chmury lub od internetu, zostawia propozycję, zadanie albo wpis dziennika tylko tam, gdzie obowiązuje ta sama zasada — szkic notatki albo wpisu bazy danych zabiera zasadę ze sobą, a szkic e-maila albo spotkania w ogóle nie powstaje. A w zaszyfrowanym obszarze roboczym niczego się nie proponuje, nie szkicuje ani nie planuje.
+
+Asystent ma wskazywać notatkę jako link, więc link jest jedynym twierdzeniem w jego tekście, które Plainva może sprawdzić: gdy propozycja albo szkic linkuje do notatki, której nie ma w Twoim vaulcie, mówią o tym wiersz pod odpowiedzią i karta szkicu — **Podlinkowane, ale nie ma tego w tym vaulcie:** oraz nazwy. Nic nie jest z tego powodu wstrzymywane; być może najpierw chcesz mieć link, a notatkę później. Link do notatki, która jest w Twoim vaulcie, ale której AI nie może tu czytać — zasada prywatności trzyma ją z dala od rozmowy — dostaje własny wiersz: **Linki do notatek, których AI nie może tu czytać:** oraz nazwy. Sama AI dowiaduje się w obu przypadkach tego samego, więc nie odgadnie nazwy, próbując jej. Tego, czy stwierdzenie jest prawdziwe, Plainva nie sprawdza.
+
+Umiejętność ma te możliwości tylko wtedy, gdy je wymienia, a jej sprawdzenie to pokazuje — zobacz [Umiejętności](AI_Skills.md).
+
+## Zachowywanie odpowiedzi jako notatki
+
+Pod każdą gotową odpowiedzią **Zachowaj jako notatkę** zamienia odpowiedź w notatkę w Twoim vaulcie. Ty naciskasz, a notatkę zapisuje Plainva — sam asystent nadal niczego nie zmienia. Notatka zachowana z odpowiedzi o obrazie pokazuje ten obraz, a odpowiedź, która zaczyna się własnym nagłówkiem, nadaje notatce nazwę.
+
+- **Dokąd trafia.** Do folderu ustawionego w vaulcie jako **Folder skrzynki** (**Ustawienia → Treść i struktura**), pod nazwą wziętą z Twojego pytania — w rozmowie rozpoczętej przez umiejętność, z umiejętności i notatki, która była otwarta, albo z dnia. Notatka, która już tam jest, nigdy nie jest ruszana: nowa dostaje następną wolną nazwę. Plainva od razu ją otwiera.
+- **Kto ją napisał.** Mówi o tym pierwszy wiersz, słowami — odpowiedź Plainva AI, z modelem, godziną i Twoim pytaniem. Właściwości notatki mówią to samo innym narzędziom: `generated`, z modelem i godziną. Nic nie oznacza notatki jako sprawdzonej; to zostaje Twoją sprawą — zob. [OKF](OKF.md).
+- **Na czym się opiera.** Pod odpowiedzią lista **Źródła** wymienia to, z czego uruchomienie naprawdę skorzystało. Tę listę pisze Plainva z własnego rejestru, nie model: odczytane strony i kiedy, wyszukiwania i przez którego dostawcę oraz Twoje notatki, które poszły razem z pytaniem albo zostały odczytane. Właściwości niosą tę samą listę jako `sources`.
+- **Adresy.** Każdy adres internetowy, który model wpisał do swojej odpowiedzi, jest zapisany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`), a obraz z internetu nigdy nie jest w notatce obrazem. Prawdziwymi linkami są tylko strony w sekcji **Źródła**: adresy, które uruchomienie odczytało za Twoją zgodą. Linki do Twoich własnych notatek pozostają linkami.
+- **Zasady.** Zachowana odpowiedź dziedziczy zasady prywatności tego, na czym się opiera. Jeśli notatka, która była w rozmowie, albo taka, którą asystent odczytał, jest trzymana z dala od chmury lub od internetu, nowa notatka niesie tę samą regułę — zapisaną w samej notatce tam, gdzie jej folder pozwalałby na więcej. Dzięki temu odpowiedź, którą model na tym urządzeniu przygotował na podstawie prywatnej notatki, nie trafia do chmury także jako notatka.
+
+We wspólnym obszarze roboczym jego członkowie mogą przeczytać notatkę — podobnie jak czytelnicy publikacji obejmującej ten folder. Plainva pyta tam za każdym razem, podając nazwę notatki i folder: **Zachowaj jako notatkę** ją zapisuje, **Nie zachowuj** niczego nie zapisuje.
+
+## Zasady prywatności
+
+Niektóre notatki nigdy nie powinny trafić do dostawcy w chmurze. Reguła może znajdować się we frontmatterze notatki:
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+albo, dla całego folderu, w **Ustawienia → AI & automatyzacja** (część vaultu), skąd reguły trafiają do `.agent/policy.yml`. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej w innych notatkach są wstrzymywane. Dotyczy to każdego sposobu zapisania notatki w linku — nazwą pliku, tytułem albo ścieżką —; a gdy dwie notatki mają tę samą nazwę i jedna z nich jest trzymana z dala, wstrzymywany jest także link z samą nazwą. Wpisz folder w linku, aby wskazać tę, o którą chodzi. Modele na tym urządzeniu pozostają dozwolone. Zaszyfrowane obszary robocze trzymają chmurę z dala, chyba że zostanie tam dopuszczona. Dokładny format znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md).
+
+Rozmowa prowadzona z modelem na tym urządzeniu zostaje na tym urządzeniu. Taki model może czytać to, czego nie może żadna chmura, a rozmowa zawsze trafia do swojego modelu w całości; dlatego gdy rozmowa choć raz toczyła się tutaj, przełączenie jej na model w chmurze niczego nie wysyła: informuje o tym komunikat, Twoje słowa zostają w polu wpisywania, a **Nowa rozmowa** zaczyna rozmowę z wybranym modelem. W drugą stronę to działa: rozmowę z modelem w chmurze można kontynuować z modelem na tym urządzeniu.
+
+Obraz należy do notatek, które go pokazują: obraz osadzony w notatce trzymanej z dala od chmury również nie trafia do żadnego modelu w chmurze (zob. Wyjaśnianie obrazu wyżej).
+
+Druga reguła, `web: deny` — w ustawieniach **Dostęp do sieci: nigdy** —, trzyma notatkę lub folder poza każdą rozmową, która może korzystać z internetu.
+
+Na iPhonie i iPadzie te same dwie reguły decydują, które tytuły notatek mogą znaleźć Siri i Skróty, gdy to włączysz: notatka trzymana z dala od chmury lub od dostępu do sieci nigdy nie jest im podawana. Zob. „Siri i Skróty” w [Aplikacja mobilna](Mobile_App.md).
+
+## Historia i zużycie
+
+Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i nigdy niesynchronizowane. **Przechowuj rozmowy** decyduje, jak długo; pojedyncze rozmowy można usuwać na liście, a wszystkie rozmowy danego vaultu naraz. Rozmowa usunięta, gdy odpowiedź jest jeszcze w drodze, pozostaje usunięta. Jeśli vault zostanie wczytany ponownie, gdy odpowiedź jest jeszcze w drodze — na przykład po **Odbuduj indeks** —, odpowiedź się zatrzymuje; to, co do tej pory napisała, zostaje w jej rozmowie na liście. **Zużycie w tym miesiącu** sumuje tokeny według dostawcy i modelu. Każdy wiersz podaje, jaką część danych wejściowych dostawca odczytał ze swojej pamięci podręcznej, tam, gdzie ją zgłasza, oraz koszt, tam, gdzie publikuje ceny. Pod modelami **Zaoszczędzono dzięki wyborowi i skróceniu** szacuje, ilu tokenów zapytania z tego miesiąca nie zabrały, bo Plainva wysłała sekcję notatki lub jej kluczowe zdania — dosłownie lub jako streszczenie — zamiast całej notatki: resztę każdej takiej notatki, aż do tego, co Plainva wysyła najwyżej z jednej notatki. Wersja notatki liczy się najwyżej raz na rozmowę — przy systemowym modelu na tym urządzeniu, który dostaje notatki każdej tury od nowa, raz na turę — i wcale tam, gdzie model sam przeczytał notatkę, odpowiadając na to pytanie; notatka wysłana w całości niczego nie oszczędza, podobnie jak notatka tylko wymieniona — z nazwy lub ze streszczeniem w jednym wierszu — czy zapytanie, które nie dotarło do żadnego modelu. Oszczędność jest podawana w dolarach tylko tam, gdzie każdy z tych modeli ma cenę; model na tym urządzeniu liczy się jako bezpłatny.
+
+## Ograniczenia wersji beta
+
+- Na komputerze AI działa tylko w głównym oknie.
+- Na telefonie odpowiedź pojawia się tylko, gdy aplikacja jest otwarta.
+- Asystent sam nie zmienia żadnej notatki: zmiana w notatce i transkrypcja notatki głosowej to propozycje do zaakceptowania lub odrzucenia, coś nowego jest szkicem, dopóki nie naciśniesz **Utwórz**, e-mail albo spotkanie szkicem, dopóki samodzielnie nie wyślesz lub nie zapiszesz, a zmiana nazwy, przeniesienie i usunięcie czekają na Twoje „tak”; w wątku komentarzy pisze odpowiedź obok notatki, nigdy tekst w niej. Odpowiedź staje się notatką tylko wtedy, gdy naciśniesz **Zachowaj jako notatkę**; wtedy zapisuje ją Plainva, nie asystent.
+
+Opinie o wersji beta trafiają do dyskusji projektu na GitHubie: **Opinie o AI (beta)** w ustawieniach rozpoczyna nową.

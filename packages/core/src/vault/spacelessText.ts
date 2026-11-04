@@ -160,6 +160,29 @@ export function segmentedMatchExpression(term: string, prefix: boolean): string 
   return parts.length > 1 ? `(${parts.join(" AND ")})` : parts[0];
 }
 
+/**
+ * A question's term as OR-able FTS5 conditions, for retrieval rather than
+ * search: a spaceless run becomes its pairs (a note sharing more of them ranks
+ * higher), a lone spaceless character a prefix, any other piece a prefix word.
+ * "会議の議事録" asks for 会議, 議の, の議, 議事, 事録 — the whole run would only
+ * find the exact phrase.
+ */
+export function spacelessRetrievalTerms(term: string): string[] {
+  const out = new Set<string>();
+  for (const match of term.matchAll(SEARCH_WORD)) {
+    for (const piece of wordPieces(match[0])) {
+      if (!piece.spaceless) {
+        out.add(`"${piece.text.replace(/"/g, '""')}"*`);
+        continue;
+      }
+      const units = clusters(piece.text);
+      if (units.length === 1) out.add(`${SEGMENTED_COLUMNS} : "${units[0]}"*`);
+      for (let i = 0; i + 1 < units.length; i++) out.add(`${SEGMENTED_COLUMNS} : "${units[i] + units[i + 1]}"`);
+    }
+  }
+  return [...out];
+}
+
 const OTHER_WORD_CHAR = String.raw`(?![\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}])[\p{L}\p{N}]`;
 
 /**

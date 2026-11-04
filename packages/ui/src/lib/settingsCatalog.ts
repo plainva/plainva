@@ -12,6 +12,7 @@ import {
   Pencil,
   Rocket,
   ShieldCheck,
+  Sparkles,
   Users,
   Wrench,
 } from "lucide-react";
@@ -63,6 +64,8 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "appearance", world: "app", labelKey: "settings.sectionAppearance", descKey: "settings.pageDescAppearance", icon: Palette },
   { id: "editor", world: "app", labelKey: "settings.sectionEditor", descKey: "settings.pageDescEditor", icon: Pencil },
   { id: "behavior", world: "app", labelKey: "settings.sectionBehavior", descKey: "settings.pageDescBehavior", icon: Rocket },
+  // The AI harness (plan KI-Harness §19.1): what holds for this device — providers, keys, profiles.
+  { id: "ai", world: "app", labelKey: "ai.settings.title", descKey: "ai.settings.sectionApp", icon: Sparkles },
   // "Updates" was an area of its own until 2026-10-29; it is a group of About
   // & diagnostics now (settings plan, E10), and the phone, which does not
   // update itself, lacks only that group (parity catalog in-app-updates).
@@ -70,6 +73,9 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "cloudAccounts", world: "vault", labelKey: "settings.sectionCloudAccounts", descKey: "settings.pageDescCloudAccounts", icon: Users },
   { id: "sync", world: "vault", labelKey: "settings.syncSection", descKey: "settings.pageDescSync", icon: Cloud },
   { id: "security", world: "vault", labelKey: "settings.sectionSecurity", descKey: "settings.pageDescSecurity", icon: ShieldCheck },
+  // ...and what belongs to the vault: the privacy rules of `.agent/policy.yml`, which travel with it, and what
+  // the AI may use in it — the internet, external tools, skills and memory.
+  { id: "aiVault", world: "vault", labelKey: "ai.settings.title", descKey: "ai.settings.sectionVault", icon: Sparkles },
   { id: "pim", world: "vault", labelKey: "settings.sectionPim", descKey: "settings.pageDescPim", icon: CalendarDays },
   { id: "mail", world: "vault", labelKey: "settings.sectionMail", descKey: "settings.pageDescMail", icon: Mail },
   // "Content & structure" became two pages (settings plan 2026-10-29, E9):

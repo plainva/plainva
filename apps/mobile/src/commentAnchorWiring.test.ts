@@ -274,7 +274,12 @@ describe("the name a remark is signed with, on the phone (finding 2026-09-09)", 
   it("is asked for once, in the post funnel, for remarks and proposals only", () => {
     const post = service.slice(service.indexOf("export async function postMobileComment"));
     expect(post).toMatch(/const captured = structuredClone\(input\)/);
-    expect(post).toMatch(/if \(!captured\.resolvedCommentId && !captured\.retractsCommentId && \(captured\.body\.trim\(\) \|\| captured\.suggestion\)\) await ensureMobileCommentAuthorName\(vault\)/);
+    // The desktop's rule, from the core: a named author's record never asks
+    // for the person's name (finding 2026-10-07).
+    expect(post).toMatch(/if \(commentSignedByPerson\(captured\)\) await ensureMobileCommentAuthorName\(vault\)/);
+    const operations = strip(read("services", "commentOperations.ts"));
+    expect(operations).toMatch(/if \(input\.markers\.some\(commentSignedByPerson\)\) await ensureMobileCommentAuthorName\(vault\)/);
+    expect(service + operations).not.toMatch(/!\w+\.resolvedCommentId && !\w+\.retractsCommentId && \(\w+\.body\.trim\(\)/);
     const ask = service.slice(service.indexOf("async function ensureMobileCommentAuthorName"), service.indexOf("export function mobileCommentStore"));
     expect(ask).toMatch(/nameAsked\.add\(vault\.vaultId\)/);
     expect(ask).toMatch(/updateMobileSettings\(\{ verifierName: res\.value\.trim\(\) \}\)/);

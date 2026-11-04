@@ -1,4 +1,4 @@
-import { commentOperationStore, createCommentOperationService, editorTextFiles, type CommentOperation, type CommentOperationService, type CommentStore } from "@plainva/core";
+import { commentOperationStore, createCommentOperationService, editorTextFiles, type CommentOperation, type CommentOperationService, type CommentStore, commentSignedByPerson } from "@plainva/core";
 import { mobileCommentStore, ensureMobileCommentAuthorName } from "./mobileComments";
 import { mobileCommentOperationJournal } from "./commentOperationJournal";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
@@ -25,8 +25,8 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
     journal,
     authorKey: async operation => (await route(operation)).writerKey(),
     prepareMarkers: async (input) => {
-      if (input.markers.some((marker) => !marker.resolvedCommentId && !marker.retractsCommentId && (marker.body.trim() || marker.suggestion)))
-        await ensureMobileCommentAuthorName(vault);
+      // Only for what the person signs: a proposal of the assistant carries its own name (finding 2026-10-07, the desktop's rule).
+      if (input.markers.some(commentSignedByPerson)) await ensureMobileCommentAuthorName(vault);
       const targetObjectId = await store.captureTarget(input.notePath);
       return input.markers.map((marker) => {
         if (marker.targetObjectId !== undefined && marker.targetObjectId !== targetObjectId) throw new Error("The comment target changed");
@@ -40,6 +40,10 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
     },
     withNoteLock: (path, work) => noteSaver.withWriteLock(path, vault, work),
     readText: noteFiles.readText,
+    // An accepted suggestion keeps what it replaces as a version first (AI harness P5-7), as on the desktop: the
+    // editor's undo does not take an accept back, and a save only snapshots every few minutes. Not twice: where
+    // the newest version already holds exactly this text, that one is the way back.
+    ...(vault.backup ? { snapshot: (path: string) => vault.backup!.ensureSnapshot(path) } : {}),
     writeText: noteFiles.writeText,
     post: async (marker, operation) => (await route(operation)).post(marker),
     changed: (operation) => {

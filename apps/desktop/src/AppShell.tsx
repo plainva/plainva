@@ -19,7 +19,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { EmptyState, ICON, IconButton, isImagePath, journalToday, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -33,11 +33,18 @@ const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
 const JournalView = lazy(() => import('./components/journal/JournalView').then(m => ({ default: m.JournalView })));
+const AiTabView = lazy(() => import('./components/ai/AiTabView').then(m => ({ default: m.AiTabView })));
+const AiCompanion = lazy(() => import('./components/ai/AiCompanion').then(m => ({ default: m.AiCompanion })));
+const McpPairing = lazy(() => import('./components/ai/McpPairing').then(m => ({ default: m.McpPairing })));
+const McpPlanDialog = lazy(() => import('./components/ai/McpPlanDialog').then(m => ({ default: m.McpPlanDialog })));
+const LearnDialogs = lazy(() => import('./components/ai/LearnDialogs').then(m => ({ default: m.LearnDialogs })));
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
-import { commentLockState, requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
-import { requestCalendarDay } from "./services/pim/calendarNav";
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { AiCommandSourceLink, useDesktopAi } from "./components/ai/useDesktopAi";
+import { useDesktopEmbeddings } from "./components/ai/useDesktopEmbeddings";
+import { useDesktopGists } from "./components/ai/useDesktopGists";
+import { commentLockState, requestCalendarDay, requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
 import { BaseViewer } from "./components/BaseViewer";
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
 import { requestCascadeDelete } from "./services/cascadeDelete";
@@ -60,7 +67,7 @@ import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
-import { errorText, toast } from "@plainva/ui";
+import { errorText, styleOutcomeText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
@@ -249,6 +256,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     });
   };
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
+  /** Set while the switcher picks a note for the AI context instead of opening it. */
+  // What the quick switcher picks a note for, when the AI asked it to (plan KI-Harness P9-3): to pin it, or as an example of the writing style.
+  const [aiPick, setAiPick] = useState<"pin" | "style" | null>(null);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
   // What was opened while the strip of this vault was still being read: the
@@ -304,9 +314,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // The user's sidebar choice is global. Full-surface/non-note tabs temporarily
   // close it because their context panels have no useful active document; that
   // temporary state must not overwrite what comes back for the next note.
-  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal" =>
-    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p === COMMENTS_TAB_PATH ? "comments" : p === JOURNAL_TAB_PATH ? "journal" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
-  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal"): boolean => {
+  const tabKindOf = (p: string | null): "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal" | "ai" =>
+    p === GRAPH_TAB_PATH ? "graph" : p === TASKS_TAB_PATH ? "tasks" : p === CALENDAR_TAB_PATH ? "calendar" : p === MAIL_TAB_PATH ? "mail" : p === COMMENTS_TAB_PATH ? "comments" : p === JOURNAL_TAB_PATH ? "journal" : p === AI_TAB_PATH ? "ai" : p?.toLowerCase().endsWith(".base") ? "base" : "editor";
+  const rightCollapsedFor = (kind: "editor" | "base" | "graph" | "tasks" | "calendar" | "mail" | "comments" | "journal" | "ai"): boolean => {
     if (kind !== "editor") return true;
     return localStorage.getItem(windowStateKey("plainva-right-sidebar-collapsed")) === "1";
   };
@@ -550,6 +560,35 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     })();
   });
 
+  // The AI's trail (plan KI-Harness P2b-5) shows in this window's graph: the trail waits in this window, so the view opens here.
+  useEffect(() => {
+    const onTrail = () => focusOrOpenVirtual(GRAPH_TAB_PATH);
+    window.addEventListener(GRAPH_TRAIL_EVENT, onTrail);
+    return () => window.removeEventListener(GRAPH_TRAIL_EVENT, onTrail);
+  }, [focusOrOpenVirtual]);
+
+  // Search by meaning (plan KI-Harness P2a-4/5, P2b): the vault's controller for the search, the settings and the context package.
+  const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
+  // Gists (plan KI-Harness P2b-3): written by the model of the profile "Local" on this computer, read by the context package.
+  const gists = useDesktopGists({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
+  // The AI harness (plan KI-Harness P1a): one session of the central window;
+  // the companion, the AI tab and the palette all show and drive it.
+  const ai = useDesktopAi({
+    vaultPath,
+    vaultAdapter,
+    queryService,
+    encrypted: workspaceSecurityStatus !== null,
+    activePath,
+    layout,
+    openView,
+    openNote: (path) => openInFocusedPane(path),
+    embeddings,
+    gists,
+    renameTabPrefix,
+  });
+  // The global key handler binds these two, not the whole (per-render) object.
+  const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
+
   /**
    * The communications window: mail beside the calendar (multi-window P4, E4).
    *
@@ -636,6 +675,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const navBack = useStableHandler(() => navigateTab(layout.activePaneIndex, -1));
   const navForward = useStableHandler(() => navigateTab(layout.activePaneIndex, 1));
   const openNewTabPrompt = useStableHandler(() => { setQuickSwitcherNewTab(true); setShowQuickSwitcher(true); });
+  // A note picked as an example of the writing style (plan KI-Harness P9-3): why one was not taken is said; a taken one stands in the memory view.
+  const pickStyleExample = useStableHandler((path: string) => {
+    void ai.session?.addStyleExample(path).then((outcome) => {
+      const refused = styleOutcomeText(t, outcome);
+      if (refused) toast.error(refused);
+    });
+  });
   const dispatchNewNote = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind: "file" } })));
   const toggleReadEdit = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "read" } })));
   const toggleSourceMode = useStableHandler(() => window.dispatchEvent(new CustomEvent("plainva-toggle-view-mode", { detail: { axis: "source" } })));
@@ -891,6 +937,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "w") {
         e.preventDefault();
         closeActiveTab();
+      } else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j" && aiEnabled) {
+        // Ask AI: the companion over the work (plan KI-Harness §19.1, dress A).
+        e.preventDefault();
+        toggleAiCompanion();
       } else if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {
         // Journal entry: one line into today's daily note (plan Journal, J4).
         e.preventDefault();
@@ -950,7 +1000,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     };
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote, capabilities]);
+  }, [vaultPath, splitEditor, openView, toggleRightSidebar, dispatchNewNote, toggleReadEdit, toggleSourceMode, openNewTabPrompt, reopenClosedTab, closeActiveTab, navBack, navForward, cycleTab, goToTab, flushSave, renameActiveNote, capabilities, aiEnabled, toggleAiCompanion]);
 
   // Draft-journal retention (P2.4): prune crash-recovery snapshots older
   // than the retention window once per vault open (best-effort).
@@ -1254,7 +1304,173 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const showVerticalPreview = drag.splitPreview === "vertical";
   const showHorizontalPreview = drag.splitPreview === "horizontal";
 
+  // The palette's commands, built when they are asked for: by the palette while it is open, and by the assistant,
+  // whose `run_command` runs what this list holds and nothing of its own (plan KI-Harness P4-4).
+  const buildPaletteCommands = () =>
+    buildAppCommands({
+      newItem: (kind, opts) => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind, ...opts } })),
+      openDailyNote: () => { void handleOpenDailyNote(journalToday()); },
+      newEvent: newHandlers.event,
+      newTask: newHandlers.task,
+      newJournalEntry: newHandlers.journal,
+      openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
+      openTemplatePicker: () => setShowTemplatePicker(true),
+      openGraph: () => openView(GRAPH_TAB_PATH),
+      openTasks: () => openView(TASKS_TAB_PATH),
+      openCalendar: () => openView(CALENDAR_TAB_PATH),
+      openMail: () => openView(MAIL_TAB_PATH),
+      openComments: () => openView(COMMENTS_TAB_PATH),
+      openJournal: () => openView(JOURNAL_TAB_PATH),
+      openAi: ai.enabled ? ai.openCompanion : undefined,
+      runAiSkill: ai.enabled ? ai.runSkill : undefined,
+      aiSkills: ai.enabled ? ai.skills : undefined,
+      openCommsWindow: vaultPath ? openCommsWindow : undefined,
+      // Dispatched rather than called, so a client window travels the
+      // listener above instead of needing a capability it does not have.
+      openSecondWindow: vaultPath
+        ? () => window.dispatchEvent(new CustomEvent("plainva-open-full-window"))
+        : undefined,
+      // Opens the vault line's menu: the switch and the new window sit
+      // side by side there, and the palette is the door that does not
+      // depend on the sidebar being visible.
+      openVaultWindow: vaultPath ? () => setShowVaultMenu(true) : undefined,
+      split: splitEditor,
+      toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
+      toggleRightSidebar: () => toggleRightSidebar(),
+      toggleFocusMode,
+      toggleReadEdit,
+      toggleSourceMode,
+      renameActive: renameActiveNote,
+      closeActiveTab,
+      reopenClosedTab,
+      openImport: () => capabilities.openImport(),
+      toggleTheme: () => { void toggleLightDark(); },
+      // The stored theme, not <html> — "My theme" may be previewing a mood (E22).
+      themeTogglePinned: () => appliedTheme().pinned,
+      openSettings: () => capabilities.openSettings(),
+      openShortcuts: () => setShowShortcuts(true),
+      openFindReplace: () => setShowFindReplace(true),
+      activePath: () => activePath,
+      showVersionHistory: (path) => setCompareTarget({ kind: "version", path }),
+      backupNow: () => window.dispatchEvent(new CustomEvent("plainva-backup-now")),
+      updateAllIndexes: () => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes")),
+      refreshVault: () => { void refreshVault(); },
+      rebuildIndex: () => { void rebuildIndex(); },
+      switchVault: () => capabilities.closeVault?.(),
+      printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
+      hasActiveNote: () => activeDocument.get().kind === "markdown",
+      exportActiveMarkdown: () => {
+        const p = activePath;
+        if (!p || !vaultAdapter) return;
+        void import("./services/exportNote")
+          .then(({ exportNoteAsMarkdown }) =>
+            // The export asks how annotations should travel, and only when
+            // the note has any (D10). The source is passed as functions so
+            // the lazy chunk never reaches into the vault context itself.
+            exportNoteAsMarkdown(vaultAdapter, p, {
+              listComments: (path) => listWorkspaceComments(path),
+              listNames: async () =>
+                new Map((await listWorkspaceMembers()).map((m) => [m.memberId, m.displayName])),
+            }),
+          )
+          .catch((e) => { console.error("[App] markdown export failed", e); toast.error(t("editor.exportFailed")); });
+      },
+      createTemplate: () => {
+        if (!vaultAdapter || !vaultPath) return;
+        void import("./services/templateActions")
+          .then(async ({ createNewTemplate }) => {
+            const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
+            if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
+            markFreshNote(path);
+            openInFocusedPane(path, true);
+          })
+          .catch((e) => {
+            // Said with its reason (Sammelplan § 3.134 no. 3), as the database menu and the phone say it.
+            console.error("[App] creating a template failed", e);
+            toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
+          });
+      },
+      saveActiveAsTemplate: () => {
+        const p = activePath;
+        if (!p || !vaultAdapter || !vaultPath) return;
+        void import("./services/templateActions")
+          .then(async ({ saveNoteAsTemplate }) => {
+            const saved = await saveNoteAsTemplate(vaultAdapter, vaultPath, p);
+            if (indexer) applyIndexChanges(indexer, { added: [saved] }).then(() => triggerFileTreeUpdate()).catch(() => {});
+            toast.info(t("editor.templateSaved", { name: saved.split("/").pop() ?? saved }));
+          })
+          .catch((e) => {
+            console.error("[App] saving note as template failed", e);
+            toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
+          });
+      },
+      // Mail-raus (stage 6): three SMTP-free ways out of the vault.
+      copyNoteAsEmail: () => {
+        const p = activePath;
+        if (!p || !vaultAdapter) return;
+        void (async () => {
+          try {
+            const content = await vaultAdapter.readTextFile(p);
+            const { noteToClipboardFlavors } = await import("@plainva/ui/mail");
+            const flavors = noteToClipboardFlavors(stripFrontmatter(content));
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                "text/html": new Blob([flavors.html], { type: "text/html" }),
+                "text/plain": new Blob([flavors.text], { type: "text/plain" }),
+              }),
+            ]);
+            toast.info(t("mail.copied", { defaultValue: "Formatierter Text kopiert — im Mail-Programm einfügen." }));
+          } catch (e) {
+            console.error("[App] copy as email failed", e);
+          }
+        })();
+      },
+      sendNoteViaMailto: () => {
+        const p = activePath;
+        if (!p || !vaultAdapter) return;
+        void (async () => {
+          try {
+            const content = await vaultAdapter.readTextFile(p);
+            const [{ buildMailtoUrl }, { markdownToPlainText }, { openExternalUrl: openUrl }] = await Promise.all([
+              import("@plainva/ui/mail"),
+              import("@plainva/ui"),
+              import("./services/openExternal"),
+            ]);
+            const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
+            const res = buildMailtoUrl(title, markdownToPlainText(stripFrontmatter(content)), frontmatterToAddress(content) ?? "");
+            if (res.truncated) toast.info(t("mail.mailtoTruncated", { defaultValue: "Der Text wurde für mailto gekürzt." }));
+            await openUrl(res.url);
+          } catch (e) {
+            console.error("[App] mailto failed", e);
+          }
+        })();
+      },
+      saveNoteAsMailDraft: () => {
+        const p = activePath;
+        if (!p || !vaultAdapter) return;
+        void (async () => {
+          try {
+            const content = await vaultAdapter.readTextFile(p);
+            const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
+            // The composer is hosted beside this shell (MailComposeHost), so
+            // the palette asks for it the way the editor and the mail view do.
+            const { noteMailPrefill } = await import("@plainva/ui/mail");
+            const { to, from } = noteMailPrefill(content);
+            window.dispatchEvent(new CustomEvent("plainva-compose-mail", {
+              detail: { subject: title, markdown: stripFrontmatter(content), to, fromAddress: from },
+            }));
+          } catch (e) {
+            console.error("[App] draft prefill failed", e);
+          }
+        })();
+      },
+    });
+  // The assistant asks outside a render: it gets the list as the last render built it.
+  const paletteCommands = useStableHandler(buildPaletteCommands);
+
   return (
+    <AiSessionContext.Provider value={ai.session}>
+    <LocalModelsProvider embeddings={embeddings} gists={gists}>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       <TitleBar
         tabs={isSplit ? [] : activePane.tabs.map((tb) => tb.history[tb.historyIndex])}
@@ -1286,6 +1502,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onOpenMail={cloudServices.mail ? () => openView(MAIL_TAB_PATH) : undefined}
         onOpenComments={() => openView(COMMENTS_TAB_PATH)}
         onOpenJournal={() => openView(JOURNAL_TAB_PATH)}
+        onOpenAi={ai.enabled ? ai.openCompanion : undefined}
         onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
@@ -1439,6 +1656,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         {searching ? (
           <div className="pv-resulthead" data-testid="left-result-head">
             <span>{t("sidebar.hitsFor", { q: leftQueryDebounced.trim() })}</span>
+            <ActiveSearchModeSwitch onChange={(mode) => void ai.session?.updateSettings((s) => ({ ...s, searchMode: mode }))} />
             <IconButton label={t("sidebar.endSearch")} onClick={clearLeftQuery} data-testid="left-result-clear">
               <X size={ICON.ui} />
             </IconButton>
@@ -1607,6 +1825,18 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           onHandoverTask={handoverToTasks}
                         />
                       </Suspense>
+                    ) : path === AI_TAB_PATH ? (
+                      <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
+                        <AiTabView
+                          activeNote={ai.activeNote}
+                          onOpenNote={ai.openNoteTarget}
+                          onOpenUrl={ai.openUrl}
+                          onOpenSettings={() => capabilities.openSettings()}
+                          onPickNote={() => { setAiPick("pin"); setShowQuickSwitcher(true); }}
+                          onPickStyleExample={() => { setAiPick("style"); setShowQuickSwitcher(true); }}
+                          onOpenPath={(p) => openTab(i, p, true)}
+                        />
+                      </Suspense>
                     ) : path === COMMENTS_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <CommentsOverview onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
@@ -1735,6 +1965,22 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
           refreshToken={fileTreeVersion}
+          ai={
+            ai.enabled
+              ? {
+                  activeNote: ai.activeNote,
+                  onNewConversation: () => void ai.session?.newConversation(),
+                  onOpenNote: ai.openNoteTarget,
+                  onOpenCreated: (path) => openInFocusedPane(path, true),
+                  onOpenUrl: ai.openUrl,
+                  onOpenSettings: () => capabilities.openSettings(),
+                  onPickNote: () => {
+                    setAiPick("pin");
+                    setShowQuickSwitcher(true);
+                  },
+                }
+              : null
+          }
         />
       </aside>
       )}
@@ -1773,168 +2019,36 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         )}
         {showDeletedFiles && <DeletedFilesModal onClose={() => setShowDeletedFiles(false)} />}
       </Suspense>
+      <AiCommandSourceLink sourceRef={ai.commandSourceRef} build={paletteCommands} />
       {showCommandPalette && (
         <CommandPalette
           onClose={() => setShowCommandPalette(false)}
-          commands={buildAppCommands({
-            newItem: (kind, opts) => window.dispatchEvent(new CustomEvent("plainva-new-item", { detail: { kind, ...opts } })),
-            openDailyNote: () => { void handleOpenDailyNote(journalToday()); },
-            newEvent: newHandlers.event,
-            newTask: newHandlers.task,
-            newJournalEntry: newHandlers.journal,
-            openQuickSwitcher: () => { setQuickSwitcherNewTab(false); setShowQuickSwitcher(true); },
-            openTemplatePicker: () => setShowTemplatePicker(true),
-            openGraph: () => openView(GRAPH_TAB_PATH),
-            openTasks: () => openView(TASKS_TAB_PATH),
-            openCalendar: () => openView(CALENDAR_TAB_PATH),
-            openMail: () => openView(MAIL_TAB_PATH),
-            openComments: () => openView(COMMENTS_TAB_PATH),
-            openJournal: () => openView(JOURNAL_TAB_PATH),
-            openCommsWindow: vaultPath ? openCommsWindow : undefined,
-            // Dispatched rather than called, so a client window travels the
-            // listener above instead of needing a capability it does not have.
-            openSecondWindow: vaultPath
-              ? () => window.dispatchEvent(new CustomEvent("plainva-open-full-window"))
-              : undefined,
-            // Opens the vault line's menu: the switch and the new window sit
-            // side by side there, and the palette is the door that does not
-            // depend on the sidebar being visible.
-            openVaultWindow: vaultPath ? () => setShowVaultMenu(true) : undefined,
-            split: splitEditor,
-            toggleLeftSidebar: () => setLeftCollapsed((c) => !c),
-            toggleRightSidebar: () => toggleRightSidebar(),
-            toggleFocusMode,
-            toggleReadEdit,
-            toggleSourceMode,
-            renameActive: renameActiveNote,
-            closeActiveTab,
-            reopenClosedTab,
-            openImport: () => capabilities.openImport(),
-            toggleTheme: () => { void toggleLightDark(); },
-            // The stored theme, not <html> — "My theme" may be previewing a mood (E22).
-            themeTogglePinned: () => appliedTheme().pinned,
-            openSettings: () => capabilities.openSettings(),
-            openShortcuts: () => setShowShortcuts(true),
-            openFindReplace: () => setShowFindReplace(true),
-            activePath: () => activePath,
-            showVersionHistory: (path) => setCompareTarget({ kind: "version", path }),
-            backupNow: () => window.dispatchEvent(new CustomEvent("plainva-backup-now")),
-            updateAllIndexes: () => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes")),
-            refreshVault: () => { void refreshVault(); },
-            rebuildIndex: () => { void rebuildIndex(); },
-            switchVault: () => capabilities.closeVault?.(),
-            printActive: () => window.dispatchEvent(new CustomEvent("plainva-print-active")),
-            hasActiveNote: () => activeDocument.get().kind === "markdown",
-            exportActiveMarkdown: () => {
-              const p = activePath;
-              if (!p || !vaultAdapter) return;
-              void import("./services/exportNote")
-                .then(({ exportNoteAsMarkdown }) =>
-                  // The export asks how annotations should travel, and only when
-                  // the note has any (D10). The source is passed as functions so
-                  // the lazy chunk never reaches into the vault context itself.
-                  exportNoteAsMarkdown(vaultAdapter, p, {
-                    listComments: (path) => listWorkspaceComments(path),
-                    listNames: async () =>
-                      new Map((await listWorkspaceMembers()).map((m) => [m.memberId, m.displayName])),
-                  }),
-                )
-                .catch((e) => { console.error("[App] markdown export failed", e); toast.error(t("editor.exportFailed")); });
-            },
-            createTemplate: () => {
-              if (!vaultAdapter || !vaultPath) return;
-              void import("./services/templateActions")
-                .then(async ({ createNewTemplate }) => {
-                  const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
-                  if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
-                  markFreshNote(path);
-                  openInFocusedPane(path, true);
-                })
-                .catch((e) => {
-                  // Said with its reason (Sammelplan § 3.134 no. 3), as the database menu and the phone say it.
-                  console.error("[App] creating a template failed", e);
-                  toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
-                });
-            },
-            saveActiveAsTemplate: () => {
-              const p = activePath;
-              if (!p || !vaultAdapter || !vaultPath) return;
-              void import("./services/templateActions")
-                .then(async ({ saveNoteAsTemplate }) => {
-                  const saved = await saveNoteAsTemplate(vaultAdapter, vaultPath, p);
-                  if (indexer) applyIndexChanges(indexer, { added: [saved] }).then(() => triggerFileTreeUpdate()).catch(() => {});
-                  toast.info(t("editor.templateSaved", { name: saved.split("/").pop() ?? saved }));
-                })
-                .catch((e) => {
-                  console.error("[App] saving note as template failed", e);
-                  toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
-                });
-            },
-            // Mail-raus (stage 6): three SMTP-free ways out of the vault.
-            copyNoteAsEmail: () => {
-              const p = activePath;
-              if (!p || !vaultAdapter) return;
-              void (async () => {
-                try {
-                  const content = await vaultAdapter.readTextFile(p);
-                  const { noteToClipboardFlavors } = await import("@plainva/ui/mail");
-                  const flavors = noteToClipboardFlavors(stripFrontmatter(content));
-                  await navigator.clipboard.write([
-                    new ClipboardItem({
-                      "text/html": new Blob([flavors.html], { type: "text/html" }),
-                      "text/plain": new Blob([flavors.text], { type: "text/plain" }),
-                    }),
-                  ]);
-                  toast.info(t("mail.copied", { defaultValue: "Formatierter Text kopiert — im Mail-Programm einfügen." }));
-                } catch (e) {
-                  console.error("[App] copy as email failed", e);
-                }
-              })();
-            },
-            sendNoteViaMailto: () => {
-              const p = activePath;
-              if (!p || !vaultAdapter) return;
-              void (async () => {
-                try {
-                  const content = await vaultAdapter.readTextFile(p);
-                  const [{ buildMailtoUrl }, { markdownToPlainText }, { openExternalUrl: openUrl }] = await Promise.all([
-                    import("@plainva/ui/mail"),
-                    import("@plainva/ui"),
-                    import("./services/openExternal"),
-                  ]);
-                  const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-                  const res = buildMailtoUrl(title, markdownToPlainText(stripFrontmatter(content)), frontmatterToAddress(content) ?? "");
-                  if (res.truncated) toast.info(t("mail.mailtoTruncated", { defaultValue: "Der Text wurde für mailto gekürzt." }));
-                  await openUrl(res.url);
-                } catch (e) {
-                  console.error("[App] mailto failed", e);
-                }
-              })();
-            },
-            saveNoteAsMailDraft: () => {
-              const p = activePath;
-              if (!p || !vaultAdapter) return;
-              void (async () => {
-                try {
-                  const content = await vaultAdapter.readTextFile(p);
-                  const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-                  // The composer is hosted beside this shell (MailComposeHost), so
-                  // the palette asks for it the way the editor and the mail view do.
-                  const { noteMailPrefill } = await import("@plainva/ui/mail");
-                  const { to, from } = noteMailPrefill(content);
-                  window.dispatchEvent(new CustomEvent("plainva-compose-mail", {
-                    detail: { subject: title, markdown: stripFrontmatter(content), to, fromAddress: from },
-                  }));
-                } catch (e) {
-                  console.error("[App] draft prefill failed", e);
-                }
-              })();
-            },
-          })}
+          commands={buildPaletteCommands()}
         />
       )}
       <Suspense fallback={null}>
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+        {ai.enabled && (
+          <Suspense fallback={null}>
+            <McpPairing />
+            <McpPlanDialog />
+            <LearnDialogs onOpenPath={(path) => openInFocusedPane(path, true)} />
+          </Suspense>
+        )}
+        {ai.companionOpen && (
+          <Suspense fallback={null}>
+            <AiCompanion
+              activeNote={ai.activeNote}
+              onClose={ai.closeCompanion}
+              onOpenAsTab={ai.openAsTab}
+              onOpenNote={ai.openNoteTarget}
+              onOpenCreated={(path) => openInFocusedPane(path, true)}
+              onOpenUrl={ai.openUrl}
+              onOpenSettings={() => capabilities.openSettings()}
+              onPickNote={() => { setAiPick("pin"); setShowQuickSwitcher(true); }}
+            />
+          </Suspense>
+        )}
         {showFindReplace && (
           <Suspense fallback={null}>
             <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />
@@ -1952,7 +2066,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         )}
       </Suspense>
       <CascadeDeleteHost onDeleted={handleCascadeDeleted} />
-      <QuickSwitcher isOpen={showQuickSwitcher} onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); normalizeNow(); }} onOpenPath={(p) => openInFocusedPane(p, quickSwitcherNewTab)} recentPaths={recentPaths} />
+      <QuickSwitcher
+        isOpen={showQuickSwitcher}
+        onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); setAiPick(null); normalizeNow(); }}
+        onOpenPath={(p) => { if (aiPick === "pin") void ai.session?.pin(p); else if (aiPick === "style") pickStyleExample(p); else openInFocusedPane(p, quickSwitcherNewTab); }}
+        recentPaths={recentPaths}
+      />
       {tabMenu && (() => {
         // Everything the tab menu needs about the RIGHT-CLICKED tab (not the
         // active one — they differ whenever you right-click a background tab).
@@ -2004,5 +2123,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       {children}
       {tabTransfer.modal}
     </div>
+    </LocalModelsProvider>
+    </AiSessionContext.Provider>
   );
 }

@@ -52,9 +52,8 @@ function defaultApplication(): string {
     const bundles = join(target, "bundle", "macos");
     const app = existsSync(bundles) ? readdirSync(bundles).find((name) => name.endsWith(".app")) : undefined;
     if (!app) return join(bundles, "Plainva.app", "Contents", "MacOS", "plainva-desktop");
-    const macosDir = join(bundles, app, "Contents", "MacOS");
-    const binary = readdirSync(macosDir)[0];
-    return join(macosDir, binary ?? "plainva-desktop");
+    // The app's own binary by its name: the bundle carries the MCP helper beside it (plan KI-Harness §17.3).
+    return join(bundles, app, "Contents", "MacOS", "plainva-desktop");
   }
   return join(target, isWin ? "plainva-desktop.exe" : "plainva-desktop");
 }

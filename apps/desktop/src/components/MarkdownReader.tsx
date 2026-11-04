@@ -147,7 +147,7 @@ const VaultAudio: React.FC<{ path: string; notePath?: string; label: string }> =
   const candidates = imageCandidates(path, { notePath: notePath ?? '' });
   const { url, failed } = useVaultMedia(candidates[0] ?? path, candidates.slice(1), imageBasename(path));
   if (candidates.length === 0) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{label}</span>;
-  return <AudioEmbed url={failed ? null : url ?? undefined} label={label} />;
+  return <AudioEmbed url={failed ? null : url ?? undefined} label={label} {...(notePath ? { place: { notePath, target: path } } : {})} />;
 };
 
 const VaultImage: React.FC<{
@@ -164,7 +164,9 @@ const VaultImage: React.FC<{
   commentId?: string;
   onActivate?: (commentId: string) => void;
   onOpenPath?: (path: string, newTab: boolean) => void;
-}> = ({ path, fallbacks, basename, width, alt, frameClass, regions, commentId, onActivate, onOpenPath }) => {
+  /** The note the picture stands in: with it the menu's "Explain image" also asks that note's rules (plan KI-Harness P4-5). */
+  notePath?: string;
+}> = ({ path, fallbacks, basename, width, alt, frameClass, regions, commentId, onActivate, onOpenPath, notePath }) => {
   const { vaultAdapter } = useVault();
   const { t } = useTranslation();
   const { url, loadedPath, failed } = useVaultMedia(path, fallbacks, basename);
@@ -186,7 +188,7 @@ const VaultImage: React.FC<{
           y: e.clientY,
           selection: "",
           editable: null,
-          image: { open: () => onOpenPath?.(loadedPath, false), loadBytes: () => vaultAdapter.readBinaryFile(loadedPath), filename: loadedPath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(loadedPath) },
+          image: { open: () => onOpenPath?.(loadedPath, false), loadBytes: () => vaultAdapter.readBinaryFile(loadedPath), filename: loadedPath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(loadedPath), place: { path: loadedPath, ...(notePath ? { notePath } : {}) } },
         });
       }}
       style={{ maxWidth: '100%', borderRadius: 'var(--radius-xs)', ...(width ? { width: `${width}px` } : {}) }}
@@ -549,7 +551,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               if (candidates.length === 0) {
                 return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || embed.target}</span>;
               }
-              return <VaultImage onOpenPath={onOpenPath} path={candidates[0]} fallbacks={candidates.slice(1)} basename={imageBasename(embed.target)} width={embed.width} alt={embed.alt || alt || embed.target} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
+              return <VaultImage onOpenPath={onOpenPath} notePath={sourcePath} path={candidates[0]} fallbacks={candidates.slice(1)} basename={imageBasename(embed.target)} width={embed.width} alt={embed.alt || alt || embed.target} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
             }
             if (src && !/^(https?:|data:|blob:)/.test(src)) {
               // Plain markdown image with a FILE-relative path (standard MD:
@@ -560,7 +562,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               if (!rel) {
                 return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{alt || src}</span>;
               }
-              return <VaultImage onOpenPath={onOpenPath} path={rel} alt={alt || rel} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
+              return <VaultImage onOpenPath={onOpenPath} notePath={sourcePath} path={rel} alt={alt || rel} frameClass={frameClass} regions={regions} commentId={commentId} onActivate={onActivateAnchor} />;
             }
             return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: "var(--radius-xs)" }} {...props} />;
           },

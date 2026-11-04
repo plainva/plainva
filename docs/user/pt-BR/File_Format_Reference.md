@@ -146,6 +146,7 @@ Extras específicos do Plainva para notas são agrupados sob uma única chave `p
 | `tasks` | `false` | Exclui as caixas de seleção desta nota da [visualização de Tarefas](Tasks.md) |
 | `templateFor` | lista de links wiki para arquivos `.base` | Atribui um **modelo** aos bancos de dados listados (só faz sentido para notas dentro da pasta de modelos) |
 | `pim` | mapeamento (veja abaixo) | Âncora que vincula a nota a um evento de calendário, tarefa ou e-mail externo |
+| `ai` | mapa `{cloud, web}`, cada um `allow` ou `deny` | Regra de privacidade de IA desta nota (veja abaixo) |
 
 Todos são opcionais. Se você não escrever nenhum deles, omita a chave `plainva:` inteiramente. Valores inválidos são ignorados na leitura, nunca tratados como erro.
 
@@ -167,6 +168,54 @@ plainva:
 **O nome do arquivo não faz parte da identidade.** Uma tarefa espelhada tem o nome do seu título (`<título>.md`, com o mesmo título `<título> 2.md` e assim por diante); a associação é feita apenas pela âncora. Ferramentas podem renomear e mover o arquivo desde que a âncora permaneça. Nomes no formato `<título> — <16 ou 64 dígitos hexadecimais>.md` vêm das versões do Plainva de 12 a 24 de setembro de 2026: os dígitos são o início de um SHA-256 sobre provedor, identidade, lista e `uid`. A visualização de tarefas oferece uma vez renomeá-los pelo título — só quando os dígitos correspondem à âncora no mesmo arquivo.
 
 `templateFor` é o contrato de campo da atribuição de modelo (veja [Bancos de Dados (.base)](Databases_Base.md)): em uma nota dentro da pasta de modelos, ele lista os bancos de dados cujo menu **Entrada** mostra o modelo por padrão. Os valores são links wiki completos, incluindo a extensão `.base` — sem qualificação (`"[[Tasks.base]]"` corresponde ao arquivo desse nome em qualquer pasta, portanto continua funcionando mesmo que o arquivo apenas mude de pasta) ou qualificados por caminho (`"[[Projekte/Tasks.base]]"` corresponde exatamente a esse caminho). O Plainva grava links sem qualificação e só os qualifica por caminho quando existem dois arquivos `.base` com o mesmo nome. Um escalar em vez de uma lista é tolerado. Ao criar um item a partir do modelo, `templateFor` — diferente das demais chaves `plainva:` — **não** é copiado para a nova nota.
+
+### Regra de privacidade de IA (`plainva.ai` e `.agent/`)
+
+`plainva: { ai: … }` diz para onde o conteúdo da nota pode ir quando há IA envolvida:
+
+- `cloud: deny` — nunca para um destinatário de IA na nuvem: nem o texto, nem o título, o nome do arquivo, o texto de link ou um resumo. Modelos locais no dispositivo continuam permitidos.
+- `web: deny` — nunca numa tarefa que também use a web.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+As regras para pastas inteiras ficam em `.agent/policy.yml`. O valor da própria nota vence; senão, a regra de pasta mais próxima:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` valem como `allow`/`deny`; qualquer outro valor é ignorado e nunca libera nada. O restante da pasta oculta `.agent/` — skills (`skills/<name>/SKILL.md`), memória e notas de conversa — pertence ao assistente do Plainva. O Plainva só segue um arquivo novo ou alterado ali depois que o usuário o aprova naquele dispositivo; por isso, uma ferramenta só deve escrever em `.agent/` se o usuário pedir exatamente isso.
+
+### A memória do assistente (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Dois arquivos Markdown guardam o que o assistente deve saber sobre o usuário: `.agent/active_memory.md` entra em toda nova conversa, `.agent/MEMORY.md` é consultado quando uma pergunta precisa. Uma entrada é um item de lista de nível superior (`-`, `*` ou `+`); linhas recuadas continuam a entrada, os títulos agrupam as entradas, e um bloco YAML no topo do arquivo e os blocos de código são ignorados. O que o Plainva sabe sobre uma entrada fica em um único comentário HTML depois dela:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — o dia em que a entrada foi adicionada (`YYYY-MM-DD`).
+- `by` — `user`, ou `assistant` quando o usuário aceitou um rascunho.
+- `source` — o título da conversa de onde veio um rascunho.
+- `deny` — `cloud`, `web` ou ambos: os destinatários que não podem receber a entrada, como em uma nota.
+
+Uma ferramenta que escreve uma entrada a mantém em uma linha de no máximo 500 caracteres e deixa os comentários das outras entradas como estão. Um comentário danificado — não fechado, presente duas vezes ou que nomeia uma regra que o Plainva não conhece — mantém a entrada longe de todos os modelos. Uma entrada sem comentário não tem regra própria, por isso uma ferramenta nunca deve apagar o comentário de uma entrada que reescreve. O que o assistente deve fazer não se escreve aqui: regras são linhas do `AGENTS.md`.
+
+### O registro de aprendizado (`.agent/logs/learning.md`)
+
+Uma linha para tudo o que foi aceito a partir de uma sugestão do assistente — uma nova habilidade, outras instruções para uma habilidade, uma regra em `AGENTS.md` — e para cada retorno a uma versão anterior de uma habilidade: a data e a hora até o minuto, o que mudou e o título da conversa de onde veio. O Plainva acrescenta linhas e não lê nenhuma delas de volta.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+O arquivo é uma lista sob um título e pode ser encurtado ou excluído. Ele não contém nenhuma palavra do modelo que fez a sugestão e nunca o nome dele. Ao passar de 100.000 caracteres, o Plainva descarta as linhas mais antigas da lista.
 
 ### Links
 
@@ -601,6 +650,7 @@ Regras: caminhos fixados não são repetidos em `pinboardOrder`. Cartões que n�
 ## O que não tocar e segurança
 
 - **`.plainva/`** guarda backups e estado interno. Nunca leia lógica de programa dali nem escreva ali.
+- **`.agent/`** guarda as regras de IA, os skills e a memória do Plainva. Altere só se o usuário pedir exatamente isso, e respeite `cloud: deny` e `web: deny` (veja a regra de privacidade de IA acima).
 - **Chaves desconhecidas são sagradas.** Ao reescrever uma `.base` ou uma nota, carregue adiante toda chave que você não pretendia alterar. O próprio Plainva preserva chaves desconhecidas de `.base` por meio de uma cópia bruta interna; um escritor de terceiros deve fazer o mesmo (analisar → alterar apenas o que você pretende → serializar).
 - **Os valores mudam na nota, não na `.base`.** Para definir uma célula, edite o frontmatter da nota. A `.base` só decide quais notas e colunas são exibidas.
 - **Não adicione chaves de nível superior em `.base`** além de `filters` / `formulas` / `properties` / `summaries` / `views`.

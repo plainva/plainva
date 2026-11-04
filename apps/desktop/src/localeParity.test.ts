@@ -67,8 +67,12 @@ function sourcesUnder(roots: readonly string[]): string[] {
 function collectUsedKeys(): Set<string> {
   const keys = new Set<string>();
   const re = /\bt\(\s*["']([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)["']/g;
+  // The agent view's sentence builders (plan P9-7) take the key second: a literal, or a choice between literals.
+  const sentences = /\b(?:saidSentence|sentenceString|sentence)\(\s*t\s*,\s*((?:[^,()"'`]|"[^"]*"|'[^']*')+),/g;
+  const literal = /["']([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)["']/g;
   for (const text of sourcesUnder(SCAN_ROOTS)) {
     for (const m of text.matchAll(re)) keys.add(m[1]);
+    for (const m of text.matchAll(sentences)) for (const k of m[1].matchAll(literal)) keys.add(k[1]);
   }
   return keys;
 }
@@ -316,6 +320,38 @@ describe("locale parity", () => {
 const VERBATIM_THRESHOLD = 6;
 
 const VERBATIM_ALLOWED = new Set<string>([
+  // The AI profile that transcribes (plan KI-Harness P1.5): "Audio" is the word in de, es, fr, it, nl and pl too.
+  "ai.profile.audio",
+  // A product name (the MCP settings row of plan KI-Harness §17.3): the same in every language.
+  "ai.mcp.package",
+  // A running AI tool: the tool's own (translated) name and an ellipsis.
+  "ai.toolRunning",
+  // An external agent's setting and where it stands (plan KI-Harness P9-7): the agent's own two words joined by a
+  // colon — French and the CJK languages write their own colon, the others this one.
+  "ai.agent.config.value",
+  // Related notes (plan KI-Harness P2b-4): two sections and the arrow between them, nothing to translate.
+  "ai.related.pair",
+  // The assistant's way onto the internet (plan KI-Harness P4): "Internet" is the word in de, es, fr, it, nl, pl
+  // and pt-BR too — the row of the send overview and the heading in the vault's settings.
+  "ai.overview.web",
+  "ai.web.settings.title",
+  // A reserved example domain as the field's placeholder: an address, not a word.
+  "ai.web.settings.sitePlaceholder",
+  // The Cc row on the card of a drafted mail (plan KI-Harness P5-6): the abbreviation the composer's own row
+  // carries (`mail.cc`, below) — "Cc" in every Latin-script language but pl, and in ja.
+  "ai.write.draft.cc",
+  // An input of a script in its approval (plan KI-Harness P5.5): its name, its kind and whether it is required —
+  // three placeholders and their punctuation; the words they stand for are translated where they are defined.
+  "ai.scripts.inputLine",
+  "ai.scripts.inputLineDescribed",
+  // A routine's schedule and the line of a model it can be given (plan KI-Harness P8): placeholders and their
+  // punctuation — the days and the time, the profile, the provider and the model; the words come from what fills them.
+  "ai.routines.form.profile",
+  "ai.routines.schedule",
+  // A run's snapshot and its replay (plan KI-Harness P9-2): a tool's (translated) name and how often it was called,
+  // and the title of a replay — the original's title and the model, a separator between. No word to translate.
+  "ai.snapshot.toolCount",
+  "ai.replay.title",
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
   // The artifact kind and the worker's raw sentence, joined by a colon - the
@@ -402,7 +438,7 @@ const VERBATIM_ALLOWED = new Set<string>([
   "workspaceSecurity.ruleField.tag",
   "workspaceSecurity.slice",
   "workspaceSecurity.slices",
-// count: 78
+// count: 81
 ]);
 
 describe("verbatim English carry-over (D8)", () => {

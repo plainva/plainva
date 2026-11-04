@@ -1,6 +1,6 @@
 # Busca
 
-Última revisão: 2026-09-30
+Última revisão: 2026-10-01
 
 O Plainva oferece três formas de buscar: busca de texto completo em todo o vault, o alternador rápido para abrir arquivos, e localizar e substituir dentro de uma nota.
 
@@ -24,6 +24,32 @@ O campo de busca também se aplica às outras visualizações da barra lateral: 
 - `tag:nome` — apenas notas com essa tag, incluindo tags aninhadas: `tag:projeto` também encontra `#projeto/interno`. `tag:#projeto` também funciona.
 - Os operadores podem ser negados (`-path:Arquivo`, `-tag:concluido`) e combinados livremente com termos de busca: `plano tag:projeto -rascunho`.
 - Vários termos são combinados com E. Caracteres especiais como `- ( ) : *` dentro dos termos são inofensivos — o Plainva trata a entrada literalmente.
+
+## Pesquisa por significado
+
+Com um modelo local, a pesquisa também encontra notas pelo que elas significam — não só pelas palavras, e entre idiomas: uma pergunta em português encontra uma nota em inglês que diz o mesmo. O modelo calcula neste dispositivo; suas notas e os vetores calculados a partir delas nunca saem dele.
+
+Ative em **Configurações → IA e automação → Pesquisa semântica** (a IA precisa estar ativada). Escolha um modelo — o recomendado é **Granite Embedding Multilingual R2 (97M)** — e o Plainva mostra o tamanho, a fonte, a licença e uma duração estimada antes de baixar qualquer coisa. Cada arquivo vem de uma versão fixa no huggingface.co e é verificado pelo SHA-256; não é preciso fazer login. Antes de processar a primeira nota, o Plainva verifica se o modelo calcula corretamente neste dispositivo.
+
+Em vez de um pacote você pode escolher **Provedor próprio**: então o modelo do perfil **Embeddings** calcula os vetores — qualquer modelo de embeddings que o seu provedor ofereça, por exemplo `text-embedding-3-small` na OpenAI, `gemini-embedding-001` no Gemini ou `nomic-embed-text` no Ollama. Com Ollama ou LM Studio nada sai do seu computador. Com uma nuvem, o resumo mostra uma vez o que vai para lá — cada nota que as suas regras de privacidade deixam passar, agora e a cada mudança, e as suas perguntas de pesquisa — e **Aprovar de forma permanente** inicia; **Retirar aprovação** nas configurações interrompe. Notas que as suas regras mantêm longe da nuvem ficam de fora, e em um workspace criptografado só calcula um pacote ou um servidor neste computador. Se outro modelo responder com o mesmo nome — um novo `ollama pull`, um servidor que mudou —, o Plainva percebe antes da próxima nota e calcula os vetores de novo em vez de misturar dois modelos. Se o provedor não puder ser alcançado, a pesquisa responde pelas palavras e avisa. **Sem uso neste dispositivo** lista pacotes e vetores de modelos que você não usa mais; **Remover** os apaga.
+
+**Medir este dispositivo** (ao lado de **Pausar** enquanto um modelo calcula) confere este dispositivo com os orçamentos que o Plainva segue: a primeira passagem por 5.000 seções, uma nota alterada encontrada de novo, uma pesquisa em 20.000 seções, a memória do app no pico e o download. A medição usa texto de exemplo, nunca suas notas, e o processamento espera enquanto isso; **Copiar resultados** coloca os números na área de transferência — por exemplo, para o seu retorno sobre a beta.
+
+Enquanto um modelo está ativo, o cabeçalho dos resultados oferece **Palavras**, **Significado** e **Ambos**:
+
+- **Palavras** é a pesquisa de texto completo descrita acima.
+- **Significado** lista as notas cujas seções mais se aproximam da sua pergunta; abrir um resultado leva a essa seção.
+- **Ambos** (padrão) ordena juntos os resultados de palavras e significado.
+
+Em **Significado** e **Ambos** cada nota aparece uma vez, e um pequeno rótulo diz o que a encontrou: **Palavras**, **Significado** ou **Palavras e significado**. Os operadores de pesquisa (`path:`, `tag:`, `-termo`) também limitam os resultados por significado. A escolha vale para este dispositivo.
+
+O Plainva processa as notas em segundo plano, as alteradas mais recentemente primeiro; uma nota que você está editando entra alguns segundos depois que você para de digitar. Até lá, ela só é encontrada pelas palavras — um resultado por significado nunca vem do texto antigo de uma nota. Uma linha abaixo dos resultados mostra o progresso e oferece **Pausar**. No celular, o processamento só acontece enquanto o Plainva está aberto. **Remover (com os vetores)** nas configurações apaga o modelo e tudo o que ele calculou.
+
+### Notas relacionadas
+
+Ao lado da nota aberta, o Plainva mostra até três notas próximas a ela em significado, mas ainda sem link com ela — no computador, na seção **Relacionadas** da barra lateral direita, depois de **Backlinks**; no telefone, na aba **Relacionadas** da folha da nota. Elas vêm dos vetores que a pesquisa por significado já guarda neste dispositivo: nada é enviado, nem mesmo a um provedor próprio. Uma sugestão só aparece quando uma nota se destaca claramente do resto do vault; cópias e texto comum de um modelo não contam. Por isso a maioria das notas não tem sugestão, e então a seção desaparece.
+
+Cada sugestão indica as duas seções mais próximas — por exemplo “Produção ↔ Dias de filmagem › Divisão” — e as notas para as quais ambas têm link. **Por que esta sugestão?** mostra o início das duas seções (um clique leva até lá); **Não ajudou** oculta exatamente esse par neste dispositivo e não muda a pesquisa. **Pausar para esta nota** e **Pausar neste vault** ficam no menu da seção; no telefone, abaixo da lista. **Mostrar notas relacionadas** em **Configurações → IA e automação → Pesquisa semântica** desativa as sugestões neste dispositivo; ali você também retoma um vault ou notas pausadas e traz de volta as sugestões ocultas.
 
 ## Alternador rápido
 

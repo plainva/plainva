@@ -38,7 +38,7 @@ import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
 import { Button as UiButton, TextInput } from "@plainva/ui";
-import { IconButton, isCommentThreadOpen } from "@plainva/ui";
+import { IconButton, isCommentThreadOpen, suggestedProperties, useAiSession, useCommentThreadAi } from "@plainva/ui";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -46,7 +46,7 @@ import { resolveGoverningBase } from "../services/baseSchema";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useWikiResolver } from "../hooks/useWikiResolver";
 import { activeDocument, type DocChannel } from "../services/activeDocument";
-import { setEditorSelectionReader } from "../services/editorSelection";
+import { setEditorRangeReader, setEditorSelectionReader } from "../services/editorSelection";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
 import { dirtyStore } from "../services/dirtyStore";
@@ -54,6 +54,7 @@ import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openExternalUrl as openUrl } from "../services/openExternal";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
+import { AiSelectionButton } from "./ai/AiSelectionButton";
 import { createTasksQueryHost } from "./TasksQueryPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isOwnerWindow } from "../services/windowContext";
@@ -377,6 +378,8 @@ export const Editor: React.FC<{
   // A name is a CLAIM the policy carries, not a verified identity - the card
   // keeps the member id reachable, so nobody has to take the name on faith.
   const memberNames = useMemo(() => new Map(workspaceMembers.map((member) => [member.memberId, member.displayName])), [workspaceMembers]);
+  // The assistant in this note's comment threads (plan KI-Harness P3-6); not where the remarks are sealed.
+  const threadAi = useCommentThreadAi(useAiSession(), activePath, { sealed: workspaceSecurityStatus !== null });
 
   /**
    * Where each anchored comment currently lands, in RAW offsets - which is what
@@ -398,6 +401,12 @@ export const Editor: React.FC<{
     }
     return map;
   }, [workspaceComments, content]);
+
+  // A suggestion that proposes the value of a property (plan KI-Harness P5-3): which ones do, what they propose, and
+  // whether the proposal still fits the note. One that says its property at its anchor belongs to the property
+  // vocabulary above — nothing is drawn for it in the text —, but it IS a passage, the property's entry, and only the
+  // entry can tell that the value changed since. The cards read this instead of showing a line of YAML.
+  const suggestedProps = useMemo(() => suggestedProperties(content, workspaceComments), [workspaceComments, content]);
 
   // The rename trail lives on the `.base` column (plan Stufe E, section 5:
   // "Der Anker zieht mit"), so the alias source is the base governing this note.
@@ -450,6 +459,9 @@ export const Editor: React.FC<{
       if (!key) continue;
       const res = propertyResolutions.get(comment.commentId);
       if (!res || res.status === "orphan") continue;
+      // A proposed value that was accepted or declined is closed (plan KI-Harness P5-3): every answered proposal of
+      // an assistant would otherwise leave its number on the row for good.
+      if (comment.suggestion && comment.resolvedAt) continue;
       counts.set(res.key, (counts.get(res.key) ?? 0) + 1);
     }
     return counts;
@@ -2679,10 +2691,21 @@ export const Editor: React.FC<{
         resolveByName: (name) => vaultContext.queryService?.findByFileName(name, activePath ?? undefined) ?? Promise.resolve(null),
       }),
       onOpenImage: (absolutePath: string) => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); },
-      onImageContext: (e, absolutePath) => openContextMenu({
-        x: e.clientX, y: e.clientY, selection: "", editable: null,
-        image: { open: () => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); }, loadBytes: () => readFile(absolutePath), filename: absolutePath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(absolutePath) },
-      }),
+      onImageContext: (e, absolutePath) => {
+        const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/";
+        // The picture's place in the vault, for "Explain image" (plan KI-Harness P4-5): its path, and this note.
+        const relative = absolutePath.startsWith(root) ? absolutePath.slice(root.length) : null;
+        return openContextMenu({
+          x: e.clientX, y: e.clientY, selection: "", editable: null,
+          image: {
+            open: () => { if (relative) onOpenPath?.(relative, false); },
+            loadBytes: () => readFile(absolutePath),
+            filename: absolutePath.split(/[/\\]/).pop() ?? "image",
+            mime: imageMimeType(absolutePath),
+            ...(relative ? { place: { path: relative, ...(activePath ? { notePath: activePath } : {}) } } : {}),
+          },
+        });
+      },
       buildNoteEmbedExtension: (context, isLive) => noteEmbedPlugin(context, isLive),
       tasksQueryHost,
     };
@@ -2711,8 +2734,18 @@ export const Editor: React.FC<{
         .map((r) => view.state.sliceDoc(r.from, r.to))
         .join("\n") || null;
     });
-    return () => setEditorSelectionReader(null);
-  }, [ownsGlobalStats, isActivePane]);
+    // The AI's selection door needs the place too (plan KI-Harness P1.5).
+    setEditorRangeReader(() => {
+      const view = sessionRef.current?.view;
+      if (!view || !activePath) return null;
+      const { from, to } = view.state.selection.main;
+      return { path: activePath, from, to, text: view.state.sliceDoc(from, to), doc: view.state.doc.toString() };
+    });
+    return () => {
+      setEditorSelectionReader(null);
+      setEditorRangeReader(null);
+    };
+  }, [ownsGlobalStats, isActivePane, activePath]);
 
   // One CodeMirror session per open file: created when the pane shows an
   // editor (live/source) with loaded content, destroyed on file switch / read
@@ -2823,6 +2856,9 @@ export const Editor: React.FC<{
     const highlights: AnchorHighlight[] = [];
     for (const comment of workspaceComments) {
       if (comment.resolvedAt) continue;
+      // A suggestion that proposes a property is no passage of the text (plan KI-Harness P5-3): its card names the
+      // property and its values. Drawn here, the first property of a note would stand as raw YAML above its first line.
+      if (suggestedProps.has(comment.commentId)) continue;
       const resolution = anchorResolutions.get(comment.commentId);
       if (!resolution || resolution.status === "orphan") continue;
       // A widget covers the range: the tint would have no text to paint on, so
@@ -2841,7 +2877,7 @@ export const Editor: React.FC<{
       });
     }
     return highlights;
-  }, [workspaceComments, anchorResolutions, activeCommentId, suggestionsInline]);
+  }, [workspaceComments, anchorResolutions, activeCommentId, suggestionsInline, suggestedProps]);
   // Widget anchors written before 2026-09-03 left a marker pair around the
   // whole table or picture, and a pair around a table keeps the parser from
   // seeing a table (finding 2026-09-03, V7). The pair does nothing for such
@@ -3043,12 +3079,14 @@ export const Editor: React.FC<{
         intended = insertAnchorMarkers(snapshot.text, resolved.from, resolved.to, anchor.markerId!);
     }
     if (suggestion && !anchor?.quote) throw new Error("workspace-suggestion-needs-selection");
-    await runCommentInput({ notePath: activePath, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+    const operation = await runCommentInput({ notePath: activePath, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
       markers: [{ path: activePath, body, parentCommentId, ...(parent?.targetRevisionId ? { targetObjectId: parent.targetObjectId } : {}), anchor, suggestion }] }, snapshot);
     if (snapshot.current() || (saveState.isActive() && sessionRef.current?.view === view)) {
       if (propertyTargetRef.current === parkedProperty) propertyTargetRef.current = null;
       if (commentTargetRef.current === parked) commentTargetRef.current = null;
     }
+    // "@AI" in the remark (plan KI-Harness P3-6): the assistant answers in the thread.
+    if (!suggestion) threadAi.answer({ commentId: operation.markers[0]!.identity.commentId, parentCommentId, body, quote: anchor?.quote ?? null }, { comments: workspaceComments, names: memberNames, selfId: commentSelfId });
   });
   const decideComments = useStableHandler(async (comments: WorkspaceCommentRecord[], outcome: "applied" | "declined") => {
     if (!activePath || !comments.length) return;
@@ -3889,11 +3927,13 @@ export const Editor: React.FC<{
           selfMemberId={commentSelfId}
           resolutions={anchorResolutions}
           propertyResolutions={propertyResolutions}
+          suggestedProperties={suggestedProps}
           canComment={workspaceCanComment}
           activeCommentId={activeCommentId}
           selectionQuote={selectionQuote}
           onSelect={selectCommentFromColumn}
           onSubmit={postComment}
+          ai={threadAi.ai}
           canWrite={!workspaceReadOnly}
           canModerate={workspaceCapabilities?.includes("workspace.manage") === true}
           onDelete={(comment) => { void deleteComment(comment); }}
@@ -3996,7 +4036,7 @@ export const Editor: React.FC<{
       )}
 
       {viewMode !== 'read' && selToolbar && (
-        <SelectionToolbar {...selToolbar} onAction={applyFormat} />
+        <SelectionToolbar {...selToolbar} onAction={applyFormat} extra={<AiSelectionButton />} />
       )}
 
       {blockMenu && (

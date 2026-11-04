@@ -26,12 +26,27 @@
 		7C0002000000000000000002 /* VaultFolderListing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0001000000000000000002 /* VaultFolderListing.swift */; };
 		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000001 /* WidgetBridgePlugin.swift */; };
+		B20002000000000000000001 /* IntentBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000001 /* IntentBridgePlugin.swift */; };
+		B20002000000000000000002 /* PlainvaIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000002 /* PlainvaIntents.swift */; };
+		B20002000000000000000003 /* IntentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000003 /* IntentStore.swift */; };
+		B20002000000000000000004 /* PlainvaIntents.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000004 /* PlainvaIntents.xcstrings */; };
+		B20002000000000000000005 /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = B20003000000000000000001 /* AppShortcuts.strings */; };
+		8C0002000000000000000001 /* AiNetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C0001000000000000000001 /* AiNetPlugin.swift */; };
+		A10002000000000000000002 /* AiWebPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000002 /* AiWebPlugin.swift */; };
+		A10002000000000000000004 /* AiMcpPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000004 /* AiMcpPlugin.swift */; };
+		A10002000000000000000006 /* AiMcpAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000006 /* AiMcpAuthPlugin.swift */; };
+		9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0001000000000000000001 /* LocalModelPlugin.swift */; };
+		9E0002000000000000000001 /* PlatformModelPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0001000000000000000001 /* PlatformModelPlugin.swift */; };
+		9D0005000000000000000001 /* PlainvaOrt in Frameworks */ = {isa = PBXBuildFile; productRef = 9D0004000000000000000001 /* PlainvaOrt */; };
 		7A0E02000000000000000001 /* WebAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0E01000000000000000001 /* WebAuthPlugin.swift */; };
 		7F0002000000000000000002 /* WidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000002 /* WidgetStore.swift */; };
 		7B1008010000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1009020000000000000001 /* ShareViewController.swift */; };
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7E0002000000000000000001 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
 		7E0002000000000000000002 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
+		A10002000000000000000001 /* AiWebRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000001 /* AiWebRules.swift */; };
+		A10002000000000000000003 /* AiMcpRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000003 /* AiMcpRules.swift */; };
+		A10002000000000000000005 /* AiMcpOAuthRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000005 /* AiMcpOAuthRules.swift */; };
 		7E0002000000000000000003 /* ShareCopy.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000002 /* ShareCopy.xcstrings */; };
 		8A0002000000000000000001 /* PlainvaWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000001 /* PlainvaWidgets.swift */; };
 		8A0002000000000000000002 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000002 /* WidgetModel.swift */; };
@@ -98,6 +113,26 @@
 		7C0001000000000000000002 /* VaultFolderListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultFolderListing.swift; sourceTree = "<group>"; };
 		7D0001000000000000000001 /* DevicePimPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePimPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000001 /* WidgetBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridgePlugin.swift; sourceTree = "<group>"; };
+		B20001000000000000000001 /* IntentBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentBridgePlugin.swift; sourceTree = "<group>"; };
+		B20001000000000000000002 /* PlainvaIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainvaIntents.swift; sourceTree = "<group>"; };
+		B20001000000000000000003 /* IntentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/IntentStore.swift; sourceTree = SOURCE_ROOT; };
+		B20001000000000000000004 /* PlainvaIntents.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = PlainvaIntents.xcstrings; sourceTree = "<group>"; };
+		B20001000000000000000010 /* en */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000011 /* de */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000012 /* es */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000013 /* fr */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000014 /* it */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000015 /* ja */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000016 /* nl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000017 /* pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000018 /* pt-BR */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
+		B20001000000000000000019 /* zh-CN */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = "zh-CN"; path = "zh-CN.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
+		8C0001000000000000000001 /* AiNetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiNetPlugin.swift; sourceTree = "<group>"; };
+		A10001000000000000000002 /* AiWebPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiWebPlugin.swift; sourceTree = "<group>"; };
+		A10001000000000000000004 /* AiMcpPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiMcpPlugin.swift; sourceTree = "<group>"; };
+		A10001000000000000000006 /* AiMcpAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiMcpAuthPlugin.swift; sourceTree = "<group>"; };
+		9D0001000000000000000001 /* LocalModelPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelPlugin.swift; sourceTree = "<group>"; };
+		9E0001000000000000000001 /* PlatformModelPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformModelPlugin.swift; sourceTree = "<group>"; };
 		7A0E01000000000000000001 /* WebAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000002 /* WidgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/WidgetStore.swift; sourceTree = SOURCE_ROOT; };
 		7B0001000000000000000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
@@ -106,6 +141,9 @@
 		7B1009030000000000000001 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		7B1009040000000000000001 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E0001000000000000000001 /* ShareQueueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ShareQueueStore.swift; sourceTree = SOURCE_ROOT; };
+		A10001000000000000000001 /* AiWebRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AiWebRules.swift; sourceTree = SOURCE_ROOT; };
+		A10001000000000000000003 /* AiMcpRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AiMcpRules.swift; sourceTree = SOURCE_ROOT; };
+		A10001000000000000000005 /* AiMcpOAuthRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AiMcpOAuthRules.swift; sourceTree = SOURCE_ROOT; };
 		7E0001000000000000000002 /* ShareCopy.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ShareCopy.xcstrings; sourceTree = "<group>"; };
 		8A0001000000000000000001 /* PlainvaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainvaWidgets.swift; sourceTree = "<group>"; };
 		8A0001000000000000000002 /* WidgetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetModel.swift; sourceTree = "<group>"; };
@@ -125,6 +163,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+				9D0005000000000000000001 /* PlainvaOrt in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -154,6 +193,10 @@
 				8A1007000000000000000001 /* PlainvaWidgets */,
 				7E0001000000000000000001 /* ShareQueueStore.swift */,
 				7F0001000000000000000002 /* WidgetStore.swift */,
+				B20001000000000000000003 /* IntentStore.swift */,
+				A10001000000000000000001 /* AiWebRules.swift */,
+				A10001000000000000000003 /* AiMcpRules.swift */,
+				A10001000000000000000005 /* AiMcpOAuthRules.swift */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -188,6 +231,16 @@
 				7C0001000000000000000002 /* VaultFolderListing.swift */,
 				7D0001000000000000000001 /* DevicePimPlugin.swift */,
 				7F0001000000000000000001 /* WidgetBridgePlugin.swift */,
+				B20001000000000000000001 /* IntentBridgePlugin.swift */,
+				B20001000000000000000002 /* PlainvaIntents.swift */,
+				B20001000000000000000004 /* PlainvaIntents.xcstrings */,
+				B20003000000000000000001 /* AppShortcuts.strings */,
+				8C0001000000000000000001 /* AiNetPlugin.swift */,
+				A10001000000000000000002 /* AiWebPlugin.swift */,
+				A10001000000000000000004 /* AiMcpPlugin.swift */,
+				A10001000000000000000006 /* AiMcpAuthPlugin.swift */,
+				9D0001000000000000000001 /* LocalModelPlugin.swift */,
+				9E0001000000000000000001 /* PlatformModelPlugin.swift */,
 				7A0E01000000000000000001 /* WebAuthPlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
@@ -234,6 +287,7 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				7B1004030000000000000001 /* Embed App Extensions */,
+				9F0001000000000000000001 /* Remove frameworks without code */,
 			);
 			buildRules = (
 			);
@@ -244,6 +298,7 @@
 			name = App;
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
+				9D0004000000000000000001 /* PlainvaOrt */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -314,10 +369,20 @@
 			knownRegions = (
 				en,
 				Base,
+				de,
+				es,
+				fr,
+				it,
+				ja,
+				nl,
+				pl,
+				"pt-BR",
+				"zh-CN",
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
+				9D0003000000000000000001 /* XCLocalSwiftPackageReference "LocalModels" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -339,6 +404,8 @@
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				7A0002000000000000000005 /* PrivacyInfo.xcprivacy in Resources */,
+				B20002000000000000000004 /* PlainvaIntents.xcstrings in Resources */,
+				B20002000000000000000005 /* AppShortcuts.strings in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
@@ -362,6 +429,28 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		9F0001000000000000000001 /* Remove frameworks without code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Remove frameworks without code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# A framework without code is not shipped (ITMS-90208, plan KI-Harness P2a-3). Xcode\n# embeds the framework of a Swift package's binary target even when its binary is a\n# static archive (ONNX Runtime): it drops the static code and injects an empty stub\n# library built for this app's deployment target, while the framework's Info.plist\n# keeps its own lower MinimumOSVersion - App Store Connect rejects that bundle. The\n# code is already linked into the app, which never loads the framework.\ndir=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\n[ -d \"$dir\" ] || exit 0\nfor fw in \"$dir\"/*.framework; do\n  [ -d \"$fw\" ] || continue\n  exe=$(/usr/libexec/PlistBuddy -c \"Print :CFBundleExecutable\" \"$fw/Info.plist\" 2>/dev/null || basename \"$fw\" .framework)\n  bin=\"$fw/$exe\"\n  symbols=$(nm -gUj \"$bin\" 2>/dev/null | grep -v ':$' | grep -cv '^$')\n  if file -b \"$bin\" | grep -q \"ar archive\" || [ \"$symbols\" = \"0\" ]; then\n    echo \"Framework without code removed from the bundle: $(basename \"$fw\")\"\n    rm -rf \"$fw\"\n  fi\ndone\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		504EC3001FED79650016851F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -379,6 +468,18 @@
 				7C0002000000000000000002 /* VaultFolderListing.swift in Sources */,
 				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 				7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */,
+				B20002000000000000000001 /* IntentBridgePlugin.swift in Sources */,
+				B20002000000000000000002 /* PlainvaIntents.swift in Sources */,
+				B20002000000000000000003 /* IntentStore.swift in Sources */,
+				8C0002000000000000000001 /* AiNetPlugin.swift in Sources */,
+				A10002000000000000000002 /* AiWebPlugin.swift in Sources */,
+				A10002000000000000000004 /* AiMcpPlugin.swift in Sources */,
+				A10002000000000000000006 /* AiMcpAuthPlugin.swift in Sources */,
+				A10002000000000000000001 /* AiWebRules.swift in Sources */,
+				A10002000000000000000003 /* AiMcpRules.swift in Sources */,
+				A10002000000000000000005 /* AiMcpOAuthRules.swift in Sources */,
+				9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */,
+				9E0002000000000000000001 /* PlatformModelPlugin.swift in Sources */,
 				7A0E02000000000000000001 /* WebAuthPlugin.swift in Sources */,
 				7F0002000000000000000002 /* WidgetStore.swift in Sources */,
 			);
@@ -438,6 +539,23 @@
 				504EC3111FED79650016851F /* Base */,
 			);
 			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		B20003000000000000000001 /* AppShortcuts.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B20001000000000000000010 /* en */,
+				B20001000000000000000011 /* de */,
+				B20001000000000000000012 /* es */,
+				B20001000000000000000013 /* fr */,
+				B20001000000000000000014 /* it */,
+				B20001000000000000000015 /* ja */,
+				B20001000000000000000016 /* nl */,
+				B20001000000000000000017 /* pl */,
+				B20001000000000000000018 /* pt-BR */,
+				B20001000000000000000019 /* zh-CN */,
+			);
+			name = AppShortcuts.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -573,6 +691,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					FoundationModels,
+				);
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PLAINVA_BUNDLE_BASE)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -598,6 +721,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					FoundationModels,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "$(PLAINVA_BUNDLE_BASE)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PLAINVA_APP_PROFILE = "Plainva App Store";
@@ -742,6 +870,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "CapApp-SPM";
 		};
+		9D0003000000000000000001 /* XCLocalSwiftPackageReference "LocalModels" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = LocalModels;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -749,6 +881,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
+		};
+		9D0004000000000000000001 /* PlainvaOrt */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9D0003000000000000000001 /* XCLocalSwiftPackageReference "LocalModels" */;
+			productName = PlainvaOrt;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

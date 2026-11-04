@@ -53,6 +53,7 @@ const isAttachment = (a: unknown): a is MailAttachment =>
 export function parseDraft(path: string): MailDraft {
   try {
     const d = JSON.parse(path) as Partial<MailDraft>;
+    const line = (value: unknown) => (typeof value === "string" ? value : "");
     // The message a forward was made from, by reference (never its files: a
     // nav path is read on every render). Read by the shared reader, which
     // hands on a well-formed reference or none — what arrives here decides
@@ -63,6 +64,11 @@ export function parseDraft(path: string): MailDraft {
       to: d.to ?? "",
       subject: d.subject ?? "",
       body: d.body ?? "",
+      // Cc, Bcc and the token of whoever waits to hear that the mail was sent ride along where the draft names them
+      // (AI harness P5-6): a mail the assistant drafted.
+      ...(line(d.cc) ? { cc: line(d.cc) } : {}),
+      ...(line(d.bcc) ? { bcc: line(d.bcc) } : {}),
+      ...(line(d.doneToken) ? { doneToken: line(d.doneToken) } : {}),
       // Only a list is a list of files, and only its well-formed entries are
       // files: the composer encodes and sends whatever arrives here unseen.
       ...(Array.isArray(d.attachments) ? { attachments: d.attachments.filter(isAttachment) } : {}),

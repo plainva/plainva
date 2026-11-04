@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { consumePendingNew, getPlatformServices } from "@plainva/ui";
+import { consumePendingNew, consumeEventSeed, getPlatformServices } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarDays, FileText, ListTodo, Trash2 } from "lucide-react";
 import { doneTasksOnDay, dueTimeOf, errorText, noteDisplayName, setPendingSearchJump, TaskCheckButton, TaskDoneFold, taskDueMovedText, TaskTitle, toast, useDoneFold, useTodayKey, type DuePick, type PlannerRow, type TaskDueChange } from "@plainva/ui";
@@ -252,6 +252,9 @@ export function TodayScreen({
   // this tab and parked the request; the editor opens for the selected day —
   // once it knows the writable calendars, or it would find none (E28).
   useEffect(() => consumePendingNew("event", () => editor.openCreate(dayWindow(selectedIso).start + 9 * 60 * 60_000), editor.ready), [editor, selectedIso]);
+  // An appointment the assistant drafted and the user opened (AI harness P5-6): the same sheet, with its fields filled
+  // in. It waits while a sheet or a preview is open — that one reads its fields once — and opens when it is gone.
+  useEffect(() => consumeEventSeed((parked) => editor.openCreateWith(parked), editor.ready && editor.idle), [editor]);
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 

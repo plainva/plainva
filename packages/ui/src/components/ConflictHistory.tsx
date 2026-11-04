@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { IVaultAdapter } from "@plainva/core";
 import { compareLines } from "../lib/compareVersions";
+import { LineCompare } from "./LineCompare";
 
 /** Read-only ancestry, separate from the editable merge so inspecting an
  * older revision never discards edits made in the comparison itself. */
@@ -41,12 +42,8 @@ export function ConflictHistory({ files, path, copyPath, current, copy }: {
         </select>
       </div>
       {!lines && <p>{t("compare.countsUnavailable")}</p>}
-      <pre className="pv-conflict-history-text">
-        {lines ? lines.map((line, index) => <span key={index} className={`pv-conflict-history-line--${line.type}`}>
-          {line.type === "skip" ? `… ${line.count} …` : `${line.type === "add" ? "+" : line.type === "del" ? "−" : " "} ${line.text}`}
-        </span>) : before}
-      </pre>
-      {!lines && <><strong>{t(target === "copy" ? "compare.conflictCopy" : "compare.currentFile")}</strong><pre className="pv-conflict-history-text">{after}</pre></>}
+      <LineCompare lines={lines} fallback={before} />
+      {!lines && <><strong>{t(target === "copy" ? "compare.conflictCopy" : "compare.currentFile")}</strong><LineCompare lines={null} fallback={after} /></>}
     </> : <p>{t("conflict.noSavedBase")}</p>)}
   </details>;
 }

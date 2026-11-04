@@ -169,8 +169,10 @@ export interface PathReindexOptions {
   onFollowedLate?: () => void;
   /**
    * Told that a call changed the index — a note saved, a box ticked, a file
-   * pulled or removed. Whoever derives something from the index and is not a
-   * screen (the reminders, E3) hears of it here, once per call.
+   * pulled or removed —, once per call. Whoever derives something from the
+   * index and is not a screen hears of it here: the reminders (E3), and the
+   * phone's search by meaning, its gists and the list Siri reads (AI harness
+   * P2a-4). Not told for a call that changed nothing.
    */
   onFollowed?: () => void;
   /** How long a path that failed waits for its second attempt. */

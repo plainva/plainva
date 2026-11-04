@@ -31,7 +31,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } 
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError, SettingsOnlySync } from "@plainva/core";
+import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -45,7 +45,7 @@ import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, cl
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { REMINDER_SOURCES_CHANGED, startReminderScheduler } from "../services/reminderScheduler";
-import { requestCalendarDay } from "../services/pim/calendarNav";
+import { requestCalendarDay } from "@plainva/ui";
 import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
 import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";
@@ -3486,8 +3486,10 @@ export const VaultProvider: React.FC<{
    * The name a remark is signed with, asked for ONCE where it is first needed
    * (finding 2026-09-09: every own remark read "Unknown member" because the
    * field was empty). Only in a vault without a workspace - a workspace signs
-   * with the member -, only for a remark or a proposal (never for a resolve or
-   * retract marker), and only until the person answered or declined: a
+   * with the member -, only for a remark or a proposal of the person's own
+   * (never for a resolve or retract marker, never for what a named author
+   * writes through this device - `commentSignedByPerson` in the core is the
+   * one rule), and only until the person answered or declined: a
    * declined question is not asked again this session, and the device then
    * signs with its own label. The answer lands in the one field the app has,
    * "Your name (remarks and reviews)" - the same field "mark as reviewed"
@@ -3511,17 +3513,17 @@ export const VaultProvider: React.FC<{
   };
 
   const ensureOperationAuthor = useStableHandler(async (store: CommentStore, vaultPath: string, input: CommentOperationInput) => {
-    if (input.markers.some((marker) => !marker.resolvedCommentId && !marker.retractsCommentId && (marker.body.trim() || marker.suggestion)))
-      await ensureCommentAuthorName(store, vaultPath);
+    // Only for what the person signs: a proposal of the assistant or of an external agent carries its own name (finding 2026-10-07).
+    if (input.markers.some(commentSignedByPerson)) await ensureCommentAuthorName(store, vaultPath);
   });
   const refreshOperationIndex = useStableHandler((path: string) => triggerFileTreeUpdate([path]));
   const commentOperations = useMemo((): CommentOperationService | null => {
-    const vaultPath = state.vaultPath, adapter = state.vaultAdapter, indexer = state.indexer;
+    const vaultPath = state.vaultPath, adapter = state.vaultAdapter, indexer = state.indexer, backup = state.backupAdapter;
     if (!vaultPath) return null;
     if (isClient) return clientCommentOperations(vaultPath);
     if (!adapter || !commentStoreMemo) return null;
     const store = commentStoreMemo;
-    return desktopCommentOperations({ vaultPath, adapter, store,
+    return desktopCommentOperations({ vaultPath, adapter, store, backup,
       assertCurrent: () => {
         const current = commentLifetimeRef.current;
         if (current.vaultPath !== vaultPath || current.adapter !== adapter) throw new Error("The comment vault changed");
@@ -3531,15 +3533,14 @@ export const VaultProvider: React.FC<{
         if (indexer && await indexer.indexFile(await adapter.getFileInfo(path))) refreshOperationIndex(path);
       },
     });
-  }, [state.vaultPath, state.vaultAdapter, state.indexer, isClient, commentStoreMemo, ensureOperationAuthor, refreshOperationIndex]);
+  }, [state.vaultPath, state.vaultAdapter, state.indexer, state.backupAdapter, isClient, commentStoreMemo, ensureOperationAuthor, refreshOperationIndex]);
   const clientCommentApi = useMemo(() => clientComments(state.vaultPath), [state.vaultPath]);
 
   const postWorkspaceCommentInput = async (input: CommentPostInput): Promise<void> => {
     const captured = structuredClone(input);
     const store = commentStore();
     if (!store) throw new Error("comments-unavailable");
-    if (state.vaultPath && !captured.resolvedCommentId && !captured.retractsCommentId && (captured.body.trim() || captured.suggestion))
-      await ensureCommentAuthorName(store, state.vaultPath);
+    if (state.vaultPath && commentSignedByPerson(captured)) await ensureCommentAuthorName(store, state.vaultPath);
     await store.post(captured);
   };
 

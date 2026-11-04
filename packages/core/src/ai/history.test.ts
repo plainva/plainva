@@ -1,0 +1,342 @@
+import { describe, expect, it } from "vitest";
+import { appendTurn, startConversation } from "./conversation.js";
+import {
+  addUsage,
+  appendAiLedgerEntry,
+  conversationMatches,
+  conversationSummaryOf,
+  conversationTitleFrom,
+  EMPTY_USAGE,
+  expiredConversations,
+  RUN_READ_CAP,
+  RUN_WRITES_CAP,
+  AI_LEDGER_LIMIT,
+  aiMonthlySavings,
+  aiMonthlyTotals,
+  cacheShare,
+  contextSavingsOf,
+  readConversationRecord,
+  usageCostUsd,
+  type ConversationRecord,
+  type LedgerEntry,
+} from "./history.js";
+import { estimateTokensOfChars } from "./context/package.js";
+
+const at = "2026-09-24T10:00:00Z";
+
+function record(): ConversationRecord {
+  const conversation = appendTurn(startConversation("c1", "system", ["search_vault"]), { role: "user", parts: [{ type: "text", text: "Where is the Northwind offer?" }], at });
+  return {
+    version: 1,
+    id: "c1",
+    title: "Northwind",
+    createdAt: at,
+    updatedAt: at,
+    providerId: "anthropic",
+    model: "m",
+    conversation,
+    usage: EMPTY_USAGE,
+    runs: [{ userTurn: 0, providerId: "anthropic", model: "m", sent: ["Offer.md"], kept: ["Private.md"], usage: EMPTY_USAGE, steps: 1, stop: "answered" }],
+    pins: ["Offer.md"],
+  };
+}
+
+describe("conversation records", () => {
+  it("round-trip through JSON and reject what is not one", () => {
+    const r = record();
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))).toEqual(r);
+    for (const bad of [null, {}, { ...r, version: 2 }, { ...r, conversation: { ...r.conversation, id: "other" } }, { ...r, providerId: 4 }]) {
+      expect(readConversationRecord(JSON.parse(JSON.stringify(bad)))).toBeNull();
+    }
+  });
+
+  it("keeps the title the app gave a conversation one of its own runs made — and nothing that is none (strand 6, step 9)", () => {
+    const r = { ...record(), appTitle: "Routine: Morning brief" };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))).toEqual(r);
+    expect(readConversationRecord(JSON.parse(JSON.stringify({ ...record(), appTitle: 5 })))).toEqual(record());
+  });
+
+  it("repairs damaged optional fields instead of dropping the conversation", () => {
+    const r = JSON.parse(JSON.stringify(record()));
+    r.usage = { inputTokens: -3, outputTokens: "x" };
+    r.runs = [null, { providerId: "a" }, ...r.runs];
+    r.pins = ["a.md", 5];
+    const read = readConversationRecord(r)!;
+    expect(read.usage).toEqual(EMPTY_USAGE);
+    expect(read.runs).toHaveLength(1);
+    expect(read.pins).toEqual(["a.md"]);
+  });
+
+  it("keeps what a run asked of the internet, and reads it back as public addresses only", () => {
+    const r = record();
+    const web = {
+      pages: [
+        { url: "https://example.org/rates", title: "Rates", at, read: true },
+        { url: "https://example.org/gone", title: "", at, read: false },
+      ],
+      searches: [{ query: "day rates 2026", at, hits: 3 }],
+      inputTokens: 2100,
+      outputTokens: 140,
+    };
+    r.runs[0] = { ...r.runs[0]!, web };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.web).toEqual(web);
+
+    // A stored file is not a reason to open anything: what is no public https address is not kept.
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].web = {
+      pages: [{ url: "javascript:alert(1)", title: "x", at, read: true }, { url: "https://192.168.1.1/", title: "router", at, read: true }, { url: "https://Example.org/ok#frag", title: 7, at, read: "yes" }, null],
+      searches: [{ query: "", at, hits: 1 }, { query: "kept", at, hits: -4 }, "nonsense"],
+      inputTokens: "many",
+      outputTokens: 5,
+    };
+    expect(readConversationRecord(tampered)!.runs[0]!.web).toEqual({
+      pages: [{ url: "https://example.org/ok", title: "", at, read: false }],
+      searches: [{ query: "kept", at, hits: 0 }],
+      inputTokens: 0,
+      outputTokens: 5,
+    });
+    // Nothing asked for is no record at all.
+    tampered.runs[0].web = { pages: [], searches: [], inputTokens: 9, outputTokens: 9 };
+    expect(readConversationRecord(tampered)!.runs[0]!.web).toBeUndefined();
+  });
+
+  it("keeps what a run read of mail and appointments as numbers and who read, and its further tools", () => {
+    const r = record();
+    const reading = { mailSearches: 2, messages: 1, descriptions: 1, reader: "device" as const, readerModel: "granite3.3:8b", inputTokens: 900, outputTokens: 120 };
+    r.runs[0] = { ...r.runs[0]!, reading };
+    r.conversation = appendTurn(startConversation("c1", "system", ["search_vault", "find_tools", "call_tool"], ["search_mail", "read_mail"]), { role: "user", parts: [{ type: "text", text: "Mail?" }], at });
+    const read = readConversationRecord(JSON.parse(JSON.stringify(r)))!;
+    expect(read.runs[0]!.reading).toEqual(reading);
+    expect(read.conversation.more).toEqual(["search_mail", "read_mail"]);
+
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].reading = { mailSearches: "many", messages: 3, descriptions: -1, reader: "somewhere", readerModel: 7, subject: "never kept", inputTokens: 5, outputTokens: null };
+    expect(readConversationRecord(tampered)!.runs[0]!.reading).toEqual({ mailSearches: 0, messages: 3, descriptions: 0, reader: "provider", inputTokens: 5, outputTokens: 0 });
+    // Nothing read is no record at all.
+    tampered.runs[0].reading = { mailSearches: 0, messages: 0, descriptions: 0, reader: "device", inputTokens: 9, outputTokens: 9 };
+    expect(readConversationRecord(tampered)!.runs[0]!.reading).toBeUndefined();
+    // A conversation without further tools carries no empty list.
+    expect(startConversation("c", "s", ["search_vault"])).not.toHaveProperty("more");
+  });
+
+  it("keeps the rules a run's notes carried — the rule, each once, and nothing that is none", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, restricted: ["cloud", "web"] };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.restricted).toEqual(["cloud", "web"]);
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].restricted = ["web", "Private/Client.md", "web", 7, null];
+    expect(readConversationRecord(tampered)!.runs[0]!.restricted).toEqual(["web"]);
+    // Nothing restricted is no entry at all, whatever stood there.
+    for (const none of [[], ["mail"], "cloud", { cloud: true }]) {
+      tampered.runs[0].restricted = none;
+      expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("restricted");
+    }
+  });
+
+  it("keeps the notes a run's tools read, by path and bounded — and says when there were more", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, read: ["Projects/Offer.md", "People/Anna.md"] };
+    const back = readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!;
+    expect(back.read).toEqual(["Projects/Offer.md", "People/Anna.md"]);
+    expect(back).not.toHaveProperty("readMore");
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].read = ["A.md", 7, null, { path: "B.md" }];
+    expect(readConversationRecord(tampered)!.runs[0]!.read).toEqual(["A.md"]);
+    // More than the record keeps: the rest is not kept, and that there was a rest is.
+    tampered.runs[0].read = Array.from({ length: RUN_READ_CAP + 5 }, (_, i) => `Notes/${i}.md`);
+    const many = readConversationRecord(tampered)!.runs[0]!;
+    expect(many.read).toHaveLength(RUN_READ_CAP);
+    expect(many.readMore).toBe(true);
+    tampered.runs[0].read = ["A.md"];
+    tampered.runs[0].readMore = true;
+    expect(readConversationRecord(tampered)!.runs[0]!.readMore).toBe(true);
+    tampered.runs[0].readMore = "yes";
+    expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("readMore");
+    tampered.runs[0].read = [];
+    expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("read");
+  });
+
+  it("keeps that a run reached no model, and nothing else in its place (plan P9-6)", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, stop: "failed", failure: "offline", unreached: true };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.unreached).toBe(true);
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].unreached = "yes";
+    expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("unreached");
+  });
+
+  it("keeps what a run laid down for the user to decide: paths, counts and titles — bounded, and nothing that is none", () => {
+    const r = record();
+    const writes = {
+      rounds: [{ path: "Projects/Offer.md", blocks: 2, properties: 1 }],
+      drafts: [{ id: "d-000001", kind: "note", title: "Kick-off" }],
+      plans: [{ kind: "rename", path: "Projects/Offer.md", outcome: "done" }],
+    };
+    r.runs[0] = { ...r.runs[0]!, writes };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.writes).toEqual(writes);
+    const tampered = JSON.parse(JSON.stringify(r));
+    // A proposed text has no place in the record: what is no path, no count and no title is dropped.
+    tampered.runs[0].writes = {
+      rounds: [{ path: "A.md", blocks: "many", properties: -3, text: "the proposed words" }, { path: "", blocks: 2 }, { path: "B.md", blocks: 1.9, properties: 0 }, "C.md", null],
+      drafts: [{ id: "d-1", kind: "task", title: 7, content: "the draft's words" }, { id: "", kind: "note", title: "x" }, { id: "d-2" }],
+      plans: [{ kind: "delete", path: "A.md", outcome: { done: true } }, { kind: "", path: "A.md", outcome: "done" }, { kind: "move", path: "" }],
+    };
+    const back = readConversationRecord(tampered)!.runs[0]!.writes!;
+    expect(back.rounds).toEqual([{ path: "B.md", blocks: 1, properties: 0 }]);
+    expect(back.drafts).toEqual([{ id: "d-1", kind: "task", title: "" }]);
+    expect(back.plans).toEqual([{ kind: "delete", path: "A.md", outcome: "" }]);
+    expect(JSON.stringify(back)).not.toContain("words");
+    // Bounded, each list for itself.
+    tampered.runs[0].writes = { rounds: Array.from({ length: RUN_WRITES_CAP + 9 }, (_, i) => ({ path: `Notes/${i}.md`, blocks: 1, properties: 0 })), drafts: [], plans: [] };
+    expect(readConversationRecord(tampered)!.runs[0]!.writes!.rounds).toHaveLength(RUN_WRITES_CAP);
+    // Nothing laid down is no entry at all, whatever stood there.
+    for (const none of [{ rounds: [], drafts: [], plans: [] }, { rounds: [{ path: "A.md", blocks: 0, properties: 0 }] }, [], "writes", 3, null]) {
+      tampered.runs[0].writes = none;
+      expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("writes");
+    }
+  });
+
+  it("keeps what a run asked of foreign servers: who, what, how it ended — and nothing that was said", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, mcp: { calls: [{ server: "tracker", tool: "search_issues", outcome: "answered" }] } };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.mcp).toEqual({ calls: [{ server: "tracker", tool: "search_issues", outcome: "answered" }] });
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].mcp = { calls: [{ server: "tracker", tool: "search_issues", outcome: "declined", args: { query: "secret" }, result: "never kept" }, { server: "", tool: "x" }, null, "text", { server: 7, tool: "y" }] };
+    expect(readConversationRecord(tampered)!.runs[0]!.mcp).toEqual({ calls: [{ server: "tracker", tool: "search_issues", outcome: "declined" }] });
+    // No call is no record at all.
+    for (const none of [{ calls: [] }, { calls: "many" }, "calls", null]) {
+      tampered.runs[0].mcp = none;
+      expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("mcp");
+    }
+  });
+
+  it("keeps how a call's questions to the user went as four numbers — never what was asked or answered (plan P9-4a)", () => {
+    const r = record();
+    const questions = { answered: 2, declined: 0, cancelled: 1, refused: 1 };
+    r.runs[0] = { ...r.runs[0]!, mcp: { calls: [{ server: "tracker", tool: "search_issues", outcome: "answered", questions }] } };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.mcp!.calls[0]!.questions).toEqual(questions);
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].mcp.calls[0].questions = { answered: 1.5, declined: -2, cancelled: "3", refused: 1e9, asked: "Which project?", content: { project: "hk" } };
+    expect(readConversationRecord(tampered)!.runs[0]!.mcp!.calls[0]!.questions).toEqual({ answered: 0, declined: 0, cancelled: 0, refused: 99 });
+    for (const none of [{ answered: 0, declined: 0, cancelled: 0, refused: 0 }, "all", null, []]) {
+      tampered.runs[0].mcp.calls[0].questions = none;
+      expect(readConversationRecord(tampered)!.runs[0]!.mcp!.calls[0]).not.toHaveProperty("questions");
+    }
+  });
+
+  it("keeps a picture with the turn that sent it, and its size with the run's overview", () => {
+    const r = record();
+    const picture = { type: "image" as const, mime: "image/jpeg" as const, data: "QUJDRA==", name: "Whiteboard.jpg", width: 1568, height: 1045, path: "Assets/Whiteboard.jpg" };
+    r.conversation = appendTurn(startConversation("c1", "system", ["search_vault"]), { role: "user", parts: [{ type: "text", text: "lead", context: [] }, picture, { type: "text", text: "Explain this picture." }], at });
+    const manifest = {
+      providerId: "anthropic",
+      providerLabel: "Anthropic",
+      model: "m",
+      local: false,
+      sources: [{ path: "Assets/Whiteboard.jpg", title: "Whiteboard.jpg", tier: "evidence" as const, chars: 0, reasons: ["active" as const], image: { width: 1568, height: 1045, bytes: 4 } }],
+      dataClasses: ["situation" as const, "images" as const],
+      folders: ["Assets"],
+      withheld: { notes: 0, links: 0, places: 0, moodProperties: 0 },
+      excluded: [],
+      estimatedTokens: 2300,
+      tools: ["search_vault"],
+      web: false,
+    };
+    r.runs[0] = { ...r.runs[0]!, manifest };
+    const read = readConversationRecord(JSON.parse(JSON.stringify(r)))!;
+    expect(read.conversation.turns[0]!.parts[1]).toEqual(picture);
+    expect(read.runs[0]!.manifest).toEqual(manifest);
+    // The history search reads words, never a picture's bytes.
+    expect(conversationMatches(read, "explain this")).toBe(true);
+    expect(conversationMatches(read, "QUJD")).toBe(false);
+    expect(conversationMatches(read, "whiteboard")).toBe(false);
+
+    // A size that is none is no picture row: the source stays, as a plain one.
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].manifest.sources[0].image = { width: "wide", height: 1045, bytes: 4 };
+    expect(readConversationRecord(tampered)!.runs[0]!.manifest!.sources[0]).not.toHaveProperty("image");
+  });
+
+  it("titles, summaries, search and retention", () => {
+    expect(conversationTitleFrom("  Where   is\nit? ", "x")).toBe("Where is it?");
+    expect(conversationTitleFrom("", "Fallback")).toBe("Fallback");
+    expect(conversationTitleFrom("a".repeat(80), "x")).toHaveLength(58);
+    const r = record();
+    expect(conversationSummaryOf(r)).toEqual({ id: "c1", title: "Northwind", updatedAt: at, providerId: "anthropic", model: "m" });
+    expect(conversationMatches(r, "northWIND")).toBe(true);
+    expect(conversationMatches(r, "offer")).toBe(true);
+    expect(conversationMatches(r, "budget")).toBe(false);
+    const summaries = [conversationSummaryOf(r), { ...conversationSummaryOf(r), id: "old", updatedAt: "2026-01-01T00:00:00Z" }];
+    expect(expiredConversations(summaries, 90, new Date(at))).toEqual(["old"]);
+    expect(expiredConversations(summaries, 0, new Date(at))).toEqual([]);
+  });
+});
+
+describe("run ledger", () => {
+  const entry = (i: number, month = "2026-09"): LedgerEntry => ({
+    at: `${month}-0${1 + (i % 9)}T00:00:00Z`,
+    conversationId: "c",
+    providerId: i % 2 ? "openai" : "anthropic",
+    model: "m",
+    stop: "answered",
+    steps: 1,
+    tools: [],
+    usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    ...(i % 2 ? { costUsd: 0.5 } : {}),
+  });
+
+  it("keeps the newest entries only", () => {
+    let entries: LedgerEntry[] = [];
+    for (let i = 0; i < AI_LEDGER_LIMIT + 5; i++) entries = appendAiLedgerEntry(entries, { ...entry(i), conversationId: String(i) });
+    expect(entries).toHaveLength(AI_LEDGER_LIMIT);
+    expect(entries[0]!.conversationId).toBe("5");
+  });
+
+  it("sums a month per provider and model, and costs only what has a price", () => {
+    const totals = aiMonthlyTotals([entry(1), entry(2), entry(3), entry(4, "2026-08")], "2026-09");
+    expect(totals).toEqual([
+      { key: "anthropic/m", providerId: "anthropic", model: "m", usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 } },
+      { key: "openai/m", providerId: "openai", model: "m", usage: { inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 }, costUsd: 1 },
+    ]);
+    expect(addUsage(EMPTY_USAGE, { outputTokens: 2 })).toEqual({ ...EMPTY_USAGE, outputTokens: 2 });
+    expect(usageCostUsd({ inputTokens: 1_000_000, outputTokens: 500_000, cacheReadTokens: 0, cacheWriteTokens: 0 }, { input: 3, output: 15 })).toBe(10.5);
+    expect(usageCostUsd(EMPTY_USAGE, undefined)).toBeUndefined();
+  });
+
+  it("says how much of a request came from the provider's cache — and nothing where it reports none", () => {
+    expect(cacheShare({ inputTokens: 200, outputTokens: 50, cacheReadTokens: 700, cacheWriteTokens: 100 })).toBeCloseTo(0.7);
+    // Written to the cache, read from it nothing yet: a first request, 0 % of it — the provider has a cache.
+    expect(cacheShare({ inputTokens: 300, outputTokens: 50, cacheReadTokens: 0, cacheWriteTokens: 700 })).toBe(0);
+    // No cache numbers at all: a model on this device, a provider without one — no share, not a 0 %.
+    expect(cacheShare({ inputTokens: 1000, outputTokens: 50, cacheReadTokens: 0, cacheWriteTokens: 0 })).toBeNull();
+    expect(cacheShare(EMPTY_USAGE)).toBeNull();
+  });
+
+  it("estimates what choosing and shortening saved by the rule of the send overview", () => {
+    // What the context left out of the notes it put in, in characters: the tokens they would have been.
+    expect(contextSavingsOf([{ path: "A.md", left: 3500 }])).toEqual({ savedTokens: estimateTokensOfChars(3500) });
+    expect(estimateTokensOfChars(3500)).toBe(1000);
+    // Nothing left out — every note went whole, or was only named: nothing saved, nothing to record.
+    expect(contextSavingsOf([{ path: "A.md" }, { path: "B.md", left: 0 }])).toBeNull();
+  });
+
+  it("sums what a month saved, with dollars only where every saving run had a price", () => {
+    const saving = (i: number, month: string, context: LedgerEntry["context"], savedUsd?: number): LedgerEntry => ({ ...entry(i, month), ...(context ? { context } : {}), ...(savedUsd !== undefined ? { savedUsd } : {}) });
+    const priced = [saving(1, "2026-09", { savedTokens: 8000 }, 0.25), saving(2, "2026-09", { savedTokens: 2000 }, 0.5)];
+    expect(aiMonthlySavings([...priced, saving(3, "2026-08", { savedTokens: 99_999 }, 1), entry(4)], "2026-09")).toEqual({ savedTokens: 10_000, runs: 2, savedUsd: 0.75 });
+    // A model on this device costs nothing: its saving is worth 0 dollars, and the sum stays whole.
+    const device = saving(5, "2026-09", { savedTokens: 1000 }, 0);
+    expect(aiMonthlySavings([...priced, device], "2026-09")).toEqual({ savedTokens: 11_000, runs: 3, savedUsd: 0.75 });
+    // One run of a model without a price: the tokens still count, the dollars are not given as if they were all.
+    const unpriced = saving(6, "2026-09", { savedTokens: 1000 });
+    expect(aiMonthlySavings([...priced, unpriced], "2026-09")).toEqual({ savedTokens: 11_000, runs: 3 });
+    // An entry that is not what the app writes counts for nothing.
+    const odd = [
+      { ...entry(7), context: { savedTokens: "x" } },
+      { ...entry(8), context: { savedTokens: Number.NaN } },
+      { ...entry(9), context: "8000" },
+      { ...entry(10), at: 2026, context: { savedTokens: 50 } },
+    ] as unknown as LedgerEntry[];
+    expect(aiMonthlySavings([...odd, entry(11)], "2026-09")).toEqual({ savedTokens: 0, runs: 0 });
+  });
+});

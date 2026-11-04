@@ -1,4 +1,7 @@
+import { Bot, Sparkles } from "lucide-react";
+import { isAiAuthorId, isMachineAuthorId } from "../lib/aiMention";
 import { authorHue, authorInitials } from "../lib/commentAuthor";
+import { ICON } from "../lib/iconSizes";
 import { absoluteTimeLabel, relativeTimeLabel } from "../lib/relativeTime";
 
 /**
@@ -9,6 +12,14 @@ import { absoluteTimeLabel, relativeTimeLabel } from "../lib/relativeTime";
  * relative time on the right. The member id and the full timestamp stay as
  * tooltips - a name is a claim the policy carries, not a verified identity,
  * and a relative phrase is a label, not the record.
+ *
+ * What the assistant wrote (a reply, a proposal round; ADR 0023) carries the
+ * app's AI mark instead of letters, in the app's own colour pair: its byline
+ * names a model, and two letters of a model's name would read like a person.
+ * What another program wrote through Plainva - an AI app at its MCP server,
+ * an external agent - carries a machine's mark for the same reason, in a
+ * neutral pair: it is no person's remark, and it is not Plainva's assistant
+ * either.
  */
 export function CommentCardHead({ name, initials, memberId, createdAt, locale, now }: {
   name: string;
@@ -24,9 +35,19 @@ export function CommentCardHead({ name, initials, memberId, createdAt, locale, n
   /** Injectable for tests; the card otherwise reads the clock. */
   now?: number;
 }) {
+  const ai = isAiAuthorId(memberId);
+  const machine = !ai && isMachineAuthorId(memberId);
   return (
     <div className="pv-comment-card__who">
-      <span className="pv-comment-card__avatar" data-hue={authorHue(memberId)} aria-hidden="true">{initials ?? authorInitials(name)}</span>
+      <span
+        className="pv-comment-card__avatar"
+        data-hue={ai || machine ? undefined : authorHue(memberId)}
+        data-ai={ai ? "" : undefined}
+        data-machine={machine ? "" : undefined}
+        aria-hidden="true"
+      >
+        {ai ? <Sparkles size={ICON.meta} /> : machine ? <Bot size={ICON.meta} /> : (initials ?? authorInitials(name))}
+      </span>
       <span className="pv-comment-card__name" data-tip={memberId}>{name}</span>
       <time className="pv-comment-card__when" dateTime={createdAt} data-tip={absoluteTimeLabel(createdAt, locale)}>
         {relativeTimeLabel(createdAt, locale, now)}

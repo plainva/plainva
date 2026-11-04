@@ -25,7 +25,17 @@ interface WebAuthNative {
 
 const WebAuth = registerPlugin<WebAuthNative>("WebAuth");
 
-export async function openSignInPage(url: string): Promise<void> {
+export interface SignInPageOptions {
+  /**
+   * The system's sign-in window closed without an answer - the person closed
+   * it, or it failed. A caller who waits for the answer (the sign-in to an
+   * MCP server, plan KI-Harness P4.5) stops waiting; where the browser opened
+   * instead, the browser reports its own closing.
+   */
+  onClosed?: () => void;
+}
+
+export async function openSignInPage(url: string, options: SignInPageOptions = {}): Promise<void> {
   // The second way out of the app beside `openExternal` (a sign-in needs the
   // browser's handle): a provider's sign-in page is a web address, and
   // nothing else reaches the browser from here either (Sammelplan § 3.138).
@@ -49,9 +59,11 @@ export async function openSignInPage(url: string): Promise<void> {
       }
       if (code === "CANCELLED") {
         logDiagnostic("sign-in", "the sign-in window was closed without an answer from the provider");
+        options.onClosed?.();
         return;
       }
       toast.error(...connectionFailureToast(error));
+      options.onClosed?.();
     },
   );
 }

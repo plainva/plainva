@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON, useFocusTrap } from "@plainva/ui";
-import { COMMAND_GROUPS, filterCommands, type AppCommand, type CommandGroup } from "@plainva/ui";
+import { COMMAND_GROUPS, commandTitle, filterCommands, type AppCommand, type CommandGroup } from "@plainva/ui";
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
@@ -18,7 +18,7 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
 
-  const titleOf = (c: AppCommand) => t(c.titleKey, { defaultValue: c.titleDefault });
+  const titleOf = (c: AppCommand) => commandTitle(t, c);
   const results = useMemo(() => filterCommands(commands, query, titleOf), [commands, query, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setSelected(0); }, [query]);

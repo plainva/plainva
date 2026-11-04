@@ -47,6 +47,7 @@ export function createCommentOperationService(deps: CommentOperationServiceDeps)
         },
         readText: () => deps.readText(physicalPath),
         writeText: (_path, text) => deps.writeText(physicalPath, text),
+        ...(deps.snapshot ? { snapshot: () => deps.snapshot!(physicalPath) } : {}),
       });
       return runner.run(captured);
     },

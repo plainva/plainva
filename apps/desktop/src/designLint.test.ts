@@ -46,6 +46,9 @@ const COMPONENT_ROOTS: Array<{ dir: string; prefix: string }> = [
   // The mail core moved to the shared package (feinplan G0.1) — it must stay
   // under the same ratchet it had in the shell.
   { dir: "packages/ui/src/mail", prefix: "mail/" },
+  // The AI harness surfaces (plan KI-Harness §19.1) start under the ratchet
+  // with an empty budget: no raw value, no raw control, from the first line.
+  { dir: "packages/ui/src/ai", prefix: "ai/" },
 ];
 /** Shell root files scanned individually (walk would pull in tests/config). */
 const ROOT_FILES = ["App.tsx", "main.tsx"];

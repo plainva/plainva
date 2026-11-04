@@ -146,6 +146,7 @@ Plainva-specifieke extra's voor notities zijn gebundeld onder één enkele `plai
 | `tasks` | `false` | Sluit de selectievakjes van deze notitie uit van de [Taken-weergave](Tasks.md) |
 | `templateFor` | lijst van wiki-links naar `.base`-bestanden | Wijst een **sjabloon** toe aan de genoemde databases (alleen relevant voor notities in de sjablonenmap) |
 | `pim` | mapping (zie hieronder) | Anker die de notitie koppelt aan een externe afspraak, taak of e-mail |
+| `ai` | mapping `{cloud, web}`, elk `allow` of `deny` | AI-privacyregel van deze notitie (zie hieronder) |
 
 Ze zijn allemaal optioneel. Schrijf je er geen enkele, laat dan de `plainva:`-sleutel helemaal weg. Ongeldige waarden worden bij het lezen genegeerd, nooit als fout behandeld.
 
@@ -167,6 +168,54 @@ plainva:
 **De bestandsnaam hoort niet bij de identiteit.** Een gespiegelde taak heet zoals haar titel (`<titel>.md`, bij dezelfde titel `<titel> 2.md` enzovoort); gekoppeld wordt uitsluitend via het anker. Tools mogen het bestand hernoemen en verplaatsen zolang het anker blijft. Namen van de vorm `<titel> — <16 of 64 hextekens>.md` stammen uit de Plainva-versies van 12 tot 24 september 2026: de tekens zijn het begin van een SHA-256 over aanbieder, identiteit, lijst en `uid`. De takenweergave biedt eenmalig aan ze naar hun titel te hernoemen — alleen als de tekens bij het anker in hetzelfde bestand passen.
 
 `templateFor` is het veldcontract van de sjabloontoewijzing (zie [Databases (.base)](Databases_Base.md)): op een notitie in de sjablonenmap vermeldt het de databases waarvan het **Item**-menu het sjabloon standaard toont. Waarden zijn volledige wiki-links inclusief de `.base`-extensie — bare (`"[[Tasks.base]]"` komt overeen met het bestand met die naam in elke map, waardoor het een zuivere mapverplaatsing overleeft) of padgekwalificeerd (`"[[Projekte/Tasks.base]]"` komt overeen met precies dat pad). Plainva schrijft bare links en kwalificeert alleen wanneer er twee gelijknamige `.base`-bestanden bestaan. Een scalar in plaats van een lijst wordt getolereerd. Wanneer een item vanuit het sjabloon wordt aangemaakt, wordt `templateFor` — in tegenstelling tot de andere `plainva:`-sleutels — **niet** naar de nieuwe notitie gekopieerd.
+
+### AI-privacyregel (`plainva.ai` en `.agent/`)
+
+`plainva: { ai: … }` bepaalt waar de inhoud van de notitie heen mag als er AI bij komt kijken:
+
+- `cloud: deny` — nooit naar een AI-ontvanger in de cloud: geen tekst, titel, bestandsnaam, linktekst of samenvatting ervan. Lokale modellen op het apparaat blijven toegestaan.
+- `web: deny` — nooit in een taak die ook het web gebruikt.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Regels voor hele mappen staan in `.agent/policy.yml`. De eigen waarde van de notitie wint, anders de dichtstbijzijnde mapregel:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` gelden als `allow`/`deny`; elke andere waarde wordt genegeerd en zet nooit iets open. De rest van de verborgen map `.agent/` — skills (`skills/<name>/SKILL.md`), geheugen en gespreksnotities — hoort bij de assistent van Plainva. Plainva volgt een nieuw of gewijzigd bestand daar pas als de gebruiker het op dat apparaat heeft goedgekeurd; een tool zou dus alleen in `.agent/` moeten schrijven als de gebruiker precies dat vraagt.
+
+### Het geheugen van de assistent (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Twee Markdown-bestanden bevatten wat de assistent over de gebruiker moet weten: `.agent/active_memory.md` gaat mee in elk nieuw gesprek, `.agent/MEMORY.md` wordt opgezocht wanneer een vraag het nodig heeft. Een item is een lijstitem op het hoogste niveau (`-`, `*` of `+`); ingesprongen regels zetten het voort, koppen groeperen items, en een YAML-blok bovenaan het bestand en codeblokken worden overgeslagen. Wat Plainva over een item weet, staat in één HTML-commentaar erachter:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — de dag waarop het item is toegevoegd (`YYYY-MM-DD`).
+- `by` — `user`, of `assistant` voor een concept dat de gebruiker heeft geaccepteerd.
+- `source` — de titel van het gesprek waaruit een concept afkomstig is.
+- `deny` — `cloud`, `web` of beide: de ontvangers voor wie het item wordt achtergehouden, zoals bij een notitie.
+
+Een tool die een item schrijft, beperkt het tot één regel van hoogstens 500 tekens en laat de commentaren van andere items zoals ze zijn. Een commentaar dat beschadigd is — niet gesloten, twee keer aanwezig of met een regel die Plainva niet kent — houdt het item van elk model weg. Een item zonder commentaar heeft geen eigen regel, dus bij het herschrijven van een item mag een tool het commentaar nooit weglaten. Wat de assistent moet doen, staat hier niet: regels zijn tekstregels in `AGENTS.md`.
+
+### Het leerlogboek (`.agent/logs/learning.md`)
+
+Eén tekstregel voor alles wat uit een voorstel van de assistent is overgenomen — een nieuwe vaardigheid, andere instructies voor een vaardigheid, een regel in `AGENTS.md` — en voor elke terugkeer naar een eerdere versie van een vaardigheid: het tijdstip tot op de minuut, wat er is veranderd en de titel van het gesprek waaruit het komt. Plainva voegt tekstregels toe en leest er geen van terug.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+Het bestand is een lijst onder een kop en kan worden ingekort of verwijderd. Het bevat geen woord van het model dat het voorstel deed, en nooit zijn naam. Boven de 100.000 tekens laat Plainva de oudste regels van de lijst vallen.
 
 ### Links
 
@@ -601,6 +650,7 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 ## Niet-aanraken en veiligheid
 
 - **`.plainva/`** bevat back-ups en interne status. Lees er nooit programmalogica uit en schrijf er nooit naar.
+- **`.agent/`** bevat de AI-regels, skills en het geheugen van Plainva. Wijzig het alleen als de gebruiker precies dat vraagt, en respecteer `cloud: deny` en `web: deny` (zie de AI-privacyregel hierboven).
 - **Onbekende sleutels zijn heilig.** Als je een `.base` of een notitie herschrijft, draag dan elke sleutel mee die je niet van plan was te wijzigen. Plainva zelf bewaart onbekende `.base`-sleutels via een interne rauwe kopie; een externe schrijver zou hetzelfde moeten doen (parsen → alleen wijzigen wat je bedoelt → serialiseren).
 - **Waarden veranderen in de notitie, niet in de `.base`.** Om een cel te zetten, bewerk je de frontmatter van de notitie. De `.base` bepaalt alleen welke notities en kolommen worden getoond.
 - **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `summaries` / `views`.

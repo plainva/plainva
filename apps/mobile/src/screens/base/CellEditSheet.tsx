@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useSheetGuard } from "../../hooks/useSheetGuard";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, MessageSquare } from "lucide-react";
-import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { Check, ExternalLink, MessageSquare, FileText, Sparkles } from "lucide-react";
+import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput, PropertyDiffLine, type SuggestedProperty } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
@@ -31,6 +31,25 @@ export interface CellEditTarget {
   relationLimit?: "one";
 }
 
+/** A proposed value as the cell's sheet shows it. */
+export interface CellProposal {
+  /** Who proposed it, in the words the user knows them by. */
+  by: string;
+  view: Pick<SuggestedProperty, "key" | "before" | "after" | "removed">;
+  /**
+   * What this device may do with the entry's note: accepting writes the note,
+   * declining writes a remark — the same two rights the note's own comments
+   * sheet asks for. An answer it may not give is not offered.
+   */
+  canAccept: boolean;
+  canDecline: boolean;
+  /** A decision is running: the two answers wait. */
+  busy: boolean;
+  onAccept(): void;
+  onDecline(): void;
+  onOpenNote(): void;
+}
+
 const toArray = (v: unknown): string[] => {
   if (Array.isArray(v)) return v.map(String);
   if (v === undefined || v === null || v === "") return [];
@@ -44,7 +63,15 @@ export function CellEditSheet({
   onCommit,
   onClose,
   onCommentProperty,
+  proposal,
+  fill,
 }: {
+  /**
+   * The assistant can fill this cell's column (plan KI-Harness P5-4): the
+   * door to that, named with the column as the database calls it. Absent
+   * while the AI is off, and for a column no run takes.
+   */
+  fill?: { label: string; onStart(): void };
   vault: MobileVault;
   target: CellEditTarget;
   rows: any[];
@@ -58,6 +85,15 @@ export function CellEditSheet({
    * Absent when this device may not comment on the entry.
    */
   onCommentProperty?: () => void;
+  /**
+   * A value somebody proposes for this cell (plan KI-Harness P5-4). It stands
+   * on top of the sheet with its two answers, because a proposal is what one
+   * comes to a cell for while it waits; below it stands the field as always —
+   * the value can also be entered by hand, and then the proposal simply no
+   * longer fits. `onOpenNote` leads to the note, where the suggestion lives
+   * with everything else of its round.
+   */
+  proposal?: CellProposal;
 }) {
   const { t } = useTranslation();
   const { input, col, value } = target;
@@ -188,6 +224,30 @@ export function CellEditSheet({
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={close} />
         <p className="m-sheet-title">{col}</p>
+
+        {proposal && (
+          <div className="m-cell-proposal" data-testid="cell-proposal">
+            <span className="pv-comment-card__proplabel" data-testid="cell-proposal-by">
+              <Sparkles size={ICON.meta} aria-hidden="true" />
+              {proposal.by}
+            </span>
+            <PropertyDiffLine view={proposal.view} />
+            {(proposal.canAccept || proposal.canDecline) && (
+              <div className="pv-comment-card__decision">
+                {proposal.canAccept && (
+                  <Button size="sm" disabled={proposal.busy} onClick={proposal.onAccept} data-testid="cell-proposal-accept">
+                    {t("comments.suggestionApply")}
+                  </Button>
+                )}
+                {proposal.canDecline && (
+                  <Button size="sm" variant="ghost" disabled={proposal.busy} onClick={proposal.onDecline} data-testid="cell-proposal-decline">
+                    {t("comments.suggestionDecline")}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {isSelect && (
           <>
@@ -390,10 +450,25 @@ export function CellEditSheet({
         {!isRelation && !isDate && input !== "checkbox" && !usingCurated && !suggestions.wholeVault && (
           <button className="m-row" onClick={suggestions.expand}>{t("properties.searchWholeVault")}</button>
         )}
+        {proposal && (
+          // The suggestion lives at its note, with the rest of its round: the way there, at the sheet's foot.
+          <button className="m-row" onClick={proposal.onOpenNote} data-testid="cell-proposal-open">
+            <FileText size={ICON.head} />
+            <span>{t("database.proposedOpenNote")}</span>
+          </button>
+        )}
         {onCommentProperty && (
           <button className="m-row" onClick={onCommentProperty} data-testid="base-comment-property">
             <MessageSquare size={ICON.head} />
             <span>{t("comments.commentOnProperty")}</span>
+          </button>
+        )}
+        {fill && (
+          // The column's own door (plan KI-Harness P5-4): the phone has no column head to carry it, and a cell is where
+          // one notices that a column is empty. Last at the foot — it is about every entry, not about this one.
+          <button className="m-row" onClick={fill.onStart} data-testid="base-fill-column">
+            <Sparkles size={ICON.head} />
+            <span>{t("database.fill.action", { column: fill.label })}</span>
           </button>
         )}
       </div>

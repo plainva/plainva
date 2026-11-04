@@ -39,7 +39,7 @@ Note that the guarantee runs one way: Obsidian can always **open** what Plainva 
 
 ## Automation & scripting
 
-Plainva has no code-plugin sandbox — the vault *is* the interface. Every file is plain Markdown or YAML with an open, documented format, so any script, CLI tool or AI agent can read and write your vault directly and safely, with no Plainva-specific API to learn. See the guide's [Automation & Scripts](docs/user/en/Automation_and_Scripts.md) page and the machine-oriented [file format reference](docs/user/en/File_Format_Reference.md). (A dedicated in-app plugin system remains a separate post-1.0 idea.)
+Plainva has no code-plugin sandbox — the vault *is* the interface. Every file is plain Markdown or YAML with an open, documented format, so any script, CLI tool or AI agent can read and write your vault directly and safely, with no Plainva-specific API to learn. See the guide's [Automation & Scripts](docs/user/en/Automation_and_Scripts.md) page and the machine-oriented [file format reference](docs/user/en/File_Format_Reference.md); for AI agents there is a ready-made [`AGENTS.md` template and skill](docs/agents/). AI apps on the same computer (Claude Code, Claude Desktop, editors) can also read the vault through Plainva's read-only MCP server — no network port, folders granted per app — see [Connecting AI apps](docs/user/en/Connect_AI_Apps.md). A direct write skips Plainva's pre-write backup — the version history only holds what Plainva wrote — so larger agent edits belong in a vault under Git. (A dedicated in-app plugin system remains a separate post-1.0 idea.)
 
 ## Download & install
 
@@ -105,6 +105,8 @@ pnpm test && pnpm lint && pnpm typecheck   # checks
 pnpm --filter desktop test:e2e      # Playwright E2E (Vite dev server)
 pnpm --filter desktop smoke:prod    # production-build smoke (vite build + preview + boot check)
 ```
+
+Search by meaning (optional local model packages) runs Microsoft's ONNX Runtime, which the app bundles but the repository does not hold: `node apps/desktop/scripts/fetch-onnxruntime.mjs` downloads the pinned release for your platform into `apps/desktop/src-tauri/resources/onnxruntime/` (the Labs build and the release workflow run it themselves). Without it the app builds and runs as before; only the local model packages are unavailable.
 
 With Nix, the flake provides the toolchain and the native libraries, so nothing has to be installed by hand:
 

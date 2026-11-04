@@ -109,6 +109,13 @@ const SITES: Record<string, Site[]> = {
     ["handed to commitVaultTransfer", 1, TRANSFER_SOURCE],
     ["handed to starterFilesToHoldBack", 1, READS_ONLY],
   ],
+  "services/ai/mobileAi.ts": [
+    ["handed to adapterInstructionVersions", 1, "reads: a skill's earlier versions, listed and read where the versions layer keeps them (AI harness P6)"],
+    ["returned", 1, `${VERSIONS_LAYER} (a version of a skill's file as it is, taken before a proposal of the assistant rewrites it; the write goes through \`vault.files\`)`],
+  ],
+  "services/commentOperations.ts": [
+    ["calls ensureSnapshot", 1, `${VERSIONS_LAYER} (a version of the note as it is, taken before an accepted suggestion writes over it; the write goes through \`vault.files\`)`],
+  ],
   "services/importTarget.ts": [["builds CapacitorVaultAdapter", 1, NOT_OPEN]],
   "services/mobileComments.ts": [["handed to new BundleCommentStore as vault", 1, COMMENTS]],
   "services/mobileSettingsSync.ts": [

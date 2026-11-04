@@ -189,12 +189,19 @@ jobs:
       - name: Build the smoke app (with the embedded WebDriver server)
         run: pnpm --filter desktop exec tauri build --debug --bundles app --features webdriver-smoke --config src-tauri/tauri.smoke.macos.conf.json
       # Positive control for the release check: the same script that fails a
-      # release binary carrying the server has to find it here.
+      # release binary carrying the server has to find it here — in the app's
+      # own binary. The bundle carries a second program beside it, the MCP
+      # helper (plan KI-Harness §17.3), built without the feature: it is held
+      # to the release's rule, no trace at all.
       - name: The smoke build carries the server, and the check sees it
         run: |
           set -euo pipefail
-          ls -la apps/desktop/src-tauri/target/debug/bundle/macos/*.app/Contents/MacOS/
-          bash apps/desktop/scripts/check-webdriver-server.sh --expect-present apps/desktop/src-tauri/target/debug/bundle/macos/*.app/Contents/MacOS/*
+          dir=$(echo apps/desktop/src-tauri/target/debug/bundle/macos/*.app/Contents/MacOS)
+          ls -la "$dir"
+          bash apps/desktop/scripts/check-webdriver-server.sh --expect-present "$dir/plainva-desktop"
+          for binary in "$dir"/*; do
+            [ "$binary" = "$dir/plainva-desktop" ] || bash apps/desktop/scripts/check-webdriver-server.sh "$binary"
+          done
       - name: Native smoke
         run: pnpm --filter desktop test:native
       - name: What the spell checking left in the app's defaults

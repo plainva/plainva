@@ -6,6 +6,8 @@ Plainva hat kein Plugin-System, das fremden Code ausführt. Stattdessen ist der 
 
 Diese Seite erklärt, wie das **sicher** geht. Das genaue Byte-Format jeder Datei steht separat in der [Dateiformat-Referenz](File_Format_Reference.md); diese Seite ist der praktische Begleiter: die Regeln, der Ablauf und was Du einer KI mitgibst.
 
+Plainva kann auch kleine eigene Skripte in der App ausführen: in einem geschlossenen Kasten, der Deine Notizen nur über die Werkzeuge des KI-Assistenten erreicht — lesend, oder mit einem Vorschlag, über den Du entscheidest — und nie eine Datei anfasst. Das ist etwas anderes als die Skripte auf dieser Seite, die von außen mit den Dateien arbeiten — siehe [Skripte](AI_Scripts.md).
+
 ## Warum Dateien statt einer Plugin-Sandbox
 
 - **Sicherheit.** Ein Code-Plugin-System führt fremde Programme in Deinem Editor aus, mit Zugriff auf Deine Notizen. Reine Dateien brauchen dieses Vertrauen nicht: Ein Skript berührt nur den Ordner, auf den Du es ansetzt, mit den normalen Rechten Deines Betriebssystems.
@@ -54,8 +56,14 @@ Ein KI-Agent mit Lese-/Schreibzugriff auf einen Vault-Ordner ist genau der Fall,
 1. **Gib ihm die [Dateiformat-Referenz](File_Format_Reference.md).** Sie ist für einen maschinellen Leser geschrieben: der OKF-Frontmatter-Vertrag, die Eigenschaft→YAML-Serialisierung, das vollständige `.base`-Schema mit seinen harten Obsidian-Regeln, der `index.md`-Vertrag und die Sicherheitsregeln — alles, was ein Agent braucht, um Dateien zu bearbeiten, ohne sie zu zerstören.
 2. **Setz ihn auf den Vault-Ordner an, nicht auf `.plainva/`.** Sag klar, dass `.plainva/` tabu ist.
 3. **Verlange atomare, minimale Änderungen.** Ein Agent, der eine ganze Notiz neu schreibt, um eine Eigenschaft zu ändern, sollte den Rest von Frontmatter und Text wortgetreu bewahren.
+4. **Gib ihm die fertigen Anweisungen.** Plainva liefert eine [`AGENTS.md`-Vorlage](../../agents/AGENTS.md) für den Vault-Stamm und einen Skill im Agent-Skills-Format ([`plainva-vault/SKILL.md`](../../agents/skills/plainva-vault/SKILL.md)); beide tragen die Regeln dieser Seite in der Form, die Agenten lesen.
+5. **Achte die Datenschutzregel.** Notizen mit `plainva: { ai: { cloud: deny } }` und so eingetragene Ordner in `.agent/policy.yml` dürfen an kein Cloud-Modell gehen — siehe [Dateiformat-Referenz](File_Format_Reference.md).
 
 Weil der Vertrag ein Dokument ist und keine laufende API, funktionieren dieselben Anweisungen mit jeder KI, offline wie online.
+
+**Lesen, ohne die Dateien anzufassen.** Eine KI-App auf diesem Rechner — Claude Code, Claude Desktop, ein Editor — kann den Vault auch über Plainva lesen statt über den Ordner: sie sieht nur die Ordner, die Du erlaubt hast, die Datenschutzregeln gelten, und von sich aus ändert sie nichts — höchstens schlägt sie Änderungen vor, wo Du das erlaubst. Siehe [KI-Apps verbinden](Connect_AI_Apps.md).
+
+**Was ein direkter Schreibzugriff umgeht.** Plainva bemerkt Änderungen von außen und synchronisiert sie, legt aber keine Sicherung des Textes an, den ein Agent ersetzt: der Versionsverlauf enthält nur, was Plainva selbst geschrieben hat. Für größere Änderungen den Vault unter Versionsverwaltung (Git) halten.
 
 ## Sicherheit in Kürze
 
@@ -63,6 +71,7 @@ Weil der Vertrag ein Dokument ist und keine laufende API, funktionieren dieselbe
 - Atomar schreiben (temporäre Datei + Umbenennen).
 - `type`, `okf_version` und unbekannte Schlüssel bewahren.
 - Nie in `.plainva/` schreiben.
+- `.agent/` in Ruhe lassen, außer Du verlangst es; `cloud: deny` beachten.
 - `.base`: vier Top-Level-Schlüssel, benannte Ansichten, einwurzelige Filter, `plainva:`-Unterschlüssel für alles andere.
 - Der Vault wird überwacht — externe Änderungen erscheinen automatisch in Plainva.
 

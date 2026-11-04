@@ -903,6 +903,27 @@ textarea {
   margin-bottom: 0;
 }
 
+/* The skills workshop's two actions above its lists (plan KI-Harness P3-5). */
+.m-skills-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A watched version that had a run that failed (plan KI-Harness P6-2): what happened, and the two things to do about it. */
+.m-skill-watch {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* The verdicts of a skill's scenarios under its row in the regression run's sheet (plan KI-Harness P3-8). */
+.m-skill-test-lines {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0 var(--space-3) var(--space-3);
+  font-size: var(--text-sm);
+}
+
 .m-sync-status {
   display: inline-flex;
   align-items: center;
@@ -975,6 +996,11 @@ textarea {
   margin: 0 0 var(--space-1);
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-muted);
+}
+/* A question in several sentences (the dialog host's message): its paragraphs
+   stay paragraphs, so "how many", "what happens" and "which model" read apart. */
+.m-hint--paragraphs {
+  white-space: pre-line;
 }
 
 /* A numbered how-to, for the one place the app has to explain something that
@@ -1060,6 +1086,12 @@ textarea {
 .m-sync-actions--column {
   flex-direction: column;
   align-items: stretch;
+}
+/* A row that holds more actions than a narrow phone shows side by side (the
+   image viewer since "Make a note of it"): the last one moves to a second
+   line instead of leaving the screen. */
+.m-sync-actions--wrap {
+  flex-wrap: wrap;
 }
 .m-danger {
   color: var(--error-text);
@@ -1759,6 +1791,27 @@ textarea {
   gap: var(--space-1);
   margin-left: var(--space-2);
   padding: var(--space-1) var(--space-2);
+}
+/* A proposed value beside what its cell says (AI harness P5-4): the shared
+   Chip in its `proposed` tone; this only keeps it off the text in front. */
+.m-prop-proposed {
+  margin-inline-start: var(--space-2);
+}
+/* The proposal on top of the cell's sheet: who proposed it, the property's
+   before and after as a suggestion's card writes them, and the two answers. */
+.m-cell-proposal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2);
+  padding: var(--space-3);
+}
+/* A filter from a sentence on top of the filter list (AI harness P5-4): the
+   shared block, held off the sheet's edge like the rows below it. */
+.m-filterwords {
+  padding: var(--space-1) var(--space-2) var(--space-3);
 }
 /* P5: sync conflict surfaces */
 .m-warn {
@@ -5018,6 +5071,17 @@ textarea {
 .m-image-stage img { max-width: 100%; max-height: 100%; object-fit: contain; flex: none; user-select: none; }
 .m-image-tools { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-2); }
 
+/* The KI sheet and screen (plan KI-Harness §19.1): the shared conversation
+   (.pv-ai, packages/ui) fills them; only the frame is the phone's. */
+.m-ai-sheet { display: flex; flex-direction: column; padding-bottom: 0; }
+.m-ai-sheethead { display: flex; align-items: center; gap: var(--space-1); }
+.m-ai-sheethead .m-sheet-title { flex: 1; min-width: 0; margin: 0; }
+.m-ai-sheet .pv-ai { flex: 1; min-height: 0; }
+.m-ai-page { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.m-ai-page .pv-ai { flex: 1; min-height: 0; }
+/* The AI segment of the note's context: bounded, so its thread scrolls inside the sheet or the docked column. */
+.m-ai-segment { display: flex; flex-direction: column; height: 56vh; }
+.m-ai-segment > .pv-ai { flex: 1; min-height: 0; }
 /* Database entries and tasks in the day columns and the all-day strip
    (TestFlight, build 125): notes, not appointments - a line with a mark, an
    outline for a task with a due time, never the event fill. */

@@ -28,6 +28,7 @@ import {
   MessageSquarePlus,
   PenLine,
   Pencil,
+  Sparkles,
   TextSelect,
   Image as ImageIcon,
   Paperclip,
@@ -54,7 +55,7 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { decideDirtyExternalUpdate, textDirectionOf, toast } from "@plainva/ui";
+import { decideDirtyExternalUpdate, textDirectionOf, toast, imageExplainer } from "@plainva/ui";
 import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { NoteConflictCard } from "./components/NoteConflictCard";
@@ -62,7 +63,7 @@ import { syncSoon } from "./services/syncService";
 import { mActions } from "./services/mobileDialogs";
 import { openLink } from "./services/openLink";
 import { applyTemplateInteractive } from "./services/templateInteractive";
-import { setEditorSelectionReader } from "./services/editorSelection";
+import { setEditorRangeReader, setEditorSelectionReader } from "./services/editorSelection";
 import { getMobileSettings } from "./services/mobileSettings";
 import { getActiveVaultEntry } from "./services/vaultRegistry";
 import { availablePhotoPath, cameraErrorMessage, isCameraCancellation, mediaResultBytes } from "./services/photoCapture";
@@ -90,6 +91,7 @@ export function EditorHost({
   canComment,
   onCommentAnchorRequest,
   onPassageSuggest,
+  onAskAi,
   onEditAt,
   anchorHighlights,
   onAnchorActivate,
@@ -113,6 +115,8 @@ export function EditorHost({
   onCommentAnchorRequest?: (req: { from: number; to: number; display?: AnchorFrameHint }) => void;
   /** The reader chose "Suggest" over a selection (C26): the screen switches into the suggestion mode. */
   onPassageSuggest?: () => void;
+  /** The AI is on: "AI" in the reading selection opens the AI sheet with the passage (plan KI-Harness P1.5). */
+  onAskAi?: () => void;
   /**
    * The reader chose "Edit" over a selection (P5, Build-91 feedback): the
    * screen switches to writing with the cursor at that range. Absent when the
@@ -446,8 +450,25 @@ export function EditorHost({
         // The explicit action has its own menu, also usable with a mouse.
         if (!fromAction) return false;
         // An action, not a one-row choice list with an empty ring (E20).
-        void mActions({ title: t("contextMenu.openImage"), options: [{ value: "open", label: t("contextMenu.openImage") }] }).then((choice) => {
-          if (choice === "open") onOpenNote(absolutePath.replace(/^\/+/, ""));
+        // "Explain image" (plan KI-Harness P4-5) is offered while the AI is on: the picture goes with this note's rules in force.
+        const explain = imageExplainer();
+        const picture = absolutePath.replace(/^\/+/, "");
+        void mActions({
+          title: t("contextMenu.openImage"),
+          options: [
+            { value: "open", label: t("contextMenu.openImage") },
+            ...(explain
+              ? [
+                  { value: "explain", label: t("ai.image.action") },
+                  // "Make a note of it" (plan KI-Harness P7): the same door with another task.
+                  { value: "note", label: t("ai.image.noteAction") },
+                ]
+              : []),
+          ],
+        }).then((choice) => {
+          if (choice === "open") onOpenNote(picture);
+          else if (choice === "explain") void explain?.({ path: picture, notePath: path });
+          else if (choice === "note") void explain?.({ path: picture, notePath: path }, "note");
         });
         return true;
       },
@@ -637,6 +658,13 @@ export function EditorHost({
       const { from, to } = view.state.selection.main;
       return from === to ? null : view.state.sliceDoc(from, to);
     });
+    // The AI's selection door needs the place too (plan KI-Harness P1.5).
+    setEditorRangeReader(() => {
+      const view = sessionRef.current?.view;
+      if (!view) return null;
+      const { from, to } = view.state.selection.main;
+      return { path, from, to, text: view.state.sliceDoc(from, to), doc: view.state.doc.toString() };
+    });
     // Unresolved-link styling (maintainer 2026-07-18): push the set of existing
     // targets into the shared wiki plugin so links to not-yet-created notes read
     // muted (dashed). Same field the desktop editor feeds.
@@ -798,6 +826,7 @@ export function EditorHost({
       // write survives this unmount (it is not tied to component lifetime).
       void noteSaver.flush(path, vault).catch(() => {});
       setEditorSelectionReader(null);
+      setEditorRangeReader(null);
       session.view.scrollDOM.removeEventListener("scroll", onScroll);
       if (getChromeScroll().source === chromeSource) resetChromeScroll();
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
@@ -1417,6 +1446,7 @@ export function EditorHost({
         hasComment: !!onCommentAnchorRequest,
         hasSuggest: !!onPassageSuggest,
         canEdit: !!onEditAt,
+        hasAi: !!onAskAi,
       }).length > 0 && (
         <SelectionToolbarSurface
           role="toolbar"
@@ -1516,6 +1546,23 @@ export function EditorHost({
               <span>{t("comments.suggestMode")}</span>
             </button>
           )}
+          {onAskAi && (
+            <button
+              type="button"
+              className="pv-iconbtn m-selverb"
+              data-testid="read-selection-ai"
+              aria-label={t("ai.selection.menu")}
+              data-tip={t("ai.selection.menu")}
+              onClick={() => {
+                // The selection stays in the editor: the AI sheet reads it for its actions.
+                setSelectionAt(null);
+                onAskAi();
+              }}
+            >
+              <Sparkles size={ICON.ui} />
+              <span>{t("ai.selection.menu")}</span>
+            </button>
+          )}
         </SelectionToolbarSurface>
       )}
       {editable && selectionAt && (
@@ -1527,6 +1574,20 @@ export function EditorHost({
             if (!view) return;
             applySelectionFormat(view, action, () => toast.info(t("editor.fmtMultilineLink")));
           }}
+          extra={
+            onAskAi && (
+              <IconButton
+                label={t("ai.selection.menu")}
+                data-testid="selection-ai"
+                onClick={() => {
+                  setSelectionAt(null);
+                  onAskAi();
+                }}
+              >
+                <Sparkles size={ICON.ui} />
+              </IconButton>
+            )
+          }
           x={selectionAt.x}
           y={selectionAt.y}
         />

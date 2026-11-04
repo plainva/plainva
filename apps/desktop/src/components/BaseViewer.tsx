@@ -8,10 +8,12 @@ import { BaseExportDialog, handTemplateCaretAcrossRename } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
-  Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette } from "lucide-react";
+  Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS, withColumnValues } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
+import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
+import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
@@ -70,6 +72,8 @@ import { detectMac } from "./WindowControls";
 
 // Platform-aware toggle modifier (⌘ on macOS, Ctrl elsewhere) — detected once.
 const IS_MAC = detectMac();
+/** No proposed values: one map for every database that has none, so nothing re-renders over an empty answer. */
+const NO_PROPOSED_CELLS: ReadonlyMap<string, ReadonlyMap<string, ProposedCell>> = new Map();
 import { BulkSetPopover, type BulkSetColumn } from "./base/BulkSetPopover";
 import { BaseTableView } from "./base/BaseTableView";
 import { BaseListView } from "./base/BaseListView";
@@ -142,7 +146,7 @@ export function BaseViewer({
   onCloseTab?: () => void;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, getWorkspaceCapabilities } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, listWorkspaceMembers, getWorkspaceCapabilities, commentOperations, workspaceSecurityStatus } = useVault();
   const cache = useMemo(() => queryService ? pinboardCache(queryService) : null, [queryService]);
   const cacheKey = `${activePath}#${hostPath ?? ""}`;
   const snapshot = useMemo(() => cache?.base<{ config: any; rows: any[]; viewIndex: number }>(cacheKey), [cache, cacheKey]);
@@ -455,7 +459,10 @@ export function BaseViewer({
   // event announces them - a write anywhere in the app raises the window event
   // instead, and a short debounce keeps a burst of replies to a single reload.
   const [noteComments, setNoteComments] = useState<Map<string, WorkspaceCommentRecord[]>>(() => new Map());
+  // Who signed a proposed value, by author id: the names the comments keep. An app's id alone is a row of random letters.
+  const [commentAuthors, setCommentAuthors] = useState<ReadonlyMap<string, string>>(() => new Map());
   const loadComments = useStableHandler(() => listAllWorkspaceComments());
+  const loadCommentAuthors = useStableHandler(() => listWorkspaceMembers());
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -463,28 +470,53 @@ export function BaseViewer({
       loadComments()
         .then((map) => { if (alive) setNoteComments(map); })
         .catch(() => { if (alive) setNoteComments(new Map()); });
+      loadCommentAuthors()
+        .then((members) => { if (alive) setCommentAuthors(new Map(members.map((member) => [member.memberId, member.displayName]))); })
+        .catch(() => undefined);
     };
     load();
     const onChanged = () => { clearTimeout(timer); timer = setTimeout(load, 150); };
     window.addEventListener("plainva-workspace-comments-changed", onChanged);
     return () => { alive = false; clearTimeout(timer); window.removeEventListener("plainva-workspace-comments-changed", onChanged); };
-  }, [loadComments, vaultPath]);
+  }, [loadComments, loadCommentAuthors, vaultPath]);
+
+  // The values somebody proposes for the entries this database shows (plan
+  // KI-Harness P5-4), read from the same comments: per entry and column, the
+  // open suggestion that proposes this column's property. Only where the view
+  // shows a CELL for it (`proposalColumns`): a calendar or a pinboard shows
+  // entries, and what the line above the rows counts is what the reader sees.
+  const proposedColumns = useMemo(() => {
+    const active = dbConfig?.views?.[activeViewIndex];
+    const laneBy = typeof active?.boardLaneBy === "string" ? active.boardLaneBy : null;
+    return proposalColumns(currentViewType, visibleColumns, dbConfig?.columns, { groupBy: boardGroupBy, laneBy, cover: coverImageProperty });
+  }, [currentViewType, visibleColumns, dbConfig, activeViewIndex, boardGroupBy, coverImageProperty]);
+  const proposedCells = useMemo(() => {
+    if (noteComments.size === 0 || proposedColumns.length === 0) return NO_PROPOSED_CELLS;
+    const rowsByPath = new Map<string, any>();
+    for (const row of dbData) { const p = row?.['file.path']; if (typeof p === 'string') rowsByPath.set(p, row); }
+    const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
+    for (const [path, comments] of noteComments) { if (rowsByPath.has(path)) entries.push({ path, comments }); }
+    if (entries.length === 0) return NO_PROPOSED_CELLS;
+    return buildProposedCells(entries, (path) => rowsByPath.get(path), proposedColumns);
+  }, [noteComments, dbData, proposedColumns]);
 
   // A comment anchors on the note's BARE frontmatter key; this database answers
   // with the column that carries it today, following a rename through the
   // `previousKeys` trail the same way the note's own panel does. Only columns
   // this view actually shows can take a dot - an orphan has no cell to sit in.
+  // A proposal the cell SHOWS is not counted among its remarks as well.
   const commentedProperties = useMemo(() => {
     if (noteComments.size === 0 || visibleColumns.length === 0) return new Map<string, Map<string, number>>();
     const rendered = new Set(visibleColumns);
     const shown = new Set<string>();
     for (const row of dbData) { const p = row?.['file.path']; if (typeof p === 'string') shown.add(p); }
+    const inCells = proposedCellComments(proposedCells);
     const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
-    for (const [path, comments] of noteComments) { if (shown.has(path)) entries.push({ path, comments }); }
+    for (const [path, comments] of noteComments) { if (shown.has(path)) entries.push({ path, comments: inCells.size > 0 ? comments.filter((c) => !inCells.has(c.commentId)) : comments }); }
     if (entries.length === 0) return new Map<string, Map<string, number>>();
     const aliasOf = propertyAliasResolver(dbConfig?.columns ? [{ columns: dbConfig.columns }] : []);
     return buildPropertyCommentCells(entries, (key) => rendered.has(key), aliasOf);
-  }, [noteComments, dbData, visibleColumns, dbConfig]);
+  }, [noteComments, dbData, visibleColumns, dbConfig, proposedCells]);
 
   /**
    * The two ways from a database into a remark (finding 2026-09-04).
@@ -507,6 +539,63 @@ export function BaseViewer({
     requestOpen(path);
   };
 
+  /**
+   * Deciding about proposed values from the database (plan KI-Harness P5-4).
+   *
+   * A proposed value is a suggestion at its note, so it is decided by the
+   * operation the note's margin runs - one decision per note, with its backup,
+   * its version and its place in the sync. The database only starts it: the
+   * editor's pending keystrokes land first, and the note is read the way the
+   * operation itself reads it. Many notes at once ask first, like every bulk
+   * change of a database.
+   */
+  // `canWrite`/`canComment`: what this device may do with the entry's note — accepting writes the note, declining
+  // writes a remark, exactly as in the note's own margin. Asked BEFORE the menu opens, so it opens with the answers
+  // it really offers and the keyboard lands on the first of them.
+  const [proposedMenu, setProposedMenu] = useState<{ cell: ProposedCell; at: { x: number; y: number }; canWrite: boolean; canComment: boolean } | null>(null);
+  const [proposedBusy, setProposedBusy] = useState(false);
+  const openProposedMenu = useStableHandler((cell: ProposedCell, anchor: HTMLElement) => {
+    const box = anchor.getBoundingClientRect();
+    const at = { x: box.left, y: box.bottom + 4 };
+    void getWorkspaceCapabilities(cell.path)
+      .then((caps) => setProposedMenu({ cell, at, canWrite: caps === null || caps.includes("content.write"), canComment: caps === null || caps.includes("comment.create") }))
+      // Nobody can say what is allowed: the way to the note stays, the two answers do not.
+      .catch(() => setProposedMenu({ cell, at, canWrite: false, canComment: false }));
+  });
+  const decideProposed = useStableHandler(async (list: readonly ProposedCell[], outcome: "applied" | "declined") => {
+    if (!commentOperations || !vaultAdapter || list.length === 0 || proposedBusy) return;
+    const notes = new Set(list.map((cell) => cell.path)).size;
+    if (outcome === "applied" && isLargeBulkChange(notes, dbData.length)) {
+      const ok = await appConfirm({ title: t("database.proposedAcceptAllTitle"), message: t("database.proposedAcceptAllMsg", { count: list.length, notes }), kind: "warning" });
+      if (!ok) return;
+    }
+    setProposedBusy(true);
+    try {
+      const result = await decideProposedCells({
+        service: commentOperations,
+        current: async (path) => {
+          await requestSaveFlush(path, vaultPath ?? undefined);
+          try { return readTextShape(await vaultAdapter.readTextFile(path)).text; } catch { return null; }
+        },
+      }, list, outcome);
+      if (outcome === "applied" && result.decided.length > 0) {
+        // The cell says it at once; the index and the comments follow with their own events.
+        const accepted = new Map<string, ProposedCell[]>();
+        for (const cell of result.decided) accepted.set(cell.path, [...(accepted.get(cell.path) ?? []), cell]);
+        setDbData((prev) => prev.map((row) => (accepted.get(row?.['file.path']) ?? []).reduce(withProposedValue, row)));
+      }
+      const words = proposedOutcomeWords(t, outcome, result, list.length);
+      if (words.done) toast.success(words.done);
+      if (words.failed) toast.error(words.failed);
+    } finally {
+      setProposedBusy(false);
+    }
+  });
+  const openProposedInNote = (cell: ProposedCell) => {
+    requestCommentJump({ path: cell.path, commentId: cell.comment.commentId });
+    requestOpen(cell.path);
+  };
+
   // Shared cell layer (typed display + inline editing), used by every view.
   const cells = useBaseCells({
     dbConfig,
@@ -526,6 +615,9 @@ export function BaseViewer({
     dateFormat: dbConfig?.views?.[activeViewIndex]?.dateFormat ?? "default",
     commentedProperties,
     onOpenPropertyComments: openPropertyComments,
+    proposedCells,
+    // Where this window cannot decide a suggestion, a proposed value is shown and not offered.
+    onOpenProposedCell: commentOperations ? openProposedMenu : undefined,
   });
 
   // Register this base's row count so a markdown page that embeds it can show the
@@ -761,6 +853,48 @@ export function BaseViewer({
   // that is narrowing the rows.
   const [searchOpen, setSearchOpen] = useState(() => baseSearchText.trim() !== "");
   const searchToggleRef = useRef<HTMLButtonElement>(null);
+
+  // What "all" means for the line above the rows (plan KI-Harness P5-4): the
+  // proposed values of the entries and columns this view shows right now -
+  // narrowed by the search and the scope like the rows themselves.
+  const proposedShown = useMemo(
+    () => (proposedCells.size === 0 ? [] : listProposedCells(proposedCells, scopedData.map((r: any) => String(r["file.path"])), proposedColumns)),
+    [proposedCells, scopedData, proposedColumns]
+  );
+
+  // The assistant at this database (plan KI-Harness P5-4): a column filled
+  // with proposed values, and a filter from a sentence. Absent while the AI is
+  // off on this device — no door of it is drawn then.
+  const baseAi = useBaseAi(useAiSession(), activePath, { sealed: workspaceSecurityStatus !== null });
+  const aiOffered = baseAi !== null;
+  // Which columns a run can fill: a property with words for values — nothing
+  // computed, no relation, none of Plainva's own names. Where the database
+  // declares no kind, the column's own values say it.
+  const fillColumns = useMemo(() => {
+    const out = new Map<string, FillColumn>();
+    if (!aiOffered) return out;
+    const schemas = dbConfig?.columns && !Array.isArray(dbConfig.columns) ? (dbConfig.columns as Record<string, any>) : {};
+    for (const col of new Set([...visibleColumns, ...availableColumns])) {
+      const schema = schemas[col];
+      const column = fillColumnOf(col.replace(/^note\./, ""), columnLabel(col, t, dbConfig), schema, schema?.input ? undefined : inferColumnType(dbData, col));
+      if (column) out.set(col, column);
+    }
+    return out;
+  }, [aiOffered, dbConfig, visibleColumns, availableColumns, dbData, t]);
+  const fillColumnKeys = useMemo(() => new Set(fillColumns.keys()), [fillColumns]);
+  const [fillPlan, setFillPlan] = useState<{ column: FillColumn; plan: FillPlan } | null>(null);
+  const openFillPlan = useStableHandler((col: string) => {
+    const column = fillColumns.get(col);
+    if (!column) return;
+    // An entry a value already waits for is not asked again: a second run must not lay a second value beside the
+    // first. Asked of the comments themselves — the column need not be one this view draws a cell for.
+    const rowsByPath = new Map<string, any>();
+    for (const row of dbData) { const p = row?.['file.path']; if (typeof p === 'string') rowsByPath.set(p, row); }
+    const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
+    for (const [path, comments] of noteComments) { if (rowsByPath.has(path)) entries.push({ path, comments }); }
+    const waiting = new Set(entries.length > 0 ? buildProposedCells(entries, (path) => rowsByPath.get(path), [col]).keys() : []);
+    setFillPlan({ column, plan: fillRows(scopedData, col, waiting) });
+  });
 
   // Selecting several rows (plan Mehrfachauswahl, P3). The reset key is the
   // file AND the view: switching views is switching what "these rows" means,
@@ -2535,6 +2669,8 @@ export function BaseViewer({
         onPersistColumnWidth={persistColumnWidth}
         onOpenColumnEditor={openColumnEditor}
         onToggleColumn={toggleColumn}
+        fillColumns={baseAi?.canFill ? fillColumnKeys : undefined}
+        onFillColumn={baseAi?.canFill ? openFillPlan : undefined}
         summaries={dbConfig?.views?.[activeViewIndex]?.summaries}
         selection={selectionApi}
         subItems={currentViewType === "table" && dbSubItemsParent ? { property: dbSubItemsParent, expandedKeys: expandedSubItems, onToggleExpand: toggleSubItemExpand } : undefined}
@@ -2799,6 +2935,51 @@ export function BaseViewer({
         </div>
       )}
 
+      {/* Values somebody proposes for what this view shows (plan KI-Harness
+          P5-4): how many, and the two buttons that decide them all. */}
+      {commentOperations && !isLoading && !error && (
+        <ProposedValuesBar
+          count={proposedShown.length}
+          busy={proposedBusy}
+          onAcceptAll={() => void decideProposed(proposedShown, "applied")}
+          onDeclineAll={() => void decideProposed(proposedShown, "declined")}
+        />
+      )}
+
+      {/* A run that fills a column of this database (plan KI-Harness P5-4):
+          how far it is, and the way to end it. The values it proposes appear
+          in their cells as they are laid down. */}
+      {baseAi?.fill && <FillProgressBanner fill={baseAi.fill} onStop={baseAi.stopFill} />}
+
+      {fillPlan && baseAi && (
+        <Modal
+          onClose={() => setFillPlan(null)}
+          title={t("database.fill.title", { column: fillPlan.column.label })}
+          icon={<Sparkles size={ICON.head} />}
+          size="sm"
+          testId="base-fill-dialog"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setFillPlan(null)}>{t("common.cancel")}</Button>
+              <Button
+                variant="primary"
+                disabled={fillPlan.plan.missing === 0 || !baseAi.model || baseAi.busy}
+                onClick={() => {
+                  const { column, plan } = fillPlan;
+                  setFillPlan(null);
+                  void baseAi.startFill(column, plan.rows);
+                }}
+                data-testid="base-fill-start"
+              >
+                {t("database.fill.start")}
+              </Button>
+            </>
+          }
+        >
+          <FillPlanBody column={fillPlan.column} plan={fillPlan.plan} model={baseAi.model} />
+        </Modal>
+      )}
+
       {bulkSetOpen && rowSel.selection.size > 0 && (
         <BulkSetPopover
           anchorRef={bulkAnchorRef}
@@ -2850,6 +3031,9 @@ export function BaseViewer({
             onSetSummary={setSummary}
             onSaveConfig={saveConfig}
             onMutateFilters={mutateFilters}
+            ai={baseAi}
+            fillColumns={baseAi?.canFill ? fillColumnKeys : undefined}
+            onFillColumn={baseAi?.canFill ? openFillPlan : undefined}
             onSetSortRules={setSortRules}
             onAddProperty={addProperty}
             onSetBoardGroupBy={setBoardGroupByPersisted}
@@ -3006,6 +3190,24 @@ export function BaseViewer({
           <MenuSeparator />
           <MenuItem danger onSelect={() => { const p = rowMenu.path; setRowMenu(null); void deleteEntry(p); }}>
             {t("database.entryDelete")}
+          </MenuItem>
+        </MenuSurface>
+      )}
+      {/* A proposed value, decided where it stands (plan KI-Harness P5-4): who
+          proposed it, the two answers, and the way to its note - where the
+          suggestion lives, with everything else of its round. */}
+      {proposedMenu && (
+        <MenuSurface open at={proposedMenu.at} onClose={() => setProposedMenu(null)} ariaLabel={t("database.proposedLabel")}>
+          <MenuLabel>{proposedBy(t, proposedMenu.cell.comment, commentAuthors)}</MenuLabel>
+          <MenuItem icon={<Check size={ICON.meta} />} disabled={proposedBusy || !proposedMenu.canWrite} onSelect={() => { const cell = proposedMenu.cell; setProposedMenu(null); void decideProposed([cell], "applied"); }} data-testid="base-proposed-accept">
+            {t("comments.suggestionApply")}
+          </MenuItem>
+          <MenuItem icon={<X size={ICON.meta} />} disabled={proposedBusy || !proposedMenu.canComment} onSelect={() => { const cell = proposedMenu.cell; setProposedMenu(null); void decideProposed([cell], "declined"); }} data-testid="base-proposed-decline">
+            {t("comments.suggestionDecline")}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem icon={<FileText size={ICON.meta} />} onSelect={() => { const cell = proposedMenu.cell; setProposedMenu(null); openProposedInNote(cell); }} data-testid="base-proposed-open">
+            {t("database.proposedOpenNote")}
           </MenuItem>
         </MenuSurface>
       )}

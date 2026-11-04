@@ -1,0 +1,882 @@
+import type { Conversation } from "./conversation.js";
+import type { EgressManifest } from "./context/manifest.js";
+import { estimateTokensOfChars, type PackageRef } from "./context/package.js";
+import { isSensitiveKind, type SensitiveKind } from "./context/sensitiveHints.js";
+import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "./policy.js";
+import { NOTE_HASH } from "./runSnapshot.js";
+import { checkWebUrl } from "./web/rules.js";
+import { parseMissingLinks } from "./writes/links.js";
+
+/**
+ * Conversation history and the run ledger (§16 of the plan).
+ *
+ * Both live in the app's data folder, per vault — never in the vault: a
+ * transcript holds excerpts that were sent to a cloud provider and would
+ * otherwise be synced past the privacy policy. The ledger is the technical
+ * audit (tools, tokens, provider, errors) and never holds content.
+ */
+
+export interface ConversationUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+/**
+ * What a run did on the internet (plan KI-Harness P4): the pages it asked for
+ * and the searches it made — addresses, titles, queries and numbers, never a
+ * page's text. `read` is false for a page that was asked for and gave no
+ * report (an error, no text, a redirect to another site).
+ */
+export interface RunWeb {
+  pages: { url: string; title: string; at: string; read: boolean }[];
+  searches: { query: string; at: string; hits: number }[];
+  /** Tokens of the calls that read pages and searched; they are part of the run's usage. */
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * What a run read through its tools of the texts other people wrote for the
+ * user (plan KI-Harness P4-4) — mail, the descriptions of appointments — in
+ * numbers, and who read the raw text: a model on this device, or the
+ * conversation's own provider. Never a subject, a sender or a word of it.
+ */
+export interface RunReading {
+  mailSearches: number;
+  /** Messages a reader reported on. */
+  messages: number;
+  /** Descriptions of appointments a reader reported on. */
+  descriptions: number;
+  /** Where the raw text was read. */
+  reader: "device" | "provider";
+  /** The reader's model as the settings name it, when it read on this device. */
+  readerModel?: string;
+  /** Tokens of the reader's calls; part of the run's usage only when the provider read. */
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** What one run sent and cost — the line under its answer, and the audit's source. */
+export interface RunMeta {
+  /** Index of the user turn that started the run. */
+  userTurn: number;
+  providerId: string;
+  model: string;
+  /** Notes the context carried to the recipient, by path. */
+  sent: string[];
+  /** Notes a privacy rule kept back, by path — never their content. */
+  kept: string[];
+  usage: ConversationUsage;
+  steps: number;
+  /** How the run ended (`RunStop.kind`). */
+  stop: string;
+  /** The failure's kind when it failed; the provider's own words are not stored. */
+  failure?: string;
+  /**
+   * The request reached no model: none said what it took in, and none
+   * answered (plan KI-Harness P9-6). What it carried saved nothing then, and
+   * another part of the same note that a later turn takes counts. The same
+   * part asked again goes along as the conversation's earlier turn and is not
+   * counted — on the low side.
+   */
+  unreached?: true;
+  costUsd?: number;
+  /** The send overview of this run: what went where, by path and section — never content. */
+  manifest?: EgressManifest;
+  /**
+   * Skills the run used: the one the conversation runs ("bound") and the ones
+   * the model loaded, with their tokens (plan KI-Harness P3) and the version
+   * of their instructions, the SHA-256 of `SKILL.md` (plan P9-2).
+   */
+  skills?: { id: string; how: "bound" | "loaded"; tokens: number; sha256?: string }[];
+  /** The catalog the request carried: how many skills, how many tokens. */
+  skillCatalog?: { count: number; tokens: number };
+  /** What the run asked of the internet; absent when it asked nothing. */
+  web?: RunWeb;
+  /** What the run read of mail and appointments; absent when it read none. */
+  reading?: RunReading;
+  /**
+   * Rules that notes carried which passed this run's tools although the rule
+   * restricts them elsewhere (plan KI-Harness P4-6): a note kept from the
+   * cloud that a model on this device read (`cloud`), a note kept from the
+   * internet in a conversation without it (`web`). The rule, never a path:
+   * what is made of this run's answer — a note — inherits it. Absent when
+   * nothing of the kind passed.
+   */
+  restricted?: AiPolicyDimension[];
+  /**
+   * Notes the run's tools read, by path (plan KI-Harness P4.5), beside the
+   * ones its context carried (`sent`). A foreign server gets a call only when
+   * everything a conversation has read lies in the folders the user allowed
+   * for it — so what was read has to be known later. At most `RUN_READ_CAP`
+   * paths; `readMore` says that there were more, and then nothing is assumed
+   * about where they lie.
+   */
+  read?: string[];
+  readMore?: boolean;
+  /**
+   * The versions of the notes the run's tools read whole (plan KI-Harness
+   * P9-2): the SHA-256 of the text a tool was given, by path — never the
+   * text. A note that was only a hit of a search has none. At most
+   * `RUN_READ_CAP`, like `read` — kept apart from it, so a run whose `read`
+   * filled with notes it only listed still knows the texts it read (P9-6).
+   */
+  readHashes?: { path: string; hash: string }[];
+  /**
+   * The sources the conversation chose to send redacted when the run ran
+   * (plan KI-Harness P9-6), the situation among them where chosen: a cloud's
+   * context and tools followed this choice; on this device nothing is
+   * redacted (ADR 0018, decision 13). A part of a note named "unchanged" later
+   * stands only where this choice was the same at every view since. Absent
+   * where none was chosen.
+   */
+  redact?: string[];
+  /**
+   * Notes a tool of the run read at more than one version — the note changed
+   * while the run read it (plan KI-Harness P9-6). `readHashes` keeps the last
+   * one, for the run's snapshot; for "unchanged" such a note has no one
+   * version: what the model saw of it is not one text.
+   */
+  readChanged?: string[];
+  /**
+   * A tool of the run read a note whose version the record could not keep:
+   * more than `RUN_READ_CAP` notes read (plan KI-Harness P9-6). Nothing the
+   * conversation sent before counts as unchanged after it.
+   */
+  readUnhashed?: true;
+  /** What the run asked of foreign servers; absent when it asked nothing. */
+  mcp?: RunMcp;
+  /** What the run laid down for the user to decide (plan KI-Harness P5); absent when it laid down nothing. */
+  writes?: RunWrites;
+  /** The scripts the run started; absent when it started none. */
+  scripts?: RunScripts;
+}
+
+/**
+ * What a run did with the vault's scripts (plan KI-Harness P5.5): which
+ * script, how it ended (`done`, or why not), how many tool calls it made —
+ * never what it was handed or a word of what it returned.
+ */
+export interface RunScripts {
+  runs: { script: string; outcome: string; calls: number }[];
+}
+
+/**
+ * What a run laid down (plan KI-Harness P5): the notes it put a suggestion
+ * round on, the drafts it left, the plans it asked about and how each ended.
+ * Paths, counts, a draft's title — never a proposed text. The line under an
+ * answer is drawn from this, and a later conversation can see what an
+ * earlier one already proposed.
+ */
+export interface RunWrites {
+  /**
+   * Suggestion rounds by note: how many passages, how many properties — and, where the added text links to notes
+   * that were not in the vault when it was laid down, their names (the source check, plan P5-7). `withheld` are
+   * links to notes that are there and that the rules kept from the run: said to the user, on this device, and
+   * never part of anything a model is sent — they are names of notes the rules keep back.
+   */
+  rounds: { path: string; blocks: number; properties: number; missing?: string[]; withheld?: string[] }[];
+  /** Drafts by id, with the kind and the title they were laid down with. */
+  drafts: { id: string; kind: string; title: string }[];
+  /** Plans the user was asked about: `done`, `declined` or `failed`. */
+  plans: { kind: string; path: string; outcome: string }[];
+}
+
+export const RUN_WRITES_CAP = 64;
+
+/** Paths of notes a run's tools read that its record keeps. */
+export const RUN_READ_CAP = 200;
+
+/**
+ * What a run asked of foreign MCP servers (plan KI-Harness P4.5): which
+ * server, which tool, how it ended — never an argument or a word of a result.
+ */
+export interface RunMcp {
+  calls: { server: string; tool: string; outcome: string; questions?: RunMcpQuestions }[];
+}
+
+/**
+ * What a server asked the user during one call (plan KI-Harness P9-4a), by
+ * how each question went: answered, declined, stopped, or refused by
+ * Plainva. Only numbers — what was asked and what was answered is never kept.
+ */
+export interface RunMcpQuestions {
+  answered: number;
+  declined: number;
+  cancelled: number;
+  refused: number;
+}
+
+/** The skill a conversation runs, bound when it started (plan KI-Harness P3). */
+export interface ConversationSkill {
+  id: string;
+  name: string;
+  origin: "plainva" | "vault";
+  /** SHA-256 of its main file as it was bound. */
+  sha256: string;
+  /** Tools and context only inside these folders. */
+  folders?: string[];
+  /** Output tokens of a run, at most. */
+  maxOutputTokens?: number;
+  /** Meant for a model on this device (a hint). */
+  localPreferred?: boolean;
+}
+
+/** What a conversation's system prompt carries besides the app's own rules — fixed when it started. */
+export interface ConversationInstructions {
+  skill?: ConversationSkill;
+  /** The catalog's entries: the name the model calls, the source's id and its origin. */
+  /** `server`: a skill a connected server serves (plan P9-4b). */
+  catalog?: { key: string; id: string; origin: "plainva" | "vault" | "server" }[];
+  catalogTokens?: number;
+  skillTokens?: number;
+  /** The vault owner's AGENTS.md went in, this many tokens. */
+  vaultTokens?: number;
+  /** What of the vault's memory went in (plan KI-Harness P6): data in a fence, never an instruction. */
+  memory?: ConversationMemory;
+  /** The user's writing style, where they chose it for this conversation (plan KI-Harness P9-3). */
+  style?: ConversationStyle;
+}
+
+/**
+ * The user's writing style as a conversation was started with it (ADR 0035).
+ * The lines themselves are in the system prompt; this is what the record and
+ * the overview say about them — how many features went, from how many
+ * examples, how many examples a rule kept back —, and the rules the examples
+ * that went carry: what is made of the conversation inherits them.
+ */
+export interface ConversationStyle {
+  features: number;
+  examples: number;
+  withheld: number;
+  tokens: number;
+  restricted: AiPolicyDimension[];
+}
+
+/**
+ * The vault's memory as a conversation was started with it (ADR 0032). The
+ * entries themselves are in the system prompt; this is what the record and
+ * the overview say about them — how many went, how many a rule kept back, how
+ * many no longer fit —, and the rules the entries that went carry: what is
+ * made of the conversation inherits them, as it does those of a note it read.
+ */
+export interface ConversationMemory {
+  entries: number;
+  withheld: number;
+  left: number;
+  tokens: number;
+  restricted: AiPolicyDimension[];
+  /** The conversation was given the tool that looks into the long-term memory. */
+  lookup: boolean;
+}
+
+export interface ConversationRecord {
+  version: 1;
+  /** Equals `conversation.id`. */
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  /** The provider and model the next message goes to. */
+  providerId: string;
+  model: string;
+  conversation: Conversation;
+  usage: ConversationUsage;
+  /** One entry per run, in order. */
+  runs: RunMeta[];
+  /** Notes pinned to this conversation's context, by path. */
+  pins: string[];
+  /**
+   * Sources whose numbers and secrets this conversation sends redacted (plan
+   * P2b-6): note paths, and `SITUATION_SOURCE` for tasks and appointments.
+   * Kept with the conversation, so a reopened one sends what it sent before.
+   */
+  redact?: string[];
+  /** The skill, the catalog and AGENTS.md its system prompt carries (plan KI-Harness P3). */
+  instructions?: ConversationInstructions;
+  /**
+   * The title the app gave a conversation one of its own runs made — a
+   * routine's, a scenario's of a regression run (strand 6, step 9): the app
+   * deletes such a conversation only while it still bears it.
+   */
+  appTitle?: string;
+  /**
+   * The conversation was begun for a model on this device (ADR 0018): what it
+   * was given from its first message on was put together for a reader that
+   * may see what no cloud may. It goes on with a model on this device only.
+   */
+  onDevice?: true;
+  /** The run this conversation asks again of another model, where it is a replay (plan KI-Harness P9-2). */
+  replayOf?: ReplayOf;
+}
+
+/**
+ * Where a replay comes from (plan KI-Harness P9-2, ADR 0034): the
+ * conversation and the run it asks again — by id and the run's user turn —,
+ * what its head says of it (that conversation's title, when the run was and
+ * on which model), and how many of the run's sources had changed by the time
+ * it was asked again.
+ */
+export interface ReplayOf {
+  conversationId: string;
+  userTurn: number;
+  title: string;
+  at: string;
+  providerId: string;
+  model: string;
+  changed: number;
+}
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  updatedAt: string;
+  providerId: string;
+  model: string;
+}
+
+/** Storage of one vault's conversations; the shells back it with files in app data. */
+export interface ConversationRepository {
+  list(): Promise<ConversationSummary[]>;
+  load(id: string): Promise<ConversationRecord | null>;
+  save(record: ConversationRecord): Promise<void>;
+  /** What is not there counts as removed: only a store that cannot remove it rejects. */
+  remove(id: string): Promise<void>;
+  /** As `remove`, for every conversation of the vault. */
+  removeAll(): Promise<void>;
+}
+
+export const EMPTY_USAGE: ConversationUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+
+export function addUsage(a: ConversationUsage, b: Partial<ConversationUsage>): ConversationUsage {
+  return {
+    inputTokens: a.inputTokens + (b.inputTokens ?? 0),
+    outputTokens: a.outputTokens + (b.outputTokens ?? 0),
+    cacheReadTokens: a.cacheReadTokens + (b.cacheReadTokens ?? 0),
+    cacheWriteTokens: a.cacheWriteTokens + (b.cacheWriteTokens ?? 0),
+  };
+}
+
+/** The first line of the first user message, shortened — the title until the user renames it. */
+export function conversationTitleFrom(text: string, fallback: string): string {
+  const line = text.replace(/\s+/g, " ").trim();
+  if (!line) return fallback;
+  return line.length > 60 ? `${line.slice(0, 57).trimEnd()}…` : line;
+}
+
+/** A stored record, checked field by field; null when it is not one. */
+export function readConversationRecord(raw: unknown): ConversationRecord | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<ConversationRecord>;
+  const c = r.conversation as Partial<Conversation> | undefined;
+  if (r.version !== 1 || typeof r.id !== "string" || typeof r.title !== "string") return null;
+  if (typeof r.createdAt !== "string" || typeof r.updatedAt !== "string") return null;
+  if (typeof r.providerId !== "string" || typeof r.model !== "string") return null;
+  if (!c || c.id !== r.id || typeof c.system !== "string" || !Array.isArray(c.tools) || !Array.isArray(c.turns)) return null;
+  return {
+    version: 1,
+    id: r.id,
+    title: r.title,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    providerId: r.providerId,
+    model: r.model,
+    conversation: c as Conversation,
+    usage: readUsage(r.usage),
+    runs: Array.isArray(r.runs) ? r.runs.flatMap((run) => readRun(run)) : [],
+    pins: Array.isArray(r.pins) ? r.pins.filter((p): p is string => typeof p === "string") : [],
+    ...(Array.isArray(r.redact) ? { redact: r.redact.filter((p): p is string => typeof p === "string") } : {}),
+    ...(readInstructions(r.instructions) ? { instructions: readInstructions(r.instructions)! } : {}),
+    ...(typeof r.appTitle === "string" ? { appTitle: r.appTitle } : {}),
+    ...(r.onDevice === true ? { onDevice: true as const } : {}),
+    ...(readReplayOf(r.replayOf) ? { replayOf: readReplayOf(r.replayOf)! } : {}),
+  };
+}
+
+/** Where a replay comes from, field by field; a record that does not read whole is left out. */
+function readReplayOf(raw: unknown): ReplayOf | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<ReplayOf>;
+  if (typeof r.conversationId !== "string" || typeof r.title !== "string" || typeof r.at !== "string" || typeof r.providerId !== "string" || typeof r.model !== "string") return null;
+  return { conversationId: r.conversationId, userTurn: count(r.userTurn), title: r.title, at: r.at, providerId: r.providerId, model: r.model, changed: count(r.changed) };
+}
+
+const ORIGINS = ["plainva", "vault"] as const;
+const originOf = (v: unknown): "plainva" | "vault" | null => (ORIGINS as readonly unknown[]).includes(v) ? (v as "plainva" | "vault") : null;
+/** A catalog lists a server's skills too (plan P9-4b); a conversation is never bound to one. */
+const catalogOriginOf = (v: unknown): "plainva" | "vault" | "server" | null => (v === "server" ? "server" : originOf(v));
+
+/** A conversation's instructions, field by field; what does not read is left out. */
+function readInstructions(raw: unknown): ConversationInstructions | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out: ConversationInstructions = {};
+  const s = r.skill as Record<string, unknown> | undefined;
+  if (s && typeof s === "object" && typeof s.id === "string" && typeof s.name === "string" && originOf(s.origin) && typeof s.sha256 === "string") {
+    out.skill = {
+      id: s.id,
+      name: s.name,
+      origin: originOf(s.origin)!,
+      sha256: s.sha256,
+      ...(Array.isArray(s.folders) ? { folders: s.folders.filter((f): f is string => typeof f === "string") } : {}),
+      ...(count(s.maxOutputTokens) ? { maxOutputTokens: count(s.maxOutputTokens) } : {}),
+      ...(s.localPreferred === true ? { localPreferred: true } : {}),
+    };
+  }
+  if (Array.isArray(r.catalog)) {
+    out.catalog = r.catalog.flatMap((e) => {
+      const x = e as Record<string, unknown> | null;
+      return x && typeof x.key === "string" && typeof x.id === "string" && catalogOriginOf(x.origin) ? [{ key: x.key, id: x.id, origin: catalogOriginOf(x.origin)! }] : [];
+    });
+  }
+  if (count(r.catalogTokens)) out.catalogTokens = count(r.catalogTokens);
+  if (count(r.skillTokens)) out.skillTokens = count(r.skillTokens);
+  if (count(r.vaultTokens)) out.vaultTokens = count(r.vaultTokens);
+  const m = r.memory as Record<string, unknown> | undefined;
+  if (m && typeof m === "object") {
+    out.memory = {
+      entries: count(m.entries),
+      withheld: count(m.withheld),
+      left: count(m.left),
+      tokens: count(m.tokens),
+      // A rule that does not read is no rule here; what cannot be read at all keeps every rule.
+      restricted: Array.isArray(m.restricted) ? AI_POLICY_DIMENSIONS.filter((dimension) => (m.restricted as unknown[]).includes(dimension)) : [...AI_POLICY_DIMENSIONS],
+      lookup: m.lookup === true,
+    };
+  }
+  const st = r.style as Record<string, unknown> | undefined;
+  if (st && typeof st === "object") {
+    out.style = {
+      features: count(st.features),
+      examples: count(st.examples),
+      withheld: count(st.withheld),
+      tokens: count(st.tokens),
+      // As the memory's: a rule that does not read is no rule here; what cannot be read at all keeps every rule.
+      restricted: Array.isArray(st.restricted) ? AI_POLICY_DIMENSIONS.filter((dimension) => (st.restricted as unknown[]).includes(dimension)) : [...AI_POLICY_DIMENSIONS],
+    };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Kinds of a sensitivity hint, read defensively. */
+function kinds(v: unknown): SensitiveKind[] {
+  return Array.isArray(v) ? v.filter(isSensitiveKind) : [];
+}
+
+function count(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0;
+}
+
+function readUsage(raw: unknown): ConversationUsage {
+  const u = (raw ?? {}) as Partial<ConversationUsage>;
+  return { inputTokens: count(u.inputTokens), outputTokens: count(u.outputTokens), cacheReadTokens: count(u.cacheReadTokens), cacheWriteTokens: count(u.cacheWriteTokens) };
+}
+
+function readRun(raw: unknown): RunMeta[] {
+  if (!raw || typeof raw !== "object") return [];
+  const r = raw as Partial<RunMeta>;
+  if (typeof r.providerId !== "string" || typeof r.model !== "string" || typeof r.stop !== "string") return [];
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : []);
+  return [
+    {
+      userTurn: count(r.userTurn),
+      providerId: r.providerId,
+      model: r.model,
+      sent: strings(r.sent),
+      kept: strings(r.kept),
+      usage: readUsage(r.usage),
+      steps: count(r.steps),
+      stop: r.stop,
+      ...(typeof r.failure === "string" ? { failure: r.failure } : {}),
+      ...(r.unreached === true ? { unreached: true as const } : {}),
+      ...(typeof r.costUsd === "number" && Number.isFinite(r.costUsd) && r.costUsd >= 0 ? { costUsd: r.costUsd } : {}),
+      ...(readManifest(r.manifest) ? { manifest: readManifest(r.manifest)! } : {}),
+      ...(Array.isArray(r.skills)
+        ? {
+            skills: r.skills.flatMap((x) =>
+              x && typeof x === "object" && typeof x.id === "string" && (x.how === "bound" || x.how === "loaded")
+                ? [{ id: x.id, how: x.how, tokens: count(x.tokens), ...(typeof x.sha256 === "string" && NOTE_HASH.test(x.sha256) ? { sha256: x.sha256 } : {}) }]
+                : [],
+            ),
+          }
+        : {}),
+      ...(r.skillCatalog && typeof r.skillCatalog === "object" ? { skillCatalog: { count: count(r.skillCatalog.count), tokens: count(r.skillCatalog.tokens) } } : {}),
+      ...(readRunWeb(r.web) ? { web: readRunWeb(r.web)! } : {}),
+      ...(readRunReading(r.reading) ? { reading: readRunReading(r.reading)! } : {}),
+      ...(readRestricted(r.restricted).length ? { restricted: readRestricted(r.restricted) } : {}),
+      ...(strings(r.read).length ? { read: strings(r.read).slice(0, RUN_READ_CAP) } : {}),
+      // More than the record keeps — or more than it may keep: either way not everything is known by path.
+      ...(r.readMore === true || strings(r.read).length > RUN_READ_CAP ? { readMore: true } : {}),
+      ...(readHashesOf(r.readHashes).length ? { readHashes: readHashesOf(r.readHashes) } : {}),
+      // As many as the conversation chose: its own choice is read back without a bound too.
+      ...(strings(r.redact).length ? { redact: strings(r.redact) } : {}),
+      ...(strings(r.readChanged).length ? { readChanged: strings(r.readChanged).slice(0, RUN_READ_CAP) } : {}),
+      ...(r.readUnhashed === true ? { readUnhashed: true as const } : {}),
+      ...(readRunMcp(r.mcp) ? { mcp: readRunMcp(r.mcp)! } : {}),
+      ...(readRunWrites(r.writes) ? { writes: readRunWrites(r.writes)! } : {}),
+      ...(readRunScripts(r.scripts) ? { scripts: readRunScripts(r.scripts)! } : {}),
+    },
+  ];
+}
+
+/** The versions of what a run's tools read, by path: a path once, a hash as it looks, bounded like `read`. */
+function readHashesOf(raw: unknown): { path: string; hash: string }[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: { path: string; hash: string }[] = [];
+  for (const x of raw) {
+    if (out.length >= RUN_READ_CAP) break;
+    if (!x || typeof x !== "object") continue;
+    const { path, hash } = x as { path?: unknown; hash?: unknown };
+    if (typeof path !== "string" || typeof hash !== "string" || !NOTE_HASH.test(hash) || seen.has(path)) continue;
+    seen.add(path);
+    out.push({ path, hash });
+  }
+  return out;
+}
+
+/** A run's record of the scripts it started, read defensively: names, outcomes and counts, bounded. */
+function readRunScripts(raw: unknown): RunScripts | null {
+  if (!raw || typeof raw !== "object" || !Array.isArray((raw as { runs?: unknown }).runs)) return null;
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const runs = ((raw as { runs: unknown[] }).runs as unknown[])
+    .flatMap((r) => (r && typeof r === "object" ? [{ script: text((r as { script?: unknown }).script, 64), outcome: text((r as { outcome?: unknown }).outcome, 16), calls: Math.floor(count((r as { calls?: unknown }).calls)) }] : []))
+    .filter((r) => r.script && r.outcome)
+    .slice(0, 64);
+  return runs.length ? { runs } : null;
+}
+
+/** A run's record of what it laid down, read defensively: paths, counts and titles, bounded. */
+function readRunWrites(raw: unknown): RunWrites | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<Record<keyof RunWrites, unknown>>;
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const list = (v: unknown) => (Array.isArray(v) ? (v.filter((item) => item && typeof item === "object") as Record<string, unknown>[]).slice(0, RUN_WRITES_CAP) : []);
+  const rounds = list(r.rounds)
+    .map((item) => {
+      const missing = parseMissingLinks(item.missing);
+      const withheld = parseMissingLinks(item.withheld);
+      return { path: text(item.path, 1024), blocks: Math.floor(count(item.blocks)), properties: Math.floor(count(item.properties)), ...(missing.length ? { missing } : {}), ...(withheld.length ? { withheld } : {}) };
+    })
+    .filter((item) => item.path && item.blocks + item.properties > 0);
+  const drafts = list(r.drafts)
+    .map((item) => ({ id: text(item.id, 64), kind: text(item.kind, 16), title: text(item.title, 200) }))
+    .filter((item) => item.id && item.kind);
+  const plans = list(r.plans)
+    .map((item) => ({ kind: text(item.kind, 16), path: text(item.path, 1024), outcome: text(item.outcome, 16) }))
+    .filter((item) => item.kind && item.path);
+  return rounds.length || drafts.length || plans.length ? { rounds, drafts, plans } : null;
+}
+
+/** A run's record of its calls to foreign servers, read defensively: names and outcomes, bounded. */
+function readRunMcp(raw: unknown): RunMcp | null {
+  if (!raw || typeof raw !== "object" || !Array.isArray((raw as { calls?: unknown }).calls)) return null;
+  const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 128) : "");
+  const calls = ((raw as { calls: unknown[] }).calls as unknown[])
+    .flatMap((c) => {
+      if (!c || typeof c !== "object") return [];
+      const call = c as { server?: unknown; tool?: unknown; outcome?: unknown; questions?: unknown };
+      const questions = readRunMcpQuestions(call.questions);
+      return [{ server: text(call.server), tool: text(call.tool), outcome: text(call.outcome), ...(questions ? { questions } : {}) }];
+    })
+    .filter((c) => c.server && c.tool)
+    .slice(0, 64);
+  return calls.length ? { calls } : null;
+}
+
+/** How a call's questions went, read defensively: four small numbers, or nothing where none was asked. */
+function readRunMcpQuestions(raw: unknown): RunMcpQuestions | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<Record<keyof RunMcpQuestions, unknown>>;
+  const n = (v: unknown) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? Math.min(v, 99) : 0);
+  const questions = { answered: n(r.answered), declined: n(r.declined), cancelled: n(r.cancelled), refused: n(r.refused) };
+  return questions.answered + questions.declined + questions.cancelled + questions.refused > 0 ? questions : null;
+}
+
+/** The rules a run's notes carried, read defensively: only the dimensions there are, each once, in their order. */
+function readRestricted(raw: unknown): AiPolicyDimension[] {
+  return Array.isArray(raw) ? AI_POLICY_DIMENSIONS.filter((dimension) => raw.includes(dimension)) : [];
+}
+
+/** A run's record of what it read of mail and appointments, read defensively: numbers, and who read. */
+function readRunReading(raw: unknown): RunReading | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<Record<keyof RunReading, unknown>>;
+  const reading: RunReading = {
+    mailSearches: count(r.mailSearches),
+    messages: count(r.messages),
+    descriptions: count(r.descriptions),
+    reader: r.reader === "device" ? "device" : "provider",
+    ...(typeof r.readerModel === "string" && r.readerModel ? { readerModel: r.readerModel.slice(0, 120) } : {}),
+    inputTokens: count(r.inputTokens),
+    outputTokens: count(r.outputTokens),
+  };
+  return reading.mailSearches || reading.messages || reading.descriptions ? reading : null;
+}
+
+const WEB_RECORD_MAX = 64;
+
+/**
+ * A run's web record, read defensively. An address is kept only as the public
+ * https address it is: the record is shown as links, and a stored file is not
+ * a reason to open anything else.
+ */
+function readRunWeb(raw: unknown): RunWeb | null {
+  if (!raw || typeof raw !== "object") return null;
+  const w = raw as { pages?: unknown; searches?: unknown; inputTokens?: unknown; outputTokens?: unknown };
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const pages: RunWeb["pages"] = [];
+  for (const item of Array.isArray(w.pages) ? w.pages.slice(0, WEB_RECORD_MAX) : []) {
+    const p = item as { url?: unknown; title?: unknown; at?: unknown; read?: unknown } | null;
+    const checked = p && typeof p.url === "string" ? checkWebUrl(p.url) : null;
+    if (checked?.ok) pages.push({ url: checked.target.url, title: text(p!.title, 200), at: text(p!.at, 40), read: p!.read === true });
+  }
+  const searches: RunWeb["searches"] = [];
+  for (const item of Array.isArray(w.searches) ? w.searches.slice(0, WEB_RECORD_MAX) : []) {
+    const s = item as { query?: unknown; at?: unknown; hits?: unknown } | null;
+    if (s && typeof s.query === "string" && s.query) searches.push({ query: text(s.query, 200), at: text(s.at, 40), hits: count(s.hits) });
+  }
+  if (!pages.length && !searches.length) return null;
+  return { pages, searches, inputTokens: count(w.inputTokens), outputTokens: count(w.outputTokens) };
+}
+
+/** A stored send overview, read defensively: anything malformed drops the overview, never the run. */
+function readManifest(raw: unknown): EgressManifest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const m = raw as Partial<EgressManifest>;
+  if (typeof m.providerId !== "string" || typeof m.model !== "string" || !Array.isArray(m.sources)) return null;
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : []);
+  const withheld = (m.withheld ?? {}) as Partial<EgressManifest["withheld"]>;
+  return {
+    providerId: m.providerId,
+    providerLabel: typeof m.providerLabel === "string" ? m.providerLabel : m.providerId,
+    model: m.model,
+    local: m.local === true,
+    sources: m.sources.flatMap((s) =>
+      s && typeof s === "object" && typeof s.path === "string" && typeof s.title === "string" && (s.tier === "evidence" || s.tier === "card" || s.tier === "map")
+        ? [
+            {
+              path: s.path,
+              title: s.title,
+              tier: s.tier,
+              ...(typeof s.section === "string" ? { section: s.section } : {}),
+              chars: count(s.chars),
+              ...(s.unchanged ? { unchanged: true } : {}),
+              reasons: strings(s.reasons) as EgressManifest["sources"][number]["reasons"],
+              // What the run's overview showed for it: the passage, the recording, the thread, the gist, the hint.
+              ...(s.selection ? { selection: true } : {}),
+              ...(typeof s.audioBytes === "number" && s.audioBytes >= 0 ? { audioBytes: s.audioBytes } : {}),
+              ...(typeof s.comments === "number" && s.comments >= 0 ? { comments: Math.floor(s.comments) } : {}),
+              ...(s.image && typeof s.image === "object" && count(s.image.width) && count(s.image.height)
+                ? { image: { width: count(s.image.width), height: count(s.image.height), bytes: count(s.image.bytes) } }
+                : {}),
+              ...(s.gist ? { gist: true } : {}),
+              ...(kinds(s.sensitive).length ? { sensitive: kinds(s.sensitive) } : {}),
+              ...(count(s.redacted) ? { redacted: count(s.redacted) } : {}),
+              // The version of the note that went (plan P9-2): a hash as it looks, nothing else.
+              ...(typeof s.hash === "string" && NOTE_HASH.test(s.hash) ? { hash: s.hash } : {}),
+            },
+          ]
+        : [],
+    ),
+    dataClasses: strings(m.dataClasses) as EgressManifest["dataClasses"],
+    folders: strings(m.folders),
+    withheld: {
+      notes: count(withheld.notes),
+      links: count(withheld.links),
+      places: count(withheld.places),
+      moodProperties: count(withheld.moodProperties),
+      ...(count(withheld.sensitive) ? { sensitive: count(withheld.sensitive) } : {}),
+    },
+    ...(kinds(m.sensitive).length ? { sensitive: kinds(m.sensitive) } : {}),
+    ...(m.situationHint && kinds(m.situationHint.sensitive).length
+      ? { situationHint: { sensitive: kinds(m.situationHint.sensitive), ...(count(m.situationHint.redacted) ? { redacted: count(m.situationHint.redacted) } : {}) } }
+      : {}),
+    excluded: Array.isArray(m.excluded) ? m.excluded.flatMap((e) => (e && typeof e.path === "string" && (e.reason === "cloud-denied" || e.reason === "web-denied") ? [{ path: e.path, reason: e.reason }] : [])) : [],
+    estimatedTokens: count(m.estimatedTokens),
+    ...(typeof m.estimatedCostUsd === "number" && m.estimatedCostUsd >= 0 ? { estimatedCostUsd: m.estimatedCostUsd } : {}),
+    tools: strings(m.tools),
+    ...(strings(m.more).length ? { more: strings(m.more) } : {}),
+    web: m.web === true,
+    ...(m.web === true && strings(m.webHosts).length ? { webHosts: strings(m.webHosts) } : {}),
+    ...(readManifestInstructions(m.instructions) ? { instructions: readManifestInstructions(m.instructions)! } : {}),
+    ...(m.memory && typeof m.memory === "object"
+      ? { memory: { entries: count(m.memory.entries), withheld: count(m.memory.withheld), tokens: count(m.memory.tokens), lookup: m.memory.lookup === true } }
+      : {}),
+    ...(m.style && typeof m.style === "object"
+      ? { style: { features: count(m.style.features), examples: count(m.style.examples), withheld: count(m.style.withheld), tokens: count(m.style.tokens) } }
+      : {}),
+  };
+}
+
+function readManifestInstructions(raw: unknown): EgressManifest["instructions"] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out: NonNullable<EgressManifest["instructions"]> = {};
+  const s = r.skill as Record<string, unknown> | undefined;
+  if (s && typeof s.id === "string" && typeof s.name === "string" && originOf(s.origin)) {
+    out.skill = { id: s.id, name: s.name, origin: originOf(s.origin)!, tokens: count(s.tokens), ...(s.localPreferred === true ? { localPreferred: true } : {}) };
+  }
+  const c = r.catalog as Record<string, unknown> | undefined;
+  if (c && typeof c === "object")
+    out.catalog = { count: count(c.count), vault: Array.isArray(c.vault) ? c.vault.filter((v): v is string => typeof v === "string") : [], tokens: count(c.tokens), ...(count(c.servers) ? { servers: count(c.servers) } : {}) };
+  const v = r.vault as Record<string, unknown> | undefined;
+  if (v && typeof v === "object") out.vault = { tokens: count(v.tokens) };
+  return Object.keys(out).length ? out : null;
+}
+
+export function conversationSummaryOf(record: ConversationRecord): ConversationSummary {
+  return { id: record.id, title: record.title, updatedAt: record.updatedAt, providerId: record.providerId, model: record.model };
+}
+
+/** Conversations whose last message is older than the retention; `days` 0 keeps everything. */
+export function expiredConversations(summaries: readonly ConversationSummary[], days: number, now: Date): string[] {
+  if (days <= 0) return [];
+  const limit = now.getTime() - days * 24 * 60 * 60 * 1000;
+  return summaries.filter((s) => Date.parse(s.updatedAt) < limit).map((s) => s.id);
+}
+
+/** Case-insensitive search over titles and message text (history search, §16). */
+export function conversationMatches(record: ConversationRecord, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (record.title.toLowerCase().includes(q)) return true;
+  return record.conversation.turns.some((turn) => turn.parts.some((p) => p.type === "text" && p.text.toLowerCase().includes(q)));
+}
+
+// ----------------------------------------------------------------- ledger
+
+/** One run in the technical audit — pointers and numbers, no content. */
+export interface LedgerEntry {
+  at: string;
+  conversationId: string;
+  providerId: string;
+  model: string;
+  stop: string;
+  steps: number;
+  tools: { name: string; ok: boolean; ms: number }[];
+  usage: ConversationUsage;
+  /** US dollars, when a price is known. */
+  costUsd?: number;
+  /** A failure's kind — never the provider's text, which may quote content. */
+  failure?: string;
+  /** The skills the run used, by id (plan KI-Harness P3). */
+  skills?: string[];
+  /** Tokens of the instructions it carried: the skill, the ones the model loaded, the catalog. */
+  skillTokens?: number;
+  /** What it asked of the internet, in numbers: pages, searches, and the tokens of the calls that read and searched (part of `usage`). */
+  web?: { pages: number; searches: number; inputTokens: number; outputTokens: number };
+  /** What it read of mail and appointments, in numbers, and whether a model on this device read the raw text. */
+  reading?: { mailSearches: number; messages: number; descriptions: number; onDevice: boolean; inputTokens: number; outputTokens: number };
+  /** Pictures the message of this run brought (plan P4-5): how many — never which. */
+  images?: number;
+  /**
+   * A run nobody typed into the composer or started as a skill: a door's
+   * answer, an action at a note, a regression run. What the device says about
+   * habits — a skill nobody used, a way gone by hand — reads past them (plan P6-3).
+   */
+  aside?: boolean;
+  /**
+   * What choosing and shortening the notes saved in this run (plan KI-Harness
+   * P9-6); absent when nothing was left out, and for a request no model
+   * reported having received.
+   */
+  context?: RunContextSavings;
+  /** Those saved tokens at the model's price for input, when it is known; 0 for a model on this device. */
+  savedUsd?: number;
+}
+
+/**
+ * What choosing and shortening the notes saved in a run (plan KI-Harness
+ * P9-6, §9.7): the tokens of what the context left out of the notes it put
+ * in — the rest of each note of which only a section or its key sentences
+ * went, up to the most Plainva sends of one note (`PackageRef.left`). A note
+ * that went whole saves nothing, nor one that was only named: what the notes
+ * nobody chose would have cost is no saving anyone can count. An estimate
+ * from characters (`estimateTokensOfChars`), never content.
+ */
+export interface RunContextSavings {
+  savedTokens: number;
+}
+
+/**
+ * What a package's sources saved, leaving out those `skip` names — a note a
+ * tool of the run gave the model the text of anyway, a version of a note an
+ * earlier turn of the conversation already carried; null when that is
+ * nothing.
+ */
+export function contextSavingsOf(refs: readonly Pick<PackageRef, "path" | "hash" | "left">[], skip: (ref: Pick<PackageRef, "path" | "hash">) => boolean = () => false): RunContextSavings | null {
+  let chars = 0;
+  for (const ref of refs) if (ref.left !== undefined && ref.left > 0 && !skip(ref)) chars += ref.left;
+  const savedTokens = estimateTokensOfChars(chars);
+  return savedTokens > 0 ? { savedTokens } : null;
+}
+
+/**
+ * The share of a request's input the provider read from its cache (plan
+ * KI-Harness P9-6): `cacheRead` of everything that went in. Null where the
+ * provider reported no cache at all — a model on this device, a provider
+ * without one — rather than a 0 % that would say it tried.
+ */
+export function cacheShare(usage: ConversationUsage): number | null {
+  const cached = usage.cacheReadTokens + usage.cacheWriteTokens;
+  if (!(cached > 0)) return null;
+  return usage.cacheReadTokens / (usage.inputTokens + cached);
+}
+
+/**
+ * What choosing and shortening the notes saved in one calendar month (§9.7,
+ * §11.5): the tokens, the runs it saved in, and the dollars — only where every
+ * one of those runs had a price, so the sum never leaves out a model without
+ * one and still looks complete.
+ */
+export function aiMonthlySavings(entries: readonly LedgerEntry[], month: string): { savedTokens: number; runs: number; savedUsd?: number } {
+  let savedTokens = 0;
+  let runs = 0;
+  let savedUsd = 0;
+  let priced = 0;
+  for (const entry of entries) {
+    const context = entry.context;
+    if (typeof entry.at !== "string" || !entry.at.startsWith(month) || !context || !Number.isFinite(context.savedTokens)) continue;
+    const saved = context.savedTokens;
+    if (!(saved > 0)) continue;
+    savedTokens += saved;
+    runs += 1;
+    if (typeof entry.savedUsd === "number" && Number.isFinite(entry.savedUsd)) {
+      savedUsd += entry.savedUsd;
+      priced += 1;
+    }
+  }
+  return { savedTokens, runs, ...(runs > 0 && priced === runs ? { savedUsd } : {}) };
+}
+
+export const AI_LEDGER_LIMIT = 500;
+
+/** Appends and keeps the newest `AI_LEDGER_LIMIT` entries. */
+export function appendAiLedgerEntry(entries: readonly LedgerEntry[], entry: LedgerEntry): LedgerEntry[] {
+  const next = [...entries, entry];
+  return next.length > AI_LEDGER_LIMIT ? next.slice(next.length - AI_LEDGER_LIMIT) : next;
+}
+
+/** Token and cost totals per provider and model for one calendar month (§11.5). */
+export function aiMonthlyTotals(entries: readonly LedgerEntry[], month: string): { key: string; providerId: string; model: string; usage: ConversationUsage; costUsd?: number }[] {
+  const byKey = new Map<string, { key: string; providerId: string; model: string; usage: ConversationUsage; costUsd?: number }>();
+  for (const e of entries) {
+    if (!e.at.startsWith(month)) continue;
+    const key = `${e.providerId}/${e.model}`;
+    const current = byKey.get(key) ?? { key, providerId: e.providerId, model: e.model, usage: EMPTY_USAGE };
+    current.usage = addUsage(current.usage, e.usage);
+    if (e.costUsd !== undefined) current.costUsd = (current.costUsd ?? 0) + e.costUsd;
+    byKey.set(key, current);
+  }
+  return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Cost of a usage at a price in US dollars per million tokens; cached input counts as input. */
+export function usageCostUsd(usage: ConversationUsage, price: { input: number; output: number } | undefined): number | undefined {
+  if (!price) return undefined;
+  const input = usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens;
+  return (input * price.input + usage.outputTokens * price.output) / 1_000_000;
+}

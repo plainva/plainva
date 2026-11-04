@@ -253,6 +253,181 @@ export function findGuardContradictions(
  */
 export const PARITY_FEATURES: ParityFeatureDef[] = [
   {
+    id: "ai-answer-in-background",
+    title: "An AI answer keeps arriving while the app is in the background",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The answer streams into the web view, and iOS and Android suspend a " +
+      "backgrounded app's web view: on the phone an answer arrives only while " +
+      "Plainva is open, which the handbook says. A run that outlives the app " +
+      "needs the whole loop native; the routines of plan KI-Harness P8 were " +
+      "built without one (entry ai-routines-while-open).",
+    verified: "2026-10-24",
+  },
+  {
+    id: "ai-external-agents",
+    title: "An external agent — another maker's program with its own sign-in — works in the vault, with the settings and commands it offers (Agent Client Protocol, plan KI-Harness P4.6, P9-7)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "An external agent is a program the user installed on a computer; Plainva " +
+      "starts it as a process of its own and, where it wants to sign in, opens " +
+      "its own program in a terminal. Neither iOS nor Android lets an app start " +
+      "another program, there is no place to install one and no terminal to " +
+      "sign in at. On the phone the assistant is Plainva's own, with the user's " +
+      "provider or the system's model (plan KI-Harness §19.5).",
+    verified: "2026-10-26",
+  },
+  {
+    id: "ai-local-servers",
+    title: "AI models on this computer (Ollama, LM Studio)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Ollama and LM Studio are servers that run on a computer; neither exists " +
+      "for a phone, and a phone cannot reach a computer's localhost. A server " +
+      "elsewhere is added as an OpenAI-compatible server over https, which " +
+      "both shells offer.",
+    verified: "2026-09-24",
+  },
+  {
+    id: "ai-mcp-client-programs",
+    title: "A program on this device as a server whose tools the assistant uses (MCP client, plan KI-Harness P4.5)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "An MCP server that is a program is started by the app and spoken to over " +
+      "its standard input and output. Neither iOS nor Android lets an app start " +
+      "another program, and there is no place to install one. The phone uses " +
+      "the servers that are services on the internet, over https, exactly as " +
+      "the desktop does (AiMcpPlugin on both platforms).",
+    verified: "2026-10-07",
+  },
+  {
+    id: "ai-mcp-server",
+    title: "AI apps on this computer read the vault through Plainva and, where allowed, propose changes (MCP server)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The clients that speak MCP locally (Claude Code, Claude Desktop, editors) " +
+      "run on computers and start Plainva's helper as a program of their own. " +
+      "A phone runs no such client, and neither iOS nor Android lets one app " +
+      "offer another a local pipe or socket; reaching a phone from outside would " +
+      "need a server on the internet, which Plainva does not run (plan KI-Harness " +
+      "§17.3, §22). The phone's own assistant reads the vault directly. What an " +
+      "app proposes on a computer is a suggestion in the note's comments: it " +
+      "reaches the phone with them and is decided there like every suggestion, " +
+      "under the app's name and a machine's mark (plan P5-5).",
+    verified: "2026-10-07",
+  },
+  {
+    id: "ai-mcp-sign-in-pinned-address",
+    title: "A sign-in to a remote MCP server asks exactly the addresses that were checked (plan KI-Harness P4.5)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Android connects to the checked addresses like the desktop. On iOS, " +
+      "URLSession offers no way to name the address a request connects to, so " +
+      "the check stands on both sides of every request of a sign-in instead: " +
+      "each address of the name is found public before it starts, and the far " +
+      "end the system reports afterwards is checked again before anything of " +
+      "the answer is used. A name server that answers twice differently can " +
+      "make one such request reach a private address there; its answer is " +
+      "thrown away (AiMcpAuthExchange in AiMcpAuthPlugin.swift).",
+    verified: "2026-10-07",
+  },
+  {
+    id: "ai-platform-models",
+    title: "The system's own AI model on this device (plan KI-Harness P2c)",
+    area: "ai",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "Windows and Linux bring no model an app may call. macOS has one on " +
+      "Apple-silicon Macs, but the desktop's way without a key is a model of " +
+      "the user's choice on the computer itself, through Ollama or LM Studio " +
+      "(ADR 0021, decision 5); a second, smaller system model would add a " +
+      "native bridge for less than that path already gives.",
+    mobile: "yes",
+    verified: "2026-10-01",
+  },
+  {
+    id: "ai-routines-while-open",
+    title: "A routine runs at its time while Plainva is open but not in front (plan KI-Harness P8, ADR 0033)",
+    area: "ai",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Routines are the same on both shells: set up, confirmed, run, caught up " +
+      "at the next opening. A desktop window that is open behind other windows " +
+      "keeps looking at the clock and runs them; iOS and Android suspend a " +
+      "backgrounded app's web view, so on the phone a routine runs only while " +
+      "Plainva is in front and catches up when it comes back - which the " +
+      "settings and the handbook say. A run while the app is suspended or " +
+      "closed needs the run loop outside the web view (WorkManager, " +
+      "BGTaskScheduler), as a closed desktop app would need an entry point " +
+      "without a window for the system's schedulers; neither is built. In the " +
+      "maintainer's open-items plan since 2026-10-24.",
+    verified: "2026-10-24",
+  },
+  {
+    id: "ai-system-intents",
+    title: "The system's assistant finds notes and takes down entries (Siri and Shortcuts; plan KI-Harness P4.7)",
+    area: "ai",
+    kind: "gap",
+    desktop: null,
+    desktopReason:
+      "Not the gap of this entry. The desktop's way for another program to use " +
+      "the vault is the MCP server (entry ai-mcp-server), and these intents are " +
+      "its counterpart on the phone. Windows and Linux have no assistant of the " +
+      "system that takes actions from apps; on macOS the intents would have to " +
+      "be compiled into the app by Xcode's build, and the desktop bundle is made " +
+      "by Tauri's bundler.",
+    mobile: "partial",
+    mobileReason:
+      "iPhone and iPad only (App Intents: open a note, search, a journal entry, " +
+      "a task). The gap is Android: its counterpart, AppFunctions (Android 16), " +
+      "is an experimental preview - the library is an alpha, and only apps " +
+      "Google admits to its early access program reach the assistant (Android " +
+      "developer documentation, read 2026-10-07). Until that opens, an Android " +
+      "phone captures through the launcher shortcuts, the widgets and the share " +
+      "target, and no assistant finds a note. In the maintainer's open-items " +
+      "plan since 2026-10-07.",
+    verified: "2026-10-07",
+  },
+  {
+    id: "ai-web-fetch-pinned-address",
+    title: "A page the assistant fetches comes from exactly the address that was checked (plan KI-Harness P4)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Android connects to the checked addresses like the desktop. On iOS, " +
+      "URLSession offers no way to name the address a request connects to, so " +
+      "the check stands on both sides of the request instead: every address of " +
+      "the name is found public before it starts, and the far end the system " +
+      "reports afterwards is checked again; an answer from an address that is " +
+      "not public is thrown away. A name server that answers twice differently " +
+      "can make one GET without a body reach a private address there — never " +
+      "its answer a model (AiWebFetch in AiWebPlugin.swift).",
+    verified: "2026-10-06",
+  },
+  {
     id: "density-mode",
     title: "Comfortable/compact density choice",
     area: "appearance",

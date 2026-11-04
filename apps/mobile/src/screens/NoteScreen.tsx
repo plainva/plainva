@@ -8,6 +8,7 @@ import {
   Bookmark,
   Check,
   Code,
+  Sparkles,
   FolderInput,
   MoreVertical,
   Paintbrush,
@@ -33,7 +34,7 @@ import {
 import { Share } from "@capacitor/share";
 import { buildMailtoUrl, noteMailPrefill, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
+import { addressesAi, suggestedProperties, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
@@ -62,6 +63,7 @@ import { mobileCommentOperations } from "../services/commentOperations";
 import { consumeNoteCommands, type NoteCommand } from "../services/noteCommands";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
+import { aiEnabled, focusAiNote, getMobileAiSession, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 
 /** A property value as the anchor quote carries it (desktop parity). */
@@ -107,6 +109,8 @@ export function NoteScreen({
   onOpenCommands?: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  // "AI" in the reading selection, while the AI is on (plan KI-Harness P1.5).
+  const aiOn = useMobileAiEnabled();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   /* Where this note lives (N5.1). The target picture pairs it with "vor 2 Std.";
      the modification time is not read on this screen, so the bar carries the
@@ -381,6 +385,9 @@ export function NoteScreen({
     });
     return map;
   }, [comments, propertyAnchorKeys, doc, propertyAliasColumns]);
+  // A suggestion that proposes the value of a property (plan KI-Harness P5-3): what it proposes and whether it still
+  // fits the note — the same answer the desktop's editor gives its column, from the one shared function.
+  const suggestedProps = useMemo(() => suggestedProperties(doc ?? "", comments), [doc, comments]);
   /**
    * Stufe E (E4): resolve every open comment against the text the editor shows.
    *
@@ -443,6 +450,11 @@ export function NoteScreen({
     const out: AnchorHighlight[] = [];
     for (const comment of comments) {
       if (comment.resolvedAt || !comment.anchor) continue;
+      // A property anchor names a key, not a passage (desktop parity): read as text, its quote — a value — would be
+      // found again somewhere in the prose and tint a sentence nobody commented on. A suggestion that proposes a
+      // property is no passage either (plan KI-Harness P5-3): drawn here, a note's first property would stand as raw
+      // YAML above its first line. The card names the property and its values.
+      if (propertyAnchorKey(comment.anchor) || suggestedProps.has(comment.commentId)) continue;
       const resolution = resolveCommentAnchor(doc, comment.anchor);
       if (resolution.status === "orphan") continue;
       const open = comment.suggestion && comment.suggestionDecision?.status !== "conflict" && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
@@ -456,19 +468,23 @@ export function NoteScreen({
       });
     }
     return out;
-  }, [comments, doc, suggestionsInline, activeCommentId]);
+  }, [comments, doc, suggestionsInline, activeCommentId, suggestedProps]);
   const propertyCommentCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const res of propertyResolutions.values()) {
+    for (const comment of comments) {
+      const res = propertyResolutions.get(comment.commentId);
       // An ORPHAN is left out - its key is gone from the frontmatter, so there
       // is no row to put a number on; the card in the comments sheet still
       // names it. A renamed one counts against the key that exists TODAY,
       // which is the row the reader sees.
-      if (res.status === "orphan") continue;
+      if (!res || res.status === "orphan") continue;
+      // A proposed value that was accepted or declined is closed (plan KI-Harness P5-3): every answered proposal of
+      // an assistant would otherwise leave its number on the row for good.
+      if (comment.suggestion && comment.resolvedAt) continue;
       counts.set(res.key, (counts.get(res.key) ?? 0) + 1);
     }
     return counts;
-  }, [propertyResolutions]);
+  }, [comments, propertyResolutions]);
   /**
    * Starts a comment on a property row.
    *
@@ -1111,6 +1127,8 @@ export function NoteScreen({
   };
 
   const commentOperations = useMemo(() => mobileCommentOperations(vault), [vault]);
+  // The assistant in this note's comment threads (plan KI-Harness P3-6); not where the remarks are sealed.
+  const threadAi = useCommentThreadAi(getMobileAiSession(), path, { sealed: vault.workspaceRuntime !== null });
   const pendingCommentOperations = usePendingCommentOperations(commentOperations, vault.vaultId, path);
   const [decisionReview, setDecisionReview] = useState<{ path: string; vaultId: string; comment: WorkspaceCommentRecord; snapshot: CommentEditorSnapshot } | null>(null);
   const reportCommentFailure = useStableHandler((error: unknown) => {
@@ -1200,12 +1218,15 @@ export function NoteScreen({
       if (workspaceCanWrite && !parkedRange?.display)
         intended = insertAnchorMarkers(snapshot.text, resolved.from, resolved.to, anchor.markerId!);
     }
-    await runCommentInput({ notePath: path, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+    const operation = await runCommentInput({ notePath: path, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
       markers: [{ path, body, parentCommentId, ...(parent?.targetRevisionId ? { targetObjectId: parent.targetObjectId } : {}), anchor }] }, snapshot);
     if (snapshot.alive?.()) {
       setPendingPropertyAnchor((value) => value === parkedProperty ? null : value);
       setPendingRange((value) => value === parkedRange ? null : value);
     }
+    // "@AI" in the remark (plan KI-Harness P3-6): the assistant answers in the thread. Its send overview, when it asks, opens over this note.
+    if (addressesAi(body, t("ai.title"))) focusAiNote(path);
+    threadAi.answer({ commentId: operation.markers[0]!.identity.commentId, parentCommentId, body, quote: anchor?.quote ?? null }, { comments, names: commentNames, selfId: commentSelfId });
   });
 
   /**
@@ -1457,6 +1478,7 @@ export function NoteScreen({
             setPendingRange({ ...req, anchor: buildCommentAnchor(source, placed.from, placed.to, mintAnchorMarkerId(source), req.display) });
             setPendingPropertyAnchor(null); setCommentsOpen(true);
           }}
+          onAskAi={aiOn ? () => openAiSheet(path) : undefined}
           onPassageSuggest={canSuggest && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? () => {
             // Locked (N3): the verb leads to the explanation, not into a mode
             // whose send would fail a minute later.
@@ -1599,10 +1621,12 @@ export function NoteScreen({
           memberNames={commentNames}
           selfMemberId={commentSelfId}
           propertyResolutions={propertyResolutions}
+          suggestedProperties={suggestedProps}
           canComment={canComment}
           canWrite={workspaceCanWrite}
           onClose={() => { setCommentsOpen(false); setPendingPropertyAnchor(null); setPendingRange(null); }}
           onSubmit={postComment}
+          ai={threadAi.ai}
           onResolve={(commentId) => { void resolveComment(commentId); }}
           onReviewDecision={(comment) => { void reviewCommentDecision(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((e) => toast.error(errorText(e))); }}
@@ -1634,6 +1658,8 @@ export function NoteScreen({
           title={title}
           onClose={() => setMenu(false)}
           actions={[
+            // Ask AI about this note (plan KI-Harness §19.1): the sheet over the note, only while the switch is on.
+            ...(aiEnabled() ? [{ icon: <Sparkles size={ICON.head} />, label: t("ai.ask"), onClick: () => { setMenu(false); openAiSheet(path); } }] : []),
             /*
              * A text file is not a note (C15/S14), so three of these entries do
              * not belong to it. Icon and colour WRITE `plainva` frontmatter into
@@ -1860,6 +1886,7 @@ export function NoteScreen({
             window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
           }
           onOpenNote={onOpenNote}
+          noteText={doc}
           onRestored={readAgain}
           path={path}
           vault={vault}
@@ -1889,6 +1916,7 @@ export function NoteScreen({
           window.dispatchEvent(new CustomEvent("m-editor-goto-line", { detail: { vaultId: vault.vaultId, path, line } }))
         }
         onOpenNote={onOpenNote}
+        noteText={doc}
         onRestored={readAgain}
         path={path}
         vault={vault}

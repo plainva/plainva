@@ -42,15 +42,18 @@ export function MailComposeHost() {
   // request rather than a setter: with a composer open it replaces an
   // untouched draft, and asks before a changed one goes
   // (services/mail/composeHost.ts).
-  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; accountId?: string; fromAddress?: string; forward?: ForwardSource }>();
+  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; cc?: string; bcc?: string; accountId?: string; fromAddress?: string; forward?: ForwardSource; onDone?: (how: "sent" | "saved" | "opened") => void }>();
   useEffect(() => {
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as
     // attachment, the mail view, an event's invitation, the command palette).
     const onComposeMail = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; accountId?: string; fromAddress?: string; forward?: ForwardSource } | undefined;
+      // Cc, Bcc and `onDone` ride along since the assistant's drafted mails (AI harness P5-6): a draft names every
+      // recipient, and `onDone` tells its sender once the mail was sent, saved or moved to its own window — never when
+      // the composer is just closed, or when the question before a changed draft kept the one that stood there.
+      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; cc?: string; bcc?: string; accountId?: string; fromAddress?: string; forward?: ForwardSource; onDone?: (how: "sent" | "saved" | "opened") => void } | undefined;
       // A forward names the message whose files it carries (`forward`); the
       // composer loads them, and checks the reference before it asks anyone.
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, fromAddress: detail.fromAddress, forward: detail.forward });
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, cc: detail.cc, bcc: detail.bcc, accountId: detail.accountId, fromAddress: detail.fromAddress, forward: detail.forward, onDone: detail.onDone });
     };
     window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => window.removeEventListener("plainva-compose-mail", onComposeMail);
@@ -65,10 +68,13 @@ export function MailComposeHost() {
         markdown={mailDraft.markdown}
         attachments={mailDraft.attachments}
         initialTo={mailDraft.to}
+        initialCc={mailDraft.cc}
+        initialBcc={mailDraft.bcc}
         initialAccountId={mailDraft.accountId}
         initialFromAddress={mailDraft.fromAddress}
         forward={mailDraft.forward}
         suspended={isLoading}
+        onDone={mailDraft.onDone}
         onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
         onClose={closeMailDraft}
       />

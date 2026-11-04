@@ -756,6 +756,69 @@ const STRETCHES: Stretch[] = [
     how: "answers anchored: false — the task exists at the provider; both shells say that the note could not be linked",
     says: [/catch \{\s*anchored = false;/],
   },
+
+  // ── The assistant's writers (AI harness) ────────────────────────────────
+  {
+    file: "packages/ui/src/ai/aiCapture.ts", at: "export function captureNote(", until: "export interface CaptureAdapter {", calls: { [upsert]: 1 },
+    how: "a NEW note an answer is kept as: the block is the app's own, built a few lines before",
+    says: [/let content = buildNewNoteContent\(input\.noteType \?\? defaultNoteType\(\), title\);/],
+  },
+  {
+    file: "packages/ui/src/ai/aiCapture.ts", at: "export function withInheritedRules(", until: "export async function writeCapturedNote(", calls: { [set]: 1 },
+    how: "thrown on to the caller of withInheritedRules: the text of a NEW note, kept or drafted",
+    never: THROWN_ON, passesOn: ["withInheritedRules"],
+  },
+  {
+    file: "packages/ui/src/ai/aiSession.ts", at: "const path = await capture.write(folder, note.stem, withInheritedRules(", span: 300, calls: { withInheritedRules: 1 },
+    how: "a NEW note an answer is kept as, its block the app's own (captureNote): a failure leaves the keeping, which answers it as failed",
+    says: [/\} catch \(error\) \{\s*return refused\("failed", /],
+  },
+  {
+    file: "packages/ui/src/ai/aiWrites.ts", at: "export function draftedNoteContent(", calls: { [upsert]: 1, withInheritedRules: 1 },
+    how: "a NEW note the assistant drafted, its block the app's own and built in the line before: thrown on to the draft's creation, which the assistant answers as failed",
+    says: [/let content = buildNewNoteContent\(noteType, draft\.title\);\s*content = upsertFrontmatterKeys\(content, \{/],
+  },
+  {
+    file: "packages/ui/src/ai/aiWrites.ts", at: "export function namedNoteContent(", calls: { [upsert]: 1 },
+    how: "a NEW note in the words of the writer that named it (an agent): a block that cannot be written is thrown on to the draft's creation, which the assistant answers as failed — the note is not made",
+  },
+  {
+    file: "packages/ui/src/ai/aiWrites.ts", at: "export function draftedEntryContent(", calls: { [upsert]: 1, withInheritedRules: 1 },
+    how: "a NEW entry of a database, its block the builder's (no template) and built in the line before: thrown on to the draft's creation, which the assistant answers as failed",
+    says: [/let content = buildNewItemContent\(\{ templateText: null, /],
+  },
+  {
+    file: "packages/ui/src/ai/acpFiles.ts", at: "export function acpNewNoteContent(", calls: { [upsert]: 1 },
+    how: "an agent's NEW note, tried as the write is planned: a block it cannot write refuses the write as unreadable, and the agent is told",
+  },
+  {
+    file: "packages/ui/src/ai/aiVaultHost.ts", at: "export function withCloudDenied(", calls: { [set]: 1 },
+    how: "thrown on to the caller of withCloudDenied", never: THROWN_ON, passesOn: ["withCloudDenied"],
+  },
+  {
+    file: "packages/ui/src/ai/aiVaultHost.ts", at: "export function withNoteRule(", until: "export interface CandidateRetrieval", calls: { [set]: 1, [del]: 1 },
+    how: "thrown on to the caller of withNoteRule", never: THROWN_ON, passesOn: ["withNoteRule"],
+  },
+  {
+    file: "apps/desktop/src/services/ai/desktopAi.ts", at: "async keepOnDevice(path) {", span: 500, calls: { withCloudDenied: 1 },
+    how: "\"keep on this device\" from the context lens: the session answers a failure as false, and the lens says ai.lens.keepLocalFailed",
+    says: [/await updateVaultText\(input\.adapter, path, \(text\) => withCloudDenied\(text\)\);/],
+  },
+  {
+    file: "apps/mobile/src/services/ai/mobileAi.ts", at: "async keepOnDevice(path) {", span: 500, calls: { withCloudDenied: 1 },
+    how: "\"keep on this device\" from the context lens: the session answers a failure as false, and the lens says ai.lens.keepLocalFailed",
+    says: [/await vaultOps\.update\(vault, path, \(text\) => withCloudDenied\(text\)\);/],
+  },
+  {
+    file: "apps/desktop/src/services/ai/desktopAi.ts", at: "async setRule(path, rule, set) {", span: 600, calls: { withNoteRule: 1 },
+    how: "a rule of the note, after the user's yes to the plan: a failure is the plan's step failing, which the conversation answers as failed",
+    says: [/updateVaultText\(input\.adapter, path, \(text\) => withNoteRule\(text, rule, set\)\)/],
+  },
+  {
+    file: "apps/mobile/src/services/ai/mobileAiWrites.ts", at: "async setRule(path, rule, set) {", span: 600, calls: { withNoteRule: 1 },
+    how: "a rule of the note, after the user's yes to the plan: a failure is the plan's step failing, which the conversation answers as failed",
+    says: [/vaultOps\.update\(vault, path, \(text\) => withNoteRule\(text, rule, set\)\)/],
+  },
 ];
 
 /** The watched functions: the four helpers and whatever a stretch hands a failure on through. */

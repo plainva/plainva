@@ -10,6 +10,7 @@ Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir e
 |---|---|
 | `Ctrl+P` (o `Ctrl+Shift+P`) | Abrir la paleta de comandos |
 | `Ctrl+O` | Selector rápido – buscar y abrir archivos |
+| `Ctrl+J` | Preguntar a la IA – abrir el compañero (solo mientras la IA está activada, ver [Asistente de IA](AI_Assistant.md)) |
 | `Ctrl+,` | Abrir configuración |
 | `Ctrl+Plus` / `Ctrl+Minus` | Ampliar / reducir el zoom de la interfaz (80–150 %) |
 | `Ctrl+0` | Restablecer el zoom al 100 % |

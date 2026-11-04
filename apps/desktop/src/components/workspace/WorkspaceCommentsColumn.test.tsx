@@ -3,7 +3,8 @@ import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import type { WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
+import { buildCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord } from "@plainva/core";
+import { suggestedProperties } from "@plainva/ui";
 
 import { WorkspaceCommentsColumn, type PublicationCommentEntry } from "./WorkspaceCommentsColumn";
 import en from "../../../../../packages/ui/src/locales/en.json";
@@ -29,7 +30,8 @@ vi.mock("react-i18next", async () => {
     useTranslation: () => ({
       i18n: { language: "en" },
       t: (key: string, vars?: Record<string, string | number>) => {
-        const value = lookup(key);
+        // A counted string has a form per number; English has two.
+        const value = lookup(typeof vars?.count === "number" && lookup(key) === key ? `${key}_${vars.count === 1 ? "one" : "other"}` : key);
         return vars ? Object.entries(vars).reduce((out, [name, v]) => out.split(`{{${name}}}`).join(String(v)), value) : value;
       },
     }),
@@ -627,7 +629,7 @@ describe("proposal rounds (V3)", () => {
       act(() => { (host.querySelector("[data-testid=comment-kind-suggestions]") as HTMLElement).click(); });
       const round = host.querySelector(".pv-comment-round")!;
       expect(round.textContent).toContain("From the PDF");
-      expect(round.textContent).toContain(tr("comments.suggestRoundCount").replace("{{n}}", "2"));
+      expect(round.textContent).toContain(tr("comments.suggestRoundCount_other").replace("{{count}}", "2"));
       expect(round.querySelectorAll(".pv-comment-card")).toHaveLength(2);
       act(() => { (host.querySelector("[data-testid=round-apply-" + "ab".repeat(16) + "]") as HTMLElement).click(); });
       expect(onApplyRound).toHaveBeenCalledWith("ab".repeat(16));
@@ -735,5 +737,227 @@ describe("the byline (finding 2026-09-09)", () => {
     expect(host.textContent).toContain(tr("comments.commentUnnamedDevice"));
     expect(host.textContent).not.toContain(tr("comments.commentUnknownAuthor"));
     unmount();
+  });
+});
+
+/**
+ * The assistant in the threads (plan KI-Harness P3-6).
+ *
+ * What has to hold on both shells: "@" offers the assistant only where it can
+ * answer, a mention written elsewhere is drawn as one regardless, the thread
+ * it is answering says so and can be stopped, and what it wrote from this
+ * device is this device's to delete.
+ */
+describe("the assistant in the threads (P3-6)", () => {
+  const SELF = "de".repeat(16);
+  const AI_AUTHOR = "plainva-ai/m-1";
+  const names = new Map<string, string>([...NAMES, [AI_AUTHOR, "Plainva AI · m-1"]]);
+  const assistant = (over: Partial<{ label: string; replyingTo: string | null; stop: () => void }> = {}) => ({ label: "AI", replyingTo: null, stop: vi.fn(), ...over });
+
+  /** Types into a controlled field the way a person does: the value, the caret, the input event. */
+  function type(field: HTMLTextAreaElement, value: string) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(field, value);
+      field.setSelectionRange(value.length, value.length);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+  const offeredNames = () => [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.querySelector(".pv-menu-text")?.textContent);
+
+  it("draws a mention of the assistant in every spelling, without an id behind it", () => {
+    const asked = comment({ commentId: "q1", body: "@KI is that right, @Anna?" });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [asked], memberNames: names })} />);
+    const mentions = [...host.querySelectorAll(".pv-comment-card__mention")];
+    expect(mentions.map((mention) => mention.textContent)).toEqual(["@KI", "@Anna"]);
+    // A person's mention names the id behind the name; the assistant has none to show.
+    expect(mentions.map((mention) => mention.getAttribute("data-tip"))).toEqual([null, "9999888877776666"]);
+    unmount();
+  });
+
+  it("offers the assistant after an @ only where it can answer, and never one of its bylines", () => {
+    const off = render(<WorkspaceCommentsColumn {...props({ memberNames: names })} />);
+    const plain = off.host.querySelector(".pv-comment-compose--new textarea") as HTMLTextAreaElement;
+    expect(plain.placeholder).toBe(tr("workspaceSecurity.addComment"));
+    type(plain, "@");
+    expect(offeredNames()).toEqual(["Anna", "Marco"]);
+    off.unmount();
+
+    const on = render(<WorkspaceCommentsColumn {...props({ memberNames: names, ai: assistant() })} />);
+    const field = on.host.querySelector(".pv-comment-compose--new textarea") as HTMLTextAreaElement;
+    expect(field.placeholder).toBe(tr("ai.thread.composer"));
+    type(field, "@");
+    expect(offeredNames()).toEqual(["AI", "Anna", "Marco"]);
+    // It is not a person: the row carries the AI mark and says what picking it does.
+    const row = [...document.querySelectorAll('[role="menuitem"]')].find((item) => item.querySelector(".pv-menu-text")?.textContent === "AI")!;
+    expect(row.querySelector(".pv-menu-ic svg")).not.toBeNull();
+    expect(row.querySelector(".pv-menu-hint")?.textContent).toBe(tr("ai.thread.mentionHint"));
+    on.unmount();
+  });
+
+  it("shows which thread the assistant is answering, and stops it from there", () => {
+    const first = comment({ commentId: "t1", body: "@AI is that right?" });
+    const other = comment({ commentId: "t2", body: "Something else." });
+    const stop = vi.fn();
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [first, other], memberNames: names, ai: assistant({ replyingTo: "t1", stop }) })} />);
+    const waiting = [...host.querySelectorAll("[data-testid=comment-ai-pending]")];
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0]!.closest(".pv-comment-card")?.textContent).toContain("@AI is that right?");
+    expect(waiting[0]!.textContent).toContain(tr("ai.thread.replying"));
+    act(() => { (host.querySelector("[data-testid=comment-ai-stop]") as HTMLElement).click(); });
+    expect(stop).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it("marks what the assistant wrote and lets the device that wrote it delete it", () => {
+    const asked = comment({ commentId: "t1", authorMemberId: SELF, authorDeviceId: SELF, body: "@AI is that right?" });
+    const answer = comment({ commentId: "a1", parentCommentId: "t1", authorMemberId: AI_AUTHOR, authorDeviceId: SELF, body: "It is." });
+    const foreign = comment({ commentId: "a2", parentCommentId: "t1", authorMemberId: AI_AUTHOR, authorDeviceId: "9999888877776666", body: "From another device." });
+    const onDelete = vi.fn();
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [asked, answer, foreign], memberNames: names, selfMemberId: SELF, onDelete })} />);
+    try {
+      // The AI mark instead of two letters of a model's name, in the app's own colour pair.
+      const marks = [...host.querySelectorAll(".pv-comment-card__avatar[data-ai]")];
+      expect(marks).toHaveLength(2);
+      expect(marks.every((mark) => mark.querySelector("svg") && !mark.hasAttribute("data-hue"))).toBe(true);
+      expect(host.textContent).toContain("Plainva AI · m-1");
+      // Written from this device: this device may delete it. Another device's is not ours to take back.
+      expect(host.querySelector("[data-testid=comment-delete-a1]")).not.toBeNull();
+      expect(host.querySelector("[data-testid=comment-delete-a2]")).toBeNull();
+      act(() => { (host.querySelector("[data-testid=comment-delete-a1]") as HTMLElement).click(); });
+      act(() => { (host.querySelector("[data-testid=comment-delete-confirm]") as HTMLElement).click(); });
+      expect(onDelete).toHaveBeenCalledWith(answer);
+    } finally { unmount(); }
+  });
+
+  it("marks what another program wrote as a machine's: no person's letters, and not the assistant's mark", () => {
+    // An AI app at Plainva's MCP server and an external agent sign with ids of their own (ADR 0023).
+    const APP = "mcp:3f9a1c2b4d5e6f70";
+    const AGENT = "acp:helper";
+    const byApp = comment({ commentId: "p1", authorMemberId: APP, authorDeviceId: SELF, body: "From an app." });
+    const byAgent = comment({ commentId: "p2", authorMemberId: AGENT, authorDeviceId: "9999888877776666", body: "From an agent on another device." });
+    const signed = new Map<string, string>([...names, [APP, "Claude Code (AI app)"], [AGENT, "Helper (external agent)"]]);
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [byApp, byAgent], memberNames: signed, selfMemberId: SELF, onDelete: vi.fn() })} />);
+    try {
+      const marks = [...host.querySelectorAll(".pv-comment-card__avatar[data-machine]")];
+      expect(marks).toHaveLength(2);
+      expect(marks.every((mark) => mark.querySelector("svg") && !mark.hasAttribute("data-hue") && !mark.hasAttribute("data-ai"))).toBe(true);
+      expect(host.textContent).toContain("Claude Code (AI app)");
+      expect(host.textContent).toContain("Helper (external agent)");
+      // What came through this device is this device's to delete; what another device let in is not.
+      expect(host.querySelector("[data-testid=comment-delete-p1]")).not.toBeNull();
+      expect(host.querySelector("[data-testid=comment-delete-p2]")).toBeNull();
+    } finally { unmount(); }
+  });
+});
+
+/**
+ * A suggestion that proposes the value of a property (plan KI-Harness P5-3).
+ *
+ * Underneath it is a passage like every other suggestion — the property's
+ * entry in the note's properties —, so the card would work without knowing
+ * any of this. What it would show then is a line of YAML, and what it would
+ * not say is that the property has moved on since: a suggestion whose entry is
+ * gone looks exactly like one that still fits.
+ */
+describe("a suggestion that proposes a property (P5-3)", () => {
+  const BRIEF = "---\nstage: open\nowner: Anna\n---\n# Brief\n\nShort.\n";
+  /** A proposal made against BRIEF: the passage it replaces, and the hint where it replaces a property's entry. */
+  const proposal = (commentId: string, from: number, to: number, replacement: string, key?: string, over: Partial<WorkspaceCommentRecord> = {}) =>
+    comment({ commentId, anchor: buildCommentAnchor(BRIEF, from, to, "7f3a", key ? { kind: "property", key } : undefined), suggestion: { replacement, appliedAt: null, appliedBy: null, declinedAt: null }, ...over });
+  /** The column as the editor mounts it: with what the suggestions of this note propose, read against the note as it is. */
+  const column = (comments: WorkspaceCommentRecord[], note = BRIEF) =>
+    render(<WorkspaceCommentsColumn {...props({ comments, suggestedProperties: suggestedProperties(note, comments) })} />);
+  const diffOf = (host: HTMLElement) => host.querySelector("[data-testid=comment-diff]")!;
+  const labelOf = (host: HTMLElement) => host.querySelector("[data-testid=comment-property-label]")?.textContent ?? null;
+  const states = (host: HTMLElement) => [...host.querySelectorAll(".pv-comment-card__state")].map((node) => node.textContent);
+
+  it("says that it is a property and shows it by its name, what it says struck and what it would say — not a line of YAML", () => {
+    const { host, unmount } = column([proposal("p1", 4, 15, "stage: sent", "stage", { body: "Sent on Monday" })]);
+    expect(labelOf(host)).toBe(tr("comments.suggestionProperty"));
+    const diff = diffOf(host);
+    expect(diff.getAttribute("data-property")).toBe("stage");
+    expect(diff.querySelector(".pv-comment-card__prop")!.textContent).toBe("stage");
+    expect(diff.querySelector("del")!.textContent).toBe("open");
+    expect(diff.querySelector("ins")!.textContent).toBe("sent");
+    expect(diff.textContent).not.toContain(":");
+    // While it fits there is nothing more to say, and it is decided like every suggestion.
+    expect(states(host)).toEqual([]);
+    const labels = [...host.querySelectorAll("button")].map((button) => button.textContent?.trim());
+    expect(labels).toContain(tr("comments.suggestionApply"));
+    expect(labels).toContain(tr("comments.suggestionDecline"));
+    unmount();
+  });
+
+  it("counts a round of one as one change — every value an assistant proposes is such a round", () => {
+    const { host, unmount } = column([proposal("p1", 4, 15, "stage: sent", "stage", { suggestionBatchId: "cd".repeat(16), batchIndex: 0, batchNote: "Sent today" })]);
+    act(() => { (host.querySelector("[data-testid=comment-kind-suggestions]") as HTMLElement).click(); });
+    const meta = host.querySelector(".pv-comment-round__meta")!;
+    expect(meta.textContent).toBe(`„Sent today“ · ${tr("comments.suggestRoundCount_one").replace("{{count}}", "1")}`);
+    expect(meta.textContent!.endsWith("1 change")).toBe(true);
+    expect(diffOf(host).getAttribute("data-property")).toBe("stage");
+    unmount();
+  });
+
+  it("names a removal, and a property the note does not have yet", () => {
+    const removal = column([proposal("p1", 15, 27, "", "owner")]);
+    expect(diffOf(removal.host).querySelector(".pv-comment-card__prop")!.textContent).toBe("owner");
+    expect(diffOf(removal.host).querySelector("del")!.textContent).toBe("Anna");
+    expect(diffOf(removal.host).querySelector("ins")).toBeNull();
+    expect(diffOf(removal.host).textContent).toContain(tr("comments.suggestionPropertyRemoves"));
+    removal.unmount();
+
+    // A new property is an entry in front of the line that closes the properties; a list reads as its items.
+    const added = column([proposal("p2", 28, 28, "tags:\n  - roof\n  - house\n")]);
+    expect(diffOf(added.host).getAttribute("data-property")).toBe("tags");
+    expect(diffOf(added.host).querySelector("del")).toBeNull();
+    expect(diffOf(added.host).querySelector("ins")!.textContent).toBe("roof, house");
+    // The label says that the note has no such property yet; no further line is needed for that.
+    expect(labelOf(added.host)).toBe(tr("comments.suggestionPropertyNew"));
+    expect(states(added.host)).toEqual([]);
+    added.unmount();
+  });
+
+  it("says when the property says something else by now, instead of offering it as if nothing had happened", () => {
+    const waiting = proposal("p1", 4, 15, "stage: sent", "stage");
+    const { host, unmount } = column([waiting], BRIEF.replace("stage: open", "stage: closed"));
+    // What it was proposed against stays on the card; the sentence says that it no longer fits.
+    expect(diffOf(host).querySelector("del")!.textContent).toBe("open");
+    expect(states(host)).toEqual([tr("comments.suggestionPropertyChanged").replace("{{key}}", "stage")]);
+    unmount();
+
+    // The note has the property by now: the new one no longer fits either.
+    const added = column([proposal("p2", 28, 28, "effort: 3\n")], BRIEF.replace("owner: Anna\n", "owner: Anna\neffort: 5\n"));
+    expect(states(added.host)).toEqual([tr("comments.suggestionPropertyChanged").replace("{{key}}", "effort")]);
+    added.unmount();
+  });
+
+  it("says what became of a decided one, and nothing about fitting", () => {
+    const applied = proposal("p1", 4, 15, "stage: sent", "stage", { resolvedAt: NOW, suggestion: { replacement: "stage: sent", appliedAt: NOW, appliedBy: "aabbccdd11223344", declinedAt: null } });
+    // The note after accepting: the entry it was made against is gone, as it should be.
+    const { host, unmount } = column([applied], BRIEF.replace("stage: open", "stage: sent"));
+    showAll(host);
+    expect(labelOf(host)).toBe(tr("comments.suggestionProperty"));
+    expect(diffOf(host).getAttribute("data-property")).toBe("stage");
+    expect(states(host).map((text) => text?.trim())).toEqual([tr("comments.suggestionApplied")]);
+    unmount();
+  });
+
+  it("stays a passage where nobody read it against a note, and a line in the text stays text", () => {
+    // Without the editor's reading the card shows the entry as the passage it is: nothing is lost, only less is said.
+    const bare = render(<WorkspaceCommentsColumn {...props({ comments: [proposal("p1", 4, 15, "stage: sent", "stage")] })} />);
+    expect(diffOf(bare.host).hasAttribute("data-property")).toBe(false);
+    expect(diffOf(bare.host).textContent).toContain("stage:");
+    expect(labelOf(bare.host)).toBeNull();
+    bare.unmount();
+
+    // Three dashes also draw a rule in a note's text: a line inserted in front of one is text, whatever it looks like.
+    const ruled = "---\nstage: open\n---\n# Brief\n\nAbove.\n\n---\n\nBelow.\n";
+    const at = ruled.indexOf("---\n\nBelow.");
+    const line = comment({ commentId: "p2", anchor: buildCommentAnchor(ruled, at, at, "7f3a"), suggestion: { replacement: "effort: 3\n", appliedAt: null, appliedBy: null, declinedAt: null } });
+    const text = column([line], ruled);
+    expect(diffOf(text.host).hasAttribute("data-property")).toBe(false);
+    expect(states(text.host)).toEqual([]);
+    text.unmount();
   });
 });

@@ -6,6 +6,8 @@ Plainva heeft geen pluginsysteem dat code van derden uitvoert. In plaats daarvan
 
 Deze pagina legt uit hoe je dat **veilig** doet. Het exacte bestandsformaat, tot op byte-niveau, is voor elk bestand apart gedocumenteerd in de [Bestandsformaat-referentie](File_Format_Reference.md); deze pagina is de praktische aanvulling: de regels, de werkwijze, en wat je een KI-assistent moet meegeven.
 
+Plainva kan ook je eigen kleine scripts in de app uitvoeren: in een afgesloten ruimte die je notities alleen bereikt via de hulpmiddelen van de AI-assistent — om ze te lezen, of om een voorstel neer te leggen waarover jij beslist — en die nooit een bestand aanraakt. Dat is iets anders dan de scripts op deze pagina, die van buitenaf op de bestanden werken — zie [Scripts](AI_Scripts.md).
+
 ## Waarom bestanden in plaats van een plugin-sandbox
 
 - **Beveiliging.** Een systeem voor code-plugins voert het programma van iemand anders uit binnen je editor, met toegang tot je notities. Gewone bestanden vragen geen zulk vertrouwen: een script raakt alleen de map aan waar je het naartoe wijst, met de normale rechten van je besturingssysteem.
@@ -54,8 +56,14 @@ Een KI-agent met lees-/schrijftoegang tot een vaultmap is precies het scenario w
 1. **Geef hem de [Bestandsformaat-referentie](File_Format_Reference.md).** Die is geschreven voor een machinale lezer: het OKF-frontmattercontract, de eigenschap→YAML-serialisatie, het volledige `.base`-schema met de harde Obsidian-regels, het `index.md`-contract en de veiligheidsregels — alles wat een agent nodig heeft om bestanden te bewerken zonder ze te breken.
 2. **Wijs hem naar de vaultmap, niet naar de map `.plainva/`.** Maak duidelijk dat `.plainva/` verboden terrein is.
 3. **Vraag om atomaire, minimale wijzigingen.** Een agent die een hele notitie herschrijft om één eigenschap te wijzigen, moet de rest van de frontmatter en de tekst woordelijk bewaren.
+4. **Geef hem de kant-en-klare instructies.** Plainva levert een [`AGENTS.md`-sjabloon](../../agents/AGENTS.md) voor de hoofdmap van de vault en een skill in het Agent Skills-formaat ([`plainva-vault/SKILL.md`](../../agents/skills/plainva-vault/SKILL.md)); beide bevatten de regels van deze pagina in de vorm die agents lezen.
+5. **Respecteer de privacyregel.** Notities met `plainva: { ai: { cloud: deny } }`, en mappen die zo in `.agent/policy.yml` staan, mogen niet naar een cloudmodel — zie de [Referentie bestandsformaat](File_Format_Reference.md).
 
 Omdat het contract een document is en geen live API, werken dezelfde instructies met elke assistent, offline of online.
+
+**Lezen zonder de bestanden aan te raken.** Een AI-app op deze computer — Claude Code, Claude Desktop, een editor — kan de kluis ook via Plainva lezen in plaats van via de map: ze ziet alleen de mappen die je hebt toegestaan, de privacyregels gelden, en uit zichzelf wijzigt ze niets — hooguit stelt ze wijzigingen voor, waar je dat toestaat. Zie [AI-apps koppelen](Connect_AI_Apps.md).
+
+**Wat een directe schrijfactie overslaat.** Plainva merkt wijzigingen van buitenaf op en synchroniseert ze, maar maakt geen back-up van de tekst die een agent vervangt: de versiegeschiedenis bevat alleen wat Plainva zelf schreef. Houd de vault voor grotere wijzigingen onder versiebeheer (Git).
 
 ## Veiligheidsregels op een rij
 
@@ -63,6 +71,7 @@ Omdat het contract een document is en geen live API, werken dezelfde instructies
 - Schrijf atomair (tijdelijk bestand + hernoemen).
 - Bewaar `type`, `okf_version` en onbekende sleutels.
 - Schrijf nooit naar `.plainva/`.
+- Laat `.agent/` met rust tenzij erom gevraagd wordt; respecteer `cloud: deny`.
 - `.base`: vier top-level sleutels, benoemde weergaven, eenwortelige filters, `plainva:`-subsleutels voor al het andere.
 - De vault wordt in de gaten gehouden — externe wijzigingen verschijnen automatisch in Plainva.
 

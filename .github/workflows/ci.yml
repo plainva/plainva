@@ -56,6 +56,21 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # The skills Plainva ships and documents, checked by the Agent Skills
+      # format's own reference validator (plan KI-Harness P3-3). It is a
+      # demonstration package: pinned to one commit, its four dependencies to
+      # exact versions, nothing else installed, and it runs only here.
+      - name: Agent Skills reference validation
+        env:
+          SKILLS_REF_COMMIT: 69ef37e9424c0a7ea9dd2293b559e43ec8176379
+        run: |
+          curl -sSfL "https://codeload.github.com/agentskills/agentskills/tar.gz/$SKILLS_REF_COMMIT" | tar -xz -C "$RUNNER_TEMP"
+          python3 -m pip install --quiet --no-deps --target "$RUNNER_TEMP/skills-ref-deps" click==8.3.1 strictyaml==1.7.3 python-dateutil==2.9.0.post0 six==1.17.0
+          export PYTHONPATH="$RUNNER_TEMP/agentskills-$SKILLS_REF_COMMIT/skills-ref/src:$RUNNER_TEMP/skills-ref-deps"
+          for skill in packages/ui/src/ai/skills/*/ docs/agents/skills/*/; do
+            python3 -c 'from skills_ref.cli import main; main()' validate "$skill"
+          done
+
       - name: Core tests
         run: pnpm --filter @plainva/core test
 

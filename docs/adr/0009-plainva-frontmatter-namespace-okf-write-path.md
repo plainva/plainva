@@ -984,3 +984,28 @@ against the template's own value (`finalizeItemContent`).
    item from such a template (`newItemFlow.test.ts`).
    `apps/desktop/src/yamlWriters.test.ts` knows the reader and holds that it
    prints nothing; `silentPropertyWrites.test.ts` knows the panel's rename.
+
+## Addendum 2026-10-24 (`log.md`, kept by a routine)
+
+Point 7 of the addendum of 2026-08-21 gave `log.md` to the AI-harness plan as
+an opt-in routine. It is built there (ADR 0033, decision 13): a routine keeps
+the `log.md` of one folder or of the whole vault in the format the OKF
+describes — a title, entries under `## YYYY-MM-DD` headings, newest first,
+prose in a list. The objections of point 7 hold, and the build answers them:
+
+1. **No entry per save.** An entry is written at the routine's time, one per
+   run; a second run on the same day puts its lines under that day's heading.
+   Where nothing changed, nothing is written and no model is asked.
+2. **Prose with a reason.** The device knows which notes are new or updated
+   and links them; a model finds one sentence per note from the lines it
+   gained. A note without a sentence is still named — that it changed is the
+   device's knowledge.
+3. **Conflicts.** The file is changed through the chain's one entry for a
+   change (ADR 0031): the entry goes into the file as it lies there at that
+   moment, an entry another device wrote meanwhile stays, and nothing else of
+   the file moves — its line ends and its byte order mark included. The
+   settings say to keep a folder's log on one device.
+4. **A reserved name.** `log.md` and `index.md` never count as notes of a
+   log, and a run shows a model nothing of a log file.
+5. **Its rules.** `log.md` carries no properties, so the rules of its folder
+   hold for it; a note with stricter rules than its folder is not named in it.

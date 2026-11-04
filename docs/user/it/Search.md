@@ -1,6 +1,6 @@
 # Ricerca
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-01
 
 Plainva offre tre modi per cercare: ricerca full-text in tutto il vault, il selettore rapido per aprire i file e trova e sostituisci all'interno di una nota.
 
@@ -24,6 +24,32 @@ Il campo di ricerca si applica anche alle altre viste della barra laterale: in *
 - `tag:nome` — solo le note che portano quel tag, inclusi i tag annidati: `tag:progetto` trova anche `#progetto/interno`. Funziona anche `tag:#progetto`.
 - Gli operatori possono essere negati (`-path:Archivio`, `-tag:fatto`) e combinati liberamente con i termini di ricerca: `piano tag:progetto -bozza`.
 - Più termini vengono combinati con AND. Caratteri speciali come `- ( ) : *` all'interno dei termini sono innocui — Plainva tratta l'input in modo letterale.
+
+## Ricerca per significato
+
+Con un modello locale, la ricerca trova le note anche in base a ciò che significano — non solo alle loro parole, e anche tra lingue diverse: una domanda in italiano trova una nota inglese che dice la stessa cosa. Il modello calcola su questo dispositivo; le tue note e i vettori calcolati da esse non lo lasciano mai.
+
+Attivala in **Impostazioni → IA e automazione → Ricerca semantica** (l'IA deve essere attiva). Scegli un modello — quello consigliato è **Granite Embedding Multilingual R2 (97M)** — e Plainva mostra dimensione, origine, licenza e una durata stimata prima di scaricare qualsiasi cosa. Ogni file proviene da una versione fissa su huggingface.co ed è verificato con il suo SHA-256; non serve alcun accesso. Prima di elaborare la prima nota, Plainva verifica che il modello calcoli correttamente su questo dispositivo.
+
+Invece di un pacchetto puoi scegliere **Provider proprio**: allora i vettori li calcola il modello del profilo **Embedding** — qualsiasi modello di embedding offerto dal tuo provider, per esempio `text-embedding-3-small` su OpenAI, `gemini-embedding-001` su Gemini o `nomic-embed-text` in Ollama. Con Ollama o LM Studio nulla lascia il tuo computer. Con un cloud, il riepilogo mostra una volta ciò che vi arriva — ogni nota che le tue regole sulla privacy lasciano passare, ora e a ogni modifica, e le tue domande di ricerca — e **Approva in modo permanente** lo avvia; **Revoca l'approvazione** nelle impostazioni lo ferma. Le note che le tue regole tengono lontane dal cloud restano fuori, e in un workspace cifrato calcola solo un pacchetto o un server su questo computer. Se sotto lo stesso nome risponde un altro modello — un nuovo `ollama pull`, un server spostato —, Plainva se ne accorge prima della nota successiva e ricalcola i vettori invece di mescolare due modelli. Se il provider non è raggiungibile, la ricerca risponde con le parole e lo dice. **Non in uso su questo dispositivo** elenca pacchetti e vettori di modelli che non usi più; **Rimuovi** li elimina.
+
+**Misura questo dispositivo** (accanto a **Metti in pausa** mentre un modello calcola) confronta questo dispositivo con i budget che Plainva si impone: il primo passaggio su 5.000 sezioni, una nota modificata ritrovata, una ricerca su 20.000 sezioni, la memoria dell'app al suo picco e il download. Misura con testo di esempio, mai con le tue note, e nel frattempo l'elaborazione attende; **Copia i risultati** mette i numeri negli appunti, per esempio per il tuo feedback sulla beta.
+
+Finché un modello è attivo, l'intestazione dei risultati offre **Parole**, **Significato** ed **Entrambi**:
+
+- **Parole** è la ricerca full-text descritta sopra.
+- **Significato** elenca le note le cui sezioni si avvicinano di più alla tua domanda; aprire un risultato porta a quella sezione.
+- **Entrambi** (predefinito) ordena insieme i risultati di parole e significato.
+
+Con **Significato** ed **Entrambi** ogni nota compare una volta, e una piccola etichetta dice cosa l'ha trovata: **Parole**, **Significato** o **Parole e significato**. Gli operatori di ricerca (`path:`, `tag:`, `-termine`) limitano anche i risultati per significato. La scelta vale per questo dispositivo.
+
+Plainva elabora le note in background, prima quelle modificate più di recente; una nota che stai modificando segue pochi secondi dopo che smetti di scrivere. Fino ad allora viene trovata solo tramite le sue parole — un risultato per significato non proviene mai dal vecchio testo di una nota. Una riga sotto i risultati mostra l'avanzamento e offre **Metti in pausa**. Sul telefono l'elaborazione avviene solo mentre Plainva è aperto. **Rimuovi (con i suoi vettori)** nelle impostazioni elimina il modello e tutto ciò che ha calcolato.
+
+### Note correlate
+
+Accanto alla nota aperta, Plainva mostra fino a tre note vicine nel significato ma non ancora collegate a essa: sul computer nella sezione **Correlate** della barra laterale destra, dopo **Backlink**; sul telefono nella scheda **Correlate** del foglio della nota. Nascono dai vettori che la ricerca per significato conserva già su questo dispositivo: non viene inviato nulla, nemmeno a un provider proprio. Un suggerimento compare solo quando una nota si distingue nettamente dal resto del vault; copie e testo comune di un modello non contano. Per questo la maggior parte delle note non ha suggerimenti, e allora la sezione scompare.
+
+Ogni suggerimento nomina le due sezioni più vicine — per esempio «Produzione ↔ Giorni di ripresa › Suddivisione» — e le note a cui rimandano entrambe. **Perché questo suggerimento?** mostra l'inizio delle due sezioni (un clic ci porta lì); **Non utile** nasconde esattamente questa coppia su questo dispositivo e non cambia la ricerca. **Metti in pausa per questa nota** e **Metti in pausa in questo vault** sono nel menu della sezione, sul telefono sotto l'elenco. **Mostra note correlate** in **Impostazioni → IA e automazione → Ricerca semantica** disattiva i suggerimenti su questo dispositivo; lì riprendi anche un vault o note in pausa e ripristini i suggerimenti nascosti.
 
 ## Selettore rapido
 

@@ -77,7 +77,7 @@ function CardAudio({ target, alt, notePath }: { target: string; alt: string; not
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [vaultAdapter, queryService, target, notePath]);
-  return <AudioEmbed url={url} label={alt || target} compact />;
+  return <AudioEmbed url={url} label={alt || target} compact place={{ notePath, target }} />;
 }
 
 /**

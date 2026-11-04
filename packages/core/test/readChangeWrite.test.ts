@@ -42,6 +42,9 @@ const OWN_FILE = "the app's own file in `.plainva`, below the chain on purpose: 
 type Site = [what: string, times: number, why: string];
 
 const SITES: Record<string, Site[]> = {
+  "ai/acp/protocol.ts": [
+    ["a pair of read and write without the entry, in acpInitializeParams", 1, "no read and no write: the client's capabilities in the agent protocol's handshake are two flags named `readTextFile` and `writeTextFile`; every file an agent asks for goes through acpFiles.ts and the chain's entry"],
+  ],
   "comments/commentMoveJournal.ts": [["reads and writes path in persistCommentMoves (callback)", 1, `${NEW_FILE} (a journal of comment moves)`]],
   "pim/taskNoteIdentity.ts": [["reads and writes path in preserveDisplacedTask", 1, `${NEW_FILE} (the copy of a task note a repair would displace)`]],
   "settingsSync/KeyfileSyncStep.ts": [["reads and writes KEYFILE_SYNC_PATH in run", 1, `${OWN_FILE} — the synced keyfile, taken over whole where the remote one is newer`]],

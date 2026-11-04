@@ -1,27 +1,19 @@
 package com.plainva.app;
 
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyProperties;
-import android.util.Base64;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyStore;
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
 
 /**
  * Keystore-backed secret storage (M3 hardening). Values are AES/GCM
  * encrypted with a non-exportable key in the AndroidKeyStore and stored as
  * base64(iv || ciphertext) in a private SharedPreferences file — plaintext
  * secrets never touch disk (unlike @capacitor/preferences).
+ *
+ * The box itself is {@link KeystoreBox}; this plugin keeps its own alias and
+ * file, so AI provider keys (the {@link AiNetPlugin} box) are out of its reach.
  */
 @CapacitorPlugin(name = "SecureStore")
 public class SecureStorePlugin extends Plugin {
@@ -29,61 +21,12 @@ public class SecureStorePlugin extends Plugin {
     private static final Object STORE_LOCK = new Object();
     private static final String KEY_ALIAS = "plainva_secrets";
     private static final String PREFS = "plainva_secure";
-    private static final int GCM_TAG_BITS = 128;
-    private static final int IV_LENGTH = 12;
 
-    private SharedPreferences prefs() {
-        return getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-    }
+    private KeystoreBox box;
 
-    private SecretKey key() throws Exception {
-        KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
-        ks.load(null);
-        KeyStore.Entry entry = ks.getEntry(KEY_ALIAS, null);
-        if (entry instanceof KeyStore.SecretKeyEntry) {
-            return ((KeyStore.SecretKeyEntry) entry).getSecretKey();
-        }
-        KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
-        generator.init(
-            new KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(256)
-                .build()
-        );
-        return generator.generateKey();
-    }
-
-    private String readValue(String k) throws Exception {
-        String stored = prefs().getString(k, null);
-        if (stored == null) return null;
-        byte[] blob = Base64.decode(stored, Base64.NO_WRAP);
-        if (blob.length <= IV_LENGTH) throw new IllegalStateException("invalid encrypted value");
-        byte[] iv = new byte[IV_LENGTH];
-        byte[] ct = new byte[blob.length - IV_LENGTH];
-        System.arraycopy(blob, 0, iv, 0, IV_LENGTH);
-        System.arraycopy(blob, IV_LENGTH, ct, 0, ct.length);
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(GCM_TAG_BITS, iv));
-        return new String(cipher.doFinal(ct), StandardCharsets.UTF_8);
-    }
-
-    private void writeValue(String k, String value) throws Exception {
-        if (value == null) {
-            if (!prefs().edit().remove(k).commit()) throw new IllegalStateException("secure store remove failed");
-            return;
-        }
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        cipher.init(Cipher.ENCRYPT_MODE, key());
-        byte[] iv = cipher.getIV();
-        byte[] ct = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
-        byte[] blob = new byte[iv.length + ct.length];
-        System.arraycopy(iv, 0, blob, 0, iv.length);
-        System.arraycopy(ct, 0, blob, iv.length, ct.length);
-        // commit reports a persisted result; apply would acknowledge early.
-        if (!prefs().edit().putString(k, Base64.encodeToString(blob, Base64.NO_WRAP)).commit()) {
-            throw new IllegalStateException("secure store write failed");
-        }
+    private KeystoreBox box() {
+        if (box == null) box = new KeystoreBox(getContext(), KEY_ALIAS, PREFS);
+        return box;
     }
 
     @PluginMethod
@@ -92,7 +35,7 @@ public class SecureStorePlugin extends Plugin {
         if (k == null) { call.reject("key required"); return; }
         synchronized (STORE_LOCK) {
             try {
-                String value = readValue(k);
+                String value = box().read(k);
                 JSObject ret = new JSObject();
                 ret.put("value", value == null ? JSObject.NULL : value);
                 call.resolve(ret);
@@ -105,7 +48,7 @@ public class SecureStorePlugin extends Plugin {
         String k = call.getString("key"), value = call.getString("value");
         if (k == null || value == null) { call.reject("key and value required"); return; }
         synchronized (STORE_LOCK) {
-            try { writeValue(k, value); call.resolve(); }
+            try { box().write(k, value); call.resolve(); }
             catch (Exception e) { call.reject("secure store write failed"); }
         }
     }
@@ -115,7 +58,7 @@ public class SecureStorePlugin extends Plugin {
         String k = call.getString("key");
         if (k == null) { call.reject("key required"); return; }
         synchronized (STORE_LOCK) {
-            try { writeValue(k, null); call.resolve(); }
+            try { box().write(k, null); call.resolve(); }
             catch (Exception e) { call.reject("secure store remove failed"); }
         }
     }
@@ -129,8 +72,8 @@ public class SecureStorePlugin extends Plugin {
         }
         synchronized (STORE_LOCK) {
             try {
-                boolean changed = java.util.Objects.equals(readValue(k), call.getString("expected"));
-                if (changed) writeValue(k, call.getString("value"));
+                boolean changed = java.util.Objects.equals(box().read(k), call.getString("expected"));
+                if (changed) box().write(k, call.getString("value"));
                 JSObject result = new JSObject();
                 result.put("changed", changed);
                 call.resolve(result);

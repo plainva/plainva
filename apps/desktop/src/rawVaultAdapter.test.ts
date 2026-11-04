@@ -37,6 +37,7 @@ const BELOW_THE_CHAIN = anyOf(
 const VERSIONS_LAYER = "the versions layer's own control: a version of the file as it is, taken before a restore — or a conflict copy adopted byte for byte — writes over it; the write itself goes through `vaultAdapter`";
 const KEY_FILE = "the key file of the sync's encryption (`.plainva/sync`) is a sideband file of the sync, read and written where the sync's own steps read it";
 const NOT_OPEN = "a vault that is not open — its folder was picked or created a moment ago — has no chain yet; opening it takes every file as new";
+const SKILL_VERSION = "the versions layer's own control: a version of a skill's file as it is, taken before a proposal of the assistant rewrites it (AI harness P6); the write itself goes through `vaultAdapter`";
 
 type Site = [use: string, times: number, why: string];
 
@@ -47,6 +48,11 @@ const SITES: Record<string, Site[]> = {
   ],
   "components/OnlineVaultSetup.tsx": [["builds TauriVaultAdapter", 1, NOT_OPEN]],
   "components/SplashScreen.tsx": [["builds TauriVaultAdapter", 1, NOT_OPEN]],
+  "components/ai/useDesktopAi.ts": [
+    ["taken from useVault()", 1, SKILL_VERSION],
+    ["handed to useRef", 1, SKILL_VERSION],
+    ["kept as backup.current", 1, SKILL_VERSION],
+  ],
   "components/import/ImportWizardModal.tsx": [["builds TauriVaultAdapter", 1, `${NOT_OPEN} (an import into a new vault; into the open one it writes through \`vaultAdapter\`)`]],
   "components/settings/EncryptionUnlockHost.tsx": [
     ["taken from useVault()", 1, KEY_FILE],

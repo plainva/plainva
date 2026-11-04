@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { createRoot } from "react-dom/client";
-import { act } from "react";
+import { act, type ReactElement } from "react";
 import { CommentsSheet } from "./CommentsSheet";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import { buildCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { suggestedProperties } from "@plainva/ui";
 import en from "../../../../packages/ui/src/locales/en.json";
 
 function tr(key: string): string {
@@ -111,5 +112,185 @@ describe("the comments sheet, locked", () => {
     expect(onUnlock).toHaveBeenCalledTimes(1);
     await act(async () => { root.unmount(); });
     host.remove();
+  });
+});
+
+/**
+ * The assistant in the threads (plan KI-Harness P3-6) — the sheet's side of
+ * what the desktop column does: "@" offers it only where it can answer, the
+ * thread it is answering says so and can be stopped, and what it wrote from
+ * this phone is this phone's to delete.
+ */
+describe("the assistant in the sheet's threads (P3-6)", () => {
+  const SELF = "phone";
+  const AI_AUTHOR = "plainva-ai/m-1";
+  const names = new Map<string, string>([["phone", "Marco"], ["laptop", "Anna"], [AI_AUTHOR, "Plainva AI · m-1"]]);
+  const remark = (over: Partial<WorkspaceCommentRecord> & { commentId: string }): WorkspaceCommentRecord => ({
+    targetObjectId: "note.md", parentCommentId: null, authorMemberId: "laptop", authorDeviceId: "laptop", body: "-", anchor: null,
+    resolvedCommentId: null, resolvedAt: null, createdAt: "2026-09-24T09:00:00.000Z", suggestion: null, ...over,
+  });
+  const base = { memberNames: names, selfMemberId: SELF, canComment: true, canWrite: true, onSubmit: async () => {}, onResolve: () => {},
+    onApplySuggestion: () => {}, onDeclineSuggestion: () => {}, onPromoteToTask: () => {}, onRevealAnchor: () => {}, onClose: () => {} };
+
+  async function mount(ui: ReactElement) {
+    const host = document.createElement("div"); document.body.appendChild(host); const root = createRoot(host);
+    await act(async () => { root.render(ui); });
+    return { host, root, unmount: async () => { await act(async () => { root.unmount(); }); host.remove(); } };
+  }
+  /** Types into a controlled field the way a person does: the value, the caret, the input event. */
+  async function type(field: HTMLTextAreaElement, value: string) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    await act(async () => { setter.call(field, value); field.setSelectionRange(value.length, value.length); field.dispatchEvent(new Event("input", { bubbles: true })); });
+  }
+  const offeredNames = () => [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.querySelector(".pv-menu-text")?.textContent);
+
+  it("offers the assistant after an @ only where it can answer, and draws its mention either way", async () => {
+    const asked = remark({ commentId: "q1", body: "@KI is that right?" });
+    const off = await mount(<CommentsSheet {...base} comments={[asked]} />);
+    const mention = off.host.querySelector(".pv-comment-card__mention")!;
+    expect(mention.textContent).toBe("@KI");
+    expect(mention.hasAttribute("data-tip")).toBe(false);
+    const plain = off.host.querySelector(".pv-comment-compose textarea") as HTMLTextAreaElement;
+    expect(plain.placeholder).toBe(tr("workspaceSecurity.addComment"));
+    await type(plain, "@");
+    expect(offeredNames()).toEqual(["Anna", "Marco"]);
+    await off.unmount();
+
+    const on = await mount(<CommentsSheet {...base} comments={[asked]} ai={{ label: "AI", replyingTo: null, stop: () => {} }} />);
+    const field = on.host.querySelector(".pv-comment-compose textarea") as HTMLTextAreaElement;
+    expect(field.placeholder).toBe(tr("ai.thread.composer"));
+    await type(field, "@");
+    expect(offeredNames()).toEqual(["AI", "Anna", "Marco"]);
+    const row = [...document.querySelectorAll('[role="menuitem"]')].find((item) => item.querySelector(".pv-menu-text")?.textContent === "AI")!;
+    expect(row.querySelector(".pv-menu-hint")?.textContent).toBe(tr("ai.thread.mentionHint"));
+    await on.unmount();
+  });
+
+  it("shows which thread the assistant is answering, stops it from there, and lets this phone delete what it wrote", async () => {
+    const asked = remark({ commentId: "t1", authorMemberId: SELF, authorDeviceId: SELF, body: "@AI is that right?" });
+    const answer = remark({ commentId: "a1", parentCommentId: "t1", authorMemberId: AI_AUTHOR, authorDeviceId: SELF, body: "It is." });
+    const foreign = remark({ commentId: "a2", parentCommentId: "t1", authorMemberId: AI_AUTHOR, authorDeviceId: "laptop", body: "From the laptop." });
+    const other = remark({ commentId: "t2", body: "Something else." });
+    const stop = vi.fn();
+    const onDelete = vi.fn();
+    const { host, unmount } = await mount(<CommentsSheet {...base} comments={[asked, answer, foreign, other]} onDelete={onDelete} ai={{ label: "AI", replyingTo: "t1", stop }} />);
+
+    const waiting = [...host.querySelectorAll("[data-testid=comment-ai-pending]")];
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0]!.closest(".pv-comment-card")?.textContent).toContain("@AI is that right?");
+    await act(async () => { (host.querySelector("[data-testid=comment-ai-stop]") as HTMLElement).click(); });
+    expect(stop).toHaveBeenCalledTimes(1);
+
+    // The AI mark on what the assistant wrote; a delete control only on the reply this phone wrote.
+    expect(host.querySelectorAll(".pv-comment-card__avatar[data-ai] svg")).toHaveLength(3);
+    const replies = [...host.querySelectorAll(".pv-comment-card__reply")].filter((reply) => !reply.matches("[data-testid=comment-ai-pending]"));
+    expect(replies.map((reply) => reply.querySelector(`button[aria-label="${tr("comments.commentDelete")}"]`) !== null)).toEqual([true, false]);
+    await act(async () => { (replies[0]!.querySelector(`button[aria-label="${tr("comments.commentDelete")}"]`) as HTMLElement).click(); });
+    await act(async () => { ([...host.querySelectorAll(".pv-comment-card__confirm button")].find((button) => button.textContent === tr("comments.commentDelete")) as HTMLElement).click(); });
+    expect(onDelete).toHaveBeenCalledWith(answer);
+    await unmount();
+  });
+
+  it("says why a remark could not be sent instead of leaving the draft without a word (finding 2026-10-06)", async () => {
+    const { toast } = await import("@plainva/ui");
+    const error = vi.spyOn(toast, "error").mockImplementation(() => 0 as never);
+    const { host, unmount } = await mount(<CommentsSheet {...base} comments={[]} onSubmit={async () => { throw new Error("comment-editor-unavailable"); }} />);
+    const field = host.querySelector(".pv-comment-compose textarea") as HTMLTextAreaElement;
+    await type(field, "A remark");
+    await act(async () => { ([...host.querySelectorAll(".pv-comment-compose button")].find((button) => button.textContent?.includes(tr("workspaceSecurity.send"))) as HTMLElement).click(); });
+    expect(error).toHaveBeenCalledWith("comment-editor-unavailable");
+    // The draft is the person's text: it stays.
+    expect(field.value).toBe("A remark");
+    error.mockRestore();
+    await unmount();
+  });
+});
+
+/**
+ * A suggestion that proposes the value of a property (plan KI-Harness P5-3):
+ * the sheet says about it what the desktop card says, with the same block —
+ * a label that it is a property, its name, the two values, and the sentence
+ * that the proposal no longer fits. The line a tap takes to the note is not
+ * there for it: what it would quote is a line of YAML.
+ */
+describe("a suggestion that proposes a property, in the sheet (P5-3)", () => {
+  const BRIEF = "---\nstage: open\nowner: Anna\n---\n# Brief\n\nShort.\n";
+  const proposal = (commentId: string, from: number, to: number, replacement: string, key?: string, over: Partial<WorkspaceCommentRecord> = {}): WorkspaceCommentRecord => ({
+    commentId, targetObjectId: "note.md", parentCommentId: null, authorMemberId: "plainva-ai/m-1", authorDeviceId: "phone", body: "", resolvedCommentId: null, resolvedAt: null,
+    createdAt: "2026-10-07T10:00:00.000Z", anchor: buildCommentAnchor(BRIEF, from, to, "7f3a", key ? { kind: "property", key } : undefined),
+    suggestion: { replacement, appliedAt: null, appliedBy: null, declinedAt: null }, ...over,
+  });
+  const names = new Map<string, string>([["phone", "Marco"], ["plainva-ai/m-1", "Plainva AI · m-1"]]);
+  /** The sheet as the note screen mounts it, on its proposals tab — under "all" where a test is about a decided one. */
+  async function sheet(comments: WorkspaceCommentRecord[], note = BRIEF, all = false) {
+    const host = document.createElement("div"); document.body.appendChild(host); const root = createRoot(host);
+    const onRevealAnchor = vi.fn();
+    await act(async () => { root.render(<CommentsSheet comments={comments} suggestedProperties={suggestedProperties(note, comments)} memberNames={names} selfMemberId="phone"
+      canComment canWrite onSubmit={async () => {}} onResolve={() => {}} onApplySuggestion={() => {}} onDeclineSuggestion={() => {}}
+      onPromoteToTask={() => {}} onRevealAnchor={onRevealAnchor} onClose={() => {}} />); });
+    await act(async () => { [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith(tr("comments.suggestions")))!.click(); });
+    if (all) await act(async () => { [...host.querySelectorAll("button")].find((button) => button.textContent === tr("comments.commentOverviewAll"))!.click(); });
+    return { host, onRevealAnchor, unmount: async () => { await act(async () => { root.unmount(); }); host.remove(); } };
+  }
+  const place = (host: HTMLElement) => host.querySelector(".pv-comment-card__quote--tap");
+  const diffOf = (host: HTMLElement) => host.querySelector("[data-testid=comment-diff]")!;
+  const labelOf = (host: HTMLElement) => host.querySelector("[data-testid=comment-property-label]")?.textContent ?? null;
+  const staleOf = (host: HTMLElement) => host.querySelector("[data-testid=comment-property-stale]")?.textContent ?? null;
+
+  it("says that it is a property, and shows its name and its two values — with no line of YAML to tap", async () => {
+    const { host, unmount } = await sheet([proposal("p1", 4, 15, "stage: sent", "stage")]);
+    expect(labelOf(host)).toBe(tr("comments.suggestionProperty"));
+    const diff = diffOf(host);
+    expect(diff.getAttribute("data-property")).toBe("stage");
+    expect(diff.querySelector(".pv-comment-card__prop")!.textContent).toBe("stage");
+    expect(diff.querySelector("del")!.textContent).toBe("open");
+    expect(diff.querySelector("ins")!.textContent).toBe("sent");
+    expect(diff.textContent).not.toContain(":");
+    expect(place(host)).toBeNull();
+    expect(staleOf(host)).toBeNull();
+    const labels = [...host.querySelectorAll("button")].map((button) => button.textContent?.trim());
+    expect(labels).toContain(tr("comments.suggestionApply"));
+    expect(labels).toContain(tr("comments.suggestionDecline"));
+    await unmount();
+  });
+
+  it("names a removal, and a property the note does not have yet", async () => {
+    const removal = await sheet([proposal("p1", 15, 27, "", "owner")]);
+    expect(diffOf(removal.host).querySelector("del")!.textContent).toBe("Anna");
+    expect(diffOf(removal.host).textContent).toContain(tr("comments.suggestionPropertyRemoves"));
+    await removal.unmount();
+    const added = await sheet([proposal("p2", 28, 28, "effort: 3\n")]);
+    expect(labelOf(added.host)).toBe(tr("comments.suggestionPropertyNew"));
+    expect(diffOf(added.host).getAttribute("data-property")).toBe("effort");
+    expect(diffOf(added.host).querySelector("ins")!.textContent).toBe("3");
+    expect(place(added.host)).toBeNull();
+    await added.unmount();
+  });
+
+  it("says when the property says something else by now — and what became of a decided one, without that", async () => {
+    const waiting = proposal("p1", 4, 15, "stage: sent", "stage");
+    const stale = await sheet([waiting], BRIEF.replace("stage: open", "stage: closed"));
+    expect(staleOf(stale.host)).toBe(tr("comments.suggestionPropertyChanged").replace("{{key}}", "stage"));
+    expect(diffOf(stale.host).querySelector("del")!.textContent).toBe("open");
+    await stale.unmount();
+
+    const applied = proposal("p1", 4, 15, "stage: sent", "stage", { resolvedAt: "2026-10-07T11:00:00.000Z", suggestion: { replacement: "stage: sent", appliedAt: "2026-10-07T11:00:00.000Z", appliedBy: "phone", declinedAt: null } });
+    const decided = await sheet([applied], BRIEF.replace("stage: open", "stage: sent"), true);
+    // The entry it was made against is gone because it was accepted: nothing is said about fitting.
+    expect(labelOf(decided.host)).toBe(tr("comments.suggestionProperty"));
+    expect(staleOf(decided.host)).toBeNull();
+    expect(decided.host.textContent).toContain(tr("comments.suggestionApplied"));
+    expect(diffOf(decided.host).getAttribute("data-property")).toBe("stage");
+    await decided.unmount();
+  });
+
+  it("leaves a passage its line to tap: only a property has none", async () => {
+    const passage: WorkspaceCommentRecord = { ...proposal("p3", BRIEF.indexOf("Short."), BRIEF.indexOf("Short.") + 6, "Shorter."), commentId: "p3" };
+    const { host, onRevealAnchor, unmount } = await sheet([passage]);
+    expect(place(host)!.textContent).toBe("Short.");
+    expect(labelOf(host)).toBeNull();
+    await act(async () => { (place(host) as HTMLElement).click(); });
+    expect(onRevealAnchor).toHaveBeenCalledWith(passage);
+    await unmount();
   });
 });

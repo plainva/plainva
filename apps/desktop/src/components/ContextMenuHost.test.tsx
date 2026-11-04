@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
 import { ContextMenuHost } from "./ContextMenuHost";
 import { openContextMenu, closeContextMenu } from "../services/contextMenuStore";
-import { findEditable } from "@plainva/ui";
+import { findEditable, setImageExplainer } from "@plainva/ui";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -121,5 +121,72 @@ describe("ContextMenuHost", () => {
     act(() => items()[0].click());
     expect(writeText).toHaveBeenCalledWith("XY");
     await vi.waitFor(() => expect(input.value).toBe("abef"));
+  });
+
+  /**
+   * "Explain image" at a picture in a note (plan KI-Harness P4-5): offered
+   * while the AI is on — a registered explainer — and only for a picture of
+   * the vault, which knows its place.
+   */
+  describe("over a picture", () => {
+    const image = { loadBytes: async () => new Uint8Array(), filename: "Whiteboard.jpg", mime: "image/jpeg", open: () => undefined };
+    const place = { path: "Assets/Whiteboard.jpg", notePath: "Projects/Kickoff.md" };
+
+    afterEach(() => act(() => setImageExplainer(null)));
+
+    it("offers Open, Copy and Save — and nothing of the AI while it is off", () => {
+      render(<ContextMenuHost />);
+      act(() => openContextMenu({ x: 1, y: 1, selection: "", editable: null, image: { ...image, place } }));
+      expect(items().map((b) => b.textContent)).toEqual([i18n.t("contextMenu.openImage"), i18n.t("contextMenu.copyImage"), i18n.t("contextMenu.saveImageAs")]);
+    });
+
+    it("offers 'Explain image' while the AI is on, and hands over where the picture stands", () => {
+      const explain = vi.fn().mockResolvedValue(undefined);
+      act(() => setImageExplainer(explain));
+      render(<ContextMenuHost />);
+      act(() => openContextMenu({ x: 1, y: 1, selection: "", editable: null, image: { ...image, place } }));
+      const door = document.querySelector<HTMLButtonElement>('[data-testid="image-explain-menu"]')!;
+      expect(door.textContent).toBe(i18n.t("ai.image.action"));
+      // The AI's two doors close the picture's menu: what it shows, then a note of it.
+      const entries = items();
+      expect(entries[entries.length - 2]).toBe(door);
+      act(() => door.click());
+      expect(explain).toHaveBeenCalledTimes(1);
+      expect(explain).toHaveBeenCalledWith(place);
+    });
+
+    /** "Make a note of it" (plan KI-Harness P7): the same door with another task — the last entry of the menu. */
+    it("offers 'Make a note of it' beside it, and hands over the place with that task", () => {
+      const explain = vi.fn().mockResolvedValue(undefined);
+      act(() => setImageExplainer(explain));
+      render(<ContextMenuHost />);
+      act(() => openContextMenu({ x: 1, y: 1, selection: "", editable: null, image: { ...image, place } }));
+      const door = document.querySelector<HTMLButtonElement>('[data-testid="image-note-menu"]')!;
+      expect(door.textContent).toBe(i18n.t("ai.image.noteAction"));
+      const entries = items();
+      expect(entries[entries.length - 1]).toBe(door);
+      act(() => door.click());
+      expect(explain).toHaveBeenCalledTimes(1);
+      expect(explain).toHaveBeenCalledWith(place, "note");
+    });
+
+    it("has no such entry for a picture that is no file of the vault", () => {
+      act(() => setImageExplainer(vi.fn()));
+      render(<ContextMenuHost />);
+      act(() => openContextMenu({ x: 1, y: 1, selection: "", editable: null, image }));
+      expect(document.querySelector('[data-testid="image-explain-menu"]')).toBeNull();
+      expect(document.querySelector('[data-testid="image-note-menu"]')).toBeNull();
+    });
+
+    it("the entries go when the AI is switched off while the menu is open", () => {
+      act(() => setImageExplainer(vi.fn()));
+      render(<ContextMenuHost />);
+      act(() => openContextMenu({ x: 1, y: 1, selection: "", editable: null, image: { ...image, place } }));
+      expect(document.querySelector('[data-testid="image-explain-menu"]')).not.toBeNull();
+      expect(document.querySelector('[data-testid="image-note-menu"]')).not.toBeNull();
+      act(() => setImageExplainer(null));
+      expect(document.querySelector('[data-testid="image-explain-menu"]')).toBeNull();
+      expect(document.querySelector('[data-testid="image-note-menu"]')).toBeNull();
+    });
   });
 });

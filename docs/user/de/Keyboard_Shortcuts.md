@@ -10,6 +10,7 @@ Mit `F1` (oder **Befehlspalette → Tastenkombinationen anzeigen**) öffnest Du 
 |---|---|
 | `Strg+P` (oder `Strg+Umschalt+P`) | Befehlspalette öffnen |
 | `Strg+O` | Schnellwechsel – Dateien suchen und öffnen |
+| `Strg+J` | KI fragen – den Begleiter öffnen (nur solange die KI eingeschaltet ist, siehe [KI-Assistent](AI_Assistant.md)) |
 | `Strg+,` | Einstellungen öffnen |
 | `Strg+Plus` / `Strg+Minus` | Oberfläche vergrößern / verkleinern (80–150 %) |
 | `Strg+0` | Zoom auf 100 % zurücksetzen |

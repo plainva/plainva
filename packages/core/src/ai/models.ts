@@ -1,0 +1,164 @@
+import type { HttpRequestSpec, ProviderEndpoint } from "./providers.js";
+
+/**
+ * The provider's own model list — the connection test and the source of the
+ * model picker's suggestions (§11.1). Plainva ships no list of "allowed"
+ * models: whatever the provider offers can be chosen, and any id can be typed
+ * in by hand (principle 13 of the plan).
+ */
+
+export interface ModelInfo {
+  /** Exactly the string the provider expects in a request. */
+  id: string;
+  /** The provider's display name, when it gives one. */
+  label?: string;
+  contextTokens?: number;
+  outputTokens?: number;
+  /** US dollars per million tokens, where the provider publishes prices with the list. */
+  price?: { input: number; output: number };
+  /**
+   * False for what the list itself marks as something else (embeddings,
+   * speech, images, moderation). Only a sorting hint: such a model can still
+   * be typed in.
+   */
+  chat: boolean;
+  /**
+   * Hears audio: a transcription model (OpenAI and compatible lists name
+   * them), or any Gemini model that generates content. A sorting hint for the
+   * profile "Audio", like `chat`.
+   */
+  transcribe?: boolean;
+  /**
+   * Computes embeddings: by its id in OpenAI-compatible lists (the families
+   * Ollama and LM Studio serve too), by its methods at Gemini. A sorting hint
+   * for the profile "Embeddings" (plan P2a-5).
+   */
+  embed?: boolean;
+  /**
+   * Reads pictures (plan P4-5) — only where the list itself says so: by a
+   * model's input modalities (OpenRouter), for Gemini's content models, for
+   * every model of the Anthropic API. Absent where a list does not tell
+   * (OpenAI, local servers). A hint for "Explain image", never a lock: a
+   * model the list calls blind can still be asked, and the provider answers.
+   */
+  vision?: boolean;
+}
+
+export function modelListSpec(endpoint: ProviderEndpoint): HttpRequestSpec {
+  const base = endpoint.baseUrl;
+  switch (endpoint.api) {
+    case "anthropic-messages":
+      return {
+        endpointId: endpoint.id,
+        url: `${base}/models?limit=1000`,
+        method: "GET",
+        headers: { "anthropic-version": "2023-06-01" },
+        auth: endpoint.needsKey ? { header: "x-api-key" } : null,
+        stream: false,
+      };
+    case "gemini":
+      return {
+        endpointId: endpoint.id,
+        url: `${base}/models?pageSize=1000`,
+        method: "GET",
+        headers: {},
+        auth: endpoint.needsKey ? { header: "x-goog-api-key" } : null,
+        stream: false,
+      };
+    case "openai-responses":
+    case "openai-chat":
+      return {
+        endpointId: endpoint.id,
+        url: `${base}/models`,
+        method: "GET",
+        headers: {},
+        auth: endpoint.needsKey ? { header: "authorization", scheme: "Bearer" } : null,
+        stream: false,
+      };
+    case "platform":
+      // The plugin answers with the model and its window in the list shape below — or why the system has none.
+      return { endpointId: endpoint.id, url: `${base}/models`, method: "GET", headers: {}, auth: null, stream: false };
+  }
+}
+
+const NOT_CHAT = /(^|[/:-])(text-embedding|embedding|embed|tts|whisper|transcribe|dall-e|gpt-image|image|moderation|rerank|babbage|davinci)([-.:/]|$)/i;
+
+/** Embedding models by their id (text-embedding-3-small, nomic-embed-text, bge-m3, all-minilm, e5 …). */
+const EMBEDS = /embed|(^|[/:-])(bge|e5|gte|minilm|all-minilm)([-.:/]|$)/i;
+
+/** Transcription models by their id (whisper-1, gpt-4o-transcribe, whisper-large-v3 …). */
+const TRANSCRIBES = /(^|[/:-])(whisper|transcribe)([-.:/]|$)/i;
+
+function num(value: unknown): number | undefined {
+  const n = typeof value === "string" ? Number(value) : value;
+  return typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+function str(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function records(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter((v): v is Record<string, unknown> => Boolean(v) && typeof v === "object") : [];
+}
+
+/**
+ * Whether a list entry says the model reads pictures: its input modalities
+ * (`input_modalities: ["text", "image"]`, or the left side of
+ * `modality: "text+image->text"`). Undefined where the entry says nothing.
+ */
+function seesImages(architecture: Record<string, unknown> | undefined): boolean | undefined {
+  if (!architecture) return undefined;
+  const inputs = architecture.input_modalities;
+  if (Array.isArray(inputs) && inputs.length) return inputs.some((kind) => typeof kind === "string" && kind.toLowerCase() === "image");
+  const modality = str(architecture.modality);
+  if (!modality || !modality.includes("->")) return undefined;
+  return /image/i.test(modality.slice(0, modality.indexOf("->")));
+}
+
+/** Parses a model list answer; unknown shapes give an empty list, never a throw. */
+export function parseModelList(endpoint: ProviderEndpoint, json: unknown): ModelInfo[] {
+  const root = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+  const out: ModelInfo[] = [];
+  if (endpoint.api === "gemini") {
+    for (const m of records(root.models)) {
+      const name = str(m.name);
+      if (!name) continue;
+      const methods = Array.isArray(m.supportedGenerationMethods) ? m.supportedGenerationMethods : [];
+      out.push({
+        id: name.replace(/^models\//, ""),
+        label: str(m.displayName),
+        contextTokens: num(m.inputTokenLimit),
+        outputTokens: num(m.outputTokenLimit),
+        chat: methods.includes("generateContent") || methods.includes("streamGenerateContent"),
+        transcribe: methods.includes("generateContent"),
+        embed: methods.includes("embedContent") || methods.includes("batchEmbedContents"),
+        // Gemini's content models take pictures as they take audio.
+        ...(methods.includes("generateContent") ? { vision: true } : {}),
+      });
+    }
+  } else {
+    for (const m of records(root.data)) {
+      const id = str(m.id);
+      if (!id) continue;
+      const pricing = m.pricing && typeof m.pricing === "object" ? (m.pricing as Record<string, unknown>) : undefined;
+      const input = num(pricing?.prompt);
+      const output = num(pricing?.completion);
+      const architecture = m.architecture && typeof m.architecture === "object" ? (m.architecture as Record<string, unknown>) : undefined;
+      const modality = architecture ? str(architecture.modality) : undefined;
+      const vision = endpoint.api === "anthropic-messages" ? true : seesImages(architecture);
+      out.push({
+        id,
+        label: str(m.display_name) ?? str(m.name),
+        contextTokens: num(m.context_length) ?? num(m.context_window),
+        price: input !== undefined && output !== undefined ? { input: input * 1_000_000, output: output * 1_000_000 } : undefined,
+        chat: modality ? /->.*text/.test(modality) && !NOT_CHAT.test(id) : !NOT_CHAT.test(id),
+        transcribe: TRANSCRIBES.test(id),
+        embed: EMBEDS.test(id) || /->.*embedding/i.test(modality ?? ""),
+        ...(vision !== undefined ? { vision } : {}),
+      });
+    }
+  }
+  const seen = new Set<string>();
+  return out.filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
+}

@@ -1,0 +1,520 @@
+import {
+  buildLinkNameIndex,
+  DEFAULT_AI_POLICY,
+  deleteFrontmatterPath,
+  EDITED_HALF_LIFE_MS,
+  effectivePolicy,
+  filesALinkCouldMean,
+  isCloudRecipient,
+  ENCRYPTED_WORKSPACE_AI_POLICY,
+  isAiHiddenPath,
+  notePolicyFrom,
+  OPENED_HALF_LIFE_MS,
+  parsePolicyFile,
+  questionTerms,
+  readFrontmatterPath,
+  readInstructionFile,
+  scanInstruction,
+  scanVaultInstructions,
+  recencySignal,
+  setFrontmatterPath,
+  updateVaultText,
+  VersionHistoryService,
+  type AiPolicyDimension,
+  type Candidate,
+  type ContextNote,
+  type ContextPolicyHost,
+  type EffectivePolicy,
+  type EgressRecipient,
+  type InstructionIO,
+  type IVaultAdapter,
+  type LinkNameIndex,
+  type NamedFile,
+  type PackageGists,
+  type ParsedPolicyFile,
+  type SituationInput,
+  type TextUpdateFiles,
+  type ToolManifest,
+} from "@plainva/core";
+import type { AcpVaultAccess } from "./acpFiles";
+import { createAcpVaultStore } from "./acpStores";
+import { notesEmbedding } from "./aiImage";
+import { createMemoryHost, createMemoryPrefStore, readMemory } from "./aiMemory";
+import { createStylePrefStore } from "./aiStyle";
+import type { AiInstructionsHost, AiVaultHost, InstructionVersions } from "./aiSession";
+import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
+import { createMcpVaultStore } from "./mcpStores";
+import { createWriteDraftStore, type DraftCreator } from "./aiWrites";
+import type { FolderLogHost } from "./folderLogRun";
+import type { NoteHintsHost } from "./noteHintsHost";
+import { createNoteHintsStore } from "./noteHintsStore";
+import type { WriteRun } from "./writeTools";
+import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps, type NoteHistorySource } from "./vaultTools";
+
+/**
+ * The vault side of the AI session, built the same way in both shells: the
+ * shells hand in how to read a note and what is open, this module decides
+ * what the policy says about it (ADR 0018).
+ */
+
+/** Where folder rules live. Plainva writes no marker files into the user's folders. */
+export const AI_POLICY_FILE = ".agent/policy.yml";
+
+export interface VaultPolicyHost extends ContextPolicyHost {
+  /** The parsed folder rules, re-read at most every few seconds. */
+  rules(): Promise<ParsedPolicyFile>;
+  /** Forget the cached rules (after the settings wrote the file). */
+  invalidate(): void;
+}
+
+/** How long the rules and the names of the vault's files are kept before they are read again. */
+const POLICY_CACHE_MS = 3000;
+
+export function createVaultPolicy(opts: {
+  readFile(path: string): Promise<string | null>;
+  /** Where a tap on a link leads in this shell: the one file it opens. */
+  resolveLink(target: string, fromPath: string): Promise<string | null>;
+  /**
+   * Every file of the vault, a note with the title of its properties where it
+   * has one. From it the gate tells which notes a link COULD mean, the same
+   * way in both shells (`filesALinkCouldMean`) — a link the shell's own
+   * resolver does not follow is still withheld where it names a note the
+   * rules keep back. Without it only `resolveLink` is asked.
+   */
+  fileNames?(): Promise<readonly NamedFile[]>;
+  /** True inside an encrypted workspace: the cloud is off unless the rules say otherwise. */
+  encrypted(): boolean;
+  now?: () => number;
+}): VaultPolicyHost {
+  const now = opts.now ?? (() => Date.now());
+  let cached: { at: number; parsed: ParsedPolicyFile } | null = null;
+  let names: { at: number; index: Promise<LinkNameIndex> } | null = null;
+  /**
+   * The lookup over the vault's file names, read at most every few seconds;
+   * null in a host that was given none. Where the names cannot be read it
+   * rejects — whoever asks then cannot tell what a link means, and says so.
+   */
+  const nameIndex = (): Promise<LinkNameIndex | null> => {
+    if (!opts.fileNames) return Promise.resolve(null);
+    if (names && now() - names.at < POLICY_CACHE_MS) return names.index;
+    const index = opts.fileNames().then((files) => buildLinkNameIndex(files));
+    // Kept also when it failed, so one burst of questions asks once; whoever awaits it hears the failure.
+    index.catch(() => {});
+    names = { at: now(), index };
+    return index;
+  };
+  const rules = async (): Promise<ParsedPolicyFile> => {
+    if (cached && now() - cached.at < POLICY_CACHE_MS) return cached.parsed;
+    let text: string | null;
+    try {
+      text = await opts.readFile(AI_POLICY_FILE);
+    } catch {
+      // Unreadable is not "no rules": fall back to the defaults, and say so.
+      const parsed = { rules: [], problems: [`${AI_POLICY_FILE} could not be read`] };
+      cached = { at: now(), parsed };
+      return parsed;
+    }
+    const parsed = text === null ? { rules: [], problems: [] } : parsePolicyFile(text);
+    cached = { at: now(), parsed };
+    return parsed;
+  };
+  return {
+    rules,
+    invalidate() {
+      cached = null;
+      names = null;
+    },
+    async policyOf(path: string, text?: string): Promise<EffectivePolicy> {
+      let content = text;
+      if (content === undefined) {
+        try {
+          content = (await opts.readFile(path)) ?? "";
+        } catch {
+          content = "";
+        }
+      }
+      const plainva = readFrontmatterPath(content, ["plainva"]);
+      const own = notePolicyFrom(plainva === undefined ? {} : { plainva });
+      return effectivePolicy(path, own, (await rules()).rules, opts.encrypted() ? ENCRYPTED_WORKSPACE_AI_POLICY : DEFAULT_AI_POLICY);
+    },
+    resolveLink: opts.resolveLink,
+    async linkCandidates(target: string, fromPath: string): Promise<readonly string[]> {
+      // What a tap opens here is always among them — a file the names do not list yet, an attachment found by
+      // the shell's own rule —, then everything the spelling could mean under any rule. Where the names cannot
+      // be read this rejects: "cannot tell" is the caller's to treat as such, never as "no note".
+      const index = await nameIndex();
+      const opened = await opts.resolveLink(target, fromPath).catch(() => null);
+      const found = index ? filesALinkCouldMean(index, target, fromPath) : [];
+      return opened && !found.includes(opened) ? [opened, ...found] : found;
+    },
+  };
+}
+
+export interface AiVaultHostInput {
+  files: AiFileStore;
+  /** A stable handle of the vault (see `aiVaultKey`). */
+  vaultKey: string;
+  policy: VaultPolicyHost;
+  /** The note open in the shell right now — its saved text. */
+  activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
+  readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
+  /** Where the user is: gathered by the shell, gated and written by the context package. */
+  situation(): Promise<SituationInput>;
+  /** The vault's candidate sources; null in a shell without an index. */
+  retrieval: CandidateRetrieval | null;
+  /** The tools' access to the vault; null when this shell offers no tools. */
+  toolDeps: Omit<VaultToolDeps, "policyOf" | "resolveLink" | "linkCandidates"> | null;
+  /** Writes a note's own "never to the cloud" rule — the user's action in "View context". */
+  keepOnDevice?(path: string): Promise<void>;
+  /** Checked gists of the model on this computer (plan P2b-3), asked when a message is built. */
+  gists?(): PackageGists | null;
+  /** Writes an AI suggestion round into a note's comments (plan P1.5); absent where the shell cannot. */
+  propose?: AiVaultHost["propose"];
+  /** True inside an encrypted workspace, whose sealed suggestions cannot carry an author yet (E32). */
+  encrypted?: AiVaultHost["encrypted"];
+  /** Posts the assistant's reply into a comment thread (plan P3-6); absent where the shell cannot. */
+  reply?: AiVaultHost["reply"];
+  /** Where an answer kept as a note is written (plan P4-6); absent where the shell writes no notes. */
+  capture?: AiVaultHost["capture"];
+  /** The vault's type for new notes, as the shell names it (finding 2026-10-09); absent, the setting's default. */
+  noteType?: AiVaultHost["noteType"];
+  /** How this shell makes what a draft describes — a note, a task, a line in the journal (plan P5); absent where it cannot. */
+  creates?: DraftCreator;
+  /** The notes that carry open suggestions of a machine, from the vault's comments (plan P5); absent where the shell cannot list them. */
+  proposals?: AiVaultHost["proposals"];
+  /** The vault's folder entries and file bytes, for its own instructions (plan KI-Harness P3); absent, only the app's skills exist. */
+  instructionIO?: InstructionIO;
+  /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
+  instructionWriter?: InstructionWriter;
+  /** The vault's version history for a skill's file (plan P6): the version before a rewrite, and the way back. Absent where the vault keeps none. */
+  instructionVersions?: InstructionVersions;
+  /** A folder's log (plan KI-Harness P8-2): which notes changed, a note's text before, and the change of the log file; absent where the shell keeps none. */
+  log?: FolderLogHost;
+  /** Calm hints at the open note (plan KI-Harness P8-3): the shell's index, calendar and steps; absent where it offers none. */
+  hints?: NoteHintsHost;
+  /** What an external agent's session reaches of this vault (plan P4.6); absent where the shell hosts no agents. */
+  agents?: { access: AcpVaultAccess; activeNote(): string | null };
+}
+
+export interface InstructionWriter {
+  /** A file written whole — a NEW one: a skill made in the workshop or imported, its folder created first. */
+  write(path: string, bytes: Uint8Array): Promise<void>;
+  /**
+   * A change of a text file where it lies (Sammelplan 3.87): the vault's memory, its rules for assistants, the
+   * learning log, a skill's instructions. Through the chain's one entry for a change, as every writer of the app
+   * changes a file that is there: the change starts from the file as it lies there, whoever wrote it last — no
+   * merge, no conflict copy —, and a file with an open conflict takes it in the user's own version as well. A file
+   * that is not there is made from what `change` makes of nothing (`null`). Answers the text that was written,
+   * or null where `change` left the file as it was.
+   */
+  update(path: string, change: (text: string | null) => string | null): Promise<string | null>;
+  remove(path: string): Promise<void>;
+}
+
+/** Writing through a vault adapter: the folder first, then the file; a removal as the file tree does it, confirmed. */
+export function adapterInstructionWriter(
+  adapter: TextUpdateFiles & Pick<IVaultAdapter, "exists" | "createDir" | "writeBinaryFile" | "deleteItem">,
+): InstructionWriter {
+  const write = async (path: string, bytes: Uint8Array): Promise<void> => {
+    const folder = path.slice(0, path.lastIndexOf("/"));
+    if (folder && !(await adapter.exists(folder))) await adapter.createDir(folder);
+    await adapter.writeBinaryFile(path, bytes);
+  };
+  return {
+    write,
+    async update(path, change) {
+      if (!(await adapter.exists(path))) {
+        const made = change(null);
+        if (made === null) return null;
+        await write(path, new TextEncoder().encode(made));
+        return made;
+      }
+      const update = await updateVaultText(adapter, path, (text) => change(text));
+      return update.changed ? update.text : null;
+    },
+    // The user confirmed in the workshop; the adapters back the files up before they go.
+    remove: (path) => adapter.deleteItem(path, true, { confirmed: true }),
+  };
+}
+
+/** The scan's view of a vault adapter — folder entries and file bytes, nothing written (plan KI-Harness P3). */
+export function adapterInstructionIO(adapter: {
+  exists(path: string): Promise<boolean>;
+  listDir(path?: string, recursive?: boolean): Promise<readonly { name: string; isDirectory: boolean }[]>;
+  readBinaryFile(path: string): Promise<Uint8Array>;
+}): InstructionIO {
+  return {
+    async list(folder) {
+      try {
+        if (!(await adapter.exists(folder))) return [];
+        return (await adapter.listDir(folder, false)).map((entry) => ({ name: entry.name, folder: entry.isDirectory }));
+      } catch {
+        return [];
+      }
+    },
+    async read(path) {
+      try {
+        return (await adapter.exists(path)) ? await adapter.readBinaryFile(path) : null;
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
+function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore, writer?: InstructionWriter, versions?: InstructionVersions): AiInstructionsHost {
+  const decoder = new TextDecoder("utf-8", { fatal: false });
+  return {
+    scan: () => scanVaultInstructions(io),
+    scanOne: (id) => scanInstruction(io, id),
+    readFile: (source, rel) => readInstructionFile(io, source, rel),
+    approvals,
+    ...(writer ? { write: writer.write, update: writer.update, remove: writer.remove } : {}),
+    readText: async (path) => {
+      const bytes = await io.read(path);
+      return bytes ? decoder.decode(bytes) : null;
+    },
+    ...(versions ? { versions } : {}),
+  };
+}
+
+/**
+ * The vault's version history for a skill's file (plan P6), over the vault's
+ * own snapshot store: `adapter` reads it — the versions panel of a note reads
+ * the same —, `backup` is asked at the moment of a rewrite, so a vault whose
+ * history comes up later is served then. Without a `backup` no snapshot can
+ * be taken, and `snapshot` says so by throwing: whoever asks for it means not
+ * to write without one.
+ */
+export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () => { ensureSnapshot(path: string): Promise<void> } | null | undefined): InstructionVersions {
+  const history = new VersionHistoryService(adapter);
+  return {
+    async snapshot(path) {
+      const keeper = backup();
+      if (!keeper) throw new Error("The vault keeps no version history.");
+      await keeper.ensureSnapshot(path);
+    },
+    list: async (path) => (await history.listVersions(path)).map((version) => ({ id: version.backupPath, at: version.timestamp, size: version.size })),
+    read: (id) => history.readVersionText(id).catch(() => null),
+  };
+}
+
+/**
+ * Where the tools on how notes developed read from (plan KI-Harness P9-1), as
+ * a shell keeps it: which notes changed and when one was made, from its
+ * index; the states of a note, from the vault's version history — none where
+ * the vault keeps none. The same index question and the same history as a
+ * folder's log.
+ */
+export function noteHistorySource(input: {
+  index: {
+    getNotesChangedIn(folder: string, since: number, limit?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+    getNoteCreated(path: string): Promise<number | null>;
+  };
+  versions: Pick<InstructionVersions, "list" | "read"> | null;
+}): NoteHistorySource {
+  const { index, versions } = input;
+  return {
+    changedIn: (folder, since, limit) => index.getNotesChangedIn(folder, since, limit),
+    created: (path) => index.getNoteCreated(path),
+    versions: async (path) => (versions ? (await versions.list(path)).map((version) => ({ id: version.id, at: version.at })) : []),
+    readVersion: (id) => (versions ? versions.read(id) : Promise.resolve(null)),
+  };
+}
+
+/**
+ * A folder's log as a shell keeps it (plan KI-Harness P8-2): which notes of a
+ * folder changed, from the shell's index; a note's text before its first
+ * change since the log's last entry, from the vault's version history; and a
+ * change of the log file where it lies, through the chain's one entry.
+ *
+ * The version a note had then: a snapshot holds a file as it was before the
+ * write it was taken for, so the first snapshot after `since` holds the note
+ * as it stood at that instant. A vault takes one at most every two minutes;
+ * where none was taken after `since`, the newest one before it stands in —
+ * what the note gained may then count a line from just before. Without any
+ * there is no earlier state, and the log shows the note's beginning.
+ */
+export function folderLogHost(input: {
+  changedIn: FolderLogHost["changed"];
+  versions: Pick<InstructionVersions, "list" | "read"> | null;
+  update: FolderLogHost["update"];
+}): FolderLogHost {
+  return {
+    changed: input.changedIn,
+    async before(path, since) {
+      const versions = input.versions;
+      if (!versions) return null;
+      const kept = [...(await versions.list(path))].sort((a, b) => a.at - b.at);
+      const earlier = kept.filter((version) => version.at <= since);
+      const pick = kept.find((version) => version.at > since) ?? earlier[earlier.length - 1];
+      return pick ? versions.read(pick.id) : null;
+    },
+    update: input.update,
+  };
+}
+
+/** A note's text with its own rule "never to the cloud" (the plainva namespace, ADR 0018). */
+export function withCloudDenied(text: string): string {
+  return setFrontmatterPath(text, ["plainva", "ai", "cloud"], "deny");
+}
+
+/**
+ * A note's text with one of its own AI rules written (`set`) or taken out —
+ * what a confirmed plan of the assistant writes (plan KI-Harness P5-3). An
+ * emptied `plainva` namespace goes with its last rule; a note that already
+ * says so comes back unchanged.
+ */
+export function withNoteRule(text: string, rule: AiPolicyDimension, set: boolean): string {
+  return set ? setFrontmatterPath(text, ["plainva", "ai", rule], "deny") : deleteFrontmatterPath(text, ["plainva", "ai", rule]);
+}
+
+/** Where candidates come from (plan §8.1): the index, and what this device opened. */
+export interface CandidateRetrieval {
+  searchCandidates(terms: readonly string[], limit: number): Promise<{ path: string; title: string; score: number; snippet: string | null }[]>;
+  linkNeighbors(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
+  recentlyChanged(limit: number): Promise<{ path: string; title: string; mtime: number }[]>;
+  /** Opened on this device, newest first (`.plainva/recents.json`). */
+  recentlyOpened(): Promise<{ path: string; openedAt: number }[]>;
+  now(): number;
+  /** Notes close in meaning (plan P2b); absent while the vault has no search by meaning. */
+  semanticCandidates?(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<{ path: string; ordinal: number; hash: string; score: number }[]>;
+  /** Note sizes in bytes, as the index knows them, for what a naive request would have sent (plan P2b-5). */
+  noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
+  /**
+   * The notes whose text contains one of these spellings literally (plan
+   * P4-5, `VaultQueryService.notesContaining`): how "which notes embed this
+   * picture" starts. Absent, nobody can tell — and a picture then goes to no cloud.
+   */
+  notesContaining?(needles: readonly string[]): Promise<{ paths: string[]; truncated: boolean }>;
+}
+
+const noteTitle = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+
+/**
+ * The candidate lists for a question: full-text hits (any term, relative to
+ * the best hit), the open note's link neighbours, and what changed or was
+ * opened lately. Nothing here is gated or ranked — the package does both,
+ * the gate first.
+ */
+export async function gatherCandidates(retrieval: CandidateRetrieval, question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]> {
+  const now = retrieval.now();
+  const terms = questionTerms(question);
+  const cloudQuestion = recipient ? isCloudRecipient(recipient) : false;
+  const [hits, neighbors, changed, opened, meaning] = await Promise.all([
+    terms.length ? retrieval.searchCandidates(terms, 30).catch(() => []) : Promise.resolve([]),
+    activePath ? retrieval.linkNeighbors(activePath, 20).catch(() => []) : Promise.resolve([]),
+    retrieval.recentlyChanged(20).catch(() => []),
+    retrieval.recentlyOpened().catch(() => []),
+    retrieval.semanticCandidates ? retrieval.semanticCandidates(question, 20, { cloudQuestion }).catch(() => []) : Promise.resolve([]),
+  ]);
+  const best = Math.max(...hits.map((h) => h.score), 0) || 1;
+  const lists: Candidate[][] = [
+    hits.map((h) => ({ path: h.path, title: h.title || noteTitle(h.path), signals: { lexical: Math.max(0, h.score) / best }, ...(h.snippet ? { snippet: withoutBrokenLinks(unmarkSnippet(h.snippet)) } : {}) })),
+    neighbors.map((n) => ({ path: n.path, title: n.title || noteTitle(n.path), signals: { graph: Math.min(1, 0.6 + 0.15 * (n.incoming + n.outgoing - 1)) } })),
+    changed.map((c) => ({ path: c.path, title: c.title || noteTitle(c.path), signals: { edited: recencySignal(now - c.mtime, EDITED_HALF_LIFE_MS) } })),
+    opened
+      .filter((o) => /\.md$/i.test(o.path))
+      .map((o) => ({ path: o.path, title: noteTitle(o.path), signals: { opened: recencySignal(now - o.openedAt, OPENED_HALF_LIFE_MS) } })),
+    meaning.map((m) => ({ path: m.path, title: noteTitle(m.path), signals: { semantic: m.score }, chunk: { ordinal: m.ordinal, hash: m.hash } })),
+  ];
+  // `.agent/` and the other hidden roots are never candidates (ADR 0020): the package drops them too.
+  return lists.map((list) => list.filter((candidate) => !isAiHiddenPath(candidate.path)));
+}
+
+export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
+  const stores = createAiVaultStores(input.files, input.vaultKey);
+  // The vault's memory (plan P6): its two files through the reader and the writer the skills use, the switch in the app's data.
+  const memory = input.instructionIO ? createMemoryHost(input.instructionIO, input.instructionWriter, createMemoryPrefStore(input.files, input.vaultKey)) : null;
+  /** The memory as the tools read it: both files at this moment — or nothing, while it is switched off on this device. */
+  const memoryForTools = memory
+    ? async () => {
+        if (!(await memory.prefs.load().catch(() => ({ on: false }))).on) return null;
+        const read = await readMemory(memory);
+        return { active: read.active, long: read.long, texts: read.texts };
+      }
+    : null;
+  return {
+    ...stores,
+    // What this vault's data is filed under on this device: a script's approval is signed for it (plan P5.5).
+    key: input.vaultKey,
+    // This vault's choices about foreign MCP servers (plan P4.5): beside its other AI data, never in the vault.
+    mcp: createMcpVaultStore(input.files, input.vaultKey),
+    // The user's writing style (plan P9-3): its examples and what was taken out, beside the vault's other AI data.
+    style: createStylePrefStore(input.files, input.vaultKey),
+    // An external agent's session in this vault (plan P4.6), and the vault's log of such sessions — beside its other AI data too.
+    ...(input.agents ? { agents: { ...input.agents, store: createAcpVaultStore(input.files, input.vaultKey) } } : {}),
+    activeNote: input.activeNote,
+    readNote: input.readNote,
+    situation: input.situation,
+    candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
+    ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),
+    // "Only when something changed" of a routine (plan P8): the newest change on disk the index knows — a sync counts
+    // as one —, other than the notes named. Asked of this device's own index; no model is involved.
+    ...(input.retrieval
+      ? {
+          changedSince: async (since: number, except: readonly string[]) => {
+            const retrieval = input.retrieval!;
+            const newest = (await retrieval.recentlyChanged(except.length + 1)).find((note) => !except.includes(note.path));
+            return newest ? newest.mtime > since : false;
+          },
+        }
+      : {}),
+    policy: input.policy,
+    ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
+    ...(input.gists ? { gists: input.gists } : {}),
+    ...(input.propose ? { propose: input.propose } : {}),
+    ...(input.encrypted ? { encrypted: input.encrypted } : {}),
+    ...(input.reply ? { reply: input.reply } : {}),
+    ...(input.capture ? { capture: input.capture } : {}),
+    ...(input.noteType ? { noteType: input.noteType } : {}),
+    // The drafts of this vault on this device (plan P5): beside its other AI data, never in the vault.
+    drafts: createWriteDraftStore(input.files, input.vaultKey),
+    ...(input.creates ? { creates: input.creates } : {}),
+    ...(input.proposals ? { proposals: input.proposals } : {}),
+    // Which notes embed a picture (plan P4-5): their rules decide with the picture's own. Without an index nobody can tell — `null`, never "none".
+    embedders: (path) => {
+      const containing = input.retrieval?.notesContaining?.bind(input.retrieval);
+      return containing ? notesEmbedding(path, { containing, read: async (note) => (await input.readNote(note))?.text ?? null }) : Promise.resolve(null);
+    },
+    ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter, input.instructionVersions) } : {}),
+    ...(memory ? { memory } : {}),
+    // A folder's log (plan P8-2): the shell's index, the vault's version history and the chain's one entry for a change.
+    ...(input.log ? { log: input.log } : {}),
+    // Calm hints at the open note (plan P8-3): the shell's steps; what is hidden and paused beside the vault's other AI data.
+    ...(input.hints ? { hints: input.hints, hintPrefs: createNoteHintsStore(input.files, input.vaultKey) } : {}),
+    tools(
+      recipient: EgressRecipient,
+      scope?: ToolScope,
+      redact?: ReadonlySet<string>,
+      web?: boolean,
+      narrowed?: () => readonly string[] | null,
+      foreign?: () => readonly ToolManifest[],
+      writing?: WriteRun,
+      scripts?: () => readonly ToolManifest[],
+    ) {
+      if (!input.toolDeps) return null;
+      const retrieval = input.retrieval;
+      const deps: VaultToolDeps = {
+        // The index sources the context package ranks with serve the tools too.
+        ...(retrieval ? { neighbors: retrieval.linkNeighbors, recentlyOpened: retrieval.recentlyOpened, recentlyChanged: retrieval.recentlyChanged } : {}),
+        ...input.toolDeps,
+        policyOf: input.policy.policyOf,
+        resolveLink: input.policy.resolveLink,
+        // Which notes a link could mean, for the gate and the source check: the policy's own answer, in both shells.
+        ...(input.policy.linkCandidates ? { linkCandidates: input.policy.linkCandidates } : {}),
+        ...(memoryForTools ? { memory: memoryForTools } : {}),
+      };
+      // What this shell serves beyond a conversation's own list: found with the tool search, never loaded on its own.
+      const more = furtherToolNames(deps);
+      // A shell without appointments does not offer the tools that read them.
+      const names = deps.events ? CHAT_TOOL_NAMES : CHAT_TOOL_NAMES.filter((name) => name !== "get_calendar" && name !== "get_event");
+      // In a conversation with the internet a note whose rules say `web: deny` does not exist for the tools either.
+      return {
+        names,
+        more,
+        executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}), ...(scripts ? { scripts } : {}) }, writing),
+      };
+    },
+  };
+}

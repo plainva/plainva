@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "macOS": {
+      "frameworks": [
+        "resources/onnxruntime/libonnxruntime.dylib"
+      ]
+    },
+    "resources": {
+      "resources/onnxruntime/LICENSE": "onnxruntime/LICENSE",
+      "resources/onnxruntime/ThirdPartyNotices.txt": "onnxruntime/ThirdPartyNotices.txt"
+    }
+  }
+}

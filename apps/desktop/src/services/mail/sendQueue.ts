@@ -182,14 +182,21 @@ async function accountOf(vaultPath: string, accountId: string) {
   return account;
 }
 
-/** Puts a message into the owner's delayed-send queue and raises the undo toast. */
-export async function enqueueSend(req: MailSendRequest): Promise<void> {
+/**
+ * Puts a message into the owner's delayed-send queue and raises the undo toast.
+ *
+ * `delivered` is told once the transport TOOK the message — not now, when it
+ * is only queued: a send that is undone or that the server refuses tells
+ * nothing. Whoever keeps the text until it is really out (a draft the
+ * assistant wrote, AI harness P5-6) can then still offer it.
+ */
+export async function enqueueSend(req: MailSendRequest, delivered?: () => void): Promise<void> {
   const account = await accountOf(req.vaultPath, req.accountId);
   const q = undoQueue();
   const entry = q.enqueue({
     req,
-    deliver: () =>
-      sendMail(
+    deliver: async () => {
+      await sendMail(
         req.vaultPath,
         account,
         req.to,
@@ -200,7 +207,9 @@ export async function enqueueSend(req: MailSendRequest): Promise<void> {
         req.cc ?? "",
         req.bcc ?? "",
         req.fromAddress,
-      ),
+      );
+      delivered?.();
+    },
   });
   undoToastId = toast.progress(i18n.t("mail.sendingWithUndo", { seconds: secondsLeft(entry) }), {
     label: i18n.t("common.undo"),
@@ -231,11 +240,16 @@ export async function appendDraftFor(req: MailDraftRequest): Promise<void> {
 /**
  * Send from wherever the writer is. In the central window that is the queue
  * above; in a compose window it is the same queue, one process away.
+ *
+ * `delivered` — see `enqueueSend`. A function does not cross windows: from a
+ * window that is not the owner, all this side learns is that the owner's queue
+ * has the message, and that is when it is told.
  */
-export async function submitSend(req: MailSendRequest): Promise<void> {
-  if (isOwnerWindow()) return enqueueSend(req);
+export async function submitSend(req: MailSendRequest, delivered?: () => void): Promise<void> {
+  if (isOwnerWindow()) return enqueueSend(req, delivered);
   const bus = await getWindowBus();
   await bus.request("mail-send", req);
+  delivered?.();
 }
 
 /** Save as draft from wherever the writer is (same routing as `submitSend`). */

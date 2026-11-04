@@ -382,6 +382,40 @@ describe("durable comment operation recovery with real files", () => {
     expect(f.counts().noteWrites).toBe(1);
   });
 
+  it("an accepted suggestion keeps what it replaces first: asked once, before the write, with the note as it lies there (AI harness P5-7)", async () => {
+    const f = await setup(); const op = f.proposal();
+    const order: string[] = []; const write = f.deps.writeText;
+    f.deps.snapshot = async (path) => void order.push(`snapshot ${path}: ${await f.vault.readTextFile(path)}`);
+    f.deps.writeText = async (path, text) => { order.push("write"); await write(path, text); };
+    expect((await f.runner().run(op)).phase).toBe("completed");
+    expect(order).toEqual(["snapshot note.md: Old sentence.\nKeep this line.\n", "write"]);
+    // Run again — a lost acknowledgement, a second window —, the text is there already: nothing is replaced, nothing kept.
+    expect((await f.runner().run(op)).phase).toBe("completed");
+    expect(order).toHaveLength(2);
+  });
+
+  it("a version that cannot be kept stops the accept before the note is touched; a decline and a comment keep none", async () => {
+    const f = await setup(); const op = f.proposal();
+    let asked = 0;
+    f.deps.snapshot = async () => { asked += 1; throw new Error("no space left on device"); };
+    await expect(f.runner().run(op)).rejects.toMatchObject({ phase: "prepared", reason: "storage" });
+    expect(await f.vault.readTextFile("note.md")).toBe("Old sentence.\nKeep this line.\n");
+    expect(f.counts()).toEqual({ noteWrites: 0, posts: 0 });
+    expect(await f.markerCount()).toBe(0);
+    // What replaces nothing asks for no version: a decline, and a comment that only posts.
+    const decline = prepareCommentOperation({ contextKey: f.root, authorKey: "bundle:desktop", notePath: "note.md", kind: "decline",
+      markers: [{ path: "note.md", body: "", resolvedCommentId: createWorkspaceObjectId(), suggestionOutcome: "declined" as const }] });
+    expect((await f.runner().run(decline)).phase).toBe("completed");
+    const post = prepareCommentOperation({ contextKey: f.root, authorKey: "bundle:desktop", notePath: "note.md", kind: "post", markers: [{ path: "note.md", body: "A remark" }] });
+    expect((await f.runner().run(post)).phase).toBe("completed");
+    expect(asked).toBe(1);
+    // Kept at last, the same operation goes through.
+    f.deps.snapshot = async () => { asked += 1; };
+    expect((await f.runner().run(op)).phase).toBe("completed");
+    expect(await f.vault.readTextFile("note.md")).toBe("New sentence.\nKeep this line.\n");
+    expect(asked).toBe(2);
+  });
+
   it("pure comment rounds are durable without reading or rewriting the note", async () => {
     const f = await setup();
     const op = prepareCommentOperation({ contextKey: f.root, authorKey: "bundle:desktop", notePath: "note.md", kind: "post", markers: ["First", "Second"].map((body) => ({ path: "note.md", body })) });

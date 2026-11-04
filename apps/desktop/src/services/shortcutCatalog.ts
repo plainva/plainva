@@ -39,6 +39,7 @@ export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     keyboard: [
       { descKey: "palette.title", keys: [["Mod", "P"], ["Mod", "Shift", "P"]] },
       { descKey: "shortcuts.quickSwitcher", keys: [["Mod", "O"]] },
+      { descKey: "ai.ask", keys: [["Mod", "J"]], noteKey: "ai.shortcutNote" },
       { descKey: "shortcuts.openSettings", keys: [["Mod", ","]] },
       { descKey: "shortcuts.zoomInOut", keys: [["Mod", "+"], ["Mod", "−"]] },
       { descKey: "shortcuts.zoomReset", keys: [["Mod", "0"]] },

@@ -50,6 +50,11 @@ Language code = BCP-47 = locale JSON basename = folder name under `docs/user/`.
 
 Notes:
 
+- The vault's word is the one of the table in every new string and page. Older
+  strings drifted: between about 15 and 65 keys per language still say bóveda,
+  coffre, kluis, sejf, cofre or 保险库 (counted 2026-10-07), and some user-guide
+  pages use the same words. A page quotes a UI string as it is; new wording
+  never copies the drift.
 - Plural suffixes: always create ALL listed categories (even if `_many` only
   applies starting in the millions) — the parity test requires at least the
   categories reported by `Intl.PluralRules` and allows supersets
@@ -90,6 +95,277 @@ tab said "to do". Plainva follows the Microsoft To Do wording (decision
 "Einddatum" stays the end date of a timeline bar or an event. "Te doen" stays a
 status option ("te doen → bezig → klaar"). `apps/desktop/src/translationTerms.test.ts`
 fails when "met einddatum" or "Vervallen taken" comes back.
+
+## AI terms (KI harness)
+
+The assistant's words, fixed so that locales, the user guide and the suggestion author line agree.
+The skill titles are UI strings (`ai.skills.*`); the MCP prompt names (`daily-orientation`,
+`weekly-review`, `project-status`) are identifiers and never translated.
+
+| Language | AI | Companion | Skills | Suggestion author |
+|---|---|---|---|---|
+| en | AI | companion | Skills | Plainva AI · ⟨model⟩ |
+| de | KI | Begleiter | Skills | Plainva KI · ⟨Modell⟩ |
+| fr | IA | compagnon | Compétences | Plainva IA · ⟨modèle⟩ |
+| es | IA | compañero | Habilidades | Plainva IA · ⟨modelo⟩ |
+| pt-BR | IA | assistente | Habilidades | Plainva IA · ⟨modelo⟩ |
+| it | IA | compagno | Competenze | Plainva IA · ⟨modello⟩ |
+| nl | AI | begeleider | Vaardigheden | Plainva AI · ⟨model⟩ |
+| pl | AI | asystent | Umiejętności | Plainva AI · ⟨model⟩ |
+| zh-CN | AI | 悬浮窗 | 技能 | Plainva AI · ⟨模型⟩ |
+| ja | AI | コンパニオン | スキル | Plainva AI · ⟨モデル⟩ |
+
+**External tools (MCP)** (`ai.ext.*`): tools of MCP servers the user connected. An
+entry is a **server** — never a "service", which the app uses for the services of an
+account — and never an "AI app", which is the other direction (`ai.mcp.*`, apps that
+read the vault). The tool word is the one of `ai.overview.tools`; a server's ready-made
+requests are **prompts**, the loanword, in every Latin-script language. "Review" is
+the verb of the skills' "Review and approve", "Approve" its second half.
+
+| Language | External tools (MCP) | Server | Access token | Prompts | Sandbox |
+|---|---|---|---|---|---|
+| en | External tools (MCP) | server | access token | prompts | sandbox |
+| de | Externe Werkzeuge (MCP) | Server | Zugangstoken | Prompts | Sandbox |
+| fr | Outils externes (MCP) | serveur | jeton d'accès | prompts | bac à sable |
+| es | Herramientas externas (MCP) | servidor | token de acceso | prompts | entorno aislado |
+| pt-BR | Ferramentas externas (MCP) | servidor | token de acesso | prompts | sandbox |
+| it | Strumenti esterni (MCP) | server | token di accesso | prompt | sandbox |
+| nl | Externe hulpmiddelen (MCP) | server | toegangstoken | prompts | sandbox |
+| pl | Narzędzia zewnętrzne (MCP) | serwer | token dostępu | prompty | piaskownica |
+| zh-CN | 外部工具（MCP） | 服务器 | 访问令牌 | 提示词 | 沙盒 |
+| ja | 外部ツール（MCP） | サーバー | アクセストークン | プロンプト | サンドボックス |
+
+**Scripts** (`ai.scripts.*`): a small program of the user's own that reads the vault
+through the assistant's tools, inside a sandbox. It is a **script** — the noun the
+Agent Skills format uses for a skill's `scripts/` folder, which Plainva does not run —,
+never a "plugin", an "extension" or a "macro". A **dry run** calls the tools that read
+and only writes down the rest; its **limits** are those of its manifest; what it asks
+for when it starts are its **inputs**. Prose for users describes the sandbox ("a closed
+box") rather than naming it. The handbook page `AI_Scripts.md` takes every UI term from
+the catalog itself, so a renamed key shows there at once.
+
+| Language | Script / Scripts | Dry run | Limits | Code | Inputs |
+|---|---|---|---|---|---|
+| en | Script / Scripts | Dry run | Limits | Code | Inputs |
+| de | Skript / Skripte | Probelauf | Grenzen | Code | Eingaben |
+| fr | Script / Scripts | Essai à blanc | Limites | Code | Entrées |
+| es | Script / Scripts | Ejecución de prueba | Límites | Código | Entradas |
+| pt-BR | Script / Scripts | Execução de teste | Limites | Código | Entradas |
+| it | Script / Script | Esecuzione di prova | Limiti | Codice | Dati in ingresso |
+| nl | Script / Scripts | Proefrun | Grenzen | Code | Invoer |
+| pl | Skrypt / Skrypty | Przebieg próbny | Limity | Kod | Dane wejściowe |
+| zh-CN | 脚本 | 试运行 | 限制 | 代码 | 输入 |
+| ja | スクリプト | 試し実行 | 上限 | コード | 入力 |
+
+**External agents** (`ai.agent.*`): an AI program of another maker that Plainva starts
+in a vault's folder. It is an **agent** — never the "assistant", which is Plainva's
+own, and never an "AI app", which reads the vault through Plainva (`ai.mcp.*`). What
+it has in the AI tab is a **session**, never a "conversation": a conversation is the
+assistant's and has a history, a session has neither. What it proposes is signed with
+the user's name for it and the words "external agent". Where the language says "start
+a session" for signing in (es *iniciar sesión*), the session's own buttons take
+another verb (**Empezar la sesión**, **Terminar la sesión**), and the sign-in keeps
+the usual one.
+
+| Language | External agents | Session | Suggestion author | Sign-in |
+|---|---|---|---|---|
+| en | External agents | session | ⟨name⟩ (external agent) | sign-in |
+| de | Externe Agenten | Sitzung | ⟨Name⟩ (externer Agent) | Anmeldung |
+| fr | Agents externes | session | ⟨nom⟩ (agent externe) | connexion |
+| es | Agentes externos | sesión | ⟨nombre⟩ (agente externo) | inicio de sesión |
+| pt-BR | Agentes externos | sessão | ⟨nome⟩ (agente externo) | login |
+| it | Agenti esterni | sessione | ⟨nome⟩ (agente esterno) | accesso |
+| nl | Externe agents | sessie | ⟨naam⟩ (externe agent) | aanmelding |
+| pl | Agenci zewnętrzni | sesja | ⟨nazwa⟩ (agent zewnętrzny) | logowanie |
+| zh-CN | 外部智能体 | 会话 | ⟨名称⟩（外部智能体） | 登录 |
+| ja | 外部エージェント | セッション | ⟨名前⟩（外部エージェント） | サインイン |
+
+**Siri and Shortcuts** (`ai.system.*`, and the two tables of the iOS app: the string
+catalog `PlainvaIntents.xcstrings` for what the actions show and answer, and
+`AppShortcuts.strings` per language for the spoken phrases — a catalog is not
+accepted there below iOS 17; `iosIntentStrings.test.ts` holds both against the
+Swift code): the system's assistant on an iPhone or iPad. *Siri* is never translated; *Shortcuts* takes the name the system
+itself shows in that language. What the system may read is a **list of note titles**
+— never "index" (the search's) and never "directory" (a folder); a title is
+**passed on**, not "sent" (that is a message to a provider) and not "shared" (that is
+a workspace). The four actions are named as the catalog names them, and the user
+guide quotes them from there: they are the only UI terms of the guide that do not
+come from a locale file. A spoken phrase must contain the app's name unchanged, so
+it stays undeclined where the language would decline it (pl *w Plainva*).
+
+| Language | Shortcuts | Add Journal Entry | Add Task | Open Note | Search Notes |
+|---|---|---|---|---|---|
+| en | Shortcuts | Add Journal Entry | Add Task | Open Note | Search Notes |
+| de | Kurzbefehle | Journal-Eintrag hinzufügen | Aufgabe hinzufügen | Notiz öffnen | Notizen durchsuchen |
+| fr | Raccourcis | Ajouter une entrée de journal | Ajouter une tâche | Ouvrir une note | Rechercher des notes |
+| es | Atajos | Añadir entrada de diario | Añadir tarea | Abrir nota | Buscar notas |
+| pt-BR | Atalhos | Adicionar entrada do diário | Adicionar tarefa | Abrir nota | Buscar notas |
+| it | Comandi Rapidi | Aggiungi voce di diario | Aggiungi attività | Apri nota | Cerca note |
+| nl | Opdrachten | Journaalitem toevoegen | Taak toevoegen | Notitie openen | Notities doorzoeken |
+| pl | Skróty | Dodaj wpis do dziennika | Dodaj zadanie | Otwórz notatkę | Szukaj notatek |
+| zh-CN | 快捷指令 | 写日志 | 添加任务 | 打开笔记 | 搜索笔记 |
+| ja | ショートカット | ジャーナルに記入 | タスクを追加 | ノートを開く | ノートを検索 |
+
+Two terms that must not borrow a word the app already uses for something else
+(`ai.capture.action`, `ai.skills.research.title`): **Keep as a note** — an AI
+answer kept as a note — is never the label of the mail-to-note action ("Save
+as note" and its translations); its verb is the one of "Keep conversations".
+The skill **Research** never uses the word of the search field.
+
+| Language | Keep as a note | Research (the skill) |
+|---|---|---|
+| en | Keep as a note | Research |
+| de | Als Notiz festhalten | Recherche |
+| fr | Conserver comme note | Se documenter |
+| es | Conservar como nota | Investigación |
+| pt-BR | Manter como nota | Investigar |
+| it | Conserva come nota | Documentarsi |
+| nl | Bewaren als notitie | Onderzoek |
+| pl | Zachowaj jako notatkę | Badanie tematu |
+| zh-CN | 保留为笔记 | 调研 |
+| ja | ノートとして残す | リサーチ |
+
+The vault's memory (`ai.memory.*`, AI harness P6): **Memory** is what the AI
+knows about the user — the word the settings already use beside "Skills". Its
+two places are named by what happens, never by the file: **Always included**
+and **On demand**, not "active" and "long-term". An **entry** takes the word
+the language uses for a database entry. **Remember** is the button on a draft
+and what the user says to the AI; it is never "save". A **rule** is no entry:
+it takes the word of the privacy rules, and "Rules for the AI" names the AI as
+the settings do, not "assistant". The marks on an entry are whole phrases
+(**Not to cloud models**) and are quoted in the user guide as they stand.
+
+| Language | Memory | Always included | On demand | Entry | Remember | Rules for the AI |
+|---|---|---|---|---|---|---|
+| en | Memory | Always included | On demand | entry | Remember | Rules for the AI |
+| de | Gedächtnis | Immer dabei | Zum Nachschlagen | Eintrag | Merken | Regeln für die KI |
+| fr | Mémoire | Toujours inclus | À consulter | entrée | Retenir | Règles pour l'IA |
+| es | Memoria | Siempre incluido | Para consultar | entrada | Recordar | Reglas para la IA |
+| pt-BR | Memória | Sempre incluído | Para consulta | entrada | Lembrar | Regras para a IA |
+| it | Memoria | Sempre incluso | Da consultare | voce | Ricorda | Regole per l'IA |
+| nl | Geheugen | Altijd erbij | Om op te zoeken | item | Onthouden | Regels voor de AI |
+| pl | Pamięć | Zawsze dołączane | Do sprawdzenia | wpis | Zapamiętaj | Reguły dla AI |
+| zh-CN | 记忆 | 始终附带 | 按需查阅 | 条目 | 记住 | 给AI的规则 |
+| ja | 記憶 | 常に含める | 必要なときに参照 | 項目 | 記憶する | AIへのルール |
+
+Learning from a conversation (`ai.learn.*`, AI harness P6-2): what a review of a conversation brings back is a
+**suggestion** — the word the app already uses for a proposed change to a note —, and it waits as a **draft**. The
+user **accepts** it: the verb of the comments' "Accept", never "apply" for a skill and never "approve", which is
+the word for what a device does with a skill it has reviewed. **Evidence** is the one sentence a suggestion rests
+on; it takes the language's plain word for a reason given, not a legal one. A version that came from a suggestion
+is **watched** — observed for a while, not "monitored" or "under surveillance". **Earlier versions…** uses the
+word the version history uses for a version.
+
+| Language | Learn from this conversation | Evidence | Accept | Rework | Watched versions | Earlier versions… |
+|---|---|---|---|---|---|---|
+| en | Learn from this conversation | Evidence | Accept | Rework | Watched versions | Earlier versions… |
+| de | Aus diesem Gespräch lernen | Beleg | Übernehmen | Überarbeiten | Fassungen unter Beobachtung | Frühere Fassungen … |
+| fr | Apprendre de cette conversation | Preuve | Accepter | Retravailler | Versions surveillées | Versions antérieures… |
+| es | Aprender de esta conversación | Evidencia | Aceptar | Modificar | Versiones en observación | Versiones anteriores… |
+| pt-BR | Aprender com esta conversa | Evidência | Aceitar | Ajustar | Versões em observação | Versões anteriores… |
+| it | Impara da questa conversazione | Riscontro | Accetta | Rielabora | Versioni sotto osservazione | Versioni precedenti… |
+| nl | Leren van dit gesprek | Onderbouwing | Overnemen | Aanpassen | Versies onder observatie | Eerdere versies… |
+| pl | Naucz się z tej rozmowy | Dowód | Zaakceptuj | Przeredaguj | Wersje pod obserwacją | Wcześniejsze wersje… |
+| zh-CN | 从此对话中学习 | 依据 | 采纳 | 修改 | 观察中的版本 | 较早的版本… |
+| ja | この会話から学ぶ | 根拠 | 適用 | 修正 | 経過観察中の版 | 以前の版… |
+
+Tidying up (`ai.upkeep.*`, AI harness P6-3): what the device notices by itself is a **hint**, and the card that holds the hints is named by what the user does there — **tidy up**, the household word, not
+"maintenance", "cleanup" (taken by the skill that cleans up links) or "optimise". A hint speaks carefully: two skills or two entries **say almost the same** — never "duplicate", which would be a
+finding the device cannot make. **Don't show again** is how a hint is put away; it is not "ignore" and not "delete". The skill is **Memory care** — care as one looks after a garden, the word the
+language uses for "knowledge upkeep" where it has one — and it **looks through** the memory, which is neither "scan" nor "analyse".
+
+| Language | Tidy up | Don't show again | Compare | Memory care | Have the memory looked through |
+|---|---|---|---|---|---|
+| en | Tidy up | Don't show again | Compare | Memory care | Have the memory looked through |
+| de | Aufräumen | Nicht mehr zeigen | Vergleichen | Gedächtnis pflegen | Das Gedächtnis durchsehen lassen |
+| fr | Ranger | Ne plus afficher | Comparer | Entretenir la mémoire | Faire examiner la mémoire |
+| es | Poner en orden | No volver a mostrar | Comparar | Cuidar la memoria | Pedir una revisión de la memoria |
+| pt-BR | Arrumar | Não mostrar mais | Comparar | Cuidar da memória | Pedir uma revisão da memória |
+| it | Riordino | Non mostrare più | Confronta | Curare la memoria | Far rileggere la memoria |
+| nl | Opruimen | Niet meer tonen | Vergelijken | Geheugen onderhouden | Het geheugen laten doornemen |
+| pl | Porządkowanie | Nie pokazuj więcej | Porównaj | Dbanie o pamięć | Zleć przejrzenie pamięci |
+| zh-CN | 整理 | 不再显示 | 比较 | 记忆维护 | 让AI通读记忆 |
+| ja | 整理 | 今後は表示しない | 比較 | 記憶の手入れ | 記憶に目を通してもらう |
+
+Hints at the open note (`ai.hints.*`, `rightPanel.hints`, AI harness P8-3): the same kind of **hint** as tidying up, at the open note. The section's word is the language's plain word for a hint, chosen against the word of the suggestion mode, which writes in the note: es and pt-BR say **aviso**, because *sugerencia*/*sugestão* is the suggestion mode's; fr says **suggestion** and it **suggerimento**, as the related notes do, because there the suggestion mode is *proposition*/*proposta*. A step names what the user gets — **As a task**, **Create note**, **Create meeting note** — with the calendar's and the clean-up view's own words; **Don't show again** is the tidying up's.
+
+| Language | Hints (section) | Show hints at the open note | Create note | As a task | Create meeting note |
+|---|---|---|---|---|---|
+| en | Hints | Show hints at the open note | Create note | As a task | Create meeting note |
+| de | Hinweise | Hinweise zur offenen Notiz zeigen | Notiz anlegen | Als Aufgabe | Meeting-Notiz anlegen |
+| fr | Suggestions | Afficher les suggestions pour la note ouverte | Créer la note | Comme tâche | Créer la note de réunion |
+| es | Avisos | Mostrar avisos sobre la nota abierta | Crear nota | Como tarea | Crear nota de reunión |
+| pt-BR | Avisos | Mostrar avisos sobre a nota aberta | Criar nota | Como tarefa | Criar nota de reunião |
+| it | Suggerimenti | Mostra suggerimenti per la nota aperta | Crea nota | Come attività | Crea nota della riunione |
+| nl | Hints | Hints bij de open notitie tonen | Notitie maken | Als taak | Vergadernotitie maken |
+| pl | Podpowiedzi | Pokazuj podpowiedzi do otwartej notatki | Utwórz notatkę | Jako zadanie | Utwórz notatkę ze spotkania |
+| zh-CN | 提示 | 为打开的笔记显示提示 | 创建笔记 | 作为任务 | 创建会议笔记 |
+| ja | ヒント | 開いているノートのヒントを表示 | ノートを作成 | タスクとして | 会議ノートを作成 |
+
+Fully local (`ai.mode.*`, AI harness P7-1): the **mode** is a line that says what holds, so its states are named like states — **Cloud**, **Hybrid** — and take the language's own word where it has one; "Hybrid" is not left in English where the
+language declines it. The one switch is **Fully local**: the way the language names a setting that is on or off — not "offline mode" (sync and mail go on), not "private mode" (it says nothing about the vault), not "local only" as a
+noun. What the switch leaves alone **rests**: it stays set up and receives nothing — never "disabled", "blocked" or "removed", which would say that the user has to set it up again. A model's **context window** is the field's own term
+in every language. **Can call tools** is said of the model, as something it can do; its opposite is something the user does: "Give it no tools". "On this device" keeps the catalog's word for the device, not the one for a computer.
+
+| Language | Mode | Fully local | Cloud | Hybrid | rests | Context window | Can call tools |
+|---|---|---|---|---|---|---|---|
+| en | Mode | Fully local | Cloud | Hybrid | rests | Context window | Can call tools |
+| de | Betriebsart | Voll-lokal | Cloud | Hybrid | ruht | Kontextfenster | Kann Werkzeuge aufrufen |
+| fr | Mode | Entièrement local | Cloud | Hybride | en sommeil | Fenêtre de contexte | Peut appeler des outils |
+| es | Modo de funcionamiento | Totalmente local | Nube | Híbrido | en reposo | Ventana de contexto | Puede llamar a herramientas |
+| pt-BR | Modo | Totalmente local | Nuvem | Híbrido | em espera | Janela de contexto | Pode chamar ferramentas |
+| it | Modalità | Completamente locale | Cloud | Ibrido | in pausa | Finestra di contesto | Può chiamare strumenti |
+| nl | Werkwijze | Volledig lokaal | Cloud | Hybride | ligt stil | Contextvenster | Kan hulpmiddelen aanroepen |
+| pl | Tryb pracy | W pełni lokalnie | Chmura | Hybryda | wstrzymane | Okno kontekstowe | Może wywoływać narzędzia |
+| zh-CN | 运行模式 | 完全本地 | 云端 | 混合 | 暂不使用 | 上下文窗口 | 可调用工具 |
+| ja | 動作モード | 完全ローカル | クラウド | ハイブリッド | 休止 | コンテキストウィンドウ | ツールを呼び出せる |
+
+Capture without a network (`ai.transcribe.summary*`, `ai.image.note*`, AI harness P7-3): a **summary** is written for a person and stands in a note; a **gist** is written for the assistant and stands in its context. Where a language has two words
+it uses both (it "riassunto" beside "sintesi", pl "podsumowanie" beside "streszczenie"); where it has one, the summary takes it and the gist keeps its own. The label in the note — "Summary:" — is that word with the language's own colon.
+**Make a note of it** names what the reader gets, in the words of "Keep as a note": the same noun for the note, another verb — never "scan", "OCR" or "extract", which name a technique.
+
+| Language | Summarise transcripts on this device | Summary: | Gists | Make a note of it |
+|---|---|---|---|---|
+| en | Summarise transcripts on this device | Summary: | Gists | Make a note of it |
+| de | Transkripte auf diesem Gerät zusammenfassen | Zusammenfassung: | Gists | Notiz daraus machen |
+| fr | Résumer les transcriptions sur cet appareil | Résumé : | Résumés | En faire une note |
+| es | Resumir las transcripciones en este dispositivo | Resumen: | Resúmenes | Convertir en nota |
+| pt-BR | Resumir transcrições neste dispositivo | Resumo: | Resumos | Transformar em nota |
+| it | Riassumi le trascrizioni su questo dispositivo | Riassunto: | Sintesi | Ricavane una nota |
+| nl | Transcripties op dit apparaat samenvatten | Samenvatting: | Samenvattingen | Er een notitie van maken |
+| pl | Podsumowuj transkrypcje na tym urządzeniu | Podsumowanie: | Streszczenia | Zrób z tego notatkę |
+| zh-CN | 在此设备上为转写稿生成摘要 | 摘要： | 要点 | 整理成笔记 |
+| ja | 文字起こしをこの端末で要約する | 要約: | 要旨 | ノートにする |
+
+Routines (`ai.routines.*`, AI harness P8-1): a **routine** is a skill at a time its user set — the household word for what one does regularly, in every language the word people use for a morning routine; not "job", not "schedule", not "automation" (the settings area's name), and not the word for a task. A run the app was closed for is **caught up** — once, which the label says — or **skipped**; never "missed runs are queued" or "retried". A routine that cannot run says so with one of two beginnings: it **rests** where a setting of the device holds it back (the word "Fully local" uses for what it leaves alone), and it **needs you** where only its user can let it go on. **Look at it** opens what holds for the routine again, with what a run would send now; it is not a "review" as of code and not "fix". **Run now** is the hand's way to start one; it does not use up the routine's next time. Where a language's word for "paused" would be the word for "rests", the switch's state takes another one (pl "Wyłączona").
+
+| Language | Routines | New routine | Run now | Catch up once | Skip | Only when something changed | Look at it | Paused |
+|---|---|---|---|---|---|---|---|---|
+| en | Routines | New routine | Run now | Catch up once | Skip | Only when something changed | Look at it | Paused |
+| de | Routinen | Neue Routine | Jetzt ausführen | Einmal nachholen | Auslassen | Nur wenn sich etwas geändert hat | Ansehen | Pausiert |
+| fr | Routines | Nouvelle routine | Exécuter maintenant | Rattraper une fois | Ignorer | Seulement si quelque chose a changé | Examiner | En pause |
+| es | Rutinas | Nueva rutina | Ejecutar ahora | Recuperar una vez | Omitir | Solo cuando algo ha cambiado | Revisar | En pausa |
+| pt-BR | Rotinas | Nova rotina | Executar agora | Recuperar uma vez | Ignorar | Somente quando algo mudou | Revisar | Pausada |
+| it | Routine | Nuova routine | Esegui ora | Recupera una volta | Salta | Solo se qualcosa è cambiato | Controlla | Sospesa |
+| nl | Routines | Nieuwe routine | Nu uitvoeren | Eén keer inhalen | Overslaan | Alleen als er iets is gewijzigd | Bekijken | Gepauzeerd |
+| pl | Rutyny | Nowa rutyna | Uruchom teraz | Nadrób raz | Pomiń | Tylko gdy coś się zmieniło | Przejrzyj | Wyłączona |
+| zh-CN | 例程 | 新建例程 | 立即运行 | 补运行一次 | 跳过 | 仅在有内容更改时 | 查看 | 已暂停 |
+| ja | ルーティン | 新しいルーティン | 今すぐ実行 | 遅れて1回だけ実行 | スキップ | 変更があったときだけ | 内容を見る | 一時停止中 |
+
+A folder's **log** (`ai.routines.log.*`, AI harness P8-2) is the `log.md` of the Open Knowledge Format that a routine keeps: never the word for the journal or the daily note (French says "registre": "journal" is the journal's), and `log.md` and "Open Knowledge Format" stay as they are. The routine's form asks **what it does** — it **runs a skill** or **keeps a folder's log**; the folder may be **the whole vault**. Each line of an entry begins with a one-word label, **New** or **Updated**, written for a note (the grammatical gender of the language's word for note where it has one). "More notes that changed: {{count}}." has no plural forms and is worded to read for any number.
+
+| Language | What it does | Runs a skill | Keeps a folder's log | The whole vault | New | Updated |
+|---|---|---|---|---|---|---|
+| en | What it does | Runs a skill | Keeps a folder's log | The whole vault | New | Updated |
+| de | Was sie tut | Führt einen Skill aus | Führt das Log eines Ordners | Der ganze Vault | Neu | Geändert |
+| fr | Ce qu'elle fait | Lance une compétence | Tient le registre d'un dossier | Tout le vault | Nouvelle | Modifiée |
+| es | Qué hace | Ejecuta una habilidad | Lleva el registro de una carpeta | Todo el vault | Nueva | Actualizada |
+| pt-BR | O que ela faz | Executa uma habilidade | Mantém o registro de uma pasta | O vault inteiro | Nova | Atualizada |
+| it | Cosa fa | Esegue una competenza | Tiene il registro di una cartella | L'intero vault | Nuova | Modificata |
+| nl | Wat ze doet | Voert een vaardigheid uit | Houdt het logboek van een map bij | De hele vault | Nieuw | Gewijzigd |
+| pl | Co robi | Uruchamia umiejętność | Prowadzi log folderu | Cały vault | Nowa | Zmieniona |
+| zh-CN | 它做什么 | 运行技能 | 维护文件夹的更改记录 | 整个仓库 | 新增 | 更新 |
+| ja | 何をするか | スキルを実行する | フォルダーのログをつける | 保管庫全体 | 新規 | 更新 |
 
 ## Daily note and journal (zh-CN)
 

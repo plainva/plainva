@@ -7,6 +7,7 @@ export interface SwitchProps {
   label: string;
   disabled?: boolean;
   className?: string;
+  /** Lands on the button as `data-testid`, so a test can name the switch it means — as every primitive spells it. */
   testId?: string;
 }
 

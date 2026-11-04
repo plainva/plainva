@@ -57,7 +57,7 @@ const contracts = [
  * put it one character too far right for every `\r\n` above it.
  */
 const caretParkers = {
-  desktop: ["components/FileTree.tsx", "components/QuickSwitcher.tsx", "components/BaseViewer.tsx", "components/pimcal/CalendarView.tsx", "services/dailyNotes.ts"],
+  desktop: ["components/FileTree.tsx", "components/QuickSwitcher.tsx", "components/BaseViewer.tsx", "services/pim/meetingNoteOpen.ts", "services/dailyNotes.ts"],
   mobile: ["services/vaultService.ts", "services/baseOps.ts", "services/pim/pimService.ts"],
 } as const;
 
@@ -116,6 +116,7 @@ const noteContentCallers: Record<string, Record<string, string>> = {
   // context from its caller, and its only callers run `withVaultContext`
   // (checked below); a shell that called it would bring no vault.
   buildNewItemContent: {
+    "packages/ui/src/ai/aiWrites.ts": "an entry of a database the assistant drafted (AI harness P5-4): its own text and no template (`templateText: null`), so there is nothing to fill with the vault's pieces",
     "packages/ui/src/lib/taskPromotion.ts": "a promoted checkbox and a task created in the database, with the vault's pieces: to the builder",
     "packages/ui/src/pim/taskSync.ts": "a task imported from its provider, with the vault's pieces: to the builder",
   },

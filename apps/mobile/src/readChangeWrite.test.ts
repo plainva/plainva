@@ -56,6 +56,11 @@ const SITES: Record<string, Site[]> = {
   ],
   "services/shareImport.ts": [["reads and writes plan.notePath in runImport", 1, `${NEW_FILE} (the note a share was planned as)`]],
   "services/vaultService.ts": [
+    [
+      "a pair of read and write without the entry, in createNoteWithContent",
+      1,
+      "a new note with a text that was made whole (a draft of the assistant, an answer kept as a note): `writeCapturedNote` asks for a name no file has and writes there once — it never writes a file that is there",
+    ],
     ["reads and writes path in write", 1, EDITOR_WITHOUT_CHAIN],
   ],
 };

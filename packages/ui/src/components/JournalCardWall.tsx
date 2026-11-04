@@ -100,7 +100,7 @@ function EntryCard({ entry, day, loadMedia, onToggleTask, onOpenEntry, onMenu }:
       <NoteCardBody
         blocks={card.blocks}
         labels={{ table: t("pinboard.phTable"), math: t("pinboard.phMath"), embed: t("pinboard.phEmbed") }}
-        renderAudio={loadMedia ? (target, alt) => <CardSound target={target} label={alt} loadMedia={loadMedia} /> : undefined}
+        renderAudio={loadMedia ? (target, alt) => <CardSound target={target} label={alt} notePath={day.path} loadMedia={loadMedia} /> : undefined}
         renderImage={loadMedia ? (target, alt) => <CardPicture target={target} alt={alt} loadMedia={loadMedia} /> : undefined}
       />
     </article>
@@ -114,9 +114,9 @@ function CardPicture({ target, alt, loadMedia }: { target: string; alt: string; 
 }
 
 /** A voice memo on a journal card. */
-function CardSound({ target, label, loadMedia }: { target: string; label: string; loadMedia: (path: string) => Promise<Blob> }) {
+function CardSound({ target, label, notePath, loadMedia }: { target: string; label: string; notePath: string; loadMedia: (path: string) => Promise<Blob> }) {
   const url = useVaultBlob(target, loadMedia);
-  return <AudioEmbed compact label={label || target} url={url} />;
+  return <AudioEmbed compact label={label || target} url={url} place={{ notePath, target }} />;
 }
 
 /** One file of the vault as a blob URL, revoked when the card goes away. */

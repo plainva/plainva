@@ -1,5 +1,6 @@
 import { ICON } from "../lib/iconSizes";
 import i18n from "../i18n";
+import { audioTranscriber, onAudioTranscriberChange, type AudioPlace } from "../ai/aiTranscribe";
 
 /**
  * What a sound embed looks like, in one place (plan Journal-Erweiterungen, X3).
@@ -27,6 +28,11 @@ export interface AudioPlayerOptions {
   label: string;
   /** One line, for a journal row or a card: controls and time, no name. */
   compact?: boolean;
+  /**
+   * Where the sound stands (the note, the embed's target). With it the player
+   * offers "Transcribe" while the AI is on (plan KI-Harness P1.5).
+   */
+  place?: AudioPlace;
 }
 
 export interface AudioPlayerHandle {
@@ -46,6 +52,8 @@ export function clock(seconds: number): string {
 
 const PLAY_PATH = "M6 3.5v17l14-8.5z";
 const PAUSE_PATH = "M7 4h4v16H7zM13 4h4v16h-4z";
+/** Three lines of text: what the recording becomes. */
+const TRANSCRIBE_PATH = "M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z";
 
 function glyph(path: string): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -147,6 +155,45 @@ export function mountAudioPlayer(container: HTMLElement, options: AudioPlayerOpt
   root.addEventListener("click", (event) => event.stopPropagation());
   setIcon();
 
+  // "Transcribe" (plan KI-Harness P1.5): there while a transcriber is registered, i.e. while the AI is on.
+  let transcribe: HTMLButtonElement | null = null;
+  const place = options.place;
+  const paintTranscribe = () => {
+    if (!place) return;
+    if (!audioTranscriber()) {
+      transcribe?.remove();
+      transcribe = null;
+      return;
+    }
+    if (transcribe) return;
+    const door = document.createElement("button");
+    door.type = "button";
+    door.className = "pv-iconbtn pv-iconbtn--sm pv-audio-transcribe";
+    door.dataset.testid = "audio-transcribe";
+    const label = t("ai.transcribe.action");
+    door.setAttribute("aria-label", label);
+    door.setAttribute("data-tip", label);
+    door.appendChild(glyph(TRANSCRIBE_PATH));
+    door.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const run = audioTranscriber();
+      if (!run || door.disabled) return;
+      door.disabled = true;
+      door.setAttribute("aria-busy", "true");
+      door.setAttribute("data-tip", t("ai.transcribe.running"));
+      void run(place).finally(() => {
+        door.disabled = false;
+        door.removeAttribute("aria-busy");
+        door.setAttribute("data-tip", label);
+      });
+    });
+    root.appendChild(door);
+    transcribe = door;
+  };
+  paintTranscribe();
+  const stopWatching = place ? onAudioTranscriberChange(paintTranscribe) : null;
+
   return {
     setUrl(url) {
       if (url === null) {
@@ -166,6 +213,7 @@ export function mountAudioPlayer(container: HTMLElement, options: AudioPlayerOpt
       paint();
     },
     destroy() {
+      stopWatching?.();
       audio.pause();
       audio.removeAttribute("src");
       root.remove();

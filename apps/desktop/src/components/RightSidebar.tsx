@@ -1,5 +1,5 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, Database, CalendarDays, Link as LinkIcon, NotebookPen, Pen, SlidersHorizontal, List, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { ChevronDown, Database, CalendarDays, Lightbulb, Link as LinkIcon, NotebookPen, Pen, Search, SlidersHorizontal, List, Sparkles, SquarePen, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
 import { CalendarWidget } from "./CalendarWidget";
@@ -8,10 +8,12 @@ import { BacklinksPanel } from "./BacklinksPanel";
 import { PropertiesSection } from "./PropertiesSection";
 import { OutlineSection } from "./OutlineSection";
 import { GraphContextSection } from "./graph/GraphContextSection";
+import { AiDockSection, type AiDockProps } from "./ai/AiDockSection";
 import { activeDocument, type ActiveDoc } from "../services/activeDocument";
 import { parseHeadings } from "../services/outline";
 import { useVault } from "../contexts/VaultContext";
 import { windowStateKey } from "../services/windowContext";
+import { getDesktopAiSession } from "../services/ai/desktopAi";
 import {
   ICON,
   IconButton,
@@ -21,6 +23,16 @@ import {
   MenuItem,
   MenuSeparator,
   MenuLabel,
+  NoteHintsList,
+  NoteHintsMenu,
+  noteHintsCount,
+  RelatedNotesList,
+  RelatedNotesMenu,
+  relatedCount,
+  setPendingSearchJump,
+  useNoteHints,
+  useRelatedNotes,
+  type RelatedJump,
   useHoldDrag,
   visibleAreas,
   moveArea,
@@ -66,7 +78,10 @@ export function propertySectionCounts(content: string): { present: number; shown
   }
 }
 
-export type SectionId = "calendar" | "journal" | "outline" | "graph" | "databases" | "backlinks" | "properties";
+/** How long the editor's text has to rest before the calm hints look at it again (plan P8-3). */
+const HINT_TEXT_SETTLE_MS = 400;
+
+export type SectionId = "calendar" | "journal" | "outline" | "graph" | "databases" | "backlinks" | "related" | "hints" | "properties" | "ai";
 let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
 /**
  * Read on first use, not while this module LOADS (C20): reaching across a
@@ -108,16 +123,18 @@ interface RightSidebarProps {
    * follow the shared bar layout. Omit for the central window (everything).
    */
   sections?: readonly SectionId[];
+  /** The AI dock (plan KI-Harness §19.1, dress B); null while the AI is off or in a window without it. */
+  ai?: AiDockProps | null;
 }
 
-export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, onOpenJournal, onCaptureJournal, loadMarkedDates, activeDailyDate, refreshToken, sections }: RightSidebarProps) {
+export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, onOpenJournal, onCaptureJournal, loadMarkedDates, activeDailyDate, refreshToken, sections, ai }: RightSidebarProps) {
   const { t } = useTranslation();
   const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
   // Which sections are shown and in which order — per vault, inherited from the
   // global default until this vault is adapted (plan § 3).
   const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
-    calendar: readOpen("calendar"), journal: readOpen("journal"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
+    calendar: readOpen("calendar"), journal: readOpen("journal"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), related: readOpen("related"), hints: readOpen("hints"), properties: readOpen("properties"), ai: readOpen("ai"),
   }));
   const [counts, setCounts] = useState<{ backlinks: number; properties: number; propertiesPresent: number; outline: number }>({ backlinks: 0, properties: 0, propertiesPresent: 0, outline: 0 });
   /** Entries of the journal section's day — for the head's count, reported by the section itself. */
@@ -241,6 +258,33 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
 
   const setBacklinksCount = useCallback((n: number) => setCounts((c) => (c.backlinks === n ? c : { ...c, backlinks: n })), []);
 
+  // Related notes (plan KI-Harness P2b-4): asked here, so the head's count and whether the section
+  // shows hold while it is collapsed. Only the central window has search by meaning; elsewhere null.
+  const related = useRelatedNotes(activePath);
+  // Calm hints at the open note (plan KI-Harness P8-3): asked of the editor's text once typing rests, here, so the
+  // head's count and whether the section shows hold while it is collapsed. Only the central window has the session.
+  const [hintDoc, setHintDoc] = useState<{ path: string; content: string } | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const take = (d: ActiveDoc) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setHintDoc(d.kind === "markdown" && d.path ? { path: d.path, content: d.content } : null), HINT_TEXT_SETTLE_MS);
+    };
+    take(activeDocument.get());
+    const off = activeDocument.subscribe(take);
+    return () => {
+      off();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+  const hintSession = getDesktopAiSession();
+  const hints = useNoteHints(hintSession, hintDoc?.path ?? null, hintDoc?.content ?? null);
+  const jumpTo = (jump: RelatedJump) => {
+    setPendingSearchJump(jump);
+    onOpenPath(jump.path);
+    window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: jump.path } }));
+  };
+
   // Header badges stay accurate even while a section is collapsed: compute the
   // counts here (cheaply) instead of relying on the body components, which only
   // mount when their section is expanded.
@@ -294,7 +338,31 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     // blocks the section holds, like every other head.
     databases: { title: t("rightPanel.databases", { defaultValue: "Datenbanken" }), icon: <Database size={ICON.ui} />, count: dbContext.memberships.length, pad: true },
     backlinks: { title: t("rightPanel.backlinks", { defaultValue: "Backlinks" }), icon: <LinkIcon size={ICON.ui} />, count: counts.backlinks, pad: true },
+    related: {
+      title: t("rightPanel.related"),
+      icon: <Search size={ICON.ui} />,
+      count: relatedCount(related),
+      pad: true,
+      action: activePath && <RelatedNotesMenu path={activePath} answer={related} />,
+    },
+    hints: {
+      title: t("rightPanel.hints"),
+      icon: <Lightbulb size={ICON.ui} />,
+      count: noteHintsCount(hints),
+      pad: true,
+      action: hintDoc && hintSession && <NoteHintsMenu session={hintSession} path={hintDoc.path} answer={hints} />,
+    },
     properties: { title: t("rightPanel.properties", { defaultValue: "Eigenschaften" }), icon: <SlidersHorizontal size={ICON.ui} />, count: counts.properties, pad: true },
+    ai: {
+      title: t("ai.title"),
+      icon: <Sparkles size={ICON.ui} />,
+      pad: false,
+      action: ai && (
+        <IconButton label={t("ai.newConversation")} onClick={ai.onNewConversation} data-testid="right-ai-new">
+          <SquarePen size={ICON.ui} />
+        </IconButton>
+      ),
+    },
   };
 
   const renderBody = (id: SectionId) => {
@@ -309,6 +377,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
     if (id === "databases") return <NoteDatabasesSection context={dbContext} activePath={activePath} onOpenPath={onOpenPath} />;
     if (id === "backlinks") return <BacklinksPanel activePath={activePath} onOpenPath={onOpenPath} embedded />;
+    if (id === "related") return activePath ? <RelatedNotesList path={activePath} answer={related} onOpenNote={(path) => onOpenPath(path)} onJump={jumpTo} /> : null;
+    if (id === "hints") return hintDoc && hintSession ? <NoteHintsList session={hintSession} path={hintDoc.path} answer={hints} onOpenNote={(path) => onOpenPath(path)} onJump={jumpTo} /> : null;
+    if (id === "ai") return ai ? <AiDockSection {...ai} /> : null;
     return <PropertiesSection onOpenPath={onOpenPath} />;
   };
 
@@ -324,9 +395,15 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     || (id === "databases" && hasNoteDatabaseContext(dbContext))
     || (id === "outline" && counts.outline > 0)
     || (id === "backlinks" && counts.backlinks > 0)
+    // Hints, or a paused note — the section is where its pause is lifted.
+    || (id === "related" && (relatedCount(related) > 0 || related?.kind === "paused"))
+    // The same for the calm hints (plan P8-3): hints, or a paused note.
+    || (id === "hints" && (noteHintsCount(hints) > 0 || hints?.kind === "paused"))
     // Present, not shown: the two pinned lifecycle rows exist for every note,
     // and a note without any frontmatter of the user's keeps no section.
-    || (id === "properties" && counts.propertiesPresent > 0);
+    || (id === "properties" && counts.propertiesPresent > 0)
+    // The dock exists only while the AI is on, and only where its session runs.
+    || (id === "ai" && Boolean(ai));
 
   return (
     // The panel ALWAYS reserves its scrollbar's room (`.pv-side-right`), and

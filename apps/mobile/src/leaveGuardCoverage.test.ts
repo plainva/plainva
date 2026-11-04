@@ -72,6 +72,8 @@ const SHEETS_WITHOUT_TYPED_INPUT: Record<string, string> = {
   "components/EmojiPickSheet.tsx": "the field searches; every pick commits at once",
   "components/HailingSheet.tsx": "an easter egg: a line to try, kept after a miss so the next try can change it - not work",
   "components/MobileDialogHost.tsx": "a prompt's Cancel is its answer to the question that opened it",
+  "components/MobileMemoryView.tsx": "the field filters the long-term memory and sits outside the compare sheet; the entry and rule forms guard themselves",
+  "components/NotePickSheet.tsx": "the field searches the note names; one tap picks and closes",
   "screens/base/BaseConfigSheet.tsx": "every control writes the view at once",
   "screens/GraphScreen.tsx": "the field filters the graph and sits outside the tools sheet",
   "screens/JournalScreen.tsx": "the field filters the journal; the sheet is a day jump that commits on pick",

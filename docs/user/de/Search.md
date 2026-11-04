@@ -1,6 +1,6 @@
 # Suche
 
-Stand: 2026-09-30
+Stand: 2026-10-01
 
 Plainva bietet drei Suchwege: die Volltextsuche über den ganzen Vault, den Schnellwechsel zum Datei-Öffnen und Suchen & Ersetzen innerhalb einer Notiz.
 
@@ -24,6 +24,32 @@ Das Suchfeld wirkt auch auf die anderen Seitenleisten-Ansichten: In **Tags** fil
 - `tag:name` — nur Notizen mit diesem Tag, inklusive Unter-Tags: `tag:projekt` findet auch `#projekt/intern`. `tag:#projekt` funktioniert ebenfalls.
 - Operatoren lassen sich negieren (`-path:Archiv`, `-tag:erledigt`) und frei mit Suchbegriffen kombinieren: `plan tag:projekt -entwurf`.
 - Mehrere Begriffe verknüpft die Suche mit UND. Sonderzeichen wie `- ( ) : *` in Suchbegriffen sind unproblematisch — Plainva behandelt die Eingabe wörtlich.
+
+## Suche nach Bedeutung
+
+Mit einem lokalen Modell findet die Suche Notizen auch nach dem, was sie bedeuten — nicht nur nach ihren Wörtern, und über Sprachen hinweg: Eine deutsche Frage findet eine englische Notiz, die dasselbe sagt. Das Modell rechnet auf diesem Gerät; Deine Notizen und die daraus berechneten Vektoren verlassen es nie.
+
+Einschalten unter **Einstellungen → KI & Automatisierung → Semantische Suche** (die KI muss an sein). Wähle ein Modell — empfohlen ist **Granite Embedding Multilingual R2 (97M)** —, und Plainva zeigt Größe, Quelle, Lizenz und eine geschätzte Dauer, bevor irgendetwas geladen wird. Jede Datei kommt aus einer festen Version auf huggingface.co und wird per SHA-256 geprüft; eine Anmeldung ist nicht nötig. Bevor die erste Notiz eingebettet wird, prüft Plainva, ob das Modell auf diesem Gerät richtig rechnet.
+
+Statt eines Pakets kannst Du **Eigener Anbieter** wählen: Dann berechnet das Modell des Profils **Einbettungen** die Vektoren — jedes Einbettungsmodell, das Dein Anbieter anbietet, zum Beispiel `text-embedding-3-small` bei OpenAI, `gemini-embedding-001` bei Gemini oder `nomic-embed-text` in Ollama. Mit Ollama oder LM Studio verlässt nichts Deinen Rechner. Bei einer Cloud zeigt die Übersicht einmal, was dorthin geht — jede Notiz, die Deine Datenschutzregeln durchlassen, jetzt und bei jeder Änderung, dazu Deine Suchfragen —, und **Dauerhaft freigeben** startet es; **Freigabe widerrufen** in den Einstellungen beendet es. Notizen, die Deine Regeln von der Cloud fernhalten, bleiben draußen, und in einem verschlüsselten Workspace rechnet nur ein Paket oder ein Server auf diesem Rechner. Antwortet unter demselben Namen ein anderes Modell — ein neues `ollama pull`, ein umgezogener Server —, bemerkt Plainva das vor der nächsten Notiz und berechnet die Vektoren neu, statt zwei Modelle zu mischen. Ist der Anbieter nicht erreichbar, antwortet die Suche mit den Wörtern und sagt es. **Auf diesem Gerät ungenutzt** nennt Pakete und Vektoren von Modellen, die Du nicht mehr nutzt; **Entfernen** räumt sie weg.
+
+**Dieses Gerät messen** (neben **Pausieren**, solange ein Modell rechnet) prüft dieses Gerät gegen die Budgets, an die Plainva sich hält: den ersten Durchlauf über 5.000 Abschnitte, eine geänderte Notiz, die wieder gefunden wird, eine Suche über 20.000 Abschnitte, den Speicher der App auf ihrem Höhepunkt und den Download. Gemessen wird mit Beispieltext, nie mit Deinen Notizen, und das Einbetten wartet solange; **Ergebnisse kopieren** legt die Zahlen in die Zwischenablage — etwa für Deine Rückmeldung zur Beta.
+
+Solange ein Modell aktiv ist, bietet der Kopf der Suchergebnisse **Wörter**, **Bedeutung** und **Beides**:
+
+- **Wörter** ist die Volltextsuche wie oben beschrieben.
+- **Bedeutung** listet die Notizen, deren Abschnitte Deiner Frage am nächsten kommen; ein Treffer öffnet an diesem Abschnitt.
+- **Beides** (Standard) rankt die Treffer aus Wörtern und Bedeutung gemeinsam.
+
+Bei **Bedeutung** und **Beides** erscheint jede Notiz einmal, und eine kleine Marke sagt, was sie gefunden hat: **Wörter**, **Bedeutung** oder **Wörter und Bedeutung**. Suchoperatoren (`path:`, `tag:`, `-Begriff`) begrenzen auch die Treffer nach Bedeutung. Die Wahl gilt für dieses Gerät.
+
+Plainva bettet die Notizen im Hintergrund ein, die zuletzt geänderten zuerst; eine Notiz, die Du gerade bearbeitest, folgt wenige Sekunden, nachdem Du aufhörst zu tippen. Bis dahin wird sie nur über ihre Wörter gefunden — ein Treffer nach Bedeutung stammt nie aus dem alten Text einer Notiz. Eine Zeile unter den Ergebnissen zeigt, wie weit das ist, und bietet **Pausieren**. Am Telefon wird nur eingebettet, solange Plainva geöffnet ist. **Entfernen (mit den Vektoren)** in den Einstellungen löscht das Modell und alles, was es berechnet hat.
+
+### Verwandte Notizen
+
+Neben der offenen Notiz zeigt Plainva bis zu drei Notizen, die ihr inhaltlich nah sind, aber noch nicht mit ihr verlinkt — am Desktop in der Sektion **Verwandt** der rechten Seitenleiste, nach **Backlinks**; am Telefon im Reiter **Verwandt** des Blatts zur Notiz. Sie entstehen aus den Vektoren, die die Suche nach Bedeutung ohnehin auf diesem Gerät hält: Nichts wird gesendet, auch nicht an einen eigenen Anbieter. Ein Hinweis erscheint nur, wenn sich eine Notiz deutlich vom Rest des Vaults abhebt; Kopien und gemeinsamer Vorlagentext zählen nicht. Die meisten Notizen haben deshalb keinen Hinweis, und die Sektion verschwindet dann.
+
+Jeder Hinweis nennt die zwei ähnlichsten Abschnitte — etwa „Produktion ↔ Drehtage › Aufteilung“ — und die Notizen, auf die beide verlinken. **Warum dieser Hinweis?** zeigt den Anfang beider Abschnitte (ein Klick springt hin); **Nicht hilfreich** blendet genau dieses Paar auf diesem Gerät aus und ändert nichts an der Suche. **Für diese Notiz pausieren** und **In diesem Vault pausieren** stehen im Menü der Sektion, am Telefon unter der Liste. **Verwandte Notizen zeigen** unter **Einstellungen → KI & Automatisierung → Semantische Suche** schaltet die Hinweise auf diesem Gerät ab; dort setzt Du auch einen pausierten Vault oder pausierte Notizen fort und holst ausgeblendete Hinweise zurück.
 
 ## Schnellwechsel (Quick Switcher)
 

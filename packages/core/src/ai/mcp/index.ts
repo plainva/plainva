@@ -1,0 +1,36 @@
+/**
+ * The MCP client (plan §17.2, threat T10), in two layers. The rules — what a
+ * foreign server may show and do — are pure functions with tests: `listing`,
+ * `pin`, `names`, `grants`, `tokenBroker`, `results`, `schemaView`. The
+ * protocol — how a server is asked, in both generations and over both
+ * transports — is `wire`, `headerValues`, `httpWire`, `stdioWire` and
+ * `client`; the requests themselves are the shells' native code, reached
+ * through two ports, and `native` is the contract of that side. Signing in
+ * to a remote server is `oauth` (what the web view does of it) and
+ * `oauthRules` (what the native side decides, written down once more).
+ * `scripted` is a server in a script and `scriptedOAuth` a sign-in in one,
+ * for tests in every package. A question a server asks the user, where it
+ * may, is read and its answer checked in `elicitation`; the skills a server
+ * serves, and every byte read of one, in `skills`. See
+ * docs/engineering/MCP_Client_Architecture.md.
+ */
+export * from "./listing.js";
+export * from "./pin.js";
+export * from "./names.js";
+export * from "./grants.js";
+export * from "./tokenBroker.js";
+export * from "./results.js";
+export * from "./schemaView.js";
+export * from "./wire.js";
+export * from "./headerValues.js";
+export * from "./httpWire.js";
+export * from "./stdioWire.js";
+export * from "./client.js";
+export * from "./elicitation.js";
+export * from "./skills.js";
+export * from "./native.js";
+export * from "./offer.js";
+export * from "./oauth.js";
+export * from "./oauthRules.js";
+export * from "./scripted.js";
+export * from "./scriptedOAuth.js";

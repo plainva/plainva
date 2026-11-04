@@ -11,6 +11,8 @@ import {
   isAudioTarget,
   mountAudioPlayer,
   parseNoteCard,
+  setAudioTranscriber,
+  type AudioPlace,
 } from "@plainva/ui";
 
 /**
@@ -166,5 +168,51 @@ describe("the player", () => {
     expect(openedTheRow).toBe(0);
     player.destroy();
     row.remove();
+  });
+});
+
+/** Plan KI-Harness P1.5 (E28): "Transcribe" at every voice note, while the AI is on. */
+describe("the door to a transcript", () => {
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("is there while a transcriber is registered, hands it the place, and runs once at a time", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const player = mountAudioPlayer(host, { label: "memo.m4a", place: { notePath: "Journal/Day.md", target: "memo.m4a" } });
+    expect(host.querySelector('[data-testid="audio-transcribe"]')).toBeNull();
+
+    const calls: AudioPlace[] = [];
+    let finish: () => void = () => undefined;
+    setAudioTranscriber((place) => {
+      calls.push(place);
+      return new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    });
+    const door = host.querySelector<HTMLButtonElement>('[data-testid="audio-transcribe"]')!;
+    expect(door.getAttribute("aria-label")).toBeTruthy();
+    door.click();
+    expect(calls).toEqual([{ notePath: "Journal/Day.md", target: "memo.m4a" }]);
+    expect(door.disabled).toBe(true);
+    door.click();
+    expect(calls).toHaveLength(1);
+    finish();
+    await settle();
+    expect(door.disabled).toBe(false);
+
+    // The AI switched off: the door goes.
+    setAudioTranscriber(null);
+    expect(host.querySelector('[data-testid="audio-transcribe"]')).toBeNull();
+    player.destroy();
+    host.remove();
+  });
+
+  it("is never there for a sound without a place, such as a web address", () => {
+    setAudioTranscriber(async () => undefined);
+    const host = document.createElement("div");
+    const player = mountAudioPlayer(host, { label: "https://example.test/a.mp3" });
+    expect(host.querySelector('[data-testid="audio-transcribe"]')).toBeNull();
+    player.destroy();
+    setAudioTranscriber(null);
   });
 });

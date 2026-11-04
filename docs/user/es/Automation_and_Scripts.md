@@ -6,6 +6,8 @@ Plainva no tiene ningún sistema de plugins que ejecute código de terceros. En 
 
 Esta página explica cómo hacerlo de forma **segura**. El formato exacto a nivel de bytes de cada archivo está documentado por separado en la [Referencia del formato de archivo](File_Format_Reference.md); esta página es el complemento práctico: las reglas, el flujo de trabajo y qué entregarle a un asistente de IA.
 
+Plainva también puede ejecutar pequeños scripts tuyos dentro de la app: en un entorno aislado que llega a tus notas solo a través de las herramientas del asistente de IA —para leerlas o para dejar una sugerencia sobre la que decides tú— y que nunca toca un archivo. Es algo distinto de los scripts de esta página, que trabajan con los archivos desde fuera: consulta [Scripts](AI_Scripts.md).
+
 ## Por qué archivos en vez de un sandbox de plugins
 
 - **Seguridad.** Un sistema de plugins de código ejecuta el programa de otra persona dentro de tu editor con acceso a tus notas. Los archivos planos no necesitan esa confianza: un script solo toca la carpeta a la que apuntas, con los permisos normales de tu sistema operativo.
@@ -54,8 +56,14 @@ Un agente de IA con acceso de lectura/escritura a una carpeta de vault es exacta
 1. **Dale la [Referencia del formato de archivo](File_Format_Reference.md).** Está escrita para un lector automático: el contrato del frontmatter OKF, la serialización propiedad→YAML, el esquema completo de `.base` con sus reglas estrictas de Obsidian, el contrato de `index.md` y las reglas de seguridad — todo lo que un agente necesita para editar archivos sin romperlos.
 2. **Apúntalo a la carpeta del vault, no a la carpeta `.plainva/`.** Deja claro que `.plainva/` está fuera de los límites.
 3. **Pide ediciones atómicas y mínimas.** Un agente que reescribe una nota entera para cambiar una sola propiedad debería conservar el resto del frontmatter y el cuerpo tal cual.
+4. **Dale las instrucciones ya preparadas.** Plainva incluye una [plantilla `AGENTS.md`](../../agents/AGENTS.md) para la raíz del vault y un skill en el formato Agent Skills ([`plainva-vault/SKILL.md`](../../agents/skills/plainva-vault/SKILL.md)); ambos llevan las reglas de esta página en la forma que leen los agentes.
+5. **Respeta la regla de privacidad.** Las notas marcadas con `plainva: { ai: { cloud: deny } }`, y las carpetas indicadas así en `.agent/policy.yml`, no deben ir a un modelo en la nube — consulta la [Referencia del formato de archivos](File_Format_Reference.md).
 
 Como el contrato es un documento, no una API en vivo, las mismas instrucciones funcionan con cualquier asistente, sin conexión o en línea.
+
+**Leer sin tocar los archivos.** Una app de IA de este ordenador —Claude Code, Claude Desktop, un editor— también puede leer la bóveda a través de Plainva en lugar de la carpeta: solo ve las carpetas que permitiste, rigen las reglas de privacidad y por sí sola no cambia nada: como mucho sugiere cambios, donde se lo permitas. Consulta [Conectar apps de IA](Connect_AI_Apps.md).
+
+**Qué se salta una escritura directa.** Plainva detecta los cambios hechos desde fuera y los sincroniza, pero no guarda copia del texto que un agente reemplaza: el historial de versiones solo contiene lo que escribió Plainva. Para cambios grandes, mantén el vault bajo control de versiones (Git).
 
 ## Resumen de seguridad
 
@@ -63,6 +71,7 @@ Como el contrato es un documento, no una API en vivo, las mismas instrucciones f
 - Escribe de forma atómica (archivo temporal + renombrar).
 - Conserva `type`, `okf_version` y las claves desconocidas.
 - Nunca escribas en `.plainva/`.
+- Deja `.agent/` en paz salvo que se pida; respeta `cloud: deny`.
 - `.base`: cuatro claves de nivel superior, vistas con nombre, filtros de raíz única, subclaves `plainva:` para todo lo demás.
 - El vault está vigilado — los cambios externos aparecen en Plainva automáticamente.
 

@@ -10,6 +10,7 @@ Press `F1` (or **Command palette → Show keyboard shortcuts**) to open the shor
 |---|---|
 | `Ctrl+P` (or `Ctrl+Shift+P`) | Open the command palette |
 | `Ctrl+O` | Quick switcher – search and open files |
+| `Ctrl+J` | Ask AI – open the companion (only while the AI is switched on, see [AI Assistant](AI_Assistant.md)) |
 | `Ctrl+,` | Open settings |
 | `Ctrl+Plus` / `Ctrl+Minus` | Zoom the interface in / out (80–150 %) |
 | `Ctrl+0` | Reset zoom to 100 % |

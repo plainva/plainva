@@ -5,6 +5,7 @@ export * from "./markdown-parser.js";
 export * from "./inlineParseBudget.js";
 export * from "./noteSource.js";
 export * from "./journal.js";
+export * from "./ai/index.js";
 export * from "./vault/searchOccurrences.js";
 export * from "./vault/spacelessText.js";
 export * from "./markdown-serializer.js";
@@ -57,10 +58,13 @@ export * from "./vault/rollup.js";
 export * from "./vault/obsidianRollup.js";
 export * from "./vault/summary.js";
 export * from "./vault/databaseMetadata.js";
-export { parseDatabaseSourceFilter, unappliedFilterConditions } from "./vault/databaseQueryHelpers.js";
+export { buildPropertyPredicate, parseDatabaseSourceFilter, unappliedFilterConditions } from "./vault/databaseQueryHelpers.js";
 
 // Sync exports
 export * from "./sync/SyncQueue.js";
+// The retry rules for HTTP (429 with Retry-After, jittered backoff), shared by
+// the sync targets and the AI harness's model calls.
+export * from "./sync/httpRetry.js";
 export * from "./sync/ISyncTarget.js";
 export * from "./sync/fileType.js";
 export * from "./sync/WebDavSyncTarget.js";

@@ -1,6 +1,6 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Command, HelpCircle, SlidersHorizontal, ListChecks, Mail, MessageSquare, NotebookText, Search, Settings, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
+import { CalendarDays, Command, HelpCircle, SlidersHorizontal, ListChecks, Mail, MessageSquare, NotebookText, Search, Settings, Sparkles, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
 import {
   ICON,
   MenuSurface,
@@ -70,6 +70,11 @@ export interface AppRibbonProps {
   onOpenComments: () => void;
   /** The journal stream (plan Journal, J5) - like comments it hangs on the vault, not on an account. */
   onOpenJournal: () => void;
+  /**
+   * The AI companion (plan KI-Harness §19.1). Absent while the per-device
+   * switch "Plainva AI (Beta)" is off — the rail then has no such button.
+   */
+  onOpenAi?: () => void;
   /**
    * Pop a singleton view out into its own window (multi-window P2). Only the
    * four views have one: a rail button like "new note" is an action, and an
@@ -154,6 +159,7 @@ export function AppRibbon(props: AppRibbonProps) {
     comments: { key: "comments", label: t("comments.commentOverview", { defaultValue: "Offene Kommentare" }), icon: <MessageSquare size={ICON.head} />, run: props.onOpenComments, testId: "ribbon-comments", windowPath: COMMENTS_TAB_PATH },
     journal: { key: "journal", label: t("journal.open", { defaultValue: "Journal öffnen" }), icon: <NotebookText size={ICON.head} />, run: props.onOpenJournal, testId: "ribbon-journal", windowPath: JOURNAL_TAB_PATH },
     palette: { key: "palette", label: t("palette.title", { defaultValue: "Befehls-Palette" }), icon: <Command size={ICON.head} />, run: props.onCommandPalette },
+    ...(props.onOpenAi ? { ai: { key: "ai", label: t("ai.ask"), icon: <Sparkles size={ICON.head} />, run: props.onOpenAi, testId: "ribbon-ai" } } : {}),
   };
 
   const bottom: RibbonAction[] = [
@@ -164,7 +170,7 @@ export function AppRibbon(props: AppRibbonProps) {
   const shown = useMemo(
     () => (visibleAreas(layout) as RibbonId[]).filter((id) => catalog[id] !== undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layout, props.onOpenCalendar, props.onOpenMail],
+    [layout, props.onOpenCalendar, props.onOpenMail, props.onOpenAi],
   );
 
   /** Which slot the pointer currently sits over (the rail is vertical). */

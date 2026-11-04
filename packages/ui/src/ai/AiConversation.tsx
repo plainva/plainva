@@ -1,0 +1,972 @@
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
+import { ArrowLeftRight, Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square } from "lucide-react";
+import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core";
+import { Banner } from "../components/ui/Banner";
+import { Button } from "../components/ui/Button";
+import { Chip } from "../components/ui/Chip";
+import { EmptyState } from "../components/ui/EmptyState";
+import { TextArea } from "../components/ui/Field";
+import { IconButton } from "../components/ui/IconButton";
+import { MenuItem, MenuSurface } from "../components/ui/Menu";
+import { cx } from "../components/ui/cx";
+import { ICON } from "../lib/iconSizes";
+import { toast } from "../services/toastStore";
+import { AiAnswer } from "./AiAnswer";
+import { AiContextLens } from "./AiContextLens";
+import { AiEffectApproval } from "./AiEffectApproval";
+import { AiExternalPrompt } from "./AiExternalPrompt";
+import { AiMcpQuestion } from "./AiMcpQuestion";
+import { AiPicture } from "./AiPicture";
+import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
+import { startableSkills } from "./aiSkills";
+import { AiSendOverview } from "./AiSendOverview";
+import { AiRunOverview } from "./AiRunOverview";
+import { AiRunWrites, useDraftActions } from "./AiWriteCards";
+import { openLearnSurface } from "./aiLearn";
+import { aiFailureText, failureRecipient } from "./aiSettingsModel";
+import type { AiDress } from "./aiSession";
+import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
+import type { McpPromptReview } from "./mcpSession";
+import { scriptToolLabel } from "./scriptsWorkshop";
+import { transcriptOf, type TranscriptItem } from "./transcript";
+import { cacheShareText } from "./usageLines";
+import { useAiSession, useAiState } from "./useAiSession";
+
+/** From this width the AI tab shows "View context" as a column of its own. */
+const TAB_SIDE_MIN_WIDTH = 760;
+
+/**
+ * The conversation itself — the one view the companion window, the AI tab,
+ * the phone's sheet and its screen all show (plan §19.1). What it says is
+ * derived from the session; where it sits is the dress's business.
+ *
+ * Marking (ADR 0023, Art. 50): every conversation opens with the quiet line
+ * naming the model and the provider — in every dress, never a banner to
+ * dismiss. Each run ends with one line saying what was sent where.
+ */
+export interface AiConversationProps {
+  dress: AiDress;
+  /** The note open in the shell, for the context chip. */
+  activeNote: { path: string; title: string } | null;
+  onOpenNote: (target: string) => void;
+  /**
+   * Opens a note this conversation just made — an answer kept as a note (plan
+   * P4-6) — by its path. A shell with tabs opens it beside what is open, so
+   * neither the conversation nor the user's place is replaced; without it the
+   * note opens like any other.
+   */
+  onOpenCreated?: (path: string) => void;
+  /**
+   * Opens a web address after the shell asked. `composed`: the model put the
+   * address together itself — it stood in none of the user's messages, notes
+   * or results (plan KI-Harness P4), and the question says so.
+   */
+  onOpenUrl: (url: string, composed?: boolean) => void;
+  onOpenSettings: () => void;
+  /** The shell's note picker; the chosen note is pinned to the conversation. */
+  onPickNote?: () => void;
+  /** The editor's selection: while there is one, the selection actions are offered (plan P1.5). */
+  selection?: SelectionReader;
+}
+
+const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
+  cancelled: "ai.stopped.cancelled",
+  limit: "ai.stopped.limit",
+  loop: "ai.stopped.loop",
+  circuit_breaker: "ai.stopped.circuit",
+  max_tokens: "ai.stopped.maxTokens",
+  refusal: "ai.stopped.refusal",
+};
+
+/** Failures the settings can fix: the notice offers the way there. */
+const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "not_found", "unknown_endpoint", "platform_unavailable"]);
+/** Nothing was sent because the conversation ran on this device and was to go to a cloud (ADR 0018). */
+const isKeptOnDevice = (stop: RunStop): boolean => stop.kind === "failed" && stop.failure.kind === "kept_on_device";
+/** Nothing was sent because the device is fully local and the model is not on it (ADR 0030). */
+const isLocalOnly = (stop: RunStop): boolean => stop.kind === "failed" && stop.failure.kind === "local_only";
+/** A rule that held, not something that went wrong: the notice is no error, and the words come back to the field. */
+const isRuleHeld = (stop: RunStop): boolean => isKeptOnDevice(stop) || isLocalOnly(stop);
+
+/** How a provider answers a picture its model cannot read (plan P4-5): it turns the request down. */
+const PICTURE_REFUSALS = new Set<ModelFailure["kind"]>(["refused_by_provider", "provider_error"]);
+
+/** Seconds of silence after which the line of a model on this device says where the thinking happens, and counts. */
+export const WORKING_HERE_AFTER = 10;
+
+/** Minutes and seconds, as a stopwatch shows them. */
+const stopwatch = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+/**
+ * The line that says a run is under way. A model on this device may read for
+ * minutes before its first word (plan KI-Harness P7, ADR 0030): after a few
+ * seconds the line says where the thinking happens and counts along. The
+ * count is hidden from a screen reader, which would otherwise read a number
+ * every second; it hears the line once.
+ */
+export function AiWorkingLine({ here }: { here: boolean }) {
+  const { t } = useTranslation();
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!here) return;
+    const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => clearInterval(timer);
+  }, [here]);
+  const counting = here && seconds >= WORKING_HERE_AFTER;
+  return (
+    <p className="pv-ai-working" data-testid={counting ? "ai-working-here" : "ai-working"}>
+      <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
+      {counting ? t("ai.workingHere") : t("ai.working")}
+      {counting && <span aria-hidden="true">· {stopwatch(seconds)}</span>}
+    </p>
+  );
+}
+
+export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
+  const { t, i18n } = useTranslation();
+  const session = useAiSession();
+  const state = useAiState();
+  const [draft, setDraft] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  /** The run whose send overview is open under its line. */
+  const [openRun, setOpenRun] = useState<string | null>(null);
+  /** The run whose answer is being kept as a note right now. */
+  const [capturing, setCapturing] = useState<number | null>(null);
+  const modelButton = useRef<HTMLButtonElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const touch = dress === "sheet" || dress === "screen";
+  /** "View context" over the thread (every dress but a wide tab, which keeps it as a column). */
+  const [lensOpen, setLensOpen] = useState(false);
+  // A callback ref: the root appears only once the session has loaded.
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    if (!rootEl || dress !== "tab" || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setWide((entry?.contentRect.width ?? 0) >= TAB_SIDE_MIN_WIDTH));
+    observer.observe(rootEl);
+    return () => observer.disconnect();
+  }, [rootEl, dress]);
+  const side = dress === "tab" && wide;
+  // A selection in the editor offers the selection actions (plan P1.5). Polled, cheaply: the reader copies only the selected text.
+  const [hasSelection, setHasSelection] = useState(false);
+  useEffect(() => {
+    if (!selection) return;
+    const tick = () => setHasSelection(selection.has());
+    tick();
+    const timer = setInterval(tick, 1500);
+    return () => clearInterval(timer);
+  }, [selection]);
+  const [translateOpen, setTranslateOpen] = useState(false);
+  const translateAnchor = useRef<HTMLSpanElement>(null);
+  /** A prompt of a foreign server the user chose (plan P4.5): its values are asked for, or its text waits to be read. */
+  const [extPrompt, setExtPrompt] = useState<{ prompt: ExternalPrompt; review: McpPromptReview | null } | null>(null);
+  const [extBusy, setExtBusy] = useState(false);
+
+  const active = state?.active ?? null;
+  const items = useMemo(() => (active ? transcriptOf(active) : []), [active]);
+  // The conversation's last run: under it stands the way to learn from the whole of it (plan P6-2).
+  const lastRunKey = useMemo(() => {
+    for (let index = items.length - 1; index >= 0; index--) if (items[index]!.kind === "run") return items[index]!.key;
+    return null;
+  }, [items]);
+  // The addresses that stood in front of the model: a link to any other one, the model composed itself (plan P4).
+  const known = useMemo(() => (active ? knownAddresses(active.conversation) : null), [active]);
+  // A page a run already asked for went out with the user's leave: a link to that very address tells nothing new.
+  const requested = useMemo(() => new Set((active?.runs ?? []).flatMap((run) => (run.web?.pages ?? []).map((page) => comparableAddress(page.url) ?? page.url))), [active]);
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const money = useMemo(() => new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 4 }), [i18n.language]);
+  const replayDate = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
+  /** When the run a replay asks again was asked, in the reader's language. */
+  const replayWhen = (iso: string) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? iso : replayDate.format(date);
+  };
+
+  // Follow the answer while it streams, the way a reader would scroll.
+  const liveText = state?.live?.text ?? "";
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [items.length, liveText, state?.live?.tools.length, state?.consent, state?.effect, state?.question]);
+
+  // The send overview is answered here: a door outside the conversation relies on the session knowing one is on screen.
+  useEffect(() => session?.mountSurface(), [session]);
+  // "Create" on a draft makes the thing and opens it, like a note the user made themselves.
+  const draftActions = useDraftActions(session, onOpenCreated ?? onOpenNote);
+
+  if (!session || !state || !state.loaded) return null;
+
+  if (!state.settings.enabled) {
+    return (
+      <div className={cx("pv-ai", touch && "pv-ai--touch")}>
+        <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.offTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.offAction")}</Button>}>
+          {t("ai.empty.offBody")}
+        </EmptyState>
+      </div>
+    );
+  }
+
+  const choice = session.choice();
+  const provider = choice ? providerById(choice.providerId, state.settings.custom) : undefined;
+  if (!choice || !provider) {
+    return (
+      <div className={cx("pv-ai", touch && "pv-ai--touch")}>
+        <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.setupTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.setupAction")}</Button>}>
+          {t("ai.empty.setupBody")}
+        </EmptyState>
+      </div>
+    );
+  }
+
+  // Fully local (plan P7, ADR 0030): only a model on this device answers. A new conversation without one says what
+  // is missing, with the way there; an open one that ran with a provider's model says that it rests.
+  const localOnly = state.settings.localOnly;
+  const rests = localOnly && !runsOnDevice(provider);
+  /** Where a new conversation would start while the device is fully local: one of the user's own choices, or nowhere. */
+  const localStart = localOnly ? localAnswerer(state.settings) : null;
+  if (rests && !active) {
+    return (
+      <div className={cx("pv-ai", touch && "pv-ai--touch")} data-testid="ai-local-empty">
+        <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.mode.emptyTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.setupAction")}</Button>}>
+          {t("ai.mode.emptyBody")}
+        </EmptyState>
+      </div>
+    );
+  }
+
+  const live = state.live;
+  const running = Boolean(live);
+  // A round of this run that is over stands in the transcript already: the live list shows what is still going on.
+  const settled = new Set(items.flatMap((item) => (item.kind === "steps" ? item.steps.filter((step) => step.state !== "open").map((step) => step.id) : [])));
+  // The call that waits for the user's answer has not started: its question stands for it, not a step that claims to run.
+  const liveTools = (live?.tools ?? []).filter((tool) => tool.id !== state.effect?.id && !settled.has(tool.id));
+  const pins = state.active?.pins ?? state.draftPins;
+  const showActive = Boolean(activeNote) && !pins.includes(activeNote!.path);
+
+  const consent = state.consent;
+  const effect = state.effect;
+  // A foreign server's question to the user (plan P9-4a): while it stands, nothing else is asked or sent.
+  const question = state.question;
+  // The internet (plan P4): what a new conversation could do on it, and whether the open one carries it.
+  const webOffer = session.webOffer();
+  // While the device is fully local the internet rests, also for a conversation that was started with it.
+  const withWeb = active ? hasWebTools(active.conversation.tools) && state.web.enabled && !localOnly : state.draftWeb && Boolean(webOffer);
+  const toggleWeb = () => {
+    // Decided when a conversation starts: an open one may already carry notes that must never meet the internet.
+    if (active) toast.info(t("ai.web.fixed"));
+    else session.setDraftWeb(!state.draftWeb);
+  };
+  // The writing style (plan P9-3): offered where the user keeps one on this device; chosen per conversation, fixed from
+  // its first message like the internet — the system prompt carries it.
+  const styleFeatures = active ? (active.instructions?.style?.features ?? 0) : state.style.features.length;
+  const withStyle = active ? styleFeatures > 0 : state.draftStyle && styleFeatures > 0;
+  const styleShown = withStyle || state.style.features.length > 0;
+  const toggleStyle = () => {
+    if (active) toast.info(t("ai.style.fixed"));
+    else session.setDraftStyle(!state.draftStyle);
+  };
+  /** An address the model put together itself: it stood nowhere before the model wrote it. */
+  const composed = (url: string) => (known ? addressOrigin(url, known) === "model" && !requested.has(comparableAddress(url) ?? "") : false);
+  const urlNote = (url: string) => (composed(url) ? t("ai.linkBuilt") : null);
+  const openAnswerUrl = (url: string) => onOpenUrl(url, composed(url));
+  const hostOf = (url: string) => {
+    const checked = checkWebUrl(url);
+    return checked.ok ? checked.target.host : url;
+  };
+  /** A suggest action on the editor's selection: the answer lands in the note as a suggestion round. */
+  const suggest = (action: AiSuggestAction, language?: string) => {
+    const range = selection?.range();
+    if (!range) {
+      setHasSelection(false);
+      return;
+    }
+    void runSuggestAction(session, t, { action, range, ...(language ? { language } : {}) });
+  };
+  const languageName = (code: string) => {
+    try {
+      return new Intl.DisplayNames([i18n.language], { type: "language" }).of(code) ?? code;
+    } catch {
+      return code;
+    }
+  };
+  const canCapture = session.canCapture();
+  /** "Keep as a note": the answer of one run goes into the vault, and the new note opens. */
+  const capture = (userTurn: number) => {
+    setCapturing(userTurn);
+    void session
+      .captureAnswer(userTurn)
+      .then((outcome) => {
+        if (outcome.kind === "captured") {
+          // A note made from notes with a privacy rule carries that rule: said once, here, so it is no surprise later.
+          toast.success(outcome.inherited?.length ? t("ai.capture.doneInherited", { name: outcome.title }) : t("ai.capture.done", { name: outcome.title }));
+          (onOpenCreated ?? onOpenNote)(outcome.path);
+        } else if (outcome.reason === "failed") {
+          toast.error(t("ai.capture.failed", { reason: outcome.message ?? "" }));
+        }
+      })
+      .finally(() => setCapturing(null));
+  };
+  // A routine runs beside this conversation (plan P8): one run at a time holds, so a message waits until it is done.
+  const routine = state.routines.running;
+  const ready = state.routines.ready;
+  const send = () => {
+    const text = draft.trim();
+    if (!text || running || routine || consent || effect || question || !state.hasVault || rests) return;
+    setDraft("");
+    // Nothing sent (the overview was cancelled, or a rule held — the conversation stays on this device, the device is fully local): the words come back to the field.
+    void session.send(text).then((stop) => {
+      if (stop === null || isRuleHeld(stop)) setDraft((current) => current || text);
+    });
+  };
+  // A conversation that ran on this device does not go to a cloud (ADR 0018): the way on is a new one, with the model that was chosen.
+  const startAnew = () => {
+    const chosen = session.choice();
+    session.newConversation();
+    if (chosen) void session.setChoice(chosen);
+  };
+  // A conversation that rests while the device is fully local (ADR 0030): the way on is a new one — it starts with the model that answers here.
+  const startLocal = () => session.newConversation();
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    // A soft keyboard has no Shift+Enter: on touch, Enter stays a line break and the button sends.
+    if (!touch && event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      send();
+    }
+  };
+
+  const providerLabel = (id: string) => providerById(id, state.settings.custom)?.label ?? id;
+  const runLine = (run: RunMeta, coverage: AnswerCoverage | null) => {
+    const tokens = run.usage.inputTokens + run.usage.cacheReadTokens + run.usage.cacheWriteTokens + run.usage.outputTokens;
+    const parts = [t("ai.sentLine", { provider: providerLabel(run.providerId), count: run.sent.length, tokens: number.format(tokens) })];
+    // How much of it came from the provider's cache, where it reports one (plan P9-6).
+    const cached = cacheShareText(t, run.usage, number);
+    if (cached) parts.push(cached);
+    if (run.kept.length) parts.push(t("ai.keptLine", { count: run.kept.length }));
+    // The pictures the message brought (plan P4-5).
+    const pictures = run.manifest?.sources.filter((source) => source.image).length ?? 0;
+    if (pictures) parts.push(t("ai.image.sentLine", { count: pictures }));
+    // The entries of the memory that went along (plan P6): how many, never which.
+    if (run.manifest?.memory?.entries) parts.push(t("ai.memory.sentLine", { count: run.manifest.memory.entries }));
+    // The writing style that went along (plan P9-3): how many features, never which examples.
+    if (run.manifest?.style?.features) parts.push(t("ai.style.sentLine", { count: run.manifest.style.features }));
+    if (run.web?.pages.length) parts.push(t("ai.web.runPages", { count: run.web.pages.length }));
+    if (run.web?.searches.length) parts.push(t("ai.web.runSearches", { count: run.web.searches.length }));
+    // What it read of the user's mail (plan P4-4): a number, never a subject.
+    if (run.reading?.messages) parts.push(t("ai.reading.messages", { count: run.reading.messages }));
+    // What it asked of foreign servers (plan P4.5): how often, never what.
+    if (run.mcp?.calls.length) parts.push(t("ai.ext.runCalls", { n: run.mcp.calls.length }));
+    if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
+    if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
+    return parts.join(" · ");
+  };
+  // A tool of a foreign server is named by the user's name for the server and the tool's own (plan P4.5); a script by its own name (plan P5.5).
+  const toolLabel = (name: string) => externalToolLabel(t, name, state.mcp.servers) ?? scriptToolLabel(t, name) ?? t(`ai.tool.${name}`, { defaultValue: t("ai.tool.unknown") });
+  /** How the questions of one call went (plan P9-4a): numbers, never what was asked or answered. */
+  const questionsOf = (questions: RunMcpQuestions | undefined): string =>
+    questions
+      ? [
+          questions.answered ? t("ai.ext.questions.answered", { count: questions.answered }) : "",
+          questions.declined ? t("ai.ext.questions.declined", { count: questions.declined }) : "",
+          questions.cancelled ? t("ai.ext.questions.cancelled", { count: questions.cancelled }) : "",
+          questions.refused ? t("ai.ext.questions.refused", { count: questions.refused }) : "",
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : "";
+  /** What a run asked of foreign servers, as lines: who, what, how it ended — and how its questions to the user went. */
+  const externalCallsOf = (run: RunMeta) =>
+    (run.mcp?.calls ?? []).map((call) => {
+      const line = `${state.mcp.servers.find((server) => server.id === call.server)?.label ?? call.server} · ${call.tool} · ${t(`ai.ext.outcome.${call.outcome}`, { defaultValue: call.outcome })}`;
+      const asked = questionsOf(call.questions);
+      return asked ? `${line} · ${asked}` : line;
+    });
+  /** Starts a prompt of a foreign server: at once where its text was approved before, else its text is shown first. */
+  const startExternalPrompt = (prompt: ExternalPrompt, args: Record<string, string>) => {
+    setExtBusy(true);
+    void session
+      .startMcpPrompt(prompt.serverId, prompt.name, args)
+      .then((result) => {
+        if (result.kind === "review") {
+          setExtPrompt({ prompt, review: result.review });
+          return;
+        }
+        setExtPrompt(null);
+        if (result.kind === "blocked") toast.error(t("ai.ext.prompt.blocked", { server: prompt.server }));
+        else if (result.kind === "empty") toast.error(t("ai.ext.prompt.empty"));
+        else if (result.kind === "unavailable") toast.error(t("ai.ext.prompt.unavailable"));
+        // Stopped on purpose — at a question of the server, by STOP, by leaving the conversation: nothing to say.
+        else if (result.kind === "failed") toast.error(externalFailureText(t, result.failure));
+      })
+      .finally(() => setExtBusy(false));
+  };
+  /** One tool step as a line: running, done, failed — or not allowed, which is the user's answer and no failure (plan P4). */
+  type StepLook = "running" | "open" | "done" | "failed" | "declined";
+  const stepIcon = (state: StepLook) =>
+    state === "running" ? (
+      <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
+    ) : state === "failed" ? (
+      <CircleAlert size={ICON.meta} aria-hidden="true" />
+    ) : state === "declined" ? (
+      <Ban size={ICON.meta} aria-hidden="true" />
+    ) : (
+      <Check size={ICON.meta} aria-hidden="true" />
+    );
+  const stepText = (name: string, state: StepLook) =>
+    state === "running"
+      ? t("ai.toolRunning", { tool: toolLabel(name) })
+      : state === "failed"
+        ? t("ai.toolFailed", { tool: toolLabel(name) })
+        : state === "declined"
+          ? t("ai.toolDeclined", { tool: toolLabel(name) })
+          : toolLabel(name);
+
+  /** The answer a run line closes: a run that sent notes should name one (§21, citation duty). */
+  const answerBefore = (index: number) => {
+    for (let i = index - 1; i >= 0; i--) {
+      const prior = items[i]!;
+      if (prior.kind === "answer") return prior.text;
+      if (prior.kind === "user") return null;
+    }
+    return null;
+  };
+  const renderItem = (item: TranscriptItem, index: number) => {
+    switch (item.kind) {
+      case "user":
+        return (
+          <div key={item.key} className="pv-ai-msg pv-ai-msg--user">
+            {item.context.length > 0 && (
+              <div className="pv-ai-ctxline">
+                <FileText size={ICON.meta} aria-hidden="true" />
+                <span>{item.context.map((path) => path.replace(/^.*\//, "").replace(/\.md$/i, "")).join(", ")}</span>
+              </div>
+            )}
+            {/* The pictures the message carried (plan P4-5), as they went. */}
+            {item.images?.map((picture, i) => (
+              <figure key={i} className="pv-ai-figure">
+                <AiPicture picture={picture} alt={picture.name} />
+                <figcaption>{picture.name}</figcaption>
+              </figure>
+            ))}
+            {item.text && <div className="pv-ai-usertext">{item.text}</div>}
+          </div>
+        );
+      case "answer":
+        return (
+          <div key={item.key} className="pv-ai-msg pv-ai-msg--ai">
+            <AiAnswer text={item.text} onOpenNote={onOpenNote} onOpenUrl={openAnswerUrl} urlNote={urlNote} />
+          </div>
+        );
+      case "steps": {
+        // A step that is still running is the live run's to show: listed here too, it would stand twice — once as done.
+        const steps = item.steps.filter((step) => step.state !== "open" || !live?.tools.some((tool) => tool.id === step.id));
+        if (steps.length === 0) return null;
+        return (
+          <ul key={item.key} className="pv-ai-steps">
+            {steps.map((step) => (
+              <li key={step.id} className={cx("pv-ai-step", step.state === "failed" && "pv-ai-step--failed", step.state === "declined" && "pv-ai-step--declined")}>
+                {stepIcon(step.state)}
+                <span>{stepText(step.name, step.state)}</span>
+              </li>
+            ))}
+          </ul>
+        );
+      }
+      case "run": {
+        const manifest = item.run.manifest;
+        const open = openRun === item.key && Boolean(manifest);
+        const answer = answerBefore(index);
+        // A picture is no note an answer could cite (plan P4-5): what counts is the text that went.
+        const noteSources = manifest ? manifest.sources.filter((s) => !s.image) : [];
+        const uncited = Boolean(noteSources.some((s) => s.tier === "evidence") && answer !== null && !answer.includes("[["));
+        // Coverage after the answer (plan P2b-5): only where notes went, so a statement could have named one.
+        const coverage = noteSources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;
+        // The pages the run read (plan P4), whatever the answer says of them: the app's own list, so no source goes unnamed.
+        const pagesRead = (item.run.web?.pages ?? []).filter((page) => page.read);
+        return (
+          <div key={item.key} className="pv-ai-run">
+            {pagesRead.length > 0 && (
+              <p className="pv-ai-websources" data-testid="ai-web-sources">
+                <span className="pv-ai-websources-label">
+                  <Globe size={ICON.meta} aria-hidden="true" />
+                  {t("ai.web.sources")}
+                </span>
+                {pagesRead.map((page, i) => (
+                  <a
+                    key={`${i}:${page.url}`}
+                    href={page.url}
+                    className="pv-ai-link"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onOpenUrl(page.url);
+                    }}
+                  >
+                    {page.title ? `${page.title} — ${hostOf(page.url)}` : hostOf(page.url)}
+                  </a>
+                ))}
+              </p>
+            )}
+            {uncited && <p className="pv-ai-nocite">{t("ai.noCitation")}</p>}
+            {manifest ? (
+              <Button size="sm" variant="ghost" className="pv-ai-runline" aria-expanded={open} onClick={() => setOpenRun(open ? null : item.key)}>
+                {runLine(item.run, coverage)}
+              </Button>
+            ) : (
+              <span className="pv-ai-runline">{runLine(item.run, coverage)}</span>
+            )}
+            {/* What the run laid down for the user to decide (plan P5): the notes that carry its proposals, and its drafts. */}
+            {item.run.writes && (
+              <AiRunWrites writes={item.run.writes} state={state.drafts} canCreate={draftActions.canCreate} busy={draftActions.busy || running} onOpenNote={onOpenNote} onCreate={draftActions.create} onDiscard={draftActions.discard} taskList={draftActions.taskList} touch={touch} />
+            )}
+            {/* The answer becomes a note of the vault, with what it rests on (plan P4-6): the user's own step, never the model's. */}
+            {canCapture && item.run.stop === "answered" && answer !== null && (
+              <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" disabled={capturing !== null || running} onClick={() => capture(item.run.userTurn)} data-testid="ai-capture">
+                <FilePlus2 size={ICON.meta} aria-hidden="true" />
+                {t("ai.capture.action")}
+              </Button>
+            )}
+            {/* What this conversation can teach (plan P6-2): asked for by the user, and first shown — nothing is sent by this button. */}
+            {active && item.key === lastRunKey && item.run.stop === "answered" && (
+              <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" disabled={running || state.learning !== null} onClick={() => openLearnSurface({ kind: "learn", conversationId: active.id })} data-testid="ai-learn-open">
+                <GraduationCap size={ICON.meta} aria-hidden="true" />
+                {t("ai.learn.action")}
+              </Button>
+            )}
+            {/* Opened, the line is the run's snapshot too (plan P9-2): versions, tools, result — and the same question to another model. */}
+            {open && manifest && active && (
+              <AiRunOverview
+                record={active}
+                run={item.run}
+                manifest={manifest}
+                onOpenNote={onOpenNote}
+                touch={touch}
+                coverage={coverage}
+                web={item.run.web ?? null}
+                reading={item.run.reading ?? null}
+                onOpenUrl={(url) => onOpenUrl(url)}
+                external={externalOverviewLines(t, manifest.more ?? [], state.mcp.servers)}
+                externalCalls={externalCallsOf(item.run)}
+              />
+            )}
+          </div>
+        );
+      }
+    }
+  };
+
+  const shownNotice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice : null;
+  const notice = shownNotice?.stop ?? null;
+  // No answer came back (plan §19.4): the notes that match the question best stand in for it.
+  const related = notice?.kind === "failed" ? (shownNotice?.related ?? []) : [];
+  // A provider that turns a request down says so in its own words; where the conversation carries a picture, a model that reads none is the usual reason.
+  const pictureRefused = notice?.kind === "failed" && PICTURE_REFUSALS.has(notice.failure.kind) && Boolean(active && hasImages(active.conversation));
+  const noticeText = notice
+    ? notice.kind === "failed"
+      ? aiFailureText(t, notice.failure, failureRecipient(provider), choice.model)
+      : STOP_KEYS[notice.kind]
+        ? t(STOP_KEYS[notice.kind]!)
+        : null
+    : null;
+
+  return (
+    <div ref={setRootEl} className={cx("pv-ai", touch && "pv-ai--touch", `pv-ai--${dress}`, side && "pv-ai--withside")} data-testid="ai-conversation">
+      <p className="pv-ai-marking">
+        {t("ai.marking", { model: choice.model, provider: provider.label })}
+        {/* A conversation that may use the internet says so for as long as it is open (plan P4). */}
+        {active && withWeb && (
+          <span className="pv-ai-marking-web" data-testid="ai-web-marking">
+            {t("ai.web.marking")}
+          </span>
+        )}
+        {/* And one that carries the user's writing style (plan P9-3): what it writes is the model's draft all the same. */}
+        {active && withStyle && (
+          <span className="pv-ai-marking-web" data-testid="ai-style-marking">
+            {t("ai.style.marking", { count: styleFeatures })}
+          </span>
+        )}
+        {/* Fully local (plan P7): said for as long as it holds, wherever a conversation is shown. */}
+        {localOnly && !rests && (
+          <span className="pv-ai-marking-web" data-testid="ai-local-marking">
+            {t("ai.mode.marking")}
+          </span>
+        )}
+      </p>
+
+      {lensOpen && !side ? (
+        <div className="pv-ai-thread">
+          <AiContextLens
+            question={draft}
+            onClose={() => setLensOpen(false)}
+            onOpenNote={onOpenNote}
+            onSend={draft.trim() && !running && !consent && state.hasVault ? () => {
+              setLensOpen(false);
+              send();
+            } : undefined}
+            touch={touch}
+          />
+        </div>
+      ) : (
+      <div className="pv-ai-thread" ref={threadRef} aria-busy={running}>
+        {/* A replay says where it comes from (plan P9-2): the question of which conversation, when and on which model — and how many of its notes changed since. */}
+        {active?.replayOf && (
+          <Banner
+            kind="info"
+            rounded
+            icon={ArrowLeftRight}
+            testId="ai-replay-head"
+            actions={
+              <Button size="sm" variant="ghost" onClick={() => void session.open(active.replayOf!.conversationId)} data-testid="ai-replay-original">
+                {t("ai.replay.open")}
+              </Button>
+            }
+          >
+            {t("ai.replay.head", { title: active.replayOf.title, model: active.replayOf.model, when: replayWhen(active.replayOf.at) })}
+            {active.replayOf.changed > 0 ? ` ${t("ai.replay.headChanged", { count: active.replayOf.changed })}` : ""}
+          </Banner>
+        )}
+        {items.length === 0 && !live && (
+          <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.startTitle")}>
+            {t("ai.empty.startBody")}
+          </EmptyState>
+        )}
+        {items.length === 0 && !live && !consent && state.hasVault && (
+          <div className="pv-ai-skills" role="group" aria-label={t("ai.skills.title")} data-testid="ai-skills">
+            {startableSkills(t, state.skills.entries)
+              .filter((skill) => skill.featured)
+              .map((skill) => (
+                <Chip key={skill.id} size="sm" icon={<skill.icon size={ICON.meta} />} testId={skill.commandId} onClick={() => void session.runSkill(skill.id, skill.start)}>
+                  {skill.title}
+                </Chip>
+              ))}
+            {/* The prompts of foreign servers this vault uses (plan P4.5): started by the user, like a skill — never by the model. */}
+            {!extPrompt &&
+              !localOnly &&
+              externalPrompts(state.mcp.servers).map((prompt) => (
+                <Chip
+                  key={`${prompt.serverId}/${prompt.name}`}
+                  size="sm"
+                  icon={<Plug size={ICON.meta} />}
+                  testId="ai-ext-prompt-chip"
+                  onClick={() => (prompt.args.length ? setExtPrompt({ prompt, review: null }) : startExternalPrompt(prompt, {}))}
+                >
+                  {`${prompt.server} · ${prompt.title}`}
+                </Chip>
+              ))}
+          </div>
+        )}
+        {items.map((item, index) => renderItem(item, index))}
+        {live && (
+          <div className="pv-ai-live" aria-live="polite">
+            {liveTools.length > 0 && (
+              <ul className="pv-ai-steps">
+                {liveTools.map((tool) => (
+                  <li
+                    key={tool.id}
+                    className={cx("pv-ai-step", tool.state === "failed" && "pv-ai-step--failed", tool.state === "declined" && "pv-ai-step--declined", tool.state === "running" && "pv-ai-step--open")}
+                  >
+                    {stepIcon(tool.state)}
+                    <span>{stepText(tool.name, tool.state)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {live.text ? (
+              <div className="pv-ai-msg pv-ai-msg--ai">
+                <AiAnswer text={live.text} onOpenNote={onOpenNote} onOpenUrl={openAnswerUrl} urlNote={urlNote} />
+              </div>
+            ) : (
+              // While a page or a search waits for its answer, nothing is being thought: the question below is the state.
+              !effect &&
+              !question && (
+                // Each step waits anew: the line of a model on this device starts to count from its first second.
+                <AiWorkingLine key={live.steps} here={runsOnDevice(provider)} />
+              )
+            )}
+          </div>
+        )}
+        {/* An open conversation whose model is not on this device, while the device is fully local (plan P7): said
+            before anyone types — no conversation changes its model silently. */}
+        {rests && active && (
+          <Banner
+            kind="info"
+            rounded
+            actions={
+              localStart ? (
+                <Button size="sm" variant="secondary" onClick={startLocal} data-testid="ai-local-new">
+                  {t("ai.newConversation")}
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={onOpenSettings} data-testid="ai-local-setup">
+                  {t("ai.error.openSetup")}
+                </Button>
+              )
+            }
+          >
+            <span data-testid="ai-local-rests">{t("ai.mode.conversationRests", { model: choice.model, provider: provider.label })}</span>
+          </Banner>
+        )}
+        {noticeText && !(rests && active && isLocalOnly(notice!)) && (
+          <Banner
+            // A conversation that stays on this device, a device that is fully local: a rule that held, not something that went wrong.
+            kind={notice!.kind === "failed" && !isRuleHeld(notice!) ? "error" : "info"}
+            rounded
+            actions={
+              notice!.kind === "failed" && SETUP_FAILURES.has(notice!.failure.kind) ? (
+                <Button size="sm" variant="secondary" onClick={onOpenSettings}>
+                  {t("ai.error.openSetup")}
+                </Button>
+              ) : isKeptOnDevice(notice!) ? (
+                <Button size="sm" variant="secondary" onClick={startAnew} data-testid="ai-kept-new">
+                  {t("ai.newConversation")}
+                </Button>
+              ) : isLocalOnly(notice!) && !localStart ? (
+                <Button size="sm" variant="secondary" onClick={onOpenSettings} data-testid="ai-local-setup">
+                  {t("ai.error.openSetup")}
+                </Button>
+              ) : undefined
+            }
+          >
+            {noticeText}
+            {/* The provider turned a message with a picture down (plan P4-5): often the model reads none. */}
+            {pictureRefused && (
+              <span className="pv-ai-overview-hint" data-testid="ai-picture-refused">
+                {t("ai.image.refusedHint")}
+              </span>
+            )}
+          </Banner>
+        )}
+        {related.length > 0 && (
+          <section className="pv-ai-overview" aria-label={t("ai.offline.title")} data-testid="ai-related-notes">
+            <span className="pv-ai-overview-hint">{t("ai.offline.title")}</span>
+            <ul className="pv-ai-overview-sources">
+              {related.map((note) => (
+                <li key={note.path}>
+                  <Button size="sm" variant="ghost" className="pv-ai-overview-note" onClick={() => onOpenNote(note.path)}>
+                    {note.title}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {!state.hasVault && <p className="pv-ai-working">{t("ai.empty.noVault")}</p>}
+        {/* A routine runs beside this conversation (plan P8, ADR 0033): it only reads and asks nothing — said here,
+            with STOP, because a message typed now would wait for it. */}
+        {routine && (
+          <Banner
+            kind="info"
+            rounded
+            actions={
+              <Button size="sm" variant="secondary" onClick={() => session.stop()} data-testid="ai-routine-stop">
+                {t("ai.stop")}
+              </Button>
+            }
+          >
+            <span data-testid="ai-routine-running">{routine.log ? t("ai.routines.log.running", { name: routine.name }) : t("ai.routines.running", { name: routine.name })}</span>
+          </Banner>
+        )}
+        {/* The note a routine left while the app was open: said once, with the way to it. */}
+        {ready && !routine && (
+          <Banner
+            kind="success"
+            rounded
+            actions={
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    onOpenNote(ready.note);
+                    session.dismissRoutineReady();
+                  }}
+                  data-testid="ai-routine-open"
+                >
+                  {t("ai.routines.openNote")}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => session.dismissRoutineReady()} data-testid="ai-routine-dismiss">
+                  {t("common.close")}
+                </Button>
+              </>
+            }
+          >
+            <span data-testid="ai-routine-ready">{t("ai.routines.ready", { name: ready.name })}</span>
+          </Banner>
+        )}
+        {consent && (
+          <AiSendOverview
+            manifest={consent.manifest}
+            growth={consent.growth}
+            images={consent.images}
+            blind={consent.blind}
+            external={externalOverviewLines(t, consent.manifest.more ?? [], state.mcp.servers)}
+            onSend={() => session.answerConsent(true)}
+            onCancel={() => session.answerConsent(false)}
+            onLeaveOut={(path) => session.leaveOutOfConsent(path)}
+            onRedact={(path) => session.redactInConsent(path)}
+            onOpenNote={onOpenNote}
+            everyRequest={{ value: state.settings.confirmEveryRequest, onChange: (value) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: value })) }}
+            touch={touch}
+          />
+        )}
+        {/* One page or one search waits for an answer (plan P4): asked where the send overview is asked. */}
+        {effect && <AiEffectApproval request={effect} onAnswer={(answer) => session.answerEffect(answer)} touch={touch} />}
+        {/* A foreign server asks the user something during a call or before a prompt (plan P9-4a): Plainva's card, the server's words quoted in it. */}
+        {question && <AiMcpQuestion request={question} onAnswer={(answer) => session.answerQuestion(question.id, answer)} onOpenPage={() => void session.openQuestionPage(question.id)} touch={touch} />}
+        {/* A prompt of a foreign server on its way in (plan P4.5): its values, then — the first time — its text, before anything is sent. */}
+        {extPrompt && !consent && !effect && !question && (
+          <AiExternalPrompt
+            prompt={extPrompt.prompt}
+            review={extPrompt.review}
+            busy={extBusy || running}
+            onStart={(args) => startExternalPrompt(extPrompt.prompt, args)}
+            onSend={() => {
+              const review = extPrompt.review;
+              setExtPrompt(null);
+              if (review) void session.sendMcpPrompt(review);
+            }}
+            onCancel={() => setExtPrompt(null)}
+            touch={touch}
+          />
+        )}
+      </div>
+      )}
+
+      {side && (
+        <aside className="pv-ai-side" aria-label={t("ai.lens.title")}>
+          <AiContextLens question={draft} onOpenNote={onOpenNote} side />
+        </aside>
+      )}
+
+      <div className="pv-ai-composer">
+        {selection && hasSelection && !running && !consent && (
+          <div className="pv-ai-chips pv-ai-selchips" role="group" aria-label={t("ai.selection.with")} data-testid="ai-selection-actions">
+            <span className="pv-ai-selchips-label">{t("ai.selection.with")}</span>
+            <Chip size="sm" icon={<PenLine size={ICON.meta} />} onClick={() => suggest("rewrite")}>
+              {t("ai.selection.action.rewrite")}
+            </Chip>
+            <Chip size="sm" icon={<Scissors size={ICON.meta} />} onClick={() => suggest("shorten")}>
+              {t("ai.selection.action.shorten")}
+            </Chip>
+            <span ref={translateAnchor}>
+              <Chip size="sm" icon={<Languages size={ICON.meta} />} onClick={() => setTranslateOpen(true)}>
+                {t("ai.selection.action.translate")}
+              </Chip>
+            </span>
+            <Chip size="sm" icon={<ListTodo size={ICON.meta} />} onClick={() => suggest("tasks")}>
+              {t("ai.selection.action.tasks")}
+            </Chip>
+            <Chip size="sm" icon={<MessageCircleQuestion size={ICON.meta} />} onClick={() => void session.send(askMessage("explain")!)}>
+              {t("ai.selection.action.explain")}
+            </Chip>
+            <MenuSurface open={translateOpen} onClose={() => setTranslateOpen(false)} anchorRef={translateAnchor} ariaLabel={t("ai.selection.translateTo")}>
+              {AI_TRANSLATE_LANGUAGES.map((language) => (
+                <MenuItem
+                  key={language.code}
+                  onSelect={() => {
+                    setTranslateOpen(false);
+                    suggest("translate", language.name);
+                  }}
+                >
+                  {languageName(language.code)}
+                </MenuItem>
+              ))}
+            </MenuSurface>
+          </div>
+        )}
+        <div className="pv-ai-chips" aria-label={t("ai.context")}>
+          {activeNote && showActive && !state.excludeActive && (
+            <Chip size="sm" icon={<FileText size={ICON.meta} />} onRemove={() => session.setExcludeActive(true)} removeLabel={t("ai.removeContext")}>
+              {activeNote.title}
+            </Chip>
+          )}
+          {activeNote && showActive && state.excludeActive && (
+            <Chip size="sm" tone="muted" icon={<Plus size={ICON.meta} />} onClick={() => session.setExcludeActive(false)}>
+              {activeNote.title}
+            </Chip>
+          )}
+          {pins.map((path) => (
+            <Chip key={path} size="sm" icon={<Pin size={ICON.meta} />} onRemove={() => void session.unpin(path)} removeLabel={t("ai.removeContext")}>
+              {path.replace(/^.*\//, "").replace(/\.md$/i, "")}
+            </Chip>
+          ))}
+          {onPickNote && (
+            <Chip size="sm" tone="muted" icon={<Plus size={ICON.meta} />} onClick={onPickNote}>
+              {t("ai.pinNote")}
+            </Chip>
+          )}
+        </div>
+        <div className="pv-ai-inputrow">
+          <TextArea
+            className="pv-ai-input"
+            rows={touch ? 2 : 1}
+            value={draft}
+            placeholder={t("ai.placeholder")}
+            aria-label={t("ai.placeholder")}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={onKeyDown}
+            data-testid="ai-input"
+          />
+          {running ? (
+            <IconButton label={t("ai.stop")} onClick={() => session.stop()} data-testid="ai-stop">
+              <Square size={touch ? ICON.touch : ICON.ui} />
+            </IconButton>
+          ) : (
+            <IconButton label={t("ai.send")} active={Boolean(draft.trim()) && !rests && !routine} disabled={!draft.trim() || !state.hasVault || Boolean(consent) || rests || Boolean(routine)} onClick={send} data-testid="ai-send">
+              <Send size={touch ? ICON.touch : ICON.ui} />
+            </IconButton>
+          )}
+        </div>
+        <div className="pv-ai-foot">
+          {!side && (
+            <IconButton size="sm" label={t("ai.lens.open")} active={lensOpen} aria-pressed={lensOpen} onClick={() => setLensOpen((open) => !open)} data-testid="ai-lens-open">
+              <Eye size={touch ? ICON.ui : ICON.meta} />
+            </IconButton>
+          )}
+          {/* Only where the vault allows the internet: a vault nobody decided about shows nothing of it. */}
+          {(webOffer || withWeb) && (
+            <IconButton
+              size="sm"
+              label={active ? (withWeb ? t("ai.web.activeOn") : t("ai.web.activeOff")) : withWeb ? t("ai.web.toggleOn") : t("ai.web.toggleOff")}
+              active={withWeb}
+              aria-pressed={withWeb}
+              disabled={running}
+              onClick={toggleWeb}
+              data-testid="ai-web-toggle"
+            >
+              <Globe size={touch ? ICON.ui : ICON.meta} />
+            </IconButton>
+          )}
+          {/* Only where this device keeps a writing style with something in it: nobody who chose no examples sees it. */}
+          {styleShown && (
+            <IconButton
+              size="sm"
+              label={active ? (withStyle ? t("ai.style.activeOn") : t("ai.style.activeOff")) : withStyle ? t("ai.style.toggleOn") : t("ai.style.toggleOff")}
+              active={withStyle}
+              aria-pressed={withStyle}
+              disabled={running}
+              onClick={toggleStyle}
+              data-testid="ai-style-toggle"
+            >
+              <Signature size={touch ? ICON.ui : ICON.meta} />
+            </IconButton>
+          )}
+          <Button ref={modelButton} size="sm" variant="ghost" onClick={() => setMenuOpen(true)} aria-haspopup="menu" disabled={running}>
+            {provider.label} · {choice.model}
+          </Button>
+          <MenuSurface open={menuOpen} onClose={() => setMenuOpen(false)} anchorRef={modelButton} ariaLabel={t("ai.settings.profiles")}>
+            {AI_PROFILE_IDS.map((id) => {
+              const profile = state.settings.profiles[id];
+              // While the device is fully local, only the profiles whose model runs on it are a choice.
+              if (!profile || (localOnly && !choiceOnDevice(state.settings, profile))) return null;
+              const selected = profile.providerId === choice.providerId && profile.model === choice.model;
+              return (
+                <MenuItem key={id} active={selected} hint={`${providerLabel(profile.providerId)} · ${profile.model}`} onSelect={() => void session.setChoice(profile)}>
+                  {t(`ai.profile.${id}`)}
+                </MenuItem>
+              );
+            })}
+          </MenuSurface>
+        </div>
+      </div>
+    </div>
+  );
+}

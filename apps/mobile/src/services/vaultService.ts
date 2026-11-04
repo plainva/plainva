@@ -92,6 +92,7 @@ import {
   getPlatformServices,
   noteLargeFileTrimmed,
   notifyFileOps,
+  writeCapturedNote,
   scaffoldVaultTemplate,
   createIndexNotices,
   indexUnavailableText,
@@ -188,6 +189,9 @@ const isInternal = (path: string) => path.startsWith(".plainva") || path.include
 function createIndexDatabase(dbName: string): IDatabaseAdapter {
   return isFixtureSqliteAvailable() ? new FixtureSqliteAdapter(dbName) : new CapacitorSqliteAdapter(dbName);
 }
+
+/** Sent after a saved note was indexed again (search by meaning listens). */
+export const NOTE_INDEXED_EVENT = "m-note-indexed";
 
 /**
  * Removes the container a connect run prepared and the person then turned
@@ -525,6 +529,9 @@ async function forgetVaultData(id: string, pimIds: string[], publicationIds: str
   // drafts, the repair/import journals, the settings record, the bar layout.
   await forgetVaultSecrets(secretKeys);
   await forgetVaultFiles(id).catch(() => {});
+  // AI conversations and the usage ledger live in app data per vault (plan
+  // KI-Harness P1a); loaded late because the AI module imports this one.
+  await import("./ai/mobileAi").then((ai) => ai.forgetAiVaultData(id)).catch(() => {});
   await forgetVaultStoreKeys(id).catch(() => {});
   forgetVaultMemories(id);
 }
@@ -1064,8 +1071,12 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       // The batch was announced to the screens when it was handed over; what
       // got through only now is not in the lists they drew then.
       onFollowedLate: () => window.dispatchEvent(new CustomEvent("m-vault-changed")),
-      // The index moved on — the reminders re-plan what they derive from it (E3).
-      onFollowed: () => window.dispatchEvent(new CustomEvent("m-paths-indexed")),
+      // A saved file sends no m-vault-changed: whoever plans work on the index hears of it by this —
+      // the AI's search by meaning (AI harness P2a-4) and the reminders, which re-plan from it (E3).
+      onFollowed: () => {
+        window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT));
+        window.dispatchEvent(new CustomEvent("m-paths-indexed"));
+      },
     }),
     dispose: async () => {
       clearPinboardCache(queryService ?? files);
@@ -1679,6 +1690,24 @@ export const vaultOps = {
       parkTemplateCaret(path, built.content, built.caret);
       return path;
     }
+  },
+
+  /**
+   * A note written whole under a free name in `folder` — an AI answer kept as
+   * a note (plan KI-Harness P4-6). Where it goes and what it is called is the
+   * shared `writeCapturedNote`; what this adds is what every new note of the
+   * phone gets: the index, and the report that a file was created. A note
+   * that is there is never touched.
+   */
+  async createNoteWithContent(v: MobileVault, folder: string, stem: string, content: string): Promise<string> {
+    const path = await writeCapturedNote(
+      { exists: (p) => v.files.exists(p), createDir: (p) => v.files.createDir(p), writeTextFile: (p, text) => this.save(v, p, text) },
+      folder,
+      stem,
+      content,
+    );
+    reportCreated(path);
+    return path;
   },
 
   /**

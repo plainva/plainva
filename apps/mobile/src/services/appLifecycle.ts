@@ -23,7 +23,9 @@ import { pimForegroundSync } from "./pim/pimService";
  *   which is why a task created in Google Tasks took very long to show up and
  *   its reminder never arrived at all (finding D1, 2026-08-24);
  * - the scheduled archive, which is a CATCH-UP and not a clock (S36);
- * - the share target, because a warm share foregrounds the app (package J).
+ * - the share target, because a warm share foregrounds the app (package J);
+ * - the orders of the system's assistant, because an intent runs while the app
+ *   is closed and can only leave word (AI harness P4.7).
  */
 export function onAppForeground(): void {
   foregroundSync();
@@ -48,6 +50,10 @@ export function onAppForeground(): void {
   // then write: an order names the snapshot it was made against, so a fresh
   // one would strand every tap made while the app was away.
   void import("./widgetService").then((m) => m.catchUpWidgets()).catch(() => {});
+  // What somebody asked the system's assistant for while the app was away
+  // (AI harness P4.7): a journal entry, a task, a note to open. Redeemed
+  // first, then the list of titles the system may know is written again.
+  void import("./intentService").then((m) => m.catchUpIntents()).catch(() => {});
 }
 
 /**
@@ -76,4 +82,7 @@ export function onAppBackground(): void {
   // without any further callback, and a widget then carries whatever
   // was last written for as long as the app stays closed.
   void import("./widgetService").then((m) => m.refreshWidgets()).catch(() => {});
+  // The same for the titles the system's assistant may know: they are read
+  // while the app is closed, so they are written as it leaves.
+  void import("./intentService").then((m) => m.refreshIntentDirectory()).catch(() => {});
 }

@@ -87,6 +87,18 @@ const KNOWN = new Map<string, { takes: string[]; why: string }>([
     },
   ],
   ["packages/ui/src/base/baseFormat.ts", { takes: ["parse", "stringify"], why: "a `.base` file: a database's definition, written whole from its model — not a note's properties" }],
+  ["packages/core/src/ai/policy.ts", { takes: ["parse", "stringify"], why: "`.agent/policy.yml`, the vault's AI rules for folders: a file of its own, written whole from its model — not a note's properties" }],
+  [
+    "packages/core/src/ai/skills/skillFile.ts",
+    { takes: ["parse", "stringify"], why: "the head of a NEW skill's `SKILL.md` (`serializeSkillFile`), from its model; the head of a skill that is there is kept byte for byte (`rewriteSkillBody`)" },
+  ],
+  [
+    "packages/core/src/ai/writes/properties.ts",
+    {
+      takes: ["Document", "isMap", "isScalar", "parseDocument"],
+      why: "a value the assistant proposes for one property: reads the note's block to find the entry, and prints only the lines of the NEW entry (`entryLines`) — what the suggestion would put in its place; the note is written by the one writer once the suggestion is accepted",
+    },
+  ],
   ["packages/ui/src/base/baseExport.ts", { takes: ["stringify"], why: "an exported `.base`: new YAML from data" }],
 ]);
 

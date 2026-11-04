@@ -19,6 +19,20 @@ import { changeScalars, removeEntry, renameEntryKey, setEntries, setEntry } from
 
 export { FrontmatterSurgicalError, frontmatterSpan, noteBodyOf, noteWithoutProperties, type FrontmatterSpan } from "./frontmatter-block.js";
 
+const RESERVED_PROPERTY_NAMES = ["__proto__", "prototype", "constructor", "type", "okf_version", "generated", "verified", "sources"];
+
+/**
+ * Names nobody adds a property under: Plainva's own namespace, the virtual
+ * columns of a database (`file.…`, `formula.…`), the note's type and format
+ * marker, the trust fields that are trust fields by their name, and the names
+ * that reach into an object's prototype once the properties are read. One
+ * answer for everyone who adds a property — both shells' "add a property",
+ * and a value an assistant proposes.
+ */
+export function isReservedPropertyName(name: string): boolean {
+  return /^(?:file\.|formula\.|plainva(?:$|[.:]))/i.test(name) || RESERVED_PROPERTY_NAMES.includes(name.toLowerCase());
+}
+
 /**
  * Whether the property writers refuse the block at the top of a note: YAML
  * that does not parse, or YAML that is no map — a list, a line of prose, a

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, createRef, useState, type ReactElement } from "react";
+import { act, createRef, useRef, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { Button } from "@plainva/ui";
@@ -11,7 +11,7 @@ import { Checkbox } from "@plainva/ui";
 import { Switch } from "@plainva/ui";
 import { EmptyState } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
-import { ClickCatch, MenuSurface, MenuItem } from "@plainva/ui";
+import { ClickCatch, MenuSurface, MenuItem, MenuLabel } from "@plainva/ui";
 import { GroupCard, Row, RowList, SectionLabel } from "@plainva/ui";
 import { SearchField } from "@plainva/ui";
 import { TooltipHost } from "@plainva/ui";
@@ -947,6 +947,252 @@ describe("MenuSurface / MenuItem", () => {
     act(() => void list.dispatchEvent(new Event("scroll")));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("stays open while a pane beside what it hangs on scrolls, and closes when one that holds it does", async () => {
+    // An agent's session (plan KI-Harness P9-7): the conversation follows what arrives, and a menu in the composer's
+    // foot closed with every piece of text.
+    const onClose = vi.fn();
+    function Anchored() {
+      const anchor = useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          <div data-testid="beside" style={{ overflow: "auto" }} />
+          <div data-testid="holder" style={{ overflow: "auto" }}>
+            <button ref={anchor} data-testid="anchor">
+              Mode
+            </button>
+          </div>
+          <MenuSurface open onClose={onClose} anchorRef={anchor}>
+            <MenuItem onSelect={() => {}}>Ask</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    }
+    render(<Anchored />);
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    });
+    act(() => void container.querySelector("[data-testid=beside]")!.dispatchEvent(new Event("scroll")));
+    // Its own content scrolling moves the element nowhere either.
+    act(() => void container.querySelector("[data-testid=anchor]")!.dispatchEvent(new Event("scroll")));
+    expect(onClose).not.toHaveBeenCalled();
+    act(() => void container.querySelector("[data-testid=holder]")!.dispatchEvent(new Event("scroll")));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes where what it hangs on has moved by the next frame, though no pane that holds it scrolled", async () => {
+    // A toolbar that follows an editor's scroller from outside it: the scroll is beside the anchor, and moves it.
+    const onClose = vi.fn();
+    function Followed() {
+      const anchor = useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          <div data-testid="scroller" style={{ overflow: "auto" }} />
+          <button ref={anchor} data-testid="anchor">
+            AI
+          </button>
+          <MenuSurface open onClose={onClose} anchorRef={anchor}>
+            <MenuItem onSelect={() => {}}>Ask</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    }
+    // Where the anchor stands when the menu is placed.
+    const box = (top: number) => ({ top, left: 10, right: 60, bottom: top + 20, width: 50, height: 20, x: 10, y: top, toJSON: () => ({}) }) as DOMRect;
+    const rect = vi.spyOn(HTMLButtonElement.prototype, "getBoundingClientRect").mockReturnValue(box(0));
+    const frame = () =>
+      act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      });
+    try {
+      render(<Followed />);
+      await frame();
+      // Not moved: it stays.
+      act(() => void container.querySelector("[data-testid=scroller]")!.dispatchEvent(new Event("scroll")));
+      await frame();
+      await frame();
+      expect(onClose).not.toHaveBeenCalled();
+      // Moved with the scroll — by script, a frame after it: it goes, two frames on.
+      act(() => void container.querySelector("[data-testid=scroller]")!.dispatchEvent(new Event("scroll")));
+      await frame();
+      rect.mockReturnValue(box(40));
+      await frame();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
+  it("marks a choice with a tick in a slot of its own, which stays when the tick goes", () => {
+    render(
+      <MenuSurface open onClose={() => {}} at={{ x: 0, y: 0 }}>
+        <MenuItem role="menuitemradio" checked onSelect={() => {}}>
+          On
+        </MenuItem>
+        <MenuItem role="menuitemradio" checked={false} onSelect={() => {}}>
+          Off
+        </MenuItem>
+        <MenuItem onSelect={() => {}}>Plain</MenuItem>
+      </MenuSurface>,
+    );
+    const [on, off, plain] = Array.from(container.querySelectorAll(".pv-menu-item"));
+    expect([on!.getAttribute("aria-checked"), off!.getAttribute("aria-checked"), plain!.getAttribute("aria-checked")]).toEqual(["true", "false", null]);
+    expect(on!.querySelector(".pv-menu-tick svg")).not.toBeNull();
+    expect(off!.querySelector(".pv-menu-tick")).not.toBeNull();
+    expect(off!.querySelector(".pv-menu-tick svg")).toBeNull();
+    expect(plain!.querySelector(".pv-menu-tick")).toBeNull();
+    // A choice is a switch where the caller names no role; its tick decides what a reader hears.
+    expect([on!.getAttribute("role"), plain!.getAttribute("role")]).toEqual(["menuitemradio", "menuitem"]);
+  });
+
+  it("takes no pick from an entry that waits, and leaves its menu open", () => {
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <MenuSurface open onClose={onClose} at={{ x: 0, y: 0 }}>
+        <MenuItem aria-disabled onSelect={onSelect}>
+          Deep
+        </MenuItem>
+      </MenuSurface>,
+    );
+    const item = container.querySelector<HTMLButtonElement>(".pv-menu-item")!;
+    act(() => item.click());
+    expect([onSelect.mock.calls.length, onClose.mock.calls.length, item.disabled]).toEqual([0, 0, false]);
+  });
+
+  it("is placed again when what its list depends on changes, and the same menu stays", () => {
+    function Narrowing({ count }: { count: number }) {
+      const anchor = useRef<HTMLInputElement>(null);
+      return (
+        <>
+          <input ref={anchor} data-testid="field" />
+          <MenuSurface open onClose={() => {}} anchorRef={anchor} autoFocus={false} remeasure={count}>
+            {Array.from({ length: count }, (_, index) => (
+              <MenuItem key={index} onSelect={() => {}}>
+                {`/c${index}`}
+              </MenuItem>
+            ))}
+          </MenuSurface>
+        </>
+      );
+    }
+    const box = (top: number) => ({ top, left: 10, right: 210, bottom: top + 20, width: 200, height: 20, x: 10, y: top, toJSON: () => ({}) }) as DOMRect;
+    const rect = vi.spyOn(HTMLInputElement.prototype, "getBoundingClientRect").mockReturnValue(box(100));
+    try {
+      render(<Narrowing count={3} />);
+      const first = container.querySelector<HTMLElement>(".pv-menu")!;
+      const before = first.style.top;
+      rect.mockReturnValue(box(140));
+      render(<Narrowing count={2} />);
+      const after = container.querySelector<HTMLElement>(".pv-menu")!;
+      expect(after).toBe(first);
+      expect(after.style.top).not.toBe(before);
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
+  it("measures against where it was last placed: placed again, it stays while a pane beside it scrolls", async () => {
+    const onClose = vi.fn();
+    function Placed({ count }: { count: number }) {
+      const anchor = useRef<HTMLInputElement>(null);
+      return (
+        <>
+          <div data-testid="beside" style={{ overflow: "auto" }} />
+          <input ref={anchor} />
+          <MenuSurface open onClose={onClose} anchorRef={anchor} autoFocus={false} remeasure={count}>
+            <MenuItem onSelect={() => {}}>/plan</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    }
+    const box = (top: number) => ({ top, left: 10, right: 210, bottom: top + 20, width: 200, height: 20, x: 10, y: top, toJSON: () => ({}) }) as DOMRect;
+    const rect = vi.spyOn(HTMLInputElement.prototype, "getBoundingClientRect").mockReturnValue(box(100));
+    const frame = () =>
+      act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      });
+    try {
+      render(<Placed count={1} />);
+      await frame();
+      rect.mockReturnValue(box(140));
+      render(<Placed count={2} />);
+      act(() => void container.querySelector("[data-testid=beside]")!.dispatchEvent(new Event("scroll")));
+      await frame();
+      await frame();
+      expect(onClose).not.toHaveBeenCalled();
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
+  it("sets the direction of a row's words only where the caller says they are all a stranger's", () => {
+    render(
+      <MenuSurface open onClose={() => {}} at={{ x: 0, y: 0 }}>
+        <MenuItem textDir="auto" hint="שלום" onSelect={() => {}}>
+          /plan
+        </MenuItem>
+        <MenuItem hint="Ctrl+K" onSelect={() => {}}>
+          Search
+        </MenuItem>
+      </MenuSurface>,
+    );
+    const [theirs, ours] = Array.from(container.querySelectorAll(".pv-menu-item"));
+    expect([theirs!.querySelector(".pv-menu-text")!.getAttribute("dir"), theirs!.querySelector(".pv-menu-hint")!.getAttribute("dir")]).toEqual(["auto", "auto"]);
+    expect([ours!.querySelector(".pv-menu-text")!.hasAttribute("dir"), ours!.querySelector(".pv-menu-hint")!.hasAttribute("dir")]).toEqual([false, false]);
+  });
+
+  it("leaves the field its focus when a menu that completes it is pressed anywhere", () => {
+    render(
+      <MenuSurface open onClose={() => {}} at={{ x: 0, y: 0 }} autoFocus={false}>
+        <MenuLabel>Commands</MenuLabel>
+        <MenuItem onSelect={() => {}}>/plan</MenuItem>
+      </MenuSurface>,
+    );
+    const pressed = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    container.querySelector(".pv-menu-label")!.dispatchEvent(pressed);
+    expect(pressed.defaultPrevented).toBe(true);
+  });
+
+  it("keeps the row the arrow keys are on in sight in a list that scrolls", () => {
+    function Rows({ at }: { at: number }) {
+      return (
+        <MenuSurface open onClose={() => {}} at={{ x: 0, y: 0 }} autoFocus={false}>
+          {[0, 1, 2].map((index) => (
+            <MenuItem key={index} active={index === at} onSelect={() => {}}>
+              {`row ${index}`}
+            </MenuItem>
+          ))}
+        </MenuSurface>
+      );
+    }
+    render(<Rows at={0} />);
+    const list = container.querySelector<HTMLElement>(".pv-menu")!;
+    const rows = Array.from(container.querySelectorAll<HTMLElement>(".pv-menu-item"));
+    let scrolled = 0;
+    Object.defineProperty(list, "scrollTop", { configurable: true, get: () => scrolled, set: (value: number) => void (scrolled = value) });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 50 });
+    rows.forEach((row, index) => {
+      Object.defineProperty(row, "offsetTop", { configurable: true, value: index * 60 });
+      Object.defineProperty(row, "offsetHeight", { configurable: true, value: 30 });
+    });
+    render(<Rows at={2} />);
+    expect(scrolled).toBe(120 + 30 - 50);
+    render(<Rows at={0} />);
+    expect(scrolled).toBe(0);
+  });
+
+  it("gives a choice without a role a switch's, and lets no caller's aria-checked contradict its tick", () => {
+    render(
+      <MenuSurface open onClose={() => {}} at={{ x: 0, y: 0 }}>
+        <MenuItem checked aria-checked={false} onSelect={() => {}}>
+          Think hard
+        </MenuItem>
+      </MenuSurface>,
+    );
+    const item = container.querySelector(".pv-menu-item")!;
+    expect([item.getAttribute("role"), item.getAttribute("aria-checked")]).toEqual(["menuitemcheckbox", "true"]);
+  });
 });
 
 describe("ClickCatch", () => {
@@ -1070,6 +1316,75 @@ describe("TooltipHost", () => {
 
     press("a");
     expect(document.querySelector(".pv-tooltip")).toBeNull();
+  });
+
+  it("stays while a pane beside its element scrolls, and goes when one that holds it does", () => {
+    // A conversation that follows what arrives scrolls with every piece of text: the tips of the buttons beside it
+    // used to vanish before they had shown.
+    render(
+      <div>
+        <div data-testid="beside" style={{ overflow: "auto" }} />
+        <div data-testid="holder" style={{ overflow: "auto" }}>
+          <button data-tip="Hinweistext">i</button>
+        </div>
+        <TooltipHost />
+      </div>,
+    );
+    const scroll = (testId: string) =>
+      act(() => {
+        container.querySelector(`[data-testid=${testId}]`)!.dispatchEvent(new Event("scroll"));
+      });
+    act(() => {
+      container.querySelector("button")!.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    });
+    scroll("beside");
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(document.querySelector(".pv-tooltip")?.textContent).toBe("Hinweistext");
+    scroll("beside");
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    expect(document.querySelector(".pv-tooltip")).not.toBeNull();
+    scroll("holder");
+    expect(document.querySelector(".pv-tooltip")).toBeNull();
+  });
+
+  it("goes where its element has moved, two frames after a scroll beside it", () => {
+    render(
+      <div>
+        <div data-testid="beside" style={{ overflow: "auto" }} />
+        <button data-tip="Fett">B</button>
+        <TooltipHost />
+      </div>,
+    );
+    const button = container.querySelector("button")!;
+    const box = (top: number) => ({ top, left: 10, right: 30, bottom: top + 20, width: 20, height: 20, x: 10, y: top, toJSON: () => ({}) }) as DOMRect;
+    const rect = vi.spyOn(button, "getBoundingClientRect").mockReturnValue(box(0));
+    try {
+      act(() => {
+        button.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      expect(document.querySelector(".pv-tooltip")?.textContent).toBe("Fett");
+      // A toolbar that follows the scroller by script moves in a frame of its own.
+      act(() => {
+        container.querySelector("[data-testid=beside]")!.dispatchEvent(new Event("scroll"));
+      });
+      act(() => {
+        vi.advanceTimersByTime(16);
+      });
+      rect.mockReturnValue(box(40));
+      act(() => {
+        vi.advanceTimersByTime(40);
+      });
+      expect(document.querySelector(".pv-tooltip")).toBeNull();
+    } finally {
+      rect.mockRestore();
+    }
   });
 });
 

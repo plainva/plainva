@@ -947,8 +947,9 @@ describe("the wiring: one door, and everything goes through it", () => {
     expect(service).not.toMatch(/indexTurns\.take\(/);
     // What the door followed late is told to the screens once more.
     expect(service).toContain("onFollowedLate: () => window.dispatchEvent(new CustomEvent(\"m-vault-changed\")),");
-    // ...and every move of the index to the reminders, which derive from it (E3).
-    expect(service).toContain("onFollowed: () => window.dispatchEvent(new CustomEvent(\"m-paths-indexed\")),");
+    // A saved file sends no m-vault-changed: the search by meaning, the gists and Siri's list hear of it by this,
+    // and the reminders, which derive from the index, re-plan (E3).
+    expect(service).toContain("onFollowed: () => {\n        window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT));\n        window.dispatchEvent(new CustomEvent(\"m-paths-indexed\"));\n      },");
   });
 
   it("both sync workers hand their changed paths to it", () => {

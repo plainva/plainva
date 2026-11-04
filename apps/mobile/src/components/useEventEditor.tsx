@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker } from "@plainva/ui";
+import { applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
 import { parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -65,7 +65,13 @@ export function useEventEditor({
    * one. A read that fails counts as read — with nothing in it.
    */
   const [calendarsRead, setCalendarsRead] = useState(false);
-  const [sheet, setSheet] = useState<{ event: PimEventRow | null; startTs: number; endTs: number } | null>(null);
+  /**
+   * The open sheet. `form` and `onSaved` come with an appointment somebody
+   * else wrote down (AI harness P5-6: a draft of the assistant's the user
+   * opened): the sheet opens with every field filled in, and that somebody
+   * hears of it once the calendar took the appointment — never on a close.
+   */
+  const [sheet, setSheet] = useState<{ event: PimEventRow | null; startTs: number; endTs: number; form?: EventFormValues; onSaved?: () => void } | null>(null);
   /** The event whose PREVIEW is open (S4) — a tap opens this, not the form. */
   const [peek, setPeek] = useState<PimEventRow | null>(null);
 
@@ -99,6 +105,16 @@ export function useEventEditor({
       return;
     }
     setSheet({ event: null, startTs, endTs: startTs + 60 * 60_000 });
+  };
+
+  /** Opens the sheet for a NEW appointment with a seed's fields filled in. Nothing is saved before the user saves. */
+  const openCreateWith = (parked: ParkedEventSeed) => {
+    if (calendars.length === 0) {
+      toast.warning(t("pim.noWritableCalendar"));
+      return;
+    }
+    const startTs = Date.now();
+    setSheet({ event: null, startTs, endTs: startTs + 60 * 60_000, form: eventFormFromSeed(parked.seed, defaultCalendarKey), ...(parked.onSaved ? { onSaved: parked.onSaved } : {}) });
   };
 
   /** A write the provider refused: said once, with the way to try it again. */
@@ -442,9 +458,14 @@ export function useEventEditor({
       await writeTo(target, values);
       return;
     }
+    // Whoever handed this appointment over hears of it once the calendar took it — not before, and not on a refusal.
+    const seeded = sheet?.onSaved;
     setSheet(null);
     const create = () => {
-      void createPimEvent(values.calendarKey, values.draft).catch((err) => reportRefused(err, create));
+      void createPimEvent(values.calendarKey, values.draft).then(
+        () => seeded?.(),
+        (err) => reportRefused(err, create),
+      );
     };
     create();
   };
@@ -481,7 +502,7 @@ export function useEventEditor({
         <EventEditSheet
           calendars={calendars}
           event={sheet.event}
-          initial={{ startTs: sheet.startTs, endTs: sheet.endTs, calendarKey: defaultCalendarKey }}
+          initial={{ startTs: sheet.startTs, endTs: sheet.endTs, calendarKey: defaultCalendarKey, ...(sheet.form ? { form: sheet.form } : {}) }}
           onClose={() => setSheet(null)}
           onDelete={sheet.event ? () => void remove() : undefined}
           onSave={save}
@@ -490,5 +511,6 @@ export function useEventEditor({
     </>
   );
 
-  return { openEvent, openCreate, element, writableCount: calendars.length, ready: calendarsRead };
+  // `idle`: no sheet and no preview is open — an open sheet reads its fields once, so a seed must not be laid over it.
+  return { openEvent, openCreate, openCreateWith, element, writableCount: calendars.length, ready: calendarsRead, idle: sheet === null && peek === null };
 }

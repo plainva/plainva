@@ -1,6 +1,6 @@
 # Podręcznik użytkownika Plainva
 
-Stan na: 2026-09-20
+Stan na: 2026-10-09
 
 To tłumaczenie zostało wygenerowane automatycznie — poprawki są mile widziane.
 
@@ -28,6 +28,12 @@ Plainva to edytor vaultów Markdown: Twoje notatki to zwykłe pliki Markdown w f
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | Konfigurowanie synchronizacji OneDrive i Dropbox z własną rejestracją aplikacji |
 | [Wyszukiwanie](Search.md) | Wyszukiwanie pełnotekstowe, szybkie przełączanie, znajdź i zamień, tagi |
 | [Zadania](Tasks.md) | Widok zadań z całego vaultu: każde pole wyboru we wszystkich Twoich notatkach, z filtrami statusu/tagu/folderu/terminu i przełączaniem jednym kliknięciem |
+| [Asystent AI (Beta)](AI_Assistant.md) | Zadawanie pytań o notatki za pomocą wybranego modelu AI: dostawcy i klucze, profile, kontekst, zasady prywatności i historia |
+| [Umiejętności (Beta)](AI_Skills.md) | Instrukcje do powtarzalnej pracy: trzynaście dołączonych, własne, import i zatwierdzanie tego, co przychodzi, zanim zadziała |
+| [Skrypty (Beta)](AI_Scripts.md) | Małe programy, które czytają vault i obliczają wynik: uruchamianie, pisanie, co zwracają ich narzędzia, limity i zatwierdzanie tego, co przychodzi, zanim zadziała |
+| [Pamięć (Beta)](AI_Memory.md) | To, co AI powinna o Tobie wiedzieć bez przypominania: dwa miejsca, samodzielne dodawanie wpisów, prośba do AI o zapamiętanie, reguły, prywatność i dwa pliki |
+| [Łączenie aplikacji AI (beta)](Connect_AI_Apps.md) | Pozwolenie aplikacjom AI na tym komputerze (Claude Code, Claude Desktop, edytory) czytać vault przez serwer MCP Plainva: włączanie, parowanie, foldery, co widzi aplikacja, oraz pozwalanie aplikacji na proponowanie zmian |
+| [Agenci zewnętrzni (Beta)](External_Agents.md) | Uruchamianie agenta AI innego producenta w folderze vaultu: co Plainva kontroluje w jego sesji, a czego nie, dodawanie agenta, logowanie, propozycje i nowe notatki |
 | [Dziennik](Journal.md) | Szybki wpis do dzisiejszej notatki dziennej: przechwytywanie z dowolnego miejsca, widok dziennika obejmujący wszystkie dni, sposób przechowywania wpisów oraz opcjonalny globalny skrót klawiszowy |
 | [Kalendarz i zewnętrzne zadania](Calendar_and_Tasks.md) | Łączenie kalendarzy CalDAV/Google/Microsoft, karta kalendarza, notatki ze spotkań i synchronizacja zewnętrznych list zadań z bazą zadań |
 | [Przechwytywanie e-maili](Email_Capture.md) | IMAP tylko do odczytu: przeglądarka w piaskownicy, zapisywanie e-maili jako notatek/.eml/zadań i wyprowadzanie treści bez wysyłania |

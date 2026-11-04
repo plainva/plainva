@@ -72,7 +72,8 @@ describe("commandRegistry", () => {
 
   it("filters by localized title, case-insensitive", () => {
     const cmds = buildAppCommands(deps());
-    const hits = filterCommands(cmds, "tages", (c) => c.titleDefault);
+    // "tages" alone also finds the skill "Tagesorientierung" (plan KI-Harness P1.5).
+    const hits = filterCommands(cmds, "TAGESEIN", (c) => c.titleDefault);
     expect(hits.map((c) => c.id)).toEqual(["daily-note"]);
     expect(filterCommands(cmds, "XYZ-nope", (c) => c.titleDefault)).toEqual([]);
   });

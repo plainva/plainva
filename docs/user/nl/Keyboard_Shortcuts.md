@@ -10,6 +10,7 @@ Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het
 |---|---|
 | `Ctrl+P` (of `Ctrl+Shift+P`) | Opdrachtenpalet openen |
 | `Ctrl+O` | Snelkiezer – bestanden zoeken en openen |
+| `Ctrl+J` | AI vragen – open de begeleider (alleen zolang de AI is ingeschakeld, zie [AI-assistent](AI_Assistant.md)) |
 | `Ctrl+,` | Instellingen openen |
 | `Ctrl+Plus` / `Ctrl+Minus` | Interface in- / uitzoomen (80–150 %) |
 | `Ctrl+0` | Zoom terugzetten naar 100 % |

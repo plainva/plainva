@@ -48,10 +48,15 @@ const GENERATED =
   "a file that is generated whole from the folder's contents; the read only decides whether it may be replaced (a managed overview) or is left alone. Moved onto the entry it would generate the user's own version of an open conflict anew as well";
 const NO_CHAIN_FALLBACK = "the storage without a chain (a test's double): a shell with a vault brings `update`, and then this is not reached";
 const RESTORE = "gives back a note that was deleted a moment ago: a whole text that was held, to a path where no file is";
+const APP_DATA =
+  "the app's own data on this device (`AiFileStore`), outside the vault: no chain, no sync, no conflict. One lane in front of the read and the write keeps two entries that arrive together from losing one";
 
 type Site = [what: string, times: number, why: string];
 
 const SITES: Record<string, Site[]> = {
+  "apps/desktop/src/ai/routineSessionHarness.ts": [["a pair of read and write without the entry, in write", 1, `${NEW_FILE} (a test's stand-in for the shell's capture: the note a routine leaves)`]],
+  "packages/ui/src/ai/acpStores.ts": [["reads and writes path in run", 1, `${APP_DATA} (the log of an external agent's sessions)`]],
+  "packages/ui/src/ai/mcpStores.ts": [["reads and writes audit in run", 1, `${APP_DATA} (what foreign MCP servers were asked)`]],
   "packages/ui/src/base/pinboardEntry.ts": [["reads and writes draft.path in endPinboardEntry", 1, NO_CHAIN_FALLBACK]],
   "packages/ui/src/lib/indexMdGenerate.ts": [["reads and writes indexPath in generateIndexForFolder", 1, GENERATED]],
   "packages/ui/src/lib/taskRecurrence.ts": [["reads and writes plan.path in writeNextOccurrenceNote", 1, `${NEW_FILE} (the next occurrence of a repeating task)`]],

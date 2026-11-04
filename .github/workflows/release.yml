@@ -238,6 +238,12 @@ jobs:
           appendFileSync(process.env.GITHUB_OUTPUT, `body<<PLAINVA_RELEASE_NOTES\n${body}\nPLAINVA_RELEASE_NOTES\n`);
           NODE
 
+      # The ONNX Runtime the app bundles for local embeddings (plan KI-Harness P2a-3,
+      # ADR 0021): Microsoft's release archives, pinned by size and SHA-256 in the script.
+      # macOS joins the arm64 library of 1.30 and the x86_64 one of 1.23.2 with lipo.
+      - name: Fetch ONNX Runtime
+        run: node apps/desktop/scripts/fetch-onnxruntime.mjs
+
       - name: Build Tauri App
         # Tag pushes allocate a draft; explicit Windows recovery only reuses
         # the draft and exact source validated by the prepare job.
@@ -300,8 +306,8 @@ jobs:
           # config path D:\a\plainva\plainva\src-tauri\... does not exist", which is
           # exactly that base directory — measured, not assumed.
           args: >-
-            ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin'
-            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json' || '') }}
+            ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
+            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json') }}
 
       # The embedded WebDriver server of the native smoke (a full remote control
       # of the app on a local port) is compiled in only by the smoke build's
@@ -334,7 +340,7 @@ jobs:
           VITE_PLAINVA_GOOGLE_MAIL_STATE: ${{ vars.VITE_PLAINVA_GOOGLE_MAIL_STATE }}
           VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID: ${{ vars.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID }}
           VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET }}
-        run: pnpm --filter desktop tauri build --bundles appimage
+        run: pnpm --filter desktop tauri build --bundles appimage --config src-tauri/tauri.onnxruntime.conf.json
 
       # Measure every AppImage we build (release or test): extract it, assert
       # the binary and AppRun are there, and list the infrastructure libraries
@@ -397,12 +403,19 @@ jobs:
                 Select-Object -First 1
               if ($inner) { $targets += $inner.FullName }
               else { Write-Host "::warning::no plainva-desktop.exe inside the MSI" }
+              # The MCP helper (plan KI-Harness §17.3) ships beside the app and is
+              # started by other programs, so it is measured like the app itself.
+              $helper = Get-ChildItem -Path $extract -Recurse -Filter "plainva-mcp.exe" -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+              if ($helper) { $targets += $helper.FullName }
+              else { $helperMissing = $true }
             } else {
               Write-Host "::warning::msiexec /a exited $($p.ExitCode); skipping the inner binary"
             }
           }
           $checked = 0
           $failed = @()
+          if ($helperMissing) { $failed += "the MCP helper plainva-mcp.exe is missing from the MSI" }
           foreach ($pattern in $targets) {
             $files = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue
             if (-not $files) { $failed += "no artifact matched $pattern"; continue }

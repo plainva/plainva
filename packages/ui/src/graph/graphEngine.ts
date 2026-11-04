@@ -762,7 +762,7 @@ export function createGraphScene(
       }
 
       if (n.flag) {
-        ctx.strokeStyle = n.flag === "broken" ? tokens.statusError : tokens.statusWarning;
+        ctx.strokeStyle = n.flag === "broken" ? tokens.statusError : n.flag === "trail" ? tokens.accent : tokens.statusWarning;
         ctx.lineWidth = 2 / transform.k;
         ctx.beginPath();
         ctx.arc(n.cx, n.cy, n.size + 4 / transform.k, 0, Math.PI * 2);

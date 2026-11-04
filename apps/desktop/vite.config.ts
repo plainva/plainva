@@ -5,12 +5,16 @@ import { buildInfoDefine } from "../../scripts/build-info.mjs";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+// `tauri:labs` serves in the "labs" mode: a Labs build made on this machine
+// names its channel like one the Labs workflow builds (PLAINVA_BUILD_CHANNEL).
+// @ts-expect-error process is a nodejs global
+const labsEnv = (): Record<string, string | undefined> => ({ ...process.env, PLAINVA_BUILD_CHANNEL: "labs" });
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ mode }) => ({
   plugins: [react()],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
-  define: buildInfoDefine(),
+  define: buildInfoDefine(mode === "labs" ? labsEnv() : undefined),
   // The installed SDK has a deliberately smaller API. Both shells and every
   // shared UI import use ONE source module in dev, tests and production builds.
   resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) }] },
@@ -40,8 +44,16 @@ export default defineConfig(async () => ({
       "date-fns/locale/pl",
       "date-fns/locale/zh-CN",
       "date-fns/locale/ja",
+      // The engine of the script sandbox: loaded inside the script worker, the first time a script runs.
+      "@plainva/ui > quickjs-emscripten-core",
+      "@plainva/ui > @jitl/quickjs-ng-wasmfile-release-sync",
+      // The variant loads its emscripten module by its own subpath, at the first run: pre-bundled with the rest.
+      "@plainva/ui > @jitl/quickjs-ng-wasmfile-release-sync/emscripten-module",
     ],
   },
+  // The script worker (packages/ui/src/ai/scripts) is a module worker that loads its engine on demand: that needs
+  // code splitting, which only the `es` format has.
+  worker: { format: "es" as const },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

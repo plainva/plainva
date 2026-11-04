@@ -15,6 +15,11 @@ describe("readSelectionVerbs", () => {
     expect(readSelectionVerbs({ canComment: true, hasComment: true, hasSuggest: false, canEdit: false })).toEqual(["comment"]);
   });
 
+  it("the AI comes last, and alone it still earns the bar (plan KI-Harness P1.5)", () => {
+    expect(readSelectionVerbs({ canCopy: true, canComment: true, hasComment: true, hasSuggest: true, canEdit: true, hasAi: true })).toEqual(["copy", "selectAll", "comment", "suggest", "edit", "ai"]);
+    expect(readSelectionVerbs({ canComment: false, hasComment: false, hasSuggest: false, canEdit: false, hasAi: true })).toEqual(["ai"]);
+  });
+
   it("nothing to offer means no bar", () => {
     expect(readSelectionVerbs({ canComment: false, hasComment: false, hasSuggest: false, canEdit: false })).toEqual([]);
     expect(readSelectionVerbs({ canComment: true, hasComment: false, hasSuggest: false, canEdit: false })).toEqual([]);

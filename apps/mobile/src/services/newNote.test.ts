@@ -154,6 +154,7 @@ describe("one place names the type of a new note", () => {
    * `buildNewNoteContent("Email", …)` for a filed mail — is no default and free.
    */
   const SHARED_DEFAULT_NAMED: Record<string, string> = {
+    "packages/ui/src/ai/aiSession.ts": "the word is no type there: it is the fallback title and file name of a note the assistant drafts when its title is empty",
     "packages/ui/src/lib/profileFields.ts": "the settings' own defaults, which every reader of the two settings falls back to",
     "packages/ui/src/vaultTemplates/types.ts": "the daily-note type a vault template starts with, before the vault has a setting",
     "packages/ui/src/vaultTemplates/scaffold.ts": "the type of a template's sample notes that carry none, written when a new, empty vault is made",

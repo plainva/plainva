@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, TextareaHTMLAttributes } from "react";
+import { Sparkles } from "lucide-react";
 import { TextArea } from "./Field";
 import { MenuItem, MenuSurface } from "./Menu";
+import { isAiMentionId } from "../../lib/aiMention";
 import { applyMention, mentionQuery, type MentionQuery } from "../../lib/commentMentions";
+import { ICON } from "../../lib/iconSizes";
 
 /**
  * A comment field that completes `@Name` from the member list (Stufe D, D8).
@@ -26,6 +29,11 @@ export interface MentionTextAreaProps
   names: ReadonlyMap<string, string>;
   /** Accessible name for the suggestion list. */
   pickerLabel: string;
+  /**
+   * What the list says beside the assistant, where `names` offers it (plan
+   * KI-Harness P3-6): it is not a person, and picking it starts a request.
+   */
+  aiHint?: string;
 }
 
 export function MentionTextArea({
@@ -33,6 +41,7 @@ export function MentionTextArea({
   onChange,
   names,
   pickerLabel,
+  aiHint,
   onKeyDown,
   ...rest
 }: MentionTextAreaProps) {
@@ -123,6 +132,8 @@ export function MentionTextArea({
           <MenuItem
             key={match.memberId}
             active={index === active}
+            icon={isAiMentionId(match.memberId) ? <Sparkles size={ICON.ui} /> : undefined}
+            hint={isAiMentionId(match.memberId) ? aiHint : undefined}
             // The field loses focus to a click otherwise, and the blur above
             // would close the list before the pick lands.
             onMouseDown={(event) => event.preventDefault()}

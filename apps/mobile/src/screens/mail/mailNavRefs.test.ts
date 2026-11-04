@@ -20,6 +20,11 @@ const fullDraft: Required<MailDraft> = {
   to: "Ben Beispiel <ben@example.org>",
   subject: 'Angebot "Nord" — Stand 10/2026',
   body: "Hallo Ben,\n\nanbei das Angebot.\n\n> zitiert\n",
+  // Cc, Bcc and the token of whoever waits to hear that the mail was sent: a
+  // mail the assistant drafted (AI harness P5-6).
+  cc: "Tom <tom@example.org>, anna@example.org",
+  bcc: "me@example.org",
+  doneToken: "compose-3",
   attachments: [file, { name: "Skizze.png", mime: "image/png", contentBase64: "iVBORw0KGgo=" }],
   // The message a forward was made from — a reference with the reader's list,
   // never the files themselves.
@@ -94,6 +99,13 @@ describe("a draft through the nav path", () => {
     const path = JSON.stringify({ accountId: "", to: "", subject: "", body: "", attachments: [...broken, file] });
     expect(parseDraft(path).attachments).toEqual([file]);
     expect(parseDraft(JSON.stringify({ attachments: broken })).attachments).toEqual([]);
+  });
+
+  it("carries Cc, Bcc and the done token only as text, and only where the draft names them (AI harness P5-6)", () => {
+    // An ordinary draft has none of the three: the composer then behaves as it always did.
+    expect(parseDraft(JSON.stringify({ accountId: "acc", to: "", subject: "", body: "", cc: "", bcc: "", doneToken: "" }))).toEqual({ accountId: "acc", to: "", subject: "", body: "" });
+    // Anything but text in their place is not carried.
+    expect(parseDraft(JSON.stringify({ to: "x@example.org", cc: ["y@example.org"], bcc: 7, doneToken: { id: 1 } }))).toEqual({ accountId: "", to: "x@example.org", subject: "", body: "" });
   });
 
   it("is total: a path that is no draft opens an empty one", () => {

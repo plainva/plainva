@@ -63,6 +63,14 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   { file: `${D}/settings/AppPages.tsx`, shell: "desktop", component: "CustomThemePage", area: "appearance", sub: "customTheme" },
   { file: `${D}/settings/CustomThemeEditor.tsx`, shell: "desktop", area: "appearance", sub: "customTheme" },
   { file: `${UI}/CustomThemeSync.tsx`, shell: "desktop", area: "appearance", sub: "customTheme" },
+  // AI & automation, this device (plan KI-Harness §19.1): the page and the cards it draws.
+  { file: `${D}/settings/AiSettingsPage.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/AiModeCard.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/SemanticSearchCard.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/GistsCard.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/NoteHintsCard.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/McpSettingsCard.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/ExternalAgentsCard.tsx`, shell: "desktop", area: "ai" },
   // ---------- desktop: VAULT ----------
   { file: `${D}/settings/CloudAccountsPage.tsx`, shell: "desktop", area: "cloudAccounts", subFrom: /^(detail)$/, skip: /mode\.kind === "wizard"/ },
   { file: `${D}/settings/AccountServicePage.tsx`, shell: "desktop", component: "FilesPart", area: "cloudAccounts", sub: "service:files" },
@@ -83,6 +91,10 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   { file: `${D}/comments/CommentNotificationSettings.tsx`, shell: "desktop", area: "content", card: "settings.groupAnnotations" },
   { file: `${D}/settings/VaultPages.tsx`, shell: "desktop", component: "JournalPage", area: "journal" },
   { file: `${D}/settings/BarsPage.tsx`, shell: "desktop", area: "bars" },
+  // AI & automation, this vault: the privacy rules, the vault's external tools and its routines.
+  { file: `${D}/settings/AiVaultSettingsPage.tsx`, shell: "desktop", area: "aiVault" },
+  { file: `${D}/settings/ExternalToolsCard.tsx`, shell: "desktop", area: "aiVault" },
+  { file: `${D}/settings/RoutinesCard.tsx`, shell: "desktop", area: "aiVault" },
   { file: `${D}/settings/VaultPages.tsx`, shell: "desktop", component: "BackupPage", area: "backup" },
   { file: `${D}/settings/VaultPages.tsx`, shell: "desktop", component: "MaintenancePage", area: "maintenance" },
   // The vault's own page (rename, export, delete), the phone's `VaultDetailScreen` (Sammelplan § 3.169 Nr. 3).
@@ -93,6 +105,11 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   { file: `${M}/screens/SettingsAreaScreens.tsx`, shell: "mobile", component: "EditorAreaScreen", area: "editor" },
   { file: `${M}/screens/BehaviorAreaScreen.tsx`, shell: "mobile", area: "behavior" },
   { file: `${M}/screens/SettingsAreaScreens.tsx`, shell: "mobile", component: "AboutAreaScreen", area: "about" },
+  { file: `${M}/screens/AiSettingsScreen.tsx`, shell: "mobile", area: "ai" },
+  { file: `${M}/components/MobileSemanticSection.tsx`, shell: "mobile", area: "ai" },
+  { file: `${M}/components/MobileGistsSection.tsx`, shell: "mobile", area: "ai" },
+  { file: `${M}/components/MobileNoteHintsSection.tsx`, shell: "mobile", area: "ai" },
+  { file: `${M}/components/MobileSystemAssistantSection.tsx`, shell: "mobile", area: "ai" },
   // ---------- phone: VAULT ----------
   { file: `${M}/screens/CloudAccountsScreen.tsx`, shell: "mobile", area: "cloudAccounts" },
   { file: `${M}/screens/CloudAccountDetailScreen.tsx`, shell: "mobile", area: "cloudAccounts", sub: "account" },
@@ -113,6 +130,8 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   { file: `${M}/screens/SettingsAreaScreens.tsx`, shell: "mobile", component: "BackupAreaScreen", area: "backup" },
   { file: `${M}/components/ZipBackupGroup.tsx`, shell: "mobile", area: "backup" },
   { file: `${M}/screens/MaintenanceAreaScreen.tsx`, shell: "mobile", area: "maintenance" },
+  { file: `${M}/screens/AiPolicyScreen.tsx`, shell: "mobile", area: "aiVault" },
+  { file: `${M}/components/MobileRoutinesSection.tsx`, shell: "mobile", area: "aiVault" },
 ];
 
 /**
@@ -151,6 +170,14 @@ export const SETTINGS_SOURCE_EXEMPT: Readonly<Record<string, string>> = {
   [`${M}/screens/RecentScreen.tsx`]: "the recent list",
   [`${M}/screens/TasksScreen.tsx`]: "the tasks tab",
   [`${M}/screens/TodayScreen.tsx`]: "the today tab",
+  // The assistant's own views (plan KI-Harness P3, P6): what it learned and the skills it may use, in the AI tab - work, not settings.
+  [`${D}/ai/MemoryView.tsx`]: "the AI tab's memory view: entries of the vault's memory, rows named by entry",
+  [`${D}/ai/SkillsWorkshop.tsx`]: "the AI tab's skills workshop: one row per skill, named by the skill",
+  [`${D}/ai/UpkeepCard.tsx`]: "the tidy-up card inside the memory and skills views of the AI tab",
+  [`${M}/screens/AiHistoryScreen.tsx`]: "the AI's history, memory and skills screen, opened from the AI tab",
+  [`${M}/components/MobileMemoryView.tsx`]: "the AI's memory view on the phone: entries named by entry",
+  [`${M}/components/MobileSkillsWorkshop.tsx`]: "the AI's skills workshop on the phone: one row per skill",
+  [`${M}/components/MobileUpkeepGroup.tsx`]: "the tidy-up group inside the phone's memory and skills views",
 };
 
 /** Row primitives and what their props mean: [label, visible line(s), info]. */

@@ -58,6 +58,7 @@ const CODE_ROOTS = [
   "apps/desktop/src/services",
   "packages/ui/src/components",
   "packages/ui/src/base",
+  "packages/ui/src/ai",
   "apps/mobile/src",
 ];
 const CODE_FILES = ["apps/desktop/src/App.tsx", "apps/desktop/src/main.tsx"];
@@ -140,6 +141,20 @@ describe("class existence (referenced pv-/m-/base-cfg- classes are defined)", ()
       if (!defined.has(cls)) missing.push(`${cls} (first ref: ${file})`);
     }
     expect(missing, missing.join("\n")).toEqual([]);
+  });
+});
+
+describe("the dialog's header note stays in the header", () => {
+  it("leaves pv-modal-note to the Modal primitive", () => {
+    // `pv-modal-note` is the one line beside a dialog's title: at most 40% of
+    // the header, never wrapped, cut off with an ellipsis. Four dialogs used
+    // it for a paragraph in their body (finding 2026-10-06), and their
+    // explanations ended in "…" after the first third of a sentence. A hint
+    // in a dialog's body is `pv-modal-hint`.
+    const users = codeSources()
+      .filter((f) => /\bpv-modal-note\b/.test(f.text))
+      .map((f) => f.rel);
+    expect(users).toEqual(["packages/ui/src/components/ui/Modal.tsx"]);
   });
 });
 
@@ -376,6 +391,62 @@ describe("theme reach (every mobile surface can be re-themed)", () => {
 /** The docking matrix: top-level pv surfaces in ui.css. A surface must be
  * restyled by BOTH easter-egg themes or carry a visible exemption. */
 const THEME_EXEMPT: Record<string, string> = {
+  "pv-semantic-mode": "layout only — a placement class on a Segmented the themes already restyle",
+  "pv-semantic-coverage": "layout only — --text-muted text, ghost Buttons and the .pv-security-progress track the themes restyle",
+  "pv-semantic-coverage-actions": "layout only — see pv-semantic-coverage",
+  "pv-semantic-note": "a text run in --text-muted; the themes override that token",
+  "pv-semantic-choices": "layout only — Radio rows (.pv-checkrow) the themes already restyle",
+  "pv-related": "layout only — a list of rows; its controls are IconButtons and ghost Buttons the themes restyle",
+  "pv-ai-lens-trail": "layout only — a ghost Button the themes restyle",
+  "pv-ai-lens-sensitive": "a text line in --warning-text beside ghost Buttons; the themes override that token",
+  "pv-ai-overview-sensitive": "a text line in --warning-text beside a ghost Button; the themes override that token",
+  "pv-ai-overview-hint": "a text line in --text-muted; the themes override that token",
+  "pv-linecompare": "a pre block in tokens; its added and removed lines use --success-bg and --error-bg, which the themes override",
+  "pv-skills": "layout only — SettingCards and Buttons the themes already restyle",
+  "pv-skills-actions": "layout only — see pv-skills",
+  "pv-skill-facts": "a definition list in --text-muted and --text-main; the themes override those tokens",
+  "pv-skill-test-line": "a text line whose mark is toned in --success-text, --error-text or --text-muted; the themes override those tokens",
+  "pv-script-code": "the pv-linecompare block as a code box in --code-bg, --radius-sm and --font-mono, its line numbers in --text-faint; the themes override those tokens",
+  "pv-script-out": "the same code box without line numbers — see pv-script-code",
+  "pv-script-form": "layout only — a column of fields in a Modal the themes already restyle",
+  "pv-script-field": "layout only — a label, a control and a hint; see pv-script-form",
+  "pv-script-tools": "layout only — Checkbox rows (.pv-checkrow) the themes already restyle",
+  "pv-script-toolgroup": "layout only — a group of those rows under a word in --text-faint; the themes override that token",
+  "pv-script-inputs": "layout only — rows of a TextInput, a Select, a Switch and an IconButton the themes already restyle",
+  "pv-script-input": "layout only — see pv-script-inputs",
+  "pv-script-limits": "layout only — labelled TextInputs the themes already restyle; the labels are in --text-muted",
+  "pv-script-editor": "a modifier on a TextArea the themes already restyle: --font-mono and unwrapped lines",
+  "pv-memory": "layout only — SettingCards, .pv-setrow rows, Buttons and a SearchField the themes already restyle",
+  "pv-memory-row": "layout only — a .pv-setrow whose text wraps; see pv-memory",
+  "pv-memory-text": "a text run in --text-main, toned to --text-muted where the entry reaches no model; the themes override those tokens",
+  "pv-memory-marks": "layout only — a wrapping row of pv-memory-mark pills",
+  "pv-memory-mark": "a pill on --surface-container in --text-muted or --warning-text with --radius-pill; the themes override those tokens",
+  "pv-memory-meter": "layout only — the .pv-security-progress track the themes restyle, beside a count in the row's own text color",
+  "pv-memory-foot": "a text run in --text-faint; the themes override that token",
+  "pv-agent-start": "layout only — a column of text, a Select and a primary Button the themes already restyle",
+  "pv-agent-heading": "a text run in --text-main; the themes override that token",
+  "pv-agent-facts": "a list of sentences in --text-main; the themes override that token",
+  "pv-agent-settings": "layout only — a wrapping row of ghost Buttons and an IconButton the themes already restyle",
+  "pv-agent-setting-text": "layout only — the text of such a Button cut short with an ellipsis",
+  "pv-agent-command-hint": "text only — one faint line under the composer's field in the text tokens the themes already set",
+  "pv-menu-tick": "layout only — the width of a MenuItem's icon slot; the tick is the themes' icon colour",
+  "pv-menu-label--said": "text only — a MenuLabel without capitals, in italics and the muted text token the themes set",
+  "pv-menu-label--note": "text only — a MenuLabel without capitals",
+  "pv-agent-settings-status": "layout only — the spinner at the end of the settings row; its words are for a screen reader",
+  "pv-said": "text only — italics for a stranger's words inside the app's own sentences, in the colours around them",
+  "pv-sr-only": "invisible by design — text a screen reader hears and no theme draws",
+  "pv-menu--described": "layout only — how the name and the hint of a MenuItem share its row; the menu's look is the themes' own",
+  "pv-related-row": "layout only — see pv-related",
+  "pv-related-head": "layout only — see pv-related",
+  "pv-related-main": "a placement class on a ghost Button the themes already restyle",
+  "pv-related-title": "a text run in --text-main; the themes override that token",
+  "pv-related-ctx": "a text run in --text-muted; the themes override that token",
+  "pv-related-why": "a text block behind a --border-color rule; the themes override both tokens",
+  "pv-related-quote": "a placement class on a ghost Button the themes already restyle (its label wraps)",
+  "pv-related-facts": "a text run in --text-muted; the themes override that token",
+  "pv-related-actions": "layout only — ghost Buttons the themes restyle",
+  "pv-related-state": "a text line in --text-muted beside a ghost Button; the themes override that token",
+  "pv-related-pause": "layout only — ghost Buttons the themes restyle",
   "pv-rulelist": "layout only — every visible part is a .pv-field/Select/IconButton the themes already restyle",
   "pv-rule": "layout only — see pv-rulelist",
   "pv-rule-from": "layout only — see pv-rulelist",
@@ -468,6 +539,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-web-link": "a link out of the vault in the reading view: --accent-color and the --web-link-decoration token (Appearance -> Links), nothing else to theme",
   "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
   "pv-pinentry": "layout only — the pinboard entry window's title field, editor host and line of inherited chips inside .pv-modal; the modal, the field tokens, the Chip primitive and the editor carry every theme",
+  "pv-fillplan": "layout only — sentences in --text-main and --text-muted and Chips inside .pv-modal; the modal, the tokens and the Chip primitive carry every theme",
+  "pv-filterwords": "layout only — a .pv-field, .pv-btn Buttons, Chips and a Banner the themes restyle; its one drawn block stands on --bg-secondary, --border-color and --radius-md, which the themes override",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {
@@ -498,5 +571,69 @@ describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {
     const ui = sourceFile(STYLE_FILES.ui);
     const stale = Object.keys(THEME_EXEMPT).filter((s) => !ui.includes(`.${s}`));
     expect(stale, `remove stale THEME_EXEMPT entries: ${stale.join(", ")}`).toEqual([]);
+  });
+});
+
+/**
+ * Plan KI-Harness P9-7: a control whose change waits keeps the keyboard (`aria-disabled`) and takes no press — so it
+ * shows no hover and no press either, in the base layer and in every theme.
+ */
+/** Splits at a separator that stands outside parentheses and brackets: `:not(a, b)` and `[x="a b"]` stay whole. */
+function topLevel(text: string, separator: RegExp): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of text) {
+    if (char === "(" || char === "[") depth++;
+    else if (char === ")" || char === "]") depth--;
+    if (depth === 0 && separator.test(char)) {
+      parts.push(current);
+      current = "";
+    } else current += char;
+  }
+  parts.push(current);
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+/**
+ * Of a stylesheet, each selector whose hover or press falls on a button of
+ * any kind, an icon button or a menu entry without leaving out one that waits:
+ * read compound by compound — the one with the hover must be the control's
+ * and must carry `:not([aria-disabled="true"])` (alone or in a list, in
+ * either quotes); an ancestor's exclusion is none.
+ */
+function unguardedPresses(css: string): string[] {
+  const out: string[] = [];
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const head of clean.matchAll(/([^{}]+)\{/g)) {
+    for (const selector of topLevel(head[1]!, /,/)) {
+      for (const compound of topLevel(selector.replace(/\s*[>+~]\s*/g, " "), /\s/)) {
+        if (!/:(?:hover|active)\b/.test(compound) || !/\.(?:pv-btn|pv-iconbtn|pv-menu-item)\b/.test(compound)) continue;
+        if (!/:not\([^)]*\[aria-disabled=(["'])true\1\]/.test(compound)) out.push(selector);
+      }
+    }
+  }
+  return out;
+}
+
+describe("a control that waits (aria-disabled) shows no hover and no press", () => {
+  it("guards every hover and press of a button of any kind, an icon button and a menu entry", () => {
+    const sheets = [STYLE_FILES.ui, ...themeFiles().filter((rel) => rel.endsWith(".css"))];
+    expect(sheets.flatMap((rel) => unguardedPresses(sourceFile(rel)).map((selector) => `${rel}: ${selector}`))).toEqual([]);
+  });
+
+  it("reads a selector compound by compound, as the browser does", () => {
+    const css = [
+      `.pv-btn--primary:hover:not(:disabled) {}`,
+      `.pv-btn:not(:disabled):hover {}`,
+      `:is(.pv-btn, .pv-chip):hover {}`,
+      `.pv-menu:not([aria-disabled="true"]) .pv-menu-item:hover {}`,
+      `.pv-btn--ghost:hover:not(:disabled):not([aria-disabled="true"]) {}`,
+      `.pv-btn:active:not(:disabled, [aria-disabled="true"]) {}`,
+      `.pv-iconbtn:hover:not([aria-disabled='true']) {}`,
+      `.pv-tabbar:hover .pv-iconbtn {}`,
+      `.pv-menu-item:hover:not([aria-disabled="true"]) .pv-menu-ic {}`,
+    ].join("\n");
+    expect(unguardedPresses(css)).toEqual([".pv-btn--primary:hover:not(:disabled)", ".pv-btn:not(:disabled):hover", ":is(.pv-btn, .pv-chip):hover", '.pv-menu:not([aria-disabled="true"]) .pv-menu-item:hover']);
   });
 });

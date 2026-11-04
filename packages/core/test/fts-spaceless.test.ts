@@ -7,6 +7,7 @@ import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
 import { GraphService } from "../src/vault/GraphService.js";
 import { SNIPPET_MARK_START } from "../src/vault/ftsQuery.js";
+import { questionTerms } from "../src/ai/context/terms.js";
 
 /**
  * Scripts written without spaces on real SQLite FTS5 (node:sqlite, as the CI's
@@ -81,6 +82,20 @@ describe("full-text search in scripts without spaces", () => {
   it("keeps the pair columns empty for text in spaced scripts", async () => {
     const rows = await db.query<{ path: string; seg_content: string }>(`SELECT path, seg_content FROM fts_notes WHERE path = 'Notes/English.md'`);
     expect(rows[0].seg_content).toBe("");
+  });
+});
+
+describe("AI context candidates for a question in a script without spaces", () => {
+  // The context package asks FTS5 with the terms of the question; a Japanese
+  // question is one run of characters, so its pairs do the asking.
+  it("finds the note a Japanese question is about, and English as before", async () => {
+    const { query } = await indexed();
+    const ja = await query.searchCandidates(questionTerms("会議の議事録はどこに書いた？"), 5);
+    expect(ja[0]?.path).toBe("Notes/議事録.md");
+    const zh = await query.searchCandidates(questionTerms("全文搜索的问题在哪里讨论过？"), 5);
+    expect(zh[0]?.path).toBe("Notes/会议记录.md");
+    const en = await query.searchCandidates(questionTerms("Where is the note about search?"), 5);
+    expect(en.map((hit) => hit.path)).toContain("Notes/English.md");
   });
 });
 

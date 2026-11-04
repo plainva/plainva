@@ -1,6 +1,6 @@
 # Wyszukiwanie
 
-Stan na: 2026-09-30
+Stan na: 2026-10-01
 
 Plainva oferuje trzy sposoby wyszukiwania: wyszukiwanie pełnotekstowe w całym vaulcie, szybkie przełączanie do otwierania plików oraz znajdź i zamień wewnątrz notatki.
 
@@ -24,6 +24,32 @@ Pole wyszukiwania działa też w pozostałych widokach paska bocznego: w **Tagi*
 - `tag:nazwa` — tylko notatki z danym tagiem, wliczając tagi zagnieżdżone: `tag:projekt` znajduje też `#projekt/wewnetrzny`. `tag:#projekt` działa równie dobrze.
 - Operatory można zanegować (`-path:Archiwum`, `-tag:zrobione`) i dowolnie łączyć z terminami wyszukiwania: `plan tag:projekt -szkic`.
 - Wiele terminów łączonych jest operatorem AND. Znaki specjalne takie jak `- ( ) : *` wewnątrz terminów są nieszkodliwe — Plainva traktuje wpis dosłownie.
+
+## Wyszukiwanie według znaczenia
+
+Z lokalnym modelem wyszukiwanie znajduje notatki także według tego, co znaczą — nie tylko według słów, i między językami: pytanie po polsku znajduje angielską notatkę, która mówi to samo. Model liczy na tym urządzeniu; notatki i obliczone z nich wektory nigdy go nie opuszczają.
+
+Włącz je w **Ustawienia → AI & automatyzacja → Wyszukiwanie semantyczne** (AI musi być włączone). Wybierz model — zalecany jest **Granite Embedding Multilingual R2 (97M)** — a Plainva pokaże rozmiar, źródło, licencję i szacowany czas, zanim cokolwiek zostanie pobrane. Każdy plik pochodzi z ustalonej wersji w huggingface.co i jest sprawdzany sumą SHA-256; logowanie nie jest potrzebne. Przed przetworzeniem pierwszej notatki Plainva sprawdza, czy model liczy poprawnie na tym urządzeniu.
+
+Zamiast pakietu możesz wybrać **Własny dostawca**: wtedy wektory liczy model profilu **Embeddingi** — dowolny model embeddingów, który oferuje Twój dostawca, na przykład `text-embedding-3-small` w OpenAI, `gemini-embedding-001` w Gemini albo `nomic-embed-text` w Ollamie. Z Ollamą lub LM Studio nic nie opuszcza Twojego komputera. W przypadku chmury przegląd pokazuje raz, co tam trafia — każdą notatkę, którą przepuszczają Twoje reguły prywatności, teraz i przy każdej zmianie, oraz Twoje pytania wyszukiwania — a **Zatwierdź na stałe** to uruchamia; **Wycofaj zgodę** w ustawieniach to zatrzymuje. Notatki, które Twoje reguły trzymają z dala od chmury, zostają poza nią, a w zaszyfrowanym obszarze roboczym liczy tylko pakiet albo serwer na tym komputerze. Jeśli pod tą samą nazwą odpowiada inny model — nowe `ollama pull`, przeniesiony serwer — Plainva zauważa to przed następną notatką i liczy wektory od nowa, zamiast mieszać dwa modele. Gdy dostawca jest nieosiągalny, wyszukiwanie odpowiada według słów i o tym informuje. **Nieużywane na tym urządzeniu** pokazuje pakiety i wektory modeli, których już nie używasz; **Usuń** je sprząta.
+
+**Zmierz to urządzenie** (obok **Wstrzymaj**, gdy model liczy) sprawdza to urządzenie względem budżetów, których trzyma się Plainva: pierwsze przejście przez 5000 sekcji, zmienioną notatkę znalezioną ponownie, wyszukiwanie w 20 000 sekcji, pamięć aplikacji w szczycie i pobieranie. Pomiar odbywa się na przykładowym tekście, nigdy na Twoich notatkach, a przetwarzanie w tym czasie czeka; **Kopiuj wyniki** kopiuje liczby do schowka — na przykład do Twojej opinii o becie.
+
+Gdy model jest aktywny, nagłówek wyników oferuje **Słowa**, **Znaczenie** i **Oba**:
+
+- **Słowa** to opisane wyżej wyszukiwanie pełnotekstowe.
+- **Znaczenie** pokazuje notatki, których sekcje są najbliższe pytaniu; otwarcie wyniku prowadzi do tej sekcji.
+- **Oba** (domyślnie) układa razem wyniki ze słów i znaczenia.
+
+Przy **Znaczenie** i **Oba** każda notatka pojawia się raz, a mała etykieta mówi, co ją znalazło: **Słowa**, **Znaczenie** albo **Słowa i znaczenie**. Operatory wyszukiwania (`path:`, `tag:`, `-termin`) ograniczają także wyniki według znaczenia. Wybór dotyczy tego urządzenia.
+
+Plainva przetwarza notatki w tle, najpierw ostatnio zmienione; edytowana notatka dochodzi kilka sekund po zakończeniu pisania. Do tego czasu znajduje się ją tylko po słowach — wynik według znaczenia nigdy nie pochodzi ze starego tekstu notatki. Wiersz pod wynikami pokazuje postęp i oferuje **Wstrzymaj**. Na telefonie przetwarzanie trwa tylko wtedy, gdy Plainva jest otwarta. **Usuń (z wektorami)** w ustawieniach usuwa model i wszystko, co obliczył.
+
+### Powiązane notatki
+
+Obok otwartej notatki Plainva pokazuje do trzech notatek bliskich jej znaczeniowo, ale jeszcze z nią niepołączonych linkiem — na komputerze w sekcji **Powiązane** prawego panelu bocznego, po **Linki zwrotne**; na telefonie w karcie **Powiązane** arkusza notatki. Powstają z wektorów, które wyszukiwanie według znaczenia i tak przechowuje na tym urządzeniu: nic nie jest wysyłane, nawet do własnego dostawcy. Podpowiedź pojawia się tylko wtedy, gdy notatka wyraźnie wyróżnia się na tle reszty vaulta; kopie i wspólny tekst szablonu się nie liczą. Dlatego większość notatek nie ma podpowiedzi i sekcja wtedy znika.
+
+Każda podpowiedź wskazuje dwie najbliższe sekcje — na przykład „Produkcja ↔ Dni zdjęciowe › Podział” — oraz notatki, do których obie linkują. **Dlaczego ta podpowiedź?** pokazuje początek obu sekcji (kliknięcie przenosi do nich); **Nieprzydatne** ukrywa dokładnie tę parę na tym urządzeniu i nie zmienia wyszukiwania. **Wstrzymaj dla tej notatki** i **Wstrzymaj w tym vaulcie** są w menu sekcji, a na telefonie pod listą. **Pokazuj powiązane notatki** w **Ustawienia → AI & automatyzacja → Wyszukiwanie semantyczne** wyłącza podpowiedzi na tym urządzeniu; tam też wznawia się wstrzymany vault lub notatki i przywraca ukryte podpowiedzi.
 
 ## Szybkie przełączanie (Quick Switcher)
 

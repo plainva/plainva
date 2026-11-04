@@ -217,7 +217,14 @@ describe("this device's Dropbox app key (settings plan 2026-10-29, E6)", () => {
 describe("this device's access", () => {
   it("names a missing access instead of trying some other client", async () => {
     h.secrets = new Map();
-    await expect(signInCloudAccount("V", () => runtime, { family: "google", add: ["files"] })).rejects.toBeInstanceOf(AccessUnavailableError);
+    // A build without Plainva's own Google client: a developer's .env.local may carry one, the release build reads it from CI.
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID", "");
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET", "");
+    try {
+      await expect(signInCloudAccount("V", () => runtime, { family: "google", add: ["files"] })).rejects.toBeInstanceOf(AccessUnavailableError);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("adopts the own client an account held before this plan, once", async () => {

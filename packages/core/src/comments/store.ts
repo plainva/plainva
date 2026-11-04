@@ -86,6 +86,20 @@ export interface CommentPostInput {
   author?: CommentAuthor | null;
 }
 
+/**
+ * Whether a record is signed with the name of the person at this device - and
+ * so whether that name is asked for where nobody gave one yet. A remark or a
+ * proposal of the person's own is; a marker (a resolution, a retraction) is
+ * not, and neither is what a named author writes through this device: a
+ * proposal of the assistant or of an external agent carries its own name, and
+ * asking the person for theirs at that moment would be a question about
+ * somebody else's signature (finding 2026-10-07).
+ */
+export function commentSignedByPerson(input: Pick<CommentPostInput, "body" | "suggestion" | "resolvedCommentId" | "retractsCommentId" | "author">): boolean {
+  if (input.resolvedCommentId || input.retractsCommentId || input.author) return false;
+  return Boolean(input.body.trim() || input.suggestion);
+}
+
 /** A note or folder that changed its path - what the rename paths of both shells report (N1). */
 export interface CommentPathMove {
   /** Captured when the rename event arrives, before an owner-window round trip. */

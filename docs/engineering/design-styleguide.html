@@ -169,6 +169,16 @@
   .pv-security-choices label > span > span { color:var(--text-muted); font-size:var(--text-sm); }
   .pv-security-progress { height:6px; margin:var(--space-2) 0; overflow:hidden; background:var(--bg-secondary); border-radius:var(--radius-xs); }
   .pv-security-progress-bar { height:100%; background:var(--accent-color); border-radius:var(--radius-xs); }
+  /* The vault's memory (AI harness P6): a row is a sentence; marks only where there is something to say. In the app the row is a .pv-setrow. */
+  .pv-memory-row { display:flex; flex-direction:column; gap:2px; padding:var(--space-2) 0; border-top:1px solid var(--border-color); }
+  .pv-memory-text { font-weight:500; line-height:1.45; overflow-wrap:anywhere; }
+  .pv-memory-row--blocked .pv-memory-text { color:var(--text-muted); }
+  .pv-memory-desc { color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-memory-marks { display:flex; flex-wrap:wrap; gap:var(--space-1); margin-top:var(--space-1); }
+  .pv-memory-mark { display:inline-flex; align-items:center; padding:0 var(--space-2); border-radius:var(--radius-pill); background:var(--surface-container); color:var(--text-muted); font-size:var(--text-xs); line-height:1.7; }
+  .pv-memory-mark--problem { color:var(--warning-text); }
+  .pv-memory-meter { display:flex; align-items:center; gap:var(--space-2); color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-memory-meter > .pv-security-progress { flex:0 0 6rem; margin:0; }
   .pv-security-recovery-demo { display:grid; gap:var(--space-3); margin-top:var(--space-4); padding:var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--surface-container-low); }
   .pv-security-recovery-task { display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--space-3); padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); }
   .pv-security-task-number { display:grid; place-items:center; width:var(--control-md); height:var(--control-md); border-radius:var(--radius-pill); background:var(--accent-container); color:var(--on-accent-container); font-weight:700; }
@@ -264,6 +274,25 @@
   .menu .item.danger, .menu .item.danger svg { color: var(--error-text); }
   .menu .sep { height: 1px; margin: var(--space-1) 6px; background: var(--border-color-light); }
   .menu .hint { margin-left: auto; color: var(--text-faint); font-size: var(--text-sm); }
+  /* AI harness P9-7: a choice's tick in a slot of its own, rows with a stranger's description, a stranger's headings */
+  .menu .item .tick { display: inline-flex; width: 15px; justify-content: center; color: var(--text-muted); }
+  .menu .item.hi { background: var(--state-hover); }
+  .menu.described .item .text { flex: 0 1 auto; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu.described .item .text:last-child { flex: 1 1 auto; max-width: none; }
+  .menu.described .hint { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+  .menu .label.said { text-transform: none; letter-spacing: normal; font-style: italic; color: var(--text-muted); }
+  .menu .label.note { text-transform: none; letter-spacing: normal; }
+  .said { font-style: italic; }
+  .menu .label .said { text-transform: none; letter-spacing: normal; }
+  .agentfoot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+  .agentwait { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--text-faint); }
+  .cmdhint { margin: 0; font-size: var(--text-xs); color: var(--text-faint); }
+  .stepline { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+  .stepline > .tick { flex: none; color: var(--success-text); }
+  .pvbtn[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+  .iconbtn[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+  .pvbtn.ghost[aria-disabled="true"]:hover, .iconbtn[aria-disabled="true"]:hover { background: transparent; color: var(--text-muted); }
+  .sronly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   .modal { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); overflow: hidden; max-width: 460px; }
   .modal .mh { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-color-light); }
@@ -647,7 +676,7 @@
       <p><b>Menü-Anatomie (bindend):</b> thematische Gruppen mit <code>MenuSeparator</code> (in verankerten Eigenbauten <code>.pv-menu-sep</code>/<code>.pv-popover-label</code>); das <b>Danger-Item steht immer als letzte Gruppe hinter einem Trenner</b>. Homogene Listen-Menüs (Verschieben-nach-Ordner, Kanten-Bündel) bleiben bewusst ungruppiert. Tooltips tragen nur ZUSATZ-Information: Datei-Tabs den Vault-Pfad, virtuelle Tabs (plainva://…) gar keinen — nie das sichtbare Label wiederholen, nie interne Pseudo-Pfade zeigen.</p>
       <p><b>Datumssprung (<code>DateJumpPicker</code>, 2026-09-10):</b> EIN Raster, wo immer ein Datum gewählt wird, um dorthin zu gehen — Jahr-Zeile mit Doppelpfeilen, 4×3 Monate, 7-spaltiges Tagesraster mit dem Wochenstart aus der Einstellung und KW-Spalte bei Montag, Fuß mit Tastatur-Hinweis und tonalem „Heute". Auswahl gefüllt auf <code>--accent-color</code>, heute als Innenring, das aktuell gezeigte Band (Woche, drei Tage) und der Monat auf dem <code>--accent-container</code>-Paar. Namen aus <code>Intl</code>, nie aus Literalen. Das Raster ist EIN Tab-Stopp: Pfeile bewegen, Bild↑/↓ blättern Monate (mit Shift Jahre), Enter springt, Esc schließt. Der Auslöser <code>DateJumpTrigger</code> ist der Zeitraum-Titel mit Chevron (<code>aria-haspopup="dialog"</code>, aktiv auf dem Accent-Container-Paar) — Kalender-Tab, Seitenleisten-Kalender und Datenbank-Kalender teilen ihn. Desktop-Hülle <code>DateJumpPopover</code> (Popover-Vertrag, 300px), mobil ein Sheet.</p>
       <p><b>Fälligkeit wählen (<code>DuePicker</code>, 2026-10-24):</b> der Datumssprung mit Kopf und Fuß, überall wo eine Aufgabe ihre Fälligkeit bekommt — oben fünf Schnellwahl-Zeilen (Heute, Morgen, Dieses Wochenende, Nächste Woche, Kein Datum; Glyphe in eigener Ton-Farbe aus den Status-Tokens bzw. <code>--accent-color</code>, Wochentag rechts in <code>--text-faint</code>, die Zeile des aktuellen Tages auf dem Accent-Container-Paar), darunter das Tagesraster wie gehabt, unten die Zeile <b>Uhrzeit</b> (Haarlinie darüber, Uhr-Glyphe, <code>Switch</code> — aus = ganztägig —, an: natives Zeitfeld, kompakt; eine reine Zeitänderung zeigt ein tonales „Fertig“). Eine Schnellwahl behält eine gesetzte Uhrzeit. Kann das Ziel keine Uhrzeit tragen (Checkbox in einer Notiz, <code>📅</code> nur mit Tag), steht dort ein leiser Satz statt des Schalters. Desktop im <code>DateJumpPopover</code>, mobil im Sheet — dieselbe Komponente.</p>
-      <p><b>Picker mit Caret im Feld:</b> Ein Menü, das die Tastatur durchläuft, während der Caret woanders steht — der <code>@</code>-Erwähnungs-Picker ist der Fall — markiert seine aktuelle Zeile mit <code>MenuItem active</code> (<code>.pv-menu-item.is-active</code>, dasselbe <code>--accent-container</code>-Paar wie jede ausgewählte Zeile) und öffnet mit <code>autoFocus={false}</code>; die Zeile muss zusätzlich <code>mousedown</code> schlucken, sonst verliert das Feld den Fokus, bevor die Auswahl ankommt.</p>
+      <p><b>Picker mit Caret im Feld:</b> Ein Menü, das die Tastatur durchläuft, während der Caret woanders steht — der <code>@</code>-Erwähnungs-Picker ist der Fall — markiert seine aktuelle Zeile mit <code>MenuItem active</code> (<code>.pv-menu-item.is-active</code>, auf <code>--state-hover</code>: das Hover der Pfeiltasten, kein Auswahlzustand) und öffnet mit <code>autoFocus={false}</code>; ein solches Menü schluckt <code>mousedown</code> selbst, damit das Feld den Fokus behält, wo immer man auf das Menü drückt.</p>
     </div>
   </section>
 
@@ -1144,6 +1173,512 @@
     </div>
   </section>
 
+  <section id="search-by-meaning">
+    <h2>Search by meaning</h2>
+    <p class="sec-sub">AI harness P2a-4 (2026-09-30). Present only while a model — a package or an own provider's — is active on this device. A mode switch in the head of the results (Words · Meaning · Both), the origin of a hit as a small muted chip where the list mixes words and meaning, and a coverage line under the list while the vectors are not complete. All parts are existing primitives; <code>.pv-semantic-*</code> is layout only.</p>
+    <div class="card" style="max-width: 360px; display: grid; gap: var(--space-2)">
+      <div class="pv-resulthead"><span>Hits for “split the shooting days”</span>
+        <div class="pv-segmented pv-segmented--sm" role="radiogroup"><button class="pv-seg-item">Words</button><button class="pv-seg-item">Meaning</button><button class="pv-seg-item is-active">Both</button></div>
+      </div>
+      <div>Kick-off notes <span class="pv-chip pv-chip--sm pv-chip--muted">Meaning</span></div>
+      <div class="pv-semantic-coverage"><span>Meaning knows 4,180 of 4,812 notes — the rest follows in the background.</span><span class="pv-semantic-coverage-actions"><button class="pvbtn ghost">Pause</button></span>
+        <div class="pv-security-progress"><div class="pv-security-progress-bar" style="width: 87%"></div></div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P2a-5 (2026-09-30): the own provider is one more row of the same single choice. A cloud model starts only after the send overview's standing approval — it counts the notes and names their folders instead of listing each note, adds the search questions as a kind of data, and its primary action is “Approve until withdrawn”. What the device keeps but no longer uses is one row with a ghost Remove.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <div><b>Own provider</b><br><span style="color: var(--text-muted)">OpenAI · text-embedding-3-small — Ollama and LM Studio compute on your computer; a cloud only after you approve what goes there.</span></div>
+      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--space-3); display: grid; gap: var(--space-1)">
+        <b>Search by meaning with OpenAI?</b>
+        <span style="color: var(--text-muted)">Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings.</span>
+        <span>Notes — All 4,700 notes your rules let go — now, and each again whenever it changes</span>
+        <span>Folders — / · Projects · Journal</span>
+        <span>Also goes — your search questions</span>
+        <span>Kept back — 112 notes your rules block</span>
+        <span style="display: flex; gap: var(--space-2); justify-content: flex-end"><button class="pvbtn ghost">Cancel</button><button class="pvbtn primary">Approve until withdrawn</button></span>
+      </div>
+      <div style="display: grid; gap: var(--space-1)"><span style="color: var(--text-muted)">Measured on this computer, with sample text — never your notes:</span>
+        <span>First run over 5,000 sections — 6 minutes (budget 30 minutes) — within budget</span>
+        <span>A search by meaning over 20,000 sections — 41 ms (budget 100 ms) — within budget</span>
+        <span><button class="pvbtn ghost">Copy results</button></span>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-2)"><span><b>Not in use on this device</b><br><span style="color: var(--text-muted)">Granite R2 large (323 MB) · vectors of 2 other models</span></span><button class="pvbtn ghost">Remove</button></div>
+    </div>
+    <p class="sec-sub">AI harness P2b-4 (2026-10-01): related notes — at most three, close in meaning and not linked yet, computed on this device. The desktop's section after Backlinks (the phone's tab of the note sheet): title, the pair of sections, and “Why this hint?” with the two sections, the facts and the two ghost actions. The section's menu pauses a note or the vault.</p>
+    <div class="card" style="max-width: 300px; display: grid; gap: var(--space-2)">
+      <div style="display: flex; align-items: center; gap: var(--space-2)"><b style="flex: 1">Related</b><span class="pv-badge pv-badge--accent">3</span><button class="pv-iconbtn pv-iconbtn--sm" aria-label="Related notes">⋯</button></div>
+      <ul class="pv-related">
+        <li class="pv-related-row"><div class="pv-related-head"><button class="pv-btn pv-btn--ghost pv-btn--sm pv-related-main"><span class="pv-related-title">Shooting schedule</span></button><button class="pv-iconbtn pv-iconbtn--sm" aria-label="Why this hint?">i</button></div><span class="pv-related-ctx">Production ↔ Shooting days › Split</span></li>
+        <li class="pv-related-row" data-open="true"><div class="pv-related-head"><button class="pv-btn pv-btn--ghost pv-btn--sm pv-related-main"><span class="pv-related-title">Offer 2026</span></button><button class="pv-iconbtn pv-iconbtn--sm is-active" aria-label="Why this hint?">i</button></div><span class="pv-related-ctx">Open ↔ Items › Shoot · both mention [[Studio Harbour]]</span>
+          <div class="pv-related-why"><strong>Why this hint?</strong>
+            <button class="pv-btn pv-btn--ghost pv-btn--sm pv-related-quote">This note, Open: “Ask Studio Harbour about block two …”</button>
+            <button class="pv-btn pv-btn--ghost pv-btn--sm pv-related-quote">Offer 2026, Items › Shoot: “Studio Harbour, two days per block …”</button>
+            <span class="pv-related-facts">very close in meaning · not linked yet · computed on this device</span>
+            <span class="pv-related-actions"><button class="pvbtn ghost">Open</button><button class="pvbtn ghost">Not helpful</button></span>
+          </div>
+        </li>
+      </ul>
+      <div class="pv-related-state"><span>Paused for this note.</span><button class="pvbtn ghost">Show again for this note</button></div>
+    </div>
+    <p class="sec-sub">AI harness P2b-6 (2026-10-01): a sensitivity hint. Where the local patterns see a password or key, an account, card, ID or tax number, or health details in what would go to a cloud, the source's row in “View context” adds one line across it in <code>--warning-text</code> with the shield icon and ghost Buttons (<code>.pv-ai-lens-sensitive</code>); the send overview shows the same line under the source (<code>.pv-ai-overview-sensitive</code>). A hint, never a block; never for a model on this device.</p>
+    <div class="card" style="max-width: 380px; display: grid; gap: var(--space-2)">
+      <div class="pv-ai-lens-row">
+        <div class="pv-ai-lens-main"><button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-overview-note">Rent</button><span class="pv-ai-overview-form">the section “Rent” · ~120 tokens</span></div>
+        <div class="pv-ai-lens-why"><span class="pv-ai-lens-reason">matches your words</span></div>
+        <div class="pv-ai-lens-sensitive"><span aria-hidden="true">⛨</span><span>Possibly sensitive: password or key · account number</span><button class="pvbtn ghost">Keep on this device</button><button class="pvbtn ghost">Redact in this conversation</button></div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P3-2 (2026-10-01): the send overview names the instructions that go with a request in one row — the skill the conversation runs, the list of skills the AI may load, the vault's AGENTS.md. A skill meant for a model on this device adds a quiet line under it while the request goes to a cloud (<code>.pv-ai-overview-hint</code>): a hint, never a block.</p>
+    <div class="card" style="max-width: 380px">
+      <dl class="pv-ai-overview-list">
+        <dt>Instructions</dt>
+        <dd>Skill “Offer check” (from this vault) · List of skills the AI may load (11; from this vault: 1)<span class="pv-ai-overview-hint">This skill is meant for a model on this device.</span></dd>
+        <dt>Tools</dt>
+        <dd>Searching the vault · Reading a note</dd>
+      </dl>
+    </div>
+    <p class="sec-sub">AI harness P4-3 (2026-10-06): one request to the internet waits for its answer (<code>AiEffectApproval</code>). It is built from the send overview's parts and asked at the same place — the whole address or the search words, one line on where the address came from, and the buttons: the refusal as ghost, “Always for ⟨site⟩” as secondary, the primary. An address the model put together itself gets the warning line (<code>.pv-ai-effect-warn</code>) and no “Always”. After the run, the pages that were read stand in one quiet line above the run line (<code>.pv-ai-websources</code>); a link in an answer whose address the model composed is marked (<code>.pv-ai-link--noted</code>).</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Read this page?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">🌐</span><span>Read this page?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Address</dt>
+          <dd>https://rates-check.example.net/check?client=Northwind+GmbH&amp;sum=18500</dd>
+          <dt>Looking for</dt>
+          <dd>Is the offer within the usual range?</dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>The model put this address together itself: it was in none of your messages, notes or results. Check that it carries nothing from your notes.</span></span>
+        <span class="pv-ai-overview-hint">The request goes from this device to rates-check.example.net: this address and nothing else.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't read</button><button class="pvbtn primary">Read page</button></div>
+      </section>
+      <p class="pv-ai-websources"><span class="pv-ai-websources-label"><span aria-hidden="true">🌐</span>Read on the web</span><a class="pv-ai-link" href="#">Rates 2026 — example.org</a></p>
+      <p style="margin: 0">A comparison site I know of is <a class="pv-ai-link pv-ai-link--noted" href="#">https://compare.example.net/rates?q=1900</a>.</p>
+    </div>
+    <p class="sec-sub">AI harness P4-4 (2026-10-06): the same card asks before mail is read for the first time (<code>AiEffectApproval</code>, <code>data-kind="mail"</code>). Three label/value rows say where the heads of the messages go and who reads a message's text; the hint gives the answer's reach. One yes — it holds for the recipient until the app closes — and the refusal as ghost. No new class.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Read your mail?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">✉</span><span>Read your mail?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Goes to</dt>
+          <dd>Anthropic</dd>
+          <dt>From your mail</dt>
+          <dd>sender, subject and date of the messages it finds</dd>
+          <dt>A message's text</dt>
+          <dd>read by Ollama · granite3.3:8b on this device — only its report goes to Anthropic</dd>
+        </dl>
+        <span class="pv-ai-overview-hint">Applies to Anthropic until you close Plainva. Nothing in your mailbox is changed or marked as read.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't allow</button><button class="pvbtn primary">Allow</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P4-5 (2026-10-06): “Explain image”. The door is a ghost Button with the AI mark in the image viewer's toolbar (desktop) and a tonal Button below the picture (phone), and an entry in the menu of a picture in a note. The send overview lists the picture as a source — its name, then “image, width × height px, size” as the form, without the “leave out” control — and, while it asks, draws the picture itself under the list (<code>.pv-ai-overview-pictures</code>, at most 7rem high) with one hint line: it goes as shown, scaled down and saved anew. In the conversation the picture stands in the user's message as a figure with its name as the caption (<code>.pv-ai-figure</code>, <code>.pv-ai-picture</code>, at most 14rem high), above the question. Both are drawn from the copy that was sent, never from the file. Where the provider's list says the model reads no images, the overview adds the warning line of the sensitivity hint.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Send to Anthropic?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⛨</span><span>Send to Anthropic?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Goes to</dt>
+          <dd>Anthropic · m-1</dd>
+          <dt>Notes</dt>
+          <dd>
+            <ul class="pv-ai-overview-sources"><li><button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-overview-note">Whiteboard kickoff.jpg</button><span class="pv-ai-overview-form">image, 1,568 × 980 px, 305 KB</span></li></ul>
+            <div class="pv-ai-overview-pictures"><svg class="pv-ai-picture" viewBox="0 0 160 100" width="160" height="100" role="img" aria-label="Whiteboard kickoff.jpg"><rect width="160" height="100" fill="var(--surface-container)"/><rect x="10" y="22" width="40" height="18" fill="var(--warning-bg)"/><rect x="60" y="22" width="40" height="18" fill="var(--accent-container)"/><rect x="110" y="22" width="40" height="18" fill="var(--success-bg)"/></svg></div>
+            <span class="pv-ai-overview-hint">It goes as shown here: scaled down and saved anew — without the place, the date or the camera the file records.</span>
+          </dd>
+          <dt>Also goes</dt>
+          <dd>date and time · an image</dd>
+        </dl>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Cancel</button><button class="pvbtn primary">Send</button></div>
+      </section>
+      <div class="pv-ai-msg pv-ai-msg--user">
+        <figure class="pv-ai-figure"><svg class="pv-ai-picture" viewBox="0 0 160 100" width="160" height="100" role="img" aria-label="Whiteboard kickoff.jpg"><rect width="160" height="100" fill="var(--surface-container)"/><rect x="10" y="22" width="40" height="18" fill="var(--warning-bg)"/><rect x="60" y="22" width="40" height="18" fill="var(--accent-container)"/><rect x="110" y="22" width="40" height="18" fill="var(--success-bg)"/></svg><figcaption>Whiteboard kickoff.jpg</figcaption></figure>
+        <div class="pv-ai-usertext">Explain this image.</div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P4.5 (2026-10-07): external tools (MCP). The question about one call to a server the user connected is a fourth form of the approval card (<code>AiEffectApproval</code>, <code>data-kind="mcp"</code>): the server by the user's name for it, the tool, and the arguments in full as a <code>LineCompare</code> block. One yes is for one call — there is no “always”. The review of a server reuses the skills' facts list and adds Checkbox rows whose second line is the server's own words (<code>.pv-ext-group</code>, <code>.pv-ext-note</code>, layout only).</p>
+    <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Call Tracker?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⏚</span><span>Call Tracker?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Goes to</dt>
+          <dd>Tracker</dd>
+          <dt>Tool</dt>
+          <dd>Search issues (search_issues)</dd>
+          <dt>Sends</dt>
+          <dd><pre class="pv-linecompare">{
+  "query": "login"
+}</pre></dd>
+        </dl>
+        <span class="pv-ai-overview-hint">Exactly this goes to Tracker. What comes back is treated as a stranger's text: the AI reads it and takes no instructions from it.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't call</button><button class="pvbtn primary">Call</button></div>
+      </section>
+      <fieldset class="pv-ext-group">
+        <legend>Tools</legend>
+        <p class="pv-ext-note">Tick the tools the AI may call in this vault. The descriptions are the server's own words.</p>
+        <label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Search issues (search_issues)<span>Searches the tracker's issues.</span></span></label>
+        <label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>close_issue<span>Closes an issue.</span><span class="pv-ext-warn">Can change, overwrite or delete something at Tracker — it says nothing else.</span></span></label>
+      </fieldset>
+    </div>
+    <p class="sec-sub">AI harness P5-6 (2026-10-07): a tool that changes something at its service. In the review it is a Checkbox row like every other, with one more second line in the warning tone (<code>.pv-ext-warn</code>) that says what a call may do there — before the tick and after it. The question about such a call is the same card with three differences: the warning triangle and “Let ⟨server⟩ change something?” in the head, the warning line of the page-and-search question (<code>.pv-ai-effect-warn</code>) with the sentence that Plainva cannot undo it, and a <code>secondary</code> button “Run it” — the card has no primary action, because its effect lies outside Plainva.</p>
+    <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Let Tracker change something?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⚠</span><span>Let Tracker change something?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Goes to</dt>
+          <dd>Tracker</dd>
+          <dt>Tool</dt>
+          <dd>close_issue</dd>
+          <dt>Sends</dt>
+          <dd><pre class="pv-linecompare">{
+  "id": 12
+}</pre></dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>This call can change, overwrite or delete something at Tracker. Plainva cannot undo it.</span></span>
+        <span class="pv-ai-overview-hint">Exactly this goes to Tracker. What comes back is treated as a stranger's text: the AI reads it and takes no instructions from it.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't call</button><button class="pvbtn secondary">Run it</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P9-4a (2026-10-25): a foreign server's question to the user, where the vault lets that server ask. The same card above the composer: the head, the row “For”, the hint and the buttons are Plainva's; what the server wrote stands inside as its quote (<code>.pv-ai-said</code>) — never a title, a button or a link. A form's fields are the primitives behind the same line (<code>.pv-ai-question-fields</code>), a field's title the server's in italics; a page to open shows its host alone and the whole address (<code>.pv-ai-question-url</code>), and opens only on “Open in browser”.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Tracker has a question">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⏚</span><span>Tracker has a question</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>For</dt>
+          <dd>Search issues (search_issues)</dd>
+        </dl>
+        <blockquote class="pv-ai-said"><span class="pv-ai-said-by">Tracker writes:</span><span>Which project should I search? Without one, I search all 14.</span></blockquote>
+        <div class="pv-ai-question-fields">
+          <div class="pv-ai-question-field"><label><span class="pv-ai-question-label">Project</span></label><select class="pv-field"><option>Werkstatt</option></select></div>
+          <div class="pv-ai-question-field"><label class="pv-checkrow"><input type="checkbox" class="pv-check" checked><span><span class="pv-ai-question-label">Also closed issues</span></span></label></div>
+        </div>
+        <span class="pv-ai-overview-hint">Your answer goes to Tracker only, not to the AI. Never enter a password or a key here — a server may not ask for one this way.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Cancel</button><button class="pvbtn secondary">Decline</button><button class="pvbtn primary">Answer</button></div>
+      </section>
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Tracker would like you to open a page">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">🌐</span><span>Tracker would like you to open a page</span></h4>
+        <blockquote class="pv-ai-said"><span class="pv-ai-said-by">Tracker writes:</span><span>Connect your GitHub account so that I can read the issues.</span></blockquote>
+        <div class="pv-ai-question-url"><span class="pv-ai-question-host">tracker.example.com</span><span class="pv-ai-question-address">https://<b>tracker.example.com</b>/connect/github?state=7f3a</span></div>
+        <span class="pv-ai-overview-hint">Plainva opens the page in your browser. What you enter there, neither Plainva nor the AI sees. Afterwards you continue here.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Cancel</button><button class="pvbtn secondary">Decline</button><button class="pvbtn primary">Open in browser</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P9-4b (2026-10-25): a skill a connected server serves, in the workshop's group “From servers” and in its review. The row is an own skill's, led by the server's name; the review's facts are one grid — the server, the name with the key the AI loads it by (<code>.pv-skill-key</code>), the server's words as its quote (<code>.pv-ai-said</code>), what it may do, its instructions only on request, every file with size and digest.</p>
+    <div class="card" style="max-width: 520px; display: grid; gap: var(--space-3)">
+      <div class="pv-setrow"><div class="pv-setrow-main"><div class="pv-setrow-label">code-review</div><div class="pv-setrow-desc">Tracker · new · 2 files</div></div><div class="pv-setrow-ctrl"><button class="pvbtn tonal">Review and approve</button></div></div>
+      <dl class="pv-skill-facts">
+        <dt>Server</dt>
+        <dd><span><b>Tracker</b> · tracker.example.com</span></dd>
+        <dt>Name</dt>
+        <dd><span>code-review</span><span class="pv-skill-key">the AI loads it as mcp_tracker/code-review</span></dd>
+        <dt>Description</dt>
+        <dd><blockquote class="pv-ai-said"><span class="pv-ai-said-by">Tracker writes:</span><span>Review code using the team's checklist.</span></blockquote></dd>
+        <dt>What it may do</dt>
+        <dd><span>Plainva's tools that only read or show, and the tools of Tracker this vault allows — every call asked as always</span><span>Nothing that changes anything, no internet, no scripts — whatever the skill names</span></dd>
+        <dt>Instructions</dt>
+        <dd><span><button class="pvbtn ghost">Show instructions</button></span></dd>
+        <dt>Files</dt>
+        <dd><span><code>SKILL.md</code> · 149 B · <code>d2489d6</code></span><span><code>references/checklist.md</code> · 65 B · <code>dbab2de</code></span></dd>
+      </dl>
+    </div>
+    <p class="sec-sub">AI harness P9-7 (2026-10-26): an external agent's settings and commands. In the composer's foot the agent's mode and model as ghost buttons in its words, the rest behind the sliders button; each menu begins with Plainva's heading in its capitals, the agent's words in it and its groups and names below it stand apart in quiet italics, isolated in their direction, the current value carries a tick in a slot of its own (<code>MenuItem checked</code>), and a description is cut at the row's end and whole in the tooltip (<code>.pv-menu--described</code>). While a change waits, a spinner turns at the row's end. A “/” at the start of a message lists the agent's commands under Plainva's heading, at most twelve with the rest counted in a sentence; what the agent says goes after a taken command stands under the field (<code>.pv-agent-command-hint</code>). The second row is the first while a change waits: the buttons dimmed, keeping the keyboard and taking no press, the spinner at its end, its words for a screen reader only. A step's line in the thread draws the agent's words for it and the names it named the same way; Plainva's count stays upright.</p>
+    <div class="card" style="max-width: 520px; display: grid; gap: var(--space-3)">
+      <div class="agentfoot"><button class="pvbtn ghost sm">Mode: Ask first</button><button class="pvbtn ghost sm">Model: Gemini Flash</button><button class="iconbtn" aria-label="More settings of Gemini CLI"><span aria-hidden="true">⚟</span></button><span class="agentwait" role="status"></span></div>
+      <div class="agentfoot"><button class="pvbtn ghost sm" aria-disabled="true">Mode: Ask first</button><button class="pvbtn ghost sm" aria-disabled="true">Model: Gemini Flash</button><button class="iconbtn" aria-label="More settings of Gemini CLI" aria-disabled="true"><span aria-hidden="true">⚟</span></button><span class="agentwait" role="status"><span aria-hidden="true">◌</span><span class="sronly">Gemini CLI is changing a setting…</span></span></div>
+      <div class="menu described" role="menu" aria-label="Model of Gemini CLI">
+        <div class="label"><bdi class="said">Model</bdi> of Gemini CLI</div>
+        <div class="label said">Fast</div>
+        <button class="item" role="menuitemradio" aria-checked="true"><span class="tick" aria-hidden="true">✓</span><span class="text">Gemini Flash</span></button>
+        <div class="label said">Thorough</div>
+        <button class="item" role="menuitemradio" aria-checked="false"><span class="tick" aria-hidden="true"></span><span class="text">Gemini Pro</span><span class="hint">Slower, more thorough</span></button>
+      </div>
+      <div class="menu described" role="menu" aria-label="Commands of Gemini CLI">
+        <div class="label">Commands of Gemini CLI</div>
+        <button class="item hi" role="menuitem"><span class="text">/plan</span><span class="hint">Makes a plan before it changes anything</span></button>
+        <button class="item" role="menuitem"><span class="text">/web</span><span class="hint">Searches the web · what to search for</span></button>
+        <div class="label note">3 more — keep typing</div>
+      </div>
+      <p class="cmdhint">Gemini CLI on /<bdi class="said">web</bdi>: <bdi class="said">what to search for</bdi></p>
+      <p class="stepline"><span class="tick" aria-hidden="true">✓</span><span><bdi class="said">Reading the plan</bdi> · <bdi class="said">Plan</bdi> · outside the vault: 1</span></p>
+    </div>
+    <p class="sec-sub">AI harness P4-6 (2026-10-06): “Keep as a note”. Under a finished answer, beside the run's line, a ghost Button of size sm with the file-plus mark (<code>.pv-ai-capture</code>): the user's own step — a press writes the note into the vault's inbox folder and opens it. In a shared workspace the press first asks, in the same card as a page, a search or mail (<code>AiEffectApproval</code>, <code>data-kind="write"</code>): the note's name, the folder, who reads it. One yes is for one note.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <div class="pv-ai-run"><span class="pv-ai-runline">2 notes · ~1,240 tokens · coverage high</span> <button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-runline pv-ai-capture"><span aria-hidden="true">＋</span>Keep as a note</button></div>
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Keep it where others read it?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⚇</span><span>Keep it where others read it?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>What are the usual day rates for 2026?</dd>
+          <dt>Goes into</dt>
+          <dd>Inbox</dd>
+        </dl>
+        <span class="pv-ai-overview-hint">This vault is a shared workspace: its members can read a note here, and so can the readers of a publication that covers the folder.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't keep</button><button class="pvbtn primary">Keep as a note</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P5 (2026-10-07): propose, draft, plan. The assistant changes nothing. A proposal on a note is a suggestion round in the note's margin; the conversation only says where it lies (the pencil line beside the run's line). A draft of something new is a card under the answer — the overview's card with a left edge in <code>--warning-border</code> (<code>.pv-ai-overview--draft</code>) — with the user's two buttons. A rename, a move and a deletion are a fifth form of the question above the composer (<code>AiEffectApproval</code>, <code>data-kind="plan"</code>); for a deletion its button only opens the app's own dialog. Everything that waits is listed under “Open” (<code>.pv-ai-open</code>).</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <div class="pv-ai-run"><span class="pv-ai-runline">1 note · ~1,240 tokens</span> <button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-runline pv-ai-capture"><span aria-hidden="true">✎</span>Suggested in “Offer”: 2 passages</button></div>
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · Note: Kick-off">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">＋</span><span>Draft · Note</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Kick-off</dd>
+          <dt>Goes into</dt>
+          <dd>Inbox folder</dd>
+        </dl>
+        <span class="pv-ai-overview-hint">The note gets the privacy rules of the notes it rests on.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Show</button><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Create</button></div>
+      </section>
+      <div class="pv-ai-run"><span class="pv-ai-runline pv-ai-capture"><span aria-hidden="true">✓</span>Created: Call the roofer</span></div>
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Rename?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">✎</span><span>Rename?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Offer · Projects</dd>
+          <dt>New name</dt>
+          <dd>Offer 2027</dd>
+          <dt>Links</dt>
+          <dd>5 links in 3 notes — they follow the new name</dd>
+        </dl>
+        <ul class="pv-ai-overview-sources">
+          <li><span class="pv-ai-overview-note">Projects/Plan</span><span class="pv-ai-overview-form">3 links</span></li>
+          <li><span class="pv-ai-overview-note">Clients/Northwind</span><span class="pv-ai-overview-form">1 link</span></li>
+          <li><span class="pv-ai-overview-note">Journal/2026-10-06</span><span class="pv-ai-overview-form">1 link</span></li>
+        </ul>
+        <span class="pv-ai-overview-hint">Plainva renames the note and updates the links — as when you rename by hand. The AI only learns whether it happened.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't rename</button><button class="pvbtn primary">Rename</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P5-3 (2026-10-07): a proposed value of a property. It is a suggestion like a passage and brings no card of its own — one block both shells render (<code>PropertySuggestionDiff</code>, <code>.pv-comment-card__property</code>): a small label in the app's label style, “Property” or “New property” (<code>.pv-comment-card__proplabel</code>), the card's diff line with the property's name as a chip in front (<code>.pv-comment-card__prop</code>), what it says struck and what it would say inserted, and — only while it waits — the sentence that it no longer fits. What one run proposes on one note in several steps is one round: its head says each step's sentence once and counts the blocks (“1 change”, “3 changes”). One of the note's own AI rules is never a suggestion: it is the plan question (<code>data-plan="rule"</code>) with a shield in its head — and where a rule is taken out, a warning line and a secondary button instead of the primary one.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <p class="pv-comment-round__meta"><em>„Tighter · Sent today“ · </em>3 changes</p>
+      <div class="pv-comment-card">
+        <div class="pv-comment-card__property" data-property="stage">
+          <span class="pv-comment-card__proplabel"><span aria-hidden="true">#</span>Property</span>
+          <p class="pv-comment-card__diff"><span class="pv-comment-card__prop">stage</span><del>open</del> <ins>sent</ins></p>
+        </div>
+        <div class="pv-comment-card__decision"><button class="pvbtn ghost">Accept</button><button class="pvbtn ghost">Decline</button></div>
+      </div>
+      <div class="pv-comment-card">
+        <div class="pv-comment-card__property" data-property="effort">
+          <span class="pv-comment-card__proplabel"><span aria-hidden="true">#</span>New property</span>
+          <p class="pv-comment-card__diff"><span class="pv-comment-card__prop">effort</span><ins>3</ins></p>
+        </div>
+      </div>
+      <div class="pv-comment-card">
+        <div class="pv-comment-card__property" data-property="owner">
+          <span class="pv-comment-card__proplabel"><span aria-hidden="true">#</span>Property</span>
+          <p class="pv-comment-card__diff"><span class="pv-comment-card__prop">owner</span><del>Anna</del><em class="pv-comment-card__diff-note"> removes this property</em></p>
+          <span class="pv-comment-card__state">The property “owner” says something else by now; this suggestion no longer fits.</span>
+        </div>
+      </div>
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Change a privacy rule of this note?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⛨</span><span>Change a privacy rule of this note?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Brief · Projects</dd>
+          <dt>Rule</dt>
+          <dd>never to the cloud</dd>
+          <dt>Change</dt>
+          <dd>is taken out of the note</dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>After this the note may go to cloud models again.</span></span>
+        <span class="pv-ai-overview-hint">Plainva writes it into the note's properties — as when you set the rule yourself. The AI only learns whether it happened.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't change</button><button class="pvbtn secondary">Remove the rule</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P5-4 (2026-10-07): the database. A value proposed for an entry stands in the cell of that entry and that property as a <code>Chip</code> of size <code>sm</code> with the sparkle mark — tone <code>proposed</code> (the insertion colours), or <code>removal</code> (the deletion colours, struck through) where the proposal takes the value away. It stands beside what the cell says now, or in place of the empty mark. On the desktop the chip is a button that opens a menu at the chip (who proposed it · Accept · Decline · Show in the note); on the phone the cell opens its sheet with the proposal on top. The line above the rows is the info <code>Banner</code> with the sparkle mark; it counts exactly the cells the view draws. A drafted entry is the draft card with the database mark, the database's name and a row per proposed property.</p>
+    <div class="card" style="max-width: 520px; display: grid; gap: var(--space-2)">
+      <div class="pv-banner pv-banner--info"><span class="pv-banner-ic" aria-hidden="true">✦</span><span class="pv-banner-msg">3 suggested values in this view</span><span class="pv-banner-actions"><button class="pvbtn ghost">Apply all</button><button class="pvbtn ghost">Decline all</button></span></div>
+      <div>Health <span class="pv-chip pv-chip--sm pv-chip--proposed"><span class="pv-chip-icon" aria-hidden="true">✦</span><span class="pv-chip-text">Medicine</span></span></div>
+      <div><span class="pv-chip pv-chip--sm pv-chip--proposed"><span class="pv-chip-icon" aria-hidden="true">✦</span><span class="pv-chip-text">Film</span></span></div>
+      <div><span class="pv-chip pv-chip--sm pv-chip--removal"><span class="pv-chip-icon" aria-hidden="true">✦</span><span class="pv-chip-text">2019</span></span></div>
+      <div class="pv-menu" style="position: static; min-width: 220px" role="menu">
+        <div class="pv-menu-label">Suggested by Plainva AI · model</div>
+        <button class="pv-menu-item" role="menuitem"><span class="pv-menu-ic" aria-hidden="true">✓</span><span class="pv-menu-text">Accept</span></button>
+        <button class="pv-menu-item" role="menuitem"><span class="pv-menu-ic" aria-hidden="true">✕</span><span class="pv-menu-text">Decline</span></button>
+        <div class="pv-menu-sep" role="separator"></div>
+        <button class="pv-menu-item" role="menuitem"><span class="pv-menu-text">Show in the note</span></button>
+      </div>
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · Database entry: Werft 9">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⛁</span><span>Draft · Database entry</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Entry</dt>
+          <dd>Werft 9</dd>
+          <dt>Database</dt>
+          <dd>Customers</dd>
+          <dt>industry</dt>
+          <dd>Crafts</dd>
+          <dt>city</dt>
+          <dd>Kiel</dd>
+        </dl>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Show</button><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Create</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P5-6 (2026-10-08): a draft that would leave the vault — an e-mail, an appointment. The same draft card; it makes nothing, it opens. Its rows name every address in full (To, Cc, Bcc — a row only where it carries one; When, Where, Attendees), the plan's warning line (<code>.pv-ai-effect-warn</code>) names each address the user did not type in this conversation, and one hint line says what the button does not do. The third button reads what happens — <b>Open in Mail</b>, <b>Open in Calendar</b> — and is secondary: a card whose effect ends outside Plainva never carries the primary button. Opening leaves the card where it is; it goes when the mail is out or the calendar took the appointment, and leaves the quiet line of a decided draft as plain text.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · E-mail: Re: Shooting day">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">✉</span><span>Draft · E-mail</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Subject</dt>
+          <dd>Re: Shooting day</dd>
+          <dt>To</dt>
+          <dd>a.okafor@example.org</dd>
+          <dt>Cc</dt>
+          <dd>tom@example.org</dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>Not written by you in this conversation: a.okafor@example.org. Check before you send.</span></span>
+        <span class="pv-ai-overview-hint">Nothing is sent from here. The mail opens as a new message that you can still change, and sending is your step there.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Show</button><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Open in Mail</button></div>
+      </section>
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · Event: Shooting day">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">▦</span><span>Draft · Event</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Event</dt>
+          <dd>Shooting day</dd>
+          <dt>When</dt>
+          <dd>Sat, Nov 14 · 09:00–17:00</dd>
+          <dt>Where</dt>
+          <dd>Studio 2</dd>
+          <dt>Attendees</dt>
+          <dd>tom@example.org</dd>
+        </dl>
+        <span class="pv-ai-overview-hint">Nothing is saved from here. The event opens in the event editor, where you choose the calendar and save.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Open in Calendar</button></div>
+      </section>
+      <div class="pv-ai-run"><span class="pv-ai-runline pv-ai-capture"><span aria-hidden="true">✓</span>Sent: Re: Shooting day</span></div>
+    </div>
+    <p class="sec-sub">AI harness P5-7 (2026-10-08): a link that leads nowhere. Where a text the assistant laid down links to a note the vault did not have, that is said where the text waits. On a draft's card it is one more hint line (<code>.pv-ai-overview-hint</code>); under an answer it is a quiet line below the pencil line of the note that carries the suggestion, on a row of its own (<code>.pv-ai-runline--below</code>) — the unlink mark and the sentence as plain text (<code>.pv-ai-runline</code>, <code>.pv-ai-capture</code>), a <code>span</code> and no button. A statement, not a warning: no triangle and no warning tone. The first six names, then an ellipsis. A link to a note that is there, but that the writer may not read, gets a sentence of its own in the same build (the eye-off mark under an answer) — never “not in this vault”.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <div class="pv-ai-run"><span class="pv-ai-runline">2 notes · ~1,480 tokens</span> <button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-runline pv-ai-capture"><span aria-hidden="true">✎</span>Suggested in “Offer”: 1 passage</button> <span class="pv-ai-runline pv-ai-capture pv-ai-runline--below"><span aria-hidden="true">⛓</span>Linked, but not in this vault: Contract 2024</span> <span class="pv-ai-runline pv-ai-capture pv-ai-runline--below"><span aria-hidden="true">◌</span>Linked to notes the AI may not read here: Salaries</span></div>
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · Note: Kick-off">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">＋</span><span>Draft · Note</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Kick-off</dd>
+          <dt>Goes into</dt>
+          <dd>Inbox folder</dd>
+        </dl>
+        <span class="pv-ai-overview-hint">Linked, but not in this vault: Contract 2024, Minutes of March</span>
+        <span class="pv-ai-overview-hint">Linked to notes the AI may not read here: Salaries</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Show</button><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Create</button></div>
+      </section>
+    </div>
+    <p class="sec-sub">AI harness P5-4 (2026-10-07): a column is filled, and a filter in words — the two things the assistant does at a database. The door to a run is the sparkle <code>IconButton</code> in the column's head and in the configuration's list of properties (on the phone a row at the foot of a cell's sheet and a button in the property's sheet). The plan is sentences in a <code>Modal</code> of size <code>sm</code> (<code>.pv-fillplan</code>; on the phone the dialog host's question): the first in text colour, the rest muted. While the run goes, the info <code>Banner</code> stands above the entries with the progress track under its sentence (<code>.pv-banner-run</code>) and a ghost “Stop”. A filter in words is one block on top of the filter list (<code>.pv-filterwords</code>): a compact field and a button, and — never applied by itself — the rules a sentence would be as chips, how many entries they leave, “Discard” and “Apply”.</p>
+    <div class="card" style="max-width: 520px; display: grid; gap: var(--space-2)">
+      <div style="display: flex; flex-direction: column; gap: var(--space-2)">
+        <p style="margin: 0">3 entries have no value here.</p>
+        <p style="margin: 0; color: var(--text-muted); font-size: var(--text-sm)">The AI reads each note on its own and suggests a value from it. Nothing is written until you accept a suggestion.</p>
+        <p style="margin: 0; color: var(--text-muted); font-size: var(--text-sm)">Model: provider · model</p>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2)"><button class="pvbtn ghost">Cancel</button><button class="pvbtn primary">Suggest values</button></div>
+      </div>
+      <div class="pv-banner pv-banner--info"><span class="pv-banner-ic" aria-hidden="true">✦</span><span class="pv-banner-msg"><span style="display: flex; flex-direction: column; gap: var(--space-1)"><span>Filling “Industry” · 7 of 12</span><span class="pv-security-progress" role="progressbar" aria-valuenow="58" aria-valuemin="0" aria-valuemax="100" aria-label="Filling “Industry” · 7 of 12" style="margin: 0"><span class="pv-security-progress-bar" style="display: block; width: 58%"></span></span></span></span><span class="pv-banner-actions"><button class="pvbtn ghost">Stop</button></span></div>
+      <div style="display: flex; flex-direction: column; gap: var(--space-2)">
+        <div style="display: flex; align-items: center; gap: var(--space-1)"><input class="pv-field" style="flex: 1 1 auto; min-width: 0" value="clients in Kiel" aria-label="Filter in words" /><button class="pvbtn secondary"><span aria-hidden="true">✦</span> Suggest</button></div>
+        <span style="font-size: var(--text-sm); color: var(--text-muted)">Only this database's columns go to the AI for this — their names, kinds and choices — and your sentence. No entry, no note.</span>
+        <div style="display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary)">
+          <span style="font-size: var(--text-sm); color: var(--text-muted)">Suggested rule:</span>
+          <div><span class="pv-chip pv-chip--sm"><span class="pv-chip-text">City is Kiel</span></span></div>
+          <span style="font-size: var(--text-sm); color: var(--text-muted)">Matches 2 of 4 entries.</span>
+          <div style="display: flex; justify-content: flex-end; gap: var(--space-1)"><button class="pvbtn ghost">Discard</button><button class="pvbtn primary">Apply</button></div>
+        </div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P5-5 (2026-10-07): an AI app proposes changes. The pairing question's second answer is a fieldset of its own with one unticked <code>Checkbox</code> and a sentence that says what the tick means (<code>.pv-mcp-pair-writes</code>, <code>.pv-mcp-note</code>). A plan of an app is a <code>Modal</code> whose body is <code>AiPlanDetails</code> — the rows of the assistant's own plan card — and one hint line (<code>.pv-mcp-plan</code>); Allow is <code>primary</code>, for a deletion <code>secondary</code>. A remark no person wrote carries a machine's mark in its card's head: the sparkle in the accent pair for Plainva's assistant (<code>data-ai</code>), a bot in a neutral pair for an AI app and an external agent (<code>data-machine</code>).</p>
+    <div class="card" style="max-width: 520px; display: grid; gap: var(--space-4)">
+      <div>
+        <fieldset class="pv-mcp-pair-folders pv-mcp-pair-writes" style="margin-top: 0">
+          <legend>And writing?</legend>
+          <label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>May suggest changes</span></label>
+        </fieldset>
+        <p class="pv-mcp-note">Off until you allow it. What the app writes then becomes a suggestion on the note or a draft — with its name as the author; nothing in the vault changes until you accept or create it.</p>
+      </div>
+      <div class="pv-mcp-plan">
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Offer 2026 · Projects</dd>
+          <dt>New name</dt>
+          <dd>Offer Hafenkante 2026</dd>
+          <dt>Links</dt>
+          <dd>3 links in 2 notes — they follow the new name</dd>
+        </dl>
+        <ul class="pv-ai-overview-sources">
+          <li><span class="pv-ai-overview-note">Projects/Brief</span><span class="pv-ai-overview-form">1 link</span></li>
+          <li><span class="pv-ai-overview-note">Archive/Old</span><span class="pv-ai-overview-form">2 links</span></li>
+        </ul>
+        <p class="pv-mcp-note">Plainva renames the note and updates the links — as when you rename by hand. It is carried out once the app continues after your yes; the app only learns whether it happened.</p>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2)"><button class="pvbtn ghost">Deny</button><button class="pvbtn primary">Allow</button></div>
+      </div>
+      <div style="display: grid; gap: var(--space-2)">
+        <div class="pv-comment-card__who"><span class="pv-comment-card__avatar" data-ai="" aria-hidden="true">✦</span><span class="pv-comment-card__name">Plainva AI · model</span><time class="pv-comment-card__when">2 min ago</time></div>
+        <div class="pv-comment-card__who"><span class="pv-comment-card__avatar" data-machine="" aria-hidden="true">⚙</span><span class="pv-comment-card__name">Claude Code (AI app)</span><time class="pv-comment-card__when">5 min ago</time></div>
+        <div class="pv-comment-card__who"><span class="pv-comment-card__avatar" data-hue="3" aria-hidden="true">AN</span><span class="pv-comment-card__name">Anna</span><time class="pv-comment-card__when">1 h ago</time></div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P3-5 (2026-10-01): the skills workshop. What waits for an approval on this device stands first; the review names what a skill may do in words and what changed since the approved version as a line comparison (<code>LineCompare</code>, <code>.pv-linecompare</code>), in a facts list (<code>.pv-skill-facts</code>).</p>
+    <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
+      <dl class="pv-skill-facts">
+        <dt>What it may do</dt>
+        <dd><span>Uses: Searching the vault · Reading a note</span><span>Only notes in: Projects/</span><span>Changes nothing, sends nothing.</span></dd>
+        <dt>What changed</dt>
+        <dd><pre class="pv-linecompare"><span>  1. Read the offer.</span><span class="pv-linecompare-line--add">+ 2. Send the result to the client.</span></pre></dd>
+        <dt>Files</dt>
+        <dd><span><code>SKILL.md</code> · 2.1 KB</span></dd>
+      </dl>
+    </div>
+    <p class="sec-sub">AI harness P5.5 (2026-10-08): scripts in the same workshop. A script's review is the skills' facts list with what a program adds — its limits, its inputs, and its code as a box with line numbers (<code>ScriptCode</code>, <code>.pv-script-code</code>) and the line that the engine reads it. A run lists each tool call with the skills' verdict mark and shows its value and its log in the same box without numbers (<code>ScriptOutput</code>, <code>.pv-script-out</code>). The form is a column of fields (<code>.pv-script-form</code>, <code>.pv-script-field</code>); the tools stand in two groups, what reads and what suggests (<code>ScriptToolPicker</code>, <code>.pv-script-toolgroup</code>); an input is one row — name, kind, required, remove (<code>.pv-script-input</code>). What a script that suggests laid down is shown with the conversation's own run lines and draft cards, never a card of its own.</p>
+    <div class="card" style="max-width: 560px; display: grid; gap: var(--space-2)">
+      <dl class="pv-skill-facts">
+        <dt>What it may do</dt>
+        <dd><span>It calls these tools: Reading a note.</span><span>It reaches nothing else — no file, no network, no other tool.</span><span>It changes nothing.</span></dd>
+        <dt>Limits</dt>
+        <dd><span>5 s of computing · 32 MB of memory · at most 20 tool calls of 64 KB each · a result of at most 64 KB</span></dd>
+        <dt>Code</dt>
+        <dd>
+          <pre class="pv-linecompare pv-script-code"><span>const note = await tools.read_note({ path: input.path });</span><span>const words = note.text.split(/\s+/).filter(Boolean).length;</span><span>return { path: note.path, words };</span></pre>
+          <span class="pv-skill-test-line" data-mark="pass"><span aria-hidden="true">✓</span><span>The engine reads this code as JavaScript. Lines: 3 · Characters: 146</span></span>
+        </dd>
+        <dt>Calls</dt>
+        <dd><span class="pv-skill-test-line" data-mark="pass"><span aria-hidden="true">✓</span><span>Reading a note <code>{"path":"Report.md"}</code> — 2 ms · 99 B</span></span></dd>
+        <dt>Result</dt>
+        <dd><pre class="pv-linecompare pv-script-out">{
+  "path": "Report.md",
+  "words": 7
+}</pre></dd>
+      </dl>
+      <div class="pv-script-form">
+        <div class="pv-script-field">
+          <span style="color: var(--text-muted); font-size: var(--text-sm)">Tools</span>
+          <div class="pv-script-toolgroup"><span>Reading</span><div class="pv-script-tools"><label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Reading a note</span></label><label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>Searching the vault</span></label></div></div>
+          <div class="pv-script-toolgroup"><span>Suggesting</span><div class="pv-script-tools"><label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>Suggesting changes to a note</span></label><label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>Drafting a task</span></label></div></div>
+        </div>
+        <div class="pv-script-field">
+          <span style="color: var(--text-muted); font-size: var(--text-sm)">Inputs</span>
+          <div class="pv-script-inputs">
+            <div class="pv-script-input"><input class="pv-field pv-field--compact" value="path" aria-label="Name of the input" /><select class="pv-field pv-field--select pv-field--compact" aria-label="Type"><option>text</option></select><label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Required</span></label><button type="button" class="pv-iconbtn pv-iconbtn--sm" aria-label="Remove this input">×</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P6 (2026-10-09): the vault's memory, a segment of the AI tab beside the skills. A row is a sentence, not a name (<code>.pv-memory-row</code>): the text wraps in the weight of running text, under it who added the entry and when, and marks only where there is something to say (<code>.pv-memory-mark</code>) — a rule the entry carries in the muted tone; a reason it reaches no model in the warning tone, with the row toned down, never hidden. “Always included” begins with its budget (<code>MemoryMeter</code>): the progress track at a fixed width beside the count in words. A draft for the memory is the draft card with the whole text, the two places as chips and a button that names the act.</p>
+    <div class="card" style="max-width: 560px; display: grid; gap: var(--space-1)">
+      <span class="pv-memory-meter"><span class="pv-security-progress" role="progressbar" aria-valuenow="31" aria-valuemin="0" aria-valuemax="100" aria-label="620 of 2,000 characters"><span class="pv-security-progress-bar" style="display: block; width: 31%"></span></span><span>620 of 2,000 characters</span></span>
+      <div class="pv-memory-row">
+        <div class="pv-memory-text">I write offers for film studios and bill per day, not per hour.</div>
+        <div class="pv-memory-desc">Added by you on Oct 1, 2026</div>
+      </div>
+      <div class="pv-memory-row">
+        <div class="pv-memory-text">My day rate is 950.</div>
+        <div class="pv-memory-desc">Suggested by the AI, accepted on Oct 8, 2026 · Conversation: Offer for Harbour Studio</div>
+        <div class="pv-memory-marks"><span class="pv-memory-mark">Not to cloud models</span></div>
+      </div>
+      <div class="pv-memory-row pv-memory-row--blocked">
+        <div class="pv-memory-text">Offers hold for 30 days.</div>
+        <div class="pv-memory-desc">Written in the file</div>
+        <div class="pv-memory-marks"><span class="pv-memory-mark pv-memory-mark--problem">Rules unreadable — goes to no model</span></div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P2c (2026-10-01): the system's own model on the phone is a provider row like the others — “Add provider” lists it first; its line reads “Ready on this device · window of about 4,096 tokens” or, in the failure words, why not; the sheet offers “Check availability” and, on Android while the system offers the download, “Load model”. No new visual pattern.</p>
+  </section>
+
   <!-- ================= ÄNDERUNGEN ================= -->
   <section id="aenderungen">
     <h2><span class="no">12</span>Was sich sichtbar ändert</h2>
@@ -1201,6 +1736,26 @@
     <p>Capture shows the time the entry will carry in front of a text area — Plainva stamps it, nobody types it; an entry that is being edited shows its own. The desktop hosts the field in a small modal (Enter saves, Shift+Enter breaks the line, Esc discards), the phone in a sheet where Enter stays a line break and a primary button saves. The two-kind segment hands the task kind over to the tasks view instead of growing a second form. The "journal of this day" section (label with count and "All days", the day's rows, a one-line field that writes into exactly that day) stands under the sidebar calendar on the desktop and on the phone's Today screen. Delete answers with a toast that carries Undo. All surfaces are existing primitives; the journal classes are layout only and need no LCARS or Win95 rules of their own.</p>
     <div class="schema"><span class="blk">Journal entry ✕</span><span class="blk">14:05</span><span class="blk hi">What is on your mind?</span><span class="blk">As a task</span></div>
     <p>The global quick capture (desktop, opt-in) opens the same field in a small undecorated, always-on-top window: a slim bar on top is the drag handle and carries the close button, a hairline stands in for the frame the OS does not draw. A refusal appears as an error banner in place of the hint line — inside the window, where it can be seen. The window closes only once the entry exists; losing the focus does not close it. Its setting is a card with a switch and a shortcut row: the shortcut as key caps beside a "Change" button that records the next key press; what the recorder cannot accept is a note line, what the system refuses (taken, unknown, Wayland) a warning banner under the switch.</p>
+    <h3>AI conversation</h3>
+    <div class="schema"><span class="blk">Answers are written by an AI — ⟨model⟩ via ⟨provider⟩</span><span class="blk">Thread</span><span class="blk hi">You: question</span><span class="blk">AI: answer</span><span class="blk">sent to ⟨provider⟩: 2 notes, ~1,240 tokens</span></div>
+    <p>One view of one conversation in every dress — desktop companion window, AI tab, phone sheet and screen. The marking line opens it in every dress. The user's words sit on the accent-container pair, answers on the low container surface; tool steps and the per-run "sent to" line are quiet meta text. An answer is built from Markdown blocks and the shared inline renderer: never HTML, images are links, task boxes are drawn and cannot be ticked, web links open only through the shell's confirmation. Stops and failures are banners in the thread.</p>
+    <div class="schema"><span class="blk hi">Offer 2026 ×</span><span class="blk">📌 Plan ×</span><span class="blk">+ Pin a note…</span><span class="blk">Ask about this note or your vault…</span><span class="blk hi">Send / Stop</span><span class="blk">Provider · model ▾</span></div>
+    <p>The composer: context chips, a text area beside one icon button (Send, or Stop while a run streams), and a ghost button naming provider · model that opens the profiles. Enter sends on the desktop; on touch Enter is a line break and the button sends. LCARS squares the bubbles with a panel-colour edge per voice; Win95 sinks the answer into a white field and puts the user's words on the navy bar.</p>
+    <div class="schema"><span class="blk">🛡 Send to ⟨provider⟩?</span><span class="blk">why: first request · new folder</span><span class="blk">Goes to · Notes (form, −) · Also goes · Kept back · Size</span><span class="blk">☐ Ask before every request</span><span class="blk">Cancel</span><span class="blk hi">Send</span></div>
+    <p>The send overview is the scope approval and the record in one view. As the approval it stands in the thread above the composer — never a modal — and asks on the first request and whenever the scope grows; each note can be left out with its − button, which rebuilds the overview and never sends by itself. As the record it opens under a run line, which is a ghost button reading as the faint meta line. An answer that cites none of the notes sent carries a quiet warning line above its run line. LCARS: a readout with a panel bar; Win95: a group box, the approval raised.</p>
+    <div class="schema"><span class="blk">👁 View context</span><span class="blk">Goes to · 4 of 19 candidates · ~870 tokens</span><span class="blk hi">Offer 2026 — section “Costs” · ~412 — open now · matches your words — [−][📌][🖴]</span><span class="blk">Left out: Plan (Take back)</span><span class="blk">Never to the cloud: Salaries — rule for Finance/</span><span class="blk hi">Send with this context</span></div>
+    <p>View context shows what the next request would carry, before it goes: from the eye in the composer's foot it takes the thread's place; in a wide AI tab it is a column beside the thread. One row per source with its reasons as small tags and three icon actions — leave out, pin, keep on this device; the notes the rules keep back are listed with the rule, never scored. LCARS edges each row in a panel colour; Win95 sinks each row into a list-box field.</p>
+    <div class="schema"><span class="blk">Calendar</span><span class="blk">Journal</span><span class="blk">Outline · Graph · Databases · Backlinks · Properties</span><span class="blk hi">✦ AI (dock)</span></div>
+    <p>The dock is the same conversation as the right sidebar's last section, present only while the AI is on: a bounded height so the thread scrolls inside, full-width answers, a one-column overview. On the phone the note's context carries an AI tab instead — a sheet over the note, the docked column beside it on a tablet.</p>
+    <div class="schema"><span class="blk">🔌 Claude Code wants to read your vault</span><span class="blk">Started by: …\claude.exe</span><span class="blk">☐ The whole vault · ☐ Projects · ☐ Areas</span><span class="blk">Deny</span><span class="blk hi">Allow</span></div>
+    <p>The MCP pairing question is a plain modal: the app, the program that started it, folder checkboxes with nothing ticked (the whole vault first), ghost Deny and a primary Allow that waits for a choice. Closing is a refusal. The settings card lists the set-up rows with copy buttons, the allowed apps with their folders and a remove action, and the latest requests as a quiet list — primitives only.</p>
+    <div class="schema"><span class="blk">B · I · S · Link · Code</span><span class="blk hi">✦ AI ▾</span><span class="blk">As a suggestion: Rewrite · Shorten · Translate… · Tasks from it</span><span class="blk">In the companion: Explain · Ask about the selection… Ctrl J</span></div>
+    <p>The AI at a selection: on the desktop the selection toolbar ends in one AI button after the format actions, opening a menu in two labelled groups; on the phone "AI" is the last reading verb and the last button of the editing toolbar, and opens the AI sheet. While the editor has a selection, every dress shows one quiet row above the context chips — a muted label "With the selection" and small chips with icons. A suggest action never writes into the note: its answer is a suggestion round in the comments column or sheet, authored "Plainva AI · ⟨model⟩", with the same edge, words and diff as a person's round.</p>
+    <div class="schema"><span class="blk">With the selection</span><span class="blk hi">✎ Rewrite</span><span class="blk">✂ Shorten</span><span class="blk">文 Translate</span><span class="blk">☑ Tasks from it</span><span class="blk">? Explain</span></div>
+    <div class="schema"><span class="blk">✦ Ask something</span><span class="blk hi">📅 Daily orientation</span><span class="blk">🗓 Weekly review</span><span class="blk">📁 Project status</span></div>
+    <div class="schema"><span class="blk">▶ 0:17 / 0:48 ━━━○──── Voice 2026-09-24 0812.m4a</span><span class="blk hi">≡ Transcribe</span><span class="blk">→ suggestion under the recording · Plainva AI · ⟨model⟩</span></div>
+    <p>Transcribe is the shared sound player's last control, on every surface a voice note stands on, while the AI is on and the surface knows the note and the target. Disabled with a busy state while it runs; the transcript arrives as a suggestion round under the recording. Its model is the profile "Audio", never the default for a conversation.</p>
+    <p>Skills are three prompt templates started by hand: small chips under an empty conversation's invitation, rows with a one-line description under "Skills" in the AI tab and on the phone's conversation list, and one palette command each. A skill sends its prompt as the user's message, in the user's language, from the tab, the list and the palette in a new conversation.</p>
     <h3>Event description and Join</h3>
     <div class="schema"><span class="blk">Q4 planning · Wed 24/09 · 14:00–15:00</span><span class="blk hi">Join · Teams</span><span class="blk">Documents: [link] contoso.sharepoint.com<br>via Microsoft Safe Links</span></div>
     <p>The description of a calendar event is foreign text and is drawn by one shared component in both previews (desktop window, phone sheet) from a linear parser — never as HTML. It sits in a quiet box on the secondary ground. A link is a chip that names the host it leads to (a link glyph, the host; a link with its own words shows them and the host muted beside them); only http(s) becomes a chip, and the full destination is the chip's tooltip. A Microsoft Safe Link names its target's host and gets a quiet line under the chip — but what opens is always the original address, so the organisation's check still runs. The meeting's own join link is a primary button with a video glyph under the time, named after the service when its host says which one it is. Tokens only; the button is a .pv-btn and keeps its LCARS and Win95 docking.</p>

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import i18n from "@plainva/ui/i18n";
-import { docsSlug, userGuideUrl, GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE } from "@plainva/ui";
+import { docsSlug, userGuideUrl, GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE, SCRIPTS_GUIDE } from "@plainva/ui";
 import { APP_LANGUAGES } from "@plainva/ui";
 
 /**
@@ -18,7 +18,7 @@ import { APP_LANGUAGES } from "@plainva/ui";
 const HANDBOOK = join(__dirname, "..", "..", "..", "docs", "user");
 
 /** Every page the app links to, as it is named in the handbook. */
-const LINKED_PAGES = ["OKF.md", "Getting_Started.md", GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE];
+const LINKED_PAGES = ["OKF.md", "Getting_Started.md", GDRIVE_BYO_GUIDE, ONEDRIVE_DROPBOX_BYO_GUIDE, SCRIPTS_GUIDE];
 
 describe("docsLinks", () => {
   beforeEach(async () => {

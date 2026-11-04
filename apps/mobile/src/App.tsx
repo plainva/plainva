@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { InlineSuggestProvider, newEntries, type NewHandlers } from "@plainva/ui";
+import { newEntries, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
@@ -83,6 +83,7 @@ import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
+import { aiShellRoutes, MobileAiShell, ShellProviders, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -360,12 +361,8 @@ export default function App() {
   // the hook order on the next one.
   const { splitPossible, twoColumn, navCollapsed, toggleNav } = useAdaptiveSplit(onboarded);
 
-  // Long press on the navigation bar opens the areas sheet (P5/E10) — the
-  // shortcut next to the discoverable title ▾. A short tap must stay a tab
-  // switch, so the timer is cancelled on pointerup/leave. Declared above the
-  // early return: hooks must run in the same order on every render.
-
   useCommentShell(vault, useCallback((entry) => leaveThen(() => setNav((s) => pushEntry(s, entry))), []));
+  const ai = useMobileAi(vault, () => commandNotePath(nav));
   if (!vault) return <VaultBootSurface boot={boot} />;
 
   const top = navTop(nav);
@@ -621,6 +618,7 @@ export default function App() {
     rebuildIndex: () => void rebuildVaultIndex(vault),
     updateIndexes: () => push({ kind: "overviews", path: "" }),
     activeNote: () => commandNotePath(nav),
+    openAi: ai.palette.openAi, runAiSkill: ai.palette.runAiSkill, aiSkills: ai.palette.aiSkills,
   });
 
   const routeCtx = {
@@ -635,8 +633,7 @@ export default function App() {
 
   const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // the strip: reservesFabStrip
   return (
-    // `[[` and `#` in the capture fields read this vault's index (W5).
-    <InlineSuggestProvider source={vault.queryService ?? null}>
+    <ShellProviders index={vault.queryService ?? null} embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
@@ -697,7 +694,7 @@ export default function App() {
       {areasOpen && (
         <AreasSheet
           active={currentArea(nav)}
-          order={barLayout}
+          order={withoutAiArea(barLayout, ai.enabled)}
           onArrange={() => {
             setAreasOpen(false);
             // Straight to the setting that arranges the bar — noticing "this
@@ -735,6 +732,7 @@ export default function App() {
           vault={vault}
         />
       )}
+      <MobileAiShell ai={ai} {...aiShellRoutes({ ai, vault, openNote, push, setNav, commands, aiInBar: slots.includes("ai") })} />
       {fromTemplate && (
         <TemplatePickSheet
           onClose={() => setFromTemplate(false)}
@@ -745,7 +743,7 @@ export default function App() {
         />
       )}
     </div>
-    </InlineSuggestProvider>
+    </ShellProviders>
   );
 }
 

@@ -146,6 +146,7 @@ Specyficzne dla Plainva dodatki do notatek są zgrupowane pod jednym kluczem `pl
 | `tasks` | `false` | Wyklucza pola wyboru tej notatki z [widoku Zadania](Tasks.md) |
 | `templateFor` | lista linków wiki do plików `.base` | Przypisuje **szablon** do wymienionych baz danych (istotne tylko dla notatek wewnątrz folderu szablonów) |
 | `pim` | mapowanie (patrz niżej) | Kotwica wiążąca notatkę z zewnętrznym wydarzeniem kalendarza, zadaniem lub e-mailem |
+| `ai` | mapa `{cloud, web}`, każde `allow` lub `deny` | Reguła prywatności AI tej notatki (patrz niżej) |
 
 Wszystkie te pola są opcjonalne. Jeśli nie zapisujesz żadnego z nich, pomiń klucz `plainva:` całkowicie. Nieprawidłowe wartości są ignorowane przy odczycie, nigdy traktowane jako błąd.
 
@@ -167,6 +168,54 @@ plainva:
 **Nazwa pliku nie jest częścią tożsamości.** Odzwierciedlone zadanie nosi nazwę swojego tytułu (`<tytuł>.md`, przy tym samym tytule `<tytuł> 2.md` itd.); przypisanie odbywa się wyłącznie przez kotwicę. Narzędzia mogą zmieniać nazwę pliku i go przenosić, dopóki kotwica pozostaje. Nazwy w postaci `<tytuł> — <16 lub 64 znaki szesnastkowe>.md` pochodzą z wersji Plainva z 12–24 września 2026: znaki to początek skrótu SHA-256 z dostawcy, tożsamości, listy i `uid`. Widok zadań jednorazowo proponuje zmianę ich nazw na tytuły — tylko gdy znaki pasują do kotwicy w tym samym pliku.
 
 `templateFor` to kontrakt pola przypisania szablonu (patrz [Bazy danych (.base)](Databases_Base.md)): na notatce wewnątrz folderu szablonów wymienia bazy danych, w których menu **Wpis** domyślnie pokazuje ten szablon. Wartości to całe linki wiki wraz z rozszerzeniem `.base` — w formie gołej (`"[[Tasks.base]]"` pasuje do pliku o tej nazwie w dowolnym folderze, więc przetrwa samo przeniesienie folderu) albo kwalifikowanej ścieżką (`"[[Projekte/Tasks.base]]"` pasuje dokładnie do tej ścieżki). Plainva zapisuje gołe linki i kwalifikuje je tylko wtedy, gdy istnieją dwa pliki `.base` o tej samej nazwie. Skalar zamiast listy jest tolerowany. Gdy wpis jest tworzony z szablonu, `templateFor` — w odróżnieniu od pozostałych kluczy `plainva:` — **nie** jest kopiowany do nowej notatki.
+
+### Reguła prywatności AI (`plainva.ai` i `.agent/`)
+
+`plainva: { ai: … }` określa, dokąd może trafić treść notatki, gdy w grę wchodzi AI:
+
+- `cloud: deny` — nigdy do odbiorcy AI w chmurze: ani tekst, ani tytuł, nazwa pliku, tekst linku czy streszczenie. Modele lokalne na urządzeniu pozostają dozwolone.
+- `web: deny` — nigdy w zadaniu, które korzysta też z internetu.
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+Reguły dla całych folderów znajdują się w `.agent/policy.yml`. Wygrywa własna wartość notatki, a w przeciwnym razie najbliższa reguła folderu:
+
+```yaml
+folders:
+  Private/: { cloud: deny }
+  Research/: { web: deny }
+```
+
+`true`/`false` są odczytywane jako `allow`/`deny`; każda inna wartość jest pomijana i nigdy niczego nie otwiera. Reszta ukrytego folderu `.agent/` — skille (`skills/<name>/SKILL.md`), pamięć i notatki z rozmów — należy do asystenta Plainva. Plainva stosuje się do nowego lub zmienionego pliku w tym miejscu dopiero wtedy, gdy użytkownik zatwierdzi go na danym urządzeniu; narzędzie powinno więc zapisywać w `.agent/` tylko wtedy, gdy użytkownik dokładnie o to prosi.
+
+### Pamięć asystenta (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Dwa pliki Markdown przechowują to, co asystent powinien wiedzieć o użytkowniku: `.agent/active_memory.md` trafia do każdej nowej rozmowy, `.agent/MEMORY.md` jest przeszukiwany, gdy pytanie tego wymaga. Wpis to element listy najwyższego poziomu (`-`, `*` lub `+`); wcięte wiersze go kontynuują, nagłówki grupują wpisy, a blok YAML na początku pliku i bloki kodu są pomijane. To, co Plainva wie o wpisie, jest zapisane w jednym komentarzu HTML za nim:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — dzień dodania wpisu (`YYYY-MM-DD`).
+- `by` — `user` albo `assistant` dla szkicu zaakceptowanego przez użytkownika.
+- `source` — tytuł rozmowy, z której pochodzi szkic.
+- `deny` — `cloud`, `web` lub oba: odbiorcy, od których wpis jest trzymany z dala, tak jak w notatce.
+
+Narzędzie zapisujące wpis trzyma go w jednym wierszu o długości do 500 znaków i zostawia komentarze innych wpisów bez zmian. Uszkodzony komentarz — niezamknięty, występujący dwa razy albo wymieniający regułę, której Plainva nie zna — sprawia, że wpis nie trafia do żadnego modelu. Wpis bez komentarza nie ma własnej reguły, więc narzędzie nigdy nie może pominąć komentarza wpisu, który przepisuje. To, co asystent ma robić, nie jest tu zapisane: reguły są wierszami `AGENTS.md`.
+
+### Dziennik uczenia się (`.agent/logs/learning.md`)
+
+Do dziennika trafia jeden wiersz za każdą zaakceptowaną propozycję asystenta — nową umiejętność, inne instrukcje dla umiejętności, regułę w `AGENTS.md` — i za każdy powrót do wcześniejszej wersji umiejętności: czas z dokładnością do minuty, co się zmieniło i tytuł rozmowy, z której to pochodzi. Plainva dopisuje wiersze, ale żadnego z nich później nie odczytuje.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+Plik jest listą pod nagłówkiem i można go skrócić albo usunąć. Nie zawiera ani słowa modelu, który przygotował propozycję, i nigdy nie podaje jego nazwy. Po przekroczeniu 100 000 znaków Plainva usuwa najstarsze wiersze listy.
 
 ### Linki
 
@@ -601,6 +650,7 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 ## Nie dotykaj i bezpieczeństwo
 
 - **`.plainva/`** przechowuje kopie zapasowe i stan wewnętrzny. Nigdy nie czytaj z niego logiki programu ani do niego nie zapisuj.
+- **`.agent/`** zawiera reguły AI, skille i pamięć Plainva. Zmieniaj go tylko wtedy, gdy użytkownik dokładnie o to prosi, i przestrzegaj `cloud: deny` oraz `web: deny` (patrz reguła prywatności AI wyżej).
 - **Nieznane klucze są święte.** Gdy przepisujesz `.base` lub notatkę, przenieś każdy klucz, którego nie zamierzałeś zmienić, bez zmian. Sam Plainva zachowuje nieznane klucze `.base` przez wewnętrzną surową kopię; zewnętrzny program piszący powinien robić to samo (sparsuj → zmień tylko to, co zamierzasz → zserializuj).
 - **Wartości zmieniają się w notatce, nie w `.base`.** Aby ustawić komórkę, edytuj frontmatter notatki. `.base` decyduje tylko o tym, które notatki i kolumny są pokazywane.
 - **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `summaries` / `views`.

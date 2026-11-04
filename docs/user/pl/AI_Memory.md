@@ -1,0 +1,79 @@
+# Pamięć (Beta)
+
+Stan na: 2026-10-25
+
+Pamięć przechowuje to, co AI powinna wiedzieć o Tobie i Twojej pracy bez przypominania: czym się zajmujesz, jakie odpowiedzi lubisz, kim są Twoi klienci. To dwa pliki w Twoim vaulcie. Nic nie trafia do pamięci bez Twojego „tak”, a każdy wpis możesz przeczytać, zmienić i usunąć.
+
+## Dwa miejsca
+
+Zawartość miejsca **Zawsze dołączane** trafia do każdej nowej rozmowy. Pisz tam krótko: mieści się 2000 znaków, a pasek pokazuje, ile z nich już zajęto. Wpis, który już się nie mieści, jest oznaczony jako **Brak miejsca — niedołączany** — jest zapisany, ale nie idzie razem z rozmową. Wpisy są dołączane w kolejności, w jakiej stoją, więc to, co najważniejsze, powinno być na górze; kolejność zmieniasz w pliku.
+
+Zawartość miejsca **Do sprawdzenia** nie idzie razem z rozmową. AI zagląda tam, gdy pytanie może zależeć od czegoś, co wcześniej od Ciebie usłyszała, a w rozmowie widać **Przeszukiwanie pamięci**. To miejsce na to, co ważne tylko czasem: warunki jednego klienta, decyzja i jej powód.
+
+## Otwieranie pamięci
+
+Na desktopie wybierz **Pamięć** na karcie AI, obok **Umiejętności**. Na telefonie to **Rozmowy → Pamięć**. Tam prowadzi także **Ustawienia → AI & automatyzacja** (część vaultu): **Otwórz pamięć** w **Umiejętności i pamięć**.
+
+## Samodzielne dodawanie wpisu
+
+**Nowy wpis** prosi o trzy rzeczy: tekst — jedna rzecz na wpis, jeden wiersz do 500 znaków —, miejsce (**Zawsze dołączane** albo **Do sprawdzenia**) i decyzję, czy zaznaczyć **Tylko modele na tym urządzeniu**. Zaznacz to przy wszystkim, o czym żaden model w chmurze nie powinien się dowiedzieć.
+
+Przycisk ⋯ przy wpisie — na telefonie dotknięcie wpisu — oferuje **Edytuj**, przeniesienie go do drugiego miejsca (**Zawsze dołączaj** albo **Tylko do sprawdzenia**) i **Usuń**.
+
+## Prośba do AI o zapamiętanie
+
+Powiedz to w rozmowie: „Zapamiętaj, że rozliczam się stawką dzienną, a nie godzinową.” AI przygotowuje szkic wpisu; sama nigdy go nie zapisuje. Pod jej odpowiedzią karta **Szkic · Wpis pamięci** pokazuje cały tekst. Wybierz miejsce, potem **Zapamiętaj** — albo **Odrzuć**. Szkic czeka w **Oczekujące**, dopóki o nim nie zdecydujesz, a pamięć pokazuje, ile szkiców czeka.
+
+„Zapomnij, że …” działa tak samo: na karcie widnieje **Szkic · Usunięcie z pamięci**, a **Usuń** usuwa wpis. Gdy powiesz AI, że coś się zmieniło, karta pokazuje pod **Zastępuje**, którego wpisu miejsce zajmie nowe sformułowanie.
+
+Zakończona rozmowa też może zaproponować wpisy: polecenie **Naucz się z tej rozmowy** czyta ją jeszcze raz i zostawia szkice, każdy ze swoim dowodem. Jak to działa i co taki przegląd w ogóle może zaproponować, opisano na stronie [Umiejętności](AI_Skills.md).
+
+## Reguła nie jest wpisem pamięci
+
+„Zawsze odpowiadaj po niemiecku” to nic, co AI ma wiedzieć — to coś, co ma robić. Taka reguła nie trafia do pamięci: staje się wierszem w **Instrukcje vaultu** (`AGENTS.md`), które każdy model dostaje jako instrukcję. Dodaj ją przez **Dodaj regułę** w **Reguły dla AI** albo poproś o to AI; na karcie widnieje wtedy **Szkic · Reguła dla AI** z przyciskiem **Dodaj jako regułę**.
+
+Podobnie jak wszystkie instrukcje, plik musi zostać zatwierdzony na każdym urządzeniu, zanim tam zacznie obowiązywać (zob. [Umiejętności](AI_Skills.md)). Reguła dodana na urządzeniu, na którym plik był już zatwierdzony, obowiązuje tam od razu; Twoje pozostałe urządzenia najpierw Cię pytają.
+
+## Porządkowanie
+
+Pamięć, która się rozrosła, zaczyna się powtarzać. W sekcji **Porządkowanie** widok pamięci wymienia rzeczy, które to urządzenie zauważyło samo, bez pytania modelu: dwa wpisy, które mówią prawie to samo, wpis starszy niż rok oraz wpisy w sekcji **Zawsze dołączane**, które już się nie mieszczą. **Porównaj** pokazuje oba wpisy razem, każdy ze wszystkimi działaniami ze swojego menu.
+
+Do dokładniejszego przyjrzenia się pamięci służy umiejętność. **Dbanie o pamięć** czyta wpisy za pomocą modelu rozmowy i szkicuje, co do siebie należy, a co można usunąć; uruchamia ją wiersz **Zleć przejrzenie pamięci**. To, co proponuje, to szkice jak każde inne: nic się nie zmienia, dopóki ich nie zaakceptujesz, a gdy dwa wpisy są ze sobą sprzeczne, pyta zamiast rozstrzygać.
+
+## Styl pisania
+
+Szkic AI brzmi jak AI. Sekcja **Styl pisania** opisuje, jak piszesz, żeby szkic mógł brzmieć jak Ty — zmierzone w notatkach, które sam wybierasz.
+
+**Wybierz przykłady…** otwiera wybór notatek z **Przypnij notatkę…**; wybierz do ośmiu własnych notatek. To urządzenie mierzy w nich, bez modelu i bez wysyłania czegokolwiek: jak długie są Twoje zdania i akapity, listy czy ciągły tekst, nagłówki, jak zwracasz się do ludzi (po niemiecku „du” czy „Sie”, po francusku „tu” czy „vous” — tam, gdzie język pokazuje to w słowach), pogrubienie, emoji, wykrzykniki i myślniki. Właściwości, kod i cytaty się nie liczą. Każda cecha stoi z liczbami, na których się opiera, a jej ✕ wyłącza ją osobno; **Przywróć** przywraca to, co wyłączyłeś. Nie zachowuje się żadnego słowa ani zwrotu z Twoich notatek: urządzenie zachowuje ścieżki przykładów i to, co wyłączyłeś, i mierzy od nowa, ilekroć styl jest pokazywany lub używany.
+
+Styl jest używany tylko tam, gdzie go wybierzesz: **Mój styl**, przycisk obok globusa pod polem wiadomości, daje go rozmowie, którą zaczniesz jako następną — tak jak internet, ustalony od pierwszej wiadomości. Rozmowa pokazuje wtedy **Z Twoim stylem pisania**, podsumowanie wysyłki ma wiersz **Styl pisania**, a szkic z takiej rozmowy mówi, że powstał z Twoim stylem pisania; pozostaje szkicem AI, podpisanym jej modelem. AI trzyma się stylu w tym, co zachowujesz dla siebie — w notatce, wpisie dziennika, przeróbce Twojego tekstu — ale nie sama z siebie w e-mailu, zaproszeniu czy komentarzu; poproś o to tam, a to zrobi.
+
+Styl jest zapisany na tym urządzeniu, nie w vaulcie: na innym urządzeniu wybierasz przykłady na miejscu. Przykład, który Twoje zasady prywatności zatrzymują przed modelem, nie daje temu modelowi żadnej ze swoich cech — podsumowanie wysyłki liczy go w **Zatrzymano** — a to, co model na tym urządzeniu pisze z cechami takiej notatki, zachowuje jej zasady.
+
+## Prywatność
+
+- Wpis może nieść własną regułę: **Nie do modeli w chmurze**, **Nie w rozmowach z internetem**. Model na tym urządzeniu dostaje każdy wpis.
+- Wpis, który AI przygotowała w rozmowie, w której czytała notatki objęte zasadą prywatności, dostaje te same reguły — karta mówi: **Wpis otrzymuje zasady prywatności notatek, na których opierała się ta rozmowa.** To, co pochodzi z notatki, która musi zostać na tym urządzeniu, nie dociera do chmury przez pamięć.
+- Twoje [zasady prywatności](AI_Assistant.md) obejmują także oba pliki: reguła folderu dla `.agent/` trzyma całą pamięć z dala od chmury.
+- Przegląd wysyłki ma wiersz **Pamięć** — ile wpisów idzie razem — i liczy w **Zatrzymano** wpisy, które zatrzymują Twoje reguły. Nigdy nie wymienia żadnego wpisu.
+- Dla AI wpis jest informacją, a nie instrukcją: zdanie w pamięci nie daje jej żadnych uprawnień.
+- Rozmowa zachowuje pamięć, z którą została rozpoczęta. Usunięty wpis nie trafia do żadnej nowej rozmowy; rozmowy, które już się rozpoczęły, zachowują to, co dostały.
+
+## Wyłączanie
+
+Przełącznik **Używaj pamięci na tym urządzeniu** jest włączony, dopóki go nie wyłączysz. Po wyłączeniu rozmowa na tym urządzeniu nic z pamięci nie dostaje i nic do niej nie dodaje. Pliki zostają bez zmian, a każde urządzenie decyduje samo.
+
+## Dwa pliki
+
+`.agent/active_memory.md` (zawsze dołączany) i `.agent/MEMORY.md` (do sprawdzenia) to zwykły Markdown. Każdy wpis jest elementem listy, a nagłówki grupują wpisy. To, co Plainva wie o wpisie, jest zapisane w komentarzu za nim:
+
+```markdown
+## Clients
+
+- Harbour Studio pays within 14 days.
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud -->
+```
+
+`added` i `by` mówią, kiedy wpis został dodany i czy pochodzi od Ciebie, czy z zaakceptowanego szkicu, `source` podaje nazwę rozmowy, z której pochodzi szkic, a `deny` zawiera reguły wpisu (`cloud`, `web`). Pliki możesz edytować w dowolnym edytorze. W Plainva każdy z nich otwiera **Otwórz plik**.
+
+Plainva niczego nie zgaduje. Wpis z uszkodzonym komentarzem jest oznaczony jako **Reguły nieczytelne — nie trafia do żadnego modelu**, dopóki nie naprawisz komentarza lub nie dodasz wpisu od nowa. Tekst ukryty w komentarzu lub w niewidocznych znakach nigdy nie jest wysyłany; wpis pokazuje wtedy, ile ukrytych części pominięto. Plik mieści co najwyżej 2000 wpisów i 256 KB.

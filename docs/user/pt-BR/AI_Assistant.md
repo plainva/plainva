@@ -1,0 +1,300 @@
+# Assistente de IA (Beta)
+
+Última revisão: 2026-10-29
+
+O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações — como sugestões em uma nota, como rascunhos de algo novo ou como um plano que você confirma. Ele nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
+
+## Ativando
+
+Abra **Configurações → IA e automação** (a parte do App) e ative **Usar IA neste dispositivo**. Sem o interruptor não há botão de IA, nem aba de IA, nem assistente. Nada é enviado a lugar nenhum até você perguntar algo.
+
+## Escolhendo um provedor
+
+O Plainva não traz um serviço de IA próprio: você usa um provedor à sua escolha, com sua própria chave. Qualquer provedor pode ser escolhido; o Plainva informa os termos e a retenção de cada um para que você decida — não exclui nenhum.
+
+| Tipo | Provedores |
+|---|---|
+| Provedores de nuvem | Anthropic, OpenAI, Google Gemini |
+| Gateways e servidores próprios | OpenRouter, qualquer **Servidor compatível com OpenAI** |
+| Neste computador (desktop) | Ollama, LM Studio |
+| Neste celular | Apple (iPhone), Gemini Nano (Android) |
+
+1. Em **IA e automação**, escolha **Adicionar provedor** e selecione um. Cada entrada traz uma observação curta sobre seus termos — por exemplo, que o acesso gratuito do Google pode permitir que pessoas leiam suas entradas.
+2. Digite a chave com **Inserir chave**. A chave vai para o armazenamento seguro deste dispositivo; o Plainva nunca a mostra de novo — nem para a IA, nem na tela.
+3. **Testar conexão** carrega a própria lista de modelos do provedor. Se falhar, a mensagem diz por quê (uma chave rejeitada, nenhuma conexão, um modelo desconhecido).
+
+Um **Servidor compatível com OpenAI** é adicionado pelo endereço. O Plainva pergunta mais uma vez antes de adicioná-lo, em uma janela do sistema operacional, e envia somente para o endereço que você confirmou. `http` simples só funciona para um servidor neste dispositivo; tudo o mais precisa de `https`.
+
+Se você ainda não tem uma chave: um modelo neste computador (Ollama, LM Studio) não custa nada, e o console de cada provedor emite chaves.
+
+**O modelo do sistema no celular.** Em um iPhone com Apple Intelligence (a partir do iPhone 15 Pro), **Adicionar provedor** oferece primeiro **Apple**; em alguns celulares Android, **Gemini Nano**. Ele não precisa de chave, não custa nada e nada sai do dispositivo — por isso nenhum resumo pergunta antes do envio. Sua janela é pequena, cerca de 4.000 tokens para as notas, a pergunta e a resposta juntas: vão menos notas, as rodadas anteriores são encurtadas e ele não usa ferramentas. A linha diz se ele está pronto e, se não, por quê — Apple Intelligence desativado, um dispositivo que não consegue rodá-lo, um modelo que o sistema ainda está preparando; no Android, **Carregar modelo** pede ao sistema que o baixe. O modelo da Apple não fala todos os idiomas (sem polonês). Se o perfil **Local** o indicar, ele também escreve os resumos no celular.
+
+## Modelos e perfis
+
+Quatro perfis — **Rápido**, **Equilibrado**, **Forte** e **Local** — são a sua atribuição de modelos. Escolha um provedor e um modelo para cada um, a partir da lista do provedor ou digitando o id do modelo exatamente como o provedor o chama. **Padrão para novas conversas** decide com qual perfil uma nova conversa começa. O Plainva não chama nenhum modelo de “o melhor”.
+
+Um quinto espaço, **Áudio**, guarda o modelo que transcreve as notas de voz; nunca é o padrão de uma conversa.
+
+Um sexto espaço, **Embeddings**, guarda o modelo com que a pesquisa por significado calcula quando você escolhe **Provedor próprio** em **Pesquisa semântica** — veja [Pesquisa](Search.md).
+
+**Um modelo neste computador.** Um servidor no seu próprio computador informa os nomes dos modelos que oferece, mas não quanto um deles consegue ler de uma vez nem se pode chamar ferramentas. Ao escolher um modelo assim para um perfil, você pode informar os dois: **Janela de contexto**, em tokens — deixe-a vazia se não souber — e **Pode chamar ferramentas**. Com uma janela pequena, o Plainva envia junto menos notas, e mais curtas, e para antes de uma solicitação que não caberia, em vez de deixar o servidor cortá-la sem avisar; nesse caso, o aviso diz de quantos tokens a solicitação precisa e o que você informou. Com as ferramentas desativadas, o modelo responde a partir do que vai junto: sem ferramentas, sem internet e sem consultar nada. Um modelo neste dispositivo recebe tempo: ele pode ficar em silêncio por até quinze minutos antes da primeira palavra, e a conversa mostra o tempo decorrido enquanto ele calcula.
+
+## Totalmente local
+
+**Configurações → IA e automação** (a parte do App) mostra, em **Modo**, o que vale neste dispositivo agora: que um provedor responde (“Nuvem”), que este dispositivo também calcula algo por conta própria — a pesquisa por significado, os resumos, a leitura de e-mails e compromissos — (“Híbrido”) ou que um modelo neste dispositivo responde. Essa linha é um estado, não uma escolha: ela decorre dos provedores e das funções auxiliares que você configurou.
+
+**Totalmente local** é o único interruptor dessa seção, e ele é uma garantia: enquanto estiver ativado, só modelos neste dispositivo respondem — um servidor neste computador ou o modelo do próprio sistema em um celular —, e nada do que a IA processa vai para um provedor, para a internet ou para outro programa. Ele vale para este dispositivo, em todos os vaults.
+
+- **Quem responde.** Uma nova conversa começa com um modelo dos seus próprios perfis que roda neste dispositivo: o do perfil padrão ou, na falta dele, o do perfil **Local**; se também faltar, o do primeiro perfil que indicar um modelo assim. O Plainva não escolhe nenhum modelo por você — se nenhum rodar aqui, as configurações e a conversa dizem isso e oferecem o caminho para configurar um.
+- **O que fica em espera.** As configurações listam isso: os provedores continuam configurados e não recebem nada, e os perfis deles não respondem; nenhuma conversa usa a internet; ferramentas externas (MCP) e agentes externos não são usados — nem mesmo um programa neste computador, porque o Plainva não consegue ver o que ele repassa; apps de IA neste computador não podem ler o vault; a pesquisa por significado feita por meio de um provedor fica só com as palavras; a Siri e os Atalhos não recebem nenhuma lista de títulos. Nada é removido: desative o interruptor de novo, e tudo está como você configurou.
+- **Conversas abertas.** Uma conversa que aconteceu com o modelo de um provedor não continua enquanto o interruptor estiver ativado — nenhuma conversa troca de modelo sem avisar. Ela permanece legível, e **Nova conversa** começa uma com o modelo neste dispositivo.
+- **O que significa “neste dispositivo”.** Um servidor no endereço do próprio computador ou o modelo do próprio sistema no dispositivo. Um servidor na sua rede doméstica não conta, nem o Private Cloud Compute da Apple: um endereço fora deste dispositivo não é este dispositivo, por mais perto que esteja.
+- **O que o interruptor não é.** Ele vale para a IA. Sincronização, e-mail, calendários e atualizações são funções à parte, com interruptores próprios. Baixar um pacote para a pesquisa por significado é um download que você mesmo inicia; ele não leva nada do seu vault. E a regra própria de uma nota — nunca para a nuvem — vale com o interruptor ativado ou desativado.
+
+## Perguntando
+
+- **Desktop:** o botão de IA na barra de ações, **Ctrl+J** (⌘J no macOS) ou **Perguntar à IA** na paleta de comandos abre o assistente — uma pequena janela sobre o seu trabalho. **Abrir como aba** move a mesma conversa para a aba de IA, onde suas conversas estão listadas.
+- **Celular:** **Perguntar à IA** no menu ⋮ de uma nota abre a folha de IA sobre essa nota. A área **IA** (na folha de áreas, ou na barra de navegação se você a colocar lá) mostra a conversa em tela cheia; **Conversas** lista as anteriores.
+- **Ao lado da nota:** no desktop, a mesma conversa é a última seção da barra lateral direita, **IA**. No celular ou no tablet, é a aba **IA** do contexto da nota — ao lado de **Propriedades** e **Backlinks** —, que um tablet mostra ao lado da nota.
+
+A nota que você tem aberta vai junto automaticamente; remova-a do contexto com o ✕ dela, se quiser. **Fixar nota…** adiciona mais notas. O assistente também pode pesquisar por conta própria: ele pesquisa no vault, lê notas e suas seções, bancos de dados, backlinks e notas vinculadas, lista tarefas, compromissos e as notas abertas ou alteradas há pouco, e abre notas e visualizações. Para olhar para trás — o que mudou em um período, como uma nota evoluiu —, ele lê o histórico de versões deste dispositivo; uma linha que você excluiu, ele pode contar, mas nunca ler. Sozinho, ele não pode mudar, criar ou excluir nada; o que ele pode propor no lugar está descrito mais abaixo, em “Propor alterações”.
+
+O assistente também pode mostrar coisas a você: abrir uma nota em um título, mostrar uma nota no grafo, levar o calendário até um dia, abrir visualizações, mostrar e ocultar as barras laterais. Para isso, usa os comandos da paleta de comandos — e, deles, só os que mostram algo: não pode acionar os que criam, alteram, excluem, exportam ou abrem uma janela.
+
+Cada conversa começa com a linha “As respostas são escritas por uma IA — ⟨modelo⟩ via ⟨provedor⟩”. Sob cada resposta, uma linha diz o que foi enviado para onde: quantas notas, aproximadamente quantos tokens e — quando o provedor publica preços — o custo aproximado. Quando o provedor informa um cache, a linha também diz quanto da entrada ele leu dali. **Parar** encerra uma resposta a qualquer momento.
+
+Um link em uma resposta só abre depois que você confirma o endereço dele, e imagens em respostas nunca são carregadas.
+
+## O que vai junto
+
+A cada pergunta, o Plainva reúne o que pode importar — neste dispositivo, antes de enviar qualquer coisa:
+
+- **Onde você está:** a data e a hora, a nota ou o banco de dados aberto e sua seleção nele, suas abas abertas, as tarefas que vencem na próxima semana, os próximos compromissos e a nota diária de hoje.
+- **Notas que podem importar:** encontradas pelas suas palavras, pelos links da nota aberta e pelo que você abriu ou alterou há pouco. Primeiro decidem suas regras de privacidade; só as notas que elas permitem são avaliadas. Algumas vão como seções — não como notas inteiras —, outras só com o título e um cartão — a primeira frase da seção e cada frase com números, datas, tarefas, negações ou links, palavra por palavra — ou só com o nome; o assistente lê mais delas quando precisa.
+
+Uma nota que a conversa já contém e que não mudou desde então é nomeada, não enviada de novo. Lugares do seu diário e valores de humor nunca são enviados por conta própria.
+
+## Antes de enviar qualquer coisa
+
+A primeira solicitação de uma sessão mostra um resumo: para onde vai (provedor e modelo), quais notas e qual parte de cada uma, o que mais vai junto (sua seleção, compromissos, tarefas), o que foi retido e aproximadamente quantos tokens. **Enviar** envia; **Cancelar** não envia nada e devolve suas palavras ao campo de entrada; sair da conversa enquanto o resumo está aberto — abrir outra, começar uma nova ou excluir esta — faz o mesmo; o − ao lado de uma nota a deixa de fora. Dentro do que você aprovou, as próximas solicitações vão sem perguntar. O resumo volta sempre que o escopo cresce: outro modelo ou provedor, um novo tipo de dado, notas de outra pasta, novas ferramentas ou uma solicitação muito maior. Um modelo neste dispositivo nunca pergunta.
+
+Se quiser ver o resumo antes de cada solicitação, ative **Perguntar antes de cada solicitação** — no próprio resumo ou em **Configurações → IA e automação**, em **Envio**.
+
+A linha sob cada resposta abre o resumo do que foi com ela. Se uma resposta não cita nenhuma das notas enviadas, um aviso acima dessa linha diz isso; confira então a resposta com as notas. Quando notas foram junto, a linha também indica a cobertura: **cobertura alta** quando quase toda afirmação da resposta cita uma nota, **cobertura parcial** ou **cobertura baixa** quando são menos.
+
+**Do que uma resposta era feita.** Aberta, a linha guarda também aquilo em que a resposta se baseia: quando você perguntou; cada nota com a versão que foi enviada — um código curto — e se ela continua **sem alterações**, foi **alterada desde então** ou **não existe mais**; as notas que as ferramentas do assistente leram; as ferramentas que ele usou; a versão da habilidade com a qual ele trabalhou; e o que deixou para você decidir. O Plainva guarda caminhos e versões, nunca o texto; se uma nota mudou, este dispositivo confere quando você abre a linha. **Perguntar a outro modelo…** faz a mesma pergunta com as mesmas notas em uma nova conversa: nada que uma pesquisa encontraria é acrescentado, a nota que você tem aberta agora fica de fora, assim como o que suas regras de privacidade mantêm hoje longe desse modelo. O resumo antes do envio mostra o que vai, como em toda solicitação, e a nova conversa nomeia aquela de onde veio. Isso vale para a primeira pergunta de uma conversa — uma posterior se baseia no que foi dito antes — e para as perguntas que não levaram nada além de notas.
+
+## Ver contexto
+
+O olho abaixo do campo de entrada, **Ver contexto**, mostra o que a próxima solicitação levaria — antes de sair, para o modelo escolhido agora. Para cada nota: por que foi escolhida (aberta agora, fixada, combina com suas palavras, próximo no significado, vinculada, vence em breve …), qual parte vai e aproximadamente quantos tokens. Cada nota você pode
+
+- deixar de fora da próxima solicitação (**Incluir de novo** a traz de volta),
+- fixar na conversa,
+- manter neste dispositivo para sempre: isso grava a regra `cloud: deny` na nota (veja abaixo).
+
+As notas que suas regras retêm também aparecem, para você saber o que falta; elas nunca são avaliadas nem enviadas. **Enviar com este contexto** envia o que você digitou. Numa aba de IA larga, a visualização fica aberta como uma coluna ao lado da conversa. O que você fixar ou ocultar aqui enquanto o resumo antes do envio estiver aberto ou uma resposta ainda estiver a caminho vale a partir da próxima mensagem e fica com a conversa.
+
+Acima das notas, **Enviado** diz quanto dessas notas vai junto — por exemplo ~870 de 3.460 tokens — e **Economizado** quanto isso é a menos do que enviar inteiras todas as notas propostas; na primeira vez, também diz quantos tokens teriam sido. **Mostrar como trilha no grafo** abre o grafo com a nota aberta e as fontes destacadas, e os links entre elas.
+
+Quando o texto que iria para uma nuvem parece conter uma senha ou chave, um número de conta ou de cartão, um número de documento ou fiscal, ou dados de saúde, uma linha abaixo da nota mostra **Possivelmente sensível** e o que foi detectado — em **Ver contexto** e no resumo antes do envio. **Manter neste dispositivo** escreve a regra `cloud: deny` na nota. Para números e segredos, **Ocultar nesta conversa** os troca por um marcador como `⟦withheld account⟧` em cada mensagem desta conversa, também quando o modelo lê a nota por conta própria, até você escolher **Enviar sem ocultar**; o resumo os conta em **Retido**. Tarefas e compromissos têm a mesma escolha na linha **Tarefas, compromissos e dados da nota aberta**. Na primeira vez em uma sessão em que algo desse tipo iria sem ocultar, o resumo pergunta antes do envio. A verificação acontece neste dispositivo; é um aviso, não um filtro: pode deixar passar coisas e nunca impede uma solicitação. Um trecho selecionado vai como está; com um modelo neste dispositivo, nenhum aviso aparece.
+
+## Resumos
+
+Com **Resumos com o modelo local** (em **Configurações → IA e automação**, desativado até você ativar), um modelo no seu computador escreve resumos curtos das seções longas das suas notas, de notas inteiras, das pastas de primeiro nível e do vault. Ele só funciona quando o perfil **Local** indica um servidor neste computador (Ollama, LM Studio; no celular, o modelo do sistema) — nunca uma nuvem em segundo plano — e só enquanto o Plainva está ocioso; no celular, só enquanto ele está aberto. Cada resumo é verificado: o resumo de uma seção precisa manter palavra por palavra cada número, data, valor, link, tag e cada negação; senão, vão as frases da própria seção. Um resumo fica ligado ao texto exato que representa; se você mudar a seção, ele não é usado até ser escrito de novo. Resumos de pastas e do vault só são escritos a partir de notas que suas regras deixam ir para uma nuvem. Em **Ver contexto**, uma fonte enviada como resumo diz isso, e **Original** envia as próprias frases com a próxima mensagem.
+
+## Com uma seleção
+
+Selecione um texto em uma nota, e a IA trabalha só com esse trecho.
+
+- **Desktop:** enquanto você edita, **IA** na barra de seleção oferece **Como sugestão** — **Reescrever**, **Encurtar**, **Traduzir…**, **Criar tarefas** — e **No assistente** — **Explicar** e **Perguntar sobre a seleção…** (**Ctrl+J**, ⌘J no macOS).
+- **Celular:** **IA** na barra acima de uma seleção — ao ler e ao editar — abre a folha de IA.
+- **Em cada conversa:** enquanto houver texto selecionado na nota aberta, a linha **Com a seleção** acima da entrada oferece as mesmas ações.
+
+Uma ação de sugestão envia apenas o trecho selecionado — não o resto da nota, nem notas fixadas, nem ferramentas — e pergunta com o mesmo resumo de uma pergunta. A resposta volta para a nota como uma rodada de sugestões, como a de uma pessoa: em **Sugestões** você aceita ou recusa cada alteração ou a rodada inteira, e nada muda na nota antes disso. A linha de autor da rodada diz **Plainva IA · ⟨modelo⟩**, para que fique visível qual trecho uma IA escreveu. **Criar tarefas** adiciona as tarefas abaixo do trecho em vez de substituí-lo. Cada ação mantém sua conversa no histórico.
+
+Um trecho de uma nota que suas regras mantêm longe da nuvem — ou um com links para essas notas ou com dados de local — não vai para nenhum modelo na nuvem. Em um workspace criptografado as ações de sugestão ainda não estão disponíveis: as sugestões nele ainda não podem indicar a IA como autora.
+
+## Em um tópico de comentários
+
+Dirija-se ao assistente em um comentário e ele responde no tópico. Digite um **@** no campo de comentário e escolha **IA** — a entrada com o símbolo da IA — ou escreva o nome você mesmo: **@IA**, **@AI** e **@KI** chegam todos a ele, seja qual for o idioma do app. Assim que seu comentário é enviado, o tópico mostra abaixo de **IA** a linha **está escrevendo uma resposta…**; **Parar** interrompe. A resposta aparece como resposta no mesmo tópico, com a linha de autor **Plainva IA · ⟨modelo⟩**. Diferente de uma sugestão, ela não espera ser aceita — é uma anotação ao lado da nota, nunca texto dentro dela — e, no dispositivo que perguntou, você a exclui como uma sua.
+
+O tópico vai para o modelo como uma pergunta: seus comentários, o trecho ao qual está preso e a própria nota, pelo mesmo resumo. Um tópico de comentários é um tipo de dado próprio, por isso o resumo pergunta na primeira vez. Onde suas regras mantêm a nota longe da nuvem, os comentários dela também não vão para lá, e os links neles para notas assim são retidos. Só um comentário que você envia neste dispositivo chama o assistente; um que chega pela sincronização nunca faz isso, diga o que disser. Endereços da web que a IA traz por conta própria — em uma resposta, uma sugestão ou uma transcrição — são escritos de modo que nada os abra ou carregue (`https[://]…`); os endereços que seu próprio texto já continha ficam como estão. Em um workspace criptografado ainda não dá para se dirigir ao assistente: os comentários nele ainda não podem indicar a IA como autora.
+
+## Habilidades
+
+Habilidades são instruções para trabalho recorrente. Treze vêm com o Plainva — entre elas **Orientação do dia**, **Revisão semanal** e **Status do projeto** como chips em uma conversa vazia — e você pode escrever ou importar as suas. Inicie uma com um clique ou simplesmente pergunte: a IA carrega sozinha uma habilidade adequada. Suas próprias habilidades só rodam depois que você as aprova neste dispositivo. Tudo sobre elas: [Habilidades](AI_Skills.md).
+
+Scripts são pequenos programas que você escreve para o que um modelo faz mal — contar, ordenar, somar. Eles rodam em uma caixa fechada e leem o seu vault pelas mesmas ferramentas da IA, mas só depois de você os aprovar neste dispositivo. Tudo sobre eles: [Scripts](AI_Scripts.md).
+
+## Rotinas
+
+Uma rotina inicia uma habilidade em um horário que você define — o resumo da manhã nos dias úteis às sete, a revisão semanal na sexta-feira à tarde. Você configura uma rotina nas configurações do vault, em **IA e automação**, no cartão **Rotinas**: **Nova rotina**, depois um nome, a **Habilidade**, a frase que a habilidade recebe a cada vez (se ficar vazia: o pedido da própria habilidade), os dias e o horário, o que acontece **Se o Plainva estava fechado nesse horário** — **Recuperar uma vez** ou **Ignorar** — e o **Modelo**. Somente habilidades ativas neste dispositivo e que apenas leem podem se tornar uma rotina.
+
+Antes de uma rotina existir, o Plainva mostra o que vale para uma execução que ninguém acompanha, e só o seu sim — **Configurar rotina** — a cria. Uma rotina só lê: sem sugestões, sem rascunhos, sem internet, sem ferramentas externas, sem scripts, sem comandos do app. Ela tem um orçamento pequeno. O resultado dela é uma nota na sua pasta de entrada, com o nome da rotina e do dia, marcada como escrita pela IA, com as notas em que se baseia. Com um modelo neste dispositivo, nada sai dele. Com o modelo de um provedor, você confirma o que uma execução leva junto por conta própria — o resumo mostra o que isso seria hoje —, e uma execução que levaria mais do que isso não envia nada e espera por você. O que o modelo lê depois, por meio das ferramentas dele, é decidido por suas regras de privacidade, como em toda conversa. Uma rotina não lê e-mails para o modelo de um provedor: o Plainva pergunta sobre isso de novo a cada sessão, e não há ninguém para responder.
+
+Uma rotina nunca faz perguntas. Onde ela precisaria de uma resposta — seria enviado mais do que você confirmou, este dispositivo pergunta antes de cada solicitação, a habilidade dela foi alterada desde que você confirmou a rotina, o provedor do modelo dela não está mais configurado ou o modelo dela não está neste dispositivo enquanto **Totalmente local** está ativado —, a linha dela diz do que precisa, com **Revisar**. Ali você vê o que uma execução enviaria agora e o que disso é novo, e **Confirmar de novo** permite que ela volte a rodar.
+
+As rotinas rodam neste dispositivo enquanto o Plainva está aberto: pouco depois de você abrir o vault, depois cerca de uma vez por minuto e quando o app volta ao primeiro plano. O Plainva não tem nenhum serviço em segundo plano e não promete um horário exato. Uma execução perdida enquanto o Plainva estava fechado é recuperada uma vez na próxima abertura — não importa quantas tenham sido perdidas — ou ignorada, conforme você definiu. Com **Somente quando algo mudou**, o dispositivo verifica primeiro se alguma nota mudou desde a última vez que a rotina deixou uma nota e, caso contrário, não consulta nenhum modelo. Uma rotina pertence ao dispositivo em que você a configurou: ela fica nos dados do app, não no vault, e por isso nenhum outro dispositivo a executa.
+
+Enquanto uma rotina roda, uma linha na conversa diz isso, com **Parar**, e uma mensagem sua espera até ela terminar. O interruptor na linha dela pausa a rotina; o menu dela a executa imediatamente (**Executar agora**), a edita ou a remove. As notas que ela escreveu permanecem. Cada execução deixa sua conversa no histórico com o nome da rotina, e a próxima a substitui — a menos que ela esteja aberta ou que você a tenha continuado: uma mensagem, um título novo, uma nota que você fixou ou ocultou, outro modelo. Então ela fica.
+
+Uma rotina também pode manter o registro de uma pasta. Escolha **Mantém o registro de uma pasta** no formulário e a **Pasta** — ou **O vault inteiro**. No horário da rotina, o Plainva verifica neste dispositivo quais notas dessa pasta, ou de suas subpastas, são novas ou foram editadas desde a última entrada, e mostra a um modelo, de cada uma delas, as linhas acrescentadas ou o início — no máximo vinte notas por execução, em uma única solicitação, sem nenhuma ferramenta. O modelo escreve uma frase por nota. A entrada em si é escrita pelo Plainva: sob a data do dia, no início do `log.md` da pasta, uma linha por nota com **Nova** ou **Atualizada**, o link para a nota e a frase do modelo. Esse é o `log.md` do Open Knowledge Format; o Plainva cria o arquivo se ele não existir e deixa todo o resto dele como estava. Quando nada mudou, nenhum modelo é consultado e nada é escrito.
+
+Um registro não diz nada que as regras próprias de uma nota retenham. O `log.md` não tem regras próprias; para ele valem as regras da pasta em que está. Uma nota com regras mais restritivas do que essas fica totalmente de fora do registro — ela não é mencionada, e nenhum modelo a recebe para escrevê-lo. O que foi removido de uma nota nunca é mostrado a um modelo nem anotado: uma linha que você excluiu continua excluída. Uma pasta que suas regras mantêm longe de um provedor precisa de um modelo neste dispositivo para o registro dela. Mantenha o registro de uma pasta em um único dispositivo — caso contrário, dois dispositivos escrevem a mesma entrada.
+
+## Avisos
+
+Ao lado da nota aberta, o Plainva mostra até três coisas que detecta por conta própria — no desktop, na seção **Avisos** da barra lateral direita, depois de **Relacionadas**; no celular, na aba **Avisos** da folha da nota. Um link na nota que não leva a lugar nenhum: **Criar nota** cria a nota onde o link a encontra, como faria um clique no link. Uma linha que começa com TODO e ainda não é uma tarefa: **Como tarefa** transforma exatamente essa linha em uma tarefa (`- [ ] …`), no mesmo lugar, e não muda mais nada na nota. E, na nota diária de hoje, um compromisso de amanhã que ainda não tem nenhuma nota vinculada: **Criar nota de reunião** faz o que o calendário faz. Nada acontece sem o seu clique, nenhum modelo é consultado e nada sai deste dispositivo. Uma menção a outra nota sem link é oferecida pelo grafo de contexto, e as notas relacionadas, pela seção **Relacionadas** — nenhuma das duas volta a aparecer aqui.
+
+**Por que este aviso?** diz a regra em uma frase e leva até a linha; **Não mostrar mais** oculta exatamente este aviso neste dispositivo — se a linha mudar, ele pode voltar a aparecer. **Pausar para esta nota** e **Pausar neste vault** ficam no menu da seção; no celular, abaixo da lista. **Mostrar avisos sobre a nota aberta**, em **Configurações → IA e automação**, desativa os avisos neste dispositivo; ali você também retoma um vault pausado ou notas pausadas e traz de volta os avisos ocultos.
+
+## Memória
+
+O que a IA deve saber sobre você sem que você precise repetir — o que você faz, como prefere as respostas — fica guardado na memória do vault: dois arquivos que você pode ler e editar. O que está em **Sempre incluído** entra em toda nova conversa, o resto é consultado quando uma pergunta precisa, e nada entra na memória sem o seu sim. Veja [Memória](AI_Memory.md). Lá também está o seu estilo de escrita: **Meu estilo** sob o campo de mensagem dá a uma conversa o que este dispositivo mediu em notas que você escolheu.
+
+## Aprender com uma conversa
+
+Uma conversa pode ensinar algo à IA para mais tarde. Abaixo da última resposta, **Aprender com esta conversa** envia a conversa mais uma vez ao modelo que a conduziu e traz de volta rascunhos: entradas da memória, regras ou outras instruções para uma das suas habilidades. Nada disso vale antes de você aceitar. Veja [Habilidades](AI_Skills.md).
+
+## Transcrever uma nota de voz
+
+Em cada nota de voz — no editor, no modo de leitura, no diário e nos cartões — **Transcrever** transforma a gravação em texto. Ela vai como está para o modelo do perfil **Áudio**, pelo mesmo resumo de uma pergunta; uma gravação é um tipo de dado próprio, por isso o resumo pergunta na primeira vez. A transcrição volta como sugestão abaixo da gravação, com o autor **Plainva IA · ⟨modelo⟩** — aceite ou recuse em **Sugestões**. Com **Resumir transcrições neste dispositivo** (em **Configurações → IA e automação**, em **Resumos**), uma transcrição longa recebe acima dela um resumo curto, escrito pelo modelo do perfil **Local** neste dispositivo e verificado: ele não cita número, data ou link que a gravação não contenha. Sem um modelo assim, ou se a verificação falhar, a transcrição chega sozinha.
+
+**Áudio** precisa de um provedor com rota de áudio: OpenAI (por exemplo `gpt-4o-transcribe` ou `whisper-1`), Gemini ou um servidor compatível seu — um servidor neste computador mantém a gravação no dispositivo. É possível transcrever gravações de até 11 MB. Uma gravação em uma nota que suas regras mantêm longe da nuvem não vai para nenhum modelo na nuvem, e os workspaces criptografados ainda não oferecem isso.
+
+## Explicar uma imagem
+
+Em cada imagem do vault, **Explicar imagem** pergunta à IA o que a imagem mostra. **Transformar em nota**, ao lado, pede uma nota em vez disso: um título, o que a imagem mostra, o texto que ela contém palavra por palavra e, se ela mostrar coisas a fazer, uma lista de tarefas. A resposta é a nota — ela entra no seu vault quando você toca em **Manter como nota**.
+
+- **Desktop:** na barra de ferramentas de uma imagem aberta e no menu que se abre ao clicar com o botão direito em uma imagem de uma nota — ao editar e no modo de leitura.
+- **Celular:** abaixo de uma imagem aberta (em uma imagem de uma nota, **Abrir imagem** leva você até lá).
+
+A imagem vai, com a pergunta, para o modelo com que as novas conversas começam — em uma conversa própria, na qual você pode continuar perguntando: o que diz uma tabela, o que está na segunda coluna, o que significa um diagrama. O resumo mostra a imagem antes de ela ser enviada; uma imagem é um tipo de dado próprio, por isso o resumo pergunta na primeira vez.
+
+**O que vai não é o arquivo.** O Plainva desenha a imagem, a reduz para no máximo 1.568 pixels no lado mais longo e a salva de novo para o envio. Assim ela vai sem o que o arquivo registra sobre ela: o local onde uma foto foi tirada, a data, a câmera. O resumo mostra exatamente a imagem que vai, com o tamanho dela. Essa cópia fica com a conversa neste dispositivo, para que você ainda possa ver depois o que o provedor recebeu; se você excluir a conversa, ela some.
+
+**Regras.** Uma imagem em uma pasta que suas regras mantêm longe da nuvem não vai para nenhum modelo na nuvem. O mesmo vale para uma imagem mostrada em uma nota com a regra `cloud: deny` — não importa onde você pressione **Explicar imagem**, inclusive na imagem aberta: antes de enviar, o Plainva procura quais notas incorporam a imagem e, se não conseguir descobrir, a imagem fica neste dispositivo. Um modelo neste dispositivo continua permitido. O que está escrito em uma imagem é conteúdo, como o texto de uma nota, nunca uma instrução: a conversa de **Explicar imagem** pode consultar o seu vault, mas não pode usar a internet e não aciona nada no app.
+
+**Quais modelos leem imagens.** A maioria dos modelos na nuvem lê. O modelo do sistema no celular não lê, e **Explicar imagem** avisa isso. Quando a lista de um provedor diz que um modelo não lê imagens, o resumo avisa antes de você enviar. Se um provedor recusar a solicitação, escolha outro modelo abaixo da conversa e pergunte de novo — a imagem continua nela.
+
+## Na internet
+
+O assistente não pode usar a internet até você permitir — três vezes:
+
+1. **Para o vault.** Em **Configurações → IA e automação** (a parte do Vault), ative **A IA pode usar a internet neste vault**. O interruptor fica desligado em todos os vaults até você decidir e vale somente neste dispositivo.
+2. **Para uma conversa.** Antes da primeira mensagem de uma nova conversa, pressione o globo abaixo do campo de entrada — **Deixar esta conversa usar a internet**. Se uma conversa pode ou não usar a internet é decidido quando ela começa; para mudar isso, comece uma nova conversa. Uma conversa que pode usá-la diz isso na primeira linha. Iniciar a habilidade **Investigar** é a mesma escolha: a conversa dela pode usar a internet — veja [Habilidades](AI_Skills.md).
+3. **Para cada solicitação.** Enquanto suas notas estiverem na conversa, cada página que o assistente quer ler e cada pesquisa que ele quer fazer perguntam antes, com o endereço completo ou as palavras da pesquisa — é tudo o que sai do seu dispositivo para isso. **Ler página** ou **Pesquisar** deixa passar esta única solicitação; **Não ler** ou **Não pesquisar** a deixa de lado, e o assistente continua sem ela.
+
+**O que é uma solicitação.** Ler uma página é uma solicitação deste dispositivo ao site, como abrir a página em um navegador — sem cookies, sem login e sem nada das suas notas; como em qualquer visita, o site vê o seu endereço IP. Só páginas públicas via `https` são lidas; endereços da sua rede doméstica ou da empresa são recusados. Uma pesquisa vai para o provedor do seu modelo — Anthropic, OpenAI, Google Gemini ou OpenRouter —, que pesquisa exatamente com as palavras que lhe foram mostradas; os provedores podem cobrar as pesquisas separadamente. Um modelo neste dispositivo pode ler páginas, mas não pode pesquisar, e o modelo do sistema no celular não pode usar a internet de forma alguma.
+
+**De onde vem um endereço.** A pergunta diz se você informou o endereço, se uma nota ou um resultado o citou — ou se o modelo o montou sozinho. Um endereço que o modelo montou poderia levar algo das suas notas: leia-o antes de deixá-lo passar.
+
+**Sites sem confirmação.** Com **Sempre para ⟨site⟩** em uma pergunta, ou em **Sites sem confirmação** nas configurações do vault, as páginas de um site são lidas sem perguntar — desde que o endereço tenha sido citado por você, por uma nota ou por um resultado. Um endereço que o modelo montou sempre pergunta.
+
+**O que o assistente lê.** Nunca a página em si. Uma segunda solicitação ao mesmo modelo, sem ferramentas, lê a página e escreve um relatório curto: um resumo, afirmações com o trecho em que se baseiam e links que realmente estão na página. Uma página que tenta dar instruções ao assistente chega até ele, portanto, como um relatório sobre uma página — nunca como uma página com a qual ele trabalha. Abaixo da resposta, **Lido na web** lista as páginas lidas, e a linha abaixo dela abre tudo o que foi solicitado.
+
+**Notas que ficam de fora.** Uma nota ou pasta com **Acesso à web: nunca** (veja Regras de privacidade abaixo) não existe para uma conversa que pode usar a internet: nem no contexto dela, nem para as ferramentas dela, e os links para ela são retidos.
+
+Um link em uma resposta cujo endereço o próprio modelo montou é marcado, e a pergunta antes de abri-lo diz isso. Se nenhuma resposta chega — sem conexão, o provedor não responde —, a conversa lista, em vez disso, as notas que melhor combinam com sua pergunta.
+
+## E-mail e compromissos
+
+**Compromissos.** O assistente lista compromissos dos seus calendários conectados — dia, hora e título, se você pedir também o local e quem participa — e lê um único compromisso em detalhe: o organizador, os participantes com as respostas deles e a sua. Ele nunca recebe o link de uma reunião online; esse fica no calendário.
+
+**E-mail.** Se houver contas de e-mail conectadas neste vault, o assistente pode pesquisar e ler mensagens. O e-mail não é uma das ferramentas com que uma conversa começa: o assistente só o procura quando a sua pergunta precisa dele, e no primeiro acesso o Plainva pergunta — **Ler seu e-mail?** **Permitir** vale para este provedor até você fechar o Plainva; outro modelo ou outro provedor pergunta de novo. **Não permitir** deixa o acesso de fora, e o assistente continua sem ele. Um modelo neste dispositivo não pergunta, porque nada sai do dispositivo para ele.
+
+**O que o assistente lê do e-mail.** De uma pesquisa, ele vê a data, o remetente e o assunto das mensagens — nunca o texto delas. Ele nunca lê sozinho o texto de uma mensagem nem a descrição de um compromisso: outras pessoas os escreveram, e quem escreve um e-mail ou um convite pode escrevê-lo justamente para esse leitor. Um segundo leitor, sem nenhuma ferramenta, os lê e escreve um relatório curto — um resumo, afirmações com o trecho em que se baseiam e links que realmente estão ali. Se um modelo neste dispositivo estiver definido como **Local** em **Modelos e perfis**, esse modelo é o leitor, e o texto em si não sai do dispositivo; só o relatório vai para o provedor. Caso contrário, quem lê é o provedor da conversa, em uma solicitação à parte, sem ferramentas. A pergunta diz de antemão quem lê.
+
+**O que não muda.** O assistente só lê: uma mensagem que ele leu continua não lida, e ele não move, não responde e não exclui nada, nem abre anexos — só diz o nome deles. Abaixo da resposta você vê quantas mensagens foram lidas, e a linha abaixo dela diz quem leu o texto. Um e-mail ou um compromisso que ele escreve para você é sempre apenas um rascunho que você mesmo envia ou salva — veja **Propor alterações** mais abaixo.
+
+## Ferramentas externas (MCP)
+
+O assistente pode usar ferramentas de servidores que você mesmo conecta, pelo Model Context Protocol (MCP) — um sistema de tickets, um wiki, um banco de dados da sua equipe. É o sentido contrário de [Conectar apps de IA](Connect_AI_Apps.md): lá, outros apps leem o seu vault pelo Plainva; aqui, o assistente do Plainva pergunta a outros servidores. Nada de um servidor é usado antes de você olhar o que ele oferece, e cada chamada é mostrada a você antes de sair.
+
+**Adicionar um servidor.** Em **Configurações → IA e automação** (a parte do Vault), em **Ferramentas externas (MCP)**, escolha **Adicionar um servidor…**. Dê a ele um nome seu e o endereço dele (`https://…`), e um token de acesso se o servidor pedir — ele vai para o armazenamento seguro deste dispositivo e nunca é mostrado de novo. No desktop, um servidor também pode ser um **Programa neste computador**: o arquivo a iniciar, os argumentos dele e os valores para o ambiente dele. O Plainva o inicia diretamente, sem shell, e em uma sandbox quando o seu computador tem uma que o Plainva possa usar. O seu sistema mostra o endereço ou o comando inteiro mais uma vez antes de ele ser lembrado. No celular, um servidor é sempre um endereço.
+
+**Fazer login.** Alguns servidores pedem um login em vez de um token. A revisão dele diz então **O servidor pede um login.** Escolha **Entrar…**: o Plainva pergunta ao servidor onde fica o login dele, abre essa página no seu navegador — no iPhone, na janela de login do sistema — e espera você voltar. O que ele recebe fica no armazenamento seguro deste dispositivo e vai somente para este servidor; nem você nem a IA o veem. Ele é renovado sem você enquanto o servidor permitir e, quando termina, a revisão pede que você entre novamente. Se o serviço de login não permite que aplicativos se registrem sozinhos, o Plainva pede o **ID do cliente** que o responsável pelo servidor deu a você. **Sair** esquece o login; um login e um token de acesso armazenado substituem um ao outro.
+
+**Revisar o servidor.** Um servidor recém-adicionado ainda não oferece nada. A revisão dele mostra o que está registrado e o que o servidor lista: a descrição dele mesmo, as ferramentas com suas descrições — palavras do próprio servidor — e os prompts. **Aprovar** permite exatamente esses textos, neste dispositivo. Antes de um servidor ser usado, o Plainva carrega de novo o que ele lista e compara com o que você aprovou; se algo diferir, o servidor fica bloqueado até você olhar de novo, e a revisão diz o que mudou.
+
+**O que um vault permite.** Cada vault decide por si: se usa o servidor (**Usar ⟨servidor⟩ neste vault**), quais das ferramentas dele o assistente pode chamar — nenhuma vem marcada —, e em **Notas que podem acompanhar uma chamada**, se **Nenhuma**, **Pastas escolhidas** ou **O vault inteiro**. Uma ferramenta que não diz que apenas lê também pode ser marcada; a linha dela informa o que uma chamada pode então fazer no servidor: alterar algo, ou alterar, sobrescrever ou excluir algo. Uma marcação vale para o que a ferramenta dizia quando você a marcou: se mais tarde ela disser que pode fazer mais, só volta a ser oferecida depois que você a marcar de novo.
+
+**Em uma conversa.** As ferramentas dos seus servidores não estão entre as ferramentas com que uma conversa começa: o assistente só as procura quando a sua pergunta precisa delas, e o resumo antes do envio nomeia os servidores a que pertencem. Cada chamada pergunta antes — **Chamar ⟨servidor⟩?** — com a ferramenta e exatamente o que seria enviado. **Chamar** deixa passar esta única chamada, **Não chamar** a deixa de lado, e não existe um “sempre”. Uma ferramenta que pode alterar algo pergunta com outras palavras — **Deixar ⟨servidor⟩ alterar algo?** —, avisa que o Plainva não pode desfazer isso, e o botão dela é **Executar**. Uma chamada nem chega a sair se a conversa leu uma nota que fica fora do que o vault permite a este servidor, ou uma que você mantém fora da nuvem. O que volta é tratado como o texto de um desconhecido: o assistente lê e não aceita instruções dele.
+
+**Perguntas de um servidor.** Alguns servidores precisam de um dado seu durante uma chamada — por exemplo, em qual projeto procurar — ou querem que você faça login em um serviço que acessam por você. Na revisão do servidor, em **Neste vault**, **Permitir que ⟨servidor⟩ faça perguntas a você** permite isso; fica desligado até você marcar, e um servidor que pergunta mesmo assim não recebe resposta. Uma pergunta aparece acima da entrada como o cartão do próprio Plainva — **⟨servidor⟩ tem uma pergunta** —, com o que o servidor escreve como citação dele e os campos que ele pede: **Responder** envia o que você preencheu — se ele não pede nada, **Confirmar** diz sim —, **Recusar** diz não, **Cancelar** para. Se um servidor quer que você abra uma página, aparece o cartão **⟨servidor⟩ quer que você abra uma página**, com o endereço completo e o domínio à parte; o Plainva só a abre no seu navegador com **Abrir no navegador**, e a chamada continua com **Continuar**. O Plainva entrega sua resposta só para esse servidor e nunca para a IA — mas o que o servidor devolver pode mencioná-la; o histórico registra apenas que houve uma pergunta e como terminou. Um servidor não pode pedir senhas, chaves ou dados de pagamento dessa forma: o Plainva não mostra uma pergunta assim — **O Plainva bloqueou uma pergunta de ⟨servidor⟩** diz o que foi pedido —, e o servidor recebe um não.
+
+**Prompts.** Um servidor pode oferecer prompts — solicitações prontas. Eles ficam sob uma conversa vazia, e só você os inicia. Na primeira vez, o Plainva mostra no que um prompt se transforma antes de ser enviado como sua mensagem; a partir daí, exatamente esse texto vai sem perguntar, e outro texto bloqueia o servidor.
+
+**Habilidades.** Um servidor também pode trazer habilidades — guias para as ferramentas dele. Cada uma aguarda em **Habilidades**, **De servidores**, até você aprová-la lá; veja [Habilidades](AI_Skills.md).
+
+**O que o Plainva guarda.** O endereço ou o comando é lembrado neste dispositivo, os valores armazenados no armazenamento seguro dele; a sua aprovação fica nos dados do próprio Plainva, nunca no vault — assim, quem pode gravar no vault não pode aprovar um servidor. Em **Chamadas recentes neste vault**, a revisão lista quando uma ferramenta foi chamada, qual e como terminou — nunca o que foi dito. **Remover servidor** exclui o servidor deste dispositivo, para todos os vaults.
+
+Uma conversa iniciada por uma habilidade, uma ação em uma seleção e uma resposta em um tópico de comentários não alcançam as ferramentas externas, e o modelo do próprio sistema no celular também não.
+
+## Agentes externos
+
+No desktop, o Plainva também pode iniciar um agente de IA de outro fabricante na pasta do vault — um programa que você instalou e no qual você mesmo fez login. Um agente assim não é o assistente: ele lê e envia por conta própria, e suas regras de privacidade e o resumo antes do envio não o alcançam. O que o Plainva controla na sessão dele e o que não controla: [Agentes externos](External_Agents.md).
+
+## Propor alterações
+
+O assistente pode propor mais do que uma resposta — e nada do que ele propõe está no seu vault até você dizer. Há três formas, e cada uma espera onde você decide sobre ela.
+
+- **Uma sugestão em uma nota.** Se você pede uma alteração em uma nota que já existe, o assistente a deixa na nota como sugestões: na margem, assinadas “Plainva IA · ⟨modelo⟩”, cada alteração para aceitar ou recusar separadamente — como as sugestões de uma pessoa, veja [Comentários e sugestões](Comments_and_Suggestions.md). Ao aceitar, a nota como estava é guardada antes como uma versão: o histórico de versões sempre tem o caminho de volta. Abaixo da resposta, uma linha nomeia a nota; pressione-a para abrir a nota. Um valor para uma propriedade da nota é proposto da mesma forma: o cartão mostra a propriedade com o que ela diz agora riscado e o que passaria a dizer, e marca como nova uma propriedade que a nota ainda não tem. Se a propriedade disser outra coisa quando você decidir, o cartão avisa que a sugestão não se encaixa mais. O assistente não pode propor quem criou uma nota nem quem responde por ela (veja [OKF](OKF.md)), nem as propriedades que o Plainva mantém para si. Em um banco de dados, um valor proposto para uma entrada aparece também na célula dessa entrada, onde você o aceita ou recusa sem abrir a nota — veja [Bancos de Dados (.base)](Databases_Base.md).
+- **Um rascunho.** Uma nota nova, uma tarefa ou uma entrada de diário fica como rascunho: um cartão abaixo da resposta diz o que ele se tornaria e para onde iria. **Criar** faz isso — a nota na pasta que o cartão nomeia (a **Pasta de entrada**, se o assistente não nomeou outra), a tarefa lida a partir das palavras dela como se você as tivesse digitado no campo de captura, a entrada no diário do dia indicado no cartão. **Mostrar** abre antes o texto de uma nota; **Descartar** joga o rascunho fora. Uma nota criada a partir de um rascunho diz quem a escreveu (`generated`, veja [OKF](OKF.md)) e nomeia as notas em que a conversa se apoiou. Onde suas novas tarefas também vão para uma lista de tarefas do seu provedor, o cartão de uma tarefa traz a chave do campo de captura, **Criar também em “…”**: ela fica ligada, e a tarefa é criada lá também, a menos que você a desligue. Uma entrada de um banco de dados é rascunhada da mesma forma: o cartão nomeia o banco de dados e as propriedades que a entrada teria, e **Criar** a escreve como nota na pasta em que esse banco de dados guarda suas entradas — com essas propriedades e tudo o que ali faz de uma nota uma entrada. Um banco de dados que ainda não tem pasta de armazenamento para novas entradas só aceita um rascunho assim depois que você mesmo criar a primeira entrada dele.
+- **Um plano.** Renomear, mover ou excluir uma nota não pode ser revisado parte por parte, então o assistente pergunta: uma pergunta acima do campo de entrada mostra o que aconteceria — o novo nome e quantos links em quantas notas o seguem, ou a pasta de destino, com um aviso se a nota perder com isso uma regra de privacidade da pasta dela. Depois do seu sim, o Plainva faz isso como quando você mesmo faz; o assistente só fica sabendo se aconteceu. Para uma exclusão, a pergunta apenas abre a caixa de diálogo de exclusão do próprio Plainva: nada desaparece antes de você confirmar ali. Uma das regras de privacidade próprias de uma nota também é perguntada assim e nunca é deixada como sugestão: a pergunta nomeia a regra e diz se ela seria escrita na nota ou retirada dela — com um aviso se, depois disso, a nota pudesse voltar a ir para modelos na nuvem ou a entrar em conversas que usam a internet. Depois do seu sim, o Plainva a escreve; a regra vale a partir de então e não desfaz o que uma conversa já enviou.
+
+**Um e-mail e um compromisso.** Onde há, neste vault, uma conta de e-mail ou um calendário que aceita compromissos conectado, o assistente também pode rascunhar um e-mail ou um compromisso. Ele não envia nem salva nenhum dos dois. O cartão nomeia todos os destinatários — **Para**, **Cc** e **Cco**, ou os **Participantes** — e aponta cada endereço que você não escreveu nesta conversa: o assistente pode tê-lo tirado de uma nota, de um e-mail ou de uma página da web, então confira. **Abrir no E-mail** abre o e-mail como nova mensagem com tudo já preenchido, **Abrir no Calendário** abre o compromisso no editor de eventos do calendário; lá você muda o que quiser, e **Enviar** ou **Salvar** é um passo seu. Os participantes recebem um convite do seu provedor de calendário quando você salva, como em qualquer compromisso que você mesmo registra. O rascunho fica na lista até o e-mail ter saído de verdade ou o calendário ter aceitado o compromisso: fechar a mensagem, desfazer um envio nos seus poucos segundos ou um calendário que recusa o deixam onde estava. Um e-mail que você guarda com **Salvar rascunho** fica, a partir daí, nos rascunhos da sua caixa e também sai da lista; no desktop, o mesmo vale para uma mensagem que você move para uma janela própria.
+
+Em um banco de dados o assistente também trabalha sem conversa: **Preencher “…” com IA…** lê a nota de cada entrada que não tem valor em uma coluna e sugere um para cada uma, e nas configurações de filtro uma frase vira regras de filtro que você vê antes de valerem. Antes de enviar qualquer coisa, o resumo mostra como sempre o que vai — para uma coluna, as notas dessas entradas, cada uma em sua própria solicitação; para um filtro, apenas as colunas do banco de dados com nomes, tipos e opções, e a sua frase, nunca uma entrada. Os dois estão descritos em [Bancos de Dados (.base)](Databases_Base.md).
+
+Tudo o que espera fica em uma lista: **Pendentes**, um segmento da aba de IA no desktop e de **Conversas** no celular. Ela nomeia as notas que carregam sugestões de uma IA e os rascunhos deste dispositivo, cada um com quem o deixou. Os rascunhos ficam no dispositivo em que foram feitos, como as conversas; as sugestões fazem parte dos comentários da nota e chegam com eles aos seus outros dispositivos.
+
+Três limites valem seja o que for que se peça ao assistente. Um endereço da web que ele traz para uma sugestão ou um rascunho é escrito de modo que nada o abra nem o carregue (`https[://]…`); um endereço que você mesmo digitou fica como está. Um atributo HTML que carregaria um endereço desses recebe o nome entre colchetes (`[src]=…`). Quando o assistente altera uma nota, só o que ele altera é verificado: seu próprio código e seu HTML em outros lugares ficam como estão. Só um `<style>` ou um `<form>` antes de uma alteração, e um `<base>` em qualquer ponto da nota, são escritos como texto — do contrário, o que vem depois seria lido como uma folha de estilo, como parte de um formulário ou como um endereço relativo a essa base. Uma conversa que leu uma nota mantida fora da nuvem ou da internet só deixa uma sugestão, uma tarefa ou uma entrada de diário onde vale a mesma regra — uma nota ou uma entrada de banco de dados em rascunho leva a regra junto, e um e-mail ou um compromisso nem chega a ser rascunhado. E em um workspace criptografado nada é proposto, rascunhado nem planejado.
+
+Pede-se ao assistente que nomeie uma nota como link, então um link é a única afirmação do texto dele que o Plainva consegue verificar: quando uma sugestão ou um rascunho aponta para uma nota que o seu vault não tem, a linha abaixo da resposta e o cartão do rascunho dizem isso — **Vinculado, mas não está neste vault:** e os nomes. Nada é retido por causa disso; talvez você queira primeiro o link e depois a nota. Um link para uma nota que está no seu vault, mas que a IA não pode ler aqui — uma regra de privacidade a mantém fora da conversa — ganha uma linha própria: **Vincula a notas que a IA não pode ler aqui:** e os nomes. À própria IA se diz o mesmo nos dois casos, então ela não consegue descobrir um nome tentando. O Plainva não verifica se uma afirmação é verdadeira.
+
+Uma habilidade só tem essas capacidades quando as nomeia, e a revisão dela diz isso — veja [Habilidades](AI_Skills.md).
+
+## Manter uma resposta como nota
+
+Abaixo de cada resposta concluída, **Manter como nota** transforma a resposta em uma nota do seu vault. Você pressiona e o Plainva escreve a nota — o assistente em si continua não mudando nada. Uma nota mantida a partir de uma resposta sobre uma imagem mostra essa imagem, e uma resposta que começa com um título próprio dá nome à nota.
+
+- **Para onde vai.** Para a **Pasta de entrada** do vault (**Configurações → Conteúdo e estrutura**), com um nome tirado da sua pergunta — em uma conversa iniciada por uma habilidade, da habilidade e da nota que estava aberta, ou do dia. Uma nota que já está lá nunca é tocada: a nova recebe o próximo nome livre. O Plainva a abre na hora.
+- **Quem a escreveu.** A primeira linha diz isso em palavras — uma resposta do Plainva IA, com o modelo, a hora e a sua pergunta. As propriedades da nota dizem o mesmo para outras ferramentas: `generated`, com o modelo e a hora. Nada marca a nota como revisada; isso continua sendo coisa sua — veja [OKF](OKF.md).
+- **Em que ela se baseia.** Abaixo da resposta, **Fontes** lista o que a execução realmente usou. O Plainva escreve essa lista a partir do próprio registro, não o modelo: as páginas lidas e quando, as pesquisas e por qual provedor, e as suas notas que foram junto ou foram lidas. As propriedades trazem a mesma lista como `sources`.
+- **Endereços.** Todo endereço da web que o modelo escreveu na resposta é escrito de modo que nada o abra ou carregue (`https[://]…`), e uma imagem da web nunca é uma imagem na nota. Só as páginas em **Fontes** são links de verdade: endereços que a execução leu com a sua permissão. Links para as suas próprias notas continuam sendo links.
+- **Regras.** Uma resposta mantida herda as regras de privacidade daquilo em que se baseia. Se uma nota que estava na conversa, ou uma que o assistente leu, é mantida fora da nuvem ou da internet, a nova nota leva a mesma regra — escrita na própria nota onde a pasta dela permitiria mais. Assim, uma resposta que um modelo neste dispositivo fez a partir de uma nota privada também não chega a uma nuvem como nota.
+
+Em um workspace compartilhado, os membros dele podem ler uma nota — e também os leitores de uma publicação que abrange a pasta. Ali o Plainva pergunta sempre, com o nome da nota e a pasta: **Manter como nota** a escreve, **Não manter** não escreve nada.
+
+## Regras de privacidade
+
+Algumas notas nunca devem chegar a um provedor de nuvem. Uma regra pode ficar no frontmatter de uma nota:
+
+```yaml
+plainva:
+  ai:
+    cloud: deny
+```
+
+ou, para uma pasta inteira, em **Configurações → IA e automação** (a parte do Vault), que grava as regras em `.agent/policy.yml`. Uma nota mantida fora da nuvem não contribui com nada — nem texto, nem título — e os links para ela em outras notas são retidos. Isso vale seja como for que um link escreva a nota — pelo nome do arquivo, pelo título ou por um caminho —; e, quando duas notas têm o mesmo nome e uma delas é mantida fora, um link só com esse nome também é retido. Escreva a pasta no link para indicar a que você quer dizer. Modelos neste dispositivo continuam permitidos. Workspaces criptografados mantêm a nuvem desligada, a menos que você a permita ali. O formato exato está na [Referência do Formato de Arquivo](File_Format_Reference.md).
+
+Uma conversa conduzida com um modelo neste dispositivo fica neste dispositivo. Um modelo assim pode ler o que nenhuma nuvem pode, e uma conversa sempre vai inteira para o seu modelo; por isso, depois que uma conversa aconteceu aqui, trocá-la para um modelo na nuvem não envia nada: um aviso informa isso, suas palavras ficam no campo de entrada e **Nova conversa** começa uma com o modelo escolhido. O contrário funciona: uma conversa com um modelo na nuvem pode continuar com um modelo neste dispositivo.
+
+Uma imagem pertence às notas que a mostram: uma imagem incorporada em uma nota mantida fora da nuvem também não vai para nenhum modelo na nuvem (veja Explicar uma imagem acima).
+
+Uma segunda regra, `web: deny` — **Acesso à web: nunca** nas configurações —, mantém uma nota ou uma pasta fora de toda conversa que pode usar a internet.
+
+No iPhone e no iPad, as mesmas duas regras decidem quais títulos de notas a Siri e os Atalhos podem encontrar, depois que você ativa isso: uma nota mantida fora da nuvem ou do acesso à web nunca é informada a eles. Veja “Siri e Atalhos” em [O app mobile](Mobile_App.md).
+
+## Histórico e uso
+
+As conversas ficam neste dispositivo, por vault — nunca no vault e nunca sincronizadas. **Manter conversas** decide por quanto tempo; você pode excluir conversas individuais na lista ou todas as de um vault de uma vez. Uma conversa que você exclui enquanto uma resposta ainda está a caminho continua excluída. Se o vault for recarregado enquanto uma resposta ainda está a caminho — depois de **Reconstruir índice**, por exemplo —, a resposta para; o que ela escreveu até ali fica na conversa dela, na lista. **Uso neste mês** soma os tokens por provedor e modelo. Cada linha diz quanto da entrada o provedor leu do cache dele, quando informa um, e o custo, quando publica preços. Abaixo dos modelos, **Economizado ao escolher e encurtar** estima quantos tokens as solicitações deste mês deixaram de levar porque o Plainva enviou uma seção de uma nota ou suas frases-chave — literalmente ou como resumo — em vez da nota inteira: o restante de cada uma dessas notas, até o máximo que o Plainva envia de uma nota. Uma versão de uma nota conta no máximo uma vez por conversa — com o modelo do próprio sistema neste dispositivo, que recebe as notas de cada rodada de novo, uma vez por rodada — e nada quando o modelo leu a nota por conta própria ao responder essa pergunta; uma nota enviada inteira não economiza nada, nem uma só citada — pelo nome ou com um resumo de uma linha —, nem uma solicitação que não chegou a nenhum modelo. A economia aparece em dólares só quando cada um desses modelos tem preço; um modelo neste dispositivo conta como gratuito.
+
+## Limites da beta
+
+- No desktop, a IA roda apenas na janela principal.
+- No celular, uma resposta só chega enquanto o Plainva estiver aberto.
+- O assistente não muda nenhuma nota sozinho: uma alteração em uma nota e a transcrição de uma nota de voz são sugestões que você aceita ou recusa, o que é novo é um rascunho até você pressionar **Criar**, um e-mail ou um compromisso um rascunho até você mesmo enviar ou salvar, e renomear, mover ou excluir esperam o seu sim; em um tópico de comentários ele escreve uma resposta ao lado da nota, nunca texto dentro dela. Uma resposta só vira nota quando você pressiona **Manter como nota**; é então que o Plainva a escreve, não o assistente.
+
+O feedback sobre a beta vai para as discussões do projeto no GitHub: **Feedback sobre a IA (beta)** nas configurações abre uma.

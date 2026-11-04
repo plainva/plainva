@@ -1,6 +1,8 @@
 import type { PimEventRow } from "@plainva/core";
 import {
   eventStartDayKey,
+  markFreshNote,
+  parkTemplateCaret,
   resolveOrCreateMeetingNote,
   type MeetingNoteAdapter,
   type ResolveMeetingNoteResult,
@@ -24,6 +26,9 @@ export const MEETING_NOTE_TYPE = "Meeting";
  * vault's meetings folder, its meeting-note template and the folder/type rules,
  * and hands them to the shared builder. A person clicked, so the template's
  * questions are asked — `null` means they were cancelled and nothing exists.
+ * The note is finished here for whoever asked (the calendar, a hint at the
+ * open note): the template's `{{cursor}}` is parked for the editor, and a
+ * note just written opens to be written in (wish 2026-10-19).
  *
  * The phone's twin is `openMeetingNoteFor` in `pimService.ts`; the decision
  * which template applies and what the note carries lives in the shared
@@ -39,7 +44,7 @@ export async function openMeetingNoteInVault(
   const rules = await getTemplateRules(vaultPath);
   const dayKey = eventStartDayKey(event);
   const now = new Date();
-  return resolveOrCreateMeetingNote({
+  const res = await resolveOrCreateMeetingNote({
     adapter,
     event,
     dayKey,
@@ -61,4 +66,8 @@ export async function openMeetingNoteInVault(
       ),
     now,
   });
+  if (!res) return null;
+  if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
+  if (res.created) markFreshNote(res.path);
+  return res;
 }

@@ -5,11 +5,17 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::Manager;
 
+mod acp;
+mod ai_egress;
+mod ai_web;
+mod mcp;
+mod mcp_client;
 mod app_identity;
 mod atomic_write;
 mod checked_fs;
 mod backup;
 mod db_batch;
+mod embedding;
 mod linux_appimage;
 #[cfg(target_os = "macos")]
 mod macos_spellcheck;
@@ -17,6 +23,7 @@ mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
 mod mail_sieve;
+mod model_store;
 mod sync_upload;
 mod tray;
 mod unzip;
@@ -56,6 +63,14 @@ struct OAuthLoopback {
 struct OAuthResult {
     code: String,
     state: Option<String>,
+    /// Who the answer says it is from (RFC 9207), where it says so. The
+    /// sign-in to an MCP server checks it natively (src/mcp_client/oauth.rs).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    iss: Option<String>,
+    /// The provider's error, only for a caller that asked to be told (see
+    /// `oauth_loopback_wait`); `code` is empty then.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
 }
 
 fn url_decode(s: &str) -> String {
@@ -172,10 +187,15 @@ fn abort_oauth_loopback(state: &OAuthLoopback) -> Result<(), String> {
 /// wait on the MAIN thread and freeze the entire WebView UI (Tauri runs non-async
 /// commands on the main thread) — which reads as a crash. `spawn_blocking` moves
 /// the wait onto a blocking worker so the UI stays responsive throughout.
+///
+/// `report_errors` hands a provider's error redirect back as a RESULT (with
+/// its `state` and `iss`) instead of a failure: the sign-in to an MCP server
+/// has to check who answered before it believes even an error.
 #[tauri::command]
 async fn oauth_loopback_wait(
     state: tauri::State<'_, OAuthLoopback>,
     timeout_secs: u64,
+    report_errors: Option<bool>,
 ) -> Result<OAuthResult, String> {
     // Take the listener and clone the cancel flag under short, non-async locks;
     // the std Mutex guards are dropped before the await below (guards are not Send).
@@ -192,11 +212,22 @@ async fn oauth_loopback_wait(
             .unwrap_or_else(|| Arc::new(AtomicBool::new(false)));
         (listener, cancel)
     };
+    let report_errors = report_errors.unwrap_or(false);
     tauri::async_runtime::spawn_blocking(move || {
-        wait_for_oauth_redirect(listener, timeout_secs, &cancel)
+        wait_for_oauth_redirect_with(listener, timeout_secs, &cancel, report_errors)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// The wait as every account sign-in uses it: a provider's error is a failure.
+#[cfg(test)]
+fn wait_for_oauth_redirect(
+    listener: TcpListener,
+    timeout_secs: u64,
+    cancel: &AtomicBool,
+) -> Result<OAuthResult, String> {
+    wait_for_oauth_redirect_with(listener, timeout_secs, cancel, false)
 }
 
 /// Accept-loop behind `oauth_loopback_wait`, kept free of Tauri state so it is
@@ -205,10 +236,11 @@ async fn oauth_loopback_wait(
 /// connection is therefore NOT necessarily the redirect. Every connection
 /// without a `code` (or `error`) parameter is answered politely and the loop
 /// keeps waiting until the deadline.
-fn wait_for_oauth_redirect(
+fn wait_for_oauth_redirect_with(
     listener: TcpListener,
     timeout_secs: u64,
     cancel: &AtomicBool,
+    report_errors: bool,
 ) -> Result<OAuthResult, String> {
     listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let deadline = Instant::now() + Duration::from_secs(timeout_secs.max(1));
@@ -230,6 +262,7 @@ fn wait_for_oauth_redirect(
                 let code = extract_query_param(&request, "code");
                 let oauth_state = extract_query_param(&request, "state");
                 let oauth_error = extract_query_param(&request, "error");
+                let oauth_iss = extract_query_param(&request, "iss");
 
                 if let Some(c) = code {
                     let body = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Plainva</title></head><body style=\"font-family:sans-serif;padding:2rem\">Plainva: Anmeldung abgeschlossen. Du kannst dieses Fenster schliessen.</body></html>";
@@ -240,7 +273,7 @@ fn wait_for_oauth_redirect(
                     );
                     let _ = stream.write_all(response.as_bytes());
                     let _ = stream.flush();
-                    return Ok(OAuthResult { code: c, state: oauth_state });
+                    return Ok(OAuthResult { code: c, state: oauth_state, iss: oauth_iss, error: None });
                 }
 
                 if let Some(err) = oauth_error {
@@ -255,6 +288,9 @@ fn wait_for_oauth_redirect(
                     );
                     let _ = stream.write_all(response.as_bytes());
                     let _ = stream.flush();
+                    if report_errors {
+                        return Ok(OAuthResult { code: String::new(), state: oauth_state, iss: oauth_iss, error: Some(err) });
+                    }
                     return Err(format!("oauth error in redirect: {err}"));
                 }
 
@@ -389,6 +425,12 @@ pub fn run() {
         .manage(vault_watch::VaultWatchers::default())
         .manage(vault_walk::VaultWalks::default())
         .manage(tray::TrayState::default())
+        .manage(ai_egress::AiEgress::default())
+        .manage(mcp::McpState::default())
+        .manage(mcp_client::McpClientState::default())
+        .manage(acp::AcpState::default())
+        .manage(embedding::Embeddings::default())
+        .manage(model_store::ModelDownloads::default())
         .manage(window_state::WindowStateStore::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
@@ -416,12 +458,78 @@ pub fn run() {
                     api.prevent_close();
                 }
             }
+            // The owner window is gone: the programs the assistant started for
+            // foreign MCP servers end with it (src/mcp_client), and so do the
+            // external agents it hosted (src/acp).
+            if matches!(event, tauri::WindowEvent::Destroyed) && window.label() == "main" {
+                mcp_client::shutdown(&window.state::<mcp_client::McpClientState>());
+                acp::shutdown(&window.state::<acp::AcpState>());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             secure_store::keychain_set,
             secure_store::keychain_get,
             secure_store::keychain_delete,
             secure_store::keychain_compare_and_set,
+            ai_egress::ai_http,
+            ai_egress::ai_http_cancel,
+            ai_web::ai_web_fetch,
+            ai_egress::ai_key_set,
+            ai_egress::ai_key_present,
+            ai_egress::ai_key_delete,
+            ai_egress::ai_endpoint_add,
+            ai_egress::ai_endpoint_remove,
+            ai_egress::ai_local_only_set,
+            mcp::mcp_configure,
+            mcp::mcp_status,
+            mcp::mcp_pair_answer,
+            mcp::mcp_call_answer,
+            mcp::mcp_set_folders,
+            mcp::mcp_set_writes,
+            mcp::mcp_revoke,
+            mcp::mcp_write_package,
+            mcp_client::registry::mcp_client_servers,
+            mcp_client::registry::mcp_client_add_http,
+            mcp_client::registry::mcp_client_add_program,
+            mcp_client::registry::mcp_client_remove,
+            mcp_client::registry::mcp_client_secret_set,
+            mcp_client::registry::mcp_client_secret_present,
+            mcp_client::registry::mcp_client_secret_delete,
+            mcp_client::http::mcp_client_http,
+            mcp_client::http::mcp_client_cancel,
+            mcp_client::program::mcp_client_start,
+            mcp_client::program::mcp_client_write,
+            mcp_client::program::mcp_client_stop,
+            mcp_client::program::mcp_client_log,
+            mcp_client::sandbox::mcp_client_sandbox,
+            mcp_client::oauth::mcp_client_oauth_document,
+            mcp_client::oauth::mcp_client_oauth_issuer,
+            mcp_client::oauth::mcp_client_oauth_begin,
+            mcp_client::oauth::mcp_client_oauth_finish,
+            mcp_client::oauth::mcp_client_oauth_cancel,
+            mcp_client::oauth::mcp_client_oauth_renew,
+            mcp_client::oauth::mcp_client_oauth_status,
+            mcp_client::oauth::mcp_client_oauth_sign_out,
+            acp::registry::acp_agents,
+            acp::registry::acp_detect,
+            acp::registry::acp_agent_add,
+            acp::registry::acp_agent_remove,
+            acp::process::acp_start,
+            acp::process::acp_write,
+            acp::process::acp_stop,
+            acp::process::acp_log,
+            acp::login::acp_login,
+            acp::login::acp_login_cancel,
+            model_store::model_status,
+            model_store::model_download,
+            model_store::model_download_cancel,
+            model_store::model_remove,
+            model_store::model_read_text,
+            model_store::model_free_space,
+            model_store::model_memory,
+            embedding::embedding_load,
+            embedding::embedding_run,
+            embedding::embedding_unload,
             oauth_loopback_start,
             oauth_loopback_wait,
             oauth_loopback_cancel,
@@ -559,6 +667,35 @@ mod oauth_tests {
         let err = wait_for_oauth_redirect(listener, 10, &AtomicBool::new(false)).unwrap_err();
         sender.join().unwrap();
         assert!(err.contains("access_denied"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn a_caller_that_asks_is_told_who_answered_even_for_an_error() {
+        // The sign-in to an MCP server checks the issuer natively before it
+        // believes anything of the answer, an error included (RFC 9207).
+        let serve = |request: &'static [u8], report_errors: bool| {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let sender = std::thread::spawn(move || {
+                let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
+                s.write_all(request).unwrap();
+                let mut sink = Vec::new();
+                let _ = s.read_to_end(&mut sink);
+            });
+            let result = wait_for_oauth_redirect_with(listener, 10, &AtomicBool::new(false), report_errors);
+            sender.join().unwrap();
+            result
+        };
+
+        let denied = serve(b"GET /callback?error=access_denied&state=s1&iss=https%3A%2F%2Fauth.example.org HTTP/1.1\r\nHost: x\r\n\r\n", true).unwrap();
+        assert_eq!((denied.code.as_str(), denied.state.as_deref(), denied.iss.as_deref(), denied.error.as_deref()), ("", Some("s1"), Some("https://auth.example.org"), Some("access_denied")));
+
+        let granted = serve(b"GET /callback?code=c1&state=s1&iss=https%3A%2F%2Fauth.example.org HTTP/1.1\r\nHost: x\r\n\r\n", true).unwrap();
+        assert_eq!((granted.code.as_str(), granted.iss.as_deref(), granted.error.as_deref()), ("c1", Some("https://auth.example.org"), None));
+
+        // What every account sign-in gets is what it always got: no new field unless there is something in it.
+        let plain = serve(b"GET /?code=c1&state=s1 HTTP/1.1\r\nHost: x\r\n\r\n", false).unwrap();
+        assert_eq!(serde_json::to_value(&plain).unwrap(), serde_json::json!({ "code": "c1", "state": "s1" }));
     }
 
     #[test]
