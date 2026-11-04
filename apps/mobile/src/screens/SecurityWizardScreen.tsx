@@ -190,7 +190,7 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
         });
         toast.success(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
         setWorkspaceDraft(null); // activated: the keys belong to the keystore now
-        await reloadActiveMobileVault();
+        await reloadActiveMobileVault("security-wizard");
       } else {
         if (!encryptionDraft) { setStep(2); return; }
         await activatePreparedMobileEncryption(vault, encryptionDraft.draftId);

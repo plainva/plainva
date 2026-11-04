@@ -1,7 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft } from "lucide-react";
-import { ICON, SECURITY_AREA_GROUPS, securityAreas, type SecurityAreaId } from "@plainva/ui";
+import { ICON, SECURITY_AREA_GROUPS, securityAreas, type SecurityAreaId, type SettingsSearchHit, type SettingsWorld } from "@plainva/ui";
+import { SettingsRail } from "./SettingsRail";
 
 /**
  * Second-level security navigation (Security & Sharing IA v2, P1).
@@ -10,6 +11,8 @@ import { ICON, SECURITY_AREA_GROUPS, securityAreas, type SecurityAreaId } from "
  * column (`SettingsNav`): a "‹ Overview" back affordance returns to the first
  * level, below it the management areas grouped into "Your access" / "Sharing".
  * Reuses the themed `.pv-navlink` — no new surface, so no extra theme override.
+ * The search over all settings stays on top (`SettingsRail`, Sammelplan
+ * § 3.169 Nr. 2): it used to belong to `SettingsNav` and left with it.
  */
 export interface SecurityNavProps {
   /** The active area. */
@@ -17,9 +20,18 @@ export interface SecurityNavProps {
   onSelect: (area: SecurityAreaId) => void;
   /** Back to the overview (first level → normal SettingsNav returns). */
   onBack: () => void;
+  /** The window's search (see `SettingsNav`). */
+  searchQuery: string;
+  onSearchQuery: (query: string) => void;
+  /** Vault areas hidden for the shown vault. */
+  hiddenAreaIds?: string[];
+  onOpenHit: (hit: SettingsSearchHit) => void;
 }
 
-export const SecurityNav: React.FC<SecurityNavProps> = ({ area, onSelect, onBack }) => {
+/** The second level is a vault page: the search covers both worlds. */
+const SEARCH_WORLDS: SettingsWorld[] = ["app", "vault"];
+
+export const SecurityNav: React.FC<SecurityNavProps> = ({ area, onSelect, onBack, searchQuery, onSearchQuery, hiddenAreaIds, onOpenHit }) => {
   const { t } = useTranslation();
 
   const groupLabel: React.CSSProperties = {
@@ -32,19 +44,13 @@ export const SecurityNav: React.FC<SecurityNavProps> = ({ area, onSelect, onBack
   };
 
   return (
-    <div
-      className="custom-scrollbar"
-      style={{
-        width: "220px",
-        flexShrink: 0,
-        borderRight: "1px solid var(--border-color)",
-        background: "var(--bg-secondary)",
-        padding: "0.75rem",
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.25rem",
-      }}
+    <SettingsRail
+      query={searchQuery}
+      onQuery={onSearchQuery}
+      worlds={SEARCH_WORLDS}
+      hiddenAreaIds={hiddenAreaIds}
+      onOpenHit={onOpenHit}
+      testId="settings-security-nav"
     >
       <button type="button" className="pv-navlink pv-security-back" onClick={onBack}>
         <ChevronLeft size={ICON.ui} aria-hidden />
@@ -74,6 +80,6 @@ export const SecurityNav: React.FC<SecurityNavProps> = ({ area, onSelect, onBack
           })}
         </React.Fragment>
       ))}
-    </div>
+    </SettingsRail>
   );
 };

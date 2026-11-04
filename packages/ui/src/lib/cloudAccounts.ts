@@ -249,7 +249,7 @@ function betterLabel(current: string, candidate: string | undefined): string {
  * Pure and deterministic (id generation injectable for tests). Guarantees:
  *  - stored account ids and order are stable; new accounts append,
  *  - references to vanished subsystem entries are dropped; accounts left
- *    without any service disappear,
+ *    without any service by that disappear (a card stored with none stays),
  *  - unbound subsystem entries attach to an account ONLY on an exact
  *    identity match within the same family (conservative auto-merge),
  *    otherwise they become their own account — never a guess, never a re-auth.
@@ -260,6 +260,7 @@ export function reconcileCloudAccounts(
   newId: () => string = defaultNewId
 ): CloudAccountRecord[] {
   const pimById = new Map(observed.pim.map((p) => [p.id, p]));
+  const hadNoService = new Set(stored.filter((r) => !r.services.files && !r.services.calendar && !r.services.mail).map((r) => r.id));
   const mailById = new Map(observed.mail.map((m) => [m.id, m]));
 
   // 1) Keep stored accounts, dropping references whose subsystem entry is
@@ -419,7 +420,12 @@ export function reconcileCloudAccounts(
         upgradeFamily(rec, mail.family);
       }
     }
-    if (rec.services.files || rec.services.calendar || rec.services.mail) result.push(rec);
+    // Only a card the reconcile LEFT without a service goes. A card stored
+    // with none - signed in, its services still to be added in the run's
+    // screens, or kept when the setup was left - lost nothing to anyone, and
+    // dropping it took its sign-in with it once the phone reconciled again
+    // (Sammelplan § 3.105).
+    if (rec.services.files || rec.services.calendar || rec.services.mail || hadNoService.has(rec.id)) result.push(rec);
   }
   return result;
 }
@@ -502,4 +508,43 @@ export function findCloudAccountByRef(records: readonly CloudAccountRecord[], re
   return records.find(
     (r) => r.id === ref || r.services.mail?.mailAccountId === ref || r.services.calendar?.pimAccountId === ref,
   );
+}
+
+/**
+ * The registry with `record` written in as the one card of every row it
+ * carries (Sammelplan § 3.107 Nr. 1).
+ *
+ * The registry reconcile runs on its own events and writes every mailbox or
+ * calendar row without a card a card of its own - also the row a connection
+ * saved a moment ago and has not written to its card yet. Written next to it,
+ * the connection's card came second, and the reconcile keeps the FIRST card
+ * that points at a row: the row stayed with a card that holds no sign-in, and
+ * the card with the sign-in lost it. So whoever binds a row takes it off every
+ * other card, and a card left with no service goes, as the reconcile would
+ * drop it. The vault's file sync was already moved this way (one account per
+ * vault); it is the same rule now for every service.
+ */
+export function withBoundCard(records: readonly CloudAccountRecord[], record: CloudAccountRecord): CloudAccountRecord[] {
+  const pim = record.services.calendar?.pimAccountId;
+  const mail = record.services.mail?.mailAccountId;
+  const files = !!record.services.files;
+  const next: CloudAccountRecord[] = [];
+  let written = false;
+  for (const entry of records) {
+    if (entry.id === record.id) {
+      // In place: a rewrite does not move the card in the list.
+      if (!written) next.push(record);
+      written = true;
+      continue;
+    }
+    const services: CloudAccountServices = { ...entry.services };
+    let lost = false;
+    if (files && services.files) { delete services.files; lost = true; }
+    if (pim && services.calendar?.pimAccountId === pim) { delete services.calendar; lost = true; }
+    if (mail && services.mail?.mailAccountId === mail) { delete services.mail; lost = true; }
+    if (!lost) next.push(entry);
+    else if (services.files || services.calendar || services.mail) next.push({ ...entry, services });
+  }
+  if (!written) next.push(record);
+  return next;
 }

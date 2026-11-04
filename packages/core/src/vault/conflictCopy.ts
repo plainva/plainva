@@ -22,6 +22,58 @@ export type ConflictCopyAnswer = { disposition: "adopt" } | { disposition: "disc
 type SettleFiles = Pick<IVaultAdapter, "exists" | "readTextFile" | "readBinaryFile" | "writeTextFile" | "writeBinaryFile" | "renameItem" | "deleteItem"
   | "getConflictSession" | "resolveConflictBytes">;
 
+/** What a comparison of two texts saw: the file's text (null where none lay there) and the copy's. */
+export interface ConflictTextSight {
+  original: string | null;
+  copy: string;
+}
+
+/** The three exits of a comparison of two texts: `content` takes the file's place, or the file stays and the copy goes or is kept. */
+export type ConflictTextAnswer = { disposition: "adopt"; content: string } | { disposition: "discard"; keepCopyAs?: string };
+
+type SettleTextFiles = Pick<IVaultAdapter, "exists" | "readTextFile" | "writeTextFile" | "renameItem" | "deleteItem" | "getConflictSession" | "resolveConflict">;
+
+/**
+ * Settles a conflict copy both shells' comparisons showed as text — the one
+ * way of their three exits, for the working copy of an open conflict and for
+ * a copy the sync left beside the file alike.
+ *
+ * Both go through the chain (`resolveConflict`): the working copy through its
+ * session, a copy beside the file named by `copyPath`, so that the check of
+ * what the comparison saw and the write that answers it are one step under
+ * the gate every write of the chain takes (Sammelplan § 3.86 no. 8). The
+ * shells used to check and then write, rename and delete through the chain
+ * one by one: a write of the app between the check and the write was
+ * overwritten, and a copy changed between them was deleted.
+ *
+ * An adapter without the chain's gate (none of the shells hands one out)
+ * goes the old way, step by step.
+ */
+export async function settleConflictText(files: SettleTextFiles, originalPath: string, copyPath: string, seen: ConflictTextSight, answer: ConflictTextAnswer): Promise<void> {
+  const keepCopyAs = answer.disposition === "discard" ? answer.keepCopyAs : undefined;
+  const content = answer.disposition === "adopt" ? answer.content : seen.original ?? "";
+  if (files.resolveConflict) {
+    await files.resolveConflict(originalPath, {
+      originalText: seen.original, copyText: seen.copy, content, copyPath,
+      ...(answer.disposition === "discard" ? { disposition: "discard" as const } : {}),
+      ...(keepCopyAs ? { keepCopyAs } : {}),
+    });
+    return;
+  }
+  const current = await files.exists(originalPath) ? await files.readTextFile(originalPath) : null;
+  if (current !== seen.original || !await files.exists(copyPath) || await files.readTextFile(copyPath) !== seen.copy) throw new Error("comparisonChanged");
+  if (answer.disposition === "adopt") {
+    await files.writeTextFile(originalPath, answer.content);
+    await files.deleteItem(copyPath);
+  } else if (keepCopyAs) {
+    if (await files.exists(keepCopyAs)) throw new Error("comparisonChanged");
+    await files.renameItem(copyPath, keepCopyAs);
+  } else {
+    if (seen.original === null) throw new Error("Cannot discard a conflict whose original is missing");
+    await files.deleteItem(copyPath);
+  }
+}
+
 /** Looks at both files for a comparison that offers the byte-wise exits; the copy must lie there. */
 export async function seeConflictCopy(files: Pick<IVaultAdapter, "exists" | "readBinaryFile">, originalPath: string, copyPath: string): Promise<ConflictCopySight> {
   const [original, copy] = await Promise.all([fileSha256(files, originalPath), fileSha256(files, copyPath)]);
@@ -37,21 +89,27 @@ export async function seeConflictCopy(files: Pick<IVaultAdapter, "exists" | "rea
  *
  * Where the copy is the working copy of an open conflict — the file was text
  * when the conflict began, and another program turned it into something else
- * since —, the conflict ends through its own gate (`resolveConflictBytes`):
- * moving, deleting and writing bytes into it are refused while it is open.
- * Otherwise both files are asked first whether they still are what the
- * comparison saw (`comparisonChanged` where not), and then the answer is
- * carried out. Whoever replaces a file keeps a version of it before
+ * since —, the conflict ends through its own gate: moving, deleting and
+ * writing bytes into it are refused while it is open. A copy beside the file
+ * goes through the chain as well (`resolveConflictBytes` with `copyPath`):
+ * both files are asked whether they still are what the comparison saw
+ * (`comparisonChanged` where not), and the answer is carried out, in one step
+ * under the gate every write of the chain takes (Sammelplan § 3.86 no. 8 — a
+ * write of the app between the check and the copy taking the file's place was
+ * overwritten). Whoever replaces a file keeps a version of it before
  * (`forceBackup` in both shells); the snapshot interval does not decide that.
+ *
+ * An adapter without the chain's gate (none of the shells hands one out)
+ * goes the old way, step by step.
  */
 export async function settleConflictCopy(files: SettleFiles, originalPath: string, copyPath: string, seen: ConflictCopySight, answer: ConflictCopyAnswer): Promise<void> {
   const keepCopyAs = answer.disposition === "discard" ? answer.keepCopyAs : undefined;
-  const session = await files.getConflictSession?.(originalPath);
-  if (session?.workingCopyPath === copyPath) {
-    if (!files.resolveConflictBytes) throw new Error("Conflict-safe editing is unavailable");
-    await files.resolveConflictBytes(originalPath, { originalSha256: seen.original, copySha256: seen.copy, disposition: answer.disposition, ...(keepCopyAs ? { keepCopyAs } : {}) });
+  if (files.resolveConflictBytes) {
+    await files.resolveConflictBytes(originalPath, { originalSha256: seen.original, copySha256: seen.copy, disposition: answer.disposition, copyPath, ...(keepCopyAs ? { keepCopyAs } : {}) });
     return;
   }
+  const session = await files.getConflictSession?.(originalPath);
+  if (session?.workingCopyPath === copyPath) throw new Error("Conflict-safe editing is unavailable");
   if (await fileSha256(files, originalPath) !== seen.original || await fileSha256(files, copyPath) !== seen.copy) throw new Error("comparisonChanged");
   // Letting the copy go where no file is left would leave nothing at all.
   if (answer.disposition === "discard" && !keepCopyAs && seen.original === null) throw new Error("Cannot discard a conflict whose original is missing");

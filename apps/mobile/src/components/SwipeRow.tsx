@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import { haptics } from "../services/haptics";
-import { SWIPE_SLOP as SLOP } from "../lib/gestureConstants";
+import { SWIPE_SLOP as SLOP, startsInBackEdge } from "../lib/gestureConstants";
 
 export interface SwipeAction {
   icon: ReactNode;
@@ -56,6 +56,8 @@ export function SwipeRow({ actions: given, children }: { actions: SwipeAction[];
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // The left edge belongs to back (W5): a row does not start a swipe there.
+    if (startsInBackEdge(e.clientX)) return;
     drag.current = { x: e.clientX, y: e.clientY, axis: "" };
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {

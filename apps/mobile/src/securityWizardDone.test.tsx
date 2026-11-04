@@ -107,7 +107,7 @@ async function prepareKey(onDone: () => void) {
 
 describe("the security wizard's own exit", () => {
   it("asks while a prepared key exists — Back would destroy it", async () => {
-    await prepareKey(nav.done);
+    await prepareKey(() => nav.done({ kind: "securitywizard", path: "" }));
     expect(activeLeaveGuard()?.id).toBe("security-wizard");
     await act(async () => nav.pop());
     expect(currentMobileDialog()?.kind).toBe("confirm");
@@ -115,7 +115,7 @@ describe("the security wizard's own exit", () => {
   });
 
   it("does not ask once the key is activated", async () => {
-    await prepareKey(nav.done);
+    await prepareKey(() => nav.done({ kind: "securitywizard", path: "" }));
     await tap("wizard-activate");
     expect(mocks.activate).toHaveBeenCalledWith(expect.anything(), "draft-1");
     expect(currentMobileDialog(), "the shell asked whether to cancel a setup that had just succeeded").toBeNull();

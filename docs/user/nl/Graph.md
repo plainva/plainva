@@ -1,6 +1,6 @@
 # Graaf
 
-Laatst bijgewerkt: 2026-10-22
+Laatst bijgewerkt: 2026-11-02
 
 De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar je bent, wat er verbonden is, wat er ontbreekt — en je kunt er rechtstreeks op inspelen. Er is ÉÉN graaf-engine met drie gezichten.
 
@@ -51,5 +51,5 @@ Op de telefoon werkt deze weergave zoals de vault-kaart: zoomknoppen en een lege
 ## Grenzen
 
 - De graaf toont notities (bestanden), geen afzonderlijke alinea's.
-- Vastzettingen en genegeerde suggesties staan onder `.plainva/` en reizen niet mee met sync — de basislay-out is op elk apparaat identiek.
+- Vastzettingen en genegeerde suggesties staan onder `.plainva/` en reizen niet mee met sync — de basislay-out is op elk apparaat identiek. Elk apparaat bewaart ze in een eigen bestand (`graph.<apparaat>.json`): ook als een bestandsdienst zoals Dropbox of iCloud Drive de vaultmap tussen apparaten meeneemt, overschrijft geen apparaat de indeling van een ander.
 - Suggesties zijn pure vault-analyses; er verlaat niets je machine.

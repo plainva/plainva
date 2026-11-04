@@ -34,11 +34,13 @@ function render(el: ReactElement) {
 }
 
 describe("settingsCatalog (shared area catalog, redesign P1)", () => {
-  it("carries six app areas and ten vault areas with unique ids", () => {
+  it("carries five app areas and eleven vault areas with unique ids", () => {
     // "AI & automation" stands in both worlds (plan KI-Harness §19.1): what holds
-    // for this device, and the privacy rules that travel with the vault.
-    expect(settingsAreas("app").map((a) => a.id)).toEqual(["appearance", "editor", "behavior", "ai", "updates", "about"]);
-    expect(settingsAreas("vault").map((a) => a.id)).toEqual(["cloudAccounts", "sync", "security", "aiVault", "pim", "mail", "content", "bars", "backup", "maintenance"]);
+    // for this device, and the privacy rules that travel with the vault. Updates
+    // is a group of About since the settings plan of 2026-10-29 (E10);
+    // "Content & structure" became two pages (E9).
+    expect(settingsAreas("app").map((a) => a.id)).toEqual(["appearance", "editor", "behavior", "ai", "about"]);
+    expect(settingsAreas("vault").map((a) => a.id)).toEqual(["cloudAccounts", "sync", "security", "aiVault", "pim", "mail", "content", "journal", "bars", "backup", "maintenance"]);
     const ids = SETTINGS_AREAS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });

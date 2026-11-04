@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({
   active: "source", entries: [{ id: "source", name: "Source", provider: undefined as string | undefined }],
   failSecret: "", accepted: true, answer: null as null | "apply" | "cancel" | "otherFolder", afterReview: async () => {}, cancelReview: null as null | (() => void), allocations: 0,
   switches: [] as string[], events: [] as string[],
+  /** The app ends right after this registry step: "register" lists the vault and then ends, "commit" ends before listing it. */
+  endAfter: "" as "" | "register" | "commit",
 }));
 function memoryDisk(id: string): IVaultAdapter {
   let files = state.disks.get(id);
@@ -42,7 +44,11 @@ vi.mock("./vaultRegistry", () => ({
   getActiveVaultEntry: async () => state.entries.find(e => e.id === state.active),
   getVaultEntry: async (id: string) => state.entries.find(e => e.id === id), listVaults: async () => state.entries,
   newVaultId: () => `prepared-${++state.allocations}`,
-  addVault: async (entry: typeof state.entries[number]) => { state.events.push("register"); state.entries.push(entry); },
+  addVault: async (entry: typeof state.entries[number]) => {
+    if (state.endAfter === "commit") throw new Error("app closed");
+    state.events.push("register"); state.entries.push(entry);
+    if (state.endAfter === "register") throw new Error("app closed");
+  },
 }));
 vi.mock("./vaultService", () => ({
   noteSaver: { flushAll: async () => {} },
@@ -87,7 +93,7 @@ beforeEach(async () => {
   setPlatformServices(getPlatformServices());
   state.settings.clear(); state.secrets.clear(); state.disks.clear(); state.active = "source";
   state.entries = [{ id: "source", name: "Source", provider: undefined }];
-  state.switches = []; state.events = []; state.allocations = 0; state.failSecret = ""; state.accepted = true; state.answer = null; state.cancelReview = null; state.afterReview = async () => {};
+  state.switches = []; state.events = []; state.endAfter = ""; state.allocations = 0; state.failSecret = ""; state.accepted = true; state.answer = null; state.cancelReview = null; state.afterReview = async () => {};
   await clearConnectQueue();
   const db = await realSqlite(); state.databases.set("source", db);
   source = { vaultId: "source", db, adapter: memoryDisk("source") } as MobileVault;
@@ -224,6 +230,32 @@ describe("the account-to-files transfer before vault activation", () => {
     await copy;
     expect(state.events).toEqual(["review", "discard"]);
     expect((await loadConnectQueue())!.preparedVaultId).toBeUndefined();
+  });
+  /*
+   * Sammelplan § 3.160 Nr. 1: the copy went through and the app ended before
+   * the run noted the step as connected. "Skip files" then forgot the vault
+   * that was there, and the summary called the files "skipped".
+   */
+  it("finishes a files step whose copy went through when the app ended before it was noted - listed or not", async () => {
+    for (const end of ["register", "commit"] as const) {
+      await clearConnectQueue();
+      await startConnectQueue("fastmail", ["files"], { vaultId: "source", cloudAccountId: "account" });
+      state.entries = [{ id: "source", name: "Source", provider: undefined }];
+      state.endAfter = end;
+      await expect(connect()).rejects.toThrow("app closed");
+      const id = (await loadConnectQueue())!.preparedVaultId!;
+      expect(id).toBeDefined();
+      state.endAfter = "";
+      state.events = [];
+      await expect(abandonPreparedFiles(), end).resolves.toBe("connected");
+      // Nothing of it is taken back, and the vault is listed.
+      expect(state.events, end).not.toContain("discard");
+      expect(state.entries.filter((e) => e.id === id), end).toHaveLength(1);
+      expect([...state.disks.get(id)!.values()], end).toContain("local notes");
+      const q = (await loadConnectQueue())!;
+      expect(q.outcomes.files?.state, end).toBe("connected");
+      expect(q.context.vaultId, end).toBe(id);
+    }
   });
   it("never takes back a files step that connected", async () => {
     await connect();

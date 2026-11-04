@@ -108,7 +108,7 @@ function namesFolder(target: string): boolean {
 const folderOfPath = (path: string): string => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 
 /** `toPath` as a path read from `fromFolder`: `Note.md`, `Sub/Note.md`, `../Other/Note.md`. */
-function pathFromFolder(fromFolder: string, toPath: string): string {
+export function pathFromFolder(fromFolder: string, toPath: string): string {
   const from = fromFolder ? fromFolder.split("/") : [];
   const to = toPath.split("/");
   let common = 0;
@@ -226,11 +226,14 @@ export async function planLinkUpdates(
       // Written with the extension — a Markdown link, or a wiki link written
       // so: it keeps it. A reader that takes a Markdown link from the note's
       // folder (GitHub, OKF) finds the file under the plain new name from its
-      // own folder. Plainva's link rule reads a bare `index.md` as the vault's
-      // own overview where there is one (finding 2026-10-21, not built here):
-      // the plan knows a link by its target, not by its kind, and how a
-      // Markdown link is read is decided with the rule for Markdown links.
-      return raw.includes("/") ? newPath : `${newBase}.md`;
+      // own folder. A Markdown link takes `newMarkdownTargetFor` above. A wiki
+      // link written with its extension is read by the wiki rule like the bare
+      // one: where the bare name is not sure to lead here — another file of
+      // that name, or a folder's `index.md`, which the rule reads as the
+      // vault's own overview where there is one —, it names the path, as the
+      // bare link does (Sammelplan § 3.135 Nr. 4: `[[Map.md]]` became
+      // `[[index.md]]` and led to the root's overview).
+      return raw.includes("/") || bareTarget !== newBase ? newPath : `${newBase}.md`;
     }
     if (raw.includes("/")) return newWikiQualified;
     return bareTarget;

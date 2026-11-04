@@ -1,6 +1,6 @@
 # OKF — Open Knowledge Format
 
-Stan na: 2026-10-21
+Stan na: 2026-11-03
 
 OKF (Open Knowledge Format) to otwarta konwencja dla kolekcji wiedzy w Markdown: zwykłe pliki Markdown z małym, jednolitym nagłówkiem frontmatter. Ta strona wyjaśnia, czym jest OKF, co Plainva robi dla niego automatycznie — i dlaczego niczego z tego nie *musisz* używać.
 
@@ -34,13 +34,13 @@ Zwykły Markdown jest wspaniale przenośny — ale sam w sobie nie ma niezawodne
 
 ## Co Plainva robi automatycznie
 
-**Nowe pliki** otrzymują nagłówek OKF automatycznie: każda notatka utworzona w Plainva otrzymuje `type` we frontmatter — od OKF 0.2 znacznik wersji `okf_version` znajduje się raz w głównej `index.md`, a nie już w każdej notatce. Wartości konfigurujesz dla każdego vaultu osobno: **Ustawienia → Vault → Treść i struktura → OKF (Open Knowledge Format)** → **type dla nowych notatek** (domyślnie `Note`) i **type dla notatek dziennych** (domyślnie `Daily Note`). Jeśli szablon ma własny `type`, to on wygrywa.
+**Nowe pliki** otrzymują nagłówek OKF automatycznie: każda notatka utworzona w Plainva otrzymuje `type` we frontmatter — od OKF 0.2 znacznik wersji `okf_version` znajduje się raz w głównej `index.md`, a nie już w każdej notatce. Wartości konfigurujesz dla każdego vaultu osobno: **type dla nowych notatek** (domyślnie `Note`) w **Ustawienia → Vault → Notatki i archiwizacja → Nowe notatki** oraz **type dla notatek dziennych** (domyślnie `Daily Note`) w **Ustawienia → Vault → Notatki dzienne i dziennik → Notatki dzienne**. Jeśli szablon ma własny `type`, to on wygrywa.
 
 **Istniejące pliki nigdy nie są zmieniane bez pytania.** Plainva dodaje pola OKF tylko przy tworzeniu nowych plików lub gdy wyraźnie uruchamiasz konwersję.
 
 **Chronione pola systemowe:** w panelu **Właściwości** pola `type` i — gdzie starsze notatki wciąż je niosą — `okf_version` są oznaczone jako pola systemowe OKF („Pole systemowe OKF – zarządzane przez Plainva”): wartość `type` można wybrać z listy rozwijanej znanych typów, `okf_version` jest tylko do wyświetlania; zmiana nazwy, zmiana typu i usuwanie są zablokowane, aby konwencja nie mogła się przypadkowo zepsuć.
 
-**Okno wyjaśniające:** **Czym jest OKF?** w ustawieniach daje Ci skróconą wersję w trzech zdaniach oraz link do tej strony. Nie otwiera się już samo; jeśli vault zawiera pliki, które nie są zgodne z formatem OKF, Plainva zgłasza to jednorazowo w małym komunikacie z przyciskiem, który prowadzi Cię bezpośrednio do konwersji.
+**Skrót w ustawieniach:** przycisk informacji (ⓘ) grupy **Format OKF** w **Ustawienia → Vault → Konserwacja** daje Ci wyjaśnienie w trzech zdaniach oraz link do tej strony. Nie otwiera się samo; jeśli vault zawiera pliki, które nie są zgodne z formatem OKF, Plainva zgłasza to jednorazowo w małym komunikacie z przyciskiem, który prowadzi Cię bezpośrednio do konwersji.
 
 ## Pochodzenie, weryfikacja i cykl życia (OKF 0.2)
 
@@ -55,17 +55,17 @@ Od OKF 0.2 notatka może mówić, skąd pochodzi, kto ją sprawdził i czy nadal
 **Co Plainva zapisuje.**
 
 - `generated` (a tam, gdzie źródło jest znane, także `sources`) ustawiają dokładnie trzy maszynowe ścieżki zapisu: **importer** (`plainva-import/<wersja>`, jeden moment na przebieg — raport importu też go niesie), **przechwytywanie e-maili** (`plainva-mail-capture/<wersja>`, ze źródłem = Message-ID wiadomości) oraz **synchronizacja zadań** (`plainva-task-sync/<wersja>`, tylko gdy tworzy notatkę).
-- `verified` jest zapisywane wyłącznie przez **Oznacz jako sprawdzoną** w sekcji **Zaufanie i pochodzenie**: Plainva dopisuje do listy `human:<Twoje imię>` wraz z bieżącym momentem — druga weryfikacja nigdy nie nadpisuje pierwszej. O Twoje imię pyta się raz na vault; zostaje na tym urządzeniu i można je zmienić pod **Ustawienia → Vault → Treść i struktura → Nazwa sprawdzającego**.
+- `verified` jest zapisywane wyłącznie przez **Oznacz jako sprawdzoną** w sekcji **Zaufanie i pochodzenie**: Plainva dopisuje do listy `human:<Twoje imię>` wraz z bieżącym momentem — druga weryfikacja nigdy nie nadpisuje pierwszej. O Twoje imię pyta się raz na vault; zostaje na tym urządzeniu i można je zmienić pod **Ustawienia → Vault → Notatki i archiwizacja → Uwagi → Twoje imię (uwagi i przeglądy)**.
 - Edytor nigdy sam nie dotyka żadnego z tych pól, a istniejące notatki nigdy nie są oznaczane z mocą wsteczną. `status` i `stale_after` ustawiasz sam, jako właściwość albo we frontmatter.
 
-**Podnoszenie wersji pakietu.** Wersja konwencji znajduje się raz, w głównej `index.md`. Vault, który wciąż deklaruje `"0.1"`, działa dalej bez zmian — pod **Ustawienia → Vault → Treść i struktura → Wersja pakietu** (na telefonie: **Ustawienia → Vault → Konserwacja → Wersja pakietu**) podnosisz ją do 0.2 przyciskiem **Podnieś…**. Okno dialogowe pokazuje z wyprzedzeniem, co się zmieni: linię w głównej `index.md` oraz, jako pole wyboru (domyślnie zaznaczone), usunięcie przestarzałego pola `okf_version` z notatek, które wciąż je niosą. Każdy plik jest kopiowany do kopii zapasowej przed zmianą; **Uporządkuj…** wykonuje tylko drugą część. Szczegółowa tabela pól i reguły zapisu znajdują się w [Dokumentacji formatu plików](File_Format_Reference.md).
+**Podnoszenie wersji pakietu.** Wersja konwencji znajduje się raz, w głównej `index.md`. Vault, który wciąż deklaruje `"0.1"`, działa dalej bez zmian — pod **Ustawienia → Vault → Konserwacja → Format OKF → Wersja pakietu** (na telefonie tak samo) podnosisz ją do 0.2 przyciskiem **Podnieś…**. Okno dialogowe pokazuje z wyprzedzeniem, co się zmieni: linię w głównej `index.md` oraz, jako pole wyboru (domyślnie zaznaczone), usunięcie przestarzałego pola `okf_version` z notatek, które wciąż je niosą. Każdy plik jest kopiowany do kopii zapasowej przed zmianą; **Uporządkuj…** wykonuje tylko drugą część. Szczegółowa tabela pól i reguły zapisu znajdują się w [Dokumentacji formatu plików](File_Format_Reference.md).
 
 ## index.md: spis treści dla każdego folderu
 
 `index.md` to spis treści folderu: lista zawartych w nim notatek i podfolderów, z opisami i linkami względnymi.
 
-- **Generowanie** — zawsze na Twoje działanie, nigdy znikąd: kliknij prawym przyciskiem na folder → **Utwórz przegląd** / **Odśwież przegląd**, lub zbiorczo przez **zarządzanie index.md** (**Ustawienia → Vault → Treść i struktura**).
-- **Przejęcie zamiast generowania** — jeśli masz już notatki przeglądowe (MOC, przegląd, folder note, README…), zarządzanie proponuje je jako kandydatów. **Przejmij** zmienia nazwę pliku na `index.md` (linki są aktualizowane w całym vaulcie). Z opcją **Przygotuj przejęte pliki do OKF (usuń frontmatter, zamień wikilinki tego pliku na linki Markdown)** — domyślnie zaznaczoną — notatka zostaje przy okazji przygotowana: jej frontmatter zostaje usunięty (wcześniej notatka w dotychczasowej postaci trafia do kopii zapasowej), a jej wikilinki stają się względnymi linkami Markdown, każdy na swoim miejscu; nic innego w notatce się nie zmienia. Linki notatki do niej samej prowadzą potem do nowego `index.md`, a link z innej notatki, który docierał do niej przez `title` z jej frontmattera — znikający razem z frontmatterem — odtąd wskazuje plik. Osadzenia, wikilinki, które nie prowadzą do żadnej notatki, oraz wikilink w tekście innego linku nie są zamieniane; wiersz wyniku je zlicza. Jeśli folder ma już `index.md`, nic nie zostaje przejęte, a notatka pozostaje nietknięta.
+- **Generowanie** — zawsze na Twoje działanie, nigdy znikąd: kliknij prawym przyciskiem na folder → **Utwórz przegląd** / **Odśwież przegląd**, lub zbiorczo przez **zarządzanie index.md** (**Ustawienia → Vault → Konserwacja → Format OKF**). Link w innej notatce, który wskazuje przegląd innego folderu tylko jako `index`, prowadziłby do nowego `index.md`: jeśli nowy przegląd przejąłby takie linki, **Utwórz przegląd** najpierw pyta i oferuje **Zapisz linki do innych przeglądów z ich folderem, aby nadal tam prowadziły**, domyślnie zaznaczone — tak jak przy przejmowaniu. Tworzenie we wszystkich folderach bez `index.md` naraz daje jedną liczbę dla całego przebiegu, bo link może przejąć każdy z nowych przeglądów; linki są zapisywane, zanim powstanie pierwszy przegląd, a wiersz wyniku je liczy. Jeśli żaden nowy przegląd nie przejmuje linku, nie pojawia się żadne dodatkowe pytanie.
+- **Przejęcie zamiast generowania** — jeśli masz już notatki przeglądowe (MOC, przegląd, folder note, README…), zarządzanie proponuje je jako kandydatów. **Przejmij** zmienia nazwę pliku na `index.md` (linki są aktualizowane w całym vaulcie). Z opcją **Przygotuj przejęte pliki do OKF (usuń frontmatter, zamień wikilinki tego pliku na linki Markdown)** — domyślnie zaznaczoną — notatka zostaje przy okazji przygotowana: jej frontmatter zostaje usunięty (wcześniej notatka w dotychczasowej postaci trafia do kopii zapasowej), a jej wikilinki stają się względnymi linkami Markdown, każdy na swoim miejscu; nic innego w notatce się nie zmienia. Linki notatki do niej samej prowadzą potem do nowego `index.md`, a link z innej notatki, który docierał do niej przez `title` z jej frontmattera — znikający razem z frontmatterem — odtąd wskazuje plik. Osadzenia, wikilinki, które nie prowadzą do żadnej notatki, oraz wikilink w tekście innego linku nie są zamieniane; wiersz wyniku je zlicza. Folderowi, który ma już `index.md`, nie są proponowani kandydaci — nic nie da się tam przejąć, a notatka pozostaje nietknięta. Jeśli przejęcie się nie uda — na przykład dlatego, że notatka ma otwarty konflikt — wynik mówi słowami, dlaczego. Linki do nagłówka samej notatki (`[[#Nagłówek]]`) pozostają bez zmian i są liczone osobno. Link w innej notatce, który wskazuje przegląd innego folderu tylko jako `index`, prowadziłby do nowego `index.md`; gdy przejęcie przechwyciłoby takie linki, menedżer je liczy i proponuje **Zapisz linki do innych przeglądów z ich folderem, aby nadal tam prowadziły**, domyślnie zaznaczone — zanim cokolwiek zostanie przeniesione, każdy taki link jest zapisywany z folderem (`[[Projekty/index]]`), a wiersz wyniku je liczy. Pytanie na telefonie oferuje to samo.
 - **Automatyczna aktualizacja** — listingi *wygenerowane* przez Plainva mają na końcu pliku niewidoczny znacznik (komentarz HTML). Tylko takie oznaczone pliki są automatycznie aktualizowane, ilekroć coś się zmieni w folderze — i tylko w vaultach OKF (rozpoznawanych po `okf_version` w głównej `index.md`).
 - **Tylko do odczytu z wyjściem awaryjnym** — zarządzane pliki index.md otwierają się w trybie czytania z banerem „Ten plik index.md jest zarządzany przez Plainva i aktualizowany automatycznie.” Tam możesz kliknąć **Odśwież** — lub wybrać **Edytuj mimo to**: usuwa to znacznik, a plik znów w pełni należy do Ciebie (już bez automatycznych aktualizacji).
 - **Wszystko naraz** — **Zaktualizuj wszystkie pliki index.md** jest dostępne w menu kontekstowym głównego katalogu vaultu i w ustawieniach; pliki bez znacznika są przy tym pomijane.
@@ -75,11 +75,11 @@ Od OKF 0.2 notatka może mówić, skąd pochodzi, kto ją sprawdził i czy nadal
 
 ## Konwertowanie istniejącego vaultu (opt-in)
 
-Jeśli pliki w vaulcie nie są zgodne z formatem OKF (brak pola `type` lub zarezerwowane nazwy używane jako zwykłe notatki), Plainva oferuje konwersję — jednorazowo przy otwieraniu vaultu i na stałe w **Ustawienia → Vault → Treść i struktura** (wpis pojawia się tylko wtedy, gdy jest coś do zrobienia).
+Jeśli pliki w vaulcie nie są zgodne z formatem OKF (brak pola `type` lub zarezerwowane nazwy używane jako zwykłe notatki), Plainva oferuje konwersję — jednorazowo przy otwieraniu vaultu i na stałe w **Ustawienia → Vault → Konserwacja → Format OKF** (wpis pojawia się tylko wtedy, gdy jest coś do zrobienia).
 
 Kreator **Konwertuj do formatu OKF** działa w jasnych krokach:
 
-1. **Skanowanie** — pokazuje, ile plików jest dotkniętych (foldery szablonów i systemowe są wykluczone; pliki z nieczytelnym frontmatter są pomijane, nigdy „naprawiane”).
+1. **Skanowanie** — pokazuje, ile plików jest dotkniętych (foldery szablonów i systemowe są wykluczone; pliki z nieczytelnym frontmatter są pomijane, nigdy „naprawiane”; kopia robocza otwartego konfliktu nie jest liczona, a przebieg pomija notatkę z otwartym konfliktem — rozwiąż go, a potem skonwertuj ponownie).
 2. **Decyzje** — domyślny `type` dla plików bez niego; istniejące wartości `type` możesz **zachować** (zalecane — są już prawidłowymi typami OKF) lub zmienić nazwę na inne pole.
 3. **Podgląd (bez zmian)** — dry run pokazuje z wyprzedzeniem, co by się zmieniło.
 4. **Konwersja** — przed każdą zmianą plik jest kopiowany do `.plainva/backups/`; raport podsumowuje zmienione, pominięte i folder kopii zapasowej. Potem możesz opcjonalnie **przejść do zarządzania index.md**.
@@ -92,10 +92,10 @@ Ta sama droga istnieje też mobilnie: **Ustawienia → Vault → Konserwacja →
 
 Dochodzą dwie rzeczy, ponieważ telefon może w każdej chwili usunąć aplikację z pamięci:
 
-- **Wstrzymanie i wznowienie.** Przebieg zatrzymuje się przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło. Wznowienie zapisuje do tego samego folderu kopii zapasowej — drugi nie powstaje.
+- **Wstrzymanie i wznowienie.** Przebieg zatrzymuje się przy następnym pliku, gdy dotkniesz **Wstrzymaj** albo aplikacja przejdzie w tło. Wznowienie zapisuje do tego samego folderu kopii zapasowej — drugi nie powstaje. Wznowienie zachowuje też opcje, z którymi przebieg się zaczął, a notatka już skonwertowana nie jest konwertowana drugi raz.
 - **Pytanie przy starcie.** Jeśli przebieg pozostanie niedokończony, Plainva powie o tym przy następnym otwarciu vaulta i zaproponuje **Kontynuuj** lub **Wycofaj**; **Później** to poprawna odpowiedź. Przerwany przebieg zostawia vault przekonwertowany częściowo, a nie uszkodzony: dodawane są wyłącznie pola frontmattera, a każda notatka pozostaje poprawnym Markdownem.
 
-**Wycofaj** przywraca pliki z folderu kopii zapasowej — także na komputerze, z raportu na końcu przebiegu. Folder kopii zostaje potem na miejscu; to jedyna kopia stanu sprzed konwersji.
+**Wycofaj** przywraca pliki z folderu kopii zapasowej — także na komputerze, z raportu na końcu przebiegu. Folder kopii zostaje potem na miejscu; to jedyna kopia stanu sprzed konwersji. Notatka zmieniona, przeniesiona lub usunięta po konwersji zostaje taka, jaka jest; Plainva podaje, ile ich jest, a ich wcześniejszy tekst zostaje w folderze kopii.
 
 ## Czy muszę używać OKF?
 

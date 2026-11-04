@@ -123,7 +123,6 @@ const BUDGET: Record<string, Counts> = {
    */
   "components/CloudFolderPickerSheet.tsx": { gapBare: 1 },
   "components/NoteContextSheet.tsx": { spacingBare: 1 },
-  "screens/PimAccountsScreen.tsx": { spacingBare: 1 },
   "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 3 },
 };
 
@@ -933,7 +932,8 @@ describe("a database offers the view types it can render", () => {
   const src = () => stripComments(readFileSync(join(SRC, "screens/base/BaseConfigSheet.tsx"), "utf8"));
 
   it("takes the types and their labels from the catalog", () => {
-    expect(src()).toMatch(/BASE_VIEW_TYPES\.map/);
+    // Through the shared filter of the .base switch (Sammelplan § 3.169 Nr. 3).
+    expect(src()).toMatch(/offeredViewTypes\(/);
     expect(src()).toMatch(/baseViewTypeMeta\(type\)\.labelKey/);
   });
 
@@ -1527,17 +1527,18 @@ describe("mail files, says and deletes carefully", () => {
   it("captures a task the same way every other task is created", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
     expect(screen).toMatch(/createTaskInDatabase\(/);
-    expect(screen).toMatch(/saveEmlFile\(/);
+    // The raw copy through the one rule both shells call (open-items plan 3.77).
+    expect(screen).toMatch(/addEmlToMailNote\(/);
     // The raw copy costs a second fetch of the whole message — only on demand.
     //
     // This used to read `mode === "eml" && res.created`, which pinned a DEFECT
     // rather than the intent (S20): capturing the same message a second time
     // skipped the .eml without a word, and the toast said only that the note
     // existed. The rule is that the fetch is gated on the MODE; whether the
-    // note happens to be new decides nothing.
-    expect(screen).toMatch(/if \(mode === "eml"\) \{/);
+    // note happens to be new decides nothing. The fetch is handed to the shared
+    // rule as a function: it runs only where the note links no raw copy yet.
     expect(screen, "the raw fetch must stay inside the eml branch").toMatch(
-      /if \(mode === "eml"\) \{[\s\S]*?fetchRawMessage\(/,
+      /mode === "eml"\s*\?\s*await addEmlToMailNote\(\{[^}]*fetchRaw: \(\) => fetchRawMessage\(/,
     );
   });
 
@@ -2002,7 +2003,9 @@ describe("the vault detail screen", () => {
   it("groups the actions and keeps the destructive ones apart", () => {
     const screen = stripComments(readFileSync(join(SRC, "VaultDetailScreen.tsx"), "utf8"));
     expect(screen).toMatch(/mobile\.vaultGroupConnection/);
-    expect(screen).toMatch(/mobile\.vaultGroupContents/);
+    // The vault's own rows (rename, export, its sync) since the settings plan
+    // of 2026-10-29 (E11): the archive went to Backup & versioning.
+    expect(screen).toMatch(/settings\.sectionVault/);
     // Deleting the vault belongs to the danger group, not to the row that also
     // offers restoring files.
     const danger = screen.slice(screen.indexOf('tone="danger"'));
@@ -2214,14 +2217,16 @@ describe("empty states", () => {
     expect(tasks).toMatch(/tasks\.dueCount/);
     expect(tasks).toMatch(/subtitle=\{barSummary\}/);
 
-    // The calendar's period moved OUT of the toolbar, where five controls beside
-    // it cut a German weekday date down to "Sonnt…".
-    // Since the date jump (plan Kalender 2026-09-10, P3) the period is a
-    // BUTTON in that slot — still the subtitle, now the way to the picker.
+    // The calendar's period is a BUTTON (the date jump, plan Kalender
+    // 2026-09-10, P3) BETWEEN the arrows that move it (feedback 2026-10-29).
+    // It once left the toolbar because five controls beside it cut a German
+    // weekday date to "Sonnt…"; sync moved up next to search and the accounts
+    // shortcut went, which is the room it has now.
     const cal = src("screens", "PimCalendarScreen.tsx");
-    expect(cal).toMatch(/const periodNode = \([\s\S]*?className="m-appbar-sub-btn"[\s\S]*?\{periodTitle\(\)\}/);
-    expect(cal).toMatch(/subtitle=\{periodNode\}/);
-    expect(cal, "the period is still in the toolbar too").not.toMatch(/m-pimbar-title/);
+    expect(cal).toMatch(/const periodNode = \([\s\S]*?className="m-pimbar-period"[\s\S]*?\{periodTitle\(\)\}/);
+    expect(cal).toMatch(/<ChevronLeft[\s\S]*?\{periodNode\}[\s\S]*?<ChevronRight/);
+    expect(cal, "the period is the app bar's subtitle again").not.toMatch(/subtitle=\{periodNode\}/);
+    expect(cal, "a toolbar shortcut into the settings").not.toMatch(/CalendarCog/);
 
     expect(src("screens", "ImportWizardScreen.tsx")).toMatch(/mobile\.stepOf/);
   });
@@ -2519,6 +2524,7 @@ describe("the settings surfaces", () => {
   const FILES = [
     "SettingsScreen.tsx",
     "screens/SettingsAreaScreens.tsx",
+    "screens/JournalAreaScreen.tsx",
     "screens/AppearanceScreen.tsx",
     "screens/BehaviorAreaScreen.tsx",
     "screens/MaintenanceAreaScreen.tsx",
@@ -2582,7 +2588,9 @@ describe("the settings surfaces", () => {
     // Three cards each carried a bold line, a sentence and a full-width button.
     // The sentences restated their own titles and truncated mid-word in a row —
     // a row's second line is a short STATE, not prose.
-    expect(screen).not.toMatch(/rebuildIndexDesc|deletedFilesDesc|step3Hint/);
+    // Since 2026-10-29 what a row DOES may stand behind its info button — never
+    // as its second line.
+    expect(screen).not.toMatch(/subtitle=\{t\("settings\.(rebuildIndexDesc|deletedFilesDesc)|step3Hint/);
     expect(screen).toMatch(/title=\{t\("settings\.rebuildIndexAction"\)\}/);
     // The one thing the second line is good for here: that it is running.
     expect(screen).toMatch(/subtitle=\{busy \? t\("settings\.rebuildIndexRunning"\)/);
@@ -2608,7 +2616,8 @@ describe("the security area", () => {
     // Unlocking is part of the STATUS, so it sits with it and above the area
     // switch rather than below it.
     const status = screen.slice(screen.indexOf("workspaceSecurity.currentStatus"));
-    expect(status.indexOf("workspaceSecurity.unlock")).toBeLessThan(status.indexOf("m-security-tabs"));
+    // The way into the second level (settings plan 2026-10-29, E12) replaced the tab strip.
+    expect(status.indexOf("workspaceSecurity.unlock")).toBeLessThan(status.indexOf("security-open-"));
   });
 });
 
@@ -3156,19 +3165,24 @@ describe("a chip's icon uses the slot", () => {
  */
 describe("a picked provider family survives the hand-over (S0a)", () => {
   const routes = stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
-  /** The `onPickServices` handler, from the prop to the end of its `c.replace(…)`. */
+  /**
+   * The `onOpenStep` handler, from the prop to the end of its `c.replace(…)`.
+   * Since the settings plan of 2026-10-29 the screen starts the run itself
+   * (a Dropbox run starts before its sign-in, a run with credentials after
+   * the one form) and hands the router its first step and the family.
+   */
   const handler = (() => {
-    const from = routes.indexOf("onPickServices=");
+    const from = routes.indexOf("onOpenStep=");
     expect(from, "the connect wizard must hand its pick to the router").toBeGreaterThan(0);
     const rest = routes.slice(from);
-    return rest.slice(0, rest.indexOf("})", rest.indexOf("c.replace(")));
+    return rest.slice(0, rest.indexOf("})", rest.indexOf("c.replace(")) + 2);
   })();
 
   it("takes the family from the wizard instead of dropping it", () => {
     expect(
       handler.slice(0, handler.indexOf("=>")),
-      "onPickServices must accept the family, not only the services",
-    ).toMatch(/services\s*,\s*family/);
+      "onOpenStep must accept the family, not only the first step",
+    ).toMatch(/first\s*,\s*family/);
     // …and put it into the entry it replaces the top with.
     expect(handler, "the family belongs in the nav entry").toMatch(/c\.replace\(\{[\s\S]*\bfamily\b/);
   });
@@ -3234,7 +3248,8 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
   });
 
   it("starts a persisted run rather than opening one service and forgetting the rest", () => {
-    expect(handler, "the picked services must go into the queue").toMatch(/startConnectQueue\(\s*family\s*,\s*services\s*\)/);
+    const screen = stripComments(readFileSync(join(SRC, "screens/CloudConnectScreen.tsx"), "utf8"));
+    expect(screen, "the picked services must go into the queue").toMatch(/startConnectQueue\(\s*family!\s*,\s*services/);
     expect(handler, "the queue decides which screen opens first").toMatch(/screenForService\(\s*first\s*\)/);
   });
 
@@ -3252,17 +3267,19 @@ describe("a picked provider family survives the hand-over (S0a)", () => {
   });
 
   it("stops the destinations from choosing a provider once one was picked", () => {
-    // Each form keeps its own default for the direct entry point ("Mit Cloud
-    // verbinden"), so the assertion is that the CHOOSER is gated on `family`,
-    // not that the default is gone.
+    // Since the settings plan of 2026-10-29 (E7) every way in - "Connect with
+    // cloud", "Add account…", "Add mailbox" - is the connect assistant, which
+    // asks for the provider once. The destinations are steps of its run and
+    // have no provider chooser left that could ask a second time.
     const add = stripComments(readFileSync(join(SRC, "AddVaultScreen.tsx"), "utf8"));
-    expect(add, "the provider row must state the family instead of asking again").toMatch(/family \?[\s\S]{0,400}familyLabel\(family\)/);
+    expect(add, "the files step takes the provider from the family").toMatch(/filesTargetForFamily\(family\)/);
+    expect(add, "the files step must not offer a provider choice").not.toMatch(/PROVIDER_OPTIONS|mSelect\(/);
 
     const pim = stripComments(readFileSync(join(SRC, "screens/PimAccountsScreen.tsx"), "utf8"));
-    expect(pim, "the calendar provider switch must be hidden once it is settled").toMatch(/\{!family && \(\s*<Segmented/);
+    expect(pim, "the calendar form must not offer a provider switch").not.toMatch(/<Segmented/);
 
     const mail = stripComments(readFileSync(join(SRC, "screens/MailAccountsScreen.tsx"), "utf8"));
-    expect(mail, "the mail backend switch must be hidden once it is settled").toMatch(/!editing && !family/);
+    expect(mail, "the mail form must not offer a backend switch").not.toMatch(/mail\.backend/);
   });
 });
 

@@ -17,13 +17,16 @@ import { embedKindOf } from "./imageTarget";
 
 import * as yaml from "yaml";
 import { parseInlineMarkdown, type InlineNode } from "./inlineMarkdown";
-import { createFenceTracker, readQuoteDepth, stripQuoteMarkers } from "@plainva/core";
+import { createFenceTracker, readQuoteDepth, sourceLinesOf, stripQuoteMarkers } from "@plainva/core";
 import { TASK_LINE_RE } from "./taskToggle";
 
 export type NoteCardBlock =
   | { kind: "heading"; depth: number; inline: InlineNode[] }
   | { kind: "para"; inline: InlineNode[] }
-  | { kind: "task"; ordinal: number; done: boolean; closed: boolean; indent: number; inline: InlineNode[] }
+  /** `text` is the line's source after the box, as `listTaskLines` reads it: with
+   * the ordinal it names the box, so a tick finds its line in the note as it is
+   * when it is written, not by a place an older state of the note had (§ 3.87 Nr. 4). */
+  | { kind: "task"; ordinal: number; text: string; done: boolean; closed: boolean; indent: number; inline: InlineNode[] }
   | { kind: "bullet"; indent: number; ordered: boolean; inline: InlineNode[] }
   | { kind: "quote"; inline: InlineNode[] }
   | { kind: "image"; target: string; alt: string }
@@ -82,7 +85,8 @@ export function inlineToPlain(nodes: InlineNode[]): string {
 
 /** Split "---" frontmatter off; returns body lines and the parsed fm (or null). */
 function splitFrontmatter(content: string): { fm: Record<string, unknown> | null; body: string[] } {
-  const lines = content.split("\n");
+  // The task scan's lines (`sourceLines.ts`): the card counts its checkboxes as a tick writes them.
+  const lines = sourceLinesOf(content).map((line) => line.text);
   if (lines[0]?.trim() !== "---") return { fm: null, body: lines };
   for (let i = 1; i < lines.length; i++) {
     const t = lines[i].trim();
@@ -182,6 +186,7 @@ export function parseNoteCard(
         push({
           kind: "task",
           ordinal,
+          text: line.slice(taskMatch[0].length).trim(),
           done: taskMatch[2].toLowerCase() === "x",
           // `[-]` cancelled is closed like a done task; `[/]` in progress is open (E12).
           closed: taskMatch[2] !== " " && taskMatch[2] !== "/",

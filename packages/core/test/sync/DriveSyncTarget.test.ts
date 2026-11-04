@@ -63,6 +63,24 @@ describe("DriveSyncTarget", () => {
     const upload = fetchFn.mock.calls.find((c: any) => String(c[0]).includes("/upload/") && c[1].method === "POST");
     expect(upload).toBeDefined();
     expect((upload as any)[1].headers["Content-Type"]).toContain("multipart/related");
+    // Without an edited time Drive keeps its own.
+    expect(await ((upload as any)[1].body as Blob).text()).not.toContain("modifiedTime");
+  });
+
+  it("creates a new file with the time it was edited as modifiedTime (Sammelplan § 3.164)", async () => {
+    const { target, fetchFn } = makeTarget(async (url: string, init: any) => {
+      const u = String(url);
+      if (init.method === "GET" && isFolderLookup(u)) return res({ files: [{ id: "root-folder", name: "Plainva" }] });
+      if (init.method === "GET" && u.includes("/drive/v3/files?")) return res({ files: [] });
+      if (init.method === "POST" && u.includes("/upload/drive/v3/files")) return res({ id: "file-1", md5Checksum: "abc123" });
+      throw new Error(`unexpected ${init.method} ${u}`);
+    });
+    await target.push({
+      id: 1, file_path: "note.md", operation: "write", localModifiedAt: Date.UTC(2025, 4, 6, 7, 8, 9),
+      content: new TextEncoder().encode("hello"), retry_count: 0, next_retry_at: 0, queued_at: 0,
+    });
+    const upload = fetchFn.mock.calls.find((c: any) => String(c[0]).includes("/upload/") && c[1].method === "POST");
+    expect(await ((upload as any)[1].body as Blob).text()).toContain(`"modifiedTime":"2025-05-06T07:08:09.000Z"`);
   });
 
   it("updates an existing file via media PATCH", async () => {
@@ -156,7 +174,7 @@ describe("DriveSyncTarget", () => {
       if (u.includes("/drive/v3/changes?")) {
         return res({
           changes: [
-            { fileId: "f1", file: { id: "f1", name: "a.md", md5Checksum: "h1b" } },
+            { fileId: "f1", file: { id: "f1", name: "a.md", md5Checksum: "h1b", modifiedTime: "2026-02-03T04:05:06.000Z" } },
             { fileId: "f3", removed: true },
           ],
           newStartPageToken: "cursor-2",
@@ -167,11 +185,14 @@ describe("DriveSyncTarget", () => {
 
     await target.pull(); // seed the id<->path caches
     phase = "changes";
-    const { etagMap, deleted, nextCursor } = await target.pull("cursor-1");
+    const changes = await target.pull("cursor-1");
+    const { etagMap, deleted, nextCursor } = changes;
 
     expect(etagMap.get("a.md")).toBe("h1b");
     expect(deleted).toEqual(["c.md"]);
     expect(nextCursor).toBe("cursor-2");
+    // A cursor pull brings the times as well (Sammelplan § 3.164).
+    expect(changes.mtimeMap?.get("a.md")).toBe(Date.UTC(2026, 1, 3, 4, 5, 6));
   });
 
   describe("cursor pull resolves NEW remote files via parents (2026-07-16)", () => {

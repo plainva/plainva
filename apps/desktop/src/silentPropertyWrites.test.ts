@@ -60,7 +60,8 @@ interface Site {
 }
 
 const SAID = /toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(/;
-const COUNTED = /database\.bulkSetPartial/;
+// The count of a loop over many notes: said directly, or by the one rule of both shells (`sayRewriteOutcome`, decision E20).
+const COUNTED = /database\.bulkSetPartial|sayRewriteOutcome\(/;
 
 const SITES: Site[] = [
   // ── Desktop ──────────────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ const SITES: Site[] = [
     says: [SAID, /day: entry\.day/], within: 600,
   },
   {
-    file: "apps/desktop/src/services/pim/entryEventSync.ts", writer: "withNoteProperty", calls: 1,
+    file: "packages/ui/src/pim/entryEventSync.ts", writer: "withNoteProperty", calls: 1,
     // Decided, not forgotten: this runs after every calendar cycle without
     // anyone asking for it, and a note that cannot follow its appointment
     // fails again on the next one — a message per cycle would never stop. The
@@ -208,7 +209,8 @@ describe("a property write through the shared writers is never silent", () => {
   it("the loops of the desktop's database count what they could not write", () => {
     const viewer = shipped().find((s) => s.rel === "apps/desktop/src/components/BaseViewer.tsx")!.text;
     const report = viewer.slice(viewer.indexOf("const reportRewrite"), viewer.indexOf("const reportRewrite") + 500);
-    expect(report).toMatch(/if \(result\.failed\.length > 0\) toast\.error\(t\("database\.bulkSetPartial"/);
+    // One rule of both shells (`sayRewriteOutcome`): the count of what failed, and a vanished note as skipped (decision E20).
+    expect(report).toMatch(/sayRewriteOutcome\(result, toast\);/);
   });
 
   it("could not read is not has none: a whole set of properties starts from writableProperties", () => {
@@ -447,7 +449,7 @@ const STRETCHES: Stretch[] = [
   },
   {
     file: "packages/ui/src/lib/taskPromotion.ts", at: "export async function prepareTaskNote(", span: 3200, calls: { writeRepeatRule: 1 },
-    how: "a NEW note for a task, its block the app's or a template's: thrown on to the task's creation, which both shells answer with tasks.promoteFailed",
+    how: "a NEW note for a task, its block the app's or a template's: thrown on to the task's creation, which both shells answer with writeFailed.promote and its reason",
   },
   {
     file: "packages/ui/src/lib/taskList.ts", at: "export function setNoteTaskExclusion(", calls: { [set]: 1, [del]: 1 },
@@ -476,6 +478,15 @@ const STRETCHES: Stretch[] = [
   {
     file: "apps/mobile/src/screens/TasksScreen.tsx", at: "const hideAllTemplates = async (", span: 600, calls: { writeNoteExcluded: 1 },
     how: "every template hidden at once: one message that counts", says: [COUNTED],
+  },
+  {
+    file: "packages/ui/src/lib/templateKeys.ts", at: "export function withoutTemplateKeys(", span: 400, calls: { [del]: 2 },
+    how: "thrown on to the change of the note it is handed to, listed next", never: THROWN_ON, passesOn: ["withoutTemplateKeys"],
+  },
+  {
+    file: "packages/ui/src/hooks/useTemplateKeyCleanup.ts", at: "const remove = async ()", span: 1200, calls: { withoutTemplateKeys: 1 },
+    how: "keys taken out of the picked notes (open-items plan 3.136 no. 1): a note that cannot be written is counted, and the notice of both shells says the count (database.bulkSetPartial)",
+    says: [/failed \+= 1;/],
   },
   {
     file: "packages/ui/src/lib/taskDueWrite.ts", at: "export async function applyTaskDueChanges(", span: 6000, calls: { [set]: 1, [del]: 1 },
@@ -540,12 +551,12 @@ const STRETCHES: Stretch[] = [
   {
     file: "apps/mobile/src/screens/PimCalendarScreen.tsx", at: "const toggleTask = useCallback(", span: 1400, calls: { tickPhoneDueTask: 1 },
     how: "a tick in the phone's calendar: a message with the reason as errorText reads it; a successor that failed has its own sentence",
-    says: [/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(errorText\(e\)\);/, /tasks\.repeatFailed/],
+    says: [/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(t\("writeFailed\.checkbox", \{ reason: errorText\(e\) \}\)\);/, /tasks\.repeatFailed/],
   },
   {
     file: "apps/mobile/src/screens/TodayScreen.tsx", at: "const tick = (row: PlannerRow) => {", span: 900, calls: { tickPhoneDueTask: 1 },
     how: "a tick on the Today screen: a message with the reason as errorText reads it; a successor that failed has its own sentence",
-    says: [/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(errorText\(e\)\);/, /tasks\.repeatFailed/],
+    says: [/\.catch\(\(e\) => \{\s*if \(row\.source === "database"\) toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*else toast\.error\(t\("writeFailed\.checkbox", \{ reason: errorText\(e\) \}\)\);/, /tasks\.repeatFailed/],
   },
   {
     file: "apps/mobile/src/services/reminderActions.ts", at: "export async function runReminderIntent(", span: 1200, calls: { setTaskDone: 1 },
@@ -653,8 +664,8 @@ const STRETCHES: Stretch[] = [
     says: [/\} catch \{\s*\}\s*\}\s*return text;/],
   },
   {
-    file: "packages/ui/src/base/templateFiles.ts", at: "export async function retargetTemplateForInFolder(", span: 1900, calls: { [set]: 1 },
-    how: "the sweep behind a database's rename: a template that could not be written is answered in failed, and the rename says that not every link could be updated",
+    file: "packages/ui/src/base/templateFiles.ts", at: "export async function retargetTemplateForMoves(", until: "\n}\n", calls: { [set]: 1 },
+    how: "the sweep behind a database's rename or move (3.71 no. 4): a template that could not be written is answered in failed, and the rename or move says that not every link could be updated",
     says: [/if \(!isFileNotFound\(e\)\) failed\.push\(item\.path\);/, /return \{ changedPaths, renamed, failed \};/],
   },
   {
@@ -726,7 +737,7 @@ const STRETCHES: Stretch[] = [
     says: [/catch \{/],
   },
   {
-    file: "apps/desktop/src/services/pim/entryEventSync.ts", at: "export async function runEntryEventSync(", until: "\n}\n", calls: { [set]: 1 },
+    file: "packages/ui/src/pim/entryEventSync.ts", at: "export async function runEntryEventSync(", until: "\n}\n", calls: { [set]: 1, [del]: 1 },
     how: "no message — a background reconcile: collected in errors for the caller, tried again every cycle",
     says: [/result\.errors\.push\(/],
   },
@@ -909,7 +920,7 @@ describe("a property write through the surgical helpers is never silent", () => 
     // database that still carried the old name; the phone announced a retry.
     const desktop = shipped().find((file) => file.rel === "apps/desktop/src/components/BaseViewer.tsx")!.text;
     const save = desktop.slice(desktop.indexOf("const saveConfig = async ("), desktop.indexOf("const restoreHere = async ("));
-    expect(save).toMatch(/console\.error\("Failed to save database config", e\);\s*toast\.error\(t\("editor\.saveFailed"\)\);\s*return false;/);
+    expect(save).toMatch(/console\.error\("Failed to save database config", e\);\s*toast\.error\(t\("writeFailed\.databaseSave", \{ reason: errorText\(e\) \}\)\);\s*return false;/);
     expect(save, "a query that fails behind a save that landed is no failed save").toMatch(/await vaultAdapter\.writeTextFile\(activePath, newText\);\s*\} catch \(e: any\) \{/);
     // The view goes back to the database it showed, and a change other files
     // follow is not kept for a file that has moved (finding 2026-10-21).
@@ -927,7 +938,7 @@ describe("a property write through the surgical helpers is never silent", () => 
     expect(desktop).toMatch(/if \(computed === "reverse" \|\| computed === "rollup"\) \{/);
     const phone = shipped().find((file) => file.rel === "apps/mobile/src/screens/base/BaseScreen.tsx")!.text;
     const persist = phone.slice(phone.indexOf("const persistConfig = useStableHandler("), phone.indexOf("const restoreHere = useStableHandler("));
-    expect(persist).toMatch(/toast\.error\(t\("editor\.saveFailed"\)\);/);
+    expect(persist).toMatch(/toast\.error\(t\("writeFailed\.databaseSave", \{ reason: errorText\(e\) \}\)\);/);
     // The phone puts its screen back as well, and makes no entry for a database it did not save.
     expect(persist).toMatch(/if \(shown !== undefined\) setLoaded\(\(now\) => \(now && now\.config === next \? \{ \.\.\.now, config: shown \} : now\)\);/);
     expect(phone).toMatch(/if \(!\(await persistConfig\(next, loaded\.config\)\)\) return null;/);

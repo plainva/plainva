@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-10-26
+Laatst bijgewerkt: 2026-11-02
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -44,7 +44,7 @@ Vóór elke wijziging maakt de wizard een back-up van het bestand naar `.plainva
 
 ### Een notitie uit een sjabloon ontbreekt in het Taken-overzicht
 
-Een notitie die je tot en met versie 0.8.5 uit een sjabloon hebt aangemaakt — ook een dagelijkse notitie — kan van dat sjabloon een instelling hebben geërfd die haar taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Laat de regel in de sjablonen zelf staan; daar hoort hij. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
+Een notitie die je tot en met versie 0.8.5 uit een sjabloon hebt aangemaakt — ook een dagelijkse notitie — kan van dat sjabloon een instelling hebben geërfd die haar taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Laat de regel in de sjablonen zelf staan; daar hoort hij. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer. De takenweergave vindt zulke notities nu zelf: een melding boven de taken somt ze op, en **Sleutels verwijderen…** haalt beide sleutels uit de notities die je aanvinkt.
 
 ## Sync
 
@@ -56,7 +56,7 @@ Met synchronisatie via WebDAV of S3 verwijderde Plainva 0.8.3 een gesynchronisee
 
 Is het jou overkomen, dan bestaat de notitie nog op maximaal drie plekken:
 
-- **De snapshot in de vault.** Voordat Plainva een bestand verwijdert, bewaart het dat als `.plainva/backups/<map>/<naam>.md.<tijdstempel>.bak`, waarbij `<map>` de map is waarnaar je de notitie verplaatste. Op de desktop: rechtsklik op de vaultnaam → **Verwijderde bestanden herstellen…**; op de telefoon: **Instellingen** → **Onderhoud** → **Verwijderde bestanden herstellen**. De lijst toont de notitie onder haar nieuwe pad, en **Herstellen** zet haar daar terug. Het `.bak`-bestand is platte tekst, dus elke bestandsbeheerder of teksteditor kan het ook openen.
+- **De snapshot in de vault.** Voordat Plainva een bestand verwijdert, bewaart het dat als `.plainva/backups/<map>/<naam>.md.<tijdstempel>.bak`, waarbij `<map>` de map is waarnaar je de notitie verplaatste. Op de desktop: rechtsklik op de vaultnaam → **Verwijderde bestanden herstellen…**; op de telefoon: **Instellingen** → **Backup & versiegeschiedenis** → **Verwijderde bestanden herstellen**. De lijst toont de notitie onder haar nieuwe pad, en **Herstellen** zet haar daar terug. Het `.bak`-bestand is platte tekst, dus elke bestandsbeheerder of teksteditor kan het ook openen.
 - **De prullenbak van het systeem** (desktop): het bestand zelf ging naar de prullenbak van je besturingssysteem.
 - **De prullenbak van je server**, als de notitie daar ook is verwijderd (in Nextcloud bijvoorbeeld bij de verwijderde bestanden).
 
@@ -130,7 +130,7 @@ Plainva respecteert de systeeminstelling "beweging verminderen". Als overgangen 
 
 ### Hoe verander ik de taal?
 
-**Instellingen → App → Weergave → Taal**; op de telefoon **Instellingen → Weergave → Taal**. Plainva spreekt tien talen: Engels, Duits, Spaans, Frans, Italiaans, Japans, Nederlands, Pools, Portugees (Brazilië) en vereenvoudigd Chinees.
+**Instellingen → App → Uiterlijk → Taal**; op de telefoon **Instellingen → Uiterlijk → Taal**. Plainva spreekt tien talen: Engels, Duits, Spaans, Frans, Italiaans, Japans, Nederlands, Pools, Portugees (Brazilië) en vereenvoudigd Chinees.
 
 ### "Controleren op updates" vindt niets
 

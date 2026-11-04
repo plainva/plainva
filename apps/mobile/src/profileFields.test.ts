@@ -73,6 +73,9 @@ describe("profile field catalog", () => {
       "dayEndsAt",
       "defaultCalendar",
       "defaultNoteType",
+      // Sammelplan § 3.169 Nr. 3: the phone has the .base switch, and it is a
+      // vault convention like the anchors.
+      "extendedDatabases",
       "inboxFolder",
       // Plan Journal, E3: the journal heading is a vault convention. Two devices
       // with different headings would each write their own section.
@@ -90,6 +93,9 @@ describe("profile field catalog", () => {
       "syncIntervalSeconds",
       "taskDatabase",
       "templateFolder",
+      // Decision E4 of the bug-clearing plan: the week start is a vault
+      // convention - a template's weekday gave two devices two dates.
+      "weekStart",
     ]);
   });
 

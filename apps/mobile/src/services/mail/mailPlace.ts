@@ -53,3 +53,21 @@ export async function rememberMailPlace(place: MailPlace): Promise<void> {
   if (s.mailAccountId === accountId && s.mailMailbox === mailbox) return;
   await updateMobileSettings({ mailAccountId: accountId, mailMailbox: mailbox });
 }
+
+/**
+ * Whether "All inboxes" is shown — kept while the app runs, and only then (open-
+ * items plan 3.110 no. 3). Opening a message replaces the list, and the list
+ * built anew when the reader closed came back as the first mailbox's inbox:
+ * whoever read a row of the merged list was thrown out of it by pressing back.
+ * Not stored with the place: it is a way of looking, not a place, and a new
+ * start begins in the mailbox.
+ */
+let unifiedShown = false;
+
+export function rememberedUnified(): boolean {
+  return unifiedShown;
+}
+
+export function rememberUnified(on: boolean): void {
+  unifiedShown = on;
+}

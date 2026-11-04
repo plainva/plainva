@@ -95,6 +95,11 @@ test("a board of 150 long notes shows the cards on screen, at the top, at the en
   try {
     await openBoard(page, context);
     await expect(page.locator("[data-pinboard-card]")).toHaveCount(COUNT, { timeout: 120_000 });
+    // One page around the board, not two: the board carried the page class
+    // inside the database page, and the edge and the bar's strip came twice
+    // (Sammelplan § 3.43).
+    await expect(page.locator(".m-page:has(.m-pinboard)")).toHaveCount(1);
+    await expect(page.locator(".m-page .m-page")).toHaveCount(0);
 
     // The first screen is readable without a touch...
     await allOnScreenReadable(page, "the cards of the first screen must load without any gesture");

@@ -1,6 +1,6 @@
 import type { i18n as I18nInstance } from "i18next";
 import { Annotation, Compartment, EditorState, Extension, Prec, Transaction } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, type KeyBinding } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, type KeyBinding } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -18,7 +18,11 @@ import {
 import { imagePreviewPlugin, type ImageLookupFn } from "./ImagePreviewPlugin";
 import { selectAllBridge } from "./selectAllBridge";
 import { mathInlinePlugin, mathMermaidBlockField } from "./mathMermaidLive";
+import { tasksQueryBlockField, type TasksQueryHost } from "./tasksQueryLive";
 import { anchorAwareHtmlBlock } from "./anchorBlockParser";
+import { frontmatterBlock } from "./frontmatterBlockParser";
+import { boundedInlineSyntax } from "../lib/boundedMarkdown";
+import { wikiLinkInlineSyntax } from "./wikiLinkInline";
 import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { tagPillPlugin } from "./TagPillPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
@@ -28,6 +32,7 @@ import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
 import { listIndentPlugin } from "./listIndent";
+import { caretInListItem } from "./editorTouchCommands";
 import { textDirectionExtension } from "./textDirectionExtension";
 import { markdownFolding } from "./foldingExtension";
 import { searchPanelOpen } from "@codemirror/search";
@@ -131,6 +136,11 @@ export interface EditorSessionDeps {
   onOpenImage?: (absolutePath: string) => void;
   /** Builds the app-shell extension rendering ![[...]] note/base embeds. */
   buildNoteEmbedExtension: (context: EmbedHostContext, isLive: boolean) => Extension;
+  /**
+   * Fills a ```tasks query block in the live mode (plan Tasks-Abfragen, T4).
+   * Absent: the block stays text.
+   */
+  tasksQueryHost?: TasksQueryHost;
   onOpenPath?: (path: string, newTab: boolean) => void;
   /**
    * Opens a clicked in-app link. `kind` distinguishes a wiki target (a NAME the
@@ -173,6 +183,8 @@ export interface EditorSessionDeps {
   onSuggestionChunks?: (count: number) => void;
   /** Selection word/char counts for the status bar (P3.9); null = no selection. */
   onSelectionStats: (stats: { chars: number; words: number } | null) => void;
+  /** Whether the caret stands in a list item; fires with the selection (W2, keyboard toolbar). */
+  onCaretInList?: (inList: boolean) => void;
   /**
    * The main selection, or null when it is empty. Fires on every selection
    * change - the HOST decides what is worth a re-render (D2 shows the quote a
@@ -319,6 +331,13 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   // doc above for why the touch profile no longer makes an exception.
   const editableExtensions = (on: boolean): Extension => [
     EditorView.editable.of(on),
+    // The line the caret is on, and only while there is a caret: read mode
+    // has none, so it marks no line. basicSetup's own highlight is switched
+    // off in both profiles - it marked the first line of every note in read
+    // mode, where it looked like a selection nobody made (TestFlight
+    // 2026-10-28, build 149). MarkdownTheme drops the tint while the editor
+    // has no focus, for the same reason.
+    on ? highlightActiveLine() : [],
     EditorState.readOnly.of(!on),
     // Read-only content must still receive focus: otherwise a native DOM
     // selection never reaches CodeMirror's range/toolbar listener. Keeping it
@@ -374,6 +393,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
               loading: cfg.i18n.t("reader.mermaidLoading"),
               error: cfg.i18n.t("reader.mermaidError"),
             }),
+            tasksQueryBlockField(() => deps.current.tasksQueryHost),
           ]
         : [],
       markdownDecorationPlugin(isLive),
@@ -439,6 +459,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       }
       deps.current.onSelectionStats(chars > 0 ? { chars, words } : null);
     }
+    if (deps.current.onCaretInList && (update.selectionSet || update.docChanged)) deps.current.onCaretInList(caretInListItem(v.state));
     const main = v.state.selection.main;
     deps.current.onSelectionRange?.(main.empty ? null : { from: main.from, to: main.to });
     const range = v.state.selection.main;
@@ -490,7 +511,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const extensions: Extension = plainFile ? [
     EditorView.contentAttributes.of({ "aria-label": "Text Editor" }),
     // The search keys come from searchSetup() alone (see there: Mod+Shift+G).
-    basicSetup({ foldGutter: false, highlightActiveLineGutter: false, searchKeymap: false }),
+    basicSetup({ foldGutter: false, highlightActiveLine: false, highlightActiveLineGutter: false, searchKeymap: false }),
     keymap.of([indentWithTab]),
     EditorView.theme({ "&": { height: "100%" }, "& .cm-scroller": { height: "100% !important" } }),
     // What a shell lays over the top edge stays out of every scroll's way.
@@ -530,6 +551,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     basicSetup({
       lineNumbers: false,
       foldGutter: false,
+      highlightActiveLine: false,
       highlightActiveLineGutter: false,
       searchKeymap: false,
       ...(cfg.touchInput ? { drawSelection: false } : {}),
@@ -544,7 +566,13 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // the matching grammar for ```lang fences.
     // A comment anchor never starts an HTML block (finding 2026-09-03): the
     // list item behind a marker keeps its bullet, indent and formatting.
-    markdown({ base: markdownLanguage, codeLanguages, extensions: [anchorAwareHtmlBlock] }),
+    // A block whose inline syntax is over the parse budget is read as written,
+    // as in the reading view (open-items plan 3.133 no. 4).
+    // The properties block is one node (Sammelplan 3.46): a fence or an `<!--`
+    // in a YAML value no longer runs to the end of the note. A wiki link is
+    // read before anything is read into it, as the index reads it: its name
+    // stands as written (3.133 no. 2, E9; wikiLinkInline.ts).
+    markdown({ base: markdownLanguage, codeLanguages, extensions: [frontmatterBlock, anchorAwareHtmlBlock, boundedInlineSyntax, wikiLinkInlineSyntax] }),
     EditorView.lineWrapping,
     // Right-to-left text (issue 111): each line runs the way its block's
     // first strong character says, read from the source behind the Markdown

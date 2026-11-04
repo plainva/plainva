@@ -1,5 +1,6 @@
 import { errorText } from "../lib/errorText";
 import { isMailCredentialsMissing } from "./credentialsError";
+import { GRAPH_UPLOAD_FAILED } from "./graphMail";
 
 /**
  * The sentence a mail failure gets on screen.
@@ -25,7 +26,48 @@ export function mailErrorText(err: unknown, t: (key: string, opts?: Record<strin
   // A size refusal has an action too — take a file off and send again — and a
   // message that was refused comes back for exactly that (`heldSend.ts`).
   if (isMailTooLarge(err)) return t("mail.sendTooLarge");
-  return errorText(err);
+  // A file that did not get through an upload session (Microsoft, over
+  // 2.8 MB): sending again tries again, and the message is back for that.
+  const upload = new RegExp(`${GRAPH_UPLOAD_FAILED} for "(.*?)":`).exec(errorText(err));
+  if (upload) return t("mail.sendUploadFailed", { name: upload[1] });
+  return mailFailureWords(errorText(err), t);
+}
+
+/**
+ * A transport's own words for a failure, as a person reads them (Sammelplan
+ * § 3.95 Nr. 6). A file that did not come along, and every other mail failure
+ * without a sentence of its own, stood there as the transport wrote it — for a
+ * Microsoft mailbox Graph's whole answer as JSON ("Graph mail GET … failed: 503
+ * {…}"). Now a service that is busy or down for a moment says so in our words,
+ * with what to do: try again shortly. Anything else keeps the server's words,
+ * but of a JSON answer only its message.
+ */
+export function mailFailureWords(text: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  if (isMailServiceBusy(text)) return t("mail.serviceBusy");
+  const json = /^(.*?failed: (\d{3}))\s+(\{[\s\S]*\})\s*$/.exec(text);
+  if (!json) return text;
+  try {
+    const body = JSON.parse(json[3]) as { error?: { message?: unknown; code?: unknown } } | null;
+    const said = body?.error?.message ?? body?.error?.code;
+    return typeof said === "string" && said.trim() ? `${said.trim()} (${json[2]})` : text;
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * A service that does not answer FOR NOW: HTTP 429, 502, 503 or 504 from Graph
+ * or Gmail, Exchange's own names for the same, or an SMTP or IMAP server's
+ * temporary refusal for load (421, 4.3.2). Waiting and trying again is the
+ * answer to each of them.
+ */
+export function isMailServiceBusy(text: string): boolean {
+  return (
+    /\bfailed: (?:429|502|503|504)\b/.test(text) ||
+    /\b(?:ServiceUnavailable|TooManyRequests|ApplicationThrottled|ErrorServerBusy|MailboxConcurrency)\b/i.test(text) ||
+    /(?:^|[\s(:-])4\.3\.2(?=\s|$)/.test(text) ||
+    /smtp error \(421\)|^421[ -]/im.test(text)
+  );
 }
 
 /**

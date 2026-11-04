@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Modal, Button, Segmented, Checkbox, Banner, ICON, serializeBaseConfig, plainvaProducer } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { openExternalUrl as openUrl } from '../../services/openExternal';
 import { Download, Folder, AlertTriangle, CheckCircle2, FileText, Database, Sparkles, Paperclip, ListChecks, ExternalLink } from 'lucide-react';
 import {
   defaultImportRegistry,

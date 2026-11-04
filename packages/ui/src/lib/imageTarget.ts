@@ -1,4 +1,4 @@
-import { delimitedText, markdownLinks } from "@plainva/core";
+import { decodeMarkdownLinkTarget, delimitedText, markdownLinks, wikiLinkParts } from "@plainva/core";
 import { trimChars } from "@plainva/core";
 /**
  * Where an image embed points (TestFlight feedback Build 91, P3).
@@ -43,9 +43,10 @@ export interface WikiImageEmbed {
 
 /** Splits the inside of `![[…]]` into target, width and alt. */
 export function parseWikiImageTarget(inner: string): WikiImageEmbed {
-  const [head, ...rest] = inner.split("|");
-  const target = head.split("#")[0].trim();
-  const suffix = rest.join("|").trim();
+  // The core's reading of the bar (Sammelplan § 3.133 Nr. 1): `foto.png\|300` in a table cell is `foto.png|300`.
+  const parts = wikiLinkParts(inner);
+  const target = inner.slice(0, parts.headEnd).split("#")[0].trim();
+  const suffix = (parts.alias ?? "").trim();
   if (!suffix) return { target, width: null, alt: null };
   const width = /^\d{1,5}$/.test(suffix) ? Number(suffix) : /^(\d{1,5})x\d{1,5}$/.exec(suffix)?.[1];
   if (width) return { target, width: Number(width), alt: null };
@@ -122,6 +123,36 @@ export interface ImageEmbedMatch {
   kind: EmbedKind;
 }
 
+/** An address with a scheme (`https:`, `data:`) or a protocol-relative one: not a vault path. */
+const ADDRESS_RE = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/;
+
+/**
+ * The file a markdown embed's destination names (Sammelplan § 3.42), read the
+ * way the reading view's parser reads it: `<…>` around a destination with
+ * blanks, a `"title"` behind it dropped, and the percent-encoding Obsidian and
+ * Plainva write (`Zoom%20one.svg`) decoded with the core's one decoder — the
+ * editor, the cards and the journal looked for a file named `Zoom%20one.svg`.
+ * An address on the web stays as written: decoding would change where it
+ * points. `null` when the destination is no single target.
+ */
+function markdownEmbedTarget(destination: string): string | null {
+  const text = destination.trim();
+  let raw: string;
+  if (text.startsWith("<")) {
+    const close = text.indexOf(">");
+    if (close < 0) return null;
+    const title = text.slice(close + 1).trim();
+    if (title && !/^"[^"]*"$/.test(title)) return null;
+    raw = text.slice(1, close);
+  } else {
+    const match = /^([^\s]+)(?:\s+"[^"]*")?$/.exec(text);
+    if (!match) return null;
+    raw = match[1];
+  }
+  if (!raw) return null;
+  return ADDRESS_RE.test(raw) ? raw : decodeMarkdownLinkTarget(raw);
+}
+
 /**
  * Every MEDIA embed in `text`, wiki and markdown form, without one match
  * swallowing its neighbour: the old pattern's `.*?` crossed `]`, so an embed
@@ -143,11 +174,11 @@ export function findMediaEmbeds(text: string): ImageEmbedMatch[] {
   }
   for (const part of markdownLinks(text)) {
     if (part.index === 0 || text[part.index - 1] !== "!") continue;
-    const destination = /^([^\s]+)(?:\s+"[^"]*")?$/.exec(part.destination);
-    if (!destination) continue;
+    const target = markdownEmbedTarget(part.destination);
+    if (target === null) continue;
     out.push({
-      start: part.index - 1, end: part.end, syntax: "markdown", target: destination[1],
-      width: null, alt: null, kind: isAudioTarget(destination[1]) ? "audio" : "image",
+      start: part.index - 1, end: part.end, syntax: "markdown", target,
+      width: null, alt: null, kind: isAudioTarget(target) ? "audio" : "image",
     });
   }
   return out.sort((a, b) => a.start - b.start);

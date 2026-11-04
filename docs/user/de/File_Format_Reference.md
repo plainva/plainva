@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-10-24
+Stand: 2026-11-03
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -29,6 +29,8 @@ Ein Vault ist ein normaler Ordner. Die Dateitypen, die Dir begegnen:
 
 Die reservierten Namen `index.md` und `log.md` sind nie normale Notizen; lege unter diesen Namen keinen gewöhnlichen Inhalt an.
 
+Dateien und Ordner mit Punkt am Anfang — etwa `.notizen.md` oder `.attachments/` — gehören zum Vault: Plainva hält sie im Index und synchronisiert sie wie jede andere Datei, zeigt sie aber nicht, wie Obsidian. Sie erscheinen in keiner Suche, keiner Dateiliste, keinem Graphen, keinem Vorschlag, keiner Backlink-Liste, keiner Tag- oder Aufgabenliste und in keiner Datenbank. Ein Link, der eine solche Datei nennt, öffnet sie trotzdem. Für Plainvas eigenen Ordner `.plainva/` und Obsidians `.obsidian/` gelten eigene Regeln.
+
 ---
 
 ## Notizen (`.md`)
@@ -52,9 +54,9 @@ Ein **fetter** Gedanke mit einem Link zu [[Andere Notiz]].
 - [ ] Erste Aufgabe
 ```
 
-Ein Block darf leer sein: `---` direkt gefolgt von `---` ist ein Block ohne Eigenschaften, nicht zwei Trennlinien — der Text der Notiz beginnt in der Zeile danach. Plainva lässt keinen leeren Block zurück: Wird die letzte Eigenschaft entfernt, verschwinden die beiden `---`-Zeilen mit. Sie bleiben nur stehen, wenn der Text selbst mit einer `---`-Zeile beginnt, die sonst als Beginn eines Blocks gelesen würde.
+Ein Block darf leer sein: `---` direkt gefolgt von `---` ist ein Block ohne Eigenschaften, nicht zwei Trennlinien — der Text der Notiz beginnt in der Zeile danach. Plainva lässt keinen leeren Block zurück: Wird die letzte Eigenschaft entfernt, verschwinden die beiden `---`-Zeilen mit. Sie bleiben nur stehen, wenn der Text selbst mit einer `---`-Zeile beginnt, die sonst als Beginn eines Blocks gelesen würde. Ein Block, in dem nur noch ein Kommentar steht, bleibt mit dem Kommentar stehen.
 
-Ein Block, den Plainva nicht als Eigenschaften lesen kann, bleibt genau so stehen: Text zwischen den beiden `---`-Zeilen, der kein YAML ist, oder YAML, das eine Liste statt `Schlüssel: Wert`-Zeilen ist. **Eigenschaften** sagt das, statt keine Eigenschaften zu zeigen, und änderst Du an einer solchen Notiz eine Eigenschaft — dort, in einer Datenbank, auf einer Pinnwand, in der Aufgabenliste, auch ihr Symbol oder ihre Farbe —, ändert sich nichts, und Plainva sagt es: **Eigenschaft konnte nicht gespeichert werden**, gefolgt vom Grund. Korrigiere den Block im Text der Notiz, dann geht die Änderung durch. Ein einzelner Wert in unerwarteter Form macht einen Block nicht unlesbar: Plainva liest ihn als das, was dasteht — ein leeres `tags:` ist eine Notiz ohne Tags, eine Zahl unter den Tags (`- 2024`) der Tag `2024`, eine Zahl als `title` dieser Titel und ein `timestamp`, der ein Datum ist, eine Eigenschaft wie jede andere.
+Ein Block, den Plainva nicht als Eigenschaften lesen kann, bleibt genau so stehen: Text zwischen den beiden `---`-Zeilen, der kein YAML ist, oder YAML, das eine Liste statt `Schlüssel: Wert`-Zeilen ist. Eine einzelne Textzeile, eine Zahl oder eine Menge (`!!set`) zwischen den beiden Linien ist ebenfalls ein solcher Block: Auch Suche, Links und Datenbanken lesen daraus keine Eigenschaft. **Eigenschaften** sagt das, statt keine Eigenschaften zu zeigen, und änderst Du an einer solchen Notiz eine Eigenschaft — dort, in einer Datenbank, auf einer Pinnwand, in der Aufgabenliste, auch ihr Symbol oder ihre Farbe —, ändert sich nichts, und Plainva sagt es: **Eigenschaft konnte nicht gespeichert werden**, gefolgt vom Grund. Korrigiere den Block im Text der Notiz, dann geht die Änderung durch. Ein einzelner Wert in unerwarteter Form macht einen Block nicht unlesbar: Plainva liest ihn als das, was dasteht — ein leeres `tags:` ist eine Notiz ohne Tags, eine Zahl unter den Tags (`- 2024`) der Tag `2024`, eine Zahl als `title` dieser Titel und ein `timestamp`, der ein Datum ist, eine Eigenschaft wie jede andere. `tag` und `alias` in der Einzahl sind gewöhnliche Eigenschaften — wie in Obsidian seit 1.9 —, ein Tag ist also nur, was unter `tags` steht.
 
 ### OKF-Frontmatter-Felder
 
@@ -246,7 +248,7 @@ Eine `.base`-Datei ist YAML. Sie speichert eine *Ansicht* über Notizen — welc
 
 ### Harte Regeln — bei einem Verstoß lehnt Obsidian die ganze Datei ab
 
-- **Nur diese Top-Level-Schlüssel:** `filters`, `formulas`, `properties`, `views`. Niemals einen weiteren Top-Level-Schlüssel ergänzen. (Historisch machte ein Top-Level-`columns:` jede Datei kaputt — dieses Muster nicht wiederbeleben.)
+- **Nur diese Top-Level-Schlüssel:** `filters`, `formulas`, `properties`, `summaries`, `views`. Niemals einen weiteren Top-Level-Schlüssel ergänzen. (Historisch machte ein Top-Level-`columns:` jede Datei kaputt — dieses Muster nicht wiederbeleben.)
 - **Jede View braucht einen nicht-leeren String-`name`.**
 - **Ein `filters`-Objekt trägt auf jeder Ebene genau eines von `and` / `or` / `not`** — nie zwei nebeneinander.
 
@@ -597,7 +599,7 @@ Für eine Relation, deren Ziel dieselbe Datenbank ist, zeigt `relationBase` auf 
 
 `index.md` ist ein reservierter Name für das Inhaltsverzeichnis eines Ordners.
 
-- **Nur die Wurzel-`index.md` darf Frontmatter tragen**, und dort nur `okf_version` — die Version der Konvention, der der Vault folgt (aktuell `"0.2"`; sie kennzeichnet den Vault als OKF-aktiv). Einen Vault, der noch `"0.1"` deklariert, hebst Du unter **Einstellungen → Vault → Inhalt & Struktur → Bundle-Version → Anheben…** an; dabei kann das veraltete `okf_version`-Feld aus den Notizen mit entfernt werden. Eine `index.md` außerhalb der Wurzel muss **frontmatter-frei** sein — Frontmatter dort ist ein Reservname-Verstoß.
+- **Nur die Wurzel-`index.md` darf Frontmatter tragen**, und dort nur `okf_version` — die Version der Konvention, der der Vault folgt (aktuell `"0.2"`; sie kennzeichnet den Vault als OKF-aktiv). Einen Vault, der noch `"0.1"` deklariert, hebst Du unter **Einstellungen → Vault → Wartung → OKF-Format → Bundle-Version → Anheben…** an; dabei kann das veraltete `okf_version`-Feld aus den Notizen mit entfernt werden. Eine `index.md` außerhalb der Wurzel muss **frontmatter-frei** sein — Frontmatter dort ist ein Reservname-Verstoß.
 - Eine Plainva-**verwaltete** `index.md` endet mit dem Marker `<!-- plainva:index generated -->` (ein HTML-Kommentar, in der Leseansicht unsichtbar). Sein Vorhandensein bedeutet, dass Plainva die Datei automatisch aktuell hält. Bearbeitest Du so eine Datei von Hand, dann erhalte entweder den Marker (und die generierte Form) oder entferne ihn bewusst, um die Datei dauerhaft zu übernehmen.
 - Generierte Listings sind Abschnitte aus Links in der Form `* [Titel](relativer/url) - beschreibung`.
 
@@ -651,7 +653,7 @@ Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, di
 - **`.agent/`** enthält Plainvas KI-Regeln, Skills und Gedächtnis. Nur ändern, wenn Du genau das verlangst; `cloud: deny` und `web: deny` beachten (siehe KI-Datenschutzregel oben).
 - **Unbekannte Schlüssel sind heilig.** Wenn Du eine `.base` oder eine Notiz neu schreibst, trage jeden Schlüssel unverändert mit, den Du nicht ändern wolltest. Plainva selbst erhält unbekannte `.base`-Schlüssel über eine interne Rohkopie; ein Fremd-Schreiber sollte dasselbe tun (parsen → nur das Gemeinte ändern → serialisieren).
 - **Werte ändern sich in der Notiz, nicht in der `.base`.** Um eine Zelle zu setzen, bearbeite das Frontmatter der Notiz. Die `.base` entscheidet nur, welche Notizen und Spalten gezeigt werden.
-- **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `views` hinaus.
+- **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `summaries` / `views` hinaus.
 - **Encoding:** UTF-8. Neue Dateien: LF-Zeilenenden, kein BOM. Eine Notiz oder Textdatei, die schon CRLF-Zeilenenden oder ein BOM hat, behält sie — Plainva ändert sie nicht, und ein Werkzeug sollte es auch nicht tun. Die eine Ausnahme ist eine `.base`: Plainva schreibt sie neu, mit LF und ohne BOM, sobald sich ihre Konfiguration ändert. Ein Wagenrücklauf allein als Zeilenende (alte Mac-Dateien) wird gelesen, aber nicht bewahrt: Plainva speichert eine solche Datei mit LF, sobald es sie zum ersten Mal ändert.
 
 ## Siehe auch

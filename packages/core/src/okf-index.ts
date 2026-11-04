@@ -194,6 +194,13 @@ export interface WikilinkConversionResult {
   /** Wikilinks whose target could not be resolved stay wikilinks. */
   unresolved: number;
   /**
+   * Wikilinks to a section of the document itself (`[[#Heading]]`) stay
+   * wikilinks: they name no file to convert for, and they lead where they led.
+   * Counted on their own — they counted as unresolvable, which they are not
+   * (Sammelplan § 3.135 Nr. 2).
+   */
+  sectionLinks: number;
+  /**
    * Wikilinks in the label of a link stay wikilinks: a link cannot stand
    * inside a link, and the one around it would be text afterwards.
    */
@@ -202,8 +209,9 @@ export interface WikilinkConversionResult {
 
 /**
  * Converts the wikilinks of ONE document into relative markdown links (used by
- * "OKF-konform aufbereiten" when adopting a note as index.md). Embeds and
- * unresolvable targets are preserved and reported.
+ * "OKF-konform aufbereiten" when adopting a note as index.md). Embeds,
+ * unresolvable targets and links to a section of the document itself are
+ * preserved and reported.
  *
  * Each link is replaced where it stands in the text, and nothing else of the
  * document changes (finding 2026-10-09). The document used to be written back
@@ -239,7 +247,7 @@ export function convertWikilinksToMarkdownLinks(
   content: string,
   opts: { sourcePath: string; allFilePaths: readonly (string | LinkCorpusFile)[]; only?: ReadonlySet<string>; becomes?: string }
 ): { content: string; result: WikilinkConversionResult } {
-  const result: WikilinkConversionResult = { converted: 0, embeds: 0, unresolved: 0, inLabels: 0 };
+  const result: WikilinkConversionResult = { converted: 0, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 0 };
   const slashed = (path: string) => path.replace(/\\/g, "/");
   const here = slashed(opts.sourcePath);
   const lands = slashed(opts.becomes ?? opts.sourcePath);
@@ -261,6 +269,10 @@ export function convertWikilinksToMarkdownLinks(
     const hashIdx = head.indexOf("#");
     const target = hashIdx >= 0 ? head.slice(0, hashIdx) : head;
     const anchor = hashIdx >= 0 ? head.slice(hashIdx) : "";
+    if (hashIdx >= 0 && target.trim() === "") {
+      result.sectionLinks++;
+      return null;
+    }
 
     const resolved = resolveLinkTargetIndexed(opts.sourcePath, target, corpusIndex);
     const leadsTo = resolved === null ? null : slashed(resolved);
@@ -278,6 +290,7 @@ export function convertWikilinksToMarkdownLinks(
   result.converted = rewritten.rewritten;
   for (const link of rewritten.unplaced) {
     if (link.type === "embed") result.embeds++;
+    else if (link.type === "wikilink" && link.target.trim() === "") result.sectionLinks++;
     else if (link.type === "wikilink") result.unresolved++;
   }
   return { content: rewritten.content, result };

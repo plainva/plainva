@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified } from "unified";
+import { boundMarkdownForParse, restoreBoundedTree } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
@@ -85,8 +86,16 @@ interface PlacedNode {
  */
 function parsedInText<Tree>(parse: (text: string) => Tree, text: string): Tree {
   // What is no text is the parser's to answer for, as it always was.
-  if (typeof text !== "string" || text.charCodeAt(0) !== BYTE_ORDER_MARK) return parse(text);
-  const tree = parse(text);
+  if (typeof text !== "string") return parse(text);
+  // A stretch whose inline syntax would cost the parser more than the budget
+  // is read as written (`inlineParseBudget.ts`); every place stays where it is.
+  const bounded = boundMarkdownForParse(text);
+  if (text.charCodeAt(0) !== BYTE_ORDER_MARK) {
+    const tree = parse(bounded.text);
+    restoreBoundedTree(tree, bounded.ranges);
+    return tree;
+  }
+  const tree = parse(bounded.text);
   // A point two nodes shared would otherwise be moved twice.
   const moved = new WeakSet<object>();
   const move = (point: Partial<MarkdownTreePoint> | undefined): void => {
@@ -101,6 +110,7 @@ function parsedInText<Tree>(parse: (text: string) => Tree, text: string): Tree {
     for (const child of node.children ?? []) walk(child);
   };
   walk(tree as unknown as PlacedNode);
+  restoreBoundedTree(tree, bounded.ranges);
   return tree;
 }
 

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, waitForIndexSchema } from "./exampleVault";
 
 /**
  * Tasks in the phone's calendar (TestFlight, build 125): "Is it planned to
@@ -88,7 +88,7 @@ test("Show tasks and a database chip draw their entries in the day view, and a t
       ["Aufgaben/Anruf beim Amt.md", note("Anruf beim Amt", `${today}T15:00`)],
     ]);
     await page.reload();
-    await expect.poll(() => sql.count(INDEX, "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, INDEX);
     sql.seedPim(INDEX);
     await expect.poll(() => sql.count(INDEX, "files WHERE path LIKE 'Aufgaben/%'"), { timeout: 20_000 }).toBe(2);
     await page.reload();

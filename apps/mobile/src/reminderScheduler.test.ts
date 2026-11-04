@@ -22,19 +22,21 @@ const { notifications, settings, cache, taskDb } = vi.hoisted(() => ({
     reminderAllDayLeadDays: 1,
     reminderAllDayAtMinutes: 19 * 60,
     remindTasks: false,
+    remindCheckboxes: false,
     reminderTaskLeadDays: 0,
     reminderTaskAtMinutes: 9 * 60,
+    reminderTaskTimedLead: 0,
     reminderCalendars: [] as string[],
     taskDatabase: "",
   },
   cache: { listEvents: vi.fn() },
-  taskDb: { base: "", query: vi.fn() },
+  taskDb: { base: "", query: vi.fn(), listTasks: vi.fn() },
 }));
 vi.mock("@capacitor/local-notifications", () => ({ LocalNotifications: notifications }));
 vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => settings }));
 vi.mock("./services/pim/pimService", () => ({ getPimCache: () => cache }));
 vi.mock("./services/vaultService", () => ({
-  getMobileVault: async () => ({ queryService: { queryDatabaseFiles: taskDb.query } }),
+  getMobileVault: async () => ({ vaultId: "v1", queryService: { queryDatabaseFiles: taskDb.query, listTasks: taskDb.listTasks } }),
   vaultOps: { read: async () => taskDb.base },
 }));
 
@@ -80,12 +82,15 @@ describe("rescheduleReminders", () => {
     cache.listEvents.mockResolvedValue([]);
     settings.remindEvents = true;
     settings.remindTasks = false;
+    settings.remindCheckboxes = false;
     settings.reminderCalendars = [];
     // Reset here too: a leaked task database from one test is a green run that
     // proves nothing in the next.
     settings.taskDatabase = "";
     taskDb.query.mockReset();
     taskDb.query.mockResolvedValue([]);
+    taskDb.listTasks.mockReset();
+    taskDb.listTasks.mockResolvedValue([]);
   });
 
   it("schedules an appointment with Doze survival and its identity attached", async () => {
@@ -274,5 +279,78 @@ describe("rescheduleReminders", () => {
     expect(notifications.getPending.mock.invocationCallOrder[1]).toBeGreaterThan(
       notifications.schedule.mock.invocationCallOrder[0]
     );
+  });
+});
+
+/**
+ * Checkbox tasks with a due time (Sammelplan § 3.145 Nr. 1, E3): behind their
+ * own switch per vault, planned by the task rule, and the notification carries
+ * the line — so a tap with the app started cold still lands on it.
+ */
+describe("rescheduleReminders: checkbox tasks", () => {
+  const dayOf = (ts: number) => {
+    const d = new Date(ts);
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+  };
+  // Tomorrow at 10:30 — inside the window whatever the hour the suite runs at.
+  const due = dayOf(NOW + 86_400_000);
+  const text = `Bob anrufen 📅 ${due} 10:30`;
+  const box = { path: "Haushalt.md", title: "Haushalt", excluded: false, line: 2, ordinal: 1, done: false, state: "open", text, tags: [], due, dueTime: "10:30" };
+
+  beforeEach(() => {
+    for (const [name, fn] of Object.entries(notifications)) {
+      fn.mockReset();
+      if (name === "registerActionTypes") fn.mockResolvedValue(undefined);
+      if (name === "addListener") fn.mockResolvedValue({ remove: async () => {} });
+    }
+    notifications.checkPermissions.mockResolvedValue({ display: "granted" });
+    notifications.getPending.mockResolvedValue({ notifications: [] });
+    cache.listEvents.mockReset();
+    cache.listEvents.mockResolvedValue([]);
+    settings.remindEvents = false;
+    settings.remindTasks = false;
+    settings.remindCheckboxes = false;
+    settings.taskDatabase = "";
+    taskDb.listTasks.mockReset();
+    taskDb.listTasks.mockResolvedValue([box]);
+  });
+
+  it("plans nothing from checkboxes while their switch is off", async () => {
+    settings.remindEvents = true;
+    await rescheduleReminders();
+    expect(taskDb.listTasks).not.toHaveBeenCalled();
+    expect(getReminderState()).toMatchObject({ tasks: 0, reason: "tasksOff" });
+  });
+
+  it("schedules a box with a due time as a task, with its line attached", async () => {
+    settings.remindCheckboxes = true;
+    await rescheduleReminders();
+    const [{ notifications: sent }] = notifications.schedule.mock.calls[0];
+    expect(sent).toHaveLength(1);
+    const [y, m, d] = due.split("-").map(Number);
+    expect(sent[0].schedule.at.getTime()).toBe(new Date(y, m - 1, d, 10, 30).getTime());
+    expect(sent[0].actionTypeId).toBe("plainva-task");
+    expect(sent[0].smallIcon).toBe("ic_stat_task");
+    expect(sent[0].extra).toMatchObject({ kind: "task", uid: `checkbox:Haushalt.md#${text}`, line: { path: "Haushalt.md", ordinal: 1, text } });
+    // The task database's switch is off, and nothing about it is "off" here:
+    // the task count is the checkboxes'.
+    expect(getReminderState()).toMatchObject({ tasks: 1, events: 0, reason: "ok" });
+  });
+
+  it("drops a box that is ticked, or has lost its time, on the next run", async () => {
+    settings.remindCheckboxes = true;
+    taskDb.listTasks.mockResolvedValue([{ ...box, done: true, state: "done" }, { ...box, ordinal: 2, text: `Ohne Zeit 📅 ${due}`, dueTime: undefined }]);
+    await rescheduleReminders();
+    expect(notifications.schedule).not.toHaveBeenCalled();
+    expect(getReminderState().tasks).toBe(0);
+  });
+
+  it("an index that cannot answer costs the boxes, never the appointments", async () => {
+    settings.remindEvents = true;
+    settings.remindCheckboxes = true;
+    taskDb.listTasks.mockRejectedValue(new Error("index closed"));
+    cache.listEvents.mockResolvedValue([event("standup", 3)]);
+    await rescheduleReminders();
+    expect(getReminderState()).toMatchObject({ events: 1, tasks: 0 });
   });
 });

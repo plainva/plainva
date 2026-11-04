@@ -19,8 +19,13 @@ import { isExistingDirectory, isMissingFile } from "./fileErrors";
  * IVaultAdapter over the Capacitor filesystem (M2, sync-first model): the
  * vault lives in the app sandbox under Directory.Data/vault. On the web
  * (dev server) the plugin transparently backs this with IndexedDB, so the
- * same adapter works in the browser. watch() is intentionally absent —
- * nothing else edits the sandbox (ADR 0011 / mobile plan).
+ * same adapter works in the browser. watch() is intentionally absent: the
+ * vault is read anew whenever the app comes back to the foreground, which
+ * is when another app can have changed it (ADR 0011 / mobile plan). Other
+ * apps CAN write here — on the iPhone the app storage lies under
+ * `Documents`, and with `UIFileSharingEnabled` and
+ * `LSSupportsOpeningDocumentsInPlace` the Files app edits it in place
+ * (open-items plan 3.126 no. 3: this comment said nothing else edits it).
  */
 
 const norm = (path: string): string => trimChars(path.replace(/\\/g, "/"), "/");

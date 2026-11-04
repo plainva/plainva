@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Browser } from "@capacitor/browser";
-import { consumePendingNew } from "@plainva/ui";
+import { consumePendingNew, getPlatformServices } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
@@ -23,6 +22,7 @@ import { SwipeRow } from "../components/SwipeRow";
 import { useTaskRowActions, type NoteTaskRef } from "../components/useTaskRowActions";
 import { TaskDuplicatesSheet } from "../components/TaskDuplicatesSheet";
 import { TaskNamesNotice } from "../components/TaskNamesNotice";
+import { TemplateKeysNotice } from "../components/TemplateKeysNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLinkTargetLookup } from "../lib/useLinkTargetLookup";
@@ -388,13 +388,14 @@ export function TasksScreen({
         }
         setTasks((prev) => prev.map((tk) => (tk.path === task.path && tk.ordinal === task.ordinal ? optimistic(tk) : tk)));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // The sentence of a checkbox and its reason, as the desktop says it (Sammelplan § 3.134 no. 2): the bare message stood here.
+        toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
       } finally {
         gate.finish();
         setTick(value => value + 1);
       }
     },
-    [gate, vault, setTasks]
+    [gate, vault, setTasks, t]
   );
   const toggle = useCallback(
     (task: TaskRecord) => {
@@ -662,7 +663,7 @@ export function TasksScreen({
     onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
       void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
-    onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
+    onOpenUrl: (url: string) => { void getPlatformServices().openExternal(url).catch(() => undefined); },
   }), [vault, onOpenNote]);
   // A link to a note that does not exist yet reads as unresolved, as in the editor.
   const linkLookup = useLinkTargetLookup(vault, bump);
@@ -769,6 +770,7 @@ export function TasksScreen({
       </div>
 
       <TaskNamesNotice vault={vault} reloadKey={`${bump}:${tick}`} onChanged={() => setTick((x) => x + 1)} />
+      <TemplateKeysNotice vault={vault} reloadKey={`${bump}:${tick}`} templateFolder={getMobileSettings().templateFolder || "Templates"} onChanged={() => setTick((x) => x + 1)} />
 
       {dupes.visible && (
         <div className="m-dupes-notice">

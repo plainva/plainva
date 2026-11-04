@@ -78,6 +78,8 @@ export function PinboardEntryModal({
   useState(() => rememberSessionViewMode(draft.path, "live"));
   const channel = useMemo(() => createDocChannel(), []);
   const editorHostRef = useRef<HTMLDivElement>(null);
+  /** A pointer is down on the text: the focus that follows is the press's. */
+  const pressingRef = useRef(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
   // What the unmount path needs, kept current without re-running effects.
@@ -216,6 +218,13 @@ export function PinboardEntryModal({
    * `pinboardEntryCaret` says where that is in the text this editor holds.
    */
   const placeBodyCaret = () => {
+    // A press puts the caret where it lands: CodeMirror takes the focus BEFORE
+    // it sets the selection to the press, and a place set here meanwhile
+    // scrolled the view to the template's place or the end - in a draft
+    // longer than the window, away from where the press was, until the first
+    // key brought it back (Sammelplan § 3.140 Nr. 2). The press chooses; the
+    // keyboard (Tab, Enter in the title) gets the template's place.
+    if (pressingRef.current) return;
     const view = editorView();
     if (!view) return;
     const doc = view.state.doc.toString();
@@ -311,7 +320,23 @@ export function PinboardEntryModal({
       />
       {/* Inert while the entry ends: a keystroke between the flush and the
           rename would be saved to the OLD path and bring the draft back. */}
-      <div ref={editorHostRef} className="pv-pinentry-editor" data-testid="pinboard-entry-editor" inert={busy} onFocusCapture={placeBodyCaret}>
+      <div
+        ref={editorHostRef}
+        className="pv-pinentry-editor"
+        data-testid="pinboard-entry-editor"
+        inert={busy}
+        onPointerDownCapture={() => {
+          pressingRef.current = true;
+          const release = () => {
+            pressingRef.current = false;
+            window.removeEventListener("pointerup", release, true);
+            window.removeEventListener("pointercancel", release, true);
+          };
+          window.addEventListener("pointerup", release, true);
+          window.addEventListener("pointercancel", release, true);
+        }}
+        onFocusCapture={placeBodyCaret}
+      >
         <Suspense fallback={<div className="pv-pinentry-loading">{t("common.loading", "Loading...")}</div>}>
           <LazyEditor activePath={draft.path} peek newEntry isActivePane={false} docChannel={channel} />
         </Suspense>

@@ -2,6 +2,7 @@ import type { WeekStartDay } from "../lib/calendarGrid";
 import { dueQuickDay } from "../lib/dueQuickChoices";
 import { addDaysToKey } from "../lib/taskPlanner";
 import { calendarDay } from "../lib/today";
+import { parseUnifiedId } from "./unified";
 
 /**
  * Putting a message aside until later (S22, plan P12).
@@ -22,7 +23,7 @@ import { calendarDay } from "../lib/today";
  * "back" toast is a shell decision; when a message is due again is not.
  */
 
-/** A message put aside, keyed by account and message id. */
+/** A message put aside, keyed by its address: account, folder and message id. */
 export interface SnoozeEntry {
   /** Account the message belongs to — ids are only unique within one. */
   account: string;
@@ -37,12 +38,32 @@ export interface SnoozeEntry {
 /** The stored shape: a flat list, because the profile carries `json`. */
 export type SnoozeState = readonly SnoozeEntry[];
 
-/** Identity of an entry — the pair the list is keyed on. */
-export function snoozeKey(account: string, id: string): string {
+/**
+ * Identity of an entry: the message's ADDRESS — account, folder, number.
+ *
+ * It was the account and the number. An IMAP number is folder-local, so a
+ * message put aside in Sent replaced the entry of the inbox message with the
+ * same number, and "bring it back" took that one back too (plan P1).
+ */
+export function snoozeKey(account: string, folder: string, id: string): string {
   // The separator is written as an ESCAPE, never as a raw byte: a literal NUL in
   // a source file makes git treat it as binary, which is the finding the
   // encoding guard exists for.
-  return `${account}\u0000${id}`;
+  return `${account}\u0000${folder}\u0000${id}`;
+}
+
+const keyOf = (e: SnoozeEntry): string => snoozeKey(e.account, e.folder, e.id);
+
+/**
+ * The entry for a list row, read off the row's address — never off the folder
+ * on screen. A row of "All inboxes" or of a conversation lies elsewhere than
+ * the folder behind the list, and an entry keyed by the open mailbox hid
+ * nothing in the row's own folder (open-items plan 3.137 no. 5). Null for an id
+ * that is not an address: it names no folder to come back to.
+ */
+export function snoozeEntryFor(rowId: string, until: number): SnoozeEntry | null {
+  const at = parseUnifiedId(rowId);
+  return at ? { account: at.accountId, folder: at.mailbox, id: at.uid, until } : null;
 }
 
 /**
@@ -114,14 +135,38 @@ export function snoozeUntil(preset: SnoozePreset, now: Date, weekStart: WeekStar
 
 /** Adds or replaces an entry. Snoozing an already-snoozed message re-times it. */
 export function addSnooze(state: SnoozeState, entry: SnoozeEntry): SnoozeEntry[] {
-  const key = snoozeKey(entry.account, entry.id);
-  return [...state.filter((e) => snoozeKey(e.account, e.id) !== key), entry];
+  const key = keyOf(entry);
+  return [...state.filter((e) => keyOf(e) !== key), entry];
+}
+
+/**
+ * Takes back what one "put aside" did — the Undo of its notice, in both
+ * shells (decision E17). Each message it noted stands as it stood before: not
+ * put aside, or put aside until the time it had (putting a message aside again
+ * re-times it, and taking that back must not bring it back early). An entry
+ * that changed since — the message put aside once more — is left, and so is
+ * every entry of another message.
+ */
+export function undoSnoozes(state: SnoozeState, before: SnoozeState, added: readonly SnoozeEntry[]): SnoozeEntry[] {
+  const undone = new Map(added.map((e) => [keyOf(e), e]));
+  const earlier = new Map(before.map((e) => [keyOf(e), e]));
+  const out: SnoozeEntry[] = [];
+  for (const e of state) {
+    const mine = undone.get(keyOf(e));
+    if (!mine || mine.until !== e.until) {
+      out.push(e);
+      continue;
+    }
+    const prior = earlier.get(keyOf(e));
+    if (prior) out.push(prior);
+  }
+  return out;
 }
 
 /** Removes an entry — "bring it back now". */
-export function removeSnooze(state: SnoozeState, account: string, id: string): SnoozeEntry[] {
-  const key = snoozeKey(account, id);
-  return state.filter((e) => snoozeKey(e.account, e.id) !== key);
+export function removeSnooze(state: SnoozeState, at: { account: string; folder: string; id: string }): SnoozeEntry[] {
+  const key = snoozeKey(at.account, at.folder, at.id);
+  return state.filter((e) => keyOf(e) !== key);
 }
 
 /**
@@ -135,9 +180,9 @@ export function dueSnoozes(state: SnoozeState, now: number): SnoozeEntry[] {
 }
 
 /** Whether a message is currently put aside. */
-export function isSnoozed(state: SnoozeState, account: string, id: string, now: number): boolean {
-  const key = snoozeKey(account, id);
-  const hit = state.find((e) => snoozeKey(e.account, e.id) === key);
+export function isSnoozed(state: SnoozeState, at: { account: string; folder: string; id: string }, now: number): boolean {
+  const key = snoozeKey(at.account, at.folder, at.id);
+  const hit = state.find((e) => keyOf(e) === key);
   return !!hit && hit.until > now;
 }
 
@@ -162,10 +207,26 @@ export function filterSnoozed<T>(
   const hidden = new Set(
     opts.state
       .filter((e) => e.until > opts.now && e.folder === opts.folder)
-      .map((e) => snoozeKey(e.account, e.id))
+      .map(keyOf)
   );
   if (hidden.size === 0) return [...rows];
-  return rows.filter((r) => !hidden.has(snoozeKey(opts.accountOf(r), opts.idOf(r))));
+  return rows.filter((r) => !hidden.has(snoozeKey(opts.accountOf(r), opts.folder, opts.idOf(r))));
+}
+
+/**
+ * Hides the snoozed rows of a list whose rows are named by their ADDRESS — a
+ * folder, a conversation, "All inboxes" (plan P1). Each row says where it
+ * lies, so one filter serves every list: a message put aside is hidden in the
+ * folder it lies in, wherever that folder is shown, and nowhere else. A row
+ * without an address is kept: it names no folder to be put aside in.
+ */
+export function filterSnoozedRows<T extends { id: string }>(rows: readonly T[], state: SnoozeState, now: number): T[] {
+  const hidden = new Set(state.filter((e) => e.until > now).map(keyOf));
+  if (hidden.size === 0) return [...rows];
+  return rows.filter((r) => {
+    const at = parseUnifiedId(r.id);
+    return !at || !hidden.has(snoozeKey(at.accountId, at.mailbox, at.uid));
+  });
 }
 
 /**

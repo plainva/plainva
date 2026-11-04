@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../test/helpers/timeBudget.js";
 import { parseWriteDraft } from "./drafts.js";
 import { LINK_CHECK_LIMITS, addedNoteTargets, linkedNoteName, linkedNoteTargets, parseMissingLinks } from "./links.js";
 import { WRITE_RESULTS } from "./sentences.js";
@@ -53,10 +54,10 @@ describe("the notes a text links to", () => {
   it("stays quick on a line made of backticks", () => {
     // Runs of every length up to 600, none closed, on one line of 180,000 characters — and a link at its end.
     const hostile = `${Array.from({ length: 600 }, (_, index) => `${"`".repeat(index + 1)} x`).join(" ")} [[Real]]`;
-    const started = Date.now();
-    expect(linkedNoteTargets(hostile)).toEqual(["Real"]);
-    expect(linkedNoteTargets(`${"` ".repeat(60_000)}[[Odd]]`)).toEqual(["Odd"]);
-    expect(Date.now() - started).toBeLessThan(2_000);
+    within(2_000, () => {
+      expect(linkedNoteTargets(hostile)).toEqual(["Real"]);
+      expect(linkedNoteTargets(`${"` ".repeat(60_000)}[[Odd]]`)).toEqual(["Odd"]);
+    });
   });
 
   it("reads a text with \\r\\n as it reads one with \\n", () => {

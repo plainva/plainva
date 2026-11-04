@@ -92,7 +92,7 @@ function noteScreenOver(vault: MobileVault, phone: Phone, path: string) {
 // What the note screen's load does when the read fails (`.catch` of the load):
 // for a file that is no text, the state, the leftover draft, the card.
 const loadFailedCall = all(screenFile, ts.isArrowFunction).find((fn) => ts.isCallExpression(fn.parent)
-  && fn.parent.expression.getText(screenFile).endsWith(".catch") && fn.getText(screenFile).includes("takeLeftoverDraft(vault, path)"));
+  && fn.parent.expression.getText(screenFile).endsWith(".catch") && fn.getText(screenFile).includes("takeLeftoverDrafts(vault, path)"));
 if (!loadFailedCall) throw new Error("the note screen's failed load moved — re-point this harness");
 const loadFailedCode = ts.transpileModule(`const loadFailed = ${loadFailedCall.getText(screenFile)};`,
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
@@ -119,8 +119,8 @@ function failedLoadOver(vault: MobileVault, path: string, leftover: Draft | null
   const scope = {
     stale: false, vault, path, NotTextFileError, setNotText: set.notText, setLoadError: set.loadError, setDraft: set.draft,
     offeredDraftRef: screen.offeredDraftRef, claimedOffersRef: screen.claimedOffersRef, editorTextOf,
-    takeLeftoverDraft: async () => { await hold; const draft = handed; handed = null; return draft; },
-    releaseLeftoverDraft: set.release,
+    takeLeftoverDrafts: async () => { await hold; const draft = handed; handed = null; return draft ? [draft] : []; },
+    releaseLeftoverDrafts: set.release,
     keepTextBeside, clearDraftIf: set.clearDraftIf, newestConflictCopy,
     noteConflict: (p: string, copy: string) => { noted.set(p, copy); },
     getConflict: (p: string) => (noted.has(p) ? { path: p, copyPath: noted.get(p)! } : null),
@@ -144,7 +144,7 @@ const restoreCode = ts.transpileModule(`const restoreDraft = ${restoreCall.getTe
 // And what "Discard" there does.
 const discardCall = all(screenFile, ts.isArrowFunction).filter((fn) => {
   const text = fn.getText(screenFile);
-  return text.includes("claimedOffersRef.current.has(draft)") && text.includes("clearDraft(vault, path);");
+  return text.includes("claimedOffersRef.current.has(draft)") && text.includes("clearDraftIf(vault, path, draft);");
 }).sort((a, b) => a.getWidth(screenFile) - b.getWidth(screenFile))[0];
 if (!discardCall) throw new Error("the note screen's draft discard moved — re-point this harness");
 const discardCode = ts.transpileModule(`const discardDraft = ${discardCall.getText(screenFile)};`,
@@ -154,20 +154,21 @@ describe("the note screen's draft banner while its draft is kept beside a file t
   it("ignores Restore and Discard on an offer the load is keeping that very moment — kept once, and not against the reader's word", () => {
     const claimed = { path: "Alt.md", text: "kept right now\n", ts: 1 };
     const spies = {
-      setDraft: vi.fn(), setDoc: vi.fn(), setReloadTick: vi.fn(), forgetKeptText: vi.fn(), clearDraft: vi.fn(),
+      setDraft: vi.fn(), setDoc: vi.fn(), setReloadTick: vi.fn(), forgetKeptText: vi.fn(), clearDraftIf: vi.fn(), adoptDraft: vi.fn(),
       noteSaver: { schedule: vi.fn(), withWriteLock: vi.fn() },
     };
     const scope = { ...spies, draft: claimed, claimedOffersRef: { current: new WeakSet([claimed]) }, vault: { vaultId: "phone-vault" }, path: "Alt.md" };
     for (const [code, name] of [[restoreCode, "restoreDraft"], [discardCode, "discardDraft"]] as const) {
       (new Function(...Object.keys(scope), `${code}\nreturn ${name};`)(...Object.values(scope)) as () => void)();
     }
-    for (const spy of [spies.setDraft, spies.setDoc, spies.setReloadTick, spies.forgetKeptText, spies.clearDraft, spies.noteSaver.schedule, spies.noteSaver.withWriteLock]) {
+    for (const spy of [spies.setDraft, spies.setDoc, spies.setReloadTick, spies.forgetKeptText, spies.clearDraftIf, spies.adoptDraft, spies.noteSaver.schedule, spies.noteSaver.withWriteLock]) {
       expect(spy).not.toHaveBeenCalled();
     }
     // An offer nobody is keeping is restored and discarded as ever.
     const free = { ...scope, claimedOffersRef: { current: new WeakSet() } };
     (new Function(...Object.keys(free), `${discardCode}\nreturn discardDraft;`)(...Object.values(free)) as () => void)();
-    expect(spies.clearDraft).toHaveBeenCalledWith(free.vault, "Alt.md");
+    // Only the offered draft goes (open-items plan 3.125): this run's typing is its saver's.
+    expect(spies.clearDraftIf).toHaveBeenCalledWith(free.vault, "Alt.md", claimed);
     expect(spies.setDraft).toHaveBeenCalledWith(null);
   });
 });
@@ -176,6 +177,7 @@ describe("the note screen's draft banner while its draft is kept beside a file t
 function restoreOver(vault: MobileVault, phone: Phone, path: string, draft: Draft & { path: string }) {
   const scope = {
     draft, setDraft: vi.fn(), setDoc: vi.fn(), setReloadTick: vi.fn(), forgetKeptText: phone.forgetKeptText, noteSaver: phone.noteSaver, vault, path,
+    adoptDraft: async () => {},
     claimedOffersRef: { current: new WeakSet() },
   };
   return new Function(...Object.keys(scope), `${restoreCode}\nreturn restoreDraft;`)(...Object.values(scope)) as () => void;
@@ -508,7 +510,7 @@ for (const storage of STORAGES) {
       const failingLeftover = failedLoadOver(vault, "Data.csv", leftoverFailing);
       failingLeftover.loadFailed(new NotTextFileError("Data.csv"));
       await vi.waitFor(() => expect(failingLeftover.set.error).toHaveBeenCalled());
-      expect(failingLeftover.set.release).toHaveBeenCalledWith(vault, "Data.csv", leftoverFailing);
+      expect(failingLeftover.set.release).toHaveBeenCalledWith(vault, "Data.csv", [leftoverFailing]);
       expect(failingLeftover.set.clearDraftIf).not.toHaveBeenCalled();
       // The same screen's next load may try the offer once more: its claim went with the failure.
       const retry = failedLoadOver(vault, "Data.csv", null, null, failing.screen);

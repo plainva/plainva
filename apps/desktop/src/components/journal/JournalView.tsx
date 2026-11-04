@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { CalendarDays, ChevronRight, LayoutGrid, List as ListIcon, NotebookPen, NotebookText, Sun } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
 import {

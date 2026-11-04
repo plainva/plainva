@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-10-24
+Laatst bijgewerkt: 2026-11-03
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -29,6 +29,8 @@ Een vault is een gewone map. De bestandstypen die je tegenkomt:
 
 De gereserveerde namen `index.md` en `log.md` zijn nooit gewone notities; maak onder die namen geen gewone inhoud aan.
 
+Bestanden en mappen waarvan de naam met een punt begint — zoals `.notities.md` of `.attachments/` — horen bij de kluis: Plainva houdt ze in zijn index en synchroniseert ze zoals elk ander bestand, maar toont ze niet, net als Obsidian. Ze verschijnen in geen enkele zoekopdracht, bestandslijst, graaf, suggestie, lijst met backlinks, tag- of takenlijst en in geen database. Een link die zo'n bestand noemt, opent het toch. Plainva's eigen `.plainva/` en Obsidians `.obsidian/` houden hun eigen regels.
+
 ---
 
 ## Notities (`.md`)
@@ -52,9 +54,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-Een blok mag leeg zijn: `---` direct gevolgd door `---` is een blok zonder eigenschappen, niet twee scheidingslijnen — de tekst van de notitie begint op de regel erna. Plainva laat geen leeg blok achter: wordt de laatste eigenschap verwijderd, dan verdwijnen de twee `---`-regels mee. Ze blijven alleen staan als de tekst zelf met een `---`-regel begint, die anders als het begin van een blok zou worden gelezen.
+Een blok mag leeg zijn: `---` direct gevolgd door `---` is een blok zonder eigenschappen, niet twee scheidingslijnen — de tekst van de notitie begint op de regel erna. Plainva laat geen leeg blok achter: wordt de laatste eigenschap verwijderd, dan verdwijnen de twee `---`-regels mee. Ze blijven alleen staan als de tekst zelf met een `---`-regel begint, die anders als het begin van een blok zou worden gelezen. Een blok waarin alleen nog een opmerking staat, blijft staan, met de opmerking.
 
-Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, of YAML dat een lijst is in plaats van `sleutel: waarde`-regels. **Eigenschappen** meldt dat in plaats van geen eigenschappen te tonen, en wijzig je bij zo'n notitie een eigenschap — daar, in een database, op een prikbord, in de takenlijst, of het pictogram en de kleur ervan —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging. Eén waarde in een onverwachte vorm maakt een blok niet onleesbaar: Plainva leest haar zoals ze er staat — een lege `tags:` is een notitie zonder tags, een getal tussen de tags (`- 2024`) is de tag `2024`, een getal als `title` is die titel, en een `timestamp` die een datum is, is een eigenschap als elke andere.
+Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, of YAML dat een lijst is in plaats van `sleutel: waarde`-regels. Eén regel tekst, een getal of een verzameling (`!!set`) tussen de twee lijnen is ook zo'n blok: ook zoeken, links en databases lezen er geen eigenschap uit. **Eigenschappen** meldt dat in plaats van geen eigenschappen te tonen, en wijzig je bij zo'n notitie een eigenschap — daar, in een database, op een prikbord, in de takenlijst, of het pictogram en de kleur ervan —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging. Eén waarde in een onverwachte vorm maakt een blok niet onleesbaar: Plainva leest haar zoals ze er staat — een lege `tags:` is een notitie zonder tags, een getal tussen de tags (`- 2024`) is de tag `2024`, een getal als `title` is die titel, en een `timestamp` die een datum is, is een eigenschap als elke andere. `tag` en `alias` in het enkelvoud zijn gewone eigenschappen — zoals in Obsidian sinds 1.9 —, een tag is dus alleen wat onder `tags` staat.
 
 ### OKF-frontmattervelden
 
@@ -246,7 +248,7 @@ Een `.base`-bestand is YAML. Het bewaart een *weergave* over notities — welke 
 
 ### Harde regels — bij een overtreding wijst Obsidian het hele bestand af
 
-- **Alleen deze top-level sleutels:** `filters`, `formulas`, `properties`, `views`. Voeg nooit een andere top-level sleutel toe. (Historisch brak een top-level `columns:`-sleutel elk bestand — herintroduceer dat patroon niet.)
+- **Alleen deze top-level sleutels:** `filters`, `formulas`, `properties`, `summaries`, `views`. Voeg nooit een andere top-level sleutel toe. (Historisch brak een top-level `columns:`-sleutel elk bestand — herintroduceer dat patroon niet.)
 - **Elke weergave heeft een niet-lege string-`name`.**
 - **Een `filters`-object draagt op elk niveau exact één van `and` / `or` / `not`** — nooit twee naast elkaar.
 
@@ -597,7 +599,7 @@ Voor een relatie waarvan het doel dezelfde database is, wijst `relationBase` naa
 
 `index.md` is een gereserveerde naam voor het inhoudsoverzicht van een map.
 
-- **Alleen de root-`index.md` mag frontmatter dragen**, en alleen `okf_version` — de conventieversie die de vault volgt (momenteel `"0.2"`; het markeert de vault als OKF-actief). Een vault die nog `"0.1"` declareert, wordt getild onder **Instellingen → Vault → Inhoud en structuur → Bundleversie → Bijwerken…**; het verouderde `okf_version`-veld kan in dezelfde stap uit de notities worden verwijderd. Een niet-root-`index.md` moet **frontmatter-vrij** zijn — frontmatter daar is een schending van de gereserveerde naam.
+- **Alleen de root-`index.md` mag frontmatter dragen**, en alleen `okf_version` — de conventieversie die de vault volgt (momenteel `"0.2"`; het markeert de vault als OKF-actief). Een vault die nog `"0.1"` declareert, wordt getild onder **Instellingen → Vault → Onderhoud → OKF-formaat → Bundleversie → Bijwerken…**; het verouderde `okf_version`-veld kan in dezelfde stap uit de notities worden verwijderd. Een niet-root-`index.md` moet **frontmatter-vrij** zijn — frontmatter daar is een schending van de gereserveerde naam.
 - Een Plainva-**beheerde** `index.md` eindigt met de marker `<!-- plainva:index generated -->` (een HTML-commentaar, onzichtbaar in de leesmodus). De aanwezigheid ervan betekent dat Plainva het bestand automatisch actueel houdt. Bewerk je zo'n bestand met de hand, bewaar dan ofwel de marker (en houd de gegenereerde vorm aan) of verwijder hem bewust om het bestand permanent over te nemen.
 - Gegenereerde listings zijn secties van links in de vorm `* [Titel](relatief/url) - beschrijving`.
 
@@ -651,7 +653,7 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 - **`.agent/`** bevat de AI-regels, skills en het geheugen van Plainva. Wijzig het alleen als de gebruiker precies dat vraagt, en respecteer `cloud: deny` en `web: deny` (zie de AI-privacyregel hierboven).
 - **Onbekende sleutels zijn heilig.** Als je een `.base` of een notitie herschrijft, draag dan elke sleutel mee die je niet van plan was te wijzigen. Plainva zelf bewaart onbekende `.base`-sleutels via een interne rauwe kopie; een externe schrijver zou hetzelfde moeten doen (parsen → alleen wijzigen wat je bedoelt → serialiseren).
 - **Waarden veranderen in de notitie, niet in de `.base`.** Om een cel te zetten, bewerk je de frontmatter van de notitie. De `.base` bepaalt alleen welke notities en kolommen worden getoond.
-- **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `views`.
+- **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Encoding:** UTF-8. Nieuwe bestanden: LF-regeleinden, geen BOM. Een notitie of tekstbestand dat al CRLF-regeleinden of een BOM heeft, houdt die — Plainva verandert ze niet, en een tool hoort dat ook niet te doen. De enige uitzondering is een `.base`: Plainva schrijft die opnieuw, met LF en zonder BOM, zodra de configuratie verandert. Een regeleinde dat alleen uit een wagenterugloop (CR) bestaat (oude Mac-bestanden), wordt gelezen, maar niet bewaard: Plainva slaat zo'n bestand met LF op zodra het dat bestand voor het eerst wijzigt.
 
 ## Zie ook

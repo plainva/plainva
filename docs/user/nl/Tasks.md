@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-10-25
+Laatst bijgewerkt: 2026-11-04
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -17,11 +17,11 @@ De weergave opent als tab, net als elke notitie.
 
 ## Op de telefoon
 
-De Taken-weergave bestaat ook mobiel. Je opent deze via **Onderdelen** in de navigatiebalk (of door lang op de balk te drukken), en je kunt deze in de navigatiebalk zelf plaatsen (**Instellingen** → **Balken en gebieden**).
+De Taken-weergave bestaat ook mobiel. Je opent deze via **Onderdelen** in de navigatiebalk (of door lang op de balk te drukken), en je kunt deze in de navigatiebalk zelf plaatsen (**Instellingen** → **Navigatiebalk**).
 
 De weergave toont dezelfde twee secties als op de desktop: bovenaan de **Takendatabase**, daaronder **Uit notities** de selectievakjeslijst, met de filters **Open**/**Klaar**/**Alle** en het vrijetekstveld. Afvinken, **Status wijzigen**, een selectievakje **naar de database verplaatsen**, **+ Nieuwe taak**, **Tijd blokkeren** en **Herhaling** werken zoals hierboven beschreven en schrijven dezelfde bestanden: dezelfde notitie met frontmatter, dezelfde `[[wiki-link]]` in de oorspronkelijke regel, dezelfde regel onder `plainva.repeat`.
 
-Welke database je vault als takendatabase gebruikt, stel je mobiel in onder **Instellingen** → **Inhoud en structuur**. De instelling reist mee via de [instellingensynchronisatie](Sync_Setup.md), dus je hoeft hem maar één keer te kiezen, op het apparaat van je keuze.
+Welke database je vault als takendatabase gebruikt, stel je mobiel in onder **Instellingen** → **Notities en ordening**. De instelling reist mee via de [instellingensynchronisatie](Sync_Setup.md), dus je hoeft hem maar één keer te kiezen, op het apparaat van je keuze.
 
 De vier filters van de desktopbalk verschijnen op de telefoon als chips boven de lijst: **Map**, **Tag**, **Met vervaldatum** en **Verborgen tonen**. Chips in plaats van keuzelijsten, omdat een filterbalk boven een toch al smalle lijst meer ruimte kost dan hij oplevert — één tik opent de keuze, een tweede wist hem weer.
 
@@ -51,7 +51,7 @@ Is een notitie gewijzigd sinds de lijst is opgebouwd, dan wordt een verouderde w
 
 ## Standaard takendatabase
 
-Selectievakjes zet je snel neer, maar soms groeit een regel uit tot een "echte" taak — met een status, een vervaldatum en een eigen notitie. Kies daarvoor in Instellingen onder **Inhoud en structuur** een **Standaard takendatabase**: een [database (`.base`)](Databases_Base.md) waarin zulke taken als eigen notities leven. **Nieuwe database maken…** zet meteen een kant-en-klare op (opslagmap plus een `.base` met een **selectievakjekolom voor voltooid** (`klaar`), een statuskolom, een vervaldatumkolom, en een tabelweergave, een bordweergave en een tijdlijnweergave — de tijdlijn zet elke taak op haar vervaldag); je kunt net zo goed een bestaande database kiezen. De selectievakje-eigenschap is de voltooiingswaarheid van een taak (aan/uit, net als bij de providers); de statuskolom blijft consistent wanneer je afvinkt. Heeft een database geen selectievakjekolom, dan geldt de statusconventie: eerste optie = open, laatste = voltooid.
+Selectievakjes zet je snel neer, maar soms groeit een regel uit tot een "echte" taak — met een status, een vervaldatum en een eigen notitie. Kies daarvoor in Instellingen onder **Notities en ordening** een **Standaard takendatabase**: een [database (`.base`)](Databases_Base.md) waarin zulke taken als eigen notities leven. **Nieuwe database maken…** zet meteen een kant-en-klare op (opslagmap plus een `.base` met een **selectievakjekolom voor voltooid** (`klaar`), een statuskolom, een vervaldatumkolom, en een tabelweergave, een bordweergave en een tijdlijnweergave — de tijdlijn zet elke taak op haar vervaldag); je kunt net zo goed een bestaande database kiezen. De selectievakje-eigenschap is de voltooiingswaarheid van een taak (aan/uit, net als bij de providers); de statuskolom blijft consistent wanneer je afvinkt. Heeft een database geen selectievakjekolom, dan geldt de statusconventie: eerste optie = open, laatste = voltooid.
 
 Eenmaal ingesteld, toont de Taken-weergave twee secties: bovenaan de items van de **Takendatabase**, daaronder **Uit notities** — de vertrouwde lijst met selectievakjes. De status is direct in het overzicht te wijzigen: het selectievakje IS de voltooid-eigenschap van de notitie en wisselt deze (de statuskolom volgt mee), en een klik op de statuschip opent een menu met alle opties (**Status wijzigen**). De filters **Open**/**Klaar**/**Alle** gelden voor beide secties, en **Als database openen** springt naar de volledige databaseweergave met bord en filters. **Vernieuwen** start bij verbonden accounts bovendien een echte synchronisatie met de provider.
 
@@ -108,12 +108,87 @@ Je hoeft dit veld niet met de hand te schrijven:
 - **Verbergen uit taken** — rechts in de kopregel van elke notitie staat een oog-icoon; met één klik wordt de marker in de notitie geschreven en wordt deze verborgen.
 - **Verborgen tonen** — deze optie in de balk bovenaan brengt de verborgen notities terug (gedimd), elk met een icoon **Weer in taken tonen** dat de marker verwijdert.
 - **Sjablonen verbergen** — als je sjabloonmap notities met selectievakjes bevat, verschijnt rechtsboven een knop **Sjablonen verbergen** die de marker in één keer bij al deze notities aanbrengt.
+- **Notities met sleutels uit een sjabloon** — een notitie die tot versie 0.8.5 uit een sjabloon is gemaakt, kan de eigen sleutels van het sjabloon hebben overgenomen (`plainva.tasks: false`, `plainva.templateFor`); haar taken ontbreken dan hier. Zijn er zulke notities buiten de sjablonenmap, dan somt een melding ze op, elk met een vakje: **Sleutels verwijderen…** haalt de twee sleutels uit de aangevinkte, verder verandert er niets aan. Haal het vinkje weg bij een notitie die je bewust hebt verborgen; **Verbergen** legt de melding weg tot er een notitie bij komt.
 
 Nieuw aangemaakte sjablonen dragen de marker automatisch. Maak je een notitie **vanuit** een sjabloon, dan wordt de marker weer verwijderd — de nieuwe notitie is echte inhoud en de taken erin worden gewoon getoond.
+
+## Herinneringen voor selectievakjes
+
+Een selectievakje herinnert je wanneer de vervaldatum een tijd draagt: schrijf de tijd direct na de datum, als `HH:MM` in 24-uursnotatie (`00:00` telt als geen tijd).
+
+```markdown
+- [ ] Bob bellen 📅 2026-11-02 14:30
+```
+
+Je zet het aan onder **Instellingen → Agenda → Herinneringen** met **Selectievakjes met een tijd** — per vault en op dit apparaat, uit tot je het aanzet. De herinnering komt op die tijd, min wat je instelt bij **Herinnering vooraf voor taken met een tijd**. Op de telefoon biedt ze **Afvinken**, **Over 1 uur** en **Morgenochtend**, zoals de herinnering van een taak uit de takendatabase; op de desktop biedt de melding ernaast **Taak openen**. Hoe dan ook kom je in de notitie op de regel van de taak, ook nadat de notitie is hernoemd of verplaatst.
+
+Een selectievakje dat je afvinkt, verwijdert of een andere tijd geeft, wordt binnen enkele seconden opnieuw ingepland. Een selectievakje met een datum maar zonder tijd herinnert niet, en notities met `plainva.tasks: false` blijven erbuiten. Plainva schrijft voor een herinnering niets in de notitie. Obsidian kent geen tijd: een `📅`-datum met een tijd erachter leest die niet meer.
 
 ## Obsidian-compatibiliteit
 
 Taken zijn gewone GFM-selectievakjes (GitHub-Flavored Markdown). Plainva voegt nooit een speciale syntax toe: dezelfde `- [ ]`-regels worden in Obsidian weergegeven als selectievakjes en zijn in elke editor gewoon leesbaar. De conventies `📅 datum` en `#tag` zijn de gangbare Obsidian-Tasks-stijl, maar ze zijn gewoon tekst in je notitie.
+
+## Tasks-query's uit Obsidian
+
+Een notitie uit Obsidian kan een codeblok `tasks` met een query bevatten. Plainva tekent het als takenlijst — in het live-voorbeeld en in leesmodus, op de desktop en op de telefoon, ook binnen een citaat of callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+De query blijft precies zo in de notitie staan als je haar hebt geschreven; Plainva schrijft nooit in het blok. De broncodemodus toont altijd de platte tekst.
+
+### Werken met de lijst
+
+- Vink het selectievakje van een taak aan: Plainva schrijft de regel van de taak in haar eigen notitie — met de voltooiingsdatum en de herhaling, zoals in de Taken-weergave.
+- Klik of tik op een rij: de notitie opent bij de regel van de taak.
+- Rechtsklikken op een rij op de desktop, of ingedrukt houden op de telefoon, opent het menu van de rij: **Klaar**/**Open**, **Vervaldatum wijzigen**, **Prioriteit instellen**, **Status instellen**.
+- In een ingesloten notitie (`![[…]]`) is de lijst alleen-lezen: geen vinkje, geen menu.
+- Staat de cursor in het blok, dan toont de editor de query als tekst. **Query bewerken** zet de cursor in de query; op de telefoon schakelt de notitie daarvoor eerst naar bewerken.
+
+Onderaan het blok staan het aantal taken ("12 taken"), de schakelaar **Uitleg** en **Query bewerken**. **Uitleg** laat zien hoe Plainva elke regel van de query heeft gelezen, met datums als echte dagen. Een groot resultaat wordt niet stilletjes afgekapt: Plainva toont de eerste 100 rijen, daarna **Alle n tonen**.
+
+### Wat Plainva begrijpt
+
+Plainva leest deze regels van de querytaal van Tasks:
+
+| Onderwerp | Regels |
+|---|---|
+| Status | `done`, `not done`, `status.type is …` |
+| Datums | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, elk met `on`, `before`, `after`, `on or before`, `on or after` of `in`; als dagen: `2026-11-04`, `today`, `tomorrow`, `yesterday`, weekdagen, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — weken lopen van maandag tot en met zondag, zoals in Tasks |
+| Datum aanwezig of niet | `has due date`, `no scheduled date`, `due date is invalid` |
+| Herhaling | `is recurring`, `recurrence includes …` |
+| Prioriteit | `priority is high`, `priority is above none` — zes niveaus, van hoogste tot laagste |
+| Tekst en plaats | `description`, `path`, `filename`, `folder`, `root` en `heading`, elk met `includes` of `does not include` |
+| Tags | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Subitems | `exclude sub-items` |
+| Combineren | `AND`, `OR`, `NOT`, `XOR`, met `( )`, `[ ]`, `{ }` of `" "` rond de delen |
+| Sorteren | `sort by …` met elke sleutel behalve `random`, `status.name` en `id`, desgewenst met `reverse`; na je eigen regels geldt de standaardvolgorde van Obsidian, urgentie inbegrepen |
+| Groeperen | `group by …`, tot drie niveaus |
+| Weergave en aantal | `show tree`, `hide backlink`, `hide task count` en dergelijke, `limit 20`, `limit groups 5`, `explain` |
+| Opmerkingen en plaatshouders | regels die met `#` beginnen; plaatshouders zoals `{{query.file.path}}`, die verwijzen naar de notitie waarin de query staat |
+
+### Regels die Plainva niet kan volgen
+
+Elke regel van een query valt in een van drie gevallen:
+
+- Een regel die Obsidian kent en Plainva nog niet — bijvoorbeeld code (`filter by function`; Plainva voert nooit code uit notities uit), reguliere expressies (`regex matches`), afhankelijkheden (`is blocked`), presets of andere datumuitdrukkingen. Een aanwijzing boven de lijst noemt de regel en de reden; de regel wordt overgeslagen, dus de lijst kan meer taken tonen dan in Obsidian — of in een andere volgorde, bij `sort by`- en `group by`-regels.
+- Een weergaveregel zonder tegenhanger in Plainva (`hide edit button`, `short mode`, …) wordt stilzwijgend aanvaard.
+- Een regel die ook Obsidian afwijst (een typfout, door elkaar gebruikte haakjes, een onmogelijke datum) toont een fout met de regel en de reden, en geen lijst.
+
+### Verschillen met Obsidian
+
+- "Vandaag" is de kalenderdag.
+- Notities met `plainva.tasks: false` tellen hier mee; Obsidian kent die eigenschap niet.
+- Een in Obsidian ingesteld globaal filter en een globale query worden in de **Uitleg** genoemd, maar niet toegepast.
+- Eigen statustekens (`[>]`, `[!]`, …) zijn in Plainva geen taken.
+
+Dataview-blokken blijven gewone tekst.
 
 ## Zie ook
 
@@ -165,13 +240,13 @@ De takenweergave opent op **Vandaag**. De lijsten — op de desktop een balk lin
 
 Boven de lijsten staat het invoerveld; op de telefoon openen **+ Nieuwe taak** en de **＋**-knop het als een blad. Typ één regel — `Offerte versturen morgen 14:00 !!! #klant wekelijks` — en druk op Enter: Plainva maakt de taak aan in de takendatabase. Het herkent vandaag, morgen, overmorgen, dagen van de week, ‘over 3 dagen’, ‘volgende week’, datums in cijfers, een tijdstip (`14:30`, `2pm`), een ritme (dagelijks, wekelijks, maandelijks, jaarlijks, ‘elke maandag’, ‘elke 2 weken’), `!`, `!!` en `!!!` voor lage, gemiddelde en hoge prioriteit, en `#tags` — de woorden in de taal van de app, cijfers en tekens in elke taal. Alles wat herkend is, wordt in het veld gemarkeerd en eronder als verwijderbaar blokje getoond **voordat** er iets wordt opgeslagen; haal je een blokje weg, dan telt de tekst ervan gewoon weer mee als titel. Op de telefoon schrijven snelknoppen dezelfde woorden voor je. Noemt de takendatabase een providerlijst, dan bepaalt een chip of de taak ook daar wordt aangemaakt.
 
-**Prioriteit instellen** in het menu van een rij (rechtsklikken op de desktop, ingedrukt houden op de telefoon) biedt **hoog**, **gemiddeld**, **laag** en **geen**; een vlaggetje voor de titel toont dit. In de takendatabase is prioriteit een keuzekolom: een nu aangemaakte database heeft hem al, een oudere krijgt hem zodra je voor het eerst een prioriteit instelt — nooit door hem enkel te openen. Een selectievakje draagt op zijn regel het teken van de Obsidian Tasks-plugin: Plainva leest 🔺 en ⏫ als hoog, 🔼 als gemiddeld, 🔽 en ⏬ als laag, en schrijft ⏫, 🔼 of 🔽.
+**Prioriteit instellen** in het menu van een rij (rechtsklikken op de desktop, ingedrukt houden op de telefoon) biedt **hoog**, **gemiddeld**, **laag** en **geen**; een vlaggetje voor de titel toont dit. In de takendatabase is prioriteit een keuzekolom: een nu aangemaakte database heeft hem al, een oudere krijgt hem zodra je voor het eerst een prioriteit instelt — nooit door hem enkel te openen. Een selectievakje draagt op zijn regel het prioriteitsteken uit Obsidian: Plainva leest 🔺 en ⏫ als hoog, 🔼 als gemiddeld, 🔽 en ⏬ als laag, en schrijft ⏫, 🔼 of 🔽.
 
 `- [/]` (**Bezig**) en `- [-]` (**Geannuleerd**) zijn ook taken. Ze krijgen een eigen vakje in de editor, in de leesmodus en in elke lijst; bezig telt als open, geannuleerd als afgerond. Een klik wisselt nog steeds alleen tussen open en klaar — hij rondt een taak die bezig is af en heropent een geannuleerde. **Status instellen** in het rijmenu zet de twee statussen; Plainva schrijft ze nooit uit zichzelf.
 
 **De datum van een taak is de manier om hem te wijzigen.** Druk op de datum van een taak (binnen een dag: op het tijdstip) en de datumkiezer opent — op de desktop onder de datum, op de telefoon als blad. **Vervaldatum wijzigen** in het menu van de rij opent dezelfde kiezer; zo krijgt ook een taak zonder datum er een. Op de telefoon kiezen **Nieuwe taak** en de datumcel van een database hun dag uit dezelfde agenda, niet uit het datumwiel van het systeem. Een selectievakje in een notitie — in de editor, de leesweergave en het journaal — is op de telefoon op een vinger afgestemd. Een item van de takendatabase houdt zijn tijdstip, een selectievakje krijgt of wijzigt zijn `📅`-datum. Bij de kop **Te laat** verplaatst **Alles naar vandaag** alle te late taken in één keer naar vandaag. Beide worden bevestigd met een melding die **Ongedaan maken** aanbiedt. In het invoerveld stelt `[[` notities voor en `#` tags, net als in de editor: `Enter` of `Tab` neemt het gemarkeerde voorstel over, `Esc` sluit de lijst.
 
-**Snelkeuzes en een tijd.** Boven de kalender staan **Vandaag**, **Morgen**, **Dit weekend**, **Volgende week** en **Geen datum**, elk met de weekdag. Dit weekend is de komende zaterdag — vandaag, als het zaterdag of zondag is; volgende week is de eerste dag van de volgende week, zoals ingesteld bij **Week begint op**. Onderaan heeft **Tijd** een schakelaar: uit, dan vervalt de taak de hele dag; aan, dan kies je ernaast de tijd. Een snelkeuze of een dag houdt een al ingestelde tijd; om alleen de tijd te wijzigen, druk je op **Klaar**. Een item van de takendatabase bewaart de tijd in zijn vervaldatum (`2026-10-26T10:00`). Een vinkje in een notitie draagt alleen een dag — de `📅` van de Tasks-plug-in kent geen tijd —, dus de kiezer zegt dat daar in plaats van de schakelaar aan te bieden. Toont de vervaldatumkolom van de database alleen dagen, dan biedt Plainva één keer **Omzetten naar datum & tijd** aan.
+**Snelkeuzes en een tijd.** Boven de kalender staan **Vandaag**, **Morgen**, **Dit weekend**, **Volgende week** en **Geen datum**, elk met de weekdag. Dit weekend is de komende zaterdag — vandaag, als het zaterdag of zondag is; volgende week is de eerste dag van de volgende week, zoals ingesteld bij **Week begint op**. Onderaan heeft **Tijd** een schakelaar: uit, dan vervalt de taak de hele dag; aan, dan kies je ernaast de tijd. Een snelkeuze of een dag houdt een al ingestelde tijd; om alleen de tijd te wijzigen, druk je op **Klaar**. Een item van de takendatabase bewaart de tijd in zijn vervaldatum (`2026-10-26T10:00`). Voor een selectievakje in een notitie zet de kiezer alleen de dag — de `📅` uit Obsidian kent geen tijd — en zegt dat daar in plaats van de schakelaar aan te bieden; een tijd die je zelf na de datum schrijft (zie *Herinneringen voor selectievakjes*) blijft staan als de dag verandert. Toont de vervaldatumkolom van de database alleen dagen, dan biedt Plainva één keer **Omzetten naar datum & tijd** aan.
 
 Meer manieren om een taak toe te voegen: **Nieuwe taak** in het systeemvakmenu op de desktop (wanneer Plainva op de achtergrond actief blijft), op Android de launcher-snelkoppeling **Nieuwe taak** (app-icoon ingedrukt houden), en op de telefoon **Als taak aanmaken** wanneer je iets met Plainva deelt — de tekst en de bijlagen komen terecht in de notitie van de taak. Hoe een taak met een tijdstip je eraan herinnert, staat beschreven onder [Agenda & externe taken](Calendar_and_Tasks.md). Op een iPhone of iPad nemen ook Siri en Opdrachten een taak aan (**Taak toevoegen**); Plainva maakt die aan zodra je de app de volgende keer opent — zie [De mobiele app](Mobile_App.md).
 
@@ -183,7 +258,7 @@ Het vakje in de widget **Vandaag** neemt een verzoek op: het vinkje verschijnt m
 <!-- task-rows-2026-10-24 -->
 ## Subtaken, opsommingen en wat vandaag klaar is
 
-**Subtaken.** Een vakje dat onder een ander is ingesprongen, is zijn subtaak, zoals `show tree` in de Tasks-plug-in van Obsidian. In de lijsten **Vandaag**, **Binnenkort**, **Inbox** en **Klaar** draagt een taak haar subtaken ingesprongen onder zich — open en afgeronde, de afgeronde doorgestreept — en een pijl aan het eind van de regel klapt ze in. Een subtaak met een eigen datum staat ook op zijn eigen dag; een subtaak zonder datum staat onder zijn taak en niet nog eens apart in de **Inbox**. De lijst **Alle** houdt elk vakje in de volgorde van zijn notitie.
+**Subtaken.** Een vakje dat onder een ander is ingesprongen, is zijn subtaak, zoals `show tree` in de `tasks`-blokken van Obsidian. In de lijsten **Vandaag**, **Binnenkort**, **Inbox** en **Klaar** draagt een taak haar subtaken ingesprongen onder zich — open en afgeronde, de afgeronde doorgestreept — en een pijl aan het eind van de regel klapt ze in. Een subtaak met een eigen datum staat ook op zijn eigen dag; een subtaak zonder datum staat onder zijn taak en niet nog eens apart in de **Inbox**. De lijst **Alle** houdt elk vakje in de volgorde van zijn notitie.
 
 **Opsommingen.** Gewone opsommingstekens die onder een taak zijn ingesprongen — vragen, aantekeningen — toont de regel onder de titel als voorvertoning van maximaal twee regels; de rest bewaart de notitie.
 

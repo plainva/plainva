@@ -532,10 +532,7 @@ describe("list preview from a truncated body prefix (B3)", () => {
     expect(previewFromBodyPrefix(raw)).toBe("Rechnung Nr. 7");
   });
 
-  it("gives up rather than show plumbing or half-decoded base64", () => {
-    // A truncated base64 part cannot be decoded safely.
-    const b64 = ["Content-Type: text/plain", "Content-Transfer-Encoding: base64", "", "SGFsbG8gTWFyY28sIGRhcyBpc3Qg"].join("\r\n");
-    expect(previewFromBodyPrefix(b64)).toBe("");
+  it("gives up rather than show plumbing", () => {
     // Truncated before any text — a boundary and nothing else.
     expect(previewFromBodyPrefix("--_000_boundary_\r\n")).toBe("");
     expect(previewFromBodyPrefix("   \r\n")).toBe("");
@@ -732,8 +729,8 @@ describe("8-bit mail over the socket (finding 2026-10-09)", () => {
       [7, SENTENCE],
       [6, SENTENCE],
       [5, SENTENCE],
-      // A cut-off base64 body is not decoded: no line rather than a wrong one.
-      [4, ""],
+      // A base64 body is decoded up to its last whole group (open-items plan 3.78 no. 4).
+      [4, SENTENCE],
     ]);
     // One request for the list, as before: the two header fields ride along in it.
     const fetches = sock.written.filter((line) => line.includes("UID FETCH"));
@@ -813,9 +810,9 @@ describe("8-bit mail over the socket (finding 2026-10-09)", () => {
  * The desktop reads IMAP with another parser (mail-parser, in Rust). What that
  * one makes of the first two is held in `mail_imap.rs`, by the same messages
  * and the same expectations, so both shells hand out the same text and the
- * same files. Where that parser gives something up that this reader reads, a
- * test here says so, one there holds it, and the parity catalog has the entry
- * (`mail-base64-reading`).
+ * same files. Where that parser gives something up that this reader reads (an
+ * encoded word with a character that is no base64), a test here says so, one
+ * there holds it, and the parity catalog has the entry (`mail-base64-reading`).
  */
 describe("mail as it is really built (finding 2026-10-12)", () => {
   // A pooled session belongs to the scripted server it was opened against.
@@ -885,38 +882,42 @@ describe("mail as it is really built (finding 2026-10-12)", () => {
       ["=", ""],
       ["====", ""],
       ["", ""],
-      // A single character is six bits: in front of "=" they begin a byte, at the end they are none.
-      ["Q=", "@"],
+      // A single character is six bits and no byte, in front of "=" and at the
+      // end. (This reader made the start of a byte of it in front of "=", "@"
+      // here, as mail-parser 0.11 did; 1.0 reads it as no byte.)
+      ["Q=", ""],
       ["QUJDR", "ABC"],
-      // Blanks, line breaks and a lone hyphen are no base64 and are passed over.
+      // A last group without its padding is read.
+      ["QUJDRA", "ABCD"],
+      ["QUJDREU", "ABCDE"],
+      ["SGVsbG8=V2VsdA", "HelloWelt"],
+      // Whatever is no base64 is passed over (RFC 2045, 6.8).
       ["QUJD RUZH", "ABCEFG"],
       ["QUJD\tRUZH", "ABCEFG"],
       [`QUJD${CRLF}${CRLF}RUZH`, "ABCEFG"],
       ["QUJD-RUZH", "ABCEFG"],
+      ["QUJD*RUZH", "ABCEFG"],
+      ["QUJD--RUZH", "ABCEFG"],
+      ["QUJD.RUZH", "ABCEFG"],
+      ["QUJD\x0bRUZH", "ABCEFG"],
+      ["QUJDRU\xe4ZH", "ABCEFG"],
     ];
     for (const [data, file] of rows) expect([data, fileOf(data)]).toEqual([data, file]);
   });
 
-  it("reads on where the desktop's parser gives up (parity catalog: mail-base64-reading)", () => {
-    // A last group without its padding. mail-parser drops it — the last one or
-    // two bytes of the file; `atob` read it, and so does this reader.
-    expect(fileOf("QUJDRA")).toBe("ABCD");
-    expect(fileOf("QUJDREU")).toBe("ABCDE");
-    expect(fileOf("SGVsbG8=V2VsdA")).toBe("HelloWelt");
-    // A character that is no base64 is passed over (RFC 2045, 6.8). mail-parser
-    // gives the whole part up at the first one and hands it out as it stands.
-    for (const data of ["QUJD*RUZH", "QUJD--RUZH", "QUJD.RUZH", "QUJD\x0bRUZH", "QUJDRU\xe4ZH"]) {
-      expect([data, fileOf(data)]).toEqual([data, "ABCEFG"]);
-    }
-    // Both again in the text of a message and in an encoded word of a header,
-    // where that parser loses the last characters, or shows what was written.
+  it("reads the text of a message and a word of a header without padding or with a foreign character, as the desktop's parser does", () => {
     const textOf = (lines: string): string | null =>
       parseMessage(latin1(`${HEAD}Subject: Reise${CRLF}Content-Type: text/plain; charset=utf-8${CRLF}Content-Transfer-Encoding: base64${CRLF}${CRLF}${lines}${CRLF}`)).text;
     expect(textOf(`R3LDvMOfZQ==${CRLF}IGF1cyBNw7xuY2hlbi4`)).toBe(SENTENCE);
     expect(textOf(`R3LDvMOfZQ==${CRLF}*IGF1cyBNw7xuY2hlbi4=`)).toBe(SENTENCE);
     expect(decodeWords("=?utf-8?B?R3LDvMOfZQ?=")).toBe("Grüße");
+  });
+
+  it("reads on where the desktop's parser gives up (parity catalog: mail-base64-reading)", () => {
+    // A character that is no base64 in an encoded word of a header is passed
+    // over (RFC 2045, 6.8). mail-parser shows such a word as it was written -
+    // at a hyphen too, which it passes over in a body.
     expect(decodeWords("=?utf-8?B?R3LDvMOf*ZQ==?=")).toBe("Grüße");
-    // In an encoded word that parser gives up on a hyphen too, which it passes over in a body.
     expect(decodeWords("=?utf-8?B?R3LD-vMOfZQ==?=")).toBe("Grüße");
   });
 
@@ -1061,19 +1062,85 @@ describe("mail as it is really built (finding 2026-10-12)", () => {
     expect(previewFromBodyPrefix(nested, undefined, new Map([["content-type", 'multipart/mixed; boundary="b"']]))).toBe("");
   });
 
-  it("reads the parts of a digest as text, where the desktop's parser reads enclosed messages (parity catalog: mail-digest-parts)", () => {
+  it("reads the parts of a digest that name no type as enclosed messages, listed as files, as the desktop's parser does", () => {
     // In a multipart/digest a part that names no type of its own is an
-    // enclosed message (RFC 2046, 5.1.5). This reader does not know that
-    // default: the first enclosed message, its header lines included, is the
-    // text of the digest, and none is listed. The desktop's parser has no text
-    // for it and lists the enclosed messages as files (`mail_imap.rs`).
-    const digest = parseMessage(
+    // enclosed message (RFC 2046, 5.1.5); `mail_imap.rs` holds the same
+    // message. This reader did not know that default (open-items plan 3.78
+    // no. 13): the first enclosed message, its header lines included, was the
+    // text of the digest, and none was listed.
+    const body =
+      `--dg${CRLF}${CRLF}From: anna@example.org${CRLF}Subject: Erste${CRLF}${CRLF}Text der ersten.${CRLF}` +
+      `--dg${CRLF}${CRLF}From: ben@example.org${CRLF}Subject: Zweite${CRLF}${CRLF}Text der zweiten.${CRLF}--dg--${CRLF}`;
+    const digest = parseMessage(`Subject: Reise${CRLF}Content-Type: multipart/digest; boundary="dg"${CRLF}${CRLF}${body}`);
+    expect(digest.text).toBeNull();
+    expect(digest.html).toBeNull();
+    expect(digest.attachments.map((file) => file.mime)).toEqual(["message/rfc822", "message/rfc822"]);
+    // A file is the enclosed message as it was written.
+    const first = digest.parts.find((part) => part.index === digest.attachments[0].index);
+    expect(Buffer.from(first?.bytes ?? []).toString("utf8")).toBe(`From: anna@example.org${CRLF}Subject: Erste${CRLF}${CRLF}Text der ersten.`);
+    // The row has no words of the digest's own either, as the opened message.
+    expect(previewFromBodyPrefix(body, undefined, new Map([["content-type", 'multipart/digest; boundary="dg"']]))).toBe("");
+    // A part of a digest that names its type is read by it, a text as text.
+    const named = parseMessage(
       `Subject: Reise${CRLF}Content-Type: multipart/digest; boundary="dg"${CRLF}${CRLF}` +
-        `--dg${CRLF}${CRLF}From: anna@example.org${CRLF}Subject: Erste${CRLF}${CRLF}Text der ersten.${CRLF}` +
-        `--dg${CRLF}${CRLF}From: ben@example.org${CRLF}Subject: Zweite${CRLF}${CRLF}Text der zweiten.${CRLF}--dg--${CRLF}`,
+        `--dg${CRLF}Content-Type: text/plain; charset=utf-8${CRLF}${CRLF}Inhalt der Sammlung.${CRLF}` +
+        `--dg${CRLF}${CRLF}From: anna@example.org${CRLF}Subject: Erste${CRLF}${CRLF}Text der ersten.${CRLF}--dg--${CRLF}`,
     );
-    expect(digest.text).toBe(`From: anna@example.org${CRLF}Subject: Erste${CRLF}${CRLF}Text der ersten.`);
-    expect(digest.attachments).toEqual([]);
+    expect(named.text).toBe("Inhalt der Sammlung.");
+    expect(named.attachments.map((file) => file.mime)).toEqual(["message/rfc822"]);
+    // An enclosed message outside a digest is a file too, with a name or without.
+    const forwarded = parseMessage(
+      `Subject: Fwd${CRLF}Content-Type: multipart/mixed; boundary="b"${CRLF}${CRLF}` +
+        `--b${CRLF}Content-Type: text/plain; charset=utf-8${CRLF}${CRLF}Siehe unten.${CRLF}` +
+        `--b${CRLF}Content-Type: message/rfc822${CRLF}${CRLF}From: anna@example.org${CRLF}Subject: Erste${CRLF}${CRLF}Text der ersten.${CRLF}--b--${CRLF}`,
+    );
+    expect(forwarded.text).toBe("Siehe unten.");
+    expect(forwarded.attachments.map((file) => file.mime)).toEqual(["message/rfc822"]);
+  });
+
+  it("shows a message of one part in another text type as its text, as the desktop does (open-items plan 3.78 no. 12)", () => {
+    // RFC 2046, 4.1.4: a subtype of text a reader does not know is read as
+    // plain text; RFC 2045, 5.2: a Content-Type that is no type is text/plain.
+    // Such a message opened empty, and no file was listed either.
+    // `mail_imap.rs` holds the same messages.
+    const words = `# Reise${CRLF}${CRLF}Grüße aus München.${CRLF}`;
+    for (const type of ["text/markdown; charset=utf-8", "text/x-patch", "text/enriched", "text", "text/plain charset=utf-8", "", "TEXT/Markdown"]) {
+      const message = parseMessage(`Subject: Reise${CRLF}Content-Type: ${type}${CRLF}${CRLF}${words}`);
+      expect([type, message.text, message.html, message.attachments]).toEqual([type, words, null, []]);
+      expect([type, previewFromBodyPrefix(words, undefined, new Map([["content-type", type]]))]).toEqual([type, "# Reise Grüße aus München."]);
+    }
+    // In base64 too.
+    const encoded = parseMessage(`Subject: Reise${CRLF}Content-Type: text/markdown; charset=utf-8${CRLF}Content-Transfer-Encoding: base64${CRLF}${CRLF}${base64(words)}${CRLF}`);
+    expect(encoded.text).toBe(words);
+    // Attached as a file, it is a file and no text; an invitation has no text (above).
+    const attached = parseMessage(`Subject: Reise${CRLF}Content-Type: text/markdown; name="reise.md"${CRLF}Content-Disposition: attachment; filename="reise.md"${CRLF}${CRLF}${words}`);
+    expect(attached.text).toBeNull();
+    expect(attached.attachments.map((file) => file.name)).toEqual(["reise.md"]);
+    for (const type of ["text/calendar; method=REQUEST", "text/vcard", "application/pdf"]) {
+      expect([type, parseMessage(`Subject: Reise${CRLF}Content-Type: ${type}${CRLF}${CRLF}BEGIN:X${CRLF}`).text]).toEqual([type, null]);
+    }
+    // Inside a multipart a part with an empty Content-Type is plain text, as a part that has none.
+    const empty = parseMessage(`Subject: Reise${CRLF}Content-Type: multipart/mixed; boundary="b"${CRLF}${CRLF}--b${CRLF}Content-Type: ${CRLF}${CRLF}Hallo Marco,${CRLF}--b--${CRLF}`);
+    expect(empty.text).toBe("Hallo Marco,");
+  });
+
+  it("opens the row of a mail written in base64 with its words (open-items plan 3.78 no. 4)", () => {
+    const encoded = (text: string): string => base64(text).replace(/.{76}/g, `$&${CRLF}`);
+    const header = new Map([["content-type", "text/plain; charset=utf-8"], ["content-transfer-encoding", "base64"]]);
+    const long = `${SENTENCE} Wir sehen uns am Freitag am Bahnhof, dann geht es weiter nach Süden.`;
+    const body = encoded(long);
+    // Cut anywhere, the row is the beginning of the text or empty; never marks.
+    for (let cut = 0; cut <= body.length; cut++) {
+      const line = previewFromBodyPrefix(body.slice(0, cut), 400, header);
+      expect([cut, line, long.startsWith(line)]).toEqual([cut, line, true]);
+    }
+    expect(previewFromBodyPrefix(body, 400, header)).toBe(long);
+    // The same text as the first part of a multipart, with its header in the part.
+    const part = `--b${CRLF}Content-Type: text/plain; charset=utf-8${CRLF}Content-Transfer-Encoding: base64${CRLF}${CRLF}${body}${CRLF}--b--${CRLF}`;
+    expect(previewFromBodyPrefix(part, 400, new Map([["content-type", 'multipart/mixed; boundary="b"']]))).toBe(long);
+    // HTML in base64: its words.
+    const html = new Map([["content-type", "text/html; charset=utf-8"], ["content-transfer-encoding", "base64"]]);
+    expect(previewFromBodyPrefix(encoded(`<p>${SENTENCE}</p>`), 400, html)).toBe(SENTENCE);
   });
 
   // ── 3. The opening line of a message whose text lies deeper ───────────────
@@ -1184,6 +1251,56 @@ describe("mail as it is really built (finding 2026-10-12)", () => {
       // The same part as the only one of a multipart.
       const inside = `--bnd${CRLF}Content-Type: ${type}${CRLF}${CRLF}${body}${CRLF}--bnd--${CRLF}`;
       expect([type, previewFromBodyPrefix(inside, undefined, new Map([["content-type", 'multipart/mixed; boundary="bnd"']]))]).toEqual([type, ""]);
+    }
+  });
+});
+
+/**
+ * What the opened message hands on besides its text, read like the desktop's
+ * client reads it (`mail_imap.rs` holds the same messages).
+ */
+describe("the opened message's unsubscribe way and files", () => {
+  beforeEach(() => releaseSocketSessions());
+
+  it("hands on List-Unsubscribe as the sender wrote it, unfolded (finding 2026-10-29)", async () => {
+    // The phone's client never handed the field on: the unsubscribe way the
+    // sender offers was missing from every IMAP mail on the phone.
+    mailboxServer({
+      7: latin1(
+        `${HEAD}Subject: Neu${CRLF}List-Unsubscribe:  <mailto:bye@list.example?subject=unsubscribe>,${CRLF}\t<https://list.example/u/1>${CRLF}` +
+          `List-Unsubscribe-Post: List-Unsubscribe=One-Click${CRLF}Content-Type: text/plain; charset=utf-8${CRLF}${CRLF}Text${CRLF}`,
+      ),
+    });
+    const message = await createSocketMailTransport().fetchMessage(creds, inbox);
+    expect(message.listUnsubscribe).toBe("<mailto:bye@list.example?subject=unsubscribe>, <https://list.example/u/1>");
+    expect(message.listUnsubscribePost).toBe("List-Unsubscribe=One-Click");
+
+    // A field that is there but blank, and none at all, are no route.
+    for (const field of [`List-Unsubscribe:  ${CRLF}`, ""]) {
+      await releaseSocketSessions();
+      mailboxServer({ 7: latin1(`${HEAD}Subject: Neu${CRLF}${field}Content-Type: text/plain; charset=utf-8${CRLF}${CRLF}Text${CRLF}`) });
+      const plain = await createSocketMailTransport().fetchMessage(creds, inbox);
+      expect([field, plain.listUnsubscribe, plain.listUnsubscribePost]).toEqual([field, undefined, undefined]);
+    }
+  });
+
+  it("lists a named picture of a multipart/mixed as a file, with or without a disposition", () => {
+    // The desktop's parser (mail-parser 1.0) would leave such a picture out
+    // of its list by RFC 8621; mail_imap.rs keeps it, as this reader does.
+    const pdf = `--bnd${CRLF}Content-Type: application/pdf; name="rechnung.pdf"${CRLF}Content-Transfer-Encoding: base64${CRLF}Content-Disposition: attachment; filename="rechnung.pdf"${CRLF}${CRLF}AAECA//+${CRLF}`;
+    const pictures: Array<[picture: string, name: string]> = [
+      [`Content-Type: image/jpeg; name="foto.jpg"${CRLF}Content-Transfer-Encoding: base64`, "foto.jpg"],
+      [`Content-Type: image/jpeg; name="IMG_0001.jpeg"${CRLF}Content-Disposition: inline; filename="IMG_0001.jpeg"${CRLF}Content-Transfer-Encoding: base64`, "IMG_0001.jpeg"],
+    ];
+    for (const [picture, name] of pictures) {
+      const parsed = parseMessage(
+        latin1(
+          `${HEAD}Subject: Reise${CRLF}Content-Type: multipart/mixed; boundary="bnd"${CRLF}${CRLF}` +
+            `--bnd${CRLF}Content-Type: text/plain; charset=utf-8${CRLF}${CRLF}Siehe Foto.${CRLF}--bnd${CRLF}${picture}${CRLF}${CRLF}/9j/${CRLF}${pdf}--bnd--${CRLF}`,
+        ),
+      );
+      expect([picture, parsed.text]).toEqual([picture, "Siehe Foto."]);
+      expect([picture, parsed.attachments.map((file) => [file.name, file.mime])]).toEqual([picture, [[name, "image/jpeg"], ["rechnung.pdf", "application/pdf"]]]);
     }
   });
 });

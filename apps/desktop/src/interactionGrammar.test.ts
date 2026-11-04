@@ -331,6 +331,7 @@ describe("modal, menu and bar grammar (E5)", () => {
     [`${UI}/components/anchorRegion.ts`]: "marking a region of a picture is armed; a press elsewhere disarms it (an editor widget, not React)",
     [`${UI}/components/completedTap.ts`]: "a tap counts once its finger is lifted; another pointer coming down cancels it",
     [`${DESKTOP}/services/inputModality.ts`]: "which device is in use, for the focus ring",
+    [`${MOBILE}/lib/useEdgeSwipeBack.ts`]: "back from the left edge on iOS: a touch that starts in the edge strip, wherever it lands, belongs to back - a gesture, not a surface",
     [`${DESKTOP}/components/settings/QuickCaptureSettings.tsx`]: "the shortcut recorder: any press ends the recording, as Escape and the window losing the focus do — a mode, not a surface",
   };
 

@@ -1,6 +1,6 @@
 # Graph
 
-Last reviewed: 2026-10-22
+Last reviewed: 2026-11-02
 
 Plainva's graph is a working tool, not a poster: it shows you where you are, what is connected, what is missing — and you can act on it directly. There is ONE graph engine with three faces.
 
@@ -51,5 +51,5 @@ On the phone this view has the vault map's handling: zoom buttons and a legend, 
 ## Limits
 
 - The graph shows notes (files), not individual paragraphs.
-- Pins and dismissed suggestions live under `.plainva/` and do not travel with sync — the base layout is identical on every device.
+- Pins and dismissed suggestions live under `.plainva/` and do not travel with sync — the base layout is identical on every device. Each device keeps them in a file of its own (`graph.<device>.json`): even when a file service such as Dropbox or iCloud Drive carries the vault folder between devices, no device overwrites another's arrangement.
 - Suggestions are pure vault analyses; nothing leaves your machine.

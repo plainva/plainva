@@ -7,13 +7,14 @@ import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import App from "./App";
 import { TooltipHost, setPlatformServices, keychainSlotName } from "@plainva/ui";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "./services/openExternal";
 import { getSettingsStore } from "./services/settingsStore";
 import { requestSaveFlush } from "./services/saveFlush";
 import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
 import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { getAppVersion } from "./services/whatsNew";
+import { installDiscardQuestion } from "./services/discardQuestionInstall";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
@@ -75,13 +76,18 @@ if (isOwnerWindow) {
 setPlatformServices({
   loadSettings: getSettingsStore,
   credentials: credentialManager,
-  openExternal: (url) => openUrl(url),
+  // Only web, mail and phone addresses reach the opener (the shared rule, § 3.138).
+  openExternal: openExternalUrl,
   // Shared write paths wait for the open editor's pending save before they
   // rewrite a file (graph connect, mention linking, …).
   flushPendingSave: (path) => requestSaveFlush(path),
   // Names the version in the `generated` stamps of the machine write paths
   // (import, mail capture, task sync) — OKF 0.2 provenance, plan P3b.
   appVersion: getAppVersion,
+  // Names this device's own files under `.plainva/` (map pins, recently opened):
+  // the id the sync sidebands use, so devices sharing a vault folder never
+  // write one file (decision E7, Sammelplan § 3.127 Nr. 3).
+  deviceId: () => import("./services/settingsProfile").then((m) => m.getDeviceId()),
   // Readable keychain names (P6). Registered here so the shared mail module
   // uses them too — mobile registers nothing and keeps the legacy shape.
   keychainSlotName,
@@ -89,6 +95,8 @@ setPlatformServices({
   noteAccountRemoved: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
   noteAccountAdded: (vaultKey, kind, localId) => import("./services/settingsProfile").then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
 });
+// "Discard your input?" for every dialog that holds typed input (finding 2026-10-22).
+installDiscardQuestion();
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP
 // to the Tauri http plugin with the Origin-free relay for token POSTs. The
@@ -104,6 +112,19 @@ if (isOwnerWindow) {
   // mailbox, which is why the registration is a function with a test of its
   // own rather than two lines here (`mailSignIn.ts`, finding 2026-10-12).
   registerMailSignIn();
+}
+
+/**
+ * A mailbox connected, changed or removed in one window reaches the composers
+ * and mail tabs of the others (Sammelplan § 3.47 (d)). Every window that draws
+ * mail installs it; without a bus the local event still works.
+ */
+function installMailAccountsRelayQuietly(): void {
+  void import("./services/mail/mailAccountsRelay")
+    .then(({ installMailAccountsRelay }) => installMailAccountsRelay())
+    .catch(() => {
+      /* no bus: one window, the local event is enough */
+    });
 }
 
 // First render waits for the active locale bundle (P2.8): locales are lazy
@@ -159,6 +180,7 @@ void i18nReady.then(async () => {
     // this registration routes it to the owner, which stays the only refresher.
     const { registerClientMailPlatform } = await import("./services/mail/tauriMailTransport");
     registerClientMailPlatform();
+    installMailAccountsRelayQuietly();
     root.render(
       <React.StrictMode>
         <ErrorBoundary>
@@ -177,6 +199,7 @@ void i18nReady.then(async () => {
     return;
   }
 
+  installMailAccountsRelayQuietly();
   root.render(
     <React.StrictMode>
       <ErrorBoundary>

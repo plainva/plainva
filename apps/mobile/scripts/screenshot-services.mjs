@@ -90,8 +90,13 @@ const DEFAULT_ATTACHMENTS = [{ id: "attachment-1", name: "Projektübersicht.txt"
  * A message that does not fit one request goes the way Microsoft describes
  * for several files - `POST /me/messages` (a draft), one
  * `POST .../attachments` per file, `POST .../send` - and arrives in
- * `observed.sent` like any other, marked `viaDraft`. `refuseSends` makes the
- * first sends fail with that HTTP status, either way.
+ * `observed.sent` like any other, marked `viaDraft`. A file over one request
+ * goes through an upload session on the draft (`createUploadSession`, then
+ * PUTs of byte ranges to an address on outlook.office.com that carries its own
+ * authorisation): it arrives among the draft's files with `viaSession: true`,
+ * and `observed.uploads` keeps each range with the `Authorization` it came
+ * with (there should be none). `refuseSends` makes the first sends fail with
+ * that HTTP status, either way.
  *
  * WHOSE sign-in a request travels with can be read back: the token endpoint
  * answers every sign-in with an access token of its own
@@ -113,8 +118,11 @@ const DEFAULT_ATTACHMENTS = [{ id: "attachment-1", name: "Projektübersicht.txt"
  * way); `observed.listed` names each folder whose list has been answered.
  * `failList` makes the list of a folder fail, by folder id, with the given
  * status; `failListFor` every list of one sign-in, by its refresh token. */
-export async function installMailFixture(context, { extra = {}, attachments = DEFAULT_ATTACHMENTS, refuseSends = { times: 0, status: 413 }, signIns = {}, flaggedDelay = 0, listDelay = {}, failList = {}, failListFor = {} } = {}) {
+export async function installMailFixture(context, { extra = {}, attachments = DEFAULT_ATTACHMENTS, refuseSends = { times: 0, status: 413 }, signIns = {}, flaggedDelay = 0, listDelay = {}, failList = {}, failListFor = {}, folderNames = {} } = {}) {
   const messages = structuredClone(MESSAGES);
+  // A folder can carry another name (`folderNames`, by its id) — German
+  // Outlook calls its trash "Gelöschte Elemente".
+  const folders = FOLDERS.map((f) => ({ ...f, displayName: folderNames[f.id] ?? f.displayName }));
   const files = attachments.map((file) => ({ ...file, failsLeft: file.failTimes ?? 0 }));
   const listed = (file) => ({ id: file.id, "@odata.type": file.type ?? FILE_ATTACHMENT, name: file.name, contentType: file.contentType, size: file.size ?? file.content?.length ?? 0 });
   const drafts = new Map();
@@ -142,7 +150,44 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
     })) : null,
   }]));
   const everything = () => [...messages, ...Object.values(others).flat(), ...[...accounts.values()].flatMap(a => a.inbox ?? [])];
-  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [] };
+  const observed = { lists: 0, listed: [], bodies: 0, searches: [], flaggedQueries: [], flaggedAnswered: 0, sent: [], sentWith: [], attachmentFetches: [], tokenRefreshes: 0, tokenRequests: [], requests: [], unexpected: [], uploads: [], moves: [], deletes: [], raws: [] };
+  /**
+   * The list of a folder (by id) of the fixture's own mailbox: the inbox is
+   * `messages`, every other folder a list in `others`, made when first moved
+   * into. A move gives the message a NEW id, as Graph does — the id is the
+   * message's place, and what comes back from the trash is another id.
+   */
+  const folderList = (id) => (id === "inbox" ? messages : (others[id] ??= []));
+  const placeOf = (id) => {
+    for (const [folderId, list] of [["inbox", messages], ...Object.entries(others)]) {
+      const index = list.findIndex((m) => m.id === id);
+      if (index >= 0) return { folderId, list, index };
+    }
+    return null;
+  };
+  let moveCount = 0;
+  // Upload sessions by their address: the draft, the file's item and the bytes so far.
+  const sessions = new Map();
+  await context.route("https://outlook.office.com/**", async (route) => {
+    const request = route.request();
+    const session = sessions.get(request.url());
+    if (!session) return route.fulfill({ status: 404, json: { error: { code: "ErrorItemNotFound" } } });
+    if (request.method() === "DELETE") {
+      sessions.delete(request.url());
+      return route.fulfill({ status: 204, body: "" });
+    }
+    const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(request.headers()["content-range"] ?? "");
+    const bytes = request.postDataBuffer() ?? Buffer.alloc(0);
+    observed.uploads.push({ range: request.headers()["content-range"] ?? null, length: bytes.length, authorization: request.headers().authorization ?? null });
+    if (request.method() !== "PUT" || !range || Number(range[1]) !== session.received.length || Number(range[3]) !== session.item.size || bytes.length !== Number(range[2]) - Number(range[1]) + 1) {
+      return route.fulfill({ status: 400, json: { error: { code: "InvalidRange", message: "The range does not follow on." } } });
+    }
+    session.received = Buffer.concat([session.received, bytes]);
+    if (session.received.length < session.item.size) return route.fulfill({ json: { nextExpectedRanges: [`${session.received.length}-`] } });
+    sessions.delete(request.url());
+    session.draft.attachments.push({ "@odata.type": FILE_ATTACHMENT, name: session.item.name, contentType: session.item.contentType, contentBytes: session.received.toString("base64"), viaSession: true });
+    return route.fulfill({ status: 201, headers: { Location: `${request.url().split("?")[0]}/done` }, body: "" });
+  });
   await context.route("https://login.microsoftonline.com/**", async (route) => {
     if (!route.request().url().includes("/oauth2/v2.0/token")) return route.abort("blockedbyclient");
     observed.tokenRefreshes++;
@@ -166,9 +211,9 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
           ? { id: account.id, mail: account.address, userPrincipalName: account.address, displayName: account.address }
           : { id: "fixture-anna", mail: "anna@example.org", userPrincipalName: "anna@example.org", displayName: "Anna Beispiel" } });
       }
-      if (path === "/me/mailFolders") return route.fulfill({ json: { value: FOLDERS } });
+      if (path === "/me/mailFolders") return route.fulfill({ json: { value: folders } });
       const folder = /^\/me\/mailFolders\/([^/]+)$/.exec(path);
-      if (folder) return route.fulfill({ json: FOLDERS.find(f => f.id === folder[1]) ?? { id: folder[1], unreadItemCount: 0 } });
+      if (folder) return route.fulfill({ json: folders.find(f => f.id === folder[1]) ?? { id: folder[1], unreadItemCount: 0 } });
       const list = /^\/me\/mailFolders\/([^/]+)\/messages$/.exec(path);
       if (list) {
         const inFolder = list[1] === "inbox" ? account?.inbox ?? messages : others[list[1]] ?? [];
@@ -192,6 +237,14 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
         return route.fulfill({ json: { value: inFolder, "@odata.count": inFolder.length } });
       }
       if (path.endsWith("/messageRules")) return route.fulfill({ json: { value: [] } });
+      // The raw message ("+ .eml"): its subject and text as a MIME message. `observed.raws` counts what was asked.
+      const raw = /^\/me\/messages\/([^/]+)\/\$value$/.exec(path);
+      const rawItem = raw && everything().find(m => m.id === raw[1]);
+      if (rawItem) {
+        observed.raws.push(rawItem.id);
+        const text = rawItem.body?.content ?? rawItem.bodyPreview ?? "";
+        return route.fulfill({ status: 200, contentType: "message/rfc822", body: `Subject: ${rawItem.subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${text}\r\n` });
+      }
       const message = /^\/me\/messages\/([^/]+)$/.exec(path);
       if (message) {
         const item = everything().find(m => m.id === message[1]);
@@ -210,6 +263,28 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
         return route.fulfill({ json: { ...listed(file), ...(file.content ? { contentBytes: file.content.toString("base64") } : {}) } });
       }
     }
+    // Moving and deleting, in the fixture's own mailbox.
+    const moving = /^\/me\/messages\/([^/]+)\/move$/.exec(path);
+    if (request.method() === "POST" && moving) {
+      const at = placeOf(moving[1]);
+      const { destinationId } = request.postDataJSON();
+      observed.moves.push({ id: moving[1], from: at?.folderId ?? null, to: destinationId, authorization });
+      if (!at) return route.fulfill({ status: 404, json: { error: { code: "ErrorItemNotFound" } } });
+      const [item] = at.list.splice(at.index, 1);
+      const next = { ...item, id: `${item.id}-moved-${++moveCount}` };
+      const target = folderList(destinationId);
+      target.push(next);
+      target.sort((a, b) => String(b.receivedDateTime).localeCompare(String(a.receivedDateTime)));
+      return route.fulfill({ status: 201, json: next });
+    }
+    if (request.method() === "DELETE" && /^\/me\/messages\/[^/]+$/.test(path) && !/^\/me\/messages\/draft-\d+$/.test(path)) {
+      const id = path.slice("/me/messages/".length);
+      const at = placeOf(id);
+      observed.deletes.push({ id, from: at?.folderId ?? null, authorization });
+      if (!at) return route.fulfill({ status: 404, json: { error: { code: "ErrorItemNotFound" } } });
+      at.list.splice(at.index, 1);
+      return route.fulfill({ status: 204, body: "" });
+    }
     if (request.method() === "PATCH") {
       const item = everything().find(m => path === `/me/messages/${m.id}`);
       if (item) { Object.assign(item, request.postDataJSON()); return route.fulfill({ status: 204 }); }
@@ -227,8 +302,14 @@ export async function installMailFixture(context, { extra = {}, attachments = DE
       drafts.set(id, { message: request.postDataJSON(), attachments: [] });
       return route.fulfill({ status: 201, json: { id } });
     }
-    const step = /^\/me\/messages\/(draft-\d+)(?:\/(attachments|send))?$/.exec(path);
+    const step = /^\/me\/messages\/(draft-\d+)(?:\/(attachments|send|attachments\/createUploadSession))?$/.exec(path);
     const draft = step && drafts.get(step[1]);
+    if (draft && request.method() === "POST" && step[2] === "attachments/createUploadSession") {
+      const item = request.postDataJSON().AttachmentItem;
+      const uploadUrl = `https://outlook.office.com/api/v2.0/Users('fixture')/Messages('${step[1]}')/AttachmentSessions('s${sessions.size + 1}')?authtoken=fixture-session`;
+      sessions.set(uploadUrl, { draft, item, received: Buffer.alloc(0) });
+      return route.fulfill({ status: 201, json: { uploadUrl, expirationDateTime: "2026-10-30T12:00:00Z", nextExpectedRanges: ["0-"] } });
+    }
     if (draft && request.method() === "POST" && step[2] === "attachments") {
       draft.attachments.push(request.postDataJSON());
       return route.fulfill({ status: 201, json: { id: `${step[1]}-file-${draft.attachments.length}` } });

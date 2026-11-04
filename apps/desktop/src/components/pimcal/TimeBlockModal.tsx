@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Modal, Segmented } from "@plainva/ui";
+import { Button, Modal, Segmented, useDiscardGuard } from "@plainva/ui";
 import { Select } from "../Select";
 import { minutesToTime, timeToMinutes, type TaskBlockValues } from "../../services/pim/calendarModel";
 
@@ -40,6 +40,12 @@ export function TimeBlockModal(props: TimeBlockModalProps) {
   const [choice, setChoice] = useState<DurationChoice>("60");
   const [customMinutes, setCustomMinutes] = useState("90");
   const [calendarKey, setCalendarKey] = useState(initialCalendarKey || calendarOptions[0]?.value || "");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const [openedCalendar] = useState(calendarKey);
+  const cancel = useDiscardGuard(
+    dayKey !== initialDayKey || startTime !== initialStartTime || choice !== "60" || customMinutes !== "90" || calendarKey !== openedCalendar,
+    onCancel,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,12 +76,12 @@ export function TimeBlockModal(props: TimeBlockModalProps) {
   return (
     <Modal
       title={t("pim.blockTime", { defaultValue: "Zeit blocken" })}
-      onClose={onCancel}
+      onClose={cancel}
       size="sm"
       testId="task-block-modal"
       footer={
         <>
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
+          <Button variant="ghost" size="sm" onClick={cancel} disabled={busy}>
             {t("common.cancel", { defaultValue: "Abbrechen" })}
           </Button>
           <Button variant="primary" size="sm" onClick={() => void submit()} disabled={!valid || busy} data-testid="task-block-submit">

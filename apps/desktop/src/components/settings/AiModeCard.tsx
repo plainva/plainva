@@ -16,7 +16,7 @@ export function AiModeCard({ session, state, onSetUp }: { session: AiSession; st
   const { t, i18n } = useTranslation();
   const facts = modeFacts(t, state, i18n.language);
   return (
-    <SettingCard label={t("ai.mode.title")}>
+    <SettingCard label={t("ai.mode.title")} info={facts.localOnly ? t("ai.mode.notThis") : t("ai.mode.note")}>
       <SettingRow label={facts.title} desc={facts.body}>
         {facts.empty ? (
           <Button size="sm" variant="tonal" icon={<Plus size={ICON.ui} />} onClick={onSetUp} data-testid="ai-mode-setup">
@@ -24,20 +24,17 @@ export function AiModeCard({ session, state, onSetUp }: { session: AiSession; st
           </Button>
         ) : null}
       </SettingRow>
-      <SettingRow label={t("ai.mode.switch")} desc={t("ai.mode.switchDesc")}>
+      <SettingRow label={t("ai.mode.switch")} info={t("ai.mode.switchDesc")}>
         <Switch checked={facts.localOnly} label={t("ai.mode.switch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, localOnly: on }))} testId="ai-local-only" />
       </SettingRow>
-      {facts.localOnly ? (
+      {facts.localOnly && (
         <>
           {/* Only what is set up is listed: a row per thing that rests, each with what resting means for it. */}
           <SettingCardNote>{facts.rests.length ? t("ai.mode.rests.title") : t("ai.mode.rests.none")}</SettingCardNote>
           {facts.rests.map((rest) => (
             <SettingRow key={rest.kind} label={rest.label} desc={rest.desc} />
           ))}
-          <SettingCardNote>{t("ai.mode.notThis")}</SettingCardNote>
         </>
-      ) : (
-        <SettingCardNote>{t("ai.mode.note")}</SettingCardNote>
       )}
     </SettingCard>
   );

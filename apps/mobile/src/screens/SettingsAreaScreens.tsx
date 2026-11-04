@@ -2,17 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Capacitor } from "@capacitor/core";
 import { ChevronRight } from "lucide-react";
-import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, CommittedTextInput, userGuideUrl } from "@plainva/ui";
-import { Browser } from "@capacitor/browser";
-import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
+import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
+import { ZipBackupGroup } from "../components/ZipBackupGroup";
+import { errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
-import { type DefaultView } from "../services/mobileSettings";
-import { dailyNoteTypeOf, noteTypeOf } from "../services/newNote";
+import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
+import { noteTypeOf } from "../services/newNote";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
-import { deletionLogChecker } from "../services/syncService";
 import { AppBar } from "../components/AppBar";
 import { TemplateRules } from "../components/TemplateRules";
 import { FolderField } from "../components/FolderField";
@@ -53,12 +51,26 @@ function AreaHeader({ id, title, onBack }: { id: string; title: string; onBack: 
   );
 }
 
-/** Editor & notes: the default note view. */
+/** Editor & notes: the view, writing, and the journal's device settings. */
 export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettingsState();
+  // Device-local, off by default (plan Journal-Erweiterungen, E6).
+  const [placeStamp, setPlaceStamp] = useState(placeStampEnabled);
   const viewLabel = (view: DefaultView) =>
     t(view === "edit" ? "mobile.defaultViewEdit" : "mobile.defaultViewRead");
+  // The first button of a note's app bar (F9): the same names the note uses.
+  const headLabel = (button: NoteHeadButton) =>
+    t(button === "outline" ? "rightPanel.outline" : button === "backlinks" ? "rightPanel.backlinks" : "mobile.toggleBookmark");
+  const pickHeadButton = () => {
+    void mSelect({
+      title: t("mobile.noteHeadButton"),
+      options: NOTE_HEAD_BUTTONS.map((b) => ({ value: b, label: headLabel(b) })),
+      value: settings.noteHeadButton,
+    }).then((v) => {
+      if (v !== null) update({ noteHeadButton: v as NoteHeadButton });
+    });
+  };
   const pickDefaultView = () => {
     void mSelect({
       title: t("mobile.settingDefaultView"),
@@ -72,18 +84,30 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AreaHeader id="editor" onBack={onBack} title={t("settings.sectionEditor")} />
       <div className="m-settings">
-        <GroupCard><RowList><MobileSettingRow
-          label={t("mobile.settingDefaultView")}
-          onClick={pickDefaultView}
-          value={viewLabel(settings.defaultView)}
-        />
+        {/* The explanations sit behind each row's ⓘ (settings plan 2026-10-29,
+            appendix 2.3): a note just created opens to be written in either way
+            (wish 2026-10-19), and what the head button leaves out stays within
+            reach. */}
+        <SectionLabel>{t("settings.groupView")}</SectionLabel>
+        <GroupCard><RowList>
+          <Row
+            end={<><span className="m-prop-val">{viewLabel(settings.defaultView)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+            info={t("mobile.defaultViewNewNotes")}
+            onClick={pickDefaultView}
+            title={t("mobile.settingDefaultView")}
+          />
           <Row title={t("mobile.readerAutoHide")} end={<Switch checked={settings.readerAutoHide} label={t("mobile.readerAutoHide")} onChange={(readerAutoHide) => update({ readerAutoHide })} />} />
+          <Row
+            end={<><span className="m-prop-val">{headLabel(settings.noteHeadButton)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+            info={t("mobile.noteHeadButtonHint")}
+            onClick={pickHeadButton}
+            title={t("mobile.noteHeadButton")}
+          />
         </RowList></GroupCard>
-        {/* A note just created opens to be written in either way (wish 2026-10-19). */}
-        <p className="m-hint">{t("mobile.defaultViewNewNotes")}</p>
 
-        {/* Spell checking (plan Befunde 2026-10-06, E3): the same device switch
-            as on the desktop. What checks is the keyboard and the system. */}
+        {/* Spell checking (plan Befunde 2026-10-06, E3) and asking before an
+            empty link becomes a note (S39) — one group, as on the desktop
+            (appendix 2.3 B1). What checks is the keyboard and the system. */}
         <SectionLabel>{t("settings.groupWriting")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -93,36 +117,53 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
                 label={t("settings.spellcheck")}
                 onChange={(next) => update({ spellcheck: next })}
               />}
+              info={t("settings.spellcheckDesc")}
               title={t("settings.spellcheck")}
             />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("settings.spellcheckDesc")}</p>
-
-        {/* S39: the desktop has had this since the unresolved-links work; the
-            phone created the note without asking because the toggle had no
-            mobile control, not because anyone decided it should differ. */}
-        <SectionLabel>{t("settings.groupLinks")}</SectionLabel>
-        <GroupCard>
-          <RowList>
             <Row
               end={<Switch
                 checked={settings.askBeforeCreateLink}
                 label={t("settings.askBeforeCreateLink")}
                 onChange={(next) => update({ askBeforeCreateLink: next })}
               />}
+              info={t("settings.askBeforeCreateLinkDesc")}
               title={t("settings.askBeforeCreateLink")}
             />
           </RowList>
         </GroupCard>
-        {/* Describes the whole card, so it keeps the page edge. */}
-        <p className="m-hint">{t("settings.askBeforeCreateLinkDesc")}</p>
+
+        {/* The journal's device settings (appendix 2.3 B2): the place stamp
+            came from Appearance. Device-local and OFF by default: one's phone
+            and one's desk are different places to be asked about one's
+            position; the permission is asked on the first press, never here
+            (plan Journal-Erweiterungen, E6). */}
+        <SectionLabel>{t("settings.editorGroupJournal")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={placeStamp}
+                testId="place-stamp-switch"
+                label={t("settings.placeStamp")}
+                onChange={(next) => { setPlaceStamp(next); setPlaceStampEnabled(next); }}
+              />}
+              info={t("settings.placeStampDesc")}
+              title={t("settings.placeStamp")}
+              wrap
+            />
+          </RowList>
+        </GroupCard>
       </div>
     </div>
   );
 }
 
-/** Content & structure: capture/daily/template folders + the daily template. */
+/**
+ * Notes & filing (settings plan 2026-10-29, E9): the half of the former
+ * "Content & structure" about where notes go and what they start as. The daily
+ * note and journal fields are their own screen (`JournalAreaScreen`), as on
+ * the desktop.
+ */
 export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettingsState();
@@ -142,42 +183,10 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       if (v !== null) void update({ commentNotifyLevel: v });
     });
   };
-  const [pickFor, setPickFor] = useState<
-    "dailyFolder" | "inboxFolder" | "attachmentFolder" | "templateFolder" | null
-  >(null);
-
-  /** When this vault's day ends (plan Journal-Erweiterungen, E1) — the desktop's select, as a sheet. */
-  const dayEndLabel = (minutes: number) =>
-    clampBoundary(minutes) === 0 ? t("settings.dayEndsAtMidnight") : boundaryLabel(minutes);
-  const pickDayEndsAt = () => {
-    void mSelect({
-      title: t("settings.dayEndsAt"),
-      options: DAY_END_CHOICES.map((minutes) => ({ value: String(minutes), label: dayEndLabel(minutes) })),
-      value: String(clampBoundary(settings.dayEndsAt)),
-    }).then((picked) => {
-      if (picked !== null) void update({ dayEndsAt: clampBoundary(Number(picked)) });
-    });
-  };
-
-  // Daily template (package I, desktop dailyNotesTemplate parity): fresh
-  // dailies seed from a template file in the template folder; "—" = none.
-  const pickDailyTemplate = () => {
-    void (async () => {
-      const items = await listTemplates(vault.adapter, settings.templateFolder).catch(() => []);
-      const picked = await mSelect({
-        title: t("settings.dailyNotesTemplate"),
-        options: [
-          { value: "", label: "—" },
-          ...items.map((it) => {
-            const file = it.path.split("/").pop() ?? it.path;
-            return { value: file, label: it.title };
-          }),
-        ],
-        value: settings.dailyTemplate,
-      });
-      if (picked !== null) update({ dailyTemplate: picked });
-    })();
-  };
+  const [pickFor, setPickFor] = useState<"inboxFolder" | "attachmentFolder" | "templateFolder" | null>(null);
+  // The reviewer name and the remark notifications travel with nothing: the
+  // profile catalog has no field for them (E14), so they wear the badge.
+  const deviceOnly = (field?: string) => !travelsWithVault(field, "mobile");
 
   /** The `.base` this vault treats as its task database — the same setting the
    *  desktop has, so the tasks area shows entries and can promote into it. */
@@ -217,7 +226,12 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
         priorityKey: t("tasks.dbPriorityKey"),
         priorityOptions: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")],
-      }).catch(() => null);
+      }).catch((e: unknown) => {
+        // Said with its reason (Sammelplan § 3.63 no. 1): a refusal — a member
+        // without write access in an encrypted workspace — said nothing here.
+        toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
+        return null;
+      });
       if (!path) return;
       update({ taskDatabase: path });
       // The phone has no watcher to find the new file: the index is told
@@ -230,19 +244,21 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
     <div className="m-page">
       <AreaHeader id="content" onBack={onBack} title={t("settings.sectionContent")} />
       <div className="m-settings">
-        <SectionLabel>{t("mobile.settingFolders")}</SectionLabel>
+        <SectionLabel>{t("settings.groupFolders")}</SectionLabel>
         <GroupCard>
           <RowList>
-            {/* Normalized when saved, not per keystroke (E23): `|| "Daily"`
+            <FolderField
+              info={t("settings.templateFolderDesc")}
+              label={t("mobile.settingTemplateFolder")}
+              normalize={(v) => v.trim() || "Templates"}
+              onSave={(v) => update({ templateFolder: v })}
+              onPick={() => setPickFor("templateFolder")}
+              value={settings.templateFolder}
+            />
+            {/* Normalized when saved, not per keystroke (E23): `|| "Inbox"`
                 refilled a cleared field while one was still typing. */}
             <FolderField
-              label={t("mobile.settingDailyFolder")}
-              normalize={(v) => v.trim() || "Daily"}
-              onSave={(v) => update({ dailyFolder: v })}
-              onPick={() => setPickFor("dailyFolder")}
-              value={settings.dailyFolder}
-            />
-            <FolderField
+              info={t("settings.inboxFolderDesc")}
               label={t("mobile.settingInboxFolder")}
               normalize={(v) => v.trim() || "Inbox"}
               onSave={(v) => update({ inboxFolder: v })}
@@ -250,93 +266,27 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
               value={settings.inboxFolder}
             />
             <FolderField
+              hint={t("settings.attachmentFolderHint")}
+              info={t("settings.attachmentFolderDesc")}
               label={t("settings.attachmentFolder")}
               normalize={(v) => v.trim()}
               onSave={(v) => update({ attachmentFolder: v })}
               onPick={() => setPickFor("attachmentFolder")}
               value={settings.attachmentFolder}
             />
-            <FolderField
-              label={t("mobile.settingTemplateFolder")}
-              normalize={(v) => v.trim() || "Templates"}
-              onSave={(v) => update({ templateFolder: v })}
-              onPick={() => setPickFor("templateFolder")}
-              value={settings.templateFolder}
-            />
           </RowList>
         </GroupCard>
 
-        <GroupCard>
-          <RowList>
-            <MobileSettingRow
-              label={t("settings.dailyNotesTemplate")}
-              onClick={pickDailyTemplate}
-              value={settings.dailyTemplate || "—"}
-            />
-            <MobileSettingRow
-              label={t("settings.taskDatabase")}
-              onClick={pickTaskDatabase}
-              value={settings.taskDatabase || "—"}
-            />
-            <MobileSettingRow
-              label={t("settings.dayEndsAt")}
-              onClick={pickDayEndsAt}
-              value={dayEndLabel(settings.dayEndsAt)}
-            />
-          </RowList>
-        </GroupCard>
+        <TemplateRules onChange={update} settings={settings} vault={vault} />
 
-        {/* S39: the note-shape fields. They already travelled here through the
-            settings profile — a value set on the desktop applied on the phone,
-            but nothing here could read or change it. Each carries its own
-            explanation now, so the sentence sits with the field it belongs to
-            instead of below whatever happened to come next. */}
-        <SectionLabel>{t("settings.dailyNotes")}</SectionLabel>
+        {/* The type field saves what the creation paths read
+            (`services/newNote.ts`): the name without blanks around it, and the
+            default for a field left empty — which the placeholder names while
+            it is empty. */}
+        <SectionLabel>{t("settings.groupNewNotes")}</SectionLabel>
         <GroupCard>
           <RowList>
-            <SettingField hint={t("settings.dailyNotesFormatDesc")} label={t("settings.dailyNotesFormat")}>
-              {/* The field owns its draft (TestFlight 2026-09-22, E23): bound to the
-                  stored value, every key waited for the asynchronous save and the
-                  caret jumped to the end; a second quick key was lost. */}
-              <CommittedTextInput
-                data-testid="daily-format"
-                normalize={sanitizeDailyNoteFormat}
-                onSave={(v) => update({ dailyFormat: v })}
-                value={settings.dailyFormat}
-              />
-            </SettingField>
-            {/* The two type fields save what the creation paths read
-                (`services/newNote.ts`): the name without blanks around it, and
-                the default for a field left empty — which the placeholder
-                names while it is empty. A blank used to be saved as it was
-                and written into new notes as an empty `type`. */}
-            <SettingField label={t("settings.dailyNoteType")}>
-              <CommittedTextInput
-                normalize={dailyNoteTypeOf}
-                onSave={(v) => update({ dailyNoteType: v })}
-                placeholder={dailyNoteTypeOf("")}
-                value={settings.dailyNoteType}
-              />
-            </SettingField>
-            <SettingField hint={t("settings.journalMoodDesc")} label={t("settings.journalMood")}>
-              <CommittedTextInput
-                data-testid="journal-mood-property"
-                normalize={(v) => v.trim()}
-                onSave={(v) => update({ journalMoodProperty: v })}
-                placeholder="stimmung"
-                value={settings.journalMoodProperty}
-              />
-            </SettingField>
-            <SettingField hint={t("settings.journalHeadingDesc")} label={t("settings.journalHeading")}>
-              <CommittedTextInput
-                data-testid="journal-heading"
-                normalize={normalizeJournalHeading}
-                onSave={(v) => update({ journalHeading: v })}
-                placeholder={DEFAULT_JOURNAL_HEADING}
-                value={settings.journalHeading}
-              />
-            </SettingField>
-            <SettingField hint={t("settings.defaultNoteTypeDesc")} label={t("settings.defaultNoteType")}>
+            <SettingField info={t("settings.defaultNoteTypeDesc")} label={t("settings.defaultNoteType")}>
               <CommittedTextInput
                 normalize={noteTypeOf}
                 onSave={(v) => update({ defaultNoteType: v })}
@@ -344,29 +294,79 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                 value={settings.defaultNoteType}
               />
             </SettingField>
-            <SettingField hint={t("settings.verifierNameDesc")} label={t("settings.verifierName")}>
+            {/* C15: which extra file types open in Plainva as text — the vault's
+                list, the same the desktop edits, applied to every path that
+                opens a file (`setExtraTextExtensions`, Sammelplan § 3.169). */}
+            <SettingField hint={t("settings.textFileExtensionsHint")} info={t("settings.textFileExtensionsDesc")} label={t("settings.textFileExtensions")}>
+              <CommittedTextInput
+                data-testid="text-file-extensions"
+                onSave={(v) => update({ textFileExtensions: splitTextFileExtensions(v) })}
+                placeholder="fountain, adoc"
+                value={settings.textFileExtensions.join(", ")}
+              />
+            </SettingField>
+          </RowList>
+        </GroupCard>
+
+        <SectionLabel>{t("settings.groupDatabases")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<><span className="m-prop-val">{settings.taskDatabase || "—"}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              info={t("settings.taskDatabaseDesc")}
+              onClick={pickTaskDatabase}
+              title={t("settings.taskDatabase")}
+            />
+            {/* Whether a view's type offers board, calendar, timeline, graph and
+                pinboard — the desktop's switch, the same stored value. */}
+            <Row
+              end={<Switch
+                checked={settings.extendedDatabases}
+                label={t("settings.allowExtendedDb")}
+                onChange={(next) => void update({ extendedDatabases: next })}
+                testId="extDb"
+              />}
+              info={t("settings.allowExtendedDbInfoMobile")}
+              subtitle={t("settings.allowExtendedDbDesc")}
+              title={t("settings.allowExtendedDb")}
+              // The long label breaks rather than clips, as the archive switch does.
+              wrap
+            />
+          </RowList>
+        </GroupCard>
+
+        {/* Stufe F, F3: the reviewer name and the same three questions the
+            desktop asks about remarks, in the same order - whether at all,
+            about what, and how much the message may say. The privacy switch
+            sits here because it is needed in the moment notifications are
+            switched on (§5, FB2). */}
+        <SectionLabel>{t("settings.groupAnnotations")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <SettingField deviceOnly={deviceOnly(undefined)} info={t("settings.verifierNameDesc")} label={t("settings.verifierName")}>
               <CommittedTextInput
                 onSave={(v) => update({ verifierName: v })}
                 placeholder={t("trust.verifierPlaceholder")}
                 value={settings.verifierName}
               />
             </SettingField>
-          </RowList>
-        </GroupCard>
-
-        <TemplateRules onChange={update} settings={settings} vault={vault} />
-
-        {/* Stufe F, F3: the same three questions the desktop asks, in the same
-            order - whether at all, about what, and how much the message may
-            say. The privacy switch sits here rather than in a privacy area,
-            because it is needed in the moment notifications are switched on
-            (§5, FB2). The sentence under the first row states the phone's limit
-            plainly: no timer runs in the background, so it notices on opening
-            rather than at once. */}
-        <SectionLabel>{t("commentNotify.section")}</SectionLabel>
-        <GroupCard>
-          <RowList>
+            {/* The editor has honoured it all along (EditorHost); now it can be
+                changed here as on the desktop. A vault setting: it travels. */}
             <Row
+              end={<Switch
+                checked={settings.commentAnchors}
+                label={t("settings.commentAnchors")}
+                onChange={(next) => void update({ commentAnchors: next })}
+                testId="commentAnchors"
+              />}
+              info={t("settings.commentAnchorsDesc")}
+              subtitle={t("settings.commentAnchorsHint")}
+              title={t("settings.commentAnchors")}
+              // The long label breaks rather than clips, as the archive switch does.
+              wrap
+            />
+            <Row
+              deviceOnly={deviceOnly(undefined)}
               end={<Switch
                 checked={settings.commentNotifyEnabled}
                 label={t("commentNotify.enable")}
@@ -382,30 +382,32 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                   })();
                 }}
               />}
+              info={t("commentNotify.enableHint")}
               title={t("commentNotify.enable")}
             />
             {settings.commentNotifyEnabled && (
               <>
-                <MobileSettingRow
-                  label={t("commentNotify.level")}
+                <Row
+                  deviceOnly={deviceOnly(undefined)}
+                  end={<><span className="m-prop-val">{t(`commentNotify.level${levelSuffix(settings.commentNotifyLevel)}`)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
                   onClick={pickNotifyLevel}
-                  value={t(`commentNotify.level${levelSuffix(settings.commentNotifyLevel)}`)}
+                  subtitle={t(`commentNotify.level${levelSuffix(settings.commentNotifyLevel)}Hint`)}
+                  title={t("commentNotify.level")}
                 />
                 <Row
+                  deviceOnly={deviceOnly(undefined)}
                   end={<Switch
                     checked={settings.commentNotifyPreview}
                     label={t("commentNotify.preview")}
                     onChange={(next) => void update({ commentNotifyPreview: next })}
                   />}
+                  info={t("commentNotify.previewHint")}
                   title={t("commentNotify.preview")}
                 />
               </>
             )}
           </RowList>
         </GroupCard>
-        <p className="m-hint">
-          {settings.commentNotifyEnabled ? t("commentNotify.previewHint") : t("commentNotify.enableHint")}
-        </p>
       </div>
 
       {pickFor && (
@@ -422,17 +424,26 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
   );
 }
 
-/** Backup & version history: the snapshot-retention pickers (package G). */
-export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
+/**
+ * Backup & version history: the snapshot-retention pickers (package G), and
+ * since the settings plan of 2026-10-29 the restore of deleted files beside
+ * them (move 53) — the same safety net as the versions. Each retention row
+ * says what it deletes, as on the desktop: that is a consequence, not an
+ * explanation.
+ */
+export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettingsState();
+  const [deleted, setDeleted] = useState(false);
   const pickBackupInterval = () => {
     void mSelect({
       title: t("settings.versionInterval"),
       message: t("settings.versionIntervalDesc"),
-      options: [0, 60, 120, 300, 600].map((sec) => ({
+      // The desktop's choices too (`backupChoices.ts`); a value set there
+      // stays among them.
+      options: choicesWith(VERSION_INTERVAL_CHOICES, settings.backupIntervalSeconds).map((sec) => ({
         value: String(sec),
-        label: sec === 0 ? t("settings.versionIntervalEvery") : `${sec / 60} min`,
+        label: versionIntervalLabel(sec, t("settings.versionIntervalEvery")),
       })),
       value: String(settings.backupIntervalSeconds),
     }).then((v) => {
@@ -443,7 +454,7 @@ export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
     void mSelect({
       title: t("settings.versionMaxCount"),
       message: t("settings.versionMaxCountDesc"),
-      options: [20, 50, 100, 200].map((n) => ({ value: String(n), label: String(n) })),
+      options: choicesWith(VERSION_MAX_COUNT_CHOICES, settings.backupMaxPerFile).map((n) => ({ value: String(n), label: String(n) })),
       value: String(settings.backupMaxPerFile),
     }).then((v) => {
       if (v !== null) update({ backupMaxPerFile: Number(v) });
@@ -453,7 +464,7 @@ export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
     void mSelect({
       title: t("settings.versionMaxAge"),
       message: t("settings.versionMaxAgeDesc"),
-      options: [0, 30, 90, 365].map((d) => ({
+      options: choicesWith(VERSION_MAX_AGE_CHOICES, settings.backupMaxAgeDays, "last").map((d) => ({
         value: String(d),
         label: d === 0 ? t("settings.versionAgeUnlimited") : t("settings.versionAgeDays", { days: d }),
       })),
@@ -466,45 +477,49 @@ export function BackupAreaScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AreaHeader id="backup" onBack={onBack} title={t("settings.backupSection")} />
       <div className="m-settings">
+        {/* The scheduled ZIP archive came here from the sync screen (move 21). */}
+        <ZipBackupGroup vault={vault} />
         <SectionLabel>{t("versions.title")}</SectionLabel>
         <GroupCard>
           <RowList>
-            <MobileSettingRow
-              label={t("settings.versionInterval")}
+            <Row
+              end={<><span className="m-prop-val">{versionIntervalLabel(settings.backupIntervalSeconds, t("settings.versionIntervalEvery"))}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              info={t("settings.versionIntervalDesc")}
               onClick={pickBackupInterval}
-              value={
-                settings.backupIntervalSeconds === 0
-                  ? t("settings.versionIntervalEvery")
-                  : `${settings.backupIntervalSeconds / 60} min`
-              }
+              title={t("settings.versionInterval")}
             />
-            <MobileSettingRow
-              label={t("settings.versionMaxCount")}
+            <Row
+              end={<><span className="m-prop-val">{String(settings.backupMaxPerFile)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               onClick={pickBackupCount}
-              value={String(settings.backupMaxPerFile)}
+              subtitle={t("settings.versionMaxCountDesc")}
+              title={t("settings.versionMaxCount")}
             />
-            <MobileSettingRow
-              label={t("settings.versionMaxAge")}
+            <Row
+              end={<><span className="m-prop-val">{settings.backupMaxAgeDays === 0 ? t("settings.versionAgeUnlimited") : t("settings.versionAgeDays", { days: settings.backupMaxAgeDays })}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
               onClick={pickBackupAge}
-              value={
-                settings.backupMaxAgeDays === 0
-                  ? t("settings.versionAgeUnlimited")
-                  : t("settings.versionAgeDays", { days: settings.backupMaxAgeDays })
-              }
+              subtitle={t("settings.versionMaxAgeDesc")}
+              title={t("settings.versionMaxAge")}
+            />
+            <Row
+              data-testid="backup-deleted-files"
+              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+              info={t("settings.deletedFilesDesc")}
+              onClick={() => setDeleted(true)}
+              title={t("versions.deletedTitle")}
             />
           </RowList>
         </GroupCard>
       </div>
+      {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={vault} />}
     </div>
   );
 }
 
-/** About & diagnostics: the 5-tap logo, diagnostics export, OKF explainer. */
+/** About & diagnostics: the 5-tap logo, diagnostics export. "What is OKF?" is the info of Maintenance › OKF format since 2026-10-29 (move 17). */
 export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
   const { t, i18n: i18nInstance } = useTranslation();
   const [, setTick] = useState(0);
   const [hailing, setHailing] = useState(false);
-  const [okfInfo, setOkfInfo] = useState(false);
   // Version and build under the logo (Labs channel, harness plan §21a.4): the
   // release, the dev build and a Labs build can sit on one phone.
   const [appVersion, setAppVersion] = useState("");
@@ -514,24 +529,6 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
       .then((info) => setAppVersion(info.version))
       .catch(() => {});
   }, []);
-  // "Check deletion log" (finding 2026-09-20): the desktop's row, the same
-  // worker call. Present only while a plain file sync runs.
-  const checkJournal = deletionLogChecker();
-  const [journalBusy, setJournalBusy] = useState(false);
-  const [journalNote, setJournalNote] = useState<string | null>(null);
-  const runJournalCheck = () => {
-    if (!checkJournal || journalBusy) return;
-    setJournalBusy(true);
-    void checkJournal((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })))
-      .then((result) => setJournalNote(result.checked === 0 && result.unknown === 0
-        ? t("sync.journalCheckEmpty")
-        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown })))
-      .catch((e) => {
-        console.error("[settings] deletion log check failed", e);
-        setJournalNote(t("sync.journalCheckFailed"));
-      })
-      .finally(() => setJournalBusy(false));
-  };
   const taps = useRef<{ n: number; t: number }>({ n: 0, t: 0 });
   const logoTap = () => {
     const now = Date.now();
@@ -580,52 +577,27 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
     <div className="m-page">
       <AreaHeader id="about" onBack={onBack} title={t("settings.about")} />
       <div className="m-settings">
+        {/* The logo with its five-tap gesture and the hint (D5); both used to
+            stand on Appearance as well (settings plan 2026-10-29, appendix 2.1 B5). */}
         <GroupCard>
           <RowList>
             <Row icon={<PlainvaLogo size={ICON.touch} />} onClick={logoTap} subtitle={[appVersion, formatBuildLine()].filter(Boolean).join(" · ")} title="Plainva" />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("mobile.aboutTip")}</p>
+        <GroupCard>
+          <RowList>
             <Row
               end={<ChevronRight className="m-chevron" size={ICON.ui} />}
               onClick={exportDiagnostics}
               title={t("settings.exportDiagnostics")}
             />
-            {checkJournal && (
-              <Row
-                end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                onClick={runJournalCheck}
-                title={t("sync.journalCheck")}
-              />
-            )}
-            <Row
-              end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-              onClick={() => setOkfInfo(true)}
-              title={t("okfInfo.settingsButton")}
-            />
           </RowList>
         </GroupCard>
-        {checkJournal && <p className="m-hint" data-testid="deletion-log-note">{journalNote ?? t("sync.journalCheckHint")}</p>}
       </div>
 
       {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}
 
-      {okfInfo && (
-        <div className="m-sheet-backdrop" onClick={() => setOkfInfo(false)}>
-          <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
-            <SheetGrip onClose={() => setOkfInfo(false)} />
-            <p className="m-sheet-title">{t("okfInfo.title")}</p>
-            {/* Short here as well (E2): three sentences, then the handbook.
-                The long version used to be four sections in a bottom sheet. */}
-            <p className="m-hint">{t("okfInfo.short1")}</p>
-            <p className="m-hint">{t("okfInfo.short2")}</p>
-            <p className="m-hint">{t("okfInfo.short3")}</p>
-            <Button
-              variant="ghost"
-              onClick={() => void Browser.open({ url: userGuideUrl("OKF.md") }).catch(() => undefined)}
-            >
-              {t("okfInfo.readMore")}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

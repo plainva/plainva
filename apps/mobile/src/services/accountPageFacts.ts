@@ -99,19 +99,3 @@ export async function setMobileServiceOff(vaultId: string, card: AccountCard, se
     window.dispatchEvent(new CustomEvent("m-vaults-changed"));
   }
 }
-
-/**
- * The Dropbox card's own app key, as the desktop's account page sets it
- * (plan "Verbinden", V2): remembered once per account, empty = Plainva's key.
- * The next sign-in of the vault uses it.
- */
-export async function setMobileAppKey(vaultId: string, card: AccountCard, value: string): Promise<void> {
-  const record = await ensureCardRecord(vaultId, card);
-  const key = value.trim();
-  await saveCloudAccounts(vaultId, (await loadCloudAccounts(vaultId)).map((entry) => {
-    if (entry.id !== record.id) return entry;
-    const next: CloudAccountRecord = { ...entry };
-    delete next.byoClientId;
-    return key ? { ...next, byoClientId: key } : next;
-  }));
-}

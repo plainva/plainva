@@ -26,6 +26,7 @@ import { findInlineTagsInLine } from "./tagRule.js";
 import { isOpenTaskState, scanTasks, taskBoxChar, taskBoxState, type TaskBoxState } from "./vault/taskScan.js";
 import { setChecklistTaskDone, type ChecklistMutationOptions } from "./vault/taskMutation.js";
 import { trimChars, trimEndChars, trimSpaceBeforeLineEnds, trimStartChars } from "./textScan.js";
+import { SOURCE_LINE_END } from "./sourceLines.js";
 
 export const DEFAULT_JOURNAL_HEADING = "Journal";
 
@@ -133,10 +134,15 @@ export function readJournalLine(line: string): { seconds: number; task: TaskBoxS
 
 interface SourceLine { text: string; eol: string }
 
-/** Splits without losing a byte: `joinLines(splitLines(raw)) === raw`. A final line break adds no empty line. */
+/**
+ * Splits without losing a byte: `joinLines(splitLines(raw)) === raw`. A final
+ * line break adds no empty line. A line ends where the task scan ends it
+ * (`sourceLines.ts`, a carriage return of its own included): a task entry is
+ * found by its line in both.
+ */
 function splitLines(raw: string): SourceLine[] {
   const lines: SourceLine[] = [];
-  const breaks = /\r\n|\n/g;
+  const breaks = new RegExp(SOURCE_LINE_END.source, "g");
   let cursor = 0;
   for (let match = breaks.exec(raw); match; match = breaks.exec(raw)) {
     lines.push({ text: raw.slice(cursor, match.index), eol: match[0] });

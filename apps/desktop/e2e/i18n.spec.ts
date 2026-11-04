@@ -221,3 +221,103 @@ test('Language picker lists every shipped language; switching to French localize
   await page.getByRole('dialog', { name: fr.settings.title }).getByRole('button', { name: fr.settings.sectionAppearance, exact: true }).click();
   await expect(page.getByLabel(fr.settings.language, { exact: true })).toContainText('Français');
 });
+
+/**
+ * The info button never stands alone on a line (finding 2026-10-30): under six
+ * German labels — "Letzten Vault beim Start automatisch öffnen", "Ort an
+ * Journal-Einträge anhängen können", … — the ⓘ dropped onto a line of its own.
+ * The label's last word and the button are one span now (`InfoLabel`), and a lone switch
+ * no longer takes a 300-px column. Every settings page in every language: the
+ * button's middle lies on the last line of its label.
+ */
+const loneInfoButtons = (page: import('@playwright/test').Page) => page.evaluate(() => {
+  const bad: string[] = [];
+  // Every info button of the open page and the label it ends: the text
+  // before it in the same label element (a row label, a card heading).
+  for (const button of Array.from(document.querySelectorAll<HTMLElement>('.pv-setpage[data-active="true"] :is(.pv-setrow-label, .pv-setgroup-label) .pv-infotip'))) {
+    if (button.getClientRects().length === 0) continue;
+    const label = button.closest<HTMLElement>('.pv-setrow-label, .pv-setgroup-label')!;
+    const range = document.createRange();
+    range.setStartBefore(label.firstChild!);
+    range.setEndBefore(button.closest('.pv-infotip-wrap')!);
+    const lines = Array.from(range.getClientRects()).filter((r) => r.width > 0);
+    if (lines.length === 0) continue;
+    const lastBottom = Math.max(...lines.map((r) => r.bottom));
+    const last = lines.filter((r) => r.bottom > lastBottom - 2);
+    const top = Math.min(...last.map((r) => r.top));
+    const box = button.getBoundingClientRect();
+    const middle = (box.top + box.bottom) / 2;
+    if (middle < top - 1 || middle > lastBottom + 1) bad.push(label.textContent ?? '');
+  }
+  return bad;
+});
+
+const visitSettingsPages = async (page: import('@playwright/test').Page, title: string, check: (area: string) => Promise<void>) => {
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: title });
+  await expect(dialog).toBeVisible();
+  const links = dialog.locator('.pv-navlink:not(:has(kbd))');
+  const count = await links.count();
+  expect(count).toBeGreaterThan(8);
+  for (let i = 0; i < count; i += 1) {
+    const link = links.nth(i);
+    if (!(await link.isVisible())) continue;
+    const area = (await link.textContent())?.trim() ?? String(i);
+    await link.click();
+    await expect(dialog.locator('.pv-setpage[data-active="true"]')).toBeVisible();
+    await check(area);
+  }
+  await page.keyboard.press('Escape');
+};
+
+test('Settings: the info button stays on the line of its label, in every language', async ({ page }, testInfo) => {
+  test.setTimeout(300_000);
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  const found: string[] = [];
+  // Every language at the usual width, and German — the longest labels — in a narrow window too.
+  const runs = [...APP_LANGUAGES.map((lang) => ({ lang, width: 1280 })), { lang: APP_LANGUAGES.find((l) => l.code === 'de')!, width: 980 }];
+  for (const { lang, width } of runs) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate((code) => {
+      const store = JSON.parse(localStorage.getItem('pvE2EStore') || '{}');
+      store.appLanguage = code;
+      localStorage.setItem('pvE2EStore', JSON.stringify(store));
+    }, lang.code);
+    await page.reload();
+    const loc = loadLocale(lang.code);
+    await expect(page.getByRole('button', { name: loc.shortcuts.openSettings, exact: true })).toBeVisible({ timeout: 10000 });
+    await visitSettingsPages(page, loc.settings.title, async (area) => {
+      for (const label of await loneInfoButtons(page)) found.push(`${lang.code} · ${width} · ${area} · ${label}`);
+      if (process.env.PLAINVA_EVIDENCE && lang.code === 'de' && /^(Editor & Notizen|Start & Verhalten|Notizen & Ablage)$/.test(area)) {
+        // The annotation rows of the finding sit at the end of Notes & filing.
+        await page.getByTestId('settings-annotations').scrollIntoViewIfNeeded().catch(() => undefined);
+        for (const mode of ['light', 'dark']) {
+          await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+          await page.screenshot({ path: testInfo.outputPath(`info-glue-${width}-${area.replace(/\W+/g, '-')}-${mode}.png`) });
+        }
+        await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+      }
+    });
+  }
+  expect(found).toEqual([]);
+});
+
+test('Settings: the info check sees a button that drops alone (positive control)', async ({ page }) => {
+  // The rule switched off and the 300-px column back: the reported German row must fail the check.
+  await page.addInitScript(() => {
+    const store = JSON.parse(localStorage.getItem('pvE2EStore') || '{}');
+    store.appLanguage = 'de';
+    localStorage.setItem('pvE2EStore', JSON.stringify(store));
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  const de = loadLocale('de');
+  await expect(page.getByRole('button', { name: de.shortcuts.openSettings, exact: true })).toBeVisible({ timeout: 10000 });
+  await page.addStyleTag({ content: '.pv-infotip-glue { white-space: normal !important } .pv-setrow-ctrl { flex: 0 0 300px !important; max-width: 46% !important }' });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: de.settings.title });
+  await dialog.getByRole('button', { name: de.settings.sectionBehavior ?? 'Start & Verhalten', exact: true }).click();
+  await expect.poll(() => loneInfoButtons(page)).toContain(de.splash.autoOpenLastVault);
+});
+

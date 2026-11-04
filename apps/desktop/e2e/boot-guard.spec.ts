@@ -179,3 +179,36 @@ test('a late mount retires the timeout overlay instead of burying the app', asyn
   await expect(page.locator('#root > *').first()).toBeAttached({ timeout: 20000 });
   await expect(overlay).toHaveCount(0, { timeout: 5000 });
 });
+
+test('an error right after the late first render does not hold the overlay (3.91)', async ({ page }) => {
+  // The hole the interval above left: it asked "was there ANY error?" at its
+  // next look, so a failed request of the running app in the at most 250 ms
+  // between the first render and that look held "Plainva didn't start" over
+  // the app for good. The error is sent the moment #root gets its first child.
+  await page.addInitScript(() => {
+    const watch = new MutationObserver(() => {
+      const root = document.getElementById('root');
+      if (!root || !root.firstElementChild) return;
+      watch.disconnect();
+      window.dispatchEvent(new ErrorEvent('error', { error: new Error('right after the first render') }));
+    });
+    watch.observe(document, { childList: true, subtree: true });
+  });
+  let releaseEntry!: () => void;
+  const overlaySeen = new Promise<void>((resolve) => {
+    releaseEntry = resolve;
+  });
+  for (const pattern of ENTRY_PATTERNS) {
+    await page.route(pattern, async (route) => {
+      await overlaySeen;
+      await route.continue();
+    });
+  }
+  await page.goto('/', { waitUntil: 'commit' });
+  const overlay = page.locator(OVERLAY);
+  await expect(overlay.filter({ hasText: 'No error was reported' })).toBeVisible({ timeout: 15000 });
+
+  releaseEntry();
+  await expect(page.locator('#root > *').first()).toBeAttached({ timeout: 20000 });
+  await expect(overlay).toHaveCount(0, { timeout: 5000 });
+});

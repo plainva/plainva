@@ -12,7 +12,7 @@ import {
   getThemeDef,
   getUnlockedVariants,
 } from "../services/theme";
-import { Button, ICON, Modal } from "@plainva/ui";
+import { Button, ICON, Modal, Switch } from "@plainva/ui";
 
 interface HailingFrequenciesModalProps {
   onClose: () => void;
@@ -180,7 +180,7 @@ export function HailingFrequenciesModal({ onClose }: HailingFrequenciesModalProp
                 {t("hailing.collection", { count: collected.length, total })}
               </span>
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--text-ui)", color: "var(--text-main)", cursor: "pointer" }}>
-                <input type="checkbox" data-testid="hailing-toggle" checked={lcarsActive} onChange={toggleLcars} />
+                <Switch testId="hailing-toggle" checked={lcarsActive} onChange={toggleLcars} label={t("hailing.lcarsActive")} />
                 {t("hailing.lcarsActive")}
               </label>
             </div>

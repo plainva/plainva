@@ -1,6 +1,6 @@
 # Back-ups & versiegeschiedenis
 
-Laatst bijgewerkt: 2026-10-08
+Laatst bijgewerkt: 2026-10-30
 
 Plainva beschermt je werk op twee niveaus: **bestandsversies** (automatische snapshots van elk afzonderlijk bestand terwijl je bewerkt en verwijdert) en **vault-back-ups** (regelmatige ZIP-archieven van de hele vault, opgeslagen buiten de vault-map). Beide draaien op de achtergrond zonder enige instelling en zijn af te stemmen in de instellingen onder **Backup & versiegeschiedenis**.
 
@@ -10,7 +10,7 @@ Vóór elke opslagactie bewaart Plainva een snapshot van de vorige staat — als
 
 Bewaartermijn (per vault instelbaar):
 
-- **Snapshot-interval**: Bij elke wijziging / 30 s / 2 min / 5 min / 10 min
+- **Snapshot-interval**: Bij elke wijziging / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versies per bestand**: standaard 100 — daarboven worden de oudste verwijderd
 - **Maximale leeftijd**: standaard 90 dagen — oudere versies worden **permanent** verwijderd door een dagelijkse opschoning ("Onbeperkt" schakelt dit uit)
 - **Grote bestanden**: boven 5 MB wordt alleen de nieuwste versie bewaard — zie hieronder
@@ -31,7 +31,7 @@ Ook afbeeldingen hebben versies (met voorbeeld); andere binaire bestanden kunnen
 
 ## Verwijderde bestanden herstellen
 
-Omdat elke verwijdering eerst een snapshot van het bestand maakt, kan Plainva verwijderde bestanden terughalen: rechtsklik op de vaultnaam bovenaan de bestandsboom → **Verwijderde bestanden herstellen…** (ook bereikbaar via de instellingen). De lijst toont alle bestanden waarvan de snapshots nog bestaan terwijl het origineel weg is — **Herstellen** maakt de nieuwste staat opnieuw aan op de oorspronkelijke locatie (mappen worden zo nodig opnieuw aangemaakt), **Versies…** opent de volledige geschiedenis van het verwijderde bestand.
+Omdat elke verwijdering eerst een snapshot van het bestand maakt, kan Plainva verwijderde bestanden terughalen: rechtsklik op de vaultnaam bovenaan de bestandsboom → **Verwijderde bestanden herstellen…** (ook bereikbaar onder **Instellingen → Vault → Backup & versiegeschiedenis → Versiegeschiedenis**). De lijst toont alle bestanden waarvan de snapshots nog bestaan terwijl het origineel weg is — **Herstellen** maakt de nieuwste staat opnieuw aan op de oorspronkelijke locatie (mappen worden zo nodig opnieuw aangemaakt), **Versies…** opent de volledige geschiedenis van het verwijderde bestand.
 
 Let op: het verwijderen van een **hele map** verplaatst deze naar de prullenbak van het besturingssysteem — in dat geval is de systeemprullenbak de eerste weg terug; in Plainva vind je dan mogelijk alleen oudere snapshots van de bevatte bestanden.
 
@@ -67,9 +67,11 @@ Instellingen → **Vault** → **Backup & versiegeschiedenis**:
 - Plainva's eigen sync draagt `.plainva` nooit over. Synchroniseer je de vault-map met een externe client (bijv. de Nextcloud-app), dan gaan de snapshots wel mee — dat kost wat opslagruimte, maar is verder onschadelijk.
 - Sync-conflicten zijn bovendien beschermd via `.CONFLICT`-bestanden (zie de [FAQ](FAQ.md)); de versiegeschiedenis vult dit aan met de tijdlijn van elk bestand.
 
+Op de telefoon staat **ZIP-backups** als eerste groep op de pagina **Backup & versiegeschiedenis**; daaronder volgt de **Versiegeschiedenis** met **Verwijderde bestanden herstellen** aan het einde.
+
 Op mobiel stopt een mislukte notitieopslag het wisselen, opnieuw laden of verwijderen van de vault. Je tekst blijft klaarstaan voor een nieuwe poging. Notities met dezelfde naam in verschillende vaults houden afzonderlijke opslagopdrachten en concepten. Een opslagconflict bewaart de betreffende tekst; later getypte tekst wordt daarna apart opgeslagen of in een extra conflictkopie bewaard. Beide interfaces voeren het schrijven en verwijderen van concepten in volgorde uit, zodat een late afronding geen nieuwere kopie verwijdert. Een mislukte conflictkopie vervangt de tekst in de mobiele editor niet.
 
-Een ZIP-back-up telt pas als geslaagd wanneer alle geselecteerde bestanden leesbaar waren en het volledige archief is opgeslagen. Een mislukte poging verwijdert geen eerdere archieven en verandert het tijdstip van de laatste geslaagde back-up niet. Op mobiel noemt een automatische fout de vault; **Nu back-up maken** in de vaultinstellingen start een nieuwe poging. Verborgen gebruikersconfiguratie zoals `.obsidian` wordt op beide platforms meegenomen. De mappen `.plainva`, `.git`, `.trash` en `node_modules` blijven op elk niveau uitgesloten. Bij meerdere archieven in dezelfde seconde krijgt de nieuwe bestandsnaam een achtervoegsel zoals `_001`.
+Een ZIP-back-up telt pas als geslaagd wanneer alle geselecteerde bestanden leesbaar waren en het volledige archief is opgeslagen. Een mislukte poging verwijdert geen eerdere archieven en verandert het tijdstip van de laatste geslaagde back-up niet. Op mobiel noemt een automatische fout de vault; **Nu back-uppen** onder **Backup & versiegeschiedenis** → **ZIP-backups** start een nieuwe poging. Verborgen gebruikersconfiguratie zoals `.obsidian` wordt op beide platforms meegenomen. De mappen `.plainva`, `.git`, `.trash` en `node_modules` blijven op elk niveau uitgesloten. Bij meerdere archieven in dezelfde seconde krijgt de nieuwe bestandsnaam een achtervoegsel zoals `_001`.
 
 Een opslag wordt pas als voltooid gemeld nadat het schrijven is bevestigd. Tekst die je tijdens het opslaan invoert, blijft onopgeslagen totdat ook die versie is geschreven. Desktopconcepten horen bij hun eigen editorsessie: het afronden van een oude sessie verwijdert geen concept van een pas geopende editor. Als er tegelijk externe wijzigingen binnenkomen, voegt Plainva verenigbare wijzigingen samen; conflicterende tekst blijft beschikbaar als concept en conflictkopie.
 

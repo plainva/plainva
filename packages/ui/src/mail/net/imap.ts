@@ -394,6 +394,11 @@ export class ImapConnection {
       html: parsed.html,
       attachments: parsed.attachments,
       providerMessageId: h.get("message-id") ?? undefined,
+      // The unsubscribe way the sender offers, as written (unfolded): the
+      // shared core reads the routes out of it, as for the desktop's client
+      // and for Graph. This client never handed it on (finding 2026-10-29).
+      listUnsubscribe: h.get("list-unsubscribe") || undefined,
+      listUnsubscribePost: h.get("list-unsubscribe-post") || undefined,
     };
   }
 

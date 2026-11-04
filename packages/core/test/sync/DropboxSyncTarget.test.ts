@@ -95,7 +95,7 @@ describe("DropboxSyncTarget", () => {
         return res({
           entries: [
             { ".tag": "folder", name: "sub", path_display: "/Plainva/sub", path_lower: "/plainva/sub" },
-            { ".tag": "file", name: "a.md", path_display: "/Plainva/a.md", path_lower: "/plainva/a.md", content_hash: "h1" },
+            { ".tag": "file", name: "a.md", path_display: "/Plainva/a.md", path_lower: "/plainva/a.md", content_hash: "h1", client_modified: "2025-05-01T08:00:00Z", server_modified: "2026-10-29T14:28:00Z" },
             { ".tag": "file", name: "x.CONFLICT-1.md", path_display: "/Plainva/x.CONFLICT-1.md", path_lower: "/plainva/x.conflict-1.md", content_hash: "hc" },
           ],
           cursor: "cur-1",
@@ -106,7 +106,7 @@ describe("DropboxSyncTarget", () => {
         expect(JSON.parse(init.body).cursor).toBe("cur-1");
         return res({
           entries: [
-            { ".tag": "file", name: "b.md", path_display: "/Plainva/sub/b.md", path_lower: "/plainva/sub/b.md", content_hash: "h2" },
+            { ".tag": "file", name: "b.md", path_display: "/Plainva/sub/b.md", path_lower: "/plainva/sub/b.md", content_hash: "h2", server_modified: "2026-01-02T00:00:00Z" },
             { ".tag": "deleted", name: "gone.md", path_display: "/Plainva/gone.md", path_lower: "/plainva/gone.md" },
           ],
           cursor: "cur-2",
@@ -120,6 +120,10 @@ describe("DropboxSyncTarget", () => {
     expect(result.etagMap.get("a.md")).toBe("h1");
     expect(result.etagMap.get("sub/b.md")).toBe("h2");
     expect(result.etagMap.size).toBe(2);
+    // When each file last changed: the time its client gave it, else Dropbox's
+    // (Sammelplan § 3.164).
+    expect(result.mtimeMap?.get("a.md")).toBe(Date.UTC(2025, 4, 1, 8));
+    expect(result.mtimeMap?.get("sub/b.md")).toBe(Date.UTC(2026, 0, 2));
     // Empty-folder sync (2026-07-17): the folder entry is reported.
     expect(result.folders).toEqual(["sub"]);
 
@@ -231,6 +235,18 @@ describe("DropboxSyncTarget", () => {
     expect(call.init.headers["Dropbox-API-Arg"]).toContain("\\u00e4"); // header-safe umlaut
     const arg = JSON.parse(call.init.headers["Dropbox-API-Arg"]);
     expect(arg).toEqual({ path: "/Plainva/notes/ä.md", mode: "overwrite", autorename: false, mute: true });
+  });
+
+  it("gives an upload the time the file was edited as client_modified, in whole seconds", async () => {
+    const { target, fetchFn } = makeTarget(async () =>
+      res({ ".tag": "file", name: "a.md", id: "id:1", content_hash: "h-new", rev: "r1" })
+    );
+    await target.push({
+      id: 1, file_path: "a.md", operation: "write", content: new TextEncoder().encode("x"),
+      retry_count: 0, next_retry_at: 0, queued_at: 0, localModifiedAt: Date.UTC(2025, 4, 1, 8, 0, 0, 999),
+    });
+    const arg = JSON.parse(calls(fetchFn)[0].init.headers["Dropbox-API-Arg"]);
+    expect(arg.client_modified).toBe("2025-05-01T08:00:00Z");
   });
 
   it("uploads large files via an upload session (start/append/finish with commit)", async () => {

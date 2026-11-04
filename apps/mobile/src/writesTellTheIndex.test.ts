@@ -28,6 +28,7 @@ const WRITERS = new Set([
   "saveMailAttachment",
   "captureMailAsNote",
   "saveEmlFile",
+  "addEmlToMailNote",
   "importSharedContent",
 ]);
 
@@ -107,7 +108,7 @@ describe("whatever the phone writes itself, its index hears of it then (finding 
       "components/JournalCaptureSheet.tsx: writeBinaryFile",
       "screens/MailMessageScreen.tsx: saveMailAttachment",
       "screens/MailMessageScreen.tsx: captureMailAsNote",
-      "screens/MailMessageScreen.tsx: saveEmlFile",
+      "screens/MailMessageScreen.tsx: addEmlToMailNote",
       "screens/MailListScreen.tsx: captureMailAsNote",
       "components/ShareInbox.tsx: importSharedContent",
     ]) {

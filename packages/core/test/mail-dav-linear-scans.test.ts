@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { hasEmlWikiLink, nameBeforeAngle } from "../src/mailText.js";
 import { splitAtWordTags, tagAttributeWords, wordTagContent } from "../src/pim/davTagScan.js";
 import { parsePimErrorBody } from "../src/pim/requestError.js";
@@ -13,12 +14,6 @@ import { parsePimErrorBody } from "../src/pim/requestError.js";
  * scans keep on purpose.
  */
 const N = 100_000;
-const within = (budgetMs: number, run: () => void) => {
-  const start = performance.now();
-  run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 describe("nameBeforeAngle", () => {
   it("reads the display name in front of an angle address", () => {
     expect(nameBeforeAngle('"Ada Lovelace" <ada@example.org>', true)).toBe("Ada Lovelace");

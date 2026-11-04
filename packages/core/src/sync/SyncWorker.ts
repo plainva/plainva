@@ -1,5 +1,5 @@
 import { SyncEngine } from "./SyncEngine.js";
-import { ISyncTarget, type ListingMetrics, type RemotePresence } from "./ISyncTarget.js";
+import { ISyncTarget, type ListingMetrics, type PullResult, type RemotePresence } from "./ISyncTarget.js";
 import type { OwnDeletionRegister } from "./ownDeletions.js";
 import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
@@ -10,10 +10,21 @@ import { isTextFile, mergeableText } from "./fileType.js";
 import { editorTextOf } from "../textFileShape.js";
 import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
+import {
+  describeNameCollisions,
+  groupNameCollisions,
+  resolveTwinSpellings,
+  type NameCollisionAction,
+  type NameCollisionCase,
+  type NameTwinContext,
+  type NameTwinResolution,
+  type RemoteFacts,
+} from "./nameTwins.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, UnsyncableFileError, type SyncErrorKind } from "./errorKind.js";
 import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js";
+import { localNameRefusal } from "./localNameRefusal.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
@@ -490,6 +501,28 @@ export class SyncWorker {
    */
   public onNameCollisions?: (collisions: readonly NameCollision[]) => void;
   /**
+   * The same collisions as cases the card can show and act on, one per name
+   * (nameTwins.ts): the facts that tell the copies apart and what can be done.
+   * Emitted right after `onNameCollisions`, every cycle, empty included.
+   */
+  public onNameCollisionCases?: (cases: readonly NameCollisionCase[]) => void;
+  /**
+   * The cloud as the listings showed it: a full listing replaces it, a change
+   * listing updates it. A change listing names only what changed, so a twin
+   * the cloud holds is known between two full listings from here - the card
+   * stays up instead of vanishing every cycle in between.
+   */
+  private readonly remoteView = new Map<string, RemoteFacts>();
+  /** The cloud copies of twins, per ETag, so the card downloads each once. */
+  private readonly twinDownloads = new Map<string, { etag: string; bytes: Uint8Array | null }>();
+  /** A resolution of the card runs (one at a time). */
+  private resolvingNames = false;
+  /**
+   * What the last cycle reported, push side included: a twin on this disk that
+   * no sync row knows is reported only by the engine holding its upload.
+   */
+  private lastNameCollisions: readonly NameCollision[] = [];
+  /**
    * Fired for local files changed by the running cycle (pulled writes, conflict
    * files or mirrored deletions). The desktop wires this to a re-index + file-tree
    * refresh so pulled changes become visible deterministically, independent of OS
@@ -568,6 +601,12 @@ export class SyncWorker {
    * out 974 deletions.
    */
   private approvedMissingPaths = new Set<string>();
+  /**
+   * The answer "keep them here" for a file that is still to be compared with
+   * the server's copy (see `keepSuspendedDeletionsLocal`): it is never removed
+   * on a listing's word, and goes up only once the server holds no copy of it.
+   */
+  private keptMissingPaths = new Set<string>();
   /**
    * The listing contradicts itself — raised with the facts, lowered with null
    * once a listing holds again. Never a question: there is nothing to decide.
@@ -829,6 +868,20 @@ export class SyncWorker {
     for (const p of paths) {
       this.approvedMissingPaths.delete(p);
       if (!(await this.vault.exists(p))) continue;
+      // A file still to be compared with the server's copy
+      // (`SyncState.recheck`) keeps its row, and with it the mark (Sammelplan
+      // § 3.86 b). What lies here may be the decoded text an older version
+      // wrote over the file, and a listing that left the file out says
+      // nothing about whether the server still holds the original: cleared
+      // here, the mark went before anything had been compared, and the copy
+      // went up as a new file — over the original, wherever a server does not
+      // look at the condition of an upload. Such a file takes the way of a
+      // file kept for its local edits instead (`keptMissingPaths`): asked for
+      // on its own first, it goes up only where the server holds no copy.
+      if ((await this.stateRepo.getSyncState(p))?.recheck) {
+        this.keptMissingPaths.add(p);
+        continue;
+      }
       await this.stateRepo.deleteSyncState(p);
       await this.queue.queueWrite(p);
     }
@@ -1160,9 +1213,9 @@ export class SyncWorker {
   /**
    * Byte-wise reconciliation for binary files (no text decode, no 3-way merge). If the
    * local copy diverged from both the base and the remote, it is preserved as a binary
-   * `.CONFLICT` sibling and the remote is adopted; otherwise the remote is fast-forwarded
-   * in. Binary files are never pushed from here (a local binary change is pushed via the
-   * queue), so the local copy always ends up equal to the remote after this.
+   * `.CONFLICT` sibling and the remote is adopted; where only the local copy changed
+   * since the base, it stays and its upload is queued; otherwise the remote is
+   * fast-forwarded in. Nothing is pushed from here — a local change goes up via the queue.
    *
    * Also the way of a file that is text by its name and not by its bytes on
    * either side (`mergeableText`). The remote content becomes the common
@@ -1178,15 +1231,16 @@ export class SyncWorker {
     remoteEtag: string,
     state: SyncState | null,
     now: number,
-    changedPaths: string[]
+    changedPaths: string[],
+    remoteModifiedAt?: number
   ): Promise<void> {
-    const adoptBaseText = async () => {
-      if (!isTextFile(path)) return;
-      const remoteText = mergeableText(path, contentBytes);
-      if (remoteText === null) await this.stateRepo.clearBaseText(path);
-      else await this.stateRepo.updateBaseText(path, remoteText);
-    };
+    // The remote version as the merge base — its hash, its ETag and its text
+    // where it is one, in one statement (§ 3.102 no. 7). A file that is no
+    // text keeps none: the text of another content is no ancestor of this one.
+    const remoteText = isTextFile(path) ? mergeableText(path, contentBytes) : null;
     const remoteSha = await sha256Bytes(contentBytes);
+    // Text by its name and not by its bytes: the row says so (§ 3.86 no. 2).
+    const recordRemoteAsBase = () => this.stateRepo.recordSyncedBase(path, { sha256: remoteSha, etag: remoteEtag, text: remoteText, notText: isTextFile(path) && remoteText === null });
     const localExists = await this.vault.exists(path);
     let writeNeeded = !localExists;
     // Local hash at read time — the no-write path below only adopts the marker
@@ -1205,10 +1259,28 @@ export class SyncWorker {
         // base and re-queue the local push instead of writing a .CONFLICT.
         console.log(`[SyncWorker] adopting own echoed binary push for ${path} (response was lost)`);
         await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
-        await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
-        await adoptBaseText();
+        await recordRemoteAsBase();
         await this.stateRepo.clearPendingPushSha(path);
         await this.lookedAt(path, state);
+        await this.queue.queueWrite(path, { supersedeRefused: false });
+        return;
+      } else if (state && state.base_sha256 && remoteSha === state.base_sha256 && !state.recheck) {
+        // Changed here, unchanged on the remote: the remote only got a new
+        // ETag — a server that re-stamped the file, or one that sends no ETag
+        // on an upload, so that the next listing is the first to bring one
+        // (Sammelplan § 3.102 no. 6). The local version is the newer one: it
+        // stays, and goes up. It used to be taken for "changed on both
+        // sides": the change became a conflict copy and the file went back to
+        // the remote's version. Text files have had this since § 3.93.
+        //
+        // Not for a row marked to be looked at again (`SyncState.recheck`):
+        // its base hash may be the one an older version took of the file's
+        // decoded text, and what lies here that text written back — nothing
+        // of it may go up before it was compared with the server's copy, which
+        // the branches below do.
+        console.log(`[SyncWorker] ${path}: unchanged on the remote, changed here -> keeping the local version`);
+        await this.stateRepo.updateRemoteState(path, remoteEtag, state.remote_id ?? null, now);
+        await recordRemoteAsBase();
         await this.queue.queueWrite(path, { supersedeRefused: false });
         return;
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
@@ -1255,8 +1327,10 @@ export class SyncWorker {
       await this.stateRepo.updateLocalHashGuarded(path, remoteSha, localShaAtRead);
     }
     await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
-    await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
-    await adoptBaseText();
+    await recordRemoteAsBase();
+    // What was written here is the remote's version: when it changed there is
+    // when it was edited, not now (see `recordPulledVersion`).
+    if (writeNeeded) await this.stateRepo.recordPulledVersion(path, remoteSha, remoteModifiedAt ?? null);
     await this.lookedAt(path, state);
     this.keptByteCopies.delete(path);
   }
@@ -1489,6 +1563,81 @@ export class SyncWorker {
     }
   }
 
+  /** Keeps `remoteView` in step with a listing (see there). */
+  private updateRemoteView(result: PullResult, full: boolean): void {
+    if (full) this.remoteView.clear();
+    for (const [path, etag] of result.etagMap) {
+      const modifiedMs = result.mtimeMap?.get(path);
+      this.remoteView.set(path, modifiedMs === undefined ? { etag } : { etag, modifiedMs });
+    }
+    for (const path of result.deleted ?? []) this.remoteView.delete(path);
+  }
+
+  /** What the card's facts and actions need of this worker (nameTwins.ts). */
+  private nameTwinContext(): NameTwinContext {
+    const vault = this.vault as IVaultAdapter & { keepSnapshot?: (path: string, bytes: Uint8Array) => Promise<void> };
+    return {
+      vault: this.vault,
+      target: this.target,
+      queue: this.queue,
+      stateRepo: this.stateRepo,
+      remote: (path) => this.remoteView.get(path),
+      remotePaths: () => this.remoteView.keys(),
+      ...(typeof vault.keepSnapshot === "function" ? { keepSnapshot: (path: string, bytes: Uint8Array) => vault.keepSnapshot!(path, bytes) } : {}),
+      touch: () => this.noteCycleActivity(),
+      relist: async () => {
+        const listing = await this.target.pull();
+        this.updateRemoteView(listing, true);
+        return new Set(listing.etagMap.keys());
+      },
+    };
+  }
+
+  /**
+   * The card's two actions (finding 2026-11-03): removes the twin spellings
+   * whose bytes are the same as their composed file, or keeps the differing
+   * ones as files of their own (`resolveTwinSpellings`). Runs between cycles,
+   * never beside one, on a fresh full listing; the next cycle follows at once
+   * and takes the card down for what was resolved. Letter-case cases are the
+   * shell's: it renames them through its own rename path.
+   */
+  public async resolveNameCollisions(action: NameCollisionAction): Promise<NameTwinResolution> {
+    if (!this.isRunning) throw new Error("the sync is not running");
+    if (this.resolvingNames) throw new Error("a resolution is already running");
+    this.resolvingNames = true;
+    try {
+      while (this.isSyncing) {
+        const cycle = this.currentCycle;
+        await (cycle ? cycle.catch(() => undefined) : new Promise((r) => setTimeout(r, 50)));
+      }
+      if (!this.isRunning) throw new Error("the sync is not running");
+      // Holds the next cycle back: executeCycle returns while this is set.
+      this.isSyncing = true;
+      try {
+        const ctx = this.nameTwinContext();
+        const listing = await this.target.pull();
+        this.updateRemoteView(listing, true);
+        const collisions: NameCollision[] = [...this.lastNameCollisions];
+        await this.reportTwinSpellings(new Set(listing.etagMap.keys()), await this.stateRepo.getAllStates(), false, collisions);
+        const changed: string[] = [];
+        const result = await resolveTwinSpellings(ctx, groupNameCollisions(collisions), action, changed);
+        if (changed.length > 0) {
+          try {
+            this.onFilesChanged?.([...new Set(changed)]);
+          } catch (e) {
+            console.error("[SyncWorker] onFilesChanged failed:", e);
+          }
+        }
+        return result;
+      } finally {
+        this.isSyncing = false;
+      }
+    } finally {
+      this.resolvingNames = false;
+      if (this.isRunning) this.triggerFullListing();
+    }
+  }
+
   /**
    * Twin spellings (ADR 0016): a name the remote lists, or this device's sync
    * state still carries, that is not NFC is a second spelling standing next
@@ -1509,11 +1658,14 @@ export class SyncWorker {
       const pair = { path, twin: toPathIdentity(path) };
       if (!collisions.some((c) => c.path === pair.path && c.twin === pair.twin)) collisions.push(pair);
     };
-    for (const path of remotePaths) {
+    // What the cloud holds is known from the last full listing on (a change
+    // listing carries only what changed).
+    const inCloud = (path: string) => remotePaths.has(path) || this.remoteView.has(path);
+    for (const path of new Set([...remotePaths, ...this.remoteView.keys()])) {
       if (isTwinSpelling(path) && !isLocalOnlyPath(path)) report(path);
     }
     for (const path of [...stateMap.keys()]) {
-      if (!isTwinSpelling(path) || remotePaths.has(path) || isLocalOnlyPath(path)) continue;
+      if (!isTwinSpelling(path) || inCloud(path) || isLocalOnlyPath(path)) continue;
       let here: boolean;
       try {
         here = await this.holdsLocalIdentity(path);
@@ -1628,6 +1780,7 @@ export class SyncWorker {
     const localExists = await this.vault.exists(path);
     if (!localExists) {
       await this.stateRepo.deleteSyncState(path);
+      this.keptMissingPaths.delete(path);
       return "gone";
     }
     const localSha = await this.localSha(path);
@@ -1637,8 +1790,11 @@ export class SyncWorker {
     // another form are no edit, and keeping such a file would carry a
     // deletion made on purpose elsewhere back to every device (finding
     // 2026-10-19).
-    const unchanged = Boolean(state?.base_sha256 && localSha === state.base_sha256)
-      || (state != null && (await this.sameTextAsBase(path, state)));
+    //
+    // A file the person said to keep (`keptMissingPaths`) is kept whatever it
+    // holds: it takes the way of a local edit below.
+    const unchanged = !this.keptMissingPaths.has(path) && (Boolean(state?.base_sha256 && localSha === state.base_sha256)
+      || (state != null && (await this.sameTextAsBase(path, state))));
     if (unchanged) {
       // The invariant of plan A1: no local file is removed on the word of a
       // listing while the target can be asked about the file itself. A probe
@@ -1694,6 +1850,7 @@ export class SyncWorker {
     // there is nothing left to compare the local one with.
     await this.stateRepo.deleteSyncState(path);
     await this.queue.queueWrite(path);
+    this.keptMissingPaths.delete(path);
     return "keptLocalEdits";
   }
 
@@ -1709,7 +1866,8 @@ export class SyncWorker {
     _state: SyncState | null,
     now: number,
     changedPaths: string[],
-    download?: () => Promise<Uint8Array | null>
+    download?: () => Promise<Uint8Array | null>,
+    remoteModifiedAt?: number
   ): Promise<void> {
     // A pending DELETE or RENAME must still short-circuit reconcile: re-downloading
     // and rewriting a file the user is deleting/renaming would resurrect it.
@@ -1735,13 +1893,14 @@ export class SyncWorker {
       // The listing snapshot can predate a local save or another window's
       // conflict resolution. Re-read only after entering their shared gate.
       const current = await this.stateRepo.getSyncState(path);
-      await this.reconcileDownloadedFile(path, contentBytes, remoteEtag, current, now, changedPaths, gate);
+      await this.reconcileDownloadedFile(path, contentBytes, remoteEtag, current, now, changedPaths, gate, remoteModifiedAt);
     });
   }
 
   private async reconcileDownloadedFile(
     path: string, contentBytes: Uint8Array, remoteEtag: string,
-    state: SyncState | null, now: number, changedPaths: string[], gate: ConflictSessionGate
+    state: SyncState | null, now: number, changedPaths: string[], gate: ConflictSessionGate,
+    remoteModifiedAt?: number
   ): Promise<void> {
 
     // Defensive end-to-end-encryption guard (A3): if the remote bytes are a PVE1
@@ -1778,7 +1937,7 @@ export class SyncWorker {
     const localBytes = remoteContent !== null && await this.vault.exists(path) ? await this.vault.readBinaryFile(path) : null;
     const localContent = localBytes === null ? null : mergeableText(path, localBytes);
     if (remoteContent === null || (localBytes !== null && localContent === null)) {
-      await this.reconcileBinaryFile(path, contentBytes, remoteEtag, state, now, changedPaths);
+      await this.reconcileBinaryFile(path, contentBytes, remoteEtag, state, now, changedPaths, remoteModifiedAt);
       return;
     }
     const remoteSha = await sha256Hash(remoteContent);
@@ -1814,8 +1973,7 @@ export class SyncWorker {
         // ancestor, leave the local file untouched and (re-)queue its push
         // (the original queue op may have been consumed before the kill).
         console.log(`[SyncWorker] adopting own echoed push for ${path} (response was lost)`);
-        await this.stateRepo.updateBaseText(path, remoteContent);
-        await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+        await this.stateRepo.recordSyncedBase(path, { sha256: remoteSha, etag: remoteEtag, text: remoteContent });
         await this.stateRepo.updateRemoteState(path, remoteEtag, state?.remote_id ?? null, now);
         await this.stateRepo.clearPendingPushSha(path);
         await this.lookedAt(path, state);
@@ -1885,22 +2043,23 @@ export class SyncWorker {
     // change from the other device was merged against this device's own text:
     // its version came out, the change made here was gone, and no conflict
     // copy was written (finding 2026-10-12).
-    if (writeNeeded) {
-      await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, remoteContent);
-    } else {
-      await this.stateRepo.updateLocalHashAndBaseTextGuarded(path, newLocalSha, remoteContent, localShaAtRead);
-    }
+    //
+    // Hash, ETag, text and local marker in one statement (§ 3.102 no. 7).
+    await this.stateRepo.recordSyncedBase(path, { sha256: remoteSha, etag: remoteEtag, text: remoteContent },
+      writeNeeded ? { sha256: newLocalSha } : { sha256: newLocalSha, expected: localShaAtRead });
 
     if (pushMerge) {
       // Our reconciled content is ahead of the remote -> enqueue a push so
       // processQueue (below) propagates it this same cycle.
-      await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
       await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
       await this.queue.queueWrite(path, { supersedeRefused: false });
     } else {
       // Fully in sync with the remote version.
       await this.stateRepo.updateRemoteState(path, remoteEtag, null, now);
-      await this.stateRepo.updateBaseState(path, remoteSha, remoteEtag);
+      // Written here AS the remote's version: when it changed there is when it
+      // was edited, not the moment of this download (Sammelplan § 3.164). A
+      // merge is this device's work and keeps the local time.
+      if (writeNeeded) await this.stateRepo.recordPulledVersion(path, newLocalSha, remoteModifiedAt ?? null);
     }
     await this.lookedAt(path, state);
   }
@@ -1982,8 +2141,12 @@ export class SyncWorker {
         // before the push, fail-closed (settings-sync plan §3.5/A3).
         if (e instanceof FatalSyncProtocolError) throw e;
         const never = refusedForGood(e);
-        if (never) {
-          await markRefused(path, never.reason, etag);
+        // A name this device's file system will not store is refused for good
+        // too (Sammelplan § 3.158 Nr. 7): it used to count as an ordinary
+        // failure and hold the vault's first cycle for a file no retry brings.
+        const reason = never?.reason ?? await localNameRefusal(path, e, (p) => this.vault.exists(p));
+        if (reason) {
+          await markRefused(path, reason, etag);
           flushChangedPaths();
           return;
         }
@@ -2055,6 +2218,7 @@ export class SyncWorker {
       const now = Date.now();
       const pullMs = now - pullStartedAt;
       const remotePaths = new Set(pullResult.etagMap.keys());
+      this.updateRemoteView(pullResult, doFullListing);
       // The first whole listing this worker sees, before anything of this
       // device goes up in the cycle: what a binding decides from the folder it
       // found (third review 2026-10-27, starter content held back).
@@ -2146,8 +2310,8 @@ export class SyncWorker {
         if (unchanged(stateMap.get(path) ?? null, remoteEtag, path)) continue;
         reconcileOrder.push(path);
       }
-      // Prefer the most-recently-modified remote files first (Drive reports
-      // mtimes) so recent edits reconcile — and appear — first.
+      // Prefer the most-recently-modified remote files first (every target
+      // reports mtimes) so recent edits reconcile — and appear — first.
       if (pullResult.mtimeMap) {
         const m = pullResult.mtimeMap;
         reconcileOrder.sort((a, b) => (m.get(b) ?? 0) - (m.get(a) ?? 0));
@@ -2185,7 +2349,7 @@ export class SyncWorker {
         if (unchanged(state, remoteEtag, path)) continue;
 
         await guardPullStep(path, () =>
-          this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path))
+          this.reconcilePulledFile(path, remoteEtag, state, now, changedPaths, () => prefetcher.get(path), pullMtime?.get(path))
         , remoteEtag);
       }
       if (unreached.size > 0) this.engine.keepRefusedPaths?.(unreached);
@@ -2465,7 +2629,11 @@ export class SyncWorker {
           // What the person already said yes to — exactly those files, nothing the
           // question did not show. The journal entry follows the ACT (plan A3).
           const approved = unexplained.filter((c) => this.approvedMissingPaths.has(c.path));
-          const open = unexplained.filter((c) => !this.approvedMissingPaths.has(c.path));
+          // And what the person said to keep: those files were answered too.
+          // Each is asked for on its own before it goes up (see `keptMissingPaths`).
+          const kept = unexplained.filter((c) => !this.approvedMissingPaths.has(c.path) && this.keptMissingPaths.has(c.path));
+          const open = unexplained.filter((c) => !this.approvedMissingPaths.has(c.path) && !this.keptMissingPaths.has(c.path));
+          if (kept.length > 0 && !listingIncomplete) await mirrorVerified(kept, false);
           if (approved.length > 0 && !listingIncomplete) {
             const removed = await mirrorVerified(approved, false);
             for (const c of approved) this.approvedMissingPaths.delete(c.path);
@@ -2480,6 +2648,9 @@ export class SyncWorker {
           // An approval for a path that is no longer missing has nothing left to do.
           const stillMissing = new Set(missing.map((m) => m.path));
           for (const p of [...this.approvedMissingPaths]) if (!stillMissing.has(p)) this.approvedMissingPaths.delete(p);
+          // Nor the answer "keep it" for a file the listing carries again — it
+          // was compared with the server's copy on the way.
+          for (const p of [...this.keptMissingPaths]) if (!stillMissing.has(p)) this.keptMissingPaths.delete(p);
 
           // Sanity guard: when an implausibly large share of previously confirmed files
           // vanishes at once WITHOUT the journal explaining it, this needs a human —
@@ -2706,10 +2877,27 @@ export class SyncWorker {
       // shell is the only side that can ask for one in the user's language
       // (finding 2026-08-21). An empty list is what takes the notice down again
       // once the pair has been renamed.
+      this.lastNameCollisions = [...nameCollisions];
       try {
         this.onNameCollisions?.(nameCollisions);
       } catch (e) {
         console.error("[SyncWorker] onNameCollisions failed:", e);
+      }
+      if (this.onNameCollisionCases && alive()) {
+        let cases: NameCollisionCase[];
+        try {
+          cases = await describeNameCollisions(this.nameTwinContext(), nameCollisions, this.twinDownloads);
+        } catch (e) {
+          console.warn("[SyncWorker] could not describe the name collisions", e);
+          cases = groupNameCollisions(nameCollisions);
+        }
+        const reported = new Set(nameCollisions.flatMap((c) => [c.path, c.twin]));
+        for (const path of [...this.twinDownloads.keys()]) if (!reported.has(path)) this.twinDownloads.delete(path);
+        try {
+          this.onNameCollisionCases(cases);
+        } catch (e) {
+          console.error("[SyncWorker] onNameCollisionCases failed:", e);
+        }
       }
 
       const incompleteNow = incompleteListing();

@@ -9,6 +9,18 @@
 // 3 s per file warm, 16 s cold, two thirds of the suite's time (Befunde
 // 2026-09-24, Z2). A test that needs the package imports it itself.
 import { i18nReady, loadAllLanguages, setDateLocaleForTests } from "@plainva/ui/i18n";
+import { vi } from "vitest";
+import { makeWaitForPatient } from "../../../packages/core/test/helpers/patientWaitFor";
+import { registerDiscardQuestion } from "../../../packages/ui/src/lib/discardQuestion";
+import { desktopDiscardHost } from "./services/discardQuestion";
+
+// `vi.waitFor` waits ten seconds unless a test says otherwise, in all three
+// suites: its own second ran out under a loaded commit hook (Sammelplan 3.160 Nr. 3).
+makeWaitForPatient(vi);
+
+// The desktop's "Discard your input?", as main.tsx registers it: a dialog that
+// holds typed input asks through the app's own confirm (finding 2026-10-22).
+registerDiscardQuestion(desktopDiscardHost);
 
 await loadAllLanguages();
 

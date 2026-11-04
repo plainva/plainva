@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Settings2, Sparkles, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, Eye, EyeOff } from "lucide-react";
+import { Settings2, Sparkles, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
-import { BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, TextInput, type BaseConfigAreaId } from "@plainva/ui";
+import { BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, columnsForBaseSelector, ICON, offeredViewTypes, TextInput, type BaseConfigAreaId } from "@plainva/ui";
 import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, type BaseFilterField } from "@plainva/ui";
 import {
@@ -303,6 +303,23 @@ function FilterChip({
       </button>
       <button onClick={onRemove} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
     </div>
+  );
+}
+
+// A filter entry the panel cannot edit, shown as written — and, when the
+// query cannot apply it either, saying so visibly: such a condition stays in
+// the file but filters nothing, so the view shows more rows than it reads.
+function FilterRawText({ text, notApplied }: { text: string; notApplied: string | null }) {
+  return (
+    <span className="base-cfg-rawfilter">
+      <span>{text}</span>
+      {notApplied && (
+        <span className="base-cfg-notapplied" data-testid="filter-not-applied">
+          <AlertTriangle size={ICON.meta} aria-hidden="true" />
+          {notApplied}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -934,7 +951,7 @@ export function BaseConfigPanel({
         <div className="base-cfg-group">
         <div className="base-cfg-grouplabel">{t("database.viewType", "Ansichtstyp")}</div>
         <div className="base-cfg-typegrid" role="radiogroup" aria-label={t("database.viewType", "Ansichtstyp")}>
-          {BASE_VIEW_TYPES.filter((v) => extendedDbEnabled || !v.extended).map((v) => {
+          {offeredViewTypes(extendedDbEnabled).map((v) => {
             const TileIcon = v.icon;
             const label = defaultViewName(t, v.type);
             return (
@@ -1295,8 +1312,16 @@ export function BaseConfigPanel({
           const key = `${entry.ref.list}-${entry.ref.idx}`;
           if (entry.kind === "opaque") {
             return (
-              <div key={key} className="base-cfg-chiprow" data-tip={t("database.complexFilterTip", "Verschachtelter Filter aus Obsidian – bleibt erhalten und wird angewendet, ist hier aber nicht editierbar.")}>
-                <span style={{ fontStyle: "italic", color: "var(--text-muted)" }}>{t("database.complexFilter", "Komplexer Filter (nicht editierbar)")}</span>
+              <div key={key} className="base-cfg-chiprow" data-tip={entry.unapplied.length === 0 ? t("database.complexFilterTip", "Verschachtelter Filter aus Obsidian – bleibt erhalten und wird angewendet, ist hier aber nicht editierbar.") : undefined}>
+                <span className="base-cfg-rawfilter">
+                  <span style={{ fontStyle: "italic", color: "var(--text-muted)" }}>{t("database.complexFilter", "Komplexer Filter (nicht editierbar)")}</span>
+                  {entry.unapplied.length > 0 && (
+                    <span className="base-cfg-notapplied" data-testid="filter-not-applied">
+                      <AlertTriangle size={ICON.meta} aria-hidden="true" />
+                      {t("database.filterPartlyNotApplied", { conditions: entry.unapplied.join(", ") })}
+                    </span>
+                  )}
+                </span>
                 <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
               </div>
             );
@@ -1304,7 +1329,7 @@ export function BaseConfigPanel({
           if (entry.kind === "rawString") {
             return (
               <div key={key} className="base-cfg-chiprow">
-                <span style={{ wordBreak: "break-all" }}>{entry.raw}</span>
+                <FilterRawText text={entry.raw} notApplied={entry.applied ? null : t("database.filterNotApplied")} />
                 <button onClick={() => mutateViewFilters((v) => removeFilterEntry(v, entry.ref))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
               </div>
             );
@@ -1409,7 +1434,7 @@ export function BaseConfigPanel({
                   </div>
                 ) : (
                   <div key={item.idx} className="base-cfg-chiprow">
-                    <span style={{ wordBreak: "break-all" }}>{item.raw}</span>
+                    <FilterRawText text={item.raw} notApplied={item.applied ? null : t("database.filterNotApplied")} />
                     <button onClick={() => mutateViewFilters((v) => removeGroupRule(v, entry.ref, item.idx))} aria-label={t("common.delete", "Löschen")} data-tip={t("common.delete", "Löschen")} className="base-cfg-delbtn"><Trash2 size={ICON.meta} /></button>
                   </div>
                 );

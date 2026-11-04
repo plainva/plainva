@@ -9,8 +9,9 @@ import { getTaskDatabasePath, resolveTaskCompletionModel, classifyTaskCompletion
  * reconciler — and, for those surfaces, the checkboxes in notes with a `📅`
  * (TestFlight 136: a calendar that leaves them out answers "what is due on
  * this day" differently from the planner). Which checkboxes take part is the
- * shared `dueTaskRows`; the reminder scheduler asks for the database alone
- * (its decision, feedback round 2026-09-01, E3).
+ * shared `dueTaskRows`. The reminder scheduler asks for the database here
+ * and for the checkboxes through `checkboxReminderSubjects`, behind their own
+ * switch (Sammelplan § 3.145 Nr. 1, E3).
  */
 
 export interface DueTask {
@@ -90,7 +91,8 @@ export function noteDueTasks(notes: readonly TaskRecord[]): DueTask[] {
   for (const row of dueTaskRows({ notes })) {
     const due = dueDayOf(row);
     if (!due) continue;
-    out.push({ id: row.id, source: "note", path: row.path, title: row.title, due, done: !isOpenState(row.state), state: row.state, priority: row.priority, line: row.line, repeats: row.repeats === true });
+    // A time written after the date (`📅 2026-11-02 14:30`) puts the box at its hour in a day.
+    out.push({ id: row.id, source: "note", path: row.path, title: row.title, due, ...(row.dueMinutes !== null ? { dueMinutes: row.dueMinutes } : {}), done: !isOpenState(row.state), state: row.state, priority: row.priority, line: row.line, repeats: row.repeats === true });
   }
   return out;
 }

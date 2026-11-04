@@ -19,7 +19,7 @@ vi.mock("../../platform/capacitorPlatform", () => ({ capacitorCredentialStore: {
 vi.mock("../reminderScheduler", () => ({ rescheduleReminders: vi.fn() }));
 vi.mock("../vaultService", () => ({ getMobileVault: () => null }));
 vi.mock("../mobileSettingsSync", () => ({ noteAccountRemovedLocally: vi.fn() }));
-vi.mock("./taskSyncRuntime", () => ({ startTaskSyncRuntime: vi.fn(), stopTaskSyncRuntime: vi.fn(), runMobileTaskSync: vi.fn() }));
+vi.mock("./taskSyncRuntime", () => ({ startTaskSyncRuntime: vi.fn(), stopTaskSyncRuntime: vi.fn(), runMobileTaskSync: vi.fn(), runMobileEntryEventSync: vi.fn() }));
 vi.mock("../../platform/devicePim", () => ({ isDevicePimSupported: () => false }));
 vi.mock("../../adapters/webdavHttp", () => ({
   allowHttpOrigin: async () => {},
@@ -182,6 +182,14 @@ describe("actual mobile calendar connection lifecycle", () => {
     state.secrets.set(pimSecretKey("original", "synced"), JSON.stringify({ kind: "google", clientId: "client", clientSecret: "", refreshToken: "kept" }));
     await expect(pim.addPimAccount("google", "New", googleCreds, context)).rejects.toThrow("accountChanged");
     expect(JSON.parse(state.secrets.get(pimSecretKey("original", "synced"))!).refreshToken).toBe("kept");
+  });
+  it("a card still naming a calendar row this device removed takes the new one (Sammelplan § 3.105)", async () => {
+    const context = source();
+    const records = state.settings.get("cloudAccounts_original") as CloudAccountRecord[];
+    state.settings.set("cloudAccounts_original", records.map((r) => r.id === "selected" ? { ...r, services: { ...r.services, calendar: { pimAccountId: "removed" } } } : r));
+    state.rows.set("original", []);
+    const id = await pim.addPimAccount("google", "New", googleCreds, context);
+    expect((state.settings.get("cloudAccounts_original") as CloudAccountRecord[]).find((r) => r.id === "selected")?.services.calendar).toEqual({ pimAccountId: id });
   });
 });
 

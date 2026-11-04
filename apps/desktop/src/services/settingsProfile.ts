@@ -1,4 +1,4 @@
-import { setForeignLegacyComments } from "@plainva/ui";
+import { isVaultPathSetting, setForeignLegacyComments } from "@plainva/ui";
 /**
  * Desktop profile-sync port (settings-sync plan P1). Bridges the vault's
  * syncable per-vault settings (content placement, backup retention, sync
@@ -53,7 +53,7 @@ import {
   forgetRemovedLocalAccount,
   importAccountMetadata as sharedImportAccountMetadata,
   parseBookmarksFile,
-  applyBookmarkProfileOnDisk, validBookmarkPaths, setBookmarksLaneScope,
+  applyBookmarkProfileOnDisk, validBookmarkPaths, setBookmarksLaneScope, snapshotBookmarksFile, restoreBookmarksFile, type BookmarksFileSnapshot,
   forgetReportedOnce,
   shouldReportOnce,
   shouldReportWaitingAccounts,
@@ -115,7 +115,8 @@ import type { PimRuntime } from "./pim/pimRuntime";
 import { mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey } from "@plainva/ui";
+import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
+import { weekStartKey } from "./weekStartVault";
 import { recoverDesktopAccountRepair, repairDesktopAccounts } from "./accountRepair";
 
 // Per-vault store keys, defined locally to avoid pulling the VaultContext module
@@ -149,6 +150,7 @@ const mailRemoteImagesKey = (v: string) => `mailRemoteImages_${b64(v)}`;
 export const mailSnoozedKey = (v: string) => `mailSnoozed_${b64(v)}`;
 const syncIntervalKey = (v: string) => `syncIntervalSeconds_${b64(v)}`;
 const defaultCalendarKey = (v: string) => `defaultCalendar_${b64(v)}`;
+// The vault's week start (decision E4): the key `weekStartVault.ts` reads and writes.
 const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
 const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
 const profileImportJournalKey = (v: string) => `settingsSyncImportJournal_${b64(v)}`;
@@ -293,6 +295,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   mailSnoozed: mailSnoozedKey,
   syncIntervalSeconds: syncIntervalKey,
   defaultCalendar: defaultCalendarKey,
+  weekStart: weekStartKey,
   backupSnapshotIntervalSeconds: backupSnapshotIntervalKey,
   backupMaxCountPerFile: backupMaxCountKey,
   backupMaxAgeDays: backupMaxAgeDaysKey,
@@ -407,7 +410,7 @@ interface ProfileImportSnapshot {
   cloudAccounts?: CloudAccountRecord[];
   pimAccounts?: PimAccountRow[];
   pimSelections?: ProfilePimSelections;
-  bookmarks?: { existed: boolean; text?: string };
+  bookmarks?: BookmarksFileSnapshot;
 }
 
 interface ProfileImportJournal {
@@ -580,6 +583,7 @@ export async function applyProfileValues(
     window.dispatchEvent(new CustomEvent("plainva-cloud-accounts-changed", { detail: { vaultPath } }));
     window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
     window.dispatchEvent(new CustomEvent(BAR_LAYOUT_CHANGED_EVENT));
+    window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT));
   }
 }
 
@@ -611,8 +615,8 @@ async function captureProfileSnapshot(store: ISettingsStore, vaultPath: string, 
     };
   }
   if (context.rawVault) {
-    const existed = await context.rawVault.exists(".plainva/bookmarks.json");
-    snapshot.bookmarks = { existed, ...(existed ? { text: await context.rawVault.readTextFile(".plainva/bookmarks.json") } : {}) };
+    setBookmarksLaneScope(context.rawVault, `desktop:${vaultPath}`);
+    snapshot.bookmarks = await snapshotBookmarksFile(context.rawVault);
   }
   return snapshot;
 }
@@ -673,8 +677,10 @@ async function restoreProfileSnapshot(store: ISettingsStore, vaultPath: string, 
     for (const list of snapshot.pimSelections?.taskLists ?? []) await context.pimRuntime.cache.setTaskListSelected(list.accountId, list.id, list.selected);
   }
   if (context.rawVault && snapshot.bookmarks) {
-    if (snapshot.bookmarks.existed) await context.rawVault.writeTextFile(".plainva/bookmarks.json", snapshot.bookmarks.text ?? "");
-    else if (await context.rawVault.exists(".plainva/bookmarks.json")) await context.rawVault.deleteItem(".plainva/bookmarks.json");
+    // On the lane the star clicks share: a click in the same moment cannot
+    // write the import's list back over the rollback (Sammelplan § 3.127 Nr. 1).
+    setBookmarksLaneScope(context.rawVault, `desktop:${vaultPath}`);
+    await restoreBookmarksFile(context.rawVault, snapshot.bookmarks);
   }
   await store.save();
 }
@@ -693,12 +699,9 @@ const PATH_FIELDS = new Set(["dailyNotesFolder", "dailyNoteTemplate", "templateF
 const BOOLEAN_FIELDS = new Set(["extendedDatabases", "mailRemoteImages", "backupZipEnabled", "commentAnchors"]);
 const NUMBER_FIELDS = new Set(["syncIntervalSeconds", "backupSnapshotIntervalSeconds", "backupMaxCountPerFile", "backupMaxAgeDays", "backupZipKeep"]);
 
+/** One rule for both shells, typed in or carried over (`isVaultPathSetting`, 3.127 no. 4). */
 function validVaultPath(value: string): boolean {
-  if (value === "") return true; // explicit "disabled / use default" setting
-  if (value.length > 1024 || value.includes("\0") || value.includes("\\")) return false;
-  if (/^(?:[a-z]+:|\/|[A-Za-z]:|\\\\)/.test(value)) return false;
-  const parts = value.split("/");
-  return !parts.some((part) => part === ".." || part === ".") && parts[0] !== ".plainva";
+  return isVaultPathSetting(value);
 }
 
 /**

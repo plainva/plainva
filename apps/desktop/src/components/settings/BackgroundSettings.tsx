@@ -18,8 +18,10 @@ import {
  *
  * Two switches, both off by default, because they are two different wishes:
  * starting with the system, and staying alive when the window is closed. The
- * third row is not a setting at all but the consequence: it says, live, what
- * currently holds for reminders.
+ * first is a row of the "Startup" card (AutostartRow below, settings plan
+ * 2026-10-29, appendix 2.4 B1), the second heads this card. Its next row is
+ * not a setting at all but the consequence: it says, live, what currently
+ * holds for reminders (B2).
  *
  * The tray switch proves itself instead of predicting: it puts the icon up and
  * asks whether it can be seen. Both ways of failing end with no icon and the
@@ -27,7 +29,6 @@ import {
  */
 export function BackgroundSettings() {
   const { t } = useTranslation();
-  const [autostart, setAutostart] = useState(false);
   const [tray, setTray] = useState(false);
   const [failure, setFailure] = useState<Extract<TrayOutcome, { on: false }> | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,30 +38,11 @@ export function BackgroundSettings() {
     void (async () => {
       const store = await getSettingsStore();
       const wanted = (await store.get<boolean>(RUN_IN_TRAY_KEY)) ?? false;
-      // Reads the system rather than a remembered flag: the registry entry or
-      // LaunchAgent can be removed from outside Plainva, and a switch that
-      // shows a state the system does not have is worse than none.
-      const { isEnabled } = await import("@tauri-apps/plugin-autostart");
-      const on = await isEnabled().catch(() => false);
-      if (alive) {
-        setAutostart(on);
-        setTray(wanted);
-      }
+      if (alive) setTray(wanted);
     })();
     return () => {
       alive = false;
     };
-  }, []);
-
-  const toggleAutostart = useCallback(async (on: boolean) => {
-    setBusy(true);
-    try {
-      setAutostart(await applyAutostart(on));
-    } catch {
-      setAutostart(await applyAutostart(false).catch(() => false));
-    } finally {
-      setBusy(false);
-    }
   }, []);
 
   const toggleTray = useCallback(
@@ -100,12 +82,10 @@ export function BackgroundSettings() {
   );
 
   return (
-    <SettingCard label={t("background.section")}>
-      <SettingRow label={t("background.autostart")}>
-        <Switch checked={autostart} disabled={busy} label={t("background.autostart")} onChange={(on) => void toggleAutostart(on)} />
-      </SettingRow>
-
-      <SettingRow label={t("background.tray")}>
+    <SettingCard label={t("background.section")} testId="behavior-background">
+      {/* What keeps running, and why a tray icon that did not appear leaves the
+          switch off, stand behind the ⓘ (appendix 2.4). */}
+      <SettingRow label={t("background.tray")} info={`${t("background.note")}\n\n${t("background.trayInvisibleWhy")}`}>
         <Switch checked={tray} disabled={busy} label={t("background.tray")} onChange={(on) => void toggleTray(on)} />
       </SettingRow>
 
@@ -119,9 +99,49 @@ export function BackgroundSettings() {
 
       {/* Not a setting — the consequence of the one above, said plainly. */}
       <SettingRow label={t("background.reminders")} desc={tray ? t("background.remindersClosed") : t("background.remindersRunning")} />
-
-      <SettingCardNote>{t("background.note")}</SettingCardNote>
     </SettingCard>
+  );
+}
+
+/**
+ * "Start with the system" — a row of the Startup card (appendix 2.4 B1): it is
+ * a start behaviour, beside opening the last vault and restoring the windows.
+ */
+export function AutostartRow() {
+  const { t } = useTranslation();
+  const [autostart, setAutostart] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      // Reads the system rather than a remembered flag: the registry entry or
+      // LaunchAgent can be removed from outside Plainva, and a switch that
+      // shows a state the system does not have is worse than none.
+      const { isEnabled } = await import("@tauri-apps/plugin-autostart");
+      const on = await isEnabled().catch(() => false);
+      if (alive) setAutostart(on);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const toggleAutostart = useCallback(async (on: boolean) => {
+    setBusy(true);
+    try {
+      setAutostart(await applyAutostart(on));
+    } catch {
+      setAutostart(await applyAutostart(false).catch(() => false));
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  return (
+    <SettingRow label={t("background.autostart")}>
+      <Switch checked={autostart} disabled={busy} label={t("background.autostart")} onChange={(on) => void toggleAutostart(on)} />
+    </SettingRow>
   );
 }
 

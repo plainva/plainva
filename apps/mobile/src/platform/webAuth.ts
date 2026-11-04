@@ -1,6 +1,6 @@
 import { Browser } from "@capacitor/browser";
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { logDiagnostic, toast } from "@plainva/ui";
+import { externalUrlToOpen, logDiagnostic, toast } from "@plainva/ui";
 import { connectionFailureToast } from "../services/connectionToast";
 import { APP_ID } from "../services/appScheme";
 
@@ -36,6 +36,10 @@ export interface SignInPageOptions {
 }
 
 export async function openSignInPage(url: string, options: SignInPageOptions = {}): Promise<void> {
+  // The second way out of the app beside `openExternal` (a sign-in needs the
+  // browser's handle): a provider's sign-in page is a web address, and
+  // nothing else reaches the browser from here either (Sammelplan § 3.138).
+  if (!/^https?:/i.test(externalUrlToOpen(url) ?? "")) throw new Error("A sign-in page must be a web address.");
   if (Capacitor.getPlatform() !== "ios" || typeof WebAuth.start !== "function") {
     await Browser.open({ url });
     return;

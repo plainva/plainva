@@ -287,45 +287,30 @@ describe("taking a file off", () => {
 });
 
 describe("the sender decides the bound", () => {
-  it("does not ask for a file a Microsoft mailbox does not take", async () => {
+  /** A base64 text for `bytes` zero bytes, without packing them: only its length is read. */
+  const zeros = (bytes: number) => "A".repeat(Math.floor(bytes / 3) * 4) + (bytes % 3 === 1 ? "AA==" : bytes % 3 === 2 ? "AAA=" : "");
+
+  it("asks a Microsoft mailbox for every file a forward carries — one request is no longer its bound", async () => {
+    // Until the upload session (§ 3.95 Nr. 3) the 7 MB video stayed behind here.
     await mount({ sender: microsoft });
-    // 7 MB is over the bound: it stays behind, by name, and costs nothing.
-    expect(batches[0].args.indexes).toEqual([0, 1]);
-    expect(states()).toEqual(["0:loading", "1:loading", "2:left/tooLarge"]);
-    await answer(batches[0], [{ index: 0, contentBase64: "AA==" }, { index: 1, contentBase64: "AA==" }]);
-    expect(latest.loading).toBe(false);
-    expect(latest.left).toEqual([{ name: "Begehung.mp4", size: 7 * MB, why: "tooLarge" }]);
+    expect(batches[0].args.indexes).toEqual([0, 1, 2]);
+    expect(states()).toEqual(["0:loading", "1:loading", "2:loading"]);
+    await answer(batches[0], [{ index: 0, contentBase64: "AA==" }, { index: 1, contentBase64: "AA==" }, { index: 2, contentBase64: "AA==" }]);
+    expect(latest.left).toEqual([]);
   });
 
-  it("asks for it once the sender takes it", async () => {
-    await mount({ sender: microsoft });
-    await answer(batches[0], [{ index: 0, contentBase64: "AA==" }, { index: 1, contentBase64: "AA==" }]);
-
-    await rerender({ sender: imap });
-    expect(batches).toHaveLength(2);
-    expect(batches[1].args.indexes).toEqual([2]);
-    expect(states()).toEqual(["0:ready", "1:ready", "2:loading"]);
-  });
-
-  it("leaves a file behind that has arrived when the new sender does not take it — and keeps its bytes", async () => {
-    await mount();
-    const big = btoa("\0".repeat(GRAPH_FILE_LIMIT + 1));
-    await answer(batches[0], [{ index: 0, contentBase64: "AA==" }, { index: 1, contentBase64: "AA==" }, { index: 2, contentBase64: big }]);
-    expect(states()).toEqual(["0:ready", "1:ready", "2:ready"]);
-
-    await rerender({ sender: microsoft });
-    expect(states()).toEqual(["0:ready", "1:ready", "2:left/tooLarge"]);
-    expect(latest.attachments.map((a) => a.name)).toEqual(["Angebot.pdf", "Lageplan.png"]);
-
-    await rerender({ sender: imap });
-    // Back again without a second download.
-    expect(states()).toEqual(["0:ready", "1:ready", "2:ready"]);
-    expect(batches).toHaveLength(1);
+  it("does not ask for a file over the mailbox's bound, and leaves it behind by name", async () => {
+    const huge = { ...source, files: [source.files[0], { index: 1, name: "Archiv.zip", mime: "application/zip", size: GRAPH_FILE_LIMIT + 1 }] };
+    await mount({ sender: microsoft, source: huge });
+    expect(batches[0].args.indexes).toEqual([0]);
+    expect(states()).toEqual(["0:loading", "1:left/tooLarge"]);
+    await answer(batches[0], [{ index: 0, contentBase64: "AA==" }]);
+    expect(latest.left).toEqual([{ name: "Archiv.zip", size: GRAPH_FILE_LIMIT + 1, why: "tooLarge" }]);
   });
 
   it("holds a file attached by hand against the mailbox's bound, and says which go", async () => {
     const note: MailAttachment = { name: "Notiz.md", mime: "text/markdown", contentBase64: "IyBI" };
-    const video: MailAttachment = { name: "Film.mp4", mime: "video/mp4", contentBase64: btoa("\0".repeat(GRAPH_FILE_LIMIT + 1)) };
+    const video: MailAttachment = { name: "Film.mp4", mime: "video/mp4", contentBase64: zeros(GRAPH_FILE_LIMIT + 1) };
     const others = [note, video];
     await mount({ source: undefined, sender: microsoft, others });
     expect(latest.othersGo).toEqual([true, false]);

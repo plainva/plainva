@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-10-08
+Stan na: 2026-10-30
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -10,7 +10,7 @@ Przed każdym zapisem Plainva zapisuje migawkę poprzedniego stanu — jako zwyk
 
 Przechowywanie (konfigurowalne dla każdego vaultu):
 
-- **Interwał migawek**: Przy każdej zmianie / 30 s / 2 min / 5 min / 10 min
+- **Interwał migawek**: Przy każdej zmianie / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Wersje na plik**: domyślnie 100 — powyżej tej liczby najstarsze są usuwane
 - **Maksymalny wiek**: domyślnie 90 dni — starsze wersje są usuwane **trwale** podczas codziennego czyszczenia („Bez ograniczeń” wyłącza tę funkcję)
 - **Duże pliki**: powyżej 5 MB zachowywana jest tylko najnowsza wersja — zobacz poniżej
@@ -31,7 +31,7 @@ Obrazy również mają wersje (z podglądem); pozostałe pliki binarne można pr
 
 ## Przywracanie usuniętych plików
 
-Ponieważ każde usunięcie najpierw tworzy migawkę pliku, Plainva może przywrócić usunięte pliki: kliknij prawym przyciskiem myszy nazwę vaultu na górze drzewa plików → **Przywróć usunięte pliki…** (dostępne też z ustawień). Lista pokazuje wszystkie pliki, których migawki nadal istnieją, mimo że oryginał zniknął — **Przywróć** odtwarza najnowszy stan w pierwotnej lokalizacji (foldery są odtwarzane w razie potrzeby), **Wersje…** otwiera pełną historię usuniętego pliku.
+Ponieważ każde usunięcie najpierw tworzy migawkę pliku, Plainva może przywrócić usunięte pliki: kliknij prawym przyciskiem myszy nazwę vaultu na górze drzewa plików → **Przywróć usunięte pliki…** (dostępne też w **Ustawienia → Vault → Backup i historia wersji → Historia wersji**). Lista pokazuje wszystkie pliki, których migawki nadal istnieją, mimo że oryginał zniknął — **Przywróć** odtwarza najnowszy stan w pierwotnej lokalizacji (foldery są odtwarzane w razie potrzeby), **Wersje…** otwiera pełną historię usuniętego pliku.
 
 Uwaga: usunięcie **całego folderu** przenosi go do kosza systemu operacyjnego — w tym przypadku kosz systemowy jest głównym sposobem odzyskania; w Plainva mogą znajdować się co najwyżej starsze migawki zawartych w nim plików.
 
@@ -67,9 +67,11 @@ Ustawienia → **Vault** → **Backup i historia wersji**:
 - Własna synchronizacja Plainva nigdy nie przesyła `.plainva`. Jeśli synchronizujesz folder vaultu zewnętrznym klientem (np. aplikacją Nextcloud), migawki są przesyłane razem z nim — kosztuje to trochę miejsca, ale nie szkodzi.
 - Konflikty synchronizacji są dodatkowo chronione za pomocą plików `.CONFLICT` (patrz [FAQ](FAQ.md)); historia wersji uzupełnia to o oś czasu każdego pliku.
 
+Na telefonie **Backupy ZIP** to pierwsza grupa strony **Backup i historia wersji**, a pod nią następuje **Historia wersji** z pozycją **Przywróć usunięte pliki** na końcu.
+
 Na urządzeniu mobilnym nieudany zapis notatki zatrzymuje zmianę, ponowne wczytanie lub usunięcie vaulta. Tekst pozostaje w kolejce do ponownej próby. Notatki o tej samej nazwie w różnych vaultach mają oddzielne oczekujące zapisy i szkice. Konflikt zapisu zachowuje daną wersję tekstu; późniejsze zmiany są następnie zapisywane osobno lub w kolejnej kopii konfliktowej. Oba interfejsy wykonują zapisy i usuwanie szkiców w kolejności, aby opóźnione zakończenie nie usunęło nowszej kopii. Nieudany zapis kopii konfliktowej nie zastępuje tekstu w edytorze mobilnym.
 
-Kopia ZIP jest uznawana za udaną dopiero po odczytaniu wszystkich wybranych plików i zapisaniu pełnego archiwum. Nieudana próba nie usuwa wcześniejszych archiwów ani nie zmienia daty ostatniej udanej kopii. Na urządzeniu mobilnym komunikat błędu automatycznej kopii podaje nazwę vaulta; przycisk **Utwórz kopię teraz** w jego ustawieniach uruchamia kolejną próbę. Ukryta konfiguracja użytkownika, np. `.obsidian`, jest uwzględniana na obu platformach. Katalogi `.plainva`, `.git`, `.trash` i `node_modules` są wykluczane na każdym poziomie. Przy tworzeniu kilku archiwów w tej samej sekundzie nowa nazwa otrzymuje przyrostek, np. `_001`.
+Kopia ZIP jest uznawana za udaną dopiero po odczytaniu wszystkich wybranych plików i zapisaniu pełnego archiwum. Nieudana próba nie usuwa wcześniejszych archiwów ani nie zmienia daty ostatniej udanej kopii. Na urządzeniu mobilnym komunikat błędu automatycznej kopii podaje nazwę vaulta; przycisk **Utwórz kopię zapasową teraz** w sekcji **Backup i historia wersji** → **Backupy ZIP** uruchamia kolejną próbę. Ukryta konfiguracja użytkownika, np. `.obsidian`, jest uwzględniana na obu platformach. Katalogi `.plainva`, `.git`, `.trash` i `node_modules` są wykluczane na każdym poziomie. Przy tworzeniu kilku archiwów w tej samej sekundzie nowa nazwa otrzymuje przyrostek, np. `_001`.
 
 Zapis jest oznaczany jako zakończony dopiero po potwierdzeniu zapisu danych. Tekst wpisany podczas zapisywania pozostaje niezapisany, dopóki nie zostanie zapisana również jego wersja. Szkice na komputerze należą do swojej sesji edytora: zakończenie starej sesji nie usuwa szkicu z nowo otwartego edytora. Gdy jednocześnie pojawiają się zmiany zewnętrzne, Plainva scala zgodne zmiany; tekst powodujący konflikt pozostaje dostępny jako szkic i kopia konfliktowa.
 

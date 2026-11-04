@@ -21,9 +21,10 @@ import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from ".
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
+import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createIndexNotices, createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
@@ -31,7 +32,7 @@ import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
 import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson } from "@plainva/core";
-import type { JournalCheckResult } from "@plainva/core";
+import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
 import { installCommentFaultReporter } from "../services/commentFaults";
@@ -43,7 +44,7 @@ import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePe
 import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
-import { startReminderScheduler } from "../services/reminderScheduler";
+import { REMINDER_SOURCES_CHANGED, startReminderScheduler } from "../services/reminderScheduler";
 import { requestCalendarDay } from "@plainva/ui";
 import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
 import { showContentInVaultWindow } from "../services/windowManager";
@@ -66,7 +67,6 @@ import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/
 import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
-import { runEntryEventSync } from "../services/pim/entryEventSync";
 import { runTaskSync } from "../services/pim/taskSync";
 import {
   initTaskDeletion,
@@ -98,6 +98,11 @@ export interface VaultSyncWorker {
    * such a log.
    */
   verifyDeletionJournal?: (onProgress?: (done: number, total: number) => void) => Promise<JournalCheckResult>;
+  /**
+   * The collision card's two actions for twin spellings (finding 2026-11-03).
+   * Only the plain sync worker has them: the encrypted one stores no names.
+   */
+  resolveNameCollisions?: (action: NameCollisionAction) => Promise<NameTwinResolution>;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
   /** One settings push outside a cycle, the last act before files go off for the vault (review of plan "Verbinden", finding 4). */
   pushSettingsNow?: () => Promise<void>;
@@ -741,6 +746,9 @@ export const VaultProvider: React.FC<{
     activeLoadPathRef.current = path;
     loadAbortRef.current = new AbortController();
     const currentAbortSignal = loadAbortRef.current.signal;
+    // What this load starts on its way; a load that is called off stops it
+    // again instead of leaving it running for a vault nobody has open (3.120).
+    const loadStarts = new LoadStarts(path, currentAbortSignal);
 
     try {
       setState(s => ({ ...s, isLoading: true, error: null, loadingProgress: undefined, loadingPath: path }));
@@ -1106,6 +1114,10 @@ export const VaultProvider: React.FC<{
           }
         },
       });
+      // The index's own runs end at their next look at the signal; the next
+      // open waits until they have, and until the queue has let go.
+      loadStarts.adopt({ stop: () => indexQueue.stop(), stopAndDrain: () => indexQueue.whenIdle() });
+      loadStarts.adopt({ stop: () => {}, stopAndDrain: () => indexer.whenIdle() });
 
       // PIM runtime (calendar/task cache + pull worker). The worker only runs
       // when the vault actually has accounts — an unconfigured vault pays
@@ -1186,18 +1198,13 @@ export const VaultProvider: React.FC<{
           // The writing connection (S19): entries that were put in the calendar
           // follow their appointment. Runs on the same hook and independently of
           // the task database — an entry needs no task database to be scheduled.
-          const day = (offset: number) => {
-            const d = new Date();
-            d.setDate(d.getDate() + offset);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          };
           const ev = await runEntryEventSync({
             adapter: vaultAdapter,
             db: queryService.db,
             cache: pimRuntime.cache,
             // The same window the worker fills the cache for — outside it an
             // absent appointment means "not looked at", not "deleted".
-            window: { startDay: day(-60), endDay: day(400) },
+            window: entryEventWindow(),
           });
           if (ev.changedNotes.length > 0) {
             indexQueue.enqueue(ev.changedNotes, { source: "tasks" });
@@ -1230,7 +1237,7 @@ export const VaultProvider: React.FC<{
       );
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
       try {
-        if ((await pimRuntime.cache.listAccounts()).length > 0) pimRuntime.worker.start();
+        if ((await pimRuntime.cache.listAccounts()).length > 0) loadStarts.start(pimRuntime, () => pimRuntime.worker.start());
       } catch (e) {
         console.warn("[VaultContext] starting the PIM worker failed", e);
       }
@@ -1432,9 +1439,21 @@ export const VaultProvider: React.FC<{
             syncTargetRef.current = null;
             syncProviderRef.current = null;
             const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
-            if (runner && !currentAbortSignal.aborted) {
-              settingsOnlyRef.current = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs);
-              settingsOnlyRef.current.start();
+            if (runner) {
+              const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs);
+              loadStarts.start(
+                {
+                  stop: () => {
+                    settingsOnly.stop();
+                    if (settingsOnlyRef.current === settingsOnly) settingsOnlyRef.current = null;
+                  },
+                  stopAndDrain: () => settingsOnly.stopAndDrain(),
+                },
+                () => {
+                  settingsOnlyRef.current = settingsOnly;
+                  settingsOnly.start();
+                },
+              );
             }
           } else if (workspaceSecurityStatus && workspaceStateStore) {
             const runtime = workspaceRuntime;
@@ -1529,8 +1548,7 @@ export const VaultProvider: React.FC<{
                     }
                   }
                 };
-                if (currentAbortSignal.aborted) return null;
-                worker.start();
+                if (!loadStarts.start(worker, () => worker.start())) return null;
                 return worker;
               };
               if (deferWorkspaceReconcile) {
@@ -1623,6 +1641,10 @@ export const VaultProvider: React.FC<{
             // exist (finding 2026-08-21).
             syncWorker.onNameCollisions = (collisions) => {
               syncStatusStore.set(path, { collisions });
+            };
+            // The same, as cases the card can tell apart and act on (finding 2026-11-03).
+            syncWorker.onNameCollisionCases = (collisionCases) => {
+              syncStatusStore.set(path, { collisionCases });
             };
             syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
@@ -1740,7 +1762,7 @@ export const VaultProvider: React.FC<{
                 toast.info(kept);
               }
             };
-            syncWorker.start();
+            loadStarts.start(fileWorker, () => fileWorker.start());
           }
         }
       } catch (e) {
@@ -1753,7 +1775,10 @@ export const VaultProvider: React.FC<{
         }
       }
 
-      if (currentAbortSignal.aborted) return;
+      if (currentAbortSignal.aborted) {
+        void loadStarts.abandon();
+        return;
+      }
 
       // Preserve the explicit locked status when an encrypted workspace has no
       // key material. The final load-state update below must not turn it idle.
@@ -1802,11 +1827,20 @@ export const VaultProvider: React.FC<{
         loadingPath: null,
       }));
       
+      // The open vault owns what this load started now; its teardown stops it.
+      loadStarts.settle();
+
       if (activeLoadPathRef.current === path) {
         activeLoadPathRef.current = null;
       }
     } catch (error: any) {
-      if (currentAbortSignal.aborted) return;
+      if (currentAbortSignal.aborted) {
+        void loadStarts.abandon();
+        return;
+      }
+      // A load that failed leaves no open vault behind either: nothing it
+      // started may keep running.
+      void loadStarts.abandon();
       console.error("Failed to load vault", error);
       setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
       if (activeLoadPathRef.current === path) {
@@ -2205,8 +2239,8 @@ export const VaultProvider: React.FC<{
     const adapter = state.vaultAdapter;
     if (!vaultPath || !adapter) return;
     const ownerShows = shownVault === vaultPath;
-    const show = (path: string) => {
-      void showContentInVaultWindow({ vaultPath, path, ownerShows }).catch((e) =>
+    const show = (path: string, term?: string) => {
+      void showContentInVaultWindow({ vaultPath, path, ownerShows, ...(term ? { term } : {}) }).catch((e) =>
         console.warn("[VaultContext] could not show the reminder's note", e),
       );
     };
@@ -2215,7 +2249,8 @@ export const VaultProvider: React.FC<{
       cache: state.pimRuntime?.cache ?? null,
       vaultAdapter: adapter,
       queryService: state.queryService ?? null,
-      openNote: show,
+      openNote: (path) => show(path),
+      openNoteAt: (path, term) => show(path, term),
       onNextChanged: (text, at) => reportTrayNext(vaultPath, text, at),
       openCalendar: (day) => {
         // Park the day first: the calendar tab reads it when it mounts, so a
@@ -2229,6 +2264,14 @@ export const VaultProvider: React.FC<{
       forgetTrayNext(vaultPath);
     };
   }, [isClient, shownVault, state.vaultPath, state.vaultAdapter, state.queryService, state.pimRuntime]);
+
+  // The index moved on: task reminders may have changed with it — a checkbox
+  // given a time, ticked, deleted or moved (E3). The scheduler re-plans after
+  // a quiet spell; addressed with the vault, as two runtimes share a window.
+  useEffect(() => {
+    if (isClient || !state.vaultPath || state.fileTreeVersion === 0) return;
+    window.dispatchEvent(new CustomEvent(REMINDER_SOURCES_CHANGED, { detail: { vaultPath: state.vaultPath } }));
+  }, [isClient, state.vaultPath, state.fileTreeVersion]);
 
   // Retention settings changed in the settings modal: push the new policy into
   // the live BackupVaultAdapter without reloading the vault.
@@ -2461,7 +2504,8 @@ export const VaultProvider: React.FC<{
         return result;
       } catch (e) {
         console.error("[VaultContext] vault refresh failed", e);
-        if (!opts?.silent) {
+        // One notice for one failure: the scan's own names the reason.
+        if (!opts?.silent && !indexFailureSaid(e)) {
           toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
         }
         throw e;
@@ -2517,7 +2561,7 @@ export const VaultProvider: React.FC<{
       toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
     } catch (e) {
       console.error("[VaultContext] index rebuild failed", e);
-      toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
+      if (!indexFailureSaid(e)) toast.error(i18n.t("refresh.failed", { defaultValue: "Vault konnte nicht neu eingelesen werden." }));
     } finally {
       setState(s => ({ ...s, isLoading: false }));
     }
@@ -2964,7 +3008,7 @@ export const VaultProvider: React.FC<{
     const slices = new Map(runtime.policy.payload.slices.map((slice) => [slice.sliceId, slice]));
     const pending: Record<string, number> = {};
     for (const record of records) {
-      pending[record.publicationId] = pendingPublicationChanges({ slice: slices.get(record.sliceId), objects, manifest: record.manifest });
+      pending[record.publicationId] = pendingPublicationChanges({ slice: slices.get(record.sliceId), objects, manifest: record.manifest, mode: record.config.mode });
     }
     return pending;
   };

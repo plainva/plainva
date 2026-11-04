@@ -77,6 +77,17 @@ export function setExtraTextExtensions(extensions: readonly string[] | null | un
   );
 }
 
+/**
+ * The entries of the "More text files" field, split where people separate
+ * them — commas, semicolons, blanks. Both shells' settings rows save through
+ * this, so the same text stores the same list on either; cleaning each entry
+ * (dot, case, junk) stays with `setExtraTextExtensions`, which every reader
+ * goes through.
+ */
+export function splitTextFileExtensions(input: string): string[] {
+  return input.split(/[\s,;]+/).map((entry) => entry.trim()).filter(Boolean);
+}
+
 /** What the vault currently adds — for the settings surface to render back. */
 export function getExtraTextExtensions(): readonly string[] {
   return [...extraTextExtensions];

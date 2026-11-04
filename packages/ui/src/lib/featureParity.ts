@@ -539,27 +539,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-21",
   },
   {
-    id: "base-new-entry-template-caret",
-    title: "A new database entry opens with the keyboard where its template's cursor stands",
-    area: "database",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "Both shells place the caret a template leaves in a new entry ({{cursor}}). On the " +
-      "phone \"Entry\" opens the note as a screen, and a note just made opens to be written " +
-      "in: the keyboard is at that place at once. On the desktop the entry opens in the peek " +
-      "window beside the database, so that title and properties can be filled in first. Its " +
-      "editor holds the place while properties and text are written, and the keyboard stays " +
-      "where it was: entered with the keyboard, the text is written from the template's place, " +
-      "a click chooses its own; renaming the entry in the window shows it in a new editor, " +
-      "and the place is gone. Meant to close by the window taking the keyboard when the " +
-      "template has a cursor; put off on 2026-10-22, when the window learned to take the " +
-      "caret, until the maintainer decides that behaviour, listed in the maintainer's " +
-      "open-items plan.",
-    mobile: "yes",
-    verified: "2026-10-22",
-  },
-  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",
@@ -689,6 +668,33 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-22",
   },
   {
+    id: "keyboard-toolbar-keyboard",
+    title: "Put the on-screen keyboard away from the writing toolbar",
+    area: "editor",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "A desktop has a hardware keyboard and no on-screen keyboard covering the " +
+      "text. On the phone the keyboard toolbar ends in a fixed button that puts the " +
+      "keyboard away and brings it back while the note stays in writing mode (W1).",
+    mobile: "yes",
+    verified: "2026-10-29",
+  },
+  {
+    id: "list-indent-controls",
+    title: "Indent and outdent list items",
+    area: "editor",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Same commands, different trigger: Tab and Shift+Tab on the desktop, and on " +
+      "the phone two toolbar buttons that appear while the caret stands in a list " +
+      "(W2, shiftListIndent). The phone has no Tab key; there is no swipe gesture " +
+      "for it.",
+    verified: "2026-10-29",
+  },
+  {
     id: "managed-index-tiles",
     title: "A managed index.md shown as tiles",
     area: "editor",
@@ -704,6 +710,38 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "and a long name wraps instead of running into a neighbour, so the finding " +
       "has no counterpart there. Tiles would be a reader of their own for one file.",
     verified: "2026-10-21",
+  },
+  {
+    id: "note-head-button-choice",
+    title: "Choose the first button of a note's bar (bookmark, outline or backlinks)",
+    area: "editor",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "The desktop shows outline, backlinks and properties side by side in the " +
+      "right sidebar and the bookmark in the tab's menu and the palette - nothing " +
+      "competes for one slot. On the phone the bar has room for one such button " +
+      "(F9); the others stay in the note menu and the note details.",
+    mobile: "yes",
+    verified: "2026-10-29",
+  },
+  {
+    id: "note-property-rename",
+    title: "Rename a property of one note in its properties surface",
+    area: "editor",
+    kind: "gap",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's properties section renames a note's property in its name " +
+      "field (PropertiesSection.tsx: the entry is renamed where it stands, a name " +
+      "another property has — in any casing — is refused and said). The phone's " +
+      "note sheet edits a property's value and adds or removes one, but offers no " +
+      "rename of a single note's property (NoteContextSheet.tsx); renaming a " +
+      "column of a database renames it across its notes on both shells. Written " +
+      "down on 2026-11-02 while the desktop's rename learned the taken-name rule " +
+      "(open-items plan 3.144 no. 10); Sammelplan § 3.173.",
+    verified: "2026-11-02",
   },
   {
     id: "print-note",
@@ -735,13 +773,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "reader-chrome-auto-hide",
-    title: "Automatically hide controls while reading",
+    title: "Automatically hide controls while reading and writing",
     area: "editor",
     kind: "decision",
     desktop: "partial",
-    desktopReason: "Desktop uses its explicit focus-mode command and shortcut. Touch readers hide the header and pencil on downward scrolling, with a device-local opt-out; the tablet navigation rail stays available.",
+    desktopReason:
+      "Desktop uses its explicit focus-mode command and shortcut. On a touch screen " +
+      "one device setting (\"Hide bars while scrolling\") hides the note's header " +
+      "and pencil, the bottom bar and the \"+\" while scrolling down, brings them " +
+      "back on the way up and at the end of a list, and takes the note's header " +
+      "away while writing with the keyboard up (wishes 2026-10-25, W3/F8). A " +
+      "desktop window has no soft keyboard and no floating bottom bar to make " +
+      "room from; the tablet navigation rail stays available.",
     mobile: "yes",
-    verified: "2026-09-16",
+    verified: "2026-10-29",
   },
   {
     id: "spell-checking",
@@ -850,18 +895,26 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobileReason:
       "The reader's list of attachments is what a forward carries and what can be " +
       "saved, and for an IMAP mailbox the two shells build it with two parsers. The " +
-      "desktop's (mail-parser, mail_imap.rs) lists every part that is not the body " +
-      "shown: an embedded image without a name, a named text part, the calendar " +
-      "alternative of an invitation, an attached message. The phone's (net/mime.ts) " +
-      "lists a part only when it carries a file name or is marked as an attachment, " +
-      "and never a text part that is not marked so. The same message can therefore " +
-      "show more files on the desktop - one for every such part, the logo of a " +
-      "signature included -, and a forward then carries them from there, each " +
-      "counted against what a forward loads on its own. A Microsoft mailbox is " +
-      "not affected: both shells read Graph's list. " +
+      "desktop's rule is its own (attachment_parts in mail_imap.rs, on top of " +
+      "mail-parser 1.0, whose RFC 8621 list would leave out a picture the body " +
+      "shows): every part that is not text is a file, and a text or HTML part that " +
+      "is in neither body - an embedded image without a name, a named text part, " +
+      "the calendar alternative of an invitation, an attached message. The phone's " +
+      "(net/mime.ts) lists a part only when it carries a file name, is marked as " +
+      "an attachment or is an enclosed message, and never a text part that is not " +
+      "marked so. Both list a named picture of a multipart/mixed with or without a " +
+      "disposition, and an enclosed message with or without a name - the parts of " +
+      "a digest that name no type among them (held by the same messages in " +
+      "imapClient.test.ts and mail_imap.rs, open-items plan 3.78 no. 13). A " +
+      "message of one part in another text type is its text on both (3.78 no. " +
+      "12), not a file. The same message " +
+      "can still show more files on the desktop - one for every unnamed part, the " +
+      "logo of a signature included -, and a forward then carries them from there, " +
+      "each counted against what a forward loads on its own. A Microsoft mailbox " +
+      "is not affected: both shells read Graph's list. " +
       "Closing this means one rule for what counts, held by the same example " +
       "messages against both parsers (finding 2026-10-11).",
-    verified: "2026-10-12",
+    verified: "2026-11-02",
   },
   {
     id: "mail-base64-reading",
@@ -870,121 +923,38 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     kind: "gap",
     desktop: "partial",
     desktopReason:
-      "For an IMAP mailbox the two shells read a message with two parsers. Both " +
-      "read a \"=\" inside base64 as the end of a group and go on reading behind " +
-      "it - every line padded on its own, two encodings joined into one (finding " +
-      "2026-10-12; one table of examples is held against both, in " +
-      "imapClient.test.ts and in mail_imap.rs). In two things the desktop's parser " +
-      "(mail-parser) reads less than the phone's reader (net/mime.ts). A last group " +
-      "without its padding is dropped: the last one or two bytes of a file that is " +
-      "not a text file, of the message's text, of an encoded word in a header. And " +
-      "one character that is no base64 gives the whole part up - in a body any " +
-      "but a blank, a tab, a line break or a single hyphen, though RFC 2045 says " +
-      "to pass any of them over; in an encoded word any but a blank, a tab or a " +
-      "line break, so a hyphen too: a file, a text file too, is handed out as it " +
-      "stands in the message, undecoded; an encoded word in a header is shown as it " +
-      "was written; " +
-      "and the text of a message in such a part is shown undecoded or, inside a " +
-      "multipart, listed as a file instead. A Microsoft mailbox is not affected: Graph " +
-      "delivers the message decoded. Closing this means reading base64 in " +
-      "mail_imap.rs itself, from a part's own header and its raw body - for the " +
-      "text and for every file - instead of taking the parser's reading, or a " +
-      "parser that reads it (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
-      "fails on the day one of the two is gone).",
+      "For an IMAP mailbox the two shells read a message with two parsers. In a " +
+      "body both read base64 alike since mail-parser 1.0 (one table of examples " +
+      "is held against both, in imapClient.test.ts and in mail_imap.rs): a \"=\" " +
+      "ends a group wherever it stands, a last group without its padding is read, " +
+      "a single character of a group is no byte, and whatever is no base64 is " +
+      "passed over. One thing is left where the desktop's parser reads less than " +
+      "the phone's reader (net/mime.ts): in an encoded word of a header, a " +
+      "character that is no base64 other than a blank, a tab or a line break - a " +
+      "hyphen too - leaves the word as it was written, though RFC 2045 says to " +
+      "pass it over; the subject or a name then shows its encoded form. A " +
+      "Microsoft mailbox is not affected: Graph delivers the message decoded. " +
+      "Closing this means decoding encoded words in mail_imap.rs itself, or a " +
+      "parser that reads them (what_the_parser_gives_up_in_base64 in mail_imap.rs " +
+      "fails on the day the difference is gone).",
     mobile: "yes",
-    verified: "2026-10-21",
+    verified: "2026-10-30",
   },
   {
-    id: "mail-digest-parts",
-    title: "The parts of a digest that name no type of their own",
+    id: "mail-snoozed-list",
+    title: "Look at the snoozed messages and bring one back early",
     area: "pim",
     kind: "gap",
     desktop: "yes",
-    mobile: "partial",
+    mobile: null,
     mobileReason:
-      "In a multipart/digest a part that names no type of its own is an enclosed " +
-      "message (RFC 2046, 5.1.5); without any header line it begins with the empty " +
-      "line. For an IMAP mailbox the desktop's parser (mail-parser, mail_imap.rs) " +
-      "reads it so: the digest has no text of its own, and the enclosed messages " +
-      "are listed as files. The phone's reader (net/mime.ts) does not know that " +
-      "default and reads such a part as plain text: the first enclosed message, " +
-      "its header lines included, is shown as the text of the digest, and none is " +
-      "listed. Closing this means the default in the phone's reader together with " +
-      "one rule for which parts count as attachments (mail-attachment-list): the " +
-      "default alone would leave such a digest empty on the phone, which lists no " +
-      "enclosed message without a file name. Held on each side by the same " +
-      "message, in imapClient.test.ts and in mail_imap.rs (finding 2026-10-21).",
-    verified: "2026-10-21",
-  },
-  {
-    id: "mail-imap-opening-line",
-    title: "The opening words of a message in the list of an IMAP mailbox",
-    area: "pim",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "A row of the message list can open with the first words of the message. " +
-      "For a Microsoft mailbox both shells have them (Graph's bodyPreview). For an " +
-      "IMAP mailbox only the phone has: its client takes the first bytes of the " +
-      "body along in the request of the list and reads the line from them " +
-      "(net/imap.ts, previewFromBodyPrefix in net/mime.ts), and shows it as the " +
-      "third line of a row (MailListScreen.tsx). The desktop's client " +
-      "(mail_imap.rs) does not ask for them, so the one place the desktop shows " +
-      "the words - the rows of an opened conversation - falls back to the " +
-      "sender's address there (MailView.tsx). Closing this means the same request " +
-      "in mail_imap.rs and the same reading of it; whether the desktop's list row " +
-      "itself should open with the words is a separate question of its design " +
-      "(written down with the fix to the line's reading, finding 2026-10-12).",
-    mobile: "yes",
-    verified: "2026-10-13",
-  },
-  {
-    id: "mail-unified-row-read-star",
-    title: "Read and star on a row of All inboxes, from the list",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "In All inboxes the desktop marks a row read or unread and stars it from " +
-      "its menu and the selection bar, in the row's own mailbox. The phone " +
-      "offers both for a row only in the row's sheet, and the sheet does not " +
-      "open there: the selection it is built on holds no row of the merged " +
-      "list, so a long press opens no sheet (MailListScreen.tsx, selectable). On " +
-      "the phone both are reached through the opened message, which acts in " +
-      "the row's mailbox. Moving, spam and deleting are offered on neither " +
-      "shell there - each mailbox has its own folders. Closing this means a " +
-      "selection that holds merged rows by their address, and a row change " +
-      "that reaches the merged list too (the phone's patchRows does not touch " +
-      "unifiedRows; the desktop updates its merged list). Written down on " +
-      "2026-10-22 while the swipe on such a row stopped offering spam and " +
-      "delete; put off that day, listed in the maintainer's open-items plan.",
-    verified: "2026-10-22",
-  },
-  {
-    id: "mail-unified-snooze",
-    title: "Snoozing a row of All inboxes",
-    area: "pim",
-    kind: "gap",
-    desktop: "partial",
-    desktopReason:
-      "Both shells offer snooze on a row of All inboxes and note it with the " +
-      "open mailbox and the folder behind the merged list, under the merged " +
-      "row's id - not with the row's own mailbox and folder. The desktop does " +
-      "not filter the merged list by snoozes (on purpose, like a search and " +
-      "the flagged list), and the rows of a folder carry plain ids, so a snooze " +
-      "given there hides the message nowhere, behind a notice that it is " +
-      "snoozed. Closing this means one rule for both shells: the note keyed by " +
-      "the row's origin (parseUnifiedId), or no snooze in the merged list. " +
-      "Written down on 2026-10-22; listed in the maintainer's open-items plan.",
-    mobile: "partial",
-    mobileReason:
-      "The phone keys the note the same way but filters the merged list by " +
-      "it: the row goes while the same mailbox and folder stand behind the " +
-      "list, comes back early once another folder was opened, is never snoozed " +
-      "in its own folder, and a conversation's rows are not filtered at all. " +
-      "Snooze is the only swipe such a row offers.",
-    verified: "2026-10-22",
+      "The desktop's mail list has a button for the messages put aside (mail-filter-snoozed): it shows " +
+      "them, and each offers \"Bring back now\". The phone hides a snoozed message until its time and has " +
+      "no such list, so there a message comes back early only through the Undo of its snooze's notice " +
+      "(decision E17) or on the desktop - the marker travels with the vault's settings. Nothing of the " +
+      "platform stands in the way: the row actions already carry \"Bring back now\" (rowActions). Found " +
+      "on 2026-11-03 while the snooze notice got its Undo; reported for the maintainer's open-items plan.",
+    verified: "2026-11-03",
   },
   {
     id: "note-copy-as-email",
@@ -1015,9 +985,26 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "the desktop keep its own timers). The OS notification therefore cannot carry " +
       "Done or Later; the toast that accompanies it opens the task, where ticking it " +
       "off is one click. Task time, the task lead and the per-task `remind` exception " +
-      "apply on both shells (plan Aufgaben-Oberflaeche B4, 2026-09-20).",
+      "apply on both shells (plan Aufgaben-Oberflaeche B4, 2026-09-20). The same holds for " +
+      "the reminder of a checkbox task with a due time, which opens its note at the line " +
+      "(Sammelplan 3.145 no. 1, E3, 2026-11-02).",
     mobile: "yes",
-    verified: "2026-09-20",
+    verified: "2026-11-02",
+  },
+  {
+    id: "back-history",
+    title: "Jump back several steps at once by holding Back",
+    area: "platform",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "The desktop has no back button and no screen stack: notes open in tabs and " +
+      "panes that stay visible, and each tab has its own back and forward " +
+      "(Mod+Alt+Left/Right). Holding Back on the phone (F6, 2026-10-29) lists the " +
+      "places behind the current screen - the tab's root first - because there " +
+      "the stack is the only way back.",
+    mobile: "yes",
+    verified: "2026-10-29",
   },
   {
     id: "camera-capture",
@@ -1156,6 +1143,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-23",
   },
   {
+    id: "in-app-updates",
+    title: "Checking for and installing updates from inside the app",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "On the desktop this is the group Updates of About & diagnostics (the page " +
+      "of its own dissolved there, settings plan 2026-10-29, E10). The phone does " +
+      "not update itself: Google Play and TestFlight own that, and every control the " +
+      "group carries - check now, install, check on start - would be a button without " +
+      "an effect. The phone's About & diagnostics therefore has no Updates group.",
+    verified: "2026-10-29",
+  },
+  {
     id: "keyboard-shortcuts",
     title: "Keyboard shortcuts and the overview that lists them",
     area: "platform",
@@ -1252,6 +1254,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-24",
   },
   {
+    id: "settings-overview-state",
+    title: "A state beside each settings area in the overview",
+    area: "platform",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "The phone's settings overview is a list one taps through, and Android's " +
+      "pattern there is the current value beside each area (settings plan " +
+      "2026-10-29, E15). The desktop's rail opens the page beside itself on a " +
+      "click, so its state is on screen at once; a second copy in the rail would " +
+      "repeat it in a 220 px column.",
+    mobile: "yes",
+    verified: "2026-10-30",
+  },
+  {
     id: "share-target",
     title: "Receive text, links and files with durable staging and destination review",
     area: "platform",
@@ -1297,6 +1314,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-19",
   },
   {
+    id: "startup-and-background",
+    title: "Start with the system, keep running in the tray, open the last vault on start",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The desktop's Startup & behavior page carries these as the groups Startup and " +
+      "Background (settings plan 2026-10-29, appendix 2.4). On Android and iOS the " +
+      "system owns an app's lifecycle: an app does not register itself to start at " +
+      "sign-in, there is no tray to keep running in, and the phone always reopens its " +
+      "active vault, so a switch for it would decide nothing. The phone's page keeps " +
+      "what does apply there - the widgets and the two hints.",
+    verified: "2026-10-29",
+  },
+  {
     id: "system-back",
     title: "Go back with a system gesture or button, not only through the app's own arrow",
     area: "platform",
@@ -1306,16 +1339,32 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "A desktop window has no navigation stack to go back in: tabs, panes and " +
       "windows are all visible at once, and the browser-style history lives inside " +
       "one tab (its own back/forward arrows). There is nothing here for a system " +
-      "back to act on.",
-    mobile: "partial",
-    mobileReason:
-      "Android has a system back trigger (gesture or button) and it pops the same " +
-      "navigation stack as the app bar's arrow; iOS has none of ours — the maintainer " +
-      "ruled out an own edge gesture on 2026-09-01 (the same movement with two " +
-      "origins on two platforms is the kind of asymmetry nobody can explain later). " +
-      "On iOS the app bar's arrow is THE way back, so it carries the full 44px " +
-      "touch target. Both shells run through one pop path; only the trigger differs.",
-    verified: "2026-09-03",
+      "back to act on. On the phone Android's system trigger and, since " +
+      "2026-10-29, the app's own swipe from the left edge on iOS (wish W5; the " +
+      "ruling of 2026-09-01 against it was reversed after a tester missed it) pop " +
+      "the same stack as the app bar's arrow.",
+    mobile: "yes",
+    verified: "2026-10-29",
+  },
+  {
+    id: "today-day-view",
+    title: "Today: one screen for a day - its daily note, appointments, due tasks, journal and the notes edited on it",
+    area: "platform",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "The phone's Today screen puts a day together on one surface: the day strip, the " +
+      "daily note card, the day's appointments and what is due in one order " +
+      "(buildDayAgenda, dueTasksForDay), the journal of the day and the notes edited " +
+      "on it. The desktop has each part elsewhere - the daily note from the sidebar " +
+      "calendar and the ribbon, the appointments in the calendar's Day and Agenda views, " +
+      "what is due in the task view's Today list, the journal in its sidebar section - " +
+      "but no surface that shows them together, and no list of the notes edited on a " +
+      "day. Found in the bug-clearing round (2026-11-01) as an asymmetry nobody had " +
+      "written down. Meant to close with a desktop Today view built from the same " +
+      "shared blocks; listed in the maintainer's open-items plan (Sammelplan § 3.171 Nr. 6).",
+    mobile: "yes",
+    verified: "2026-11-02",
   },
   {
     id: "window-bounds-restore",
@@ -1484,6 +1533,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-08-25",
   },
   {
+    id: "connect-credentials-in-memory",
+    title: "The credentials typed while connecting, until the setup ends",
+    area: "sync",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "One form takes the credentials for every chosen service in both shells. " +
+      "The phone's setup runs across screens and survives the app being killed " +
+      "(the browser round trip needs that), but a password must not outlive the " +
+      "run on the disk, so the phone holds what was typed in memory only; a run " +
+      "resumed after the app was killed asks once more in the step that still " +
+      "needs it. The desktop's wizard is one page and never loses them.",
+    verified: "2026-10-30",
+  },
+  {
     id: "connect-metering",
     title: "Consent and queue for metered network work",
     area: "sync",
@@ -1498,20 +1563,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "connect-run-steps",
-    title: "Account setup after the sign-in, one step per service with Skip",
+    title: "Connecting an account: provider, services, sign in, set up, done",
     area: "sync",
     kind: "decision",
     desktop: "partial",
     desktopReason:
-      "A deliberately different interaction model, not a missing piece (plan " +
-      "Verbinden-Assistent, 2026-10-28). The desktop's connect dialog binds every " +
-      "ticked service on ONE page after the sign-in, each with its status row and " +
-      "the failure's sender; a service is left out by not ticking it or by finishing " +
-      "with it unconnected, so there is no step to skip. The phone pushes one " +
-      "screen per service, where Skip is the way past a step. Both draw the same " +
-      "WizardSteps, names and senders from @plainva/ui.",
+      "The same steps in both shells, only drawn differently (settings plan " +
+      "2026-10-29, P5). Both walk provider > services > sign in > set up > done " +
+      "for every provider and draw the sign-in step from connectAccessPlan: the " +
+      "head, the form of the access kind, Other sign-in at one place, one status " +
+      "line per service with the failure's sender, the button that names the " +
+      "method. The desktop shows sign-in, status and setup on one wizard page, " +
+      "where a service is left out by not ticking it; the phone pushes one screen " +
+      "per step inside its run frame with Skip, because the browser round trip " +
+      "and the vault switch of the files step tear its navigation down.",
     mobile: "yes",
-    verified: "2026-10-28",
+    verified: "2026-10-30",
   },
   {
     id: "external-folder-sync",
@@ -1563,5 +1630,53 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "index (rename, move, find & replace, clean-up, OKF) waits for it on the phone.",
     mobile: "yes",
     verified: "2026-10-26",
+  },
+  {
+    id: "settings-backup-zip-destination",
+    title: "Where the daily ZIP archive goes: choose, reset and open the folder (Backup & version history)",
+    area: "vault",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The phone writes its archives into its own documents folder (\"Plainva Backups/<vault>\", " +
+      "visible in the Files app) and offers no row to choose another one or to open it. The " +
+      "rest of the card is the same since the check of 2026-10-30 (Sammelplan § 3.169 Nr. 3): " +
+      "the switch, the archives kept, \"Back up now\" and the three version pickers, with one " +
+      "list of choices (backupChoices.ts). A folder of one's own needs the persistent folder " +
+      "grant of the external-folder vaults for an unattended write - deferred to the open-items " +
+      "plan, § 3.169.",
+    verified: "2026-10-30",
+  },
+  {
+    id: "settings-reread-vault-row",
+    title: "\"Re-read vault\" as a row of Maintenance › Search index",
+    area: "vault",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The phone's Maintenance › Search index offers only \"Rebuild index\" " +
+      "(settings plan 2026-10-29, F8). The cheap reconcile the desktop's row " +
+      "starts (F5 there) is already a gesture on the phone: pull-to-refresh on " +
+      "every list, and a re-read on every return to the app (see " +
+      "external-change-watcher). A settings row for it would be a second way to " +
+      "the same reconcile, so the phone keeps the gesture.",
+    verified: "2026-10-29",
+  },
+  {
+    id: "version-image-preview",
+    title: "The version history shows an image version as an image",
+    area: "vault",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The desktop's version history draws an image version as an image " +
+      "(CompareModal.tsx). The phone's (VersionsPanel.tsx) asks comparesAsText " +
+      "and shows \"no preview\" for an image; restoring it works as on the " +
+      "desktop. Closing this draws the version from its bytes on the phone. " +
+      "Written down on 2026-10-30; open-items plan 3.123.",
+    verified: "2026-10-30",
   },
 ];

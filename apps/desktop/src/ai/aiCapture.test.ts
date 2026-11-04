@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import { parseOkfTrustSignals, readFrontmatterPath } from "@plainva/core";
 import { captureNote, captureStamp, flattenInertLinks, writeCapturedNote, type AnswerToCapture } from "@plainva/ui";
 
@@ -206,11 +207,6 @@ describe("a link or an image whose address is inert", () => {
   });
 
   it("is found in linear time, whatever the text is made of", () => {
-    const within = (budgetMs: number, run: () => unknown) => {
-      const start = performance.now();
-      run();
-      expect(performance.now() - start).toBeLessThan(budgetMs);
-    };
     within(1500, () => flattenInertLinks("[".repeat(200_000)));
     within(1500, () => flattenInertLinks("](".repeat(60_000)));
     within(1500, () => flattenInertLinks(`${"[".repeat(100_000)}](https[://]h.example/x)`));

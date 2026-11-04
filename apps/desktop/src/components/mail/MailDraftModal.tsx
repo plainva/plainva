@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, ChipField, FloatingWindow, ICON, IconButton, mailboxesSwitchedOn, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
-import { loadCloudAccounts } from "../../services/cloudAccounts";
+import { askDiscard, Banner, Button, ChipField, FloatingWindow, ICON, IconButton, mailboxesSwitchedOn, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
+import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { AlertTriangle, Ban, FileText, Paperclip, RefreshCw, RotateCw, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
-import { listMailAccounts, mailSendRoute, type MailAccountConfig } from "@plainva/ui/mail";
+import { keepUnchangedAccounts, listMailAccounts, mailSendRoute, onMailAccountsChanged, senderForAddress, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
 import { resolveDraftsMailbox, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
@@ -14,7 +14,7 @@ import { submitDraft, submitSend } from "../../services/mail/sendQueue";
 import type { ComposeSnapshot } from "../../services/mail/composeHandoff";
 import { holdComposeDraft } from "../../services/mail/composeHost";
 import { composeChanged, splitRecipients, type ComposeContent } from "@plainva/ui/mail";
-import { carriedFailureText, carriedLimitText, carriedRowNote, leftBehindText, sendableAttachment, useCarriedFiles, type CarriedRow, type ForwardSource } from "@plainva/ui/mail";
+import { attachedFileNote, carriedFailureText, carriedLimitText, carriedRowNote, leftBehindText, sendableAttachment, useCarriedFiles, type CarriedRow, type ForwardSource } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import { holdWindowClose } from "../../services/windowCloseGuard";
 import "./mail.css";
@@ -54,6 +54,12 @@ interface MailDraftModalProps {
    * the named one is gone, it starts with the first mailbox that is stored.
    */
   initialAccountId?: string;
+  /**
+   * The address to send from, where the draft names one: a reply note's
+   * `mailbox:` (decision E6). The mailbox that sends as it starts, with that
+   * address, ahead of `initialAccountId`; where none does, that decides.
+   */
+  initialFromAddress?: string;
   /**
    * The message this composer forwards, by reference: its files are loaded
    * here, after the window is up, and each says what is with it
@@ -126,7 +132,7 @@ function carriedIcon(row: CarriedRow) {
   return <Paperclip size={ICON.meta} />;
 }
 
-export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, initialCc, initialBcc, initialAccountId, forward, variant = "floating", restore, onPopOut, onDone, suspended = false, onClose }: MailDraftModalProps) {
+export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, initialCc, initialBcc, initialAccountId, initialFromAddress, forward, variant = "floating", restore, onPopOut, onDone, suspended = false, onClose }: MailDraftModalProps) {
   const { t, i18n } = useTranslation();
   const { vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
@@ -203,22 +209,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   );
 
   /**
-   * "Discard your input?" — asked before a changed draft is thrown away. One
-   * question at a time: a second way out taken while it stands (Escape, then
-   * the window's own close button) joins the question that is already open.
+   * "Discard your input?" — asked before a changed draft is thrown away. The
+   * question every dialog with typed input asks (`askDiscard`, shared since
+   * 2026-11-02), one at a time: a second way out taken while it stands
+   * (Escape, then the window's own close button) joins the open question.
    */
-  const asking = useRef<Promise<boolean> | null>(null);
-  const confirmDiscard = useCallback((): Promise<boolean> => {
-    asking.current ??= appConfirm({
-      title: t("mobile.leaveTitle"),
-      message: t("mobile.leaveCompose"),
-      kind: "danger",
-      confirmLabel: t("mobile.leaveDiscard"),
-    }).finally(() => {
-      asking.current = null;
-    });
-    return asking.current;
-  }, [t]);
+  const confirmDiscard = useCallback((): Promise<boolean> => askDiscard(t("mobile.leaveCompose")), [t]);
 
   /**
    * The way out that discards: Escape, the close button, "Cancel". It asks when
@@ -346,6 +342,30 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
   // opened — like every other prefill. A composer does not change its sender
   // because its host rendered again.
   const askedAccount = useRef(initialAccountId);
+  const askedAddress = useRef(initialFromAddress);
+  /**
+   * The list is read again whenever a mailbox is connected, changed or removed
+   * — in this window or another one — and when mail is switched on or off for
+   * an account (Sammelplan § 3.47 (d)). It was read once: a composer opened
+   * before the first mailbox was connected said "No mail account connected
+   * yet." until it was closed, the mailbox connected beside it changed nothing.
+   */
+  const [accountsRead, setAccountsRead] = useState(0);
+  useEffect(() => {
+    if (!vaultPath) return;
+    const again = () => setAccountsRead((n) => n + 1);
+    const stop = onMailAccountsChanged(vaultPath, again);
+    window.addEventListener(CLOUD_ACCOUNTS_EVENT, again);
+    return () => {
+      stop();
+      window.removeEventListener(CLOUD_ACCOUNTS_EVENT, again);
+    };
+  }, [vaultPath]);
+  /** The sender as it stands, for a re-read that has to keep it. */
+  const chosen = useRef({ accountId, fromAddress, accounts });
+  useEffect(() => {
+    chosen.current = { accountId, fromAddress, accounts };
+  }, [accountId, fromAddress, accounts]);
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -353,28 +373,45 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       // A mailbox whose account has mail switched off for the vault sends nothing (E3).
       const list = mailboxesSwitchedOn(await listMailAccounts(vaultPath), await loadCloudAccounts(vaultPath).catch(() => []));
       if (!alive) return;
-      setAccounts(list);
+      setAccounts((prev) => keepUnchangedAccounts(prev, list));
       setAccountsLoaded(true);
-      // A restored composer already knows its sender — picking another
-      // account here would silently switch it (and its signature).
-      if (restore) return;
+      // A sender that is there stays: a re-read never switches it (and its
+      // signature), and a restored composer already knows its sender. Only a
+      // composer without one — the list was empty, or it changed windows
+      // before the list had arrived (§ 3.58 Nr. 6) — or whose mailbox is gone
+      // picks one below.
+      const { accountId: current, fromAddress: address, accounts: before } = chosen.current;
+      if (list.some((a) => a.id === current)) return;
+      const gone = before.find((a) => a.id === current);
+      if (gone) {
+        // The removed mailbox's signature goes with it; the next one signs below.
+        const unsign = (b: string) => withoutSignature(b, gone, address);
+        setBody(unsign);
+        setOpened((o) => ({ ...o, body: unsign(o.body) }));
+      }
       // A reply leaves from the mailbox its message is in, a new message from
       // the one that is open (finding 2026-10-09): this took the first account
       // of the list whatever the draft came from. The first one is what is
       // left where nobody named a mailbox, or the named one is gone.
-      const start = list.find((a) => a.id === askedAccount.current) ?? list[0];
+      // A draft that names its address (a reply note, E6) starts from the
+      // mailbox that sends as it, with that address.
+      const named = senderForAddress(list, askedAddress.current);
+      const start = list.find((a) => a.id === (named?.accountId ?? askedAccount.current)) ?? list[0];
       setAccountId(start?.id ?? "");
-      setFromAddress(start ? senderOptions(start)[0] ?? "" : "");
+      setFromAddress(named && named.accountId === start?.id ? named.address : start ? senderOptions(start)[0] ?? "" : "");
     })();
     return () => { alive = false; };
-  }, [vaultPath, restore]);
+  }, [vaultPath, restore, accountsRead]);
 
   // The drafts folder the writer had chosen survives the pop-out too; the
   // lookup below re-guesses it otherwise.
   const restoredMailbox = useRef(!!restore?.mailbox);
+  // The sending mailbox as one object: a re-read that leaves it unchanged
+  // (`keepUnchangedAccounts`) does not guess the drafts folder over again.
+  const sendingAccount = useMemo(() => accounts.find((a) => a.id === accountId), [accounts, accountId]);
   useEffect(() => {
     let alive = true;
-    const account = accounts.find((a) => a.id === accountId);
+    const account = sendingAccount;
     if (!vaultPath || !account) return;
     setMailboxes([]);
     void (async () => {
@@ -395,7 +432,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       }
     })();
     return () => { alive = false; };
-  }, [vaultPath, accounts, accountId]);
+  }, [vaultPath, sendingAccount]);
 
   const [templatePicker, setTemplatePicker] = useState(false);
   const insertTemplate = useCallback(() => setTemplatePicker(true), []);
@@ -738,7 +775,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                     <span key={`${a.name}-${i}`} className={look} data-testid="draft-attachments" data-state={stays ? "left" : "ready"}>
                       {stays ? <Ban size={ICON.meta} /> : <Paperclip size={ICON.meta} />}
                       <span className="pv-mail-attach-name">{a.name}</span>
-                      {stays && <span className="pv-mail-attach-note">{t("mail.fileState.tooLarge")}</span>}
+                      <span className="pv-mail-attach-note">{attachedFileNote(a, stays, t, i18n.language)}</span>
                       <button type="button" className="pv-mail-attach-remove" onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))} aria-label={t("mail.removeAttachment", { defaultValue: "Anhang entfernen" })} data-testid="draft-attach-remove">
                         <X size={ICON.meta} />
                       </button>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, GroupCard, Row, RowList, Switch, toast, travellingAreas } from "@plainva/ui";
+import { Button, GroupCard, InfoTip, Row, RowList, SectionLabel, Switch, toast, travellingAreas, travelsWithVault } from "@plainva/ui";
 import { mPrompt } from "../services/mobileDialogs";
 import { restartSync, syncNow } from "../services/syncService";
 import {
@@ -74,7 +74,15 @@ export function SyncChainScreen({
       {/* Same chain as the desktop, same order (plan P5, corrected):
           syncing settings and accounts needs NO passphrase — only
           carrying sign-ins does. So the passphrase sits BETWEEN them. */}
-            <p className="m-hint">{t("settingsSync.chainIntro")}</p>
+      {/* What the three steps are for is ONE info at the chain's heading
+          (settings plan 2026-10-29, Q8), as on the desktop; the switches are
+          this device's decision — no profile field carries them (E14). */}
+      <SectionLabel
+        deviceOnly={!travelsWithVault(undefined, "mobile")}
+        info={{ text: [t("settingsSync.chainIntro"), t("settingsSync.step1Desc"), t("settingsSync.step3Desc")].join("\n\n"), guide: "Sync_Setup.md" }}
+      >
+        {t("settingsSync.chainLabel")}
+      </SectionLabel>
 
       <div className="m-chain">
         {/* Sealed: another device set a passphrase, so the profile in the
@@ -104,9 +112,12 @@ export function SyncChainScreen({
                 }}
               />
             </div>
-            <p className="m-chain-desc">
-              {settingsSyncOn && encryption === "locked" ? t("settingsSync.step1Sealed") : t("settingsSync.step1Desc")}
-            </p>
+            {settingsSyncOn && encryption === "locked" && (
+              <p className="m-chain-desc">
+                {t("settingsSync.step1SealedShort")}
+                <InfoTip label={t("settingsSync.step1")} info={t("settingsSync.step1Sealed")} />
+              </p>
+            )}
             {/* Generated from the shared field catalog, like the desktop.
                 The phone carries fewer areas than the desktop does, and a
                 chip list that claims otherwise is worse than none. */}
@@ -130,7 +141,8 @@ export function SyncChainScreen({
               </span>
             </div>
             <p className="m-chain-desc">
-              {encryption === "unlocked" ? t("settingsSync.unlockedBody") : t("settingsSync.step2Desc")}
+              {encryption === "unlocked" ? t("encryption.statusUnlocked") : t("settingsSync.step2Hint")}
+              {encryption !== "unlocked" && <InfoTip label={t("settingsSync.step2")} info={t("settingsSync.step2Desc")} />}
             </p>
             {encryption === "none" && (
               <Button
@@ -191,7 +203,7 @@ export function SyncChainScreen({
                       .finally(() => setBusy(false));
                   }}
                 />}
-                subtitle={t("encryption.everyStartDesc")}
+                info={t("encryption.everyStartDesc")}
                 title={t("encryption.everyStart")}
               />
               </RowList></GroupCard>
@@ -222,9 +234,7 @@ export function SyncChainScreen({
                 }}
               />
             </div>
-            <p className="m-chain-desc">
-              {!settingsSyncOn ? t("settingsSync.needsStep1Body") : t("settingsSync.step3Desc")}
-            </p>
+            {!settingsSyncOn && <p className="m-chain-desc">{t("settingsSync.needsStep1Body")}</p>}
             {settingsSyncOn && <p className="m-chain-desc">{t("settingsSync.oauthNote")}</p>}
           </div>
         </div>

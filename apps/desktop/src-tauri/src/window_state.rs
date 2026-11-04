@@ -4,8 +4,7 @@
 //! start, whatever its size and place had been. Now its last place, its size
 //! and whether it was maximized are kept in `window-state.json` in the app's
 //! config directory (each identity - release, dev, Labs - has its own) and set
-//! again in `setup`. The window exists by then and may show for a moment at
-//! its configured place before it moves.
+//! again in `setup`, before the window is shown.
 //!
 //! What is kept is the window's NORMAL place: while it is maximized only the
 //! flag changes, so un-maximizing after a restart lands where it was before
@@ -15,10 +14,20 @@
 //! before. Only the main window: the auxiliary windows keep their bounds in
 //! their own record (services/windowManager.ts) and are reopened from there.
 //!
+//! The window is created HIDDEN (`"visible": false` in every window config) and
+//! shown here once it stands where it belongs (Sammelplan § 3.132 Nr. 2): a
+//! window that opened visible showed for a moment in the middle of the screen
+//! at 1280 x 832 and then jumped. `show_main` is the one place that shows it,
+//! whether a place was restored or not.
+//!
 //! Writing: every move or resize updates the bounds in memory; a writer thread
 //! puts the newest of them on disk at most every half second, and a close
-//! request writes at once. All in physical pixels, which is what the monitors
-//! report and what `set_position` and `set_size` take.
+//! request writes at once - and so does quitting, which does not close the
+//! window first (`flush`, from `RunEvent::ExitRequested`; Sammelplan § 3.132
+//! Nr. 3: "Quit" in the tray menu ended the process without a close request,
+//! and a move in the last half second before was lost). All in physical
+//! pixels, which is what the monitors report and what `set_position` and
+//! `set_size` take.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -143,6 +152,24 @@ pub fn restore<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+/// Shows the main window, which every window config creates hidden. Called
+/// from `setup` after `restore`, so it appears once, where it belongs.
+pub fn show_main<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(win) = app.get_webview_window(MAIN_LABEL) {
+        let _ = win.show();
+    }
+}
+
+/// Puts the newest bounds on disk now: a close request, and quitting - the
+/// tray's "Quit" ends the process without closing the window first.
+pub fn flush<R: Runtime>(app: &AppHandle<R>) {
+    let Some(store) = app.try_state::<WindowStateStore>() else { return };
+    let latest = *store.latest.lock().unwrap();
+    if let Some(bounds) = latest {
+        write_bounds(app, &bounds);
+    }
+}
+
 fn current_bounds<R: Runtime>(window: &Window<R>) -> Option<Bounds> {
     if window.is_minimized().unwrap_or(false) {
         return None;
@@ -183,12 +210,7 @@ pub fn track<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
                 }
             });
         }
-        WindowEvent::CloseRequested { .. } => {
-            let latest = *store.latest.lock().unwrap();
-            if let Some(bounds) = latest {
-                write_bounds(app, &bounds);
-            }
-        }
+        WindowEvent::CloseRequested { .. } => flush(app),
         _ => {}
     }
 }

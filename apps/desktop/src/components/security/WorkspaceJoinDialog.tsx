@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Banner, Button, ICON, Modal, QrScanner, TextInput, toast } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, QrScanner, TextInput, toast, useDiscardGuard } from "@plainva/ui";
 import { QrCode } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
@@ -95,13 +95,15 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
     } finally { setBusy(false); }
   };
 
-  const cancel = async () => {
+  const leave = async () => {
     if (pending) { await cancelPendingWorkspaceJoin().catch(() => undefined); }
     onClose();
   };
+  // An invitation pasted, or a passphrase typed, and not yet sent is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(!pending && (invite.trim() !== "" || fallbackPassphrase !== ""), () => void leave());
 
   return (
-    <Modal title={t("workspaceSecurity.joinTitle", { defaultValue: "Join this encrypted workspace" })} onClose={() => { if (!busy) void cancel(); }} size="md">
+    <Modal title={t("workspaceSecurity.joinTitle", { defaultValue: "Join this encrypted workspace" })} onClose={() => { if (!busy) cancel(); }} size="md">
       <div className="pv-security-wizard">
         <ol className="pv-security-model" aria-label={t("workspaceSecurity.joinModelLabel", { defaultValue: "How joining works" })}>
           <li>{t("workspaceSecurity.model1", { defaultValue: "The owner invites you — this reserves your place." })}</li>
@@ -151,7 +153,7 @@ export const WorkspaceJoinDialog: React.FC<{ onClose: () => void }> = ({ onClose
         )}
         {error && <Banner kind="error" rounded>{error}</Banner>}
         <div className="pv-security-actions">
-          <Button variant="ghost" disabled={busy} onClick={() => void cancel()}>{t("common.cancel")}</Button>
+          <Button variant="ghost" disabled={busy} onClick={cancel}>{t("common.cancel")}</Button>
           {!pending
             ? <Button variant="primary" disabled={busy || !invite.trim() || (fallbackRequired && fallbackPassphrase.length < 10)} onClick={() => void start()}>{t("workspaceSecurity.joinCta", { defaultValue: "Request to join" })}</Button>
             : <Button variant="primary" disabled={busy} onClick={() => void poll()}>{t("workspaceSecurity.joinPoll", { defaultValue: "Check for approval" })}</Button>}

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { MemoryPlace } from "@plainva/core";
 import { Banner, Button, Checkbox, Segmented, TextArea, useMemoryEntryForm } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 /**
@@ -16,6 +17,8 @@ export function MemoryEntrySheet({ id, onClose }: { id: string | null; onClose: 
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const [busy, setBusy] = useState(false);
   const form = useMemoryEntryForm(session, state.memory, id);
+  // The text differs from the entry it opened with (or a new one holds any); saving closes plainly.
+  const close = useSheetGuard("ai-memory-entry", form !== null && (form.editing ? form.text !== form.editing.text : form.text.trim() !== ""), onClose);
   if (!form) return null;
   const number = new Intl.NumberFormat(i18n.language);
   const save = async () => {
@@ -25,9 +28,9 @@ export function MemoryEntrySheet({ id, onClose }: { id: string | null; onClose: 
     if (done) onClose();
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-memory-dialog">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t(form.editing ? "ai.memory.form.titleEdit" : "ai.memory.form.titleNew")}</p>
         <TextArea rows={3} value={form.text} placeholder={t("ai.memory.form.text")} aria-label={t("ai.memory.form.text")} onChange={(event) => form.setText(event.target.value)} data-testid="ai-memory-text" />
         <p className="m-hint">
@@ -60,7 +63,7 @@ export function MemoryEntrySheet({ id, onClose }: { id: string | null; onClose: 
         <Button variant="primary" disabled={busy || !form.ready} onClick={() => void save()} data-testid="ai-memory-save">
           {t(form.editing ? "ai.memory.form.save" : "ai.memory.form.create")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("ai.memory.form.cancel")}
         </Button>
       </div>

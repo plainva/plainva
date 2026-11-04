@@ -10,7 +10,8 @@ import { getWindowBus, type OwnerSurface } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { installRevealPathListener } from "./services/revealRouting";
 import { currentWindowParams } from "./services/windowContext";
-import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
+import { useWindowTitle } from "./services/windowTitle";
+import { useVaultWeekStart } from "./services/weekStartVault";
 import type { ShellCapabilities } from "./shellCapabilities";
 
 /**
@@ -48,7 +49,9 @@ export function FullApp() {
   // A full window is a WORKPLACE, not a piece of content: its name is the vault
   // it shows. With a second vault open that is also what tells two of these
   // apart in the taskbar (stage D).
-  useOsWindowTitle(composeWindowTitle({ vaultPath, vaultCount: heldVaults.length }));
+  useWindowTitle({ vaultPath, vaultCount: heldVaults.length });
+  // The week start of the vault this window shows (decision E4).
+  useVaultWeekStart(vaultPath);
 
   // "Reveal in tree" routed here by the owner (finding 2026-09-07): an
   // auxiliary window on THIS vault asked, and this is the window with the

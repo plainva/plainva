@@ -26,8 +26,14 @@ import { shippedSources } from "./test-sourceTree";
 
 /** A pattern anchored on the opening fence: `/^---\r?\n…`, with or without a byte order mark or blanks. */
 const OWN_PATTERN = /\^(?:\\uFEFF\??)?---(?:\[ \\t\]\*)?(?:\\r\??)?\\n/;
-/** A search for the fences by hand: `startsWith("---\n")`, `indexOf("\n---")`. */
-const OWN_SEARCH = /startsWith\(\s*["'`]---(?:\\r)?\\n|indexOf\(\s*["'`](?:\\r)?\\n---/;
+/**
+ * A search for the fences by hand: `startsWith("---\n")`, `indexOf("\n---")`,
+ * and the closing fence searched as a bare `---` from an offset —
+ * `content.indexOf("---", start + 3)` after `content.startsWith("---", start)`,
+ * the way a skill file's head was read on the AI harness branch (Sammelplan
+ * § 3.151 Nr. 2). A `startsWith("---", at)` alone tests one line and stays free.
+ */
+const OWN_SEARCH = /startsWith\(\s*["'`]---(?:\\r)?\\n|[iI]ndexOf\(\s*["'`](?:(?:\\r)?\\n---|---["'`]\s*,)/;
 /** A line tested for being a fence by hand: `line.text === "---"`, `lines[0]?.trim() !== "---"`, `/^---[ \t]*$/.test(line)`. */
 const OWN_LINE_TEST = /[!=]==?\s*["'`]---["'`]|["'`]---["'`]\s*[!=]==?|\^(?:\(\?:)?---(?:\|[^)\n]*\))?(?:\[ \\t\]\*|\\s\*)?\$/;
 
@@ -74,6 +80,8 @@ describe("the properties block has one definition", () => {
       String.raw`if (!content.startsWith("---\n")) return 0;`,
       String.raw`const first = content.startsWith("---\r\n") ? 5 : 4;`,
       String.raw`const close = content.indexOf("\n---", 3);`,
+      String.raw`const close = content.indexOf("---", start + 3);`,
+      String.raw`const end = text.lastIndexOf("---", text.length - 1);`,
       // The editor's line scans, and the two shapes of the readers that stay.
       String.raw`if (state.doc.lines < 2 || state.doc.line(1).text !== "---") return 0;`,
       String.raw`if (firstLine === "---") {`,

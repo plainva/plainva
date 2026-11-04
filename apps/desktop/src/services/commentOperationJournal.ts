@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { mkdir } from "@tauri-apps/plugin-fs";
 import { checkedReadDirectory, checkedReadTextFile } from "../adapters/checkedFilesystem";
-import { pathHash } from "./draftJournal";
+import { legacyPathHash } from "./draftJournal";
 import { isOwnerWindow } from "./windowContext";
 
 /** Device-local, outside the vault. Only the owner writes recovery state. */
@@ -12,7 +12,7 @@ export function desktopCommentOperationJournal(vaultPath: string): FileCommentOp
   const rootId = () => {
     if (!isOwnerWindow()) return Promise.reject(new Error("Comment operations are handled by the vault owner"));
     root ??= (async () => {
-      const path = await join(await appDataDir(), "drafts", pathHash(vaultPath), "comment-operations");
+      const path = await join(await appDataDir(), "drafts", legacyPathHash(vaultPath), "comment-operations");
       await mkdir(path, { recursive: true });
       return invoke<string>("register_write_root", { path });
     })().catch((error) => { root = undefined; throw error; });

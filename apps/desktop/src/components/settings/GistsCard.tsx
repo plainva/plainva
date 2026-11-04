@@ -21,7 +21,7 @@ export function GistsCard({ session }: { session: AiSession }) {
   };
   return (
     <SettingCard label={t("ai.gists.title")}>
-      <SettingRow label={t("ai.gists.show")} desc={t("ai.gists.showDesc")}>
+      <SettingRow label={t("ai.gists.show")} info={t("ai.gists.showDesc")}>
         <Switch checked={settings.gists} label={t("ai.gists.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, gists: on }))} testId="gists-show" />
       </SettingRow>
       {state?.kind === "on" && line && (
@@ -36,7 +36,7 @@ export function GistsCard({ session }: { session: AiSession }) {
       )}
       {state?.kind === "no-model" && line && <SettingCardNote>{line}</SettingCardNote>}
       {/* A summary above a long transcript (plan KI-Harness P7): the same model, on this device, and checked. */}
-      <SettingRow label={t("ai.transcribe.summary")} desc={t("ai.transcribe.summaryDesc")}>
+      <SettingRow label={t("ai.transcribe.summary")} info={t("ai.transcribe.summaryDesc")}>
         <Switch
           checked={settings.transcriptSummary}
           label={t("ai.transcribe.summary")}

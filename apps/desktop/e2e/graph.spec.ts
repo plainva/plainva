@@ -60,6 +60,8 @@ test.beforeEach(async ({ page }) => {
           if (args.key === 'lastVaultPath') return ['/test-vault', true];
           if (args.key === 'recentVaults') return [['/test-vault'], true];
           if (args.key === 'autoOpenLastVault') return [true, true];
+          // This computer's id, which names its own files under `.plainva/` (decision E7).
+          if (args.key === 'deviceId') return ['e2e-device', true];
           // Stage D remounts `App` when the shown vault arrives, which is when
           // the release dialog finally gets a vault to render over. A marker
           // equal to the running version means "already seen" - this suite
@@ -306,6 +308,95 @@ test('empty-area drag lassoes multiple nodes; the pin needle toggles the mode', 
   await expect(pin).toHaveAttribute('aria-pressed', 'true');
   await pin.click();
   await expect(pin).toHaveAttribute('aria-pressed', 'false');
+});
+
+/**
+ * Decision E7 (Sammelplan § 3.127 Nr. 3): the map's pins live in this
+ * computer's own file, `.plainva/graph.<device>.json`. A vault folder that a
+ * file service shares used to carry ONE graph.json for every device, and the
+ * last one to save had it. A computer without its own file starts from the
+ * shared one, which stays as it is for older versions; what it saves then
+ * survives a restart even while the shared file says otherwise.
+ */
+test("the pins of the map are this computer's own and survive a restart (E7)", async ({ page }) => {
+  const SHARED = '/test-vault/.plainva/graph.json';
+  const OWN = '/test-vault/.plainva/graph.e2e-device.json';
+  const shared = JSON.stringify({ version: 1, vaultLayout: 2, pins: {}, pinModes: { vault: false }, dismissedSuggestions: [] });
+  // A restart keeps the folder: the fixture's files carry over a reload.
+  // Init scripts run in no promised order: the fixture's folder is patched
+  // whenever it is set, before or after this script.
+  await page.addInitScript((sharedText) => {
+    const patch = (fs: any) => {
+      const kept = sessionStorage.getItem('e2e-mockfs');
+      if (kept) return JSON.parse(kept);
+      fs['/test-vault/.plainva/graph.json'] = sharedText;
+      return fs;
+    };
+    const w = window as any;
+    if (w.mockFs) w.mockFs = patch(w.mockFs);
+    else {
+      let value: any;
+      Object.defineProperty(w, 'mockFs', { configurable: true, get: () => value, set: (next) => { value = patch(next); } });
+    }
+  }, shared);
+  await openVault(page);
+  await openVaultMap(page);
+  expect(await page.evaluate((sharedPath) => (window as any).mockFs[sharedPath], SHARED)).toBe(shared);
+  const pin = page.getByTestId('graph-pin-toggle');
+  // What the vault had (pin mode OFF) is where this computer starts.
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+  // The change lands in this computer's own file (the debounced save).
+  await expect.poll(() => page.evaluate((own) => {
+    const text = (window as any).mockFs[own];
+    return typeof text === 'string' && JSON.parse(text).pinModes === undefined;
+  }, OWN), { timeout: 5000 }).toBe(true);
+  // The shared file is neither written nor deleted: an older version on another device still uses it.
+  expect(await page.evaluate((sharedPath) => (window as any).mockFs[sharedPath], SHARED)).toBe(shared);
+
+  await page.evaluate(() => sessionStorage.setItem('e2e-mockfs', JSON.stringify((window as any).mockFs)));
+  await page.reload();
+  await expect(page.getByText('Projekt X').first()).toBeVisible({ timeout: 20000 });
+  await openVaultMap(page);
+  await expect(page.getByTestId('graph-pin-toggle')).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate((sharedPath) => (window as any).mockFs[sharedPath], SHARED)).toBe(shared);
+});
+
+/**
+ * Decision E8 (Sammelplan § 3.121): a dot file and a dot folder belong to the
+ * vault — the index holds them, so the sync carries their changes — but no
+ * surface shows them, as in Obsidian. Here the index answers with them (the
+ * fixture's queries ignore the rule's SQL), so what is asserted is the rule
+ * each of these surfaces applies itself: the tree, the quick switcher and the
+ * map.
+ */
+test('dot files and dot folders are in the vault but on none of its surfaces (E8)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/.notizen.md'] = '# Notizen\nVerweis auf [[Projekt X]].';
+    (window as any).mockFs['/test-vault/.attachments'] = { isDir: true };
+    (window as any).mockFs['/test-vault/.attachments/Scanbeleg.md'] = '# Scanbeleg';
+  });
+  await openVault(page);
+  await expect(page.getByText('linked', { exact: true }).first()).toBeVisible();
+  // The tree: neither the dot file nor the dot folder nor what lies in it.
+  await expect(page.getByText(/notizen|\.attachments|Scanbeleg/)).toHaveCount(0);
+
+  // The quick switcher offers neither name.
+  await page.keyboard.press('Control+o');
+  const input = page.locator('.pv-palette-input');
+  await expect(input).toBeVisible();
+  await input.fill('Scanbeleg');
+  const palette = page.locator('.pv-palette');
+  await expect(palette.getByText('Scanbeleg', { exact: true })).toHaveCount(0);
+  await input.fill('notizen');
+  await expect(palette.getByText(/^\.?notizen$/)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // The map: the same four notes as without them.
+  await openVaultMap(page);
+  await expect(page.getByTestId('graph-stat-notes')).toContainText('4');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('dot-files-hidden.png') });
 });
 
 test('unfolding a folder wraps its notes in a container circle; collapsing removes it', async ({ page }) => {

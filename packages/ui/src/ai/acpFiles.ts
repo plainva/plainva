@@ -176,7 +176,7 @@ export async function acpReadFile(vault: AcpVaultAccess, agentId: string, reques
  * The properties block at the top of a note, with its fences, exactly as written; "" where there is none. What a
  * block is has one definition (`frontmatterSpan`): a byte order mark in front of it is part of what is quoted.
  */
-export function frontmatterBlock(text: string): string {
+export function frontmatterBlockText(text: string): string {
   const span = frontmatterSpan(text);
   return span ? text.slice(0, span.end) : "";
 }
@@ -295,7 +295,7 @@ export async function acpPlanNoteWrite(vault: AcpVaultAccess, agentId: string, p
   if (!(await allowed(vault, agentId, path, base))) throw new AcpFileRefusal("kept", path);
   if (content === base) return { kind: "unchanged", path };
   // The properties: every one that would say something else becomes a proposed value, or the write is refused.
-  const properties = frontmatterBlock(content) === frontmatterBlock(base) ? { chunks: [], defused: 0, count: 0, intended: null } : acpPropertyBlocks(base, content, path);
+  const properties = frontmatterBlockText(content) === frontmatterBlockText(base) ? { chunks: [], defused: 0, count: 0, intended: null } : acpPropertyBlocks(base, content, path);
   // What the write brings to the text below them is linted, the paragraphs it touches whole — a block of the round is
   // a fragment, and half an address is none —; every other byte stays as the note had it (strand 6, Nr. 12).
   const linted = defuseNoteText(content.slice(noteBodyStart(content)), [base], base.slice(noteBodyStart(base)));

@@ -6,6 +6,7 @@ import {
   adoptionSummary,
   Button,
   EmptyState,
+  errorText,
   GroupCard,
   ICON,
   Row,
@@ -14,14 +15,17 @@ import {
   collectFolderIndexInfos,
   folderIndexState,
   foldersMissingIndex,
+  pinOverviewLinks,
+  planOverviewLinkPins,
   toast,
+  withPinnedLinks,
   type FolderIndexInfo,
   type FolderIndexState,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
-import { writeOverview } from "../services/indexOverviews";
+import { pinLinksBeforeNewOverviews, writeOverview } from "../services/indexOverviews";
 import { mConfirmOption } from "../services/mobileDialogs";
-import type { MobileVault } from "../services/vaultService";
+import { vaultOps, type MobileVault } from "../services/vaultService";
 
 /**
  * The vault's OKF overviews, folder by folder (P6).
@@ -74,30 +78,45 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
     void load();
   }, [load]);
 
-  /** Runs one piece of work on the vault; what it answers is the notice shown when it is done. */
-  const run = async (work: () => Promise<string>) => {
+  /**
+   * Runs one piece of work on the vault; what it answers is the notice shown
+   * when it is done, and a failure is said with its reason (Sammelplan § 3.135
+   * no. 3) — every refused adoption, an open conflict included, read "The
+   * overview could not be written." A work that was called off answers null:
+   * nothing is said.
+   */
+  const run = async (work: () => Promise<string | null>, failed: (reason: string) => string = (reason) => t("writeFailed.overview", { reason })) => {
     setBusy(true);
     try {
-      toast.success(await work());
+      const said = await work();
+      if (said === null) return;
+      toast.success(said);
       await load();
     } catch (e) {
       console.error("[mobile] overview run failed", e);
-      toast.error(t("indexMd.generateFailed"));
+      toast.error(failed(errorText(e)));
     } finally {
       setBusy(false);
     }
   };
   const written = (count: number) => t("indexMd.bulkDone", { count });
 
+  // A new overview takes over a link that names another folder's overview
+  // only as `index` (P21): asked first where that would happen — for the whole
+  // run at once, in one count —, written before any overview exists.
   const generateOne = (folder: string) =>
     void run(async () => {
+      const pins = await pinLinksBeforeNewOverviews(vault, [folder], { title: t("indexMd.createOverview"), confirmLabel: t("indexMd.createOverview") });
+      if (!pins) return null;
       await writeOverview(vault, folder);
-      return written(1);
+      return withPinnedLinks(t, written(1), pins.pinned);
     });
 
   const generateAllMissing = () =>
     void run(async () => {
       const missing = foldersMissingIndex(rows ?? []);
+      const pins = await pinLinksBeforeNewOverviews(vault, missing, { title: t("indexMd.generateAllMissing", { count: missing.length }) });
+      if (!pins) return null;
       // One at a time and tolerant per folder: a run that stops at the first
       // unreadable folder leaves the rest of the vault unexplained.
       let done = 0;
@@ -109,7 +128,7 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
           console.warn("[mobile] overview skipped", folder, e);
         }
       }
-      return written(done);
+      return withPinnedLinks(t, written(done), pins.pinned);
     });
 
   const adopt = (row: FolderRow) =>
@@ -117,26 +136,45 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
       const candidate = row.candidates[0];
       if (!candidate || !vault.queryService) return;
       const name = candidate.path.split("/").pop() ?? candidate.path;
+      const adoption = [{ candidatePath: candidate.path, indexPath: row.folder ? `${row.folder}/index.md` : "index.md" }];
+      // Links to other overviews this adoption would take over, offered to be
+      // written with their folder (Sammelplan § 3.135 Nr. 6) — as the desktop's
+      // dialog offers it.
+      const offered = (await planOverviewLinkPins(vault.queryService, adoption).catch(() => null))?.links ?? 0;
       const answer = await mConfirmOption({
         title: t("indexMd.actionAdopt", { file: name }),
-        message: t("indexMd.renameHint"),
+        message: offered > 0 ? `${t("indexMd.renameHint")} ${t("indexMd.pinHint")}` : t("indexMd.renameHint"),
         checkbox: { label: t("indexMd.prepareOption"), initial: true },
+        also: offered > 0 ? { label: t("indexMd.pinOption", { links: offered }), initial: true } : undefined,
       });
       if (!answer.confirmed) return;
       await run(async () => {
+        // Unsaved text lands first, and the note's bookmarks, drafts and open
+        // screens follow it, as after a rename (Sammelplan § 3.135 Nr. 1).
+        await vaultOps.flushBeforeNoteMove(vault, candidate.path);
+        // Before the note moves: a link written with its folder leads there
+        // whatever happens next. Read again — the count may be older.
+        let pinned = 0;
+        if (answer.also && offered > 0) {
+          const done = await pinOverviewLinks(vault.files, await planOverviewLinkPins(vault.queryService!, adoption));
+          pinned = done.pinned;
+          for (const path of done.changedPaths) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+          if (done.failed) toast.warning(t("indexMd.pinFailed"));
+        }
         const result = await adoptFileAsIndex({
           adapter: vault.files,
           queryService: vault.queryService!,
           candidatePath: candidate.path,
           folder: row.folder,
           prepare: answer.checked,
+          afterMove: (from, to) => vaultOps.followNoteMove(vault, from, to),
         });
         await vault.indexer?.indexVaultFull("index.md generation").catch(() => {});
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
         // Said as after any rename: a link that could not be followed still names the old file.
         if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
-        return adoptionSummary(t, name, result);
-      });
+        return adoptionSummary(t, name, result, pinned);
+      }, (reason) => t("writeFailed.adopt", { file: name, reason }));
     })();
 
   const missingCount = foldersMissingIndex(rows ?? []).length;

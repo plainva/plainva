@@ -192,6 +192,15 @@ export class EncryptedWorkspaceWorker {
   public onProgress?: (progress: SyncProgress | null) => void;
   public onFilesChanged?: (paths: string[]) => void;
   /**
+   * Once, after the first cycle that went through (open-items plan 3.119).
+   * The plain `SyncWorker` says the same: the phone holds back announcing the
+   * files its index finds as new until the first sync has looked, and with an
+   * encrypted workspace nobody lifted that, so a file another app put beside
+   * the app reached the workspace queue only at the next start.
+   */
+  public onFirstCycleComplete?: () => void;
+  private firstCycleSaid = false;
+  /**
    * Notes whose remarks changed in this cycle (K6): a queued remark published,
    * a queued remark that failed, or a remark that arrived from another device.
    * Before this the shell only heard about its OWN posts and an open column
@@ -459,7 +468,18 @@ export class EncryptedWorkspaceWorker {
     const signal = this.abort.signal;
     this.onStatusChange?.("syncing");
     this.syncing = this.runCycle(signal).then(
-      () => { if (!signal.aborted) { this.resetRetry(); this.onStatusChange?.("idle"); } },
+      () => {
+        if (signal.aborted) return;
+        this.resetRetry();
+        this.onStatusChange?.("idle");
+        if (this.firstCycleSaid) return;
+        this.firstCycleSaid = true;
+        try {
+          this.onFirstCycleComplete?.();
+        } catch (error) {
+          console.warn("[EncryptedWorkspaceWorker] onFirstCycleComplete failed", error);
+        }
+      },
       async (error: unknown) => {
         if (!isWorkspaceSyncAborted(error, signal)) await this.recordCycleFailure(error);
       }

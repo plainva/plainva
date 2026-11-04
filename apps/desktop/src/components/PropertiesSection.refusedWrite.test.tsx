@@ -235,20 +235,41 @@ describe("PropertiesSection — a write the note takes", () => {
     expect(messages()).toEqual([]);
   });
 
-  it("a rename that finds no entry of the name is refused and said, and not shown as done", async () => {
-    // A key that is an alias: the reader names it after what it stands for, the entry has no name of its own.
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it("renames a key that is an alias, under the name it stands for (3.144 no. 9)", async () => {
+    // The reader names the key after what it stands for; the writers find it
+    // so now. It used to be found under no name: the rename was refused.
     const NOTE = "---\nx: &k owner\n*k : Anna\n---\n\n# Note\n";
     const { handed } = await open(NOTE);
     expect(propertyRows()).toContain("owner");
 
     await rename("owner", "person");
 
-    expect(handed).toEqual([]);
-    expect(propertyRows()).toContain("owner");
-    expect(propertyRows()).not.toContain("person");
-    expect(messages()).toHaveLength(1);
-    expect(messages()[0]).toMatch(/^error: Property could not be saved: .*cannot be read as properties/);
+    expect(handed).toEqual(["---\nx: &k owner\nperson : Anna\n---\n\n# Note\n"]);
+    expect(messages()).toEqual([]);
+  });
+
+  it("says a new name another property has — in any casing — and the row keeps its name (3.144 no. 10)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const NOTE = "---\nowner: Anna\nStatus: open\n---\n\n# Note\n";
+    for (const taken of ["Status", "status", "STATUS"]) {
+      act(() => root.unmount());
+      root = createRoot(container);
+      toast.clearAll();
+      const { handed } = await open(NOTE);
+
+      await rename("owner", taken);
+
+      expect(handed, taken).toEqual([]);
+      expect(messages(), taken).toEqual([`error: Property could not be saved: ${i18n.t("inputRejected.propertyNameTaken")}`]);
+      // The name field shows the name the property has, not the one typed.
+      expect((container.querySelector('.pv-key[data-key="owner"]') as HTMLTextAreaElement | null)?.value, taken).toBe("owner");
+    }
+  });
+
+  it("renames a property to another casing of its own name", async () => {
+    const { handed } = await open(READABLE);
+    await rename("owner", "Owner");
+    expect(handed).toEqual(["---\nOwner: Anna\n---\n\n# Note\n"]);
   });
 
   it("says that the note was marked as reviewed", async () => {

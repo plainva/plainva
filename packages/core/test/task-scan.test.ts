@@ -100,3 +100,79 @@ describe("subtasks and the bullets under a task (wish E6, 2026-10-24)", () => {
     expect(scanTasks("- [ ] Task\n  continuation text\n# Heading\n  - stray").every((t) => t.details === undefined)).toBe(true);
   });
 });
+
+describe("what a Tasks query needs of a task (plan Tasks-Abfragen, T1)", () => {
+  it("carries the closest heading above a task, whatever its level, and none before the first", () => {
+    const tasks = scanTasks([
+      "---",
+      "# a YAML comment, no heading",
+      "title: x",
+      "---",
+      "- [ ] before any heading",
+      "# Project ##",
+      "- [ ] under the project",
+      "### Details",
+      "  - [ ] deeper heading wins",
+      "> # quoted, no heading",
+      "> - [ ] in a quote under Details",
+      "```",
+      "# code, no heading",
+      "```",
+      "- [ ] after the fence",
+      "#tag is no heading",
+      "- [ ] still Details",
+      "##",
+      "- [ ] under an empty heading",
+    ].join("\n"));
+    expect(tasks.map((t) => [t.text, t.heading])).toEqual([
+      ["before any heading", undefined],
+      ["under the project", "Project"],
+      ["deeper heading wins", "Details"],
+      ["in a quote under Details", "Details"],
+      ["after the fence", "Details"],
+      ["still Details", "Details"],
+      ["under an empty heading", ""],
+    ]);
+    expect("heading" in tasks[0]).toBe(false);
+  });
+
+  it("reads a heading on the first line behind a byte order mark", () => {
+    expect(scanTasks(String.fromCharCode(0xfeff) + "# Top\n- [ ] a")[0].heading).toBe("Top");
+  });
+
+  it("marks a sub-item, under a task or a plain bullet, and not a top-level item in a quote", () => {
+    const tasks = scanTasks([
+      "- [ ] top",
+      "  - [ ] under a task",
+      "- bullet",
+      "\t- [ ] under a bullet",
+      "> - [ ] top in a quote",
+      ">   - [ ] sub in a quote",
+      ">- [ ] top without a blank",
+    ].join("\n"));
+    expect(tasks.map((t) => [t.text, t.indented ?? false])).toEqual([
+      ["top", false],
+      ["under a task", true],
+      ["under a bullet", true],
+      ["top in a quote", false],
+      ["sub in a quote", true],
+      ["top without a blank", false],
+    ]);
+  });
+
+  it("carries the cancelled date and the six priority levels next to the three ranks", () => {
+    const tasks = scanTasks([
+      "- [-] dropped ❌ 2026-10-24",
+      "- [ ] a 🔺",
+      "- [ ] b ⏫",
+      "- [ ] c 🔼",
+      "- [ ] d",
+      "- [ ] e 🔽",
+      "- [ ] f ⏬",
+    ].join("\n"));
+    expect(tasks[0].cancelled).toBe("2026-10-24");
+    expect(tasks.map((t) => t.priorityLevel ?? "none")).toEqual(["none", "highest", "high", "medium", "none", "low", "lowest"]);
+    expect(tasks.map((t) => t.priority ?? 0)).toEqual([0, 1, 1, 2, 0, 3, 3]);
+    expect("priorityLevel" in tasks[4]).toBe(false);
+  });
+});

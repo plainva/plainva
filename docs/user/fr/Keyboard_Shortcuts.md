@@ -1,6 +1,6 @@
 # Raccourcis clavier
 
-Dernière mise à jour : 2026-10-22
+Dernière mise à jour : 2026-11-02
 
 Appuyez sur `F1` (ou **Palette de commandes → Afficher les raccourcis clavier**) pour ouvrir à tout moment la fenêtre des raccourcis. Elle regroupe tous les raccourcis et gestes de souris en zones que vous changez avec les pastilles en haut, propose un champ de recherche qui couvre toutes les zones, et détecte automatiquement votre plateforme : elle affiche `Ctrl`/`Alt` sous Windows et Linux, et `⌘`/`⌥` sous macOS. Dans les tableaux ci-dessous, `Ctrl` désigne donc `⌘` sous macOS, et `Alt` désigne `⌥`.
 
@@ -39,7 +39,7 @@ Dans l'arborescence de fichiers : le **clic** sélectionne et ouvre, `Ctrl`+clic
 | `Ctrl+Shift+E` | Basculer aperçu en direct ↔ source Markdown |
 | `Ctrl+Alt+B` / `Ctrl+Alt+R` | Basculer la barre latérale gauche / droite |
 | `Ctrl+Alt+V` / `Ctrl+Alt+S` | Scinder l'éditeur – côte à côte / superposé |
-| `Ctrl+Shift+G` | Ouvrir le graphe / la carte du coffre |
+| `Ctrl+Shift+G` | Ouvrir le graphe / la carte du vault |
 | `Ctrl+Shift+F` | Rechercher et remplacer dans le vault |
 | `Ctrl+T` | Nouvel onglet (choisir une note à ouvrir) |
 | `Ctrl+W` | Fermer l'onglet ; dans une fenêtre séparée, fermer le dernier onglet ferme la fenêtre |
@@ -104,11 +104,11 @@ Déposer un fichier dans l'éditeur intègre une image (ou copie et lie un autre
 
 | Raccourci | Action |
 |---|---|
-| `Ctrl+Shift+G` | Ouvrir le graphe / la carte du coffre |
+| `Ctrl+Shift+G` | Ouvrir le graphe / la carte du vault |
 | Touches fléchées | Déplacer le focus entre les nœuds |
 | `Entrée` | Ouvrir le nœud focalisé |
 
-Souris : la **molette** zoome ; le **clic molette + glisser** ou `Ctrl`+glisser déplace la carte (même au-dessus d'un nœud) ; **glisser sur une zone vide** dessine un rectangle de sélection (carte du coffre) ; `Alt`+glisser déplace un nœud avec ses voisins liés (carte du coffre) ; **glisser un nœud sur un autre** crée un lien ou une relation de base de données (carte du coffre) ; un **simple clic** ouvre (graphe contextuel / graphe de base) ou sélectionne (carte du coffre) ; **double-cliquer sur une bulle de dossier** le déplie (double-clic sur l'anneau pour le replier) ; `Ctrl`+clic ouvre dans la vue scindée, le **clic central** ouvre dans un nouvel onglet ; le **clic droit** ouvre le menu contextuel ; l'**épingle** (en haut à droite) active ou désactive la mémorisation des positions.
+Souris : la **molette** zoome ; le **clic molette + glisser** ou `Ctrl`+glisser déplace la carte (même au-dessus d'un nœud) ; **glisser sur une zone vide** dessine un rectangle de sélection (carte du vault) ; `Alt`+glisser déplace un nœud avec ses voisins liés (carte du vault) ; **glisser un nœud sur un autre** crée un lien ou une relation de base de données (carte du vault) ; un **simple clic** ouvre (graphe contextuel / graphe de base) ou sélectionne (carte du vault) ; **double-cliquer sur une bulle de dossier** le déplie (double-clic sur l'anneau pour le replier) ; `Ctrl`+clic ouvre dans la vue scindée, le **clic central** ouvre dans un nouvel onglet ; le **clic droit** ouvre le menu contextuel ; l'**épingle** (en haut à droite) active ou désactive la mémorisation des positions.
 
 ## Bases de données (.base)
 

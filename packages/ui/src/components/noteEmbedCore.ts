@@ -111,7 +111,7 @@ export function buildNoteEmbedCoreExtension(
               const matchFrom = line.from + match.index;
               const matchTo = matchFrom + match[0].length;
               if (isEscapedAt(line.text, match.index)) continue;
-              if (isLiteralAt(view.state, matchFrom, { html: true })) continue;
+              if (isLiteralAt(view.state, matchFrom)) continue;
               if (hideSyntax && !isLineSelected) {
                 builder.add(
                   matchFrom,

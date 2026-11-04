@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-10-24
+Última actualización: 2026-11-03
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -29,6 +29,8 @@ Un vault es una carpeta normal. Los tipos de archivo que encontrarás:
 
 Los nombres reservados `index.md` y `log.md` nunca son notas normales; no crees contenido ordinario bajo esos nombres.
 
+Archivos y carpetas que empiezan por punto — como `.notas.md` o `.attachments/` — forman parte de la bóveda: Plainva los guarda en su índice y los sincroniza como cualquier otro archivo, pero no los muestra, igual que Obsidian. No aparecen en ninguna búsqueda, lista de archivos, grafo, sugerencia, lista de vínculos entrantes, lista de etiquetas o de tareas ni base de datos. Un enlace que nombra uno sigue abriéndolo. La carpeta propia de Plainva `.plainva/` y la de Obsidian `.obsidian/` tienen sus propias reglas.
+
 ---
 
 ## Notas (`.md`)
@@ -52,9 +54,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-Un bloque puede estar vacío: `---` seguido directamente de `---` es un bloque sin propiedades, no dos separadores; el texto de la nota empieza en la línea siguiente. Plainva no deja ningún bloque vacío: cuando se elimina la última propiedad, las dos líneas `---` desaparecen con ella. Solo permanecen cuando el propio texto empieza con una línea `---`, que de otro modo se leería como el inicio de un bloque.
+Un bloque puede estar vacío: `---` seguido directamente de `---` es un bloque sin propiedades, no dos separadores; el texto de la nota empieza en la línea siguiente. Plainva no deja ningún bloque vacío: cuando se elimina la última propiedad, las dos líneas `---` desaparecen con ella. Solo permanecen cuando el propio texto empieza con una línea `---`, que de otro modo se leería como el inicio de un bloque. Un bloque que solo contiene un comentario se queda, con el comentario.
 
-Un bloque que Plainva no puede leer como propiedades se deja tal como está: texto entre las dos líneas `---` que no es YAML, o YAML que es una lista en lugar de líneas `clave: valor`. **Propiedades** lo indica en lugar de no mostrar ninguna propiedad, y cambiar una propiedad de una nota así —allí, en una base de datos, en un tablón, en la lista de tareas, o su icono y su color— no cambia nada, y Plainva lo dice: **No se pudo guardar la propiedad**, seguido del motivo. Corrige el bloque en el texto de la nota y el cambio se aplicará. Un solo valor con una forma inesperada no hace ilegible un bloque: Plainva lo lee tal como está escrito —un `tags:` vacío es una nota sin etiquetas, un número entre las etiquetas (`- 2024`) es la etiqueta `2024`, un número como `title` es ese título, y un `timestamp` que es una fecha es una propiedad como cualquier otra.
+Un bloque que Plainva no puede leer como propiedades se deja tal como está: texto entre las dos líneas `---` que no es YAML, o YAML que es una lista en lugar de líneas `clave: valor`. Una sola línea de texto, un número o un conjunto (`!!set`) entre las dos líneas también es un bloque así: la búsqueda, los enlaces y las bases de datos tampoco leen de él ninguna propiedad. **Propiedades** lo indica en lugar de no mostrar ninguna propiedad, y cambiar una propiedad de una nota así —allí, en una base de datos, en un tablón, en la lista de tareas, o su icono y su color— no cambia nada, y Plainva lo dice: **No se pudo guardar la propiedad**, seguido del motivo. Corrige el bloque en el texto de la nota y el cambio se aplicará. Un solo valor con una forma inesperada no hace ilegible un bloque: Plainva lo lee tal como está escrito —un `tags:` vacío es una nota sin etiquetas, un número entre las etiquetas (`- 2024`) es la etiqueta `2024`, un número como `title` es ese título, y un `timestamp` que es una fecha es una propiedad como cualquier otra. `tag` y `alias` en singular son propiedades corrientes —como en Obsidian desde la 1.9—, así que una etiqueta es solo lo que está bajo `tags`.
 
 ### Campos de frontmatter OKF
 
@@ -246,7 +248,7 @@ Un archivo `.base` es YAML. Guarda una *vista* sobre notas — qué notas (fuent
 
 ### Reglas estrictas — rompe una y Obsidian rechaza todo el archivo
 
-- **Solo estas claves de nivel superior:** `filters`, `formulas`, `properties`, `views`. Nunca añadas otra clave de nivel superior. (Históricamente, una clave `columns:` de nivel superior rompía todos los archivos — no reintroduzcas ese patrón.)
+- **Solo estas claves de nivel superior:** `filters`, `formulas`, `properties`, `summaries`, `views`. Nunca añadas otra clave de nivel superior. (Históricamente, una clave `columns:` de nivel superior rompía todos los archivos — no reintroduzcas ese patrón.)
 - **Cada vista necesita un `name` de tipo string no vacío.**
 - **Un objeto `filters` lleva exactamente uno de `and` / `or` / `not` en cada nivel** — nunca dos uno al lado del otro.
 
@@ -597,7 +599,7 @@ Para una relación cuyo destino es la misma base de datos, apunta `relationBase`
 
 `index.md` es un nombre reservado para el índice de contenidos de una carpeta.
 
-- **Solo el `index.md` de la raíz puede llevar frontmatter**, y solo `okf_version` — la versión de la convención que sigue el vault (actualmente `"0.2"`; marca el vault como activo en OKF). Un vault que todavía declara `"0.1"` se actualiza en **Configuración → Vault → Contenido y estructura → Versión del bundle → Actualizar…**; el campo heredado `okf_version` se puede eliminar de las notas en el mismo paso. Un `index.md` que no esté en la raíz debe estar **libre de frontmatter** — el frontmatter ahí es una infracción del nombre reservado.
+- **Solo el `index.md` de la raíz puede llevar frontmatter**, y solo `okf_version` — la versión de la convención que sigue el vault (actualmente `"0.2"`; marca el vault como activo en OKF). Un vault que todavía declara `"0.1"` se actualiza en **Configuración → Vault → Mantenimiento → Formato OKF → Versión del bundle → Actualizar…**; el campo heredado `okf_version` se puede eliminar de las notas en el mismo paso. Un `index.md` que no esté en la raíz debe estar **libre de frontmatter** — el frontmatter ahí es una infracción del nombre reservado.
 - Un `index.md` **gestionado** por Plainva termina con el marcador `<!-- plainva:index generated -->` (un comentario HTML, invisible en el modo de lectura). Su presencia significa que Plainva mantiene el archivo actualizado automáticamente. Si editas ese archivo a mano, conserva el marcador (y mantén la forma generada) o elimínalo deliberadamente para hacerte cargo del archivo de forma permanente.
 - Los listados generados son secciones de enlaces con la forma `* [Título](url/relativa) - descripción`.
 
@@ -651,7 +653,7 @@ Reglas: las rutas fijadas no se repiten en `pinboardOrder`. Las tarjetas que no 
 - **`.agent/`** contiene las reglas de IA, los skills y la memoria de Plainva. Modifícala solo si el usuario pide exactamente eso, y respeta `cloud: deny` y `web: deny` (ver la regla de privacidad de IA más arriba).
 - **Las claves desconocidas son sagradas.** Cuando reescribas una `.base` o una nota, arrastra sin cambios cada clave que no tenías intención de modificar. Plainva mismo conserva las claves desconocidas de `.base` mediante una copia interna en bruto; un escritor externo debería hacer lo mismo (analizar → cambiar solo lo que se pretende → serializar).
 - **Los valores cambian en la nota, no en la `.base`.** Para fijar una celda, edita el frontmatter de la nota. La `.base` solo decide qué notas y columnas se muestran.
-- **No añadas claves `.base` de nivel superior** más allá de `filters` / `formulas` / `properties` / `views`.
+- **No añadas claves `.base` de nivel superior** más allá de `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Codificación:** UTF-8. Archivos nuevos: finales de línea LF, sin BOM. Una nota o un archivo de texto que ya tiene finales de línea CRLF o un BOM los conserva — Plainva no los cambia, y una herramienta tampoco debería. La única excepción es un `.base`: Plainva lo escribe de nuevo, con LF y sin BOM, cada vez que cambia su configuración. Un retorno de carro solo como final de línea (archivos antiguos de Mac) se lee, pero no se conserva: Plainva guarda un archivo así con LF la primera vez que lo modifica.
 
 ## Ver también

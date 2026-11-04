@@ -133,10 +133,24 @@ export async function removeRelationLink(
   return without(update.before).removed;
 }
 
+/** Whether a relation value the text carries holds anything. */
+function holdsRelationValue(raw: unknown): boolean {
+  if (Array.isArray(raw)) return raw.some((v) => v != null && String(v).trim() !== "");
+  return raw != null && String(raw).trim() !== "";
+}
+
 /**
  * Writes the relation into the source note's frontmatter (surgical): a
  * limit-one relation replaces the value, an unlimited one appends to the
  * list (deduped). Returns the written wiki-link text.
+ *
+ * `keepTaken`: a limit-one slot that already holds a value is left as it is,
+ * and `null` is answered — for a write nobody asked to replace anything (a
+ * new database entry linked to its host). Whether the slot is taken is read
+ * from the text the change is made to, with the writer's own reader, never
+ * from the index: the index can be behind the note, or not take its block at
+ * all (an empty `tags:`), and then a link the note carried was replaced
+ * without a word (Sammelplan § 3.134 Nr. 1).
  */
 export async function writeRelationLink(
   adapter: IVaultAdapter,
@@ -144,14 +158,17 @@ export async function writeRelationLink(
   sourcePath: string,
   targetPath: string,
   propertyKey: string,
-  limitOne: boolean
-): Promise<string> {
+  limitOne: boolean,
+  options: { keepTaken?: boolean } = {},
+): Promise<string | null> {
   const notes = await queryService.listNotes();
   const allPaths = notes.map((n) => n.path);
   const link = `[[${wikiTargetForPath(targetPath, allPaths)}]]`;
+  const taken = (content: string) => !!options.keepTaken && limitOne && holdsRelationValue(readFrontmatterPath(content, [propertyKey]));
 
   await flushPendingSave(sourcePath);
-  await updateVaultText(adapter, sourcePath, (content) => {
+  const update = await updateVaultText(adapter, sourcePath, (content) => {
+    if (taken(content)) return null;
     if (limitOne) return upsertFrontmatterKeys(content, { [propertyKey]: link });
     // Appended to the list the text carries, not the index's: where the note
     // has an open conflict, the user's own version keeps the values only it has.
@@ -160,5 +177,5 @@ export async function writeRelationLink(
     if (!list.includes(link)) list.push(link);
     return upsertFrontmatterKeys(content, { [propertyKey]: list });
   });
-  return link;
+  return taken(update.before) ? null : link;
 }

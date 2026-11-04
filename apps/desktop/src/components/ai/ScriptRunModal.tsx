@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CodeXml, Copy, Play } from "lucide-react";
+import { sameStoredValue } from "@plainva/core";
 import {
   AiRunWrites,
   Banner,
@@ -22,6 +23,7 @@ import {
   toast,
   useAiSession,
   useAiState,
+  useDiscardGuard,
   useDraftActions,
   useScriptRun,
   workshopTitle,
@@ -47,6 +49,9 @@ export function ScriptRunModal({ id, onClose, onOpenNote }: { id: string; onClos
   const script = entry?.source.script ?? null;
   const [values, setValues] = useState<ScriptFieldValues>(() => scriptFieldDefaults(script?.parameters ?? []));
   const running = useScriptRun(session, state, id);
+  // Inputs typed and not yet run with are asked about; after a run, closing is the dialog's normal end (finding 2026-10-22).
+  const [used, setUsed] = useState<ScriptFieldValues>(values);
+  const close = useDiscardGuard(!sameStoredValue(values, used), onClose);
   // A note opens behind a dialog nobody could see through: the dialog closes with it.
   const open = (path: string) => {
     onOpenNote(path);
@@ -61,6 +66,10 @@ export function ScriptRunModal({ id, onClose, onOpenNote }: { id: string; onClos
   const ended = outcome ? scriptOutcomeText(t, outcome, script.limits, run?.dry === true, i18n.language) : null;
   const value = outcome ? scriptValueText(outcome) : null;
   const canStart = state.scripts.available && entry.status === "active" && missing.length === 0 && !running.busy;
+  const start = (dry: boolean) => {
+    setUsed(values);
+    running.start(input, dry);
+  };
   const set = (name: string, next: string | boolean) => setValues((current) => ({ ...current, [name]: next }));
   const copy = (text: string) => {
     void navigator.clipboard.writeText(text).then(
@@ -73,7 +82,7 @@ export function ScriptRunModal({ id, onClose, onOpenNote }: { id: string; onClos
       title={workshopTitle(t, entry)}
       icon={<CodeXml size={ICON.ui} />}
       size="lg"
-      onClose={onClose}
+      onClose={close}
       testId="ai-script-run"
       footer={
         running.busy ? (
@@ -82,13 +91,13 @@ export function ScriptRunModal({ id, onClose, onOpenNote }: { id: string; onClos
           </Button>
         ) : (
           <>
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="ghost" onClick={close}>
               {t("common.close")}
             </Button>
-            <Button variant="secondary" disabled={!canStart} onClick={() => running.start(input, true)} data-testid="ai-script-dry">
+            <Button variant="secondary" disabled={!canStart} onClick={() => start(true)} data-testid="ai-script-dry">
               {t("ai.scripts.run.dry")}
             </Button>
-            <Button variant="primary" icon={<Play size={ICON.ui} />} disabled={!canStart} onClick={() => running.start(input, false)} data-testid="ai-script-start">
+            <Button variant="primary" icon={<Play size={ICON.ui} />} disabled={!canStart} onClick={() => start(false)} data-testid="ai-script-start">
               {t("ai.scripts.run.start")}
             </Button>
           </>

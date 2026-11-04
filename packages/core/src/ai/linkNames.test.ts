@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../test/helpers/timeBudget.js";
 import { buildLinkNameIndex, filesALinkCouldMean, isNotePath, linkTargetForms, notesALinkCouldMean, type NamedFile } from "./linkNames.js";
 
 /**
@@ -116,10 +117,10 @@ describe("the files a link could mean", () => {
   it("answers from maps, however large the vault and however common the name", () => {
     const many: NamedFile[] = [];
     for (let folder = 0; folder < 4_000; folder++) many.push({ path: `Area ${folder}/Sub/index.md`, title: "index" }, { path: `Area ${folder}/Note ${folder}.md`, title: `Note ${folder}` });
-    const started = Date.now();
-    const big = buildLinkNameIndex(many);
-    expect(filesALinkCouldMean(big, "index", "Area 7/x.md")).toHaveLength(4_000);
-    for (let ask = 0; ask < 2_000; ask++) expect(filesALinkCouldMean(big, `Note ${ask}`, "x.md")).toEqual([`Area ${ask}/Note ${ask}.md`]);
-    expect(Date.now() - started).toBeLessThan(4_000);
+    within(4_000, () => {
+      const big = buildLinkNameIndex(many);
+      expect(filesALinkCouldMean(big, "index", "Area 7/x.md")).toHaveLength(4_000);
+      for (let ask = 0; ask < 2_000; ask++) expect(filesALinkCouldMean(big, `Note ${ask}`, "x.md")).toEqual([`Area ${ask}/Note ${ask}.md`]);
+    });
   });
 });

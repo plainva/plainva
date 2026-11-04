@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive } from "../services/templateInteractive";
 import { useTranslation } from "react-i18next";
-import { BaseExportDialog } from "@plainva/ui";
+import { BaseExportDialog, handTemplateCaretAcrossRename } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS, withColumnValues } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
@@ -36,11 +36,12 @@ import { planPinboardEntry, pinboardDraftLedger, pinboardLabelProperty, viewPref
 import { desktopDraftFiles } from "../services/pinboardDrafts";
 import { addTemplateForAssignment, finalizeItemContent, parkTemplateCaret, removeTemplateForAssignment, templateAsNewNote, templateCaretInNote } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
+import { ruleTemplateFor } from "../services/newNoteTemplate";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
 import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "@plainva/ui";
 import { writeRelationLink } from "../services/graphRelationTargets";
-import { assertFileStillThere, isFileNotFound, moveItemName, toast } from "@plainva/ui";
+import { assertFileStillThere, isFileNotFound, moveItemName, sayRewriteOutcome, toast } from "@plainva/ui";
 import { requestSaveFlush } from "../services/saveFlush";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { appConfirm, appPrompt } from "../services/appDialogs";
@@ -55,7 +56,7 @@ import { ColorPopover } from "./ColorPopover";
 import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { FILE_DAY } from "@plainva/ui";
-import { BasePeekModal } from "./BasePeekModal";
+import { BasePeekModal, type PeekCaret } from "./BasePeekModal";
 import { MissingFileView } from "./MissingFileView";
 import { useOpenFileLookup } from "./useOpenFileLookup";
 import { PinboardEntryModal } from "./base/PinboardEntryModal";
@@ -363,7 +364,7 @@ export function BaseViewer({
   /** Rename an entry from the row menu or the peek. Carries a mirrored H1 (the
    *  state a fresh `{Base}_{n}` entry is in) so the note is not called Task_1 in
    *  its own text after the tree already shows the new name. */
-  const renameEntry = useCallback(async (path: string) => {
+  const renameEntry = useCallback(async (path: string, caret?: PeekCaret) => {
     if (!vaultAdapter) return;
     const current = renameInitialName(path, false);
     const next = await appPrompt({
@@ -398,8 +399,16 @@ export function BaseViewer({
         .catch((e) => { followUpError ??= errorText(e); });
     }
     triggerFileTreeUpdate();
-    if (peekPath === path) setPeekPath(result.newPath);
+    // The window shows the entry under its new name in a new editor: the mark
+    // "just made" moves along (`notifyFileOps`), and the place the window's
+    // editor held is parked for the new one, counted in the note as the rename
+    // left it - with the heading it carried (Sammelplan § 3.140 Nr. 1).
     notifyFileOps([{ type: "move", from: path, to: result.newPath }]);
+    if (caret && peekPath === path) {
+      const renamed = await vaultAdapter.readTextFile(result.newPath).catch(() => null);
+      if (renamed !== null) handTemplateCaretAcrossRename(result.newPath, caret.doc, caret.selection, renamed);
+    }
+    if (peekPath === path) setPeekPath(result.newPath);
     if (followUpError) toast.warning(t("dialogs.movedWithFollowUpError", { name: moveItemName(result.newPath), error: followUpError }));
     else if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
   }, [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, peekPath, t]);
@@ -433,7 +442,7 @@ export function BaseViewer({
       if (indexer) await applyIndexChanges(indexer, { added: [copy] });
       triggerFileTreeUpdate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(errorText(e));
     }
   }, [vaultAdapter, indexer, triggerFileTreeUpdate, t]);
 
@@ -976,8 +985,8 @@ export function BaseViewer({
         triggerFileTreeUpdate(result.written);
       }
     }
-    if (result.failed.length > 0) {
-      toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+    if (result.failed.length > 0 || result.skipped.length > 0) {
+      sayRewriteOutcome(result, toast);
     } else if (result.cancelled) {
       toast.info(t("database.bulkSetCancelled", { done: result.written.length }));
     } else {
@@ -1117,6 +1126,20 @@ export function BaseViewer({
     saveConfig({ ...dbConfig, views });
   };
 
+  /** The layout a view keeps beside the database's config - its type, its columns, its grouping, its cover - as the config says it. */
+  const showViewLayout = (config: any, index: number): boolean => {
+    const view = config?.views?.[index];
+    if (!view) return false;
+    setCurrentViewType(view.type || "table");
+    const savedOrder: string[] = Array.isArray(view.order) ? view.order : [];
+    setVisibleColumns(savedOrder.length > 0 ? savedOrder.map((c: string) => c.replace(/^note\./, "")) : ["file.name", ...commonColumns]);
+    setBoardGroupBy(view.groupBy ?? null);
+    setCoverImageProperty(view.coverImage ?? null);
+    return true;
+  };
+  /** Counts the saves of the config: a failed save puts the view's layout back only if none came after it. */
+  const saveTurn = useRef(0);
+
   // Switching the active view re-derives its layout/columns and re-queries so the data
   // is sorted by that view. Runs on index change only — local column edits (same index)
   // must not be clobbered. The first run (mount) is handled by the load effect.
@@ -1124,13 +1147,7 @@ export function BaseViewer({
   useEffect(() => {
     if (!didMountViewSync.current) { didMountViewSync.current = true; return; }
     if (suppressViewSyncRef.current) { suppressViewSyncRef.current = false; return; }
-    const view = dbConfig?.views?.[activeViewIndex];
-    if (!view) return;
-    setCurrentViewType(view.type || "table");
-    const savedOrder: string[] = Array.isArray(view.order) ? view.order : [];
-    setVisibleColumns(savedOrder.length > 0 ? savedOrder.map((c) => c.replace(/^note\./, "")) : ["file.name", ...commonColumns]);
-    setBoardGroupBy(view.groupBy ?? null);
-    setCoverImageProperty(view.coverImage ?? null);
+    if (!showViewLayout(dbConfig, activeViewIndex)) return;
     if (queryService) queryForActiveView(dbConfig, activeViewIndex).then((d) => setDbData(d)).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeViewIndex]);
@@ -1193,26 +1210,27 @@ export function BaseViewer({
   /**
    * Upward scope: the owning link lives on the host — link it to the new
    * target, appending for unlimited and setting an empty limit-one slot; a
-   * full limit-one slot is left untouched (no silent reassign).
+   * full limit-one slot is left untouched (no silent reassign). Whether the
+   * slot is full is decided in the write itself, from the note's text: asked
+   * of the index, a host the index was behind on — or whose block it does
+   * not take — lost the link it carried (Sammelplan § 3.134 Nr. 1).
    */
   const linkHostTo = async (path: string): Promise<boolean> => {
     const scopeRel = activeScopeRelation;
     if (!(scopeRel && scopeRel.direction === "up" && scopeRel.hostProperty && hostPath && queryService && vaultAdapter)) return false;
-    const props = await queryService.getFileProperties(hostPath);
-    const existing = props[scopeRel.hostProperty];
-    const hasValue = Array.isArray(existing) ? existing.length > 0 : existing != null && existing !== "";
-    if (scopeRel.limitOne && hasValue) {
-      toast.info(t("database.embedLinkSkipped", { defaultValue: "Nicht verknüpft — bereits zugeordnet.", host: hostTitle }));
-      return false;
-    }
+    let linked: string | null;
     try {
-      await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne);
+      linked = await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne, { keepTaken: true });
     } catch (e) {
       // The entry exists; what did not reach its note is the link in the host
       // (finding 2026-10-12). Thrown on, it ended "new entry" in a catch that
       // only logs: the note was written and never shown, and nothing was said.
       console.error("[BaseViewer] linking the new entry to its host failed", e);
       toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return false;
+    }
+    if (linked === null) {
+      toast.info(t("database.embedLinkSkipped", { defaultValue: "Nicht verknüpft — bereits zugeordnet.", host: hostTitle }));
       return false;
     }
     return true;
@@ -1227,6 +1245,11 @@ export function BaseViewer({
         vaultAdapter.exists((dir ? dir + "/" : "") + n + ".md").catch(() => false)
       );
       const path = (dir ? dir + "/" : "") + name + ".md";
+      const noteType = await getConfiguredNoteType(vaultPath);
+      // The database's own template, or the one picked in its menu; without
+      // one, the folder and type rules every new note follows — as on the
+      // phone (Sammelplan § 3.136 Nr. 2).
+      template ??= await ruleTemplateFor(vaultPath, vaultAdapter, dir, noteType);
       let templateText: string | null = null;
       if (template) {
         try {
@@ -1242,7 +1265,6 @@ export function BaseViewer({
       // A template with questions asks them once, here, before the file is
       // written (plan Vorlagen-Engine P3 / decision E3). A template WITHOUT
       // questions never opens a dialog — "+ entry" stays a single click.
-      const noteType = await getConfiguredNoteType(vaultPath);
       let made: { content: string; caret: number | null } | null = null;
       if (templateText !== null) {
         const answered = await applyTemplateInteractive(
@@ -1276,7 +1298,9 @@ export function BaseViewer({
       // properties can be filled in immediately.
       setPeekPath(path);
     } catch (e) {
+      // Said with its reason (Sammelplan § 3.134 no. 3): the button came free and nothing else happened.
       console.error("[BaseViewer] creating a new base item failed", e);
+      toast.error(t("writeFailed.newEntry", { reason: errorText(e) }));
     } finally {
       setNewItemBusy(false);
     }
@@ -1497,11 +1521,12 @@ export function BaseViewer({
         basePath: activePath,
         allFilePaths: rows.map((r) => r.path),
       });
-      if (!path) return;
       if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       onOpenPath?.(path, true);
     } catch (e) {
+      // Said with its reason (Sammelplan § 3.134 no. 3), as the phone says it.
       console.error("[BaseViewer] creating a template failed", e);
+      toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
     }
   };
 
@@ -1657,6 +1682,7 @@ export function BaseViewer({
     const newText = serializeBaseConfig(newConfig);
     const shownConfig = dbConfig;
     const shownText = content;
+    const save = ++saveTurn.current;
     try {
       // Optimistic UI update to prevent stuck screens
       setContent(newText);
@@ -1677,9 +1703,15 @@ export function BaseViewer({
       }
       setDbConfig((shown: any) => (shown === newConfig ? shownConfig : shown));
       setContent((shown) => (shown === newText ? shownText : shown));
+      // What the caller set ahead of the save - the columns shown, the view
+      // type, the grouping, the cover - goes back with it, unless a later
+      // save changed the view since (Sammelplan 3.71 no. 5): it stayed, and
+      // the next save that landed wrote it along.
+      if (save === saveTurn.current && shownConfig) showViewLayout(shownConfig, activeViewIndex);
       if (moved) lookForFile();
       console.error("Failed to save database config", e);
-      toast.error(t("editor.saveFailed"));
+      // With its reason (Sammelplan 3.87 no. 1): an open conflict is named as one.
+      toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
       return false;
     }
     setPendingConfig(null);
@@ -1788,16 +1820,18 @@ export function BaseViewer({
   // What the loops over many notes say when some could not be written: one
   // message with both counts. Each of them used to log the note to the console
   // and then show every row as changed (finding 2026-10-09).
-  const reportRewrite = (result: { written: string[]; failed: { path: string; message: string }[] }, what: string) => {
+  // A note that was gone when its turn came is skipped, not failed (decision E20).
+  const reportRewrite = (result: { written: string[]; failed: { path: string; message: string }[]; skipped: string[] }, what: string) => {
     for (const failure of result.failed) console.error(what, failure.path, failure.message);
-    if (result.failed.length > 0) toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+    sayRewriteOutcome(result, toast);
   };
 
   // Writes a property (empty) into the notes that lack it and answers which
   // ones got it. A note that turns out to hold a value there — the index was
   // behind — keeps it.
   const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string): Promise<string[]> => {
-    const result = await rewriteNoteProperties(adapter, paths, (props) => (isEmptyPropertyValue(props[col]) ? { ...props, [col]: "" } : null));
+    // Under the key the note carries the property, in any casing (3.144 no. 3).
+    const result = await rewriteNoteProperties(adapter, paths, (props) => withColumnValues(props, [col], (value) => (isEmptyPropertyValue(value) ? "" : undefined)));
     reportRewrite(result, "Failed to add property to file");
     return result.written;
   };
@@ -2466,14 +2500,11 @@ export function BaseViewer({
     // Rewrite the affected frontmatter values in every matching note.
     const notConverted = new Set<string>();
     if (vaultAdapter) {
-      const result = await rewriteNoteProperties(vaultAdapter, dbData.map((row) => String(row['file.path'])), (props) => {
-        let changed = false;
-        for (const f of fields) {
-          const nv = convert(props[f]);
-          if (nv !== props[f]) { props[f] = nv; changed = true; }
-        }
-        return changed ? props : null;
-      });
+      // Each value under the key the note carries it, in any casing: a note
+      // with `Frist:` under the column `frist` was left as it was (3.144 no. 3).
+      const result = await rewriteNoteProperties(vaultAdapter, dbData.map((row) => String(row['file.path'])), (props) =>
+        withColumnValues(props, fields, (value) => convert(value))
+      );
       reportRewrite(result, "Failed to convert date field type in");
       for (const failure of result.failed) notConverted.add(failure.path);
     }
@@ -3070,7 +3101,7 @@ export function BaseViewer({
           onClose={() => setPeekPath(null)}
           onMaximize={(p) => { onOpenPath?.(p, true); setPeekPath(null); }}
           onOpenSplit={onOpenInSplit ? (p) => { onOpenInSplit(p); setPeekPath(null); } : undefined}
-          onRename={(p) => void renameEntry(p)}
+          onRename={(p, caret) => void renameEntry(p, caret)}
           onDelete={(p) => void deleteEntry(p)}
         />
       )}
@@ -3103,7 +3134,7 @@ export function BaseViewer({
                 data-testid={`schedule-into-${c.value}`}
                 onClick={() => {
                   const p = scheduleTarget;
-                  void scheduleEntry(p, c.value).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+                  void scheduleEntry(p, c.value).catch((e) => toast.error(errorText(e)));
                 }}
               >
                 {c.label}

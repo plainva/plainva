@@ -71,9 +71,9 @@ export function writableProperties(text: string): Record<string, unknown> {
  * Whether the block at the top of a note cannot be read as properties — what
  * the desktop's panel and the phone's sheet say instead of "No properties"
  * (ADR 0009, addendum 2026-10-22). The reader refuses it (`read`: YAML that
- * does not parse, a list, a reference that leads nowhere), or the writers do:
- * a line of prose or a number between the two rules, which the reader reads
- * as a block without properties and every write is refused for.
+ * does not parse, a block that is no map, a reference that leads nowhere) by
+ * the rule the writers ask (`parseBlockYaml`, since 2026-11-02); the writers'
+ * own answer is asked as well, so the two cannot drift apart again.
  */
 export function unreadablePropertiesBlock(text: string, read: ExtractedFrontmatterResult): boolean {
   return !read.success || propertiesBlockRefused(text);

@@ -33,10 +33,19 @@ const MARKER = "<!-- plainva:index generated -->";
 const files: Record<string, string> = {};
 
 const written: string[] = [];
+/** What the offer to keep links to other overviews was asked for (P21), and what it answers. */
+const pinAsks: { folders: readonly string[]; question: unknown }[] = [];
+let pinAnswer: { pinned: number } | null = { pinned: 0 };
 vi.mock("./services/indexOverviews", () => ({
   writeOverview: vi.fn(async (_v: unknown, folder: string) => {
+    // The links are written BEFORE any overview exists.
     written.push(folder);
     return { path: folder ? `${folder}/index.md` : "index.md", entries: 1, overwrote: false };
+  }),
+  pinLinksBeforeNewOverviews: vi.fn(async (_v: unknown, folders: readonly string[], question: unknown) => {
+    pinAsks.push({ folders: [...folders], question });
+    written.push(`pins:${folders.join(",")}`);
+    return pinAnswer;
   }),
 }));
 
@@ -99,6 +108,8 @@ let root: Root;
 beforeEach(() => {
   for (const k of Object.keys(files)) delete files[k];
   written.length = 0;
+  pinAsks.length = 0;
+  pinAnswer = { pinned: 0 };
   folders = THREE_FOLDERS;
   asked.length = 0;
   adoptions.length = 0;
@@ -166,7 +177,7 @@ describe("OverviewsScreen", () => {
         .click();
     });
     await act(async () => {});
-    expect(written).toEqual(["Gamma"]);
+    expect(written).toEqual(["pins:Gamma", "Gamma"]);
   });
 
   it("generates in every folder that has none when the bulk row is tapped", async () => {
@@ -176,7 +187,35 @@ describe("OverviewsScreen", () => {
     });
     await act(async () => {});
     // Only Gamma is missing one — Beta belongs to the user and is not touched.
-    expect(written).toEqual(["Gamma"]);
+    expect(written).toEqual(["pins:Gamma", "Gamma"]);
+  });
+
+  // P21: generating offers what an adoption offers — the run's folders read
+  // together, asked once, written before any overview.
+  it("asks about the links once for the whole bulk run, and counts the ones written", async () => {
+    folders = [...THREE_FOLDERS, { folder: "Epsilon", fileCount: 1, hasIndex: false, indexIsConcept: false, candidates: [] }];
+    pinAnswer = { pinned: 3 };
+    await render();
+    await act(async () => {
+      (container.querySelector('[data-testid="overviews-all-missing"]') as HTMLElement).click();
+    });
+    await act(async () => {});
+    expect(pinAsks).toEqual([{ folders: ["Epsilon", "Gamma"], question: { title: "indexMd.generateAllMissing" } }]);
+    expect(written).toEqual(["pins:Epsilon,Gamma", "Epsilon", "Gamma"]);
+    expect(vi.mocked(toast.success).mock.calls).toEqual([["indexMd.bulkDone (indexMd.resultPinned)"]]);
+  });
+
+  it("writes no overview where the question was cancelled", async () => {
+    pinAnswer = null;
+    await render();
+    await act(async () => {
+      container.querySelector('[data-testid="overview-row-Gamma"]')!.querySelector("button")!.click();
+    });
+    await act(async () => {});
+    expect(pinAsks).toEqual([{ folders: ["Gamma"], question: { title: "indexMd.createOverview", confirmLabel: "indexMd.createOverview" } }]);
+    expect(written).toEqual(["pins:Gamma"]);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });
 
@@ -194,7 +233,7 @@ describe("adopting a note as a folder's overview", () => {
   });
 
   it("asks with the preparation as its choice, preset, and adopts the way it was answered", async () => {
-    adoption = { ...ADOPTED, renamedLinks: 3, changedFiles: 2, preparation: { converted: 4, embeds: 1, unresolved: 0, inLabels: 2 } };
+    adoption = { ...ADOPTED, renamedLinks: 3, changedFiles: 2, preparation: { converted: 4, embeds: 1, unresolved: 0, inLabels: 2, sectionLinks: 0 } };
     await render();
     await tap(row());
 
@@ -241,7 +280,7 @@ describe("adopting a note as a folder's overview", () => {
     await render();
     await tap(row().querySelector("button")!);
 
-    expect(written).toEqual(["Delta"]);
+    expect(written).toEqual(["pins:Delta", "Delta"]);
     expect(asked).toEqual([]);
     expect(adoptions).toEqual([]);
   });

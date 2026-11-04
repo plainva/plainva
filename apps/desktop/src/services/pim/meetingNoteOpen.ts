@@ -57,7 +57,7 @@ export async function openMeetingNoteInVault(
       templateFolder: (await store.get<string>(templateFolderKey(vaultPath))) || "Templates",
     },
     // The pipeline adds the vault's pieces. `{{daily}}` in a meeting note is the
-    // daily note of the MEETING's day: the note's `now` is that day.
+    // daily note of the MEETING's day: the note's `day` is that day.
     resolveTemplate: (raw, ctx) =>
       applyTemplateInteractive(
         raw,

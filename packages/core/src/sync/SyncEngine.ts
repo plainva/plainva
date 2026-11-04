@@ -817,16 +817,15 @@ export class SyncEngine {
              // .base file's view settings). Without an etag we leave remote_etag untouched;
              // the next pull reconciles once (local == base -> fast-forward, no conflict)
              // and records the etag then.
-             await this.stateRepo.updateBaseState(syncedPath, shaStr, etag);
+             //
+             // Hash, ETag, text and the local marker in one statement
+             // (`recordSyncedBase`, Sammelplan § 3.102 no. 7).
+             //
              // Only text files keep a base_text for 3-way merge; decoding binary content
-             // to text would corrupt the stored base. Binary files record only the hash.
-             // Guarded (P1 conflict-race): local_sha256 is only adopted while it still
-             // equals the value read at push start — a save that landed during the
-             // upload keeps its newer hash (the base still advances unconditionally).
-             // A streamed file gets no new base_text either: decoding megabytes
-             // just to store them would undo the point of streaming. The hash
-             // alone carries the merge base from here on; a text the row still
-             // holds is the one of an earlier version of the file.
+             // to text would corrupt the stored base. Guarded (P1 conflict-race):
+             // local_sha256 is only adopted while it still equals the value read at
+             // push start — a save that landed during the upload keeps its newer hash
+             // (the base still advances unconditionally).
              //
              // The base is the file's text as every adapter reads it, mark
              // included: without it the base no longer hashed to the bytes
@@ -837,17 +836,16 @@ export class SyncEngine {
              // (`mergeableText`). A `.csv` in Windows-1252 got the lossy
              // decode of its bytes as its base here — a text that hashes to
              // nothing that was ever pushed, kept for the next merge.
+             //
+             // A streamed file has no text in hand: decoding megabytes just to
+             // store them would undo the point of streaming. Its row holds no
+             // text from here on — the text of the version before, which it
+             // used to keep under the new hash, is the text of another version
+             // (§ 3.102 no. 2).
              const textContent = op.content ? mergeableText(syncedPath, op.content) : null;
-             if (textContent !== null) {
-               await this.stateRepo.updateLocalHashAndBaseTextGuarded(syncedPath, shaStr, textContent, expectedLocalSha);
-             } else {
-               await this.stateRepo.updateLocalHashGuarded(syncedPath, shaStr, expectedLocalSha);
-               // Text by its name, and the bytes just pushed are not UTF-8:
-               // whatever base text the row held is the text of another
-               // content. (A streamed file is not asked — its bytes were
-               // never in hand.)
-               if (op.content && isTextFile(syncedPath)) await this.stateRepo.clearBaseText(syncedPath);
-             }
+             // Bytes in hand that are no UTF-8 under a name that says text: the row says so (§ 3.86 no. 2).
+             const notText = !!op.content && textContent === null && isTextFile(syncedPath);
+             await this.stateRepo.recordSyncedBase(syncedPath, { sha256: shaStr, etag, text: textContent, notText }, { sha256: shaStr, expected: expectedLocalSha });
              // The push round-trip completed and the base advanced: retire the
              // push-journal entry (see setPendingPushSha above).
              await this.stateRepo.clearPendingPushSha(syncedPath);

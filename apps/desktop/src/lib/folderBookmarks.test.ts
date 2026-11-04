@@ -22,6 +22,28 @@ describe("typed folder bookmarks", () => {
     expect(files.get(".obsidian/bookmarks.json")).toBe(source);
     expect(parseBookmarksFile(files.get(".plainva/bookmarks.json")!).paths).toEqual(["Notes/A.md"]);
   });
+  it("takes each of Obsidian's bookmarks over once per vault: removed in Plainva, it stays removed at the next open (§ 3.127 Nr. 2)", async () => {
+    const { io, files } = disk([file("Mine.md")]);
+    files.set(".obsidian/bookmarks.json", JSON.stringify({ items: [file("Obs/A.md"), folder("Obs")] }));
+    expect(await importObsidianBookmarks(io)).toEqual([file("Mine.md"), file("Obs/A.md"), folder("Obs")]);
+    await toggleBookmarkOnDisk(io, "Obs/A.md", "file");
+    // The next open of the vault: a new adapter over the same files.
+    const reopened: BookmarksIO = { readTextFile: (p) => io.readTextFile(p), writeTextFile: (p, t) => io.writeTextFile(p, t) };
+    expect(await importObsidianBookmarks(reopened)).toEqual([file("Mine.md"), folder("Obs")]);
+    // A bookmark set in Obsidian afterwards still comes over — once.
+    files.set(".obsidian/bookmarks.json", JSON.stringify({ items: [file("Obs/A.md"), folder("Obs"), file("Obs/New.md")] }));
+    const third: BookmarksIO = { readTextFile: (p) => io.readTextFile(p), writeTextFile: (p, t) => io.writeTextFile(p, t) };
+    expect(await importObsidianBookmarks(third)).toEqual([file("Mine.md"), folder("Obs"), file("Obs/New.md")]);
+  });
+  it("an import whose list did not land is tried again at the next open, not remembered as done", async () => {
+    const { io, files } = disk([]);
+    files.set(".obsidian/bookmarks.json", JSON.stringify({ items: [file("Obs/A.md")] }));
+    const failing: BookmarksIO = { readTextFile: (p) => io.readTextFile(p), writeTextFile: async () => { throw new Error("disk full"); } };
+    await expect(importObsidianBookmarks(failing)).rejects.toThrow("disk full");
+    expect(files.has(".plainva/obsidian-import.json")).toBe(false);
+    const again: BookmarksIO = { readTextFile: (p) => io.readTextFile(p), writeTextFile: (p, t) => io.writeTextFile(p, t) };
+    expect(await importObsidianBookmarks(again)).toEqual([file("Obs/A.md")]);
+  });
   it("follows folder descendants and exact file renames, keeping unrelated same-name targets", async () => {
     const { io } = disk([folder("Notes"), file("Notes/A.md"), folder("Notes/Sub"), file("Notes/Sub/A.md"), folder("Notes2"), file("Else/A.md")]);
     await renameBookmarksOnDisk(io, "Notes", "Archive/Notes");

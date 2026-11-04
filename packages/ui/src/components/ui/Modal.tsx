@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { IconButton } from "./IconButton";
 import { cx } from "./cx";
+import { useDiscardGuard } from "../../lib/discardQuestion";
 
 /** Open-modal stack: Escape only ever closes the TOPMOST modal, so nested
  * modals (Settings → Shortcuts, appConfirm over anything) unwind one by one. */
@@ -49,6 +50,15 @@ export interface ModalProps {
   ariaLabel?: string;
   /** data-testid on the dialog panel (e2e). */
   testId?: string;
+  /**
+   * The dialog holds typed input that is not saved yet: Escape, the X and a
+   * click beside it ask "Discard your input?" first (finding 2026-10-22).
+   * A dialog with a Cancel button of its own guards that one with
+   * `useDiscardGuard` and passes the guarded close as `onClose` instead.
+   */
+  unsaved?: boolean;
+  /** What would be lost, for the question; a general sentence by default. */
+  unsavedMessage?: string;
 }
 
 /**
@@ -74,7 +84,10 @@ export function Modal({
   overlayClassName,
   ariaLabel,
   testId,
+  unsaved = false,
+  unsavedMessage,
 }: ModalProps) {
+  const close = useDiscardGuard(unsaved, onClose, unsavedMessage);
   const { t } = useTranslation();
   // Focus the PANEL, not the first control: the first focusable is the X
   // close button, which otherwise opened every dialog with the button lit
@@ -103,11 +116,11 @@ export function Modal({
       // dialog closed, menu and all. The key is the menu's.
       if (document.querySelector('.pv-menu[role="menu"]')) return;
       e.preventDefault();
-      onClose();
+      close();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [close]);
 
   useEffect(() => {
     initialFocusRef?.current?.focus();
@@ -118,7 +131,7 @@ export function Modal({
     <div
       className={cx("pv-overlay", overlayClassName)}
       onMouseDown={(e) => {
-        if (closeOnOverlay && e.target === e.currentTarget) onClose();
+        if (closeOnOverlay && e.target === e.currentTarget) close();
       }}
     >
       <div
@@ -135,7 +148,7 @@ export function Modal({
           <h2 className="pv-modal-heading">{title}</h2>
           {headerNote ? <span className="pv-modal-note">{headerNote}</span> : null}
           {!hideClose && (
-            <IconButton label={t("common.close", { defaultValue: "Schließen" })} onClick={onClose}>
+            <IconButton label={t("common.close", { defaultValue: "Schließen" })} onClick={close}>
               <X size={15} />
             </IconButton>
           )}

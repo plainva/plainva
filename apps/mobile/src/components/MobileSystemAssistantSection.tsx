@@ -44,13 +44,13 @@ export function MobileSystemAssistantSection({ session }: { session: AiSession }
   const line = settings.systemFind && !resting ? statusLine((key, values) => t(key, values ?? {}), status) : null;
   return (
     <>
-      <SectionLabel>{t("ai.system.title")}</SectionLabel>
+      <SectionLabel info={t("ai.system.captureHint")}>{t("ai.system.title")}</SectionLabel>
       <GroupCard>
         <RowList>
           <Row
             wrap
             title={t("ai.system.find")}
-            subtitle={t("ai.system.findDesc")}
+            info={t("ai.system.findDesc")}
             end={<Switch checked={settings.systemFind} label={t("ai.system.find")} onChange={(on) => void session.updateSettings((s) => ({ ...s, systemFind: on }))} />}
             data-testid="ai-system-find"
           />
@@ -58,7 +58,6 @@ export function MobileSystemAssistantSection({ session }: { session: AiSession }
           {resting && <Row wrap title={t("ai.mode.restsHere")} data-testid="ai-rests-system" />}
         </RowList>
       </GroupCard>
-      <p className="m-hint">{t("ai.system.captureHint")}</p>
     </>
   );
 }

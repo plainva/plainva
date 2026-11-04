@@ -1,6 +1,6 @@
 # Plainva Sync-Kompatibilität
 
-Stand: 2026-10-21
+Stand: 2026-11-03
 
 Antwortet ein WebDAV-, CalDAV- oder S3-Dienst mit einer Anmeldeseite oder einer unvollständigen Bestandsliste, meldet Plainva einen Abgleichfehler. Diese Antwort gilt nicht als leerer Ordner oder Kalenderbestand und löst keine daraus abgeleiteten Löschungen aus. Das gilt auf Desktop und Mobil.
 
@@ -14,7 +14,7 @@ Journal-Einträge, die zwei Geräte an dieselbe Tagesnotiz anhängen, bevor sie 
 
 Einen Ordner, den Du in Plainva anlegst, legt Plainva in der Cloud innerhalb des Vault-Ordners an. Bis Version 0.8.3 entstand dabei zusätzlich ein leerer Ordner gleichen Namens auf der obersten Ebene von Google Drive, OneDrive oder Dropbox bzw. des S3-Buckets, wenn der Vault ein Präfix nutzt. Plainva entfernt diese Kopien nicht selbst; wenn Du geprüft hast, dass ein solcher Ordner auf oberster Ebene leer ist und nicht zu Deinem Vault-Ordner gehört, kannst Du ihn löschen.
 
-Umlaute und Akzente lassen sich auf zwei Arten speichern: `ü` als ein Zeichen oder als `u` mit nachgestelltem Trema. macOS und iOS behalten meist die zweite Form (etwa für einen im Finder angelegten Ordner), viele Server und andere Systeme die erste. Plainva behandelt beide als denselben Namen: Es liest und schreibt die Datei oder den Ordner, der schon da ist, in der Form, in der dieses Gerät oder die Cloud ihn speichert, und benennt nichts um. Namen, die Du in Plainva anlegst, werden in der ersten Form gespeichert. Nur wenn ein Ordner wirklich beide Formen nebeneinander enthält oder sich zwei Namen in Groß- und Kleinschreibung unterscheiden, zeigt Plainva das Paar unter **Zwei Schreibweisen, eine Datei**: Es lässt die zweite Schreibweise beim Abgleich aus und löscht nichts, weder hier noch in der Cloud. Benenne eine der beiden um, dann läuft der Abgleich wie gewohnt weiter.
+Umlaute und Akzente lassen sich auf zwei Arten speichern: `ü` als ein Zeichen oder als `u` mit nachgestelltem Trema. macOS und iOS behalten meist die zweite Form (etwa für einen im Finder angelegten Ordner), viele Server und andere Systeme die erste. Plainva behandelt beide als denselben Namen: Es liest und schreibt die Datei oder den Ordner, der schon da ist, in der Form, in der dieses Gerät oder die Cloud ihn speichert, und benennt nichts um. Namen, die Du in Plainva anlegst, werden in der ersten Form gespeichert. Nur wenn ein Ordner wirklich beide Formen nebeneinander enthält oder sich zwei Namen in Groß- und Kleinschreibung unterscheiden, zeigt Plainva den Namen unter **Gleicher Name, zwei Dateien**: Es lässt die zweite Datei beim Abgleich aus und löscht nichts von selbst, weder hier noch in der Cloud. Auf der Karte entfernst Du mit **Doppelte entfernen** eine zweite Datei, die der abgeglichenen gleicht, und gibst mit **Beide behalten** einer abweichenden einen eigenen Namen.
 
 Plainva synchronisiert Vaults über austauschbare Sync-Adapter. Diese Seite zeigt, welche Dienste Du heute schon nutzen kannst — direkt integriert, über das WebDAV-Protokoll oder über den Desktop-Sync-Client des jeweiligen Anbieters.
 

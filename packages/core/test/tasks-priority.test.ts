@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readTasksPriority, setTasksPriority, stripTasksPriority } from "../src/vault/taskMetadata.js";
+import { readTasksPriority, readTasksPriorityLevel, setTasksPriority, stripTasksPriority, TASKS_PRIORITY_LEVELS } from "../src/vault/taskMetadata.js";
 import { scanTasks } from "../src/vault/taskScan.js";
 
 /**
@@ -44,5 +44,18 @@ describe("task priority marks", () => {
 
   it("round-trips: what was set is what is read", () => {
     for (const rank of [1, 2, 3] as const) expect(readTasksPriority(setTasksPriority("Angebot 📅 2026-09-21", rank))).toBe(rank);
+  });
+});
+
+describe("the six levels of the Tasks plugin (plan Tasks-Abfragen, T1)", () => {
+  it("reads each mark as its own level, a variation selector included", () => {
+    expect(readTasksPriorityLevel("x 🔺")).toBe("highest");
+    expect(readTasksPriorityLevel("x ⏫")).toBe("high");
+    expect(readTasksPriorityLevel("x 🔼")).toBe("medium");
+    expect(readTasksPriorityLevel("x")).toBe("none");
+    expect(readTasksPriorityLevel("x 🔽")).toBe("low");
+    expect(readTasksPriorityLevel("x ⏬" + String.fromCharCode(0xfe0f))).toBe("lowest");
+    expect(readTasksPriorityLevel("`🔺` x ⏬")).toBe("lowest");
+    expect(TASKS_PRIORITY_LEVELS).toEqual(["highest", "high", "medium", "none", "low", "lowest"]);
   });
 });

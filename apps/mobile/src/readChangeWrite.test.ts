@@ -61,8 +61,6 @@ const SITES: Record<string, Site[]> = {
       1,
       "a new note with a text that was made whole (a draft of the assistant, an answer kept as a note): `writeCapturedNote` asks for a name no file has and writes there once — it never writes a file that is there",
     ],
-    ['reads and writes ".plainva/recents.json" in forgetRecent', 1, `${OWN_FILE} — "Remove from list" in the Recent list drops one entry`],
-    ['reads and writes ".plainva/recents.json" in pushRecent', 1, `${OWN_FILE} — the notes opened last on this device`],
     ["reads and writes path in write", 1, EDITOR_WITHOUT_CHAIN],
   ],
 };
@@ -83,7 +81,8 @@ describe("a change of a file that exists goes through the chain's one entry", ()
         "`vaultTextFiles(vault)`. For a text that is held or made whole — an editor, a new file — enter the place in SITES " +
         "with why it may stay.",
     ).toEqual(listed.sort());
-  });
+    // It parses every shipped file of its trees: its own limit, not the 20 s meant for one test (Sammelplan § 3.162 Nr. 2).
+  }, 60_000);
 
   it("every entry says why", () => {
     for (const [file, sites] of Object.entries(SITES)) {

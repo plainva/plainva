@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-10-26
+Última actualización: 2026-11-02
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -44,7 +44,7 @@ Antes de cualquier cambio, el asistente respalda el archivo en `.plainva/backups
 
 ### Una nota creada a partir de una plantilla falta en la vista Tareas
 
-Una nota que hayas creado a partir de una plantilla hasta la versión 0.8.5 — también una nota diaria — puede haber heredado un ajuste de su plantilla que oculta sus tareas. Busca en el vault `"tasks: false"` — **con** las comillas, o también encontrarás notas en las que ambas palabras aparecen juntas solo por casualidad. En los resultados, la línea está en el frontmatter bajo un bloque `plainva:`; elimina ahí `tasks: false` (y `templateFor:`, si está presente) y la nota vuelve a aparecer. Deja la línea en las propias plantillas; ahí es donde debe estar. Las notas recién creadas a partir de una plantilla ya no lo heredan.
+Una nota que hayas creado a partir de una plantilla hasta la versión 0.8.5 — también una nota diaria — puede haber heredado un ajuste de su plantilla que oculta sus tareas. Busca en el vault `"tasks: false"` — **con** las comillas, o también encontrarás notas en las que ambas palabras aparecen juntas solo por casualidad. En los resultados, la línea está en el frontmatter bajo un bloque `plainva:`; elimina ahí `tasks: false` (y `templateFor:`, si está presente) y la nota vuelve a aparecer. Deja la línea en las propias plantillas; ahí es donde debe estar. Las notas recién creadas a partir de una plantilla ya no lo heredan. La vista de tareas ahora encuentra esas notas por ti: un aviso sobre las tareas las enumera, y **Quitar claves…** quita ambas claves de las que marques.
 
 ## Sincronización
 
@@ -56,7 +56,7 @@ Con la sincronización por WebDAV o S3, Plainva 0.8.3 eliminaba una nota sincron
 
 Si te ocurrió, la nota sigue existiendo en hasta tres lugares:
 
-- **El snapshot dentro del vault.** Antes de quitar un archivo, Plainva lo guarda como `.plainva/backups/<carpeta>/<nombre>.md.<marca de tiempo>.bak`, donde `<carpeta>` es la carpeta a la que moviste la nota. En el escritorio, clic derecho en el nombre del vault → **Restaurar archivos eliminados…**; en el teléfono, **Ajustes** → **Mantenimiento** → **Restaurar archivos eliminados**. La lista muestra la nota con su nueva ruta y **Restaurar** la devuelve allí. El archivo `.bak` es texto plano, así que también puedes abrirlo con cualquier gestor de archivos o editor de texto.
+- **El snapshot dentro del vault.** Antes de quitar un archivo, Plainva lo guarda como `.plainva/backups/<carpeta>/<nombre>.md.<marca de tiempo>.bak`, donde `<carpeta>` es la carpeta a la que moviste la nota. En el escritorio, clic derecho en el nombre del vault → **Restaurar archivos eliminados…**; en el teléfono, **Ajustes** → **Copias de seguridad y versionado** → **Restaurar archivos eliminados**. La lista muestra la nota con su nueva ruta y **Restaurar** la devuelve allí. El archivo `.bak` es texto plano, así que también puedes abrirlo con cualquier gestor de archivos o editor de texto.
 - **La papelera del sistema** (escritorio): el propio archivo fue a la papelera de tu sistema operativo.
 - **La papelera de tu servidor**, si la nota también se borró allí (en Nextcloud, por ejemplo, en los archivos eliminados).
 

@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-10-26
+Stan na: 2026-11-02
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -44,7 +44,7 @@ Przed każdą zmianą kreator tworzy kopię zapasową pliku w `.plainva/backups/
 
 ### Notatka utworzona z szablonu nie pojawia się w widoku Zadania
 
-Notatka utworzona z szablonu do wersji 0.8.5 włącznie — także notatka dzienna — mogła odziedziczyć po swoim szablonie ustawienie, które ukrywa jej zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. W samych szablonach zostaw ten wiersz — tam jest jego miejsce. Notatki nowo utworzone z szablonu już tego nie dziedziczą.
+Notatka utworzona z szablonu do wersji 0.8.5 włącznie — także notatka dzienna — mogła odziedziczyć po swoim szablonie ustawienie, które ukrywa jej zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. W samych szablonach zostaw ten wiersz — tam jest jego miejsce. Notatki nowo utworzone z szablonu już tego nie dziedziczą. Widok zadań sam znajduje teraz takie notatki: komunikat nad zadaniami je wymienia, a **Usuń klucze…** usuwa oba klucze z tych, które zaznaczysz.
 
 ## Synchronizacja
 
@@ -56,7 +56,7 @@ Przy synchronizacji przez WebDAV lub S3 Plainva 0.8.3 usuwała zsynchronizowaną
 
 Jeśli Cię to spotkało, notatka nadal istnieje w maksymalnie trzech miejscach:
 
-- **Migawka w vaulcie.** Zanim Plainva usunie plik, zapisuje go jako `.plainva/backups/<folder>/<nazwa>.md.<znacznik czasu>.bak`, gdzie `<folder>` to folder, *do którego* przeniesiono notatkę. Na komputerze: kliknięcie prawym przyciskiem myszy na nazwę vaultu → **Przywróć usunięte pliki…**; na telefonie: **Ustawienia** → **Konserwacja** → **Przywróć usunięte pliki**. Lista pokazuje notatkę pod nową ścieżką, a **Przywróć** odkłada ją tam z powrotem. Plik `.bak` to zwykły tekst, więc można go też otworzyć w dowolnym menedżerze plików lub edytorze tekstu.
+- **Migawka w vaulcie.** Zanim Plainva usunie plik, zapisuje go jako `.plainva/backups/<folder>/<nazwa>.md.<znacznik czasu>.bak`, gdzie `<folder>` to folder, *do którego* przeniesiono notatkę. Na komputerze: kliknięcie prawym przyciskiem myszy na nazwę vaultu → **Przywróć usunięte pliki…**; na telefonie: **Ustawienia** → **Backup i historia wersji** → **Przywróć usunięte pliki**. Lista pokazuje notatkę pod nową ścieżką, a **Przywróć** odkłada ją tam z powrotem. Plik `.bak` to zwykły tekst, więc można go też otworzyć w dowolnym menedżerze plików lub edytorze tekstu.
 - **Kosz systemowy** (komputer): sam plik trafił do kosza systemu operacyjnego.
 - **Kosz Twojego serwera**, jeśli notatka została usunięta również tam (na przykład w Nextcloud wśród usuniętych plików).
 

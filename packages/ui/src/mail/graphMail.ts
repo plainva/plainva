@@ -718,7 +718,7 @@ export async function graphSendMail(
   // Too much for one request: a draft, each file on its own, then send.
   const draftId = await createDraft(rt, message);
   try {
-    await attachEach(rt, draftId, files);
+    await attachEach(rt, draftId, attachments);
     await graphJson(rt, "POST", `/me/messages/${encodeURIComponent(draftId)}/send`);
   } catch (e) {
     await discardDraft(rt, draftId);
@@ -743,17 +743,54 @@ export async function graphSendMail(
 export const GRAPH_REQUEST_LIMIT = 3_900_000;
 
 /**
- * The largest file (its own bytes, not packed) a Microsoft mailbox takes from
- * Plainva: 2.8 MB, which is what still fits a request of its own — packed it
- * is 3.9 million characters, under the 4 MB of a write request whether that
- * figure means 4,000,000 bytes or 4,194,304. Microsoft's documentation rounds
- * this to "under 3 MB" and names an upload session for anything above, which
- * Plainva does not have: the composers leave a larger file behind, by name.
+ * The largest file (its own bytes, not packed) that goes to a Microsoft
+ * mailbox in a request of its own: 2.8 MB — packed it is 3.9 million
+ * characters, under the 4 MB of a write request whether that figure means
+ * 4,000,000 bytes or 4,194,304. Microsoft's documentation rounds this to
+ * "under 3 MB". A larger file goes through an upload session
+ * (`uploadInSession`).
  *
- * Counted the way the mail surfaces show a size (1 MB = 1024 × 1024 bytes), so
- * the bound a file is held against reads like the size next to it.
+ * Counted the way the mail surfaces show a size (1 MB = 1024 × 1024 bytes).
  */
-export const GRAPH_FILE_LIMIT = Math.floor(2.8 * 1024 * 1024);
+export const GRAPH_DIRECT_FILE_LIMIT = Math.floor(2.8 * 1024 * 1024);
+
+/**
+ * The largest file a Microsoft mailbox takes from Plainva: 150 MB, the bound
+ * Microsoft names for one attachment through an upload session
+ * (https://learn.microsoft.com/en-us/graph/outlook-large-attachments). Until
+ * 2026-10-30 it was 2.8 MB, because Plainva had no upload session (Sammelplan
+ * § 3.95 Nr. 3): a larger file — attached by hand or carried by a forward —
+ * stayed behind, by name. The composers hold every file against this bound.
+ *
+ * Whether the mailbox then takes the whole MESSAGE is the server's to say —
+ * Exchange Online allows 35 MB per message unless an administrator raised it,
+ * up to 150 MB — and it says so by refusing the send, which comes back to the
+ * composer like every refused send (`heldSend.ts`). Counted like
+ * `GRAPH_DIRECT_FILE_LIMIT`; not checked against a real mailbox.
+ */
+export const GRAPH_FILE_LIMIT = 150 * 1024 * 1024;
+
+/**
+ * The bytes of one PUT in an upload session: ten times 320 KiB (3.125 MB),
+ * under the 4 MB Microsoft asks a range to stay below, and a multiple of the
+ * 320 KiB that Microsoft's upload sessions elsewhere require of a range.
+ */
+export const GRAPH_UPLOAD_CHUNK = 10 * 320 * 1024;
+
+/** How often one range is tried before the send is refused. */
+export const GRAPH_UPLOAD_ATTEMPTS = 4;
+
+const defaultBackoff = (attempt: number): number => 1000 * 2 ** attempt;
+/** The pause before the next try of a range. */
+let uploadBackoffMs = defaultBackoff;
+
+/** Tests only: no real pauses between the tries of a range. */
+export function setGraphUploadBackoffForTests(backoff: ((attempt: number) => number) | null): void {
+  uploadBackoffMs = backoff ?? defaultBackoff;
+}
+
+/** The words a failed upload carries; `mailErrorText` reads the file's name after them. */
+export const GRAPH_UPLOAD_FAILED = "Graph mail upload failed";
 
 function fitsOneRequest(payload: unknown, attachments: readonly MailAttachment[]): boolean {
   // The files alone settle most cases without serialising megabytes twice.
@@ -768,10 +805,134 @@ async function createDraft(rt: GraphMailRuntime, message: Record<string, unknown
   return created.id;
 }
 
-async function attachEach(rt: GraphMailRuntime, draftId: string, files: Array<Record<string, unknown>>): Promise<void> {
+async function attachEach(rt: GraphMailRuntime, draftId: string, attachments: readonly MailAttachment[]): Promise<void> {
   // One after the other: the order of the files is the order they were put on.
-  for (const file of files) {
-    await graphJson(rt, "POST", `/me/messages/${encodeURIComponent(draftId)}/attachments`, file);
+  for (const attachment of attachments) {
+    if (packedFileSize(attachment.contentBase64) > GRAPH_DIRECT_FILE_LIMIT) {
+      await uploadInSession(rt, draftId, attachment);
+    } else {
+      await graphJson(rt, "POST", `/me/messages/${encodeURIComponent(draftId)}/attachments`, graphAttachments([attachment])[0]);
+    }
+  }
+}
+
+const WHITESPACE = /\s+/g;
+
+/** The bytes a base64 text stands for, without decoding it. */
+function packedFileSize(base64: string): number {
+  const clean = base64.replace(WHITESPACE, "");
+  const padding = clean.endsWith("==") ? 2 : clean.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((clean.length * 3) / 4) - padding);
+}
+
+/** Bytes `start` (inclusive) to `end` (exclusive) of a base64 text — only that part is decoded. */
+function bytesOfRange(base64: string, start: number, end: number): Uint8Array<ArrayBuffer> {
+  const from = Math.floor(start / 3) * 4;
+  const to = Math.ceil(end / 3) * 4;
+  const binary = atob(base64.slice(from, to));
+  const offset = start - (from / 4) * 3;
+  const out = new Uint8Array(end - start);
+  for (let i = 0; i < out.length; i += 1) out[i] = binary.charCodeAt(offset + i);
+  return out;
+}
+
+/** Where the session wants the next range to start, as its answer says; null when it does not say. */
+async function nextExpectedStart(res: Response): Promise<number | null> {
+  const text = await res.text().catch(() => "");
+  if (!text) return null;
+  try {
+    const ranges = (JSON.parse(text) as { nextExpectedRanges?: unknown }).nextExpectedRanges;
+    const first = Array.isArray(ranges) ? ranges[0] : undefined;
+    const start = typeof first === "string" ? Number.parseInt(first, 10) : NaN;
+    return Number.isFinite(start) ? start : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A try that may go better the next time: a timeout, throttling, a server error (and no answer at all). */
+const retryable = (status: number) => status === 408 || status === 429 || status >= 500;
+
+/**
+ * A file larger than one request goes in ranges through an upload session
+ * (Sammelplan § 3.95 Nr. 3): create the session on the draft, PUT the bytes in
+ * order to the address it returns, and the last range creates the attachment.
+ *
+ * The session's address carries its own authorisation and goes to
+ * outlook.office.com: Microsoft asks for no `Authorization` header there, so
+ * the token never leaves for that host. A range that fails is tried
+ * `GRAPH_UPLOAD_ATTEMPTS` times; then the session is cancelled and the caller
+ * refuses the send (the draft is discarded, the message comes back to the
+ * composer, `heldSend.ts`).
+ *
+ * Microsoft refuses a session for a file under 3 MB, and between 2.8 MB and
+ * 3 MB its two figures do not say which way a file has to go: a file the
+ * session refuses as too small goes in a request of its own.
+ */
+async function uploadInSession(rt: GraphMailRuntime, draftId: string, attachment: MailAttachment): Promise<void> {
+  const base64 = attachment.contentBase64.replace(WHITESPACE, "");
+  const size = packedFileSize(base64);
+  const failed = (detail: string) => new Error(`${GRAPH_UPLOAD_FAILED} for "${attachment.name}": ${detail}`);
+  if (size > GRAPH_FILE_LIMIT) throw failed(`the file has ${size} bytes, more than a Microsoft mailbox takes (${GRAPH_FILE_LIMIT})`);
+  const draft = `/me/messages/${encodeURIComponent(draftId)}/attachments`;
+  let session: { uploadUrl?: string } | undefined;
+  try {
+    session = await graphJson<{ uploadUrl?: string }>(rt, "POST", `${draft}/createUploadSession`, {
+      AttachmentItem: { attachmentType: "file", name: attachment.name, size, contentType: attachment.mime },
+    });
+  } catch (e) {
+    if (/ErrorAttachmentSizeShouldNotBeLessThanMinimumSize/.test(String(e))) {
+      await graphJson(rt, "POST", draft, graphAttachments([{ ...attachment, contentBase64: base64 }])[0]);
+      return;
+    }
+    throw e;
+  }
+  const uploadUrl = session?.uploadUrl;
+  if (!uploadUrl) throw failed("the upload session came back without an address");
+
+  const put = (start: number, end: number) =>
+    gate(() =>
+      mailHttp().api(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/octet-stream", "Content-Range": `bytes ${start}-${end - 1}/${size}` },
+        body: bytesOfRange(base64, start, end),
+      })
+    );
+
+  try {
+    let start = 0;
+    let rounds = 0;
+    const maxRounds = (Math.ceil(size / GRAPH_UPLOAD_CHUNK) + 1) * GRAPH_UPLOAD_ATTEMPTS;
+    for (;;) {
+      if (rounds++ > maxRounds) throw failed("the upload session did not advance");
+      const end = Math.min(start + GRAPH_UPLOAD_CHUNK, size);
+      let res: Response | null = null;
+      let last = "";
+      for (let attempt = 0; attempt < GRAPH_UPLOAD_ATTEMPTS; attempt += 1) {
+        if (attempt > 0) await sleep(uploadBackoffMs(attempt - 1));
+        try {
+          res = await put(start, end);
+        } catch (e) {
+          res = null;
+          last = e instanceof Error ? e.message : String(e);
+          continue;
+        }
+        if (res.ok) break;
+        last = `${res.status} ${await res.text().catch(() => "")}`.trim();
+        if (!retryable(res.status)) break;
+      }
+      if (!res || !res.ok) throw failed(`bytes ${start}-${end - 1} of ${size}: ${last || "no answer"}`);
+      // 201 Created: the last range is in and the attachment exists.
+      if (res.status === 201) return;
+      const next = await nextExpectedStart(res);
+      if (next === null && end >= size) return;
+      start = next ?? end;
+      if (start >= size) return;
+    }
+  } catch (e) {
+    // Cancelled without a token, as the session's own address asks.
+    await mailHttp().api(uploadUrl, { method: "DELETE" }).catch(() => undefined);
+    throw e;
   }
 }
 
@@ -821,7 +982,7 @@ export async function graphAppendDraft(
   // The same limit as for sending: the draft first, then each file on its own.
   const draftId = await createDraft(rt, body);
   try {
-    await attachEach(rt, draftId, files);
+    await attachEach(rt, draftId, attachments);
   } catch (e) {
     await discardDraft(rt, draftId);
     throw e;

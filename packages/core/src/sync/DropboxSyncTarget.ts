@@ -54,12 +54,24 @@ interface DropboxEntry {
   id?: string;
   size?: number;
   server_modified?: string;
+  /** The modification time the uploading client gave the file (Dropbox's own clients: the file's). */
+  client_modified?: string;
 }
 
 /**
  * JSON for the Dropbox-API-Arg HTTP header must be HTTP-header-safe: all
  * non-ASCII (and DEL, 0x7f) characters escaped as \uXXXX.
  */
+/**
+ * `client_modified` of an upload: when the file was edited (`SyncOperation.
+ * localModifiedAt`), in the whole-second UTC form Dropbox accepts. Absent
+ * without a time — Dropbox then records the upload's.
+ */
+function clientModified(ms: number | undefined): { client_modified?: string } {
+  if (ms === undefined || !Number.isFinite(ms) || ms <= 0) return {};
+  return { client_modified: new Date(Math.floor(ms / 1000) * 1000).toISOString().replace(".000Z", "Z") };
+}
+
 export function httpHeaderSafeJson(value: unknown): string {
   let out = "";
   for (const ch of JSON.stringify(value)) {
@@ -342,6 +354,19 @@ export class DropboxSyncTarget implements ISyncTarget {
   }
 
   /**
+   * When the file last changed (epoch ms) — the time its client gave it, else
+   * the time Dropbox got it. What the index shows as "edited" for a file this
+   * device only downloaded.
+   */
+  private fileModifiedAt(entry: DropboxEntry): number | undefined {
+    for (const value of [entry.client_modified, entry.server_modified]) {
+      const t = value ? Date.parse(value) : Number.NaN;
+      if (!Number.isNaN(t)) return t;
+    }
+    return undefined;
+  }
+
+  /**
    * A change cursor representing "now" for the vault root (`files/list_folder/get_latest_cursor`
    * returns a cursor without enumerating anything). The worker seeds this right before a
    * full listing and then passes it to `pull(cursor)`. On first connect the root may not
@@ -370,6 +395,7 @@ export class DropboxSyncTarget implements ISyncTarget {
    */
   private async pullDelta(cursor: string): Promise<PullResult> {
     const etagMap = new Map<string, string>();
+    const mtimeMap = new Map<string, number>();
     const deleted: string[] = [];
     let currentCursor = cursor;
     for (;;) {
@@ -383,17 +409,22 @@ export class DropboxSyncTarget implements ISyncTarget {
         const rel = this.relPathFor(entry);
         if (!rel || rel.includes(".CONFLICT")) continue;
         if (entry[".tag"] === "deleted") deleted.push(rel);
-        else if (entry[".tag"] === "file") etagMap.set(rel, this.fileEtag(entry));
+        else if (entry[".tag"] === "file") {
+          etagMap.set(rel, this.fileEtag(entry));
+          const modifiedAt = this.fileModifiedAt(entry);
+          if (modifiedAt !== undefined) mtimeMap.set(rel, modifiedAt);
+        }
         // folder entries are ignored
       }
       currentCursor = json.cursor;
-      if (!json.has_more) return { etagMap, deleted, nextCursor: currentCursor };
+      if (!json.has_more) return { etagMap, deleted, nextCursor: currentCursor, mtimeMap };
     }
   }
 
   public async pull(cursor?: string): Promise<PullResult> {
     if (cursor) return this.pullDelta(cursor);
     const etagMap = new Map<string, string>();
+    const mtimeMap = new Map<string, number>();
 
     let res = await this.rpc("files/list_folder", {
       path: this.rootPath,
@@ -442,13 +473,15 @@ export class DropboxSyncTarget implements ISyncTarget {
         const rel = this.relPathFor(entry);
         if (!rel || rel.includes(".CONFLICT")) continue;
         etagMap.set(rel, this.fileEtag(entry));
+        const modifiedAt = this.fileModifiedAt(entry);
+        if (modifiedAt !== undefined) mtimeMap.set(rel, modifiedAt);
       }
       if (!json.has_more) break;
       res = await this.rpc("files/list_folder/continue", { cursor: json.cursor });
     }
 
     console.log(`[Dropbox] list ${this.rootPath} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
-    return { etagMap, folders, listing: { folders: folders.length + 1, pages, files: etagMap.size, ms: Date.now() - startedAt } };
+    return { etagMap, folders, mtimeMap, listing: { folders: folders.length + 1, pages, files: etagMap.size, ms: Date.now() - startedAt } };
   }
 
   /** One `files/get_metadata` (C31); marker as in `pull` (`fileEtag`). */
@@ -585,7 +618,8 @@ export class DropboxSyncTarget implements ISyncTarget {
     path: string,
     content: Uint8Array | undefined,
     ref: SyncContentRef | undefined,
-    mode: DropboxWriteMode
+    mode: DropboxWriteMode,
+    modifiedAt?: number
   ): Promise<Response> {
     const total = ref ? ref.size : content!.length;
     /** One chunk: from disk when streaming, from the buffer otherwise. */
@@ -623,7 +657,7 @@ export class DropboxSyncTarget implements ISyncTarget {
       "files/upload_session/finish",
       {
         cursor: { session_id, offset },
-        commit: { path, mode, autorename: false, mute: true },
+        commit: { path, mode, autorename: false, mute: true, ...clientModified(modifiedAt) },
       },
       restBody,
       restStream
@@ -640,7 +674,7 @@ export class DropboxSyncTarget implements ISyncTarget {
 
       if (size > this.simpleUploadLimit) {
         const finishRes = await this.writeConditionally(op.file_path, op.expectedRemote,
-          (mode) => this.uploadLarge(path, op.contentRef ? undefined : content, op.contentRef, mode));
+          (mode) => this.uploadLarge(path, op.contentRef ? undefined : content, op.contentRef, mode, op.localModifiedAt));
         if (!finishRes.ok) {
           throw syncHttpError(`Dropbox upload finish failed: ${finishRes.status} ${finishRes.statusText}`, finishRes);
         }
@@ -651,7 +685,9 @@ export class DropboxSyncTarget implements ISyncTarget {
       // files/upload creates missing parent folders implicitly.
       const res = await this.writeConditionally(op.file_path, op.expectedRemote, (mode) => this.contentCall(
         "files/upload",
-        { path, mode, autorename: false, mute: true },
+        // When the file was edited travels with it: the next device to
+        // download it lists it by that time, not by this upload's.
+        { path, mode, autorename: false, mute: true, ...clientModified(op.localModifiedAt) },
         content
       ));
       if (!res.ok) throw syncHttpError(`Dropbox upload failed: ${res.status} ${res.statusText}`, res);

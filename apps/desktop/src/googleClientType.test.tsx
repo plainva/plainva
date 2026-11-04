@@ -119,6 +119,22 @@ describe("the editor of the own client, on the desktop", () => {
     await act(async () => { container.querySelector<HTMLButtonElement>('[data-testid="oauth-access-microsoft-guide"]')!.click(); });
     expect(opened).toEqual(["https://plainva.com/docs/onedrive-and-dropbox-byo-guide"]);
   });
+
+  // The card has no padding of its own: a bare radio group and a bare button
+  // row sat on its edge, on the desktop and the phone alike (finding 2026-10-29;
+  // the phone renders this same editor in AccountAccessSheet).
+  it("puts everything in its card on a row, the radio group and the buttons included", async () => {
+    for (const value of [{ source: "plainva" as const }, { source: "own" as const, clientId: "" }]) {
+      await act(async () => {
+        root.render(<OAuthAccessEditor family="google" platform="desktop" value={value} plainvaAvailable onSave={vi.fn()} onCancel={vi.fn()} />);
+      });
+      const card = container.querySelector(".pv-setcard")!;
+      const bare = [...card.children].filter((child) => !child.classList.contains("pv-setrow")).map((child) => child.outerHTML.slice(0, 60));
+      expect(bare).toEqual([]);
+      expect(card.querySelector('[role="radiogroup"]')!.closest(".pv-setrow")).not.toBeNull();
+      expect(card.querySelector('[data-testid="oauth-access-google-save"]')!.closest(".pv-setrow--actions")).not.toBeNull();
+    }
+  });
 });
 
 describe("Plainva's Google clients in the release builds", () => {

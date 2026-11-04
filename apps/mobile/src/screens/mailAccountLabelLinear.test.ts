@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // The label reads the window (see labelRoomForWindow), so the unit needs one.
 import { describe, expect, it } from "vitest";
+import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import { mailAccountLabel } from "./MailListScreen";
 
 /**
@@ -17,8 +18,6 @@ describe("mailAccountLabel reads the angle address linearly", () => {
 
   it("stays linear on a long run of angle brackets", () => {
     const label = "<".repeat(100_000);
-    const start = performance.now();
-    expect(mailAccountLabel(label, 64)).toBe(`${"<".repeat(63)}…`);
-    expect(performance.now() - start).toBeLessThan(1_000);
+    within(1_000, () => expect(mailAccountLabel(label, 64)).toBe(`${"<".repeat(63)}…`));
   });
 });

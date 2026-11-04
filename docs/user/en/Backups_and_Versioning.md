@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-30
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -10,7 +10,7 @@ Before every save Plainva stores a snapshot of the previous state — as a plain
 
 Retention (configurable per vault):
 
-- **Snapshot interval**: On every change / 30 s / 2 min / 5 min / 10 min
+- **Snapshot interval**: On every change / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versions per file**: default 100 — above that the oldest are removed
 - **Maximum age**: default 90 days — older versions are removed **permanently** by a daily cleanup run ("Unlimited" turns this off)
 - **Large files**: above 5 MB only the newest version is kept — see below
@@ -31,7 +31,7 @@ Images have versions too (with preview); other binary files can be restored with
 
 ## Restoring deleted files
 
-Because every deletion snapshots the file first, Plainva can bring deleted files back: right-click the vault name at the top of the file tree → **Restore deleted files…** (also reachable from the settings). The list shows all files whose snapshots still exist while the original is gone — **Restore** recreates the newest state at the original location (folders are recreated as needed), **Versions…** opens the full history of the deleted file.
+Because every deletion snapshots the file first, Plainva can bring deleted files back: right-click the vault name at the top of the file tree → **Restore deleted files…** (also reachable under **Settings → Vault → Backup & version history → Version history**). The list shows all files whose snapshots still exist while the original is gone — **Restore** recreates the newest state at the original location (folders are recreated as needed), **Versions…** opens the full history of the deleted file.
 
 Note: deleting a **whole folder** moves it to the operating system's trash — for that case the system trash is the primary way back; in Plainva you may only find older snapshots of the contained files.
 
@@ -67,9 +67,11 @@ Settings → **Vault** → **Backup & version history**:
 - Plainva's own sync never transfers `.plainva`. If you sync the vault folder with a third-party client (e.g. the Nextcloud app), the snapshots travel along — that costs some storage but does no harm.
 - Sync conflicts are additionally protected via `.CONFLICT` files (see the [FAQ](FAQ.md)); the version history complements that with the timeline of every file.
 
+On the phone, **ZIP backups** is the first group of the **Backup & version history** page, followed by the **Version history** with **Restore deleted files** at its end.
+
 On mobile, a failed note save stops switching, reloading or removing the vault. Your input remains queued for another attempt. Notes with the same name in different vaults keep separate pending saves and drafts. A save conflict preserves the affected text; input typed afterwards is then saved separately or preserved in another conflict copy. Both shells order draft-journal writes and removals so a late completion cannot remove a newer snapshot. A failed conflict-copy write does not replace the mobile editor's text.
 
-A ZIP backup counts as successful only after all selected files were readable and the complete archive was saved. A failed run does not remove earlier archives or change the last successful backup time. On mobile, automatic failures name the vault; **Back up now** in the vault settings starts another attempt. Hidden user configuration such as `.obsidian` is included on both platforms. The directories `.plainva`, `.git`, `.trash` and `node_modules` are excluded at every depth. When several archives are created in the same second, a new filename receives a suffix such as `_001`.
+A ZIP backup counts as successful only after all selected files were readable and the complete archive was saved. A failed run does not remove earlier archives or change the last successful backup time. On mobile, automatic failures name the vault; **Back up now** under **Backup & version history** → **ZIP backups** starts another attempt. Hidden user configuration such as `.obsidian` is included on both platforms. The directories `.plainva`, `.git`, `.trash` and `node_modules` are excluded at every depth. When several archives are created in the same second, a new filename receives a suffix such as `_001`.
 
 A save is reported as complete only after the write has been confirmed. Text entered during an ongoing save remains unsaved until its own version is written. Desktop drafts belong to their editor session: completing an old session does not delete a draft from a newly opened editor. When external changes arrive at the same time, Plainva merges compatible changes; conflicting text remains available as a draft and a conflict copy.
 

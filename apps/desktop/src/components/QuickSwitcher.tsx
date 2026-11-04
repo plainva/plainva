@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { VaultQueryService, type SearchOccurrence } from "@plainva/core";
+import { isHiddenPath, VaultQueryService, type SearchOccurrence } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { Search, Clock, File as FileIcon, FilePlus, FileText, Files } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -62,7 +62,8 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
     queryService.db
       .query<{ path: string; title: string | null }>(`SELECT path, title FROM files`)
       .then((rows) => {
-        if (active) setCorpus(rows.map((r) => ({ path: r.path, title: r.title || r.path.split(/[/\\]/).pop() || r.path })));
+        // A hidden file (a dot file, a file in a dot folder) is not offered (E8).
+        if (active) setCorpus(rows.filter((r) => !isHiddenPath(r.path)).map((r) => ({ path: r.path, title: r.title || r.path.split(/[/\\]/).pop() || r.path })));
       })
       .catch((e) => console.error("Error loading switcher corpus", e));
     return () => { active = false; };

@@ -23,6 +23,7 @@ import {
 } from "@plainva/ui";
 import { accountMonogram, type CloudProviderFamily } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
+import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccountsStore";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { backfillMobileCalendarIdentity, backfillMobileSyncIdentity } from "../services/cloudIdentityBackfill";
@@ -131,10 +132,13 @@ export function CloudAccountsScreen({
     window.addEventListener("m-vaults-changed", reload);
     window.addEventListener("m-pim-changed", reload);
     window.addEventListener(MAIL_CHANGED_EVENT, reload);
+    // The cards change on their own too: the open vault's reconcile (§ 3.105).
+    window.addEventListener(CLOUD_ACCOUNTS_EVENT, reload);
     return () => {
       window.removeEventListener("m-vaults-changed", reload);
       window.removeEventListener("m-pim-changed", reload);
       window.removeEventListener(MAIL_CHANGED_EVENT, reload);
+      window.removeEventListener(CLOUD_ACCOUNTS_EVENT, reload);
     };
   }, [reload]);
 
@@ -202,8 +206,8 @@ export function CloudAccountsScreen({
 
       {repairNeeds.length > 0 && (
         <>
-          <SectionLabel>{t("cloudAccounts.repairTitle")}</SectionLabel>
-          <p className="m-hint">{t("cloudAccounts.repairHint")}</p>
+          <SectionLabel info={t("cloudAccounts.repairHint")}>{t("cloudAccounts.repairTitle")}</SectionLabel>
+          <p className="m-hint">{t("cloudAccounts.repairStep")}</p>
           <GroupCard tone="warn">
             <RowList>
               {repairNeeds.flatMap((need, needIndex) =>

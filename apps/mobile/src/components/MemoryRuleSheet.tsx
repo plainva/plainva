@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, TextArea, useMemoryRuleForm } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 /**
@@ -14,6 +15,7 @@ export function MemoryRuleSheet({ onClose }: { onClose: () => void }) {
   const session = getMobileAiSession();
   const [busy, setBusy] = useState(false);
   const form = useMemoryRuleForm(session);
+  const close = useSheetGuard("ai-memory-rule", form !== null && form.text.trim() !== "", onClose);
   if (!form) return null;
   const save = async () => {
     setBusy(true);
@@ -22,9 +24,9 @@ export function MemoryRuleSheet({ onClose }: { onClose: () => void }) {
     if (done) onClose();
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-memory-rule-dialog">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("ai.memory.rules.formTitle")}</p>
         <TextArea rows={3} value={form.text} placeholder={t("ai.memory.rules.text")} aria-label={t("ai.memory.rules.text")} onChange={(event) => form.setText(event.target.value)} data-testid="ai-memory-rule-text" />
         <p className="m-hint">
@@ -34,7 +36,7 @@ export function MemoryRuleSheet({ onClose }: { onClose: () => void }) {
         <Button variant="primary" disabled={busy || !form.ready} onClick={() => void save()} data-testid="ai-memory-rule-save">
           {t("ai.memory.rules.create")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("ai.memory.form.cancel")}
         </Button>
       </div>

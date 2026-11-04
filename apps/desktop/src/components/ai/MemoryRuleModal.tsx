@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollText } from "lucide-react";
-import { Banner, Button, ICON, Modal, TextArea, useAiSession, useMemoryRuleForm } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, TextArea, useAiSession, useDiscardGuard, useMemoryRuleForm } from "@plainva/ui";
 
 /**
  * A rule for assistants (plan KI-Harness P6): one line for the vault's
@@ -15,6 +15,8 @@ export function MemoryRuleModal({ onClose }: { onClose: () => void }) {
   const session = useAiSession();
   const [busy, setBusy] = useState(false);
   const form = useMemoryRuleForm(session);
+  // A typed rule is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(form !== null && form.text.trim() !== "", onClose);
   if (!form) return null;
   const save = async () => {
     setBusy(true);
@@ -27,11 +29,11 @@ export function MemoryRuleModal({ onClose }: { onClose: () => void }) {
       title={t("ai.memory.rules.formTitle")}
       icon={<ScrollText size={ICON.ui} />}
       size="md"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-memory-rule-dialog"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("ai.memory.form.cancel")}
           </Button>
           <Button variant="primary" disabled={busy || !form.ready} onClick={() => void save()} data-testid="ai-memory-rule-save">

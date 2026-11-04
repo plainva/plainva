@@ -1,6 +1,6 @@
 # Compatibilità di sincronizzazione di Plainva
 
-Ultimo aggiornamento: 2026-10-21
+Ultimo aggiornamento: 2026-11-03
 
 Se un servizio WebDAV, CalDAV o S3 restituisce una pagina di accesso o un inventario incompleto, Plainva segnala un errore di sincronizzazione. La risposta non viene interpretata come una cartella o un elenco di calendari vuoto e non determina eliminazioni dedotte dal suo contenuto. Questo vale sia su desktop sia su mobile.
 
@@ -14,7 +14,7 @@ Le voci di diario che due dispositivi aggiungono alla stessa nota giornaliera pr
 
 Una cartella che crei in Plainva viene creata nel cloud all'interno della cartella del vault. Fino alla versione 0.8.3, Plainva creava anche una cartella vuota con lo stesso nome al primo livello di Google Drive, OneDrive o Dropbox, oppure del bucket S3 quando il vault usa un prefisso. Plainva non rimuove queste copie da solo; dopo aver verificato che una di queste cartelle di primo livello è vuota e non fa parte della cartella del tuo vault, puoi eliminarla.
 
-Le lettere accentate possono essere salvate in due modi: `ü` come un unico carattere oppure come `u` seguita da una dieresi combinante. macOS e iOS mantengono di solito la seconda forma (ad esempio per una cartella creata nel Finder), molti server e altri sistemi la prima. Plainva tratta entrambe come lo stesso nome: legge e scrive il file o la cartella che esiste già, nella forma in cui lo salva questo dispositivo o il cloud, e non rinomina nulla. I nomi che crei in Plainva vengono salvati nella prima forma. Solo quando una cartella contiene davvero entrambe le forme affiancate, o quando due nomi differiscono per maiuscole e minuscole, Plainva mostra la coppia in **Due grafie, un solo file**: lascia la seconda grafia fuori dalla sincronizzazione e non elimina nulla, né qui né nel cloud. Rinomina uno dei due e la sincronizzazione prosegue come sempre.
+Le lettere accentate possono essere salvate in due modi: `ü` come un unico carattere oppure come `u` seguita da una dieresi combinante. macOS e iOS mantengono di solito la seconda forma (ad esempio per una cartella creata nel Finder), molti server e altri sistemi la prima. Plainva tratta entrambe come lo stesso nome: legge e scrive il file o la cartella che esiste già, nella forma in cui lo salva questo dispositivo o il cloud, e non rinomina nulla. I nomi che crei in Plainva vengono salvati nella prima forma. Solo quando una cartella contiene davvero entrambe le forme una accanto all’altra, o quando due nomi differiscono per maiuscole e minuscole, Plainva mostra il nome sotto **Stesso nome, due file**: lascia il secondo file fuori dalla sincronizzazione e non elimina nulla da solo, né qui né nel cloud. Sulla scheda, **Rimuovi duplicati** rimuove un secondo file uguale a quello sincronizzato e **Conserva entrambi** dà a uno diverso un nome proprio.
 
 Plainva sincronizza i vault tramite adattatori di sincronizzazione intercambiabili. Questa pagina mostra quali servizi puoi usare oggi — direttamente integrati, tramite il protocollo WebDAV, o tramite il client di sincronizzazione desktop del provider stesso.
 

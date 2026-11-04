@@ -33,8 +33,8 @@ export const ACP_PATH_CASES: readonly (readonly [string, string, string | AcpPat
   [WINDOWS, "C:\\Users\\mara\\Vault\\.plainva\\index.db", "hidden"],
   [WINDOWS, "C:\\Users\\mara\\Vault\\.AGENT\\policy.yml", "hidden"],
   [WINDOWS, "C:\\Users\\mara\\Vault\\.obsidian\\app.json", "hidden"],
-  // A dot folder of the user's own is theirs.
-  [WINDOWS, "C:\\Users\\mara\\Vault\\.notes\\Plan.md", ".notes/Plan.md"],
+  // A dot folder of the user's own is hidden like every dot folder: on every surface since 2026-11-02 (E8).
+  [WINDOWS, "C:\\Users\\mara\\Vault\\.notes\\Plan.md", "hidden"],
   // Everywhere else: one slash, case kept.
   [UNIX, "/home/mara/Vault/Plan.md", "Plan.md"],
   [UNIX, "/home/mara/Vault/Projects/2026/Plan.md", "Projects/2026/Plan.md"],
@@ -56,6 +56,10 @@ export const ACP_PATH_CASES: readonly (readonly [string, string, string | AcpPat
   [UNIX, "/home/mara/Vault/.git/config", "hidden"],
   [UNIX, "/home/mara/Vault/.trash/old.md", "hidden"],
   [UNIX, "/home/mara/Vault/.Plainva/sync/state.json", "hidden"],
+  // Every dot file and dot folder, at any depth: hidden on every surface since 2026-11-02 (E8).
+  [UNIX, "/home/mara/Vault/.private/diary.md", "hidden"],
+  [UNIX, "/home/mara/Vault/Notes/.drafts/x.md", "hidden"],
+  [UNIX, "/home/mara/Vault/Projects/.offer.md", "hidden"],
   // The vault's folder itself may be the root of a disk.
   ["/", "/Plan.md", "Plan.md"],
 ];

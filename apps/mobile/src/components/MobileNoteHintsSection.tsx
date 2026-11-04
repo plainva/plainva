@@ -22,7 +22,7 @@ export function MobileNoteHintsSection({ session }: { session: AiSession }) {
           <Row
             wrap
             title={t("ai.hints.show")}
-            subtitle={t("ai.hints.showDesc")}
+            info={t("ai.hints.showDesc")}
             end={<Switch checked={settings.noteHints} label={t("ai.hints.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, noteHints: on }))} testId="hints-show" />}
           />
           {hints.available && hints.prefs.vaultPaused && <Row title={t("ai.hints.vaultPausedRow")} />}

@@ -55,7 +55,7 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
       this.db = null;
       await releaseDatabase(this.dbName);
     };
-    const inTurn = this.turns.take(shut);
+    const inTurn = this.turns.take(shut, "close");
     let timer: ReturnType<typeof setTimeout> | undefined;
     const waitedOut = new Promise<"waited out">((resolve) => {
       timer = setTimeout(() => resolve("waited out"), CLOSE_WAITS_MS);
@@ -165,7 +165,7 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
     const set = statements.map((s) => ({ statement: s.sql, values: toPositional(s.params) }));
     await this.turns.take(async () => {
       await this.conn().executeSet(set, true);
-    });
+    }, "batch");
   }
 }
 

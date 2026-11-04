@@ -263,7 +263,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
         {/* The mode this device is in, and the one switch that promises something (plan KI-Harness P7). */}
         {settings.enabled && (
           <>
-            <SectionLabel>{t("ai.mode.title")}</SectionLabel>
+            <SectionLabel info={mode.localOnly ? t("ai.mode.notThis") : t("ai.mode.note")}>{t("ai.mode.title")}</SectionLabel>
             <GroupCard>
               <RowList>
                 <Row wrap title={mode.title} subtitle={mode.body} data-testid="ai-mode-now" />
@@ -271,13 +271,13 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
                 <Row
                   wrap
                   title={t("ai.mode.switch")}
-                  subtitle={t("ai.mode.switchDesc")}
+                  info={t("ai.mode.switchDesc")}
                   end={<Switch checked={mode.localOnly} label={t("ai.mode.switch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, localOnly: on }))} />}
                   data-testid="ai-local-only"
                 />
               </RowList>
             </GroupCard>
-            {mode.localOnly ? (
+            {mode.localOnly && (
               <>
                 {/* Only what is set up is listed: a row per thing that rests, each with what resting means for it. */}
                 <p className="m-hint">{mode.rests.length ? t("ai.mode.rests.title") : t("ai.mode.rests.none")}</p>
@@ -290,15 +290,12 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
                     </RowList>
                   </GroupCard>
                 )}
-                <p className="m-hint">{t("ai.mode.notThis")}</p>
               </>
-            ) : (
-              <p className="m-hint">{t("ai.mode.note")}</p>
             )}
           </>
         )}
 
-        <SectionLabel>{t("ai.settings.providers")}</SectionLabel>
+        <SectionLabel info={t("ai.settings.keysBody")}>{t("ai.settings.providers")}</SectionLabel>
         <GroupCard>
           <RowList>
             {rows.map((row) => (
@@ -308,9 +305,6 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.settings.providersHint")}</p>
-
-        <SectionLabel>{t("ai.settings.keysTitle")}</SectionLabel>
-        <p className="m-hint">{t("ai.settings.keysBody")}</p>
 
         <SectionLabel>{t("ai.settings.profiles")}</SectionLabel>
         <GroupCard>
@@ -361,11 +355,11 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
               subtitle={settings.profiles.embedding ? `${labelOf(settings.profiles.embedding.providerId)} · ${settings.profiles.embedding.model}` : t("ai.settings.profileEmpty")}
               disabled={rows.length === 0}
               onClick={() => void chooseModel(AI_EMBEDDING_PROFILE)}
+              info={t("ai.settings.embeddingHint")}
               data-testid="ai-profile-embedding"
             />
           </RowList>
         </GroupCard>
-        <p className="m-hint">{t("ai.settings.embeddingHint")}</p>
 
         {settings.enabled && <MobileSemanticSection session={session} onChooseModel={() => void chooseModel(AI_EMBEDDING_PROFILE)} />}
         {/* Calm hints at the open note (plan KI-Harness P8-3): no model, beside the related notes as on the desktop. */}
@@ -379,7 +373,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
             <Row
               wrap
               title={t("ai.settings.confirmEvery")}
-              subtitle={t("ai.settings.confirmEveryDesc")}
+              info={t("ai.settings.confirmEveryDesc")}
               end={<Switch checked={settings.confirmEveryRequest} label={t("ai.settings.confirmEvery")} onChange={(on) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: on }))} />}
             />
           </RowList>

@@ -12,6 +12,7 @@ import {
   parseBaseConfig, propertyIndexTypes, reservedPropertyName,
   PropActionRow,
   PropGroupHead,
+  propertyNameTaken,
   propertyPanelModel,
   PropRow,
   toast,
@@ -332,13 +333,21 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   const onRenameProp = useCallback((oldKey: string, newKey: string) => {
     if (OKF_SYSTEM_KEYS.has(oldKey) || OKF_LIFECYCLE_KEYS.has(oldKey)) return;
-    if (oldKey === newKey || !newKey.trim() || properties[newKey] !== undefined) return;
+    if (oldKey === newKey || !newKey.trim()) return;
+    // A name another property has — in any casing, the database's rule — is
+    // said, and the row goes back to the name it has (open-items plan 3.144
+    // no. 10: the panel returned silently, the field still showing the typed name).
+    if (propertyNameTaken(Object.keys(properties), oldKey, newKey)) {
+      setRefusals((n) => n + 1);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(new FrontmatterSurgicalError(`Cannot rename '${oldKey}' to '${newKey}': target key already exists`)) }));
+      return;
+    }
     const next: ReadableFrontmatter = {};
     for (const [k, v] of Object.entries(properties)) next[k === oldKey ? newKey : k] = v;
     if (!commit(next, [oldKey, newKey])) return;
     renamePropertyType(vaultPath, oldKey, newKey);
     setTypeReg(loadPropertyTypes(vaultPath));
-  }, [commit, properties, vaultPath]);
+  }, [commit, properties, vaultPath, t]);
 
   const onDeleteProp = useCallback((key: string) => {
     if (OKF_SYSTEM_KEYS.has(key)) return;

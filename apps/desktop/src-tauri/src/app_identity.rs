@@ -36,9 +36,58 @@ pub fn window_title_for(identifier: &str) -> Option<&'static str> {
     }
 }
 
+/// The variable a package manager sets when IT updates this installation, e.g.
+/// `PLAINVA_UPDATES_MANAGED_BY=Nix` from the wrapper of the Nix package
+/// (`nix/plainva-bin.nix`). Such a copy carries the release identifier but lives
+/// where the app cannot write (the read-only Nix store), so it must neither
+/// offer nor try to install a release over itself.
+pub const UPDATES_MANAGED_BY_VAR: &str = "PLAINVA_UPDATES_MANAGED_BY";
+
+/// The name of the package manager that updates this installation, or `None`
+/// when Plainva updates itself. The value is shown in the settings, so it is
+/// trimmed, must be a short single line, and an empty one counts as unset.
+pub fn updates_managed_by_from(value: Option<&str>) -> Option<String> {
+    let name = value?.trim();
+    if name.is_empty() {
+        return None;
+    }
+    if name.chars().count() > 40 || name.chars().any(char::is_control) {
+        // Set, but not a name to show: still managed, under a neutral word.
+        return Some("package manager".to_string());
+    }
+    Some(name.to_string())
+}
+
+/// `None` when this installation updates itself (`appUpdate.ts` asks before
+/// every update check).
+#[tauri::command]
+pub fn app_updates_managed_by() -> Option<String> {
+    updates_managed_by_from(std::env::var(UPDATES_MANAGED_BY_VAR).ok().as_deref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_package_manager_that_sets_the_variable_owns_the_updates() {
+        assert_eq!(updates_managed_by_from(Some("Nix")), Some("Nix".to_string()));
+        assert_eq!(updates_managed_by_from(Some("  Nix \n")), Some("Nix".to_string()));
+    }
+
+    #[test]
+    fn without_the_variable_the_app_updates_itself() {
+        assert_eq!(updates_managed_by_from(None), None);
+        assert_eq!(updates_managed_by_from(Some("")), None);
+        assert_eq!(updates_managed_by_from(Some("   ")), None);
+    }
+
+    #[test]
+    fn a_value_that_is_no_short_name_still_switches_the_updater_off() {
+        let long = "x".repeat(41);
+        assert_eq!(updates_managed_by_from(Some(&long)), Some("package manager".to_string()));
+        assert_eq!(updates_managed_by_from(Some("Nix\u{7}")), Some("package manager".to_string()));
+    }
 
     #[test]
     fn the_release_app_keeps_its_keychain_entries() {

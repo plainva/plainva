@@ -818,25 +818,26 @@ describe("the door itself", () => {
     expect(seen).toMatchObject({ late: 1, left: 1 });
   });
 
-  it("says once that a call changed the index — for whoever plans on it — and not for a call that changed nothing", async () => {
+  it("says once per call that the index moved — and nothing when nothing moved (the reminders re-plan from it, E3)", async () => {
     let followed = 0;
+    let busy = true;
     const reindex = createPathReindexer({
-      async indexFile() {
+      async indexFile(file) {
+        if (file.path === "busy.md" && busy) { busy = false; throw new Error("Already in transaction"); }
         return true;
       },
-      async indexPath() {
-        return "unchanged";
-      },
+      async indexPath() { return "unchanged"; },
     }, {
       getFileInfo: async (p) => { if (p === "never-indexed.tmp") throw new VaultFileNotFoundError(p); return info(p); },
     }, { retryDelayMs: 0, onFollowed: () => { followed += 1; } });
 
-    // A saved note and the table beside it: one call, one word.
-    await reindex(["a.md", "b.csv"]);
+    await reindex(["a.md", "b.md"]);
     expect(followed).toBe(1);
-    // A path the index never held and still does not: nothing changed, nothing to plan on.
     await reindex(["never-indexed.tmp"]);
     expect(followed).toBe(1);
+    // Followed only at the second attempt: told then.
+    await reindex(["busy.md"]);
+    expect(followed).toBe(2);
   });
 });
 
@@ -946,8 +947,9 @@ describe("the wiring: one door, and everything goes through it", () => {
     expect(service).not.toMatch(/indexTurns\.take\(/);
     // What the door followed late is told to the screens once more.
     expect(service).toContain("onFollowedLate: () => window.dispatchEvent(new CustomEvent(\"m-vault-changed\")),");
-    // A saved file sends no m-vault-changed: the search by meaning, the gists and Siri's list hear of it by this.
-    expect(service).toContain("onFollowed: () => window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT)),");
+    // A saved file sends no m-vault-changed: the search by meaning, the gists and Siri's list hear of it by this,
+    // and the reminders, which derive from the index, re-plan (E3).
+    expect(service).toContain("onFollowed: () => {\n        window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT));\n        window.dispatchEvent(new CustomEvent(\"m-paths-indexed\"));\n      },");
   });
 
   it("both sync workers hand their changed paths to it", () => {

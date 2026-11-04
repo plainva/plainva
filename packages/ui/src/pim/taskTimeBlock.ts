@@ -40,6 +40,11 @@ export function writableCalendarsOf<T extends { id: string; accountId: string; r
   return calendars.filter((c) => !c.readOnly && enabledAccountIds.has(c.accountId));
 }
 
+/** The key a calendar has in the picker and in the stored default ("<accountId> <calendarId>"). */
+export function calendarKey(calendar: { id: string; accountId: string }): string {
+  return `${calendar.accountId} ${calendar.id}`;
+}
+
 /** Calendar picker options ("<accountId> <calendarId>" -> label). The account
  * name is only appended when more than one account exists, so a single-account
  * setup stays uncluttered. Pure. */
@@ -49,7 +54,7 @@ export function calendarPickerOptions<T extends { id: string; name: string; acco
   multiAccount: boolean
 ): Array<{ value: string; label: string }> {
   return calendars.map((c) => ({
-    value: `${c.accountId} ${c.id}`,
+    value: calendarKey(c),
     label: multiAccount ? `${c.name} · ${accountLabel.get(c.accountId) ?? ""}` : c.name,
   }));
 }

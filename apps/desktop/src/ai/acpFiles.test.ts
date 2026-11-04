@@ -11,7 +11,7 @@ import {
   acpReadFile,
   acpRecipient,
   acpSpelledPath,
-  frontmatterBlock,
+  frontmatterBlockText,
   type AcpFileRefusalReason,
   type AcpWritePlan,
 } from "@plainva/ui";
@@ -337,18 +337,18 @@ describe("a note an agent wrote, once the user creates it", () => {
 
 describe("the properties block of a note", () => {
   it("is its top, between two fences, exactly as written", () => {
-    expect(frontmatterBlock("---\na: 1\n---\n# T\n")).toBe("---\na: 1\n---\n");
-    expect(frontmatterBlock("---\r\na: 1\r\n---\r\n# T\r\n")).toBe("---\r\na: 1\r\n---\r\n");
-    expect(frontmatterBlock("---\n---\nText")).toBe("---\n---\n");
-    expect(frontmatterBlock("---\na: 1\n---")).toBe("---\na: 1\n---");
-    expect(frontmatterBlock("# T\n---\na: 1\n---\n")).toBe("");
-    expect(frontmatterBlock("---\na: 1\nno end")).toBe("");
+    expect(frontmatterBlockText("---\na: 1\n---\n# T\n")).toBe("---\na: 1\n---\n");
+    expect(frontmatterBlockText("---\r\na: 1\r\n---\r\n# T\r\n")).toBe("---\r\na: 1\r\n---\r\n");
+    expect(frontmatterBlockText("---\n---\nText")).toBe("---\n---\n");
+    expect(frontmatterBlockText("---\na: 1\n---")).toBe("---\na: 1\n---");
+    expect(frontmatterBlockText("# T\n---\na: 1\n---\n")).toBe("");
+    expect(frontmatterBlockText("---\na: 1\nno end")).toBe("");
     // As the one definition reads a block (`frontmatterSpan`): blanks behind a fence, and a byte order mark in front.
-    expect(frontmatterBlock("--- \na: 1\n---\n")).toBe("--- \na: 1\n---\n");
+    expect(frontmatterBlockText("--- \na: 1\n---\n")).toBe("--- \na: 1\n---\n");
     const bom = String.fromCharCode(0xfeff);
-    expect(frontmatterBlock(`${bom}---\na: 1\n---\n# T\n`)).toBe(`${bom}---\na: 1\n---\n`);
-    expect(frontmatterBlock("")).toBe("");
+    expect(frontmatterBlockText(`${bom}---\na: 1\n---\n# T\n`)).toBe(`${bom}---\na: 1\n---\n`);
+    expect(frontmatterBlockText("")).toBe("");
     // A rule line further down is no fence of the properties.
-    expect(frontmatterBlock("---\na: 1\n---\nText\n\n---\n\nMore")).toBe("---\na: 1\n---\n");
+    expect(frontmatterBlockText("---\na: 1\n---\nText\n\n---\n\nMore")).toBe("---\na: 1\n---\n");
   });
 });

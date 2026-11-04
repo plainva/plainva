@@ -28,6 +28,7 @@ import {
   type ScriptFieldValues,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 /**
@@ -46,12 +47,17 @@ export function ScriptRunSheet({ id, onClose, onOpenNote }: { id: string; onClos
   const script = entry?.source.script ?? null;
   const [values, setValues] = useState<ScriptFieldValues>(() => scriptFieldDefaults(script?.parameters ?? []));
   const running = useScriptRun(session, state, id);
+  // The inputs the last run here started with: those a close no longer loses.
+  const [ranWith, setRanWith] = useState<ScriptFieldValues | null>(null);
   // A note opens as a screen of its own: the sheet closes with it.
   const open = (path: string) => {
     onClose();
     onOpenNote(path);
   };
   const drafts = useDraftActions(session, open);
+  // Inputs changed from their defaults since the last run here took them.
+  const defaults = scriptFieldDefaults(script?.parameters ?? []);
+  const close = useSheetGuard("ai-script-run", !running.busy && values !== ranWith && Object.keys(values).some((name) => values[name] !== defaults[name]), onClose);
   if (!entry || !script) return null;
   const { input, missing } = scriptFieldInput(script.parameters, values);
   const run = running.run;
@@ -61,6 +67,10 @@ export function ScriptRunSheet({ id, onClose, onOpenNote }: { id: string; onClos
   const value = outcome ? scriptValueText(outcome) : null;
   const canStart = state.scripts.available && entry.status === "active" && missing.length === 0 && !running.busy;
   const set = (name: string, next: string | boolean) => setValues((current) => ({ ...current, [name]: next }));
+  const start = (dry: boolean) => {
+    setRanWith(values);
+    running.start(input, dry);
+  };
   const copy = (text: string) => {
     void navigator.clipboard.writeText(text).then(
       () => toast.success(t("ai.mcp.copied")),
@@ -68,9 +78,9 @@ export function ScriptRunSheet({ id, onClose, onOpenNote }: { id: string; onClos
     );
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-script-run">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{workshopTitle(t, entry)}</p>
         <p className="m-hint">{script.description}</p>
         {!state.scripts.available && <Banner kind="warning">{t("ai.scripts.unavailable")}</Banner>}
@@ -163,13 +173,13 @@ export function ScriptRunSheet({ id, onClose, onOpenNote }: { id: string; onClos
           </Button>
         ) : (
           <>
-            <Button variant="primary" icon={<Play size={ICON.ui} />} disabled={!canStart} onClick={() => running.start(input, false)} data-testid="ai-script-start">
+            <Button variant="primary" icon={<Play size={ICON.ui} />} disabled={!canStart} onClick={() => start(false)} data-testid="ai-script-start">
               {t("ai.scripts.run.start")}
             </Button>
-            <Button variant="secondary" disabled={!canStart} onClick={() => running.start(input, true)} data-testid="ai-script-dry">
+            <Button variant="secondary" disabled={!canStart} onClick={() => start(true)} data-testid="ai-script-dry">
               {t("ai.scripts.run.dry")}
             </Button>
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="ghost" onClick={close}>
               {t("common.close")}
             </Button>
           </>

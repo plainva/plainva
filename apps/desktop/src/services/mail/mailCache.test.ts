@@ -7,6 +7,7 @@ import {
   cachedMessage,
   forgetCachedMail,
   forgetCachedMessages,
+  MAIL_BODY_FORMAT,
   resetMailCache,
   restoreCachedMail,
   snapshotCachedMail,
@@ -181,6 +182,21 @@ describe("mail cache (shared)", () => {
     const { db, bodies } = fakeDb();
     await cacheMessage(db, "acc1", "INBOX", msg("1"));
     bodies.set("acc1|INBOX|1", { payload: "{not json" });
+    await expect(cachedMessage(db, "acc1", "INBOX", "1")).resolves.toBeNull();
+  });
+
+  it("treats a body an older reader stored as a miss, and the next fetch stores it again (§ 3.83)", async () => {
+    // Form 1: the bare message, as every body was stored before the mark.
+    // Its text is what the reader of that time made of the mail - for an
+    // HTML-only mail the hidden text too - and an answer quoted it.
+    const { db, bodies } = fakeDb();
+    bodies.set("acc1|INBOX|1", { account: "acc1", mailbox: "INBOX", id: "1", payload: JSON.stringify({ ...msg("1"), text: "old reading" }) });
+    await expect(cachedMessage(db, "acc1", "INBOX", "1")).resolves.toBeNull();
+
+    await cacheMessage(db, "acc1", "INBOX", msg("1"));
+    await expect(cachedMessage(db, "acc1", "INBOX", "1")).resolves.toMatchObject({ id: "1", text: "body" });
+    // A form this build does not know (a newer one, from another build) is a miss as well.
+    bodies.set("acc1|INBOX|1", { payload: JSON.stringify({ format: MAIL_BODY_FORMAT + 1, message: msg("1") }) });
     await expect(cachedMessage(db, "acc1", "INBOX", "1")).resolves.toBeNull();
   });
 

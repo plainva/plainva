@@ -102,9 +102,8 @@ function headersOf(block: string): Map<string, string> {
  * with the messages `imapClient.test.ts` holds this with. By the same rule,
  * header lines a generator wrote behind such an empty line are the part's
  * text: the old search took them for its header, the desktop's parser never
- * did. One exception this reader does not know: in a multipart/digest such a
- * part is an enclosed message (5.1.5), and the desktop's parser reads it so
- * (parity catalog, `mail-digest-parts`).
+ * did. One exception: in a multipart/digest such a part is an enclosed
+ * message (5.1.5) — `parseMessage` reads it so, as the desktop's parser does.
  */
 export function splitHeaders(raw: string): { head: string; body: string } {
   const none = /^\r?\n/.exec(raw);
@@ -163,18 +162,16 @@ const BASE64_VALUE = (() => {
  * part was the whole message's error — it could not be opened at all.
  *
  * A "=" ends a group wherever it stands, and the reading goes on behind it:
- * two characters are one byte, three are two. That is how the desktop's parser
- * reads it (mail-parser; `mail_imap.rs` holds the table `imapClient.test.ts`
- * holds), down to a single character in front of a "=", whose six bits begin a
- * byte there. The end of the data ends a group likewise, as it did with
- * `atob`; a single character left over at the end is no byte. Whatever is not
- * base64 is passed over, as RFC 2045 (6.8) asks and as it always was here.
- *
- * In two things the desktop's parser reads less than this — a last group
- * without its padding, and a part with a character that is no base64 in it:
- * parity catalog, `mail-base64-reading`.
+ * two characters are one byte, three are two. The end of the data ends a group
+ * likewise, as it did with `atob`. A single character of a group, in front of
+ * a "=" or at the end, is six bits and no byte. Whatever is not base64 is
+ * passed over, as RFC 2045 (6.8) asks and as it always was here. That is how
+ * the desktop's parser reads a body too (mail-parser 1.0; `mail_imap.rs` holds
+ * the table `imapClient.test.ts` holds). In an encoded word of a header it
+ * still gives up at a character that is no base64: parity catalog,
+ * `mail-base64-reading`.
  */
-function base64Bytes(s: string): Uint8Array {
+export function base64Bytes(s: string): Uint8Array {
   const out = new Uint8Array(Math.ceil((s.length * 3) / 4));
   let length = 0;
   /** The characters of the open group, six bits each, and how many they are. */
@@ -202,12 +199,33 @@ function base64Bytes(s: string): Uint8Array {
         count = 0;
       }
     } else if (value === BASE64_END) {
-      if (count === 1) out[length++] = group << 2;
       endGroup();
     }
   }
   endGroup();
   return length === out.length ? out : out.slice(0, length);
+}
+
+/**
+ * Cut-off base64 up to the end of its last whole group of four characters (or
+ * of one a "=" ended): the characters of a group the cut left open stand for
+ * a byte that is not all there.
+ */
+function wholeBase64Groups(s: string): string {
+  let count = 0;
+  let end = 0;
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    const value = code < 256 ? BASE64_VALUE[code] : -1;
+    if (value >= 0 && ++count === 4) {
+      count = 0;
+      end = i + 1;
+    } else if (value === BASE64_END) {
+      count = 0;
+      end = i + 1;
+    }
+  }
+  return s.slice(0, end);
 }
 
 function qpBytes(s: string): Uint8Array {
@@ -291,8 +309,18 @@ interface AlternativeBranch {
   child: number;
 }
 
+/** The type a part's own Content-Type names, lower case and without its parameters; "" where it names none. */
+function namedType(headers: HeaderMap): string {
+  return (headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+}
+
+/**
+ * A part's media type: text/plain where it names none (RFC 2045, 5.1). An
+ * empty value names none either — it used to be the type "", which no reader
+ * shows; the desktop's parser reads it as text/plain.
+ */
 function contentType(headers: HeaderMap): string {
-  return (headers.get("content-type") ?? "text/plain").split(";")[0].trim().toLowerCase();
+  return namedType(headers) || "text/plain";
 }
 
 function dispositionOf(headers: HeaderMap): string | null {
@@ -303,6 +331,48 @@ function dispositionOf(headers: HeaderMap): string | null {
 function showsAsText(mime: string, disposition: string | null): boolean {
   return (mime === "text/plain" || mime === "text/html") && disposition !== "attachment";
 }
+
+/** A type and a subtype as the rule spells them (RFC 2045, 5.1: two tokens). */
+const MEDIA_TYPE = /^([!#$%&'*+.^_`|~0-9a-z-]+)\/([!#$%&'*+.^_`|~0-9a-z-]+)$/;
+
+/**
+ * Subtypes of text that are data for a program, not words for a person: an
+ * invitation, a contact card. A message that is nothing but one of them has
+ * no text to show (`mail_imap.rs` holds the same list).
+ */
+const DATA_TEXT = new Set(["calendar", "x-vcalendar", "vcard", "x-vcard", "directory"]);
+
+/**
+ * Whether a message that is ONE part, not divided into any, is words the
+ * reader shows as its text although it is not text/plain (open-items plan
+ * 3.78 no. 12). A text of another subtype — `text/markdown`, `text/x-patch`,
+ * `text/enriched` — is read as plain text (RFC 2046, 4.1.4), and so is a
+ * Content-Type the rule cannot read as a type: `text` without a subtype,
+ * `text/plain charset=us-ascii` without its semicolon (RFC 2045, 5.2). Such a
+ * message used to open empty, and was in no list of files either. Not one
+ * attached as a file, and not one that is data (`DATA_TEXT`). Inside a
+ * multipart such a part is the attachment question of the parity catalog's
+ * `mail-attachment-list`, and stays as it is. The desktop reads the same
+ * messages alike (`whole_message_text_part` in `mail_imap.rs`).
+ */
+function wordsOfAWholeMessage(headers: HeaderMap): boolean {
+  if (dispositionOf(headers) === "attachment") return false;
+  const type = MEDIA_TYPE.exec(namedType(headers));
+  if (!type) return true;
+  return type[1] === "text" && type[2] !== "html" && !DATA_TEXT.has(type[2]);
+}
+
+/**
+ * The type of a part of a multipart/digest that names none of its own: an
+ * enclosed message (RFC 2046, 5.1.5), not a text. It begins with the empty
+ * line where it has no header line at all.
+ */
+function inDigest(parent: string, headers: HeaderMap): string | null {
+  return parent === "multipart/digest" && namedType(headers) === "" ? "message/rfc822" : null;
+}
+
+/** An enclosed message: a file of the message whether it has a name or not, on both shells. */
+const ENCLOSED_MESSAGE = new Set(["message/rfc822", "message/global"]);
 
 /**
  * The delimiter line between the parts of a multipart, in `wireOf` form; null
@@ -408,10 +478,12 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
   const branchesOf: Array<ReadonlyArray<AlternativeBranch>> = [];
   let alternatives = 0;
   let index = 0;
+  /** The message's one part, where it is words of another type than text/plain (`wordsOfAWholeMessage`). */
+  let whole: ParsedPart | null = null;
 
-  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, branches: ReadonlyArray<AlternativeBranch>): void => {
+  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, branches: ReadonlyArray<AlternativeBranch>, parent = ""): void => {
     if (depth > 12) return; // pathological nesting guard
-    const type = contentType(partHeaders);
+    const type = inDigest(parent, partHeaders) ?? contentType(partHeaders);
     if (type.startsWith("multipart/")) {
       const delimiter = delimiterOf(partHeaders);
       if (!delimiter) return;
@@ -419,7 +491,7 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       const alternative = type === "multipart/alternative" ? ++alternatives : 0;
       splitMultipart(partBody, delimiter).forEach((chunk, child) => {
         const sub = splitHeaders(chunk);
-        walk(headersOf(sub.head), sub.body, depth + 1, alternative ? [...branches, { alternative, child }] : branches);
+        walk(headersOf(sub.head), sub.body, depth + 1, alternative ? [...branches, { alternative, child }] : branches, type);
       });
       return;
     }
@@ -428,23 +500,30 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       parseParams(partHeaders.get("content-disposition") ?? "").get("filename") ??
       parseParams(partHeaders.get("content-type") ?? "").get("name") ??
       null;
-    const isText = type.startsWith("text/") && disposition !== "attachment";
-    parts.push({
+    const wholeWords = depth === 0 && wordsOfAWholeMessage(partHeaders);
+    const isText = wholeWords || (type.startsWith("text/") && disposition !== "attachment");
+    const part: ParsedPart = {
       mime: type,
       name,
       disposition,
       text: isText ? decodeText(partHeaders, partBody) : null,
       bytes: isText ? null : decodeBody(partHeaders, partBody),
       index: ++index,
-    });
+    };
+    if (wholeWords) whole = part;
+    parts.push(part);
     branchesOf.push(branches);
   };
 
   walk(headers, body, 0, []);
+  // Set inside `walk`, which the narrowing of `let` does not follow.
+  const wholePart = whole as ParsedPart | null;
 
   const first = parts.findIndex((part) => showsAsText(part.mime, part.disposition));
   let text: string | null = null;
-  if (first >= 0 && parts[first].mime === "text/plain") {
+  if (first < 0 && wholePart) {
+    text = wholePart.text;
+  } else if (first >= 0 && parts[first].mime === "text/plain") {
     text = parts[first].text;
   } else if (first >= 0) {
     const own = branchesOf[first];
@@ -454,7 +533,7 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
   }
   const html = parts.find((p) => p.mime === "text/html" && p.text !== null)?.text ?? null;
   const attachments: MailAttachmentInfo[] = parts
-    .filter((p) => p.bytes !== null && (p.disposition === "attachment" || p.name !== null))
+    .filter((p) => p.bytes !== null && (p.disposition === "attachment" || p.name !== null || ENCLOSED_MESSAGE.has(p.mime)))
     .map((p) => ({ index: p.index, name: p.name ?? `part-${p.index}`, mime: p.mime, size: p.bytes?.length ?? 0 }));
 
   return { headers, text, html, attachments, parts };
@@ -499,12 +578,18 @@ function withoutCutDelimiter(chunk: string, delimiter: string): string {
  */
 function openingPart(part: BodyPart, delimiter: string | null, depth = 0): BodyPart | null {
   if (depth > 12) return null; // pathological nesting guard
-  if (delimiter === null) return showsAsText(contentType(part.headers), dispositionOf(part.headers)) ? part : null;
+  if (delimiter === null) {
+    const shown = showsAsText(contentType(part.headers), dispositionOf(part.headers)) || (depth === 0 && wordsOfAWholeMessage(part.headers));
+    return shown ? part : null;
+  }
+  // In a digest a part that names no type is an enclosed message: no words of this one.
+  const digest = contentType(part.headers) === "multipart/digest";
   const chunks = splitMultipart(part.body, delimiter);
   for (let at = 0; at < chunks.length; at++) {
     const chunk = at === chunks.length - 1 ? withoutCutDelimiter(chunks[at], delimiter) : chunks[at];
     const sub = splitHeaders(chunk);
     if (/^\r?\n/.test(chunk)) {
+      if (digest) continue;
       // A part that begins with the empty line has no header: an opened
       // message shows it as text, so its words open the message and no later
       // part's do. Header lines a generator wrote behind that empty line are
@@ -520,6 +605,7 @@ function openingPart(part: BodyPart, delimiter: string | null, depth = 0): BodyP
       return openingPart({ headers: new Map(), body: sub.body }, null, depth + 1);
     }
     const headers = headersOf(sub.head);
+    if (inDigest(digest ? "multipart/digest" : "", headers)) continue;
     const found = openingPart({ headers, body: sub.body }, delimiterOf(headers), depth + 1);
     if (found) return found;
   }
@@ -611,13 +697,18 @@ export function previewFromBodyPrefix(raw: Uint8Array | string, max = 160, messa
   if (!opening) return "";
   const { headers, body } = opening;
 
-  // A truncated base64 part cannot be decoded safely (the tail is a partial
-  // group) — better no preview than mojibake.
   const encoding = (headers.get("content-transfer-encoding") ?? "").trim().toLowerCase();
-  if (encoding === "base64") return "";
   // A prefix cut inside an escape ends in "=" or "=X": no text, and the byte
   // in front of it may be half a character, which the decoding below drops.
-  const bytes = encoding === "quoted-printable" ? qpBytes(body.replace(/=[0-9A-Fa-f]?$/, "")) : wireBytes(body);
+  // One cut inside base64 ends inside a group of four characters; read up to
+  // the last whole one, and the cut is a cut between bytes (open-items plan
+  // 3.78 no. 4: the row of a mail written in base64 used to stay empty).
+  const bytes =
+    encoding === "quoted-printable"
+      ? qpBytes(body.replace(/=[0-9A-Fa-f]?$/, ""))
+      : encoding === "base64"
+        ? base64Bytes(wholeBase64Groups(body))
+        : wireBytes(body);
   let text = decodeCharset(headers, bytes, true);
 
   if ((headers.get("content-type") ?? "").includes("text/html") || /<\/?(p|div|br|span|table)\b/i.test(text)) {

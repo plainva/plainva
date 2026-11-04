@@ -1,7 +1,7 @@
 import { useState, useSyncExternalStore } from "react";
+import { sameStoredValue } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { BookOpen, Plus, Trash2 } from "lucide-react";
-import { Browser } from "@capacitor/browser";
 import {
   addScriptParameter,
   Banner,
@@ -31,6 +31,8 @@ import {
   type ScriptFormState,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
+import { openExternalUrl } from "../services/openExternal";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 const LIMIT_FIELDS = [
@@ -52,9 +54,12 @@ export function ScriptFormSheet({ id, onClose }: { id?: string | null; onClose: 
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const entry = id ? (state.skills.entries.find((e) => e.source.id === id) ?? null) : null;
-  const [form, setForm] = useState<ScriptFormState | null>(() => (id ? (entry ? scriptFormOf(entry) : null) : newScriptForm()));
+  const [initial] = useState<ScriptFormState | null>(() => (id ? (entry ? scriptFormOf(entry) : null) : newScriptForm()));
+  const [form, setForm] = useState<ScriptFormState | null>(initial);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The form differs from what it opened with: the new script's blank form, or the script as it is.
+  const close = useSheetGuard("ai-script-form", form !== null && !sameStoredValue(form, initial), onClose);
   if (!form) return null;
   const editing = Boolean(id);
   // A change takes the last refusal with it: that was about what the form held before.
@@ -76,9 +81,9 @@ export function ScriptFormSheet({ id, onClose }: { id?: string | null; onClose: 
     onClose();
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-script-form">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t(editing ? "ai.scripts.form.titleEdit" : "ai.scripts.form.titleNew")}</p>
         <TextInput value={form.name} disabled={editing} autoCapitalize="none" placeholder={t("ai.scripts.form.name")} aria-label={t("ai.scripts.form.name")} onChange={(event) => change({ ...form, name: event.target.value.toLowerCase() })} data-testid="ai-script-name" />
         <p className="m-hint">{t("ai.scripts.form.nameHint")}</p>
@@ -132,7 +137,7 @@ export function ScriptFormSheet({ id, onClose }: { id?: string | null; onClose: 
         </div>
         <TextArea className="pv-script-editor" purpose="code" rows={10} wrap="off" value={form.code} placeholder={t("ai.scripts.form.code")} aria-label={t("ai.scripts.form.code")} onChange={(event) => change({ ...form, code: event.target.value })} data-testid="ai-script-code-field" />
         <p className="m-hint">{t("ai.scripts.form.codeHint")}</p>
-        <Button variant="ghost" icon={<BookOpen size={ICON.ui} />} onClick={() => void Browser.open({ url: userGuideUrl(SCRIPTS_GUIDE) }).catch(() => undefined)} data-testid="ai-script-help">
+        <Button variant="ghost" icon={<BookOpen size={ICON.ui} />} onClick={() => void openExternalUrl(userGuideUrl(SCRIPTS_GUIDE)).catch(() => undefined)} data-testid="ai-script-help">
           {t("ai.scripts.form.help")}
         </Button>
         {error && (
@@ -143,7 +148,7 @@ export function ScriptFormSheet({ id, onClose }: { id?: string | null; onClose: 
         <Button variant="primary" disabled={busy || !scriptFormReady(form)} onClick={() => void save()} data-testid="ai-script-save">
           {t(editing ? "ai.scripts.form.save" : "ai.scripts.form.create")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("common.cancel")}
         </Button>
       </div>

@@ -9,6 +9,7 @@ import {
   resolveTemplate,
   runTemplateInteractive,
   serializeBaseConfig,
+  setDayBoundary,
   setPlatformServices,
   withPersonContext,
   withVaultContext,
@@ -278,5 +279,51 @@ describe("an entry made in the background (task sync, a promoted checkbox, a tas
     const res = await createTaskInDatabase({ adapter: adapter as never, dbPath: "Aufgaben.base", title: "Antworten", noteType: "Task", templateVault: VAULT });
     expect(res).toMatchObject({ ok: true, notePath: "Aufgaben/Antworten.md" });
     expect(files.get("Aufgaben/Antworten.md")!.endsWith(RESOLVED)).toBe(true);
+  });
+});
+
+/**
+ * Sammelplan § 3.143 Nr. 2: `{{daily}}` followed the calendar day, not the
+ * vault's day boundary. At 01:30 with a day that ends at 04:00, **Today** opens
+ * yesterday's daily note — a new note, an entry or a task linked the note of
+ * the new calendar day, which nobody writes in yet. A note with a day of its
+ * own keeps it.
+ */
+describe("`{{daily}}` at the day boundary", () => {
+  const NIGHT = new Date(2026, 9, 12, 1, 30); // Monday 01:30 — still Sunday's diary day
+  beforeEach(() => setDayBoundary(4 * 60));
+  afterEach(() => setDayBoundary(0));
+
+  it("links the daily note Today opens, for a note without a day of its own", async () => {
+    const ctx = await withVaultContext({ title: "T", now: NIGHT }, VAULT);
+    expect(fill("{{daily}} · {{daily+1}} · {{date}}", ctx)).toBe("[[Journal/2026-10-11]] · [[Journal/2026-10-12]] · 2026-10-12");
+  });
+
+  it("follows the calendar where the day ends at midnight", async () => {
+    setDayBoundary(0);
+    expect(fill("{{daily}}", await withVaultContext({ title: "T", now: NIGHT }, VAULT))).toBe("[[Journal/2026-10-12]]");
+  });
+
+  it("a meeting note and a daily note keep their own day", async () => {
+    const shell: TemplateShell = { vault: VAULT, person: { selection: () => null, readClipboard: async () => null, clipboardLabel: "Clipboard" }, ask: async () => ({}) };
+    const event = { accountId: "acc-1", calendarId: "cal-1", uid: "uid-1", title: "Planung", start: { ts: new Date(2026, 9, 14, 10).getTime() }, end: { ts: new Date(2026, 9, 14, 11).getTime() }, allDay: false } as PimEventRow;
+    const note = await buildMeetingNoteFromTemplate("Tag: {{daily}}\n", {
+      event, dayKey: "2026-10-14", noteType: "Meeting", folder: "Meetings", now: NIGHT,
+      resolveTemplate: (raw, ctx) => runTemplateInteractive(raw, ctx, shell),
+    });
+    expect(note!.content).toContain("Tag: [[Journal/2026-10-14]]\n");
+    let handed: TemplateContext | null = null;
+    await ensureDailyNote(new Date(2026, 9, 12), { folder: "Journal", format: "YYYY-MM-DD", templateFolder: "Vorlagen", template: "Tag.md", noteType: "Daily Note" }, {
+      exists: async (path: string) => path === "Vorlagen/Tag.md",
+      readTextFile: async () => "{{daily}}",
+      createNote: async () => {},
+    }, {
+      now: NIGHT,
+      resolveTemplate: async (raw, ctx) => {
+        handed = await withVaultContext(ctx, VAULT);
+        return { text: raw, cursor: null };
+      },
+    });
+    expect(handed!.dailyPath?.(0)).toBe("Journal/2026-10-12");
   });
 });

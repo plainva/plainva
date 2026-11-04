@@ -7,14 +7,15 @@ import {
   emptyAccountMap,
   mailAccountsForProfile,
   normalizeAccountMap,
-  parseBookmarksFile,
   pimAccountsForProfile,
-  serializeBookmarksFile,
+  restoreBookmarksFile,
+  snapshotBookmarksFile,
   barLayoutIsInherited,
   loadBarLayout,
   saveBarLayout,
   getPlatformServices,
   type AreaOrder,
+  type BookmarksFileSnapshot,
   type CloudAccountRecord,
   type ProfileAccountMap,
 } from "@plainva/ui";
@@ -71,7 +72,12 @@ export interface ProfileImportSnapshot {
     calendars: Array<{ accountId: string; id: string; selected: boolean }>;
     taskLists: Array<{ accountId: string; id: string; selected: boolean }>;
   };
-  bookmarks: { existed: boolean; paths?: string[] };
+  /**
+   * The whole text of `.plainva/bookmarks.json`, as the desktop keeps it. A
+   * journal written before 2026-11 carries `paths` (file bookmarks only)
+   * instead; it is still read (Sammelplan § 3.127 Nr. 1).
+   */
+  bookmarks: BookmarksFileSnapshot;
   /** `null` means the vault inherited the global arrangement. */
   barLayout: AreaOrder | null;
 }
@@ -135,7 +141,7 @@ export async function captureProfileSnapshot(vault: MobileVault): Promise<Profil
     accountMap: (await store.get<ProfileAccountMap>(accountMapKey(vaultId))) ?? null,
     mailAccounts: mailAccountsForProfile(await listMailAccounts(vaultId), map) as MailAccountConfig[],
     cloudAccounts: cloudRegistryToLogical(await loadCloudAccounts(vaultId), map) as CloudAccountRecord[],
-    bookmarks: { existed: false },
+    bookmarks: await snapshotBookmarksFile(vault.adapter),
     barLayout: (await barLayoutIsInherited("mobileBar", vaultId))
       ? null
       : await loadBarLayout("mobileBar", vaultId),
@@ -147,13 +153,6 @@ export async function captureProfileSnapshot(vault: MobileVault): Promise<Profil
       calendars: (await cache.listCalendars()).map((c) => ({ accountId: c.accountId, id: c.id, selected: c.selected })),
       taskLists: (await cache.listTaskLists()).map((l) => ({ accountId: l.accountId, id: l.id, selected: l.selected })),
     };
-  }
-
-  try {
-    const parsed = parseBookmarksFile(await vault.adapter.readTextFile(".plainva/bookmarks.json"));
-    if (parsed.existed) snapshot.bookmarks = { existed: true, paths: parsed.paths };
-  } catch {
-    // No bookmarks file: "did not exist" is the state to restore to.
   }
   return snapshot;
 }
@@ -252,11 +251,9 @@ export async function restoreProfileSnapshot(vault: MobileVault, snapshot: Profi
     // business with it. The snapshot still records it for diagnostics.
   }
 
-  if (snapshot.bookmarks.existed) {
-    await vault.adapter.writeTextFile(".plainva/bookmarks.json", serializeBookmarksFile(snapshot.bookmarks.paths ?? []));
-  } else if (await vault.adapter.exists(".plainva/bookmarks.json")) {
-    await vault.adapter.deleteItem(".plainva/bookmarks.json");
-  }
+  // The file as it was, folder bookmarks included, on the lane the star
+  // clicks share (Sammelplan § 3.127 Nr. 1).
+  await restoreBookmarksFile(vault.adapter, snapshot.bookmarks);
 
   if (snapshot.barLayout) await saveBarLayout("mobileBar", vaultId, snapshot.barLayout);
 

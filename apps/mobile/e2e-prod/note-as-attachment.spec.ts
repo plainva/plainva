@@ -73,7 +73,9 @@ test("a note sent as an attachment arrives in the composer with the file on it, 
     await sendAsAttachment();
     await expect(file).toHaveCount(1);
     await expect(file).toContainText("Angebot.md");
-    await expect(file).toContainText("text/markdown");
+    // Its size, as a file of a forwarded original shows it - not its raw type (§ 3.95 Nr. 7).
+    await expect(file).toContainText(/[0-9]+ B/);
+    await expect(file).not.toContainText("text/markdown");
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("note-as-attachment.png") });
 
     // Nothing was changed: back leaves without a question, onto the note.

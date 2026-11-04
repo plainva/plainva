@@ -1,6 +1,6 @@
 import { EditorState } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { frontmatterLines } from "./editorFrontmatter";
+import { frontmatterLinesOf } from "./editorFrontmatter";
 
 // Top-level "block" model for the Notion-style block handles (#7). A block is a
 // top-level markdown element (paragraph, heading, blockquote/callout, fenced
@@ -61,7 +61,7 @@ function mkBlock(state: EditorState, from: number, to: number, type: BlockType):
  */
 export function listBlocks(state: EditorState): DocBlock[] {
   const blocks: DocBlock[] = [];
-  const fmEnd = frontmatterLines(state.doc)?.closeTo ?? 0;
+  const fmEnd = frontmatterLinesOf(state)?.closeTo ?? 0;
   const top = syntaxTree(state).topNode;
   let child = top.firstChild;
   while (child) {

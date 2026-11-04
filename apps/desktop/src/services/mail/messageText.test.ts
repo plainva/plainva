@@ -219,7 +219,7 @@ describe("a message without a plain-text part, at each place that reads its text
       createDir: async () => {},
     };
     const filed = await captureMailAsNote({ adapter, message: htmlOnly(), accountId: "acc1", mailbox: "INBOX", folder: "Mail" });
-    expect(filed).toEqual({ path: "Mail/2026-10-09 Rechnung Oktober.md", created: true });
+    expect(filed).toEqual({ path: "Mail/2026-10-09 Rechnung Oktober.md", created: true, filled: false });
     expect(files.get(filed.path)).toBe(buildEmailNoteContent(htmlOnly(), "acc1", "INBOX", "2026-10-09"));
     expect(files.get(filed.path)).toContain(TEXT);
   });
@@ -407,6 +407,19 @@ describe("what the reader hides, the text leaves out", () => {
     const html = '<div id="pre" style="display:none;background:url(https://tracker.example.org/p.gif)">Doch sichtbar</div><p>Sichtbar</p>';
     expect(inFrame(html).querySelector("#pre")?.hasAttribute("style")).toBe(false);
     expect(mailMessageText({ text: null, html })).toBe("Doch sichtbar\n\nSichtbar");
+  });
+
+  it("a closed details, a popover and a style with a comment stay in the reader's frame as they were sent, and what they hide is not in the text (§ 3.84)", () => {
+    const html =
+      '<details id="fold"><summary>Mehr</summary><p>Zugeklappt</p></details>' +
+      '<div id="pop" popover>Auf Anforderung</div>' +
+      '<div id="note" style="display:/**/none">Mit Kommentar</div><p>Sichtbar</p>';
+    const frame = inFrame(html);
+    expect(frame.querySelector("#fold")?.hasAttribute("open")).toBe(false);
+    expect(frame.querySelector("#fold summary")?.textContent).toBe("Mehr");
+    expect(frame.querySelector("#pop")?.hasAttribute("popover")).toBe(true);
+    expect(frame.querySelector("#note")?.getAttribute("style")).toContain("/**/");
+    expect(mailMessageText({ text: null, html })).toBe("Mehr\n\nSichtbar");
   });
 
   it("a style sheet is gone from the reader's frame, so a class hides nothing and the text has the element", () => {

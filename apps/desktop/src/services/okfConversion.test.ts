@@ -204,7 +204,7 @@ describe("runOkfConversion", () => {
       expect(backups(base)).toEqual([]);
       // Edited after the run: an undo has nothing of this note to put back over the edit.
       base.store.set("a.md", `${NEEDS_NOTHING}A line written after the run.\n`);
-      await rollbackOkfConversion(adapter, report.backupDir);
+      await rollbackOkfConversion(adapter, report.backupDir, report.recipe);
       expect(base.store.get("a.md")).toBe(`${NEEDS_NOTHING}A line written after the run.\n`);
     });
 
@@ -219,7 +219,7 @@ describe("runOkfConversion", () => {
       expect(report.changed).toEqual([]);
       expect(report.skipped.map((s) => s.path)).toEqual(["a.md"]);
       expect(backups(base)).toEqual([]);
-      await rollbackOkfConversion(adapter, report.backupDir);
+      await rollbackOkfConversion(adapter, report.backupDir, report.recipe);
       expect(base.store.get("a.md")).toBe("# version 4\n");
     });
 
@@ -235,7 +235,7 @@ describe("runOkfConversion", () => {
       const report = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
       expect(report.skipped.map((s) => s.path)).toEqual(["a.md"]);
       expect(backups(base)).toEqual([]);
-      await rollbackOkfConversion(adapter, report.backupDir);
+      await rollbackOkfConversion(adapter, report.backupDir, report.recipe);
       expect(base.store.has("a.md")).toBe(false);
       expect(base.store.get("Archive/a.md")).toBe("# no frontmatter\n");
     });
@@ -253,7 +253,7 @@ describe("runOkfConversion", () => {
       const report = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
       expect(report.skipped).toEqual([{ path: "a.md", error: "the queue refused the entry" }]);
       expect(base.store.get("a.md")).toContain("type: Note");
-      await rollbackOkfConversion(adapter, report.backupDir);
+      await rollbackOkfConversion(adapter, report.backupDir, report.recipe);
       expect(base.store.get("a.md")).toBe("# no frontmatter\n");
     });
 
@@ -273,7 +273,7 @@ describe("runOkfConversion", () => {
       const report = await runOkfConversion({ adapter: files, scan: scanFor(["a.md"]), options: { defaultType: "Note" } });
       expect(report.unchanged).toBe(1);
       expect(base.store.get(`${report.backupDir}/a.md`)).toBe(NEEDS_NOTHING);
-      await rollbackOkfConversion(files, report.backupDir);
+      await rollbackOkfConversion(files, report.backupDir, report.recipe);
       expect(base.store.get("a.md")).toBe(NEEDS_NOTHING);
     });
 
@@ -297,8 +297,53 @@ describe("runOkfConversion", () => {
       expect(report.unchanged).toBe(1);
       expect(report.skipped).toEqual([]);
       expect(base.store.get(`${report.backupDir}/a.md`)).toBe(NEEDS_NOTHING);
-      await rollbackOkfConversion(files, report.backupDir);
+      await rollbackOkfConversion(files, report.backupDir, report.recipe);
       expect(base.store.get("a.md")).toBe(NEEDS_NOTHING);
+    });
+
+    it("an undo puts back only what is still the run's text — an edit, a move or a delete since stays (§ 3.87 Nr. 15)", async () => {
+      const base = makeAdapter({ "a.md": "# a\n", "b.md": "# b\n", "c.md": "# c\n", "d.md": "# d\n" });
+      const adapter = vaultLike(base, base.adapter.writeTextFile);
+      const report = await runOkfConversion({ adapter, scan: scanFor(["a.md", "b.md", "c.md", "d.md"]), options: { defaultType: "Note" } });
+      expect(report.changed.length).toBe(4);
+      const edited = `${base.store.get("b.md")}A line written after the run.\n`;
+      base.store.set("b.md", edited);
+      base.store.set("Archive/c.md", base.store.get("c.md")!);
+      base.store.delete("c.md");
+      base.store.delete("d.md");
+
+      const undo = await rollbackOkfConversion(adapter, report.backupDir, report.recipe);
+
+      expect(undo.restored).toEqual(["a.md"]);
+      expect([...undo.changedSince].sort()).toEqual(["b.md", "c.md", "d.md"]);
+      expect(undo.failed).toEqual([]);
+      expect(base.store.get("a.md")).toBe("# a\n");
+      expect(base.store.get("b.md")).toBe(edited);
+      // Nothing comes back where the user moved or deleted it.
+      expect(base.store.has("c.md")).toBe(false);
+      expect(base.store.has("d.md")).toBe(false);
+      // The earlier texts stay in the backup folder.
+      expect(base.store.get(`${report.backupDir}/b.md`)).toBe("# b\n");
+    });
+
+    it("a backup an earlier pass wrote is never written over (§ 3.129 Nr. 1)", async () => {
+      const base = makeAdapter({ "a.md": "# a\n" });
+      const adapter = vaultLike(base, base.adapter.writeTextFile);
+      const options = { defaultType: "Memo", existingTypeStrategy: "rename" as const };
+      const dir = ".plainva/backups/okf-conversion-ONE-RUN";
+      const first = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options, backupDir: dir });
+      const converted = base.store.get("a.md");
+      expect(first.changed).toEqual(["a.md"]);
+
+      const second = await runOkfConversion({ adapter, scan: scanFor(["a.md"]), options, backupDir: dir });
+
+      expect(second.changed).toEqual([]);
+      expect(second.unchanged).toBe(1);
+      expect(base.store.get("a.md")).toBe(converted);
+      expect(base.store.get(`${dir}/a.md`)).toBe("# a\n");
+      const undo = await rollbackOkfConversion(adapter, dir, second.recipe);
+      expect(undo.restored).toEqual(["a.md"]);
+      expect(base.store.get("a.md")).toBe("# a\n");
     });
 
     it("a note with an open conflict is not converted, neither of its two texts — and the run goes on", async () => {

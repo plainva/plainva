@@ -97,13 +97,11 @@ describe("SyncWorker", () => {
       // The worker reads the whole per-cycle state through ONE snapshot (P2.2).
       getAllStates: vi.fn().mockResolvedValue(new Map()),
       getSyncState: vi.fn(async (path: string) => (await stateRepo.getAllStates.mock.results.at(-1)?.value)?.get(path) ?? null),
-      updateLocalHashAndBaseText: vi.fn().mockResolvedValue(undefined),
-      updateLocalHashAndBaseTextGuarded: vi.fn().mockResolvedValue(undefined),
+      recordSyncedBase: vi.fn().mockResolvedValue(undefined),
       updateLocalHash: vi.fn().mockResolvedValue(undefined),
       updateLocalHashGuarded: vi.fn().mockResolvedValue(undefined),
       updateRemoteState: vi.fn().mockResolvedValue(undefined),
-      updateBaseState: vi.fn().mockResolvedValue(undefined),
-      updateBaseText: vi.fn().mockResolvedValue(undefined),
+      recordPulledVersion: vi.fn().mockResolvedValue(undefined),
       clearPendingPushSha: vi.fn().mockResolvedValue(undefined),
       deleteSyncState: vi.fn().mockResolvedValue(undefined),
       getBaseText: vi.fn().mockResolvedValue(null)
@@ -159,7 +157,7 @@ describe("SyncWorker", () => {
     expect(displaced).not.toContain(".CONFLICT");
     expect(queue.queueWrite).toHaveBeenCalledWith(displaced);
     expect(changed).toContain(displaced);
-    expect(stateRepo.updateBaseState).toHaveBeenCalledWith(original, expect.any(String), "e2");
+    expect(stateRepo.recordSyncedBase).toHaveBeenCalledWith(original, expect.objectContaining({ etag: "e2" }), expect.anything());
     await worker["reconcilePulledFile"](original, "e2", null, 2, [], download);
     expect(files.size).toBe(2);
   });
@@ -418,12 +416,11 @@ describe("SyncWorker", () => {
     await worker.runCycle();
 
     expect(vault.writeTextFile).not.toHaveBeenCalled();
-    expect(stateRepo.updateLocalHashAndBaseText).not.toHaveBeenCalled();
-    expect(stateRepo.updateLocalHashAndBaseTextGuarded).toHaveBeenCalledTimes(1);
-    const [path, newSha, baseText, expected] = stateRepo.updateLocalHashAndBaseTextGuarded.mock.calls[0];
+    expect(stateRepo.recordSyncedBase).toHaveBeenCalledTimes(1);
+    const [path, base, local] = stateRepo.recordSyncedBase.mock.calls[0];
     expect(path).toBe("same.md");
-    expect(baseText).toBe("same content");
-    expect(expected).toBe(newSha); // no-write case: the guard is the locally read hash
+    expect(base.text).toBe("same content");
+    expect(local.expected).toBe(local.sha256); // no-write case: the guard is the locally read hash
   });
 
   it("updates the local marker unconditionally when the reconcile wrote the file (P1)", async () => {
@@ -433,8 +430,9 @@ describe("SyncWorker", () => {
     await worker.runCycle();
 
     expect(vault.writeTextFile).toHaveBeenCalledWith("new.md", "remote content");
-    expect(stateRepo.updateLocalHashAndBaseText).toHaveBeenCalledTimes(1);
-    expect(stateRepo.updateLocalHashAndBaseTextGuarded).not.toHaveBeenCalled();
+    expect(stateRepo.recordSyncedBase).toHaveBeenCalledTimes(1);
+    const [, , local] = stateRepo.recordSyncedBase.mock.calls[0];
+    expect(local).toEqual({ sha256: await sha("remote content") });
   });
 
   it("should handle conflicts when local has pending edits", async () => {
@@ -513,8 +511,8 @@ describe("SyncWorker", () => {
     // Until that upload is through, the common ancestor is the REMOTE version
     // — hash and text. The merged text recorded in its place made the next
     // remote change replace the local one (finding 2026-10-12).
-    expect(stateRepo.updateLocalHashAndBaseText).toHaveBeenCalledWith("note.md", await sha(writeCall![1]), remote);
-    expect(stateRepo.updateBaseState).toHaveBeenCalledWith("note.md", await sha(remote), "etag-remote");
+    expect(stateRepo.recordSyncedBase).toHaveBeenCalledWith("note.md",
+      { sha256: await sha(remote), etag: "etag-remote", text: remote }, { sha256: await sha(writeCall![1]) });
   });
 
   it("does not take a base text for the ancestor that is not the version the base hash names", async () => {
@@ -618,7 +616,8 @@ describe("SyncWorker", () => {
     expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });
     // The local change is not the common ancestor before it has been uploaded:
     // the base text stays the remote version (finding 2026-10-12).
-    expect(stateRepo.updateLocalHashAndBaseTextGuarded).toHaveBeenCalledWith("note.md", await sha(local), remote, await sha(local));
+    expect(stateRepo.recordSyncedBase).toHaveBeenCalledWith("note.md",
+      expect.objectContaining({ text: remote }), { sha256: await sha(local), expected: await sha(local) });
   });
 
   it("reconciles a pending-write file against a changed remote instead of clobbering it (3a)", async () => {
@@ -1279,6 +1278,69 @@ describe("SyncWorker", () => {
       expect(statusSpy.mock.calls.at(-1)?.[1]).toContain("cannot be synced here and are skipped: flagged.md");
     });
 
+    describe("a name this device's file system refuses (Sammelplan § 3.158 Nr. 7)", () => {
+      const listing = () => target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["Q: what.md", "e2"], ["c.md", "e3"]]) });
+      beforeEach(() => {
+        target.download.mockImplementation(async (p: string) => new TextEncoder().encode(`content ${p}`));
+      });
+
+      it("is skipped and named when the write says the name is invalid, and the first cycle completes", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        listing();
+        vault.writeTextFile.mockImplementation(async (p: string) => {
+          if (p === "Q: what.md") throw new Error("temp create failed: The filename, directory name, or volume label syntax is incorrect. (os error 123)");
+        });
+
+        await worker.runCycle();
+
+        expect(vault.writeTextFile.mock.calls.map((c: any[]) => c[0])).toEqual(expect.arrayContaining(["a.md", "c.md"]));
+        expect(spy).toHaveBeenCalledWith({ skipped: ["Q: what.md"], conflictCopies: [] });
+      });
+
+      it("is skipped when the platform gives no reason but the name breaks a file-system rule and no such file exists here", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        listing();
+        vault.exists.mockResolvedValue(false);
+        vault.writeTextFile.mockImplementation(async (p: string) => {
+          if (p === "Q: what.md") throw new Error("Unable to write file");
+        });
+
+        await worker.runCycle();
+
+        expect(spy).toHaveBeenCalledWith({ skipped: ["Q: what.md"], conflictCopies: [] });
+      });
+
+      it("a write that fails for an ordinary name still holds the first cycle", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        target.pull.mockResolvedValueOnce({ etagMap: new Map([["a.md", "e1"], ["b.md", "e2"]]) });
+        vault.writeTextFile.mockImplementation(async (p: string) => {
+          if (p === "b.md") throw new Error("Unable to write file");
+        });
+
+        await worker.runCycle();
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+
+      it("a portable-rule name whose write failed on the network still holds the first cycle", async () => {
+        const spy = vi.fn();
+        worker.onFirstCycleComplete = spy;
+        listing();
+        vault.exists.mockResolvedValue(false);
+        target.download.mockImplementation(async (p: string) => {
+          if (p === "Q: what.md") throw new Error("network timeout");
+          return new TextEncoder().encode(`content ${p}`);
+        });
+
+        await worker.runCycle();
+
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
+
     describe("a file refused for good (review 2026-10-27)", () => {
       // The vault database's store of refused files, as SyncStateRepository keeps it.
       let refused: Map<string, { path: string; reason: string; etag: string; attempts: number; retryAt: number }>;
@@ -1821,8 +1883,7 @@ describe("SyncWorker", () => {
       // No conflict copy, the (newer) local file untouched…
       expect(vault.writeTextFile).not.toHaveBeenCalled();
       // …the echo became the new common ancestor…
-      expect(stateRepo.updateBaseText).toHaveBeenCalledWith("note.md", p1);
-      expect(stateRepo.updateBaseState).toHaveBeenCalledWith("note.md", await sha(p1), "etag-p1");
+      expect(stateRepo.recordSyncedBase).toHaveBeenCalledWith("note.md", { sha256: await sha(p1), etag: "etag-p1", text: p1 });
       expect(stateRepo.clearPendingPushSha).toHaveBeenCalledWith("note.md");
       // …and the newer local content is (re-)queued for push.
       expect(queue.queueWrite).toHaveBeenCalledWith("note.md", { supersedeRefused: false });

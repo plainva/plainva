@@ -19,6 +19,7 @@ import {
   TextArea,
   useAiSession,
   useAiState,
+  useDiscardGuard,
   useLearnFlow,
   useLearnSurfaces,
   useSkillDraftReview,
@@ -185,13 +186,15 @@ function SkillDraftModal({ session, state, draftId, onClose }: DialogProps & { d
   const { t } = useTranslation();
   const review = useSkillDraftReview(session, state, draftId, onClose);
   const { facts, change } = review;
+  // Reworked instructions are asked about; the draft itself stays under "Open" (finding 2026-10-22).
+  const cancel = useDiscardGuard(facts !== null && review.body !== facts.body, onClose);
   if (!facts || !change) return null;
   return (
     <Modal
       title={facts.title}
       icon={<GraduationCap size={ICON.ui} />}
       size="lg"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-skill-draft"
       footer={
         <>

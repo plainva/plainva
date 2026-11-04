@@ -216,7 +216,7 @@ export function NoteContextSheet({
       }
       const q = vault.queryService;
       if (q) {
-        const links = await q.getBacklinks(path);
+        const links = await q.getBacklinks(path, { visibleOnly: true });
         // One row per source with its places (P7): the same grouping and the
         // same outline context the desktop panel shows.
         const bl = [];
@@ -384,6 +384,9 @@ export function NoteContextSheet({
           {tab === "props" && (
             <>
               {unreadable && <p className="m-hint" data-testid="props-unreadable">{t("properties.unreadableBlock")}</p>}
+              {/* A note without properties says so, as the desktop's panel does
+                  (open-items plan 3.144 no. 6: the sheet said nothing). */}
+              {!unreadable && genericProps.length === 0 && <p className="m-hint" data-testid="props-none">{t("properties.noProperties")}</p>}
               {genericProps.map(([k, v]) => {
                 const locked = LOCKED.has(k) || !canWrite;
                 const row = { key: k, value: v, editable: !locked };

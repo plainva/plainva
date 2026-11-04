@@ -11,6 +11,7 @@ import { useDeepLinkNav } from "./hooks/useDeepLinkNav";
 import { initialNavState, navTop, type NavState } from "./navigation";
 import { activeLeaveGuard, armLeaveGuard, resetLeaveGuard } from "./services/leaveGuard";
 import { currentMobileDialog, dismissMobileDialog } from "./services/mobileDialogs";
+import { resetRefusedSendsForTests } from "./services/mail/refusedSend";
 import { createNavActions } from "./services/navActions";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -85,6 +86,7 @@ beforeEach(() => {
   mocks.appendDraft.mockClear();
   resetLeaveGuard();
   toast.clearAll();
+  resetRefusedSendsForTests();
   left = 0;
   nav = createNavActions(() => void (left += 1), () => {});
   setPlatformServices({
@@ -117,7 +119,7 @@ const settle = () =>
 /** Renders the composer for a draft — a new screen for a new draft, like a pushed entry. */
 async function open(draft: MailDraft) {
   await act(async () => {
-    root.render(<MailComposeScreen key={draftPath(draft)} draft={draft} onBack={nav.pop} onDone={nav.done} vault={vault} />);
+    root.render(<MailComposeScreen key={draftPath(draft)} draft={draft} onBack={nav.pop} onDone={() => nav.done({ kind: "mailcompose", path: "" })} vault={vault} />);
   });
   await settle();
 }

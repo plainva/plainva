@@ -7,7 +7,7 @@ import { SourceConditionEditor } from "./SourceConditionEditor";
 import { buildWizardConfig, collectWizardColumns, type WizardColumn, type WizardNewColumn } from "./createWizardModel";
 import { listVaultFolders } from "../../services/vaultFolders";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
-import { Button, ICON, IconButton, Modal } from "@plainva/ui";
+import { Button, ICON, IconButton, Modal, useDiscardGuard } from "@plainva/ui";
 
 // Creation wizard of a new `.base` (plan W3, P1/P2): step 1 picks the data
 // source (folders/tags, combinable; a brand-new folder starts from zero), step
@@ -33,6 +33,8 @@ export function BaseCreateWizard({
   const [newColumns, setNewColumns] = useState<WizardNewColumn[]>([]);
   const [newPropName, setNewPropName] = useState("");
   const [newPropType, setNewPropType] = useState("text");
+  // A database set up here and not yet created is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(clauses.length > 0 || tags.length > 0 || newColumns.length > 0 || newPropName.trim() !== "", onCancel);
 
   useEffect(() => {
     if (!queryService) return;
@@ -96,7 +98,7 @@ export function BaseCreateWizard({
     // hand-rolled dialog: same groups, same cards, same spacing. The wizard used
     // its own cramped markup, which is what the maintainer kept seeing.
     <Modal
-      onClose={onCancel}
+      onClose={cancel}
       title={`${t("database.wizardTitle", "Neue Datenbank")}: ${fileName}`}
       icon={<Database size={ICON.ui} color="var(--accent-color)" />}
       size="md"
@@ -104,7 +106,7 @@ export function BaseCreateWizard({
       bodyClassName="base-cfg-body"
       footer={
         <>
-          <Button variant="ghost" onClick={onCancel}>{t("common.cancel", "Abbrechen")}</Button>
+          <Button variant="ghost" onClick={cancel}>{t("common.cancel", "Abbrechen")}</Button>
           <Button
             variant="primary"
             disabled={!canCreate}

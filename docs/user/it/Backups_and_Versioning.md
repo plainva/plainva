@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-10-08
+Ultimo aggiornamento: 2026-10-30
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -10,7 +10,7 @@ Prima di ogni salvataggio, Plainva memorizza uno snapshot dello stato precedente
 
 Conservazione (configurabile per vault):
 
-- **Intervallo degli snapshot**: A ogni modifica / 30 s / 2 min / 5 min / 10 min
+- **Intervallo degli snapshot**: A ogni modifica / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versioni per file**: predefinito 100 — oltre questo numero vengono rimosse le più vecchie
 - **Età massima**: predefinito 90 giorni — le versioni più vecchie vengono rimosse **definitivamente** da una pulizia giornaliera ("Illimitata" disattiva questo limite)
 - **File di grandi dimensioni**: oltre 5 MB viene conservata solo la versione più recente — vedi sotto
@@ -31,7 +31,7 @@ Anche le immagini hanno versioni (con anteprima); gli altri file binari possono 
 
 ## Ripristinare i file eliminati
 
-Poiché ogni eliminazione crea prima uno snapshot del file, Plainva può recuperare i file eliminati: clic destro sul nome del vault in cima all'albero dei file → **Ripristina i file eliminati…** (raggiungibile anche dalle impostazioni). L'elenco mostra tutti i file i cui snapshot esistono ancora mentre l'originale è sparito — **Ripristina** ricrea lo stato più recente nella posizione originale (le cartelle vengono ricreate se necessario), **Versioni…** apre la cronologia completa del file eliminato.
+Poiché ogni eliminazione crea prima uno snapshot del file, Plainva può recuperare i file eliminati: clic destro sul nome del vault in cima all'albero dei file → **Ripristina i file eliminati…** (raggiungibile anche in **Impostazioni → Vault → Backup e cronologia delle versioni → Cronologia delle versioni**). L'elenco mostra tutti i file i cui snapshot esistono ancora mentre l'originale è sparito — **Ripristina** ricrea lo stato più recente nella posizione originale (le cartelle vengono ricreate se necessario), **Versioni…** apre la cronologia completa del file eliminato.
 
 Nota: eliminare un'**intera cartella** la sposta nel cestino del sistema operativo — in questo caso il cestino di sistema è il modo principale per recuperarla; in Plainva potresti trovare solo snapshot più vecchi dei file contenuti.
 
@@ -67,9 +67,11 @@ Impostazioni → **Vault** → **Backup e cronologia delle versioni**:
 - La sincronizzazione propria di Plainva non trasferisce mai `.plainva`. Se sincronizzi la cartella del vault con un client di terze parti (ad es. l'app di Nextcloud), gli snapshot viaggiano insieme — questo costa un po' di spazio, ma non causa danni.
 - I conflitti di sincronizzazione sono protetti aggiuntivamente tramite file `.CONFLICT` (vedi le [FAQ](FAQ.md)); la cronologia delle versioni completa questo con la storia temporale di ogni file.
 
+Sul telefono **Backup ZIP** è il primo gruppo della pagina **Backup e cronologia delle versioni**; segue la **Cronologia delle versioni**, che termina con **Ripristina i file eliminati**.
+
 Su mobile, un errore nel salvataggio di una nota interrompe il cambio, il ricaricamento o la rimozione del vault. Il testo resta in attesa di un nuovo tentativo. Note con lo stesso nome in vault diversi mantengono salvataggi e bozze separati. Un conflitto conserva la versione interessata; il testo digitato dopo viene salvato separatamente o in un’altra copia di conflitto. Entrambe le interfacce ordinano scritture e rimozioni del registro delle bozze, impedendo a un completamento tardivo di eliminare una copia più recente. Se la copia di conflitto fallisce, il testo dell’editor mobile rimane invariato.
 
-Un backup ZIP risulta riuscito solo dopo la lettura di tutti i file selezionati e il salvataggio dell’archivio completo. Un tentativo fallito non elimina gli archivi precedenti e non modifica l’ora dell’ultimo backup riuscito. Su mobile, gli errori automatici indicano il vault; **Esegui backup ora** nelle sue impostazioni avvia un nuovo tentativo. La configurazione nascosta dell’utente, come `.obsidian`, è inclusa su entrambe le piattaforme. Le cartelle `.plainva`, `.git`, `.trash` e `node_modules` restano escluse a ogni livello. Se vengono creati più archivi nello stesso secondo, il nuovo nome riceve un suffisso come `_001`.
+Un backup ZIP risulta riuscito solo dopo la lettura di tutti i file selezionati e il salvataggio dell’archivio completo. Un tentativo fallito non elimina gli archivi precedenti e non modifica l’ora dell’ultimo backup riuscito. Su mobile, gli errori automatici indicano il vault; **Esegui backup ora** in **Backup e cronologia delle versioni** → **Backup ZIP** avvia un nuovo tentativo. La configurazione nascosta dell’utente, come `.obsidian`, è inclusa su entrambe le piattaforme. Le cartelle `.plainva`, `.git`, `.trash` e `node_modules` restano escluse a ogni livello. Se vengono creati più archivi nello stesso secondo, il nuovo nome riceve un suffisso come `_001`.
 
 Il salvataggio viene indicato come completato solo dopo la conferma della scrittura. Il testo inserito durante un salvataggio rimane in attesa finché non viene scritta la sua versione. Le bozze desktop appartengono alla rispettiva sessione dell’editor: il completamento di una vecchia sessione non elimina la bozza di un editor appena aperto. Se arrivano contemporaneamente modifiche esterne, Plainva unisce quelle compatibili; il testo in conflitto rimane disponibile nella bozza e in una copia di conflitto.
 

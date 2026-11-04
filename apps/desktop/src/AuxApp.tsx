@@ -3,7 +3,7 @@ import { useTabTransferSource } from "./hooks/useTabTransfer";
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyState, ICON, IconButton, toast } from "@plainva/ui";
+import { EmptyState, ICON, IconButton, setPendingSearchJump, toast } from "@plainva/ui";
 import { ArrowLeftToLine, PanelRight } from "lucide-react";
 import { RightSidebar, type SectionId } from "./components/RightSidebar";
 import { windowStateKey } from "./services/windowContext";
@@ -18,7 +18,8 @@ import { usePaneLayout } from "./hooks/usePaneLayout";
 import { useAuxBridge } from "./hooks/useAuxBridge";
 import { popOutCompose } from "./services/mail/composeWindow";
 import { currentWindowParams } from "./services/windowContext";
-import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
+import { useWindowTitle } from "./services/windowTitle";
+import { useVaultWeekStart } from "./services/weekStartVault";
 import { useApp } from "./contexts/AppContext";
 import { virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
@@ -204,10 +205,12 @@ export function AuxApp() {
   // A compose window keeps the title the owner gave it: the SUBJECT of the
   // message. Two composers in the taskbar are otherwise two entries called
   // "Plainva", and this window never learns a file name to replace it with.
-  useOsWindowTitle(
+  // The week start of the vault this window shows (decision E4).
+  useVaultWeekStart(params.vaultPath);
+  useWindowTitle(
     params.role === "compose"
       ? null
-      : composeWindowTitle({ subject: title, vaultPath: params.vaultPath, vaultCount: heldVaults.length }),
+      : { subject: title, vaultPath: params.vaultPath, vaultCount: heldVaults.length },
   );
 
   /**
@@ -229,7 +232,12 @@ export function AuxApp() {
     void getWindowBus()
       .then(async (bus) => {
         const un = await bus.onBroadcast("set-content", (payload) => {
-          if (payload.label === label && payload.path) openInFocusedPane(payload.path, true);
+          if (payload.label !== label || !payload.path) return;
+          // A place in the note (a checkbox reminder's line) is parked before
+          // the note opens and poked after, for a note already on screen.
+          if (payload.term) setPendingSearchJump({ path: payload.path, term: payload.term });
+          openInFocusedPane(payload.path, true);
+          if (payload.term) window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: payload.path } }));
         });
         if (cancelled) un();
         else stop = un;
@@ -519,11 +527,8 @@ export function AuxApp() {
             onResolved={(outcome) => {
               bridge.closeCompare();
               closeTabsByPrefix(outcome.conflictPath);
-              if (outcome.mergedContent !== null) {
-                // Same adoption path as a version restore: the open editor
-                // takes the merged text without re-dirtying or racing a save.
-                window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: outcome.originalPath, content: outcome.mergedContent } }));
-              }
+              // The open editor of the file heard of the answer from the
+              // comparison itself, whichever it was (§ 3.86 no. 7).
               triggerFileTreeUpdate(outcome.touched);
             }}
           />
@@ -536,6 +541,7 @@ export function AuxApp() {
             attachments={bridge.mailDraft.attachments}
             initialTo={bridge.mailDraft.to}
             initialAccountId={bridge.mailDraft.accountId}
+            initialFromAddress={bridge.mailDraft.fromAddress}
             forward={bridge.mailDraft.forward}
             onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
             onClose={bridge.closeMailDraft}

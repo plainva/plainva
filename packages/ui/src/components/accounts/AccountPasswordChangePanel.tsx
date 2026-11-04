@@ -3,15 +3,18 @@ import { useTranslation } from "react-i18next";
 import { beginPasswordChange, resumePasswordChange, readPasswordChangeStatus, PasswordChangeError, type PasswordChangePorts, type PasswordChangeStatus } from "../../lib/accountPasswordChange";
 import { serviceLabel } from "../../lib/cloudAccountsLabels";
 import type { CloudServiceId } from "../../lib/cloudAccounts";
+import { connectNewSecretLabelKey, connectSecretLabelKey, type ConnectSecretKind } from "../../lib/connectAccess";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/Field";
-import { SettingCard, SettingRow } from "../ui/SettingsSurface";
+import { SettingCard, SettingCardActions, SettingCardBlock, SettingRow } from "../ui/SettingsSurface";
 
 /** The same durable completion surface in both shells. Ports carry the
  * captured vault and account; UI state contains only non-secret progress. */
-export function AccountPasswordChangePanel({ ports }: { ports: PasswordChangePorts }) {
+export function AccountPasswordChangePanel({ ports, secret }: { ports: PasswordChangePorts; secret?: ConnectSecretKind }) {
   const { t } = useTranslation();
+  // The field is named after the secret it takes: "New app password", "New secret key" (settings plan 2026-10-29, § 5.1).
+  const fieldLabel = t(secret ? connectNewSecretLabelKey(secret) : "cloudAccounts.newPassword");
   const fieldId = useId();
   const currentPorts = useRef(ports);
   const generation = useRef(0);
@@ -71,27 +74,28 @@ export function AccountPasswordChangePanel({ ports }: { ports: PasswordChangePor
     }
   };
 
-  return <SettingCard label={t("cloudAccounts.credentialsGroup")}>
-    <div data-testid="account-password-change" style={{ display: "grid", gap: "var(--space-3)", padding: "var(--space-3)" }}>
-      {busy && <Banner kind="info" rounded>{t(status?.phase === "verifying" ? "cloudAccounts.passwordVerifying" : "cloudAccounts.passwordSaving")}</Banner>}
-      {pending && !busy && <Banner kind="warning" rounded actions={checked && !status?.bindingChanged ? <Button size="sm" variant="secondary" onClick={() => void run(true)} data-testid="password-change-resume">{t("cloudAccounts.passwordResume")}</Button> : undefined}>
-        {t(status?.bindingChanged ? "cloudAccounts.passwordBindingChanged" : "cloudAccounts.passwordRepairBody")}
-      </Banner>}
-      {errorKey && <Banner kind="error" rounded actions={!checked && !busy ? <Button size="sm" variant="secondary" onClick={() => void reload()}>{t("cloudAccounts.passwordRetryRead")}</Button> : undefined}>{t(errorKey)}</Banner>}
-      {status?.phase === "complete" && !errorKey && <Banner kind="success" rounded>{t("cloudAccounts.passwordUpdated")}</Banner>}
-      {status && <div aria-live="polite" style={{ display: "grid", gap: "var(--space-2)" }}>
-        {(Object.keys(status.services) as CloudServiceId[]).map((service) => <div key={service}>
-          <strong>{serviceLabel(service)}</strong>{" · "}
-          {t(status.services[service] === "confirmed" ? "cloudAccounts.passwordStored" : "cloudAccounts.passwordPending")}
-        </div>)}
-      </div>}
-      {pending && !replacePending && !busy && checked && <Button variant="secondary" onClick={() => setReplacePending(true)}>{t("cloudAccounts.passwordRecheck")}</Button>}
-      {(!pending || replacePending) && <SettingRow label={t("cloudAccounts.newPassword")} desc={t("cloudAccounts.newPasswordDesc")} wide>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", width: "100%" }}>
-          <TextInput id={fieldId} aria-label={t("cloudAccounts.newPassword")} placeholder={t("settings.password")} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy || !checked} style={{ flex: "1 1 auto", minWidth: 0 }} data-testid="cloudacct-new-password" />
-          <Button variant="secondary" disabled={busy || !checked || !password.trim()} onClick={() => void run(false)} data-testid="cloudacct-update-password">{t(replacePending ? "cloudAccounts.passwordRecheck" : "cloudAccounts.updatePassword")}</Button>
-        </div>
-      </SettingRow>}
-    </div>
+  // Every part is a row of the card: the card has no inset of its own, and the
+  // panel used to put all of it into one padded box, a row inside it included
+  // (settings plan 2026-10-29, P1).
+  return <SettingCard label={t("cloudAccounts.credentialsGroup")} testId="account-password-change">
+    {busy && <SettingCardBlock><Banner kind="info" rounded>{t(status?.phase === "verifying" ? "cloudAccounts.passwordVerifying" : "cloudAccounts.passwordSaving")}</Banner></SettingCardBlock>}
+    {pending && !busy && <SettingCardBlock><Banner kind="warning" rounded actions={checked && !status?.bindingChanged ? <Button size="sm" variant="secondary" onClick={() => void run(true)} data-testid="password-change-resume">{t("cloudAccounts.passwordResume")}</Button> : undefined}>
+      {t(status?.bindingChanged ? "cloudAccounts.passwordBindingChanged" : "cloudAccounts.passwordRepairBody")}
+    </Banner></SettingCardBlock>}
+    {errorKey && <SettingCardBlock><Banner kind="error" rounded actions={!checked && !busy ? <Button size="sm" variant="secondary" onClick={() => void reload()}>{t("cloudAccounts.passwordRetryRead")}</Button> : undefined}>{t(errorKey)}</Banner></SettingCardBlock>}
+    {status?.phase === "complete" && !errorKey && <SettingCardBlock><Banner kind="success" rounded>{t("cloudAccounts.passwordUpdated")}</Banner></SettingCardBlock>}
+    {status && <SettingCardBlock><div aria-live="polite" style={{ display: "grid", gap: "var(--space-2)" }}>
+      {(Object.keys(status.services) as CloudServiceId[]).map((service) => <div key={service}>
+        <strong>{serviceLabel(service)}</strong>{" · "}
+        {t(status.services[service] === "confirmed" ? "cloudAccounts.passwordStored" : "cloudAccounts.passwordPending")}
+      </div>)}
+    </div></SettingCardBlock>}
+    {pending && !replacePending && !busy && checked && <SettingCardActions><Button variant="secondary" onClick={() => setReplacePending(true)}>{t("cloudAccounts.passwordRecheck")}</Button></SettingCardActions>}
+    {(!pending || replacePending) && <SettingRow label={fieldLabel} info={t("cloudAccounts.newPasswordDesc")} wide>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", width: "100%" }}>
+        <TextInput id={fieldId} aria-label={fieldLabel} placeholder={t(secret ? connectSecretLabelKey(secret) : "settings.password")} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy || !checked} style={{ flex: "1 1 auto", minWidth: 0 }} data-testid="cloudacct-new-password" />
+        <Button variant="secondary" disabled={busy || !checked || !password.trim()} onClick={() => void run(false)} data-testid="cloudacct-update-password">{t(replacePending ? "cloudAccounts.passwordRecheck" : "cloudAccounts.updatePassword")}</Button>
+      </div>
+    </SettingRow>}
   </SettingCard>;
 }

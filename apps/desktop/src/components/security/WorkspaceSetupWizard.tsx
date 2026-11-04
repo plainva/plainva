@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { Banner, Button, Modal, SettingCardNote, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, toast } from "@plainva/ui";
+import { Banner, Button, Modal, SettingCardNote, TextInput, useDiscardGuard, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, toast } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../../contexts/VaultContext";
 import { credentialManager } from "../../services/CredentialManager";
@@ -33,6 +33,13 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
   const [codeRevealed, setCodeRevealed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A prepared key is destroyed when the wizard goes, and a typed name or
+  // passphrase is lost: both are asked about, as on the phone (finding 2026-10-22).
+  const cancel = useDiscardGuard(
+    step < 3 && (prepared !== null || ownerName.trim() !== "" || fallbackPassphrase !== ""),
+    onClose,
+    prepared !== null ? t("mobile.leaveWizard") : undefined,
+  );
   /**
    * Once activation has started, the draft belongs to the sweep, not to this
    * dialog: the unmount cleanup below must not discard it. The wizard closes
@@ -131,7 +138,7 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
       : t("workspaceSecurity.recoveryReady");
 
   return (
-    <Modal title={t("workspaceSecurity.setupTitle")} onClose={() => { if (!busy) onClose(); }} size="md">
+    <Modal title={t("workspaceSecurity.setupTitle")} onClose={() => { if (!busy) cancel(); }} size="md">
       <div className="pv-security-wizard">
         <div className="pv-security-steps" aria-label={t("workspaceSecurity.setupProgress", { step })}>
           <span data-active={step === 1}>{t("workspaceSecurity.stepIdentity")}</span>
@@ -226,7 +233,7 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
         )}
         {error && <Banner kind="error" rounded>{error}</Banner>}
         <div className="pv-security-actions">
-          <Button variant="ghost" disabled={busy} onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="ghost" disabled={busy} onClick={cancel}>{t("common.cancel")}</Button>
           {step === 1 && <Button variant="primary" disabled={busy || !ownerName.trim() || !deviceName.trim() || (fallbackRequired && (fallbackPassphrase.length < 10 || fallbackPassphrase !== fallbackPassphraseConfirm))} onClick={() => void createRecovery()}>{t("splash.continue")}</Button>}
           {step === 2 && <Button variant="primary" disabled={busy || !saved || !challengeConfirmed} onClick={activateNow}>{t("workspaceSecurity.activate")}</Button>}
         </div>

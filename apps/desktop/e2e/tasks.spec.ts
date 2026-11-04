@@ -228,12 +228,15 @@ test.beforeEach(async ({ page }) => {
           const root = String(args.rootId).replace(/^mock-root:/, '');
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
+          // A test lets the disk refuse a file (`fs.__refused`), as the OS does for a read-only one.
+          if ((fs.__refused ?? []).includes(p)) throw 'Access is denied. (os error 5)';
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
           return null;
         }
         if (cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
           const rawPath = options?.headers?.path ? decodeURIComponent(options.headers.path) : args?.path || '';
           const p = rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
+          if ((fs.__refused ?? []).includes(p)) throw 'Access is denied. (os error 5)';
           const str = cmd === 'plugin:fs|write_text_file' ? new TextDecoder().decode(new Uint8Array(args)) : new TextDecoder().decode(new Uint8Array(args.data || args));
           fs[p] = str;
           return null;
@@ -334,6 +337,23 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
   await page.getByTestId('tasks-filter-all').click();
   await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /done thing/ })).toBeVisible();
+});
+
+test('a checkbox whose note refuses the write says so, with its reason, and stays as the note is (Sammelplan 3.134 no. 2)', async ({ page }, testInfo) => {
+  await openVault(page);
+  await openTasks(page);
+  await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
+  // The disk refuses the note from now on.
+  await page.evaluate(() => { (window as any).mockFs.__refused = ['/test-vault/Todo.md']; });
+  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=../preceding-sibling::button[1]').click();
+
+  // The box used to spring back without a word, the reason only in the console.
+  const said = page.locator('.pv-toast--error', { hasText: /The checkbox could not be changed: Access is denied\. \(os error 5\)|Die Checkbox konnte nicht geändert werden: Access is denied/ });
+  await expect(said).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath('checkbox-refused.png') });
+  // The note is what it was, and the task is still open.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('- [ ] buy milk');
+  await expect(page.getByRole('button', { name: /buy milk/ })).toBeVisible();
 });
 
 test('hiding a note writes plainva.tasks: false and drops it until "show hidden"', async ({ page }) => {
@@ -1303,6 +1323,36 @@ test('the capture fields offer notes after [[ and tags after # (plan Befunde 202
   expect(errors).toEqual([]);
 });
 
+test('the journal capture asks before Escape takes what was typed: Cancel keeps it, Discard closes, an empty one closes at once (finding 2026-10-22)', async ({ page }, testInfo) => {
+  await openVault(page);
+  const dialog = page.getByTestId('journal-capture-dialog');
+  const field = dialog.getByTestId('journal-capture-input');
+  const question = page.getByRole('dialog', { name: /^(Discard your input\?|Eingaben verwerfen\?)$/ });
+
+  // Nothing typed: Escape closes at once, nothing asks.
+  await page.keyboard.press('Control+Shift+J');
+  await expect(field).toBeVisible();
+  await field.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(question).toHaveCount(0);
+
+  // Typed: Escape asks first. THE DEFECT: the entry went without a word.
+  await page.keyboard.press('Control+Shift+J');
+  await field.fill('The heron was back on the railing');
+  await field.press('Escape');
+  await expect(question).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('journal-capture-discard-question.png') });
+  await question.getByRole('button', { name: /^(Cancel|Abbrechen)$/ }).click();
+  await expect(question).toHaveCount(0);
+  await expect(field).toHaveValue('The heron was back on the railing');
+
+  // The dialog's own Cancel asks the same; Discard closes.
+  await dialog.getByRole('button', { name: /^(Cancel|Abbrechen)$/ }).click();
+  await question.getByRole('button', { name: /^(Discard|Verwerfen)$/ }).click();
+  await expect(dialog).toBeHidden();
+});
+
 test('bookmarks are arranged by dragging a row or with Alt+Arrow, and the order is the file\'s (plan Befunde 2026-10-06, W6)', async ({ page }) => {
   await page.addInitScript(() => {
     const fs = (window as any).mockFs;
@@ -1353,4 +1403,50 @@ test('bookmarks are arranged by dragging a row or with Alt+Arrow, and the order 
   await expect(rows.nth(3)).toHaveClass(/is-drop-after/);
   await page.mouse.up();
   await expect.poll(onDisk).toEqual(['file:Alpha.md', 'file:Beta.md', 'folder:Notes', 'file:Todo.md']);
+});
+
+test('notes that took over a template\'s keys: the notice lists them, and only the ticked ones lose the keys (open-items plan 3.136 no. 1, E2)', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const keys = '---\nplainva:\n  tasks: false\n  templateFor: ["[[Tasks.base]]"]\n---\n';
+    fs['/test-vault/Templates'] = { isDir: true };
+    fs['/test-vault/Templates/Daily.md'] = keys + '# Daily\n- [ ] example task\n';
+    fs['/test-vault/Journal'] = { isDir: true };
+    // A daily note made from that template by an older version: its task is missing.
+    fs['/test-vault/Journal/2026-10-01.md'] = keys + '# 2026-10-01\n- [ ] water the plants\n';
+    // A note hidden on purpose with the eye: the person keeps it hidden.
+    fs['/test-vault/Notes/Hidden.md'] = '---\nplainva:\n  tasks: false\n---\n# Hidden\n- [ ] secret task\n';
+  });
+  await openVault(page);
+  await openTasks(page);
+
+  const notice = page.getByTestId('template-keys-notice');
+  await expect(page.getByTestId('template-keys-banner')).toHaveText(/: 2$/, { timeout: 20000 });
+  // The template itself is not offered: the keys belong there.
+  await expect(notice.getByTestId('template-keys-row')).toHaveCount(2);
+  await expect(notice.getByTestId('template-keys-row').nth(0)).toContainText('2026-10-01');
+  await expect(notice.getByTestId('template-keys-row').nth(1)).toContainText('Hidden');
+  await expect(page.getByRole('button', { name: /water the plants/ })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('template-keys-notice.png') });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: `${process.env.PLAINVA_EVIDENCE}/desktop-template-keys-notice.png` });
+
+  // Untick the note hidden on purpose, then remove — after the question.
+  await notice.getByTestId('template-keys-pick').nth(1).uncheck();
+  await notice.getByTestId('template-keys-remove').click();
+  await page.getByRole('dialog').getByRole('button', { name: /^(Entfernen|Remove)$/ }).click();
+
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Journal/2026-10-01.md']))
+    .toBe('# 2026-10-01\n- [ ] water the plants\n');
+  const files = await page.evaluate(() => ({
+    hidden: (window as any).mockFs['/test-vault/Notes/Hidden.md'],
+    template: (window as any).mockFs['/test-vault/Templates/Daily.md'],
+  }));
+  expect(files.hidden).toContain('tasks: false');
+  expect(files.template).toContain('templateFor');
+  // The note's task is back, and the notice now lists what is left.
+  await expect(page.getByRole('button', { name: /water the plants/ })).toBeVisible();
+  await expect(notice.getByTestId('template-keys-row')).toHaveCount(1);
+  await notice.getByTestId('template-keys-hide').click();
+  await expect(notice).toHaveCount(0);
 });

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { popTop, pushEntry, replaceTop, type NavEntry, type NavState, type TabScreenId } from "../navigation";
+import { navTop, popTop, pushEntry, replaceTop, type NavEntry, type NavState, type TabScreenId } from "../navigation";
 import { askBeforeLeaving } from "./leaveQuestion";
 import { recallLastOpen, rememberLastOpen } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
@@ -34,8 +34,14 @@ export interface NavActions {
   push: (entry: NavEntry) => void;
   /** Leave the current screen — asks first if it holds unsaved input. */
   pop: () => void;
-  /** Leave the current screen because its work is finished — never asks. */
-  done: () => void;
+  /**
+   * Leave `entry` because its work is finished — never asks. Only that screen
+   * goes (finding 2026-10-22, § 3.139): the exit comes after a send or a key
+   * derivation, and by then something else may be on top — a message begun
+   * meanwhile, which a plain pop took without a word. A screen that is no
+   * longer on top stays where it is.
+   */
+  done: (entry: NavEntry) => void;
   /** Forward step that drops the current screen (a chooser hands over). */
   replace: (entry: NavEntry) => void;
 }
@@ -44,8 +50,8 @@ export function createNavActions(
   setNav: Dispatch<SetStateAction<NavState>>,
   setBump: Dispatch<SetStateAction<number>>,
 ): NavActions {
-  const leave = () => {
-    setNav(popTop);
+  const leave = (entry?: NavEntry) => {
+    setNav((s) => (entry === undefined || navTop(s) === entry ? popTop(s) : s));
     setBump((n) => n + 1);
   };
   return {
@@ -56,7 +62,7 @@ export function createNavActions(
         if (ok) leave();
       });
     },
-    done: leave,
+    done: (entry) => leave(entry),
   };
 }
 

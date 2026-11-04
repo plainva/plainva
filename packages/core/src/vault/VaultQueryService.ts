@@ -1,6 +1,6 @@
 import { trimEndChars } from "../textScan.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
+import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, isWholeVaultFolder, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
 import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
@@ -10,6 +10,14 @@ import { formatTaskProgress, scanTasks, taskProgressOf, type ScannedTask } from 
 
 /** Whether any view of the config renders `file.tasks`: a board (its cards
  * carry the checklist progress) or a view whose column order names it. */
+/** True when a view shows the `file.tags` column or sorts by it — then the rows need their tags. */
+function viewReadsTags(config: any): boolean {
+  const views: any[] = Array.isArray(config?.views) ? config.views : [];
+  return views.some((v) =>
+    (Array.isArray(v?.order) && v.order.includes("file.tags")) ||
+    (Array.isArray(v?.sort) && v.sort.some((s: any) => s && (s.property ?? s.field) === "file.tags")));
+}
+
 function needsTaskProgress(config: any): boolean {
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   return views.some((v) => v?.type === "board" || (Array.isArray(v?.order) && v.order.includes("file.tasks")));
@@ -23,6 +31,10 @@ import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } fro
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
 import { decodeIndexedProperty } from "./indexedProperty.js";
+import { EDITED_AT_SQL } from "./editedAt.js";
+import { isHiddenPath, visiblePathSql } from "./internalPath.js";
+
+export { EDITED_AT_SQL };
 
 export interface FileRecord {
   id: string;
@@ -257,6 +269,8 @@ export class VaultQueryService {
       orderBy = `${column} ${order.dir === "asc" ? "ASC" : "DESC"}`;
     }
 
+    // A hidden file (a dot file, a file in a dot folder) is never a hit (E8).
+    where.push(visiblePathSql("f.path"));
     const operators = operatorClauses(parsed);
     where.push(...operators.where);
     params.push(...operators.params);
@@ -360,7 +374,7 @@ export class VaultQueryService {
     const sql = `
       SELECT id, path, title, mtime_local, size_bytes
       FROM files
-      WHERE title LIKE ? OR path LIKE ?
+      WHERE (title LIKE ? OR path LIKE ?) AND ${visiblePathSql("path")}
       ORDER BY 
         CASE 
           WHEN title LIKE ? THEN 1
@@ -379,6 +393,7 @@ export class VaultQueryService {
     const sql = `
       SELECT id, path, title, mtime_local, size_bytes
       FROM files
+      WHERE ${visiblePathSql("path")}
       ORDER BY mtime_local DESC
       LIMIT ?
     `;
@@ -538,24 +553,31 @@ export class VaultQueryService {
   }
 
   /**
-   * Notes touched inside a time window (mtime_local, [from, to) in ms) —
+   * Notes edited inside a time window ([from, to) in ms, `EDITED_AT_SQL`) —
    * the mobile Today tab's "edited on this day" list (R3.5). Attachments
    * and .base files never appear; newest first.
+   *
+   * "Edited" is not the file's modification time: a file the sync downloaded
+   * carries the moment of the download, and a fresh connection listed every
+   * pulled note as edited today (Sammelplan § 3.164).
    */
   async listNotesModifiedBetween(
     fromMs: number,
     toMs: number,
-  ): Promise<{ path: string; title: string; mtime_local: number }[]> {
-    const rows = await this.db.query<{ path: string; title: string | null; mtime_local: number }>(
-      `SELECT path, title, mtime_local FROM files
-       WHERE mode != 'attachment' AND path NOT LIKE '%.base'
-         AND mtime_local >= ? AND mtime_local < ?
-       ORDER BY mtime_local DESC`,
+  ): Promise<{ path: string; title: string; editedAt: number }[]> {
+    const rows = await this.db.query<{ path: string; title: string | null; edited_at: number }>(
+      `SELECT path, title, edited_at FROM (
+         SELECT f.path AS path, f.title AS title, ${EDITED_AT_SQL} AS edited_at
+           FROM files f LEFT JOIN sync_state s ON s.path = f.path
+          WHERE f.mode != 'attachment' AND f.path NOT LIKE '%.base' AND ${visiblePathSql("f.path")}
+       )
+       WHERE edited_at >= ? AND edited_at < ?
+       ORDER BY edited_at DESC`,
       [fromMs, toMs],
     );
     return rows
       .filter((r) => !!r.path)
-      .map((r) => ({ path: r.path, title: r.title || r.path, mtime_local: r.mtime_local }));
+      .map((r) => ({ path: r.path, title: r.title || r.path, editedAt: Number(r.edited_at) }));
   }
 
   /** Every .base database in the vault (mobile databases hub, R2.4). */
@@ -588,7 +610,7 @@ export class VaultQueryService {
     const rows = await this.db.query<{ folder: string; n: number }>(
       `SELECT substr(rest, 1, instr(rest, '/') - 1) AS folder, COUNT(*) AS n
        FROM (SELECT substr(path, ?) AS rest FROM files
-             WHERE mode != 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\')
+             WHERE mode != 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\' AND ${visiblePathSql("path")})
        WHERE instr(rest, '/') > 0
        GROUP BY folder`,
       [prefix.length + 1, `${escapeLikePrefix(prefix)}%`],
@@ -614,7 +636,7 @@ export class VaultQueryService {
 
   async listBases(): Promise<{ path: string; title: string }[]> {
     const rows = await this.db.query<{ path: string; title: string | null }>(
-      `SELECT path, title FROM files WHERE path LIKE '%.base' ORDER BY path`,
+      `SELECT path, title FROM files WHERE path LIKE '%.base' AND ${visiblePathSql("path")} ORDER BY path`,
       [],
     );
     return rows
@@ -635,7 +657,8 @@ export class VaultQueryService {
     );
     const out: TaskRecord[] = [];
     for (const r of rows) {
-      if (!r.path) continue;
+      // A hidden note's tasks are not listed (E8).
+      if (!r.path || isHiddenPath(r.path)) continue;
       const content = r.content ?? "";
       const scanned = scanTasks(content);
       if (scanned.length === 0) continue;
@@ -649,6 +672,32 @@ export class VaultQueryService {
       }
     }
     return out;
+  }
+
+  /**
+   * The notes that carry one of the two keys a TEMPLATE carries for itself:
+   * `plainva.tasks: false` (its tasks stay out of the tasks view) or
+   * `plainva.templateFor` (the databases it is the template of). A note made
+   * from a template by a version up to 0.8.5 took them over (open-items plan
+   * 3.136 no. 1, decision E2); which of them are left over and which were set
+   * on purpose only the person can tell, so this only lists them — the
+   * caller leaves out the template folder. Read from the index's copy of each
+   * note's text, as `listTasks` reads it.
+   */
+  async listTemplateKeyNotes(): Promise<Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }>> {
+    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
+      `SELECT path, title, content FROM fts_notes WHERE content LIKE '%templateFor%' OR content LIKE '%tasks%'`,
+      [],
+    );
+    const out: Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }> = [];
+    for (const r of rows) {
+      if (!r.path || !r.content) continue;
+      const hidesTasks = readFrontmatterPath(r.content, ["plainva", "tasks"]) === false;
+      const templateFor = readFrontmatterPath(r.content, ["plainva", "templateFor"]) != null;
+      if (!hidesTasks && !templateFor) continue;
+      out.push({ path: r.path, title: r.title || r.path.split("/").pop()!.replace(/\.md$/i, ""), hidesTasks, templateFor });
+    }
+    return out.sort((a, b) => a.path.localeCompare(b.path));
   }
 
   /**
@@ -760,7 +809,8 @@ export class VaultQueryService {
     );
     const out: VaultFindResult[] = [];
     for (const r of rows) {
-      if (!r.path) continue;
+      // Replace across the vault never reaches into a file the user does not see (E8).
+      if (!r.path || isHiddenPath(r.path)) continue;
       const matches = findMatchesInText(r.content ?? "", query, opts);
       if (matches.length === 0) continue;
       out.push({
@@ -892,8 +942,12 @@ export class VaultQueryService {
 
   /**
    * Finds all files that link to the given path (Backlinks).
+   *
+   * `visibleOnly`: what a backlinks LIST shows — no link out of a hidden file
+   * (E8). A rename or a rewrite asks without it: a link in a hidden note is
+   * still a link, and it must follow the note it leads to.
    */
-  async getBacklinks(targetPath: string): Promise<LinkRecord[]> {
+  async getBacklinks(targetPath: string, options: { visibleOnly?: boolean } = {}): Promise<LinkRecord[]> {
     // 1. The files a link can lead to — the one corpus of the link rule
     // (`linkTargets`). `.base` files are indexed as attachments but ARE
     // legitimate link targets (embeds, template assignments): without them a
@@ -935,7 +989,7 @@ export class VaultQueryService {
         l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
       FROM links l
       JOIN files f ON f.id = l.source_id
-      WHERE ${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")}
+      WHERE (${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")})${options.visibleOnly ? ` AND ${visiblePathSql("f.path")}` : ""}
       ORDER BY f.path COLLATE NOCASE ASC, l.line_number ASC
     `;
     const candidateLinks = await this.db.query<LinkRecord>(sql, [...patterns]);
@@ -958,6 +1012,36 @@ export class VaultQueryService {
     }
 
     return resolvedLinks;
+  }
+
+  /**
+   * Every link that names a file of this name at its END — the name alone or
+   * behind folders, for a note with or without `.md` —, in any spelling the
+   * link rule reads as the same name, wherever it leads now. Out of live
+   * notes, ordered by note and line. The candidates `getBacklinks` resolves
+   * for one file, asked for a NAME: a new file of that name can take any of
+   * them over (an adoption that makes a note `index.md` takes over every bare
+   * `[[index]]` the link rule then finds it for, Sammelplan § 3.135 Nr. 6).
+   */
+  async linksNamingFile(fileName: string): Promise<LinkRecord[]> {
+    const isNote = /\.md$/i.test(fileName);
+    const patterns = new Set<string>();
+    for (const spelling of likeAnySpelling(isNote ? fileName.replace(/\.md$/i, "") : fileName)) {
+      for (const tail of isNote ? [spelling, `${spelling}.md`] : [spelling]) {
+        patterns.add(tail);
+        patterns.add(`%/${tail}`);
+      }
+    }
+    if (patterns.size === 0) return [];
+    return this.db.query<LinkRecord>(
+      `SELECT f.path as source_path, l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
+       FROM links l
+       JOIN files f ON f.id = l.source_id
+       WHERE (f.is_deleted IS NULL OR f.is_deleted = 0)
+         AND (${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")})
+       ORDER BY f.path COLLATE NOCASE ASC, l.line_number ASC`,
+      [...patterns]
+    );
   }
 
   /**
@@ -1180,7 +1264,7 @@ export class VaultQueryService {
       SELECT DISTINCT f.id AS id, f.path AS path, f.title AS title, f.mtime_local AS mtime_local, f.size_bytes AS size_bytes
       FROM tags t
       JOIN files f ON f.id = t.file_id
-      WHERE t.tag = ? OR t.tag LIKE ?
+      WHERE (t.tag = ? OR t.tag LIKE ?) AND ${visiblePathSql("f.path")}
     `;
     return await this.db.query(sql, [tag, `${tag}/%`]);
   }
@@ -1192,6 +1276,7 @@ export class VaultQueryService {
     const sql = `
       SELECT tag, COUNT(DISTINCT file_id) as count
       FROM tags
+      WHERE file_id IN (SELECT id FROM files WHERE ${visiblePathSql("path")})
       GROUP BY tag
       ORDER BY tag ASC
     `;
@@ -1511,7 +1596,7 @@ export class VaultQueryService {
         const source = parseDatabaseSourceFilter(filter);
         if (source?.kind === "folder") {
           const folder = source.value;
-          if (folder === "/") return "1=1";
+          if (isWholeVaultFolder(folder)) return "1=1";
           return folderPathClause(folder);
         }
         
@@ -1520,9 +1605,9 @@ export class VaultQueryService {
           return `EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND t.tag = ?)`;
         }
       } else if (typeof filter === "object" && filter !== null) {
-        if (filter.field === 'file.folder' && filter.value) {
+        if (filter.field === 'file.folder' && filter.value != null) {
           const folder = String(filter.value);
-          if (folder === "/") return "1=1";
+          if (isWholeVaultFolder(folder)) return "1=1";
           return folderPathClause(folder, true);
         }
       }
@@ -1577,7 +1662,14 @@ export class VaultQueryService {
     // from every base view here, in one place (no per-`.base` filter needed;
     // that also keeps the files Obsidian-openable, since Obsidian's Bases has no
     // global `contains()` function to express the exclusion in the filter).
-    const rows = rawRows.filter((r) => !isReservedOkfName(String((r as { path?: unknown }).path ?? "")));
+    //
+    // A hidden file (E8) is no row either: what a database holds is what the
+    // user can see — and what a rewrite or a delete across the database
+    // reaches, so nothing the user cannot see changes through it.
+    const rows = rawRows.filter((r) => {
+      const path = String((r as { path?: unknown }).path ?? "");
+      return !isReservedOkfName(path) && !isHiddenPath(path);
+    });
 
     // Fetch properties for these files in bulk to avoid N+1 queries
     const propsByFileId: Record<string, Record<string, any>> = {};
@@ -1696,33 +1788,37 @@ export class VaultQueryService {
     // any source condition inside a mixed or-list. `file.hasTag` outside SQL
     // needs the tag table. Filter pickers request the same bulk data over the
     // unfiltered source, so values remain selectable when the view is empty.
-    if (residualAnd.length > 0 || residualOr.length > 0 || options.includeFilterMetadata || pinboard) {
-      const rootNode = {
-        and: [...residualAnd, ...(residualOr.length > 0 ? [{ or: residualOr }] : [])],
-      };
-      let tagsByPath: Map<string, Set<string>> | null = null;
-      if ((filterNeedsTags(rootNode) || options.includeFilterMetadata || pinboard) && finalResult.length > 0) {
-        tagsByPath = new Map();
-        for (let i = 0; i < fileIds.length; i += chunkSize) {
-          const chunk = fileIds.slice(i, i + chunkSize);
-          if (chunk.length === 0) break;
-          const placeholders = chunk.map(() => "?").join(",");
-          const tagRows = await this.db.query(
-            `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE t.file_id IN (${placeholders})`,
-            chunk
-          );
-          for (const tr of tagRows) {
-            const p = String(tr.path ?? tr.PATH ?? "");
-            const tag = String(tr.tag ?? tr.TAG ?? "").replace(/^#/, "");
-            if (!p || !tag) continue;
-            if (!tagsByPath.has(p)) tagsByPath.set(p, new Set());
-            tagsByPath.get(p)!.add(tag);
-          }
-        }
-        for (const row of finalResult) {
-          row["file.tags"] = [...(tagsByPath.get(String(row["file.path"] ?? "")) ?? [])].map((tag) => `#${tag}`);
+    //
+    // `file.tags` comes from the tag table, so it is filled only where
+    // something reads it: a filter, the filter pickers, a pinboard, or a view
+    // that shows the column or sorts by it.
+    const rootNode = {
+      and: [...residualAnd, ...(residualOr.length > 0 ? [{ or: residualOr }] : [])],
+    };
+    let tagsByPath: Map<string, Set<string>> | null = null;
+    if ((filterNeedsTags(rootNode) || options.includeFilterMetadata || pinboard || viewReadsTags(config)) && finalResult.length > 0) {
+      tagsByPath = new Map();
+      for (let i = 0; i < fileIds.length; i += chunkSize) {
+        const chunk = fileIds.slice(i, i + chunkSize);
+        if (chunk.length === 0) break;
+        const placeholders = chunk.map(() => "?").join(",");
+        const tagRows = await this.db.query(
+          `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE t.file_id IN (${placeholders})`,
+          chunk
+        );
+        for (const tr of tagRows) {
+          const p = String(tr.path ?? tr.PATH ?? "");
+          const tag = String(tr.tag ?? tr.TAG ?? "").replace(/^#/, "");
+          if (!p || !tag) continue;
+          if (!tagsByPath.has(p)) tagsByPath.set(p, new Set());
+          tagsByPath.get(p)!.add(tag);
         }
       }
+      for (const row of finalResult) {
+        row["file.tags"] = [...(tagsByPath.get(String(row["file.path"] ?? "")) ?? [])].map((tag) => `#${tag}`);
+      }
+    }
+    if (residualAnd.length > 0 || residualOr.length > 0 || options.includeFilterMetadata || pinboard) {
       const predicate = buildFilterNodePredicate(rootNode, {
         hasTag: (row, tag) => {
           const set = tagsByPath?.get(String(row["file.path"] ?? ""));

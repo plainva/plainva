@@ -91,6 +91,17 @@ export const BASE_VIEW_TYPES: readonly BaseViewTypeMeta[] = [
   { type: "pinboard", labelKey: "database.viewPinboard", icon: StickyNote, extended: true },
 ];
 
+/**
+ * The view types a view's type can be set to: all of them, or — with the
+ * vault's "Allow Plainva extensions for .base files" off — only those Obsidian
+ * knows. One answer for the desktop's config panel and the phone's sheet
+ * (Sammelplan § 3.169 Nr. 3: the phone offered every type whatever the
+ * switch said, because it had no switch).
+ */
+export function offeredViewTypes(extendedEnabled: boolean): readonly BaseViewTypeMeta[] {
+  return extendedEnabled ? BASE_VIEW_TYPES : BASE_VIEW_TYPES.filter((v) => !v.extended);
+}
+
 /** View-type metadata lookup (falls back to table for unknown types). */
 export function baseViewTypeMeta(type: string): BaseViewTypeMeta {
   return BASE_VIEW_TYPES.find((v) => v.type === type) ?? BASE_VIEW_TYPES[0];

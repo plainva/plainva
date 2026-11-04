@@ -1,6 +1,6 @@
 # Guide utilisateur de Plainva
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-11-02
 
 Cette traduction a été générée automatiquement — les corrections sont les bienvenues.
 
@@ -13,6 +13,7 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [Prise en main](Getting_Started.md) | Ouvrir ou créer un vault, l'interface, les modes de l'éditeur, les onglets et la vue scindée |
 | [Notes & Markdown](Notes_and_Markdown.md) | Comment fonctionnent les fichiers Markdown : écriture, mise en forme, propriétés (frontmatter), icônes, liens, modèles, images |
 | [Bases de données (.base)](Databases_Base.md) | Afficher des notes comme une base de données — vues, filtres, propriétés, relations, nouveaux éléments (semblable à Notion, mais basé sur des fichiers) |
+| [Référence des bases de données (.base)](Base_Reference.md) | Tout ce qu'un fichier `.base` peut contenir et ce que Plainva en fait : clés, filtres, types de vue, synthèses, limites, différences avec Obsidian |
 | [Importer depuis une autre application](Import.md) | Reprendre des notes depuis Notion, Evernote, Google Keep, Simplenote, Logseq ou un dossier Markdown — et ce que chaque import ne peut pas récupérer |
 | [OKF](OKF.md) | L'Open Knowledge Format (0.2) : `type`, les marques de provenance et de relecture, la version du bundle, la gestion des index.md et la conversion facultative du vault |
 | [Référence du format de fichier](File_Format_Reference.md) | Le format exact sur le disque de chaque fichier du vault — pour des outils, des scripts ou une IA qui modifient directement des notes et des fichiers `.base` |
@@ -21,7 +22,7 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [L'application mobile](Mobile_App.md) | Plainva sur Android et iOS : structure, édition, bases de données, synchronisation et filet de sécurité |
 | [Configurer la synchronisation](Sync_Setup.md) | Étape par étape selon le fournisseur : WebDAV/Nextcloud, Google Drive, OneDrive, Dropbox, S3 |
 | [Sécurité et partage](Security_and_Sharing.md) | Espace personnel chiffré, récupération, migration et verrouillage |
-| [Commentaires et suggestions](Comments_and_Suggestions.md) | Commentaires, mode suggestion, vue d’ensemble et notifications — dans chaque coffre, avec ou sans chiffrement |
+| [Commentaires et suggestions](Comments_and_Suggestions.md) | Commentaires, mode suggestion, vue d’ensemble et notifications — dans chaque vault, avec ou sans chiffrement |
 | [Compatibilité de synchronisation](Sync_Compatibility.md) | Quels services fonctionnent aujourd'hui — directement, via WebDAV, ou via le client de bureau du fournisseur |
 | [Google Drive (BYO)](Google_Drive_BYO_Guide.md) | Configurer la synchronisation Google Drive avec vos propres identifiants |
 | [OneDrive & Dropbox (BYO)](OneDrive_and_Dropbox_BYO_Guide.md) | Configurer la synchronisation OneDrive et Dropbox avec votre propre inscription d'application |
@@ -36,7 +37,7 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [Journal](Journal.md) | L'entrée rapide dans la note quotidienne d'aujourd'hui : capturer de partout, la vue du journal sur tous les jours, comment les entrées sont enregistrées, et le raccourci global optionnel |
 | [Calendrier & tâches externes](Calendar_and_Tasks.md) | Connecter des calendriers CalDAV/Google/Microsoft, l'onglet calendrier, les notes de réunion, et synchroniser des listes de tâches externes dans la base de tâches |
 | [Capture d'e-mails](Email_Capture.md) | IMAP en lecture seule : la visionneuse cloisonnée, enregistrer des e-mails comme notes/.eml/tâches, et faire sortir du contenu sans envoyer |
-| [Graphe](Graph.md) | Graphe contextuel, carte du coffre avec mode de nettoyage et voyage dans le temps, le graphe comme vue de base de données |
+| [Graphe](Graph.md) | Graphe contextuel, carte du vault avec mode de nettoyage et voyage dans le temps, le graphe comme vue de base de données |
 | [Raccourcis clavier](Keyboard_Shortcuts.md) | Tous les raccourcis clavier en un coup d'œil |
 | [FAQ & dépannage](FAQ.md) | Questions courantes : compatibilité Obsidian, fichiers en conflit, sauvegardes et plus |
 

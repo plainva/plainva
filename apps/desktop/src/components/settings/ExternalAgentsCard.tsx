@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, Plus, Trash2 } from "lucide-react";
 import { acpCommandText } from "@plainva/core";
-import { agentArgsFromText, agentSeenText, Banner, Button, ICON, IconButton, Modal, SettingCard, SettingCardNote, SettingRow, TextArea, TextInput, toast, type AiSession } from "@plainva/ui";
+import { agentArgsFromText, agentSeenText, Banner, Button, ICON, IconButton, Modal, SettingCard, SettingCardNote, SettingRow, TextArea, TextInput, toast, useDiscardGuard, type AiSession } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 
@@ -50,8 +50,7 @@ export function ExternalAgentsCard() {
 
   return (
     <>
-      <SettingCard label={t("ai.agent.title")}>
-        <SettingCardNote>{t("ai.agent.settings.desc")}</SettingCardNote>
+      <SettingCard label={t("ai.agent.title")} info={t("ai.agent.settings.desc")}>
         {/* Fully local (plan P7): no agent is started. */}
         {state.settings.localOnly && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
         {agents.length === 0 && <SettingCardNote>{t("ai.agent.settings.none")}</SettingCardNote>}
@@ -90,6 +89,8 @@ function AgentAddDialog({ session, confirmText, onClose }: { session: AiSession;
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(false);
   const ready = name.trim().length > 0 && program.trim().length > 0;
+  // A typed name, program or argument is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard([name, program, args].some((field) => field.trim() !== ""), onClose);
   const submit = () => {
     if (!ready || busy) return;
     setBusy(true);
@@ -109,11 +110,11 @@ function AgentAddDialog({ session, confirmText, onClose }: { session: AiSession;
       title={t("ai.agent.add.title")}
       icon={<Bot size={ICON.ui} />}
       size="md"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-agent-add"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" disabled={!ready || busy} onClick={submit} data-testid="ai-agent-add-submit">

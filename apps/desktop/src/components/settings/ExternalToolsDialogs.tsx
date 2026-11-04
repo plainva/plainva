@@ -14,6 +14,7 @@ import {
   TextArea,
   TextInput,
   toast,
+  useDiscardGuard,
   useExternalAdd,
   useExternalReview,
   type AiMcpServer,
@@ -34,6 +35,8 @@ import { appConfirm } from "../../services/appDialogs";
 export function ExternalAddDialog({ session, programs, onClose, onAdded }: { session: AiSession; programs: boolean; onClose: () => void; onAdded: (id: string) => void }) {
   const { t } = useTranslation();
   const form = useExternalAdd(session, t, programs);
+  // Anything typed - a name, an address, a token, a program, its arguments or environment - is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard([form.name, form.url, form.token, form.program, form.args, form.env].some((field) => field.trim() !== ""), onClose);
   const submit = () => {
     void form.submit().then((id) => {
       if (id) onAdded(id);
@@ -44,11 +47,11 @@ export function ExternalAddDialog({ session, programs, onClose, onAdded }: { ses
       title={t("ai.ext.add.title")}
       icon={<Plug size={ICON.ui} />}
       size="md"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-ext-add"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" disabled={!form.ready || form.busy} onClick={submit} data-testid="ai-ext-add-submit">
@@ -132,6 +135,8 @@ export function ExternalReviewDialog({ session, servers, serverId, onClose }: { 
   const { t } = useTranslation();
   const { queryService } = useVault();
   const review = useExternalReview(session, servers, serverId, t);
+  // Choices made here and not saved — tools, folders, on or off — are asked about, as on the phone (ExternalToolsSheets).
+  const close = useDiscardGuard(review.dirty && !review.busy, onClose);
   const [vaultFolders, setVaultFolders] = useState<string[]>([]);
   useEffect(() => {
     if (!queryService) return;
@@ -166,14 +171,14 @@ export function ExternalReviewDialog({ session, servers, serverId, onClose }: { 
       icon={<Plug size={ICON.ui} />}
       headerNote={externalStatusText(t, server)}
       size="lg"
-      onClose={onClose}
+      onClose={close}
       testId="ai-ext-review"
       footer={
         <>
           <Button variant="danger-soft" onClick={remove} data-testid="ai-ext-remove">
             {t("ai.ext.review.remove")}
           </Button>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close}>
             {t("common.close")}
           </Button>
           {review.needsApproval ? (

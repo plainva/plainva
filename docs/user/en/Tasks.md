@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-10-25
+Last updated: 2026-11-04
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -17,11 +17,11 @@ It opens as a tab, like any note.
 
 ## On the phone
 
-The Tasks view exists on mobile too. You open it through **Areas** in the navigation bar (or by pressing and holding the bar), and you can place it in the navigation bar itself (**Settings** → **Bars & areas**).
+The Tasks view exists on mobile too. You open it through **Areas** in the navigation bar (or by pressing and holding the bar), and you can place it in the navigation bar itself (**Settings** → **Navigation bar**).
 
 It shows the same two sections as the desktop: the **task database** on top, the checkbox list under **From notes** below, with the **Open**/**Done**/**All** filters and the free-text search. Checking off, **Change status**, moving a checkbox **into the database**, **+ New task**, **Block time** and **Repeat** work as described above and write the same files: the same note with frontmatter, the same `[[wiki link]]` in the original line, the same rule under `plainva.repeat`.
 
-Which database your vault uses as its task database is set on the phone under **Settings** → **Content & structure**. The setting travels through [settings sync](Sync_Setup.md), so you only pick it once, on whichever device you like.
+Which database your vault uses as its task database is set on the phone under **Settings** → **Notes & filing**. The setting travels through [settings sync](Sync_Setup.md), so you only pick it once, on whichever device you like.
 
 The desktop bar's four filters appear on the phone as chips above the list: **Folder**, **Tag**, **With due date** and **Show hidden**. Chips rather than select fields, because a filter bar above an already narrow list costs more room than it earns — one tap opens the choice, a second clears it again.
 
@@ -51,7 +51,7 @@ If a note changed since the list was built, an out-of-date toggle is skipped and
 
 ## Standard task database
 
-Checkboxes are quick to jot down, but sometimes a line grows into a "real" task — with a status, a due date and a note of its own. For that, pick a **Standard task database** in Settings under **Content & structure**: a [database (`.base`)](Databases_Base.md) where such tasks live as their own notes. **Create new database…** scaffolds a ready-made one (storage folder plus a `.base` with a **done checkbox column** (`done`), a status column, a due column, and a table, a board and a timeline view — the timeline puts every task on its due day); you can just as well pick an existing database. The checkbox property is a task's completion truth (on/off, like the providers'); the status column is kept consistent when you check it off. A database without a checkbox column falls back to the status convention: first option = open, last = done.
+Checkboxes are quick to jot down, but sometimes a line grows into a "real" task — with a status, a due date and a note of its own. For that, pick a **Standard task database** in Settings under **Notes & filing**: a [database (`.base`)](Databases_Base.md) where such tasks live as their own notes. **Create new database…** scaffolds a ready-made one (storage folder plus a `.base` with a **done checkbox column** (`done`), a status column, a due column, and a table, a board and a timeline view — the timeline puts every task on its due day); you can just as well pick an existing database. The checkbox property is a task's completion truth (on/off, like the providers'); the status column is kept consistent when you check it off. A database without a checkbox column falls back to the status convention: first option = open, last = done.
 
 Once set, the Tasks view shows two sections: the entries of the **Task database** on top, and **From notes** below — the familiar checkbox list. The status is editable right in the overview: the checkbox IS the note's done checkbox property and toggles it (the status column follows), and clicking the status chip opens a menu with every option (**Change status**). The **Open**/**Done**/**All** filters apply to both sections, and **Open as database** jumps to the full database view with its board and filters. **Refresh** additionally triggers a real provider sync when accounts are connected.
 
@@ -108,12 +108,87 @@ You do not have to write this field by hand:
 - **Hide from tasks** — an eye icon sits at the right of each note's header row; one click writes the marker into that note and hides it.
 - **Show hidden** — this option in the filter bar brings the hidden notes back (dimmed), each with an icon to **show it again** (which removes the marker).
 - **Hide templates** — if your template folder holds notes with checkboxes, a **Hide templates** button appears at the top right and stamps the marker into all of them at once.
+- **Notes with keys from a template** — a note made from a template up to version 0.8.5 may have taken over the template's own keys (`plainva.tasks: false`, `plainva.templateFor`), and its tasks are then missing here. When such notes exist outside the template folder, a notice lists them with a box each: **Remove keys…** takes the two keys out of the ticked ones, nothing else in them changes. Untick a note you hid on purpose; **Hide** puts the notice away until another note joins the list.
 
 Newly created templates carry the marker automatically. When you create a note **from** a template, it is removed again — the new note is real content and shows its tasks normally.
+
+## Reminders for checkboxes
+
+A checkbox reminds you when its due date carries a time: write the time right after the date, as `HH:MM` in 24-hour form (`00:00` counts as no time).
+
+```markdown
+- [ ] Call Bob 📅 2026-11-02 14:30
+```
+
+Switch it on under **Settings → Calendar → Reminders** with **Checkboxes with a time** — per vault and on this device, off until you switch it on. The reminder comes at that time, minus the lead under **Lead time for tasks with a time**. On the phone it offers **Tick off**, **In 1 hour** and **Tomorrow morning**, like the reminder of a task from the task database; on the desktop the notice beside it offers **Open task**. Either way you land in the note at the task's line, also after the note was renamed or moved.
+
+A checkbox you tick off, delete or give another time is planned anew within seconds. A checkbox with a date but no time does not remind, and notes with `plainva.tasks: false` stay out. Plainva writes nothing into the note for a reminder. Obsidian knows no time of day: it no longer reads a `📅` date that is followed by a time.
 
 ## Obsidian compatibility
 
 Tasks are ordinary GFM (GitHub-Flavored Markdown) checkboxes. Plainva never adds a special syntax: the same `- [ ]` lines render as checkboxes in Obsidian and read cleanly in any editor. The `📅 date` and `#tag` conventions are the common Obsidian-Tasks style, but they are just text in your note.
+
+## Tasks queries from Obsidian
+
+A note that comes from Obsidian may hold a fenced `tasks` block with a query. Plainva draws it as a task list — in Live Preview and in reading mode, on the desktop and on the phone, also inside a quote or callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+The query stays in the note exactly as you wrote it; Plainva never writes into the block. Source mode always shows the plain text.
+
+### Working with the list
+
+- Tick a task's checkbox: Plainva writes the task's own line in its note — with the done date and the recurrence, as in the Tasks view.
+- Click or tap a row: the note opens at the task's line.
+- Right-click a row on the desktop, or press and hold it on the phone, to open the row menu: **Done**/**Open**, **Change due date**, **Set priority**, **Set state**.
+- In an embedded note (`![[…]]`) the list is read-only: no tick, no menu.
+- With the caret inside the block, the editor shows the query as text. **Edit query** puts the caret into the query; on the phone it first switches to editing.
+
+The foot of the block shows the number of tasks ("12 tasks"), the **Explanation** switch and **Edit query**. **Explanation** shows how Plainva read each line of the query, with dates as real days. A large result is not cut silently: Plainva shows the first 100 rows, then **Show all n**.
+
+### What Plainva understands
+
+Plainva reads these lines of the Tasks query language:
+
+| Topic | Lines |
+|---|---|
+| Status | `done`, `not done`, `status.type is …` |
+| Dates | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, each with `on`, `before`, `after`, `on or before`, `on or after` or `in`; as days: `2026-11-04`, `today`, `tomorrow`, `yesterday`, weekdays, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — weeks run Monday to Sunday, as in Tasks |
+| Date set or not | `has due date`, `no scheduled date`, `due date is invalid` |
+| Recurrence | `is recurring`, `recurrence includes …` |
+| Priority | `priority is high`, `priority is above none` — six levels from highest to lowest |
+| Text and place | `description`, `path`, `filename`, `folder`, `root` and `heading`, each with `includes` or `does not include` |
+| Tags | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Sub-items | `exclude sub-items` |
+| Combining | `AND`, `OR`, `NOT`, `XOR`, with `( )`, `[ ]`, `{ }` or `" "` around the parts |
+| Sorting | `sort by …` with every key except `random`, `status.name` and `id`, optionally with `reverse`; after your own lines, the default order of Obsidian, urgency included |
+| Grouping | `group by …`, up to three levels |
+| Layout and size | `show tree`, `hide backlink`, `hide task count` and the like, `limit 20`, `limit groups 5`, `explain` |
+| Comments and placeholders | lines starting with `#`; placeholders such as `{{query.file.path}}`, which refer to the note the query stands in |
+
+### Lines Plainva cannot follow
+
+A line of a query falls into one of three cases:
+
+- A line Obsidian knows and Plainva does not yet — for example code (`filter by function`; Plainva never runs code from notes), regular expressions (`regex matches`), dependencies (`is blocked`), presets or other date phrases. A hint above the list names the line and the reason; the line is left out, so the list may show more tasks than in Obsidian — or in a different order, for `sort by` and `group by` lines.
+- A layout line without a counterpart in Plainva (`hide edit button`, `short mode`, …) is accepted silently.
+- A line Obsidian rejects too (a typo, mixed brackets, an impossible date) shows an error with the line and the reason, and no list.
+
+### Differences from Obsidian
+
+- "Today" is the calendar day.
+- Notes with `plainva.tasks: false` count here; Obsidian does not know that property.
+- A global filter and a global query set in Obsidian are named in the **Explanation** but not applied.
+- Custom status characters (`[>]`, `[!]`, …) are not tasks in Plainva.
+
+Dataview blocks stay plain text.
 
 ## See also
 
@@ -165,13 +240,13 @@ The Tasks view opens on **Today**. The lists — a rail on the left on the deskt
 
 Above the lists sits the capture field; on the phone **+ New task** and the **＋** button open it as a sheet. Type one line — `Send offer tomorrow 2pm !!! #client weekly` — and press Enter: Plainva creates the task in the task database. It understands today, tomorrow, the day after tomorrow, weekdays, "in 3 days", "next week", dates in digits, a time (`14:30`, `2pm`), a rhythm (daily, weekly, monthly, yearly, "every Monday", "every 2 weeks"), `!`, `!!` and `!!!` for low, medium and high priority, and `#tags` — the words in the language of the app, digits and signs in any language. Everything it recognised is marked inside the field and listed below it as a removable brick **before** anything is saved; take a brick away and its words simply count as title again. On the phone, quick buttons write the same words for you. If the task database names a provider list, a chip decides whether the task is created there too.
 
-**Set priority** in a row's menu (right-click on the desktop, press and hold on the phone) offers **high**, **medium**, **low** and **none**; a flag in front of the title shows it. In the task database the priority is a select column: a database created now has it, an older one gets it the first time you set a priority — never by merely being opened. A checkbox carries the mark of the Obsidian Tasks plugin on its line: Plainva reads 🔺 and ⏫ as high, 🔼 as medium, 🔽 and ⏬ as low, and writes ⏫, 🔼 or 🔽.
+**Set priority** in a row's menu (right-click on the desktop, press and hold on the phone) offers **high**, **medium**, **low** and **none**; a flag in front of the title shows it. In the task database the priority is a select column: a database created now has it, an older one gets it the first time you set a priority — never by merely being opened. A checkbox carries the priority mark known from Obsidian on its line: Plainva reads 🔺 and ⏫ as high, 🔼 as medium, 🔽 and ⏬ as low, and writes ⏫, 🔼 or 🔽.
 
 `- [/]` (**In progress**) and `- [-]` (**Cancelled**) are tasks too. They get a box of their own in the editor, in reading mode and in every list; in progress counts as open, cancelled as closed. A click still only moves between open and done — it completes a task in progress and reopens a cancelled one. **Set state** in the row menu sets the two states; Plainva never writes them on its own.
 
 **A task's date is the way to change it.** Press the date on a task (inside a day, its time) and the date picker opens — under the date on the desktop, as a sheet on the phone. **Change due date** in the row's menu opens the same picker; that is also how a task without a date gets one. On the phone, **New task** and the date cell of a database pick their day from the same calendar, not from the system's date wheel. A checkbox in a note — in the editor, the reading view and the journal — is sized for a finger on the phone. An entry of the task database keeps its time of day, a checkbox gets or changes its `📅` date. At the **Overdue** heading, **All to today** moves every overdue task to today in one step. Both are confirmed by a notice that offers **Undo**. In the capture field, `[[` suggests notes and `#` suggests tags, as in the editor: `Enter` or `Tab` takes the highlighted suggestion, `Esc` closes the list.
 
-**Quick choices and a time.** Above the calendar the picker lists **Today**, **Tomorrow**, **This weekend**, **Next week** and **No date**, each with its weekday. This weekend is the coming Saturday — today, if it is Saturday or Sunday; next week is the first day of next week as set under **Week starts on**. At the bottom, **Time** has a switch: off, the task is due all day; on, you pick the time beside it. A quick choice or a day keeps a time that is already set; to change only the time, press **Done**. An entry of the task database stores the time in its due value (`2026-10-26T10:00`). A checkbox in a note keeps a day only — the `📅` of the Tasks plugin has no time — so the picker says so there instead of offering the switch. If the database's due column shows days only, Plainva offers once to **Switch to date & time**.
+**Quick choices and a time.** Above the calendar the picker lists **Today**, **Tomorrow**, **This weekend**, **Next week** and **No date**, each with its weekday. This weekend is the coming Saturday — today, if it is Saturday or Sunday; next week is the first day of next week as set under **Week starts on**. At the bottom, **Time** has a switch: off, the task is due all day; on, you pick the time beside it. A quick choice or a day keeps a time that is already set; to change only the time, press **Done**. An entry of the task database stores the time in its due value (`2026-10-26T10:00`). For a checkbox in a note the picker sets the day only — the `📅` of Obsidian has no time — and says so there instead of offering the switch; a time you write after the date yourself (see *Reminders for checkboxes*) stays when the day moves. If the database's due column shows days only, Plainva offers once to **Switch to date & time**.
 
 More ways in: **New task** in the tray menu on the desktop (when Plainva keeps running in the background), on Android the launcher shortcut **New task** (press and hold the app icon), and on the phone **Create as a task** when you share something to Plainva — the text and the attachments end up in the task's note. How a task with a time reminds you is described under [Calendar & external tasks](Calendar_and_Tasks.md). On an iPhone or iPad, Siri and Shortcuts take a task as well (**Add Task**); Plainva creates it the next time you open it — see [The mobile app](Mobile_App.md).
 
@@ -183,7 +258,7 @@ The checkbox in the **Today** widget records a request: the tick appears at once
 <!-- task-rows-2026-10-24 -->
 ## Subtasks, bullet points and what was done today
 
-**Subtasks.** A checkbox indented under another is its subtask, as in the Obsidian Tasks plugin's `show tree`. In the lists **Today**, **Upcoming**, **Inbox** and **Done** a task carries its subtasks below it, indented — open and finished ones, the finished struck through — and an arrow at the end of the row folds them away. A subtask with a date of its own also stands on its own day; one without a date is listed under its task and not on its own in the **Inbox**. The list **All** keeps every checkbox in the order of its note.
+**Subtasks.** A checkbox indented under another is its subtask, as with `show tree` in the `tasks` blocks of Obsidian. In the lists **Today**, **Upcoming**, **Inbox** and **Done** a task carries its subtasks below it, indented — open and finished ones, the finished struck through — and an arrow at the end of the row folds them away. A subtask with a date of its own also stands on its own day; one without a date is listed under its task and not on its own in the **Inbox**. The list **All** keeps every checkbox in the order of its note.
 
 **Bullet points.** Plain bullets indented under a task — questions, notes — show below its title as up to two lines of preview; the note holds the rest.
 

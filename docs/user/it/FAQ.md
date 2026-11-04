@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-10-26
+Ultimo aggiornamento: 2026-11-02
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -44,7 +44,7 @@ Prima di ogni modifica, la procedura guidata salva il file in backup in `.plainv
 
 ### Una nota creata da un modello manca nella vista Attività
 
-Una nota che hai creato da un modello fino alla versione 0.8.5 — anche una nota giornaliera — potrebbe aver ereditato dal suo modello un'impostazione che nasconde le sue attività. Cerca nel vault `"tasks: false"` — **con** le virgolette, altrimenti troverai anche note in cui entrambe le parole compaiono solo per caso. Nei risultati, la riga si trova nel frontmatter sotto un blocco `plainva:`; elimina lì `tasks: false` (e `templateFor:`, se presente) e la nota ricompare. Lascia la riga nei modelli stessi, dove deve restare. Le note create di recente da un modello non lo ereditano più.
+Una nota che hai creato da un modello fino alla versione 0.8.5 — anche una nota giornaliera — potrebbe aver ereditato dal suo modello un'impostazione che nasconde le sue attività. Cerca nel vault `"tasks: false"` — **con** le virgolette, altrimenti troverai anche note in cui entrambe le parole compaiono solo per caso. Nei risultati, la riga si trova nel frontmatter sotto un blocco `plainva:`; elimina lì `tasks: false` (e `templateFor:`, se presente) e la nota ricompare. Lascia la riga nei modelli stessi, dove deve restare. Le note create di recente da un modello non lo ereditano più. La vista delle attività ora trova da sé queste note: un avviso sopra le attività le elenca, e **Rimuovi chiavi…** toglie entrambe le chiavi da quelle che spunti.
 
 ## Sincronizzazione
 
@@ -56,7 +56,7 @@ Con la sincronizzazione WebDAV o S3, Plainva 0.8.3 rimuoveva una nota sincronizz
 
 Se è successo a te, la nota esiste ancora in fino a tre posti:
 
-- **Lo snapshot nel vault.** Prima di rimuovere un file, Plainva lo salva come `.plainva/backups/<cartella>/<nome>.md.<timestamp>.bak`, dove `<cartella>` è la cartella in cui hai spostato la nota. Sul desktop, clic destro sul nome del vault → **Ripristina i file eliminati…**; sul telefono **Impostazioni** → **Manutenzione** → **Ripristina i file eliminati**. L'elenco mostra la nota con il nuovo percorso e **Ripristina** la rimette lì. Il file `.bak` è testo semplice, quindi puoi aprirlo anche con qualsiasi file manager o editor di testo.
+- **Lo snapshot nel vault.** Prima di rimuovere un file, Plainva lo salva come `.plainva/backups/<cartella>/<nome>.md.<timestamp>.bak`, dove `<cartella>` è la cartella in cui hai spostato la nota. Sul desktop, clic destro sul nome del vault → **Ripristina i file eliminati…**; sul telefono **Impostazioni** → **Backup e cronologia delle versioni** → **Ripristina i file eliminati**. L'elenco mostra la nota con il nuovo percorso e **Ripristina** la rimette lì. Il file `.bak` è testo semplice, quindi puoi aprirlo anche con qualsiasi file manager o editor di testo.
 - **Il cestino di sistema** (desktop): il file stesso è finito nel cestino del sistema operativo.
 - **Il cestino del tuo server**, se la nota è stata eliminata anche lì (in Nextcloud, per esempio, tra i file eliminati).
 

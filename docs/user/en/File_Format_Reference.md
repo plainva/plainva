@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-10-24
+Last reviewed: 2026-11-03
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -29,6 +29,8 @@ A vault is an ordinary folder. The file types you will meet:
 
 Reserved names `index.md` and `log.md` are never regular notes; do not create ordinary content under those names.
 
+Dot files and dot folders — a name that starts with a dot, such as `.notes.md` or `.attachments/` — belong to the vault: Plainva keeps them in its index and syncs them like any other file, but does not show them, as in Obsidian. They appear in no search, file list, graph, suggestion, backlinks list, tag list, task list or database. A link that names one still opens it. Plainva's own `.plainva/` and Obsidian's `.obsidian/` keep their own rules.
+
 ---
 
 ## Notes (`.md`)
@@ -52,9 +54,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-A block may be empty: `---` directly followed by `---` is a block without properties, not two dividers — the note's text begins on the line after it. Plainva leaves no empty block behind: when the last property is removed, the two `---` lines go with it. They only stay where the text itself begins with a `---` line, which would otherwise be read as the start of a block.
+A block may be empty: `---` directly followed by `---` is a block without properties, not two dividers — the note's text begins on the line after it. Plainva leaves no empty block behind: when the last property is removed, the two `---` lines go with it. They only stay where the text itself begins with a `---` line, which would otherwise be read as the start of a block. A block that holds nothing but a comment stays, with the comment.
 
-A block Plainva cannot read as properties is left exactly as it is: text between the two `---` lines that is not YAML, or YAML that is a list instead of `key: value` lines. **Properties** says so instead of showing no properties, and changing a property of such a note — there, in a database, on a pinboard, in the task list, or its icon and colour — changes nothing and says so: **Property could not be saved**, followed by the reason. Correct the block in the note's text and the change goes through. A single value in an unexpected form does not make a block unreadable: Plainva reads it as what is written there — an empty `tags:` is a note without tags, a number among the tags (`- 2024`) is the tag `2024`, a number as `title` is that title, and a `timestamp` that is a date is a property like any other.
+A block Plainva cannot read as properties is left exactly as it is: text between the two `---` lines that is not YAML, or YAML that is a list instead of `key: value` lines. A single line of text, a number or a set (`!!set`) between the two lines is such a block as well: search, links and databases read no property from it either. **Properties** says so instead of showing no properties, and changing a property of such a note — there, in a database, on a pinboard, in the task list, or its icon and colour — changes nothing and says so: **Property could not be saved**, followed by the reason. Correct the block in the note's text and the change goes through. A single value in an unexpected form does not make a block unreadable: Plainva reads it as what is written there — an empty `tags:` is a note without tags, a number among the tags (`- 2024`) is the tag `2024`, a number as `title` is that title, and a `timestamp` that is a date is a property like any other. `tag` and `alias` in the singular are ordinary properties — as in Obsidian since 1.9 —, so a tag is only what stands under `tags`.
 
 ### OKF frontmatter fields
 
@@ -246,7 +248,7 @@ A `.base` file is YAML. It stores a *view* over notes — which notes (sources),
 
 ### Hard rules — break one and Obsidian rejects the whole file
 
-- **Only these top-level keys:** `filters`, `formulas`, `properties`, `views`. Never add another top-level key. (Historically a top-level `columns:` key broke every file — do not reintroduce that pattern.)
+- **Only these top-level keys:** `filters`, `formulas`, `properties`, `summaries`, `views`. Never add another top-level key. (Historically a top-level `columns:` key broke every file — do not reintroduce that pattern.)
 - **Every view needs a non-empty string `name`.**
 - **A `filters` object carries exactly one of `and` / `or` / `not` at each level** — never two side by side.
 
@@ -597,7 +599,7 @@ For a relation whose target is the same database, point `relationBase` at that s
 
 `index.md` is a reserved name for a folder's table of contents.
 
-- **Only the root `index.md` may carry frontmatter**, and only `okf_version` — the version of the convention the vault follows (currently `"0.2"`; it marks the vault as OKF-active). A vault that still declares `"0.1"` is lifted under **Settings → Vault → Content & structure → Bundle version → Upgrade…**; the legacy `okf_version` field can be removed from the notes in the same step. A non-root `index.md` must be **frontmatter-free** — frontmatter there is a reserved-name violation.
+- **Only the root `index.md` may carry frontmatter**, and only `okf_version` — the version of the convention the vault follows (currently `"0.2"`; it marks the vault as OKF-active). A vault that still declares `"0.1"` is lifted under **Settings → Vault → Maintenance → OKF format → Bundle version → Upgrade…**; the legacy `okf_version` field can be removed from the notes in the same step. A non-root `index.md` must be **frontmatter-free** — frontmatter there is a reserved-name violation.
 - A Plainva-**managed** `index.md` ends with the marker `<!-- plainva:index generated -->` (an HTML comment, invisible in reading view). Its presence means Plainva keeps the file up to date automatically. If you hand-edit such a file, either preserve the marker (and keep the generated shape) or remove it deliberately to take over the file permanently.
 - Generated listings are sections of links in the form `* [Title](relative/url) - description`.
 
@@ -651,7 +653,7 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 - **`.agent/`** holds Plainva's AI policy, skills and memory. Change it only when the user asks for exactly that, and respect `cloud: deny` and `web: deny` (see the AI privacy policy above).
 - **Unknown keys are sacred.** When you rewrite a `.base` or a note, carry through every key you did not intend to change. Plainva itself preserves unknown `.base` keys via an internal raw copy; a third-party writer should do the same (parse → change only what you mean → serialize).
 - **Values change in the note, not the `.base`.** To set a cell, edit the note's frontmatter. The `.base` only decides which notes and columns are shown.
-- **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `views`.
+- **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Encoding:** UTF-8. New files: LF line endings, no BOM. A note or text file that already has CRLF line endings or a BOM keeps them — Plainva does not change them, and a tool should not either. A `.base` is the one exception: Plainva writes it anew, with LF and without a BOM, whenever its configuration changes. A carriage return on its own as a line ending (old Mac files) is read but not kept: Plainva saves such a file with LF the first time it changes it.
 
 ## See also

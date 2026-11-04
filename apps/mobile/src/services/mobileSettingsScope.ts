@@ -107,6 +107,10 @@ export interface VaultScopedSettings {
   reminderAllDayAtMinutes: number;
   /** Remind of tasks whose due date falls in the window. */
   remindTasks: boolean;
+  /** Remind of checkbox tasks in notes whose due date carries a time
+   *  (`📅 2026-11-02 14:30`) — their own switch, off by default (Sammelplan
+   *  § 3.145 Nr. 1, E3). Device-local like the other reminder settings. */
+  remindCheckboxes: boolean;
   /** Tasks whose due date carries no time: a day and a time of their own
    *  (E1) — 0 = the morning OF the due day, 1 = the evening before. They used
    *  to borrow the all-day rule, which meant "19:00 the night before" with no
@@ -136,6 +140,21 @@ export interface VaultScopedSettings {
   mailRemoteImages: boolean;
   /** Whether a comment may write its anchor pair into the Markdown (Stufe D, SD2). */
   commentAnchors: boolean;
+  /**
+   * Which extra file types open inside Plainva as text (C15) — the vault's
+   * list, the same the desktop edits ("More text files"). Carried by the
+   * phone itself in the settings profile, like the template rules: the field
+   * is `json`. Applied through `setExtraTextExtensions` whenever the settings
+   * change, so a `.fountain` opens as text here exactly where it does on the
+   * desktop (Sammelplan § 3.169 Nr. 3).
+   */
+  textFileExtensions: string[];
+  /**
+   * Whether the Plainva-only view types of a `.base` (board, calendar,
+   * timeline, graph, pinboard) are offered when a view's type is chosen —
+   * the desktop's "Allow Plainva extensions for .base files".
+   */
+  extendedDatabases: boolean;
   /**
    * Group the message list into conversations (findings P9.3). Default OFF, so
    * an update never rearranges someone's mail; per vault and syncable with the
@@ -187,6 +206,12 @@ export interface VaultScopedSettings {
   meetingTemplate: string;
   defaultCalendar: string;
   /**
+   * The day this vault's week starts on (decision E4): "monday", "saturday",
+   * "sunday", or "" = not said, the device's choice applies. Travels with the
+   * profile (`weekStart`); read through `setVaultWeekStartScope`.
+   */
+  weekStart: string;
+  /**
    * The calendars' own colours, chosen on their account's calendar page (plan
    * "Verbinden", V3): "<accountId> <calendarId>" -> hex. Per vault and
    * device-local, like the desktop's key: the provider's colour is what travels.
@@ -234,6 +259,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "reminderAllDayLeadDays",
   "reminderAllDayAtMinutes",
   "remindTasks",
+  "remindCheckboxes",
   "reminderTaskLeadDays",
   "reminderTaskAtMinutes",
   "reminderTaskTimedLead",
@@ -242,6 +268,8 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "mailFolder",
   "mailRemoteImages",
   "commentAnchors",
+  "textFileExtensions",
+  "extendedDatabases",
   "mailThreads",
   "mailSnoozed",
   "mailAccountId",
@@ -251,6 +279,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "meetingFolder",
   "meetingTemplate",
   "defaultCalendar",
+  "weekStart",
   "calendarColors",
   "verifierName",
 ];
@@ -300,15 +329,19 @@ export function vaultDefaults(): VaultScopedSettings {
     reminderTaskAtMinutes: 9 * 60,
     reminderTaskTimedLead: 0,
     remindTasks: false,
+    remindCheckboxes: false,
     reminderCalendars: [],
     calendarOverlays: [],
     mailFolder: profileDefault<string>("mailFolder")!,
     meetingFolder: profileDefault<string>("meetingFolder")!,
     meetingTemplate: profileDefault<string>("meetingNoteTemplate")!,
     defaultCalendar: profileDefault<string>("defaultCalendar")!,
+    weekStart: profileDefault<string>("weekStart")!,
     calendarColors: {},
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
     commentAnchors: profileDefault<boolean>("commentAnchors")!,
+    textFileExtensions: profileDefault<string[]>("textFileExtensions")!,
+    extendedDatabases: profileDefault<boolean>("extendedDatabases")!,
     // Off until asked for: switching on is what draws the baseline (FB3), and
     // a notification nobody asked for is the second inbox this plan avoids.
     // The defaults match the desktop's - one product, one behaviour.
@@ -359,15 +392,19 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     reminderTaskAtMinutes: src.reminderTaskAtMinutes ?? d.reminderTaskAtMinutes,
     reminderTaskTimedLead: src.reminderTaskTimedLead ?? d.reminderTaskTimedLead,
     remindTasks: src.remindTasks ?? d.remindTasks,
+    remindCheckboxes: src.remindCheckboxes ?? d.remindCheckboxes,
     reminderCalendars: src.reminderCalendars ?? d.reminderCalendars,
     calendarOverlays: src.calendarOverlays ?? d.calendarOverlays,
     mailFolder: src.mailFolder ?? d.mailFolder,
     meetingFolder: src.meetingFolder ?? d.meetingFolder,
     meetingTemplate: src.meetingTemplate ?? d.meetingTemplate,
     defaultCalendar: src.defaultCalendar ?? d.defaultCalendar,
+    weekStart: src.weekStart ?? d.weekStart,
     calendarColors: src.calendarColors ?? d.calendarColors,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,
     commentAnchors: src.commentAnchors ?? d.commentAnchors,
+    textFileExtensions: src.textFileExtensions ?? d.textFileExtensions,
+    extendedDatabases: src.extendedDatabases ?? d.extendedDatabases,
     commentNotifyEnabled: src.commentNotifyEnabled ?? d.commentNotifyEnabled,
     commentNotifyLevel: src.commentNotifyLevel ?? d.commentNotifyLevel,
     commentNotifyPreview: src.commentNotifyPreview ?? d.commentNotifyPreview,

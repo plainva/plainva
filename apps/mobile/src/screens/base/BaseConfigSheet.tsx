@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { ChoiceMark } from "../../components/ChoiceMark";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { mActions, mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
 import { getMobileSettings } from "../../services/mobileSettings";
+import { useSettingsState } from "../../hooks/useSettingsState";
 import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
 import { addFilterRules, FilterInWords, filterSchemaOf, inferColumnType, type BaseAi } from "@plainva/ui";
-import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, offeredViewTypes, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -27,9 +28,12 @@ import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, p
  * carry its own list of seven, which is exactly how `graph` ended up being a
  * type the phone could render but never choose.
  */
-let cachedViewTypes: ReturnType<typeof baseViewTypeMeta>["type"][] | null = null;
-/** Read on first use, not at module load (C20) — see moduleInitBoundary.test.ts. */
-const viewTypes = () => (cachedViewTypes ??= BASE_VIEW_TYPES.map((v) => v.type));
+/**
+ * Which of them the vault offers: with "Allow Plainva extensions for .base
+ * files" off, only the types Obsidian knows — the desktop's rule
+ * (`offeredViewTypes`). Read per render: the switch is a setting.
+ */
+const viewTypes = (extendedEnabled: boolean) => offeredViewTypes(extendedEnabled).map((v) => v.type);
 /**
  * Authoring vocabulary for fresh properties. `relation` joined it in S21, when
  * the phone gained the three controls a relation actually needs; leaving it out
@@ -88,6 +92,8 @@ export function BaseConfigSheet({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  // The vault's "Allow Plainva extensions for .base files" (Sammelplan § 3.169 Nr. 3).
+  const { settings } = useSettingsState();
   const views: any[] = Array.isArray(config?.views) ? config.views : [];
   const view = views[viewIndex] ?? {};
   const [newFilterCol, setNewFilterCol] = useState("");
@@ -704,7 +710,7 @@ export function BaseConfigSheet({
         <>
         <SectionLabel className="m-sectionlabel--inset">{t("database.viewType")}</SectionLabel>
         <div className="m-turninto">
-          {viewTypes().map((type) => (
+          {viewTypes(settings.extendedDatabases).map((type) => (
             <Chip
               selected={(view.type ?? "table") === type}
               key={type}
@@ -1270,6 +1276,7 @@ export function BaseConfigSheet({
                     })
                   }
                   raw={item.raw}
+                  notApplied={item.applied ? null : t("database.filterNotApplied")}
                 />
               ),
             )}
@@ -1307,6 +1314,13 @@ export function BaseConfigSheet({
               })
             }
             raw={entry.kind === "rawString" ? entry.raw : JSON.stringify(entry.raw)}
+            notApplied={
+              entry.kind === "rawString"
+                ? entry.applied ? null : t("database.filterNotApplied")
+                : entry.unapplied.length > 0
+                  ? t("database.filterPartlyNotApplied", { conditions: entry.unapplied.join(", ") })
+                  : null
+            }
           />
         ))}
         <div className="m-turninto">
@@ -1437,12 +1451,24 @@ function FilterRuleRow({
   );
 }
 
-/** Filter entry the mobile editor cannot parse: shown verbatim, removable. */
-function RawFilterRow({ raw, onRemove }: { raw: string; onRemove: () => void }) {
+/**
+ * Filter entry the mobile editor cannot parse: shown verbatim, removable —
+ * and, when the query cannot apply it either, saying so visibly (it stays in
+ * the file but filters nothing).
+ */
+function RawFilterRow({ raw, notApplied, onRemove }: { raw: string; notApplied: string | null; onRemove: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="m-row m-row--split">
-      <span className="m-row-main m-row--static m-rawfilter">{raw}</span>
+      <div className="m-row-main m-row--static m-rawfilter-cell">
+        <div className="m-rawfilter">{raw}</div>
+        {notApplied && (
+          <div className="m-rawfilter-note" data-testid="filter-not-applied">
+            <AlertTriangle size={ICON.meta} aria-hidden="true" />
+            <span>{notApplied}</span>
+          </div>
+        )}
+      </div>
       <IconButton label={t("common.delete")} onClick={onRemove}>
         <X size={ICON.head} />
       </IconButton>

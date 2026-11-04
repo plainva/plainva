@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-10-24
+Dernière mise à jour : 2026-11-03
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -29,6 +29,8 @@ Un vault est un dossier ordinaire. Les types de fichiers que vous rencontrerez :
 
 Les noms réservés `index.md` et `log.md` ne sont jamais des notes ordinaires ; ne créez pas de contenu normal sous ces noms.
 
+Les fichiers et dossiers dont le nom commence par un point — comme `.notes.md` ou `.attachments/` — font partie du vault : Plainva les garde dans son index et les synchronise comme tout autre fichier, mais ne les affiche pas, comme Obsidian. Ils n’apparaissent dans aucune recherche, liste de fichiers, graphe, suggestion, liste de rétroliens, liste de tags ou de tâches, ni base de données. Un lien qui en nomme un l’ouvre quand même. Le dossier `.plainva/` de Plainva et le dossier `.obsidian/` d’Obsidian gardent leurs propres règles.
+
 ---
 
 ## Notes (`.md`)
@@ -52,9 +54,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-Un bloc peut être vide : `---` directement suivi de `---` est un bloc sans propriétés, et non deux séparateurs — le texte de la note commence à la ligne suivante. Plainva ne laisse aucun bloc vide derrière lui : lorsque la dernière propriété est supprimée, les deux lignes `---` disparaissent avec elle. Elles ne restent que si le texte lui-même commence par une ligne `---`, qui serait sinon lue comme le début d'un bloc.
+Un bloc peut être vide : `---` directement suivi de `---` est un bloc sans propriétés, et non deux séparateurs — le texte de la note commence à la ligne suivante. Plainva ne laisse aucun bloc vide derrière lui : lorsque la dernière propriété est supprimée, les deux lignes `---` disparaissent avec elle. Elles ne restent que si le texte lui-même commence par une ligne `---`, qui serait sinon lue comme le début d'un bloc. Un bloc qui ne contient plus qu'un commentaire reste, avec le commentaire.
 
-Un bloc que Plainva ne peut pas lire comme des propriétés est laissé tel quel : du texte entre les deux lignes `---` qui n'est pas du YAML, ou du YAML qui est une liste au lieu de lignes `clé: valeur`. **Propriétés** l'indique au lieu de n'afficher aucune propriété, et modifier une propriété d'une telle note — là, dans une base de données, sur un tableau d'affichage, dans la liste des tâches, ou son icône et sa couleur — ne change rien, et Plainva le dit : **La propriété n'a pas pu être enregistrée**, suivi de la raison. Corrigez le bloc dans le texte de la note, et la modification passe. Une seule valeur d'une forme inattendue ne rend pas un bloc illisible : Plainva la lit telle qu'elle est écrite — un `tags:` vide est une note sans tags, un nombre parmi les tags (`- 2024`) est le tag `2024`, un nombre comme `title` est ce titre, et un `timestamp` qui est une date est une propriété comme une autre.
+Un bloc que Plainva ne peut pas lire comme des propriétés est laissé tel quel : du texte entre les deux lignes `---` qui n'est pas du YAML, ou du YAML qui est une liste au lieu de lignes `clé: valeur`. Une seule ligne de texte, un nombre ou un ensemble (`!!set`) entre les deux lignes est aussi un tel bloc : la recherche, les liens et les bases de données n'en lisent aucune propriété non plus. **Propriétés** l'indique au lieu de n'afficher aucune propriété, et modifier une propriété d'une telle note — là, dans une base de données, sur un tableau d'affichage, dans la liste des tâches, ou son icône et sa couleur — ne change rien, et Plainva le dit : **La propriété n'a pas pu être enregistrée**, suivi de la raison. Corrigez le bloc dans le texte de la note, et la modification passe. Une seule valeur d'une forme inattendue ne rend pas un bloc illisible : Plainva la lit telle qu'elle est écrite — un `tags:` vide est une note sans tags, un nombre parmi les tags (`- 2024`) est le tag `2024`, un nombre comme `title` est ce titre, et un `timestamp` qui est une date est une propriété comme une autre. `tag` et `alias` au singulier sont des propriétés ordinaires — comme dans Obsidian depuis la 1.9 —, une étiquette n'est donc que ce qui figure sous `tags`.
 
 ### Champs de frontmatter OKF
 
@@ -246,7 +248,7 @@ Un fichier `.base` est du YAML. Il stocke une *vue* sur des notes — quelles no
 
 ### Règles strictes — en enfreindre une fait rejeter le fichier entier par Obsidian
 
-- **Seulement ces clés de premier niveau :** `filters`, `formulas`, `properties`, `views`. N'ajoutez jamais une autre clé de premier niveau. (Historiquement, une clé `columns:` de premier niveau cassait chaque fichier — ne réintroduisez pas ce motif.)
+- **Seulement ces clés de premier niveau :** `filters`, `formulas`, `properties`, `summaries`, `views`. N'ajoutez jamais une autre clé de premier niveau. (Historiquement, une clé `columns:` de premier niveau cassait chaque fichier — ne réintroduisez pas ce motif.)
 - **Chaque vue a besoin d'un `name` en chaîne non vide.**
 - **Un objet `filters` porte exactement un de `and` / `or` / `not` à chaque niveau** — jamais deux côte à côte.
 
@@ -349,7 +351,7 @@ Une colonne **`rating`** garde dans le fichier un simple **nombre** — `humeur:
 
 Le tri et le filtre sont ceux de `number`. Obsidian ne connaît pas `rating` et affiche la colonne comme un nombre — ce qu'elle est.
 
-**`file.day`** est un champ virtuel : le jour que représente le **nom de fichier** d'une note quotidienne, selon le dossier et le format du coffre. Il ne figure dans **aucune** note, il est calculé à l'interrogation et il est en lecture seule ; le seul endroit où il sert est le `dateField` d'une vue calendrier ou frise. Obsidian ne le connaît pas — une vue qui l'utilise y reste vide.
+**`file.day`** est un champ virtuel : le jour que représente le **nom de fichier** d'une note quotidienne, selon le dossier et le format du vault. Il ne figure dans **aucune** note, il est calculé à l'interrogation et il est en lecture seule ; le seul endroit où il sert est le `dateField` d'une vue calendrier ou frise. Obsidian ne le connaît pas — une vue qui l'utilise y reste vide.
 
 ### Agrégation
 
@@ -597,7 +599,7 @@ Pour une relation dont la cible est la même base de données, faites pointer `r
 
 `index.md` est un nom réservé pour la table des matières d'un dossier.
 
-- **Seule la `index.md` racine peut porter un frontmatter**, et seulement `okf_version` — la version de la convention que suit le vault (actuellement `"0.2"` ; il marque le vault comme actif pour OKF). Un vault qui déclare encore `"0.1"` est mis à niveau sous **Paramètres → Vault → Contenu et structure → Version du bundle → Mettre à niveau…** ; le champ `okf_version` hérité peut être retiré des notes à la même étape. Une `index.md` non racine doit être **sans frontmatter** — un frontmatter là-bas est une infraction au nom réservé.
+- **Seule la `index.md` racine peut porter un frontmatter**, et seulement `okf_version` — la version de la convention que suit le vault (actuellement `"0.2"` ; il marque le vault comme actif pour OKF). Un vault qui déclare encore `"0.1"` est mis à niveau sous **Paramètres → Vault → Maintenance → Format OKF → Version du bundle → Mettre à niveau…** ; le champ `okf_version` hérité peut être retiré des notes à la même étape. Une `index.md` non racine doit être **sans frontmatter** — un frontmatter là-bas est une infraction au nom réservé.
 - Une `index.md` **gérée** par Plainva se termine par le marqueur `<!-- plainva:index generated -->` (un commentaire HTML, invisible en mode lecture). Sa présence signifie que Plainva garde le fichier à jour automatiquement. Si vous modifiez un tel fichier à la main, préservez le marqueur (et gardez la forme générée) ou retirez-le délibérément pour reprendre le fichier de façon permanente.
 - Les listings générés sont des sections de liens sous la forme `* [Titre](url/relative) - description`.
 
@@ -651,7 +653,7 @@ Règles : les chemins épinglés ne sont pas répétés dans `pinboardOrder`. Le
 - **`.agent/`** contient les règles IA, les skills et la mémoire de Plainva. Ne le modifiez que si l'utilisateur demande exactement cela, et respectez `cloud: deny` et `web: deny` (voir la règle de confidentialité IA plus haut).
 - **Les clés inconnues sont sacrées.** Quand vous réécrivez une `.base` ou une note, reportez chaque clé que vous n'aviez pas l'intention de changer. Plainva lui-même préserve les clés `.base` inconnues via une copie brute interne ; un rédacteur tiers devrait faire de même (analyser → ne changer que ce que vous voulez → sérialiser).
 - **Les valeurs changent dans la note, pas dans la `.base`.** Pour définir une cellule, modifiez le frontmatter de la note. La `.base` décide seulement quelles notes et colonnes sont affichées.
-- **N'ajoutez pas de clés `.base` de premier niveau** au-delà de `filters` / `formulas` / `properties` / `views`.
+- **N'ajoutez pas de clés `.base` de premier niveau** au-delà de `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Encodage :** UTF-8. Nouveaux fichiers : fins de ligne LF, pas de BOM. Une note ou un fichier texte qui a déjà des fins de ligne CRLF ou un BOM les garde — Plainva ne les change pas, et un outil ne devrait pas le faire non plus. Seule exception : un `.base`, que Plainva réécrit, avec des LF et sans BOM, chaque fois que sa configuration change. Un retour chariot seul comme fin de ligne (anciens fichiers Mac) est lu, mais n'est pas conservé : Plainva enregistre un tel fichier avec des LF la première fois qu'il le modifie.
 
 ## Voir aussi

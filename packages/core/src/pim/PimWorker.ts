@@ -134,6 +134,13 @@ function messageOf(e: unknown): string {
  */
 export const TRIGGER_COALESCE_MS = 1500;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * The rolling event window both shells fill the cache for, in days around now.
+ * Whoever reads the cache for "is this appointment gone?" asks inside it only
+ * (the entry-event reconcile, `entryEventWindow` in @plainva/ui).
+ */
+export const PIM_WINDOW_PAST_DAYS = 60;
+export const PIM_WINDOW_FUTURE_DAYS = 400;
 /** Accounts refreshed at once; each of them pulls its calendars in batches too. */
 const ACCOUNT_CONCURRENCY = 3;
 
@@ -242,8 +249,8 @@ export class PimWorker {
 
   get windowRange(): { startTs: number; endTs: number } {
     const now = this.opts.now ? this.opts.now() : Date.now();
-    const startTs = now - (this.opts.windowPastDays ?? 60) * DAY_MS;
-    const endTs = now + (this.opts.windowFutureDays ?? 400) * DAY_MS;
+    const startTs = now - (this.opts.windowPastDays ?? PIM_WINDOW_PAST_DAYS) * DAY_MS;
+    const endTs = now + (this.opts.windowFutureDays ?? PIM_WINDOW_FUTURE_DAYS) * DAY_MS;
     return { startTs, endTs };
   }
 

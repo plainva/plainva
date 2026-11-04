@@ -6,8 +6,9 @@ import {
   type PublishedSliceMode,
   type PublishedSliceProvider,
 } from "@plainva/core";
-import { Banner, Button, isPublishedNoteRefusal, publicationErrorText, publicationInstructionText, Segmented, TextInput } from "@plainva/ui";
+import { Banner, Button, publicationErrorText, publicationInstructionText, publicationPreviewNotices, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { mSelect } from "../services/mobileDialogs";
 
 /**
@@ -56,15 +57,19 @@ export function PublishSliceSheet({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(sliceName);
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const close = useSheetGuard("publish-slice", name !== sliceName, onClose);
   const [mode, setMode] = useState<"exact" | "sanitized">("sanitized");
   const [access, setAccess] = useState<"read" | "comment" | "suggest">("read");
   const [provider, setProvider] = useState<PublishedSliceProvider>("google-drive");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ mode: PublishedSliceMode; data: PublishedProjectionPreview } | null>(null);
-  /* Why the last preview has no answer: for the mode it was asked in where a
-     note was refused, for every mode (`null`) where anything else failed. */
-  const [previewError, setPreviewError] = useState<{ mode: PublishedSliceMode | null; text: string } | null>(null);
+  /* Why the last preview has no answer - a note that cannot be read, a locked
+     vault -, for every mode. A note the sanitizer refuses is no such reason:
+     the publication goes past it, and the preview names it beside the numbers
+     of the rest (open-items plan 3.128 no. 1). */
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
 
   const valid = name.trim().length > 0;
@@ -73,31 +78,28 @@ export function PublishSliceSheet({
      mode is not this mode's answer, and a count that outlives the rule it was
      computed for is worse than no count. */
   const shown = preview && preview.mode === mode ? preview.data : null;
-  /* A refused note belongs to its mode as the answer does: it stops a
-     sanitized copy, while an exact one hands the note out as it is. Any other
-     failure of a preview - a note that cannot be read, a locked vault - and a
-     failed creation are said whatever the mode. */
-  const shownError =
-    error ?? (previewError && (previewError.mode === null || previewError.mode === mode) ? previewError.text : null);
+  /* A failure of a preview and a failed creation are said whatever the mode. */
+  const shownError = error ?? previewError;
+  /* What the answer says beside its numbers, in the desktop's words: the notes
+     the sanitized copy goes past, the files that are no notes. Part of the
+     answer, so it belongs to its mode as the numbers do. */
+  const notices = shown ? publicationPreviewNotices(shown, t) : null;
 
-  /* A failure is said through the shared text, as on the desktop: a note the
-     sanitizer refuses is named in the app's language, and a publication code
-     is a sentence. The banner used to show the thrown message as it came.
-     An earlier answer goes with a failed one - for the same mode where a note
-     was refused, for both where the failure is not about the mode: numbers
-     beside a reason why there are none would be numbers for a publication
-     that does not come. A reason the other mode was given stays with it. */
+  /* A failure is said through the shared text, as on the desktop: a
+     publication code is a sentence. The banner used to show the thrown message
+     as it came. An earlier answer goes with a failed one: numbers beside a
+     reason why there are none would be numbers for a reading that no longer
+     goes through. */
   const runPreview = () => {
     if (previewBusy) return;
     setPreviewBusy(true);
     setError(null);
-    setPreviewError((earlier) => (earlier && (earlier.mode === null || earlier.mode === mode) ? null : earlier));
+    setPreviewError(null);
     void onPreview(mode)
       .then((data) => setPreview({ mode, data }))
       .catch((e: unknown) => {
-        const refused = isPublishedNoteRefusal(e);
-        setPreview((earlier) => (refused && earlier && earlier.mode !== mode ? earlier : null));
-        setPreviewError({ mode: refused ? mode : null, text: publicationErrorText(e, t) });
+        setPreview(null);
+        setPreviewError(publicationErrorText(e, t));
       })
       .finally(() => setPreviewBusy(false));
   };
@@ -145,9 +147,9 @@ export function PublishSliceSheet({
     .join(" ");
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" data-testid="publish-slice-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("workspaceSecurity.publishSlice", { defaultValue: "Publish a Vault Slice" })}</p>
         <p className="m-hint">
           {t("workspaceSecurity.publicationCreateHint", {
@@ -205,6 +207,12 @@ export function PublishSliceSheet({
         {shown && (
           <div className="m-publish-preview" data-testid="publish-preview-result">
             <p className="m-sectionlabel">{t("workspaceSecurity.previewCount", { count: shown.objectCount })}</p>
+            {notices?.refused && (
+              <Banner kind="warning" rounded>
+                {notices.refused}
+              </Banner>
+            )}
+            {notices?.leftOut && <p className="m-hint">{notices.leftOut}</p>}
             {!shown.unchanged && (
               <>
                 <div className="m-row m-row--static">
@@ -255,7 +263,7 @@ export function PublishSliceSheet({
         )}
 
         <div className="m-btnrow">
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={close}>
             {t("common.cancel")}
           </Button>
           <Button

@@ -66,8 +66,7 @@ export function MobileRoutinesSection({ onOpenNote, folders = [] }: { onOpenNote
 
   return (
     <>
-      <SectionLabel>{t("ai.routines.title")}</SectionLabel>
-      <p className="m-hint">{t("ai.routines.note")}</p>
+      <SectionLabel info={t("ai.routines.note")}>{t("ai.routines.title")}</SectionLabel>
       <GroupCard>
         <RowList>
           {rows.map((row) => {

@@ -286,6 +286,35 @@ describe("applyIndexChanges", () => {
     expect(calls.indexed).toEqual([]);
   });
 
+  // Sammelplan § 3.111 no. 7: called right after a write that landed, a look
+  // of the index that failed reported a failed operation — and stopped at the
+  // first such path. The watcher indexes what is left.
+  it("never fails the write it follows: goes on past a path it cannot follow and answers it", async () => {
+    const { indexer, calls } = makeReindexer();
+    indexer.indexPath = async (p) => {
+      if (p === "Bad.md") throw new Error("metadata unavailable");
+      calls.indexed.push(p);
+    };
+    const followed = await applyIndexChanges(indexer, { removed: ["Old.md"], added: ["Bad.md", "Good.md"] });
+    expect(followed.leftBehind).toEqual(["Bad.md"]);
+    expect(calls.indexed).toEqual(["Good.md"]);
+    expect(calls.removed).toEqual(["Old.md"]);
+  });
+
+  it("does not index a moved file at its new place when its rows could not be re-keyed (no second row, issue 113)", async () => {
+    const { indexer, calls } = makeReindexer();
+    indexer.relocatePathInIndex = async () => { throw new Error("index locked"); };
+    const followed = await applyIndexChanges(indexer, { moved: [{ from: "A.md", to: "B.md" }], added: ["Ref.md"] });
+    expect(followed.leftBehind).toEqual(["B.md"]);
+    expect(calls.indexed).toEqual(["Ref.md"]);
+  });
+
+  it("does not throw when the full scan fails — the index announces that itself", async () => {
+    const { indexer } = makeReindexer();
+    indexer.indexVaultFull = async () => { throw new Error("scan failed"); };
+    await expect(applyIndexChanges(indexer, { needsFullScan: true })).resolves.toEqual({ leftBehind: [""] });
+  });
+
   it("is a no-op for an empty change (e.g. creating an empty folder)", async () => {
     const { indexer, calls } = makeReindexer();
     await applyIndexChanges(indexer, { added: [] });
@@ -479,5 +508,54 @@ describe("an honest report when a move half-succeeds (issue 113, V3/V4)", () => 
     expect(files.has("Note.md"), "nothing moved").toBe(true);
     expect(files.has("Renamed.md")).toBe(false);
     expect(errors).toEqual([`dialogs.moveBlockedUnsaved:${JSON.stringify({ name: "Note.md", error: "disk full" })}`]);
+  });
+});
+
+describe("a database that moves takes its template assignments along (3.71 no. 4)", () => {
+  // Only the in-folder rename of a `.base` carried `plainva.templateFor`: a
+  // moved database, or one in a renamed or moved folder, left a qualified
+  // assignment naming a file that was no longer there.
+  const TEMPLATE = '---\nplainva:\n  templateFor: "[[db/Tasks.base]]"\n---\n# {{title}}\n';
+  const isFolder = (p: string) => !/\.[a-z]+$/i.test(p);
+  /** The index as it was before the move: it relocates only afterwards. */
+  const indexOf = (files: Map<string, unknown>) => {
+    const bases = [...files.keys()].filter((p) => p.endsWith(".base"));
+    return { listBaseFilePaths: async () => bases, getBacklinks: async () => [], db: { query: async () => [] } } as never;
+  };
+  const folderRenames = (base: FileActionAdapter, files: Map<string, string | Uint8Array>): FileActionAdapter => ({
+    ...base,
+    renameItem: async (from, to) => {
+      for (const key of [...files.keys()]) {
+        if (key === from || key.startsWith(from + "/")) {
+          files.set(to + key.slice(from.length), files.get(key)!);
+          files.delete(key);
+        }
+      }
+    },
+  });
+
+  it("a .base moved into another folder", async () => {
+    const { adapter, files } = makeAdapter({ "db/Tasks.base": "views: []", "Archive/.keep": "", "Templates": "DIR", "Templates/Task.md": TEMPLATE });
+    const r = await moveItems({ adapter, queryService: indexOf(files), indexer: null, isFolder, templateFolder: async () => "Templates" }, ["db/Tasks.base"], "Archive");
+    expect(r.moved.map((m) => m.to)).toEqual(["Archive/Tasks.base"]);
+    expect(r.linkUpdateFailed).toBe(false);
+    expect(files.get("Templates/Task.md")).toContain('"[[Archive/Tasks.base]]"');
+    expect(r.sweptBases).toContain("Templates/Task.md");
+  });
+
+  it("a folder moved with a .base in it", async () => {
+    const { adapter: base, files } = makeAdapter({ "db/Tasks.base": "views: []", "Areas/.keep": "", "Templates": "DIR", "Templates/Task.md": TEMPLATE });
+    const adapter = folderRenames(base, files);
+    const r = await moveItems({ adapter, queryService: indexOf(files), indexer: null, isFolder, templateFolder: async () => "Templates" }, ["db"], "Areas");
+    expect(r.moved.map((m) => m.to)).toEqual(["Areas/db"]);
+    expect(files.get("Templates/Task.md")).toContain('"[[Areas/db/Tasks.base]]"');
+  });
+
+  it("a folder renamed with a .base in it", async () => {
+    const { adapter: base, files } = makeAdapter({ "db/Tasks.base": "views: []", "Templates": "DIR", "Templates/Task.md": TEMPLATE });
+    const adapter = folderRenames(base, files);
+    const r = await renameToName({ adapter, queryService: indexOf(files), oldPath: "db", newName: "Work", isFolder: true, templateFolder: "Templates" });
+    expect(r).toMatchObject({ ok: true, newPath: "Work", renamedLinks: 1, changedFiles: 1, linkUpdateFailed: false });
+    expect(files.get("Templates/Task.md")).toContain('"[[Work/Tasks.base]]"');
   });
 });

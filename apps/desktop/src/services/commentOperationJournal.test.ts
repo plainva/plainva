@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/path", () => ({ appDataDir: async () => bridge.director
 vi.mock("@tauri-apps/plugin-fs", () => ({ mkdir: (...args: unknown[]) => bridge.mkdir(...args) }));
 vi.mock("./windowContext", () => ({ isOwnerWindow: () => bridge.owner }));
 // The existing journal owns the vault directory naming, covered by its tests.
-vi.mock("./draftJournal", () => ({ pathHash: (value: string) => Buffer.from(value).toString("hex") }));
+vi.mock("./draftJournal", () => ({ legacyPathHash: (value: string) => Buffer.from(value).toString("hex") }));
 import { desktopCommentOperationJournal } from "./commentOperationJournal";
 
 let root: string;

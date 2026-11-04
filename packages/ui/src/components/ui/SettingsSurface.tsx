@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
+import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
+import { DeviceOnlyBadge } from "./DeviceOnlyBadge";
+import { InfoLabel, InfoTip, type InfoContent } from "./InfoTip";
 
 /**
  * Settings surface primitives (settings redesign 2026-07-18, P1 — variant
@@ -7,6 +11,11 @@ import { cx } from "./cx";
  * border, radius) instead of loose rows on the page background; rows inside a
  * card are separated by hairlines. Styling comes from the shared .pv-set*
  * classes in styles/ui.css, so every theme restyles the surface via tokens.
+ *
+ * Head, card and row take an `info` (settings plan 2026-10-29, § 3): the
+ * explanation behind an info button at the END of the title, label or heading.
+ * Visible stays only what someone needs to decide — a step, a warning, a state.
+ * Card and row take `deviceOnly` for the "On this device only" badge (E3).
  */
 
 export interface SettingsPageHeadProps {
@@ -14,16 +23,22 @@ export interface SettingsPageHeadProps {
   title: string;
   /** One-line description of the area. */
   desc?: string;
+  /** What stands behind the info button after the title. */
+  info?: InfoContent;
   /** Optional trailing content (e.g. the active-vault badge). */
   children?: ReactNode;
 }
 
 /** Page header: title + one-line description, shown once per settings page. */
-export function SettingsPageHead({ title, desc, children }: SettingsPageHeadProps) {
+export function SettingsPageHead({ title, desc, info, children }: SettingsPageHeadProps) {
   return (
     <div className="pv-setpage-head">
       <div className="pv-setpage-headrow">
-        <h3 className="pv-setpage-title">{title}</h3>
+        {/* The button stands beside the heading, not in it: the heading's name stays the title. */}
+        <div className="pv-setpage-titleline">
+          <h3 className="pv-setpage-title">{title}</h3>
+          {info !== undefined && <InfoTip label={title} info={info} testId="setpage-info" />}
+        </div>
         {children}
       </div>
       {desc && <p className="pv-setpage-desc">{desc}</p>}
@@ -34,15 +49,47 @@ export function SettingsPageHead({ title, desc, children }: SettingsPageHeadProp
 export interface SettingCardProps {
   /** Group label rendered ABOVE the card (uppercase mini label). */
   label?: string;
+  /** What stands behind the info button after the label — a card's introduction. */
+  info?: InfoContent;
+  /** The whole card stays on this device (E3). */
+  deviceOnly?: boolean;
+  /**
+   * The group folds (settings plan 2026-10-29, Q6): rare repair and diagnosis
+   * rows at the END of a page, one level deep, closed until opened. The heading
+   * is the disclosure; an info button cannot sit inside it, so a folded card
+   * takes none — its rows carry their own.
+   */
+  collapsible?: boolean;
   className?: string;
+  /** Test id on the card's section. */
+  testId?: string;
   children: ReactNode;
 }
 
 /** Named group card — the framed container settings rows live in. */
-export function SettingCard({ label, className, children }: SettingCardProps) {
+export function SettingCard({ label, info, deviceOnly, collapsible, className, testId, children }: SettingCardProps) {
+  if (collapsible && label) {
+    return (
+      <details className={cx("pv-setgroup", "pv-setgroup--fold", className)} data-testid={testId}>
+        <summary className="pv-setgroup-label pv-setgroup-summary">
+          <ChevronRight className="pv-setgroup-chevron" size={ICON.meta} aria-hidden />
+          {label}
+          {deviceOnly && <> <DeviceOnlyBadge /></>}
+        </summary>
+        <div className="pv-setcard" role="group" aria-label={label}>
+          {children}
+        </div>
+      </details>
+    );
+  }
   return (
-    <section className={cx("pv-setgroup", className)}>
-      {label && <div className="pv-setgroup-label">{label}</div>}
+    <section className={cx("pv-setgroup", className)} data-testid={testId}>
+      {label && (
+        <div className="pv-setgroup-label">
+          <InfoLabel name={label} info={info} testId={testId ? `${testId}-info` : "setgroup-info"}>{label}</InfoLabel>
+          {deviceOnly && <> <DeviceOnlyBadge /></>}
+        </div>
+      )}
       <div className="pv-setcard" role="group" aria-label={label}>
         {children}
       </div>
@@ -53,6 +100,10 @@ export function SettingCard({ label, className, children }: SettingCardProps) {
 export interface SettingRowProps {
   label: string;
   desc?: string;
+  /** What stands behind the info button at the end of the label. */
+  info?: InfoContent;
+  /** The setting stays on this device: the badge on the line under the label (E3). */
+  deviceOnly?: boolean;
   /**
    * Wide rows stack the control on its own full-width line under the label —
    * for broad controls (theme preview cards, provider forms, path pickers).
@@ -62,11 +113,14 @@ export interface SettingRowProps {
 }
 
 /** One setting: label (+ optional description) left, control right. */
-export function SettingRow({ label, desc, wide, children }: SettingRowProps) {
+export function SettingRow({ label, desc, info, deviceOnly, wide, children }: SettingRowProps) {
   return (
     <div className={cx("pv-setrow", wide && "pv-setrow--wide")}>
       <div className="pv-setrow-main">
-        <div className="pv-setrow-label">{label}</div>
+        <div className="pv-setrow-label">
+          <InfoLabel name={label} info={info} testId="setrow-info">{label}</InfoLabel>
+        </div>
+        {deviceOnly && <div className="pv-setrow-desc"><DeviceOnlyBadge /></div>}
         {desc && <div className="pv-setrow-desc">{desc}</div>}
       </div>
       {children != null && <div className="pv-setrow-ctrl">{children}</div>}
@@ -85,4 +139,18 @@ export interface SettingCardNoteProps {
  */
 export function SettingCardNote({ className, children }: SettingCardNoteProps) {
   return <div className={cx("pv-setrow", "pv-setrow--note", className)}>{children}</div>;
+}
+
+/**
+ * A free block inside a card in body text (a radio group, a list, a few
+ * measured lines). `.pv-setcard` has no padding of its own, so anything placed
+ * in a card bare sits on its edge — this brings the row inset and hairline.
+ */
+export function SettingCardBlock({ className, children }: SettingCardNoteProps) {
+  return <div className={cx("pv-setrow", "pv-setrow--block", className)}>{children}</div>;
+}
+
+/** The button row of a card (Cancel, Save): right-aligned, with the row inset. */
+export function SettingCardActions({ className, children }: SettingCardNoteProps) {
+  return <div className={cx("pv-setrow", "pv-setrow--actions", className)}>{children}</div>;
 }

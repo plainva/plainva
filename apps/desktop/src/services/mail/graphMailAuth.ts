@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../openExternal";
 import { generatePkcePair, generateCodeVerifier, buildOneDriveAuthUrl, exchangeOneDriveCode } from "@plainva/core";
 import { GRAPH_MAIL_SCOPES } from "@plainva/ui/mail";
 import { microsoftAuthFetch } from "../authFetch";

@@ -3,6 +3,7 @@ import type { McpOAuthBrowser, McpOAuthRedirect } from "@plainva/core";
 import { toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { openSignInPage } from "../../platform/webAuth";
+import { openExternalUrl } from "../openExternal";
 import { APP_URL, redirectAddress } from "../appScheme";
 
 /**
@@ -40,7 +41,8 @@ let opened: { closed: boolean } | null = null;
  */
 export async function openMobileMcpPage(url: string): Promise<void> {
   if (!/^https?:\/\//i.test(url)) throw new Error("page-address");
-  await Browser.open({ url });
+  // Through the phone's one way out (Sammelplan § 3.138): it opens a web address in the system's browser view.
+  await openExternalUrl(url);
 }
 
 export function createMobileMcpBrowser(): McpOAuthBrowser {

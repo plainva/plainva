@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
+import { withinAsync as within } from "../../../packages/core/test/helpers/timeBudget";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { CompletionContext } from "@codemirror/autocomplete";
@@ -17,12 +18,6 @@ import { composeLinkPlugin } from "@plainva/ui/mail";
  * which ran unchanged across the rewrite, and by the pins here.
  */
 const N = 100_000;
-const within = async (budgetMs: number, run: () => unknown) => {
-  const start = performance.now();
-  await run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 setPlatformServices({
   loadSettings: async () => ({}) as never,
   credentials: {} as never,

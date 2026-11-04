@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { withinAsync } from "../../../../packages/core/test/helpers/timeBudget";
 import { SCRIPT_LIMIT_DEFAULTS, type SandboxEnd, type SandboxHost, type SandboxJob, type ScriptLimits } from "@plainva/core";
 import { createDirectSandbox } from "@plainva/ui";
 
@@ -120,10 +121,8 @@ describe("a script in the engine", () => {
     // Were the body run, this would never come back.
     expect(await sandbox.check("for (;;) {}")).toEqual({ ok: true });
     // Code that closes the function it is the body of and goes on outside it: what stands there is held by the check's own limits.
-    const started = Date.now();
-    const result = await sandbox.check("}); for (;;) {} (async function () {");
+    const result = await withinAsync(5000, () => sandbox.check("}); for (;;) {} (async function () {"));
     expect(result.ok).toBe(false);
-    expect(Date.now() - started).toBeLessThan(5000);
   });
 
   it("a script that waits for what never comes is ended, not kept", async () => {
@@ -246,10 +245,8 @@ describe("kill: what a script cannot take", () => {
   });
 
   it("time: a loop without end is stopped at its seconds", async () => {
-    const started = Date.now();
-    const played = await play("for (;;) {}", { limits: { seconds: 1, fuel: 200_000 } });
+    const played = await withinAsync(4000, () => play("for (;;) {}", { limits: { seconds: 1, fuel: 200_000 } }));
     expect(played.end).toMatchObject({ kind: "killed", why: "time" });
-    expect(Date.now() - started).toBeLessThan(4000);
     expect(played.end.usage.ms).toBeGreaterThanOrEqual(1000);
   });
 
@@ -296,11 +293,9 @@ describe("kill: what a script cannot take", () => {
     // Calls that fail and are caught, each calling again: almost no step of the kind the engine counts, and no end.
     // The engine asks back rarely here, so the steps run out late; the seconds do not. (In the app the worker's
     // watchdog ends such a script at its seconds even if the engine never asked back at all.)
-    const started = Date.now();
-    const played = await play('const spin = () => { try { spin(); } catch (e) { spin(); } }; spin();\nconsole.log("after");\nreturn "went on";', { limits: { fuel: 200_000, seconds: 1 } });
+    const played = await withinAsync(8000, () => play('const spin = () => { try { spin(); } catch (e) { spin(); } }; spin();\nconsole.log("after");\nreturn "went on";', { limits: { fuel: 200_000, seconds: 1 } }));
     expect(played.end).toMatchObject({ kind: "killed", why: "time" });
     expect(played.logs).toEqual([]);
-    expect(Date.now() - started).toBeLessThan(8000);
   });
 
   it("steps count across the whole run: waiting for tools does not refill them", async () => {

@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-10-25
+Dernière mise à jour : 2026-11-04
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -17,11 +17,11 @@ Elle s'ouvre comme un onglet, comme n'importe quelle note.
 
 ## Sur le téléphone
 
-La vue Tâches existe aussi sur mobile. Vous l'ouvrez via **Rubriques** dans la barre de navigation (ou en appuyant longuement sur la barre), et vous pouvez la placer dans la barre de navigation elle-même (**Paramètres** → **Barres et zones**).
+La vue Tâches existe aussi sur mobile. Vous l'ouvrez via **Rubriques** dans la barre de navigation (ou en appuyant longuement sur la barre), et vous pouvez la placer dans la barre de navigation elle-même (**Paramètres** → **Barre de navigation**).
 
 Elle affiche les deux mêmes sections qu'au bureau : la **Base de tâches** en haut, la liste de cases à cocher **Depuis les notes** en dessous, avec les filtres **Ouvertes**/**Terminées**/**Toutes** et la recherche en texte libre. Cocher, **Changer le statut**, déplacer une case à cocher **vers la base de données**, **+ Nouvelle tâche**, **Bloquer du temps** et la **Répétition** fonctionnent comme décrit ci-dessus et écrivent les mêmes fichiers : la même note avec son frontmatter, le même `[[lien wiki]]` dans la ligne d'origine, la même règle sous `plainva.repeat`.
 
-Quelle base de données votre vault utilise comme base de tâches se règle sur le téléphone, sous **Paramètres** → **Contenu et structure**. Le réglage voyage via la [synchronisation des paramètres](Sync_Setup.md), vous ne le choisissez donc qu'une seule fois, sur l'appareil de votre choix.
+Quelle base de données votre vault utilise comme base de tâches se règle sur le téléphone, sous **Paramètres** → **Notes et rangement**. Le réglage voyage via la [synchronisation des paramètres](Sync_Setup.md), vous ne le choisissez donc qu'une seule fois, sur l'appareil de votre choix.
 
 Les quatre filtres de la barre de bureau apparaissent sur le téléphone sous forme de puces au-dessus de la liste : **Dossier**, **Étiquette**, **Avec échéance** et **Afficher les masqués**. Des puces plutôt que des menus déroulants, car une barre de filtres au-dessus d'une liste déjà étroite coûte plus de place qu'elle n'en fait gagner — un appui ouvre le choix, un second l'efface à nouveau.
 
@@ -51,7 +51,7 @@ Si une note a changé depuis la construction de la liste, un basculement obsolè
 
 ## Base de tâches par défaut
 
-Les cases à cocher permettent de noter rapidement, mais parfois une ligne devient une « vraie » tâche — avec un statut, une échéance et sa propre note. Pour cela, choisissez une **Base de tâches par défaut** dans les paramètres, sous **Contenu et structure** : une [base de données (`.base`)](Databases_Base.md) où ces tâches vivent comme leurs propres notes. **Créer une base…** en prépare une toute faite (un dossier de stockage plus une `.base` avec une **colonne de case à cocher terminé** (`fait`), une colonne de statut, une colonne d'échéance, ainsi qu'une vue tableau, une vue kanban et une vue chronologie — la chronologie place chaque tâche à son jour d'échéance) ; vous pouvez tout aussi bien choisir une base de données existante. La propriété de case à cocher fait foi de l'achèvement d'une tâche (activée/désactivée, comme chez les fournisseurs) ; la colonne de statut reste cohérente lorsque vous la cochez. Une base de données sans colonne de case à cocher revient à la convention de statut : première option = ouvert, dernière = terminé.
+Les cases à cocher permettent de noter rapidement, mais parfois une ligne devient une « vraie » tâche — avec un statut, une échéance et sa propre note. Pour cela, choisissez une **Base de tâches par défaut** dans les paramètres, sous **Notes et rangement** : une [base de données (`.base`)](Databases_Base.md) où ces tâches vivent comme leurs propres notes. **Créer une base…** en prépare une toute faite (un dossier de stockage plus une `.base` avec une **colonne de case à cocher terminé** (`fait`), une colonne de statut, une colonne d'échéance, ainsi qu'une vue tableau, une vue kanban et une vue chronologie — la chronologie place chaque tâche à son jour d'échéance) ; vous pouvez tout aussi bien choisir une base de données existante. La propriété de case à cocher fait foi de l'achèvement d'une tâche (activée/désactivée, comme chez les fournisseurs) ; la colonne de statut reste cohérente lorsque vous la cochez. Une base de données sans colonne de case à cocher revient à la convention de statut : première option = ouvert, dernière = terminé.
 
 Une fois définie, la vue Tâches affiche deux sections : les entrées de la **Base de tâches** en haut, et **Depuis les notes** en dessous — la liste de cases à cocher habituelle. Le statut est modifiable directement dans l'aperçu : la case à cocher est la propriété de case à cocher terminé de la note et la bascule (la colonne de statut suit), et cliquer sur la puce de statut ouvre un menu avec toutes les options (**Changer le statut**). Les filtres **Ouvertes**/**Terminées**/**Toutes** s'appliquent aux deux sections, et **Ouvrir comme base** saute vers la vue complète de la base de données avec son kanban et ses filtres. **Actualiser** déclenche en plus une véritable synchronisation avec le fournisseur quand des comptes sont connectés.
 
@@ -108,12 +108,87 @@ Vous n'avez pas besoin d'écrire ce champ à la main :
 - **Masquer des tâches** — une icône en forme d'œil se trouve à droite de la ligne d'en-tête de chaque note ; un clic écrit le marqueur dans cette note et la masque.
 - **Afficher les masqués** — cette option dans la barre de filtres fait réapparaître les notes masquées (estompées), chacune avec une icône **Réafficher dans les tâches** qui retire le marqueur.
 - **Masquer les modèles** — si votre dossier de modèles contient des notes avec des cases à cocher, un bouton **Masquer les modèles** apparaît en haut à droite et appose le marqueur sur toutes en une fois.
+- **Notes avec des clés d'un modèle** — une note créée à partir d'un modèle jusqu'à la version 0.8.5 a pu reprendre les clés propres au modèle (`plainva.tasks: false`, `plainva.templateFor`) ; ses tâches manquent alors ici. Lorsque de telles notes existent hors du dossier des modèles, un avis les liste, chacune avec une case : **Retirer les clés…** retire les deux clés des notes cochées, rien d'autre n'y change. Décochez une note que vous avez masquée exprès ; **Masquer** range l'avis jusqu'à ce qu'une autre note s'ajoute.
 
 Les modèles nouvellement créés portent le marqueur automatiquement. Quand vous créez une note **à partir** d'un modèle, il est retiré à nouveau — la nouvelle note est du contenu réel et affiche normalement ses tâches.
+
+## Rappels pour les cases à cocher
+
+Une case à cocher vous rappelle sa tâche quand sa date d'échéance porte une heure : écrivez l'heure juste après la date, au format `HH:MM` sur 24 heures (`00:00` compte comme sans heure).
+
+```markdown
+- [ ] Appeler Bob 📅 2026-11-02 14:30
+```
+
+Activez-le dans **Paramètres → Calendrier → Rappels** avec **Cases à cocher avec une heure** — par vault et sur cet appareil, désactivé jusqu'à ce que vous l'activiez. Le rappel arrive à cette heure, moins l'avance réglée sous **Avance pour les tâches avec une heure**. Sur le téléphone, il propose **Cocher**, **Dans 1 heure** et **Demain matin**, comme le rappel d'une tâche de la base de tâches ; sur l'ordinateur, la notification à côté propose **Ouvrir la tâche**. Dans les deux cas, vous arrivez dans la note à la ligne de la tâche, même après que la note a été renommée ou déplacée.
+
+Une case que vous cochez, supprimez ou à laquelle vous donnez une autre heure est replanifiée en quelques secondes. Une case avec une date mais sans heure ne rappelle rien, et les notes avec `plainva.tasks: false` restent à l'écart. Plainva n'écrit rien dans la note pour un rappel. Obsidian ne connaît pas d'heure : il ne lit plus une date `📅` suivie d'une heure.
 
 ## Compatibilité Obsidian
 
 Les tâches sont des cases à cocher GFM (GitHub-Flavored Markdown) ordinaires. Plainva n'ajoute jamais de syntaxe spéciale : les mêmes lignes `- [ ]` se rendent comme des cases à cocher dans Obsidian et se lisent proprement dans n'importe quel éditeur. Les conventions `📅 date` et `#tag` correspondent au style courant d'Obsidian-Tasks, mais ce ne sont que du texte dans votre note.
+
+## Requêtes Tasks depuis Obsidian
+
+Une note venue d'Obsidian peut contenir un bloc de code `tasks` avec une requête. Plainva le dessine sous forme de liste de tâches — dans l'aperçu en direct et en mode lecture, sur le bureau comme sur le téléphone, y compris à l'intérieur d'une citation ou d'un callout :
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+La requête reste dans la note exactement comme vous l'avez écrite ; Plainva n'écrit jamais dans le bloc. Le mode source affiche toujours le texte brut.
+
+### Travailler avec la liste
+
+- Cochez la case d'une tâche : Plainva écrit la ligne de la tâche dans sa propre note — avec la date d'achèvement et la récurrence, comme dans la vue Tâches.
+- Cliquez ou touchez une ligne : la note s'ouvre à la ligne de la tâche.
+- Clic droit sur une ligne sur le bureau, ou appui long sur le téléphone, pour ouvrir le menu de la ligne : **Terminées**/**Ouvertes**, **Modifier l'échéance**, **Définir la priorité**, **Définir l'état**.
+- Dans une note intégrée (`![[…]]`), la liste est en lecture seule : ni case à cocher, ni menu.
+- Quand le curseur se trouve dans le bloc, l'éditeur affiche la requête sous forme de texte. **Modifier la requête** place le curseur dans la requête ; sur le téléphone, la note passe d'abord en modification.
+
+Le pied du bloc affiche le nombre de tâches (« 12 tâches »), l'interrupteur **Explication** et **Modifier la requête**. **Explication** montre comment Plainva a lu chaque ligne de la requête, avec les dates sous forme de jours réels. Un grand résultat n'est pas tronqué en silence : Plainva affiche les 100 premières lignes, puis **Tout afficher (n)**.
+
+### Ce que Plainva comprend
+
+Plainva lit ces lignes du langage de requête de Tasks :
+
+| Sujet | Lignes |
+|---|---|
+| États | `done`, `not done`, `status.type is …` |
+| Dates | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, chacune avec `on`, `before`, `after`, `on or before`, `on or after` ou `in` ; comme jours : `2026-11-04`, `today`, `tomorrow`, `yesterday`, jours de la semaine, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — les semaines vont du lundi au dimanche, comme dans Tasks |
+| Date présente ou non | `has due date`, `no scheduled date`, `due date is invalid` |
+| Récurrence | `is recurring`, `recurrence includes …` |
+| Priorité | `priority is high`, `priority is above none` — six niveaux, du plus haut au plus bas |
+| Texte et emplacement | `description`, `path`, `filename`, `folder`, `root` et `heading`, chacun avec `includes` ou `does not include` |
+| Étiquettes | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Sous-éléments | `exclude sub-items` |
+| Combinaison | `AND`, `OR`, `NOT`, `XOR`, avec `( )`, `[ ]`, `{ }` ou `" "` autour des parties |
+| Tri | `sort by …` avec toutes les clés sauf `random`, `status.name` et `id`, au besoin avec `reverse` ; après vos propres lignes, l'ordre par défaut d'Obsidian, urgence comprise |
+| Regroupement | `group by …`, jusqu'à trois niveaux |
+| Affichage et quantité | `show tree`, `hide backlink`, `hide task count` et similaires, `limit 20`, `limit groups 5`, `explain` |
+| Commentaires et espaces réservés | lignes commençant par `#` ; espaces réservés comme `{{query.file.path}}`, qui renvoient à la note où se trouve la requête |
+
+### Lignes que Plainva ne peut pas suivre
+
+Chaque ligne d'une requête relève de l'un de ces trois cas :
+
+- Une ligne qu'Obsidian connaît et que Plainva ne connaît pas encore — par exemple du code (`filter by function` ; Plainva n'exécute jamais de code issu des notes), des expressions régulières (`regex matches`), des dépendances (`is blocked`), des préréglages ou d'autres formulations de date. Une indication au-dessus de la liste nomme la ligne et la raison ; la ligne est ignorée, si bien que la liste peut afficher plus de tâches que dans Obsidian — ou dans un autre ordre, pour les lignes `sort by` et `group by`.
+- Une ligne de mise en page sans équivalent dans Plainva (`hide edit button`, `short mode`, …) est acceptée sans bruit.
+- Une ligne qu'Obsidian rejette lui aussi (faute de frappe, parenthèses mélangées, date impossible) affiche une erreur avec la ligne et la raison, et aucune liste.
+
+### Différences avec Obsidian
+
+- « Aujourd'hui » est le jour du calendrier.
+- Les notes avec `plainva.tasks: false` comptent ici ; Obsidian ne connaît pas cette propriété.
+- Un filtre global et une requête globale définis dans Obsidian sont nommés dans l'**Explication**, mais pas appliqués.
+- Les caractères d'état personnalisés (`[>]`, `[!]`, …) ne sont pas des tâches dans Plainva.
+
+Les blocs Dataview restent du texte brut.
 
 ## Voir aussi
 
@@ -156,7 +231,7 @@ Les tâches natives de base de données sautent toujours les périodes manquées
 
 ## Retrouver les filtres des tâches
 
-Le statut, le texte recherché, le dossier, l’étiquette, les tâches avec échéance et l’affichage des tâches masquées sont mémorisés par coffre sur cet appareil, même après ouverture d’une note ou redémarrage. « Réinitialiser les filtres » revient aux tâches ouvertes sans autre filtre. Les dossiers et étiquettes indisponibles restent visibles et peuvent être retirés dans leur sélecteur. Oublier le coffre efface cet état. La base de tâches par défaut reste le réglage du coffre ; les filtres ne sont pas synchronisés.
+Le statut, le texte recherché, le dossier, l’étiquette, les tâches avec échéance et l’affichage des tâches masquées sont mémorisés par vault sur cet appareil, même après ouverture d’une note ou redémarrage. « Réinitialiser les filtres » revient aux tâches ouvertes sans autre filtre. Les dossiers et étiquettes indisponibles restent visibles et peuvent être retirés dans leur sélecteur. Oublier le vault efface cet état. La base de tâches par défaut reste le réglage du vault ; les filtres ne sont pas synchronisés.
 
 <!-- planner-capture-2026-09-20 -->
 ## Planificateur, saisie rapide, priorité et états
@@ -165,13 +240,13 @@ La vue Tâches s'ouvre sur **Aujourd'hui**. Les listes — une barre à gauche s
 
 Au-dessus des listes se trouve le champ de saisie ; sur le téléphone, **+ Nouvelle tâche** et le bouton **＋** l'ouvrent sous forme de feuille. Tapez une ligne — `Envoyer offre demain 14h !!! #client chaque semaine` — et appuyez sur Entrée : Plainva crée la tâche dans la base de tâches. Il comprend aujourd'hui, demain, après-demain, les jours de la semaine, « dans 3 jours », « la semaine prochaine », les dates en chiffres, une heure (`14:30`, `14h`), un rythme (quotidien, hebdomadaire, mensuel, annuel, « chaque lundi », « toutes les 2 semaines »), `!`, `!!` et `!!!` pour une priorité basse, moyenne et haute, et `#tags` — les mots dans la langue de l'application, les chiffres et les signes dans n'importe quelle langue. Tout ce qui est reconnu est marqué dans le champ et listé en dessous sous la forme d'un bloc amovible **avant** que quoi que ce soit ne soit enregistré ; retirez un bloc et ses mots recomptent simplement comme titre. Sur le téléphone, des boutons rapides écrivent les mêmes mots pour vous. Si la base de tâches désigne une liste d'un fournisseur, une puce décide si la tâche y est créée aussi.
 
-**Définir la priorité** dans le menu d'une ligne (clic droit sur le bureau, appui long sur le téléphone) propose **haute**, **moyenne**, **basse** et **aucune** ; un drapeau devant le titre l'indique. Dans la base de tâches, la priorité est une colonne à sélection : une base créée maintenant l'a déjà, une plus ancienne l'obtient la première fois que vous définissez une priorité — jamais par simple ouverture. Une case à cocher porte la marque du plugin Obsidian Tasks sur sa ligne : Plainva lit 🔺 et ⏫ comme haute, 🔼 comme moyenne, 🔽 et ⏬ comme basse, et écrit ⏫, 🔼 ou 🔽.
+**Définir la priorité** dans le menu d'une ligne (clic droit sur le bureau, appui long sur le téléphone) propose **haute**, **moyenne**, **basse** et **aucune** ; un drapeau devant le titre l'indique. Dans la base de tâches, la priorité est une colonne à sélection : une base créée maintenant l'a déjà, une plus ancienne l'obtient la première fois que vous définissez une priorité — jamais par simple ouverture. Une case à cocher porte la marque de priorité d'Obsidian sur sa ligne : Plainva lit 🔺 et ⏫ comme haute, 🔼 comme moyenne, 🔽 et ⏬ comme basse, et écrit ⏫, 🔼 ou 🔽.
 
 `- [/]` (**En cours**) et `- [-]` (**Annulée**) sont aussi des tâches. Elles reçoivent leur propre case dans l'éditeur, en mode lecture et dans chaque liste ; en cours compte comme ouverte, annulée comme fermée. Un clic continue de basculer seulement entre ouverte et terminée — il termine une tâche en cours et rouvre une tâche annulée. **Définir l'état** dans le menu de la ligne fixe les deux états ; Plainva ne les écrit jamais de lui-même.
 
 **La date d'une tâche est le moyen de la modifier.** Appuyez sur la date d'une tâche (à l'intérieur d'un jour, sur son heure) et le sélecteur de date s'ouvre — sous la date sur le bureau, en feuille sur le téléphone. **Modifier l'échéance** dans le menu de la ligne ouvre le même sélecteur ; c'est aussi ainsi qu'une tâche sans date en reçoit une. Sur le téléphone, **Nouvelle tâche** et la cellule de date d'une base de données choisissent leur jour dans le même calendrier, et non dans la molette de dates du système. Une case à cocher dans une note — dans l'éditeur, la vue de lecture et le journal — est dimensionnée pour le doigt sur le téléphone. Une entrée de la base de données des tâches garde son heure, une case à cocher reçoit ou change sa date `📅`. À côté du titre **En retard**, **Tout à aujourd'hui** reporte d'un coup toutes les tâches en retard à aujourd'hui. Les deux sont confirmés par un message qui propose **Annuler**. Dans le champ de saisie, `[[` propose des notes et `#` des tags, comme dans l'éditeur : `Entrée` ou `Tab` prend la proposition surlignée, `Esc` ferme la liste.
 
-**Choix rapides et heure.** Au-dessus du calendrier, le sélecteur propose **Aujourd'hui**, **Demain**, **Ce week-end**, **La semaine prochaine** et **Pas de date**, chacun avec son jour de la semaine. Ce week-end est le samedi qui vient — aujourd'hui, si l'on est samedi ou dimanche ; la semaine prochaine est le premier jour de la semaine suivante, selon **Début de la semaine**. En bas, **Heure** a un interrupteur : désactivé, la tâche est due toute la journée ; activé, vous choisissez l'heure à côté. Un choix rapide ou un jour conserve une heure déjà définie ; pour ne changer que l'heure, appuyez sur **Terminé**. Une entrée de la base de tâches enregistre l'heure dans sa valeur d'échéance (`2026-10-26T10:00`). Une case à cocher dans une note ne porte qu'un jour — le `📅` du plugin Tasks n'a pas d'heure —, le sélecteur l'indique donc à la place de l'interrupteur. Si la colonne d'échéance de la base n'affiche que des jours, Plainva propose une fois **Passer à date et heure**.
+**Choix rapides et heure.** Au-dessus du calendrier, le sélecteur propose **Aujourd'hui**, **Demain**, **Ce week-end**, **La semaine prochaine** et **Pas de date**, chacun avec son jour de la semaine. Ce week-end est le samedi qui vient — aujourd'hui, si l'on est samedi ou dimanche ; la semaine prochaine est le premier jour de la semaine suivante, selon **Début de la semaine**. En bas, **Heure** a un interrupteur : désactivé, la tâche est due toute la journée ; activé, vous choisissez l'heure à côté. Un choix rapide ou un jour conserve une heure déjà définie ; pour ne changer que l'heure, appuyez sur **Terminé**. Une entrée de la base de tâches enregistre l'heure dans sa valeur d'échéance (`2026-10-26T10:00`). Pour une case à cocher dans une note, le sélecteur ne règle que le jour — le `📅` d'Obsidian n'a pas d'heure — et l'indique à la place de l'interrupteur ; une heure que vous écrivez vous-même après la date (voir *Rappels pour les cases à cocher*) reste quand le jour change. Si la colonne d'échéance de la base n'affiche que des jours, Plainva propose une fois **Passer à date et heure**.
 
 D'autres façons d'y entrer : **Nouvelle tâche** dans le menu de la zone de notification sur le bureau (quand Plainva continue de tourner en arrière-plan), sur Android le raccourci du lanceur **Nouvelle tâche** (appui long sur l'icône de l'application), et sur le téléphone **Créer comme tâche** quand vous partagez quelque chose vers Plainva — le texte et les pièces jointes finissent dans la note de la tâche. La façon dont une tâche avec une heure vous le rappelle est décrite dans [Calendrier et tâches externes](Calendar_and_Tasks.md). Sur un iPhone ou un iPad, Siri et Raccourcis prennent aussi une tâche (**Ajouter une tâche**) ; Plainva la crée à sa prochaine ouverture — voir [L'application mobile](Mobile_App.md).
 
@@ -183,7 +258,7 @@ La case du widget **Aujourd’hui** enregistre une demande : la coche apparaît 
 <!-- task-rows-2026-10-24 -->
 ## Sous-tâches, puces et ce qui est terminé aujourd'hui
 
-**Sous-tâches.** Une case à cocher en retrait sous une autre est sa sous-tâche, comme `show tree` dans le plugin Tasks d'Obsidian. Dans les listes **Aujourd'hui**, **À venir**, **Boîte de réception** et **Terminées**, une tâche porte ses sous-tâches en retrait sous elle — ouvertes et terminées, ces dernières barrées — et une flèche en bout de ligne les replie. Une sous-tâche ayant sa propre date figure aussi à son propre jour ; une sous-tâche sans date est listée sous sa tâche et non seule dans la **Boîte de réception**. La liste **Toutes** garde chaque case à cocher dans l'ordre de sa note.
+**Sous-tâches.** Une case à cocher en retrait sous une autre est sa sous-tâche, comme `show tree` dans les blocs `tasks` d'Obsidian. Dans les listes **Aujourd'hui**, **À venir**, **Boîte de réception** et **Terminées**, une tâche porte ses sous-tâches en retrait sous elle — ouvertes et terminées, ces dernières barrées — et une flèche en bout de ligne les replie. Une sous-tâche ayant sa propre date figure aussi à son propre jour ; une sous-tâche sans date est listée sous sa tâche et non seule dans la **Boîte de réception**. La liste **Toutes** garde chaque case à cocher dans l'ordre de sa note.
 
 **Puces.** Les puces simples en retrait sous une tâche — questions, remarques — s'affichent sous son titre comme un aperçu de deux lignes au plus ; la note garde le reste.
 

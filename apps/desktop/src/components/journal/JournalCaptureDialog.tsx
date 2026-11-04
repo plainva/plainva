@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { NotebookPen } from "lucide-react";
-import { Button, ICON, JournalCaptureField, Modal, PlaceStampButton, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, journalToday, toast, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
+import { Button, ICON, JournalCaptureField, Modal, useDiscardGuard, PlaceStampButton, VoiceMemoButton, buildDailyNotePath, errorText, importAttachment, journalToday, toast, voiceMemoFileName, type VoiceMemoResult } from "@plainva/ui";
 import { attachmentFolderKey, useVault } from "../../contexts/VaultContext";
 import { useJournalCapture } from "../../hooks/useJournal";
 import { readDailyNoteConfig } from "../../services/dailyNotes";
@@ -37,6 +37,8 @@ export function JournalCaptureDialog({
   const { vaultPath, vaultAdapter, indexer, triggerFileTreeUpdate } = useVault();
   const capture = useJournalCapture();
   const [value, setValue] = useState(initialText);
+  // What is typed — or was handed over and not yet saved — is asked about (finding 2026-10-22).
+  const close = useDiscardGuard(value.trim() !== "", onClose);
   const [asTask, setAsTask] = useState(false);
   const [busy, setBusy] = useState(false);
   const [target, setTarget] = useState<{ name: string; exists: boolean; folder: string } | null>(null);
@@ -130,7 +132,7 @@ export function JournalCaptureDialog({
 
   return (
     <Modal
-      onClose={onClose}
+      onClose={close}
       title={t("journal.newEntry")}
       icon={<NotebookPen size={ICON.head} />}
       size="md"
@@ -138,7 +140,7 @@ export function JournalCaptureDialog({
       initialFocusRef={inputRef}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+          <Button variant="ghost" onClick={close} disabled={busy}>{t("common.cancel")}</Button>
           <Button variant="primary" onClick={submit} disabled={busy || !value.trim()} data-testid="journal-capture-save">{t("journal.save")}</Button>
         </>
       }

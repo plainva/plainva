@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { Banner, Button, ICON, Modal, problemText, TextArea, TextInput, toast, useAiSession } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, problemText, TextArea, TextInput, toast, useAiSession, useDiscardGuard } from "@plainva/ui";
 
 /**
  * A new skill from three fields (plan KI-Harness P3-5): a name that becomes
@@ -18,6 +18,8 @@ export function NewSkillModal({ onClose }: { onClose: () => void }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Any of the three fields typed is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard([name, description, body].some((field) => field.trim() !== ""), onClose);
   if (!session) return null;
   const create = async () => {
     setBusy(true);
@@ -35,11 +37,11 @@ export function NewSkillModal({ onClose }: { onClose: () => void }) {
       title={t("ai.workshop.form.title")}
       icon={<Plus size={ICON.ui} />}
       size="md"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-skill-new-dialog"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("ai.workshop.form.cancel")}
           </Button>
           <Button variant="primary" disabled={busy || !name.trim() || !description.trim() || !body.trim()} onClick={() => void create()} data-testid="ai-skill-create">

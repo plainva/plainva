@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Button } from "@plainva/ui";
+import { Modal, Button, useDiscardGuard } from "@plainva/ui";
 import {
   createEncryptionSession,
   unlockWithPassphrase,
@@ -35,6 +35,9 @@ export const EncryptionSetupModal: React.FC<EncryptionSetupModalProps> = ({ vaul
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  // A new passphrase chosen and confirmed is asked about before it goes
+  // (finding 2026-10-22); unlocking only asks for one that already exists.
+  const cancel = useDiscardGuard(mode === "create" && (pass !== "" || confirm !== ""), onCancel);
 
   const fireChanged = () => window.dispatchEvent(new CustomEvent("plainva-encryption-changed"));
 
@@ -106,7 +109,7 @@ export const EncryptionSetupModal: React.FC<EncryptionSetupModalProps> = ({ vaul
 
   const isCreate = mode === "create";
   return (
-    <Modal title={isCreate ? t("encryption.modalCreateTitle") : t("encryption.modalUnlockTitle")} onClose={onCancel} size="md">
+    <Modal title={isCreate ? t("encryption.modalCreateTitle") : t("encryption.modalUnlockTitle")} onClose={cancel} size="md">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         {!useRecovery && (
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
@@ -143,7 +146,7 @@ export const EncryptionSetupModal: React.FC<EncryptionSetupModalProps> = ({ vaul
             <span />
           )}
           <div style={{ display: "flex", gap: "var(--space-2)" }}>
-            <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            <Button variant="ghost" onClick={cancel} disabled={busy}>
               {t("common.cancel", { defaultValue: "Abbrechen" })}
             </Button>
             <Button variant="primary" onClick={() => void (isCreate ? doCreate() : doUnlock())} disabled={busy} data-testid="encryption-submit">

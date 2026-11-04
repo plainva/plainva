@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-11-03
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -26,7 +26,7 @@ The file format is compatible with Obsidian's Bases format (details at the end o
 
 Every database can carry its own icon with a **Database icon color** — visible in the file tree, tabs and header.
 
-A database can also serve as the vault's **Standard task database** (Settings → **Content & structure**): the [Tasks view](Tasks.md) then shows its entries as an own section and can move checkboxes from notes into it.
+A database can also serve as the vault's **Standard task database** (Settings → **Notes & filing**): the [Tasks view](Tasks.md) then shows its entries as an own section and can move checkboxes from notes into it.
 
 ## Views
 
@@ -61,11 +61,11 @@ On the phone, **Configure** opens the same areas as a list; tapping one enters t
 Clicking a column header opens the property editor (**Property: X**):
 
 - **Name** — renaming affects the notes: on save, the property is renamed in the frontmatter of every matching note (with confirmation and a progress indicator). Plainva asks every note first: if one cannot take the new name — it already has a property of that name, or the block at its top cannot be read as properties — nothing is renamed, and a message names those notes.
-- **Field type** — Text, Number, Rating, Checkbox, Date, Date & time, List, Tags, Select, Status, Multi-select, URL, Email, Phone, Relation (the same grouped type menu as in the notes' **Properties** panel).
+- **Field type** — Text, Number, Rating, Checkbox, Date, Date & time, List, Tags, Select, Status, Multi-select, URL, Email, Phone, Relation (the same grouped type menu as in the notes' **Properties** panel). A URL, email or phone property opens only web, mail and phone links ([Notes & Markdown](Notes_and_Markdown.md), “Links out of the app”).
   A **Rating** is a number drawn as dots (five unless the column says otherwise). The file holds `mood: 4` — a plain number that Obsidian and any spreadsheet read too; sorting and filtering work as they do for a number. You press the dot that should count; pressing the current value clears it again.
-- **Day from the file name** (`file.day`) — calendars and timelines can place daily notes by their **file name**, without the date also sitting in the frontmatter. The field appears in the date-field picker as soon as the vault names daily notes (folder and format under **Settings → Your vault → Content & structure**); it is computed from the name, stands in no note, and cannot be edited — so a card placed this way cannot be dragged to another day either (that would rename the file). Obsidian does not know this field: a view that uses it stays empty there. That is the price of not keeping the date twice.
+- **Day from the file name** (`file.day`) — calendars and timelines can place daily notes by their **file name**, without the date also sitting in the frontmatter. The field appears in the date-field picker as soon as the vault names daily notes (folder and format under **Settings → Your vault → Daily notes & journal**); it is computed from the name, stands in no note, and cannot be edited — so a card placed this way cannot be dragged to another day either (that would rename the file). Obsidian does not know this field: a view that uses it stays empty there. That is the price of not keeping the date twice.
 - **Options** (for Select/Status/Multi-select) — fixed values with a **Color** and, for **Status**, a **Group**/stage (e.g. to-do → in progress → done); reorder by dragging. When you open the column editor, the option list is pre-filled with the values already used in the database, so you can give each one a colour without retyping it first.
-- **Delete property** — removes column, schema, filters and sort rules from the database. The checkbox **Also remove it from the notes' frontmatter** (on by default) additionally cleans up the source notes. A note that cannot be changed keeps the property; one message counts the notes changed and the notes that failed.
+- **Delete property** — removes column, schema, filters and sort rules from the database. The checkbox **Also remove it from the notes' frontmatter** (on by default) additionally cleans up the source notes. A note that cannot be changed keeps the property; one message counts the notes changed and the notes that failed. A note that is no longer there by the time its turn comes counts as skipped, not as failed — for a rename too.
 
 Behavioral notes:
 
@@ -142,8 +142,8 @@ The **Entry** button at the top left (formerly **New**; clearly separate from th
 
 - The file name follows the pattern `{database name}_{running number}` (spaces become `_`); the note starts with a matching heading and inherits the database's tag sources and simple filter values so it appears in the view immediately. The peek window then opens for filling in.
 - **Storage folder**: new items always land in a designated folder. If the database has no folder source, a dialog walks you through creating one once; with several folder sources you pick once. Change it anytime via the arrow menu on the button → **Change storage folder…**.
-- **Templates**: the arrow menu (**Templates and storage folder**) lists the templates from your vault's template folder — use one once, star it via **Set as default** (then every click on **Entry** uses it for this database), or **Create new template** (a new template starts with a `# {{title}}` heading, so entries created from it inherit their file name as the H1). The same menu also offers **Open templates folder**, which reveals the template folder in the file tree — templates are ordinary notes you can edit, rename or delete there.
-- **Templates per database**: templates can be assigned to databases. By default the arrow menu only shows the templates assigned to this database (plus its default template); everything else is reachable via **Show all templates (n)**. Assign right there — the database icon on each row reads **Assign to this database** or **Remove assignment to this database** — or on the template itself: the editor's ⋮ menu offers **Target databases…**, a dialog with a search field where you assign the template to any number of databases. A template created from a database via **Create new template** starts assigned to it. The assignment is stored as a `plainva.templateFor` list in the template's frontmatter (see the [file format reference](File_Format_Reference.md)); it is never copied into entries created from the template, and renaming a `.base` carries the assignments along. The **Insert template** slash command deliberately stays unfiltered — it inserts text into an existing note and has no database context.
+- **Templates**: the arrow menu (**Templates and storage folder**) lists the templates from your vault's template folder — use one once, star it via **Set as default** (then every click on **Entry** uses it for this database), or **Create new template** (a new template starts with a `# {{title}}` heading, so entries created from it inherit their file name as the H1). The same menu also offers **Open templates folder**, which reveals the template folder in the file tree — templates are ordinary notes you can edit, rename or delete there. Without a default template, an **Entry** starts from the template that **Templates per folder** names for its storage folder or **Templates per note type** for its type — like every new note, on the desktop and on the phone.
+- **Templates per database**: templates can be assigned to databases. By default the arrow menu only shows the templates assigned to this database (plus its default template); everything else is reachable via **Show all templates (n)**. Assign right there — the database icon on each row reads **Assign to this database** or **Remove assignment to this database** — or on the template itself: the editor's ⋮ menu offers **Target databases…**, a dialog with a search field where you assign the template to any number of databases. A template created from a database via **Create new template** starts assigned to it. The assignment is stored as a `plainva.templateFor` list in the template's frontmatter (see the [file format reference](File_Format_Reference.md)); it is never copied into entries created from the template, and when a `.base` is renamed or moved, or its folder is renamed or moved, the assignments go along — on the computer and on the phone. The **Insert template** slash command deliberately stays unfiltered — it inserts text into an existing note and has no database context.
 - **Task lists**: If the database is a task database and you have connected a calendar/tasks account, **Configure → Data source** shows the row **Also create new tasks in**. Pick a list there and every task created in Plainva is also created in that list at the provider — from **+ New task**, from a promoted checkbox and from a mail captured as a task alike; without a choice it stays a note, exactly as before. The choice belongs to the database (stored as `plainva.taskList`, see the [file format reference](File_Format_Reference.md)), not to the individual task, and the row only appears when an account actually offers a task list. If the chosen list later disappears (account removed, list deleted), Plainva does not create the task somewhere else — it treats the database as if nothing had been chosen. The new task remembers which provider task belongs to it; without that note the next sync would create a second note for the same task. If the provider call fails, the note stays and Plainva says so — the note is the deliverable, the provider task the addition.
 - **Template placeholders**: templates interpolate `{{title}}`, `{{date}}` and `{{time}}`. When you *insert* a template into a note (the **Insert template** slash command / `Mod+Alt+T`), two more are resolved: `{{cursor}}` marks where the cursor lands after inserting, and `{{prompt:Label}}` asks you for a value (labelled *Label*) and inserts your answer. Creating a *new* note from a template now behaves the same way: Plainva asks for every `{{prompt:…}}` value at once and places the caret at `{{cursor}}` as the note opens. Only background paths (task sync, mail capture) are never asked — there the answers stay empty. The full placeholder list is in [Notes and Markdown](Notes_and_Markdown.md).
 - **Rename, duplicate, delete**: right-click an entry in any view (table, list, cards, board, calendar, timeline) for **Open**, **Open in split**, **Rename…**, **Duplicate** and **Delete…** — deleting runs through the usual cascade dialog. The peek window carries the same actions in its ⋮ menu, and a double-click on its title renames too. When the heading still mirrors the file name (the state a fresh `{database name}_{number}` entry is in), renaming carries it along; a heading you wrote yourself is never touched.
@@ -246,7 +246,7 @@ Everything Plainva-specific (colors, board rendering, relations, storage folder)
 
 If a script or an AI assistant writes `.base` files without going through Plainva, three hard rules matter — break one and Obsidian refuses to open the whole file:
 
-- **Only the top-level keys `filters`, `formulas`, `properties`, `views`.** Never add another top-level key; all Plainva extras go under nested `plainva:` sub-keys.
+- **Only the top-level keys `filters`, `formulas`, `properties`, `summaries`, `views`.** Never add another top-level key; all Plainva extras go under nested `plainva:` sub-keys.
 - **Every view needs a non-empty string `name`.**
 - **A `filters` object carries exactly one of `and` / `or` / `not` per level** (never two side by side).
 
@@ -265,6 +265,7 @@ The format matches Obsidian's Bases format; Plainva writes its extensions exclus
 ## See also
 
 - [File Format Reference](File_Format_Reference.md) — the exact on-disk `.base` contract for tools and hand-editing
+- [Database Reference (.base)](Base_Reference.md) — every key, filter form, view type and summary Plainva supports, and where it differs from Obsidian
 - [Notes & Markdown](Notes_and_Markdown.md) — properties/frontmatter in detail
 - [OKF](OKF.md) — what a uniform `type` buys you in practice
 
@@ -298,7 +299,7 @@ A filter changes the visible set, not the files. Available values still come fro
 
 Open **Export table** in the desktop database menu or use the export icon in the mobile app bar. The dialog shows the current result count and view columns.
 
-**Formulas (.base)** creates a table with a fixed selection of the current rows. These calculations through stored relations remain formulas: **undefined**, **undefined**, **undefined**, **undefined**, **undefined**. Open the file in the same vault with the linked notes. Unsupported calculations or reverse relations are named in the dialog; use the values export for them.
+**Formulas (.base)** creates a table with a fixed selection of the current rows. These calculations through stored relations remain formulas: **Count**, **Without a value**, **With a value**, **Checked**, **Unchecked**. Open the file in the same vault with the linked notes. Unsupported calculations or reverse relations are named in the dialog; use the values export for them.
 
 **Values (.csv)** contains current calculated values and file paths. Values will not update later; lists remain JSON. Formula-like text is protected as text for spreadsheet apps. Both options create an export without writing calculated properties into the original notes.
 

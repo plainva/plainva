@@ -168,11 +168,11 @@ export interface PathReindexOptions {
    */
   onFollowedLate?: () => void;
   /**
-   * Told once a call changed the index, right after its first pass — for
-   * whoever plans work on what the index holds and hears of no other event
-   * for a file that was saved: the phone's search by meaning, its gists, the
-   * list Siri reads (AI harness P2a-4). Not told for a call that changed
-   * nothing.
+   * Told that a call changed the index — a note saved, a box ticked, a file
+   * pulled or removed —, once per call. Whoever derives something from the
+   * index and is not a screen hears of it here: the reminders (E3), and the
+   * phone's search by meaning, its gists and the list Siri reads (AI harness
+   * P2a-4). Not told for a call that changed nothing.
    */
   onFollowed?: () => void;
   /** How long a path that failed waits for its second attempt. */
@@ -242,7 +242,10 @@ export function createPathReindexer(
     if (first.removalWaits) await indexer.whenIdle?.();
     await wait(retryDelayMs);
     const second = await pass(indexer, first.failed);
-    if (second.followed > 0) options.onFollowedLate?.();
+    if (second.followed > 0) {
+      options.onFollowedLate?.();
+      options.onFollowed?.();
+    }
     if (second.failed.length > 0) options.onLeftBehind?.(second.failed.length);
   };
 }

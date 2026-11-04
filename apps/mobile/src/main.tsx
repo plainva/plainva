@@ -17,6 +17,7 @@ import { initWindowClass } from "./services/windowClass";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
 import { MobileDialogHost } from "./components/MobileDialogHost";
+import { PlatformSheet } from "./components/PlatformSheet";
 import { registerMobileMailPlatform } from "./services/mail/mobileMailPlatform";
 import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { applyMobileSlashSupport } from "./services/slashSupport";
@@ -84,6 +85,7 @@ class FatalBoundary extends React.Component<{ children: React.ReactNode }, { fai
 }
 
 import { getMobileVault, noteSaver } from "./services/vaultService";
+import { openExternalUrl } from "./services/openExternal";
 import { mobileAppVersion } from "./services/mobileWhatsNew";
 
 setPlatformServices({
@@ -95,19 +97,19 @@ setPlatformServices({
   // Version for the `generated` stamps of import / mail capture / task sync
   // (OKF 0.2 provenance, plan P3b) — the same producer names as the desktop.
   appVersion: mobileAppVersion,
+  // Names this device's own files under `.plainva/` (map pins, recently opened):
+  // the id the sync sidebands use, so devices sharing a vault folder never
+  // write one file (decision E7, Sammelplan § 3.127 Nr. 3).
+  deviceId: () => import("./services/mobileSettingsSync").then((m) => m.mobileSyncDeviceId()),
   // A removed mailbox stays removed on the other devices too (review of plan "Verbinden", finding 1).
   noteAccountRemoved: (vaultKey, kind, localId) => import("./services/mobileSettingsSync").then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
   noteAccountAdded: (vaultKey, kind, localId) => import("./services/mobileSettingsSync").then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
-  openExternal: async (url) => {
-    // window.open doesn't reliably reach the system browser inside the
-    // Capacitor WebView; open web links in the in-app browser instead.
-    if (/^https?:\/\//i.test(url)) {
-      const { Browser } = await import("@capacitor/browser");
-      await Browser.open({ url });
-    } else {
-      window.open(url, "_blank", "noopener");
-    }
-  },
+  // Small panels opened by shared code (the info button of a setting) open as
+  // this shell's sheet rather than as a popover (settings plan 2026-10-29).
+  Sheet: PlatformSheet,
+  // The phone's ONE way to hand an address to the system: only web, mail and
+  // phone addresses get through (Sammelplan § 3.138).
+  openExternal: openExternalUrl,
 });
 
 // The mail seam (feinplan G0.1/G1): registered once, before any mail screen

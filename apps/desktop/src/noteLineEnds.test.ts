@@ -238,7 +238,7 @@ describe("a note that is written anew keeps the shape it has", () => {
     await files.writeTextFile("Projects/Alpha.md", "# Alpha\n");
     await files.writeTextFile("Projects/Beta.md", "# Beta\n");
     const index = indexOf(["Projects/Map.md", "Projects/Alpha.md", "Projects/Beta.md"]);
-    const result = await adoptFileAsIndex({ adapter: files, queryService: index, candidatePath: "Projects/Map.md", folder: "Projects", prepare: true });
+    const result = await adoptFileAsIndex({ adapter: files, queryService: index, candidatePath: "Projects/Map.md", folder: "Projects", prepare: true, afterMove: async () => {} });
     expect(result.indexPath).toBe("Projects/index.md");
     const adopted = await files.readTextFile("Projects/index.md");
     expect(adopted).toContain("[Alpha](Alpha.md)");

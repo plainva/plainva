@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link2 } from "lucide-react";
-import { Banner, Button, ICON, Modal, serverSkillAddText, TextInput, toast, useAiSession } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, serverSkillAddText, TextInput, toast, useAiSession, useDiscardGuard } from "@plainva/ui";
 
 /**
  * A skill of a connected server by its address (plan KI-Harness P9-4b, MCP
@@ -16,6 +16,8 @@ export function ServerSkillAddModal({ serverId, label, onClose }: { serverId: st
   const [address, setAddress] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A typed address is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(address.trim() !== "", onClose);
   if (!session) return null;
   const add = async () => {
     setBusy(true);
@@ -32,11 +34,11 @@ export function ServerSkillAddModal({ serverId, label, onClose }: { serverId: st
       title={t("ai.workshop.server.addTitle", { server: label })}
       icon={<Link2 size={ICON.ui} />}
       size="md"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-server-skill-add-dialog"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" disabled={busy || !address.trim()} onClick={() => void add()} data-testid="ai-server-skill-add-load">

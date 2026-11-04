@@ -69,6 +69,23 @@ const ADDED_COLUMNS = [
 /** Bodies are the big rows; keep the most recent ones only. */
 const MAX_BODIES = 200;
 
+/**
+ * The form of a stored message body (Sammelplan § 3.83). A body is a message as
+ * a READER made it — its text, its HTML, its file list — and a stored one keeps
+ * that reading when the reader changes: after the text of an HTML-only mail and
+ * of an 8-bit mail were read anew (`284fe3f6`), a message stored before showed
+ * its old text, and an answer, a forward or a note written before the next
+ * fetch (or without a network) quoted it. A body of another form is a miss, and
+ * the next fetch stores it again. Raise this whenever a reader in either shell
+ * reads a message differently. Form 1 was the bare message, without a mark.
+ */
+export const MAIL_BODY_FORMAT = 2;
+
+interface StoredBody {
+  format: number;
+  message: MailMessage;
+}
+
 export interface MailCacheSnapshot {
   version: 1;
   account: string;
@@ -284,7 +301,7 @@ export async function cacheMessage(
   await db.execute(
     `INSERT INTO mail_bodies (account, mailbox, id, payload, cached_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(account, mailbox, id) DO UPDATE SET payload = excluded.payload, cached_at = excluded.cached_at`,
-    [account, mailbox, message.id, JSON.stringify(message), Date.now()]
+    [account, mailbox, message.id, JSON.stringify({ format: MAIL_BODY_FORMAT, message } satisfies StoredBody), Date.now()]
   );
   // Bounded on write rather than on a timer: a cache that only ever grows is
   // the same bug as no cache at all, just slower to notice.
@@ -308,7 +325,9 @@ export async function cachedMessage(
   );
   if (rows.length === 0) return null;
   try {
-    return JSON.parse(rows[0].payload) as MailMessage;
+    const stored = JSON.parse(rows[0].payload) as Partial<StoredBody> | null;
+    // Another form - an older reader's reading - is a miss like a corrupt row.
+    return stored?.format === MAIL_BODY_FORMAT && stored.message ? stored.message : null;
   } catch {
     return null; // a corrupt row is a cache miss, never an error
   }

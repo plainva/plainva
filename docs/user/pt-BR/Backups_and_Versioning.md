@@ -1,6 +1,6 @@
 # Backups & Histórico de Versões
 
-Última revisão: 2026-10-08
+Última revisão: 2026-10-30
 
 O Plainva protege seu trabalho em dois níveis: **versões de arquivo** (snapshots automáticos de cada arquivo individual ao editar e excluir) e **backups do vault** (arquivos ZIP regulares de todo o vault, armazenados fora da pasta do vault). Ambos rodam em segundo plano sem qualquer configuração e podem ser ajustados nas configurações em **Backup e versionamento**.
 
@@ -10,7 +10,7 @@ Antes de cada salvamento, o Plainva armazena um snapshot do estado anterior — 
 
 Retenção (configurável por vault):
 
-- **Intervalo de snapshot**: A cada alteração / 30 s / 2 min / 5 min / 10 min
+- **Intervalo de snapshot**: A cada alteração / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versões por arquivo**: padrão 100 — acima disso, as mais antigas são removidas
 - **Idade máxima**: padrão 90 dias — versões mais antigas são removidas **permanentemente** por uma execução de limpeza diária ("Ilimitado" desativa isso)
 - **Arquivos grandes**: acima de 5 MB apenas a versão mais recente é mantida — veja abaixo
@@ -31,7 +31,7 @@ Imagens também têm versões (com pré-visualização); outros arquivos binári
 
 ## Restaurando arquivos excluídos
 
-Como toda exclusão gera um snapshot do arquivo antes, o Plainva pode trazer arquivos excluídos de volta: clique com o botão direito no nome do vault no topo da árvore de arquivos → **Restaurar arquivos excluídos…** (também acessível pelas configurações). A lista mostra todos os arquivos cujos snapshots ainda existem enquanto o original desapareceu — **Restaurar** recria o estado mais recente no local original (pastas são recriadas conforme necessário), **Versões…** abre o histórico completo do arquivo excluído.
+Como toda exclusão gera um snapshot do arquivo antes, o Plainva pode trazer arquivos excluídos de volta: clique com o botão direito no nome do vault no topo da árvore de arquivos → **Restaurar arquivos excluídos…** (também acessível em **Configurações → Vault → Backup e versionamento → Histórico de versões**). A lista mostra todos os arquivos cujos snapshots ainda existem enquanto o original desapareceu — **Restaurar** recria o estado mais recente no local original (pastas são recriadas conforme necessário), **Versões…** abre o histórico completo do arquivo excluído.
 
 Observação: excluir uma **pasta inteira** a move para a lixeira do sistema operacional — nesse caso, a lixeira do sistema é o meio principal de recuperação; no Plainva você pode encontrar apenas snapshots mais antigos dos arquivos contidos.
 
@@ -67,9 +67,11 @@ Configurações → **Vault** → **Backup e versionamento**:
 - A sincronização própria do Plainva nunca transfere `.plainva`. Se você sincronizar a pasta do vault com um cliente de terceiros (por exemplo, o app do Nextcloud), os snapshots viajam junto — isso custa algum espaço de armazenamento, mas não causa dano.
 - Conflitos de sincronização são adicionalmente protegidos por arquivos `.CONFLICT` (veja a [FAQ](FAQ.md)); o histórico de versões complementa isso com a linha do tempo de cada arquivo.
 
+No celular, **Backups ZIP** é o primeiro grupo da página **Backup e versionamento**; depois vem o **Histórico de versões**, com **Restaurar arquivos excluídos** no final.
+
 No celular, uma falha ao salvar a nota interrompe a troca, o recarregamento ou a remoção do vault. O texto continua aguardando outra tentativa. Notas com o mesmo nome em vaults diferentes mantêm gravações pendentes e rascunhos separados. Um conflito preserva a versão afetada; o texto digitado depois é salvo separadamente ou em outra cópia de conflito. As duas interfaces ordenam a gravação e a exclusão dos rascunhos para que uma conclusão atrasada não remova uma cópia mais recente. Se a cópia de conflito falhar, o texto no editor móvel permanece intacto.
 
-Um backup ZIP só é considerado concluído depois que todos os arquivos selecionados foram lidos e o arquivo completo foi salvo. Uma tentativa com falha não remove backups anteriores nem altera o horário do último backup bem-sucedido. No celular, o aviso de falha automática informa o vault; **Fazer backup agora** nas configurações inicia outra tentativa. A configuração oculta do usuário, como `.obsidian`, é incluída nas duas plataformas. Os diretórios `.plainva`, `.git`, `.trash` e `node_modules` são excluídos em qualquer nível. Quando vários backups são criados no mesmo segundo, o novo nome recebe um sufixo como `_001`.
+Um backup ZIP só é considerado concluído depois que todos os arquivos selecionados foram lidos e o arquivo completo foi salvo. Uma tentativa com falha não remove backups anteriores nem altera o horário do último backup bem-sucedido. No celular, o aviso de falha automática informa o vault; **Fazer backup agora** em **Backup e versionamento** → **Backups ZIP** inicia outra tentativa. A configuração oculta do usuário, como `.obsidian`, é incluída nas duas plataformas. Os diretórios `.plainva`, `.git`, `.trash` e `node_modules` são excluídos em qualquer nível. Quando vários backups são criados no mesmo segundo, o novo nome recebe um sufixo como `_001`.
 
 O salvamento só é indicado como concluído após a confirmação da gravação. O texto digitado durante um salvamento continua pendente até que sua própria versão seja gravada. Os rascunhos no desktop pertencem à respectiva sessão do editor: concluir uma sessão antiga não exclui o rascunho de um editor recém-aberto. Quando alterações externas chegam ao mesmo tempo, o Plainva combina as alterações compatíveis; o texto em conflito permanece disponível como rascunho e cópia de conflito.
 

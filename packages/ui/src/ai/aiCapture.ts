@@ -61,7 +61,8 @@ export interface AnswerToCapture {
 
 /** The type of a new note where the shell names none: the default of the setting "type for new notes". */
 export function defaultNoteType(): string {
-  return profileDefault<string>("defaultNoteType") ?? "Note";
+  // The settings' own default, read where it is defined (profileFields.ts), never named here a second time.
+  return profileDefault<string>("defaultNoteType") ?? "";
 }
 
 type Translate = (key: string, vars?: Record<string, string>) => string;

@@ -179,8 +179,9 @@ describe("search hits", () => {
       "utf8",
     );
     // Not into the folder's list ...
-    expect(screen).not.toMatch(/setRows\(hits\)/);
-    expect(screen).toMatch(/setSearchRows\(hits\)/);
+    // The hits are named by their address like every row (plan P1).
+    expect(screen).not.toMatch(/setRows\((hits|listed)\)[\s\S]{0,80}keepMailSearch/);
+    expect(screen).toMatch(/const listed = addressRows\(hits, [^)]*\);\s+setSearchRows\(listed\)/);
     // ... and the view is handed both, instead of a list chosen at the call site.
     expect(screen).toMatch(/rows,\s+searchRows,\s+flaggedRows,/);
     expect(screen).not.toMatch(/rows: flaggedRows \?\? rows/);

@@ -1,8 +1,8 @@
-import { stringify } from "yaml";
+import { CST, Lexer, stringify } from "yaml";
 import { sha256Hex, utf8Encode } from "./encoding.js";
 import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
 import { byteOrderMarkOf, composeNote, FrontmatterSurgicalError, frontmatterSpan, parseBlockYaml } from "../frontmatter-block.js";
-import { dataOfBlock } from "../frontmatter-entry.js";
+import { dataOfBlock, holdsCycleMark, removeEntry, sameData } from "../frontmatter-entry.js";
 import { nextWhere } from "../linkScan.js";
 import type { WorkspaceCapability } from "./documents.js";
 import type { WorkspaceListPage, WorkspaceObjectInfo, WorkspaceObjectStore, WorkspaceRequestOptions } from "./objectStore.js";
@@ -589,6 +589,72 @@ function publishableProperties(yaml: string): Record<string, unknown> {
   }
 }
 
+/** Stands where a comment was taken out of a line, until the line is put together again. */
+const TAKEN = String.fromCharCode(0);
+
+/**
+ * The block of the published copy: the note's own block with the entries the
+ * policy withholds taken out and every comment with them — the entries that go
+ * out keep the characters they are written with.
+ *
+ * It used to be written anew from the values as they were READ: `plz: 01067`
+ * went out as `1067`, `id: 12345678901234567890` without its last digits,
+ * `0x1F` as `31` (open-items plan 3.72 no. 2). The note itself was never
+ * touched; its copy was not the note.
+ *
+ * Written anew it still is where the note's text cannot be the copy's: an
+ * entry that goes is referred to by one that stays (its anchor would go with
+ * it), or what is left does not read as exactly the entries that go out. A
+ * comment never leaves — it could say what was withheld — and so a comment is
+ * taken out by the YAML lexer, which knows a `#` in a text from one that
+ * begins a comment.
+ */
+function publishedBlock(yaml: string, withheld: readonly string[], clean: Record<string, unknown>, newline: string): string {
+  const anew = (): string => {
+    // A value that leads back to itself cannot be written from its data (`holdsCycleMark`): the note is refused.
+    if (holdsCycleMark(clean)) throw new WorkspaceProtocolError("format", FRONTMATTER_REFUSED);
+    return stringify(clean).trimEnd().replace(/\n/g, newline);
+  };
+  let kept: string | null = null;
+  try {
+    let note = `---${newline}${yaml}${newline}---${newline}`;
+    for (const key of withheld) note = removeEntry(note, [key]);
+    const span = frontmatterSpan(note);
+    if (span) {
+      const text = withoutComments(span.yaml);
+      if (sameData(dataOfBlock(parseBlockYaml(text)), clean)) kept = text;
+    }
+  } catch {
+    kept = null;
+  }
+  return kept ?? anew();
+}
+
+/** YAML without its comments; a line that held nothing else goes, a line with a value loses the blanks in front of its comment. */
+function withoutComments(yaml: string): string {
+  let text = "";
+  for (const token of new Lexer().lex(yaml)) {
+    const type = CST.tokenType(token);
+    // The lexer's own marks are no characters of the text.
+    if (type === "doc-mode" || type === "scalar" || type === "flow-error-end" || type === "byte-order-mark") continue;
+    text += type === "comment" ? TAKEN : token;
+  }
+  if (!text.includes(TAKEN)) return text;
+  const lines = text.split(/(\r\n|\r|\n)/);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i += 2) {
+    const line = lines[i];
+    const end = lines[i + 1] ?? "";
+    if (!line.includes(TAKEN)) {
+      out.push(line + end);
+      continue;
+    }
+    const left = line.split(TAKEN).join("").trimEnd();
+    if (left !== "") out.push(left + end);
+  }
+  return out.join("").replace(/(?:\r\n|\r|\n)$/, "");
+}
+
 /**
  * Creates a non-round-trippable Markdown projection for an external slice.
  *
@@ -639,12 +705,15 @@ export function projectPublishedMarkdown(input: {
   if (block) {
     const newline = markdown[block.yamlStart - 2] === "\r" ? "\r\n" : "\n";
     const clean: Record<string, unknown> = {};
+    const withheld: string[] = [];
     for (const [key, value] of Object.entries(publishableProperties(block.yaml))) {
       const normalized = normalizePropertyKey(key);
-      if (privateKeys.has(normalized) || !allow.has(normalized)) removedProperties.add(key);
-      else clean[key] = value;
+      if (privateKeys.has(normalized) || !allow.has(normalized)) {
+        removedProperties.add(key);
+        withheld.push(key);
+      } else clean[key] = value;
     }
-    const yaml = Object.keys(clean).length ? stringify(clean).trimEnd().replace(/\n/g, newline) : "";
+    const yaml = Object.keys(clean).length ? publishedBlock(block.yaml, withheld, clean, newline) : "";
     markdown = composeNote({ byteOrderMark: byteOrderMarkOf(markdown), yaml, body: markdown.slice(block.end), eol: newline });
   }
 
@@ -738,12 +807,54 @@ export function projectPublishedMarkdown(input: {
  */
 export const PUBLISHED_NOTE_REFUSED = "published note frontmatter is invalid: ";
 
-/** A note of a slice that the sanitizer will not publish as it is, by its vault path. */
+/**
+ * The notes of a slice that the sanitizer will not publish as they are, by
+ * their vault paths — one per line after `PUBLISHED_NOTE_REFUSED`. A refresh
+ * goes past such a note and names every one it went past in the reason it
+ * keeps (open-items plan 3.128 no. 1), so the reason can name several.
+ */
 export class PublishedNoteRefusedError extends Error {
-  constructor(public readonly path: string) {
-    super(`${PUBLISHED_NOTE_REFUSED}${path}`);
+  public readonly paths: readonly string[];
+  constructor(paths: string | readonly string[]) {
+    const list = typeof paths === "string" ? [paths] : [...paths];
+    super(`${PUBLISHED_NOTE_REFUSED}${list.join("\n")}`);
     this.name = "PublishedNoteRefusedError";
+    this.paths = list;
   }
+
+  /** The first note named — the one a single refusal is about. */
+  get path(): string {
+    return this.paths[0] ?? "";
+  }
+}
+
+/**
+ * The notes a refusal names, read back from its message — thrown, or kept in
+ * a publication's record. Null for any other reason. A record written before
+ * a reason could name several holds one path, which reads the same.
+ */
+export function refusedNotePaths(reason: unknown): string[] | null {
+  const text = reason instanceof Error ? reason.message : String(reason);
+  if (!text.startsWith(PUBLISHED_NOTE_REFUSED)) return null;
+  return text.slice(PUBLISHED_NOTE_REFUSED.length).split("\n").filter((path) => path !== "");
+}
+
+/**
+ * Whether a file of a slice goes out in a publication of this mode.
+ *
+ * An exact publication hands every text file out as it is. A sanitized one
+ * holds notes alone: its rules — the properties block at the top, the links
+ * and embeds of the text — are the rules of a Markdown note, and they misread
+ * every other text file. A YAML file of several documents lost its first one
+ * as "removed properties", and a link in a value of a `.json` or `.csv` was
+ * neutralized as in a note: what went out was no longer the file (open-items
+ * plan 3.128 no. 2). Handing such a file out untouched would bypass the
+ * sanitizer altogether — a `.canvas` names the files it shows, a `.base` the
+ * folders it reads —, so a sanitized publication leaves it out, and its
+ * preview says so.
+ */
+export function publishedInMode(path: string, mode: PublishedSliceMode): boolean {
+  return mode === "exact" || /\.md$/i.test(path);
 }
 
 /**
@@ -784,7 +895,18 @@ export interface PublishedProjectionSample {
 }
 
 export interface PublishedProjectionPreview {
+  /** The files that would go out: the covered ones, less `leftOut` and `refused`. */
   objectCount: number;
+  /**
+   * Text files of the slice that are no notes: a sanitized publication leaves
+   * them out (`publishedInMode`). Empty for an exact one.
+   */
+  leftOut: string[];
+  /**
+   * Notes the sanitizer refuses. The refresh goes past them and publishes the
+   * rest, so the preview shows the rest and names these.
+   */
+  refused: string[];
   /** Union over every object in the slice, each name and path listed once. */
   removedProperties: string[];
   neutralizedLinks: string[];
@@ -818,10 +940,14 @@ export interface PublishedProjectionPreview {
  *   happens to be clean answers it with silence. Ties keep the earlier object,
  *   so the same slice always previews the same way.
  *
- * A note the sanitizer refuses ends the preview with `PublishedNoteRefusedError`
- * instead of being left out of the numbers: the refresh stops at that note,
- * too, and a preview of the notes around it would describe a publication that
- * does not come about. `exact` projects nothing and so refuses nothing.
+ * A note the sanitizer refuses is named in `refused` and left out of the
+ * numbers: the refresh goes past it and publishes the rest (open-items plan
+ * 3.128 no. 1), so the preview is the preview of the rest. It ended at the
+ * first such note, which was right while the refresh stopped there too.
+ * `exact` projects nothing and so refuses nothing. A text file that is no note
+ * is named in `leftOut` for a sanitized publication, which does not hand it
+ * out (`publishedInMode`), and the links of the notes are read against the
+ * files that do go out — the same set the refresh projects against.
  */
 export function previewPublishedProjection(input: {
   mode: PublishedSliceMode;
@@ -829,24 +955,34 @@ export function previewPublishedProjection(input: {
   propertyAllowlist?: string[] | null;
   privateProperties?: string[];
 }): PublishedProjectionPreview {
-  const includedPaths = input.objects.map((object) => object.path);
+  const published = input.objects.filter((object) => publishedInMode(object.path, input.mode));
+  const leftOut = input.objects.filter((object) => !publishedInMode(object.path, input.mode)).map((object) => object.path);
+  const includedPaths = published.map((object) => object.path);
   const removedProperties = new Set<string>();
   const neutralizedLinks = new Set<string>();
   const removedEmbeds = new Set<string>();
+  const refused: string[] = [];
   let sample: PublishedProjectionSample | null = null;
   let sampleWeight = -1;
 
-  for (const object of input.objects) {
-    const projection =
-      input.mode === "exact"
-        ? { markdown: object.markdown, report: { removedProperties: [], neutralizedLinks: [], removedEmbeds: [] } }
-        : projectPublishedNote({
-            path: object.path,
-            markdown: object.markdown,
-            includedPaths,
-            propertyAllowlist: input.propertyAllowlist,
-            privateProperties: input.privateProperties,
-          });
+  for (const object of published) {
+    let projection: PublishedSliceProjection;
+    try {
+      projection =
+        input.mode === "exact"
+          ? { markdown: object.markdown, report: { removedProperties: [], neutralizedLinks: [], removedEmbeds: [] } }
+          : projectPublishedNote({
+              path: object.path,
+              markdown: object.markdown,
+              includedPaths,
+              propertyAllowlist: input.propertyAllowlist,
+              privateProperties: input.privateProperties,
+            });
+    } catch (error) {
+      if (!(error instanceof PublishedNoteRefusedError)) throw error;
+      refused.push(object.path);
+      continue;
+    }
     for (const key of projection.report.removedProperties) removedProperties.add(key);
     for (const link of projection.report.neutralizedLinks) neutralizedLinks.add(link);
     for (const embed of projection.report.removedEmbeds) removedEmbeds.add(embed);
@@ -861,7 +997,9 @@ export function previewPublishedProjection(input: {
   }
 
   return {
-    objectCount: input.objects.length,
+    objectCount: published.length - refused.length,
+    leftOut,
+    refused,
     removedProperties: [...removedProperties].sort(),
     neutralizedLinks: [...neutralizedLinks].sort(),
     removedEmbeds: [...removedEmbeds].sort(),

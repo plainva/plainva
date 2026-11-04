@@ -74,7 +74,9 @@ const CONFIG = [
   "invalid_scope",
 ];
 
-const NETWORK = ["failed to fetch", "networkerror", "timed out", "timeout", "enotfound", "econnrefused", "econnreset", "offline"];
+// "http_network_error" is the phone's native HTTP layer saying nothing came back
+// (finding 2026-10-30: a calendar account read "could not be loaded" instead).
+const NETWORK = ["failed to fetch", "networkerror", "http_network_error", "timed out", "timeout", "enotfound", "econnrefused", "econnreset", "offline"];
 
 /**
  * Classifies a failure message. Order matters: an expired grant is the case we

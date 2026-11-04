@@ -324,6 +324,48 @@ describe("touch targets (nothing tappable falls under the app's own minimum)", (
   });
 });
 
+describe("hover tint (--state-hover paints only :hover rules)", () => {
+  it("leaves every other state to --state-highlight, which a touch screen keeps", () => {
+    // A touch screen applies :hover on a tap and keeps it; base-colors.css
+    // takes --state-hover away below the root on such a screen (TestFlight
+    // 2026-10-28: the tapped "more" button stayed tinted). A rule that paints
+    // a keyboard row, a press or a mark with --state-hover would lose its tint
+    // there too, so those read --state-highlight.
+    const rels = [...Object.values(STYLE_FILES), ...themeFiles().filter((rel) => rel.endsWith(".css"))];
+    const offenders: string[] = [];
+    for (const rel of rels) {
+      const clean = sourceFile(rel).replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const usesHover = [...m[2].matchAll(/(^|;)\s*([a-z][a-z-]*)\s*:[^;]*var\(--state-hover\)/g)];
+        if (usesHover.length === 0) continue;
+        const selectors = m[1].trim().split(",").map((s) => s.trim());
+        const notHover = selectors.filter((s) => !s.includes(":hover"));
+        if (notHover.length) offenders.push(`${rel} — ${notHover.join(", ")}`);
+      }
+    }
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
+describe("list dividers (the hairline between rows is not reset away)", () => {
+  it("keeps every border reset of a list row weightless", () => {
+    // `.pv-grouprows > * + *` draws the divider at the strength of one class.
+    // `.pv-grouprow { border: 0 }` had the same strength and came later, so it
+    // erased the divider on every row that is a direct child of its list
+    // (TestFlight 2026-10-28: no lines in Today). A border reset on a row may
+    // only sit in :where(), which weighs nothing.
+    const ui = sourceFile(STYLE_FILES.ui).replace(/\/\*[\s\S]*?\*\//g, "");
+    const offenders: string[] = [];
+    for (const m of ui.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selectors = m[1].trim().split(",").map((s) => s.trim());
+      if (!selectors.includes(".pv-grouprow")) continue;
+      if (/(^|;)\s*border(-top)?\s*:/.test(m[2])) offenders.push(m[1].trim());
+    }
+    expect(offenders, offenders.join(", ")).toEqual([]);
+    expect(ui).toMatch(/:where\(\.pv-grouprow\)\s*\{\s*border:\s*0;/);
+  });
+});
+
 describe("theme reach (every mobile surface can be re-themed)", () => {
   it("paints mobile surfaces from shared tokens, never from literals", () => {
     // The plan's finding was "2 of 14 themes know mobile". The cause is not a
@@ -470,6 +512,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-cardhover": "hover-state utility on --state-hover",
   "pv-chips": "chip flow container, layout only",
   "pv-setgroup": "settings group wrapper, layout only",
+  "pv-setsearch": "settings search in the rail: a .pv-searchfield and hits that are .pv-navlink rows (both themed); the path and hint lines are --text-muted/--text-faint type",
+  "pv-setfound": "a moment's highlight of the row a search hit opened, on the --accent-container/--accent-color pair both themes override",
   "pv-acct": "account rows inside .pv-setcard — the card carries the theme look",
   "pv-svcchip": "service chip on the themed accent-container pair",
   "pv-wizsteps": "wizard step header, layout only",
@@ -491,6 +535,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-evtdesc": "event description text (plan Befunde 24.09., E25): running text on --text-muted and link chips on --border-color/--bg-primary/--accent-color, all tokens both themes already override",
   "pv-linktarget": "text run (plan Befunde 06.10., M1): the destination of a mail link on --text-muted with its host on --text-main, or the colour of the warning surface around it - tokens both themes already override",
   "pv-maillink": "a link inside a plain-text mail body: --accent-color and an underline, nothing else to theme",
+  "pv-mailtext": "a plain-text mail body: --font-content, --text-md and --text-main, which both themes already set",
   "pv-web-link": "a link out of the vault in the reading view: --accent-color and the --web-link-decoration token (Appearance -> Links), nothing else to theme",
   "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
   "pv-pinentry": "layout only — the pinboard entry window's title field, editor host and line of inherited chips inside .pv-modal; the modal, the field tokens, the Chip primitive and the editor carry every theme",

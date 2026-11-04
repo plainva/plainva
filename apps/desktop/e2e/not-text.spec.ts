@@ -383,3 +383,99 @@ test('the copy a sync left beside such a table takes its place byte for byte fro
   // The table it replaced is in the version history, byte for byte.
   expect(state.kept).toContainEqual({ bytes: TABLE });
 });
+
+/**
+ * A draft journal file of the old name (open-items plan 3.124). The old hash
+ * gave "Kapitel 1.md" and "Kapitel 2.md" one file name: a draft of the one was
+ * offered at the other, and restoring it wrote it into the wrong note. Files of
+ * the old name are still read — each entry only at the note it names.
+ */
+test('a draft in a journal file of the old name is offered at its own note — never at a note whose name differs only at the end', async ({ page }) => {
+  const journal = `/drafts/${journalHash('/test-vault')}/${journalHash('Kapitel 1.md')}.json`;
+  expect(journalHash('Kapitel 2.md')).toBe(journalHash('Kapitel 1.md'));
+  await page.addInitScript(({ journal }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Kapitel 1.md'] = '# Kapitel 1\n\nSaved.\n';
+    fs['/test-vault/Kapitel 2.md'] = '# Kapitel 2\n\nSaved.\n';
+    fs[journal] = JSON.stringify({ version: 2, entries: [
+      { vaultPath: '/test-vault', notePath: 'Kapitel 1.md', text: '# Kapitel 1\n\nLeft unsaved.\n', revision: 3, savedAt: 1, sessionId: 'earlier' },
+    ] });
+  }, { journal });
+  const restore = page.getByRole('button', { name: 'Restore draft' });
+  // Its own note offers it…
+  await open(page, 'Kapitel 1');
+  await expect(restore).toBeVisible({ timeout: 20000 });
+  // …the note next to it does not.
+  await page.getByTestId('file-tree').getByText('Kapitel 2', { exact: true }).click();
+  await expect(page.locator('.cm-content').first()).toContainText('Kapitel 2', { timeout: 20000 });
+  await page.waitForTimeout(1500);
+  await expect(restore).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('draft-journal-desktop-neighbour.png') });
+  // Back at its own note it is offered again, and restoring it lands there.
+  await page.getByTestId('file-tree').getByText('Kapitel 1', { exact: true }).click();
+  await expect(restore).toBeVisible({ timeout: 20000 });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('draft-journal-desktop-own.png') });
+  await restore.click();
+  await expect(page.locator('.cm-content').first()).toContainText('Left unsaved.');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Kapitel 1.md']), { timeout: 20000 }).toContain('Left unsaved.');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Kapitel 2.md'])).toBe('# Kapitel 2\n\nSaved.\n');
+});
+
+// Sammelplan § 3.86 no. 7: "Keep both files" and "Delete conflict copy" end an
+// open conflict as "take the copy" does — and the open editor hears of it. It
+// used to go on showing the working copy's text under the banner of a conflict
+// that was over; only taking the copy handed a text on.
+for (const exit of [
+  { id: 'compare-keep-both', name: 'keep both' },
+  { id: 'compare-discard', name: 'delete the copy' },
+] as const) {
+  test(`after "${exit.name}" in the comparison, the open editor shows the note again, not the working copy`, async ({ page }) => {
+    if (process.env.PLAINVA_EVIDENCE) page.on('console', (message) => { if (/Conflict|Editor|conflict/.test(message.text())) console.log('PAGE:', message.text()); });
+    await open(page, 'Start');
+    const editor = page.locator('.cm-content').first();
+    await expect(editor).toContainText('A note in UTF-8.', { timeout: 20000 });
+    // Typed into the note, and before it is saved another program changes the
+    // same line: the save cannot merge, or the editor notices the change with
+    // the typing still unsaved — either way the typing goes to a working copy.
+    const foreign = '# Start\n\nChanged by another program.\n';
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('End');
+    await page.keyboard.press('Shift+Home');
+    await page.keyboard.insertText('Typed here.');
+    await page.evaluate((text) => { (window as any).mockFs['/test-vault/Start.md'] = text; }, foreign);
+    // The save cannot merge: what was typed goes to a working copy, and the banner says so.
+    const banner = page.locator('.pv-banner', { hasText: 'You are editing your conflict copy' });
+    await expect(banner).toBeVisible({ timeout: 20000 });
+    const working = await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Start.CONFLICT-')));
+    expect(working).toHaveLength(1);
+    await banner.getByRole('button', { name: 'Resolve conflict…' }).click();
+    await expect(page.getByTestId('compare-modal')).toBeVisible();
+    await page.getByTestId(exit.id).click();
+    // The confirmation's own button: the last one of the dialog on top ("Delete" is a danger button, not a primary one).
+    await page.locator('.pv-modal-footer').last().locator('button').last().click();
+    await expect(page.getByTestId('compare-modal')).not.toBeVisible({ timeout: 10000 });
+    // The note is the other program's again, and the banner of the conflict is gone.
+    await expect(editor).toContainText('Changed by another program.', { timeout: 20000 });
+    await expect(editor).not.toContainText('Typed here.');
+    await expect(banner).toHaveCount(0);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath(`conflict-${exit.id}-desktop.png`) });
+    const state = await page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      return { note: fs['/test-vault/Start.md'], copies: Object.keys(fs).filter((p) => p.startsWith('/test-vault/Start.CONFLICT-')), kept: Object.keys(fs).filter((p) => p.startsWith('/test-vault/Start (Version')).map((p) => fs[p]) };
+    });
+    expect(state.note).toBe(foreign);
+    expect(state.copies).toEqual([]);
+    if (exit.id === 'compare-keep-both') {
+      expect(state.kept).toHaveLength(1);
+      expect(String(state.kept[0])).toContain('Typed here.');
+    } else expect(state.kept).toEqual([]);
+    // Typing goes into the note now, not into a working copy that is gone.
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.insertText('After the answer.');
+    await expect.poll(() => page.evaluate(() => String((window as any).mockFs['/test-vault/Start.md'])), { timeout: 20000 }).toContain('After the answer.');
+    expect(await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Start.CONFLICT-')).length)).toBe(0);
+  });
+}

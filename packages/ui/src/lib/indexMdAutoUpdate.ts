@@ -7,6 +7,7 @@ import {
   type VaultQueryService,
 } from "@plainva/core";
 import { generateIndexForFolder } from "./indexMdGenerate";
+import { followFreshNoteMove } from "./freshNote";
 import { type IndexMdAdapter } from "./indexMd";
 
 /**
@@ -23,8 +24,13 @@ export type FileOp =
   | { type: "create" | "delete"; path: string; isFolder?: boolean }
   | { type: "move"; from: string; to: string; isFolder?: boolean };
 
-/** Fire-and-forget dispatch used by all file-operation call sites. */
+/**
+ * Fire-and-forget dispatch used by all file-operation call sites. Also where a
+ * note made in this session keeps that mark across a move (`freshNote.ts`):
+ * the one place every move of both shells passes.
+ */
 export function notifyFileOps(ops: FileOp[]): void {
+  for (const op of ops) if (op.type === "move") followFreshNoteMove(op.from, op.to, op.isFolder);
   if (ops.length > 0) {
     window.dispatchEvent(new CustomEvent("plainva-file-ops", { detail: { ops } }));
   }

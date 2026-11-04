@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, waitForIndexSchema } from "./exampleVault";
 
 /**
  * What is due on a day, on the phone (TestFlight, build 136): "Tasks due today
@@ -180,7 +180,7 @@ test("the calendar's Show tasks puts a checkbox from a note on its day, without 
     await waitForVaultDirectory(page);
     await writeFiles(page, [["Haushalt.md", note]]);
     await page.reload();
-    await expect.poll(() => sql.count(INDEX, "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, INDEX);
     sql.seedPim(INDEX);
     await expect.poll(() => indexed(sql, "Haushalt.md"), { timeout: 20_000 }).toBe(1);
     await page.reload();

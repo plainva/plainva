@@ -15,6 +15,7 @@ import { canRepeat, consumePendingNew, describeRule, isMirroredNamespace, isRecu
 import { RepeatTaskModal } from "./RepeatTaskModal";
 import { TaskDuplicatesNotice } from "./TaskDuplicatesNotice";
 import { TaskNamesNotice } from "./TaskNamesNotice";
+import { TemplateKeysNotice } from "./TemplateKeysNotice";
 import { TaskCaptureBar } from "./TaskCaptureBar";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -33,7 +34,7 @@ import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type InlineLinkHandlers, type PlannerRow } from "@plainva/ui";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { openLink } from "../../services/openLink";
 import { useWikiResolver } from "../../hooks/useWikiResolver";
 import { applyTaskDueChanges, DateJumpPopover, DuePicker, dueTimeOf, offerDueTimeColumn, overdueToDayChanges, TaskCheckButton, taskDueFailureText, taskDueMovedText, useWeekStartDay, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
@@ -433,7 +434,11 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           triggerFileTreeUpdate([res.notePath, task.path]);
           notifyFileOps([{ type: "create", path: res.notePath }]);
         }
-        toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: res.title }));
+        // The task note is there; a checkbox that stayed beside it is said
+        // (Sammelplan § 3.87 no. 5) — it ended in the console under "Moved".
+        if (res.checkboxKept === "changed") toast.warning(t("writeFailed.promotedCheckboxKept", { name: res.title }));
+        else toast.info(t("tasks.promoted", { defaultValue: "Verschoben: {{name}}", name: res.title }));
+        if (res.checkboxKept === "refused") toast.error(t("writeFailed.checkbox", { reason: errorText(res.keptReason) }));
         // A promoted checkbox is a task created in that database like any
         // other — otherwise it would depend on WHERE a task was born whether
         // it reaches the provider.
@@ -441,7 +446,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         setRefreshTick((x) => x + 1);
       } catch (e) {
         console.error("[TasksView] promoting a task failed", e);
-        toast.error(t("tasks.promoteFailed", { defaultValue: "Verschieben fehlgeschlagen." }));
+        toast.error(t("writeFailed.promote", { reason: errorText(e) }));
       }
     },
     [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, sendToProvider, t]
@@ -668,7 +673,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         if (done.next === null) { taskMutationGate.finish(); return; }
         setTasks((prev) => prev.map((t2) => (t2.path === task.path && t2.ordinal === task.ordinal ? optimistic(t2) : t2)));
       } catch (error) {
+        // Said with its reason (Sammelplan § 3.134 no. 2): the box sprang back without a word.
         console.error("[TasksView] updating a checkbox task failed", task.path, error);
+        toast.error(t("writeFailed.checkbox", { reason: errorText(error) }));
         taskMutationGate.finish();
         setRefreshTick((x) => x + 1);
         return;
@@ -676,22 +683,18 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       // The overview reads from fts_notes, not directly from the file. Await
       // the targeted index update before publishing fileTreeVersion; doing
       // this in the opposite order briefly resurrected completed tasks.
+      // The Markdown write already succeeded. Where the index could not follow,
+      // keep the truthful optimistic row instead of replacing it from a
+      // known-stale index snapshot.
       let reindexed = false;
       try {
-        if (indexer) {
-          await applyIndexChanges(indexer, { added: [task.path] });
-          reindexed = true;
-        }
-      } catch (error) {
-        // The Markdown write already succeeded. Keep the truthful optimistic
-        // row instead of replacing it from a known-stale index snapshot.
-        console.error("[TasksView] reindexing a checkbox task failed", task.path, error);
+        if (indexer) reindexed = (await applyIndexChanges(indexer, { added: [task.path] })).leftBehind.length === 0;
       } finally {
         taskMutationGate.finish();
       }
       if (reindexed) triggerFileTreeUpdate([task.path]);
     },
-    [vaultAdapter, indexer, triggerFileTreeUpdate, taskMutationGate, setTasks]
+    [vaultAdapter, indexer, triggerFileTreeUpdate, taskMutationGate, setTasks, t]
   );
   const toggle = useCallback(
     (task: TaskRecord) => {
@@ -1070,6 +1073,13 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       }}
     />
   ) : null;
+  const templateKeysNotice = (
+    <TemplateKeysNotice
+      reloadKey={`${fileTreeVersion}:${refreshTick}`}
+      templateFolder={templateFolder}
+      onChanged={() => setRefreshTick((x) => x + 1)}
+    />
+  );
   const duplicatesNotice = (
     <TaskDuplicatesNotice
       db={duplicatesDb}
@@ -1168,6 +1178,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       {list !== "all" ? (
         <div className="pv-planner-scroll">
           {namesNotice}
+          {templateKeysNotice}
           {duplicatesNotice}
           {loading ? null : (
             <TaskPlannerList
@@ -1191,6 +1202,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       ) : (
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0.4rem 0" }}>
         {namesNotice}
+        {templateKeysNotice}
         {duplicatesNotice}
         {taskDb && (
           <div data-testid="task-db-section" style={{ margin: "0 0.7rem 0.6rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>

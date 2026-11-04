@@ -1,6 +1,7 @@
 import { parseMarkdownTree } from "./markdown-parser.js";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
 import { plainWikiLinkInner, wikiLinkParts } from "./wikiLink.js";
+import { SOURCE_LINE_END } from "./sourceLines.js";
 
 interface SourceNode {
   type: string;
@@ -44,8 +45,13 @@ export function noteSlugger(): (text: string) => string {
 
 /** Maps a parsed node back to its range in the unmodified note. */
 function sourceRanger(raw: string, clean: ReturnType<typeof stripAnchorMarkers>): (node: SourceNode) => NoteSourceRange {
+  // A line begins behind a line end as an editor reads one (`sourceLines.ts`),
+  // a carriage return of its own included, as the parser reads it. Counted at
+  // `\n` alone, every line of a note from a classic Mac was line 1 — the
+  // journal found no entry in it, the outline jumped to its top (3.96).
   const lines = [0];
-  for (let i = 0; i < raw.length; i++) if (raw[i] === "\n") lines.push(i + 1);
+  const ends = new RegExp(SOURCE_LINE_END.source, "g");
+  for (let match = ends.exec(raw); match; match = ends.exec(raw)) lines.push(match.index + match[0].length);
   return (node) => {
     const from = clean.toRaw(node.position!.start.offset);
     let lo = 0, hi = lines.length;

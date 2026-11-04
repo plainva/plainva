@@ -4,8 +4,12 @@ import {
   BOOKMARKS_FILE,
   parseBookmarksFile,
   removeBookmarksOnDisk,
+  restoreBookmarksFile,
   serializeBookmarksFile,
+  setBookmarksLaneScope,
+  snapshotBookmarksFile,
   toggleBookmarkOnDisk,
+  type BookmarksFileIO,
   type BookmarksIO,
 } from "@plainva/ui";
 
@@ -113,5 +117,76 @@ describe("changing bookmarks with two windows open (multi-window C1)", () => {
     };
     expect(await toggleBookmarkOnDisk(io, "A.md")).toEqual([{ type: "file", path: "A.md" }]);
     expect(parseBookmarksFile(text ?? "")).toMatchObject({ paths: ["A.md"], existed: true });
+  });
+});
+
+/**
+ * The way back out of a settings import (Sammelplan § 3.127 Nr. 1): both
+ * shells snapshot the bookmarks file before the import and put it back when
+ * the import does not finish.
+ */
+describe("the bookmarks file before and after a settings import", () => {
+  function fileDisk(initial?: string) {
+    const files = new Map<string, string>();
+    if (initial !== undefined) files.set(BOOKMARKS_FILE, initial);
+    let gate: Promise<void> | null = null;
+    const io: BookmarksFileIO = {
+      readTextFile: async (p) => {
+        const text = files.get(p);
+        if (text === undefined) throw new VaultFileNotFoundError(p);
+        return text;
+      },
+      writeTextFile: async (p, text) => {
+        const held = gate; gate = null;
+        if (held) await held;
+        files.set(p, text);
+      },
+      exists: async (p) => files.has(p),
+      deleteItem: async (p) => { files.delete(p); },
+    };
+    return { io, files, holdNextWrite: (until: Promise<void>) => { gate = until; } };
+  }
+  const before = JSON.stringify({ items: [{ type: "folder", path: "Projects" }, { type: "file", path: "A.md" }] }, null, 2);
+
+  it("gives back the whole file, folder bookmarks included", async () => {
+    const disk = fileDisk(before);
+    const snapshot = await snapshotBookmarksFile(disk.io);
+    disk.files.set(BOOKMARKS_FILE, serializeBookmarksFile(["Imported.md"]));
+    await restoreBookmarksFile(disk.io, snapshot);
+    expect(disk.files.get(BOOKMARKS_FILE)).toBe(before);
+  });
+
+  it("gives back \"there was no file\" as no file", async () => {
+    const disk = fileDisk();
+    const snapshot = await snapshotBookmarksFile(disk.io);
+    expect(snapshot).toEqual({ existed: false });
+    disk.files.set(BOOKMARKS_FILE, serializeBookmarksFile(["Imported.md"]));
+    await restoreBookmarksFile(disk.io, snapshot);
+    expect(disk.files.has(BOOKMARKS_FILE)).toBe(false);
+  });
+
+  it("reads the old phone form (file bookmarks only) and leaves the folders it never saw", async () => {
+    const disk = fileDisk(JSON.stringify({ items: [{ type: "folder", path: "Projects" }, { type: "file", path: "Imported.md" }] }));
+    await restoreBookmarksFile(disk.io, { existed: true, paths: ["A.md"] });
+    expect(parseBookmarksFile(disk.files.get(BOOKMARKS_FILE)!).entries).toEqual([
+      { type: "file", path: "A.md" },
+      { type: "folder", path: "Projects" },
+    ]);
+  });
+
+  it("waits for a star click that is half done, on the lane the desktop's writers share", async () => {
+    const disk = fileDisk(before);
+    // The desktop names its lane by the vault, so every adapter of it queues together.
+    setBookmarksLaneScope(disk.io, "desktop:lane-test");
+    const snapshot = await snapshotBookmarksFile(disk.io);
+    disk.files.set(BOOKMARKS_FILE, serializeBookmarksFile(["Imported.md"]));
+    let release!: () => void;
+    disk.holdNextWrite(new Promise<void>((resolve) => { release = resolve; }));
+    const star = toggleBookmarkOnDisk(disk.io, "Star.md");
+    await Promise.resolve();
+    const rollback = restoreBookmarksFile(disk.io, snapshot);
+    release();
+    await Promise.all([star, rollback]);
+    expect(disk.files.get(BOOKMARKS_FILE)).toBe(before);
   });
 });

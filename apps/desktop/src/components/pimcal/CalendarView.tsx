@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Users } from "lucide-react";
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -542,7 +542,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           // sentence of a property write, with its reason (finding
           // 2026-10-12). A checkbox says its reason.
           if (task.source === "database") toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
-          else toast.error(errorText(e));
+          else toast.error(t("writeFailed.checkbox", { reason: errorText(e) }));
         }
       })();
     },
@@ -676,9 +676,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     const first = gridDays[0];
     const last = gridDays[gridDays.length - 1];
     if (!first || !last) return monthTitle;
-    const dayNum = new Intl.DateTimeFormat(i18n.language, { day: "numeric" });
-    const dayMonth = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "long" });
-    return `${dayNum.format(first)}.–${dayMonth.format(last)}${week}`;
+    return `${dayRangeLabel(first, last, i18n.language, "long")}${week}`;
   }, [viewMode, monthTitle, dayTitle, gridDays, i18n.language, t, showWeeks]);
 
   // Prev/next steps by the visible period (1 / 3 / 7 days, or one month).
@@ -1870,7 +1868,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           action={
             <Button
               variant="primary"
-              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts" } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "cloudAccounts", connect: "calendar" } }))}
               data-testid="calendar-open-settings"
             >
               {t("cloudAccounts.openArea")}
@@ -1954,13 +1952,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           />
         </div>
         <span style={{ flex: 1 }} />
-        {status.status === "syncing" ? (
+        {/* A failed cycle is said once, in the line under this bar
+            (`CalendarSyncNotice`): which account, since when, why. The chip
+            that used to stand here said the same in two words, beside it —
+            and the phone never had it (Sammelplan § 3.43). */}
+        {status.status === "syncing" && (
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</span>
-        ) : status.status === "error" ? (
-          <span data-tip={status.message} style={{ fontSize: "var(--text-xs)", color: "var(--error-text)" }}>
-            {t("pim.syncError", { defaultValue: "Sync-Fehler" })}
-          </span>
-        ) : null}
+        )}
         <IconButton
           label={t("pim.showTasks", { defaultValue: "Aufgaben anzeigen" })}
           onClick={() => setShowTasks((v) => !v)}

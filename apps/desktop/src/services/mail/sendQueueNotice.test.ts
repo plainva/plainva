@@ -60,7 +60,7 @@ vi.mock("../windowManager", () => ({
 // Loaded up front: the queue imports the window manager on demand, and that
 // import must not be what a test waits for.
 import "../windowManager";
-import { releaseRefusedSend, submitSend, type MailSendRequest } from "./sendQueue";
+import { releaseRefusedSend, resetRefusedSendsForTests, submitSend, type MailSendRequest } from "./sendQueue";
 
 const request = (subject: string): MailSendRequest => ({
   vaultPath: "/vault",
@@ -84,6 +84,7 @@ const said = (kind: string) =>
 const sentSubjects = () => transport.calls.map((call) => call.subject);
 
 beforeEach(() => {
+  resetRefusedSendsForTests();
   vi.useFakeTimers();
   toast.clearAll();
   transport.calls.length = 0;

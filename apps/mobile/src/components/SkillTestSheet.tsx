@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core";
 import { Banner, Button, GroupCard, Row, RowList, skillTestFacts, skillTestGroups, SkillTestLines, skillTestOutcomeText, TextInput, useSkillTestRun, type SkillTestPlan } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 /**
@@ -19,14 +20,22 @@ export function SkillTestSheet({ ids, plan, onClose }: { ids: readonly string[] 
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const run = useSkillTestRun(session);
   const [amount, setAmount] = useState(String(SKILL_TEST_DEFAULT_COST_USD));
+  // The ceiling the last run here started with: that one a close no longer loses.
+  const [ranWith, setRanWith] = useState<string | null>(null);
+  const close = useSheetGuard("ai-skill-test", !run.busy && amount !== ranWith && amount.trim() !== String(SKILL_TEST_DEFAULT_COST_USD), onClose);
   const facts = plan ? skillTestFacts(t, plan, i18n.language) : null;
   const running = state.skillTests.running;
   const groups = skillTestGroups(t, state.skills.entries, state.skillTests.records, ids, i18n.language);
   const outcome = run.outcome && plan ? skillTestOutcomeText(t, run.outcome, plan.providerLabel) : null;
+  const start = () => {
+    if (!plan) return;
+    setRanWith(amount);
+    run.start(plan, ids, amount);
+  };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-skill-test">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{plan ? t("ai.workshop.test.run", { model: plan.choice.model }) : t("ai.workshop.test.title")}</p>
         {facts && (
           <GroupCard>
@@ -66,10 +75,10 @@ export function SkillTestSheet({ ids, plan, onClose }: { ids: readonly string[] 
           </Button>
         ) : (
           <>
-            <Button variant="primary" disabled={!plan || !facts?.canRun} onClick={() => plan && run.start(plan, ids, amount)} data-testid="ai-skill-test-start">
+            <Button variant="primary" disabled={!plan || !facts?.canRun} onClick={start} data-testid="ai-skill-test-start">
               {t("ai.workshop.test.start")}
             </Button>
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="ghost" onClick={close}>
               {t("common.close")}
             </Button>
           </>

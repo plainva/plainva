@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { customEndpointId, normalizeBaseUrl, providerById, type ProviderInfo, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, type AiProfileSlot } from "@plainva/core";
+import { customEndpointId, normalizeBaseUrl, providerById, sameStoredValue, type ProviderInfo, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, type AiProfileSlot } from "@plainva/core";
 import {
   addableProviders,
   Banner,
@@ -15,6 +15,7 @@ import {
   Switch,
   TextInput,
   toast,
+  useDiscardGuard,
   type AiSession,
   type AiState,
 } from "@plainva/ui";
@@ -38,6 +39,8 @@ export function AiAddProviderDialog({ session, state, onClose, onAdded }: { sess
   const [url, setUrl] = useState("");
   const [declined, setDeclined] = useState(false);
   const normalized = url.trim() ? normalizeBaseUrl(url) : null;
+  // A typed name or address of an own server is asked about (finding 2026-10-22).
+  const close = useDiscardGuard(custom && (name.trim() !== "" || url.trim() !== ""), onClose);
 
   const pick = (provider: ProviderInfo) => {
     void session.addProvider(provider.id).then(() => onAdded(provider));
@@ -77,7 +80,7 @@ export function AiAddProviderDialog({ session, state, onClose, onAdded }: { sess
   );
 
   return (
-    <Modal title={t("ai.add.title")} onClose={onClose} size="lg" testId="ai-add-provider">
+    <Modal title={t("ai.add.title")} onClose={close} size="lg" testId="ai-add-provider">
       <div className="pv-ai-add">
         <p className="pv-ai-lead">{t("ai.add.lead")}</p>
         {groups.cloud.length > 0 && <h4 className="pv-ai-grouphead">{t("ai.add.cloud")}</h4>}
@@ -122,6 +125,8 @@ export function AiKeyDialog({ session, provider, onClose }: { session: AiSession
   const { t } = useTranslation();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
+  // A typed key is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(key.trim() !== "", onClose);
   const save = () => {
     if (!key.trim()) return;
     setBusy(true);
@@ -140,11 +145,11 @@ export function AiKeyDialog({ session, provider, onClose }: { session: AiSession
   return (
     <Modal
       title={t("ai.settings.keyTitle", { provider: provider.label })}
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-key-dialog"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="ghost" onClick={cancel}>{t("common.cancel")}</Button>
           <Button variant="primary" disabled={!key.trim() || busy} onClick={save} data-testid="ai-key-save">{t("ai.settings.keySave")}</Button>
         </>
       }
@@ -184,6 +189,9 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
   // model say both themselves, and neither is asked of a model that transcribes or embeds.
   const [windowText, setWindowText] = useState(current?.contextTokens ? String(current.contextTokens) : "");
   const [tools, setTools] = useState(current?.tools !== false);
+  // Whatever differs from what the dialog opened with is asked about (finding 2026-10-22).
+  const [opened] = useState(() => ({ providerId, model, windowText, tools }));
+  const cancel = useDiscardGuard(!sameStoredValue({ providerId, model, windowText, tools }, opened), onClose);
   const provider = providers.find((p) => p.id === providerId);
   const stating = !describesItself(provider) && profile !== AI_AUDIO_PROFILE && profile !== AI_EMBEDDING_PROFILE;
   const stated = readStatedWindow(windowText);
@@ -207,12 +215,12 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
   return (
     <Modal
       title={t("ai.settings.modelTitle", { profile: t(`ai.profile.${profile}`) })}
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-model-dialog"
       footer={
         <>
           {current && <Button variant="ghost" onClick={clear}>{t("ai.settings.clearProfile")}</Button>}
-          <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+          <Button variant="ghost" onClick={cancel}>{t("common.cancel")}</Button>
           <Button variant="primary" disabled={!providerId || !model.trim() || (stating && !stated.ok)} onClick={save} data-testid="ai-model-save">{t("common.save")}</Button>
         </>
       }

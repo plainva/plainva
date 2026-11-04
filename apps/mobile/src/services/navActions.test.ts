@@ -56,10 +56,21 @@ describe("leaving a screen", () => {
 
   it("done leaves without the question, guard or not, and the screen below re-reads", async () => {
     armLeaveGuard({ id: "mail-compose", message: "The draft will not be saved." });
-    actions().done();
+    actions().done(navTop(nav)!);
     expect(navTop(nav)?.kind).toBe("mail");
     expect(bumps).toBe(1);
     await settle();
     expect(currentMobileDialog()).toBeNull();
+  });
+
+  it("done takes only the screen that ends, not one put over it while it worked", () => {
+    // The security wizard ends after a key derivation and a vault reload, the
+    // composer after a send (finding 2026-10-22): a message begun on top in
+    // that wait was what a plain pop took.
+    const wizard = navTop(nav)!;
+    nav = pushEntry(nav, { kind: "mailcompose", path: "{\"subject\":\"begun meanwhile\"}" });
+    armLeaveGuard({ id: "mail-compose", message: "The draft will not be saved." });
+    actions().done(wizard);
+    expect(navTop(nav)?.path, "the message begun meanwhile stays on top").toContain("begun meanwhile");
   });
 });

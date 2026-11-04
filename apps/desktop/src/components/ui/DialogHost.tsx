@@ -24,7 +24,7 @@ export function DialogHost() {
 function ActiveDialog({ req }: { req: DialogRequest }) {
   const { t } = useTranslation();
   const [value, setValue] = useState(req.type === "prompt" ? req.initial ?? "" : "");
-  const [checked, setChecked] = useState(req.type === "prompt" ? req.checkbox?.initial ?? false : false);
+  const [checked, setChecked] = useState(req.type === "prompt" || req.type === "confirm" ? req.checkbox?.initial ?? false : false);
   // One state bag for the template-answers dialog: every question of a
   // template is asked in this single modal (plan Vorlagen-Engine, P3).
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
@@ -46,7 +46,9 @@ function ActiveDialog({ req }: { req: DialogRequest }) {
           : value
         : req.type === "answers"
           ? answers
-          : true
+          : req.type === "confirm" && req.checkbox
+            ? { value: "", checked }
+            : true
     );
 
   // Safe defaults: destructive dialogs start on Cancel, prompts and template
@@ -120,6 +122,15 @@ function ActiveDialog({ req }: { req: DialogRequest }) {
               checked={checked}
               onChange={(e) => setChecked(e.target.checked)}
               data-testid="prompt-checkbox"
+            >
+              {req.checkbox.label}
+            </Checkbox>
+          )}
+          {req.type === "confirm" && req.checkbox && (
+            <Checkbox
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              data-testid="confirm-checkbox"
             >
               {req.checkbox.label}
             </Checkbox>

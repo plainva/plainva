@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
 /**
  * Saving an event on the phone (issue 119).
@@ -28,7 +28,7 @@ test("a new event closes its sheet with the save; a refusal takes it back and of
   try {
     await page.goto("/");
     await waitForVaultDirectory(page);
-    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
     await page.reload();
     await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });

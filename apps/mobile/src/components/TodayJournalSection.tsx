@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { JournalEntry } from "@plainva/core";
-import { ICON, JournalDaySection, journalRowActions, loadImageBlob, requestNew, setPendingSearchJump, useJournalActions, useJournalDay, useJournalDayKey, type JournalDay, type JournalRowCaps } from "@plainva/ui";
-import { Browser } from "@capacitor/browser";
+import { ICON, JournalDaySection, journalRowActions, loadImageBlob, requestNew, setPendingSearchJump, useJournalActions, useJournalDay, useJournalDayKey, type JournalDay, type JournalRowCaps, getPlatformServices } from "@plainva/ui";
 import { JournalCaptureSheet } from "./JournalCaptureSheet";
 import { RowActionSheet } from "./RowActionSheet";
 import { SwipeRow } from "./SwipeRow";
@@ -58,7 +57,7 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
     onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
       void openLink({ text: target, kind: kind ?? "wiki", sourcePath: fromPath }, { vault, onOpenNote }).catch(() => undefined);
     },
-    onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
+    onOpenUrl: (url: string) => { void getPlatformServices().openExternal(url).catch(() => undefined); },
     onOpenTag: onOpenJournal,
   }), [vault, onOpenNote, onOpenJournal]);
 

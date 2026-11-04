@@ -73,6 +73,7 @@ export const TextArea = forwardRef<
       ref={ref}
       className={cx("pv-field", "pv-field--area", compact && "pv-field--compact", className)}
       spellCheck={spellCheck}
+      {...machineFieldProps(purpose)}
       {...rest}
     />
   );
@@ -114,5 +115,5 @@ export const GrowingField = forwardRef<
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  return <textarea ref={field} rows={1} className={cx("pv-field", "pv-field--compact", "pv-field--grow", className)} value={value} spellCheck={spellCheck} {...rest} />;
+  return <textarea ref={field} rows={1} className={cx("pv-field", "pv-field--compact", "pv-field--grow", className)} value={value} spellCheck={spellCheck} {...machineFieldProps(purpose)} {...rest} />;
 });

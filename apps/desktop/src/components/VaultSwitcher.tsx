@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronUp, Folder, Settings, SquareArrowOutUpRight } from "lucide-react";
 import { ICON, IconButton, MenuItem, MenuLabel, MenuSurface } from "@plainva/ui";
 import { SyncSwitcherIcon } from "./SyncSwitcherIcon";
+import { useVaultLabels } from "../services/vaultNames";
 import type { VaultSyncWorker } from "../contexts/VaultContext";
 
 export interface VaultSwitcherProps {
@@ -53,6 +54,8 @@ export function VaultSwitcher({
   // opens and closes the menu — and never a press beside the menu.
   const lineRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
+  // The name each vault goes by in Plainva: its own, else its folder's.
+  const label = useVaultLabels([vaultPath, ...(recentVaults ?? [])]);
 
   return (
     <div style={{ width: "100%", marginTop: "auto" }}>
@@ -75,7 +78,7 @@ export function VaultSwitcher({
               onSelect={() => openVault?.(path)}
               style={{ flex: 1, minWidth: 0 }}
             >
-              {path.split(/[/\\]/).pop() || path}
+              {label(path)}
             </MenuItem>
             {openVaultWindow && (
               <IconButton label={t("window.openVaultWindow")} onClick={() => { close(); openVaultWindow(path); }}>
@@ -108,7 +111,7 @@ export function VaultSwitcher({
             <Folder size={ICON.ui} color="var(--accent-color)" />
           )}
           <span style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {vaultPath?.split(/[/\\]/).pop()}
+            {vaultPath ? label(vaultPath) : null}
           </span>
           {canSwitchHere && (
             <ChevronUp size={ICON.ui} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform var(--dur-2) var(--ease-1)", marginLeft: "auto", flexShrink: 0 }} />

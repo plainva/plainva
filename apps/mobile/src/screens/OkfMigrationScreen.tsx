@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { App as CapApp } from "@capacitor/app";
 import { okfMigrationPending, type OkfVersionState } from "@plainva/core";
-import { Button, Checkbox, GroupCard, Row, RowList, SectionLabel, okfVersionBreakdown, toast } from "@plainva/ui";
+import { announceOkfRollback, Button, Checkbox, GroupCard, Row, RowList, SectionLabel, okfVersionBreakdown, toast, type OkfRunRecipe } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import {
@@ -108,13 +108,12 @@ export function OkfMigrationScreen({ vault, onBack }: { vault: MobileVault; onBa
     }
   };
 
-  const undo = async (backupDir: string) => {
+  const undo = async (backupDir: string, recipe: OkfRunRecipe) => {
     setBusy(true);
     setProgress({ done: 0, total: 0, path: "" });
     try {
-      const result = await undoOkfMigration(vault, backupDir, (done, total) => setProgress({ done, total, path: "" }));
-      if (result.failed.length > 0) toast.error(t("okf.rollbackFailed", { count: result.failed.length }));
-      else toast.info(t("okf.rollbackDone", { count: result.restored.length }));
+      const result = await undoOkfMigration(vault, backupDir, recipe, (done, total) => setProgress({ done, total, path: "" }));
+      announceOkfRollback(result, backupDir, t);
       await refreshIndex(result.restored);
       setReport(null);
       setStep("scanning");
@@ -239,7 +238,7 @@ export function OkfMigrationScreen({ vault, onBack }: { vault: MobileVault; onBa
             <Button
               data-testid="okf-migrate-rollback"
               disabled={busy || !report.backupDir || report.changed.length === 0}
-              onClick={() => void undo(report.backupDir)}
+              onClick={() => void undo(report.backupDir, report.recipe)}
               variant="ghost"
             >
               {t("okf.undoMigration")}

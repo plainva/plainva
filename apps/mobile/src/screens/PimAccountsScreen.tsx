@@ -3,9 +3,9 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus } from "lucide-react";
-import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { accountInputProps, AccountFailureNote, Banner, Button, calendarTargetForFamily, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily, InfoTip, pimAccountFailure, pimProviderName, travelsWithVault } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessResolution, type OAuthFamily } from "@plainva/ui";
+import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessFamily, type AccessResolution } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mDayTime, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -60,6 +60,7 @@ type CalRow = PimCalendar & { accountId: string; selected: boolean };
 const HOUR_CHIPS = [7 * 60, 8 * 60, 9 * 60, 12 * 60, 18 * 60];
 
 export function PimAccountsScreen({
+  onAddAccount,
   bump,
   onBack,
   family,
@@ -81,6 +82,8 @@ export function PimAccountsScreen({
    * Google, and connecting the wrong provider looked completely normal.
    */
   family?: CloudProviderFamily;
+  /** "Add account…" opens the connect assistant with the calendar ticked (E7 of the settings plan 2026-10-29). */
+  onAddAccount?: () => void;
 }) {
   const { t } = useTranslation();
   const run = useConnectionRun();
@@ -88,6 +91,15 @@ export function PimAccountsScreen({
   const calendarOutcome = calendarRun?.outcomes.calendar;
   const selectedAccountId = calendarOutcome && "bindingId" in calendarOutcome ? calendarOutcome.bindingId : accountId;
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  /** A CalDAV failure of the run's calendar step, with its sender in the frame - no toast (settings plan § 5.1). */
+  const [caldavFailure, setCaldavFailure] = useState<unknown>(null);
+  /**
+   * The calendar of a provider with credentials, proven by the one form of the
+   * sign-in step (E5): the step binds it without asking again. Absent in a run
+   * resumed after the app was gone - then the form asks once more.
+   */
+  const provenCaldav = calendarRun && family ? getConnectSecrets().request?.caldav ?? null : null;
+  const autoConnected = useRef<string | null>(null);
   const [forceConsent, setForceConsent] = useState(false);
   const calPreset = family ? calendarTargetForFamily(family) : null;
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
@@ -103,6 +115,7 @@ export function PimAccountsScreen({
   const duplicates = useMemo(() => reviewDuplicatePimRows(accounts), [accounts]);
   const [remindEvents, setRemindEvents] = useState(() => getMobileSettings().remindEvents);
   const [remindTasks, setRemindTasks] = useState(() => getMobileSettings().remindTasks);
+  const [remindCheckboxes, setRemindCheckboxes] = useState(() => getMobileSettings().remindCheckboxes);
   const [lead, setLead] = useState(() => getMobileSettings().reminderLeadMinutes);
   const [allDayDays, setAllDayDays] = useState(() => getMobileSettings().reminderAllDayLeadDays);
   const [allDayAt, setAllDayAt] = useState(() => getMobileSettings().reminderAllDayAtMinutes);
@@ -128,7 +141,7 @@ export function PimAccountsScreen({
   // Google and Microsoft sign in through the one account sign-in with this
   // device's access (account sign-in plan K4b): no client fields here.
   const [access, setAccess] = useState<AccessResolution | null>(null);
-  const [accessFor, setAccessFor] = useState<OAuthFamily | null>(null);
+  const [accessFor, setAccessFor] = useState<AccessFamily | null>(null);
 
   // A CalDAV app password lives in this state until "connect" runs - and a
   // tap on the navigation bar clears the overlay. P0 fixed this class for the
@@ -155,7 +168,7 @@ export function PimAccountsScreen({
     if (!calendarRun) return;
     if (calendarOutcome && "bindingId" in calendarOutcome) { setFormOpen(false); return; }
     if (openedRun.current !== calendarRun.id) {
-      openedRun.current = calendarRun.id; setFormOpen(true); setConnectionError(null); setForceConsent(false);
+      openedRun.current = calendarRun.id; setFormOpen(!getConnectSecrets().request?.caldav); setConnectionError(null); setCaldavFailure(null); setForceConsent(false);
       setRunShare(null);
     }
   }, [calendarRun, calendarOutcome]);
@@ -455,22 +468,25 @@ export function PimAccountsScreen({
   /** The account this form repairs, if it is of the provider being filled in. */
   const reconnectFor = (provider: string) => (reconnect?.provider === provider ? reconnect : null);
 
-  const connectCaldav = async () => {
+  const connectCaldav = async (proven?: { url: string; user: string; pass: string }) => {
     // An address as a machine reads it (lib/machineText.ts).
-    const u = foldMachineText(url);
-    if (!u || !user.trim() || !pass) return;
+    const u = foldMachineText(proven?.url ?? url);
+    const name = (proven?.user ?? user).trim();
+    const secret = proven?.pass ?? pass;
+    if (!u || !name || !secret) return;
     setBusy(true);
+    setCaldavFailure(null);
     try {
       const host = (() => { try { return new URL(u).host; } catch { return u; } })();
       const target = reconnectFor("caldav");
       if (target) {
-        await reauthorizePimAccount(target.id, { kind: "caldav", url: u, user: user.trim(), pass }, calendarRun?.context);
+        await reauthorizePimAccount(target.id, { kind: "caldav", url: u, user: name, pass: secret }, calendarRun?.context);
         await recordConnectOutcome(calendarRun?.context, "calendar", { state: "alreadyConnected", bindingId: target.id });
       } else {
-        await addPimAccount("caldav", label.trim() || host, { kind: "caldav", url: u, user: user.trim(), pass }, calendarRun?.context);
+        await addPimAccount("caldav", label.trim() || host, { kind: "caldav", url: u, user: name, pass: secret }, calendarRun?.context);
       }
       // Carried to the mail step of the same run — in memory only (E4).
-      rememberConnectSecrets({ baseUrl: u, user: user.trim(), password: pass });
+      rememberConnectSecrets({ baseUrl: u, user: name, password: secret });
       setLabel(""); setUrl(""); setUser(""); setPass(""); setReconnect(null);
       toast.success(
         target
@@ -479,11 +495,20 @@ export function PimAccountsScreen({
       );
       reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      // In the setup the frame says it, with its sender; outside it the sheet's toast.
+      if (calendarRun) setCaldavFailure(e);
+      else toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
   };
+  // The proven calendar binds on its own, once per run; a retry is the frame's button.
+  useEffect(() => {
+    if (!calendarRun || !provenCaldav || calendarOutcome || autoConnected.current === calendarRun.id) return;
+    autoConnected.current = calendarRun.id;
+    void connectCaldav(provenCaldav);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per run: the effect is the step starting
+  }, [calendarRun?.id, provenCaldav, calendarOutcome]);
 
   // Google/Microsoft open the system browser (OAuth); the account is added when
   // the redirect returns (handlePimOAuthRedirect -> addPimAccount -> m-pim-changed),
@@ -593,152 +618,25 @@ export function PimAccountsScreen({
     } finally { setSelectionPending(n => n - 1); }
   };
 
+  /** What the meeting template may use — behind its info, with the guide (3.4 A). */
+  const meetingTemplateInfo = [t("pim.meetingTemplateHint"), `${t("pim.meetingTemplatePlaceholders")} ${MEETING_TEMPLATE_TOKENS.map((token) => `{{${token}}}`).join(" ")}`].join("\n\n");
+
   const canConnect = url.trim().length > 0 && user.trim().length > 0 && pass.length > 0 && !busy;
 
-  return (
-    <div className="m-page">
-      {/* A step of the account setup (plan "Verbinden-Assistent", 2026-10-28):
-          the setup's frame instead of the screen's bar and a banner. */}
-      {calendarRun ? (
-        <ConnectRunFrame
-          run={calendarRun}
-          service="calendar"
-          heading={t("connectRun.calendarHeading")}
-          failure={connectionError ?? undefined}
-          onLeave={() => { setFormOpen(false); onBack?.(); }}
-          onRetry={() => setFormOpen(true)}
-          onSignIn={() => setFormOpen(true)}
-        />
-      ) : (
-        <AppBar onBack={() => onBack?.()} title={t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
-      )}
-
-      <div className="m-settings">
-        {!calendarRun && <>
-        {/* Per-device sign-in (package D): app settings sync, but credentials
-            never do — this answers "settings synced yet no calendar login". */}
-        <p className="m-hint">{t("pim.perDeviceHint")}</p>
-
-        {/* Calendar settings (S27). Both were declared mobile gaps in the
-            profile catalogue: the meeting folder decided where a meeting note
-            lands, and the default calendar which calendar a new event starts
-            in — settings of the VAULT and the person, not of a device, so they
-            belong here and travel with the profile. */}
-        <SectionLabel>{t("pim.calendarSettings")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            <FolderField
-              label={t("pim.meetingFolder")}
-              normalize={(v) => v.trim()}
-              onSave={(v) => { setMeetingFolder(v); void updateMobileSettings({ meetingFolder: v }); }}
-              onPick={() => setPickMeetingFolder(true)}
-              placeholder="Meetings"
-              value={meetingFolder}
-            />
-            <Row
-              end={<><span className="m-prop-val">{meetingTemplate ? meetingTemplate.replace(/.md$/i, "") : "—"}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-              onClick={() => void pickMeetingTemplate()}
-              title={t("pim.meetingTemplate")}
-              data-testid="pim-meeting-template"
-            />
-            <Row
-              end={<><span className="m-prop-val">{calendars.find((c) => `${c.accountId} ${c.id}` === defaultCalendar)?.name ?? t("pim.defaultCalendarFirst")}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-              onClick={() => void pickDefaultCalendar()}
-              title={t("pim.defaultCalendar")}
-            />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint" data-testid="pim-meeting-template-tokens">
-          {t("pim.meetingTemplateHint")}
-          <br />
-          {t("pim.meetingTemplatePlaceholders")}{" "}
-          {MEETING_TEMPLATE_TOKENS.map((token) => (
-            <code key={token}>{`{{${token}}}`} </code>
-          ))}
-        </p>
-
-        {/* Reminders (S10) as their own section, the shape the target picture
-            gives it. The remaining rows — lead time, all-day rule, tasks, which
-            calendars — join in S11; the switch is here already because it is
-            what asks for the notification permission. */}
-        <SectionLabel>{t("reminders.section")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            <Row
-              end={<Switch
-                checked={remindEvents}
-                label={t("reminders.enable")}
-                onChange={(next) => saveReminder({ remindEvents: next }, () => setRemindEvents(next))}
-              />}
-              title={t("reminders.enable")}
-            />
-            <Row
-              end={<><span className="m-prop-val">{leadLabel(lead)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-              onClick={() => void pickLead()}
-              title={t("reminders.lead")}
-            />
-            <Row
-              end={<><span className="m-prop-val">{allDayLabel(allDayDays, allDayAt)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-              onClick={() => void pickAllDay()}
-              title={t("reminders.allDay")}
-            />
-            <Row
-              end={<Switch
-                checked={remindTasks}
-                label={t("reminders.tasks")}
-                onChange={(next) => saveReminder({ remindTasks: next }, () => setRemindTasks(next))}
-              />}
-              title={t("reminders.tasks")}
-            />
-            {/* Directly under the switch it belongs to: on its own it would read
-                like a second, unrelated task setting. */}
-            {remindTasks ? (
-              <Row
-                end={<><span className="m-prop-val">{taskTimeLabel(taskDays, taskAt)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-                onClick={() => void pickTaskTime()}
-                title={t("reminders.tasksNoTime")}
-              />
-            ) : null}
-            {remindTasks ? (
-              <Row
-                data-testid="reminder-task-timed-lead"
-                end={<><span className="m-prop-val">{taskTimedLead === 0 ? t("reminders.leadAtTime") : leadLabel(taskTimedLead)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-                onClick={() => void pickTaskTimedLead()}
-                subtitle={t("reminders.tasksTimedLeadDesc")}
-                title={t("reminders.tasksTimedLead")}
-              />
-            ) : null}
-            <Row
-              end={<><span className="m-prop-val">{calendarsValueLabel}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
-              onClick={() => void pickCalendars()}
-              title={t("reminders.calendars")}
-            />
-          </RowList>
-        </GroupCard>
-        {/* What the scheduler actually did, and when it did nothing, why
-            (plan Mobile-Feedback, P1/5). Task reminders hang on three silent
-            conditions — the switch, a task database that only reaches the phone
-            through the settings sync, and a due column typed as a date — and
-            every one of them produced the same unexplained silence. */}
-        {reminderDiagnosisLine ? <p className="m-hint">{reminderDiagnosisLine}</p> : null}
-        <p className="m-hint">{t("reminders.window")}</p>
-        {reminderState.denied ? <Banner kind="warning" rounded>{t("reminders.denied")}</Banner> : null}
-        {reminderState.truncatedFrom !== null ? (
-          <Banner kind="warning" rounded>
-            {t("reminders.truncated", {
-              date: new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(reminderState.truncatedFrom)),
-            })}
-          </Banner>
-        ) : null}
-        {/* The way into the form, which is a sheet now. */}
-        </>}
-        {!calendarRun &&
+  /**
+   * The accounts (settings plan 2026-10-29, B1, move 34): the first group of the
+   * page outside a setup run — the accounts feed everything below them. Inside a
+   * run the same list is the step that picks the calendars and lists.
+   */
+  const accountsSection = (
+    <>
+      {!calendarRun &&
         <GroupCard>
           <RowList>
             <Row
               data-testid="pim-account-add"
               icon={<Plus size={ICON.ui} />}
-              onClick={() => setFormOpen(true)}
+              onClick={() => (onAddAccount ? onAddAccount() : setFormOpen(true))}
               title={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
             />
           </RowList>
@@ -764,60 +662,82 @@ export function PimAccountsScreen({
             const failure = errors.get(a.id);
             const state = accountRowState(signIn.get(a.id) ?? "active", failure);
             return (
-              <div key={a.id} style={{ marginBottom: 16 }}>
-                <div className="m-acct" data-testid={`pim-account-${a.id}`}>
-                  <span className="m-acct-name">{a.label}</span>
-                  <DeviceSignInBadge state={state} />
-                  <span className="m-acct-provider">{a.provider === "device" ? t("cloudAccounts.familyDevice") : a.provider}</span>
-                </div>
+              <div key={a.id} className="m-pimacct">
+                {/* The account is ONE card (finding 2026-10-30): its own row first —
+                    the address, the provider by name, the sign-in state at the end —
+                    then what is wrong with it, then its calendars. The line above the
+                    card, its pill touching the provider, and the failure as two loose
+                    lines are gone; the desktop draws the same parts. */}
+                <GroupCard>
+                  <RowList>
+                    <Row
+                      data-testid={`pim-account-${a.id}`}
+                      title={a.label}
+                      subtitle={pimProviderName(a.provider, t)}
+                      end={<DeviceSignInBadge state={state} />}
+                    />
+                    {calendarRun ? null : (
+                      <Row
+                        data-testid={`pim-account-calendars-${a.id}`}
+                        title={t("cloudAccounts.openAccountCalendar")}
+                        subtitle={t("cloudAccounts.calendarSummary", {
+                          calendars: cals.filter((c) => c.selected).length,
+                          lists: taskLists.filter((l) => l.accountId === a.id && l.selected).length,
+                        })}
+                        end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                        onClick={() => onOpenAccountCalendar?.(a.id)}
+                      />
+                    )}
+                  </RowList>
+                </GroupCard>
                 {a.provider === "device" && deviceStatus && deviceStatus.events !== "fullAccess" && (
                   /* The device account's "sign-in" is the permission: the hint names
                      its state and offers the system settings, never a second dialog. */
-                  <>
-                    <p className="m-hint m-acct-hint" data-testid={`pim-account-hint-${a.id}`}>
-                      {t(devicePermissionKey(deviceStatus.events))} — {t("pim.deviceAccessNeeded")}
-                    </p>
+                  <Banner kind="warning" rounded actions={
                     <Button onClick={() => void openDevicePimSettings()} size="sm" variant="tonal">
                       {t("pim.deviceOpenSettings")}
                     </Button>
-                  </>
+                  }>
+                    <span data-testid={`pim-account-hint-${a.id}`}>
+                      {t(devicePermissionKey(deviceStatus.events))} — {t("pim.deviceAccessNeeded")}
+                    </span>
+                  </Banner>
                 )}
                 {a.provider !== "device" && state !== "active" && (
-                  /* The row alone would only say something is wrong — this says
+                  /* The pill alone would only say something is wrong — this says
                      what, and offers the one action that fixes it. */
-                  <>
-                    <p className="m-hint m-acct-hint" data-testid={`pim-account-hint-${a.id}`}>
-                      {state === "expired"
-                        ? a.provider === "google"
-                          ? t("pim.authExpiredGoogle")
-                          : t("pim.authExpired")
-                        : isOAuthProvider(a.provider)
-                          ? t("deviceSignIn.rowHintOauth")
-                          : t("deviceSignIn.rowHintStatic")}
-                    </p>
+                  <Banner kind="warning" rounded actions={
                     <Button
+                      size="sm"
                       variant="tonal"
                       data-testid={`pim-account-reauth-${a.id}`}
                       onClick={() => void signInAgain(a)}
                     >
                       {t("cloudAccounts.reconnect")}
                     </Button>
-                  </>
+                  }>
+                    <span data-testid={`pim-account-hint-${a.id}`}>
+                      {state === "expired"
+                        ? a.provider === "google"
+                          ? t("pim.authExpiredGoogleShort")
+                          : t("pim.authExpired")
+                        : isOAuthProvider(a.provider)
+                          ? t("deviceSignIn.rowHintOauth")
+                          : t("deviceSignIn.rowHintStatic")}
+                      {state === "expired" && a.provider === "google" && <InfoTip label={a.label} info={t("pim.authExpiredGoogle")} />}
+                    </span>
+                  </Banner>
                 )}
                 {/* A failure that re-signing does NOT fix still has to be
                     visible — a wrong client id or a dead network read as an
-                    empty calendar before, with nothing on screen to explain it.
-                    The provider's own words stay below the advice. */}
+                    empty calendar before. Who failed, what it means, and the
+                    provider's own words small under it, as on the desktop. */}
                 {state === "active" && failure && (
-                  <p className="m-hint m-acct-hint" data-testid={`pim-account-error-${a.id}`}>
-                    {classifyAuthError(failure) === "config"
-                      ? t("pim.authConfig")
-                      : classifyAuthError(failure) === "network"
-                        ? t("pim.authNetwork")
-                        : t("pim.accountFailed")}
-                    <br />
-                    <span style={{ color: "var(--text-faint)" }}>{failure}</span>
-                  </p>
+                  <AccountFailureNote
+                    failure={pimAccountFailure(failure, a.provider, t)}
+                    name={a.label}
+                    testId={`pim-account-error-${a.id}`}
+                  />
                 )}
                 {/* Inside a connect run this IS the step that picks the calendars and
                     lists ("connection.selectResources"). Outside one, the calendars and
@@ -863,28 +783,172 @@ export function PimAccountsScreen({
                       </GroupCard>
                     )}
                   </>
-                ) : (
-                  <GroupCard>
-                    <RowList>
-                      <Row
-                        indent={1}
-                        data-testid={`pim-account-calendars-${a.id}`}
-                        title={t("cloudAccounts.openAccountCalendar")}
-                        subtitle={t("cloudAccounts.calendarSummary", {
-                          calendars: cals.filter((c) => c.selected).length,
-                          lists: taskLists.filter((l) => l.accountId === a.id && l.selected).length,
-                        })}
-                        end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                        onClick={() => onOpenAccountCalendar?.(a.id)}
-                      />
-                    </RowList>
-                  </GroupCard>
-                )}
+                ) : null}
               </div>
             );
           })
         )}
 
+    </>
+  );
+
+  return (
+    <div className="m-page">
+      {/* A step of the account setup (plan "Verbinden-Assistent", 2026-10-28):
+          the setup's frame instead of the screen's bar and a banner. */}
+      {calendarRun ? (
+        <ConnectRunFrame
+          run={calendarRun}
+          service="calendar"
+          heading={t("connectRun.calendarHeading")}
+          failure={caldavFailure ?? connectionError ?? undefined}
+          onLeave={() => { setFormOpen(false); onBack?.(); }}
+          onRetry={provenCaldav ? () => void connectCaldav(provenCaldav) : () => setFormOpen(true)}
+          onSignIn={provenCaldav ? () => void connectCaldav(provenCaldav) : () => setFormOpen(true)}
+        />
+      ) : (
+        <AppBar onBack={() => onBack?.()} title={t("pim.accounts", { defaultValue: "Kalenderkonten" })} />
+      )}
+
+      <div className="m-settings">
+        {calendarRun && provenCaldav && busy && (
+          <GroupCard>
+            <RowList>
+              <Row icon={<span className="m-actionspin" aria-hidden />} title={t("pim.connecting")} data-testid="pim-caldav-progress" />
+            </RowList>
+          </GroupCard>
+        )}
+        {!calendarRun && <>
+        {/* Per-device sign-in: the state of each account says it now
+            ("Not signed in on this device"), the sentence over the page went
+            (settings plan 2026-10-29, Q1). */}
+        <SectionLabel>{t("pim.groupAccounts")}</SectionLabel>
+        {accountsSection}
+
+        {/* Calendar settings (S27): the default calendar a new event starts in,
+            and where a meeting note lands — settings of the vault and the
+            person, so they travel with the profile. Two groups since the
+            settings plan of 2026-10-29 (moves 32, 33), as on the desktop. */}
+        <SectionLabel>{t("pim.groupEvents")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<><span className="m-prop-val">{calendars.find((c) => `${c.accountId} ${c.id}` === defaultCalendar)?.name ?? t("pim.defaultCalendarFirst")}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickDefaultCalendar()}
+              title={t("pim.defaultCalendar")}
+            />
+          </RowList>
+        </GroupCard>
+        <SectionLabel>{t("pim.groupMeetingNotes")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <FolderField
+              info={t("pim.meetingFolderHint")}
+              label={t("pim.meetingFolder")}
+              normalize={(v) => v.trim()}
+              onSave={(v) => { setMeetingFolder(v); void updateMobileSettings({ meetingFolder: v }); }}
+              onPick={() => setPickMeetingFolder(true)}
+              placeholder="Meetings"
+              value={meetingFolder}
+            />
+            <Row
+              data-testid="pim-meeting-template"
+              end={<><span className="m-prop-val">{meetingTemplate ? meetingTemplate.replace(/.md$/i, "") : "—"}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              info={{ text: meetingTemplateInfo, guide: "Calendar_and_Tasks.md" }}
+              onClick={() => void pickMeetingTemplate()}
+              title={t("pim.meetingTemplate")}
+            />
+          </RowList>
+        </GroupCard>
+
+        {/* Reminders (S10) as their own section, the shape the target picture
+            gives it. The remaining rows — lead time, all-day rule, tasks, which
+            calendars — join in S11; the switch is here already because it is
+            what asks for the notification permission. */}
+        <SectionLabel deviceOnly={!travelsWithVault(undefined, "mobile")} info={t("reminders.window")}>{t("reminders.section")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={remindEvents}
+                label={t("reminders.enable")}
+                onChange={(next) => saveReminder({ remindEvents: next }, () => setRemindEvents(next))}
+              />}
+              title={t("reminders.enable")}
+            />
+            <Row
+              end={<><span className="m-prop-val">{leadLabel(lead)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickLead()}
+              title={t("reminders.lead")}
+            />
+            <Row
+              end={<><span className="m-prop-val">{allDayLabel(allDayDays, allDayAt)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickAllDay()}
+              title={t("reminders.allDay")}
+            />
+            <Row
+              end={<><span className="m-prop-val">{calendarsValueLabel}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              onClick={() => void pickCalendars()}
+              title={t("reminders.calendars")}
+            />
+            <Row
+              end={<Switch
+                checked={remindTasks}
+                label={t("reminders.tasks")}
+                onChange={(next) => saveReminder({ remindTasks: next }, () => setRemindTasks(next))}
+              />}
+              title={t("reminders.tasks")}
+            />
+            {/* Directly under the switch it belongs to: on its own it would read
+                like a second, unrelated task setting. */}
+            {remindTasks ? (
+              <Row
+                end={<><span className="m-prop-val">{taskTimeLabel(taskDays, taskAt)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                onClick={() => void pickTaskTime()}
+                title={t("reminders.tasksNoTime")}
+              />
+            ) : null}
+            {/* Checkbox tasks with a due time (Sammelplan § 3.145 Nr. 1, E3): a
+                switch of their own, off by default, as on the desktop. How to
+                write the time is behind the ⓘ. */}
+            <Row
+              data-testid="reminder-checkboxes"
+              end={<Switch
+                checked={remindCheckboxes}
+                label={t("reminders.checkboxes")}
+                onChange={(next) => saveReminder({ remindCheckboxes: next }, () => setRemindCheckboxes(next))}
+              />}
+              info={t("reminders.checkboxesDesc")}
+              title={t("reminders.checkboxes")}
+            />
+            {/* The lead of a task with a time applies to a checkbox with one too. */}
+            {remindTasks || remindCheckboxes ? (
+              <Row
+                data-testid="reminder-task-timed-lead"
+                end={<><span className="m-prop-val">{taskTimedLead === 0 ? t("reminders.leadAtTime") : leadLabel(taskTimedLead)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+                onClick={() => void pickTaskTimedLead()}
+                info={t("reminders.tasksTimedLeadDesc")}
+                title={t("reminders.tasksTimedLead")}
+              />
+            ) : null}
+          </RowList>
+        </GroupCard>
+        {/* What the scheduler actually did, and when it did nothing, why
+            (plan Mobile-Feedback, P1/5). Task reminders hang on three silent
+            conditions — the switch, a task database that only reaches the phone
+            through the settings sync, and a due column typed as a date — and
+            every one of them produced the same unexplained silence. */}
+        {reminderDiagnosisLine ? <p className="m-hint">{reminderDiagnosisLine}</p> : null}
+        {reminderState.denied ? <Banner kind="warning" rounded>{t("reminders.denied")}</Banner> : null}
+        {reminderState.truncatedFrom !== null ? (
+          <Banner kind="warning" rounded>
+            {t("reminders.truncated", {
+              date: new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(reminderState.truncatedFrom)),
+            })}
+          </Banner>
+        ) : null}
+        </>}
+        {calendarRun && accountsSection}
         {/* Was a naked <h2> with an inline font size — larger than the app-bar
             title above it. It is a section heading like every other. */}
       </div>
@@ -904,18 +968,6 @@ export function PimAccountsScreen({
                 Hidden when the wizard already settled it (S0a): leaving it here was
                 the silent half of the bug, because the control defaults to Google
                 and arriving from the Microsoft tile looked entirely plausible. */}
-            {!family && (
-              <Segmented
-                ariaLabel={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
-                options={[
-                  { value: "google", label: "Google" },
-                  { value: "microsoft", label: "Microsoft" },
-                  { value: "caldav", label: "CalDAV" },
-                ]}
-                value={addProvider}
-                onChange={(v) => setAddProvider(v as "google" | "microsoft" | "caldav")}
-              />
-            )}
 
             <SettingField label={t("pim.accountLabel", { defaultValue: "Bezeichnung (optional)" })}>
               <TextInput onChange={(e) => setLabel(e.target.value)} value={label} placeholder={addProvider === "google" ? "Google" : addProvider === "microsoft" ? "Outlook" : "Fastmail"} />
@@ -943,17 +995,17 @@ export function PimAccountsScreen({
 
             {addProvider === "caldav" && (
               <>
-                <p className="m-hint">{t("pim.connectCaldavHint", { defaultValue: "CalDAV mit einem App-Passwort verbinden (z. B. Fastmail, Nextcloud, iCloud). Google/Microsoft folgen über die Anmeldung im Browser." })}</p>
+                <p className="m-hint">{t("pim.connectCaldavShort")}<InfoTip label={t("pim.addAccount", { defaultValue: "Konto hinzufügen" })} info={t("pim.connectCaldavHint")} /></p>
                 <SettingField label={t("pim.caldavUrl", { defaultValue: "CalDAV-URL" })}>
-                  <TextInput purpose="address" inputMode="url" onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
+                  <TextInput {...accountInputProps("address")} onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
                 </SettingField>
                 <SettingField label={t("mobile.syncUser", { defaultValue: "Benutzer" })}>
-                  <TextInput onChange={(e) => setUser(e.target.value)} value={user} />
+                  <TextInput {...accountInputProps("user")} onChange={(e) => setUser(e.target.value)} value={user} />
                 </SettingField>
                 <SettingField label={t("mobile.syncPassword", { defaultValue: "Passwort" })}>
-                  <TextInput type="password" onChange={(e) => setPass(e.target.value)} value={pass} />
+                  <TextInput {...accountInputProps("secret")} onChange={(e) => setPass(e.target.value)} value={pass} />
                 </SettingField>
-                <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()}>
+                <Button variant="primary" disabled={!canConnect} onClick={() => void connectCaldav()} data-testid="pim-caldav-connect">
                   <Plus size={ICON.ui} /> {t("pim.connectAccount", { defaultValue: "Konto verbinden" })}
                 </Button>
               </>
@@ -977,7 +1029,7 @@ export function PimAccountsScreen({
         <AccountAccessSheet
           family={accessFor}
           onCancel={() => setAccessFor(null)}
-          onSaved={() => { const family = accessFor; setAccessFor(null); void deviceAccess(family).then(setAccess); }}
+          onSaved={() => { const family = accessFor; setAccessFor(null); if (family !== "dropbox") void deviceAccess(family).then(setAccess); }}
         />
       )}
       {calendarRun && (

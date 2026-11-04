@@ -11,6 +11,7 @@ import type {
   RawImapEnvelope,
 } from "./types";
 import { threadFields } from "./threading";
+import { base64Bytes, decodeHeaderBlock, parseHeaders, previewFromBodyPrefix } from "./net/mime";
 import { MAIL_BULK_LIMIT, type MailBulkAction, type MailBulkResult } from "./bulkActions";
 import { readVacation, vacationSupport, writeVacation, type VacationState } from "./vacation";
 import type { VacationSettings } from "./sieveScript";
@@ -94,8 +95,20 @@ export async function listEnvelopes(
  * happen here rather than twice below.
  */
 function toEnvelope(m: RawImapEnvelope): MailEnvelope {
-  const { messageId, inReplyTo, references, ...rest } = m;
-  return { ...rest, id: String(m.uid), ...threadFields({ messageId, inReplyTo, references }) };
+  const { messageId, inReplyTo, references, openingHead, openingBody, ...rest } = m;
+  // The opening words, read where the transport did not read them (the
+  // desktop): the same reader as the phone's list, over the same bytes.
+  const preview = rest.preview ?? (openingBody !== undefined ? openingLine(openingHead ?? "", openingBody) : undefined);
+  return { ...rest, ...(preview !== undefined ? { preview } : {}), id: String(m.uid), ...threadFields({ messageId, inReplyTo, references }) };
+}
+
+/** The opening line from base64 header lines and body bytes; "" where they do not read. */
+export function openingLine(headBase64: string, bodyBase64: string): string {
+  try {
+    return previewFromBodyPrefix(base64Bytes(bodyBase64), undefined, parseHeaders(decodeHeaderBlock(base64Bytes(headBase64))));
+  } catch {
+    return "";
+  }
 }
 
 export async function fetchMessage(vaultPath: string, account: MailAccountConfig, mailbox: string, id: string): Promise<MailMessage> {

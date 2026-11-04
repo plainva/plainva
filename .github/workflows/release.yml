@@ -7,7 +7,9 @@ on:
   # three platforms without cutting a release. The macOS leg of `pnpm test`
   # exercises the recursive fs.watch path (FSEvents), which the ubuntu-only CI
   # workflow never runs — this is the on-demand way to confirm that path stays
-  # green. Ordinary manual runs do not create or upload release artifacts.
+  # green. Ordinary manual runs do not create or upload release artifacts, and
+  # they are the only runs that still execute the unit suite here: a release
+  # trusts the CI of its commit instead (job `release-gate`).
   # An explicit rebuild_windows_tag recovers only Windows artifacts in an
   # existing unpublished draft, using its original immutable source tag.
   #
@@ -38,8 +40,43 @@ env:
   PLAINVA_BUILD_CHANNEL: release
 
 jobs:
+  # The release builds a commit main has taken, and nothing else (Sammelplan
+  # § 3.149). Until 0.8.6 every platform leg ran the full unit suite again —
+  # about 50 minutes on Windows, twice past the job's limit before the app was
+  # built — although the same commit had to pass CI to be on main. Now the gate
+  # asks GitHub instead: the tag's commit lies on main, and the four checks
+  # branch protection requires ("Checks", "WebKit editor regression", "Rust
+  # checks", "Analyze (JavaScript/TypeScript)") passed on exactly that commit.
+  # If not, nothing else starts. A Windows rebuild of a draft is held to the
+  # same rule for its tag. Read-only token.
+  release-gate:
+    name: Release gate
+    if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      source_sha: ${{ steps.gate.outputs.source_sha }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: The tag's commit is on main and its required checks are green
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REF: ${{ inputs.rebuild_windows_tag || github.ref_name }}
+          # A tag push builds the commit it was started for; a Windows rebuild
+          # runs from the workflow's revision and resolves its tag by itself.
+          EXPECTED_SHA: ${{ !inputs.rebuild_windows_tag && github.sha || '' }}
+        run: node apps/desktop/scripts/release-gate.mjs
+
   prepare:
     if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+    needs: release-gate
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -65,6 +102,23 @@ jobs:
           REBUILD_WINDOWS_TAG: ${{ inputs.rebuild_windows_tag }}
         run: node apps/desktop/scripts/prepare-release.mjs
 
+  # The native smoke on the three systems, parallel to the build legs (it adds
+  # no time before the Windows leg, which alone takes over an hour). A red
+  # Linux or Windows smoke turns the release run red. macOS is on probation
+  # until its smoke has been green five runs in a row: it runs and its result
+  # goes into the release record, but it does not stop the release
+  # (docs/engineering/Release_Gate_Checklist.md). A Windows rebuild of an
+  # existing draft does not run it again.
+  native-smoke:
+    needs: release-gate
+    # A manual dry run has no gate (it releases nothing) and smokes all the same.
+    if: ${{ !cancelled() && !inputs.rebuild_windows_tag && (needs.release-gate.result == 'success' || github.event_name == 'workflow_dispatch') }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/native-smoke.yml
+    with:
+      macos_may_fail: true
+
   release:
     needs: prepare
     if: ${{ !cancelled() && ((github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag) || needs.prepare.result == 'success') }}
@@ -78,8 +132,9 @@ jobs:
     runs-on: ${{ matrix.platform }}
     # Guard against a hung notarization: notarytool --wait can block for hours,
     # so cap the job — a stuck build fails in 2h instead of the 6h ceiling. One
-    # hour was too short for Windows: for 0.8.6 its pre-flight tests alone took
-    # 53 minutes, and the job was cancelled before the app was built.
+    # hour was too short for Windows while it still ran the unit suite first
+    # (53 minutes for 0.8.6); a release no longer does (`release-gate`), and the
+    # cap stays for the manual dry run, which still does.
     timeout-minutes: 120
     steps:
       - name: Checkout repository
@@ -128,9 +183,13 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and Test Pre-flight
-        # Suite-level and per-suite workers otherwise compete on small runners.
-        # Keep all assertions and timeouts; use the existing worker limit.
+      - name: Build and Test Pre-flight (manual dry run only)
+        # A release does not run the suite again: its commit passed it in CI
+        # before main took it, and `release-gate` checked exactly that. A
+        # manual dry run still does, on all three systems (the macOS FSEvents
+        # path above). Suite-level and per-suite workers otherwise compete on
+        # small runners; keep all assertions and timeouts.
+        if: github.event_name == 'workflow_dispatch' && !inputs.rebuild_windows_tag
         env:
           PLAINVA_TEST_WORKERS: 1
         run: |
@@ -249,6 +308,25 @@ jobs:
           args: >-
             ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
             || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json') }}
+
+      # The embedded WebDriver server of the native smoke (a full remote control
+      # of the app on a local port) is compiled in only by the smoke build's
+      # cargo feature. src/webdriverSmokeIsolation.test.ts reads the sources;
+      # this reads what was built, on every leg, and stops the release if the
+      # server got in. The native-smoke workflow runs the same script on its
+      # smoke build as the positive control, so a check that cannot see the
+      # server would be noticed there.
+      - name: No embedded WebDriver server in the release binary
+        if: github.event_name != 'workflow_dispatch' || inputs.rebuild_windows_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.platform }}" in
+            macos-latest) binaries=(apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app/Contents/MacOS/*) ;;
+            windows-latest) binaries=(apps/desktop/src-tauri/target/release/plainva-desktop.exe) ;;
+            *) binaries=(apps/desktop/src-tauri/target/release/plainva-desktop) ;;
+          esac
+          bash apps/desktop/scripts/check-webdriver-server.sh "${binaries[@]}"
 
       # Manual AppImage test build (see the workflow_dispatch input above). Uses
       # the same signing key as a release so `createUpdaterArtifacts` does not

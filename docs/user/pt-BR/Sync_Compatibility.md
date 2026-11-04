@@ -1,6 +1,6 @@
 # Compatibilidade de Sincronização do Plainva
 
-Última revisão: 2026-10-21
+Última revisão: 2026-11-03
 
 Se um serviço WebDAV, CalDAV ou S3 retornar uma página de login ou um inventário incompleto, o Plainva informa um erro de sincronização. Essa resposta não é tratada como uma pasta ou lista de calendários vazia e não provoca exclusões deduzidas do seu conteúdo. Isso vale tanto no desktop quanto no celular.
 
@@ -14,7 +14,7 @@ Entradas do diário que dois dispositivos anexam à mesma nota diária antes de 
 
 Uma pasta que você cria no Plainva é criada na nuvem dentro da pasta do vault. Até a versão 0.8.3, o Plainva também criava uma pasta vazia com o mesmo nome no nível superior do Google Drive, OneDrive ou Dropbox, ou do bucket S3 quando o vault usa um prefixo. O Plainva não remove essas cópias por conta própria; depois de verificar que uma dessas pastas de nível superior está vazia e não faz parte da pasta do seu vault, você pode excluí-la.
 
-Letras acentuadas podem ser armazenadas de duas formas: `ü` como um único caractere ou como `u` seguido de um trema combinante. O macOS e o iOS costumam manter a segunda forma (por exemplo, numa pasta criada no Finder); muitos servidores e outros sistemas, a primeira. O Plainva trata as duas como o mesmo nome: lê e grava o arquivo ou a pasta que já existe, na forma em que este dispositivo ou a nuvem o armazena, e não renomeia nada. Os nomes que você cria no Plainva são armazenados na primeira forma. Só quando uma pasta contém de fato as duas formas lado a lado, ou quando dois nomes diferem em maiúsculas e minúsculas, o Plainva mostra o par em **Duas grafias, um arquivo**: deixa a segunda grafia fora da sincronização e não apaga nada, nem aqui nem na nuvem. Renomeie um dos dois e a sincronização continua normalmente.
+Letras acentuadas podem ser armazenadas de duas formas: `ü` como um único caractere ou como `u` seguido de um trema combinante. O macOS e o iOS costumam manter a segunda forma (por exemplo, numa pasta criada no Finder); muitos servidores e outros sistemas, a primeira. O Plainva trata as duas como o mesmo nome: lê e grava o arquivo ou a pasta que já existe, na forma em que este dispositivo ou a nuvem o armazena, e não renomeia nada. Os nomes que você cria no Plainva são armazenados na primeira forma. Só quando uma pasta realmente contém as duas formas lado a lado, ou quando dois nomes diferem em maiúsculas e minúsculas, o Plainva mostra o nome em **Mesmo nome, dois arquivos**: deixa o segundo arquivo fora da sincronização e não apaga nada por conta própria, nem aqui nem na nuvem. No cartão, **Remover duplicados** remove um segundo arquivo igual ao sincronizado, e **Manter os dois** dá a um arquivo diferente um nome próprio.
 
 O Plainva sincroniza vaults por meio de adaptadores de sincronização intercambiáveis. Esta página mostra quais serviços você já pode usar hoje — diretamente integrados, via o protocolo WebDAV, ou via o próprio cliente de sincronização de desktop do provedor.
 

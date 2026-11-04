@@ -151,9 +151,9 @@ test("a file over the mailbox's bound stays behind by name, and a message that d
   const { mail, sql } = await bootMail(context, page, {
     attachments: [
       { id: "plan", name: "Plan.pdf", contentType: "application/pdf", content: first },
-      // Listed at 7 MB and never asked for: a Microsoft mailbox takes no file
-      // of that size from Plainva.
-      { id: "film", name: "Begehung.mp4", contentType: "video/mp4", size: 7 * MB },
+      // Listed at 151 MB and never asked for: a Microsoft mailbox takes no
+      // file of that size, even through an upload session.
+      { id: "film", name: "Begehung.mp4", contentType: "video/mp4", size: 151 * MB },
       { id: "fotos", name: "Fotos.zip", contentType: "application/zip", content: second },
       // An Outlook item attached to the message has no bytes of its own.
       { id: "termin", name: "Besprechung", contentType: "", type: "#microsoft.graph.itemAttachment", size: 4096 },
@@ -173,7 +173,7 @@ test("a file over the mailbox's bound stays behind by name, and a message that d
     await expect(carried.nth(3)).toHaveAttribute("data-state", "left");
     await expect(carried.nth(3)).toContainText("not a file");
     // The bound is said with its number.
-    await expect(page.getByTestId("compose-files-limit")).toContainText("2.8 MB");
+    await expect(page.getByTestId("compose-files-limit")).toContainText("150 MB");
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-forward-left-behind.png"), fullPage: true });
 
     await page.getByRole("textbox", { name: "To", exact: true }).fill("carla@example.org");
@@ -236,6 +236,48 @@ test("a message the mailbox refuses comes back with everything it was sent with"
     const message = sentMessage(mail.sent[0]);
     expect(message.toRecipients).toEqual([{ emailAddress: { address: "carla@example.org" } }]);
     expect(message.attachments?.map((a) => [a.name, a.contentBytes])).toEqual([["Projektübersicht.txt", base64(ATTACHMENT_TEXT)]]);
+  } finally {
+    await sql.close();
+  }
+});
+
+test("a file over one request goes through an upload session and arrives byte for byte", async ({ page, context }, testInfo) => {
+  // Sammelplan § 3.95 Nr. 3: until 2026-10-30 a Microsoft mailbox left every
+  // file over 2.8 MB behind. Now the message is a draft, the large file goes
+  // in ranges through an upload session, the small one as before, and the
+  // draft is sent.
+  test.setTimeout(120_000);
+  const MB = 1024 * 1024;
+  const film = Buffer.alloc(5 * MB);
+  for (let i = 0; i < film.length; i += 1) film[i] = (i * 31 + (i >> 8)) & 0xff;
+  const { mail, sql } = await bootMail(context, page, {
+    attachments: [
+      { id: "notiz", name: "Notiz.txt", contentType: "text/plain", content: Buffer.from(ATTACHMENT_TEXT) },
+      { id: "film", name: "Begehung.zip", contentType: "application/zip", content: film },
+    ],
+  });
+  try {
+    await forward(page, "Begehung.zip");
+    const carried = page.getByTestId("compose-carried");
+    await expect(carried).toHaveCount(2);
+    await expect(carried.nth(1)).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
+    await expect(page.getByTestId("compose-files-limit")).toHaveCount(0);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-forward-upload-session.png"), fullPage: true });
+
+    await page.getByRole("textbox", { name: "To", exact: true }).fill("carla@example.org");
+    await page.getByRole("button", { name: /^Send$/ }).first().click();
+    await expect(page.getByTestId("confirm-act")).toHaveCount(0);
+    await expect.poll(() => mail.sent.length, { timeout: 60_000 }).toBe(1);
+    const sent = mail.sent[0] as { viaDraft?: boolean };
+    expect(sent.viaDraft).toBe(true);
+    const files = (sentMessage(sent).attachments ?? []) as Array<{ name: string; contentBytes: string; viaSession?: boolean }>;
+    expect(files.map((a) => [a.name, !!a.viaSession])).toEqual([["Notiz.txt", false], ["Begehung.zip", true]]);
+    expect(Buffer.from(files[1].contentBytes, "base64").equals(film)).toBe(true);
+    // In ranges, in order, none of them carrying the mailbox's token.
+    const chunk = 10 * 320 * 1024;
+    expect(mail.uploads.map((u: { range: string }) => u.range)).toEqual([`bytes 0-${chunk - 1}/${film.length}`, `bytes ${chunk}-${film.length - 1}/${film.length}`]);
+    expect(mail.uploads.every((u: { authorization: string | null }) => u.authorization === null)).toBe(true);
+    expect(mail.unexpected).toEqual([]);
   } finally {
     await sql.close();
   }

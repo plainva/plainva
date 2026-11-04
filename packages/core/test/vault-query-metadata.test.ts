@@ -67,6 +67,25 @@ describe("database metadata filters over the real index", () => {
     expect(await adapter.readTextFile("Notes/A.md")).toContain('header_color: "#ABC"');
   });
 
+  it("fills file.tags for a view that shows the column, with no filter asking for tags", async () => {
+    const rows = await query.queryDatabaseFiles({ ...source, views: [{ type: "table", order: ["file.name", "file.tags"] }] });
+    expect(rows.find((row) => row["file.path"] === "Notes/A.md")?.["file.tags"].sort()).toEqual(["#research", "#work"]);
+    expect(rows.find((row) => row["file.path"] === "Notes/C.md")?.["file.tags"]).toEqual([]);
+    const sorted = await query.queryDatabaseFiles({ ...source, views: [{ type: "table", sort: [{ property: "file.tags", direction: "ASC" }] }] });
+    expect(sorted.find((row) => row["file.path"] === "Notes/B.md")?.["file.tags"].sort()).toEqual(["#homework", "#work/child"]);
+  });
+
+  it("reads an empty folder source as the vault root, in SQL and in a group alike", async () => {
+    const all = ["Notes/A.md", "Notes/B.md", "Notes/C.md", "Other/D.md"];
+    const paths = async (config: unknown) => (await query.queryDatabaseFiles(config)).map((row) => row["file.path"]).sort();
+    expect(await paths({ filters: { and: ['file.folder == ""'] } })).toEqual(all);
+    expect(await paths({ filters: { and: ['file.folder == "/"'] } })).toEqual(all);
+    expect(await paths({ filters: { or: ['file.folder == ""', 'file.folder == "Other"'] } })).toEqual(all);
+    // A mixed or-list evaluates in memory: the same answer.
+    expect(await paths({ filters: { or: ['file.folder == ""', 'type == "Nothing"'] } })).toEqual(all);
+    expect(await paths({ filters: { and: [{ and: ['file.folder == ""', 'type == "Note"'] }] } })).toEqual(all);
+  });
+
   it("never interprets text inside a quoted property value as a source clause", () => {
     const rule = 'status == "file.hasTag(\\"work\\")"';
     expect(isSourceFilter(rule)).toBe(false);

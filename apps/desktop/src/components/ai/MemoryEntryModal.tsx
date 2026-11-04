@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookMarked } from "lucide-react";
 import type { MemoryPlace } from "@plainva/core";
-import { Banner, Button, Checkbox, ICON, Modal, Segmented, TextArea, useAiSession, useAiState, useMemoryEntryForm } from "@plainva/ui";
+import { Banner, Button, Checkbox, ICON, Modal, Segmented, TextArea, useAiSession, useAiState, useDiscardGuard, useMemoryEntryForm } from "@plainva/ui";
 
 /**
  * One entry of the memory, new or reworded (plan KI-Harness P6, mockup
@@ -17,6 +17,9 @@ export function MemoryEntryModal({ id, onClose }: { id: string | null; onClose: 
   const state = useAiState();
   const [busy, setBusy] = useState(false);
   const form = useMemoryEntryForm(session, state?.memory ?? null, id);
+  // A sentence typed, or one reworded or rescoped, is asked about (finding 2026-10-22).
+  const dirty = form !== null && (form.text !== (form.editing?.text ?? "") || (form.editing !== null && form.local !== form.editing.deny.includes("cloud")));
+  const cancel = useDiscardGuard(dirty, onClose);
   if (!form) return null;
   const number = new Intl.NumberFormat(i18n.language);
   const save = async () => {
@@ -30,11 +33,11 @@ export function MemoryEntryModal({ id, onClose }: { id: string | null; onClose: 
       title={t(form.editing ? "ai.memory.form.titleEdit" : "ai.memory.form.titleNew")}
       icon={<BookMarked size={ICON.ui} />}
       size="md"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-memory-dialog"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("ai.memory.form.cancel")}
           </Button>
           <Button variant="primary" disabled={busy || !form.ready} onClick={() => void save()} data-testid="ai-memory-save">

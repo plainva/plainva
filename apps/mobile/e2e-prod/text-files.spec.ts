@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readVaultFile, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { readVaultFile, waitForVaultDirectory, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
 
 /**
  * Text files on the phone (C15; finding 2026-10-08) — against the production
@@ -49,7 +49,7 @@ test("a text file opens from the file list, and an edit leaves it with its line 
   // Byte for byte: the mark, every "\r\n", and the new line where it was typed.
   expect(await readVaultFile(page, "Settings.ini")).toBe(`${MARK}[section]\r\nkey=1\r\nmore=2`);
   // One file, saved — not a conflict copy of a file nobody else touched.
-  const names = await page.evaluate(async () => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readdir({ path: "vault", directory: "DATA" })).files.map((file) => file.name));
+  const names = await vaultFolderNames(page);
   expect(names.filter((name) => name.includes(".CONFLICT-"))).toEqual([]);
 });
 

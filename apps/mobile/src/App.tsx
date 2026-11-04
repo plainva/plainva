@@ -64,7 +64,7 @@ import {
   activeFolderPath,
   backStep, calendarEntry, currentArea,
   ensureVisibleTab,
-  hidesTabBar,
+  hidesTabBar, isFocusedSetup,
   initialNavState,
   navTop,
   pushCapturedNote,
@@ -434,7 +434,7 @@ export default function App() {
   // it drops the overlay stack and the draft with it. A RAIL does not have that
   // problem — it is not under the thumb, and the leave guard asks either way —
   // so from medium the navigation stays where a wide window expects it (S14).
-  const focusedSetup = !!connectionRun?.pending.length && ["sync", "pimaccounts", "mailaccounts"].includes(top?.kind ?? "");
+  const focusedSetup = isFocusedSetup(top, !!connectionRun?.pending.length);
   const barHidden = focusedSetup || (hidesTabBar(top) && windowClass === "compact");
 
   const finishOnboarding = (connectCloud: boolean) => {
@@ -454,7 +454,7 @@ export default function App() {
           ],
         });
         if (choice === "existing") {
-          push({ kind: "sync", path: "" });
+          push({ kind: "cloudconnect", path: "files" });
         } else if (choice === "new") {
           const defs = getVaultTemplates(i18n.language);
           const pick = await mActions({
@@ -465,7 +465,7 @@ export default function App() {
             ],
           });
           if (pick === null) return;
-          push({ kind: "sync", path: "", createTemplateId: pick });
+          push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
         }
       })();
       return;
@@ -515,7 +515,7 @@ export default function App() {
       });
       if (pick === null) return;
       if (where === "online") {
-        push({ kind: "sync", path: "", createTemplateId: pick });
+        push({ kind: "cloudconnect", path: "files", createTemplateId: pick });
         return;
       }
       const { value: rawName, cancelled } = await mPrompt({
@@ -655,7 +655,7 @@ export default function App() {
         </div>
       )}
 
-      <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} top={top} twoColumn={twoColumn} />
+      <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />
 
       {/* Capture floats above the bar on tab roots and folder screens only. */}
       {hasFab && (
@@ -684,7 +684,7 @@ export default function App() {
       )}
 
       <StartupSheets
-        onOpenOkf={() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "okfconversion", path: "" }))}
+        onOpenOkf={() => leaveThen(() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "okfconversion", path: "" })))}
         onReleaseSeen={() => setReleaseDialog("none")}
         releaseDialog={releaseDialog}
         showRelease={onboarded}

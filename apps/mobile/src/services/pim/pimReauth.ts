@@ -1,5 +1,5 @@
 import i18n from "@plainva/ui/i18n";
-import type { OAuthFamily } from "@plainva/ui";
+import type { AccessFamily } from "@plainva/ui";
 import { getActiveVaultEntry } from "../vaultRegistry";
 import { loadCloudAccounts } from "../cloudAccountsStore";
 import { AccessUnavailableError, beginMobileSignIn } from "../accountSignIn";
@@ -25,7 +25,7 @@ export type ReauthOutcome =
   /** CalDAV: the form must ask. */
   | { kind: "needsForm"; provider: string; reason: "caldav" }
   /** This device has no usable access for the provider: the access sheet asks. */
-  | { kind: "needsAccess"; family: OAuthFamily }
+  | { kind: "needsAccess"; family: AccessFamily }
   | { kind: "failed"; error: string };
 
 export function reauthNeedsForm(provider: string): boolean {

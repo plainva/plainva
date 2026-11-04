@@ -105,8 +105,13 @@ describe("one place names the type of a new note", () => {
    * sync moves the two through the shared field catalog and names neither.
    */
   const MAY_NAME_THE_SETTINGS = ["services/newNote.ts", "services/mobileSettingsScope.ts"];
-  /** The settings fields show and save the stored text: each setting twice there, as the value and as the save. */
-  const FIELDS = "screens/SettingsAreaScreens.tsx";
+  /** The settings fields show and save the stored text: each setting twice there, as the value and as the save.
+   *  Since the settings plan of 2026-10-29 the two fields stand on two screens (E9). */
+  const FIELD_OF: Record<string, string> = {
+    defaultNoteType: "screens/SettingsAreaScreens.tsx",
+    dailyNoteType: "screens/JournalAreaScreen.tsx",
+  };
+  const FIELDS = Object.values(FIELD_OF);
   const SETTINGS = ["defaultNoteType", "dailyNoteType"];
   const namesASetting = (node: ts.Node) =>
     (ts.isIdentifier(node) && SETTINGS.includes(node.text)) ||
@@ -117,14 +122,14 @@ describe("one place names the type of a new note", () => {
     // Eleven places did, one of them with a fallback of its own; a blank field
     // wrote an empty `type` through the other ten.
     const offenders = sources
-      .filter((file) => !MAY_NAME_THE_SETTINGS.includes(file.fileName) && file.fileName !== FIELDS)
+      .filter((file) => !MAY_NAME_THE_SETTINGS.includes(file.fileName) && !FIELDS.includes(file.fileName))
       .flatMap((file) => places(file, namesASetting))
       .map((place) => `${place}: ask configuredNoteType() or configuredDailyNoteType() from services/newNote.ts`);
     expect(offenders).toEqual([]);
-    const fields = sources.find((file) => file.fileName === FIELDS)!;
     for (const name of SETTINGS) {
+      const fields = sources.find((file) => file.fileName === FIELD_OF[name])!;
       const named = places(fields, (node) => namesASetting(node) && (node as ts.Identifier).text === name);
-      expect(named, `${FIELDS} names ${name} for its field's value and save only — anything else asks services/newNote.ts`).toHaveLength(2);
+      expect(named, `${FIELD_OF[name]} names ${name} for its field's value and save only — anything else asks services/newNote.ts`).toHaveLength(2);
     }
   });
 
@@ -141,6 +146,33 @@ describe("one place names the type of a new note", () => {
     expect(offenders).toEqual([]);
   });
 
+  /**
+   * The shared package makes notes for the phone too (Sammelplan § 3.151
+   * Nr. 3): on the AI harness branch the notes the assistant made carried a
+   * fixed `type: Note` from there, unseen by the test above. Where the shared
+   * package names a default type, this list says why; a type of its own —
+   * `buildNewNoteContent("Email", …)` for a filed mail — is no default and free.
+   */
+  const SHARED_DEFAULT_NAMED: Record<string, string> = {
+    "packages/ui/src/ai/aiSession.ts": "the word is no type there: it is the fallback title and file name of a note the assistant drafts when its title is empty",
+    "packages/ui/src/lib/profileFields.ts": "the settings' own defaults, which every reader of the two settings falls back to",
+    "packages/ui/src/vaultTemplates/types.ts": "the daily-note type a vault template starts with, before the vault has a setting",
+    "packages/ui/src/vaultTemplates/scaffold.ts": "the type of a template's sample notes that carry none, written when a new, empty vault is made",
+    "packages/ui/src/vaultTemplates/tourLearning.ts": "the tour vault's sample journal days, made with the vault before it has a setting",
+  };
+
+  it("the shared package names a default type only where this list says why", () => {
+    const DEFAULTS = [vaultDefaults().defaultNoteType, vaultDefaults().dailyNoteType];
+    const UI = "packages/ui/src/";
+    const shared = shippedSources(join(process.cwd(), "..", "..", "packages", "ui", "src"), UI);
+    expect(shared.length, "the shared package's sources are read").toBeGreaterThan(100);
+    const naming = [...new Set(shared
+      .flatMap((file) => places(file, (node) => ts.isStringLiteralLike(node) && DEFAULTS.includes(node.text)))
+      .map((place) => place.replace(/:\d+$/, "")))];
+    expect(naming.sort(), "a shared file names the default type itself: hand the vault's type in, or enter the file here with why").toEqual(Object.keys(SHARED_DEFAULT_NAMED).sort());
+    for (const [file, why] of Object.entries(SHARED_DEFAULT_NAMED)) expect(why.length, file).toBeGreaterThan(20);
+  });
+
   it("finds what it is looking for", () => {
     const probe = (text: string) => ts.createSourceFile("probe.ts", text, ts.ScriptTarget.Latest, true);
     expect(places(probe("const a = getMobileSettings().defaultNoteType;\nconst b = ms.dailyNoteType;"), namesASetting)).toEqual(["probe.ts:1", "probe.ts:2"]);
@@ -148,7 +180,7 @@ describe("one place names the type of a new note", () => {
     expect(places(probe('const a = getMobileSettings()["defaultNoteType"];'), namesASetting)).toEqual(["probe.ts:1"]);
     // A comment or a sentence that mentions the setting is not a reader.
     expect(places(probe('// defaultNoteType\nconst hint = "defaultNoteType";'), namesASetting)).toEqual([]);
-    expect([...MAY_NAME_THE_SETTINGS, FIELDS].every((rel) => sources.some((file) => file.fileName === rel))).toBe(true);
+    expect([...MAY_NAME_THE_SETTINGS, ...FIELDS].every((rel) => sources.some((file) => file.fileName === rel))).toBe(true);
   });
 });
 

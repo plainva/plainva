@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Ban, CheckSquare, ChevronDown, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
-import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
+import { addSnooze, filterSnoozedRows, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeEntryFor, snoozeUntil, undoSnoozes, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
 import { useFloatingSelectionSpace } from "../hooks/useFloatingSelectionSpace";
@@ -24,7 +24,11 @@ import {
   deleteMessagePermanently,
   captureMailAsNote,
   fetchMessage,
-  guessTrashMailbox,
+  addressRows,
+  groupByOrigin,
+  inPlace,
+  isTrashMailbox,
+  pickTrashFolder,
   listEnvelopes,
   pickInboxFolder,
   mergeInboxes,
@@ -34,7 +38,7 @@ import {
   pickJunkFolder,
   rowAddress,
   runRules,
-  unifiedId,
+  uidOf,
   listMailboxesFor,
   mailAccountKind,
   mailFolderLabel,
@@ -51,10 +55,10 @@ import { listActiveMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from ".
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../services/deviceSignIn";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
-import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
+import { rememberedMailPlace, rememberedUnified, rememberMailPlace, rememberUnified, resolveMailAccount, resolveMailbox } from "../services/mail/mailPlace";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
-import { bulkTargets, toggleSelected } from "./mail/mailBulk";
+import { toggleSelected } from "./mail/mailBulk";
 import { mActions, mConfirm, mTargets } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
 import { SheetGrip } from "../components/SheetGrip";
@@ -128,6 +132,8 @@ export function MailListScreen({
   // lands where the user was — not in the first account's inbox.
   const [accountId, setAccountId] = useState<string | null>(() => rememberedMailPlace().accountId);
   const [folders, setFolders] = useState<MailboxInfo[]>([]);
+  /** WHOSE folders `folders` are — the rules wait for the folders of their account. */
+  const [foldersFor, setFoldersFor] = useState<string | null>(null);
   const [mailbox, setMailbox] = useState<string | null>(() => rememberedMailPlace().mailbox);
   /**
    * "All inboxes" (P9.3b): every account's inbox in one list. Its own state, so
@@ -143,7 +149,10 @@ export function MailListScreen({
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [flaggedRows, setFlaggedRows] = useState<MailEnvelope[] | null>(null);
   const [flaggedBusy, setFlaggedBusy] = useState(false);
-  const [unified, setUnified] = useState(false);
+  // Kept while the app runs (open-items plan 3.110 no. 3): the list is built
+  // anew when the reader closes, and came back as the first mailbox's inbox.
+  const [unified, setUnified] = useState(() => rememberedUnified());
+  useEffect(() => rememberUnified(unified), [unified]);
   const [unifiedRows, setUnifiedRows] = useState<MailEnvelope[]>([]);
   const [unifiedErrors, setUnifiedErrors] = useState<Array<{ label: string; message: string }>>([]);
   const [rows, setRows] = useState<MailEnvelope[]>([]);
@@ -168,7 +177,11 @@ export function MailListScreen({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   /** The merged list's own wait — it is not the folder's (`loading`). */
-  const [unifiedLoading, setUnifiedLoading] = useState(false);
+  const [unifiedLoading, setUnifiedLoading] = useState(() => rememberedUnified());
+  /** How many mailboxes the last merged read reached (open-items plan 3.137 no. 3). */
+  const [unifiedReached, setUnifiedReached] = useState(0);
+  /** Only the newest merged read may answer (open-items plan 3.137 no. 4). */
+  const unifiedSeq = useRef(0);
   /**
    * Which place's list has been answered — with its messages, a cached copy
    * or an error. Until the list of the place that is shown has come, the list
@@ -196,7 +209,11 @@ export function MailListScreen({
   /** A search brought back with its hits is not waiting for input: the
    *  keyboard would cover the list one came back to read. */
   const [focusSearch, setFocusSearch] = useState(() => kept === null);
-  const [searchRows, setSearchRows] = useState<MailEnvelope[] | null>(() => kept?.rows ?? null);
+  // Named by their address like every row (plan P1); a kept search may come
+  // from before that, so its rows are named here as well.
+  const [searchRows, setSearchRows] = useState<MailEnvelope[] | null>(() =>
+    kept && kept.accountId && kept.mailbox ? addressRows(kept.rows, { accountId: kept.accountId, mailbox: kept.mailbox }) : null,
+  );
   const [searchBusy, setSearchBusy] = useState(false);
   const searchSeq = useRef(0);
   /** The flagged list, like the search: only the newest question may answer. */
@@ -224,6 +241,8 @@ export function MailListScreen({
   /** Sent read along while grouping: without it a thread shows only the other
    *  side of the exchange, as if you had never answered. */
   const [sentRows, setSentRows] = useState<MailEnvelope[]>([]);
+  /** Asks for Sent again — after a message was taken back out of the trash. */
+  const [sentBump, setSentBump] = useState(0);
   const [selection, setSelection] = useState<Set<string> | null>(null);
   const selectionBarRef = useFloatingSelectionSpace(!!selection);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -315,6 +334,7 @@ export function MailListScreen({
       .then((list) => {
         if (cancelled) return;
         setFolders(list);
+        setFoldersFor(acc.id);
         const names = sortMailFolders(list.map((f) => f.name), list[0]?.delimiter);
         setMailbox((cur) => resolveMailbox(cur, names));
       })
@@ -330,8 +350,12 @@ export function MailListScreen({
    * it is named instead. The row id becomes the message's ADDRESS, because a
    * uid is folder- AND account-local.
    */
-  const loadUnified = useCallback(async () => {
+  // One handle on its newest version, read when the merged list is turned on
+  // or the accounts change — not when the app language hands out a new `t`
+  // (open-items plan 3.110 no. 8).
+  const loadUnified = useStableHandler(async () => {
     if (!vault || accounts.length === 0) return;
+    const seq = ++unifiedSeq.current;
     setUnifiedLoading(true);
     const pages: MailEnvelope[][] = [];
     const failures: Array<{ label: string; message: string }> = [];
@@ -343,19 +367,22 @@ export function MailListScreen({
           continue;
         }
         const page = await listEnvelopes(vault, acct, box, 0, PAGE);
-        pages.push(page.messages.map((e) => ({ ...e, id: unifiedId({ accountId: acct.id, mailbox: box, uid: e.id }) })));
+        pages.push(addressRows(page.messages, { accountId: acct.id, mailbox: box }));
       } catch (e) {
         failures.push({ label: mailAccountLabel(acct.label), message: describeError(e) });
       }
     }
+    // A newer read took over; its answer is the one that counts.
+    if (seq !== unifiedSeq.current) return;
     setUnifiedRows(mergeInboxes(pages, PAGE));
     setUnifiedErrors(failures);
+    setUnifiedReached(pages.length);
     setUnifiedLoading(false);
-  }, [vault, accounts, t, describeError]);
+  });
 
   useEffect(() => {
     if (unified) void loadUnified();
-  }, [unified, loadUnified]);
+  }, [unified, accountsKey, vault, loadUnified]);
 
   /**
    * Local rules over the page that was just fetched (S14).
@@ -369,6 +396,14 @@ export function MailListScreen({
    * does not re-file mail that was moved by hand in between.
    */
   const seenByRules = useRef(new Set<string>());
+  /**
+   * A page that came before the folders of its account. The rules act with
+   * those folders (where is the trash, the junk folder?), and the first run
+   * did so with none and remembered the messages as handled: a rule that
+   * deletes or reports did nothing on them, for good (open-items plan 3.110
+   * no. 4). Such a page waits here until the folders are in.
+   */
+  const pendingRules = useRef<{ messages: readonly MailEnvelope[]; box: string; acct: MailAccountConfig } | null>(null);
   // One handle on its newest version: the rules act with the folder list of
   // the moment, and that list arriving is no reason to read the folder again.
   // It was: the loader hung on this function, so every folder opened first was
@@ -376,24 +411,30 @@ export function MailListScreen({
   // first answer was thrown away and the second waited for.
   const applyLocalRules = useStableHandler(async (messages: readonly MailEnvelope[], box: string, acct: MailAccountConfig) => {
     if (!vault) return;
+    if (foldersFor !== acct.id) {
+      pendingRules.current = { messages, box, acct };
+      return;
+    }
     const rules = await listMailRules(vault).catch(() => []);
     if (rules.length === 0) return;
-    const fresh = messages.filter((m) => !seenByRules.current.has(m.id));
+    // "Handled" is remembered at the message's ADDRESS (open-items plan 3.110
+    // no. 5): the number 1 of one mailbox is not the number 1 of the next.
+    const fresh = messages.filter((m) => inPlace(m.id, { accountId: acct.id, mailbox: box }) && !seenByRules.current.has(m.id));
     for (const m of fresh) seenByRules.current.add(m.id);
     if (fresh.length === 0) return;
 
-    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    const trash = pickTrashFolder(folders);
     const junkBox = pickJunkFolder(folders);
     const result = await runRules(rules, fresh.map((m) => ({ id: m.id, from: m.from, subject: m.subject })), {
-      moveTo: (id, target) => moveMessage(vault, acct, box, id, target),
-      markRead: (id) => setMessageSeen(vault, acct, box, id, true),
-      flag: (id) => setMessageFlagged(vault, acct, box, id, true),
-      junk: (id) => (junkBox ? moveMessage(vault, acct, box, id, junkBox) : Promise.reject(new Error("no junk folder"))),
-      trash: (id) => (trash ? moveMessage(vault, acct, box, id, trash) : Promise.reject(new Error("no trash folder"))),
+      moveTo: (id, target) => moveMessage(vault, acct, box, uidOf(id), target),
+      markRead: (id) => setMessageSeen(vault, acct, box, uidOf(id), true),
+      flag: (id) => setMessageFlagged(vault, acct, box, uidOf(id), true),
+      junk: (id) => (junkBox ? moveMessage(vault, acct, box, uidOf(id), junkBox) : Promise.reject(new Error("no junk folder"))),
+      trash: (id) => (trash ? moveMessage(vault, acct, box, uidOf(id), trash) : Promise.reject(new Error("no trash folder"))),
       // Filing needs the BODY, which an envelope does not carry — so the
       // message is fetched, and only for the ones a rule actually matched.
       capture: async (id) => {
-        const message = await fetchMessage(vault, acct, box, id);
+        const message = await fetchMessage(vault, acct, box, uidOf(id));
         const v = await getMobileVault();
         const filed = await captureMailAsNote({
           adapter: v.files,
@@ -407,9 +448,22 @@ export function MailListScreen({
         void v.reindexPaths([filed.path]);
       },
     });
-    if (result.removed.length > 0) setRows((prev) => prev.filter((m) => !result.removed.includes(m.id)));
+    if (result.removed.length > 0) {
+      const gone = new Set(result.removed);
+      patchRows((prev) => prev.filter((m) => !gone.has(m.id)));
+    }
     if (result.acted.length > 0) toast.info(t("rules.appliedN", { n: result.acted.length }));
   });
+  // The folders of the account a page waited for are in: its rules run now.
+  const runPendingRules = useStableHandler(() => {
+    const pending = pendingRules.current;
+    if (!pending || foldersFor !== pending.acct.id) return;
+    pendingRules.current = null;
+    void applyLocalRules(pending.messages, pending.box, pending.acct);
+  });
+  useEffect(() => {
+    if (foldersFor) runPendingRules();
+  }, [foldersFor, runPendingRules]);
 
   const load = useCallback(async () => {
     // Reading the key here rather than only listing it as a dependency: the
@@ -422,6 +476,9 @@ export function MailListScreen({
     const seq = ++listSeq.current;
     const current = () => seq === listSeq.current;
     const place = placeOf(accountId, mailbox);
+    // Every row is named by its address (plan P1): what a tap, a swipe or a
+    // selection acts on is where the message lies, never what is shown.
+    const at = { accountId: account.id, mailbox };
     setLoading(true);
     setError(null);
     // Cache FIRST, network second (report 2026-07-29 F4a) — the phone had the
@@ -431,7 +488,7 @@ export function MailListScreen({
     const warm = await cachedEnvelopes(vaultRef?.db, account.id, mailbox, PAGE);
     if (!current()) return;
     if (warm.length > 0) {
-      setRows(warm);
+      setRows(addressRows(warm, at));
       setTotal(warm.length);
       setStale(true);
       setRefreshing(true);
@@ -441,14 +498,15 @@ export function MailListScreen({
       const page = await listEnvelopes(vault, account, mailbox, 0, PAGE);
       if (!current()) return;
       setStale(false);
-      setRows(page.messages);
+      const listed = addressRows(page.messages, at);
+      setRows(listed);
       setListedFor(place);
       setUnseen(page.unseen);
       setTotal(page.total);
       void cacheEnvelopes(vaultRef?.db, account.id, mailbox, page.messages);
       // Local rules over what was just fetched (S14). On the phone that means
       // "while the app was in the foreground" — the settings card says so.
-      void applyLocalRules(page.messages, mailbox, account);
+      void applyLocalRules(listed, mailbox, account);
       // P7.3 preload: the newest message is the one that gets opened next in
       // almost every case, so warm its body into the cache while the connection
       // is still pooled. It rides the SAME IMAP session (no second login), and
@@ -461,7 +519,7 @@ export function MailListScreen({
       // fallback, never a claim that this is current.
       const cached = await cachedEnvelopes(vaultRef?.db, account.id, mailbox, PAGE);
       if (!current()) return;
-      setRows(cached);
+      setRows(addressRows(cached, at));
       setListedFor(place);
       setTotal(cached.length);
       setError(cached.length > 0 ? null : describeError(e));
@@ -498,7 +556,8 @@ export function MailListScreen({
       // De-duplicate: a message arriving during paging would otherwise appear
       // twice (the server counts from the top, our offset does not move with it).
       const seen = new Set(rows.map((r) => r.id));
-      setRows([...rows, ...page.messages.filter((m) => !seen.has(m.id))]);
+      const listed = addressRows(page.messages, { accountId: account.id, mailbox });
+      setRows([...rows, ...listed.filter((m) => !seen.has(m.id))]);
       setTotal(page.total);
     } catch (e) {
       if (seq === listSeq.current) toast.error(describeError(e));
@@ -520,8 +579,9 @@ export function MailListScreen({
     try {
       const hits = await searchEnvelopes(vault, account, mailbox, term);
       if (seq !== searchSeq.current) return;
-      setSearchRows(hits);
-      keepMailSearch({ accountId: account.id, mailbox, query: term, rows: hits });
+      const listed = addressRows(hits, { accountId: account.id, mailbox });
+      setSearchRows(listed);
+      keepMailSearch({ accountId: account.id, mailbox, query: term, rows: listed });
     } catch (e) {
       // The folder stays on screen: a failed search is said, not shown as an
       // empty mailbox.
@@ -568,14 +628,22 @@ export function MailListScreen({
     refreshKeptSearch();
   }, [kept, account, mailbox, refreshKeptSearch]);
 
-  /** One change for every list a message can be in on this screen — the
-   *  folder, the search hits, the flagged messages. Patching only the folder
-   *  left a deleted message standing under a search. */
-  const patchRows = (change: (rows: MailEnvelope[]) => MailEnvelope[]) => {
+  /**
+   * One change for every list a message can be in on this screen — the
+   * folder, the search hits, the flagged messages, Sent read along and "All
+   * inboxes". Patching only the folder left a deleted message standing under a
+   * search. Every row is named by its address (plan P1), so a change found by
+   * id reaches that message in every list and no other: a change that comes
+   * back after the folder was switched no longer lands on a row of the next
+   * folder with the same number (open-items plan 3.137 no. 2).
+   */
+  function patchRows(change: (rows: MailEnvelope[]) => MailEnvelope[]) {
     setRows(change);
     setSearchRows((prev) => (prev ? change(prev) : prev));
     setFlaggedRows((prev) => (prev ? change(prev) : prev));
-  };
+    setSentRows(change);
+    setUnifiedRows(change);
+  }
 
   const folderNames = useMemo(
     () => sortMailFolders(folders.map((f) => f.name), folders[0]?.delimiter),
@@ -614,28 +682,26 @@ export function MailListScreen({
   const press = useLongPress<string>((id) => setRowSheet(id));
 
   /**
-   * The selection id of a row. In the conversation view a thread mixes folders,
-   * so the id carries the message's origin (P9.3b) — otherwise a selected reply
-   * from Sent would be marked in the open folder. The flat list keeps bare ids:
-   * there the screen's own folder IS the origin.
+   * Every message the list can act on, by its id — its ADDRESS (plan P1). The
+   * selection id used to be built here: the bare number in a flat list, and in
+   * a conversation the OPEN account put in front of the row's id — an address
+   * inside an address for a row of "All inboxes", which therefore could be
+   * neither picked nor given its sheet (open-items plan 3.110 no. 1).
    */
-  const selId = useCallback(
-    (m: { id: string; mailbox?: string }, box: string | null) =>
-      threadMode && account ? unifiedId({ accountId: account.id, mailbox: box || "", uid: m.id }) : m.id,
-    [threadMode, account],
-  );
-  /** Every message the list can act on, by selection id. */
   const selectable = useMemo(() => {
     const out = new Map<string, MailEnvelope>();
     // The folder's page AND a server answer standing in for it: a search hit
     // or a starred message further down than the loaded page is not in `rows`,
     // and could be ticked but not acted on.
-    for (const m of rows) out.set(selId(m, mailbox), m);
-    for (const m of searchRows ?? []) out.set(selId(m, mailbox), m);
-    for (const m of flaggedRows ?? []) out.set(selId(m, mailbox), m);
-    if (threadMode) for (const m of sentRows) out.set(selId(m, sentBox), m);
+    if (unified) for (const m of unifiedRows) out.set(m.id, m);
+    else {
+      for (const m of rows) out.set(m.id, m);
+      for (const m of searchRows ?? []) out.set(m.id, m);
+      for (const m of flaggedRows ?? []) out.set(m.id, m);
+      if (threadMode) for (const m of sentRows) out.set(m.id, m);
+    }
     return out;
-  }, [rows, searchRows, flaggedRows, sentRows, threadMode, mailbox, sentBox, selId]);
+  }, [unified, unifiedRows, rows, searchRows, flaggedRows, sentRows, threadMode]);
   const chosen = useMemo(
     () => (selection ? [...selection].map((id) => selectable.get(id)).filter((m): m is MailEnvelope => !!m) : []),
     [selection, selectable],
@@ -676,7 +742,7 @@ export function MailListScreen({
     }
     void listEnvelopes(vault, account, sentBox, 0, PAGE)
       .then((page) => {
-        if (alive) setSentRows(page.messages);
+        if (alive) setSentRows(addressRows(page.messages, { accountId: account.id, mailbox: sentBox }));
       })
       .catch(() => {
         if (alive) setSentRows([]);
@@ -684,7 +750,7 @@ export function MailListScreen({
     return () => {
       alive = false;
     };
-  }, [threadMode, vault, account, sentBox, mailbox]);
+  }, [threadMode, vault, account, sentBox, mailbox, sentBump]);
 
   /**
    * Conversation rows, from the open folder plus Sent, every message carrying
@@ -714,7 +780,10 @@ export function MailListScreen({
     flaggedRows,
     total,
     loading: (unified ? unifiedLoading : loading || listedFor !== placeOf(accountId, mailbox)) || searchBusy,
-    error: folderError,
+    // A merged list that reached no mailbox could not be read: "this folder is
+    // empty" under the lines naming why would be a claim about it (open-items
+    // plan 3.137 no. 3). The banner says what happened.
+    error: unified ? (unifiedReached === 0 && unifiedErrors.length > 0 ? "unreachable" : null) : folderError,
     unreadOnly,
     isUnread: (m: MailEnvelope) => !m.seen,
     attachmentsOnly,
@@ -723,19 +792,12 @@ export function MailListScreen({
   // Search hits and the flagged messages stay flat — grouping them would hide
   // the very mail that matched — and in the merged view neither is on screen.
   const answerShown = view.replaced;
-  // Snoozed messages leave the list until their time (S22). Only in the folder
-  // they were put aside in — a snooze says "not in my way", not "gone".
-  const listRows = useMemo(
-    () =>
-      filterSnoozed(view.listRows, {
-        state: snoozed,
-        now: snoozeNow,
-        folder: mailbox ?? "",
-        accountOf: () => account?.id ?? "",
-        idOf: (m) => m.id,
-      }),
-    [view.listRows, snoozed, snoozeNow, mailbox, account]
-  );
+  // Snoozed messages leave the list until their time (S22), in the folder they
+  // lie in — each row names it (plan P1), in "All inboxes" as in its folder and
+  // in a conversation. A search and the flagged list are not filtered, as on
+  // the desktop: a snooze says "not in my way", not "gone".
+  const unsnoozed = useCallback((list: MailEnvelope[]) => filterSnoozedRows(list, snoozed, snoozeNow), [snoozed, snoozeNow]);
+  const listRows = useMemo(() => (view.replaced ? view.listRows : unsnoozed(view.listRows)), [view.replaced, view.listRows, unsnoozed]);
 
   const threads = useMemo(
     () =>
@@ -745,21 +807,21 @@ export function MailListScreen({
             // along (five accounts would mean five extra pages for a browse
             // surface). Grouping stays per account either way.
             threadRows(
-              unifiedRows.map((m) => {
+              unsnoozed(unifiedRows).map((m) => {
                 const origin = parseUnifiedId(m.id);
                 return { ...m, mailbox: origin?.mailbox ?? "", account: origin?.accountId };
               }),
             )
           : threadRows(
               [
-                ...rows.map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
-                ...sentRows.map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
+                ...unsnoozed(rows).map((m) => ({ ...m, mailbox: mailbox ?? "", account: account?.id })),
+                ...unsnoozed(sentRows).map((m) => ({ ...m, mailbox: sentBox ?? "", account: account?.id })),
               ],
               // Anchored to the open folder: Sent completes threads, never adds rows.
               { anchorMailbox: mailbox ?? "" },
             )
         : [],
-    [threadMode, answerShown, rows, sentRows, mailbox, sentBox, account, unified, unifiedRows]
+    [threadMode, answerShown, rows, sentRows, mailbox, sentBox, account, unified, unifiedRows, unsnoozed]
   );
   const showThreads = !attachmentsOnly && threadMode && !answerShown && threads.length > 0;
 
@@ -811,7 +873,8 @@ export function MailListScreen({
     setFlaggedBusy(true);
     try {
       const starred = await listFlaggedEnvelopes(vault, account, mailbox);
-      if (seq === flaggedSeq.current) setFlaggedRows(starred);
+      // Named by their address like every row (plan P1).
+      if (seq === flaggedSeq.current) setFlaggedRows(addressRows(starred, { accountId: account.id, mailbox }));
     } catch (e) {
       if (seq === flaggedSeq.current) toast.error(describe(e, t));
     } finally {
@@ -869,24 +932,24 @@ export function MailListScreen({
 
 
   /** Preserve account, mailbox and epoch for every selected UID. */
-  const runOnSelection = async (action: MailBulkAction, after: (done: string[]) => void) => {
-    const owner = accountById(accountId);
-    if (!vault || !owner || !selection?.size || bulkBusy) return;
+  const runOnSelection = async (action: MailBulkAction, after: (done: string[]) => void, only?: readonly string[]) => {
+    if (!vault || !selection?.size || bulkBusy) return;
     const controller = new AbortController(); bulkAbort.current = controller;
     const context = bulkContext.current;
     setBulkBusy(true); setBulkRunning(true); setBulkReport([]);
     const report: MailBulkReportItem[] = [];
     try {
-      const ids = [...selection].filter(id => selectable.has(id));
-      const targets = bulkTargets(ids, mailbox || "");
-      const groups = new Map<string, Array<{ id: string; uidValidity?: number; selectionId: string; label: string }>>();
-      ids.forEach((id, index) => {
-        const target = targets[index], row = selectable.get(id)!;
-        const group = groups.get(target.box) ?? [];
-        group.push({ id: target.uid, uidValidity: row.uidValidity, selectionId: id, label: (row.subject || t("mail.noSubject")) + " · " + target.box });
-        groups.set(target.box, group);
-      });
-      for (const [box, rows] of groups) {
+      const ids = (only ?? [...selection]).filter(id => selectable.has(id));
+      // Per account and folder, read off each row's address — the same rule as
+      // the desktop (`groupByOrigin`). The folder on screen was the fallback,
+      // and a reply from Sent was acted on there under its number.
+      for (const group of groupByOrigin(ids, accountById)) {
+        const box = group.mailbox, owner = group.account;
+        const rows = group.uids.map((uid) => {
+          const selectionId = ids.find((id) => { const at = parseUnifiedId(id); return at?.accountId === owner.id && at.mailbox === box && at.uid === uid; })!;
+          const row = selectable.get(selectionId)!;
+          return { id: uid, uidValidity: row.uidValidity, selectionId, label: (row.subject || t("mail.noSubject")) + " · " + box };
+        });
         const result = await applyMailBulk(vault, owner, box, rows, action, controller.signal);
         if (context !== bulkContext.current) return;
         if (action.kind === "move" || action.kind === "delete") await forgetCachedMessages(vaultRef.db, owner.id, box, result.filter(r => r.status === "done").map(r => r.id)).catch(() => toast.error(t("mail.cacheUpdateFailed")));
@@ -904,17 +967,16 @@ export function MailListScreen({
   };
 
   const bulkSeen = () => {
-    const account = accountById(accountId);
-    if (!vault || !account || !mailbox) return;
+    if (!vault) return;
     const target = chosen.some((m) => !m.seen);
     void runOnSelection(
       { kind: "seen", value: target },
       (done) => {
         const set = new Set(done);
-        patchRows((prev) => prev.map((m) => (set.has(selId(m, mailbox)) ? { ...m, seen: target } : m)));
-        setSentRows((prev) => prev.map((m) => (set.has(selId(m, sentBox)) ? { ...m, seen: target } : m)));
-        const changed = rows.filter(m => set.has(selId(m, mailbox)) && m.seen !== target).length;
-        setUnseen(n => Math.max(0, n + (target ? -changed : changed)));
+        patchRows((prev) => prev.map((m) => (set.has(m.id) ? { ...m, seen: target } : m)));
+        // The count is the shown folder's: only its own rows change it.
+        const changed = rows.filter(m => set.has(m.id) && m.seen !== target).length;
+        if (!unified) setUnseen(n => Math.max(0, n + (target ? -changed : changed)));
       },
     );
   };
@@ -933,37 +995,47 @@ export function MailListScreen({
     [mailbox, folders, t],
   );
 
-  const junkItems = (messages: readonly MailEnvelope[]) =>
-    messages.map((m) => ({ mailbox: (parseUnifiedId(m.id)?.mailbox ?? mailbox) || "", uid: parseUnifiedId(m.id)?.uid ?? m.id }));
-
+  /**
+   * Reports or restores each message from the folder it LIES in (plan P1), one
+   * folder at a time — the plan of each is its own: in a conversation, a reply
+   * from Sent is reported, whatever folder the conversation stands in. Every
+   * item was read off the row's address; the folder on screen stood in for a
+   * plain number, where the same number names another message.
+   */
   const reportJunk = async (messages: readonly MailEnvelope[], onDone: (ids: string[]) => void) => {
     const account = accountById(accountId);
-    const items = junkItems(messages).filter((i) => i.mailbox);
-    if (!vault || !account || items.length === 0) return;
+    if (!vault || !account || messages.length === 0) return;
+    const groups = groupByOrigin(messages.map((m) => m.id), accountById);
     // The junk folder below is the open mailbox's: a row of another mailbox
     // (the merged list) is never reported into it.
-    if (messages.some((m) => { const own = parseUnifiedId(m.id); return !!own && own.accountId !== account.id; })) return;
+    if (groups.length === 0 || groups.some((g) => g.account.id !== account.id)) return;
     try {
-      const out = await runJunkAction({
-        vault,
-        account,
-        folders,
-        items,
-        confirmCreate: () => mConfirm({ title: t("mail.junkNoFolderTitle"), message: t("mail.junkNoFolderMsg") }),
-      });
-      if (out.kind !== "done") {
-        if (out.kind === "noTarget") toast.error(t("mail.junkNoFolder"));
-        return;
+      const done: string[] = [];
+      let asked = false;
+      for (const g of groups) {
+        const out = await runJunkAction({
+          vault,
+          account,
+          folders,
+          items: g.uids.map((uid) => ({ mailbox: g.mailbox, uid })),
+          // Asked once, for the first folder that needs it.
+          confirmCreate: asked ? undefined : () => { asked = true; return mConfirm({ title: t("mail.junkNoFolderTitle"), message: t("mail.junkNoFolderMsg") }); },
+        });
+        if (out.kind !== "done") {
+          if (out.kind === "noTarget") toast.error(t("mail.junkNoFolder"));
+          continue;
+        }
+        done.push(...messages.filter((m) => { const at = parseUnifiedId(m.id); return at?.mailbox === g.mailbox; }).map((m) => m.id));
+        const folder = mailFolderLabel(out.folder, folders[0]?.delimiter);
+        toast.success(
+          out.direction === "notJunk"
+            ? t("mail.junkCleared", { n: out.moved, folder })
+            : out.flagged > 0
+              ? t("mail.junkReported", { n: out.moved, folder })
+              : t("mail.junkMovedOnly", { n: out.moved, folder }),
+        );
       }
-      onDone(messages.map((m) => m.id));
-      const folder = mailFolderLabel(out.folder, folders[0]?.delimiter);
-      toast.success(
-        out.direction === "notJunk"
-          ? t("mail.junkCleared", { n: out.moved, folder })
-          : out.flagged > 0
-            ? t("mail.junkReported", { n: out.moved, folder })
-            : t("mail.junkMovedOnly", { n: out.moved, folder }),
-      );
+      if (done.length > 0) onDone(done);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
@@ -980,11 +1052,13 @@ export function MailListScreen({
    * message or none.
    */
   const originOf = (m: MailEnvelope) => {
+    // Every row is named by its address (plan P1); one without names nothing,
+    // and nothing is guessed for it from the screen.
     const own = parseUnifiedId(m.id);
     return {
-      account: accountById(own?.accountId ?? accountId),
-      box: (own?.mailbox ?? mailbox) || "",
-      uid: own?.uid ?? m.id,
+      account: own ? accountById(own.accountId) : null,
+      box: own?.mailbox ?? "",
+      uid: own?.uid ?? "",
     };
   };
 
@@ -995,9 +1069,8 @@ export function MailListScreen({
     try {
       await setMessageSeen(vault, account, box, uid, seen);
       patchRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
-      setSentRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
-      // The count is the shown folder's; a row of the merged list is not in it.
-      if (m.seen !== seen && !unified) setUnseen((n) => Math.max(0, seen ? n - 1 : n + 1));
+      // The count is the shown folder's: a row of the merged list or of Sent is not in it.
+      if (m.seen !== seen && !unified && account.id === accountId && box === mailbox) setUnseen((n) => Math.max(0, seen ? n - 1 : n + 1));
     } catch (e) {
       toast.error(describeError(e));
     }
@@ -1009,7 +1082,6 @@ export function MailListScreen({
     try {
       await setMessageFlagged(vault, account, box, uid, flagged);
       patchRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, flagged } : r)));
-      setSentRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, flagged } : r)));
     } catch (e) {
       toast.error(describeError(e));
     }
@@ -1032,7 +1104,6 @@ export function MailListScreen({
     try {
       await moveMessage(vault, account, box, uid, target);
       patchRows((prev) => prev.filter((r) => r.id !== m.id));
-      setSentRows((prev) => prev.filter((r) => r.id !== m.id));
     } catch (e) {
       toast.error(describeError(e));
     }
@@ -1045,8 +1116,7 @@ export function MailListScreen({
    * change the words, not the entries.
    */
   const rowActionsFor = (m: MailEnvelope) => {
-    const { box } = originOf(m);
-    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    const { account: own, box } = originOf(m);
     return mailRowActions(t, {
       markRead: m.seen ? undefined : () => void setOneSeen(m, true),
       markUnread: m.seen ? () => void setOneSeen(m, false) : undefined,
@@ -1058,13 +1128,15 @@ export function MailListScreen({
       // its own — they wait for the message to be opened (the handbook says
       // so). Offered here, they acted in the OPEN mailbox, on the message with
       // the row's number there. (Read and the star take the row's mailbox,
-      // `originOf`; the sheet that offers them does not open for a merged row
-      // yet — the catalog's mail-unified-row-read-star.)
+      // `originOf`, and the sheet opens for a merged row: its selection holds
+      // the row by its address.)
       move: unified ? undefined : () => void moveOne(m),
       snooze: () => void swipeSnooze(m),
       junkDirection: box && isJunkFolder(box, folders) ? "restore" : "report",
       junk: unified ? undefined : () => void swipeJunk(m),
-      inTrash: trash !== null && trash === box,
+      // The trash of the row's own folder, by the rule the desktop reads
+      // (`isTrashMailbox`: the stated role first, then the name).
+      inTrash: !!own && own.id === accountId && isTrashMailbox(box, folders),
       delete: unified ? undefined : () => void swipeDelete(m),
     });
   };
@@ -1079,22 +1151,38 @@ export function MailListScreen({
    * would let the same message come back on one machine and stay hidden on the
    * other.
    */
+  /**
+   * The Undo of a snooze's notice (decision E17), as on the desktop: the
+   * message stands as it stood before, read against the list as it is when
+   * Undo is tapped.
+   */
+  const undoSnooze = useStableHandler((before: SnoozeEntry[], added: SnoozeEntry[]) => {
+    const next = undoSnoozes(snoozed, before, added);
+    setSnoozed(next);
+    void persistSnoozed(next);
+  });
+
   const swipeSnooze = async (m: MailEnvelope) => {
-    if (!account) return;
     const chosenPreset = (await mActions({
       title: t("mail.snooze"),
       options: SNOOZE_PRESETS.map((p) => ({ value: p, label: t(`mail.snooze_${p}`) })),
     })) as SnoozePreset | null;
     if (!chosenPreset) return;
     const until = snoozeUntil(chosenPreset, new Date(), weekStart);
-    const next = addSnooze(snoozed, { account: account.id, id: m.id, folder: mailbox ?? "", until });
+    // Put aside where the row LIES (plan P1): in "All inboxes" it was noted
+    // under the open mailbox and the folder behind the list, and came back
+    // early or never left its own folder (open-items plan 3.137 no. 5).
+    const entry = snoozeEntryFor(m.id, until);
+    if (!entry) return;
+    const before = snoozed;
+    const next = addSnooze(snoozed, entry);
     setSnoozed(next);
-    patchRows((prev) => prev.filter((r) => r.id !== m.id));
     await persistSnoozed(next);
     toast.info(
       t("mail.snoozedUntil", {
         when: new Date(until).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
-      })
+      }),
+      { label: t("common.undo"), run: () => undoSnooze(before, [entry]) }
     );
   };
 
@@ -1103,7 +1191,6 @@ export function MailListScreen({
     try {
       await reportJunk(chosen, (ids) => {
         patchRows((prev) => prev.filter((m) => !ids.includes(m.id)));
-        setSentRows((prev) => prev.filter((m) => !ids.includes(m.id)));
       });
     } finally {
       setBulkBusy(false);
@@ -1122,10 +1209,7 @@ export function MailListScreen({
     if (!target) return;
     void runOnSelection(
       { kind: "move", target },
-      (done) => {
-        patchRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
-        setSentRows((prev) => prev.filter((m) => !done.includes(selId(m, sentBox))));
-      },
+      (done) => patchRows((prev) => prev.filter((m) => !done.includes(m.id))),
     );
   };
 
@@ -1134,19 +1218,20 @@ export function MailListScreen({
   const bulkDelete = async () => {
     const account = accountById(accountId);
     if (!vault || !account || !mailbox) return;
-    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
-    const inTrash = trash !== null && trash === mailbox;
-    if (!inTrash && !trash) {
+    const trash = pickTrashFolder(folders);
+    if (!trash) {
       toast.error(t("mail.noTrashFolder"));
       return;
     }
+    // Asked of each message's own folder, not the one on screen (open-items
+    // plan 3.137 no. 1): only a selection that lies in the trash entirely is
+    // deleted for good; otherwise what is not in the trash moves there.
+    const inTrash = chosen.length > 0 && chosen.every((m) => originOf(m).box === trash);
     if (inTrash && !(await mConfirm({ title: t("mail.deleteForeverConfirm"), message: t("mobile.selectedCount", { n: chosen.length }), danger: true }))) return;
     void runOnSelection(
-      inTrash ? { kind: "delete" } : { kind: "move", target: trash! },
-      (done) => {
-        patchRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
-        setSentRows((prev) => prev.filter((m) => !done.includes(selId(m, sentBox))));
-      },
+      inTrash ? { kind: "delete" } : { kind: "move", target: trash },
+      (done) => patchRows((prev) => prev.filter((m) => !done.includes(m.id))),
+      inTrash ? undefined : chosen.filter((m) => originOf(m).box !== trash).map((m) => m.id),
     );
   };
 
@@ -1163,12 +1248,15 @@ export function MailListScreen({
   const swipeDelete = async (m: MailEnvelope) => {
     const account = accountById(accountId);
     const own = parseUnifiedId(m.id);
-    const box = (own?.mailbox ?? mailbox) || "";
-    const uid = own?.uid ?? m.id;
+    // Where the message LIES (plan P1): in a conversation a reply from Sent is
+    // moved out of Sent, and only a message in the trash is deleted for good —
+    // asked of its folder, not the one on screen (open-items plan 3.137 no. 1).
     // The trash below is the open mailbox's: a row of another mailbox (the
     // merged list) is never deleted with it.
-    if (!vault || !account || !box || (own && own.accountId !== account.id)) return;
-    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    if (!vault || !account || !own || own.accountId !== account.id) return;
+    const box = own.mailbox;
+    const uid = own.uid;
+    const trash = pickTrashFolder(folders);
     const inTrash = trash !== null && trash === box;
     if (!trash) {
       toast.error(t("mail.noTrashFolder"));
@@ -1202,7 +1290,12 @@ export function MailListScreen({
               box,
             ).catch(() => "notFound" as const);
             if (out === "ok") {
-              patchRows((prev) => [m, ...prev.filter((r) => r.id !== m.id)]);
+              // Back in its folder the message has a NEW number (IMAP gives one
+              // on every move), so the old row is not put back: the list that
+              // shows that folder is read again. It was put back into the list
+              // on screen — after a switch, the next folder's, under a number
+              // that names another message there (open-items plan 3.137 no. 2).
+              showAgain({ accountId: account.id, mailbox: box });
               toast.success(t("mail.undone"));
             } else {
               toast.info(t("mail.undoNotFound"));
@@ -1224,6 +1317,22 @@ export function MailListScreen({
    * the report: a single message offers an undo, several get one honest count
    * — an undo that only takes back the last of five would be a lie.
    */
+  /**
+   * Reads again the list that shows a folder, if one still does — the folder
+   * itself, Sent read along for conversations, or "All inboxes". Nothing else:
+   * an answer that comes back after a switch is no news about the folder shown
+   * now.
+   */
+  const showAgain = useStableHandler((place: { accountId: string; mailbox: string }) => {
+    if (unified) {
+      void loadUnified();
+      return;
+    }
+    if (place.accountId !== accountId) return;
+    if (place.mailbox === mailbox) void load();
+    else if (threadMode && place.mailbox === sentBox) setSentBump((n) => n + 1);
+  });
+
   const swipeDeleteThread = async (messages: Array<MailEnvelope & { mailbox?: string }>) => {
     if (messages.length === 0) return;
     if (messages.length === 1) {
@@ -1232,7 +1341,7 @@ export function MailListScreen({
     }
     const account = accountById(accountId);
     if (!vault || !account) return;
-    const trash = guessTrashMailbox(folders.map((f) => f.name), folders[0]?.delimiter);
+    const trash = pickTrashFolder(folders);
     if (!trash) {
       toast.error(t("mail.noTrashFolder"));
       return;
@@ -1241,15 +1350,14 @@ export function MailListScreen({
     let done = 0;
     for (const m of messages) {
       const own = parseUnifiedId(m.id);
-      const box = (m.mailbox ?? own?.mailbox ?? mailbox) || "";
-      const uid = own?.uid ?? m.id;
       // Into the open mailbox's trash only what lives in that mailbox.
-      if (!box || (own && own.accountId !== account.id)) continue;
+      if (!own || own.accountId !== account.id) continue;
+      const box = own.mailbox;
+      const uid = own.uid;
       try {
         if (box === trash) await deleteMessagePermanently(vault, account, box, uid);
         else await moveMessage(vault, account, box, uid, trash);
         patchRows((prev) => prev.filter((r) => r.id !== m.id));
-        setSentRows((prev) => prev.filter((r) => r.id !== m.id));
         done += 1;
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -1280,9 +1388,31 @@ export function MailListScreen({
   };
 
   const ptrRef = useRef<HTMLDivElement>(null);
+  /**
+   * Ends the pull that is drawn. A pull belongs to the list it was pulled on:
+   * when another one is shown, its circle goes, and a pull on the new list is
+   * taken at once (open-items plan 3.137 no. 6) — it stood until the read of
+   * the list that was left had ended, and refused every pull until then.
+   */
+  const endPull = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    endPull.current?.();
+    endPull.current = null;
+  }, [unified, accountId, mailbox]);
   // Pulled in "all inboxes", it is the merged list that is read again (as the
   // desktop's refresh does), not the folder behind it.
-  const ptrIndicator = usePullToRefresh(ptrRef, unified ? loadUnified : load);
+  const pullRefresh = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        endPull.current = resolve;
+        void (unified ? loadUnified() : load()).finally(() => {
+          if (endPull.current === resolve) endPull.current = null;
+          resolve();
+        });
+      }),
+    [unified, loadUnified, load],
+  );
+  const ptrIndicator = usePullToRefresh(ptrRef, pullRefresh);
 
   // Every surface carries its own bar since S11 — large at a tab root, compact
   // when pushed. The shell owns no header any more.
@@ -1483,7 +1613,7 @@ export function MailListScreen({
                 // A one-message conversation IS a message: the same row, and no
                 // affordance promising something to unfold.
                 if (row.count === 1) {
-                  const sid = selId(latest, latest.mailbox ?? mailbox);
+                  const sid = latest.id;
                   return (
                     <li key={row.thread.key}>
                       {/* A one-message conversation is a message, so it swipes
@@ -1522,7 +1652,7 @@ export function MailListScreen({
                     </li>
                   );
                 }
-                const threadIds = row.thread.messages.map((m) => selId(m, m.mailbox ?? mailbox));
+                const threadIds = row.thread.messages.map((m) => m.id);
                 const threadPicked = threadIds.length > 0 && threadIds.every((id) => !!selection?.has(id));
                 return (
                   <li key={row.thread.key} data-testid="mail-thread">
@@ -1576,7 +1706,7 @@ export function MailListScreen({
                     </SwipeRow>
                     {open &&
                       row.thread.messages.map((m) => {
-                        const mid = selId(m, m.mailbox ?? mailbox);
+                        const mid = m.id;
                         return (
                         <SwipeRow key={`${m.mailbox}|${m.id}`} actions={swipeFor(m)}>
                           <button
@@ -1634,9 +1764,10 @@ export function MailListScreen({
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    // Selection drives move and delete, and both need a target
-                    // folder that a selection across accounts does not have.
-                    if (!unified) setSelection(new Set([m.id]));
+                    // In "All inboxes" too: a row is picked by its address, and
+                    // the bar there offers what a selection across mailboxes
+                    // can do — read and unread.
+                    setSelection(new Set([m.id]));
                   }}
                   onPointerCancel={press.clear}
                   onPointerDown={() => press.start(m.id)}
@@ -1649,6 +1780,15 @@ export function MailListScreen({
                   <span className="m-mailrow-lines">
                     <span className="m-mailrow-top">
                       <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
+                      {/* In the merged list a row says whose mailbox it is in —
+                          as on the desktop and as the user guide says; the same
+                          mail in two mailboxes read as two equal rows
+                          (open-items plan 3.110 no. 2). */}
+                      {unified && (
+                        <span className="m-mailrow-box" data-testid="mail-row-account">
+                          {mailAccountLabel(accounts.find((a) => a.id === parseUnifiedId(m.id)?.accountId)?.label)}
+                        </span>
+                      )}
                       <span className="m-mailrow-date">{formatDate(m.dateTs, i18n.language)}</span>
                     </span>
                     <span className="m-mailrow-subject">
@@ -1696,27 +1836,33 @@ export function MailListScreen({
             >
               <MailOpen size={ICON.head} />
             </IconButton>
-            <IconButton
-              label={t("mail.moveTo")}
-              disabled={bulkBusy || selection.size === 0}
-              onClick={() => void bulkMove()}
-            >
-              <FolderInput size={ICON.head} />
-            </IconButton>
-            <IconButton
-              label={junkLabel}
-              disabled={bulkBusy || selection.size === 0}
-              onClick={() => void bulkJunk()}
-            >
-              <Ban size={ICON.head} />
-            </IconButton>
-            <IconButton
-              label={t("common.delete")}
-              disabled={bulkBusy || selection.size === 0}
-              onClick={() => void bulkDelete()}
-            >
-              <Trash2 size={ICON.head} />
-            </IconButton>
+            {/* Move, spam and delete need a folder of ONE mailbox; in the
+                merged list each row has its own, as on the desktop. */}
+            {!unified && (
+              <>
+                <IconButton
+                  label={t("mail.moveTo")}
+                  disabled={bulkBusy || selection.size === 0}
+                  onClick={() => void bulkMove()}
+                >
+                  <FolderInput size={ICON.head} />
+                </IconButton>
+                <IconButton
+                  label={junkLabel}
+                  disabled={bulkBusy || selection.size === 0}
+                  onClick={() => void bulkJunk()}
+                >
+                  <Ban size={ICON.head} />
+                </IconButton>
+                <IconButton
+                  label={t("common.delete")}
+                  disabled={bulkBusy || selection.size === 0}
+                  onClick={() => void bulkDelete()}
+                >
+                  <Trash2 size={ICON.head} />
+                </IconButton>
+              </>
+            )}
             <IconButton label={t("common.cancel")} onClick={() => { if (bulkBusy) bulkAbort.current?.abort(); else setSelection(null); }}>
               <X size={ICON.head} />
             </IconButton>
@@ -1728,22 +1874,19 @@ export function MailListScreen({
         const m = selectable.get(rowSheet);
         if (!m) return null;
         const actions: RowAction[] = [
-          // Not in "all inboxes": a selection there carries unified ids the
-          // bar cannot resolve, so it appeared with every action enabled and
-          // every action doing nothing (S45). The row's own actions still work
-          // — they read the message's origin, not the screen's.
-          ...(unified
-            ? []
-            : [{
-                icon: <CheckSquare size={ICON.head} />,
-                label: t("mobile.selectMany", { defaultValue: "Mehrere auswählen" }),
-                testId: "mail-sheet-select-many",
-                onClick: () => {
-                  const id = rowSheet;
-                  setRowSheet(null);
-                  setSelection(new Set([id]));
-                },
-              }]),
+          // In "All inboxes" too (S45 kept it out while a selection there held
+          // ids the bar could not resolve): a row is picked by its address,
+          // and the bar offers there what works across mailboxes.
+          {
+            icon: <CheckSquare size={ICON.head} />,
+            label: t("mobile.selectMany", { defaultValue: "Mehrere auswählen" }),
+            testId: "mail-sheet-select-many",
+            onClick: () => {
+              const id = rowSheet;
+              setRowSheet(null);
+              setSelection(new Set([id]));
+            },
+          },
           ...rowActionsFor(m).map((a) => ({
             icon: <a.icon size={ICON.head} />,
             label: a.label,

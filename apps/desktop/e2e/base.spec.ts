@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createHash } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
+import { pickCompletion } from './completion';
 
 // E2E of the `.base` database viewer (plan Base-Erweiterungen W7): table with
 // property filter + sort rules, pointer-driven board card drag, and the
@@ -359,6 +360,9 @@ test.beforeEach(async ({ page }) => {
       '8': [{ key: 'status', value: 'Erledigt', type: 'text' }],
       '9': [{ key: 'frist', value: '2026-08-01', type: 'text' }],
     };
+    // A test adds rows of its own from an init script of its own, which runs after this one.
+    (window as any).__dbFiles = dbFiles;
+    (window as any).__dbProps = dbProps;
     dbProps['1'].push({ key: 'plainva', value: '{"header_color":"#ABC","icon":"lucide:pin"}', type: 'object' });
     dbProps['2'].push({ key: 'plainva', value: '{"header_color":"#2a7f7b","icon":"lucide:future-icon"}', type: 'object' });
     // Property-scoped link rows (links.property_key) backing reverse columns.
@@ -2124,6 +2128,47 @@ test('Base "Neu": a single folder source stores the item there and opens the pee
   expect(file).toContain('# Cockpit_4'); // template-less items start with an H1 (UI-UX P6)
 });
 
+// Sammelplan § 3.136 Nr. 2: "+ Entry" took the database's template or none,
+// so an entry in a folder with a rule began with a heading; the phone and every
+// other way to a new note apply the folder and type rules.
+test('Base "Neu": without a template of the database, the folder rule and then the type rule decide', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Projekt.md'] = '---\ntype: Projekt\n---\n\n# {{title}}\n\nAus der Ordnerregel\n';
+    const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
+    (window as any).__storeOverrides = {
+      [`folderTemplates_${b64('/test-vault')}`]: [{ folder: 'Projekte', template: 'Projekt.md' }],
+    };
+  });
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
+  await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
+  const file = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']);
+  expect(file).toContain('type: Projekt');
+  expect(file).toContain('# Cockpit_4');
+  expect(file).toContain('Aus der Ordnerregel');
+});
+
+test('Base "Neu": a type rule gives an entry its template where no folder rule reaches', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Templates'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Templates/Standard.md'] = '---\nquelle: Typregel\n---\n\n# {{title}}\n\nAus der Typregel\n';
+    const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
+    (window as any).__storeOverrides = {
+      [`typeTemplates_${b64('/test-vault')}`]: [{ type: 'Note', template: 'Standard.md' }],
+    };
+  });
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  await expect(page.locator('table').getByText('Alpha')).toBeVisible();
+  await page.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]').click();
+  await expect(page.locator('.pv-peek-title')).toContainText('Cockpit_4');
+  const file = await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Cockpit_4.md']);
+  expect(file).toContain('Aus der Typregel');
+});
+
 test('Base "Neu": several folder sources ask once and persist the choice in the .base', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'MultiSrc');
@@ -2232,18 +2277,29 @@ async function newEntryFromCursorTemplate(page: Page) {
 /** An editor takes a parked caret in the effect that follows its load: two frames on, whatever it was handed has been applied. */
 const twoFrames = (page: Page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))));
 
-test('Base "Neu": the caret of a template is placed in the peek window, the keyboard stays where it was, and the place holds while a property is filled in', async ({ page }) => {
+test('Base "Neu": the peek window takes the keyboard at the caret of a template, and the place holds while a property is filled in', async ({ page }) => {
   const peek = await newEntryFromCursorTemplate(page);
   const text = peek.locator('.cm-content');
+  /** The page's caret stands in the line the template names (CodeMirror puts it there an event after the focus). */
+  const caretInActiveLine = () => page.evaluate(() => {
+    const node = document.getSelection()?.focusNode;
+    const element = node instanceof Element ? node : node?.parentElement;
+    return !!element?.closest('.pv-peek-card .cm-activeLine');
+  });
 
   // Placed: the line the caret is on is the one the template names …
   await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel:\s+\(bis Freitag\)$/);
-  // … and opening the window did not take the keyboard into the text.
-  await expect(text).not.toBeFocused();
+  // … and the window took the keyboard there (decision E5 of the bug-clearing
+  // plan): a template that says where the writing starts is written there at
+  // once, as on the phone. It used to stay on "+ Entry" behind the window.
+  await expect(text).toBeFocused();
+  await expect.poll(caretInActiveLine).toBe(true);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath('peek-template-caret.png') });
+  await page.keyboard.type('Angebot');
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot \(bis Freitag\)$/);
 
-  // What the window opens for comes first: a property is filled in. The block
-  // in front of the text grows, and the place is the editor's — it moves along.
+  // A property is filled in. The block in front of the text grows, and the
+  // place is the editor's — it moves along.
   await peek.locator('.pv-peek-actions').getByRole('button', { name: /Eigenschaften|Properties/ }).click();
   const zweck = peek.locator('.pv-peek-side .pv-property-text textarea');
   await expect(zweck).toHaveValue('Angebot');
@@ -2251,19 +2307,12 @@ test('Base "Neu": the caret of a template is placed in the peek window, the keyb
   await zweck.press('Enter');
   await expect.poll(() => cursorEntry(page)).toContain('zweck: Angebot für die Erweiterung, bis zur Freigabe durch das Team\n');
 
-  // The text gets the keyboard without a place being chosen — what Tab does —
-  // and writing starts where the template says. CodeMirror puts its place into
-  // the page once it has seen the focus, an event later; keys typed before that
-  // go where the browser put the caret (in CI the first ones did, 22.10.). A
-  // person does not type within that moment — the test waits for it.
+  // Back in the text without a place being chosen — what Tab does —, the
+  // writing goes on where it stopped.
   await text.focus();
   await expect(text).toBeFocused();
-  await expect.poll(() => page.evaluate(() => {
-    const node = document.getSelection()?.focusNode;
-    const element = node instanceof Element ? node : node?.parentElement;
-    return !!element?.closest('.pv-peek-card .cm-activeLine');
-  })).toBe(true);
-  await page.keyboard.type('Angebot schreiben');
+  await expect.poll(caretInActiveLine).toBe(true);
+  await page.keyboard.type(' schreiben');
   await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot schreiben \(bis Freitag\)$/);
   await expect.poll(() => cursorEntry(page)).toContain('\nZiel: Angebot schreiben (bis Freitag)\n');
 });
@@ -2289,6 +2338,36 @@ test('Base "Neu": opened as a tab from the peek window, a new entry goes on wher
   await expect(tab).toBeFocused();
   await page.keyboard.type('!');
   await expect.poll(() => cursorEntry(page)).toContain('# Cockpit_4 für den Kunden!\n');
+});
+
+test('Base "Neu": renamed in its peek window, a new entry stays open for writing and keeps its caret (Sammelplan 3.140 no. 1)', async ({ page }) => {
+  // "Read mode" as the default view: a note made a minute ago still opens to
+  // be written in - the mark hung on the old name, so the renamed entry came
+  // back for reading, without a caret and without a way to switch in the window.
+  await page.addInitScript(() => { (window as any).__storeOverrides = { ...((window as any).__storeOverrides ?? {}), defaultViewMode: 'read' }; });
+  const peek = await newEntryFromCursorTemplate(page);
+  await expect(peek.locator('.cm-content')).toBeFocused();
+  await page.keyboard.type('Angebot');
+  await expect.poll(() => cursorEntry(page)).toContain('\nZiel: Angebot (bis Freitag)\n');
+
+  // The title is one of the two things the window opens for.
+  await peek.locator('.pv-peek-title').dblclick();
+  const dlg = page.getByRole('dialog', { name: /Umbenennen|Rename/ });
+  await expect(dlg).toBeVisible();
+  await dlg.getByRole('textbox').fill('Kundenprojekt');
+  await dlg.getByRole('button', { name: /Confirm|Bestätigen/ }).click();
+  const renamed = () => page.evaluate(() => String((window as any).mockFs['/test-vault/Projekte/Kundenprojekt.md']));
+  await expect.poll(renamed).toContain('# Kundenprojekt\n');
+  await expect(peek.locator('.pv-peek-title')).toContainText('Kundenprojekt');
+
+  // A new editor shows the new name: written in, with the keyboard where the
+  // writing stopped - behind a heading that grew by four letters.
+  const text = peek.locator('.cm-content');
+  await expect(text).toContainText('(bis Freitag)', { timeout: 15000 });
+  await expect(text).toBeFocused();
+  await expect(peek.locator('.cm-activeLine')).toHaveText(/^Ziel: Angebot \(bis Freitag\)$/);
+  await page.keyboard.type(' schreiben');
+  await expect.poll(renamed).toContain('\nZiel: Angebot schreiben (bis Freitag)\n');
 });
 
 // What a database's template is resolved WITH (Sammelplan § 3.97). The view
@@ -2643,6 +2722,39 @@ test('pinboard: cards render note bodies; checkbox and pin write back to the fil
     .toContain('Zettel/Idee.md');
 });
 
+// Sammelplan 3.87 Nr. 4: a card is drawn from what was read before; a tick
+// named its box by the place alone, so a note that moved on underneath got
+// whatever line stood at that place now.
+test('pinboard: a card drawn before its note changed ticks its own line or none, never the one now at its place', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const einkauf = page.locator('[data-pinboard-card]').filter({ hasText: 'Milch' });
+  const boxes = einkauf.locator('input[type="checkbox"]');
+  await expect(boxes).toHaveCount(2);
+
+  // Another program puts a line on top of the list; the card still shows "Milch" first.
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Zettel/Einkauf.md'] = fs['/test-vault/Zettel/Einkauf.md'].replace('- [ ] Milch', '- [ ] Eier\n- [ ] Milch');
+  });
+  await expect(boxes.first()).not.toBeChecked();
+  await boxes.first().click();
+
+  // That place names "Eier" now: nothing is ticked, and the card says so. (It
+  // is then drawn anew from the index; this fixture's index keeps the old
+  // revision, so the card itself stays as it was here.)
+  const told = page.getByText(/^(Die Notiz hat sich geändert — Liste aktualisiert\.|The note changed — list refreshed\.)$/);
+  await expect(told).toBeVisible();
+  const unchanged = '- [ ] Eier\n- [ ] Milch\n- [x] Brot';
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf.md'] as string)).toContain(unchanged);
+  await einkauf.screenshot({ path: test.info().outputPath('stale-card-refused.png') });
+
+  // The same for the second box: its place is "Milch" now, which the card does not show there.
+  await boxes.nth(1).click();
+  await expect(told.first()).toBeVisible();
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf.md'] as string)).toContain(unchanged);
+});
+
 test('pinboard: renaming a note in the tree retargets its pinned arrangement in the .base (P5 sweep)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Pinnwand');
@@ -2662,8 +2774,16 @@ test('pinboard: renaming a note in the tree retargets its pinned arrangement in 
   const tree = page.getByTestId('file-tree');
   await tree.getByText('Zettel', { exact: true }).click();
   // The mock index titles carry the relative path, so the row reads "Zettel/Idee".
-  await tree.getByText(/(^|\/)Idee$/).click({ button: 'right' });
-  await page.getByText(/^(Umbenennen|Rename)$/).click();
+  // The menu closes on any scroll of the page, by its contract (Menu.tsx), and
+  // the tree is still taking in the pin's write here. Twice in CI the open
+  // menu went from under the click and the test ran into its 30 s (Sammelplan
+  // § 3.25, cause not proven — the CI keeps the trace of such an attempt now).
+  // A menu that closed before its entry was pressed is opened again; what is
+  // tested is the rename and the arrangement, not this timing.
+  await expect(async () => {
+    await tree.getByText(/(^|\/)Idee$/).click({ button: 'right' });
+    await page.getByText(/^(Umbenennen|Rename)$/).click({ timeout: 2_000 });
+  }).toPass();
   const field = tree.locator('input');
   await expect(field).toBeVisible();
   await field.fill('Idee Neu');
@@ -2733,12 +2853,11 @@ test('pinboard: "Entry" opens New entry with the real editor — completion, sla
   await page.keyboard.type('[[Ide');
   const completion = page.locator('.cm-tooltip-autocomplete');
   await expect(completion).toBeVisible();
-  const firstOption = completion.locator('li[role="option"]').first();
-  await expect(firstOption).toContainText('Idee');
+  await expect(completion.locator('li[role="option"]').first()).toContainText('Idee');
   // A click, not Enter: the menu ignores keys for its first 75 ms (CodeMirror's
   // interactionDelay), and a click also proves the menu is reachable above the
   // window's overlay.
-  await firstOption.click();
+  await pickCompletion(page, 'Idee');
   await page.keyboard.press('Enter');
   // The slash menu opens inside the window too.
   await page.keyboard.type('/');
@@ -2859,6 +2978,68 @@ test('pinboard: Enter in the title before the editor has loaded still moves on t
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Vorab.md'])).toContain('# Vorab\n');
 });
 
+test('pinboard: New entry - the first click into a long draft puts the caret where it lands and does not scroll away (Sammelplan 3.140 no. 2)', async ({ page }) => {
+  // A template longer than the window, with its cursor at the end: the window
+  // set that place when the text got the focus - and a click focuses the text
+  // BEFORE CodeMirror sets the caret to the click, so the view scrolled to the
+  // end while the caret went to the click.
+  const lines = Array.from({ length: 80 }, (_, i) => `Zeile ${i + 1}`).join('\n');
+  await page.goto('/');
+  await page.evaluate((template) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Templates/Langvorlage.md'] = template;
+    fs['/test-vault/Pinnwand.base'] = String(fs['/test-vault/Pinnwand.base']).replace('      render: pinboard', '      render: pinboard\n      newItemTemplate: Templates/Langvorlage.md');
+  }, `${lines}\n\nEnde: {{cursor}}\n`);
+  await openBase(page, 'Pinnwand');
+  await expect(page.locator('[data-pinboard-card]')).toHaveCount(3);
+  await page.getByTestId('base-new-entry').click();
+  const dlg = page.getByTestId('pinboard-entry');
+  await expect(dlg).toBeVisible();
+  const content = dlg.locator('.cm-content');
+  await expect(content).toContainText('Zeile 3', { timeout: 15000 });
+  await expect(content).not.toBeFocused();
+
+  const third = dlg.locator('.cm-line', { hasText: /^Zeile 3$/ });
+  await third.click();
+  await expect(content).toBeFocused();
+  await expect(dlg.locator('.cm-activeLine')).toHaveText('Zeile 3');
+  // Two frames for any scroll the focus asked for: the line clicked is still in view.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))));
+  const scroller = dlg.locator('.cm-scroller');
+  const [box, view] = await Promise.all([third.boundingBox(), scroller.boundingBox()]);
+  expect(box!.y).toBeGreaterThanOrEqual(view!.y - 1);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(view!.y + view!.height + 1);
+  await page.keyboard.type('!');
+  await expect(dlg.locator('.cm-activeLine')).toHaveText('Zeile 3!');
+
+  // From the title, the keyboard still enters at the template's place.
+  await dlg.getByTestId('pinboard-entry-title').fill('Lang');
+  await dlg.getByTestId('pinboard-entry-title').press('Enter');
+  await expect(content).toBeFocused();
+});
+
+test('pinboard: a right-click into the filter field of a card\'s label menu opens no menu over it (Sammelplan 3.141 no. 2)', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await cards.first().click({ button: 'right' });
+  await page.getByRole('menuitem', { name: /^Labels$/ }).click();
+  const labels = page.getByRole('menu', { name: /^Labels$/ });
+  await expect(labels).toBeVisible();
+  const filter = labels.getByRole('textbox', { name: /Label suchen|Search labels/ });
+  await expect(filter).toBeFocused();
+  await filter.fill('ide');
+
+  // The app's text menu used to open over the label menu here, and a press on
+  // its entries closed the label menu under it as a press beside it.
+  await filter.click({ button: 'right' });
+  await expect(page.getByRole('menu', { name: /^(Kontextmenü|Context menu)$/ })).toHaveCount(0);
+  await expect(labels).toBeVisible();
+  await expect(filter).toBeFocused();
+  await expect(filter).toHaveValue('ide');
+});
+
 test('pinboard: New entry takes over the ACTIVE label as a removable chip', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Pinnwand');
@@ -2907,7 +3088,7 @@ test('pinboard: a slash command in New entry reaches the entry, not the note beh
   await dlg.getByTestId('pinboard-entry-title').fill('Aus der Notiz');
   await dlg.getByTestId('pinboard-entry-title').press('Enter');
   await page.keyboard.type('/icon');
-  await page.locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ }).first().click();
+  await pickCompletion(page, /Dokument-Icon|Document icon/);
   // The picker opens over the entry and takes the keyboard.
   const picker = page.getByTestId('emoji-picker');
   await expect(picker).toBeVisible();
@@ -3492,4 +3673,128 @@ test('the calendar view title opens the date jump picker, and a picked day is sh
   await expect(page.getByTestId('base-cal-jump-picker')).toHaveCount(0);
   await expect(title).not.toHaveText(before);
   await expect(page.getByTestId(`base-day-${year}-03-03`)).toBeVisible();
+});
+
+/*
+ * A new entry of a database embedded in a note links itself into its host —
+ * and never replaces a link the host carries (Sammelplan § 3.134 Nr. 1, fixed
+ * in App 752717010). The desktop asked the INDEX whether the host's
+ * single-value slot was taken; where the index was behind the note, or did
+ * not take its block at all (an empty `tags:`), it said "empty" and the link
+ * was replaced without a word. Here the index knows both hosts and none of
+ * their links: one host whose slot is empty gets the new entry, the other
+ * keeps the link it carries.
+ *
+ * Its own pair of databases, so the host's database is the only one that
+ * claims the host's folder — an embedded database scopes itself to its host
+ * only where one database governs the host.
+ */
+test('Embedded database: a new entry fills the host\'s empty single link, and never replaces one the index does not know of (§ 3.134)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Auftraege'] = { isDir: true };
+    fs['/test-vault/Firmen'] = { isDir: true };
+    fs['/test-vault/Auftraege.base'] = [
+      'filters:', '  and:', '    - file.folder == "Auftraege"',
+      'properties:', '  note.firma:', '    plainva:', '      input: relation', '      relationBase: Firmen.base', '      relationLimit: one',
+      'views:', '  - type: table', '    name: Tabelle', '    order:', '      - file.name', '      - note.firma', '',
+    ].join('\n');
+    fs['/test-vault/Firmen.base'] = [
+      'filters:', '  and:', '    - file.folder == "Firmen"',
+      'properties:', '  note.auftraege:', '    plainva:', '      reverseOf:', '        base: Auftraege.base', '        property: firma',
+      'views:', '  - type: table', '    name: Tabelle', '    order:', '      - file.name', '      - note.auftraege', '',
+    ].join('\n');
+    fs['/test-vault/Firmen/Initech.md'] = '# Initech\n';
+    // Its link stands in a block the index did not take (the empty `tags:`).
+    fs['/test-vault/Auftraege/Taken.md'] = '---\nfirma: "[[Initech]]"\ntags:\n---\n# Taken\n\n![[Firmen.base]]\n';
+    fs['/test-vault/Auftraege/Open.md'] = '---\nstatus: offen\n---\n# Open\n\n![[Firmen.base]]\n';
+    (window as any).__dbFiles.push(
+      { id: 'a1', path: 'Auftraege/Taken.md', title: 'Taken', mtime_local: 1750000020000, size_bytes: 10 },
+      { id: 'a2', path: 'Auftraege/Open.md', title: 'Open', mtime_local: 1750000021000, size_bytes: 10 },
+      { id: 'f1', path: 'Firmen/Initech.md', title: 'Initech', mtime_local: 1750000022000, size_bytes: 10 },
+    );
+    (window as any).__dbProps['a2'] = [{ key: 'status', value: 'offen', type: 'text' }];
+  });
+  await page.goto('/');
+  const create = (embed: ReturnType<Page['locator']>) => embed.locator('[data-tip="Neues Element anlegen"], [data-tip="Create a new item"]');
+  const file = (path: string) => page.evaluate((p) => (window as any).mockFs[`/test-vault/${p}`] as string | undefined, path);
+  const firmen = async () => (await page.evaluate(() => Object.keys((window as any).mockFs)))
+    .filter((p) => p.startsWith('/test-vault/Firmen/') && p !== '/test-vault/Firmen/Initech.md');
+
+  // The host with an empty slot: the new entry is linked into it.
+  await openTreeNote(page, 'Auftraege', 'Open');
+  const embed = page.locator('main .cm-note-embed').first();
+  await expect(create(embed)).toBeVisible({ timeout: 15000 });
+  await create(embed).click();
+  await expect.poll(firmen).toHaveLength(1);
+  const [first] = await firmen();
+  const firstName = first.split('/').pop()!.replace(/\.md$/, '');
+  await expect.poll(async () => (await file('Auftraege/Open.md'))?.split('\n').find((line) => line.startsWith('firma:'))).toContain(`[[${firstName}]]`);
+  await page.locator('.pv-peek-actions').getByRole('button', { name: /Schließen|Close/ }).click();
+
+  // The host whose link the index does not know: it keeps it, and says why nothing was linked.
+  await page.locator('aside[aria-label="Left Sidebar"] [data-tree-path="Auftraege/Taken.md"]').click();
+  await expect(page.locator('main .cm-content').first()).toContainText('Taken');
+  await expect(create(embed)).toBeVisible({ timeout: 15000 });
+  await create(embed).click();
+  await expect.poll(firmen).toHaveLength(2);
+  await expect(page.locator('.pv-toast', { hasText: /Nicht verknüpft|Not linked/ })).toBeVisible();
+  expect(await file('Auftraege/Taken.md')).toBe('---\nfirma: "[[Initech]]"\ntags:\n---\n# Taken\n\n![[Firmen.base]]\n');
+});
+
+// --- Findings of the .base reference (03.11.) --------------------------------
+// A condition Plainva cannot read stays in the file but filters nothing; the
+// panel showed it as written and said nothing. And deleting a view handed its
+// native keys (`limit`) to the next view, which lost its own (`image`).
+test('An unreadable filter is marked as not applied; deleting a view leaves the other its own keys', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Rawfilter.base'] = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Projekte"',
+      'views:',
+      '  - type: table',
+      '    name: Erste',
+      '    limit: 7',
+      '    order:',
+      '      - file.name',
+      '      - note.status',
+      '    filters:',
+      '      and:',
+      `        - 'status == "active"'`,
+      '        - prio > 2',
+      '        - and:',
+      `            - 'status == "active"'`,
+      '            - or:',
+      `                - 'a && b'`,
+      `                - 'prio == "1"'`,
+      '  - type: cards',
+      '    name: Zweite',
+      '    image: note.cover',
+      '    cardSize: 180',
+      '',
+    ].join('\n');
+  });
+  await page.goto('/');
+  await openBase(page, 'Rawfilter');
+  await page.getByRole('button', { name: /^(Konfigurieren|Configure)$/ }).click();
+  await configTab(page, 'filter');
+
+  const notes = page.locator('.base-config-panel').getByTestId('filter-not-applied');
+  await expect(notes).toHaveCount(2);
+  await expect(notes.nth(0)).toHaveText(/Nicht angewendet: Plainva kann diese Bedingung nicht lesen|Not applied: Plainva cannot read this condition/);
+  await expect(notes.nth(1)).toHaveText(/(Nicht angewendet, weil Plainva sie nicht lesen kann|Not applied, because Plainva cannot read it): a && b/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('desktop-filter-not-applied.png') });
+
+  // Delete the first (active) view from its tab menu.
+  await page.locator('.base-view-tabs').getByRole('button', { name: /^(Ansichts-Optionen|View options)$/ }).click();
+  await page.getByRole('menuitem', { name: /^(Löschen|Delete)$/ }).click();
+  const base = () => page.evaluate(() => String((window as any).mockFs['/test-vault/Rawfilter.base']));
+  await expect.poll(base).not.toContain('name: Erste');
+  const written = await base();
+  expect(written).toContain('name: Zweite');
+  expect(written).toContain('image: note.cover');
+  expect(written).toContain('cardSize: 180');
+  expect(written).toContain('type: cards');
+  expect(written).not.toContain('limit: 7');
 });

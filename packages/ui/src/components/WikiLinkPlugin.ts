@@ -1,6 +1,6 @@
 import { RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { bracketLinks, wikiLinks } from "@plainva/core";
-import { splitLinkAnchor } from "../lib/linkAnchor";
+import { readWikiLinkInner } from "../lib/linkAnchor";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { toast } from "../services/toastStore";
 import { getPlatformServices } from "../platform/services";
@@ -203,14 +203,13 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
             const matchEnd = matchStart + match.raw.length;
             const content = match.inner;
             const hideRanges: {start: number, end: number}[] = [];
-            let rawTarget = content;
-            
-            if (content.includes("|")) {
-              const parts = content.split("|");
-              rawTarget = parts[0];
-              // text is parts[1]
-              // We hide `[[target|` and `]]`
-              const prefixLen = 2 + rawTarget.length + 1; // "[[" + target + "|"
+            // The core's reading of the inner text (Sammelplan § 3.133 Nr. 1):
+            // `[[Note\|alias]]` names "Note" and shows "alias".
+            const { target, anchor, aliasStart } = readWikiLinkInner(content);
+
+            if (aliasStart >= 0) {
+              // We hide `[[target|` (with the backslash of `\|`) and `]]`
+              const prefixLen = 2 + aliasStart; // "[[" + target + "|"
               hideRanges.push({ start: matchStart, end: matchStart + prefixLen });
               hideRanges.push({ start: matchEnd - 2, end: matchEnd });
             } else {
@@ -218,8 +217,6 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, host
               hideRanges.push({ start: matchStart, end: matchStart + 2 });
               hideRanges.push({ start: matchEnd - 2, end: matchEnd });
             }
-            const { target, anchor } = splitLinkAnchor(rawTarget);
-
             matches.push({ start: matchStart, end: matchEnd, type: "wiki", target, anchor, hideRanges });
           }
           

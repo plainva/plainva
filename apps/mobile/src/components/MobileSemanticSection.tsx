@@ -115,8 +115,7 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
 
   return (
     <>
-      <SectionLabel>{t("ai.semantic.title")}</SectionLabel>
-      <p className="m-hint">{t("ai.semantic.description")}</p>
+      <SectionLabel info={t("ai.semantic.description")}>{t("ai.semantic.title")}</SectionLabel>
       {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
       {searchRests(settings) && <p className="m-hint" data-testid="ai-rests-search">{t("ai.mode.restsHere")}</p>}
       <GroupCard>
@@ -211,7 +210,7 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
             <Row
               wrap
               title={t("ai.related.show")}
-              subtitle={t("ai.related.showDesc")}
+              info={t("ai.related.showDesc")}
               end={<Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} />}
             />
             {state?.related.vaultPaused && <Row title={t("ai.related.vaultPausedRow")} />}

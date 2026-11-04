@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, FileArchive, FolderOpen } from "lucide-react";
-import { Browser } from "@capacitor/browser";
 import {
   defaultImportRegistry,
   type ImportPlan,
@@ -22,6 +21,7 @@ import {
   serializeBaseConfig,
   TextInput,
   toast,
+  getPlatformServices,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
@@ -304,7 +304,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
                 <li>{t(`${credentials.guideKey}.step2`)}</li>
                 <li>{t(`${credentials.guideKey}.step3`)}</li>
               </ol>
-              <Button onClick={() => void Browser.open({ url: credentials.url })} variant="ghost">
+              <Button onClick={() => void getPlatformServices().openExternal(credentials.url).catch(() => undefined)} variant="ghost">
                 <ExternalLink size={ICON.ui} />
                 {t(`${credentials.guideKey}.open`)}
               </Button>

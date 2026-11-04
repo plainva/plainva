@@ -418,12 +418,15 @@ describe("the catalog", () => {
 });
 
 describe("hidden roots", () => {
-  it("are the root folders only, in any letter case", () => {
+  it("are every dot file and dot folder, at any depth and in any letter case (E8)", () => {
     expect(isAiHiddenPath(".agent/skills/a/SKILL.md")).toBe(true);
     expect(isAiHiddenPath("./.Agent/policy.yml")).toBe(true);
     expect(isAiHiddenPath(".plainva\\recents.json")).toBe(true);
-    expect(isAiHiddenPath(".agentx/a.md")).toBe(false);
-    expect(isAiHiddenPath("Notes/.agent/a.md")).toBe(false);
+    // Hidden on every surface since 2026-11-02, so for the assistant too.
+    expect(isAiHiddenPath(".agentx/a.md")).toBe(true);
+    expect(isAiHiddenPath("Notes/.agent/a.md")).toBe(true);
+    expect(isAiHiddenPath("Projects/.draft.md")).toBe(true);
+    expect(isAiHiddenPath("Projects/v1.2 notes.md")).toBe(false);
     expect(isAiHiddenPath("AGENTS.md")).toBe(false);
   });
 });

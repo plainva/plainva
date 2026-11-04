@@ -1,4 +1,4 @@
-import { trimChars } from "@plainva/core";
+import { isHiddenPath, trimChars } from "@plainva/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Clock, FilePlus, Search } from "lucide-react";
@@ -81,7 +81,9 @@ export function SearchScreen({
     // The name corpus is loaded ONCE per open (the desktop quick switcher's
     // rule): fuzzy matching over a live query would re-read the index on every
     // keystroke.
-    void vault.queryService?.listNotes().then(setCorpus).catch(() => {});
+    // `listNotes` also answers link pickers that must know every note; the
+    // names offered here leave a hidden file out (E8).
+    void vault.queryService?.listNotes().then((notes) => setCorpus(notes.filter((n) => !isHiddenPath(n.path)))).catch(() => {});
     void loadRecentSearches(vault.vaultId).then(setRecent).catch(() => {});
   }, [vault, revision]);
   // The order of the hits (finding 2026-09-19): relevance unless chosen

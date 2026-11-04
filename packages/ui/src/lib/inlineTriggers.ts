@@ -12,6 +12,7 @@
  * order.
  */
 
+import { visiblePathSql } from "@plainva/core";
 import { pathsSharingNames, wikiLinkTextFor } from "./wikiLinkText";
 
 /** The slice of the query service a search needs; both shells' service satisfies it. */
@@ -95,7 +96,7 @@ export async function searchLinkTargets(source: TriggerQuerySource, term: string
   const like = `%${term}%`;
   const rows: { path: string; title?: string | null; is_attachment?: number }[] = (await source.db.query(
     `SELECT path, title, (CASE WHEN path LIKE '%.md' THEN 0 ELSE 1 END) AS is_attachment FROM files
-         WHERE (title LIKE ? OR path LIKE ?) AND path NOT LIKE '%.base'
+         WHERE (title LIKE ? OR path LIKE ?) AND path NOT LIKE '%.base' AND ${visiblePathSql("path")}
          ORDER BY is_attachment, (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
          LIMIT ${Math.max(1, Math.floor(limit))}`,
     [like, like, `${term}%`],

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { parse as parseYaml, parseDocument } from "yaml";
 import {
   FrontmatterSurgicalError,
@@ -300,7 +301,9 @@ describe("lists, item by item", () => {
     ["every item another one: each in its place", ["tags:", "  - a", "  - b"], ["x", "y", "z"], ["tags:", "  - x", "  - y", "  - z"]],
     ["an item without a value gets one", ["tags:", "  -", "  - b"], ["a", "b"], ["tags:", "  - a", "  - b"]],
     ["an item that is a map: a new one in the list's form", ["verified:", "  - by: human:Anna", "    at: 2026-10-01T10:00:00Z"], [{ by: "human:Anna", at: "2026-10-01T10:00:00Z" }, { by: "human:Ben", at: "2026-10-12T10:00:00Z" }], ["verified:", "  - by: human:Anna", "    at: 2026-10-01T10:00:00Z", "  - by: human:Ben", "    at: 2026-10-12T10:00:00Z"]],
-    ["an item that is a map and changes is written anew, the others stay", ["blocks:", "  - uid: 007", "    account: x", "  - uid: 008   # kept"], [{ uid: 7, account: "y" }, { uid: 8 }], ["blocks:", "  - uid: 7", "    account: y", "  - uid: 008   # kept"]],
+    // A map that keeps a key is changed field by field (open-items plan 3.72 no. 8): `007` keeps its characters.
+    ["an item that is a map and changes: field by field, the others stay", ["blocks:", "  - uid: 007", "    account: x", "  - uid: 008   # kept"], [{ uid: 7, account: "y" }, { uid: 8 }], ["blocks:", "  - uid: 007", "    account: y", "  - uid: 008   # kept"]],
+    ["an item that is a map and keeps none of its keys is written anew", ["blocks:", "  - uid: 007", "  - uid: 008   # kept"], [{ id: 1 }, { uid: 8 }], ["blocks:", "  - id: 1", "  - uid: 008   # kept"]],
     ["a placeholder as a template holds one stays as it is written", ["aliases:", "  - {{alias}}", "tags:", "  - x"], undefined, ["aliases:", "  - {{alias}}", "tags:", "  - x", "  - y"]],
     ["in brackets with blanks inside", ["tags: [ a, b ]"], ["a", "b", "c"], ["tags: [ a, b, c ]"]],
     ["in brackets without blanks", ["tags: [a,b]"], ["b", "c"], ["tags: [b,c]"]],
@@ -318,13 +321,13 @@ describe("lists, item by item", () => {
   it("a long list with one change costs one walk", () => {
     const items = Array.from({ length: 20_000 }, (_, i) => `tag-${i}`);
     const note = `---\ntitle: x\ntags:\n${items.map((tag) => `  - ${tag}\n`).join("")}status: open\n---\nBody\n`;
-    const started = performance.now();
-    expect(set(note, ["tags"], [...items, "new"])).toBe(note.replace("status: open", "  - new\nstatus: open"));
-    expect(set(note, ["tags"], items.filter((_, i) => i !== 10_000))).toBe(note.replace("  - tag-10000\n", ""));
-    expect(set(note, ["status"], "done")).toBe(note.replace("status: open", "status: done"));
-    expect(renameFrontmatterTag(note, "tag-777", "renamed").content).toBe(note.replace("  - tag-777\n", "  - renamed\n"));
     // Reading the block twice dominates; searched pair by pair, twenty thousand items would take minutes.
-    expect(performance.now() - started).toBeLessThan(20_000);
+    within(20_000, () => {
+      expect(set(note, ["tags"], [...items, "new"])).toBe(note.replace("status: open", "  - new\nstatus: open"));
+      expect(set(note, ["tags"], items.filter((_, i) => i !== 10_000))).toBe(note.replace("  - tag-10000\n", ""));
+      expect(set(note, ["status"], "done")).toBe(note.replace("status: open", "status: done"));
+      expect(renameFrontmatterTag(note, "tag-777", "renamed").content).toBe(note.replace("  - tag-777\n", "  - renamed\n"));
+    });
   });
 
   it("an item that only moves keeps its characters, in a list of any length", () => {

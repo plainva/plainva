@@ -208,16 +208,23 @@ export class WebDavSyncTarget implements ISyncTarget {
    * (including the missing-parent retry) needs no second branch.
    */
   private async put(op: SyncOperation, url: string, condition: Record<string, string> = {}): Promise<Response> {
+    // When the file was edited, for the servers that keep it (Nextcloud,
+    // ownCloud: `X-OC-Mtime`, whole seconds): the next device to download the
+    // file lists it by that time, not by this upload's. Other servers ignore
+    // the header and keep the upload's time.
+    const edited: Record<string, string> = op.localModifiedAt !== undefined && Number.isFinite(op.localModifiedAt) && op.localModifiedAt > 0
+      ? { "X-OC-Mtime": String(Math.floor(op.localModifiedAt / 1000)) }
+      : {};
     if (op.contentRef && this.uploader) {
       return streamUpload(this.uploader, {
         ref: op.contentRef,
         url,
         method: "PUT",
-        headers: { ...this.headers, ...condition },
+        headers: { ...this.headers, ...edited, ...condition },
       });
     }
     return this.request("PUT", url, {
-      headers: { ...this.headers, ...condition },
+      headers: { ...this.headers, ...edited, ...condition },
       body: (op.content || new Uint8Array()) as any as BodyInit,
     });
   }
@@ -454,6 +461,9 @@ export class WebDavSyncTarget implements ISyncTarget {
     }
 
     const etagMap = new Map<string, string>();
+    // When each file last changed on the server (`getlastmodified`): what the
+    // index shows as "edited" for a file this device only downloaded.
+    const mtimeMap = new Map<string, number>();
     // Empty-folder sync (2026-07-17): collections seen in the listing are
     // reported so the worker can create locally missing (possibly empty)
     // folders. Internal collections (.plainva, .git, …) stay out.
@@ -475,11 +485,12 @@ export class WebDavSyncTarget implements ISyncTarget {
       const href = this.relativeHref(resp.href);
       if (!href.includes(".CONFLICT")) {
         etagMap.set(href, resp.etag.replace(/"/g, ""));
+        if (resp.modifiedAt !== undefined) mtimeMap.set(href, resp.modifiedAt);
       }
     }
 
     console.log(`[WebDAV] PROPFIND ${this.creds.url} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
-    return { etagMap, folders };
+    return { etagMap, folders, mtimeMap };
   }
 
   // Real XML parsing instead of the former regex scan: namespace prefixes

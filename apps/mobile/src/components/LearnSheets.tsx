@@ -28,6 +28,7 @@ import {
   type AiState,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 /**
@@ -149,11 +150,13 @@ function SkillDraftSheet({ session, state, draftId, onClose }: SheetProps & { dr
   const { t } = useTranslation();
   const review = useSkillDraftReview(session, state, draftId, onClose);
   const { facts, change } = review;
+  // The reworked instructions differ from the draft's; they stay while the comparison is shown. Taking and discarding close plainly.
+  const close = useSheetGuard(`ai-skill-draft:${draftId}`, facts !== null && review.body !== facts.body, onClose);
   if (!facts || !change) return null;
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-skill-draft">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{facts.title}</p>
         {(review.refusal ?? facts.blocked) && (
           <Banner kind="warning" testId="ai-skill-draft-blocked">

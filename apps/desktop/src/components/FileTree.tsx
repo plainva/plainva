@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { appConfirm, dialogStore } from "../services/appDialogs";
+import { appConfirm, appConfirmOption, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ActiveSemanticCoverage, EmptyState, FoundChip, ICON, meaningActive, toast, errorText, useLocalEmbeddings, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
+import { isHiddenPath, isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
@@ -26,7 +26,7 @@ import { applyIndexChanges, duplicateFile, moveItems, movableInto, reindexAfterR
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { listVaultFolders } from "../services/vaultFolders";
 import { getTemplateFolder } from "../services/newItemFlow";
-import { generateIndexForFolder } from "../services/indexMd";
+import { generateIndexForFolder, newOverviewPlacements, pinLinksBeforeOverviews, withPinnedLinks } from "../services/indexMd";
 import { opensExternally } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { flushUnsavedBeforeMove } from "../services/moveFlush";
@@ -457,7 +457,8 @@ export const FileTree: React.FC<{
       try {
         const diskFiles = await vaultAdapter.listDir("", true);
         const folders = diskFiles
-          .filter(f => f.isDirectory && !isInternalPath(f.path))
+          // A dot folder is hidden (E8), like every internal one.
+          .filter(f => f.isDirectory && !isInternalPath(f.path) && !isHiddenPath(f.path))
           .map(f => ({ path: f.path, title: f.name, isDir: true as const }));
         if (!cancelled) setDiskFolders(folders);
       } catch (err) {
@@ -494,8 +495,9 @@ export const FileTree: React.FC<{
             }
           }
 
+          // The index holds hidden files (the sync needs them); the tree does not show them (E8).
           const allFiles: { path: string; title: string; mode?: string; isDir?: boolean; mtime?: number | null; ctime?: number | null }[] =
-            [...dbFiles.map((f) => ({ ...f, ...(times.get(f.path) ?? {}) })), ...diskFolders];
+            [...dbFiles.filter((f) => !isHiddenPath(f.path)).map((f) => ({ ...f, ...(times.get(f.path) ?? {}) })), ...diskFolders];
 
           // Keep the previous reference when nothing tree-relevant changed, so a
           // content-only autosave does not rebuild + re-render the whole tree.
@@ -851,7 +853,7 @@ export const FileTree: React.FC<{
         isFolder,
         // .base renames sweep templateFor assignments in the template folder (plan P4).
         templateFolder:
-          !isFolder && oldPath.toLowerCase().endsWith(".base") && vaultPath
+          (isFolder || oldPath.toLowerCase().endsWith(".base")) && vaultPath
             ? await getTemplateFolder(vaultPath)
             : undefined,
       });
@@ -1095,13 +1097,14 @@ export const FileTree: React.FC<{
       else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
       return;
     }
-    const { moved, errors, followUpErrors } = await moveItems(
+    const { moved, errors, followUpErrors, linkUpdateFailed } = await moveItems(
       {
         adapter: vaultAdapter,
         queryService,
         indexer,
         isFolder: (path) => folderPaths.has(path),
         onMoved: (from, to) => onRenameTabPrefix?.(from, to),
+        templateFolder: async () => (vaultPath ? await getTemplateFolder(vaultPath) : undefined),
       },
       candidates,
       targetFolderPath,
@@ -1116,6 +1119,8 @@ export const FileTree: React.FC<{
     for (const { name, error } of followUpErrors) {
       toast.warning(t("dialogs.movedWithFollowUpError", { name, error }));
     }
+    // A template that names a moved database could not follow it (3.71 no. 4).
+    if (linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
   });
 
   const handleDrop = useStableHandler(async (e: React.DragEvent, targetFolderPath: string) => {
@@ -1166,6 +1171,7 @@ export const FileTree: React.FC<{
     if (!vaultAdapter || !queryService || !indexer) return;
     try {
       const indexPath = folder ? `${folder}/index.md` : "index.md";
+      let pinned = 0;
       if (await vaultAdapter.exists(indexPath)) {
         const ok = await appConfirm({
           title: t("indexMd.contextAction"),
@@ -1173,6 +1179,30 @@ export const FileTree: React.FC<{
           kind: "warning",
         });
         if (!ok) return;
+      } else {
+        // A new index.md takes over a link that names another folder's
+        // overview only as `index` (P21): offered, counted and preset, to be
+        // written with its folder first — as an adoption offers it, and as the
+        // phone asks before it generates.
+        const pins = await pinLinksBeforeOverviews({
+          queryService,
+          adapter: vaultAdapter,
+          placements: newOverviewPlacements([folder]),
+          ask: async (links) => {
+            const answer = await appConfirmOption({
+              title: t("indexMd.createOverview"),
+              message: t("indexMd.pinHint"),
+              kind: "info",
+              confirmLabel: t("indexMd.createOverview"),
+              checkbox: { label: t("indexMd.pinOption", { links }), initial: true },
+            });
+            return answer.confirmed ? answer.checked : null;
+          },
+          changed: (path) => window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } })),
+        });
+        if (!pins) return;
+        if (pins.failed) toast.warning(t("indexMd.pinFailed"));
+        pinned = pins.pinned;
       }
       const heading = folder ? folder.split("/").pop()! : (vaultPath?.split(/[/\\]/).pop() ?? "Vault");
       const result = await generateIndexForFolder({
@@ -1185,6 +1215,8 @@ export const FileTree: React.FC<{
       await applyIndexChanges(indexer, { added: [result.indexPath] });
       triggerFileTreeUpdate();
       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: result.indexPath } }));
+      // Said only where more than the new file happened: the links it wrote.
+      if (pinned > 0) toast.success(withPinnedLinks(t, t("indexMd.resultCreated", { entries: result.entries }), pinned));
     } catch (err: any) {
       toast.error(t("dialogs.createErrorMsg", { error: errorText(err) }));
     }

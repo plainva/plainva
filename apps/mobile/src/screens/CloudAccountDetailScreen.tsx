@@ -5,6 +5,10 @@ import { useTranslation } from "react-i18next";
 import { Activity, CalendarDays, ChevronRight, Folder, KeyRound, ListChecks, LogOut, Mail, Merge, Server, Trash2, User } from "lucide-react";
 import {
   AccountPasswordChangePanel,
+  PLAINVA_DROPBOX_APP_KEY,
+  accountSecretOf,
+  connectSecretLabelKey,
+  type AccessFamily,
   accessLineText,
   accessProblemKey,
   accountMonogram,
@@ -43,8 +47,8 @@ import { connectionFailureToast, toastConnectionFailure } from "../services/conn
 import { devicePlatform } from "../services/devicePlatform";
 import { getAccountToken } from "../services/accountBroker";
 import { removeMobileAccount, signOutMobileAccountHere } from "../services/accountSignOut";
-import { ensureCardRecord, readMobileAccountFacts, setMobileAppKey, setMobileServiceOff, type MobileAccountFacts } from "../services/accountPageFacts";
-import { mConfirm, mPrompt, mTargets } from "../services/mobileDialogs";
+import { ensureCardRecord, readMobileAccountFacts, setMobileServiceOff, type MobileAccountFacts } from "../services/accountPageFacts";
+import { mConfirm, mTargets } from "../services/mobileDialogs";
 import { guideMobileAccountRepair } from "../services/accountRepair";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import { AccountAccessSheet } from "../components/AccountAccessSheet";
@@ -171,7 +175,7 @@ export function CloudAccountDetailScreen({
   }, [reload]);
 
   /** No usable access on this phone for Google/Microsoft: the sheet asks for it, then signs in (Befund 2026-08-20). */
-  const [needClient, setNeedClient] = useState<"google" | "microsoft" | null>(null);
+  const [needClient, setNeedClient] = useState<AccessFamily | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [checking, setChecking] = useState(false);
   /** The record the password entry of section 3 writes for - made on demand for a card without one. */
@@ -187,6 +191,8 @@ export function CloudAccountDetailScreen({
   }, [card?.family]);
 
   const oauthFamily = card?.family === "google" || card?.family === "microsoft" ? card.family : null;
+  /** The families whose sign-in this phone chooses - Dropbox's app key too (settings plan 2026-10-29, E6). */
+  const accessFamily: AccessFamily | null = oauthFamily ?? (card?.family === "dropbox" ? "dropbox" : null);
   const model = card ? accountPageModel({
     family: card.family,
     services: card.services,
@@ -205,20 +211,21 @@ export function CloudAccountDetailScreen({
    * Which client this phone signs in with, named on the page (plan "Verbinden",
    * V0) - and whether the standard one could take over.
    */
-  const [access, setAccess] = useState<{ family: "google" | "microsoft"; line: string; standard: boolean } | null>(null);
+  const [access, setAccess] = useState<{ family: AccessFamily; line: string; standard: boolean } | null>(null);
   const [accessTurn, setAccessTurn] = useState(0);
   useEffect(() => {
-    if (!oauthFamily) return;
+    if (!accessFamily) return;
     let alive = true;
     void (async () => {
       const vault = loginVaultId ?? undefined;
-      const stored = await readDeviceAccess(oauthFamily, vault);
-      const resolved = await deviceAccess(oauthFamily, vault);
+      const stored = await readDeviceAccess(accessFamily, vault);
+      const resolved = await deviceAccess(accessFamily, vault);
       const env = import.meta.env as unknown as Record<string, unknown>;
-      if (alive) setAccess({ family: oauthFamily, line: accessLineText(resolved, (key, options) => t(key, options), accessProblemKey), standard: standardAccessAvailable(oauthFamily, devicePlatform(), stored, env) });
+      const standard = accessFamily === "dropbox" ? stored?.source === "own" && !!PLAINVA_DROPBOX_APP_KEY : standardAccessAvailable(accessFamily, devicePlatform(), stored, env);
+      if (alive) setAccess({ family: accessFamily, line: accessLineText(resolved, (key, options) => t(key, options), accessProblemKey), standard });
     })().catch(() => undefined);
     return () => { alive = false; };
-  }, [oauthFamily, loginVaultId, accessTurn, t]);
+  }, [accessFamily, loginVaultId, accessTurn, t]);
   const standardAvailable = !!access && access.family === card?.family && access.standard;
 
   /** "Use standard sign-in": this phone's access becomes the standard one, then the card signs in with it. */
@@ -254,21 +261,6 @@ export function CloudAccountDetailScreen({
   function openPassword() {
     if (!card || !loginVaultId) return;
     void ensureCardRecord(loginVaultId, card).then(setPasswordRecord).catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
-  }
-
-  /** Dropbox: the account's own app key, as on the desktop (empty = Plainva's). */
-  function editAppKey() {
-    if (!card || !loginVaultId) return;
-    void (async () => {
-      const answer = await mPrompt({ title: t("settings.appKey"), message: t("cloudAccounts.byoAccountHint"), initial: card.record?.byoClientId ?? "", placeholder: t("settings.appKey") });
-      if (answer.cancelled) return;
-      try {
-        await setMobileAppKey(loginVaultId, card, answer.value);
-        reload();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
-      }
-    })();
   }
 
   /** The head's one button, the same act for every provider. */
@@ -311,7 +303,7 @@ export function CloudAccountDetailScreen({
       // The card to fold in is the target of an action (E20), not a value.
       const sourceId = await mTargets({
         title: t("cloudAccounts.mergeManualPick"),
-        message: t("cloudAccounts.mergeManualHint"),
+        message: t("cloudAccounts.mergeManualStep"),
         options: mergeCandidates.map((record) => ({ value: record.id, label: record.label || familyLabel(record.family) })),
       });
       if (!sourceId) return;
@@ -465,27 +457,18 @@ export function CloudAccountDetailScreen({
           </GroupCard>
 
           {/* 3 - how this phone signs in: the same place for every provider. */}
-          <SectionLabel>{t("cloudAccounts.accessGroup")}</SectionLabel>
+          <SectionLabel info={t("cloudAccounts.accessGroupInfo")}>{t("cloudAccounts.accessGroup")}</SectionLabel>
           <GroupCard>
             <RowList>
-              {model.access.kind === "oauth" && (
+              {(model.access.kind === "oauth" || model.access.kind === "appKey") && accessFamily && (
+                // Dropbox's app key is this phone's choice like the Google and Microsoft client (E6).
                 <Row
                   data-testid="cloudacct-access"
                   icon={<KeyRound size={ICON.ui} />}
                   title={t("accountAccess.lineLabel")}
-                  subtitle={access?.family === card.family ? access.line : t(card.family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}
+                  subtitle={access?.family === card.family ? access.line : ""}
                   end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                  onClick={() => setNeedClient(card.family as "google" | "microsoft")}
-                />
-              )}
-              {model.access.kind === "appKey" && (
-                <Row
-                  data-testid="cloudacct-byo-id"
-                  icon={<KeyRound size={ICON.ui} />}
-                  title={t("settings.appKey")}
-                  subtitle={card.record?.byoClientId ?? t("accountAccess.plainva")}
-                  end={<ChevronRight className="m-chevron" size={ICON.ui} />}
-                  onClick={editAppKey}
+                  onClick={() => setNeedClient(accessFamily)}
                 />
               )}
               {(model.access.kind === "password" || model.access.kind === "keys") && (
@@ -497,7 +480,7 @@ export function CloudAccountDetailScreen({
                   <Row
                     data-testid="cloudacct-password-change"
                     icon={<KeyRound size={ICON.ui} />}
-                    title={t(model.access.kind === "keys" ? "cloudAccounts.accessSecretKey" : model.access.appPassword ? "cloudAccounts.appPassword" : "settings.password")}
+                    title={t(connectSecretLabelKey(accountSecretOf(card.family, facts?.server) ?? "password"))}
                     subtitle={card.signIn === "signin" ? t("deviceSignIn.needed") : "••••••••"}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                     onClick={openPassword}
@@ -524,7 +507,7 @@ export function CloudAccountDetailScreen({
                       onClick={deviceStatus && deviceStatus.reminders !== "fullAccess" ? () => void openDevicePimSettings() : undefined}
                     />
                   ) : (
-                    <Row icon={<ListChecks size={ICON.ui} />} title={t("pim.deviceRemindersRow")} subtitle={t("pim.deviceNoRemindersAndroid")} />
+                    <Row icon={<ListChecks size={ICON.ui} />} title={t("pim.deviceRemindersRow")} subtitle={t("pim.deviceNoRemindersAndroid")} info={t("pim.deviceNoRemindersAndroidInfo")} />
                   )}
                 </>
               )}
@@ -532,20 +515,23 @@ export function CloudAccountDetailScreen({
           </GroupCard>
           {model.access.kind === "permission" && <p className="m-hint">{t("pim.deviceDualHint")}</p>}
           {passwordRecord && loginVaultId && passwordServicesOf(passwordRecord).length > 0 && (
-            <AccountPasswordChangePanel ports={mobilePasswordChangePorts(loginVaultId, passwordRecord, (status) => { if (status.phase === "complete") reload(); })} />
+            <AccountPasswordChangePanel secret={accountSecretOf(card.family, facts?.server) ?? "password"} ports={mobilePasswordChangePorts(loginVaultId, passwordRecord, (status) => { if (status.phase === "complete") reload(); })} />
           )}
 
           {/* 4 - check connection: one row per service, the action that helps. */}
           {model.check && loginVaultId && (
             <>
-              <SectionLabel>{t("cloudAccounts.checkConnection")}</SectionLabel>
+              {/* The explanations of action rows stand at their group heading: a row
+                  that acts is tapped anywhere, an info button inside it would
+                  take the tap (and the desktop puts them at the card too). */}
+              <SectionLabel info={t("cloudAccounts.checkHint")}>{t("cloudAccounts.checkConnection")}</SectionLabel>
               <GroupCard>
                 <RowList>
                   <Row
                     data-testid="cloudacct-check-open"
                     icon={<Activity className="m-accent" size={ICON.ui} />}
                     title={t("cloudAccounts.checkConnection")}
-                    subtitle={lastCheck ? `${t("cloudAccounts.checkLast", { time: lastCheck.time })} · ${t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed")}` : t("cloudAccounts.checkHint")}
+                    subtitle={lastCheck ? `${t("cloudAccounts.checkLast", { time: lastCheck.time })} · ${t(lastCheck.ok ? "cloudAccounts.checkAllOk" : "cloudAccounts.checkSomeFailed")}` : undefined}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                     onClick={() => setChecking(true)}
                   />
@@ -570,45 +556,19 @@ export function CloudAccountDetailScreen({
             />
           )}
 
-          {/* 5 - the end: sign out here, or remove from the vault. */}
-          <SectionLabel>{t("cloudAccounts.endGroup")}</SectionLabel>
-          <GroupCard>
-            <RowList>
-              {model.end.signOut && (
-                <Row
-                  data-testid="cloudacct-signout"
-                  icon={<LogOut size={ICON.ui} />}
-                  title={t("cloudAccounts.signOutHere")}
-                  subtitle={t("cloudAccounts.signOutHereHint")}
-                  wrap
-                  disabled={busy || signingIn}
-                  onClick={signOutHere}
-                />
-              )}
-              <Row
-                data-testid="cloudacct-remove"
-                icon={<Trash2 className="m-danger" size={ICON.ui} />}
-                title={<span className="m-danger">{t("cloudAccounts.removeAccount")}</span>}
-                // The device's own calendars stay with the device; only the connection goes.
-                subtitle={t(card.family === "device" ? "pim.deviceRemoveNote" : "cloudAccounts.removeHint")}
-                wrap
-                disabled={busy}
-                onClick={removeAccount}
-              />
-            </RowList>
-          </GroupCard>
-
-          {/* E3's fallback, as on the desktop (E6): only where another card of the same provider can be named. */}
+          {/* E3's fallback, as on the desktop (E6): only where another card of the
+              same provider can be named - under "Advanced", BEFORE the end
+              (appendix 3.1 B2, move 24). */}
           {card.record && mergeCandidates.length > 0 && (
             <>
-              <SectionLabel>{t("cloudAccounts.mergeManualGroup")}</SectionLabel>
+              <SectionLabel info={t("cloudAccounts.mergeManualHint")}>{t("cloudAccounts.advancedGroup")}</SectionLabel>
               <GroupCard>
                 <RowList>
                   <Row
                     data-testid="cloudacct-merge-manual"
                     icon={<Merge size={ICON.ui} />}
-                    title={t("cloudAccounts.mergeManualAction")}
-                    subtitle={t("cloudAccounts.mergeManualHint")}
+                    title={t("cloudAccounts.mergeManualGroup")}
+                    subtitle={t("cloudAccounts.mergeManualStep")}
                     wrap
                     disabled={busy}
                     end={<ChevronRight className="m-chevron" size={ICON.ui} />}
@@ -618,6 +578,35 @@ export function CloudAccountDetailScreen({
               </GroupCard>
             </>
           )}
+
+          {/* 5 - the end: sign out here, or remove from the vault. The line under
+              the card says the difference, as on the desktop (appendix 3.1 B5);
+              what signing out leaves in place stands behind the heading's info. */}
+          <SectionLabel info={t("cloudAccounts.signOutHereHint")}>{t("cloudAccounts.endGroup")}</SectionLabel>
+          <GroupCard>
+            <RowList>
+              {model.end.signOut && (
+                <Row
+                  data-testid="cloudacct-signout"
+                  icon={<LogOut size={ICON.ui} />}
+                  title={t("cloudAccounts.signOutHere")}
+                  disabled={busy || signingIn}
+                  onClick={signOutHere}
+                />
+              )}
+              <Row
+                data-testid="cloudacct-remove"
+                icon={<Trash2 className="m-danger" size={ICON.ui} />}
+                title={<span className="m-danger">{t("cloudAccounts.removeAccount")}</span>}
+                // The device's own calendars stay with the device; only the connection goes.
+                subtitle={card.family === "device" ? t("pim.deviceRemoveNote") : undefined}
+                wrap
+                disabled={busy}
+                onClick={removeAccount}
+              />
+            </RowList>
+          </GroupCard>
+          {card.family !== "device" && <p className="m-hint" data-testid="cloudacct-end-hint">{t("cloudAccounts.endHint")}</p>}
         </>
       )}
     </div>
@@ -626,7 +615,13 @@ export function CloudAccountDetailScreen({
         <AccountAccessSheet
           family={needClient}
           onCancel={() => setNeedClient(null)}
-          onSaved={() => { setNeedClient(null); setAccessTurn((turn) => turn + 1); signIn(); }}
+          onSaved={() => {
+            const saved = needClient;
+            setNeedClient(null);
+            setAccessTurn((turn) => turn + 1);
+            // Dropbox signs in again through its consent, with the key just chosen.
+            if (saved === "dropbox") { if (card?.vaultId) onReconnectVault(card.vaultId); } else signIn();
+          }}
         />
       )}
       </div>

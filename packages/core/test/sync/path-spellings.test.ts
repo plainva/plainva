@@ -92,6 +92,26 @@ describe("PathSpellings", () => {
     expect(isTwinSpelling(ids.get(`${NFD}/only-decomposed.md`)!)).toBe(true);
     expect(s.resolveKnown(`${NFC}/a.md`)).toBe(`${NFC}/a.md`);
     expect(s.resolveKnown(`${NFD}/a.md`)).toBe(`${NFD}/a.md`);
+    // Sammelplan § 3.122: asked without a listing around it, the twin is still
+    // the twin. It fell back to the composed form — the OTHER folder's
+    // identity — so a watcher event, a file info or a listing anchored in the
+    // twin named its files as the other folder's.
+    expect(s.identityOfStored(NFD)).toBe(NFD);
+    expect(s.identityOfStored(`${NFD}/a.md`)).toBe(`${NFD}/a.md`);
+    expect(s.identityOfStored(`${NFD}/new.md`)).toBe(`${NFD}/new.md`);
+    expect(s.identityOfStored(`${NFC}/new.md`)).toBe(`${NFC}/new.md`);
+  });
+
+  it("keeps a twin's own identity through a listing anchored inside it (§ 3.122)", () => {
+    const s = new PathSpellings();
+    s.observe([`${NFD}/a.md`, `${NFC}/a.md`]);
+    // A listing of the twin alone, as a folder view or a backup walk takes it.
+    const anchor = { raw: NFD, identity: s.identityOfStored(NFD) };
+    expect(anchor.identity).toBe(NFD);
+    const below = s.observe([`${NFD}/a.md`, `${NFD}/b.md`], anchor);
+    expect(below.get(`${NFD}/b.md`)).toBe(`${NFD}/b.md`);
+    // The composed folder keeps its file under its own name.
+    expect(s.resolveKnown(`${NFC}/a.md`)).toBe(`${NFC}/a.md`);
   });
 
   it("asks a folder listing only for a segment it has not seen, once per pass", async () => {
@@ -176,6 +196,13 @@ describe("LocalVaultAdapter on a byte-exact disk", () => {
     expect(listed).toEqual([`${NFC}/a.md`, `${NFD}/a.md`].sort());
     expect(await vault.readTextFile(`${NFC}/a.md`)).toBe("composed");
     expect(await vault.readTextFile(`${NFD}/a.md`)).toBe("decomposed");
+
+    // Sammelplan § 3.122: the twin's file is named as the twin's, never as
+    // the composed folder's — not by a file info, not by a listing of the
+    // twin alone. Whatever reads or backs up under that name gets its bytes.
+    expect((await vault.getFileInfo(`${NFD}/a.md`)).path).toBe(`${NFD}/a.md`);
+    expect((await vault.listDir(NFD, true)).map((e) => e.path)).toEqual([`${NFD}/a.md`]);
+    expect((await vault.listDir(NFC, true)).map((e) => e.path)).toEqual([`${NFC}/a.md`]);
   });
 
   it("renames and deletes through the stored spelling and follows an outside rename", async () => {

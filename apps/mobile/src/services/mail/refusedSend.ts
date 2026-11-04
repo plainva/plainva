@@ -43,7 +43,8 @@ export function setRefusedSendOpener(open: Opener | null): void {
 // constructed at load time is the shape `moduleInitBoundary.test.ts` forbids.
 function refusedSends(): HeldSends<RefusedMessage> {
   refused ??= new HeldSends<RefusedMessage>({
-    text: (reason) => ({ message: i18n.t("mail.sendFailed", { reason }), action: i18n.t("mail.sendReopen") }),
+    // One notice for every held message: above one it counts them (§ 3.95 Nr. 14).
+    text: (reason, count) => ({ message: count > 1 ? i18n.t("mail.sendFailedMany", { count, reason }) : i18n.t("mail.sendFailed", { reason }), action: i18n.t("mail.sendReopen") }),
     open: async (id) => {
       await opener?.(id);
     },
@@ -66,4 +67,9 @@ export function readRefusedSend(id: number | undefined): RefusedMessage | undefi
 /** The compose screen has the message: it is that screen's from here on. */
 export function claimRefusedSend(id: number | undefined): void {
   refused?.claim(id);
+}
+
+/** Tests only: no message held, as on a fresh start (one notice counts them all). */
+export function resetRefusedSendsForTests(): void {
+  refused = null;
 }

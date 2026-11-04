@@ -1,5 +1,5 @@
 import { prepareReaderSource, selectNoteFragment } from "@plainva/core";
-import { splitLinkAnchor } from "./linkAnchor";
+import { readWikiLinkInner } from "./linkAnchor";
 
 export type NoteEmbedTarget = { status: "found"; path: string; anchor: string | null } | { status: "missing" };
 
@@ -18,7 +18,7 @@ export type NoteEmbedTarget = { status: "found"; path: string; anchor: string | 
 export async function resolveNoteEmbed(raw: string, hostPath: string | undefined, ports: {
   resolve(target: string, hostPath?: string): Promise<string | null>;
 }): Promise<NoteEmbedTarget> {
-  const { target, anchor } = splitLinkAnchor(raw.split("|")[0]);
+  const { target, anchor } = readWikiLinkInner(raw);
   if (!target) return hostPath ? { status: "found", path: hostPath, anchor } : { status: "missing" };
   const path = await ports.resolve(target, hostPath);
   return path ? { status: "found", path, anchor } : { status: "missing" };

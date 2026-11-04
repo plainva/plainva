@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { seedExampleNote, type MobileTestGlobals } from "./exampleVault";
+import { readVaultFile, seedExampleNote, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
 
 async function read(page: Page, path: string) {
   return page.evaluate(async path => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/" + path, directory: "DATA", encoding: "utf8" })).data, path);
@@ -37,12 +37,11 @@ test("a real mobile conflict keeps one editable local copy through saves, reload
     await editor.click();
     await page.keyboard.press("ControlOrMeta+A");
     await page.keyboard.insertText(latest.slice("---\ntype: Note\n---\n".length));
-    await expect.poll(async () => page.evaluate(async () => {
-      const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
-      const copies = (await fs.readdir({ path: "vault", directory: "DATA" })).files.filter(file => file.name.includes(".CONFLICT-"));
+    await expect.poll(async () => {
+      const copies = (await vaultFolderNames(page)).filter(name => name.includes(".CONFLICT-"));
       if (copies.length !== 1) return null;
-      return (await fs.readFile({ path: "vault/" + copies[0].name, directory: "DATA", encoding: "utf8" })).data;
-    })).toBe(latest);
+      return readVaultFile(page, copies[0]);
+    }).toBe(latest);
     expect(await read(page, "Example.md")).toBe(foreign);
   }
   await expect(page.getByText("You are editing your conflict copy. It will sync after you merge it.")).toBeVisible();
@@ -60,7 +59,67 @@ test("a real mobile conflict keeps one editable local copy through saves, reload
   await page.getByRole("button", { name: "Replace file and delete conflict copy", exact: true }).click();
   await expect(comparison).not.toBeVisible();
   expect(await read(page, "Example.md")).toBe(latest);
-  const remaining = await page.evaluate(async () => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readdir({ path: "vault", directory: "DATA" })).files.filter(file => file.name.includes(".CONFLICT-")));
+  const remaining = (await vaultFolderNames(page)).filter(name => name.includes(".CONFLICT-"));
   expect(remaining).toHaveLength(0);
   expect(errors).toEqual([]);
 });
+
+// Sammelplan § 3.86 no. 7: "Keep both" and "Delete conflict copy" end the
+// conflict as "take the copy" does — and the open note hears of it. It used to
+// go on showing the working copy's text under the banner of a conflict that
+// was over, and its next save kept that text once more.
+for (const exit of [
+  { id: "compare-keep-both", name: "keep both" },
+  { id: "compare-discard", name: "delete the copy" },
+] as const) {
+  test(`after "${exit.name}" in the comparison, the open note shows the note again, not the working copy`, async ({ page }) => {
+    test.setTimeout(90_000);
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+    await page.addInitScript(() => localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" })));
+    await page.goto("/");
+    await seedExampleNote(page);
+    await openNote(page);
+    await page.getByTestId("note-edit").click();
+    const editor = page.locator('.cm-content[contenteditable="true"]').first();
+    await expect(editor).toContainText("A sentence to review.");
+    const foreign = "---\ntype: Note\n---\n# Example\n\nForeign text.\n";
+    await page.evaluate(async data => {
+      await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({ path: "vault/Example.md", directory: "DATA", encoding: "utf8", data });
+    }, foreign);
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+A");
+    await page.keyboard.insertText("# Example\n\nLocal text.\n");
+    await expect.poll(async () => (await vaultFolderNames(page)).filter(name => name.includes(".CONFLICT-")).length).toBe(1);
+    const banner = page.getByText("You are editing your conflict copy. It will sync after you merge it.");
+    await expect(banner).toBeVisible();
+    await expect(editor).toContainText("Local text.");
+    await page.getByRole("button", { name: "Show differences", exact: true }).click();
+    const comparison = page.getByTestId("conflict-compare-sheet");
+    await expect(comparison).toContainText("Foreign text.");
+    await page.getByTestId(exit.id).click();
+    await page.getByTestId("confirm-act").click();
+    await expect(comparison).not.toBeVisible();
+    // The note is the other program's again, and the banner of the conflict is gone.
+    await expect(editor).toContainText("Foreign text.");
+    await expect(editor).not.toContainText("Local text.");
+    await expect(banner).not.toBeVisible();
+    await page.screenshot({ path: test.info().outputPath(`conflict-${exit.id}-mobile.png`), fullPage: true });
+    expect(await read(page, "Example.md")).toBe(foreign);
+    const left = (await vaultFolderNames(page)).filter(name => name.includes(".CONFLICT-"));
+    expect(left).toHaveLength(0);
+    if (exit.id === "compare-keep-both") {
+      const kept = (await vaultFolderNames(page)).filter(name => name.startsWith("Example (Version"));
+      expect(kept).toHaveLength(1);
+      expect(await read(page, kept[0])).toContain("Local text.");
+    }
+    // Typing goes into the note now, not into a working copy that is gone.
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.insertText("\nAfter the answer.");
+    await expect.poll(() => read(page, "Example.md")).toContain("After the answer.");
+    expect((await vaultFolderNames(page)).filter(name => name.includes(".CONFLICT-"))).toHaveLength(0);
+    expect(errors).toEqual([]);
+  });
+}

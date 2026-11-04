@@ -15,6 +15,9 @@ describe("nobody decides beside the rule", () => {
   const APPLIERS = new Set([
     "packages/ui/src/lib/spellcheck.ts",
     "packages/ui/src/components/ui/Field.tsx",
+    // A field primitive of its own (recipients, aliases, attendees): it asks
+    // the rule for the address purpose, as TextInput does (Sammelplan § 3.43).
+    "packages/ui/src/components/ui/ChipField.tsx",
     "packages/ui/src/components/editorSession.ts",
     "packages/ui/src/components/spellcheckExemptions.ts",
     "packages/ui/src/components/LivePreviewPlugin.ts",

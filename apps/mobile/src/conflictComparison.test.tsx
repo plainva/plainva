@@ -65,6 +65,25 @@ describe("the real mobile file comparison", () => {
     await render(); await click("compare-adopt");
     expect(state.files.get(original)).toBe("new edit"); expect(state.files.get(copy)).toBe("copy"); expect(resolved).not.toHaveBeenCalled();
   });
+  it("tells the note's open editor of every answer, not only of taking the copy (Sammelplan § 3.86 no. 7)", async () => {
+    const told: string[] = [];
+    const hear = (event: Event) => told.push(String((event as CustomEvent<{ path?: string }>).detail.path));
+    window.addEventListener("m-external-update", hear);
+    try {
+      for (const exit of ["compare-keep-both", "compare-discard", "compare-adopt"]) {
+        state.files.clear(); told.length = 0; resolved.mockClear();
+        state.files.set(original, "the note"); state.files.set(copy, "the copy");
+        await render();
+        await click(exit);
+        expect(resolved).toHaveBeenCalledTimes(1);
+        expect(told, exit).toEqual([original]);
+        act(() => root.unmount());
+        root = createRoot(host);
+      }
+    } finally {
+      window.removeEventListener("m-external-update", hear);
+    }
+  });
   it("offers only separation for different task identities and preserves both full contents", async () => {
     const task = (id: string) => `---\nFrist: 2026-09-11\nStatus: Offen\nplainva:\n  pim:\n    kind: task\n    provider: google\n    identity: google:subject\n    list: Daily\n    uid: ${id}\n---\n# Daily\nUser text\n`;
     state.files.set(original, task("a")); state.files.set(copy, task("b"));

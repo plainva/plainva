@@ -1,0 +1,32 @@
+# Plainva Mobile 0.8.7
+
+One account, one sign-in — on Android and iOS. This coordinated update brings the account and connect rework, Plainva's own Google sign-in, searchable settings, `tasks` queries from Obsidian, reminders for checkbox tasks, one-handed writing and the sync, mail and editing fixes since 0.8.6.
+
+If you use Plainva on more than one device, please update all of them: a service you switch off and a mailbox you remove now reach every device, and a device on 0.8.6 does not understand either.
+
+- **One sign-in per account.** Google and Microsoft ask once for files, calendar and mail, and each service says whether it was granted. Every account has a page of its own with **Check connection**, **Sign in again**, **Sign out on this device** and **Remove account**.
+- **Plainva's own Google sign-in.** Google works with the **Standard sign-in** on Android and iPhone; an **Own client ID** stays possible, and the editor says which client type the phone needs (an iOS-type client) and explains “redirect_uri_mismatch” ([#142](https://github.com/plainva/plainva/issues/142)). A Google account connected through Plainva's earlier sign-in — the built-in sign-in on Android until 0.8.6 — signs in once more. Google has not verified Plainva's sign-in yet, so its consent screen can show a notice about an unverified app.
+- **Microsoft sign-in on the phone.** On Android, Plainva takes Microsoft's answer however its address is written; on the iPhone, every sign-in in the browser opens in the system's sign-in window, which also takes answers that arrive through pages that forward themselves. iOS asks once whether Plainva may use the provider's site to sign in.
+- **One assistant to connect.** Every provider — Dropbox, Nextcloud, iCloud, WebDAV, S3, the IMAP suites — signs in through the same form, followed by one step per service with a step bar: **Choose folder**, calendar, email. Every step can be skipped, **Stop** asks first and keeps what is set up, a summary ends the run, and every failure names who failed: this phone, the provider, the network or Plainva.
+- **Opening a vault shows what it is doing.** Connecting an existing vault folder left a blank screen for minutes; the phone now shows the vault's name and how many files it has read, offers a way back, reads a folder vault in the background on the first run, and gives up waiting for storage with a message ([#143](https://github.com/plainva/plainva/issues/143)). Opening a second database no longer closes the open vault's, which stopped the assistant at its first step.
+- **One-handed writing.** The keyboard bar ends in a button that puts the keyboard away and brings it back, indent and outdent sit beside the plus in a list, **Hide bars while scrolling** hides the bottom bar and the plus as you read, back follows your finger from the edge on the iPhone, and holding back lists the places behind the screen. The first button of a note's bar is your choice: bookmark, outline or backlinks.
+- **Settings you can search.** A search above the areas finds every setting; explanations sit behind the ⓘ; the **Sync** screen carries only the sync, the vault's own page holds rename, export and delete.
+- **Task queries from Obsidian.** A ` ```tasks ` block shows as a task list in the editor and reading mode, also in a callout, with **Explanation** and **Edit query**; holding a row opens its sheet.
+- **Reminders for checkbox tasks.** A checkbox with `📅 2026-11-10 14:30` reminds you once **Checkboxes with a time** is on for the vault; **Today** and the planner show it at its hour. A `tasks` query in Obsidian does not recognise the date of such a line.
+- **Tasks.** Due dates with quick choices and a time, links in a task's title that read as text, subtasks under their task, **Done (n)**, one task box sized for a finger, and a swiped row that keeps itself in sight.
+- **Lists and calendar.** **Recent** and **Bookmarks** open full lists from their headings; every plain list draws its divider again; no line stays marked after a tap. The calendar head reads back, period, forward, with sync next to search.
+- **What you type is kept.** A sheet with typed text asks before it closes, and a step the app takes — the next screen of a connection, a vault reload — waits until your input is sent, saved or discarded. A failed vault switch leaves the vault and its sync running.
+- **Sync.** Fewer needless conflict copies; the **Same name, two files** card shows twin spellings with **Remove duplicates** and **Keep both**; removing an account no longer clears what the sync knows; a vault that synced before never gets a new cloud folder by itself; a file the provider refuses for good is skipped and named. **Today** lists a downloaded note by when it changed on the server, not by the download.
+- **Files.** Dot files keep syncing and are hidden everywhere; a folder picked on the phone now indexes and syncs them. Pins and recent notes are this device's own. A `.base` saved without a change stays as it was.
+- **Mail.** Every action acts on the message it stands on, also in **All inboxes**; snoozing can be undone; **Reply as note** works on the phone; a Microsoft mailbox sends files over 2.8 MB; single-part messages of other text types and digests open.
+- **Links.** Only web, mail and phone addresses leave the app; any other scheme from a note is refused with a notice.
+- **Editing.** A table cell being edited keeps the system's text menu, so holding a word selects it ([#118](https://github.com/plainva/plainva/issues/118)); list items with several spaces keep one gap; a code block in a callout stays code.
+- **Calendar.** Deleting an event works the first time ([#119](https://github.com/plainva/plainva/issues/119)); an entry follows its appointment; **All events** deletes a series in a calendar on this device; a repeating Apple reminder ticked in Plainva comes back open with its next date.
+
+Encrypted workspaces, the on-device calendar, voice notes and the location stamp remain experimental.
+
+The APK is attached to this release. The AAB is the signed Google Play delivery artifact. This mobile GitHub release is marked as a pre-release so that it does not replace the desktop updater release.
+
+[Desktop release](https://github.com/plainva/plainva/releases/tag/v0.8.7) · [iOS TestFlight](https://testflight.apple.com/join/ZRSEfZBn)
+
+On iOS, the native marketing version remains 1.0; the TestFlight build number identifies the new delivery.

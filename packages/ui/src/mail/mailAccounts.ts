@@ -255,6 +255,51 @@ export const mailSecretKey = (vaultPath: string, accountId: string) =>
     legacyMailSecretKey(vaultPath, accountId),
   );
 
+/**
+ * Said in this window after every write of a vault's mailbox list — a mailbox
+ * connected, edited, removed or brought in by a profile import (Sammelplan
+ * § 3.47 (d)). Whatever holds a copy of the list re-reads it: an open
+ * composer that said "No mail account connected yet." showed that until it was
+ * closed and opened again, also after the mailbox was connected beside it.
+ * `detail.vaultPath` names the vault; `detail.relayed` is set where another
+ * window's change was passed on here (the desktop's window bus), so a relay
+ * never sends it back.
+ */
+export const MAIL_ACCOUNTS_EVENT = "plainva-mail-accounts-changed";
+
+export interface MailAccountsChange {
+  vaultPath: string;
+  relayed?: boolean;
+}
+
+export function announceMailAccounts(vaultPath: string, relayed = false): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent<MailAccountsChange>(MAIL_ACCOUNTS_EVENT, { detail: { vaultPath, relayed } }));
+}
+
+/** Calls `onChange` whenever the mailbox list of `vaultPath` was written. */
+export function onMailAccountsChanged(vaultPath: string, onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => undefined;
+  const listener = (event: Event) => {
+    const detail = (event as CustomEvent<MailAccountsChange | undefined>).detail;
+    if (detail?.vaultPath && detail.vaultPath !== vaultPath) return;
+    onChange();
+  };
+  window.addEventListener(MAIL_ACCOUNTS_EVENT, listener);
+  return () => window.removeEventListener(MAIL_ACCOUNTS_EVENT, listener);
+}
+
+/**
+ * A list read again, with every mailbox that did not change kept as the SAME
+ * object (and the whole list where nothing changed): what hangs on one mailbox
+ * — its folders, an open message, a composer's drafts folder — reads anew only
+ * when that mailbox changed, not because another one was connected. Pure.
+ */
+export function keepUnchangedAccounts(before: MailAccountConfig[], after: MailAccountConfig[]): MailAccountConfig[] {
+  const kept = after.map((next) => before.find((prev) => prev.id === next.id && sameStoredValue(prev, next)) ?? next);
+  return kept.length === before.length && kept.every((a, i) => a === before[i]) ? before : kept;
+}
+
 export async function listMailAccounts(vaultPath: string): Promise<MailAccountConfig[]> {
   const store = await getPlatformServices().loadSettings();
   const raw = await store.get<MailAccountConfig[]>(mailAccountsKey(vaultPath));
@@ -268,6 +313,7 @@ export async function replaceMailAccounts(vaultPath: string, accounts: MailAccou
   const store = await getPlatformServices().loadSettings();
   await store.set(mailAccountsKey(vaultPath), accounts);
   await store.save();
+  announceMailAccounts(vaultPath);
 }
 
 /**
@@ -314,6 +360,7 @@ async function commitMailAccount(vaultPath: string, account: MailAccountConfig, 
       throw error;
     }
   });
+  announceMailAccounts(vaultPath);
   // Connected (again): a tombstone this id still carries must not drop it on
   // the next profile import - here or on any other device (second review of
   // plan "Verbinden", B1; a Gmail mailbox keeps one id across connections). The
@@ -368,6 +415,7 @@ export async function updateMailAccount(
   const next = list.map((a) => (a.id === accountId ? { ...a, ...patch } : a));
   await store.set(mailAccountsKey(vaultPath), next);
   await store.save();
+  announceMailAccounts(vaultPath);
 }
 
 export async function removeMailAccount(vaultPath: string, accountId: string): Promise<void> {
@@ -375,6 +423,7 @@ export async function removeMailAccount(vaultPath: string, accountId: string): P
   const list = await listMailAccounts(vaultPath);
   await store.set(mailAccountsKey(vaultPath), list.filter((a) => a.id !== accountId));
   await store.save();
+  announceMailAccounts(vaultPath);
   // The deletion travels with the settings profile: without its tombstone the
   // next profile import from another device put the mailbox straight back
   // (review of plan "Verbinden", finding 1). A mailbox that was never shared

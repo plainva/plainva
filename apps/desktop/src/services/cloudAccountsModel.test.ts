@@ -151,6 +151,12 @@ describe("cloud account reconcile", () => {
     expect(reconcileCloudAccounts(stored, empty, ids())).toEqual([]);
   });
 
+  it("keeps a card stored without any service: it lost nothing (Sammelplan § 3.105)", () => {
+    // Signed in, its services still to be added - or kept when the setup was left.
+    const stored: CloudAccountRecord[] = [{ id: "a1", family: "google", label: "anna@example.com", services: {} }];
+    expect(reconcileCloudAccounts(stored, empty, ids())).toEqual(stored);
+  });
+
   it("is idempotent and keeps stored ids stable", () => {
     const observed: ObservedCloudState = {
       sync: { provider: "drive", byoClientId: "my-client" },

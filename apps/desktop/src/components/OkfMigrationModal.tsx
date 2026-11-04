@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Checkbox, Modal, toast } from "@plainva/ui";
+import { announceOkfRollback, Button, Checkbox, Modal, toast } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import {
   okfMigrationPending,
@@ -96,9 +96,8 @@ export const OkfMigrationModal: React.FC<{
     if (!report?.backupDir || !vaultAdapter) return;
     setUndoing(true);
     try {
-      const result = await rollbackOkfConversion(vaultAdapter, report.backupDir);
-      if (result.failed.length > 0) toast.error(t("okf.rollbackFailed", { count: result.failed.length }));
-      else toast.info(t("okf.rollbackDone", { count: result.restored.length }));
+      const result = await rollbackOkfConversion(vaultAdapter, report.backupDir, report.recipe);
+      announceOkfRollback(result, report.backupDir, t);
       try {
         await indexer?.indexVaultFull("OKF migration");
         triggerFileTreeUpdate();

@@ -169,7 +169,7 @@ describe("adopting a note as the overview of its folder, prepared for it", () =>
   it("takes the properties out and converts the links, and changes no other byte", async () => {
     await writeVault({ [OVERVIEW.path]: OVERVIEW.note, ...OVERVIEW.others, [OVERVIEW.linkingPath]: OVERVIEW.linking });
 
-    const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true });
+    const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true, afterMove: async () => {} });
 
     expect(result).toMatchObject({ indexPath: OVERVIEW.indexPath, renamedLinks: 2, changedFiles: 1, preparation: OVERVIEW.preparation });
     await expectFile(OVERVIEW.indexPath, OVERVIEW.prepared);
@@ -184,8 +184,8 @@ describe("adopting a note as the overview of its folder, prepared for it", () =>
   it("writes nothing into a note that has no block and no link to convert", async () => {
     const plain = `${MARK}# Map\r\n\r\n* just *text*\r\n`;
     await writeVault({ [OVERVIEW.path]: plain });
-    const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true });
-    expect(result.preparation).toEqual({ converted: 0, embeds: 0, unresolved: 0, inLabels: 0 });
+    const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: OVERVIEW.path, folder: OVERVIEW.folder, prepare: true, afterMove: async () => {} });
+    expect(result.preparation).toEqual({ converted: 0, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 0 });
     await expectFile(OVERVIEW.indexPath, plain);
   });
 });
@@ -222,7 +222,7 @@ describe("adopting an overview the vault is tied to — by its name, by its titl
     expect(before).toHaveLength(16);
     expect(before.filter((line) => line.endsWith("-> null"))).toEqual([]);
 
-    const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare });
+    const result = await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare, afterMove: async () => {} });
 
     expect(result).toMatchObject({ indexPath: HUB_OVERVIEW.indexPath, ...(prepare ? HUB_OVERVIEW.preparedReport : HUB_OVERVIEW.adoptedReport) });
     if (!prepare) expect(result.preparation).toBeUndefined();
@@ -239,10 +239,36 @@ describe("adopting an overview the vault is tied to — by its name, by its titl
     const vault = { ...HUB_OVERVIEW.before(), [HUB_OVERVIEW.indexPath]: "# Projects\n\nan overview that is there already\n" };
     await writeVault(vault);
 
-    await expect(adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare: true })).rejects.toBeInstanceOf(VaultFileExistsError);
+    await expect(adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: HUB_OVERVIEW.path, folder: HUB_OVERVIEW.folder, prepare: true, afterMove: async () => {} })).rejects.toBeInstanceOf(VaultFileExistsError);
 
     // The note still has its properties and its wiki links, and no copy of it was put aside.
     for (const [path, text] of Object.entries(vault)) await expectFile(path, text);
     expect(await files.exists(".plainva/backups")).toBe(false);
+  });
+});
+
+/**
+ * A link that names the adopted note with `.md` (Sammelplan § 3.135 Nr. 4): a
+ * Markdown link `Map.md` and a wiki link `[[Map.md]]` became `index.md` without
+ * a folder, which the link rule reads as the vault's root — and an OKF vault
+ * has an `index.md` there. Every link to the note leads to the overview after
+ * the adoption, none to the root's.
+ */
+describe("adopting a note that is linked to with its `.md`", () => {
+  it("leaves every link leading to the overview, none to the index of the vault's root", async () => {
+    await writeVault({
+      "index.md": "# Vault\n",
+      "Projects/Map.md": "# Map\n",
+      "Projects/Plan.md": "[Karte](Map.md) und [[Map.md]] und [[Map]]\n",
+      "Other.md": "[Karte](Projects/Map.md) und [[Projects/Map.md]] und [[Map.md]] und [[Map]]\n",
+    });
+    const before = (await query.getBacklinks("Projects/Map.md")).map((row) => row.source_path);
+    expect(before).toEqual(["Other.md", "Other.md", "Other.md", "Other.md", "Projects/Plan.md", "Projects/Plan.md", "Projects/Plan.md"]);
+
+    await adoptFileAsIndex({ adapter: files, queryService: query, candidatePath: "Projects/Map.md", folder: "Projects", prepare: false, afterMove: async () => {} });
+    await indexer.indexVaultFull();
+
+    expect((await query.getBacklinks("Projects/index.md")).map((row) => row.source_path)).toEqual(before);
+    expect(await query.getBacklinks("index.md")).toEqual([]);
   });
 });

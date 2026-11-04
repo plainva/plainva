@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FakeOAuthProvider, type FakeConsentChoice } from "../../../packages/ui/src/testing/fakeOAuthProvider";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 import { E2E_STANDARD_GOOGLE_IOS_CLIENT_ID } from "../scripts/e2e-build-env.mjs";
 import { PLAINVA_ONEDRIVE_CLIENT_ID } from "../../../packages/ui/src/services/providerDefaults";
 
@@ -151,8 +151,12 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
   await waitForVaultDirectory(page);
   if (withCalendar) {
     // The fixture's Google calendar row (pim-fixture-1), in the vault's index once it exists.
-    await expect.poll(() => sql.count("plainva-index", "sqlite_master WHERE name = 'pim_calendars'"), { timeout: 20_000 }).toBe(1);
+    await waitForIndexSchema(sql, "plainva-index");
     sql.seedPim("plainva-index");
+    // The cards as seeded: the first start ran without the calendar row, and the
+    // phone's reconcile (Sammelplan § 3.105) rightly took the card's reference to
+    // a row that was not there. The fixture is one state - row and card together.
+    await page.evaluate((cards) => localStorage.setItem("CapacitorStorage.cloudAccounts_local", JSON.stringify(cards)), storage.cloudAccounts_local);
     await page.reload();
     await waitForVaultDirectory(page);
   }
@@ -165,7 +169,8 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
 async function openGoogleCard(page: Page) {
   await page.locator('[data-testid="nav-settings"]').first().click();
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
-  await page.getByTestId("cloudacct-row").filter({ hasText: ANNA.email }).click();
+  // The card named exactly so: another row of the account may carry the address in other letters.
+  await page.getByTestId("cloudacct-row").filter({ has: page.getByText(ANNA.email, { exact: true }) }).click();
   await expect(page.getByTestId("cloudacct-detail")).toBeVisible();
 }
 
@@ -311,6 +316,12 @@ test("a Google account leads from the list to its calendar page and back, in fiv
   await expect(page.getByTestId("cloudacct-check-open")).toBeVisible();
   await expect(page.getByTestId("cloudacct-signout")).toBeVisible();
   await expect(page.getByTestId("cloudacct-remove")).toBeVisible();
+  // As on the desktop (appendix 3.1 B5): the difference between signing out and
+  // removing stands under the end; what signing out keeps is behind its ⓘ.
+  await expect(page.getByTestId("cloudacct-end-hint")).toContainText("Signing out applies to this device only");
+  await page.getByRole("button", { name: "More about Access on this device" }).click();
+  await expect(page.getByTestId("grouplabel-info-sheet")).toContainText("other devices keep their own setting");
+  await page.keyboard.press("Escape");
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("google-account-page.png"), fullPage: true });
 
   // The calendar page of THIS account.
@@ -318,6 +329,8 @@ test("a Google account leads from the list to its calendar page and back, in fiv
   await expect(page.getByTestId("account-service-calendar")).toBeVisible();
   await expect(page.getByTestId("account-service-switch")).toBeVisible();
   await expect(page.getByTestId("account-calendar-primary")).toBeVisible({ timeout: 15000 });
+  // E13: the default calendar is set on the Calendar page only.
+  await expect(page.getByTestId("account-calendar-default")).toHaveCount(0);
   await expect(page.getByTestId("account-service-global")).toBeVisible();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("google-calendar-page.png"), fullPage: true });
   await page.getByRole("button", { name: "Back" }).first().click();
@@ -390,6 +403,10 @@ test("a WebDAV account shows its server and user, checks its files, signs out he
   await page.getByTestId("cloudacct-signin").click();
   await expect(page.getByTestId("account-password-change")).toBeVisible();
   await expect(page.getByTestId("cloudacct-new-password")).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.getByTestId("account-password-change").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("webdav-password-panel.png") });
+  }
 
   await page.getByTestId("cloudacct-remove").click();
   await page.getByTestId("confirm-act").click();
@@ -471,9 +488,10 @@ async function firstGoogleConnect(context: BrowserContext, page: Page, access: "
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await page.getByTestId("cloudacct-connect").click();
   await page.getByTestId("connect-family-google").click();
-  await page.getByTestId("connect-service-files").click();
-  await page.getByTestId("connect-service-calendar").click();
-  if (withMail) await page.getByTestId("connect-service-mail").click();
+  // Preselected as on the desktop (settings plan 2026-10-29): files, calendar and mail.
+  await expect(page.getByTestId("connect-service-files").getByRole("checkbox")).toBeChecked();
+  await expect(page.getByTestId("connect-service-calendar").getByRole("checkbox")).toBeChecked();
+  if (!withMail) await page.getByTestId("connect-service-mail").click();
   await page.getByTestId("connect-start").click();
 
   // Back from Google: the setup's frame on its folder step, the sign-in counted as done
@@ -600,7 +618,14 @@ test("a calendar not signed in under a signed-in card says so on its row, and si
   harness.sql.run("plainva-index", "INSERT OR REPLACE INTO pim_accounts (id, provider, label, config, enabled) VALUES (?, ?, ?, ?, 1)", ["pim-a-old", "google", "Anna@gmail.com", JSON.stringify({ clientId: "fixture-client" })]);
   await page.reload();
   await waitForVaultDirectory(page);
-  await openGoogleCard(page);
+  // The phone reconciles its cards as the desktop does (Sammelplan § 3.105): the
+  // older row is no part of the card - it has a card of its own that asks for its
+  // sign-in, and the card's calendar is the row the card names.
+  await page.locator('[data-testid="nav-settings"]').first().click();
+  await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
+  await expect(page.getByTestId("cloudacct-row").filter({ has: page.getByText("Anna@gmail.com", { exact: true }) })).toBeVisible({ timeout: 15000 });
+  await page.getByTestId("cloudacct-row").filter({ has: page.getByText(ANNA.email, { exact: true }) }).click();
+  await expect(page.getByTestId("cloudacct-detail")).toBeVisible();
   await page.getByTestId("cloudacct-signin").click();
   await expect(page.getByTestId("cloudacct-state")).toHaveAttribute("data-state", "connected", { timeout: 15000 });
   // The card keeps its sign-in; its calendar's sign-in on this phone is gone.
@@ -722,8 +747,9 @@ test("a Microsoft account for calendar and mail, next to a Google account that c
     // Files go through one account per vault: Google carries them, so they are offered off, named.
     await expect(page.getByTestId("connect-service-files")).toBeDisabled();
     await expect(page.getByTestId("connect-service-files")).toContainText(ANNA.email);
-    await page.getByTestId("connect-service-calendar").click();
-    await page.getByTestId("connect-service-mail").click();
+    // Calendar and mail are ticked from the start (settings plan 2026-10-29).
+    await expect(page.getByTestId("connect-service-calendar").getByRole("checkbox")).toBeChecked();
+    await expect(page.getByTestId("connect-service-mail").getByRole("checkbox")).toBeChecked();
     await page.getByTestId("connect-start").click();
     await expectStep(page, "calendar");
     await expect(page.getByTestId("connectrun-account")).toContainText(CARLA.email);

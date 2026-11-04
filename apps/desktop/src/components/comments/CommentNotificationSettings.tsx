@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettingCard, SettingRow, Switch, type CommentNotificationLevel } from "@plainva/ui";
+import { SettingRow, Switch, type CommentNotificationLevel } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { Select } from "../Select";
@@ -13,7 +13,10 @@ import {
 import { drawCommentBaseline } from "../../services/commentNotifier";
 
 /**
- * Remark notifications, in the content area beside the anchor setting (F2).
+ * Remark notifications, in the "Annotations" card of "Notes & filing" beside
+ * the reviewer name and the anchor setting (F2; settings plan 2026-10-29,
+ * move 47). Rows only — the card is the page's, so the three rows stand with
+ * the two other annotation settings instead of in a card of their own.
  *
  * Three rows, and the order is the argument: whether at all, about what, and
  * how much the message may say. The privacy switch sits HERE rather than in a
@@ -25,7 +28,7 @@ import { drawCommentBaseline } from "../../services/commentNotifier";
  * counts as seen, so the first cycle afterwards reports what happened SINCE
  * rather than the backlog.
  */
-export function CommentNotificationSettings() {
+export function CommentNotificationRows({ deviceOnly }: { deviceOnly: boolean }) {
   const { t } = useTranslation();
   const { vaultPath } = useVault();
   const [settings, setSettings] = useState<Settings>(DEFAULT_COMMENT_NOTIFICATION_SETTINGS);
@@ -74,8 +77,8 @@ export function CommentNotificationSettings() {
   const activeLevel = levels.find((entry) => entry.value === settings.level) ?? levels[1];
 
   return (
-    <SettingCard label={t("commentNotify.section")}>
-      <SettingRow label={t("commentNotify.enable")} desc={t("commentNotify.enableHint")}>
+    <>
+      <SettingRow label={t("commentNotify.enable")} info={t("commentNotify.enableHint")} deviceOnly={deviceOnly}>
         <Switch
           checked={settings.enabled}
           onChange={onEnabled}
@@ -84,7 +87,7 @@ export function CommentNotificationSettings() {
       </SettingRow>
       {settings.enabled ? (
         <>
-          <SettingRow label={t("commentNotify.level")} desc={activeLevel.desc}>
+          <SettingRow label={t("commentNotify.level")} desc={activeLevel.desc} deviceOnly={deviceOnly}>
             <Select
               ariaLabel={t("commentNotify.level")}
               value={settings.level}
@@ -93,7 +96,7 @@ export function CommentNotificationSettings() {
               data-testid="comment-notify-level"
             />
           </SettingRow>
-          <SettingRow label={t("commentNotify.preview")} desc={t("commentNotify.previewHint")}>
+          <SettingRow label={t("commentNotify.preview")} info={t("commentNotify.previewHint")} deviceOnly={deviceOnly}>
             <Switch
               checked={settings.preview}
               onChange={(preview) => void persist({ ...settings, preview })}
@@ -102,6 +105,6 @@ export function CommentNotificationSettings() {
           </SettingRow>
         </>
       ) : null}
-    </SettingCard>
+    </>
   );
 }

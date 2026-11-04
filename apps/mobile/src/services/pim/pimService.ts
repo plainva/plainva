@@ -25,7 +25,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -332,6 +332,18 @@ async function fetchVerifiedProfile(
   return kind === "google" ? parseGoogleUserInfo(body) : parseMicrosoftMe(body);
 }
 
+/**
+ * Whether a CalDAV address and its credentials find calendars - the
+ * sign-in step's question (settings plan 2026-10-29, E5). The same probe
+ * `addPimAccount` runs, without writing anything.
+ */
+export async function probeCalDav(creds: { url: string; user: string; pass: string }): Promise<number> {
+  await allowHttpOrigin(creds.url);
+  const calendars = await new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch).listCalendars();
+  if (!calendars.length) throw new Error("No calendars found on this server.");
+  return calendars.length;
+}
+
 export async function addPimAccount(
   provider: PimStoredCredentials["kind"], label: string, creds: PimStoredCredentials, context?: ServiceConnectionContext,
 ): Promise<string> {
@@ -425,7 +437,11 @@ async function addPimAccountInVault(
     const records = await loadCloudAccounts(owner.vaultId);
     assertCurrent();
     const current = records.find(r => r.id === source.id);
-    if (!current || current.family !== source.family || (current.services.calendar && current.services.calendar.pimAccountId !== connectedId)) throw new ServiceConnectionError("accountChanged");
+    // A card that still names a calendar row this device no longer has is
+    // free to take the new one (Sammelplan § 3.105): only a row that exists
+    // makes the card another connection's.
+    const holds = current?.services.calendar?.pimAccountId;
+    if (!current || current.family !== source.family || (holds && holds !== connectedId && known.some((a) => a.id === holds))) throw new ServiceConnectionError("accountChanged");
     const verified = verifiedProviderIdentityOf({ config }) ?? undefined;
     if (provider === "google" || provider === "microsoft") assertConnectionIdentity(current.verifiedProviderIdentity, verified ?? null);
     const previous = await getPimCredentials(owner.vaultId, connectedId);
@@ -434,7 +450,7 @@ async function addPimAccountInVault(
       assertCurrent();
       await savePimCredentials(owner.vaultId, connectedId, creds);
       assertCurrent();
-      await saveCloudAccounts(owner.vaultId, records.map(r => r.id === source.id ? nextRecord : r));
+      await saveCloudAccounts(owner.vaultId, withBoundCard(records, nextRecord));
       assertCurrent();
       const persisted = (await loadCloudAccounts(owner.vaultId)).find(r => r.id === source.id);
       if (!sameStoredValue(persisted, nextRecord)) throw new ServiceConnectionError("storageFailed");
@@ -756,8 +772,9 @@ export async function pimSeriesMaster(event: PimEventRow): Promise<PimEventRow |
 
 /**
  * What "delete all events" of a series is written against (issue 119): the
- * series' own row, or - where the cache lacks it - the occurrence, except on
- * the device's own calendars, which cannot delete a series that way.
+ * series' own row, or - where the cache lacks it - the series id the
+ * occurrence carries; the device's own calendars delete the whole series by
+ * that id too (3.130 no. 3).
  */
 export async function pimSeriesDeleteSubject(event: PimEventRow): Promise<PimEventRow | null> {
   const master = await pimSeriesMaster(event);
@@ -804,7 +821,7 @@ export async function openMeetingNoteFor(
       templateFolder: settings.templateFolder || "Templates",
     },
     // The pipeline adds the vault's pieces. `{{daily}}` in a meeting note is
-    // the daily note of the MEETING's day: the note's `now` is that day.
+    // the daily note of the MEETING's day: the note's `day` is that day.
     resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx),
     templateContext: { vaultName: (await getActiveVaultEntry()).name || "Plainva" },
     now,

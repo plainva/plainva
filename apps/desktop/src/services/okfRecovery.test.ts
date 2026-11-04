@@ -51,6 +51,8 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   },
 }));
 
+import { convertFileToOkf } from "@plainva/core";
+import { OkfRunOpenError } from "@plainva/ui";
 import { convertVaultToOkf, undoOkfConversion } from "./okfConversion";
 import { readOkfJournal, writeOkfJournal } from "./okfJournal";
 
@@ -95,6 +97,9 @@ const scanOf = (paths: string[]): OkfScanResult => ({
 });
 
 const OPTIONS = { defaultType: "Note" as const, existingTypeStrategy: "keep" as const };
+const RECIPE = { kind: "conversion" as const, options: { defaultType: "Note" } };
+/** What a run with `RECIPE` made of `# A`. */
+const CONVERTED_A = convertFileToOkf("# A\n", RECIPE.options).content;
 
 beforeEach(() => {
   appData.clear();
@@ -175,19 +180,78 @@ describe("OKF conversion journal", () => {
     // its own. The name is fixed and unlike any generated one, so this cannot
     // pass by accident the way a timestamp comparison could.
     const carried = ".plainva/backups/okf-conversion-FIRST-PASS";
+    await writeOkfJournal({ startedAt: new Date().toISOString(), vaultPath: VAULT, backupDir: carried, total: 1, options: OPTIONS });
     const vault = fakeVault({ "A.md": "# A\n" });
 
     const report = await convertVaultToOkf({
       vaultPath: VAULT,
       adapter: vault.adapter,
       scan: scanOf(["A.md"]),
-      options: OPTIONS,
-      backupDir: carried,
+      resume: true,
     });
 
     expect(report.backupDir).toBe(carried);
     expect(vault.writes).toContain(`${carried}/A.md`);
     expect(vault.writes.some((w) => w.includes("okf-conversion-2"))).toBe(false);
+  });
+
+  it("continues with the options the run began with, and converts no note twice", async () => {
+    // Finding § 3.129 Nr. 1: continuing a run with "rename" moved the type the
+    // first pass had set (`type_original: Memo`), skipped a note that had a
+    // type of its own, and wrote the first pass's text over the original's
+    // backup — the undo then put the damaged text back and called it success.
+    const PERSON = "---\ntype: Person\n---\n# B\n";
+    const vault = fakeVault({ "A.md": "# A\n", "B.md": PERSON, "C.md": "# C\n" });
+    const options = { defaultType: "Memo", existingTypeStrategy: "rename" as const };
+    let n = 0;
+    const first = await convertVaultToOkf({
+      vaultPath: VAULT,
+      adapter: vault.adapter,
+      scan: scanOf(["A.md", "B.md", "C.md"]),
+      options,
+      isCancelled: () => n++ >= 2,
+    });
+    expect(first.cancelled).toBe(true);
+    expect(first.changed.sort()).toEqual(["A.md", "B.md"]);
+    const converted = { A: vault.files.get("A.md"), B: vault.files.get("B.md") };
+
+    // Continued with nothing but the wish to continue: folder and options are the journal's.
+    const second = await convertVaultToOkf({
+      vaultPath: VAULT,
+      adapter: vault.adapter,
+      scan: scanOf(["A.md", "B.md", "C.md"]),
+      resume: true,
+    });
+
+    expect(second.backupDir).toBe(first.backupDir);
+    expect(second.changed).toEqual(["C.md"]);
+    expect(second.skipped).toEqual([]);
+    expect(vault.files.get("A.md")).toBe(converted.A);
+    expect(vault.files.get("A.md")).not.toContain("type_original");
+    expect(vault.files.get("B.md")).toBe(converted.B);
+    expect(vault.files.get("C.md")).toContain("type: Memo");
+    expect(vault.files.get(`${first.backupDir}/A.md`)).toBe("# A\n");
+    expect(vault.files.get(`${first.backupDir}/B.md`)).toBe(PERSON);
+    expect(await readOkfJournal(VAULT)).toBeNull();
+
+    const undo = await undoOkfConversion(VAULT, vault.adapter, second.backupDir, second.recipe);
+    expect(undo.failed).toEqual([]);
+    expect(vault.files.get("A.md")).toBe("# A\n");
+    expect(vault.files.get("B.md")).toBe(PERSON);
+    expect(vault.files.get("C.md")).toBe("# C\n");
+  });
+
+  it("refuses a fresh run while one is open — one backup folder per run", async () => {
+    const open = ".plainva/backups/okf-conversion-OPEN";
+    await writeOkfJournal({ startedAt: new Date().toISOString(), vaultPath: VAULT, backupDir: open, total: 1, options: OPTIONS });
+    const vault = fakeVault({ "A.md": "# A\n" });
+
+    await expect(
+      convertVaultToOkf({ vaultPath: VAULT, adapter: vault.adapter, scan: scanOf(["A.md"]), options: OPTIONS }),
+    ).rejects.toThrow(OkfRunOpenError);
+
+    expect(vault.writes).toEqual([]);
+    expect((await readOkfJournal(VAULT))?.backupDir).toBe(open);
   });
 
   it("keeps the journal when a rollback leaves something behind", async () => {
@@ -198,13 +262,13 @@ describe("OKF conversion journal", () => {
       total: 1,
       options: { defaultType: "Note" },
     });
-    const vault = fakeVault({ ".plainva/backups/okf-conversion-X/A.md": "# A\n" });
+    const vault = fakeVault({ ".plainva/backups/okf-conversion-X/A.md": "# A\n", "A.md": CONVERTED_A });
     // A restore that cannot write is a restore that did not happen.
     vault.adapter.writeTextFile = async () => {
       throw new Error("read-only");
     };
 
-    const report = await undoOkfConversion(VAULT, vault.adapter, ".plainva/backups/okf-conversion-X");
+    const report = await undoOkfConversion(VAULT, vault.adapter, ".plainva/backups/okf-conversion-X", RECIPE);
 
     expect(report.failed.length).toBe(1);
     // Still recoverable: the next start offers it again.
@@ -219,11 +283,13 @@ describe("OKF conversion journal", () => {
       total: 1,
       options: { defaultType: "Note" },
     });
-    const vault = fakeVault({ ".plainva/backups/okf-conversion-X/A.md": "# A\n" });
+    const vault = fakeVault({ ".plainva/backups/okf-conversion-X/A.md": "# A\n", "A.md": CONVERTED_A });
 
-    const report = await undoOkfConversion(VAULT, vault.adapter, ".plainva/backups/okf-conversion-X");
+    const report = await undoOkfConversion(VAULT, vault.adapter, ".plainva/backups/okf-conversion-X", RECIPE);
 
     expect(report.failed).toEqual([]);
+    expect(report.restored).toEqual(["A.md"]);
+    expect(vault.files.get("A.md")).toBe("# A\n");
     expect(await readOkfJournal(VAULT)).toBeNull();
   });
 
@@ -231,7 +297,7 @@ describe("OKF conversion journal", () => {
     // There would be nothing to continue into and nothing to roll back to;
     // offering a recovery that cannot work is worse than offering none.
     appData.set(
-      `APPDATA/okf-journal/${(await import("./draftJournal")).pathHash(VAULT)}.json`,
+      `APPDATA/okf-journal/${(await import("./draftJournal")).legacyPathHash(VAULT)}.json`,
       JSON.stringify({ startedAt: "x", vaultPath: VAULT, backupDir: "", total: 0, options: { defaultType: "Note" } })
     );
     expect(await readOkfJournal(VAULT)).toBeNull();

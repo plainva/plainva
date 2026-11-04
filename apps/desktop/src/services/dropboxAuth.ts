@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "./openExternal";
 import { fetch } from "@tauri-apps/plugin-http";
 import {
   generatePkcePair,

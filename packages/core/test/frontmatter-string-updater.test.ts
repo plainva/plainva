@@ -219,10 +219,10 @@ This is a horizontal rule.
       expect(updateFrontmatterString(NOTE, renamed)).toBe(NOTE.replace("plz: 01067", "postcode: 01067"));
       const status = Object.fromEntries(Object.entries(read()).map(([key, value]) => [key === "status" ? "state" : key, value]));
       expect(updateFrontmatterString(NOTE, status)).toBe(NOTE.replace("status: open # for now", "state: open # for now"));
-      // A text the reader read as a list only because it stood under `tags`: under
-      // another name the note has to say the list itself — where the entry stands.
+      // A rename changes only the name, as the panel's rename does (open-items plan 3.144
+      // no. 8): a text under `tags` stays the text it is written with under another name.
       const list = Object.fromEntries(Object.entries(read()).map(([key, value]) => [key === "tags" ? "labels" : key, value]));
-      expect(updateFrontmatterString(NOTE, list)).toBe(NOTE.replace("tags: a, b", "labels:\n  - a\n  - b"));
+      expect(updateFrontmatterString(NOTE, list)).toBe(NOTE.replace("tags: a, b", "labels: a, b"));
       // Another value under the new name is no rename: the old entry goes, the new one is new.
       const other = read();
       delete other.plz;

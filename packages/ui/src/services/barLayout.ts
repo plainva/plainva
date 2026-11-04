@@ -102,7 +102,13 @@ export interface BarAreaDef {
 export interface BarDef {
   id: BarId;
   titleKey: string;
-  descriptionKey: string;
+  /**
+   * The visible line under the bar's title — only where it says something the
+   * list does not: why an entry is fixed (settings plan 2026-10-29, 3.7).
+   */
+  descriptionKey?: string;
+  /** Which bar this is, behind the info button at its title. */
+  infoKey?: string;
   spec: AreaOrderSpec;
   areas: BarAreaDef[];
 }
@@ -112,7 +118,7 @@ export const BAR_DEFS: BarDef[] = [
   {
     id: "ribbon",
     titleKey: "bars.ribbon",
-    descriptionKey: "bars.ribbonDesc",
+    infoKey: "bars.ribbonDesc",
     // Ten, of which the AI button (fourth, beside the palette — Ctrl+J and
     // Ctrl+P are siblings) only appears while the per-device AI switch is on:
     // the nine visible buttons of 2026-09-22 stay what a rail without AI shows.
@@ -150,7 +156,6 @@ export const BAR_DEFS: BarDef[] = [
   {
     id: "leftSections",
     titleKey: "bars.leftSections",
-    descriptionKey: "bars.leftSectionsDesc",
     spec: { known: LEFT_SECTION_IDS, defaultVisibleCount: LEFT_SECTION_IDS.length },
     areas: [
       { id: "recents", labelKey: "sidebar.recent", icon: Clock },
@@ -160,7 +165,6 @@ export const BAR_DEFS: BarDef[] = [
   {
     id: "rightSections",
     titleKey: "bars.rightSections",
-    descriptionKey: "bars.rightSectionsDesc",
     spec: { known: RIGHT_SECTION_IDS, defaultVisibleCount: RIGHT_SECTION_IDS.length },
     areas: [
       { id: "calendar", labelKey: "rightPanel.calendar", icon: CalendarDays },
@@ -178,7 +182,8 @@ export const BAR_DEFS: BarDef[] = [
   {
     id: "mobileBar",
     titleKey: "bars.mobileBar",
-    descriptionKey: "bars.mobileBarDesc",
+    descriptionKey: "bars.mobileBarHint",
+    infoKey: "bars.mobileBarDesc",
     // Notes is pinned: it is the navigator, and hiding it would leave the
     // phone without a way to its own files.
     spec: { known: MOBILE_BAR_IDS, alwaysVisible: ["notes"], minVisible: 2, maxVisible: 4, defaultVisibleCount: 4 },

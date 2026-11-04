@@ -176,12 +176,28 @@ describe("runOkfMigration", () => {
     const { store, adapter, queryService } = makeAdapter(vaultFiles());
     const state = await scanVaultOkfVersion({ queryService, adapter });
     const report = await runOkfMigration({ adapter, state, stripNoteVersion: true });
-    const undo = await rollbackOkfConversion(adapter, report.backupDir);
+    const undo = await rollbackOkfConversion(adapter, report.backupDir, report.recipe);
     expect(undo.failed).toEqual([]);
     expect([...undo.restored].sort()).toEqual(["Sub/c.md", "a.md", "b.md", "index.md"]);
     for (const [path, content] of Object.entries(vaultFiles())) {
       expect(store.get(path), path).toBe(content);
     }
+  });
+
+  it("undo leaves a note edited after the run, and names it", async () => {
+    // § 3.87 Nr. 15: the undo wrote every backup back, whatever lay there now.
+    const { store, adapter, queryService } = makeAdapter(vaultFiles());
+    const state = await scanVaultOkfVersion({ queryService, adapter });
+    const report = await runOkfMigration({ adapter, state, stripNoteVersion: true });
+    const edited = `${store.get("a.md")}A line written after the run.\n`;
+    store.set("a.md", edited);
+
+    const undo = await rollbackOkfConversion(adapter, report.backupDir, report.recipe);
+
+    expect(undo.failed).toEqual([]);
+    expect(undo.changedSince).toEqual(["a.md"]);
+    expect(store.get("a.md")).toBe(edited);
+    expect(store.get("index.md")).toBe(vaultFiles()["index.md"]);
   });
 
   it("stops between files when asked and says so", async () => {

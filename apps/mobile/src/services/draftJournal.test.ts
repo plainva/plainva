@@ -15,6 +15,10 @@ vi.mock("@capacitor/filesystem", () => ({
     deleteFile: vi.fn(async ({ path }: { path: string }) => {
       store.delete(path);
     }),
+    stat: vi.fn(async ({ path }: { path: string }) => {
+      if (!store.has(path)) throw new Error("not found");
+      return { type: "file", size: store.get(path)!.length, mtime: Date.now() };
+    }),
     readdir: vi.fn(async ({ path }: { path: string }) => ({
       files: [...store.keys()]
         .filter((k) => k.startsWith(`${path}/`) && !k.slice(path.length + 1).includes("/"))
@@ -28,7 +32,7 @@ vi.mock("@capacitor/core", () => ({
   registerPlugin: () => ({}),
 }));
 
-import { clearDraft, clearDraftIf, flushDrafts, readDraft, releaseLeftoverDraft, relocateDrafts, relocatedPath, takeLeftoverDraft, writeDraft } from "./draftJournal";
+import { adoptDraft, clearDraft, clearDraftIf, flushDrafts, offerDraft, readDraft, releaseLeftoverDrafts, relocateDrafts, relocatedPath, takeLeftoverDrafts, writeDraft } from "./draftJournal";
 
 const vault = { vaultId: "local" } as any;
 
@@ -231,6 +235,13 @@ describe("drafts follow an in-app move (issue 113)", () => {
   });
 });
 
+/** Makes the journal of `path` look as an earlier run of the app left it. */
+function leftByAnEarlierRun(path: string) {
+  const file = [...store.keys()].find((key) => (JSON.parse(store.get(key)!).entries ?? []).some((entry: { notePath: string }) => entry.notePath === path))!;
+  const journal = JSON.parse(store.get(file)!);
+  store.set(file, JSON.stringify({ ...journal, entries: journal.entries.map((entry: object) => ({ ...entry, savedAt: 1 })) }));
+}
+
 describe("a draft left from an earlier run (finding 2026-10-11)", () => {
   beforeEach(() => store.clear());
 
@@ -239,12 +250,11 @@ describe("a draft left from an earlier run (finding 2026-10-11)", () => {
     writeDraft(vault, "New.csv", "typed in this run", 1);
     await flushDrafts(vault);
     // The first one as an earlier run of the app left it.
-    const file = [...store.keys()].find((key) => JSON.parse(store.get(key)!).path === "Old.csv")!;
-    store.set(file, JSON.stringify({ ...JSON.parse(store.get(file)!), ts: 1 }));
-    expect(await takeLeftoverDraft(vault, "Old.csv")).toMatchObject({ text: "left when the app went", revision: 4 });
-    expect(await takeLeftoverDraft(vault, "Old.csv")).toBeNull();
-    expect(await takeLeftoverDraft(vault, "New.csv")).toBeNull();
-    expect(await takeLeftoverDraft(vault, "None.csv")).toBeNull();
+    leftByAnEarlierRun("Old.csv");
+    expect(await takeLeftoverDrafts(vault, "Old.csv")).toMatchObject([{ text: "left when the app went", revision: 4 }]);
+    expect(await takeLeftoverDrafts(vault, "Old.csv")).toEqual([]);
+    expect(await takeLeftoverDrafts(vault, "New.csv")).toEqual([]);
+    expect(await takeLeftoverDrafts(vault, "None.csv")).toEqual([]);
   });
 
   it("is cleared once kept only while the journal still holds that draft — a newer one of this run, counted from 1 again, stays", async () => {
@@ -274,11 +284,57 @@ describe("a draft left from an earlier run (finding 2026-10-11)", () => {
   it("hands a draft out again that could not be kept", async () => {
     writeDraft(vault, "Again.csv", "not kept the first time", 2);
     await flushDrafts(vault);
-    const file = [...store.keys()].find((key) => JSON.parse(store.get(key)!).path === "Again.csv")!;
-    store.set(file, JSON.stringify({ ...JSON.parse(store.get(file)!), ts: 1 }));
-    const first = (await takeLeftoverDraft(vault, "Again.csv"))!;
-    expect(await takeLeftoverDraft(vault, "Again.csv")).toBeNull();
-    releaseLeftoverDraft(vault, "Again.csv", first);
-    expect(await takeLeftoverDraft(vault, "Again.csv")).toMatchObject({ text: "not kept the first time" });
+    leftByAnEarlierRun("Again.csv");
+    const first = await takeLeftoverDrafts(vault, "Again.csv");
+    expect(await takeLeftoverDrafts(vault, "Again.csv")).toEqual([]);
+    releaseLeftoverDrafts(vault, "Again.csv", first);
+    expect(await takeLeftoverDrafts(vault, "Again.csv")).toMatchObject([{ text: "not kept the first time" }]);
+  });
+});
+
+describe("an offered draft stays until it is restored or discarded (open-items plan 3.125)", () => {
+  beforeEach(() => store.clear());
+  const tick = () => new Promise((r) => setTimeout(r, 10));
+  /** The journal file of `path` as the first phone journal wrote it: one text per note. */
+  const oldShape = (path: string, draft: { text: string; ts: number; revision?: number }) =>
+    store.set(`drafts/local/${btoa(path)}.json`, JSON.stringify({ path, ...draft }));
+
+  it("survives typing on and the confirmed save of that typing", async () => {
+    oldShape("Offer.md", { text: "left unsaved", ts: 1, revision: 4 });
+    expect((await readDraft(vault, "Offer.md"))?.text).toBe("left unsaved");
+    // Typing on without answering the offer; the save of it is confirmed.
+    writeDraft(vault, "Offer.md", "typed on", 1);
+    await flushDrafts(vault);
+    clearDraft(vault, "Offer.md", 1);
+    await tick();
+    expect((await readDraft(vault, "Offer.md", "typed on"))?.text).toBe("left unsaved");
+  });
+
+  it("is held apart from this run's saver when it is this run's own unsaved text, and goes when discarded", async () => {
+    writeDraft(vault, "Same.md", "unsaved in this run", 3);
+    await flushDrafts(vault);
+    const offer = await offerDraft(vault, "Same.md", "the file");
+    expect(offer).toMatchObject({ text: "unsaved in this run", revision: 3 });
+    writeDraft(vault, "Same.md", "typed on", 4);
+    await flushDrafts(vault);
+    clearDraft(vault, "Same.md", 4);
+    await tick();
+    expect((await readDraft(vault, "Same.md", "typed on"))?.text).toBe("unsaved in this run");
+    clearDraftIf(vault, "Same.md", offer!);
+    await tick();
+    expect(await readDraft(vault, "Same.md", "typed on")).toBeNull();
+  });
+
+  it("goes once restored and journaled as this run's text — and never comes back after that text is saved", async () => {
+    oldShape("Restore.md", { text: "left unsaved", ts: 1, revision: 2 });
+    const offer = (await offerDraft(vault, "Restore.md", "the file"))!;
+    // Restoring schedules the text like typing does, then adopts the offer.
+    writeDraft(vault, "Restore.md", "left unsaved", 7);
+    await adoptDraft(vault, "Restore.md", offer);
+    expect(await readDraft(vault, "Restore.md", "the file")).toMatchObject({ text: "left unsaved", revision: 7 });
+    clearDraft(vault, "Restore.md", 7);
+    await tick();
+    // The note is edited further and saved: the old offer is not offered again.
+    expect(await readDraft(vault, "Restore.md", "edited later")).toBeNull();
   });
 });

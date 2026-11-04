@@ -43,11 +43,18 @@ export function isReservedOkfName(path: string): boolean {
   return base === "index.md" || base === "log.md";
 }
 
-/** True for paths inside dot-folders (.obsidian, .plainva, …), `.trash` or an excluded folder. */
+/**
+ * True for paths inside dot-folders (.obsidian, .plainva, …), `.trash` or an
+ * excluded folder — and for the working copy of an open conflict
+ * (`….CONFLICT-….md`): the index lists it on purpose, but it is the other half
+ * of a note, not a note of its own. Counted, it showed up in every check as a
+ * violation no run would ever touch (§ 3.87 Nr. 17 a).
+ */
 export function isExcludedFromOkfScan(path: string, excludeFolders: string[] = []): boolean {
   const segments = path.split(/[/\\]/);
   if (segments.slice(0, -1).some((s) => s.startsWith(".") || s.toLowerCase() === ".trash")) return true;
-  if (segments[segments.length - 1]?.startsWith(".")) return true;
+  const name = segments[segments.length - 1] ?? "";
+  if (name.startsWith(".") || name.includes(".CONFLICT-")) return true;
   const normalized = path.replace(/\\/g, "/");
   return excludeFolders.some((folder) => {
     const f = trimEndChars(folder.replace(/\\/g, "/"), "/");

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../packages/core/test/helpers/timeBudget";
 import { encodeImapUtf7, imapListFields, imapSearchText, threadFields, threadRows, type ThreadableEnvelope } from "@plainva/ui/mail";
 
 /**
@@ -10,12 +11,6 @@ import { encodeImapUtf7, imapListFields, imapSearchText, threadFields, threadRow
  * which ran unchanged; the pins here name the quirks kept on purpose.
  */
 const N = 100_000;
-const within = (budgetMs: number, run: () => void) => {
-  const start = performance.now();
-  run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 describe("IMAP response lines", () => {
   it("splits a LIST line into flags, delimiter token and name", () => {
     expect(imapListFields('* LIST (\\HasNoChildren) "/" "INBOX"')).toEqual(["\\HasNoChildren", '"/"', '"INBOX"']);

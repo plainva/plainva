@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, serverSkillAddText, TextInput, toast } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 /**
@@ -16,6 +17,7 @@ export function ServerSkillAddSheet({ serverId, label, onClose }: { serverId: st
   const [address, setAddress] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const close = useSheetGuard("ai-server-skill-add", address.trim() !== "", onClose);
   const add = async () => {
     setBusy(true);
     const result = await session.addServerSkill(serverId, address);
@@ -27,9 +29,9 @@ export function ServerSkillAddSheet({ serverId, label, onClose }: { serverId: st
     } else setProblem(text);
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-server-skill-add-dialog">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("ai.workshop.server.addTitle", { server: label })}</p>
         <TextInput
           value={address}
@@ -52,7 +54,7 @@ export function ServerSkillAddSheet({ serverId, label, onClose }: { serverId: st
         <Button variant="primary" disabled={busy || !address.trim()} onClick={() => void add()} data-testid="ai-server-skill-add-load">
           {t("ai.workshop.server.addLoad")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("common.cancel")}
         </Button>
       </div>

@@ -63,6 +63,11 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:store|set') return null;
         if (cmd === 'plugin:store|save') return null;
 
+        // The save dialog of the vault export answers with the path a test set.
+        if (cmd === 'plugin:dialog|save') {
+          (window as any).__saveArgs = args;
+          return (window as any).__savePath ?? null;
+        }
         if (cmd === 'plugin:dialog|ask') return true;
         if (cmd === 'plugin:dialog|confirm') return true;
         if (cmd === 'plugin:dialog|message') {
@@ -389,4 +394,60 @@ test('conflict: the blind exits are gone from the context menu', async ({ page }
   await expect(page.getByTestId('tree-resolve-conflict')).toBeVisible();
   await expect(page.getByText('Keep this Version')).toHaveCount(0);
   await expect(page.getByText('Discard Conflict')).toHaveCount(0);
+});
+
+// ---- the vault's own page (Sammelplan § 3.169 Nr. 3): the phone's rename,
+// export and delete, on the desktop
+
+async function shootTheme(page: Page, testInfo: { outputPath: (name: string) => string }, name: string) {
+  if (!process.env.PLAINVA_EVIDENCE) return;
+  for (const mode of ['light', 'dark']) {
+    await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+    await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+}
+
+test("the vault's own page renames it, exports the ZIP to the chosen file and asks before deleting in the phone's words", async ({ page }, testInfo) => {
+  await openVault(page);
+  await page.evaluate(() => { (window as any).__savePath = '/exports/Archive.zip'; });
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-open-sync-settings', { detail: { area: 'backup' } })));
+  const settings = page.getByRole('dialog', { name: /^(Einstellungen|Settings)$/ });
+  await expect(settings).toBeVisible();
+  await settings.getByTestId('settings-vault-details-link').click();
+  const details = settings.getByTestId('settings-vault-details');
+  await expect(details).toBeVisible();
+  // Head: the vault's name and where it lives.
+  await expect(details).toContainText('test-vault');
+  await expect(details).toContainText('/test-vault');
+  await shootTheme(page, testInfo, 'vault-details');
+
+  // Rename: a name in Plainva, shown at once in the rail's card; the folder keeps its own.
+  await details.getByTestId('vault-details-rename').click();
+  const prompt = page.getByRole('dialog', { name: /^(Umbenennen|Rename)$/ });
+  await prompt.getByRole('textbox').fill('Work notes');
+  await prompt.getByRole('textbox').press('Enter');
+  await expect(settings.getByTestId('settings-vault-name')).toHaveText('Work notes');
+  await expect(details).toContainText('test-vault');
+
+  // Export: the save dialog proposes the phone's name, the native zipper writes there.
+  await details.getByTestId('vault-details-export').click();
+  await expect.poll(() => page.evaluate(() => ((window as any).__zipCalls as any[]).length)).toBe(1);
+  const save = await page.evaluate(() => (window as any).__saveArgs);
+  expect(String(save?.options?.defaultPath ?? save?.defaultPath)).toMatch(/^Work_notes-\d{4}-\d{2}-\d{2}\.zip$/);
+  const zip = await page.evaluate(() => (window as any).__zipCalls[0]);
+  expect(zip.vaultPath).toBe('/test-vault');
+  expect(zip.destPath).toBe('/exports/Archive.zip');
+  expect(zip.excludeDirNames).toContain('.plainva');
+
+  // Delete asks first, says the folder stays, and Cancel leaves everything as it was.
+  await details.getByTestId('vault-details-delete').click();
+  const confirm = page.getByRole('dialog', { name: /^(Vault löschen|Delete vault)$/ });
+  await expect(confirm).toContainText('Work notes');
+  await expect(confirm).toContainText('/test-vault');
+  await expect(confirm).toContainText(/(die Dateien bleiben, wo sie sind|the files stay where they are)/i);
+  await shootTheme(page, testInfo, 'vault-details-delete');
+  await confirm.getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(settings.getByTestId('settings-vault-name')).toHaveText('Work notes');
 });

@@ -5,6 +5,7 @@ import { Copy } from "lucide-react";
 import type { PublicationRecipient, WorkspacePublicationRecord } from "@plainva/core";
 import { Banner, Button, ICON, IconButton, QrImage, Row, RowList, SettingField, TextInput, toast } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 
 /**
  * Who may read one publication (M5) — the mobile shape of the desktop's
@@ -41,6 +42,8 @@ export function PublicationRecipientsSheet({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const close = useSheetGuard("publication-recipient", name.trim() !== "", onClose);
   const [minted, setMinted] = useState<{ displayName: string; memberId: string; invite: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   /* Aimed at exactly one person: a shared confirm flag would let a second tap
@@ -67,9 +70,9 @@ export function PublicationRecipientsSheet({
   };
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" data-testid="publication-recipients-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("workspaceSecurity.publicationRecipients", { defaultValue: "Recipients" })}</p>
         <p className="m-hint">{record.config.name}</p>
 
@@ -201,7 +204,7 @@ export function PublicationRecipientsSheet({
               </SettingField>
             </RowList>
             <div className="m-btnrow">
-              <Button variant="ghost" disabled={busy} onClick={onClose}>{t("common.close", { defaultValue: "Close" })}</Button>
+              <Button variant="ghost" disabled={busy} onClick={close}>{t("common.close", { defaultValue: "Close" })}</Button>
               <Button
                 variant="primary"
                 disabled={busy || !name.trim()}

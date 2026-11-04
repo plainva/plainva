@@ -25,8 +25,15 @@ import {
   setCustomTheme,
   recoverPersonalDesign,
   setDayBoundary,
+  setExtraTextExtensions,
+  isVaultPathSetting,
+  refusedVaultPaths,
+  refuseVaultPathSetting,
+  VAULT_PATH_SETTINGS_MOBILE,
   type CustomThemeSpec,
   type CustomThemeDesign,
+  setVaultWeekStartScope,
+  WEEK_START_CHANGED_EVENT,
 } from "@plainva/ui";
 import { changeAppLanguage } from "@plainva/ui/i18n";
 import { Capacitor } from "@capacitor/core";
@@ -67,6 +74,10 @@ export type MotionPref = "system" | "on" | "off";
  * per-vault field left this type behind (caught while adding the remembered
  * mailbox, B1). One declaration, one place to document a field.
  */
+/** Which button leads a note's app bar (F9). */
+export type NoteHeadButton = "bookmark" | "outline" | "backlinks";
+export const NOTE_HEAD_BUTTONS: readonly NoteHeadButton[] = ["bookmark", "outline", "backlinks"];
+
 export interface MobileSettings extends VaultScopedSettings {
   themeMode: ThemeMode;
   /** Bundled theme id from the shared registry (package D3); single-mode
@@ -77,6 +88,13 @@ export interface MobileSettings extends VaultScopedSettings {
   defaultView: DefaultView;
   /** Device-local touch reading preference. Desktop uses its explicit focus mode. */
   readerAutoHide: boolean;
+  /**
+   * The first button of a note's app bar (F9, 2026-10-29): bookmark (as it
+   * always was), outline or backlinks. What is not chosen stays reachable -
+   * the bookmark through the note menu, outline and backlinks through the
+   * note details.
+   */
+  noteHeadButton: NoteHeadButton;
   /** Empty = follow the system language. */
   language: string;
   /** First-start onboarding shown and answered. */
@@ -221,6 +239,7 @@ function defaults(): MobileSettings {
     codeFontCustom: "",
     motion: "system",
     readerAutoHide: true,
+    noteHeadButton: "bookmark",
     contextPanelDocked: false,
     tagColors: false,
     noteLinkStyle: "underline",
@@ -339,9 +358,15 @@ function followThemeWithStatusBar(): void {
 function applySettings(): void {
   applyTheme();
   setDayBoundary(live().dayEndsAt);
+  // The vault's own text extensions (C15): one rule for every path that opens
+  // a file, set wherever the vault's settings change — as the desktop does on
+  // vault load and on save (Sammelplan § 3.169 Nr. 3).
+  setExtraTextExtensions(live().textFileExtensions);
   // Open editors and mounted fields follow the switch at once.
   setSpellcheckOn(live().spellcheck === true);
 }
+
+let weekStartFollowsSettings = false;
 
 export async function initMobileSettings(): Promise<void> {
   media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -376,6 +401,18 @@ export async function initMobileSettings(): Promise<void> {
     activeVaultId = LOCAL_VAULT_ID;
   }
   applySettings();
+  // The week start of the open vault (decision E4): kept in its per-vault
+  // record and carried by the settings profile; "" follows the device's own
+  // choice. A switch of vaults and a profile that arrives both change the
+  // settings - the calendars and pickers on screen ask again then.
+  setVaultWeekStartScope({
+    read: async () => live().weekStart,
+    write: (value) => updateMobileSettings({ weekStart: value }),
+  });
+  if (!weekStartFollowsSettings) {
+    weekStartFollowsSettings = true;
+    window.addEventListener("m-settings-changed", () => window.dispatchEvent(new CustomEvent(WEEK_START_CHANGED_EVENT)));
+  }
   if (live().language) await changeAppLanguage(live().language).catch(() => {});
   await getPlatformServices().loadSettings().then(store => recoverPersonalDesign(store, async () => live().customTheme,
     async design => { await updateMobileSettings({ customTheme: design }); })).catch(() => {
@@ -446,6 +483,31 @@ function writeSettings<T>(work: () => Promise<T>): Promise<T> {
 }
 
 export function updateMobileSettings(patch: Partial<Omit<MobileSettings, "customTheme">> & { customTheme?: CustomThemeSpec | CustomThemeDesign }): Promise<void> {
+  // One gate for every place that sets a vault path — a field, a folder picked
+  // in the browser, a template chosen from the list (3.127 no. 4): no folder
+  // or file setting points under .plainva or out of the vault. The field asks
+  // first (`FolderField`); what still arrives here is refused and said.
+  const refused = refusedVaultPaths(patch as Record<string, unknown>, (key) => VAULT_PATH_SETTINGS_MOBILE.has(key));
+  // The template rules name a folder and a template each: the same rule for
+  // every path in them. Only the profile import asked it (P10, 3.127 no. 4);
+  // a rule set here kept a folder or template under .plainva.
+  const refusedRulePaths: string[] = [];
+  for (const rule of patch.folderTemplates ?? []) for (const path of [rule.folder, rule.template]) if (!isVaultPathSetting(path)) refusedRulePaths.push(path);
+  if (refusedRulePaths.length > 0) refused.push("folderTemplates");
+  const typeRulePaths = (patch.typeTemplates ?? []).map((rule) => rule.template).filter((path) => !isVaultPathSetting(path));
+  if (typeRulePaths.length > 0) {
+    refused.push("typeTemplates");
+    refusedRulePaths.push(...typeRulePaths);
+  }
+  if (refused.length > 0) {
+    for (const key of refused) if (key !== "folderTemplates" && key !== "typeTemplates") refuseVaultPathSetting(String((patch as Record<string, unknown>)[key]));
+    if (refusedRulePaths.length > 0) refuseVaultPathSetting(refusedRulePaths[0]);
+    patch = Object.fromEntries(Object.entries(patch).filter(([key]) => !refused.includes(key))) as typeof patch;
+    if (Object.keys(patch).length === 0) {
+      window.dispatchEvent(new CustomEvent("m-settings-changed"));
+      return Promise.resolve();
+    }
+  }
   const targetVault = activeVaultId;
   return writeSettings(async () => {
     const design = patch.customTheme === undefined ? live().customTheme : parseCustomThemeDesign(patch.customTheme);

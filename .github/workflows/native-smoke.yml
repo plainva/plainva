@@ -1,15 +1,37 @@
 name: Native Smoke
 
-# Native WebDriver smoke (hardening plan B2 / P8): build the Tauri app and drive
-# the REAL binary through @wdio/tauri-service (WebView2 on Windows, WebKitGTK on
-# Linux) — the coverage the mocked Playwright suites cannot give (the gap that
-# let the macOS print bug, issue #6, ship). Dispatch-only: a native build per
-# push is too slow, and this is a release gate, not a per-commit check.
-# See docs/engineering/WebDriver_Smoke.md. This workflow has not run in the AI
-# harness (no native build there) — verify it on the first dispatch.
+# Native WebDriver smoke: build the Tauri app and drive the REAL binary through
+# @wdio/tauri-service — WebView2 on Windows, WebKitGTK on Linux, WKWebView on
+# macOS — the coverage the mocked Playwright suites cannot give (the gap that
+# let the macOS print bug, issue #6, ship). See docs/engineering/WebDriver_Smoke.md.
+#
+# Linux and Windows use the external driver (tauri-driver) against the plain
+# debug binary. macOS has no external driver: its job builds the app bundle
+# with the cargo feature `webdriver-smoke`, which compiles the embedded
+# WebDriver server (tauri-plugin-wdio-webdriver) into this build and no other.
+#
+# When it runs: on demand, every Monday, on a push to main that touches the
+# native side or the smoke itself, and from release.yml for every release. It
+# is not a required check for main: a native build per push is too slow.
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '23 5 * * 1'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/src-tauri/**'
+      - 'apps/desktop/wdio/**'
+      - 'apps/desktop/wdio.conf.ts'
+      - 'apps/desktop/scripts/check-webdriver-server.sh'
+      - '.github/workflows/native-smoke.yml'
+  workflow_call:
+    inputs:
+      macos_may_fail:
+        description: 'The macOS job reports, but a red result does not fail the caller (probation: five green runs in a row first)'
+        type: boolean
+        default: false
 
 jobs:
   linux:
@@ -34,6 +56,9 @@ jobs:
         run: pnpm --filter desktop build
       - name: Build debug binary
         run: pnpm --filter desktop exec tauri build --debug --no-bundle
+      # Built without the smoke feature: the binary check must find nothing.
+      - name: No embedded WebDriver server in a build without the feature
+        run: bash apps/desktop/scripts/check-webdriver-server.sh apps/desktop/src-tauri/target/debug/plainva-desktop
       - name: Native smoke
         run: xvfb-run --auto-servernum pnpm --filter desktop test:native
       - name: Upload driver logs
@@ -69,6 +94,9 @@ jobs:
       # those arguments. It exists only in this build; no release uses it.
       - name: Build debug binary
         run: pnpm --filter desktop exec tauri build --debug --no-bundle --config src-tauri/tauri.smoke.conf.json
+      - name: No embedded WebDriver server in a build without the feature
+        shell: bash
+        run: bash apps/desktop/scripts/check-webdriver-server.sh apps/desktop/src-tauri/target/debug/plainva-desktop.exe
       # Before the driver gets the binary: does it start at all, and does it
       # create its WebView? "session not created: DevToolsActivePort file doesn't
       # exist" (first runs, 2026-09-29/30) says only that the driver waited a
@@ -117,6 +145,59 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: native-smoke-windows-${{ github.run_attempt }}
+          path: apps/desktop/wdio-logs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    # Probation (release gate): until the macOS smoke has been green five runs
+    # in a row, the release calls it with macos_may_fail and records the
+    # result instead of stopping on it. Every other trigger reports honestly.
+    continue-on-error: ${{ inputs.macos_may_fail == true }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+          # The feature compiles different artefacts; keep them apart from
+          # every other macOS cache.
+          key: webdriver-smoke
+      - run: pnpm install --frozen-lockfile
+      - name: Build web assets
+        run: pnpm --filter desktop build
+      # The app BUNDLE, not the bare binary: only inside Plainva.app does the
+      # process carry the bundle identifier com.plainva.desktop, and with it the
+      # defaults domain the spell checking of issue #135 lives in. The overlay
+      # empties the update sources and builds no updater artefacts (they would
+      # need the release signing key). Debug builds are signed ad hoc and carry
+      # no quarantine attribute, so Gatekeeper does not ask.
+      - name: Build the smoke app (with the embedded WebDriver server)
+        run: pnpm --filter desktop exec tauri build --debug --bundles app --features webdriver-smoke --config src-tauri/tauri.smoke.macos.conf.json
+      # Positive control for the release check: the same script that fails a
+      # release binary carrying the server has to find it here.
+      - name: The smoke build carries the server, and the check sees it
+        run: |
+          set -euo pipefail
+          ls -la apps/desktop/src-tauri/target/debug/bundle/macos/*.app/Contents/MacOS/
+          bash apps/desktop/scripts/check-webdriver-server.sh --expect-present apps/desktop/src-tauri/target/debug/bundle/macos/*.app/Contents/MacOS/*
+      - name: Native smoke
+        run: pnpm --filter desktop test:native
+      - name: What the spell checking left in the app's defaults
+        if: always()
+        run: defaults read com.plainva.desktop 2>&1 | head -n 40 || true
+      - name: Upload driver logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-macos-${{ github.run_attempt }}
           path: apps/desktop/wdio-logs/
           if-no-files-found: ignore
           retention-days: 7

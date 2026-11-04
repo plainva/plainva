@@ -393,6 +393,16 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
+    // The embedded WebDriver server of the native smoke on macOS, where no
+    // external driver reaches WKWebView (docs/engineering/WebDriver_Smoke.md).
+    // It is a full remote control of the app on a local port, so it is
+    // compiled in only with the `webdriver-smoke` cargo feature — never in a
+    // release and never in a plain debug build. Two guards hold that line:
+    // src/webdriverSmokeIsolation.test.ts and the `strings` check of the
+    // macOS release binary in release.yml.
+    #[cfg(feature = "webdriver-smoke")]
+    let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
+
     builder
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
@@ -433,8 +443,10 @@ pub fn run() {
                     let _ = win.set_title(title);
                 }
             }
-            // The main window where it was at the last close (issue #135).
+            // The main window where it was at the last close (issue #135),
+            // and only then on the screen: it is created hidden.
             window_state::restore(app.handle());
+            window_state::show_main(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -528,6 +540,7 @@ pub fn run() {
             tray::tray_disable,
             tray::tray_set_next,
             session::desktop_session_kind,
+            app_identity::app_updates_managed_by,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
             checked_fs::checked_path_exists,
@@ -566,8 +579,15 @@ pub fn run() {
             mail_imap::mail_release_sessions,
             mail_smtp::mail_send
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Quitting from the tray (`app.exit`) closes no window first, so
+            // no close request writes the window's place: it is written here.
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                window_state::flush(app);
+            }
+        });
 }
 
 #[cfg(test)]

@@ -31,11 +31,15 @@ export {
   SettingCard,
   SettingRow,
   SettingCardNote,
+  SettingCardBlock,
+  SettingCardActions,
   type SettingsPageHeadProps,
   type SettingCardProps,
   type SettingRowProps,
   type SettingCardNoteProps,
 } from "./SettingsSurface";
+export { InfoTip, InfoLabel, infoText, infoGuide, infoGuideUrl, type InfoTipProps, type InfoLabelProps, type InfoContent } from "./InfoTip";
+export { DeviceOnlyBadge } from "./DeviceOnlyBadge";
 export { TooltipHost } from "./Tooltip";
 export { FontCatalogPicker, type FontCatalogPickerProps } from "./FontCatalogPicker";
 export { FontField, type FontFieldProps } from "./FontField";

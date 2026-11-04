@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
-import { buildLinkTargetIndex, isInternalPath, linkTargetName, markdownLinkTarget, resolveLinkTarget, resolveMarkdownLinkIndexed, VaultIndexer, VaultQueryService, type MarkdownLinkAnswer } from "@plainva/core";
+import { buildLinkTargetIndex, isInternalPath, linkTargetName, markdownLinkTarget, resolveLinkTarget, resolveMarkdownLinkIndexed, VaultIndexer, wikiLinkParts, VaultQueryService, type MarkdownLinkAnswer } from "@plainva/core";
 import { MARKDOWN_LINK_CASES, markdownCaseVault, type MarkdownLinkCase, type MarkdownLinkExpectation } from "../../../../packages/core/test/helpers/markdownLinkCases";
 import { MemoryVaultAdapter } from "../../../../packages/core/test/helpers/memoryVault";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
@@ -43,7 +43,7 @@ interface PhoneLinkRule {
   resolveWikiTarget: (v: MobileVault, target: string, hostPath?: string, kind?: "wiki" | "markdown") => Promise<string | null>;
 }
 /** Everything the methods reach for outside themselves — the shared pieces, nothing of the phone's own. */
-const deps = { buildLinkTargetIndex, isInternalPath, linkTargetName, markdownLinkTarget, resolveLinkTarget, resolveMarkdownLinkIndexed };
+const deps = { buildLinkTargetIndex, isInternalPath, linkTargetName, markdownLinkTarget, resolveLinkTarget, resolveMarkdownLinkIndexed, wikiLinkParts };
 const phone = new Function(...Object.keys(deps), `${compiled}\nreturn vaultOps;`)(...Object.values(deps)) as PhoneLinkRule;
 
 /** A vault as the phone holds it: the files, and the index the shared indexer built over them. */

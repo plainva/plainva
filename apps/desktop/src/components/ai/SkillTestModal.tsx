@@ -2,7 +2,7 @@ import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlaskConical } from "lucide-react";
 import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core";
-import { Banner, Button, ICON, Modal, skillTestFacts, skillTestGroups, SkillTestLines, skillTestOutcomeText, TextInput, useAiSession, useAiState, useSkillTestRun, type SkillTestPlan } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, useDiscardGuard, skillTestFacts, skillTestGroups, SkillTestLines, skillTestOutcomeText, TextInput, useAiSession, useAiState, useSkillTestRun, type SkillTestPlan } from "@plainva/ui";
 
 /**
  * The regression run of the skills (plan KI-Harness P3-8, mockup chapter 12):
@@ -19,6 +19,9 @@ export function SkillTestModal({ ids, plan, onClose }: { ids: readonly string[] 
   const state = useAiState();
   const run = useSkillTestRun(session);
   const [amount, setAmount] = useState(String(SKILL_TEST_DEFAULT_COST_USD));
+  // A ceiling typed for this run, not yet run with, is asked about — as on the phone (SkillTestSheet).
+  const [ranWith, setRanWith] = useState<string | null>(null);
+  const close = useDiscardGuard(!run.busy && amount !== ranWith && amount.trim() !== String(SKILL_TEST_DEFAULT_COST_USD), onClose);
   if (!session || !state) return null;
   const facts = plan ? skillTestFacts(t, plan, i18n.language) : null;
   const running = state.skillTests.running;
@@ -29,7 +32,7 @@ export function SkillTestModal({ ids, plan, onClose }: { ids: readonly string[] 
       title={plan ? t("ai.workshop.test.run", { model: plan.choice.model }) : t("ai.workshop.test.title")}
       icon={<FlaskConical size={ICON.ui} />}
       size="lg"
-      onClose={onClose}
+      onClose={close}
       testId="ai-skill-test"
       footer={
         run.busy ? (
@@ -38,10 +41,14 @@ export function SkillTestModal({ ids, plan, onClose }: { ids: readonly string[] 
           </Button>
         ) : (
           <>
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="ghost" onClick={close}>
               {t("common.close")}
             </Button>
-            <Button variant="primary" disabled={!plan || !facts?.canRun} onClick={() => plan && run.start(plan, ids, amount)} data-testid="ai-skill-test-start">
+            <Button variant="primary" disabled={!plan || !facts?.canRun} onClick={() => {
+                if (!plan) return;
+                setRanWith(amount);
+                run.start(plan, ids, amount);
+              }} data-testid="ai-skill-test-start">
               {t("ai.workshop.test.start")}
             </Button>
           </>

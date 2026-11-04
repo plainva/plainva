@@ -31,7 +31,7 @@ import { answerEditorPathProbe } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
-import { frontmatterBlockOf, frontmatterToAddress, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
+import { frontmatterBlockOf, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
 import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
@@ -50,10 +50,12 @@ import { setEditorRangeReader, setEditorSelectionReader } from "../services/edit
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
 import { dirtyStore } from "../services/dirtyStore";
-import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "../services/openExternal";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { AiSelectionButton } from "./ai/AiSelectionButton";
+import { createTasksQueryHost } from "./TasksQueryPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isOwnerWindow } from "../services/windowContext";
 import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
@@ -479,7 +481,9 @@ export const Editor: React.FC<{
       if (indexer) applyIndexChanges(indexer, { added: [folder ? `${folder}/index.md` : "index.md"] }).then(() => triggerFileTreeUpdate()).catch(() => {});
       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: activePath } }));
     } catch (e) {
+      // Said with its reason, as the phone says it: it ended in the console.
       console.error("[Editor] refreshing the managed index failed", e);
+      toast.error(t("writeFailed.overview", { reason: errorText(e) }));
     }
   };
 
@@ -1075,6 +1079,24 @@ export const Editor: React.FC<{
     const result = toggleTaskAtIndex(contentRef.current, index, checked);
     if (result.changed) applyNonViewEdit(result.content);
   };
+  /**
+   * "Edit query" on a ```tasks block in the reading view (plan Tasks-Abfragen,
+   * T5): back to writing, with the caret at the end of that line of the query
+   * — the block then shows its text, as with the caret in it while writing.
+   */
+  const handleEditAtLine = (line: number) => {
+    const next = lastEditModeRef.current || "live";
+    setViewMode(next);
+    if (activePath) rememberSessionViewMode(activePath, next);
+    // Two frames: one for React to commit the mode, one for the editor to lay out.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const view = sessionRef.current?.view;
+      if (!view) return;
+      const target = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
+      view.dispatch({ selection: { anchor: target.to }, scrollIntoView: true });
+      view.focus();
+    }));
+  };
   /** A box written as HTML — a checklist in a table cell (finding 2026-09-22). */
   const handleToggleHtmlBox = (index: number, checked: boolean) => {
     const result = setHtmlCheckboxChecked(contentRef.current, index, checked);
@@ -1113,9 +1135,14 @@ export const Editor: React.FC<{
   const handleMenuSendMail = () => {
     if (!activePath) return;
     // Strip the YAML frontmatter from the body (it must not travel in the mail)
-    // and lift a reply-as-note `to:` into the recipient field.
+    // and lift a reply-as-note `to:` into the recipient field and its
+    // `mailbox:` into the sender (E6).
     const text = currentDocText();
-    window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject: noteTitleFromPath(), markdown: stripFrontmatter(text), to: frontmatterToAddress(text) ?? undefined } }));
+    const subject = noteTitleFromPath();
+    void import("@plainva/ui/mail").then(({ noteMailPrefill }) => {
+      const { to, from } = noteMailPrefill(text);
+      window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: { subject, markdown: stripFrontmatter(text), to, fromAddress: from } }));
+    });
   };
   const handleMenuSendMailAttachment = () => {
     if (!activePath) return;
@@ -1520,7 +1547,9 @@ export const Editor: React.FC<{
       triggerFileTreeUpdate();
       embedBaseAtPos(newPath, pos);
     } catch (e) {
+      // Said with its reason, in both shells (Sammelplan § 3.63 no. 1): it ended in the console.
       console.error("Failed to create inline base", e);
+      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
     }
   }, [vaultAdapter, indexer, activePath, t, triggerFileTreeUpdate]);
 
@@ -1950,7 +1979,7 @@ export const Editor: React.FC<{
   //
   // Who is handed the caret, and whether the text gets the keyboard with it,
   // is one rule (`takeTemplateCaret`): the pane the person works in, and a
-  // window for the note it shows — placed there, without the keyboard.
+  // window for the note it shows — both with the keyboard (decision E5).
   const caretRafRef = useRef(0);
   const startTemplateCaret = (caret: { path: string; offset: number; focus: boolean }) => {
     cancelAnimationFrame(caretRafRef.current);
@@ -2601,6 +2630,12 @@ export const Editor: React.FC<{
   // the latest-ref pattern: deliberately no dependency array, nothing is
   // called here — only stored for the session to read later.
   const sessionDepsRef = useRef<EditorSessionDeps>(null as unknown as EditorSessionDeps);
+  // The ```tasks blocks of this editor (plan Tasks-Abfragen, T4): one host for
+  // all of them, drawn again whenever the vault context changes.
+  const [tasksQueryHost] = useState(() => createTasksQueryHost());
+  useEffect(() => {
+    tasksQueryHost.update({ i18n, vaultContext, notePath: activePath ?? "", onOpenPath });
+  }, [tasksQueryHost, i18n, vaultContext, activePath, onOpenPath]);
   // The pill on an inline suggestion (K5) reaches the accept/decline handlers
   // through this ref: they are declared further down (they need the anchor
   // resolutions), and a closure taken here would read them before their line.
@@ -2672,6 +2707,7 @@ export const Editor: React.FC<{
         });
       },
       buildNoteEmbedExtension: (context, isLive) => noteEmbedPlugin(context, isLive),
+      tasksQueryHost,
     };
   });
 
@@ -3765,6 +3801,7 @@ export const Editor: React.FC<{
                 showLinkIcons={managedIndex}
                 onToggleTask={managedIndex ? undefined : handleToggleTask}
                 onToggleHtmlBox={managedIndex ? undefined : handleToggleHtmlBox}
+                onEditAtLine={managedIndex ? undefined : handleEditAtLine}
                 anchors={anchorHighlights}
                 onActivateAnchor={setActiveCommentId}
               />

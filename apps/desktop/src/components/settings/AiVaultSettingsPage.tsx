@@ -59,8 +59,7 @@ function SkillsCard({ onOpenSkills, onOpenMemory }: { onOpenSkills: (review?: st
   const sections = workshopSections(entries);
   const app = sections.app.filter((e) => e.status === "active").length;
   return (
-    <SettingCard label={t("ai.workshop.settingsTitle")}>
-      <SettingCardNote>{t("ai.workshop.settingsDesc")}</SettingCardNote>
+    <SettingCard label={t("ai.workshop.settingsTitle")} info={t("ai.workshop.settingsDesc")}>
       <SettingRow label={t("ai.workshop.title")} desc={t("ai.workshop.summary", { app, own: sections.own.length, waiting: waitingCount(entries) })}>
         <Button size="sm" variant="secondary" onClick={() => onOpenSkills()} data-testid="settings-ai-skills-open">
           {t("ai.workshop.open")}
@@ -105,15 +104,14 @@ function InternetCard() {
     });
   };
   return (
-    <SettingCard label={t("ai.web.settings.title")}>
-      <SettingCardNote>{t("ai.web.settings.desc")}</SettingCardNote>
+    <SettingCard label={t("ai.web.settings.title")} info={t("ai.web.settings.desc")}>
       {/* Fully local (plan P7): no conversation reads a page or searches, whatever this vault allows. */}
       {state.settings.localOnly && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
       <SettingRow label={t("ai.web.settings.switch")} desc={t("ai.web.settings.switchDesc")}>
         <Switch checked={web.enabled} onChange={(enabled) => void session.setWebEnabled(enabled)} label={t("ai.web.settings.switch")} />
       </SettingRow>
       {web.enabled && (
-        <SettingRow label={t("ai.web.settings.sites")} desc={t("ai.web.settings.sitesDesc")}>
+        <SettingRow label={t("ai.web.settings.sites")} info={t("ai.web.settings.sitesDesc")}>
           <div className="pv-ai-rowactions">
             <TextInput
               value={site}
@@ -232,8 +230,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
   return (
     <div className="pv-setpage" data-testid="settings-ai-vault">
       <AreaHead areaId="aiVault" />
-      <SettingCard label={t("ai.policy.title")}>
-        <SettingCardNote>{t("ai.policy.desc")}</SettingCardNote>
+      <SettingCard label={t("ai.policy.title")} info={t("ai.policy.desc")}>
         {problems.length > 0 && (
           <SettingCardNote>
             <Banner kind="warning" rounded>{t("ai.policy.problems", { lines: problems.join("; ") })}</Banner>

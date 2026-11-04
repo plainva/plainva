@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
 import { DialogHost } from "./DialogHost";
 import { ToastHost } from "@plainva/ui";
-import { appConfirm, appMessage, appPrompt, appPromptChecked, dialogStore } from "../../services/appDialogs";
+import { appConfirm, appConfirmOption, appMessage, appPrompt, appPromptChecked, dialogStore } from "../../services/appDialogs";
 import { toast } from "@plainva/ui";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -216,6 +216,44 @@ describe("prompt with a checkbox (C18)", () => {
     act(() => lastFooterButton().click());
     await flush();
     expect(result).toEqual({ value: "Local only", checked: false });
+  });
+
+  // P21: generating an overview asks, where links to other overviews would
+  // lead to the new one, whether to write them with their folder - one
+  // confirmation with the box beneath, as the phone's `mConfirmOption`.
+  it("a confirmation with an option hands back the box's answer with the yes", async () => {
+    render(<DialogHost />);
+    let result: { confirmed: boolean; checked: boolean } | undefined;
+    act(() => {
+      void appConfirmOption({ title: "Create overview", message: "Why", kind: "info", checkbox: { label: "Write links (2)", initial: true } }).then((r) => (result = r));
+    });
+    const box = container.querySelector<HTMLInputElement>('[data-testid="confirm-checkbox"]')!;
+    expect(box.checked).toBe(true);
+    expect(container.textContent).toContain("Write links (2)");
+    act(() => box.click());
+    act(() => lastFooterButton().click());
+    await flush();
+    expect(result).toEqual({ confirmed: true, checked: false });
+  });
+
+  it("a cancelled confirmation with an option is a no, and a plain confirmation shows no box", async () => {
+    render(<DialogHost />);
+    let result: { confirmed: boolean; checked: boolean } | undefined;
+    act(() => {
+      void appConfirmOption({ title: "Create overview", message: "Why", checkbox: { label: "Write links", initial: true } }).then((r) => (result = r));
+    });
+    act(() => footerButtons()[0]!.click());
+    await flush();
+    expect(result).toEqual({ confirmed: false, checked: true });
+
+    let ok: boolean | undefined;
+    act(() => {
+      void appConfirm({ title: "Sure?", message: "" }).then((v) => (ok = v));
+    });
+    expect(container.querySelector('[data-testid="confirm-checkbox"]')).toBeNull();
+    act(() => lastFooterButton().click());
+    await flush();
+    expect(ok).toBe(true);
   });
 
   it("asks nothing extra when no checkbox was requested, and appPrompt still resolves to a string", async () => {

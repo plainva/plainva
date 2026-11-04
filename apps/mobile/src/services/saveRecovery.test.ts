@@ -30,7 +30,7 @@ const parts: string[] = [];
 let saveMethod = "", saverInit = "";
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name &&
-      ["switchVault", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
+      ["switchVault", "switchTo", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
     parts.push(node.getText(file).replace(/^export /, ""));
   }
   if (ts.isMethodDeclaration(node) && node.name.getText(file) === "save") saveMethod = node.getText(file);
@@ -38,9 +38,9 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!saveMethod || !saverInit || parts.length !== 7) throw new Error("mobile save/lifecycle definitions missing");
+if (!saveMethod || !saverInit || parts.length !== 10) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let previousVaultId = null; const ABANDON_BOOT_AFTER_MS = 2000; const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
+  "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   },
@@ -93,6 +93,7 @@ function harness(vault: MobileVault) {
     conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon: () => {}, toast: { warning: () => {} }, i18n: { t: (s: string) => s },
     stopSyncAndDrain: stopped, setActiveVault: activated, reloadMobileSettingsForActiveVault: async () => {},
+    startSyncIfConfigured: async () => {}, foreignInputArmed: () => false, takeScreen: () => true,
     window: events, CustomEvent,
     LOCAL_VAULT_ID: "local",
     getActiveVaultEntry: async () => ({ id: "current", name: "" }),

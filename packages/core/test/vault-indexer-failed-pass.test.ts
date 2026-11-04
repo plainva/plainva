@@ -76,7 +76,11 @@ let fresh: string[];
 let foreign: string[];
 let gone: string[];
 
+/** Five notes a batch: the scan's batches are the same at forty statements as at its four thousand. */
+const BATCH = 40;
+
 const hooks = () => ({
+  scanBatchStatements: BATCH,
   onNewLocalFile: (p: string) => void fresh.push(p),
   onExternalModification: (p: string) => void foreign.push(p),
   onLocalFileDeleted: (p: string) => void gone.push(p),
@@ -115,10 +119,13 @@ function refuseEveryWriteOf(db: IDatabaseAdapter, file: string): () => void {
 
 const VANISHED = ["Gone 1.md", "Gone 2.csv"];
 const CHANGED = "# Known\n\nchanged elsewhere\n";
-/** Eight statements a note; the scan hands its writes over once it holds 4000. */
+/** Eight statements a note; the scan hands its writes over once it holds `BATCH`. */
 const note = (i: number) => `---\nstatus: open\n---\n# Note ${i}\n\n#tagged, see [[n0001]]\n`;
 const name = (i: number) => `n${String(i).padStart(4, "0")}.md`;
-const NOTES = 560;
+// More notes than one batch holds, a few batches' worth. It was 560 against
+// the scan's own 4000: real files and a real SQLite, and under a loaded commit
+// hook a test ran into the 20 s limit (Sammelplan § 3.142 Nr. 1).
+const NOTES = 24;
 const isNew = (p: string) => /^(?:Folder\/)?n\d{4}\.md$/.test(p);
 
 /**

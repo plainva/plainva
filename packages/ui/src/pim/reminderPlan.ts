@@ -48,6 +48,19 @@ export interface ReminderRule {
   taskTimedLeadMinutes?: number;
 }
 
+/**
+ * Where a checkbox task stands (Sammelplan § 3.145 Nr. 1, E3): its note and
+ * what finds the line again in that note as it lies there later
+ * (`resolveTaskOrdinal`) — so a tap opens the note AT the line and "Done"
+ * ticks that line, not a neighbour.
+ */
+export interface ReminderLine {
+  path: string;
+  ordinal: number;
+  text: string;
+  taskId?: string;
+}
+
 export interface ReminderSubject {
   /** Stable identity of the appointment (provider uid) or of the task (its
    * note path). */
@@ -74,6 +87,8 @@ export interface ReminderSubject {
   reminders?: number[];
   accountId: string;
   calendarId: string;
+  /** A checkbox task: its line. Absent for an appointment and a task note, whose key is its path. */
+  line?: ReminderLine;
 }
 
 export interface PlannedReminder {

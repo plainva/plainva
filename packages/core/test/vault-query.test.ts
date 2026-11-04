@@ -688,21 +688,24 @@ describe("VaultQueryService", () => {
     expect(db.queries[0].params as any[]).toEqual([300]);
   });
 
-  it("lists notes modified inside a [from, to) window, newest first (Today tab)", async () => {
+  it("lists notes edited inside a [from, to) window, newest first (Today tab)", async () => {
     db.mockedResults.push([
-      { path: "b.md", title: null, mtime_local: 200 },
-      { path: "a.md", title: "A", mtime_local: 100 },
-      { path: "", title: "ghost", mtime_local: 50 },
+      { path: "b.md", title: null, edited_at: 200 },
+      { path: "a.md", title: "A", edited_at: 100 },
+      { path: "", title: "ghost", edited_at: 50 },
     ]);
     const notes = await queryService.listNotesModifiedBetween(0, 1000);
     expect(notes).toEqual([
-      { path: "b.md", title: "b.md", mtime_local: 200 },
-      { path: "a.md", title: "A", mtime_local: 100 },
+      { path: "b.md", title: "b.md", editedAt: 200 },
+      { path: "a.md", title: "A", editedAt: 100 },
     ]);
     expect(db.queries[0].query).toContain("mode != 'attachment'");
     expect(db.queries[0].query).toContain("NOT LIKE '%.base'");
-    expect(db.queries[0].query).toContain("mtime_local >= ? AND mtime_local < ?");
-    expect(db.queries[0].query).toContain("ORDER BY mtime_local DESC");
+    // "Edited" is the remote's time for a version the sync wrote (Sammelplan
+    // § 3.164; the behaviour itself: test/sync/edited-at.test.ts).
+    expect(db.queries[0].query).toContain("LEFT JOIN sync_state s ON s.path = f.path");
+    expect(db.queries[0].query).toContain("edited_at >= ? AND edited_at < ?");
+    expect(db.queries[0].query).toContain("ORDER BY edited_at DESC");
     expect(db.queries[0].params as any[]).toEqual([0, 1000]);
   });
 

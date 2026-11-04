@@ -243,6 +243,8 @@ export async function buildMeetingNoteFromTemplate(
     // `{{date}}` is the meeting's day, `{{time}}` the moment of writing — the
     // same split the daily note makes.
     now: noteStamp(dayKeyDate(dayKey), opts.now),
+    // `{{daily}}` is the meeting day's daily note, whatever the clock says.
+    day: dayKeyDate(dayKey),
     folder: opts.folder,
     event: meetingTemplateEvent(event),
   };
@@ -256,7 +258,7 @@ export async function buildMeetingNoteFromTemplate(
     cursor = answered.cursor;
   } else {
     // Headless: questions take their default, `{{cursor}}` is removed.
-    body = finalizeTemplate(resolveTemplate(raw, ctx, "headless").text).text;
+    body = finalizeTemplate(resolveTemplate(raw, ctx, "headless")).text;
   }
 
   // The template becomes a note in the builder every note from a template

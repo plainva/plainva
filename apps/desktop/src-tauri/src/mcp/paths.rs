@@ -6,9 +6,6 @@
 
 use unicode_normalization::UnicodeNormalization;
 
-/// Plainva's own state and the policy files: never an argument, never a result (ADR 0022).
-const HIDDEN_ROOTS: [&str; 5] = [".plainva", ".agent", ".git", ".obsidian", ".trash"];
-
 /// A vault-relative path as a client may name it, in the one spelling this
 /// module compares; `None` when it could leave the vault, reach Plainva's own
 /// folders, or mean something other than it says on some file system.
@@ -36,9 +33,11 @@ pub fn safe_rel_path(raw: &str) -> Option<String> {
             return None;
         }
     }
-    // Case-blind on every system: on Linux `.PLAINVA` is another folder, but it
-    // syncs onto `.plainva` the moment the vault reaches a Windows or Mac device.
-    if HIDDEN_ROOTS.contains(&fold(parts[0]).to_lowercase().as_str()) {
+    // Plainva's own state and the policy files (ADR 0022), and with them every
+    // dot file and dot folder at any depth: hidden on every surface of the app
+    // (`isHiddenPath` in the core, decision E8 of 2026-11-02), so never an
+    // argument and never a result. A dot has no letter case to fold.
+    if parts.iter().any(|part| part.starts_with('.')) {
         return None;
     }
     Some(parts.join("/").nfc().collect())
@@ -146,6 +145,9 @@ mod tests {
             ".git/config",
             ".obsidian/workspace.json",
             ".trash/old.md",
+            ".private/diary.md",
+            "Notes/.agent/a.md",
+            "Projects/.draft.md",
             "x\0.md",
             "a/\u{0007}b.md",
         ] {

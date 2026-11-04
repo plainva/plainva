@@ -99,6 +99,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   mailRemoteImages: false,
   syncIntervalSeconds: 15,
   defaultCalendar: "",
+  weekStart: "",
   backupSnapshotIntervalSeconds: 120,
   backupMaxCountPerFile: 100,
   backupMaxAgeDays: 90,
@@ -233,8 +234,9 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // them in its vault settings (`TemplateRules`).
   { logical: "folderTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
   { logical: "typeTemplates", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: "own" },
-  { logical: "extendedDatabases", scope: "vault", kind: "json", area: "content", desktop: "store", mobile: null,
-    mobileGap: "extended databases are a desktop-only configuration surface" },
+  // A switch (the desktop has always stored and imported it as a boolean);
+  // the phone honours it in the view-type choice since Sammelplan § 3.169.
+  { logical: "extendedDatabases", scope: "vault", kind: "boolean", area: "content", desktop: "store", mobile: "extendedDatabases" },
   // Whether a comment may write its anchor pair into the Markdown (Stufe D,
   // SD2). A VAULT field, not a member one: the markers land in the note itself,
   // so one device writing them while another does not would leave the same vault
@@ -250,6 +252,12 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // the calendar of one vault should look the same on both machines, and a
   // per-device list would quietly give the phone a different calendar.
   { logical: "calendarOverlays", scope: "vault", kind: "json", area: "calendar", desktop: "store", mobile: "own" },
+  // The day a week starts on (decision E4 of the bug-clearing plan, Sammelplan
+  // § 3.46/§ 3.97). A VAULT field like the daily notes' format: a template's
+  // `{{weekday:monday}}` gave two different dates on two devices of the same
+  // vault, and the calendars counted their weeks differently. "" = the vault
+  // has not said: the device's own choice applies, as it always did.
+  { logical: "weekStart", scope: "vault", kind: "text", area: "calendar", desktop: "store", mobile: "weekStart" },
 
   // Personal working preferences.
   { logical: "personalDesign", scope: "member", kind: "json", area: "layout", desktop: "own", mobile: "own" },
@@ -341,6 +349,27 @@ export function profileField(logical: string): ProfileFieldDef | undefined {
  */
 export function isMemberProfileField(logical: string): boolean {
   return BY_LOGICAL.get(logical)?.scope === "member";
+}
+
+/**
+ * Whether a setting travels with the vault on this shell — the source of the
+ * "On this device only" badge (settings plan 2026-10-29, decision E14).
+ *
+ * `logical` names the profile field the setting is kept in. A part of an
+ * account travels inside the account's field: a mail signature with
+ * `mailAccounts` (`ACCOUNT_FIELD_SCOPE.mail.signatures` is "shared"), a calendar
+ * choice with `pimSelections`. A setting that has no profile field at all —
+ * reminders, comment notifications — passes
+ * `undefined` and stays on the device: that is the rule, not a guess.
+ *
+ * A name the catalog does not know throws. A typo must not turn a setting that
+ * travels into one that is labelled as staying here.
+ */
+export function travelsWithVault(logical: string | undefined, shell: "desktop" | "mobile"): boolean {
+  if (logical === undefined) return false;
+  const field = BY_LOGICAL.get(logical);
+  if (!field) throw new Error(`travelsWithVault: "${logical}" is no profile field`);
+  return (shell === "desktop" ? field.desktop : field.mobile) !== null;
 }
 
 /** Fields a shell reads from and writes to its settings store. */

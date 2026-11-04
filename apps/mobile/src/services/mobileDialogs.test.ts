@@ -92,6 +92,21 @@ describe("a confirmation that carries one more decision", () => {
     await expect(p).resolves.toEqual({ confirmed: true, checked: false });
   });
 
+  it("carries a second option of the same act and answers with both states (Sammelplan § 3.135 Nr. 6)", async () => {
+    const p = mConfirmOption({
+      title: "Adopt: MOC.md",
+      checkbox: { label: "Prepare for OKF", initial: true },
+      also: { label: "Write links to other overviews with their folder (2)", initial: true },
+    });
+    const d = currentMobileDialog()!;
+    if (d.kind === "confirm") {
+      expect(d.also).toEqual({ label: "Write links to other overviews with their folder (2)", initial: true });
+      d.resolve(true, true, false);
+    }
+    dismissMobileDialog(d);
+    await expect(p).resolves.toEqual({ confirmed: true, checked: true, also: false });
+  });
+
   it("answers a cancelled sheet with the state it was opened in, and not confirmed", async () => {
     const p = ask();
     const d = currentMobileDialog()!;

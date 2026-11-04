@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Folder, FolderPlus, CornerLeftUp, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ICON, Modal } from "@plainva/ui";
+import { ICON, Modal, useDiscardGuard } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 
 /**
@@ -47,6 +47,8 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  // A new folder's name typed and not yet created is asked about (finding 2026-10-22).
+  const cancel = useDiscardGuard(newName.trim() !== "", onCancel);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -104,12 +106,12 @@ export const SyncFolderPickerModal: React.FC<SyncFolderPickerModalProps> = ({
 
   return (
     <Modal
-      onClose={onCancel}
+      onClose={cancel}
       title={title ?? t("webDavPicker.title")}
       size="lg"
       footer={
         <>
-          <Button onClick={onCancel}>{t("common.cancel")}</Button>
+          <Button onClick={cancel}>{t("common.cancel")}</Button>
           <Button
             variant="primary"
             icon={<Check size={ICON.ui} />}

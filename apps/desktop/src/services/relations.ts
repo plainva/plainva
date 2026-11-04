@@ -1,4 +1,5 @@
 import {
+  wikiLinkParts,
   readFrontmatterPath,
   upsertFrontmatterKeys,
   noteLinkResolver,
@@ -34,8 +35,8 @@ function linkBaseOf(value: unknown): string | null {
   const m = WIKILINK_VALUE_RE.exec(value);
   if (!m) return null;
   let inner = m[1];
-  const pipe = inner.indexOf("|");
-  if (pipe !== -1) inner = inner.slice(0, pipe);
+  // In front of the alias bar and of the backslash of `\|` (Sammelplan § 3.133 Nr. 1).
+  inner = inner.slice(0, wikiLinkParts(inner).headEnd);
   const anchor = inner.search(/[#^]/);
   if (anchor !== -1) inner = inner.slice(0, anchor);
   const base = inner.trim();

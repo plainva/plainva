@@ -1,5 +1,6 @@
 import { isFreshNote } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
+import { notifyAppearanceChanged } from "./appearanceSync";
 
 /**
  * Default editor view mode (maintainer request 2026-07-07): which of the three
@@ -41,6 +42,8 @@ export async function setStoredDefaultViewMode(mode: EditorViewMode): Promise<vo
   const store = await getSettingsStore();
   await store.set("defaultViewMode", mode);
   await store.save();
+  // Every window holds the default in memory; the others read it again.
+  notifyAppearanceChanged();
 }
 
 /** Fills the sync cache from the store; call once at app start (main.tsx). */

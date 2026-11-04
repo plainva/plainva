@@ -66,10 +66,55 @@ function propertiesErrorText(message: string): string | null {
   return block ? said("propertiesBlock", block) : null;
 }
 
+/**
+ * The vault's own refusals (`@plainva/core`, `IVaultAdapter` and the chain):
+ * an open conflict, a write a workspace role or the file system does not
+ * allow, a name that is taken, a file that is gone. They are the reason of a
+ * write that did not land, and they reached the user in English with the
+ * vault path — "File or directory already exists: Projects/index.md" under an
+ * overview that could not be adopted, "The file has an open conflict; nothing
+ * was written…" nowhere at all (Sammelplan § 3.135 no. 3, § 3.87 no. 1).
+ * Matched by how the message begins, so a refusal that crossed the desktop's
+ * window bus as a plain string reads the same. The file is named by its name,
+ * not its path.
+ */
+const OPEN_CONFLICT_STARTS = [
+  // `OpenConflictError` (`OPEN_CONFLICT_MESSAGE`): a whole text without a starting text, nothing written.
+  "The file has an open conflict; nothing was written",
+  // A move, a deletion, an adoption of a file whose conflict is open.
+  "Resolve the open conflict before",
+];
+const VAULT_REFUSALS: ReadonlyArray<{ start: string; key: string; fallback: string }> = [
+  { start: "Permission denied: ", key: "permission", fallback: "No permission to change “{{name}}”." },
+  { start: "File or directory already exists: ", key: "exists", fallback: "“{{name}}” already exists." },
+  { start: "File or directory not found: ", key: "notFound", fallback: "“{{name}}” is no longer there." },
+];
+
+function vaultRefusalText(message: string): string | null {
+  const said = (key: string, fallback: string, values: Record<string, string> = {}) => {
+    const translated = i18n.t(`writeFailed.${key}`, { defaultValue: fallback, ...values });
+    return typeof translated === "string" && translated.trim() ? translated : null;
+  };
+  if (OPEN_CONFLICT_STARTS.some((start) => message.startsWith(start))) {
+    return said("openConflict", "The file has an open conflict. Resolve the conflict first, then try again.");
+  }
+  for (const refusal of VAULT_REFUSALS) {
+    if (!message.startsWith(refusal.start)) continue;
+    // The last segment of the path, a trailing separator ignored (read by hand: a regex anchored at the end is quadratic).
+    const segments = message.slice(refusal.start.length).trim().split(/[\\/]/).filter((part) => part !== "");
+    const name = segments[segments.length - 1];
+    if (!name) return null;
+    return said(refusal.key, refusal.fallback, { name });
+  }
+  return null;
+}
+
 /** Translate known input refusals at the shared display boundary. */
 function inputErrorText(message: string): string {
   const properties = propertiesErrorText(message);
   if (properties) return properties;
+  const vault = vaultRefusalText(message);
+  if (vault) return vault;
   const key = INPUT_REJECTIONS.get(message);
   if (!key) return message;
   const translated = i18n.t(`inputRejected.${key}`, { defaultValue: message });

@@ -144,7 +144,7 @@ const BUDGET: Record<string, Counts> = {
   "components/EmojiPicker.tsx": {nakedButton:6,rawSpacing:11},
   "components/ErrorBoundary.tsx": {nakedButton:1,rawSpacing:1},
   "components/FileTree.tsx": {nakedInput:5,rawSpacing:19},
-  "components/HailingFrequenciesModal.tsx": {nakedInput:2,nakedButton:1,rawSpacing:10},
+  "components/HailingFrequenciesModal.tsx": {nakedInput:1,nakedButton:1,rawSpacing:10},
   // Colour swatches are buttons by role (plan 2026-09-04, P2): a Button
   // primitive paints its own background over the very colour a swatch stands
   // for. One <button> in the swatch renderer; every other control is a primitive.
@@ -161,7 +161,7 @@ const BUDGET: Record<string, Counts> = {
   "components/NoteDatabasesSection.tsx": {nakedButton:5},
   "components/OkfConversionModal.tsx": {nakedInput:2,rawSpacing:15},
   "components/OkfMigrationModal.tsx": {rawSpacing:6},
-  "components/OnlineVaultSetup.tsx": {nakedInput:13,nakedButton:5,rawSpacing:13},
+  "components/OnlineVaultSetup.tsx": {nakedButton:1},
   "components/OutlineSection.tsx": {nakedButton:1,rawSpacing:3},
   "components/PaneTabStrip.tsx": {rawSpacing:2},
   "components/PropertiesSection.tsx": {nakedButton:1},
@@ -215,15 +215,15 @@ const BUDGET: Record<string, Counts> = {
   "components/graph/VaultGraphView.tsx": {nakedInput:3,nakedButton:12,rawSpacing:4},
   "components/import/ImportWizardModal.tsx": {nakedInput:2,nakedButton:2,rawSpacing:1},
   "components/mail/ComposeEditor.tsx": {nakedButton:2},
-  "components/mail/MailAccountsSection.tsx": {nakedInput:3},
+  "components/mail/MailAccountsSection.tsx": {nakedInput:2},
   "components/mail/MailDraftModal.tsx": {nakedInput:1,nakedButton:4,rawSpacing:1},
   "components/mail/MailView.tsx": {nakedInput:1,nakedButton:13,rawSpacing:1},
   "components/mail/RulesSettings.tsx": {nakedInput:1},
-  "components/mail/VacationSettings.tsx": {nakedInput:3},
+  "components/mail/VacationSettings.tsx": {nakedInput:2},
   "components/mail/mail.css": {hex:1},
   "components/mathMermaidLive.ts": {rawSpacing:2},
   "components/onboarding/FirstRunModal.tsx": {nakedButton:2,rawSpacing:1},
-  "components/pim/PimAccountsSection.tsx": {nakedInput:4,rawSpacing:29},
+  "components/pim/PimAccountsSection.tsx": {rawSpacing:29},
   "components/pimcal/BlockCalendarsModal.tsx": {rawSpacing:3},
   // rawSpacing 29 (was 28): not a new value - `marginInline: 3` has stood in
   // the bar layout since the calendar rework; the rule only learned the
@@ -237,15 +237,18 @@ const BUDGET: Record<string, Counts> = {
   "components/pimcal/TimeBlockModal.tsx": {nakedInput:3,rawSpacing:3},
   "components/security/SecuritySharingPage.tsx": {nakedButton:2},
   "components/security/WorkspaceGovernanceDialog.tsx": {nakedButton:1},
-  "components/settings/AppPages.tsx": {nakedInput:5,nakedButton:2,rawSpacing:12},
+  "components/settings/AppPages.tsx": {nakedButton:2,rawSpacing:12},
   "components/settings/CloudAccountsPage.tsx": {nakedButton:1},
-  "components/settings/CloudAccountsWizard.tsx": {nakedButton:7},
+  // The guide and tile links (`.pv-linkbtn`) of the sign-in step moved to the shared
+  // ConnectSignInStep (settings plan 2026-10-29, P5): the wizard drops from 7 to 1.
+  "components/settings/CloudAccountsWizard.tsx": {nakedButton:1},
+  "components/settings/ConnectSignInStep.tsx": {nakedButton:2},
   "components/settings/EncryptionSetupModal.tsx": {nakedInput:3},
   "components/settings/SecurityNav.tsx": {nakedButton:2,rawSpacing:4},
   "components/settings/SettingsNav.tsx": {nakedButton:3,rawSpacing:8},
   "components/settings/StoredCredentialsCard.tsx": {rawSpacing:3},
   "components/settings/SyncPage.tsx": {rawSpacing:10},
-  "components/settings/VaultPages.tsx": {nakedInput:18,nakedButton:12,rawSpacing:7},
+  "components/settings/VaultPages.tsx": {nakedInput:15,nakedButton:12,rawSpacing:7},
   "components/settings/VaultPickerModal.tsx": {nakedButton:1,rawSpacing:1},
   "components/tasks/RepeatTaskModal.tsx": {nakedInput:1,rawSpacing:1},
   "components/tasks/TasksView.tsx": {nakedInput:3,nakedButton:8,rawSpacing:42},

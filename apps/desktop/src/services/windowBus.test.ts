@@ -280,3 +280,96 @@ describe("addressing guard (stage D)", () => {
     expect(source).toMatch(/broadcast<C extends BroadcastChannel>\(\s*channel: C,\s*payload: BroadcastMap\[C\],\s*vaultPath: string \| null,/);
   });
 });
+
+/**
+ * A write handed to the owner that takes longer than the deadline (open-items
+ * plan 3.117). Writing waits for the pool's lock while a full index run holds
+ * it, or for another connection's lock — well past 15 s at times. The window
+ * used to call such a save failed, and it landed: its editor merged the next
+ * save against the old text (a conflict copy), the quick capture wrote its
+ * line twice. The deadline now measures the owner's silence, not the write.
+ */
+describe("a write that takes longer than the deadline", () => {
+  it("is answered when it lands, as long as the owner says it is still at it", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const owner = createWindowBus(wire.make(OWNER_LABEL));
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      let writes = 0;
+      await owner.handle("write", async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        writes += 1;
+      });
+      let settled: string | null = null;
+      const request = aux.request("write", { path: "Slow.md", content: "x" }).then(() => { settled = "landed"; }, (e: Error) => { settled = e.message; });
+      await vi.advanceTimersByTimeAsync(450);
+      await request;
+      expect(settled).toBe("landed");
+      // Handed over once: nothing on the bus writes it a second time.
+      expect(writes).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("asks for an answer that went missing on the way, and gets the one the owner already gave", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const ownerTransport = wire.make(OWNER_LABEL);
+      // The owner's first reply is lost (a window busy reloading, an IPC hiccup).
+      let dropped = false;
+      const lossy: BusTransport = {
+        ...ownerTransport,
+        async emitTo(target, event, payload) {
+          if (event === "pv:rpc-reply" && !dropped) { dropped = true; return; }
+          return ownerTransport.emitTo(target, event, payload);
+        },
+      };
+      const owner = createWindowBus(lossy);
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      let writes = 0;
+      await owner.handle("editor-write", async () => {
+        writes += 1;
+        return { written: true } as never;
+      });
+      const result = aux.request("editor-write", { path: "N.md", content: "x", baseText: null });
+      await vi.advanceTimersByTimeAsync(200);
+      await expect(result).resolves.toEqual({ written: true });
+      expect(writes).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still fails a write the owner never took — nothing was written", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      const p = aux.request("write", { path: "A.md", content: "x" });
+      const assertion = expect(p).rejects.toThrow(/timed out/i);
+      await vi.advanceTimersByTimeAsync(60);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the short deadline for a question that writes nothing", async () => {
+    vi.useFakeTimers();
+    try {
+      const wire = createWire();
+      const owner = createWindowBus(wire.make(OWNER_LABEL));
+      const aux = createWindowBus(wire.make("aux-1"), 50);
+      await owner.handle("focus-content", () => new Promise<boolean>(() => {}));
+      const p = aux.request("focus-content", { path: "N.md" });
+      const assertion = expect(p).rejects.toThrow(/timed out/i);
+      await vi.advanceTimersByTimeAsync(60);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

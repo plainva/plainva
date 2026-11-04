@@ -142,7 +142,7 @@ describe("DuePicker", () => {
     const onPick = vi.fn();
     const m = await mount(<DuePicker day={null} time={null} timeAllowed={false} todayKey={SAT} weekStart={0} onPick={onPick} />);
     expect(by(m.host, "task-due-time-switch")).toBeNull();
-    expect(by(m.host, "task-due-timerow")?.textContent).toContain("A checkbox in a note carries a day only");
+    expect(by(m.host, "task-due-timerow")?.textContent).toContain("Here a checkbox gets a day only.");
     expect(by(m.host, "task-due-quick-none")?.getAttribute("aria-pressed")).toBe("true");
     await click(by(m.host, "task-due-quick-tomorrow"));
     expect(onPick).toHaveBeenLastCalledWith({ day: SUN, time: null });

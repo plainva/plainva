@@ -52,18 +52,22 @@ export interface S3Credentials {
 
 const EMPTY_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
-function parseS3Listing(xml: string): { keys: { key: string; etag: string }[]; prefixes: string[]; nextToken?: string } {
+/** One listed object: its key, change marker and, where the store says, when it last changed. */
+interface S3ListedKey { key: string; etag: string; modifiedAt?: number }
+
+function parseS3Listing(xml: string): { keys: S3ListedKey[]; prefixes: string[]; nextToken?: string } {
   const root = parseListingRoot(xml, "ListBucketResult", ["Contents", "CommonPrefixes"]);
   if (root.IsTruncated !== "true" && root.IsTruncated !== "false") throw new Error("invalid S3 listing: missing IsTruncated");
   const nextToken = root.IsTruncated === "true" ? root.NextContinuationToken : undefined;
   if (root.IsTruncated === "true" && (typeof nextToken !== "string" || !nextToken)) {
     throw new Error("invalid S3 listing: truncated page has no continuation token");
   }
-  const keys = (root.Contents ?? []).map((entry: any) => {
+  const keys = (root.Contents ?? []).map((entry: any): S3ListedKey => {
     if (!entry || typeof entry.Key !== "string" || !entry.Key) throw new Error("invalid S3 listing: object has no key");
     const etag = entry.ETag ?? entry.LastModified;
     if (typeof etag !== "string" || !etag) throw new Error("invalid S3 listing: object has no change marker");
-    return { key: entry.Key, etag: etag.replace(/"/g, "") };
+    const modifiedAt = typeof entry.LastModified === "string" ? Date.parse(entry.LastModified) : Number.NaN;
+    return { key: entry.Key, etag: etag.replace(/"/g, ""), ...(Number.isNaN(modifiedAt) ? {} : { modifiedAt }) };
   });
   const prefixes = (root.CommonPrefixes ?? []).map((entry: any) => {
     if (!entry || typeof entry.Prefix !== "string" || !entry.Prefix) throw new Error("invalid S3 listing: folder has no prefix");
@@ -263,8 +267,8 @@ export class S3SyncTarget implements ISyncTarget {
   }
 
   /** All keys under a raw prefix (paginated). */
-  private async listAll(rawPrefix: string): Promise<{ key: string; etag: string }[]> {
-    const all: { key: string; etag: string }[] = [];
+  private async listAll(rawPrefix: string): Promise<S3ListedKey[]> {
+    const all: S3ListedKey[] = [];
     const seen = new Set<string>();
     let token: string | undefined;
     do {
@@ -342,7 +346,10 @@ export class S3SyncTarget implements ISyncTarget {
     // can create them locally. S3 has no real directories, so folders without
     // a marker only materialize through their files (unchanged).
     const folders: string[] = [];
-    for (const { key, etag } of await this.listAll(rawPrefix)) {
+    // `LastModified` of each object: what the index shows as "edited" for a
+    // file this device only downloaded.
+    const mtimeMap = new Map<string, number>();
+    for (const { key, etag, modifiedAt } of await this.listAll(rawPrefix)) {
       if (key.endsWith("/")) {
         const rel = this.relPathFor(key.slice(0, -1));
         if (rel && !rel.includes(".CONFLICT")) folders.push(rel);
@@ -351,9 +358,10 @@ export class S3SyncTarget implements ISyncTarget {
       const rel = this.relPathFor(key);
       if (!rel || rel.includes(".CONFLICT")) continue;
       etagMap.set(rel, etag);
+      if (modifiedAt !== undefined) mtimeMap.set(rel, modifiedAt);
     }
     console.log(`[S3] list ${this.creds.bucket}/${rawPrefix} -> ${etagMap.size} file(s), ${folders.length} folder marker(s)`);
-    return { etagMap, folders };
+    return { etagMap, folders, mtimeMap };
   }
 
   public async download(filePath: string): Promise<Uint8Array | null> {

@@ -25,7 +25,7 @@ import {
 import { MergeView } from "@codemirror/merge";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { VersionHistoryService, assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, editorTextOf, fileVersionOfBytes, isNotTextFileError, seeConflictCopy, separateTaskConflict, settleConflictCopy, utf8TextOf, writeFileVersion, type ConflictCopySight, type FileVersion } from "@plainva/core";
+import { VersionHistoryService, assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, editorTextOf, fileVersionOfBytes, isNotTextFileError, seeConflictCopy, separateTaskConflict, settleConflictCopy, settleConflictText, utf8TextOf, writeFileVersion, type ConflictCopySight, type FileVersion } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { requestSaveFlush } from "../services/saveFlush";
 
@@ -415,6 +415,20 @@ export const CompareModal: React.FC<{
 
   // ---- conflict exits -------------------------------------------------------
 
+  /**
+   * The editor of the file hears of every answer, as of a change from outside
+   * (Sammelplan § 3.86 no. 7): it shows the file as what it is now, and lets
+   * go of a working copy that is gone. After "keep both" or "delete copy" it
+   * used to hold the working copy's text and the banner of a conflict that
+   * was over — only "take the copy" handed its text on, and only to the
+   * editor of this window. The event is the one the owner window bridges to
+   * every other window of the vault (`ownerBus`); in an auxiliary window the
+   * note is open in this one (one window per note).
+   */
+  const tellEditorOf = (target: string) => {
+    window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: target } }));
+  };
+
   const resolve = async (work: () => Promise<ConflictOutcome>) => {
     if (resolving.current || !vaultAdapter || !conflictPath || !originalOfConflict || (!notText && copySnapshot.current === null)) return;
     resolving.current = true;
@@ -427,6 +441,7 @@ export const CompareModal: React.FC<{
       // bytes that were seen — the byte-wise exits ask that themselves.
       if (!notText) await assertComparisonUnchanged(vaultAdapter, originalOfConflict, originalSnapshot.current, conflictPath, copySnapshot.current!);
       const outcome = await work();
+      tellEditorOf(originalOfConflict);
       onResolved?.(outcome);
     } catch (e) {
       setBusy(false);
@@ -443,15 +458,6 @@ export const CompareModal: React.FC<{
    * text, so none can write a reading of it; an open conflict ends through
    * its own gate; and nothing happens where a file changed since it was seen.
    */
-  /**
-   * The editor of the file in this window hears of a byte-wise answer, as of a
-   * restored version: it shows the file as what it is now, and lets go of a
-   * working copy that is gone — it held that copy's text, and its next save
-   * kept the text it had just been told to let go once more.
-   */
-  const tellEditorOf = (target: string) => {
-    window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: target } }));
-  };
   const adoptBytes = async () => {
     if (!vaultAdapter || !conflictPath || !originalOfConflict || sight?.at !== revision) return;
     const { seen } = sight;
@@ -467,7 +473,6 @@ export const CompareModal: React.FC<{
       // snapshot interval says: this write means to take a file's place.
       if (await vaultAdapter.exists(originalOfConflict)) await backupAdapter?.forceBackup(originalOfConflict);
       await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "adopt" });
-      tellEditorOf(originalOfConflict);
       toast.success(t("compare.resolvedAdopted"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "adopted", mergedContent: null, touched: [originalOfConflict, conflictPath] };
     });
@@ -485,7 +490,6 @@ export const CompareModal: React.FC<{
     if (!ok) return;
     await resolve(async () => {
       await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard", keepCopyAs: candidate });
-      tellEditorOf(originalOfConflict);
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
     });
@@ -502,7 +506,6 @@ export const CompareModal: React.FC<{
     if (!ok) return;
     await resolve(async () => {
       await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard" });
-      tellEditorOf(originalOfConflict);
       toast.success(t("compare.resolvedDiscarded"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "discarded", mergedContent: null, touched: [conflictPath] };
     });
@@ -528,14 +531,9 @@ export const CompareModal: React.FC<{
     await resolve(async () => {
       // Same handshake as the version restore: a pending 1-s editor save for
       // the note would otherwise overwrite the resolution a second later.
-      const session = await vaultAdapter.getConflictSession?.(originalOfConflict);
-      if (session?.workingCopyPath === conflictPath && vaultAdapter.resolveConflict) {
-        await vaultAdapter.resolveConflict(originalOfConflict, { originalText: originalSnapshot.current, copyText: copySnapshot.current!, content: merged });
-      } else {
-        await vaultAdapter.writeTextFile(originalOfConflict, merged);
-        if (await vaultAdapter.readTextFile(conflictPath) !== copySnapshot.current) throw new Error("comparisonChanged");
-        await vaultAdapter.deleteItem(conflictPath);
-      }
+      // Checked and written in one step, for an open conflict's working copy
+      // and a copy beside the note alike (`settleConflictText`, § 3.86 no. 8).
+      await settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "adopt", content: merged });
       toast.success(rightEdited ? t("compare.resolvedMerged") : t("compare.resolvedAdopted"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: rightEdited ? "merged" : "adopted", mergedContent: merged, touched: [originalOfConflict, conflictPath] };
     });
@@ -554,11 +552,9 @@ export const CompareModal: React.FC<{
     });
     if (!ok) return;
     await resolve(async () => {
-      const session = await vaultAdapter.getConflictSession?.(originalOfConflict);
-      if (session?.workingCopyPath === conflictPath && vaultAdapter.resolveConflict) {
-        await vaultAdapter.resolveConflict(originalOfConflict, { originalText: originalSnapshot.current, copyText: copySnapshot.current!, content: originalSnapshot.current ?? "", disposition: "discard", keepCopyAs: candidate });
-      } else if (differentTasks) await separateTaskConflict(vaultAdapter, originalOfConflict, originalSnapshot.current!, conflictPath, copySnapshot.current!, candidate);
-      else { if (await vaultAdapter.exists(candidate)) throw new Error("comparisonChanged"); await vaultAdapter.renameItem(conflictPath, candidate); }
+      const session = differentTasks ? await vaultAdapter.getConflictSession?.(originalOfConflict) : null;
+      if (differentTasks && session?.workingCopyPath !== conflictPath) await separateTaskConflict(vaultAdapter, originalOfConflict, originalSnapshot.current!, conflictPath, copySnapshot.current!, candidate);
+      else await settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "discard", keepCopyAs: candidate });
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
     });
@@ -576,10 +572,7 @@ export const CompareModal: React.FC<{
     });
     if (!ok) return;
     await resolve(async () => {
-      const session = await vaultAdapter.getConflictSession?.(originalOfConflict);
-      if (session?.workingCopyPath === conflictPath && vaultAdapter.resolveConflict) {
-        await vaultAdapter.resolveConflict(originalOfConflict, { originalText: originalSnapshot.current, copyText: copySnapshot.current!, content: originalSnapshot.current ?? "", disposition: "discard" });
-      } else await vaultAdapter.deleteItem(conflictPath);
+      await settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "discard" });
       toast.success(t("compare.resolvedDiscarded"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "discarded", mergedContent: null, touched: [conflictPath] };
     });

@@ -10,6 +10,9 @@ vi.mock("./cloudAccountsStore", () => ({
 vi.mock("./connectQueue", () => ({ startConnectQueue: vi.fn() }));
 vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "v1" }) }));
 vi.mock("./mail/mailRuntime", () => ({ replaceMobileMailbox: async (from: string, to: string) => { replaced.push([from, to]); } }));
+// The mailboxes this vault holds.
+let mailboxes: string[] = [];
+vi.mock("@plainva/ui/mail", () => ({ listMailAccounts: async () => mailboxes.map((id) => ({ id })) }));
 
 import { bindMailToConnection } from "./cloudAccountConnections";
 
@@ -25,7 +28,7 @@ const card = (mail?: string): CloudAccountRecord => ({
 });
 
 describe("binding a mailbox to a card", () => {
-  beforeEach(() => { replaced.length = 0; });
+  beforeEach(() => { replaced.length = 0; mailboxes = ["m-new", "m-oauth", "m-other"]; });
 
   it("a card without mail takes the mailbox", async () => {
     records = [card()];
@@ -39,6 +42,22 @@ describe("binding a mailbox to a card", () => {
     await bindMailToConnection({ vaultId: "v1", cloudAccountId: "card-a", replacesMailAccountId: "m-oauth" }, "m-new");
     expect(records[0].services).toEqual({ files: { provider: "drive" }, mail: { mailAccountId: "m-new" } });
     expect(replaced).toEqual([["m-oauth", "m-new"]]);
+  });
+
+  it("a card still naming a removed mailbox takes the new one (Sammelplan § 3.105)", async () => {
+    // Mail removed at this card, then connected again: the card kept the old reference.
+    records = [card("m-removed")];
+    mailboxes = ["m-new"];
+    await bindMailToConnection({ vaultId: "v1", cloudAccountId: "card-a" }, "m-new");
+    expect(records[0].services.mail).toEqual({ mailAccountId: "m-new" });
+  });
+
+  it("takes the mailbox off a card the reconcile wrote for it meanwhile (Sammelplan § 3.107 Nr. 1)", async () => {
+    const stray: CloudAccountRecord = { id: "stray", family: "google", label: "anna@gmail.com", services: { mail: { mailAccountId: "m-new" } } };
+    records = [stray, card()];
+    await bindMailToConnection({ vaultId: "v1", cloudAccountId: "card-a" }, "m-new");
+    expect(records.map((r) => r.id)).toEqual(["card-a"]);
+    expect(records[0].services.mail).toEqual({ mailAccountId: "m-new" });
   });
 
   it("still refuses a mailbox it was not asked to replace", async () => {

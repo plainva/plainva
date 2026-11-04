@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, Check, Cloud, FolderOpen } from "lucide-react";
+import { Cloud, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import { assertEmptyRemoteVault, trimEndChars } from "@plainva/core";
@@ -9,9 +9,6 @@ import { authorizeDrive } from "../services/driveAuth";
 import { authorizeOneDrive } from "../services/oneDriveAuth";
 import { authorizeDropbox } from "../services/dropboxAuth";
 import { cancelOAuthLoopback, oauthErrorText } from "../services/oauthLoopback";
-
-/** Providers whose connect step waits on the browser rather than a form. */
-const OAUTH_PROVIDERS = new Set(["drive", "onedrive", "dropbox"]);
 import {
   buildWebDavTarget,
   buildDriveTarget,
@@ -23,27 +20,45 @@ import {
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import {
+  Banner,
   Button,
-  OAuthAccessEditor,
-  accessProblemKey,
-  foldMachineText,
+  CONNECT_PROVIDERS,
+  FAMILY_SERVICES,
   ICON,
-  PLAINVA_DROPBOX_APP_KEY,
+  OAuthAccessEditor,
+  SearchField,
+  SettingCardNote,
+  SettingRow,
+  WizardSteps,
+  accessProblemKey,
+  accessSummary,
+  connectAccessPlan,
+  connectFieldsComplete,
+  foldMachineText,
+  nextcloudEndpoints,
   plainvaGoogleClient,
+  searchConnectProviders,
+  shortClientId,
+  shownConnectFields,
+  suiteProvider,
   unionScope,
+  type AccessFamily,
   type AccessResolution,
-  type OAuthFamily,
+  type ConnectProvider,
+  type DropboxAccessResolution,
   type StoredOAuthAccess,
+  type WizardStepItem,
 } from "@plainva/ui";
 import { adoptOnlineVaultSignIn, deviceAccess, readDeviceAccess, saveDeviceAccess } from "../services/accountSignIn";
+import type { ServiceRunStatus } from "../services/cloudAccountsActions";
 import {
   scaffoldVaultTemplate,
   applyVaultTemplateSettings,
   isVaultFolderEmpty,
   type VaultTemplateDefinition,
 } from "../services/vaultTemplates";
-
-export type OnlineProvider = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
+import { AccountMark, SERVICE_ICONS, familyLabel } from "./settings/cloudAccountsShared";
+import { ConnectFieldsCard, ConnectOtherCard, ConnectSummaryCard, ServiceStatusCard, connectValue, failedServiceStatus, type ConnectValues } from "./settings/ConnectSignInStep";
 
 // The freshly authorized (OAuth) / entered (WebDAV, S3) credentials, held in
 // memory until the local vault folder is chosen. refreshToken is mutable so a
@@ -56,7 +71,6 @@ type Connected =
   | { provider: "s3"; s3: S3TargetCreds };
 
 interface Props {
-  provider: OnlineProvider;
   /**
    * "open" (default) connects to an EXISTING cloud vault; "create" additionally
    * scaffolds `template` into the chosen local folder BEFORE the credentials
@@ -69,36 +83,36 @@ interface Props {
   onBack: () => void;
 }
 
-const providerLabelKey: Record<OnlineProvider, string> = {
-  webdav: "settings.providerWebDav",
-  drive: "settings.providerDrive",
-  onedrive: "settings.providerOneDrive",
-  dropbox: "settings.providerDropbox",
-  s3: "settings.providerS3",
-};
+const ACTIONS: React.CSSProperties = { display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginTop: "var(--space-3)" };
 
 /**
- * Splash online-vault setup for ALL five providers (WebDAV joined the unified
- * assistant with the create-online-vault work, 2026-07-13): 1) connect (OAuth
- * or enter credentials), 2) pick — or newly create — the folder in the cloud,
- * 3) pick/create the local folder and open. OAuth tokens are authorized BEFORE
- * a local folder exists (in memory) and only bound to the chosen local folder
- * at the end.
+ * Every provider that can carry a vault's files - the suites and Nextcloud
+ * included. Read when the tiles draw, never while this module loads (C20).
  */
-export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", template = null, onBack }) => {
+const fileProviders = () => CONNECT_PROVIDERS.filter((provider) => FAMILY_SERVICES[provider.family].includes("files"));
+
+/**
+ * "Vault in the cloud" from the start screen: the same assistant as
+ * connecting an account in the settings (settings plan 2026-10-29, E7) - the
+ * provider tiles with their search, the sign-in step drawn from
+ * `connectAccessPlan` with its head, "Other sign-in" and the status line,
+ * then the cloud folder and the local folder. What only this door does
+ * stays: there is no vault yet, so the sign-in is held in memory and bound to
+ * the local folder at the end, and a new vault is scaffolded into an empty
+ * cloud folder.
+ */
+export const OnlineVaultSetup: React.FC<Props> = ({ mode = "open", template = null, onBack }) => {
   const { t } = useTranslation();
   const { openVault } = useVault();
 
-  // Form state (only the fields this provider needs are shown/read).
-  const [webdavUrl, setWebdavUrl] = useState("");
-  const [webdavUser, setWebdavUser] = useState("");
-  const [webdavPass, setWebdavPass] = useState("");
-  // Google Drive and OneDrive sign in with this device's access, like every
-  // other sign-in (account sign-in plan K4b) - no fields of their own.
-  const accessFamily: OAuthFamily | null = provider === "drive" ? "google" : provider === "onedrive" ? "microsoft" : null;
-  const [access, setAccess] = useState<AccessResolution | null>(null);
+  const [tile, setTile] = useState<ConnectProvider | null>(null);
+  const [query, setQuery] = useState("");
+  const [values, setValues] = useState<ConnectValues>({});
+  const [otherOpen, setOtherOpen] = useState(false);
+  const family = tile?.family ?? null;
+  const accessFamily: AccessFamily | null = family === "google" || family === "microsoft" || family === "dropbox" ? family : null;
+  const [access, setAccess] = useState<AccessResolution | DropboxAccessResolution | null>(null);
   const [storedAccess, setStoredAccess] = useState<StoredOAuthAccess | null>(null);
-  const [editAccess, setEditAccess] = useState(false);
   useEffect(() => {
     if (!accessFamily) return;
     let alive = true;
@@ -108,79 +122,108 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
       if (!alive) return;
       setStoredAccess(stored);
       setAccess(resolved);
-      if (!resolved.ok) setEditAccess(true);
+      if (!resolved.ok) setOtherOpen(true);
     })();
     return () => { alive = false; };
   }, [accessFamily]);
-  const [dropboxAppKey, setDropboxAppKey] = useState("");
-  const [s3Endpoint, setS3Endpoint] = useState("");
-  const [s3Bucket, setS3Bucket] = useState("");
-  const [s3Region, setS3Region] = useState("");
-  const [s3AccessKeyId, setS3AccessKeyId] = useState("");
-  const [s3SecretKey, setS3SecretKey] = useState("");
-  const [s3PathStyle, setS3PathStyle] = useState(true);
 
   // A ref, not state: the folder-listing rotation callback mutates it without a
   // re-render, and the final save reads the latest value.
   const credsRef = useRef<Connected | null>(null);
-  const [connected, setConnected] = useState(false);
+  const [status, setStatus] = useState<ServiceRunStatus | undefined>(undefined);
+  const connected = status?.state === "ok";
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cloudFolder, setCloudFolder] = useState<string | null>(null);
+  /** The picker's root, named when the sign-in succeeds: the server's host, the bucket, the drive. */
+  const [rootLabel, setRootLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const providerName = t(providerLabelKey[provider]);
+  const providerName = family ? familyLabel(family, tile?.flavor) : "";
+  const plan = family ? connectAccessPlan({ family, flavor: tile?.flavor, services: ["files"], providerName }) : null;
+  const oauthKind = plan?.kind === "oauthDevice" || plan?.kind === "oauthAppKey";
+  const otherShown = otherOpen || (!!accessFamily && !!access && !access.ok);
+  const fields = plan ? shownConnectFields(plan, otherShown && !oauthKind) : [];
   const getBasename = (path: string) => path.split(/[/\\]/).pop() || path;
+  const value = (id: keyof ConnectValues) => {
+    const entry = [...(plan?.fields ?? []), ...(plan?.other?.fields ?? [])].find((f) => f.id === id);
+    return (entry ? connectValue(values, entry) : (values[id] ?? "")).trim();
+  };
+  const address = (id: keyof ConnectValues) => foldMachineText(value(id));
 
-  const canConnect = (() => {
-    if (provider === "webdav") return !!webdavUrl.trim() && !!webdavUser.trim() && !!webdavPass;
-    if (provider === "drive" || provider === "onedrive") return !!access?.ok && !editAccess;
-    if (provider === "dropbox") return !!(dropboxAppKey || PLAINVA_DROPBOX_APP_KEY);
-    return !!s3Endpoint && !!s3Bucket && !!s3AccessKeyId && !!s3SecretKey;
-  })();
+  const pick = (def: ConnectProvider | null) => {
+    setTile(def);
+    setValues({});
+    setOtherOpen(false);
+    setAccess(null);
+    setStatus(undefined);
+    setError(null);
+    credsRef.current = null;
+  };
 
-  // Step 1: connect (OAuth), test the credentials (WebDAV) or gather keys (S3),
-  // then open the cloud folder picker.
+  /** The files address of a provider with credentials: Nextcloud derives it, a suite knows it, WebDAV is asked. */
+  const webdavUrl = (): string => {
+    if (!family) return "";
+    const suite = suiteProvider(family);
+    const endpointsOpen = otherShown && plan?.other?.holds === "endpoints";
+    if (family === "webdav" && tile?.flavor === "nextcloud" && !endpointsOpen) return nextcloudEndpoints(address("server"), value("user"))?.files ?? "";
+    if (suite && !endpointsOpen) return suite.endpoints.webdavUrl ?? "";
+    return address("filesUrl");
+  };
+
+  // Step "sign in": the browser for Google, Microsoft and Dropbox, a probe of
+  // the credentials or keys for the others - then the cloud folder picker.
   const handleConnect = async () => {
+    if (!family) return;
     setBusy(true);
     setError(null);
+    setStatus({ state: "pending" });
     try {
-      if (provider === "webdav") {
-        // Addresses as a machine reads them (lib/machineText.ts).
-        const creds = { url: foldMachineText(webdavUrl), user: webdavUser.trim(), pass: webdavPass };
+      if (family === "google" || family === "microsoft") {
+        if (!access?.ok || !("mail" in access.access)) return;
+        if (family === "google") {
+          // The identity scopes ride along: the card is written from this consent.
+          const creds = await authorizeDrive({ clientId: access.access.clientId, clientSecret: access.access.clientSecret ?? "", scope: unionScope("google", ["files"]) });
+          credsRef.current = { provider: "drive", clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken };
+        } else {
+          const creds = await authorizeOneDrive({ clientId: access.access.clientId, scope: unionScope("microsoft", ["files"]) });
+          credsRef.current = { provider: "onedrive", clientId: creds.clientId, refreshToken: creds.refreshToken };
+        }
+      } else if (family === "dropbox") {
+        if (!access?.ok) return;
+        const creds = await authorizeDropbox({ appKey: access.access.clientId });
+        credsRef.current = { provider: "dropbox", ...creds };
+      } else if (family === "s3") {
+        const s3: S3TargetCreds = {
+          endpoint: address("endpoint"),
+          region: address("region") || "us-east-1",
+          bucket: address("bucket"),
+          accessKeyId: address("accessKeyId"),
+          secretAccessKey: values.secret ?? "",
+          forcePathStyle: value("pathStyle") !== "off",
+        };
+        // The keys are tried before "connected" is said - as every other provider's are.
+        await buildS3Target(s3).listFolders("");
+        credsRef.current = { provider: "s3", s3 };
+      } else {
+        const creds = { url: webdavUrl(), user: suiteProvider(family) ? value("email") : value("user"), pass: values.secret ?? "" };
         // Connection probe: a wrong host/credential pair (401, network, HTML
         // landing page) must surface HERE, not in the picker.
         await buildWebDavTarget(creds).listFolders("");
-        credsRef.current = { provider, ...creds };
-      } else if (provider === "drive") {
-        if (!access?.ok) return;
-        // The identity scopes ride along: the card is written from this consent.
-        const creds = await authorizeDrive({ clientId: access.access.clientId, clientSecret: access.access.clientSecret ?? "", scope: unionScope("google", ["files"]) });
-        credsRef.current = { provider, clientId: creds.clientId, clientSecret: creds.clientSecret, refreshToken: creds.refreshToken };
-      } else if (provider === "onedrive") {
-        if (!access?.ok) return;
-        const creds = await authorizeOneDrive({ clientId: access.access.clientId, scope: unionScope("microsoft", ["files"]) });
-        credsRef.current = { provider, clientId: creds.clientId, refreshToken: creds.refreshToken };
-      } else if (provider === "dropbox") {
-        const creds = await authorizeDropbox({ appKey: (dropboxAppKey || PLAINVA_DROPBOX_APP_KEY).trim() });
-        credsRef.current = { provider, ...creds };
-      } else {
-        credsRef.current = {
-          provider: "s3",
-          s3: {
-            endpoint: foldMachineText(s3Endpoint),
-            region: foldMachineText(s3Region) || "us-east-1",
-            bucket: foldMachineText(s3Bucket),
-            accessKeyId: foldMachineText(s3AccessKeyId),
-            secretAccessKey: s3SecretKey,
-            forcePathStyle: s3PathStyle,
-          },
-        };
+        credsRef.current = { provider: "webdav", ...creds };
       }
-      setConnected(true);
+      const c = credsRef.current;
+      setRootLabel(
+        c?.provider === "webdav"
+          ? (() => { try { return new URL(c.url).host || providerName; } catch { return providerName; } })()
+          : c?.provider === "s3"
+            ? c.s3.bucket || providerName
+            : family === "google" ? "Google Drive" : family === "microsoft" ? "OneDrive" : providerName,
+      );
+      setStatus({ state: "ok" });
       setPickerOpen(true); // open the cloud folder picker right away
     } catch (e) {
-      setError(oauthErrorText(e));
+      setStatus(failedServiceStatus(e, t, providerName));
     } finally {
       setBusy(false);
     }
@@ -188,37 +231,21 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
 
   // Cloud folder listing for the picker, from the in-memory credentials. A
   // OneDrive/Dropbox token rotation during browsing updates credsRef in place.
-  const listFolders = useCallback((path: string): Promise<string[]> => {
+  const target = useCallback(() => {
     const c = credsRef.current;
-    if (!c) return Promise.resolve([]);
-    if (c.provider === "webdav") return buildWebDavTarget(c).listFolders(path);
-    if (c.provider === "drive") return buildDriveTarget(c).listFolders(path);
-    if (c.provider === "onedrive") {
-      return buildOneDriveTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; }).listFolders(path);
-    }
-    if (c.provider === "dropbox") {
-      return buildDropboxTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; }).listFolders(path);
-    }
-    return buildS3Target(c.s3).listFolders(path);
+    if (!c) return null;
+    if (c.provider === "webdav") return buildWebDavTarget(c);
+    if (c.provider === "drive") return buildDriveTarget(c);
+    if (c.provider === "onedrive") return buildOneDriveTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; });
+    if (c.provider === "dropbox") return buildDropboxTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; });
+    return buildS3Target(c.s3);
   }, []);
-
+  const listFolders = useCallback((path: string): Promise<string[]> => target()?.listFolders(path) ?? Promise.resolve([]), [target]);
   // The picker's "new folder" row (2026-07-13) — the create flow's way to give
   // the fresh vault its own cloud folder; available while opening too (E6).
-  const createFolderAt = useCallback((path: string): Promise<void> => {
-    const c = credsRef.current;
-    if (!c) return Promise.resolve();
-    if (c.provider === "webdav") return buildWebDavTarget(c).createFolder(path);
-    if (c.provider === "drive") return buildDriveTarget(c).createFolder(path);
-    if (c.provider === "onedrive") {
-      return buildOneDriveTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; }).createFolder(path);
-    }
-    if (c.provider === "dropbox") {
-      return buildDropboxTarget(c, (refreshToken) => { credsRef.current = { ...c, refreshToken }; }).createFolder(path);
-    }
-    return buildS3Target(c.s3).createFolder(path);
-  }, []);
+  const createFolderAt = useCallback((path: string): Promise<void> => target()?.createFolder(path) ?? Promise.resolve(), [target]);
 
-  // Step 3: pick/create the local folder, scaffold in create mode, bind the
+  // Last step: pick/create the local folder, scaffold in create mode, bind the
   // credentials to it, open. Scaffolding runs BEFORE the credentials exist on
   // disk, so no sync can observe a half-written structure.
   const handlePickLocalAndOpen = async () => {
@@ -266,9 +293,9 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
       }
       // Google and Microsoft: the sign-in becomes the card's, with its identity,
       // before the vault opens (K4b). Nothing half-bound stays behind.
-      if ((c.provider === "drive" || c.provider === "onedrive") && accessFamily && access?.ok) {
+      if ((c.provider === "drive" || c.provider === "onedrive") && (family === "google" || family === "microsoft") && access?.ok && "mail" in access.access) {
         try {
-          await adoptOnlineVaultSignIn(localDir, accessFamily, access, c.refreshToken);
+          await adoptOnlineVaultSignIn(localDir, family, access as Extract<AccessResolution, { ok: true }>, c.refreshToken);
         } catch (error) {
           if (c.provider === "drive") await credentialManager.clearDriveCredentials(localDir);
           else await credentialManager.clearOneDriveCredentials(localDir);
@@ -289,153 +316,129 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
     }
   };
 
-  const rootLabel = (() => {
-    if (provider === "webdav") {
-      try {
-        return new URL(webdavUrl).host || "WebDAV";
-      } catch {
-        return "WebDAV";
-      }
-    }
-    return provider === "drive" ? "Google Drive" : provider === "onedrive" ? "OneDrive" : provider === "dropbox" ? "Dropbox" : (s3Bucket.trim() || "S3");
-  })();
+  const stepState = (n: 1 | 2 | 3 | 4): WizardStepItem["state"] => {
+    const at = !tile ? 1 : !connected ? 2 : 3;
+    return n < at ? "done" : n === at ? "active" : "pending";
+  };
+  const steps = (
+    <div style={{ marginBottom: "var(--space-3)" }}>
+      <WizardSteps
+        label={t("connectRun.stepsLabel")}
+        steps={[
+          { key: "provider", label: tile ? providerName : t("cloudAccounts.stepProvider"), state: stepState(1) },
+          { key: "signin", label: t("cloudAccounts.stepSignIn"), state: stepState(2) },
+          { key: "folder", label: t("connectRun.stepFiles"), state: stepState(3) },
+          { key: "open", label: t("cloudAccounts.finish"), state: stepState(4) },
+        ]}
+      />
+    </div>
+  );
+  const heading = (
+    <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "var(--space-2)" }}>{mode === "create" ? t("splash.newVaultOnlineTitle") : t("splash.openOnlineVault")}</h2>
+  );
+
+  /* ---------- provider ---------- */
+  if (!tile || !plan || !family) {
+    const { visible } = searchConnectProviders(query, (p) => familyLabel(p.family, p.flavor), fileProviders());
+    return (
+      <div data-testid="online-setup">
+        {heading}
+        {steps}
+        <SearchField
+          value={query}
+          onValueChange={setQuery}
+          clearLabel={t("sidebar.clearSearch")}
+          placeholder={t("cloudAccounts.searchProviders")}
+          aria-label={t("cloudAccounts.searchProviders")}
+          data-testid="online-provider-search"
+          className="pv-provtile-search"
+        />
+        <div className="pv-provtile-grid">
+          {visible.map((def) => (
+            <button key={def.key} type="button" className="pv-provtile" onClick={() => pick(def)} data-testid={`online-provider-${def.key}`}>
+              <AccountMark family={def.family} flavor={def.flavor} small />
+              <span className="pv-provtile-name">{familyLabel(def.family, def.flavor)}</span>
+              <span className="pv-provtile-caps"><SERVICE_ICONS.files size={ICON.meta} /></span>
+            </button>
+          ))}
+        </div>
+        {visible.length === 0 && <SettingCardNote>{t("cloudAccounts.searchNoProvider")}</SettingCardNote>}
+        <div style={ACTIONS}>
+          <Button variant="ghost" onClick={onBack}>{t("splash.back")}</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const headText = oauthKind
+    ? access
+      ? accessSummary(plan, access.ok ? { ok: true, source: access.access.source, id: shortClientId(access.access.clientId) } : { ok: false, problemKey: accessProblemKey(access.problem) })
+      : null
+    : plan.summary;
 
   return (
-    <>
-      <h2 style={{ fontSize: "var(--text-headline)", marginBottom: "0.5rem" }}>{t("splash.connectToProvider", { provider: providerName })}</h2>
-      <p style={{ color: "var(--text-muted)", marginBottom: "1.5rem", fontSize: "var(--text-md)" }}>{t("splash.connectProviderSteps")}</p>
-
-      {error && (
-        <div style={{ padding: "0.75rem", background: "var(--error-bg)", color: "var(--error-text)", border: "1px solid var(--error-border)", borderRadius: "var(--radius-md)", marginBottom: "1rem", wordBreak: "break-word", fontSize: "var(--text-md)" }}>
-          {error}
-        </div>
+    <div data-testid="online-setup">
+      {heading}
+      {steps}
+      {error && <Banner kind="error" rounded>{error}</Banner>}
+      <ConnectSummaryCard family={family} flavor={tile.flavor} services={["files"]} line={headText ? t(headText.key, headText.values) : ""} />
+      {!connected && (
+        <>
+          <ConnectFieldsCard plan={plan} fields={fields} values={values} disabled={busy} onChange={(id, next) => setValues((prev) => ({ ...prev, [id]: next }))} />
+          <ConnectOtherCard plan={plan} open={otherShown} disabled={busy} onToggle={() => setOtherOpen(!otherShown)} />
+          {otherShown && accessFamily && access && (
+            <OAuthAccessEditor
+              family={accessFamily}
+              platform="desktop"
+              value={storedAccess}
+              plainvaAvailable={accessFamily !== "google" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
+              onSave={async (next) => {
+                await saveDeviceAccess(accessFamily, next);
+                setStoredAccess(next);
+                const resolved = await deviceAccess(accessFamily);
+                setAccess(resolved);
+                if (resolved.ok) setOtherOpen(false);
+              }}
+              onCancel={access.ok ? () => setOtherOpen(false) : undefined}
+            />
+          )}
+        </>
       )}
+      <ServiceStatusCard services={["files"]} status={status ? { files: status } : {}} waitingKey={plan.waitingKey}>
+        {connected && (
+          <SettingRow label={t("splash.cloudFolderLabel")} desc={cloudFolder ? `${rootLabel} / ${cloudFolder}` : t("splash.cloudFolderRoot", { root: rootLabel })}>
+            <Button variant="secondary" size="sm" icon={<Cloud size={ICON.meta} />} onClick={() => setPickerOpen(true)} disabled={busy} data-testid="online-choose-folder">
+              {t("settings.browseFolders")}
+            </Button>
+          </SettingRow>
+        )}
+        {connected && mode === "create" && <SettingCardNote>{t("splash.createTemplateHint", { name: template?.name ?? t("splash.emptyVault") })}</SettingCardNote>}
+      </ServiceStatusCard>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem", background: "var(--bg-secondary)", padding: "1.5rem", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-color)" }}>
-        {!connected ? (
+      <div style={ACTIONS}>
+        {!connected && (
+          // While an OAuth wait is running, "back" would leave it pending for
+          // its full three minutes and hold the port: the same button aborts it (N1/S1).
+          <Button variant="ghost" onClick={busy && oauthKind ? () => void cancelOAuthLoopback() : () => pick(null)} disabled={busy && !oauthKind}>
+            {busy && oauthKind ? t("common.cancel") : t("splash.back")}
+          </Button>
+        )}
+        {!connected && (
+          <Button
+            variant="primary"
+            disabled={busy || (oauthKind && !access?.ok) || !connectFieldsComplete(fields, values)}
+            onClick={() => void handleConnect()}
+            data-testid="online-connect"
+          >
+            {busy ? t("splash.connecting") : status?.state === "error" ? t("cloudAccounts.retry") : t(plan.button.key, plan.button.values)}
+          </Button>
+        )}
+        {connected && (
           <>
-            {/* Step 1 — connect / enter credentials */}
-            {provider === "webdav" && (
-              <>
-                <Field label={t("splash.serverUrl")}>
-                  <input autoComplete="off" value={webdavUrl} onChange={(e) => setWebdavUrl(e.target.value)} placeholder="https://nextcloud.example.com/remote.php/webdav" className="pv-field" />
-                </Field>
-                <Field label={t("splash.username")}>
-                  <input autoComplete="off" value={webdavUser} onChange={(e) => setWebdavUser(e.target.value)} className="pv-field" />
-                </Field>
-                <Field label={t("splash.password")}>
-                  <input type="password" autoComplete="new-password" value={webdavPass} onChange={(e) => setWebdavPass(e.target.value)} className="pv-field" />
-                </Field>
-              </>
-            )}
-            {accessFamily && access && !editAccess && (
-              <Field label={t("accountAccess.lineLabel")}>
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }} data-testid="online-access">
-                  <span style={{ flex: 1 }}>
-                    {access.ok ? (access.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: access.access.clientId })) : t(accessProblemKey(access.problem))}
-                  </span>
-                  <Button variant="secondary" size="sm" onClick={() => setEditAccess(true)} data-testid="online-access-change">
-                    {t("accountAccess.change")}
-                  </Button>
-                </div>
-              </Field>
-            )}
-            {accessFamily && access && editAccess && (
-              <OAuthAccessEditor
-                family={accessFamily}
-                platform="desktop"
-                value={storedAccess}
-                plainvaAvailable={accessFamily === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, "desktop")}
-                onSave={async (next) => {
-                  await saveDeviceAccess(accessFamily, next);
-                  setStoredAccess(next);
-                  const resolved = await deviceAccess(accessFamily);
-                  setAccess(resolved);
-                  setEditAccess(!resolved.ok);
-                }}
-                onCancel={access.ok ? () => setEditAccess(false) : undefined}
-              />
-            )}
-            {provider === "dropbox" && !PLAINVA_DROPBOX_APP_KEY && (
-              <Field label={t("settings.appKey")}>
-                <input autoComplete="off" value={dropboxAppKey} onChange={(e) => setDropboxAppKey(e.target.value)} className="pv-field" />
-              </Field>
-            )}
-            {provider === "s3" && (
-              <>
-                <Field label={t("settings.s3Endpoint")}>
-                  <input autoComplete="off" value={s3Endpoint} onChange={(e) => setS3Endpoint(e.target.value)} placeholder="https://s3.eu-central-1.amazonaws.com" className="pv-field" />
-                </Field>
-                <Field label={t("settings.s3Bucket")}>
-                  <input autoComplete="off" value={s3Bucket} onChange={(e) => setS3Bucket(e.target.value)} className="pv-field" />
-                </Field>
-                <Field label={t("settings.s3Region")}>
-                  <input autoComplete="off" value={s3Region} onChange={(e) => setS3Region(e.target.value)} placeholder="us-east-1" className="pv-field" />
-                </Field>
-                <Field label={t("settings.s3AccessKeyId")}>
-                  <input autoComplete="off" value={s3AccessKeyId} onChange={(e) => setS3AccessKeyId(e.target.value)} className="pv-field" />
-                </Field>
-                <Field label={t("settings.s3SecretAccessKey")}>
-                  <input type="password" autoComplete="new-password" value={s3SecretKey} onChange={(e) => setS3SecretKey(e.target.value)} className="pv-field" />
-                </Field>
-                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "var(--text-md)" }}>
-                  <input type="checkbox" checked={s3PathStyle} onChange={(e) => setS3PathStyle(e.target.checked)} className="pv-check" />
-                  {t("settings.s3PathStyle")}
-                </label>
-              </>
-            )}
-            <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
-              {/* While an OAuth wait is running, "back" would leave it
-                  pending for its full three minutes and hold the port. The
-                  same button aborts it (N1/S1) — closing the consent tab is
-                  the ordinary case, not an edge one. */}
-              <button
-                onClick={busy && OAUTH_PROVIDERS.has(provider) ? () => void cancelOAuthLoopback() : onBack}
-                disabled={busy && !OAUTH_PROVIDERS.has(provider)}
-                className="pv-btn pv-btn--secondary pv-btn--lg"
-                style={{ flex: 1 }}
-              >
-                {busy && OAUTH_PROVIDERS.has(provider) ? t("common.cancel") : t("splash.back")}
-              </button>
-              <button onClick={handleConnect} disabled={busy || !canConnect}
-                className="pv-btn pv-btn--primary pv-btn--lg" style={{ flex: 1 }}>
-                {busy ? t("splash.connecting") : provider === "s3" ? t("splash.continue") : t("splash.connect")} <ArrowRight size={ICON.ui} />
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Steps 2 + 3 — pick the cloud folder, then the local folder */}
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--success-text, var(--accent-color))", fontSize: "var(--text-md)", fontWeight: 600 }}>
-              <Check size={ICON.ui} /> {t("splash.connectedTo", { provider: providerName })}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", padding: "0.75rem", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("splash.cloudFolderLabel")}</div>
-                <div style={{ fontSize: "var(--text-md)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {cloudFolder ? `${rootLabel} / ${cloudFolder}` : t("splash.cloudFolderRoot", { root: rootLabel })}
-                </div>
-              </div>
-              <button onClick={() => setPickerOpen(true)} disabled={busy}
-                className="pv-btn pv-btn--secondary pv-btn--sm" style={{ flexShrink: 0 }}>
-                <Cloud size={ICON.ui} /> {t("settings.browseFolders")}
-              </button>
-            </div>
-
-            {mode === "create" && (
-              <div style={{ fontSize: "var(--text-ui)", color: "var(--text-muted)" }}>
-                {t("splash.createTemplateHint", { name: template?.name ?? t("splash.emptyVault") })}
-              </div>
-            )}
-
-            <button onClick={handlePickLocalAndOpen} disabled={busy}
-              className="pv-btn pv-btn--primary pv-btn--lg">
-              <FolderOpen size={ICON.ui} /> {t("splash.pickLocalAndOpen")}
-            </button>
-            <button onClick={onBack} disabled={busy} className="pv-btn pv-btn--ghost">
-              {t("common.cancel")}
-            </button>
+            <Button variant="ghost" onClick={onBack} disabled={busy}>{t("common.cancel")}</Button>
+            <Button variant="primary" icon={<FolderOpen size={ICON.meta} />} onClick={() => void handlePickLocalAndOpen()} disabled={busy} data-testid="online-pick-local">
+              {t("splash.pickLocalAndOpen")}
+            </Button>
           </>
         )}
       </div>
@@ -450,13 +453,6 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
           onCancel={() => setPickerOpen(false)}
         />
       )}
-    </>
+    </div>
   );
 };
-
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-    <label style={{ fontSize: "var(--text-md)", fontWeight: 500 }}>{label}</label>
-    {children}
-  </div>
-);

@@ -15,6 +15,8 @@ export type UpdateCheckResult =
   | { status: "none" }
   /** The releases feed does not exist yet (pre-launch) — not an error. */
   | { status: "no-release" }
+  /** A package manager updates this installation (e.g. Nix); Plainva does not. */
+  | { status: "managed"; by: string }
   | { status: "error"; error: string };
 
 /**
@@ -34,8 +36,28 @@ async function isReleaseInstall(): Promise<boolean> {
   }
 }
 
+/**
+ * The package manager that updates this installation, or `null` when Plainva
+ * updates itself. A package manager says so through the environment of the
+ * process (`PLAINVA_UPDATES_MANAGED_BY`, set by the wrapper of the Nix package,
+ * read in `src-tauri/src/app_identity.rs`): its copy carries the release
+ * identifier, but it lives where the app cannot write — the read-only Nix
+ * store — so it must never offer or install a release over itself.
+ */
+export async function getUpdatesManagedBy(): Promise<string | null> {
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return (await invoke<string | null>("app_updates_managed_by")) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The one gate in front of the update feed: the start-up check and the settings both come through it. */
 export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
   if (!(await isReleaseInstall())) return { status: "no-release" };
+  const managedBy = await getUpdatesManagedBy();
+  if (managedBy) return { status: "managed", by: managedBy };
   try {
     const update = await check();
     return update ? { status: "available", update } : { status: "none" };

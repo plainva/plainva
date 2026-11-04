@@ -104,10 +104,10 @@ describe("renameTagInText finds a tag as the index reads it", () => {
     expect(renameTagInText("---\ntags:\n  - journal\n---\nbody", "journal", "2024").content).toBe('---\ntags:\n  - "2024"\n---\nbody');
   });
 
-  it("leaves the singular `tag` key as before: the index reads no tags from it, and a text there is compared whole", () => {
+  it("leaves the singular `tag` key alone: the index reads no tags from it, nor does Obsidian since 1.9 (open-items plan 3.144 no. 4)", () => {
     expect(renameTagInText("---\ntag: work, home\n---\nbody", "work", "job").changed).toBe(false);
     expect(renameTagInText("---\ntag:\n  - 2024\n---\nbody", "2024", "year").changed).toBe(false);
-    expect(renameTagInText("---\ntag: work/a\n---\nbody", "work", "job").content).toBe("---\ntag: job/a\n---\nbody");
+    expect(renameTagInText("---\ntag: work/a\n---\nbody", "work", "job").changed).toBe(false);
   });
 
   it("finds a tag another value of the block refers to, which cannot be renamed where it stands", () => {

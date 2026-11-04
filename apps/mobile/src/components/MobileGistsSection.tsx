@@ -24,7 +24,7 @@ export function MobileGistsSection({ session }: { session: AiSession }) {
           <Row
             wrap
             title={t("ai.gists.show")}
-            subtitle={t("ai.gists.showDesc")}
+            info={t("ai.gists.showDesc")}
             end={<Switch checked={settings.gists} label={t("ai.gists.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, gists: on }))} />}
           />
           {line && <Row wrap title={line} />}
@@ -36,7 +36,7 @@ export function MobileGistsSection({ session }: { session: AiSession }) {
           <Row
             wrap
             title={t("ai.transcribe.summary")}
-            subtitle={t("ai.transcribe.summaryDesc")}
+            info={t("ai.transcribe.summaryDesc")}
             end={<Switch checked={settings.transcriptSummary} label={t("ai.transcribe.summary")} onChange={(on) => void session.updateSettings((s) => ({ ...s, transcriptSummary: on }))} />}
             data-testid="transcript-summary"
           />

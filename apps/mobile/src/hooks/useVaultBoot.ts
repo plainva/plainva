@@ -3,7 +3,8 @@ import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
 import { startSyncIfConfigured } from "../services/syncService";
-import { restartPimAfterImport, startPim, stopPim } from "../services/pim/pimService";
+import { isPimRuntimeReady, restartPimAfterImport, startPim, stopPim } from "../services/pim/pimService";
+import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
 import { resumePimOAuthResult } from "../services/pim/pimOAuth";
 import { startMobileMail, stopMobileMail } from "../services/mail/mailRuntime";
 
@@ -49,6 +50,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
   useEffect(() => {
     let generation = 0;
     let alive = true;
+    // The open vault's cards follow its calendars and mailboxes (§ 3.105).
+    let stopReconcile: (() => void) | null = null;
     const run = (first: boolean) => {
       const mine = ++generation;
       const current = () => alive && mine === generation;
@@ -66,6 +69,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         const pim = startPim(v);
         void (first ? pim.then(resumePimOAuthResult) : pim).catch((e) => console.error("[boot] pim start failed", e));
         startMobileMail(v);
+        stopReconcile?.();
+        stopReconcile = startCloudAccountsReconcile(v.vaultId, isPimRuntimeReady);
       }, (error: unknown) => {
         if (!current()) return;
         console.error("[boot] the vault did not open", error);
@@ -78,6 +83,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
     // Vault switch (M3.5 isolation): drop all stacks (and any overlay), then
     // reboot the vault and restart sync for the newly active container.
     const onSwitched = () => {
+      stopReconcile?.();
+      stopReconcile = null;
       stopPim();
       stopMobileMail();
       setVault(null);
@@ -101,6 +108,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
     window.addEventListener("m-accounts-imported", onAccountsImported);
     return () => {
       alive = false;
+      stopReconcile?.();
       window.removeEventListener("m-vault-switched", onSwitched);
       window.removeEventListener("m-accounts-imported", onAccountsImported);
     };

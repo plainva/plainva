@@ -1,5 +1,5 @@
 import React from "react";
-import { Banner, Button, Modal, Radio, SettingCard, SettingCardNote, SettingRow } from "@plainva/ui";
+import { Banner, Button, Modal, Radio, SettingCard, SettingCardBlock, SettingCardNote, SettingRow } from "@plainva/ui";
 import type { TFunction } from "i18next";
 import { WORKSPACE_ROLES, roleName, type Diagnostics } from "./securityForms";
 
@@ -69,6 +69,10 @@ export const TechDetails: React.FC<{ t: TFunction; entries: readonly (readonly [
  * until now its only trace was one line inside a details block that starts
  * closed. The cursor is durable (`resumeWorkspaceRekey`), so the card says so:
  * closing Plainva does not lose the run.
+ *
+ * It is a card of its own and stands BESIDE the other cards, never inside one:
+ * placed in the members and devices cards it drew a second frame within the
+ * first (settings plan 2026-10-29, P1).
  */
 export const RekeyProgressCard: React.FC<{ t: TFunction; diagnostics: Diagnostics | null }> = ({ t, diagnostics }) => {
   const job = diagnostics?.meta?.rekeyJob;
@@ -88,7 +92,7 @@ export const RekeyProgressCard: React.FC<{ t: TFunction; diagnostics: Diagnostic
           <div className="pv-security-progress-bar" style={{ width: `${percent}%` }} />
         </div>
       </SettingCardNote>
-      {job.lastError && <Banner kind="error" rounded>{job.lastError}</Banner>}
+      {job.lastError && <SettingCardBlock><Banner kind="error" rounded>{job.lastError}</Banner></SettingCardBlock>}
     </SettingCard>
   );
 };

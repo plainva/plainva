@@ -1,6 +1,7 @@
 import { App as CapApp } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import {
+  checkboxReminderSubjects,
   parseBaseConfig,
   planReminders,
   readTaskSnoozes,
@@ -10,6 +11,7 @@ import {
   taskDbRows,
   taskReminderSubjects,
   type PlannedReminder,
+  type ReminderLine,
   type ReminderReason,
   type ReminderRule,
   type ReminderRunState,
@@ -57,6 +59,16 @@ export interface ReminderIntent {
    * `laterTomorrow` park the task's reminder (B4), `open` is a plain tap on
    * the notification itself. */
   action: "open" | "meeting" | "done" | "later1h" | "laterTomorrow";
+  /** A checkbox task (E3): its line — what a tap opens and what "Done" ticks. */
+  line?: ReminderLine;
+}
+
+/** A line as the notification carried it back, or nothing when it is not one. */
+function lineOf(raw: unknown): ReminderLine | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const { path, ordinal, text, taskId } = raw as Record<string, unknown>;
+  if (typeof path !== "string" || typeof ordinal !== "number" || typeof text !== "string") return undefined;
+  return { path, ordinal, text, ...(typeof taskId === "string" ? { taskId } : {}) };
 }
 
 let pendingIntent: ReminderIntent | null = null;
@@ -128,6 +140,7 @@ export function initReminderScheduler(): void {
     if (!extra.uid) return;
     const known = ["meeting", "done", "later1h", "laterTomorrow"] as const;
     const action = (known as readonly string[]).includes(event.actionId) ? (event.actionId as (typeof known)[number]) : "open";
+    const line = lineOf(extra.line);
     pendingIntent = {
       kind: extra.kind === "task" ? "task" : "event",
       uid: extra.uid,
@@ -135,6 +148,7 @@ export function initReminderScheduler(): void {
       calendarId: extra.calendarId ?? "",
       startTs: extra.startTs ?? 0,
       action,
+      ...(line ? { line } : {}),
     };
     window.dispatchEvent(new CustomEvent("m-reminder-intent"));
   }).catch(() => {});
@@ -142,10 +156,31 @@ export function initReminderScheduler(): void {
   // The scheduler owns its own triggers rather than being called from App.tsx:
   // returning to the app is a reminder concern, not an app-shell concern, and
   // the shell's lifecycle block is already the longest thing in that file.
-  void CapApp.addListener("appStateChange", ({ isActive }) => {
-    if (isActive) void rescheduleReminders();
+  // Into the background as well (E3): what was ticked, written or given a
+  // time while the app was open must be what the operating system holds once
+  // it is closed — that is when the notifications fire.
+  void CapApp.addListener("appStateChange", () => {
+    void rescheduleReminders();
   }).catch(() => {});
+
+  // The vault changed under the task reminders: a note saved, a box ticked, a
+  // file renamed, pulled or removed. Re-planned after a quiet spell, and only
+  // when task reminders are on — appointments do not live in the vault.
+  let quiet: ReturnType<typeof setTimeout> | null = null;
+  const onVaultChanged = () => {
+    const settings = getMobileSettings();
+    if (!settings.remindTasks && !settings.remindCheckboxes) return;
+    if (quiet) clearTimeout(quiet);
+    quiet = setTimeout(() => {
+      quiet = null;
+      void rescheduleReminders();
+    }, VAULT_CHANGE_QUIET_MS);
+  };
+  for (const name of ["m-paths-indexed", "m-vault-changed", "m-index-changed"]) window.addEventListener(name, onVaultChanged);
 }
+
+/** The quiet spell after a change of the vault before the reminders are planned again. */
+const VAULT_CHANGE_QUIET_MS = 3_000;
 
 export interface ReminderState extends ReminderRunState {
   /** How many reminders the operating system currently holds for us. */
@@ -233,6 +268,9 @@ function buildNotification(reminder: PlannedReminder, index: number) {
       accountId: subject.accountId,
       calendarId: subject.calendarId,
       startTs: subject.startTs,
+      // A checkbox's line travels with its notification, so a tap lands on
+      // it and "Done" ticks it — with the app started cold by the tap.
+      ...(subject.line ? { line: subject.line } : {}),
     },
   };
 }
@@ -272,7 +310,7 @@ async function runOnce(): Promise<void> {
   // `remindEvents` alone, which quietly made task reminders a SUB-setting of
   // appointment reminders: switching appointments off switched tasks off too,
   // and nothing anywhere said so. Either one on is reason enough to plan.
-  if (!settings.remindEvents && !settings.remindTasks) {
+  if (!settings.remindEvents && !settings.remindTasks && !settings.remindCheckboxes) {
     await clearPending().catch(() => {});
     setState({ ...EMPTY, reason: "off" });
     return;
@@ -325,14 +363,15 @@ async function runOnce(): Promise<void> {
     }
   }
 
-  let taskReason: ReminderReason;
+  // "Switched off" only when neither kind of task reminds: with checkbox
+  // reminders on, the task count is theirs and nothing is off.
+  let taskReason: ReminderReason = settings.remindCheckboxes ? "ok" : "tasksOff";
   if (settings.remindTasks) {
     const tasks = await dueTaskSubjects(now, windowEndTs);
     taskReason = tasks.reason;
     subjects.push(...tasks.subjects);
-  } else {
-    taskReason = "tasksOff";
   }
+  if (settings.remindCheckboxes) subjects.push(...(await checkboxSubjects(now, windowEndTs)));
 
   const plan = planReminders(subjects, rule, { now, windowEndTs });
   await clearPending();
@@ -367,11 +406,8 @@ async function dueTaskSubjects(
   windowEndTs: number
 ): Promise<{ subjects: ReminderSubject[]; reason: ReminderReason }> {
   const db = getMobileSettings().taskDatabase.trim();
-  // DECISION, not a gap (feedback round 2026-09-01, E3): only the task
-  // DATABASE feeds reminders. Same rule as the desktop scheduler. (Its first
-  // reason — a checkbox has no date to plan from — no longer holds: the day
-  // surfaces read a checkbox's `📅` since TestFlight 136; whether reminders
-  // follow is the maintainer's call, Sammelplan § 3.145.)
+  // The task DATABASE, behind its switch. Checkbox tasks have their own
+  // switch (`checkboxSubjects`, Sammelplan § 3.145 Nr. 1, decision E3).
   //
   // The commonest silence: the task database is a per-vault setting that
   // reaches the phone through the settings sync, so a sync that is off or
@@ -398,5 +434,24 @@ async function dueTaskSubjects(
     // A missing or unreadable task database must not cost the appointments —
     // but it must not pass unmentioned either, which is what it used to do.
     return { subjects: [], reason: "taskDbUnreadable" };
+  }
+}
+
+/**
+ * Checkbox tasks with a due date AND a time, from the index's task lines —
+ * derived anew on every run, so a ticked, deleted or moved line is simply no
+ * longer there. One rule with the desktop (`checkboxReminderSubjects`).
+ */
+async function checkboxSubjects(now: number, windowEndTs: number): Promise<ReminderSubject[]> {
+  try {
+    const { getMobileVault } = await import("./vaultService");
+    const vault = await getMobileVault();
+    if (!vault.queryService) return [];
+    const notes = await vault.queryService.listTasks();
+    return checkboxReminderSubjects(notes, { now, windowEndTs, snoozes: readTaskSnoozes(vault.vaultId, now) });
+  } catch {
+    // An index that cannot answer costs the checkbox reminders of this run,
+    // never the appointments; the next change or foreground switch asks again.
+    return [];
   }
 }

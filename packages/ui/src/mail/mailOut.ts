@@ -8,9 +8,13 @@ import { mailAccountKind, mailSendRoute } from "./mailAccounts";
 import { withMailCredentials } from "./mailCredentials";
 import { buildQuoteBlock, quoteText, FORWARD_SEPARATOR } from "./replyQuote";
 import { mailMessageText } from "./messageText";
+import { defuseRemoteImages } from "../lib/remoteImages";
 import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
 import { mailTransport } from "./transport";
+
+/** The property of a reply note that names the mailbox it leaves from (E6). */
+export const REPLY_NOTE_MAILBOX = "mailbox";
 
 /**
  * Mail export, draft storage and explicit submission through the user's SMTP
@@ -89,7 +93,11 @@ export function classifyFolderRole(name: string, delimiter?: string): GuessedFol
   if (hit(/^(inbox|posteingang|boîte de réception|bandeja de entrada|caixa de entrada|posta in arrivo|postvak in|odebrane|doručená|входящие|받은편지함|受信トレイ|收件箱)$/)) return "inbox";
   if (hit(/\bsent\b|gesendet|envoyé|enviad|inviat|verzonden|wys[łl]ane|odeslan|отправленн|보낸편지함|送信済み|已发送/)) return "sent";
   if (hit(/\bdrafts?\b|entw[uü]rf|brouillon|borrador|rascunho|bozze|concept|\brobocze\b|\bkoncepty?\b|черновик|임시보관함|下書き|草稿/)) return "drafts";
-  if (hit(/\btrash\b|papierkorb|corbeille|papelera|lixeira|cestino|prullenbak|\bkosz\b|koš|корзина|удал[её]нн|휴지통|ゴミ箱|已删除|deleted|\bbin\b/)) return "trash";
+  // Outlook and Exchange name their trash "Deleted Items" in each language
+  // ("Gelöschte Elemente", "Éléments supprimés", "Elementos eliminados", …):
+  // without those, a Microsoft mailbox whose server states no role had no
+  // trash on the phone (open-items plan 3.110 no. 7).
+  if (hit(/\btrash\b|papierkorb|corbeille|papelera|lixeira|cestino|prullenbak|\bkosz\b|koš|корзина|удал[её]нн|휴지통|지운 편지함|ゴミ箱|削除済み|已删除|deleted|\bbin\b|gel[öo]scht|supprim|eliminad|eliminat|verwijderd|exclu[ií]d|usuni[eę]t|odstran[eě]n/)) return "trash";
   if (hit(/\bjunk\b|\bspam\b|pourriel|correo no deseado|posta indesiderata|ongewenst|niechcian|nevyžádan|спам|스팸|迷惑メール|垃圾/)) return "junk";
   if (hit(/\barchives?\b|\barchiv\b|archiwum|archivio|arquivo|архив|보관|アーカイブ|归档/)) return "archive";
   return null;
@@ -189,17 +197,20 @@ export function resolveDraftsMailbox(
 }
 
 /** Reply note: a NORMAL vault note addressed at the sender, with the
- * original quoted below — written in Plainva, sent later via draft/mailto. */
-export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text" | "html">, dayKey: string): string {
+ * original quoted below — written in Plainva, sent later via draft/mailto.
+ * `mailbox` is the address of the mailbox the message is in: sent later, the
+ * note leaves from there (decision E6, `noteMailPrefill`). */
+export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text" | "html">, dayKey: string, mailbox?: string): string {
   const subject = message.subject.trim().replace(/^(re|aw|antw):\s*/i, "");
   const title = `Re: ${subject || "E-Mail"}`;
   let content = buildNewNoteContent("Email", title);
   try {
-    content = upsertFrontmatterKeys(content, { to: message.from || undefined, date: dayKey });
+    content = upsertFrontmatterKeys(content, { to: message.from || undefined, [REPLY_NOTE_MAILBOX]: mailbox || undefined, date: dayKey });
   } catch {
     /* best effort */
   }
-  const quoted = quoteText(mailMessageText(message));
+  // The quote is a note's text: a picture from the web in it becomes a link, as in a filed mail.
+  const quoted = quoteText(defuseRemoteImages(mailMessageText(message)));
   content = (content.trimEnd() + "\n\n") + (quoted ? `\n${quoted}\n` : "");
   return content;
 }
@@ -325,6 +336,20 @@ export function pickTrashFolder(boxes: readonly { name: string; role?: string; d
   if (byRole) return byRole.name;
   const delimiter = boxes.find((b) => b.delimiter)?.delimiter;
   return guessTrashMailbox(boxes.map((b) => b.name), delimiter);
+}
+
+/**
+ * Whether a folder IS the trash of its account — the one rule for "Delete moves
+ * to the trash" versus "Delete removes for good", in both shells and for every
+ * row (plan P1). It is the folder Delete would move to, by the same choice
+ * (`pickTrashFolder`: the role the server states, then the name). Asked of the
+ * folder the MESSAGE lies in, never of the one on screen: in a conversation in
+ * the trash, your reply from Sent is not in the trash and is not deleted for
+ * good.
+ */
+export function isTrashMailbox(name: string, boxes: readonly { name: string; role?: string; delimiter?: string }[]): boolean {
+  const trash = pickTrashFolder(boxes);
+  return trash !== null && trash === name;
 }
 
 const ROLE_ORDER: GuessedFolderRole[] = ["inbox", "sent", "drafts", "archive", "junk", "trash"];

@@ -6,10 +6,10 @@ import {
   FolderTree,
   Info,
   Mail,
+  NotebookText,
   Palette,
   PanelsTopLeft,
   Pencil,
-  RefreshCw,
   Rocket,
   ShieldCheck,
   Sparkles,
@@ -41,6 +41,12 @@ export interface SettingsAreaDef {
   labelKey: string;
   /** i18n key of the one-line page description shown under the title. */
   descKey: string;
+  /**
+   * The phone's name for the area where its screen is named otherwise — the
+   * row of the overview says what the screen it opens is called (settings plan
+   * 2026-10-29, 3.7 B3).
+   */
+  mobileLabelKey?: string;
   icon: LucideIcon;
   /**
    * Why this area has NO screen on the phone. Absent means the phone lists it.
@@ -60,18 +66,9 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "behavior", world: "app", labelKey: "settings.sectionBehavior", descKey: "settings.pageDescBehavior", icon: Rocket },
   // The AI harness (plan KI-Harness §19.1): what holds for this device — providers, keys, profiles.
   { id: "ai", world: "app", labelKey: "ai.settings.title", descKey: "ai.settings.sectionApp", icon: Sparkles },
-  {
-    id: "updates",
-    world: "app",
-    labelKey: "settings.updates",
-    descKey: "settings.pageDescUpdates",
-    icon: RefreshCw,
-    // The phone does not update itself: Play and TestFlight own that, and every
-    // control this page carries on the desktop (check now, install, auto-check)
-    // would be a button without an effect. The About area names the store as
-    // the channel instead, which is the question behind the page.
-    mobileOmitted: "app stores own mobile updates",
-  },
+  // "Updates" was an area of its own until 2026-10-29; it is a group of About
+  // & diagnostics now (settings plan, E10), and the phone, which does not
+  // update itself, lacks only that group (parity catalog in-app-updates).
   { id: "about", world: "app", labelKey: "settings.about", descKey: "settings.pageDescAbout", icon: Info },
   { id: "cloudAccounts", world: "vault", labelKey: "settings.sectionCloudAccounts", descKey: "settings.pageDescCloudAccounts", icon: Users },
   { id: "sync", world: "vault", labelKey: "settings.syncSection", descKey: "settings.pageDescSync", icon: Cloud },
@@ -81,8 +78,11 @@ export const SETTINGS_AREAS: readonly SettingsAreaDef[] = [
   { id: "aiVault", world: "vault", labelKey: "ai.settings.title", descKey: "ai.settings.sectionVault", icon: Sparkles },
   { id: "pim", world: "vault", labelKey: "settings.sectionPim", descKey: "settings.pageDescPim", icon: CalendarDays },
   { id: "mail", world: "vault", labelKey: "settings.sectionMail", descKey: "settings.pageDescMail", icon: Mail },
+  // "Content & structure" became two pages (settings plan 2026-10-29, E9):
+  // "Notes & filing" keeps the id "content", "Daily notes & journal" is new.
   { id: "content", world: "vault", labelKey: "settings.sectionContent", descKey: "settings.pageDescContent", icon: FolderTree },
-  { id: "bars", world: "vault", labelKey: "settings.sectionBars", descKey: "settings.pageDescBars", icon: PanelsTopLeft },
+  { id: "journal", world: "vault", labelKey: "settings.sectionJournal", descKey: "settings.pageDescJournal", icon: NotebookText },
+  { id: "bars", world: "vault", labelKey: "settings.sectionBars", descKey: "settings.pageDescBars", icon: PanelsTopLeft, mobileLabelKey: "mobile.navBar" },
   { id: "backup", world: "vault", labelKey: "settings.backupSection", descKey: "settings.pageDescBackup", icon: Archive },
   { id: "maintenance", world: "vault", labelKey: "settings.sectionMaintenance", descKey: "settings.pageDescMaintenance", icon: Wrench },
 ];

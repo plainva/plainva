@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } fro
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
 import { useApp } from "./contexts/AppContext";
-import { composeWindowTitle, useOsWindowTitle } from "./services/windowTitle";
+import { useWindowTitle } from "./services/windowTitle";
+import { useVaultWeekStart } from "./services/weekStartVault";
 import { useVault, okfPromptDismissedKey, type SyncProviderId } from "./contexts/VaultContext";
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
@@ -52,7 +53,9 @@ function App() {
 
   // The central window is a workplace too: with a second vault open, its
   // taskbar entry says which one it is (stage D).
-  useOsWindowTitle(composeWindowTitle({ vaultPath, vaultCount: heldVaults.length }));
+  useWindowTitle({ vaultPath, vaultCount: heldVaults.length });
+  // The week start of the vault this window shows (decision E4).
+  useVaultWeekStart(vaultPath);
 
   const [showSettings, setShowSettings] = useState(false);
   // Deep link from the splash's online-vault chooser: open Settings with the
@@ -64,7 +67,11 @@ function App() {
   // accountId (D2): the reauth offers name the account they are about, and the
   // settings land on ITS detail page — the only place with the button.
   const [settingsInitialAccountId, setSettingsInitialAccountId] = useState<string | null>(null);
-  const openSettings = useCallback((opts?: { provider?: string; area?: string; accountId?: string }) => {
+  // connect (settings plan 2026-10-29, E7): the calendar's and the mail's way in
+  // opens the connect assistant with their service ticked.
+  const [settingsInitialConnect, setSettingsInitialConnect] = useState<"calendar" | "mail" | "files" | null>(null);
+  const openSettings = useCallback((opts?: { provider?: string; area?: string; accountId?: string; connect?: "calendar" | "mail" | "files" }) => {
+    setSettingsInitialConnect(opts?.connect ?? null);
     setSettingsInitialProvider(opts?.provider ?? null);
     setSettingsInitialArea(opts?.area ?? null);
     setSettingsInitialAccountId(opts?.accountId ?? null);
@@ -75,7 +82,9 @@ function App() {
       const provider = (e as CustomEvent).detail?.provider;
       const area = (e as CustomEvent).detail?.area;
       const accountId = (e as CustomEvent).detail?.accountId;
+      const connect = (e as CustomEvent).detail?.connect;
       openSettings({
+        connect: connect === "calendar" || connect === "mail" || connect === "files" ? connect : undefined,
         provider: typeof provider === "string" ? provider : undefined,
         area: typeof area === "string" ? area : undefined,
         accountId: typeof accountId === "string" ? accountId : undefined,
@@ -139,13 +148,14 @@ function App() {
           return;
         }
         // A toast, not a dialog: it does not stand between the user and their
-        // notes, and its action leads to where the conversion lives anyway.
+        // notes, and its action leads to where the conversion lives anyway —
+        // Maintenance › OKF format since the settings plan of 2026-10-29.
         // The settings section keeps showing the offer while violations exist.
         toast.info(t("okf.openPromptMsg", { count: scan.violations.length }), {
           label: t("okf.openPromptAction"),
           run: () =>
             window.dispatchEvent(
-              new CustomEvent("plainva-open-sync-settings", { detail: { area: "content" } })
+              new CustomEvent("plainva-open-sync-settings", { detail: { area: "maintenance" } })
             ),
         });
         await store.set(okfPromptDismissedKey(vaultPath), true);
@@ -372,7 +382,7 @@ function App() {
           visible while the user navigates or closes the settings (K8). */}
       <WorkspaceActivationOverlay />
       <Suspense fallback={null}>
-        {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} initialAccountId={settingsInitialAccountId ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); setSettingsInitialAccountId(null); }} />}
+        {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} initialAccountId={settingsInitialAccountId ?? undefined} initialConnect={settingsInitialConnect ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); setSettingsInitialAccountId(null); setSettingsInitialConnect(null); }} />}
         {showOkfWizard && (
           <OkfConversionModal
             onClose={() => setShowOkfWizard(false)}

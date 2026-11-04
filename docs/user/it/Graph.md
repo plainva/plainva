@@ -1,6 +1,6 @@
 # Grafo
 
-Ultimo aggiornamento: 2026-10-22
+Ultimo aggiornamento: 2026-11-02
 
 Il grafo di Plainva è uno strumento di lavoro, non un poster: ti mostra dove sei, cosa è collegato, cosa manca — e puoi agire direttamente su di esso. C'è UN motore del grafo con tre facce.
 
@@ -51,5 +51,5 @@ Sul telefono questa vista si comporta come la mappa del vault: pulsanti di zoom 
 ## Limiti
 
 - Il grafo mostra note (file), non singoli paragrafi.
-- I fissaggi e i suggerimenti ignorati vivono sotto `.plainva/` e non viaggiano con la sincronizzazione — il layout di base è identico su ogni dispositivo.
+- I fissaggi e i suggerimenti ignorati vivono sotto `.plainva/` e non viaggiano con la sincronizzazione — il layout di base è identico su ogni dispositivo. Ogni dispositivo li tiene in un file proprio (`graph.<dispositivo>.json`): anche quando un servizio di file come Dropbox o iCloud Drive porta la cartella del vault tra i dispositivi, nessuno sovrascrive la disposizione di un altro.
 - I suggerimenti sono pure analisi del vault; nulla lascia il tuo computer.

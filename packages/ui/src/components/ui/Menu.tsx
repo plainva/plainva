@@ -254,16 +254,57 @@ export function MenuSurface({
     // either. Escape is the menu's first all the same — one press closes the
     // menu, the next is the field's (which may give up its edit on it) —,
     // except while an input method composes.
+    //
+    // The field steers the menu meanwhile, as it steers a list of suggestions
+    // (decision E11 of the bug-clearing plan, Sammelplan § 3.141 Nr. 3): the
+    // arrow keys, Home and End mark an entry (`is-active`, the mark a
+    // suggestion list shows) and Enter picks the marked one. A menu opened
+    // over a field with the menu key or Shift+F10 could not be reached from
+    // the keyboard at all. Until an entry is marked, Enter is the field's.
     const kept = had !== null && !el.contains(had) && isTypingField(had);
     let onEscape: ((e: KeyboardEvent) => void) | null = null;
     const keepFieldFocus = (e: MouseEvent) => e.preventDefault();
     if (kept) {
+      let marked = -1;
+      const mark = (next: number) => {
+        const items = Array.from(el.querySelectorAll<HTMLElement>(".pv-menu-item:not(:disabled)"));
+        if (!items.length) return;
+        marked = ((next % items.length) + items.length) % items.length;
+        items.forEach((item, i) => item.classList.toggle("is-active", i === marked));
+        items[marked].scrollIntoView({ block: "nearest" });
+      };
       onEscape = (e: KeyboardEvent) => {
-        if (e.key !== "Escape" || e.isComposing || e.keyCode === 229) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (!e.repeat) holdUntilReleased(e.key);
-        closeFor(null);
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!e.repeat) holdUntilReleased(e.key);
+          closeFor(null);
+          return;
+        }
+        // Only the keys of the field the menu stands over.
+        if (document.activeElement !== had) return;
+        const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+        if (step !== 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          mark(marked < 0 ? (step === 1 ? 0 : -1) : marked + step);
+          return;
+        }
+        if (e.key === "Home" || e.key === "End") {
+          if (marked < 0) return; // the caret's own keys until the menu is steered
+          e.preventDefault();
+          e.stopPropagation();
+          mark(e.key === "Home" ? 0 : -1);
+          return;
+        }
+        if (e.key === "Enter" && marked >= 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.repeat) return;
+          holdUntilReleased(e.key);
+          el.querySelectorAll<HTMLElement>(".pv-menu-item:not(:disabled)")[marked]?.click();
+        }
       };
       window.addEventListener("keydown", onEscape, true);
       el.addEventListener("mousedown", keepFieldFocus);
@@ -362,7 +403,12 @@ export function MenuSurface({
       }
     };
     // No native context menu ON a menu (a right-click elsewhere is a press
-    // outside and closes it).
+    // outside and closes it) - and no menu of the app's own either: heard in
+    // the capture phase, before the desktop's text menu (webviewHardening)
+    // looks, which leaves a right-click it finds handled alone. A right-click
+    // into the filter field of a card's label menu opened the text menu over
+    // the label menu, and a press on its entries closed the label menu under
+    // it as a press beside it (Sammelplan § 3.141 Nr. 2).
     const onCtx = (e: MouseEvent) => {
       if (ref.current?.contains(e.target as Node)) e.preventDefault();
     };
@@ -375,14 +421,14 @@ export function MenuSurface({
     const frame = requestAnimationFrame(() => window.addEventListener("scroll", onScroll, true));
     window.addEventListener("resize", close);
     document.addEventListener("keydown", onKey);
-    document.addEventListener("contextmenu", onCtx);
+    document.addEventListener("contextmenu", onCtx, true);
     return () => {
       cancelAnimationFrame(frame);
       if (check) cancelAnimationFrame(check);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
       document.removeEventListener("keydown", onKey);
-      document.removeEventListener("contextmenu", onCtx);
+      document.removeEventListener("contextmenu", onCtx, true);
     };
   }, [open, closeFor, anchorRef]);
 

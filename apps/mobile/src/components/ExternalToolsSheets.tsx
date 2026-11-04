@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AiExternalReview, Banner, Button, externalStatusText, externalTopFolders, TextInput, toast, useExternalAdd, useExternalReview } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { mConfirm } from "../services/mobileDialogs";
 import type { MobileVault } from "../services/vaultService";
@@ -17,15 +18,17 @@ export function ExternalAddSheet({ onClose, onAdded }: { onClose: () => void; on
   const { t } = useTranslation();
   const session = getMobileAiSession();
   const form = useExternalAdd(session, t, false);
+  // The name, the address and the token were typed here; adding is the sheet's own exit.
+  const close = useSheetGuard("ai-ext-add", form.name.trim() !== "" || form.url.trim() !== "" || form.token !== "", onClose);
   const submit = () => {
     void form.submit().then((id) => {
       if (id) onAdded(id);
     });
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(event) => event.stopPropagation()} data-testid="ai-ext-add">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("ai.ext.add.title")}</p>
         <TextInput value={form.name} maxLength={60} placeholder={t("ai.ext.add.name")} aria-label={t("ai.ext.add.name")} onChange={(event) => form.setName(event.target.value)} data-testid="ai-ext-add-name" />
         <p className="m-hint">{t("ai.ext.add.nameHint")}</p>
@@ -56,7 +59,7 @@ export function ExternalAddSheet({ onClose, onAdded }: { onClose: () => void; on
         <Button variant="primary" disabled={!form.ready || form.busy} onClick={submit} data-testid="ai-ext-add-submit">
           {t("ai.ext.add.submit")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("common.cancel")}
         </Button>
       </div>
@@ -70,6 +73,8 @@ export function ExternalReviewSheet({ vault, serverId, onClose }: { vault: Mobil
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const review = useExternalReview(session, state.mcp.servers, serverId, t);
+  // The vault's choices not yet saved, or a client id typed for the sign-in; saving and removing close plainly.
+  const close = useSheetGuard("ai-ext-review", review.dirty || (review.signIn.stage === "client" && review.signIn.clientId.trim() !== ""), onClose);
   const [vaultFolders, setVaultFolders] = useState<string[]>([]);
   useEffect(() => {
     if (!vault.queryService) return;
@@ -99,9 +104,9 @@ export function ExternalReviewSheet({ vault, serverId, onClose }: { vault: Mobil
     });
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(event) => event.stopPropagation()} data-testid="ai-ext-review">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{server.label}</p>
         <p className="m-hint">{externalStatusText(t, server)}</p>
         <AiExternalReview review={review} vaultFolders={vaultFolders} />
@@ -117,7 +122,7 @@ export function ExternalReviewSheet({ vault, serverId, onClose }: { vault: Mobil
         <Button variant="danger-soft" onClick={remove} data-testid="ai-ext-remove">
           {t("ai.ext.review.remove")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("common.close")}
         </Button>
       </div>

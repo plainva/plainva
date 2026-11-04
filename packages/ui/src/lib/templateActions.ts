@@ -19,13 +19,17 @@ export type TemplateFsAdapter = Pick<
   "exists" | "createDir" | "writeTextFile" | "readTextFile"
 >;
 
-/** Ensures the template folder exists; false when it cannot be created. */
-async function ensureFolder(adapter: TemplateFsAdapter, folder: string): Promise<boolean> {
+/**
+ * Ensures the template folder exists. A folder that cannot be created throws
+ * the reason (Sammelplan § 3.134 no. 3): answered as `null`, it reached the
+ * shells as "nothing to do" — the desktop said nothing, the phone "Export
+ * failed." — and the reason was gone.
+ */
+async function ensureFolder(adapter: TemplateFsAdapter, folder: string): Promise<void> {
   try {
     await adapter.createDir(folder);
-    return true;
-  } catch {
-    return await adapter.exists(folder).catch(() => false);
+  } catch (error) {
+    if (!(await adapter.exists(folder).catch(() => false))) throw error;
   }
 }
 
@@ -43,7 +47,7 @@ async function uniqueTemplatePath(
 
 /**
  * Creates a fresh template in the vault's template folder and returns its
- * path (null when the folder cannot be created). Seeds `# {{title}}` so the
+ * path; a folder that cannot be created throws its reason. Seeds `# {{title}}` so the
  * template is not blank AND notes created from it inherit their file name as
  * the H1 — {{title}} is interpolated by the new-item flow at creation time.
  * When created FROM a database, `assignTo` starts the template assigned to it
@@ -55,8 +59,8 @@ export async function createTemplateIn(
   opts: { folder: string; noteType: string },
   stem: string,
   assignTo?: { basePath: string; allFilePaths: readonly string[] },
-): Promise<string | null> {
-  if (!(await ensureFolder(adapter, opts.folder))) return null;
+): Promise<string> {
+  await ensureFolder(adapter, opts.folder);
   const path = await uniqueTemplatePath(adapter, opts.folder, stem);
   // A template opts itself out of the Tasks view (`plainva.tasks: false`); the
   // builder of every note that is made from it takes the marker out again
@@ -82,8 +86,8 @@ export async function saveNoteAsTemplateIn(
   adapter: TemplateFsAdapter,
   folder: string,
   notePath: string,
-): Promise<string | null> {
-  if (!(await ensureFolder(adapter, folder))) return null;
+): Promise<string> {
+  await ensureFolder(adapter, folder);
   const base = notePath.split("/").pop() ?? notePath;
   const stem = base.replace(/\.md$/i, "");
   const path = await uniqueTemplatePath(adapter, folder, stem);

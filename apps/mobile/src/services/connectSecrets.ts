@@ -1,4 +1,5 @@
 import { looksLikeNextcloud, nextcloudEndpoints } from "@plainva/ui";
+import type { PhoneConnectRequest } from "./connectForm";
 
 /**
  * What one connect run already asked the user for — held ONLY in memory
@@ -25,6 +26,12 @@ export interface ConnectRunSecrets {
   password?: string;
   /** Suite address; the mail step asks for exactly this. */
   email?: string;
+  /**
+   * What the ONE form of the sign-in step proved to work, per service
+   * (settings plan 2026-10-29, E5): the files step chooses the folder with
+   * it, the calendar and mail steps bind with it - none asks again.
+   */
+  request?: PhoneConnectRequest;
 }
 
 let secrets: ConnectRunSecrets = {};
@@ -32,8 +39,9 @@ let secrets: ConnectRunSecrets = {};
 /** Merges what a step collected. Empty values never overwrite a known one. */
 export function rememberConnectSecrets(patch: ConnectRunSecrets): void {
   const next = { ...secrets };
-  for (const [key, value] of Object.entries(patch) as Array<[keyof ConnectRunSecrets, string | undefined]>) {
-    if (value && value.trim()) next[key] = value.trim();
+  for (const [key, value] of Object.entries(patch) as Array<[keyof ConnectRunSecrets, unknown]>) {
+    if (key === "request") { if (value) next.request = value as PhoneConnectRequest; continue; }
+    if (typeof value === "string" && value.trim()) (next as Record<string, string>)[key] = value.trim();
   }
   secrets = next;
 }

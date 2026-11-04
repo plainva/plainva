@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import { encodeWikiTarget, isHtmlCommentOnly, remarkBrToBreak, remarkStripHighlightMarks, remarkStripHtmlComments, remarkTagPills } from "./markdownReaderModel";
 
 describe("encodeWikiTarget", () => {
@@ -85,9 +86,7 @@ describe("isHtmlCommentOnly", () => {
 
   it("stays linear on adversarial input (no catastrophic backtracking)", () => {
     const evil = "<!--" + " ".repeat(50000); // long, never terminated
-    const start = performance.now();
-    expect(isHtmlCommentOnly(evil)).toBe(false);
-    expect(performance.now() - start).toBeLessThan(100);
+    within(100, () => expect(isHtmlCommentOnly(evil)).toBe(false));
   });
 });
 

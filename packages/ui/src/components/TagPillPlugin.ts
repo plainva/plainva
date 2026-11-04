@@ -5,7 +5,7 @@ import { findInlineTagsInLine } from "@plainva/core";
 import { tagSegments } from "../base/propertyModel";
 import { tagColorAttrs } from "../lib/tagColor";
 import { isEditorInteractive } from "./editorInteractive";
-import { frontmatterLines } from "./editorFrontmatter";
+import { frontmatterLinesOf } from "./editorFrontmatter";
 
 /**
  * Tags as pills in the live editor (finding 2026-09-19).
@@ -31,7 +31,7 @@ export type OpenTagFn = (tag: string) => void;
  */
 const SKIP = new Set([
   "FencedCode", "CodeBlock", "HTMLBlock", "CommentBlock", "ProcessingInstructionBlock",
-  "InlineCode", "Link", "Image", "URL", "Autolink", "HTMLTag", "Comment",
+  "InlineCode", "Link", "WikiLink", "Image", "URL", "Autolink", "HTMLTag", "Comment",
 ]);
 
 function skipped(state: EditorState, pos: number): boolean {
@@ -45,7 +45,7 @@ function skipped(state: EditorState, pos: number): boolean {
 export function visibleTagRanges(state: EditorState, ranges: readonly { from: number; to: number }[]): { from: number; to: number; name: string }[] {
   const out: { from: number; to: number; name: string }[] = [];
   // The frontmatter ends with its closing line; lezer has no node for it.
-  const fmEnd = frontmatterLines(state.doc)?.closeTo ?? 0;
+  const fmEnd = frontmatterLinesOf(state)?.closeTo ?? 0;
   let lastLine = -1;
   for (const { from, to } of ranges) {
     for (let pos = from; pos <= to; ) {

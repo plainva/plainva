@@ -113,7 +113,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       last_sync_ts INTEGER,
       base_text TEXT,
       pending_push_sha TEXT,
-      recheck INTEGER
+      recheck INTEGER,
+      pulled_sha256 TEXT,
+      pulled_mtime INTEGER,
+      not_text_sha256 TEXT
     );`,
 
     `CREATE TABLE IF NOT EXISTS meta (
@@ -556,6 +559,33 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     // compared the file with the server's copy. A column of its own, because it
     // has to outlive a rename and a push, which both rewrite the remote marker.
     await db.execute(`ALTER TABLE sync_state ADD COLUMN recheck INTEGER;`);
+  } catch {
+    // Column might already exist
+  }
+
+  // The version the sync last DOWNLOADED and wrote here, and when it last
+  // changed on the remote (Sammelplan § 3.164). "Edited at" of a file whose
+  // current content is that version is the remote's time, not the moment of
+  // the download — a fresh connection listed every pulled note as edited
+  // today. Additive and nullable: a row without them keeps the local time.
+  for (const statement of [
+    `ALTER TABLE sync_state ADD COLUMN pulled_sha256 TEXT;`,
+    `ALTER TABLE sync_state ADD COLUMN pulled_mtime INTEGER;`,
+  ]) {
+    try {
+      await db.execute(statement);
+    } catch {
+      // Column might already exist
+    }
+  }
+
+  try {
+    // "The version this row names is no text" (2026-11-03, Sammelplan § 3.86
+    // no. 2): the hash of the bytes the sync, the index or an open found to be
+    // no UTF-8 (`SyncState.not_text_sha256`). Additive and nullable: a row
+    // without it is judged as before, so nothing is guessed about a row an
+    // older version wrote.
+    await db.execute(`ALTER TABLE sync_state ADD COLUMN not_text_sha256 TEXT;`);
   } catch {
     // Column might already exist
   }

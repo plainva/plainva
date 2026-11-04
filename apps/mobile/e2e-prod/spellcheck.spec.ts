@@ -68,7 +68,11 @@ test("the switch under Editor & notes turns checking on for the note editor, and
     await page.locator('[data-testid="settings-area-editor"]').click();
     const toggle = page.getByRole("switch", { name: "Spell checking" });
     await expect(toggle).toHaveAttribute("aria-checked", "false");
-    await expect(page.getByText(/uses your system's spell checker/)).toBeVisible();
+    // What it covers is behind the row's info button (settings plan 2026-10-29).
+    await page.getByRole("button", { name: "More about Spell checking" }).click();
+    await expect(page.getByTestId("grouprow-info-sheet")).toContainText("uses your system's spell checker");
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("grouprow-info-sheet")).toHaveCount(0);
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
     // Stored with the device, not merely applied.

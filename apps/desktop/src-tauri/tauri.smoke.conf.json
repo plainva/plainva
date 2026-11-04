@@ -9,6 +9,7 @@
         "minWidth": 720,
         "minHeight": 520,
         "center": true,
+        "visible": false,
         "decorations": false,
         "dragDropEnabled": false,
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=0"

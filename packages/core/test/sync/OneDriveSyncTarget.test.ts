@@ -88,14 +88,14 @@ describe("OneDriveSyncTarget", () => {
         return res({
           value: [
             { id: "f1", name: "sub", folder: {} },
-            { id: "i1", name: "a.md", file: {}, cTag: "c1" },
+            { id: "i1", name: "a.md", file: {}, cTag: "c1", lastModifiedDateTime: "2026-10-29T14:28:00Z", fileSystemInfo: { lastModifiedDateTime: "2025-03-04T05:06:07Z" } },
             { id: "i9", name: "x.CONFLICT-1.md", file: {}, cTag: "c9" },
           ],
           "@odata.nextLink": page2,
         });
       }
       if (url === page2) {
-        return res({ value: [{ id: "i2", name: "b.md", file: {}, cTag: "c2" }] });
+        return res({ value: [{ id: "i2", name: "b.md", file: {}, cTag: "c2", lastModifiedDateTime: "2026-01-01T00:00:00Z" }] });
       }
       if (url.startsWith(`${GRAPH}/me/drive/root:/Plainva/sub:/children`)) {
         return res({ value: [{ id: "i3", name: "c.md", file: {}, eTag: "e3" }] });
@@ -108,6 +108,11 @@ describe("OneDriveSyncTarget", () => {
     expect(result.etagMap.get("b.md")).toBe("c2");
     expect(result.etagMap.get("sub/c.md")).toBe("e3"); // eTag fallback when cTag missing
     expect(result.etagMap.size).toBe(3);
+    // When each file last changed: the file's own time, else OneDrive's
+    // (Sammelplan § 3.164); none for a file the listing gives no time.
+    expect(result.mtimeMap?.get("a.md")).toBe(Date.UTC(2025, 2, 4, 5, 6, 7));
+    expect(result.mtimeMap?.get("b.md")).toBe(Date.UTC(2026, 0, 1));
+    expect(result.mtimeMap?.has("sub/c.md")).toBe(false);
     // Empty-folder sync (2026-07-17): the walked folder is reported.
     expect(result.folders).toEqual(["sub"]);
   });
@@ -151,7 +156,7 @@ describe("OneDriveSyncTarget", () => {
       if (url === deltaLink) {
         return res({
           value: [
-            { id: "i1", name: "a.md", file: {}, cTag: "c1b", parentReference: { path: "/drive/root:/Plainva" } },
+            { id: "i1", name: "a.md", file: {}, cTag: "c1b", parentReference: { path: "/drive/root:/Plainva" }, fileSystemInfo: { lastModifiedDateTime: "2025-03-04T05:06:07Z" } },
             { id: "i2", name: "c.md", file: {}, cTag: "c9", parentReference: { path: "/drive/root:/Plainva/sub" } },
             { id: "i3", name: "gone.md", deleted: {}, parentReference: { path: "/drive/root:/Plainva" } },
             { id: "root", name: "Plainva", folder: {}, parentReference: { path: "/drive/root:" } },
@@ -167,6 +172,7 @@ describe("OneDriveSyncTarget", () => {
     expect(result.etagMap.get("sub/c.md")).toBe("c9");
     expect(result.etagMap.has("Plainva")).toBe(false); // the root folder item is skipped
     expect(result.deleted).toEqual(["gone.md"]);
+    expect(result.mtimeMap?.get("a.md")).toBe(Date.UTC(2025, 2, 4, 5, 6, 7));
     expect(result.nextCursor).toBe(`${GRAPH}/me/drive/root:/Plainva:/delta?token=DL2`);
   });
 

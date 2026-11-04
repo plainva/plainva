@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2 } from "lucide-react";
-import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, SwatchGrid, TextInput, WEEKDAY_CODES, weekdayCodeLabel } from "@plainva/ui";
-import type { PimAttendee, PimAttendeeStatus } from "@plainva/core";
+import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, SwatchGrid, TextInput, useDiscardGuard, WEEKDAY_CODES, weekdayCodeLabel } from "@plainva/ui";
+import { sameStoredValue, type PimAttendee, type PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
 import { ComposeEditor } from "../mail/ComposeEditor";
@@ -57,6 +57,9 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   // unchanged), but presented as Google-Calendar-style chips: type an address,
   // Enter/comma/blur turns it into a chip. `attendeeDraft` is the text-in-flight.
   const [attendeeDraft, setAttendeeDraft] = useState("");
+  // Whatever differs from what the dialog opened with is unsaved (finding 2026-10-22).
+  const [opened] = useState<EventFormValues>(initial);
+  const cancel = useDiscardGuard(!sameStoredValue(values, opened) || attendeeDraft.trim() !== "", onCancel);
   // Overflow menu for the edit-mode actions (meeting note / block / delete) so
   // the footer never overflows one line.
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -135,7 +138,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
   return (
     <Modal
       title={mode === "create" ? t("pim.newEvent", { defaultValue: "Neuer Termin" }) : t("pim.editEvent", { defaultValue: "Termin bearbeiten" })}
-      onClose={onCancel}
+      onClose={cancel}
       size="md"
       footer={
         <>
@@ -181,7 +184,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
             </>
           )}
           <span style={{ flex: 1 }} />
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="ghost" onClick={cancel}>
             {t("common.cancel", { defaultValue: "Abbrechen" })}
           </Button>
           <Button variant="primary" data-testid="event-save" disabled={busy} onClick={() => void submit()}>

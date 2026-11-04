@@ -81,10 +81,25 @@ export interface PlannerRow {
 }
 
 export interface PlannerSection {
-  /** `overdue`, `today`, `inbox`, `done` — or a day key in Upcoming. */
+  /** `overdue`, `today`, `inbox`, `done` — or a day key in Upcoming; a group's path for `group`. */
   key: string;
-  kind: "overdue" | "today" | "day" | "inbox" | "done";
+  /**
+   * `group` is a group of a Tasks query (plan Tasks-Abfragen, T3): its heading
+   * is `label` (none for an ungrouped result), it may stand at `level` 2 or 3
+   * under another, and a heading over further groups carries no rows.
+   */
+  kind: "overdue" | "today" | "day" | "inbox" | "done" | "group";
   rows: PlannerRow[];
+  /** `group`: the heading, already in the app's language. */
+  label?: string;
+  /** `group`: 1–3. */
+  level?: number;
+  /** `group`: drawn in the warning colour, like Overdue (a day before today). */
+  late?: boolean;
+  /** `group`: the number beside the heading, where it is shown. */
+  count?: number;
+  /** `group`: the heading names the rows' day already — the row shows its time only. */
+  dayHeading?: boolean;
 }
 
 export interface PlannerCounts {

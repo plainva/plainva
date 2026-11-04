@@ -41,6 +41,8 @@ const fullDraft: Required<MailDraft> = {
   // A message the mail server refused, by the id it is held under — never the
   // message itself.
   refused: 3,
+  // The address a reply note names (decision E6).
+  from: "Anna <anna@example.org>",
 };
 
 const fullRef: Required<MailRef> = {

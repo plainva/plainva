@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, ConflictHistory, FileComparisonDetails, comparesAsText, conflictCopyStamp, toast, versionCopyPath } from "@plainva/ui";
-import { assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, isNotTextFileError, seeConflictCopy, separateTaskConflict, settleConflictCopy, type ConflictCopySight } from "@plainva/core";
+import { assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, isNotTextFileError, seeConflictCopy, separateTaskConflict, settleConflictCopy, settleConflictText, type ConflictCopySight } from "@plainva/core";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { CompareVersions } from "./CompareVersions";
 import { SheetGrip } from "./SheetGrip";
@@ -133,6 +133,18 @@ export function ConflictCompareSheet({
     onResolved(touched);
   };
 
+  /**
+   * The note's editor hears of every answer as of a change from outside (the
+   * desktop's comparison does the same, Sammelplan § 3.86 no. 7): it shows the
+   * file as what it is now, and lets go of a working copy that is gone. After
+   * "keep both" or "delete copy" of a conflict it held that copy's text and
+   * the banner of a conflict that was over, and its next save kept the text
+   * it had just been told to let go once more.
+   */
+  const tellEditorOf = () => {
+    window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: originalPath, vaultId: vault.vaultId } }));
+  };
+
   const run = async (work: () => Promise<string[]>) => {
     if (running.current || !sidesKnown) return;
     running.current = true;
@@ -145,6 +157,7 @@ export function ConflictCompareSheet({
       // bytes that were seen — the byte-wise exits ask that themselves.
       if (!notText) await assertComparisonUnchanged(vault.files, originalPath, originalSnapshot.current, conflictPath, copy!);
       const touched = await work();
+      tellEditorOf();
       await finish(touched);
     } catch (e) {
       console.error("[ConflictCompareSheet] resolving failed", e);
@@ -152,17 +165,6 @@ export function ConflictCompareSheet({
       else toast.error(t("conflict.resolveFailed", { error: e instanceof Error ? e.message : String(e) }));
       setBusy(false);
     } finally { running.current = false; }
-  };
-
-  /**
-   * The note's editor hears of a byte-wise answer as of a change from outside
-   * (the desktop's comparison does the same): it shows the file as what it is
-   * now, and lets go of a working copy that is gone — it held that copy's
-   * text, and its next save kept the text it had just been told to let go
-   * once more.
-   */
-  const tellEditorOf = () => {
-    window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: originalPath, vaultId: vault.vaultId } }));
   };
 
   const adopt = async () => {
@@ -183,7 +185,6 @@ export function ConflictCompareSheet({
       await run(async () => {
         if (await vault.files.exists(originalPath)) await vault.backup?.forceBackup(originalPath);
         await settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "adopt" });
-        tellEditorOf();
         toast.success(t("compare.resolvedAdopted"));
         return [originalPath, conflictPath];
       });
@@ -192,16 +193,12 @@ export function ConflictCompareSheet({
     const taken = copy!;
     await run(async () => {
       // S2: the note may be open with unsaved keystrokes — exactly the
-      // situation that produced the conflict. Land them first, otherwise the
-      // queued save settles after the promotion and puts the losing version back.
-      const session = await vault.files.getConflictSession?.(originalPath);
-      if (session?.workingCopyPath === conflictPath && vault.files.resolveConflict) {
-        await vault.files.resolveConflict(originalPath, { originalText: originalSnapshot.current, copyText: taken, content: taken });
-      } else {
-        await vaultOps.save(vault, originalPath, taken);
-        if (await vault.files.readTextFile(conflictPath) !== taken) throw new Error("comparisonChanged");
-        await vaultOps.remove(vault, conflictPath);
-      }
+      // situation that produced the conflict. Land them first (`run` flushes),
+      // otherwise the queued save settles after the promotion and puts the
+      // losing version back. Checked and written in one step, for an open
+      // conflict's working copy and a copy beside the note alike
+      // (`settleConflictText`, § 3.86 no. 8).
+      await settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: taken }, { disposition: "adopt", content: taken });
       toast.success(t("compare.resolvedAdopted"));
       return [originalPath, conflictPath];
     });
@@ -221,7 +218,6 @@ export function ConflictCompareSheet({
       // The copy becomes a file of its own, as it lies there.
       await run(async () => {
         await settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "discard", keepCopyAs: candidate });
-        tellEditorOf();
         toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
         return [conflictPath, candidate];
       });
@@ -229,14 +225,9 @@ export function ConflictCompareSheet({
     }
     const kept = copy!, held = inNote!;
     await run(async () => {
-      const session = await vault.files.getConflictSession?.(originalPath);
-      if (session?.workingCopyPath === conflictPath && vault.files.resolveConflict) {
-        await vault.files.resolveConflict(originalPath, { originalText: originalSnapshot.current, copyText: kept, content: held, disposition: "discard", keepCopyAs: candidate });
-      } else if (differentTasks) await separateTaskConflict(vault.files, originalPath, held, conflictPath, kept, candidate);
-      else {
-        if (await vault.files.exists(candidate)) throw new Error("comparisonChanged");
-        await vault.files.renameItem(conflictPath, candidate);
-      }
+      const session = differentTasks ? await vault.files.getConflictSession?.(originalPath) : null;
+      if (differentTasks && session?.workingCopyPath !== conflictPath) await separateTaskConflict(vault.files, originalPath, held, conflictPath, kept, candidate);
+      else await settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: kept }, { disposition: "discard", keepCopyAs: candidate });
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return [conflictPath, candidate];
     });
@@ -256,17 +247,13 @@ export function ConflictCompareSheet({
       // The copy goes; the file stays as it lies.
       await run(async () => {
         await settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "discard" });
-        tellEditorOf();
         toast.success(t("compare.resolvedDiscarded"));
         return [conflictPath];
       });
       return;
     }
     await run(async () => {
-      const session = await vault.files.getConflictSession?.(originalPath);
-      if (session?.workingCopyPath === conflictPath && vault.files.resolveConflict) {
-        await vault.files.resolveConflict(originalPath, { originalText: originalSnapshot.current, copyText: copy!, content: inNote ?? "", disposition: "discard" });
-      } else await vaultOps.remove(vault, conflictPath);
+      await settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: copy! }, { disposition: "discard" });
       toast.success(t("compare.resolvedDiscarded"));
       return [conflictPath];
     });

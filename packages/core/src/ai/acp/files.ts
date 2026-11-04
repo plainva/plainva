@@ -1,4 +1,4 @@
-import { AI_HIDDEN_ROOTS } from "../hiddenPaths.js";
+import { isAiHiddenPath } from "../hiddenPaths.js";
 
 /**
  * Which file of the vault an agent means (plan KI-Harness P4.6).
@@ -57,8 +57,9 @@ function safeRelative(relative: string): AcpVaultPath {
       if (code < 0x20 || code === 0x7f) return { ok: false, problem: "unsafe" };
     }
   }
-  // Case-blind on every system: `.PLAINVA` syncs onto `.plainva` the moment the vault reaches another device.
-  if ((AI_HIDDEN_ROOTS as readonly string[]).includes(parts[0]!.normalize("NFC").toLowerCase())) return { ok: false, problem: "hidden" };
+  // A dot file or anything below a dot folder, at any depth and in any letter case (`.PLAINVA` syncs onto
+  // `.plainva` the moment the vault reaches another device): hidden on every surface, for an agent too (E8).
+  if (isAiHiddenPath(parts.join("/"))) return { ok: false, problem: "hidden" };
   return { ok: true, path: parts.join("/").normalize("NFC") };
 }
 

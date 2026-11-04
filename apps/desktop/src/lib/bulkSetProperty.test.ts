@@ -89,7 +89,7 @@ describe("bulkSetProperty", () => {
     const a = adapter(() => true);
     const onProgress = vi.fn();
     const r = await bulkSetProperty(a, [], "status", "x", { onProgress });
-    expect(r).toEqual({ written: [], failed: [], cancelled: false });
+    expect(r).toEqual({ written: [], failed: [], skipped: [], cancelled: false });
     expect(onProgress).not.toHaveBeenCalled();
   });
 });

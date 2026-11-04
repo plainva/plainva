@@ -65,6 +65,26 @@ describe("encrypted workspace scheduling", () => {
     await worker.stopAndDrain();
   });
 
+  it("says once that its first cycle went through, not after a failed one (3.119)", async () => {
+    // The phone holds back announcing files the index finds as new until the
+    // first sync has looked; only the plain worker said so, so with an
+    // encrypted workspace a file put beside the app reached the queue only at
+    // the next start.
+    vi.useFakeTimers();
+    const { worker } = fixture();
+    const first = vi.fn();
+    worker.onFirstCycleComplete = first;
+    vi.spyOn(worker, "runCycle").mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
+    worker.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first).not.toHaveBeenCalled();
+    await worker.runNow();
+    expect(first).toHaveBeenCalledTimes(1);
+    await worker.runNow();
+    expect(first).toHaveBeenCalledTimes(1);
+    await worker.stopAndDrain();
+  });
+
   it("queues one manual retry behind a failing active cycle without overlap", async () => {
     vi.useFakeTimers();
     const { worker, statuses } = fixture();

@@ -24,7 +24,26 @@ import {
   type RoutineSkillOption,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
+
+const daysKey = (draft: RoutineDraft) => [...draft.days].sort().join(",");
+const choiceKey = (draft: RoutineDraft) => (draft.choice ? routineChoiceKey(draft.choice) : "");
+
+/** Whether the form holds anything the routine it opened with does not. */
+function routineDraftChanged(a: RoutineDraft, b: RoutineDraft): boolean {
+  return (
+    a.name !== b.name ||
+    a.skill !== b.skill ||
+    a.request !== b.request ||
+    a.time !== b.time ||
+    a.missed !== b.missed ||
+    a.onlyWhenChanged !== b.onlyWhenChanged ||
+    (a.log?.folder ?? null) !== (b.log?.folder ?? null) ||
+    daysKey(a) !== daysKey(b) ||
+    choiceKey(a) !== choiceKey(b)
+  );
+}
 
 /**
  * Setting a routine up on the phone (plan KI-Harness P8, mockup chapter 24) —
@@ -58,6 +77,8 @@ export function RoutineSheet({
   const [initial] = useState<RoutineDraft>(() => (routine ? routineDraftOf(routine) : skills[0] ? newRoutineDraft(skills[0].id, models[0]?.choice ?? null) : newLogDraft(models[0]?.choice ?? null)));
   const form = useRoutineForm(session, initial, { ...(routine ? { id: routine.id } : {}), review });
   const { draft } = form;
+  // The form differs from what it opened with, at either step: only the yes at the second makes the routine.
+  const close = useSheetGuard("ai-routine", routineDraftChanged(draft, initial), onClose);
   const skill = skills.find((option) => option.id === draft.skill);
   const kind: RoutineKind = draft.log ? "log" : "skill";
   const confirm = () => {
@@ -74,9 +95,9 @@ export function RoutineSheet({
 
   if (form.step === "confirm") {
     return (
-      <div className="m-sheet-backdrop" onClick={onClose}>
+      <div className="m-sheet-backdrop" onClick={close}>
         <div className="pv-sheet m-sheet" onClick={(event) => event.stopPropagation()} data-testid="ai-routine-confirm">
-          <SheetGrip onClose={onClose} />
+          <SheetGrip onClose={close} />
           <p className="m-sheet-title">{t("ai.routines.confirm.title", { name: draft.name.trim() })}</p>
           {refusal}
           {form.preview && <AiRoutineConfirm draft={draft} preview={form.preview} weekStart={weekStart} touch {...(onOpenNote ? { onOpenNote } : {})} />}
@@ -92,9 +113,9 @@ export function RoutineSheet({
   }
 
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(event) => event.stopPropagation()} data-testid="ai-routine-form">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{routine ? t("ai.routines.form.titleEdit") : t("ai.routines.form.titleNew")}</p>
         <TextInput
           value={draft.name}
@@ -204,7 +225,7 @@ export function RoutineSheet({
         <Button variant="primary" disabled={form.problems.length > 0 || form.busy} onClick={form.toConfirm} data-testid="ai-routine-next">
           {t("common.next")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("common.cancel")}
         </Button>
       </div>

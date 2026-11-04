@@ -1,7 +1,7 @@
 import { syntaxTree } from "@codemirror/language";
 import type { Extension, Range } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from "@codemirror/view";
-import { frontmatterLines } from "./editorFrontmatter";
+import { frontmatterLinesOf } from "./editorFrontmatter";
 
 /**
  * What a spell checker must leave alone inside a note (plan Befunde
@@ -48,7 +48,7 @@ function build(view: EditorView): DecorationSet {
   };
 
   // The frontmatter ends with its closing line; lezer has no node for it.
-  const fmEnd = frontmatterLines(state.doc)?.closeTo ?? 0;
+  const fmEnd = frontmatterLinesOf(state)?.closeTo ?? 0;
   for (const visible of view.visibleRanges) {
     if (fmEnd > 0 && visible.from < fmEnd) lineOffAt(visible.from, Math.min(visible.to, fmEnd));
     syntaxTree(state).iterate({

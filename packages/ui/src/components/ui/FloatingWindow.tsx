@@ -19,6 +19,8 @@ import { isModalOpen } from "./Modal";
  * it have the key, and asks before a changed draft goes.
  */
 
+/** How far a press on the head moves before it is a drag of the window, in pixels. */
+const DRAG_START = 3;
 const MARGIN = 8;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -268,21 +270,60 @@ export function FloatingWindow({
   }, [onEscape, escapeScope, id]);
 
   // --- Drag (by head) and resize (bottom-right grip) via pointer capture ---
-  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  //
+  // The head is captured once the press MOVES (Sammelplan § 3.140 Nr. 1): a
+  // capture taken at the press made the head the target of the click that
+  // followed, so a double-click on what the head shows - the peek window's
+  // title, which renames the entry - never reached it.
+  //
+  // Until then the press is followed on the window: a quick drag leaves the
+  // head before its first move is reported, and a press that ends without a
+  // drag is let go wherever it ends.
+  const drag = useRef<{ px: number; py: number; ox: number; oy: number; captured: boolean } | null>(null);
+  const moveTo = (d: { px: number; py: number; ox: number; oy: number }, clientX: number, clientY: number) => {
+    setRect((r) => ({
+      ...r,
+      x: clamp(d.ox + (clientX - d.px), MARGIN, Math.max(MARGIN, window.innerWidth - r.w - MARGIN)),
+      y: clamp(d.oy + (clientY - d.py), MARGIN, Math.max(MARGIN, window.innerHeight - r.h - MARGIN)),
+    }));
+  };
   const onHeadDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest("button")) return; // head buttons stay clickable
     e.preventDefault();
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, ox: rect.x, oy: rect.y };
+    const d = { px: e.clientX, py: e.clientY, ox: rect.x, oy: rect.y, captured: false };
+    drag.current = d;
+    const head = e.currentTarget as Element;
+    const pointer = e.pointerId;
+    const stop = () => {
+      window.removeEventListener("pointermove", follow, true);
+      window.removeEventListener("pointerup", letGo, true);
+      window.removeEventListener("pointercancel", letGo, true);
+    };
+    const follow = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointer || drag.current !== d) return stop();
+      if (Math.abs(ev.clientX - d.px) + Math.abs(ev.clientY - d.py) < DRAG_START) return;
+      stop();
+      d.captured = true;
+      try {
+        head.setPointerCapture?.(pointer);
+      } catch {
+        /* the pointer is gone */
+      }
+      moveTo(d, ev.clientX, ev.clientY);
+    };
+    const letGo = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointer) return;
+      stop();
+      if (drag.current === d && !d.captured) drag.current = null;
+    };
+    window.addEventListener("pointermove", follow, true);
+    window.addEventListener("pointerup", letGo, true);
+    window.addEventListener("pointercancel", letGo, true);
   };
   const onHeadMove = (e: React.PointerEvent) => {
     const d = drag.current;
-    if (!d) return;
-    setRect((r) => ({
-      ...r,
-      x: clamp(d.ox + (e.clientX - d.px), MARGIN, Math.max(MARGIN, window.innerWidth - r.w - MARGIN)),
-      y: clamp(d.oy + (e.clientY - d.py), MARGIN, Math.max(MARGIN, window.innerHeight - r.h - MARGIN)),
-    }));
+    if (!d || !d.captured) return;
+    moveTo(d, e.clientX, e.clientY);
   };
   const endDrag = (e: React.PointerEvent) => {
     drag.current = null;

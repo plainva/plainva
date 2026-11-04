@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect, type Locator } from '@playwright/test';
+import { test, expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { segmentedIndexText } from '../../../packages/core/src/vault/spacelessText';
+import { pickCompletion } from './completion';
 
 test.beforeEach(async ({ page }) => {
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -882,10 +883,7 @@ test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ p
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/icon');
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ })
-    .first()
-    .click();
+  await pickCompletion(page, /Dokument-Icon|Document icon/);
 
   // Emoji picker opens; search finds the rocket, selecting it writes the
   // plainva.icon frontmatter which the live-mode header widget renders.
@@ -916,10 +914,7 @@ test('Document header: an icon picked for a note whose block is no YAML map says
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/icon');
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ })
-    .first()
-    .click();
+  await pickCompletion(page, /Dokument-Icon|Document icon/);
   const picker = page.getByRole('dialog');
   await expect(picker).toBeVisible();
   await page.keyboard.type('rocket');
@@ -953,10 +948,7 @@ test('Emoji: /emoji inserts a Unicode emoji into the text via the picker', async
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/emoji');
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /Emoji/i })
-    .first()
-    .click();
+  await pickCompletion(page, /Emoji/i);
 
   // The emoji-only picker opens (no icon-set mode switch); search + pick the
   // rocket. Unlike /icon this writes the CHARACTER into the note body.
@@ -986,10 +978,7 @@ test('Emoji: typing :name autocompletes to the emoji character', async ({ page }
 
   // The `:` source shows the emoji completion; picking it inserts the Unicode
   // character (never a literal ":rocket:" shortcode).
-  await page
-    .locator('.cm-tooltip-autocomplete li', { hasText: /rocket/i })
-    .first()
-    .click();
+  await pickCompletion(page, /rocket/i);
 
   await expect(editor).toContainText('🚀', { timeout: 10000 });
   await expect(editor).not.toContainText(':rocket');
@@ -1696,10 +1685,11 @@ test('Splash: shows by default despite lastVaultPath (auto-open is opt-in)', asy
   });
   await page.goto('/');
   await expect(page.getByText(/Willkommen bei Plainva|Welcome to Plainva/)).toBeVisible({ timeout: 10000 });
-  // The opt-in checkbox is offered right on the splash and starts unchecked.
-  const checkbox = page.locator('input[type="checkbox"]');
-  await expect(checkbox).toBeVisible();
-  await expect(checkbox).not.toBeChecked();
+  // The opt-in is offered right on the splash, as the same switch as in the
+  // settings (finding 2026-10-30), and starts off.
+  const toggle = page.getByTestId('splash-auto-open').getByRole('switch', { name: /Letzten Vault|open the last vault/ });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).not.toBeChecked();
   // The frameless window must stay movable/closable without the title bar:
   // the splash carries a drag-region strip with the window controls.
   const strip = page.getByTestId('window-chrome-strip');
@@ -2000,8 +1990,8 @@ test('Settings: X and overlay close the modal; plain settings persist without a 
   // (the sync-provider forms would have one, but no provider is configured).
   await expect(page.getByRole('button', { name: /^(Speichern|Save)$/ })).toHaveCount(0);
 
-  // The daily-notes folder lives on the Content & structure page (pages redesign).
-  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  // The daily-notes folder lives on the Daily notes & journal page (settings plan 2026-10-29, E9).
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
   const folderInput = page.getByPlaceholder('Tagebuch/');
   await folderInput.fill('Journal');
 
@@ -2010,7 +2000,7 @@ test('Settings: X and overlay close the modal; plain settings persist without a 
   await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /Schließen|Close/ }).click();
   await expect(page.getByRole('heading', { name: /Einstellungen|Settings/ })).toHaveCount(0);
   await page.keyboard.press('Control+,');
-  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  await page.getByRole('dialog', { name: /Einstellungen|Settings/ }).getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
   await expect(page.getByPlaceholder('Tagebuch/')).toHaveValue('Journal');
 
   // Clicking the overlay closes it as well.
@@ -2032,30 +2022,25 @@ test('Online vault: chooser lists all providers; picking one opens the in-splash
   await expect(page.getByText(/Wo liegt Dein Vault|Where is your vault/)).toBeVisible();
   await page.getByRole('button', { name: /Online-Vault|Online vault/ }).click();
 
-  // All five providers are offered; WebDAV now runs through the SAME unified
-  // in-splash setup as the other four (E5) — no separate form/picker path.
-  await expect(page.getByRole('button', { name: /OneDrive/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /S3/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Google Drive/ })).toBeVisible();
-  await page.getByRole('button', { name: /WebDAV/ }).click();
-  await expect(page.getByRole('heading', { name: /WebDAV \/ Nextcloud/ })).toBeVisible();
-  await expect(page.getByPlaceholder('https://nextcloud.example.com/remote.php/webdav')).toBeVisible();
-  await page.getByRole('button', { name: /Zurück|Back/ }).click();
+  // The connect assistant (settings plan 2026-10-29, E7): every provider that
+  // can hold files, the suites and Nextcloud included, as the settings' tiles.
+  for (const key of ['google', 'microsoft', 'dropbox', 'nextcloud', 'fastmail', 'webdav', 's3']) {
+    await expect(page.getByTestId(`online-provider-${key}`)).toBeVisible();
+  }
+  await expect(page.getByTestId('online-provider-imap')).toHaveCount(0);
+  await page.getByTestId('online-provider-webdav').click();
+  await expect(page.getByTestId('connect-field-filesUrl')).toBeVisible();
+  await page.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
 
-  // The BYO handbook links sit under the provider grid; Google Drive stays BYO.
-  await expect(page.getByRole('link', { name: 'Google Drive', exact: true })).toBeVisible();
-
-  // Picking Dropbox opens the in-splash setup (CONNECT first), NOT a
-  // deep-link into Settings and NOT a local-folder dialog up front.
-  await page.getByRole('button', { name: /Dropbox/ }).click();
-  await expect(page.getByRole('heading', { name: /Dropbox verbinden|Connect Dropbox/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^(Verbinden|Connect)$/ })).toBeVisible();
+  // Dropbox: the sign-in step in the splash, NOT a deep-link into Settings and
+  // NOT a local-folder dialog up front; the button names the method.
+  await page.getByTestId('online-provider-dropbox').click();
+  await expect(page.getByTestId('online-connect')).toHaveText(/Bei Dropbox anmelden|Sign in with Dropbox/);
   await expect(page.getByRole('dialog', { name: /Einstellungen|Settings/ })).toHaveCount(0);
-  await page.getByRole('button', { name: /Zurück|Back/ }).click();
+  await page.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
 
-  // S3: the credentials form appears right away (endpoint field), before any
-  // local folder dialog — the whole point of the unified flow.
-  await page.getByRole('button', { name: /S3/ }).click();
+  // S3: the keys right away (endpoint field), before any local folder dialog.
+  await page.getByTestId('online-provider-s3').click();
   await expect(page.getByPlaceholder('https://s3.eu-central-1.amazonaws.com')).toBeVisible();
 });
 
@@ -2101,20 +2086,30 @@ for (const occupied of [false, true]) test(`Create vault online: ${occupied ? 'a
   // The provider chooser carries the create-mode title.
   await expect(page.getByRole('heading', { name: /Neuer Vault bei einem Online-Dienst|New vault with an online service/ })).toBeVisible();
 
-  // S3 keeps everything local until the picker (no OAuth loopback needed).
-  await page.getByRole('button', { name: /S3/ }).click();
-  const fields = page.locator('input.pv-field');
-  await fields.nth(0).fill('https://s3.example.com');
-  await fields.nth(1).fill('vaults');
-  await fields.nth(2).fill('auto');
-  await fields.nth(3).fill('AK');
-  await fields.nth(4).fill('SK');
-  await page.getByRole('button', { name: /^(Weiter|Continue)$/ }).click();
+  // S3 keeps everything local until the picker (no OAuth loopback needed);
+  // the region sits under Advanced, as in the settings' assistant.
+  await page.getByTestId('online-provider-s3').click();
+  await page.getByTestId('connect-field-endpoint').fill('https://s3.example.com');
+  await page.getByTestId('connect-field-bucket').fill('vaults');
+  await page.getByTestId('connect-field-accessKeyId').fill('AK');
+  await page.getByTestId('connect-field-secret').fill('SK');
+  await page.getByTestId('cloudacct-other-signin').click();
+  await page.getByTestId('connect-field-region').fill('auto');
+  await page.getByTestId('online-connect').click();
 
   // Dismiss the folder picker and use the bucket root. The creation flow must
   // then check a complete inventory before scaffolding any local files.
-  await expect(page.getByText(/Connected to|verbunden/)).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('cloudacct-status-files')).toHaveAttribute('data-state', 'ok');
+  // The picker opens with the "connected" state, but it hears Escape only once
+  // it has mounted its key handler: an Escape pressed the moment the state read
+  // "ok" fell on nothing, and the open picker then hid the next step (Sammelplan
+  // § 3.171 Nr. 12). So: the picker first, then Escape until it is gone.
+  const picker = page.getByRole('dialog', { name: /Select Vault Folder|Vault Ordner auswählen/ });
+  await expect(picker).toBeVisible();
+  await expect(async () => {
+    if (await picker.count()) await page.keyboard.press('Escape');
+    await expect(picker).toHaveCount(0, { timeout: 1_000 });
+  }).toPass();
   await expect(page.getByText(/\(PARA\)/)).toBeVisible();
 
   // Local folder -> scaffold runs BEFORE the vault opens.
@@ -2244,13 +2239,13 @@ test('Density setting switches compact mode on the html element', async ({ page 
   // The density select lives in the Appearance area of the APP world
   // (settings redesign 2026-07-11); the modal opens on the active vault by default.
   await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
-  await dialog.getByLabel(/Dichte|Density/).click();
+  await dialog.getByLabel(/^(Kompaktheitsgrad|Dichte|Density)$/).click();
   await page.getByRole('option', { name: /Kompakt|Compact/ }).click();
   await expect
     .poll(async () => await page.evaluate(() => document.documentElement.getAttribute('data-density')))
     .toBe('compact');
 
-  await dialog.getByLabel(/Dichte|Density/).click();
+  await dialog.getByLabel(/^(Kompaktheitsgrad|Dichte|Density)$/).click();
   await page.getByRole('option', { name: /Komfortabel|Comfortable/ }).click();
   await expect
     .poll(async () => await page.evaluate(() => document.documentElement.getAttribute('data-density')))
@@ -2270,7 +2265,7 @@ test('Default view mode: files open in the configured mode, manual switches stic
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ }).click();
-  await dialog.getByLabel(/Standard-Ansicht|Default view/).click();
+  await dialog.getByLabel(/^(Standard-Ansicht|Default view)$/).click();
   await page.getByRole('option', { name: /Lesemodus|Read Mode/ }).click();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -2321,7 +2316,7 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
 
   // …and a VAULT area click returns to the vault world (maintenance holds the reindex row).
   await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
-  await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /^(Index vollständig neu aufbauen|Rebuild the index from scratch)$/ })).toBeVisible();
 
   // The identity card is no dropdown: its "switch" link opens the vault
   // picker; picking the not-open vault swaps the VAULT pages to it and the
@@ -2333,8 +2328,66 @@ test('Settings two-worlds nav: vault card switch opens the picker; cross-world c
   await picker.getByRole('button', { name: /zweiter-vault/ }).click();
   await expect(picker).toHaveCount(0);
   await expect(dialog.getByTestId('settings-vault-name')).toHaveText('zweiter-vault');
-  await expect(dialog.getByText(/Dieser Vault ist nicht geöffnet|This vault is not open/)).toBeVisible();
+  await expect(dialog.getByText(/Vault nicht geöffnet|Vault not open/)).toBeVisible();
   await expect(dialog.getByRole('button', { name: /neu aufbauen|Rebuild the index/ })).toHaveCount(0);
+});
+
+test('Settings info button: a press opens the explanation beside the label, Escape closes it before the settings window', async ({ page }, testInfo) => {
+  // The info button of a setting (settings plan 2026-10-29, § 3): the
+  // explanation stands behind it, in a popover anchored at the button, with
+  // the way into the handbook. Escape is the popover's first — the settings
+  // window around it is a dialog that closes on Escape as well.
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
+
+  const infoName = /^(Mehr zu Suchindex|More about Search index)$/;
+  const info = dialog.getByRole('button', { name: infoName });
+  await expect(info).toBeVisible();
+  await expect(info).toHaveAttribute('aria-expanded', 'false');
+  // The ⓘ ends the card's heading: it sits right of the heading's text, on its line.
+  const heading = dialog.locator('.pv-setgroup-label').filter({ has: page.getByRole('button', { name: infoName }) });
+  await expect(heading).toHaveText(/^(Suchindex|Search index)$/);
+
+  // Keyboard first: the button takes the focus and Enter opens it.
+  await info.focus();
+  await page.keyboard.press('Enter');
+  const panel = dialog.locator('.pv-infotip-panel');
+  await expect(panel).toBeVisible();
+  await expect(info).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel).toContainText(/Suchindex ist Plainvas Verzeichnis|search index is Plainva's record/);
+  await expect(panel.getByRole('link', { name: /Mehr im Handbuch|Read more in the handbook/ })).toBeVisible();
+  // The text lives in a live region, announced when it appears.
+  await expect(dialog.locator('[role="status"] .pv-infotip-panel')).toHaveCount(1);
+  // The panel lies inside the window, next to its button.
+  const box = (await panel.boundingBox())!;
+  const at = (await info.boundingBox())!;
+  expect(Math.abs(box.y - (at.y + at.height))).toBeLessThan(24);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('info-popover-light.png') });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('info-popover-dark.png') });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+
+  // Escape closes the popover — and only the popover.
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(info).toHaveAttribute('aria-expanded', 'false');
+  await expect(info).toBeFocused();
+  await expect(dialog).toBeVisible();
+
+  // Space opens it, a press beside it closes it, a second press on the button too.
+  await page.keyboard.press(' ');
+  await expect(panel).toBeVisible();
+  await dialog.getByRole('heading', { name: /^(Wartung|Maintenance)$/ }).click();
+  await expect(panel).toHaveCount(0);
+  await info.click();
+  await expect(panel).toBeVisible();
+  await info.click();
+  await expect(panel).toHaveCount(0);
+  await expect(dialog).toBeVisible();
 });
 
 test('Creating from another tab switches to Files instead of vanishing', async ({ page }) => {
@@ -2575,7 +2628,8 @@ test('Provider catalog: tile search matches IMAP presets, dead-ends route to Mic
   await tiles.first().click();
   await dialog.getByTestId('cloudacct-to-signin').click();
   // Orange requires an app password — the catalog hint + official guide link show.
-  await expect(dialog.getByText(/App-Passwort|app password/)).toBeVisible();
+  await expect(dialog.getByTestId('connect-field-secret')).toHaveAttribute('aria-label', /App-Passwort|App password/);
+  await expect(dialog.getByTestId('connect-step-line')).toContainText('Orange');
   await expect(dialog.getByRole('button', { name: /Anleitung von Orange|Open the Orange guide/ })).toBeVisible();
 
   // Searching the dead Outlook IMAP preset routes to the MICROSOFT tile
@@ -2605,25 +2659,27 @@ test('Provider catalog: a suite tile connects every service through ONE credenti
   await expect(dialog.getByTestId('cloudacct-svc-mail')).toBeChecked();
   await dialog.getByTestId('cloudacct-to-signin').click();
 
-  // ONE credential form; endpoints derive from the catalog per service.
-  await expect(dialog.getByTestId('cloudacct-suite-email')).toBeVisible();
-  await expect(dialog.getByTestId('cloudacct-suite-pass')).toBeVisible();
-  await expect(dialog.getByText(/Endpunkt automatisch abgeleitet|Endpoint derived automatically/)).toHaveCount(3);
-  await expect(dialog.getByText(/Fastmail verlangt ein App-Passwort|Fastmail requires an app password/)).toBeVisible();
-  // Password mechanics: the connect button is the plain connect label, no OAuth.
+  // ONE credential form; the endpoints come from the catalog and fold under Other sign-in.
+  await expect(dialog.getByTestId('connect-field-email')).toBeVisible();
+  await expect(dialog.getByTestId('connect-field-secret')).toBeVisible();
+  await expect(dialog.getByTestId('connect-field-filesUrl')).toHaveCount(0);
+  await expect(dialog.getByTestId('connect-step-line')).toContainText('Fastmail');
+  // The button names the method.
   const connect = dialog.getByTestId('cloudacct-connect');
-  await expect(connect).toHaveText(/^(Verbinden|Connect)$/);
+  await expect(connect).toHaveText(/Mit App-Passwort verbinden|Connect with app password/);
   await expect(connect).toBeDisabled();
-  await dialog.getByTestId('cloudacct-suite-email').fill('m@fastmail.com');
-  await dialog.getByTestId('cloudacct-suite-pass').fill('app-pass');
+  await dialog.getByTestId('connect-field-email').fill('m@fastmail.com');
+  await dialog.getByTestId('connect-field-secret').fill('app-pass');
   await expect(connect).toBeEnabled();
+  await dialog.getByTestId('cloudacct-other-signin').click();
+  await expect(dialog.getByTestId('connect-field-filesUrl')).toHaveValue('https://webdav.fastmail.com');
 
-  // Apple: files is not offered at all and the tile explains why.
+  // Apple: files stays in the list, off, and says why.
   await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
   await dialog.getByRole('button', { name: /^(Zurück|Back)$/ }).click();
   await dialog.getByTestId('cloudacct-tile-search').fill('Apple');
   await dialog.getByTestId('cloudacct-provider-apple').click();
-  await expect(dialog.getByTestId('cloudacct-svc-files')).toHaveCount(0);
+  await expect(dialog.getByTestId('cloudacct-svc-files')).toBeDisabled();
   await expect(dialog.getByText(/iCloud Drive/)).toBeVisible();
 });
 
@@ -2639,8 +2695,9 @@ test('Vault folder picker: browsing fills the daily-notes and template folder fi
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  // The folder fields live on the Content & structure page (pages redesign).
-  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  // The daily-notes folder lives on the Daily notes & journal page, the
+  // template folder on Notes & filing (settings plan 2026-10-29, E9).
+  await dialog.getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
 
   // Daily-notes folder: browse → navigate into "Tagebuch" → use this folder.
   await page.getByTestId('browse-daily-folder').click();
@@ -2652,7 +2709,8 @@ test('Vault folder picker: browsing fills the daily-notes and template folder fi
   await expect(picker).toHaveCount(0);
   await expect(page.getByPlaceholder('Tagebuch/')).toHaveValue('Tagebuch');
 
-  // Template folder: same picker, second field.
+  // Template folder: same picker, on the other page.
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
   await page.getByTestId('browse-template-folder').click();
   await picker.getByText('Vorlagen', { exact: true }).click();
   await picker.getByRole('button', { name: /Diesen Ordner verwenden|Use this folder/ }).click();
@@ -2730,8 +2788,8 @@ test('Settings: creating a standard task database scaffolds folder + .base and s
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  // The task-database row lives on the Content & structure page (pages redesign).
-  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  // The task-database row lives on the Notes & filing page (settings plan 2026-10-29).
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
 
   await page.getByTestId('create-task-db').click();
   const dlg = page.getByRole('dialog', { name: /Neue Datenbank anlegen|Create new database/ });
@@ -2756,7 +2814,7 @@ test('Settings: creating a standard task database scaffolds folder + .base and s
   expect(state.base).toContain('render: board');
 
   // The row now shows the fresh database as the selected value.
-  await expect(dialog.getByLabel(/Standard-Aufgabendatenbank|Standard task database/)).toContainText('Aufgaben');
+  await expect(dialog.getByRole('button', { name: /^(Standard-Aufgabendatenbank|Standard task database)$/ })).toContainText('Aufgaben');
 });
 
 test('Settings nav: exactly the clicked area is active; one vault shows no switch link', async ({ page }) => {
@@ -2769,15 +2827,15 @@ test('Settings nav: exactly the clicked area is active; one vault shows no switc
 
   // Pages redesign: a rail click renders that page and highlights exactly its
   // entry (no scroll spy anymore — the highlight IS the active page).
-  const updates = dialog.getByRole('button', { name: /^Updates$/ });
-  await updates.click();
-  await expect(updates).toHaveCSS('font-weight', '600');
+  const editor = dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ });
+  await editor.click();
+  await expect(editor).toHaveCSS('font-weight', '600');
 
   // Clicking another area hands the highlight over.
   const appearance = dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ });
   await appearance.click();
   await expect(appearance).toHaveCSS('font-weight', '600');
-  await expect(updates).toHaveCSS('font-weight', '400');
+  await expect(editor).toHaveCSS('font-weight', '400');
 
   // Single known vault: the identity card is display-only (no switch link).
   await expect(dialog.getByTestId('settings-vault-name')).toBeVisible();
@@ -2803,7 +2861,8 @@ test('Settings window keeps one stable height across areas (sized by the tallest
   // Tallest app page, a short app page and a vault page must all render the
   // window at the SAME height (stacked pages — feedback round 2: no jumping).
   const tall = await heightOn(/^(Erscheinungsbild|Appearance)$/);
-  const short = await heightOn(/^Updates$/);
+  // Editor & notes is the shortest APP page since Updates became a group of About (E10).
+  const short = await heightOn(/^(Editor & Notizen|Editor & notes)$/);
   const vault = await heightOn(/^Backup/);
   expect(tall).toBeGreaterThan(0);
   expect(Math.abs(tall - short)).toBeLessThanOrEqual(1);
@@ -2811,7 +2870,7 @@ test('Settings window keeps one stable height across areas (sized by the tallest
 
   // The active page's content is interactive, the stacked hidden pages not:
   // exactly one visible area heading at a time.
-  await expect(dialog.getByRole('heading', { name: /^Updates$/ })).toBeHidden();
+  await expect(dialog.getByRole('heading', { name: /^(Editor & Notizen|Editor & notes)$/ })).toBeHidden();
   await expect(dialog.getByRole('heading', { name: /^Backup/ })).toBeVisible();
 
   /* And the overflow belongs to the ACTIVE page, not to a shared scroll area
@@ -2832,15 +2891,215 @@ test('Settings window keeps one stable height across areas (sized by the tallest
     });
   };
   const appearance = await state(/^(Erscheinungsbild|Appearance)$/);
-  const updates = await state(/^Updates$/);
+  const editor = await state(/^(Editor & Notizen|Editor & notes)$/);
   expect(appearance.hostScrolls).toBe(false);
-  expect(updates.hostScrolls).toBe(false);
+  expect(editor.hostScrolls).toBe(false);
   expect(appearance.pageScrolls).toBe(true); // the theme gallery does not fit
-  expect(updates.pageScrolls).toBe(false); // two rows: no scrollbar at all
-  expect(updates.modalH).toBe(appearance.modalH); // and still no jump
+  expect(editor.pageScrolls).toBe(false); // five rows: no scrollbar at all
+  expect(editor.modalH).toBe(appearance.modalH); // and still no jump
+});
+
+/* ---- 2026-10-29: the APP pages after the settings plan (appendix 2.1-2.6) */
+
+test('Settings APP pages: groups as the settings plan orders them, explanations behind the info button', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  const groups = () => dialog.locator('.pv-setpage[data-active="true"] .pv-setgroup-label');
+  const shoot = async (name: string) => {
+    if (!process.env.PLAINVA_EVIDENCE) return;
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+    }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  };
+
+  // The rail: four APP areas, "Updates" is a group of About now (E10). The
+  // APP section says once that its settings stay on this device (Q1).
+  await expect(dialog.getByRole('button', { name: /^Updates$/ })).toHaveCount(0);
+  await dialog.getByRole('button', { name: /^(Mehr zu App|More about App)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/reisen nicht mit|do not travel/);
+  await page.keyboard.press('Escape');
+  await expect(dialog.locator('.pv-infotip-panel')).toHaveCount(0);
+
+  // Appearance: "Language & display" became three cards; the place stamp left.
+  await dialog.getByRole('button', { name: /^(Erscheinungsbild|Appearance)$/ }).click();
+  await expect(groups()).toHaveText([
+    /^(Design)$/, /^(Schrift|Fonts)$/, /^(Sprache & Region|Language & region)$/, /^(Darstellung|Display)$/, /^(Links & Tags|Links & tags)$/,
+  ]);
+  await expect(dialog.getByTestId('place-stamp-switch')).toBeHidden();
+  const fontsInfo = dialog.getByRole('button', { name: /^(Mehr zu Schrift|More about Fonts)$/ });
+  await fontsInfo.click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/je Gerät verschieden|differ from device to device/);
+  await shoot('appearance-fonts-info');
+  await page.keyboard.press('Escape');
+  // No visible description repeats the label any more.
+  await expect(dialog.getByText(/Adressen im Internet|Addresses on the internet/)).toHaveCount(0);
+  await dialog.getByTestId('appearance-language-region').scrollIntoViewIfNeeded();
+  await shoot('appearance');
+
+  // Editor & notes: View, Writing (with the links row), Journal (place stamp).
+  await dialog.getByRole('button', { name: /^(Editor & Notizen|Editor & notes)$/ }).click();
+  await expect(groups()).toHaveText([/^(Ansicht|View)$/, /^(Schreiben|Writing)$/, /^(Journal)$/]);
+  await expect(dialog.getByTestId('editor-writing').getByRole('switch', { name: /Vor dem Anlegen leerer Links fragen|Ask before creating empty links/ })).toBeVisible();
+  await expect(dialog.getByTestId('editor-journal').getByTestId('place-stamp-switch')).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Mehr zu Ort an Journal-Einträge anhängen können|More about Allow adding a place to journal entries)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/Koordinaten|coordinates/);
+  await shoot('editor-place-info');
+  await page.keyboard.press('Escape');
+
+  // Startup & behavior: Startup holds the three start rows.
+  await dialog.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
+  await expect(groups().first()).toHaveText(/^(Start|Startup)$/);
+  const start = dialog.getByTestId('behavior-start');
+  await expect(start.getByRole('switch', { name: /Mit dem System starten|Start with the system/ })).toBeVisible();
+  await expect(start.getByRole('switch', { name: /Letzten Vault|open the last vault/ })).toBeVisible();
+  await expect(start.getByRole('switch', { name: /Fensteraufteilung wiederherstellen|Restore window layout/ })).toBeVisible();
+  await expect(start.getByText(/Ungesendete Entwürfe|Unsent drafts/)).toBeVisible();
+  await shoot('behavior');
+
+  // About & diagnostics: Application → Updates → Keychain → Diagnostics. The
+  // keychain group (OS keychain state + stored access) came from Sync (move 15).
+  await dialog.getByRole('button', { name: /^(Über & Diagnose|About & diagnostics)$/ }).click();
+  await expect(groups()).toHaveText([/^(Programm|Application)$/, /^(Updates)$/, /^(Schlüsselbund|Keychain)$/, /^(Diagnose|Diagnostics)$/]);
+  await expect(dialog.getByTestId('settings-stored-access')).toContainText(/Schlüsselbund des Systems|OS keychain/);
+  await expect(dialog.getByRole('switch', { name: /Beim Start nach Updates suchen|Check for updates on startup/ })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /^(Nach Updates suchen|Check for Updates)$/ })).toBeVisible();
+  await shoot('about');
+});
+
+test('Settings About: a copy a package manager updates (Nix) offers no update check, it says who brings the next version', async ({ page }, testInfo) => {
+  // PR #124: the Nix package wraps the release binary and sets
+  // PLAINVA_UPDATES_MANAGED_BY=Nix; the shell answers `app_updates_managed_by`.
+  await page.addInitScript(() => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'app_updates_managed_by') return 'Nix';
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Über & Diagnose|About & diagnostics)$/ }).click();
+  const updates = dialog.getByTestId('about-updates');
+  await expect(updates).toContainText(/Aktualisiert über Nix|Updated through Nix/);
+  await expect(updates).toContainText(/Paketmanager|package manager/);
+  await expect(updates.getByRole('switch')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /^(Nach Updates suchen|Check for Updates)$/ })).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) {
+    await updates.scrollIntoViewIfNeeded();
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`about-updates-nix-${mode}.png`) });
+    }
+  }
+});
+
+test('Settings VAULT pages: notes & filing and the journal are two pages, OKF and restore moved, explanations behind the info button', async ({ page }, testInfo) => {
+  // Settings plan 2026-10-29, § 3.6-3.9 (E9): "Content & structure" became two
+  // pages, the OKF commands joined Maintenance, restoring deleted files joined
+  // the version history.
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  const groups = () => dialog.locator('.pv-setpage[data-active="true"] .pv-setgroup-label');
+  const shoot = async (name: string) => {
+    if (!process.env.PLAINVA_EVIDENCE) return;
+    for (const mode of ['light', 'dark']) {
+      await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+      await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+    }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  };
+
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
+  await expect(groups()).toHaveText([
+    /^(Ordner|Folders)$/, /^(Vorlagen|Templates)$/, /^(Neue Notizen|New notes)$/, /^(Datenbanken|Databases)$/, /^(Anmerkungen|Annotations)$/,
+  ]);
+  // The precedence rule of the template rules is ONE info at the card (Q8).
+  await dialog.getByRole('button', { name: /^(Mehr zu Vorlagen|More about Templates)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/Ordner schlägt Typ|Folder beats type/);
+  await page.keyboard.press('Escape');
+  // The reviewer name stays on this device: the badge, not a sentence (E3/E14).
+  await expect(dialog.getByTestId('settings-annotations').getByTestId('device-only-badge').first()).toBeVisible();
+  await shoot('notes-filing');
+
+  await dialog.getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
+  await expect(groups()).toHaveText([/^(Tagesnotizen|Daily notes)$/, /^(Journal)$/]);
+  await expect(dialog.getByTestId('journal-heading')).toBeVisible();
+  await shoot('daily-journal');
+
+  await dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ }).click();
+  await expect(groups().last()).toHaveText(/^(OKF-Format|OKF format)$/);
+  await dialog.getByRole('button', { name: /^(Mehr zu OKF-Format|More about OKF format)$/ }).click();
+  await expect(dialog.locator('.pv-infotip-panel')).toContainText(/Open Knowledge Format/);
+  await page.keyboard.press('Escape');
+  await expect(dialog.locator('.pv-setpage[data-active="true"]').getByTestId('settings-deleted-files')).toHaveCount(0);
+  await shoot('maintenance');
+
+  await dialog.getByRole('button', { name: /^(Backup & Versionierung|Backup & version history)$/ }).click();
+  await expect(groups()).toHaveText([/^(ZIP-Backups|ZIP backups)$/, /^(Versionsverlauf|Version history)$/]);
+  await expect(dialog.locator('.pv-setpage[data-active="true"]').getByTestId('settings-deleted-files')).toBeVisible();
+  await shoot('backup');
+
+  await dialog.getByRole('button', { name: /^(Leisten & Bereiche|Bars & areas)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Mehr zu Als Standard übernehmen|More about Save as default)$/ }).first().click();
+  await expect(dialog.locator('.pv-infotip-panel')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await shoot('bars');
+
+  await dialog.getByRole('button', { name: /^(Sicherheit & Freigaben|Security & Sharing)$/ }).click();
+  await shoot('security');
 });
 
 /* -------------------- 2026-07-18: unresolved wiki links create the target note (Obsidian parity) */
+
+/**
+ * No folder setting points under `.plainva` or out of the vault (open-items
+ * plan 3.127 no. 4). Typed in by hand, the desktop's folder fields took such a
+ * path: notes there are not indexed, not synced and get no versions. The field
+ * now says why and goes back to what is stored; a path inside the vault is
+ * saved as before.
+ */
+test('a folder setting under .plainva is refused and said; one inside the vault is kept', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
+
+  const inbox = dialog.getByTestId('inbox-folder');
+  await expect(inbox).toBeVisible();
+  const before = await inbox.inputValue();
+
+  await inbox.fill('.plainva/Inbox');
+  await inbox.press('Tab');
+  const toast = page.locator('.pv-toast').filter({ hasText: '.plainva/Inbox' });
+  await expect(toast).toBeVisible();
+  await expect(inbox).toHaveValue(before);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('vault-path-refused.png') });
+
+  await inbox.fill('Eingang');
+  await inbox.press('Tab');
+  await expect(inbox).toHaveValue('Eingang');
+  // Saved: the page shows it again after a round through another page.
+  await dialog.getByRole('button', { name: /^(Tagesnotizen & Journal|Daily notes & journal)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
+  await expect(dialog.getByTestId('inbox-folder')).toHaveValue('Eingang');
+});
 
 test('Clicking an unresolved wiki link creates and opens the note', async ({ page }) => {
   await page.addInitScript(() => {
@@ -3080,7 +3339,7 @@ test('Folder templates: a new note in a mapped folder starts from its template',
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: /^(Inhalt & Struktur|Content & structure)$/ }).click();
+  await dialog.getByRole('button', { name: /^(Notizen & Ablage|Notes & filing)$/ }).click();
   await dialog.getByTestId('add-folder-template').click();
   const rules = dialog.getByTestId('folder-template-rules');
   await rules.getByPlaceholder(/Ordner|Folder/).fill('Projekte');
@@ -3439,7 +3698,7 @@ test('Icon picker: both modes share one head zone, categories and recents (P4.2)
     await page.keyboard.press('Control+End');
     await page.keyboard.press('Enter');
     await page.keyboard.type('/icon');
-    await page.locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ }).first().click();
+    await pickCompletion(page, /Dokument-Icon|Document icon/);
     const picker = page.getByTestId('emoji-picker');
     await expect(picker).toBeVisible();
     return picker;
@@ -3490,7 +3749,7 @@ test('Icon picker: both modes share one head zone, categories and recents (P4.2)
   await expect(picker.locator('button[aria-label="folder-open"]')).toBeVisible();
 });
 
-test('background settings: two switches, both off, and the reminder condition follows them', async ({ page }) => {
+test('background settings: start with the system and the tray, both off, and the reminder condition follows the tray', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;
     const saved: Record<string, any> = {};
@@ -3511,28 +3770,34 @@ test('background settings: two switches, both off, and the reminder condition fo
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(Start & Verhalten|Startup & behavior)$/ }).click();
 
+  // Settings plan 2026-10-29, move 13: "start with the system" is a start
+  // behaviour and sits in the Startup card; the Background card keeps the tray.
+  const start = dlg.getByRole('group', { name: /^(Start|Startup)$/ });
+  await expect(start).toBeVisible();
+  const autostart = start.getByRole('switch', { name: /Mit dem System starten|Start with the system/ });
+  await expect(autostart).toHaveAttribute('aria-checked', 'false');
+
   const card = dlg.getByRole('group', { name: /Hintergrund|Background/ });
   await expect(card).toBeVisible();
-  const switches = card.getByRole('switch');
-  await expect(switches).toHaveCount(2);
-  // Both off by default — never registered unasked.
-  await expect(switches.nth(0)).toHaveAttribute('aria-checked', 'false');
-  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'false');
+  const tray = card.getByRole('switch');
+  await expect(tray).toHaveCount(1);
+  // Off by default — never registered unasked.
+  await expect(tray).toHaveAttribute('aria-checked', 'false');
   await expect(card).toContainText(/solange Plainva läuft|while Plainva is running/);
   await card.screenshot({ path: '/tmp/bg-off.png' });
 
   // Saying "no, I cannot see it" must leave the switch off — otherwise the
   // window could be closed with no way back.
-  await switches.nth(1).click();
+  await tray.click();
   await page.getByRole('button', { name: /^(Nein|No)$/ }).click();
-  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'false');
+  await expect(tray).toHaveAttribute('aria-checked', 'false');
   await expect(card).toContainText(/nicht erschienen|did not appear/);
   await card.screenshot({ path: '/tmp/bg-refused.png' });
 
   // Saying yes keeps it, and the condition line follows.
-  await switches.nth(1).click();
+  await tray.click();
   await page.getByRole('button', { name: /(Ja, ich sehe es|Yes, I see it)/ }).click();
-  await expect(switches.nth(1)).toHaveAttribute('aria-checked', 'true');
+  await expect(tray).toHaveAttribute('aria-checked', 'true');
   await expect(card).toContainText(/auch bei geschlossenem Fenster|even with the window closed/);
   await card.screenshot({ path: '/tmp/bg-on.png' });
 });
@@ -3587,7 +3852,7 @@ test('global quick capture: off by default, the shortcut is recorded, and a refu
   await expect(card).toContainText(/Strg, Alt|Ctrl, Alt/);
   // One another application holds: the old one is released, the refusal is said, nothing is half-on.
   await page.keyboard.press('Control+Alt+K');
-  await expect(card).toContainText(/nicht registrieren|could not be registered/);
+  await expect(card).toContainText(/ist belegt|is taken/);
   await expect(card.getByTestId('quick-capture-shortcut')).toHaveText(/Ctrl\s*Alt\s*K/);
   expect(await page.evaluate(() => (window as any).__shortcutCalls)).toEqual(['register:CommandOrControl+Alt+J', 'unregister:CommandOrControl+Alt+J']);
 
@@ -3595,7 +3860,7 @@ test('global quick capture: off by default, the shortcut is recorded, and a refu
   await card.getByTestId('quick-capture-record').click();
   await page.keyboard.press('Control+Alt+L');
   await expect(card.getByTestId('quick-capture-shortcut')).toHaveText(/Ctrl\s*Alt\s*L/);
-  await expect(card).not.toContainText(/nicht registrieren|could not be registered/);
+  await expect(card).not.toContainText(/ist belegt|is taken/);
   await expect.poll(() => page.evaluate(() => (window as any).__shortcutCalls.slice(-1))).toEqual(['register:Control+Alt+L']);
 
   // Off releases it.
@@ -8512,4 +8777,226 @@ test('AI writing style: measured from notes the user chose, carried only where "
   await toggle.click();
   await expect(page.getByText('Whether a conversation carries your writing style is decided when it starts.', { exact: false })).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+});
+
+/**
+ * The search over all settings (settings plan 2026-10-29, § 4.3, E2) on the
+ * desktop: a field at the top of the settings rail; a hit is a ROW shown as
+ * page › card; choosing it opens the page, scrolls to the row and lights it
+ * up. It reads the label, the visible line, the ⓘ text and synonyms. A page
+ * hidden in this state (no account carries its service) keeps its hits,
+ * marked, and opens Cloud accounts. The phone runs the same in
+ * `apps/mobile/e2e-prod/settings-search.spec.ts`. (Here, in the smoke suite,
+ * because its fixture boots the app to the welcome screen.)
+ */
+
+async function openSettingsForSearch(page: Page) {
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+async function shootSearch(page: Page, testInfo: TestInfo, name: string) {
+  if (!process.env.PLAINVA_EVIDENCE) return;
+  for (const mode of ['light', 'dark']) {
+    await page.evaluate((m) => document.documentElement.setAttribute('data-theme', m), mode);
+    await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}.png`) });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+}
+
+test('the settings search finds a row by its label and lands on it, lit up', async ({ page }, testInfo) => {
+  const dialog = await openSettingsForSearch(page);
+  const field = dialog.getByTestId('settings-search');
+  await expect(field).toHaveAttribute('placeholder', /Einstellungen suchen|Search settings/);
+
+  await field.fill('week');
+  const hits = dialog.getByTestId('settings-search-hit');
+  await expect(hits.first()).toContainText(/Wochenbeginn|Week starts on/);
+  // Where it lives: page › card.
+  await expect(hits.first()).toContainText(/(Erscheinungsbild|Appearance) › (Sprache & Region|Language & region)/);
+  // The areas give way to the hits while the field holds a query.
+  await expect(dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ })).toHaveCount(0);
+  await shootSearch(page, testInfo, 'search-hits');
+
+  await hits.first().click();
+  const found = dialog.locator('.pv-setpage[data-active="true"] [data-setting-found]');
+  await expect(found).toContainText(/Wochenbeginn|Week starts on/);
+  await expect(found).toBeInViewport();
+  await expect(found).toBeFocused();
+  await shootSearch(page, testInfo, 'search-landed');
+
+  // Escape clears the field, and the areas come back.
+  await field.click();
+  await page.keyboard.press('Escape');
+  await expect(field).toHaveValue('');
+  await expect(dialog.getByRole('button', { name: /^(Wartung|Maintenance)$/ })).toBeVisible();
+});
+
+test('the settings search reads synonyms and the text behind the ⓘ; Enter opens the first hit; nothing found says so', async ({ page }, testInfo) => {
+  const dialog = await openSettingsForSearch(page);
+  const field = dialog.getByTestId('settings-search');
+  const hits = dialog.getByTestId('settings-search-hit');
+
+  // "dark mode" is no word of the page - a synonym of the mode.
+  await field.fill('dark mode');
+  await expect(hits.first()).toContainText(/^(Modus|Mode)/);
+  await field.press('Enter');
+  await expect(dialog.locator('.pv-setpage[data-active="true"] [data-setting-found]')).toContainText(/^(Modus|Mode)/);
+
+  // Behind the spell check's ⓘ: what it leaves alone.
+  await field.fill('');
+  await field.fill('passwords are never checked');
+  await expect(hits.first()).toContainText(/Rechtschreibprüfung|Spell checking/);
+
+  await field.fill('zzqqxx');
+  await expect(dialog.getByText(/Keine Einstellung gefunden|No setting found/)).toBeVisible();
+  await shootSearch(page, testInfo, 'search-empty');
+});
+
+test('a hit on a page hidden without an account stays, marked, and opens Cloud accounts', async ({ page }, testInfo) => {
+  const dialog = await openSettingsForSearch(page);
+  // Without an account carrying the calendar the Calendar page is not in the rail...
+  await expect(dialog.getByRole('button', { name: /^(Kalender|Calendar)$/ })).toHaveCount(0);
+  await dialog.getByTestId('settings-search').fill('lead time');
+  const hit = dialog.getByTestId('settings-search-hit').filter({ hasText: /Vorlaufzeit|Lead time/ }).first();
+  // ...but its rows are found, and the hit says why the page is missing.
+  await expect(hit).toContainText(/Erscheint, sobald ein Konto diesen Dienst übernimmt|Appears once an account carries this service/);
+  await shootSearch(page, testInfo, 'search-hidden-page');
+  await hit.click();
+  await expect(dialog.locator('.pv-setpage[data-active="true"]').getByRole('heading', { name: /^(Cloud-Konten|Cloud accounts)$/ })).toBeVisible();
+});
+
+test('the settings search stays on the rail of the second level of Security & Sharing', async ({ page }, testInfo) => {
+  // Sammelplan § 3.169 Nr. 2: the field belonged to the first-level rail and
+  // left with it when the second level of Security & Sharing replaced it.
+  const dialog = await openSettingsForSearch(page);
+  const field = dialog.getByTestId('settings-search');
+  // A hit on a row of the recovery area opens the second level.
+  await field.fill('fingerprint');
+  await dialog.getByTestId('settings-search-hit').filter({ hasText: /Fingerprint/ }).first().click();
+  const securityRail = dialog.getByTestId('settings-security-nav');
+  await expect(securityRail).toBeVisible();
+  await expect(dialog.getByTestId('settings-nav')).toHaveCount(0);
+  // The same field, with the query it held, on top of the second-level rail.
+  await expect(securityRail.getByTestId('settings-search')).toHaveValue('fingerprint');
+  await field.click();
+  await page.keyboard.press('Escape');
+  await expect(securityRail.getByRole('button', { name: /^(Übersicht|Overview)$/ })).toBeVisible();
+  await shootSearch(page, testInfo, 'search-security-level2');
+
+  // Searching from there lists hits in place of the second-level areas, and a hit leaves the level.
+  await securityRail.getByTestId('settings-search').fill('week');
+  const hits = dialog.getByTestId('settings-search-hit');
+  await expect(hits.first()).toContainText(/Wochenbeginn|Week starts on/);
+  await expect(securityRail.getByRole('button', { name: /^(Übersicht|Overview)$/ })).toHaveCount(0);
+  await shootSearch(page, testInfo, 'search-security-level2-hits');
+  await hits.first().click();
+  await expect(dialog.getByTestId('settings-nav')).toBeVisible();
+  await expect(dialog.locator('.pv-setpage[data-active="true"] [data-setting-found]')).toContainText(/Wochenbeginn|Week starts on/);
+});
+
+// --- Same name, two files: the sync page's collision card (finding 2026-11-03) ---
+
+/**
+ * "Same name, two files" on the desktop's sync page (finding 2026-11-03). The
+ * card printed every pair as `Aufgaben/Notiz.md ↔ Aufgaben/Notiz.md` — the same
+ * name in its composed and its decomposed Unicode form looks the same — and
+ * offered nothing. It now lists each case once with what tells the copies
+ * apart, and acts: twin spellings through the sync worker (core tests run that
+ * against a byte-exact WebDAV server, the phone's end-to-end test through the
+ * built app), a letter-case pair through the app's own rename, shown here.
+ *
+ * The cases are the facts the worker hands the shell (`onNameCollisionCases`),
+ * set on the store the way the worker's callback sets them.
+ */
+
+const COLLISION_NAME = 'Brötchen holen.md'.normalize('NFC');
+const COLLISION_OTHER = 'Käse kaufen.md'.normalize('NFC');
+
+async function openSyncPageWithCollisions(page: Page) {
+  // A vault whose files go through a WebDAV account: the Sync area is there.
+  await page.addInitScript(() => {
+    const slot = 'webdav_credentials_' + btoa('/test-vault');
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'keychain_get' && args?.key === slot) {
+        return JSON.stringify({ url: 'https://dav.example.org/files/anna/', user: 'anna', pass: 'secret' });
+      }
+      return orig(cmd, args, options);
+    };
+    Object.assign((window as any).mockFs, { '/test-vault/Ideen/idee.md': '# Idee\n\nhier\n' });
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.evaluate(async ({ name, other }) => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    const nfc = `Aufgaben/${name}`;
+    const otherNfc = `Aufgaben/${other}`;
+    syncStatusStore.set('/test-vault', {
+      collisionCases: [
+        { key: nfc.toLowerCase(), kind: 'spelling', path: nfc, others: [nfc.normalize('NFD')], described: true, synced: { size: 1562, modifiedMs: Date.UTC(2026, 8, 22, 13, 59) }, other: { size: 1562, modifiedMs: Date.UTC(2026, 8, 22, 13, 58) }, where: { here: false, remote: true }, identical: true, action: 'remove-duplicate' },
+        { key: otherNfc.toLowerCase(), kind: 'spelling', path: otherNfc, others: [otherNfc.normalize('NFD')], described: true, synced: { size: 349, modifiedMs: Date.UTC(2026, 8, 22, 13, 59) }, other: { size: 372, modifiedMs: Date.UTC(2026, 8, 23, 8, 15) }, where: { here: true, remote: true }, identical: false, action: 'keep-both' },
+        { key: 'ideen/idee.md', kind: 'case', path: 'Ideen/idee.md', others: ['Ideen/Idee.md'], described: true, synced: { size: 13, modifiedMs: null }, other: null, where: { here: false, remote: true }, identical: null, action: 'keep-both' },
+      ],
+    });
+  }, { name: COLLISION_NAME, other: COLLISION_OTHER });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Synchronisation|Sync)$/ }).click();
+  return dialog;
+}
+
+async function collisionEvidence(page: Page, info: TestInfo, name: string) {
+  if (!process.env.PLAINVA_EVIDENCE) return;
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.waitForTimeout(150);
+    await page.getByTestId('sync-collisions').screenshot({ path: info.outputPath(`${name}-${scheme}.png`) });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+}
+
+test('the collision card lists each case once with what tells the copies apart, never X ↔ X', async ({ page }, info) => {
+  const dialog = await openSyncPageWithCollisions(page);
+  const card = dialog.getByTestId('sync-collisions');
+  await expect(card).toBeVisible();
+  await expect(card).not.toContainText('↔');
+  const rows = card.getByTestId('sync-collision-case');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText(COLLISION_NAME);
+  await expect(rows.nth(0)).toContainText(/zweimal vorhanden · identisch|exists twice · identical/);
+  await expect(rows.nth(1)).toContainText(/unterschiedlich|different/);
+  await expect(rows.nth(1)).toContainText('349 B');
+  await expect(rows.nth(1)).toContainText('372 B');
+  await expect(rows.nth(2)).toContainText('idee.md / Idee.md');
+  await expect(card.getByTestId('sync-collisions-remove')).toHaveText(/\(1\)$/);
+  await expect(card.getByTestId('sync-collisions-keep')).toHaveText(/\(2\)$/);
+  await collisionEvidence(page, info, 'desktop-collision-card');
+});
+
+test('Keep both gives this device\'s file of a letter-case pair a free name through the app\'s rename', async ({ page }) => {
+  const dialog = await openSyncPageWithCollisions(page);
+  // Only the letter-case pair: twin spellings go to the sync worker, which
+  // this mock vault does not run against a server.
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    const cases = syncStatusStore.get('/test-vault').collisionCases.filter((c: { kind: string }) => c.kind === 'case');
+    syncStatusStore.set('/test-vault', { collisionCases: cases });
+  });
+  const card = dialog.getByTestId('sync-collisions');
+  await expect(card.getByTestId('sync-collision-case')).toHaveCount(1);
+  await card.getByTestId('sync-collisions-keep').click();
+  // Asked first, in the app's own dialog.
+  await expect(page.getByText(/Beide behalten\?|Keep both\?/)).toBeVisible();
+  await page.locator('.pv-modal-footer button.pv-btn--primary, .pv-modal-footer button.pv-btn--danger').last().click();
+  await expect
+    .poll(async () => page.evaluate(() => Object.keys((window as any).mockFs).filter((k) => k.startsWith('/test-vault/Ideen/')).sort()), { timeout: 8000 })
+    .toEqual(['/test-vault/Ideen/idee (2).md']);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Ideen/idee (2).md'])).toBe('# Idee\n\nhier\n');
 });

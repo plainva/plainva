@@ -1,6 +1,6 @@
 import { trimChars } from "@plainva/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { errorText, ICON, useFixedPopover, useOutsidePress, Modal, Button } from "@plainva/ui";
+import { errorText, ICON, useFixedPopover, useOutsidePress, Modal, Button, useDiscardGuard } from "@plainva/ui";
 import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { groupTemplatesForBase, templateMatchesBase, type ScopedTemplateItem } from "../../services/newItemFlow";
@@ -308,18 +308,21 @@ export function NewItemFolderDialog({
 }) {
   const { vaultAdapter } = useVault();
   const [value, setValue] = useState<string>(current ?? folderSources[0] ?? "");
+  // A folder typed in place of the one offered is asked about (finding 2026-10-22).
+  const [offered] = useState(value);
+  const cancel = useDiscardGuard(value !== offered, onCancel);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const clean = trimChars(value, "/").trim();
 
   return (
     <Modal
-      onClose={onCancel}
+      onClose={cancel}
       title={t("database.newItemFolderTitle", { defaultValue: "Ablage-Ordner für neue Elemente" })}
       size="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={onCancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
+          <Button variant="ghost" onClick={cancel}>{t("common.cancel", { defaultValue: "Abbrechen" })}</Button>
           <Button variant="primary" disabled={!clean} onClick={() => { if (clean) onConfirm(clean); }}>
             {t("database.chooseFolder", { defaultValue: "Festlegen" })}
           </Button>

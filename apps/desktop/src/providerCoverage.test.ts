@@ -27,8 +27,8 @@ const PLACES: Array<[string, readonly string[]]> = [
   // account row → target, both shells
   ["apps/mobile/src/services/pim/pimService.ts", ALL],
   ["apps/desktop/src/services/pim/pimAccounts.ts", ALL],
-  // the desktop's provider label
-  ["apps/desktop/src/components/pim/PimAccountsSection.tsx", ALL],
+  // a calendar account's provider by name, both shells (finding 2026-10-30)
+  ["packages/ui/src/lib/pimAccountFailure.ts", ALL],
   // what travels in the settings profile — the device account does not (E8)
   ["packages/ui/src/lib/accountProfile.ts", ALL],
   // family of a calendar account (card grouping), the family's name, the mobile provider of a family

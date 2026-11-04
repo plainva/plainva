@@ -1,8 +1,8 @@
-import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
+import { isAnswerableToken, isCursorToken, scanTemplate, replaceTemplateTokens, type ResolvedTemplate, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
-import { deleteFrontmatterPath, editorTextOf, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
+import { deleteFrontmatterPath, editorTextOf, wikiLinkParts, noteBodyOf, setFrontmatterPath, updateVaultText, wikiTargetForFile, type TextUpdateFiles } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
-import { resolveTemplate, type TemplateContext } from "./templateEngine";
+import { inLineEndsOf, resolveTemplate, type TemplateContext } from "./templateEngine";
 import { isFileNotFound } from "../lib/movedNote";
 
 /**
@@ -24,13 +24,8 @@ export type TemplateListAdapter = {
 /** Templater-lite tokens resolved at INSERT time — they need per-insert input,
  * unlike date/time/title: a caret marker and named value prompts. */
 const CURSOR_TOKEN = "{{cursor}}";
-/** Every token that carries an answer, in the one grammar of the engine:
- *  `{{prompt:Label}}`, `{{prompt:Label|Default}}`, `{{select:Label|A,B}}`,
- *  `{{date_prompt:Label}}`. The label is the answer key. */
-const ANSWERABLE = new Set(["prompt", "select", "date_prompt"]);
-function isAnswerable(token: TemplateToken): boolean {
-  return token.arg !== null && ANSWERABLE.has(token.name) && token.raw.startsWith((token.escaped ? "\\" : "") + "{{" + token.name + ":");
-}
+/** Every token that carries an answer, in the one grammar of the engine. The label is the answer key. */
+const isAnswerable = (token: TemplateToken): boolean => isAnswerableToken(token);
 
 /** Label of an answerable token: everything before the first `|`. */
 function labelOf(arg: string): string {
@@ -66,16 +61,51 @@ export interface FinalizedTemplate {
  * {{cursor}} as a caret offset; ALL {{cursor}} markers are stripped so no
  * literal token can leak into a note. An escaped `\{{prompt:…}}` keeps its
  * text (minus the backslash) — that is how the token can be written down.
- * Pure — assumes resolveTemplate has already run. */
-export function finalizeTemplate(text: string, answers: Record<string, string> = {}): FinalizedTemplate {
+ * Pure — assumes resolveTemplate has already run. An answer takes the line
+ * ends of the text it goes into (`inLineEndsOf`, Sammelplan § 3.143 Nr. 3).
+ *
+ * Given what `resolveTemplate` returned, only the tokens it left for this step
+ * are filled (Sammelplan § 3.143 Nr. 1): it has already taken the backslash
+ * off an escaped `\{{cursor}}` or `\{{prompt:Name}}`, and it has put a
+ * selection, a title or a description into the text that may carry such a
+ * token as text — read again here, the first set the caret and vanished, the
+ * second became an answer or nothing. An answer is never read again either. */
+export function finalizeTemplate(text: string | ResolvedTemplate, answers: Record<string, string> = {}): FinalizedTemplate {
+  if (typeof text !== "string") return finalizeResolved(text, answers);
   const filled = replaceTemplateTokens(text, token => {
     if (!isAnswerable(token)) return token.raw;
     if (token.escaped) return token.raw.slice(1);
     const label = labelOf(token.arg!);
-    return Object.prototype.hasOwnProperty.call(answers, label) ? answers[label] : "";
+    return Object.prototype.hasOwnProperty.call(answers, label) ? inLineEndsOf(text, answers[label]) : "";
   });
   const at = filled.indexOf(CURSOR_TOKEN);
   return { text: filled.split(CURSOR_TOKEN).join(""), cursor: at < 0 ? null : at };
+}
+
+function finalizeResolved(resolved: ResolvedTemplate, answers: Record<string, string>): FinalizedTemplate {
+  const parts: string[] = [];
+  let length = 0;
+  let at = 0;
+  let cursor: number | null = null;
+  for (const late of resolved.late) {
+    const before = resolved.text.slice(at, late.index);
+    parts.push(before);
+    length += before.length;
+    at = late.index + late.raw.length;
+    const token = scanTemplate(late.raw)[0];
+    let value = late.raw;
+    if (token && isCursorToken(token)) {
+      if (cursor === null) cursor = length;
+      value = "";
+    } else if (token && isAnswerable(token)) {
+      const label = labelOf(token.arg!);
+      value = Object.prototype.hasOwnProperty.call(answers, label) ? inLineEndsOf(resolved.text, answers[label]) : "";
+    }
+    parts.push(value);
+    length += value.length;
+  }
+  parts.push(resolved.text.slice(at));
+  return { text: parts.join(""), cursor };
 }
 
 /** Placeholders for creating/seeding a note: date/time/title PLUS the
@@ -96,7 +126,7 @@ export function applyTemplatePlaceholders(
   extra: Omit<Partial<TemplateContext>, "title" | "now"> = {}
 ): string {
   const resolved = resolveTemplate(content, { ...extra, title, now }, "headless");
-  return finalizeTemplate(resolved.text).text;
+  return finalizeTemplate(resolved).text;
 }
 
 /** OKF reserved note names — folder infrastructure, never a fill-in template. */
@@ -111,7 +141,8 @@ export async function listTemplates(adapter: TemplateListAdapter, folder: string
     if (!(await adapter.exists(folder))) return items;
     for (const f of await adapter.listDir(folder)) {
       const base = f.path.split(/[/\\]/).pop() ?? "";
-      if (!f.isDirectory && f.path.toLowerCase().endsWith(".md") && !RESERVED_TEMPLATE_NAME.test(base)) {
+      // A dot file in the template folder is hidden (E8) — the phone's listing never had it.
+      if (!f.isDirectory && f.path.toLowerCase().endsWith(".md") && !RESERVED_TEMPLATE_NAME.test(base) && !base.startsWith(".")) {
         items.push({ path: f.path, title: base.replace(/\.md$/i, "") || f.path });
       }
     }
@@ -146,8 +177,8 @@ function templateForTargetOf(value: unknown): string | null {
   let inner = value.trim();
   const wiki = /^\[\[([^[\]]+)\]\]$/.exec(inner);
   if (wiki) inner = wiki[1];
-  const pipe = inner.indexOf("|");
-  if (pipe !== -1) inner = inner.slice(0, pipe);
+  // In front of the alias bar and of the backslash of `\|` (Sammelplan § 3.133 Nr. 1).
+  inner = inner.slice(0, wikiLinkParts(inner).headEnd);
   const anchor = inner.search(/[#^]/);
   if (anchor !== -1) inner = inner.slice(0, anchor);
   inner = inner.trim();
@@ -246,6 +277,12 @@ export interface TemplateForSweepResult {
   failed: string[];
 }
 
+/** One path that changed: a file, or a folder with everything under it. */
+export interface VaultPathMove {
+  from: string;
+  to: string;
+}
+
 /**
  * Carries `plainva.templateFor` assignments across a `.base` rename (plan P4):
  * the plainva namespace is deliberately absent from the link index, so the
@@ -264,27 +301,105 @@ export async function retargetTemplateForInFolder(opts: {
    * fine — oldBasePath is swapped for newBasePath internally. */
   allFilePaths: readonly string[];
 }): Promise<TemplateForSweepResult> {
-  const { adapter, folder, oldBasePath, newBasePath } = opts;
-  const adjusted = opts.allFilePaths.map((p) => (p === oldBasePath ? newBasePath : p));
-  const bareTarget = wikiTargetForFile(newBasePath, adjusted);
+  return retargetTemplateForMoves({
+    adapter: opts.adapter,
+    folder: opts.folder,
+    moves: [{ from: opts.oldBasePath, to: opts.newBasePath }],
+    allFilePaths: opts.allFilePaths,
+  });
+}
+
+/**
+ * What every path change of a file or folder calls in both shells: the
+ * template assignments follow the databases that moved. The databases come
+ * from the index as it was before the move; without a template folder or an
+ * index, or for moves that carry no database, nothing is read.
+ */
+export async function carryTemplateAssignments(
+  deps: {
+    adapter: ScopedTemplateListAdapter & TextUpdateFiles;
+    queryService: { listBaseFilePaths(): Promise<string[]> } | null | undefined;
+  },
+  folder: string | undefined,
+  moves: readonly VaultPathMove[],
+): Promise<TemplateForSweepResult> {
+  const nothing: TemplateForSweepResult = { changedPaths: [], renamed: 0, failed: [] };
+  if (!folder?.trim() || !deps.queryService || moves.length === 0) return nothing;
+  const bases = new Set(await deps.queryService.listBaseFilePaths());
+  for (const move of moves) if (move.from.toLowerCase().endsWith(".base")) bases.add(move.from);
+  return retargetTemplateForMoves({ adapter: deps.adapter, folder: folder.trim(), moves, allFilePaths: [...bases] });
+}
+
+/**
+ * The same sweep for every way a `.base` changes its path (open-items plan
+ * 3.71 no. 4): renamed, moved to another folder, or carried along when its
+ * folder is renamed or moved — in both shells. Only the in-folder rename of
+ * the desktop carried the assignments; a move left a qualified entry
+ * (`[[Projects/Tasks.base]]`) naming a file that was no longer there, and the
+ * phone carried none at all.
+ *
+ * `moves` are the paths as they were and are now; a folder move covers every
+ * `.base` of `allFilePaths` under it. A bare entry changes only when the name
+ * changed (a bare name still finds a database that only moved); a qualified
+ * entry changes whenever the path did.
+ */
+export async function retargetTemplateForMoves(opts: {
+  adapter: ScopedTemplateListAdapter & TextUpdateFiles;
+  folder: string;
+  moves: readonly VaultPathMove[];
+  /** Vault file list as before the moves, for collision-safe bare targets. */
+  allFilePaths: readonly string[];
+}): Promise<TemplateForSweepResult> {
+  const { adapter, folder } = opts;
   const changedPaths: string[] = [];
   const failed: string[] = [];
   let renamed = 0;
+
+  // Every database that changed its path, old path to new.
+  const baseMoves = new Map<string, string>();
+  const known = new Set(opts.allFilePaths);
+  for (const move of opts.moves) {
+    if (move.from === move.to) continue;
+    if (move.from.toLowerCase().endsWith(".base")) baseMoves.set(move.from, move.to);
+    const prefix = `${move.from}/`;
+    for (const path of known) {
+      if (path.startsWith(prefix) && path.toLowerCase().endsWith(".base")) baseMoves.set(path, `${move.to}/${path.slice(prefix.length)}`);
+    }
+  }
+  if (baseMoves.size === 0) return { changedPaths, renamed, failed };
+  const adjusted = opts.allFilePaths.map((p) => baseMoves.get(p) ?? p);
+  const nameOf = (p: string) => p.split("/").pop() ?? p;
+
+  /** What an entry names now: its new link text, or null where it names none of the moved databases. */
+  const movedTarget = (target: string): string | null => {
+    const qualified = target.includes("/") || target.includes("\\");
+    for (const [from, to] of baseMoves) {
+      if (!templateMatchesBase([target], from)) continue;
+      if (qualified) return `[[${to}]]`;
+      // A bare name still finds a database that only moved.
+      if (normalizedVaultPath(nameOf(from)) === normalizedVaultPath(nameOf(to))) return null;
+      return `[[${wikiTargetForFile(to, adjusted)}]]`;
+    }
+    return null;
+  };
 
   const retargeted = (content: string): { hits: number; next: string | null } => {
     const raw = rawTemplateForOf(content);
     let hits = 0;
     const next = (raw?.values ?? []).map((value) => {
       const target = templateForTargetOf(value);
-      if (target === null || !templateMatchesBase([target], oldBasePath)) return value;
+      const moved = target === null ? null : movedTarget(target);
+      if (moved === null) return value;
       hits++;
-      const qualified = target.includes("/") || target.includes("\\");
-      return `[[${qualified ? newBasePath : bareTarget}]]`;
+      return moved;
     });
     return { hits, next: !raw || hits === 0 ? null : setFrontmatterPath(content, TEMPLATE_FOR_PATH, raw.scalar ? next[0] : next) };
   };
 
-  for (const item of await listTemplates(adapter, folder)) {
+  // The template folder itself may be among the moves: its templates are read where they are now.
+  const movedFolder = opts.moves.find((m) => folder === m.from || folder.startsWith(`${m.from}/`));
+  const folderNow = movedFolder ? `${movedFolder.to}${folder.slice(movedFolder.from.length)}` : folder;
+  for (const item of await listTemplates(adapter, folderNow)) {
     try {
       // Counted on the template as it was changed; a working copy of an open conflict is retargeted the same way.
       const update = await updateVaultText(adapter, item.path, (content) => retargeted(content).next);
@@ -293,7 +408,7 @@ export async function retargetTemplateForInFolder(opts: {
       changedPaths.push(item.path);
       renamed += hits;
     } catch (e) {
-      // The rename itself must go through. A template that is gone since it
+      // The move itself must go through. A template that is gone since it
       // was listed names no database any more; one that is there and could
       // not be read or written may still name the old file.
       if (!isFileNotFound(e)) failed.push(item.path);

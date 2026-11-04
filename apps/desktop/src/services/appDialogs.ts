@@ -21,7 +21,9 @@ interface BaseRequest {
 }
 export interface ConfirmRequest extends BaseRequest {
   type: "confirm";
-  resolve: (ok: boolean) => void;
+  /** One yes/no that belongs to the act (`appConfirmOption`); its answer comes with the confirmation. */
+  checkbox?: { label: string; initial: boolean };
+  resolve: (ok: boolean, checked?: boolean) => void;
 }
 export interface MessageRequest extends BaseRequest {
   type: "message";
@@ -81,7 +83,11 @@ export function settleDialog(
   if (!req) return;
   queue = queue.filter((r) => r.id !== id);
   emit();
-  if (req.type === "confirm") req.resolve(value === true);
+  if (req.type === "confirm") {
+    // A confirmation that carries a checkbox arrives as `{ value, checked }`.
+    if (value && typeof value === "object" && "checked" in value) req.resolve(true, (value as PromptResult).checked);
+    else req.resolve(value === true);
+  }
   else if (req.type === "prompt") {
     // A bare string keeps working: the host sends one when the prompt has no
     // checkbox, and a cancel still arrives as null.
@@ -107,6 +113,26 @@ export interface ConfirmOptions {
 export function appConfirm(opts: ConfirmOptions): Promise<boolean> {
   return new Promise((resolve) => {
     enqueue({ type: "confirm", id: nextId++, kind: "warning", ...opts, resolve });
+  });
+}
+
+/**
+ * A confirmation with one yes/no of the same act beneath the message — the
+ * desktop's `mConfirmOption`. Generating an overview asks it where links to
+ * other overviews would lead to the new one (P21): write them with their
+ * folder, preset on. `checked` is the box's answer, the initial value on a cancel.
+ */
+export function appConfirmOption(
+  opts: ConfirmOptions & { checkbox: { label: string; initial: boolean } }
+): Promise<{ confirmed: boolean; checked: boolean }> {
+  return new Promise((resolve) => {
+    enqueue({
+      type: "confirm",
+      id: nextId++,
+      kind: "warning",
+      ...opts,
+      resolve: (ok, checked) => resolve({ confirmed: ok, checked: checked ?? opts.checkbox.initial }),
+    });
   });
 }
 

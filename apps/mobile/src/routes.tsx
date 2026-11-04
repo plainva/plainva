@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { rememberSearchSession, taskViewStore, toast } from "@plainva/ui";
+import { rememberSearchSession, revealSetting, taskViewStore, toast, type SettingsSearchHit } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { COMMAND_PREFIX } from "./lib/searchMode";
 import { connectDevicePimAccount } from "./services/pim/pimService";
@@ -57,9 +57,10 @@ import { AiSettingsScreen } from "./screens/AiSettingsScreen";
 import { requestSkillReview, openAiNoteTarget } from "./services/ai/mobileAi";
 import { TasksScreen } from "./screens/TasksScreen";
 import { TodayScreen } from "./screens/TodayScreen";
-import { VaultDetailScreen } from "./VaultDetailScreen";
+import { VaultDetailScreen, VaultSyncScreen } from "./VaultDetailScreen";
 import { VaultsScreen } from "./screens/VaultsScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
+import { JournalAreaScreen } from "./screens/JournalAreaScreen";
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { SecurityWizardScreen, type SecurityWizardFlow } from "./screens/SecurityWizardScreen";
 import { draftPath, mailRefPath, parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
@@ -105,8 +106,9 @@ export interface RouteContext {
   push: (entry: NavEntry) => void;
   pop: () => void;
   /** The exit a screen takes itself once its work is sent or saved. Unlike
-   *  `pop` it does not ask about unsaved input — there is none left to lose. */
-  done: () => void;
+   *  `pop` it does not ask about unsaved input — there is none left to lose.
+   *  It names the screen that leaves: see `NavActions.done`. */
+  done: (entry: NavEntry) => void;
   /** Forward step that drops the current screen. Never `pop()` then `push()` —
    *  `pop` is asynchronous (it asks about unsaved input first), so the push
    *  would run before it and the late pop would close the new screen (#47). */
@@ -152,11 +154,49 @@ function retargetTop(setNav: RouteContext["setNav"], newPath: string): void {
 }
 
 /** Settings area ids that have a screen of their own rather than a sub-page. */
-function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
+/** The screen a settings area opens (the overview's rows and the search share it). */
+function settingsAreaEntry(id: string, c: RouteContext): NavEntry {
+  switch (id) {
+    case "appearance": return { kind: "appearance", path: "" };
+    case "cloudAccounts": return { kind: "cloudaccounts", path: "" };
+    case "sync": return { kind: "vaultsync", path: c.vault.vaultId };
+    case "pim": return { kind: "pimaccounts", path: "" };
+    case "mail": return { kind: "mailaccounts", path: "" };
+    default: return { kind: "settingsArea", path: id };
+  }
+}
+
+/**
+ * A settings search hit (settings plan 2026-10-29, § 4.3): the screen of its
+ * page - or of the sub-page it sits on - then the row, scrolled to and lit up.
+ * A row of an account's page goes to the account that carries the service.
+ */
+async function openSettingsHit(hit: SettingsSearchHit, c: RouteContext): Promise<void> {
+  let entry: NavEntry;
+  const sub = hit.sub;
+  if (hit.area === "appearance" && sub === "customTheme") entry = { kind: "customtheme", path: "" };
+  else if (hit.area === "sync" && sub === "syncChain") entry = { kind: "syncchain", path: c.vault.vaultId };
+  else if (hit.area === "sync" && sub === "syncDiagnostics") entry = { kind: "syncdiag", path: c.vault.vaultId };
+  else if (hit.area === "vaultDetails") entry = { kind: "vault", path: c.vault.vaultId };
+  else if (hit.area === "security" && sub) entry = { kind: "settingsArea", path: `security/${sub}` };
+  else if (hit.area === "cloudAccounts" && sub) {
+    const service = sub.startsWith("service:") ? (sub.slice("service:".length) as CloudServiceId) : undefined;
+    const { cards } = await loadAccountCards().catch(() => ({ cards: [] as Awaited<ReturnType<typeof loadAccountCards>>["cards"] }));
+    const card = cards.find((candidate) => !service || candidate.services.includes(service));
+    entry = !card ? { kind: "cloudaccounts", path: "" } : service ? { kind: "accountservice", path: `${service}:${card.key}` } : { kind: "cloudaccount", path: card.key };
+  } else entry = settingsAreaEntry(hit.area, c);
+  c.push(entry);
+  if (hit.kind !== "page") void revealSetting(() => document, { title: hit.kind === "row" ? hit.title : undefined, cardText: hit.cardText });
+}
+
+function settingsAreaScreen(path: string, ctx: RouteContext): ReactNode {
+  // "security/access": an area and the part of it a search hit opens.
+  const [id, sub] = path.split("/");
   switch (id) {
     case "editor": return <EditorAreaScreen onBack={ctx.pop} />;
     case "content": return <ContentAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
-    case "backup": return <BackupAreaScreen onBack={ctx.pop} />;
+    case "journal": return <JournalAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
+    case "backup": return <BackupAreaScreen onBack={ctx.pop} vault={ctx.vault} />;
     case "behavior": return <BehaviorAreaScreen onBack={ctx.pop} />;
     case "maintenance": return <MaintenanceAreaScreen onBack={ctx.pop} onConvertOkf={() => ctx.push({ kind: "okfconversion", path: "" })} onMigrateOkf={() => ctx.push({ kind: "okfmigration", path: "" })} onImport={() => ctx.push({ kind: "importwizard", path: "" })} onOverviews={() => ctx.push({ kind: "overviews", path: "" })} vault={ctx.vault} />;
     // "Bars & areas" IS the navigation bar on a phone — the fifth bar of the
@@ -166,6 +206,7 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
     case "security":
       return (
         <SecurityAreaScreen
+          initialArea={sub === "access" || sub === "sharing" ? sub : undefined}
           onBack={ctx.pop}
           onConnectCloud={() => ctx.push({ kind: "cloudaccounts", path: "" })}
           onSetupWorkspace={() => ctx.push({ kind: "securitywizard", path: "workspace" })}
@@ -212,19 +253,8 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   settings: (_e, c) => (
     <SettingsScreen
       onBack={c.pop}
-      onOpenArea={(id) =>
-        id === "appearance"
-          ? c.push({ kind: "appearance", path: "" })
-          : id === "cloudAccounts"
-            ? c.push({ kind: "cloudaccounts", path: "" })
-            : id === "sync"
-              ? c.push({ kind: "vault", path: c.vault.vaultId })
-              : id === "pim"
-                ? c.push({ kind: "pimaccounts", path: "" })
-                : id === "mail"
-                  ? c.push({ kind: "mailaccounts", path: "" })
-                  : c.push({ kind: "settingsArea", path: id })
-      }
+      onOpenArea={(id) => c.push(settingsAreaEntry(id, c))}
+      onOpenHit={(hit) => void openSettingsHit(hit, c)}
       barCount={c.barLayout.visibleCount}
       onOpenVaults={() => c.push({ kind: "vaults", path: "" })}
     />
@@ -287,13 +317,16 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
         vault={c.vault}
         onBack={c.pop}
         // What every account shares (E4): the vault's page for files, the Calendar and E-Mail pages.
-        onOpenGlobal={(target) => c.push(target === "files" ? { kind: "vault", path: c.vault.vaultId } : { kind: target === "calendar" ? "pimaccounts" : "mailaccounts", path: "" })}
+        onOpenGlobal={(target) => c.push(target === "files" ? { kind: "vaultsync", path: c.vault.vaultId } : { kind: target === "calendar" ? "pimaccounts" : "mailaccounts", path: "" })}
       />
     );
   },
-  cloudconnect: (_e, c) => (
+  cloudconnect: (e, c) => (
     <CloudConnectScreen
       onBack={c.pop}
+      // A side door names its service in the path (E7 of the settings plan 2026-10-29).
+      only={e.path === "files" || e.path === "calendar" || e.path === "mail" ? e.path : undefined}
+      createTemplateId={e.createTemplateId}
       // The wizard hands over to the form and steps out of the way: back from
       // the form returns to Cloud-Konten, where the new account now stands,
       // instead of to a provider list the user is done with (N4.2). One atomic
@@ -311,12 +344,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       // persisted queue rather than one combined form: the browser round trip
       // and (for files) the vault switch both tear the navigation stack down
       // mid-run. This opens the first service; the queue holds the rest.
-      onPickServices={(services, family) => {
-        void startConnectQueue(family, services).then((first) => {
-          if (!first) return;
-          c.replace({ kind: screenForService(first), path: "", family });
-        });
-      }}
+      onOpenStep={(first, family) => c.replace({ kind: screenForService(first), path: "", family })}
       // The device's calendars (EventKit plan E5): the system asks for access,
       // the account is written, and the calendar list is where it lands —
       // there is no form to hand over to.
@@ -333,24 +361,47 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     />
   ),
   sync: (e, c) => <AddVaultScreen createTemplateId={e.createTemplateId} family={e.family} onBack={c.pop} vault={c.vault} />,
+  // The vault itself — reached from the vault list (settings plan 2026-10-29, § 4.2).
   vault: (e, c) => (
     <VaultDetailScreen
       activeVault={c.vault}
       onBack={c.pop}
-      onOpenSyncChain={() => c.push({ kind: "syncchain", path: e.path })}
-      onOpenSyncDiagnostics={() => c.push({ kind: "syncdiag", path: e.path })}
+      onOpenSync={() => c.push({ kind: "vaultsync", path: e.path })}
+      vaultId={e.path}
+    />
+  ),
+  // The settings area "Sync" of a vault (E11): the sync and nothing else.
+  // The deep link "open the sync settings" arrives without a vault: the active one.
+  vaultsync: (e, c) => {
+    const id = e.path || c.vault.vaultId;
+    return (
+    <VaultSyncScreen
+      activeVault={c.vault}
+      onBack={c.pop}
+      onOpenFilesSettings={() => {
+        // The files page of the account that carries this vault (move 26); the account list when none is found.
+        void loadAccountCards()
+          .then(({ cards }) => {
+            const card = cards.find((entry) => entry.vaultId === id && entry.services.includes("files"));
+            c.push(card ? { kind: "accountservice", path: `files:${card.key}` } : { kind: "cloudaccounts", path: "" });
+          })
+          .catch(() => c.push({ kind: "cloudaccounts", path: "" }));
+      }}
+      onOpenSyncChain={() => c.push({ kind: "syncchain", path: id })}
+      onOpenSyncDiagnostics={() => c.push({ kind: "syncdiag", path: id })}
       onOpenFilesAccount={() => {
         // The card that carries this vault's files; the list when none is found.
         void loadAccountCards()
           .then(({ cards }) => {
-            const card = cards.find((entry) => entry.vaultId === e.path && entry.services.includes("files"));
+            const card = cards.find((entry) => entry.vaultId === id && entry.services.includes("files"));
             c.push(card ? { kind: "cloudaccount", path: card.key } : { kind: "cloudaccounts", path: "" });
           })
           .catch(() => c.push({ kind: "cloudaccounts", path: "" }));
       }}
-      vaultId={e.path}
+      vaultId={id}
     />
-  ),
+  );
+  },
   syncchain: (e, c) => (
     <SyncChainScreen
       activeVault={c.vault}
@@ -387,7 +438,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
         // instead (2026-08-20).
         c.push({
           kind: "mailcompose",
-          path: draftPath({ accountId: "", to: "", subject: d.subject, body: d.body, attachments: d.attachments }),
+          path: draftPath({ accountId: "", to: d.to ?? "", subject: d.subject, body: d.body, attachments: d.attachments, ...(d.from ? { from: d.from } : {}) }),
         })
       }
       onOpenCommands={() => {
@@ -435,7 +486,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       onOpenSettings={() => c.push({ kind: "pimaccounts", path: "" })}
     />
   ),
-  pimaccounts: (e, c) => <PimAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} onOpenAccountCalendar={(id) => c.push({ kind: "accountservice", path: `calendar:${id}` })} />,
+  pimaccounts: (e, c) => <PimAccountsScreen onAddAccount={() => c.push({ kind: "cloudconnect", path: "calendar" })} accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} vault={c.vault} onOpenAccountCalendar={(id) => c.push({ kind: "accountservice", path: `calendar:${id}` })} />,
   mail: (_e, c) => (
     <MailListScreen
       vault={c.vault}
@@ -461,13 +512,13 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <MailComposeScreen
       draft={parseDraft(e.path)}
       onBack={c.pop}
-      onDone={c.done}
+      onDone={() => c.done(e)}
       onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
       vault={c.vault}
     />
   ),
   mailaccounts: (e, c) => (
-    <MailAccountsScreen accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} onOpenAccountMail={(id) => c.push({ kind: "accountservice", path: `mail:${id}` })} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
+    <MailAccountsScreen onAddAccount={() => c.push({ kind: "cloudconnect", path: "mail" })} accountId={e.path || undefined} bump={c.bump} family={e.family} onBack={c.pop} onOpenAccountMail={(id) => c.push({ kind: "accountservice", path: `mail:${id}` })} onOpenRule={(id) => c.push({ kind: "mailrule", path: id })} vault={c.vault} />
   ),
   mailrule: (e, c) => <MailRuleScreen ruleId={e.path} onBack={c.pop} />,
   tasks: (_e, c) => (
@@ -511,7 +562,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
     <SecurityWizardScreen
       flow={(e.path || "workspace") as SecurityWizardFlow}
       onBack={c.pop}
-      onDone={c.done}
+      onDone={() => c.done(e)}
       vault={c.vault}
     />
   ),

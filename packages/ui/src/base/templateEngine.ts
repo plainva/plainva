@@ -32,6 +32,14 @@ export interface TemplateContext {
   title: string;
   /** Reference instant: `{{date}}` and every offset count from here. */
   now: Date;
+  /**
+   * The day the note is FOR — a daily note's, a meeting's. `{{daily±N}}`
+   * counts from it. Absent, the note has no day of its own, and `{{daily}}`
+   * names the daily note **Today** opens: the diary day of `now`, by the
+   * vault's day boundary (Sammelplan § 3.143 Nr. 2), filled in by
+   * `withVaultContext`.
+   */
+  day?: Date;
   /** Target folder of the note — `{{folder}}`. */
   folder?: string;
   /** Vault name — `{{vault}}`. */
@@ -143,6 +151,22 @@ export interface ResolvedTemplate {
   /** Tokens that could not be resolved because their source is missing.
    *  Reported rather than thrown — a template must never block a note. */
   unresolved: string[];
+  /**
+   * The placeholders this step left for `finalizeTemplate` — the caret and
+   * every question —, where they stand in `text` (Sammelplan § 3.143 Nr. 1).
+   * Only these are filled there: an escaped `\{{cursor}}` the person wrote,
+   * and a `{{prompt:…}}` inside a selection, a title or an event's
+   * description that this step put into the text, stay as they are.
+   */
+  late: LateToken[];
+}
+
+/** A placeholder `resolveTemplate` left in its text for `finalizeTemplate`. */
+export interface LateToken {
+  /** Where it starts in the resolved text. */
+  index: number;
+  /** The token as it stands there. */
+  raw: string;
 }
 
 /**
@@ -184,6 +208,19 @@ export function scanTemplate(text: string): TemplateToken[] {
     cursor = close + 2;
   }
   return out;
+}
+
+/** The caret marker `{{cursor}}`: placed by `finalizeTemplate`. */
+export function isCursorToken(token: TemplateToken): boolean {
+  return token.name === "cursor" && token.arg === null && token.offset === 0 && token.raw.endsWith("{{cursor}}");
+}
+
+/** Tokens that carry an answer: `{{prompt:Label}}`, `{{prompt:Label|Default}}`, `{{select:Label|A,B}}`, `{{date_prompt:Label}}`. */
+const ANSWERABLE = new Set(["prompt", "select", "date_prompt"]);
+
+/** A question's token — the label (in front of the first `|`) is the answer key. */
+export function isAnswerableToken(token: TemplateToken): boolean {
+  return token.arg !== null && ANSWERABLE.has(token.name) && token.raw.startsWith((token.escaped ? "\\" : "") + "{{" + token.name + ":");
 }
 
 export function replaceTemplateTokens(text: string, replace: (token: TemplateToken) => string): string {
@@ -284,6 +321,19 @@ function resolveWeekday(arg: string | null, now: Date, weekStart: number): strin
 }
 
 /**
+ * A value that goes into a text, with the line ends of that text: `\r\n`
+ * where the text has them, else `\n` — every `\r\n` and carriage return of
+ * its own in the value turned. An answer pre-filled from the clipboard of
+ * Windows carried its `\r\n` into a note or a mail whose text is `\n`
+ * (open-items plan 3.143 no. 3).
+ */
+export function inLineEndsOf(text: string, value: string): string {
+  if (!value.includes("\r") && !text.includes("\r\n")) return value;
+  const lf = value.replace(/\r\n?/g, "\n");
+  return text.includes("\r\n") ? lf.replace(/\n/g, "\r\n") : lf;
+}
+
+/**
  * Fills everything that needs no user input and collects what does.
  *
  * Unknown tokens are left ALONE on purpose: a typo like `{{titel}}` stays
@@ -299,8 +349,35 @@ export function resolveTemplate(
   const seenRequest = new Set<string>();
   const unresolved: string[] = [];
 
-  const out = replaceTemplateTokens(text, ({ raw, escaped, name, offset, arg: argument }) => {
-    if (escaped) return raw.slice(1); // escaped: drop the backslash, keep the token
+  // What the second step fills is marked as it is written (Sammelplan § 3.143
+  // Nr. 1); everything else in the text is text from here on. `LATE` keeps the
+  // token, a `{ late }` writes a token of its own for the second step.
+  const LATE = Symbol("late");
+  const parts: string[] = [];
+  const late: LateToken[] = [];
+  let length = 0;
+  let cursor = 0;
+  const push = (piece: string) => {
+    parts.push(piece);
+    length += piece.length;
+  };
+  for (const token of scanTemplate(text)) {
+    push(text.slice(cursor, token.index));
+    cursor = token.index + token.raw.length;
+    const filled = fill(token);
+    if (typeof filled === "string") {
+      push(filled);
+    } else {
+      const raw = filled === LATE ? token.raw : filled.late;
+      late.push({ index: length, raw });
+      push(raw);
+    }
+  }
+  push(text.slice(cursor));
+  return { text: parts.join(""), requests, unresolved, late };
+
+  function fill({ raw, escaped, name, offset, arg: argument }: TemplateToken): string | typeof LATE | { late: string } {
+    if (escaped) return raw.slice(1); // escaped: drop the backslash, keep the token — as text
     const when = offset ? addDays(ctx.now, offset) : ctx.now;
 
     switch (name) {
@@ -346,7 +423,7 @@ export function resolveTemplate(
           unresolved.push(raw);
           return "";
         }
-        return value;
+        return inLineEndsOf(text, value);
       }
       case "clipboard": {
         // Deliberately NOT inserted silently (decision E7): a password manager
@@ -367,7 +444,7 @@ export function resolveTemplate(
           seenRequest.add(label);
           requests.push({ label, kind: "text", defaultValue: value });
         }
-        return `{{prompt:${label}}}`; // answered in finalizeTemplate
+        return { late: `{{prompt:${label}}}` }; // answered in finalizeTemplate
       }
       default:
         break;
@@ -379,7 +456,7 @@ export function resolveTemplate(
       return resolveEventToken(name, offset, argument, ctx.event) ?? raw;
     }
 
-    if (DEFERRED.has(name)) return raw;
+    if (DEFERRED.has(name)) return LATE;
 
     const kind = Object.prototype.hasOwnProperty.call(INTERACTIVE, name) ? INTERACTIVE[name] : undefined;
     if (kind) {
@@ -400,11 +477,9 @@ export function resolveTemplate(
             : undefined,
         });
       }
-      return raw; // filled by finalizeTemplate once answered
+      return LATE; // filled by finalizeTemplate once answered
     }
 
     return raw; // unknown token — leave it visible
-  });
-
-  return { text: out, requests, unresolved };
+  }
 }

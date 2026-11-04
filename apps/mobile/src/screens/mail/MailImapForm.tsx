@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../../hooks/useLeaveGuard";
-import { Banner, Button, getPlatformServices, presetById, presetForEmail, TextInput } from "@plainva/ui";
+import { accountInputProps, Banner, Button, connectAccessPlan, connectSecretLabelKey, foldMachineText, getPlatformServices, presetById, presetForEmail, TextInput } from "@plainva/ui";
 import type { MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -39,6 +39,7 @@ export function MailImapForm({
   onCancel,
   presetId,
   prefill,
+  onUseMicrosoft,
 }: {
   /** Account being edited; absent = a new mailbox. */
   editing?: MailAccountConfig;
@@ -60,6 +61,8 @@ export function MailImapForm({
    * screen was opened by a run, and `editing` always wins.
    */
   prefill?: { user?: string; pass?: string };
+  /** The address belongs to a provider whose IMAP is closed (Outlook): the note's button goes there. */
+  onUseMicrosoft?: () => void;
 }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState(editing?.user ?? prefill?.user ?? "");
@@ -86,7 +89,10 @@ export function MailImapForm({
     t("mobile.leaveCredentials"),
   );
   // The address wins; the tile fills the gap when it matches nothing.
-  const preset = presetForEmail(email) ?? (presetId ? presetById(presetId) : null);
+  // Read as a machine reads it: a keyboard set to Japanese types full-width forms
+  // no preset and no server answers to (§ 3.43; the connect step does the same).
+  const address = foldMachineText(email);
+  const preset = presetForEmail(address) ?? (presetId ? presetById(presetId) : null);
 
   // The address picks the preset — but never over values the user typed, and
   // never over the account being edited.
@@ -98,19 +104,24 @@ export function MailImapForm({
   const effective = preset && !serverTouched
     ? { host: preset.host, port: preset.port, smtpHost: preset.smtpHost, smtpPort: preset.smtpPort }
     : server;
+  // What the provider demands and where to get it - the same description as
+  // the sign-in step of both shells (settings plan 2026-10-29): the secret by
+  // its name, the step to create it with the provider's page, Bridge, "enable
+  // IMAP first", and the Outlook dead end with the way to Microsoft.
+  const plan = connectAccessPlan({ family: "imap", services: ["mail"], providerName: preset?.label ?? "IMAP", preset });
   const complete =
-    email.trim() !== "" && effective.host.trim() !== "" && (editing ? true : pass !== "");
+    email.trim() !== "" && effective.host.trim() !== "" && (editing ? true : pass !== "") && !plan.useTileInstead;
 
   const field = (key: "host" | "smtpHost", label: string) => (
     <label className="m-field">
       <span>{label}</span>
       <TextInput
+        {...accountInputProps("address")}
         value={effective[key]}
         onChange={(e) => {
           setServerTouched(true);
           setServer((s) => ({ ...s, [key]: e.target.value }));
         }}
-        autoCapitalize="none"
       />
     </label>
   );
@@ -119,8 +130,8 @@ export function MailImapForm({
     <label className="m-field">
       <span>{label}</span>
       <TextInput
+        {...accountInputProps("port")}
         value={String(effective[key])}
-        inputMode="numeric"
         onChange={(e) => {
           setServerTouched(true);
           const n = Number(e.target.value.replace(/\D/g, ""));
@@ -139,9 +150,8 @@ export function MailImapForm({
         <span>{t("mail.emailAddress")}</span>
         <TextInput
           value={email}
+          {...accountInputProps("email")}
           onChange={(e) => setEmail(e.target.value)}
-          inputMode="email"
-          autoCapitalize="none"
           placeholder="name@example.com"
         />
       </label>
@@ -157,9 +167,19 @@ export function MailImapForm({
               its name and port — a tester with a Gmail address got no word
               that his normal password would be refused, and no way to the
               page that issues the other one. */}
-          {preset.authMode === "app-password" && <p className="m-hint" data-testid="imap-hint-app-password">{t("cloudAccounts.hintAppPassword", { provider: preset.label })}</p>}
-          {preset.enableHint && <p className="m-hint">{t("cloudAccounts.hintEnableFirst", { provider: preset.label })}</p>}
-          {(preset.appPasswordUrl || preset.helpUrl) && (
+          {plan.notes.map((note) => (
+            <p className="m-hint" key={note.key} data-testid="imap-note">
+              {t(note.key, note.values)}
+              {plan.useTileInstead && onUseMicrosoft && (
+                <>
+                  {" "}
+                  <Button size="sm" variant="ghost" data-testid="imap-open-microsoft" onClick={onUseMicrosoft}>{t("cloudAccounts.presetOpenMicrosoft")}</Button>
+                </>
+              )}
+            </p>
+          ))}
+          {plan.step && !plan.useTileInstead && <p className="m-hint" data-testid="imap-hint-app-password">{t(plan.step.key, plan.step.values)}</p>}
+          {plan.guide && !plan.useTileInstead && (
             <div className="m-config-actions">
               {preset.appPasswordUrl && (
                 <Button size="sm" variant="ghost" data-testid="imap-app-password-link" onClick={() => void getPlatformServices().openExternal(preset.appPasswordUrl!)}>
@@ -179,9 +199,9 @@ export function MailImapForm({
       )}
 
       <label className="m-field">
-        <span>{t("mail.password")}</span>
+        <span>{t(connectSecretLabelKey(plan.secret ?? "password"))}</span>
         <TextInput
-          type="password"
+          {...accountInputProps("secret")}
           value={pass}
           onChange={(e) => setPass(e.target.value)}
           placeholder={editing ? t("mail.passwordKeep") : undefined}
@@ -206,12 +226,12 @@ export function MailImapForm({
         disabled={busy || !available || !complete}
         onClick={() =>
           onSubmit({
-            label: email.trim(),
-            host: effective.host.trim(),
+            label: address,
+            host: foldMachineText(effective.host),
             port: effective.port,
-            smtpHost: effective.smtpHost.trim(),
+            smtpHost: foldMachineText(effective.smtpHost),
             smtpPort: effective.smtpPort,
-            user: email.trim(),
+            user: address,
             pass,
           })
         }

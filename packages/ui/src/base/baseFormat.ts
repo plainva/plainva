@@ -23,7 +23,10 @@
  *     YAML.
  * Unknown keys (Obsidian `formulas`, a property's `displayName`, future keys)
  * are preserved verbatim across a parse->serialize round-trip via the pristine
- * raw object retained on `_obsidian`.
+ * raw object retained on `_obsidian` — the whole file on the config, and each
+ * view's own copy on that view, so its native keys follow it when views are
+ * deleted, moved or duplicated. The serializer writes anew only what differs
+ * from what the file reads as; an unchanged value keeps the file's spelling.
  *
  * Obsidian additionally REJECTS the whole file (not just the odd key) when a
  * view has no `name` or when a `filters` object carries more than one of
@@ -175,7 +178,9 @@ function normalizeFiltersIn(raw: any): any {
   const hasNot = raw.not != null;
   if (!hasAnd && !hasOr && !hasNot) return undefined;
   if (!hasAnd && !hasOr) return clone(raw); // pure not-group: opaque passthrough
-  const and = filterItems(raw.and);
+  // Copies: the input is the file's pristine copy too, which the serializer
+  // compares against later — reading it must never change it.
+  const and = [...filterItems(raw.and)];
   let or = filterItems(raw.or);
   // A stray sibling not-group (never written by Plainva) survives as a nested item.
   if (hasNot) and.push({ not: filterItems(raw.not) });
@@ -299,6 +304,11 @@ function normalizePreviousKeys(src: any): string[] | null {
   return keys.length > 0 ? keys : null;
 }
 
+/** The bare property name of Obsidian's `groupBy: { property, direction }`, or undefined. */
+function nativeGroupProperty(g: Record<string, any>): string | undefined {
+  return typeof g.property === "string" && g.property.trim() ? fromPropId(g.property) : undefined;
+}
+
 /** Normalize one on-disk view to the in-memory view shape (bare names, Plainva render type). */
 function normalizeViewIn(v: any): Record<string, any> {
   if (!isPlainObject(v)) return { type: "table" };
@@ -330,7 +340,10 @@ function normalizeViewIn(v: any): Record<string, any> {
   // Plainva view extras live under `plainva`; legacy files stored them at the view top level.
   const dateField = pv.dateField ?? v.dateField;
   const endField = pv.endField ?? v.endField;
-  const groupBy = pv.groupBy ?? v.groupBy;
+  // Obsidian's own `groupBy` is `{ property, direction }` with a property id;
+  // in memory the grouping is the bare property name, whichever key holds it
+  // (a legacy Plainva file kept the bare name at the view top level).
+  const groupBy = pv.groupBy ?? (isPlainObject(v.groupBy) ? nativeGroupProperty(v.groupBy) : v.groupBy);
   const coverImage = pv.coverImage ?? v.coverImage;
   const widths = pv.widths ?? v.widths;
   const dateFormat = pv.dateFormat ?? v.dateFormat;
@@ -380,6 +393,109 @@ function normalizeViewIn(v: any): Record<string, any> {
 }
 
 /**
+ * The key under which every parsed in-memory view keeps its pristine on-disk
+ * copy (the same name the config uses for the whole file). Spreads and JSON
+ * clones of a view carry it along, so a duplicated view keeps its source's
+ * native keys and a new view starts without anybody's.
+ */
+const VIEW_RAW = "_obsidian";
+
+/** The in-memory names of the file-wide options stored in the first view's `plainva` block. */
+const FILE_WIDE_KEYS = ["iconColor", "newItemFolder", "newItemTemplate", "taskList", "contextFilters"] as const;
+
+/** The file-wide options as on-disk views carry them: the first valid value of each key wins. */
+function readFileWide(views: any[]): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const v of views) {
+    const pv = isPlainObject(v) && isPlainObject(v.plainva) ? v.plainva : null;
+    if (!pv) continue;
+    if (out.iconColor === undefined && typeof pv.fileIconColor === "string" && HEX_COLOR_RE.test(pv.fileIconColor)) {
+      out.iconColor = pv.fileIconColor;
+    }
+    if (out.newItemFolder === undefined && typeof pv.newItemFolder === "string" && pv.newItemFolder.trim()) {
+      out.newItemFolder = pv.newItemFolder;
+    }
+    if (out.newItemTemplate === undefined && typeof pv.newItemTemplate === "string" && pv.newItemTemplate.trim()) {
+      out.newItemTemplate = pv.newItemTemplate;
+    }
+    // Which provider list a task created here also goes to (C4/S15). Absent
+    // means absent: the task stays a note, as it does today.
+    if (out.taskList === undefined && typeof pv.taskList === "string" && pv.taskList.trim()) {
+      out.taskList = pv.taskList;
+    }
+    // Self-reference filters ("Diese Notiz") — Obsidian ignores them; Plainva
+    // resolves them against the embedding host at render time (embedScope).
+    if (out.contextFilters === undefined && Array.isArray(pv.contextFilters)) {
+      const list = pv.contextFilters.filter((x: any): x is string => typeof x === "string" && !!x);
+      if (list.length > 0) out.contextFilters = list;
+    }
+  }
+  return out;
+}
+
+/** The file-wide options of an in-memory config, by the rules `readFileWide` reads them back with. */
+function wantedFileWide(src: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  if (typeof src.iconColor === "string" && HEX_COLOR_RE.test(src.iconColor)) out.iconColor = src.iconColor;
+  for (const key of ["newItemFolder", "newItemTemplate", "taskList"] as const) {
+    if (typeof src[key] === "string" && src[key].trim()) out[key] = src[key];
+  }
+  const list = Array.isArray(src.contextFilters) ? src.contextFilters.filter((x: any) => typeof x === "string" && x) : [];
+  if (list.length > 0) out.contextFilters = list;
+  return out;
+}
+
+/** Structural equality of two YAML-shaped values; key order and `undefined`-valued keys do not count. */
+function sameData(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return a == null && b == null;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => sameData(x, b[i]));
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const ka = Object.keys(a).filter((k) => (a as any)[k] !== undefined);
+    const kb = Object.keys(b).filter((k) => (b as any)[k] !== undefined);
+    return ka.length === kb.length && ka.every((k) => sameData((a as any)[k], (b as any)[k]));
+  }
+  return false;
+}
+
+/** Put `key` of `target` back to what `source` holds — the value verbatim, or absent. */
+function restoreKey(target: Record<string, any>, source: Record<string, any> | null, key: string): void {
+  if (source && key in source) target[key] = clone(source[key]);
+  else delete target[key];
+}
+
+/**
+ * True when Obsidian accepts this `filters` value as it stands: absent, a
+ * condition string, or an object with exactly one of `and`/`or`/`not`. Older
+ * Plainva builds wrote `and` and `or` side by side, which Obsidian rejects —
+ * those are rewritten on save even when unchanged.
+ */
+function isValidFilterRoot(f: unknown): boolean {
+  if (f == null || typeof f === "string") return true;
+  if (!isPlainObject(f)) return false;
+  const keys = Object.keys(f);
+  return keys.length === 1 && (keys[0] === "and" || keys[0] === "or" || keys[0] === "not");
+}
+
+/** View types this module reads by name; any other `type` is unknown to Plainva and kept as written. */
+const KNOWN_VIEW_TYPES = new Set(["table", "list", "cards", "gallery", "board", "calendar", "timeline"]);
+
+/** The keys of a column's `plainva` block this module reads and writes. */
+const COLUMN_KEYS = [
+  "input", "ratingMax", "ratingGlyph", "options", "relationBase", "relationLimit", "reverseOf", "rollup", "previousKeys",
+] as const;
+
+/** The keys of a view's `plainva` block that hold one in-memory key of the same name. */
+const VIEW_PLAINVA_KEYS = [
+  "dateField", "endField", "coverImage", "widths", "dateFormat", "subItemsProperty",
+  "graphEdges", "graphColorBy", "graphSizeBy", "graphShowExternal", "graphShowIncoming",
+  "boardColumnOrder", "boardColorMode", "boardLaneBy", "boardWipLimits", "colorBy",
+  "pinboardOrder", "pinboardPinned", "pinboardFilterBy",
+] as const;
+
+/**
  * Parse `.base` text into the in-memory config shape used across the app.
  * Carries unknown top-level keys through and stashes a pristine copy on
  * `_obsidian` for lossless round-tripping.
@@ -405,42 +521,25 @@ export function parseBaseConfig(text: string): any {
   }
   config.columns = columns;
 
-  config.views = Array.isArray(raw.views) ? raw.views.map(normalizeViewIn) : [];
+  // Each view carries its own pristine on-disk copy, so the keys Plainva does
+  // not edit (`limit`, `image`, a plugin's settings, an unknown `type`) stay
+  // with THEIR view when views are deleted, moved or duplicated — keyed to the
+  // view, never to its position in the list.
+  config.views = Array.isArray(raw.views)
+    ? raw.views.map((v: any) => {
+        const view = normalizeViewIn(v);
+        if (isPlainObject(v)) view[VIEW_RAW] = clone(v);
+        return view;
+      })
+    : [];
 
   // File-level presentation & authoring state: the database-icon tint (Base-UX2
   // P7) and the new-item defaults (plan Base-Neu P1: storage folder + default
   // template) live under `views[i].plainva.*` — one of the tolerated extension
   // slots. A NEW top-level key would make Obsidian reject the whole file
   // (ADR 0008, the `columns:` incident). First valid value wins per key.
-  delete config.iconColor;
-  delete config.newItemFolder;
-  delete config.newItemTemplate;
-  delete config.taskList;
-  delete config.contextFilters;
-  for (const v of Array.isArray(raw.views) ? raw.views : []) {
-    const pv = isPlainObject(v) && isPlainObject(v.plainva) ? v.plainva : null;
-    if (!pv) continue;
-    if (config.iconColor === undefined && typeof pv.fileIconColor === "string" && HEX_COLOR_RE.test(pv.fileIconColor)) {
-      config.iconColor = pv.fileIconColor;
-    }
-    if (config.newItemFolder === undefined && typeof pv.newItemFolder === "string" && pv.newItemFolder.trim()) {
-      config.newItemFolder = pv.newItemFolder;
-    }
-    if (config.newItemTemplate === undefined && typeof pv.newItemTemplate === "string" && pv.newItemTemplate.trim()) {
-      config.newItemTemplate = pv.newItemTemplate;
-    }
-    // Which provider list a task created here also goes to (C4/S15). Absent
-    // means absent: the task stays a note, as it does today.
-    if (config.taskList === undefined && typeof pv.taskList === "string" && pv.taskList.trim()) {
-      config.taskList = pv.taskList;
-    }
-    // Self-reference filters ("Diese Notiz") — Obsidian ignores them; Plainva
-    // resolves them against the embedding host at render time (embedScope).
-    if (config.contextFilters === undefined && Array.isArray(pv.contextFilters)) {
-      const list = pv.contextFilters.filter((x: any): x is string => typeof x === "string" && !!x);
-      if (list.length > 0) config.contextFilters = list;
-    }
-  }
+  for (const key of FILE_WIDE_KEYS) delete config[key];
+  Object.assign(config, readFileWide(Array.isArray(raw.views) ? raw.views : []));
 
   const filters = normalizeFiltersIn(raw.filters);
   if (filters !== undefined) config.filters = filters;
@@ -449,40 +548,219 @@ export function parseBaseConfig(text: string): any {
   return config;
 }
 
+/** The property id under which the file keeps this bare column (`note.x`, or a bare id a hand-written file used). */
+function rawPropertyId(props: Record<string, any>, bare: string): string {
+  const id = toPropId(bare);
+  if (id in props) return id;
+  for (const k of Object.keys(props)) if (fromPropId(k) === bare) return k;
+  return id;
+}
+
+/** The legacy top-level `columns:` entry an old build wrote for this column, if any (the last one wins, as on read). */
+function legacyColumnEntry(legacy: Record<string, any>, bare: string): Record<string, any> | null {
+  let found: Record<string, any> | null = null;
+  for (const k of Object.keys(legacy)) {
+    if (fromPropId(k) === bare && isPlainObject(legacy[k])) found = legacy[k];
+  }
+  return found;
+}
+
+/** One view written for disk, before the file-wide options are settled across all views. */
+interface WrittenView {
+  base: Record<string, any>;
+  pv: Record<string, any>;
+  rawPv: Record<string, any> | null;
+}
+
+/**
+ * One in-memory view -> its on-disk form. Starts from the view's own on-disk
+ * copy (never from whatever view once stood at the same index) and writes
+ * anew only the keys whose in-memory value differs from what that copy reads
+ * as; an unchanged key keeps the file's spelling.
+ */
+function serializeView(v: any, takenNames: Set<string>): WrittenView {
+  const raw: Record<string, any> | null = isPlainObject(v?.[VIEW_RAW]) ? v[VIEW_RAW] : null;
+  const rawPv = raw && isPlainObject(raw.plainva) ? raw.plainva : null;
+  const was = raw ? normalizeViewIn(raw) : null;
+  const unchanged = (key: string): boolean => was !== null && sameData(v?.[key], was[key]);
+  const base: Record<string, any> = raw ? clone(raw) : {};
+  const pv: Record<string, any> = isPlainObject(base.plainva) ? base.plainva : {};
+  const render = v?.type ?? "table";
+
+  // A type Plainva does not know (a plugin's view, a future Obsidian type) is
+  // shown as a table and stays as written until the user picks another type.
+  if (!(raw && unchanged("type") && typeof raw.type === "string" && !KNOWN_VIEW_TYPES.has(raw.type))) {
+    base.type = toObsidianViewType(render);
+    // Only carry a render hint when the native type is lossy (board/calendar/timeline).
+    if (!NATIVE_RENDER.has(render)) pv.render = render;
+    else delete pv.render;
+  }
+  // Every view MUST carry a non-empty string name (Obsidian rejects the file
+  // otherwise): keep the in-memory name, else the previous on-disk name,
+  // else synthesize one from the render type.
+  const given = v?.name != null && String(v.name).trim() ? String(v.name)
+    : base.name != null && String(base.name).trim() ? String(base.name)
+    : null;
+  if (given) base.name = given;
+  else {
+    base.name = fallbackViewName(render, takenNames);
+    takenNames.add(base.name);
+  }
+  if (Array.isArray(v?.order)) base.order = v.order.map((c: any) => toPropId(String(c)));
+  else delete base.order;
+  if (Array.isArray(v?.sort)) {
+    base.sort = v.sort
+      .filter((s: any) => isPlainObject(s))
+      .map((s: any) => ({ property: toPropId(String(s.property ?? s.field ?? "")), direction: s.direction ?? "ASC" }));
+  } else delete base.sort;
+  if (isPlainObject(v?.summaries) && Object.keys(v.summaries).length > 0) {
+    const sums: Record<string, string> = {};
+    for (const [k, val] of Object.entries(v.summaries as Record<string, unknown>)) {
+      if (typeof val === "string" && val) sums[toPropId(String(k))] = val;
+    }
+    if (Object.keys(sums).length > 0) base.summaries = sums;
+    else delete base.summaries;
+  } else delete base.summaries;
+  for (const key of ["order", "sort", "summaries"]) if (unchanged(key)) restoreKey(base, raw, key);
+
+  if (v?.dateField != null) pv.dateField = v.dateField;
+  else delete pv.dateField;
+  if (v?.endField != null) pv.endField = v.endField;
+  else delete pv.endField;
+  if (v?.coverImage != null) pv.coverImage = v.coverImage;
+  else delete pv.coverImage;
+  if (isPlainObject(v?.widths) && Object.keys(v.widths).length > 0) pv.widths = v.widths;
+  else delete pv.widths;
+  // "default" is the implicit value — keep the file free of redundant keys.
+  if (v?.dateFormat != null && v.dateFormat !== "default") pv.dateFormat = v.dateFormat;
+  else delete pv.dateFormat;
+  if (typeof v?.subItemsProperty === "string" && v.subItemsProperty) pv.subItemsProperty = v.subItemsProperty;
+  else delete pv.subItemsProperty;
+  // Graph view options (plan Graph P8) — written only when set, so files
+  // of other view types stay byte-identical.
+  if (Array.isArray(v?.graphEdges) && v.graphEdges.length > 0) pv.graphEdges = v.graphEdges.map((x: any) => String(x));
+  else delete pv.graphEdges;
+  if (typeof v?.graphColorBy === "string" && v.graphColorBy) pv.graphColorBy = v.graphColorBy;
+  else delete pv.graphColorBy;
+  if (typeof v?.graphSizeBy === "string" && v.graphSizeBy) pv.graphSizeBy = v.graphSizeBy;
+  else delete pv.graphSizeBy;
+  if (v?.graphShowExternal === true) pv.graphShowExternal = true;
+  else delete pv.graphShowExternal;
+  if (v?.graphShowIncoming === true) pv.graphShowIncoming = true;
+  else delete pv.graphShowIncoming;
+  // Board column order (plan Board-Reorder 2026-07-07) — per-view layout for
+  // relation/text boards; select/status boards reorder their options instead.
+  if (Array.isArray(v?.boardColumnOrder) && v.boardColumnOrder.length > 0) pv.boardColumnOrder = v.boardColumnOrder.map((x: any) => String(x));
+  else delete pv.boardColumnOrder;
+  // Board color mode (WP3) — only "column" is stored; "chip" is the default
+  // and elided so files without the feature stay byte-identical.
+  if (v?.boardColorMode === "column") pv.boardColorMode = "column";
+  else delete pv.boardColorMode;
+  if (typeof v?.boardLaneBy === "string" && v.boardLaneBy) pv.boardLaneBy = v.boardLaneBy;
+  else delete pv.boardLaneBy;
+  // Board WIP limits (issue #83) — written only when at least one is set.
+  const wip = isPlainObject(v?.boardWipLimits)
+    ? Object.fromEntries(Object.entries(v.boardWipLimits as Record<string, unknown>).filter(([, n]) => Number.isInteger(Number(n)) && Number(n) > 0).map(([k, n]) => [k, Number(n)]))
+    : {};
+  if (Object.keys(wip).length > 0) pv.boardWipLimits = wip;
+  else delete pv.boardWipLimits;
+  if (typeof v?.colorBy === "string" && v.colorBy) pv.colorBy = v.colorBy;
+  else delete pv.colorBy;
+  // Pinboard options (plan Pinboard P1) — written only when set so files of
+  // other view types stay byte-identical. "tags" is the implicit filter
+  // default and elided; empty order/pinned lists mean "not arranged yet".
+  if (Array.isArray(v?.pinboardOrder) && v.pinboardOrder.length > 0) pv.pinboardOrder = v.pinboardOrder.map((x: any) => String(x));
+  else delete pv.pinboardOrder;
+  if (Array.isArray(v?.pinboardPinned) && v.pinboardPinned.length > 0) pv.pinboardPinned = v.pinboardPinned.map((x: any) => String(x));
+  else delete pv.pinboardPinned;
+  if (typeof v?.pinboardFilterBy === "string" && v.pinboardFilterBy && v.pinboardFilterBy !== "tags") pv.pinboardFilterBy = v.pinboardFilterBy;
+  else delete pv.pinboardFilterBy;
+  for (const key of VIEW_PLAINVA_KEYS) if (unchanged(key)) restoreKey(pv, rawPv, key);
+
+  // Grouping: the board's column property. Obsidian's own `groupBy` (an object
+  // with a property id and a direction) is read as that property; a view that
+  // carries it keeps it as the one place of its grouping — changed in place,
+  // direction kept — instead of getting a second copy in another shape.
+  const nativeGroup = raw && isPlainObject(raw.groupBy) ? raw.groupBy : null;
+  if (unchanged("groupBy")) restoreKey(pv, rawPv, "groupBy");
+  else if (nativeGroup && rawPv?.groupBy == null) {
+    if (v?.groupBy != null) base.groupBy = { ...clone(nativeGroup), property: toPropId(String(v.groupBy)) };
+    else delete base.groupBy;
+    delete pv.groupBy;
+  } else if (v?.groupBy != null) pv.groupBy = v.groupBy;
+  else delete pv.groupBy;
+
+  // Per-view filters (native): the current in-memory view filters,
+  // single-rooted for Obsidian — or the file's own form when they are
+  // unchanged and Obsidian accepts that form.
+  const outViewFilters = normalizeFiltersOut(v?.filters);
+  if (outViewFilters !== undefined) base.filters = outViewFilters;
+  else delete base.filters;
+  if (raw && unchanged("filters") && isValidFilterRoot(raw.filters)) restoreKey(base, raw, "filters");
+
+  return { base, pv, rawPv };
+}
+
 /**
  * Serialize the in-memory config to Obsidian-native `.base` YAML: native
  * top-level keys only, Plainva richness under `properties[x].plainva` /
- * `views[i].plainva`. Preserves unknown keys captured on `_obsidian`.
+ * `views[i].plainva`.
+ *
+ * Only what changed in memory is written anew. Each key this module knows is
+ * compared with what the file it came from reads as (the pristine copy on
+ * `_obsidian`, per view on the view itself); where both agree, the file's own
+ * spelling stays. So everything Plainva does not know or cannot read — unknown
+ * keys, an unreadable rollup, a plugin's view type, Obsidian's `groupBy`, an
+ * option written as a bare string — survives a save, and a file read and saved
+ * without a change comes back with the same YAML data (baseRoundTrip.test.ts).
  */
 export function serializeBaseConfig(config: any): string {
   const src = isPlainObject(config) ? config : {};
-  const out: Record<string, any> = isPlainObject(src._obsidian) ? clone(src._obsidian) : {};
+  const rawFile: Record<string, any> = isPlainObject(src._obsidian) ? src._obsidian : {};
+  const out: Record<string, any> = clone(rawFile);
   delete out._obsidian;
   // Drop the legacy top-level columns map — its data now lives under properties[x].plainva.
   delete out.columns;
+  const legacyColumns: Record<string, any> = isPlainObject(rawFile.columns) ? rawFile.columns : {};
 
   // --- properties ---
   const props: Record<string, any> = isPlainObject(out.properties) ? out.properties : {};
   const columns = isPlainObject(src.columns) ? src.columns : {};
   for (const bare of Object.keys(columns)) {
-    const col = columns[bare] ?? {};
-    const id = toPropId(bare);
+    const col = isPlainObject(columns[bare]) ? columns[bare] : {};
+    const id = rawPropertyId(props, bare);
     const entry = isPlainObject(props[id]) ? props[id] : {};
-    const plainva: Record<string, any> = {};
+    // What the file says about this column: its plainva block, or the entry
+    // of the legacy top-level `columns:` map an old build wrote.
+    const fromFile = isPlainObject(entry.plainva) ? entry.plainva : legacyColumnEntry(legacyColumns, bare);
+    const was = fromFile ? normalizeColumn(fromFile) : null;
+    const plainva: Record<string, any> = fromFile ? clone(fromFile) : {};
     if (col.input != null) plainva.input = col.input;
+    else delete plainva.input;
     if (typeof col.ratingMax === "number" && Number.isFinite(col.ratingMax)) plainva.ratingMax = col.ratingMax;
+    else delete plainva.ratingMax;
     if (typeof col.ratingGlyph === "string" && col.ratingGlyph.trim()) plainva.ratingGlyph = col.ratingGlyph;
+    else delete plainva.ratingGlyph;
     if (Array.isArray(col.options)) plainva.options = col.options.map(normalizeOption);
+    else delete plainva.options;
     if (col.relationBase != null) plainva.relationBase = col.relationBase;
+    else delete plainva.relationBase;
     if (col.relationLimit === "one") plainva.relationLimit = "one";
+    else delete plainva.relationLimit;
     if (isPlainObject(col.reverseOf) && col.reverseOf.base && col.reverseOf.property) {
       plainva.reverseOf = { base: col.reverseOf.base, property: col.reverseOf.property };
-    }
+    } else delete plainva.reverseOf;
     const rollup = normalizeRollup(col.rollup);
     if (rollup) plainva.rollup = serializeRollup(rollup);
+    else delete plainva.rollup;
     const previousKeys = normalizePreviousKeys(col.previousKeys);
     if (previousKeys) plainva.previousKeys = previousKeys;
-    if (Object.keys(plainva).length > 0) entry.plainva = plainva;
+    else delete plainva.previousKeys;
+    // Keys the user did not change keep the file's spelling — and a value
+    // this build cannot read (a rollup from a newer Plainva) stays.
+    if (was) for (const key of COLUMN_KEYS) if (sameData(col[key], was[key])) restoreKey(plainva, fromFile, key);
+    const keptEmpty = isPlainObject(entry.plainva) && Object.keys(entry.plainva).length === 0;
+    if (Object.keys(plainva).length > 0 || keptEmpty) entry.plainva = plainva;
     else delete entry.plainva;
     props[id] = entry;
   }
@@ -490,132 +768,41 @@ export function serializeBaseConfig(config: any): string {
   else delete out.properties;
 
   // --- views ---
-  const prevViews: any[] = Array.isArray(out.views) ? out.views : [];
   // Obsidian refuses a base without views — never write an empty list.
   const views: any[] = Array.isArray(src.views) && src.views.length > 0 ? src.views : [{ type: "table" }];
   // Names already present (in memory or on disk) count as taken so synthesized
   // fallbacks stay unique; user-given names are never rewritten.
   const takenNames = new Set<string>();
-  views.forEach((v: any, i: number) => {
-    const nm = v?.name ?? (isPlainObject(prevViews[i]) ? prevViews[i].name : undefined);
+  for (const v of views) {
+    const nm = v?.name ?? (isPlainObject(v?.[VIEW_RAW]) ? v[VIEW_RAW].name : undefined);
     if (nm != null && String(nm).trim()) takenNames.add(String(nm));
-  });
-  out.views = views.map((v: any, i: number) => {
-    const base: Record<string, any> = isPlainObject(prevViews[i]) ? clone(prevViews[i]) : {};
-    const render = v?.type ?? "table";
-    base.type = toObsidianViewType(render);
-    // Every view MUST carry a non-empty string name (Obsidian rejects the file
-    // otherwise): keep the in-memory name, else the previous on-disk name,
-    // else synthesize one from the render type.
-    const given = v?.name != null && String(v.name).trim() ? String(v.name)
-      : base.name != null && String(base.name).trim() ? String(base.name)
-      : null;
-    if (given) base.name = given;
-    else {
-      base.name = fallbackViewName(render, takenNames);
-      takenNames.add(base.name);
-    }
-    if (Array.isArray(v?.order)) base.order = v.order.map((c: any) => toPropId(String(c)));
-    else delete base.order;
-    if (Array.isArray(v?.sort)) {
-      base.sort = v.sort
-        .filter((s: any) => isPlainObject(s))
-        .map((s: any) => ({ property: toPropId(String(s.property ?? s.field ?? "")), direction: s.direction ?? "ASC" }));
-    } else delete base.sort;
-    if (isPlainObject(v?.summaries) && Object.keys(v.summaries).length > 0) {
-      const sums: Record<string, string> = {};
-      for (const [k, val] of Object.entries(v.summaries as Record<string, unknown>)) {
-        if (typeof val === "string" && val) sums[toPropId(String(k))] = val;
-      }
-      if (Object.keys(sums).length > 0) base.summaries = sums;
-      else delete base.summaries;
-    } else delete base.summaries;
+  }
+  const written = views.map((v) => serializeView(v, takenNames));
 
-    const pv: Record<string, any> = isPlainObject(base.plainva) ? base.plainva : {};
-    // Only carry a render hint when the native type is lossy (board/calendar/timeline).
-    if (!NATIVE_RENDER.has(render)) pv.render = render;
-    else delete pv.render;
-    if (v?.dateField != null) pv.dateField = v.dateField;
-    else delete pv.dateField;
-    if (v?.endField != null) pv.endField = v.endField;
-    else delete pv.endField;
-    if (v?.groupBy != null) pv.groupBy = v.groupBy;
-    else delete pv.groupBy;
-    if (v?.coverImage != null) pv.coverImage = v.coverImage;
-    else delete pv.coverImage;
-    if (isPlainObject(v?.widths) && Object.keys(v.widths).length > 0) pv.widths = v.widths;
-    else delete pv.widths;
-    // "default" is the implicit value — keep the file free of redundant keys.
-    if (v?.dateFormat != null && v.dateFormat !== "default") pv.dateFormat = v.dateFormat;
-    else delete pv.dateFormat;
-    if (typeof v?.subItemsProperty === "string" && v.subItemsProperty) pv.subItemsProperty = v.subItemsProperty;
-    else delete pv.subItemsProperty;
-    // Graph view options (plan Graph P8) — written only when set, so files
-    // of other view types stay byte-identical.
-    if (Array.isArray(v?.graphEdges) && v.graphEdges.length > 0) pv.graphEdges = v.graphEdges.map((x: any) => String(x));
-    else delete pv.graphEdges;
-    if (typeof v?.graphColorBy === "string" && v.graphColorBy) pv.graphColorBy = v.graphColorBy;
-    else delete pv.graphColorBy;
-    if (typeof v?.graphSizeBy === "string" && v.graphSizeBy) pv.graphSizeBy = v.graphSizeBy;
-    else delete pv.graphSizeBy;
-    if (v?.graphShowExternal === true) pv.graphShowExternal = true;
-    else delete pv.graphShowExternal;
-    if (v?.graphShowIncoming === true) pv.graphShowIncoming = true;
-    else delete pv.graphShowIncoming;
-    // Board column order (plan Board-Reorder 2026-07-07) — per-view layout for
-    // relation/text boards; select/status boards reorder their options instead.
-    if (Array.isArray(v?.boardColumnOrder) && v.boardColumnOrder.length > 0) pv.boardColumnOrder = v.boardColumnOrder.map((x: any) => String(x));
-    else delete pv.boardColumnOrder;
-    // Board color mode (WP3) — only "column" is stored; "chip" is the default
-    // and elided so files without the feature stay byte-identical.
-    if (v?.boardColorMode === "column") pv.boardColorMode = "column";
-    else delete pv.boardColorMode;
-    if (typeof v?.boardLaneBy === "string" && v.boardLaneBy) pv.boardLaneBy = v.boardLaneBy;
-    else delete pv.boardLaneBy;
-    // Board WIP limits (issue #83) — written only when at least one is set.
-    const wip = isPlainObject(v?.boardWipLimits)
-      ? Object.fromEntries(Object.entries(v.boardWipLimits as Record<string, unknown>).filter(([, n]) => Number.isInteger(Number(n)) && Number(n) > 0).map(([k, n]) => [k, Number(n)]))
-      : {};
-    if (Object.keys(wip).length > 0) pv.boardWipLimits = wip;
-    else delete pv.boardWipLimits;
-    if (typeof v?.colorBy === "string" && v.colorBy) pv.colorBy = v.colorBy;
-    else delete pv.colorBy;
-    // Pinboard options (plan Pinboard P1) — written only when set so files of
-    // other view types stay byte-identical. "tags" is the implicit filter
-    // default and elided; empty order/pinned lists mean "not arranged yet".
-    if (Array.isArray(v?.pinboardOrder) && v.pinboardOrder.length > 0) pv.pinboardOrder = v.pinboardOrder.map((x: any) => String(x));
-    else delete pv.pinboardOrder;
-    if (Array.isArray(v?.pinboardPinned) && v.pinboardPinned.length > 0) pv.pinboardPinned = v.pinboardPinned.map((x: any) => String(x));
-    else delete pv.pinboardPinned;
-    if (typeof v?.pinboardFilterBy === "string" && v.pinboardFilterBy && v.pinboardFilterBy !== "tags") pv.pinboardFilterBy = v.pinboardFilterBy;
-    else delete pv.pinboardFilterBy;
-    // The file-level keys (icon tint P7, new-item folder/template P1) are
-    // stamped onto the FIRST view only and scrubbed from the rest so
-    // reorders/deletes never leave stale duplicates.
-    const iconColor = typeof src.iconColor === "string" && HEX_COLOR_RE.test(src.iconColor) ? src.iconColor : null;
-    if (i === 0 && iconColor) pv.fileIconColor = iconColor;
-    else delete pv.fileIconColor;
-    const newItemFolder = typeof src.newItemFolder === "string" && src.newItemFolder.trim() ? src.newItemFolder : null;
-    if (i === 0 && newItemFolder) pv.newItemFolder = newItemFolder;
-    else delete pv.newItemFolder;
-    const newItemTemplate = typeof src.newItemTemplate === "string" && src.newItemTemplate.trim() ? src.newItemTemplate : null;
-    if (i === 0 && newItemTemplate) pv.newItemTemplate = newItemTemplate;
-    else delete pv.newItemTemplate;
-    const taskList = typeof src.taskList === "string" && src.taskList.trim() ? src.taskList : null;
-    if (i === 0 && taskList) pv.taskList = taskList;
-    else delete pv.taskList;
-    const contextFilters = Array.isArray(src.contextFilters)
-      ? src.contextFilters.filter((x: any) => typeof x === "string" && x)
-      : [];
-    if (i === 0 && contextFilters.length > 0) pv.contextFilters = contextFilters;
-    else delete pv.contextFilters;
-    if (Object.keys(pv).length > 0) base.plainva = pv;
+  // The file-wide keys (icon tint P7, new-item folder/template P1, task list,
+  // context filters) belong on the FIRST view. They stay as the file has them
+  // as long as the first written view alone reads back what is in memory;
+  // otherwise (a change, a moved view) they are stamped onto view 0 and
+  // scrubbed from the rest.
+  const wanted = wantedFileWide(src);
+  if (!sameData(readFileWide([{ plainva: written[0].pv }]), wanted)) {
+    written.forEach(({ pv }, i) => {
+      delete pv.fileIconColor;
+      delete pv.newItemFolder;
+      delete pv.newItemTemplate;
+      delete pv.taskList;
+      delete pv.contextFilters;
+      if (i !== 0) return;
+      if (wanted.iconColor) pv.fileIconColor = wanted.iconColor;
+      if (wanted.newItemFolder) pv.newItemFolder = wanted.newItemFolder;
+      if (wanted.newItemTemplate) pv.newItemTemplate = wanted.newItemTemplate;
+      if (wanted.taskList) pv.taskList = wanted.taskList;
+      if (wanted.contextFilters) pv.contextFilters = wanted.contextFilters;
+    });
+  }
+  out.views = written.map(({ base, pv, rawPv }) => {
+    if (Object.keys(pv).length > 0 || (rawPv && Object.keys(rawPv).length === 0)) base.plainva = pv;
     else delete base.plainva;
-    // Per-view filters (native): overwrite the cloned on-disk value with the
-    // current in-memory view filters (single-rooted for Obsidian).
-    const outViewFilters = normalizeFiltersOut(v?.filters);
-    if (outViewFilters !== undefined) base.filters = outViewFilters;
-    else delete base.filters;
     return base;
   });
 
@@ -623,6 +810,9 @@ export function serializeBaseConfig(config: any): string {
   const filters = normalizeFiltersOut(src.filters);
   if (filters !== undefined) out.filters = filters;
   else delete out.filters;
+  if (sameData(src.filters, normalizeFiltersIn(rawFile.filters)) && isValidFilterRoot(rawFile.filters)) {
+    restoreKey(out, rawFile, "filters");
+  }
 
   return yaml.stringify(out);
 }

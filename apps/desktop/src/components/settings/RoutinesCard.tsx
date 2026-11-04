@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, Eye, MoreHorizontal, Pencil, Play, Plus, Trash2 } from "lucide-react";
-import { ROUTINE_NAME_MAX, ROUTINES_MAX, routineDraftOf, type Routine, type RoutineDraft } from "@plainva/core";
+import { ROUTINE_NAME_MAX, ROUTINES_MAX, routineDraftOf, sameStoredValue, type Routine, type RoutineDraft } from "@plainva/core";
 import {
   AiRoutineConfirm,
   Banner,
@@ -32,6 +32,7 @@ import {
   Switch,
   TextInput,
   toast,
+  useDiscardGuard,
   useMinuteClock,
   useTodayKey,
   useRoutineForm,
@@ -92,8 +93,7 @@ export function RoutinesCard({ onOpenNote, folders = [] }: { onOpenNote?: (path:
 
   return (
     <>
-      <SettingCard label={t("ai.routines.title")}>
-        <SettingCardNote>{t("ai.routines.note")}</SettingCardNote>
+      <SettingCard label={t("ai.routines.title")} info={t("ai.routines.note")}>
         {state.routines.loaded && rows.length === 0 && <SettingCardNote>{t("ai.routines.empty")}</SettingCardNote>}
         {rows.map((row) => {
           const routine = list.find((candidate) => candidate.id === row.id)!;
@@ -190,6 +190,8 @@ function RoutineDialog({ session, routine, review, skills, folders, models, week
   const [initial] = useState<RoutineDraft>(() => (routine ? routineDraftOf(routine) : skills[0] ? newRoutineDraft(skills[0].id, models[0]?.choice ?? null) : newLogDraft(models[0]?.choice ?? null)));
   const form = useRoutineForm(session, initial, { ...(routine ? { id: routine.id } : {}), review });
   const { draft } = form;
+  // Whatever differs from what the dialog opened with is asked about, on both steps (finding 2026-10-22).
+  const cancel = useDiscardGuard(!sameStoredValue(draft, initial), onClose);
   const skill = skills.find((option) => option.id === draft.skill);
   const kind: RoutineKind = draft.log ? "log" : "skill";
   const confirm = () => {
@@ -210,7 +212,7 @@ function RoutineDialog({ session, routine, review, skills, folders, models, week
         title={t("ai.routines.confirm.title", { name: draft.name.trim() })}
         icon={<CalendarClock size={ICON.ui} />}
         size="lg"
-        onClose={onClose}
+        onClose={cancel}
         testId="ai-routine-confirm"
         footer={
           <>
@@ -234,11 +236,11 @@ function RoutineDialog({ session, routine, review, skills, folders, models, week
       title={routine ? t("ai.routines.form.titleEdit") : t("ai.routines.form.titleNew")}
       icon={<CalendarClock size={ICON.ui} />}
       size="md"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-routine-form"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" disabled={form.problems.length > 0 || form.busy} onClick={form.toConfirm} data-testid="ai-routine-next">

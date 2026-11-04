@@ -109,7 +109,7 @@ async function device(dav: ByteExactDav, reader: Reader) {
   worker.onDeletionReport = (report) => void removals.push({ mirrored: report.mirrored, kept: [...report.keptLocalEdits] });
   const file = (p: string) => path.join(root, p);
   return {
-    root, app, repo, db, indexer, queue, events,
+    root, app, repo, db, indexer, queue, events, worker,
     /** The adapter the sync itself writes through (below the app's chain). */
     syncFiles: backup,
     /** Deletions mirrored and files kept since the last look. */
@@ -426,6 +426,23 @@ for (const reader of ["replaces", "refuses"] as const) {
       expect([...a.problems(), ...b.problems()]).toEqual([]);
     });
 
+    it("pulled as it is, then converted to UTF-8 by another program on this device: a writer that reads it writes into it, without a conflict copy (Sammelplan § 3.86 no. 2)", async () => {
+      const before = windows1252("id;name\r\n1;Grün\r\n2;Blau\r\n");
+      const after = utf8("id;name\r\n1;Grün\r\n2;Blau\r\n");
+      const { b, remoteBytes } = await synced(reader, "Data.csv", before);
+      // The row of the device that pulled it says the version it names is no text.
+      expect((await b.db.queryOne<{ not_text_sha256: string | null }>("SELECT not_text_sha256 FROM sync_state WHERE path = ?", ["Data.csv"]))?.not_text_sha256).toBe(await sha256(before));
+      await b.put("Data.csv", after);
+      const read = await b.app.readTextFile("Data.csv");
+      await b.app.writeTextFile("Data.csv", `${read}3;Rot\r\n`);
+      expect(await b.bytes("Data.csv")).toEqual(utf8("id;name\r\n1;Grün\r\n2;Blau\r\n3;Rot\r\n"));
+      expect(await b.files()).toEqual(["Data.csv"]);
+      await b.cycle();
+      expect(remoteBytes("Data.csv")).toEqual(utf8("id;name\r\n1;Grün\r\n2;Blau\r\n3;Rot\r\n"));
+      expect(await b.files()).toEqual(["Data.csv"]);
+      expect(b.problems()).toEqual([]);
+    });
+
     it("a version with replacement characters arrives from a device that still decodes such files: it is taken, and the file in the other encoding stays next to it", async () => {
       const first = windows1252("id;name\r\n1;Grün\r\n2;Blau\r\n3;Rot\r\n");
       const { a, b, serve, uploads, remoteFiles } = await synced(reader, "Data.csv", first);
@@ -587,6 +604,65 @@ describe("what an older version left behind for a file that is not UTF-8", () =>
       expect(await a.written("Data.csv")).toBe(writtenA);
       expect(await a.bytes("Data.csv")).toEqual(original);
       expect([...a.problems(), ...b.problems()]).toEqual([]);
+    });
+
+    it(`on that device, after "keep the local copies" for files a listing did not carry: the damaged copy is still compared before anything of it goes up (Sammelplan § 3.86 b; a reader that ${reader})`, async () => {
+      // A listing that leaves the file out while the server still holds it,
+      // and a server that does not look at the conditions of an upload — the
+      // case in which nothing but the mark stands between the damaged copy
+      // and the original.
+      const hidden = new Set<string>();
+      const through = (dav: ByteExactDav): ByteExactDav => ({
+        ...dav,
+        fetch: async (input, init) => {
+          const headers = new Headers(init?.headers as HeadersInit | undefined);
+          headers.delete("If-Match");
+          headers.delete("If-None-Match");
+          const res = await dav.fetch(input, { ...init, headers });
+          if ((init?.method ?? "GET").toUpperCase() !== "PROPFIND" || headers.get("Depth") === "0" || hidden.size === 0) return res;
+          let body = await res.text();
+          for (const p of hidden) body = body.split(/(?=<d:response>)/).filter((part) => !part.includes(`/${p}</d:href>`)).join("");
+          return new Response(body, { status: res.status });
+        },
+      });
+      const { a, b, remoteBytes, uploads } = await pulledByAnOlderVersion(reader, through);
+      await update(b);
+      expect((await b.row("Data.csv"))!.recheck).toBe(1);
+
+      // The question was asked about this file, and the answer is "keep it here".
+      hidden.add("Data.csv");
+      (b.worker as unknown as { suspendedMissingPaths: string[] }).suspendedMissingPaths = ["Data.csv"];
+      await b.worker.keepSuspendedDeletionsLocal();
+      await b.cycle();
+      await b.cycle();
+      // Kept here, still marked, and the server's original is not uploaded over.
+      expect(await b.files()).toEqual(["Data.csv", "Keep.md"]);
+      expect((await b.row("Data.csv"))!.recheck).toBe(1);
+      expect(remoteBytes("Data.csv")).toEqual(original);
+      expect(uploads("Data.csv")).toBe(1);
+
+      // The listing carries the file again: it is compared, and the original is the file.
+      hidden.clear();
+      await b.cycle();
+      expect(await b.bytes("Data.csv")).toEqual(original);
+      expect((await b.row("Data.csv"))!.recheck).toBeNull();
+      expect(remoteBytes("Data.csv")).toEqual(original);
+      expect(uploads("Data.csv")).toBe(1);
+      await a.cycle();
+      expect(await a.bytes("Data.csv")).toEqual(original);
+    });
+
+    it(`after "keep the local copies", a damaged copy whose original is gone from the server too goes up — there is nothing left to compare it with (a reader that ${reader})`, async () => {
+      const { b, dav, remoteBytes } = await pulledByAnOlderVersion(reader);
+      await update(b);
+      dav.files.delete("Data.csv");
+      (b.worker as unknown as { suspendedMissingPaths: string[] }).suspendedMissingPaths = ["Data.csv"];
+      await b.worker.keepSuspendedDeletionsLocal();
+      await b.cycle();
+      await b.cycle();
+      expect(await b.files()).toEqual(["Data.csv", "Keep.md"]);
+      expect(remoteBytes("Data.csv")).toEqual(damaged);
+      expect((await b.row("Data.csv"))!.recheck).toBeNull();
     });
 
     it(`on that device, after somebody changed the damaged copy: the change is kept as a copy, the original stays the file, and the damaged version does not go up (a reader that ${reader})`, async () => {

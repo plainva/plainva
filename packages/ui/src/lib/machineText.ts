@@ -35,6 +35,55 @@ export function machineFieldProps(purpose: WritingPurpose): { autoCapitalize?: "
   return isMachinePurpose(purpose) ? { autoCapitalize: "none", autoCorrect: "off" } : {};
 }
 
+/**
+ * What a field of an account form holds (Sammelplan § 3.43): an e-mail address,
+ * a list of them (recipients, aliases, attendees), a server address (host or
+ * URL), a user name, a port, a key id, a secret.
+ */
+export type AccountInputKind = "email" | "recipients" | "address" | "user" | "port" | "keyId" | "secret";
+
+export interface AccountInputProps {
+  type: "text" | "email" | "password";
+  purpose: WritingPurpose;
+  inputMode?: "email" | "url" | "numeric";
+  autoCapitalize: "none";
+  autoCorrect: "off";
+  autoComplete: "off" | "new-password";
+}
+
+/**
+ * Everything a `TextInput` of an account form asks of the keyboard, by what it
+ * holds — the one rule for every mail, calendar and connect form of both shells.
+ *
+ * The forms set these by hand, each a little differently: the phone's IMAP form
+ * gave its host fields no keyboard hint but "no capitals", its address field no
+ * purpose (so a Japanese keyboard typed full-width forms there), the calendar
+ * form's user name was capitalised, the composer's recipients were spell-checked
+ * as names. A user name is not a word either, so it gets no capital and no
+ * correction although it keeps the purpose of a name.
+ */
+export function accountInputProps(kind: AccountInputKind): AccountInputProps {
+  const base = { type: "text" as const, autoCapitalize: "none" as const, autoCorrect: "off" as const, autoComplete: "off" as const };
+  switch (kind) {
+    case "email":
+      return { ...base, type: "email", purpose: "address", inputMode: "email" };
+    case "recipients":
+      // A list of addresses stays a text field: an `email` field drops the
+      // space after a comma while it is typed.
+      return { ...base, purpose: "address", inputMode: "email" };
+    case "address":
+      return { ...base, purpose: "address", inputMode: "url" };
+    case "user":
+      return { ...base, purpose: "name" };
+    case "port":
+      return { ...base, purpose: "number", inputMode: "numeric" };
+    case "keyId":
+      return { ...base, purpose: "secret" };
+    case "secret":
+      return { ...base, type: "password", purpose: "secret", autoComplete: "new-password" };
+  }
+}
+
 const FULLWIDTH_FIRST = 0xff01; // ！
 const FULLWIDTH_LAST = 0xff5e; // ～
 const FULLWIDTH_OFFSET = 0xfee0;

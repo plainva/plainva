@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../packages/core/test/helpers/timeBudget";
 import { inferType, markdownToHtml, markdownToPlainText, parseCalloutMarker, parsePropertyFilter } from "@plainva/ui";
 import { carryMirroredHeading } from "./services/fileActions";
 
@@ -12,12 +13,6 @@ import { carryMirroredHeading } from "./services/fileActions";
  * fileActions, filterExpr, propertyModel) ran unchanged across the rewrite.
  */
 const N = 100_000;
-const within = (budgetMs: number, run: () => void) => {
-  const start = performance.now();
-  run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 describe("headings and quotes in both copies", () => {
   it("read as before", () => {
     expect(markdownToHtml("# Title #")).toBe("<h1>Title</h1>");

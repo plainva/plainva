@@ -1,6 +1,6 @@
 # Plainva Sync Compatibility
 
-Last reviewed: 2026-10-21
+Last reviewed: 2026-11-03
 
 If a WebDAV, CalDAV or S3 service returns a sign-in page or an incomplete inventory, Plainva reports a sync error. It does not treat that response as an empty folder or calendar inventory or infer deletions from it. This applies on desktop and mobile.
 
@@ -14,7 +14,7 @@ Journal entries that two devices append to the same daily note before they have 
 
 A folder you create in Plainva is created inside the vault folder in the cloud. Up to version 0.8.3, Plainva also created an empty folder of the same name at the top level of Google Drive, OneDrive or Dropbox, or of the S3 bucket when the vault uses a prefix. Plainva does not remove these copies itself; once you have checked that such a top-level folder is empty and is not part of your vault folder, you can delete it.
 
-Letters with accents can be stored in two ways: `ü` as one character or as `u` followed by a combining diaeresis. macOS and iOS usually keep the second form (for example for a folder made in Finder), many servers and other systems the first. Plainva treats both as the same name: it reads and writes the file or folder that already exists, in whatever form this device or the cloud stores it, and renames nothing. Names you create in Plainva are stored in the first form. Only when one folder really holds both forms side by side, or when two names differ in letter case, does Plainva list the pair under **Two spellings, one file**: it keeps the second spelling out of the sync and deletes nothing, neither here nor in the cloud. Rename one of the two and sync carries on as usual.
+Letters with accents can be stored in two ways: `ü` as one character or as `u` followed by a combining diaeresis. macOS and iOS usually keep the second form (for example for a folder made in Finder), many servers and other systems the first. Plainva treats both as the same name: it reads and writes the file or folder that already exists, in whatever form this device or the cloud stores it, and renames nothing. Names you create in Plainva are stored in the first form. Only when one folder really holds both forms side by side, or when two names differ in letter case, does Plainva list the name under **Same name, two files**: it keeps the second file out of the sync and deletes nothing on its own, neither here nor in the cloud. On the card, **Remove duplicates** removes a second file that is the same as the synced one, and **Keep both** gives a differing one a name of its own.
 
 Plainva syncs vaults through interchangeable sync adapters. This page shows which services you can use today — directly integrated, via the WebDAV protocol, or via the provider's own desktop sync client.
 

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookOpen, CodeXml, Plus, Trash2 } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "../../services/openExternal";
+import { sameStoredValue } from "@plainva/core";
 import {
   addScriptParameter,
   Banner,
@@ -30,6 +31,7 @@ import {
   toggleScriptTool,
   useAiSession,
   useAiState,
+  useDiscardGuard,
   userGuideUrl,
   type ScriptFormState,
 } from "@plainva/ui";
@@ -58,6 +60,9 @@ export function ScriptFormModal({ id, onClose }: { id?: string | null; onClose: 
   const [form, setForm] = useState<ScriptFormState | null>(() => (id ? (entry ? scriptFormOf(entry) : null) : newScriptForm()));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Whatever differs from what the form opened with is asked about (finding 2026-10-22).
+  const [opened] = useState(form);
+  const cancel = useDiscardGuard(form !== null && !sameStoredValue(form, opened), onClose);
   if (!session || !form) return null;
   const editing = Boolean(id);
   // A change takes the last refusal with it: that was about what the form held before.
@@ -83,11 +88,11 @@ export function ScriptFormModal({ id, onClose }: { id?: string | null; onClose: 
       title={t(editing ? "ai.scripts.form.titleEdit" : "ai.scripts.form.titleNew")}
       icon={<CodeXml size={ICON.ui} />}
       size="lg"
-      onClose={onClose}
+      onClose={cancel}
       testId="ai-script-form"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cancel}>
             {t("common.cancel")}
           </Button>
           <Button variant="primary" disabled={busy || !scriptFormReady(form)} onClick={() => void save()} data-testid="ai-script-save">
@@ -166,7 +171,7 @@ export function ScriptFormModal({ id, onClose }: { id?: string | null; onClose: 
           <TextArea id="pv-script-code" className="pv-script-editor" purpose="code" rows={12} wrap="off" value={form.code} onChange={(event) => change({ ...form, code: event.target.value })} data-testid="ai-script-code-field" />
           <p className="pv-modal-hint">{t("ai.scripts.form.codeHint")}</p>
           <div>
-            <Button size="sm" variant="ghost" icon={<BookOpen size={ICON.ui} />} onClick={() => void openUrl(userGuideUrl(SCRIPTS_GUIDE))} data-testid="ai-script-help">
+            <Button size="sm" variant="ghost" icon={<BookOpen size={ICON.ui} />} onClick={() => void openExternalUrl(userGuideUrl(SCRIPTS_GUIDE))} data-testid="ai-script-help">
               {t("ai.scripts.form.help")}
             </Button>
           </div>

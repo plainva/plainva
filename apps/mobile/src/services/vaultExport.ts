@@ -1,5 +1,5 @@
 import { Zip, ZipDeflate } from "fflate";
-import { ZIP_EXCLUDED_DIR_NAMES } from "@plainva/ui";
+import { vaultExportFileName, ZIP_EXCLUDED_DIR_NAMES } from "@plainva/ui";
 import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Share } from "@capacitor/share";
@@ -72,8 +72,8 @@ export async function buildVaultZip(v: MobileVault): Promise<string> {
 
 export async function exportVault(v: MobileVault, label: string): Promise<void> {
   const zip = await buildVaultZipBytes(v);
-  const stamp = new Date().toISOString().slice(0, 10);
-  const name = `${label.replace(/[^\w.-]+/g, "_") || "vault"}-${stamp}.zip`;
+  // The same name the desktop proposes for its export (`vaultExportFileName`).
+  const name = vaultExportFileName(label);
 
   if (Capacitor.getPlatform() === "web") {
     // Dev-server fallback: a plain download instead of the share sheet.

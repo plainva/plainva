@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, problemText, TextArea, TextInput, toast } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 
 /** A new skill from three fields on the phone (plan KI-Harness P3-5) — the desktop's dialog as a sheet. */
@@ -13,6 +14,7 @@ export function NewSkillSheet({ onClose }: { onClose: () => void }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const close = useSheetGuard("ai-skill-new", name.trim() !== "" || description.trim() !== "" || body.trim() !== "", onClose);
   const create = async () => {
     setBusy(true);
     const result = await session.createSkill({ name, description, body });
@@ -25,9 +27,9 @@ export function NewSkillSheet({ onClose }: { onClose: () => void }) {
     else setError(t("ai.workshop.writeFailed"));
   };
   return (
-    <div className="m-sheet-backdrop" onClick={onClose}>
+    <div className="m-sheet-backdrop" onClick={close}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-skill-new-dialog">
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("ai.workshop.form.title")}</p>
         <TextInput value={name} autoCapitalize="none" placeholder={t("ai.workshop.form.name")} aria-label={t("ai.workshop.form.name")} onChange={(event) => setName(event.target.value.toLowerCase())} data-testid="ai-skill-name" />
         <p className="m-hint">{t("ai.workshop.form.nameHint")}</p>
@@ -39,7 +41,7 @@ export function NewSkillSheet({ onClose }: { onClose: () => void }) {
         <Button variant="primary" disabled={busy || !name.trim() || !description.trim() || !body.trim()} onClick={() => void create()} data-testid="ai-skill-create">
           {t("ai.workshop.form.create")}
         </Button>
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" onClick={close}>
           {t("ai.workshop.form.cancel")}
         </Button>
       </div>

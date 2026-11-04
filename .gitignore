@@ -15,6 +15,10 @@ __pycache__/
 target/
 src-tauri/target/
 
+# Nix build outputs
+/result
+/result-*
+
 # Logs
 *.log
 npm-debug.log*

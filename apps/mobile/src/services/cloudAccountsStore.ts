@@ -56,7 +56,10 @@ export async function clearCloudAccounts(vaultId: string): Promise<void> {
 
 /** What the subsystems on this device currently report. */
 async function observe(vaultId: string): Promise<ObservedCloudState> {
-  const entry = await getActiveVaultEntry().catch(() => null);
+  const active = await getActiveVaultEntry().catch(() => null);
+  // Only the vault being reconciled says what its file sync is: another
+  // vault's entry (a switch under way) is no observation of this one.
+  const entry = active?.id === vaultId ? active : null;
   const pim = (await listPimAccounts()).map((a) => ({
     id: a.id,
     provider: a.provider,
@@ -118,7 +121,61 @@ export async function refreshCloudAccounts(vaultId: string, pimReady: boolean): 
       .filter((r) => r.services.calendar)
       .map((r) => ({ id: r.services.calendar!.pimAccountId, provider: "caldav" as const, label: r.label }));
   }
+  if (!observed.sync && (await getActiveVaultEntry().catch(() => null))?.id !== vaultId) {
+    // Not the open vault: its file sync cannot be observed here, so a stored
+    // files reference is carried through rather than dropped.
+    const files = stored.find((r) => r.services.files);
+    if (files?.services.files) observed.sync = { provider: files.services.files.provider };
+  }
   const next = reconcileCloudAccounts(stored, observed);
   if (!sameStoredValue(next, stored)) await saveCloudAccounts(vaultId, next);
   return next;
+}
+
+/** The subsystem events after which the cards may no longer match what this device has. */
+const RECONCILE_EVENTS = ["m-mail-changed", "m-pim-changed", "m-accounts-imported"] as const;
+
+/**
+ * Keeps the open vault's cards in step with its calendars and mailboxes, as
+ * the desktop does on opening a vault and after every change (Sammelplan
+ * § 3.105).
+ *
+ * The phone's only caller of `refreshCloudAccounts` sat in the settings
+ * export and was taken out on 31.07. - rightly: an export is a projection and
+ * must not write. Nothing took its place, so a card kept naming a mailbox that
+ * was removed (connecting mail again at that card was refused as "the account
+ * changed"), and two cards naming one mailbox both stayed. It runs now when
+ * the vault opens and after the events that change a calendar or a mailbox,
+ * one run at a time, and writes only when something changed.
+ * `isPimReady` says whether the calendar list can be read yet; until then the
+ * stored calendar references are kept, never dropped.
+ */
+export function startCloudAccountsReconcile(vaultId: string, isPimReady: () => boolean): () => void {
+  let stopped = false;
+  let running: Promise<unknown> | null = null;
+  let again = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const run = () => {
+    if (stopped) return;
+    if (running) { again = true; return; }
+    running = refreshCloudAccounts(vaultId, isPimReady())
+      .catch((e) => console.error("[cloudAccounts] reconcile failed", e))
+      .finally(() => {
+        running = null;
+        if (again && !stopped) { again = false; run(); }
+      });
+  };
+  // Events come in bursts (a calendar cycle writes many); one run answers them.
+  const soon = () => {
+    if (stopped) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; run(); }, 250);
+  };
+  run();
+  if (typeof window !== "undefined") for (const name of RECONCILE_EVENTS) window.addEventListener(name, soon);
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+    if (typeof window !== "undefined") for (const name of RECONCILE_EVENTS) window.removeEventListener(name, soon);
+  };
 }

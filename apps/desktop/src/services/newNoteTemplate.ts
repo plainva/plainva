@@ -54,6 +54,22 @@ export async function resolveTemplatePath(vaultPath: string, name: string): Prom
   return templateFilePath(name, (await store.get<string>(templateFolderKey(vaultPath))) || "Templates");
 }
 
+/**
+ * The template the folder and type rules give a new note in `folder` of
+ * `type`, as a vault path; null where no rule reaches or the template is gone.
+ *
+ * A database's "+ Entry" asks this where the database names no template of
+ * its own (Sammelplan § 3.136 Nr. 2): it took the database's template or none,
+ * and an entry in a folder with a rule began with a heading — the phone and
+ * every other way to a new note apply the rules.
+ */
+export async function ruleTemplateFor(vaultPath: string, adapter: Pick<IVaultAdapter, "exists">, folder: string, type: string): Promise<string | null> {
+  const rules = await getTemplateRules(vaultPath);
+  const name = resolveTemplateForNewNote(rules.folders, rules.types, folder, type) ?? "";
+  const path = name ? await resolveTemplatePath(vaultPath, name) : "";
+  return path && (await adapter.exists(path).catch(() => false)) ? path : null;
+}
+
 export interface NewNoteContent {
   /** Full file content, OKF frontmatter included. */
   content: string;

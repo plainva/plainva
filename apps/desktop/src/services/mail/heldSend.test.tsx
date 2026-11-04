@@ -30,7 +30,7 @@ let attempt: { resolve: () => void; reject: (reason: Error) => void } | null;
 
 const held = () =>
   new HeldSends<Message>({
-    text: (reason) => ({ message: `Not sent: ${reason}`, action: "Open again" }),
+    text: (reason, count) => ({ message: count > 1 ? `${count} held, latest: ${reason}` : `Not sent: ${reason}`, action: "Open again" }),
     open: (id, payload) =>
       new Promise<void>((resolve, reject) => {
         opened.push({ id, subject: payload.subject });
@@ -148,23 +148,35 @@ describe("a refused message is held, and its notice is the way back", () => {
     expect(opened).toHaveLength(2);
   });
 
-  it("holds each message with a notice of its own", async () => {
+  it("holds every message under ONE notice that counts them and brings the latest back (§ 3.95 Nr. 14)", async () => {
+    // A notice per message stacked up over the phone's bottom bar and the
+    // reader's actions, one above the other, none of them closable.
     const queue = held();
     let first = 0;
     let second = 0;
     act(() => {
-      first = queue.hold({ subject: "Eins" }, "refused");
-      second = queue.hold({ subject: "Zwei" }, "refused");
+      first = queue.hold({ subject: "Eins" }, "the mailbox is full");
+      second = queue.hold({ subject: "Zwei" }, "no connection");
     });
-    expect(notices()).toHaveLength(2);
-
-    act(() => queue.claim(first));
     expect(notices()).toHaveLength(1);
-    expect(queue.read(second)).toEqual({ subject: "Zwei" });
+    expect(notices()[0].textContent).toContain("2 held, latest: no connection");
+    act(() => action()!.click());
+    await tick();
+    expect(opened).toEqual([{ id: second, subject: "Zwei" }]);
+
+    // The latest is claimed: the notice speaks of the one that is left, in its words.
+    act(() => queue.claim(second));
+    expect(notices()).toHaveLength(1);
+    expect(notices()[0].textContent).toContain("Not sent: the mailbox is full");
+    expect(container.querySelector(".pv-toast-x")).toBeNull();
     // Claiming what is not held is nothing: a window that asks twice.
-    act(() => queue.claim(first));
+    act(() => queue.claim(second));
     act(() => queue.claim(undefined));
     expect(queue.size).toBe(1);
+    expect(notices()).toHaveLength(1);
+    act(() => queue.claim(first));
+    expect(queue.size).toBe(0);
+    expect(notices()).toHaveLength(0);
   });
 
   it("leaves every other notice as it was: a close button, and gone with its action", () => {
@@ -200,11 +212,15 @@ describe("a refusal for size is said as one", () => {
       "smtp error (552): 5.2.2 Mailbox full",
       "smtp error (550): 5.1.1 The email account that you tried to reach does not exist",
       "the server rejected ben@example.org: 550 mailbox unavailable",
-      "Graph mail POST /me/sendMail failed: 429 Too Many Requests",
       "connect failed: timed out",
     ]) {
       expect(isMailTooLarge(new Error(refusal)), refusal).toBe(false);
       expect(mailErrorText(new Error(refusal), t), refusal).toBe(refusal);
     }
+    // A service that is busy for a moment is no size refusal either; it says
+    // so in words of its own, with what to do (§ 3.95 Nr. 6).
+    const busy = "Graph mail POST /me/sendMail failed: 429 Too Many Requests";
+    expect(isMailTooLarge(new Error(busy))).toBe(false);
+    expect(mailErrorText(new Error(busy), t)).toBe(t("mail.serviceBusy"));
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../test/helpers/timeBudget.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
 import { approvalSeen, approveInstruction, EMPTY_INSTRUCTION_APPROVALS, instructionStatus, pruneInstructionApprovals, pruneServerSkillApprovals, revokeInstruction, sameSeen, SEEN_FRONTMATTER } from "../skills/approvals.js";
 import { resolveInstructions, serverSkillKey, skillCatalog, SERVER_SKILL_CATALOG_MAX_CHARS } from "../skills/catalog.js";
@@ -490,10 +491,10 @@ describe("what the second review round found (plan P9-4b)", () => {
     expect(defuseTags(code, BLOCK_TAG_NAMES)).toBe(code);
     const many = "<".repeat(1_000_000);
     const wide = cp(0xff1c).repeat(500_000);
-    const begun = performance.now();
-    expect(defuseTags(many, BLOCK_TAG_NAMES)).toBe(many);
-    expect(defuseTags(wide, BLOCK_TAG_NAMES)).toBe(wide);
-    expect(performance.now() - begun).toBeLessThan(5_000);
+    within(5_000, () => {
+      expect(defuseTags(many, BLOCK_TAG_NAMES)).toBe(many);
+      expect(defuseTags(wide, BLOCK_TAG_NAMES)).toBe(wide);
+    });
   });
 
   it("takes no path or address that writes markup — Plainva writes paths into its own words", () => {

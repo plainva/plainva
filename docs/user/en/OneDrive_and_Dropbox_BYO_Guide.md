@@ -1,8 +1,8 @@
 # Setting up OneDrive & Dropbox (your own app registration)
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-10-30
 
-**You normally don't need this page:** Plainva ships its own app ID for OneDrive **and** Dropbox — you pick the provider, click **Connect** and sign in. You need your **own** (free) app registration in two cases only: when a corporate restriction blocks the bundled sign-in, or when you deliberately want the connection under your own control. For **OneDrive** you enter it under **Sign-in on this device** → **Change** → **Own client ID** — on the account page or in the wizard, on the desktop and on the phone alike, for this device only. For **Dropbox** the field stays where it was: on the **desktop** **Use your own app ID** at the account, on the **phone** in the connect form, right under the provider. Either way you enter a single public value:
+**You normally don't need this page:** Plainva ships its own app ID for OneDrive **and** Dropbox — you pick the provider, click **Sign in with Microsoft…** or **Sign in with Dropbox…** and sign in. You need your **own** (free) app registration in two cases only: when a corporate restriction blocks the bundled sign-in, or when you deliberately want the connection under your own control. For **OneDrive** you enter it under **Sign-in on this device** → **Change** → **Own client ID** — on the account page or in the wizard, on the desktop and on the phone alike, for this device only. For **Dropbox** it works the same way: in the wizard under **Other sign-in** → **Own app key**, or on the account page under **Access on this device** → **Sign-in on this device** → **Change**. The app key applies to this device, other devices keep their setting; an app key an account already had earlier is carried over automatically. Either way you enter a single public value:
 
 - **OneDrive** → a **Client ID** (format `00000000-0000-0000-0000-000000000000`)
 - **Dropbox** → an **App Key** (a short string)
@@ -106,10 +106,10 @@ Tab **Settings**: copy the **App key** value — that is your value for Plainva.
 
 ### Enter it in Plainva
 
-1. **Settings → Vault → Sync**.
-2. Set the **Sync Provider** to **Dropbox**.
-3. Paste the copied App key into the **App Key** field; optionally set the **Dropbox Folder (Path)** (default `/Plainva`).
-4. **Connect to Dropbox** → sign in in the browser and confirm access.
+1. **Settings → your vault → Cloud accounts**: open the Dropbox account or start **Connect account…** with the **Dropbox** tile.
+2. In the wizard open **Other sign-in** and choose **Own app key**; on the account page choose **Access on this device** → **Sign-in on this device** → **Change** instead.
+3. Paste the copied App key and **Save**.
+4. **Sign in with Dropbox…** (on the account page **Sign in again**) → sign in in the browser and confirm access. You pick the cloud folder (default `/Plainva`) afterwards via **Choose folder…**.
 
 ---
 

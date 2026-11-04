@@ -10,7 +10,7 @@
  * active-flags into the note.
  */
 
-import { isSimpleEmail } from "@plainva/core";
+import { isSimpleEmail, wikiLinkParts } from "@plainva/core";
 
 export type PropertyType =
   | "text"
@@ -287,6 +287,49 @@ export function resolvePropertyWriteKey(props: Record<string, unknown>, col: str
   return Object.keys(props).find((k) => k.toLowerCase() === lower) ?? col;
 }
 
+/**
+ * Whether a note's property cannot be renamed to `newName` because another
+ * property of the note has that name — in any casing, the rule of a database
+ * rename (`renamePropertyAcrossNotes`): the index reads the keys without
+ * regard to case, and of two a column would show one. Renaming a property to
+ * another casing of its own name is no clash.
+ *
+ * The panel used to compare by exact spelling and return silently, the name
+ * field still showing what was typed (open-items plan 3.144 no. 10).
+ */
+export function propertyNameTaken(keys: readonly string[], oldName: string, newName: string): boolean {
+  const lower = newName.toLowerCase();
+  return keys.some((key) => key !== oldName && key.toLowerCase() === lower);
+}
+
+/**
+ * A changed set of a note's properties whose loop writes a value per note:
+ * `change` is handed the value the note holds under the column — under the
+ * key it carries it, in any casing (`resolvePropertyWriteKey`) — and answers
+ * the new value, or `undefined` to leave the note alone. The set comes back
+ * with the value under that same key, or null where nothing changes.
+ *
+ * The database's two loops over many notes (fill a property in, convert a
+ * date column) read `props[col]` by the column's own spelling: a note with
+ * `Frist:` under the column `frist` was left unconverted, and the fill wrote
+ * a second key `frist: ""` beside it (open-items plan 3.144 no. 3).
+ */
+export function withColumnValues(
+  props: Record<string, unknown>,
+  cols: readonly string[],
+  change: (value: unknown, col: string) => unknown
+): Record<string, unknown> | null {
+  let next: Record<string, unknown> | null = null;
+  for (const col of cols) {
+    const key = resolvePropertyWriteKey(props, col);
+    const value = change(props[key], col);
+    if (value === undefined || value === props[key]) continue;
+    next ??= { ...props };
+    next[key] = value;
+  }
+  return next;
+}
+
 export function normalizeFrontmatterValue(value: unknown): unknown {
   if (value instanceof Date) {
     const dateOnly = value.getUTCHours() === 0 && value.getUTCMinutes() === 0 && value.getUTCSeconds() === 0;
@@ -322,10 +365,11 @@ export function parseWikiLinkValue(
   if (!m) return null;
   let inner = m[1];
   let alias: string | undefined;
-  const pipe = inner.indexOf("|");
-  if (pipe !== -1) {
-    alias = inner.slice(pipe + 1).trim() || undefined;
-    inner = inner.slice(0, pipe);
+  // The core's reading of the bar: `[[Note\|alias]]` names "Note" (Sammelplan § 3.133 Nr. 1).
+  const parts = wikiLinkParts(inner);
+  if (parts.alias !== undefined) {
+    alias = parts.alias.trim() || undefined;
+    inner = inner.slice(0, parts.headEnd);
   }
   let anchor: string | undefined;
   const anchorIdx = inner.search(/[#^]/);

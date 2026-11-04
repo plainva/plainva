@@ -1,5 +1,5 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl } from "../openExternal";
 import {
   McpError,
   mcpStartFailure,
@@ -65,7 +65,8 @@ const oauth: McpOAuthHost = {
  */
 export async function openDesktopMcpPage(url: string): Promise<void> {
   if (!/^https?:\/\//i.test(url)) throw new Error("page-address");
-  await openUrl(url);
+  // Through the desktop's one way out (Sammelplan § 3.138), which checks the address by the shared rule again.
+  await openExternalUrl(url);
 }
 
 /**
@@ -85,7 +86,7 @@ export function createDesktopMcpBrowser(): McpOAuthBrowser {
     async open(url) {
       // The native side built it from an endpoint it checked; a browser is still only ever opened at a web address.
       if (!/^https?:\/\//i.test(url)) throw new Error("oauth-address");
-      await openUrl(url);
+      await openExternalUrl(url);
     },
     async wait(signal) {
       const stop = () => void invoke("oauth_loopback_cancel").catch(() => undefined);

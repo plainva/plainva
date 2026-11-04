@@ -28,10 +28,11 @@ import {
   FileText,
   PenLine,
   SquareChevronRight,
+  ListTree,
+  Link2,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
-import { Browser } from "@capacitor/browser";
-import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
+import { buildMailtoUrl, noteMailPrefill, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
 import { addressesAi, suggestedProperties, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
@@ -48,7 +49,7 @@ import { openLink } from "../services/openLink";
 import { configuredNoteType } from "../services/newNote";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
-import { clearDraft, clearDraftIf, readDraft, releaseLeftoverDraft, takeLeftoverDraft, type NoteDraft } from "../services/draftJournal";
+import { adoptDraft, clearDraft, clearDraftIf, offerDraft, releaseLeftoverDrafts, takeLeftoverDrafts, type NoteDraft } from "../services/draftJournal";
 import { forgetFreshNote, isFreshNote, keepTextBeside, newestConflictCopy } from "@plainva/ui";
 import { NoteConflictCard } from "../components/NoteConflictCard";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
@@ -103,7 +104,7 @@ export function NoteScreen({
   /** Retargets the open nav entry after a rename (path changes). */
   onRenamed: (newPath: string) => void;
   /** Opens Plainva's own composer with the note in it (S30). */
-  onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[] }) => void;
+  onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[]; to?: string; from?: string }) => void;
   /** Opens the command palette over this note; its note commands then act on it. */
   onOpenCommands?: () => void;
 }) {
@@ -163,8 +164,9 @@ export function NoteScreen({
   // below DOCK_MIN it opens the sheet exactly as on a phone.
   const canDock = useSyncExternalStore(subscribeWindowClass, getCanDock);
   const [dockPref, setDockPref] = useState(getMobileSettings().contextPanelDocked);
+  const [headButton, setHeadButton] = useState(getMobileSettings().noteHeadButton);
   useEffect(() => {
-    const onChanged = () => setDockPref(getMobileSettings().contextPanelDocked);
+    const onChanged = () => { setDockPref(getMobileSettings().contextPanelDocked); setHeadButton(getMobileSettings().noteHeadButton); };
     window.addEventListener("m-settings-changed", onChanged);
     return () => window.removeEventListener("m-settings-changed", onChanged);
   }, []);
@@ -531,16 +533,17 @@ export function NoteScreen({
             .then((identity) => { if (!stale && identity) knownIdentityRef.current = identity; })
             .catch(() => {});
         }
-        // Draft recovery (package G): offer an unsaved draft that is newer
-        // than the file on disk and differs from it.
-        const stored = await readDraft(vault, path);
+        // Draft recovery (package G): offer an unsaved draft that differs
+        // from the file on disk — the shared rule, as on the desktop. The
+        // journal holds it for the offer, apart from this run's saver, until
+        // it is restored or discarded (open-items plan 3.125).
+        const stored = await offerDraft(vault, path, text);
         // A draft is an editor's text. One journalled before the editor
         // stopped holding a note's byte order mark still starts with it;
         // restoring that as it is would write the mark twice.
         const d = stored && { ...stored, text: editorTextOf(stored.text) };
         if (stale || !d || d.text === text) return;
-        const info = await vault.adapter.getFileInfo(path).catch(() => null);
-        if (!stale && (!info || d.ts > info.mtime)) setDraft(d);
+        setDraft(d);
       })
       .catch((error) => {
         if (stale) return;
@@ -561,9 +564,9 @@ export function NoteScreen({
         // none is noted yet, as the desktop's banner does.
         //
         // A draft still on offer from when the file was text is kept beside
-        // it as well, unless it is the one just taken from the journal: the
-        // journal may hold it no more (this phone journals one text per note,
-        // and typing since overwrote it, or a save cleared it). The offer is
+        // it as well, unless it is one just taken from the journal (an offer
+        // of this run is held in an entry of its own, which is no leftover of
+        // an earlier run, so it is kept from here). The offer is
         // taken down while it is kept — restored or discarded meanwhile, it
         // was kept a second time or against the reader's word — and comes
         // back if it could not be kept. A journal entry goes only while it is
@@ -575,7 +578,7 @@ export function NoteScreen({
             claimedOffersRef.current.add(claim);
             setDraft((current) => (current === claim ? null : current));
           }
-          let taken: NoteDraft | null = null;
+          let taken: NoteDraft[] = [];
           let offerKept = false;
           void (async () => {
             const keep = async (text: string, kept: () => void) => {
@@ -585,14 +588,14 @@ export function NoteScreen({
               try { await vault.reindexPaths([copy]); } catch { /* a later index pass repairs the derived data */ }
               toast.warning(t("dialogs.conflictSavedMsg", { path: copy }));
             };
-            const stored = await takeLeftoverDraft(vault, path);
-            const same = !!claim && !!stored && stored.ts === claim.ts && stored.revision === claim.revision;
-            if (stored) {
-              taken = stored;
-              await keep(stored.text, () => { taken = null; offerKept = same; });
+            const leftovers = await takeLeftoverDrafts(vault, path);
+            taken = [...leftovers];
+            const isClaim = (stored: NoteDraft) => !!claim && stored.ts === claim.ts && stored.revision === claim.revision && stored.sessionId === claim.sessionId;
+            for (const stored of leftovers) {
+              await keep(stored.text, () => { taken = taken.filter((other) => other !== stored); if (isClaim(stored)) offerKept = true; });
               clearDraftIf(vault, path, stored);
             }
-            if (claim && !same) {
+            if (claim && !leftovers.some(isClaim)) {
               await keep(claim.text, () => { offerKept = true; });
               clearDraftIf(vault, path, claim);
             }
@@ -601,7 +604,7 @@ export function NoteScreen({
           })().catch((keepError) => {
             // Not kept: the journal hands its draft out again, the offer comes
             // back, and a later load tries once more.
-            if (taken) releaseLeftoverDraft(vault, path, taken);
+            if (taken.length > 0) releaseLeftoverDrafts(vault, path, taken);
             if (claim && !offerKept) {
               claimedOffersRef.current.delete(claim);
               setDraft((current) => current ?? claim);
@@ -901,7 +904,7 @@ export function NoteScreen({
         await writeOverview(vault, path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
       } catch (e) {
         console.error("[mobile] refreshing the managed index failed", e);
-        toast.error(t("indexMd.generateFailed"));
+        toast.error(t("writeFailed.overview", { reason: errorText(e) }));
       }
     })();
   };
@@ -1005,10 +1008,12 @@ export function NoteScreen({
   const sendViaMailto = () => {
     const res = buildMailtoUrl(title, noteBody());
     if (res.truncated) toast.info(t("mail.mailtoTruncated"));
-    void Browser.open({ url: res.url }).catch(() => toast.error(t("mail.mailtoFailed")));
+    void getPlatformServices().openExternal(res.url).catch(() => toast.error(t("mail.mailtoFailed")));
   };
 
-  const composeMail = () => onComposeMail?.({ subject: title, body: noteBody() });
+  // A reply note brings its recipient and its mailbox (`to:`, `mailbox:`; E6),
+  // as on the desktop — the phone opened an empty "To" and the first mailbox.
+  const composeMail = () => onComposeMail?.({ subject: title, body: noteBody(), ...noteMailPrefill(doc ?? "") });
 
   /** Live preview ↔ Markdown source; the editor owns the mode, this screen the label. */
   const toggleSource = () => {
@@ -1030,15 +1035,13 @@ export function NoteScreen({
   const saveAsTemplate = () => {
     void (async () => {
       await noteSaver.flush(path, vault).catch(() => {});
-      const saved = await saveNoteAsTemplateIn(
-        vault.files,
-        getMobileSettings().templateFolder,
-        path,
-      ).catch(() => null);
-      if (saved) {
+      // A template that could not be written says so with its reason, as the
+      // desktop says it (Sammelplan § 3.134 no. 3) — "Export failed." stood here.
+      try {
+        const saved = await saveNoteAsTemplateIn(vault.files, getMobileSettings().templateFolder, path);
         toast.info(t("editor.templateSaved", { name: saved.split("/").pop() }));
-      } else {
-        toast.warning(t("editor.exportFailed"));
+      } catch (e) {
+        toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
       }
     })();
   };
@@ -1264,12 +1267,23 @@ export function NoteScreen({
   // the Dynamic Island, its field and its close button out of reach. While it
   // is open the bar stands in the flow and the panel directly under it.
   const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince && !finding;
-  const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
+  const { chromeRef, away: chromeAway, tucked: chromeTucked, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview, editing);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
       {decisionReview && decisionReview.path === path && decisionReview.vaultId === vault.vaultId && <CommentDecisionReview comment={decisionReview.comment} text={decisionReview.snapshot.text} onDecision={confirmCommentDecision} onClose={() => setDecisionReview(null)} />}
-      <div ref={chromeRef} className={`m-note-chrome${chromeAway ? " is-away" : ""}`} onFocusCapture={focusChrome} onBlurCapture={blurChrome}>
-      <AppBar scrollState={chromeScroll} onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && (
+      <div ref={chromeRef} className={`m-note-chrome${chromeAway ? " is-away" : ""}${chromeTucked ? " is-tucked" : ""}`} onFocusCapture={focusChrome} onBlurCapture={blurChrome}>
+      <AppBar scrollState={chromeScroll} onBack={onBack} subtitle={folder} title={title} actions={<>{!editing && headButton !== "bookmark" && (
+            // The first button is the reader's choice (F9): outline or backlinks
+            // open the note details at that section; the bookmark moves to the menu.
+            <IconButton
+              data-testid="note-head-button"
+              label={t(headButton === "outline" ? "rightPanel.outline" : "rightPanel.backlinks")}
+              onClick={() => setInfo(headButton)}
+            >
+              {headButton === "outline" ? <ListTree size={ICON.head} /> : <Link2 size={ICON.head} />}
+            </IconButton>
+          )}
+          {!editing && headButton === "bookmark" && (
             <IconButton
               label={t("mobile.toggleBookmark")}
               active={marked}
@@ -1346,6 +1360,9 @@ export function NoteScreen({
                 setDoc(d.text);
                 setReloadTick((n) => n + 1);
                 noteSaver.schedule(vault, path, d.text);
+                // The text is this run's to save now: once the journal holds
+                // it as such, the offer's own entry goes (3.125).
+                void adoptDraft(vault, path, d);
               }}
             >
               {t("editor.draftRestore")}
@@ -1355,7 +1372,8 @@ export function NoteScreen({
               size="sm"
               onClick={() => {
                 if (claimedOffersRef.current.has(draft)) return;
-                clearDraft(vault, path);
+                // Only the offered draft goes — this run's typing is its saver's.
+                clearDraftIf(vault, path, draft);
                 setDraft(null);
               }}
             >
@@ -1651,6 +1669,15 @@ export function NoteScreen({
              * mode. The rest (find, rename, move, send, share, export, delete)
              * are file actions and stay.
              */
+            // The bookmark stays one tap away when the bar's first button is another (F9).
+            ...(headButton === "bookmark" ? [] : [{
+              icon: <Bookmark fill={marked ? "currentColor" : "none"} size={ICON.head} />,
+              label: t("mobile.toggleBookmark"),
+              onClick: () => {
+                setMenu(false);
+                void vaultOps.toggleBookmark(vault, path).then((next) => setMarked(next));
+              },
+            }]),
             ...(resolveOpenAction(path) === "text" ? [] : [
             {
               icon: <Smile size={ICON.head} />,

@@ -1,4 +1,4 @@
-import { PLAINVA_ONEDRIVE_CLIENT_ID } from "../services/providerDefaults";
+import { PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID } from "../services/providerDefaults";
 import type { OAuthFamily } from "./oauthScopes";
 
 /**
@@ -16,6 +16,14 @@ import type { OAuthFamily } from "./oauthScopes";
  */
 
 export type AccessPlatform = "desktop" | "ios" | "android";
+
+/**
+ * The families whose sign-in a device chooses: Google and Microsoft by client
+ * id, Dropbox by app key (settings plan 2026-10-29, E6). Dropbox's key used to
+ * live on the ACCOUNT, so "Other sign-in" said something else there than for
+ * Google - now it is the device's choice like theirs.
+ */
+export type AccessFamily = OAuthFamily | "dropbox";
 export type AccessSource = "plainva" | "own";
 
 /** What the device stores. Nothing here is shared through a vault. */
@@ -65,13 +73,17 @@ export function plainvaGoogleClient(env: Record<string, unknown>, platform: Acce
 }
 
 /** What a user's own client of this family must carry on this platform. */
-export function ownAccessRequirements(family: OAuthFamily, platform: AccessPlatform): { secret: boolean; clientType: "desktop" | "ios" | "microsoft" } {
+export function ownAccessRequirements(family: AccessFamily, platform: AccessPlatform): { secret: boolean; clientType: "desktop" | "ios" | "microsoft" | "dropbox" } {
   if (family === "microsoft") return { secret: false, clientType: "microsoft" };
+  if (family === "dropbox") return { secret: false, clientType: "dropbox" };
   return platform === "desktop" ? { secret: true, clientType: "desktop" } : { secret: false, clientType: "ios" };
 }
 
-export function validClientId(family: OAuthFamily, clientId: string): boolean {
-  return (family === "google" ? GOOGLE_CLIENT_ID : MICROSOFT_CLIENT_ID).test(clientId.trim());
+/** Dropbox app keys are short lowercase tokens ("v21xhqs8g6o8tww"); a pasted secret or URL is not one. */
+const DROPBOX_APP_KEY = /^[a-z0-9]{8,32}$/i;
+
+export function validClientId(family: AccessFamily, clientId: string): boolean {
+  return (family === "google" ? GOOGLE_CLIENT_ID : family === "dropbox" ? DROPBOX_APP_KEY : MICROSOFT_CLIENT_ID).test(clientId.trim());
 }
 
 /**
@@ -127,8 +139,44 @@ export function resolveOAuthAccess(
   };
 }
 
+/**
+ * The app key this device signs in to Dropbox with: Plainva's registration,
+ * or the person's own app (E6). Same shape of answer as the client ids.
+ */
+export type DropboxAccessResolution = { ok: true; access: { family: "dropbox"; source: AccessSource; clientId: string } } | { ok: false; problem: AccessProblem };
+
+export function resolveDropboxAccess(stored: StoredOAuthAccess | null, plainvaKey: string = PLAINVA_DROPBOX_APP_KEY): DropboxAccessResolution {
+  if (stored?.source !== "own") return plainvaKey ? { ok: true, access: { family: "dropbox", source: "plainva", clientId: plainvaKey } } : { ok: false, problem: "noPlainvaClient" };
+  const clientId = stored.clientId?.trim() ?? "";
+  if (!clientId) return { ok: false, problem: "ownClientMissing" };
+  if (!validClientId("dropbox", clientId)) return { ok: false, problem: "ownClientInvalid" };
+  return { ok: true, access: { family: "dropbox", source: "own", clientId } };
+}
+
+/**
+ * The device's Dropbox choice taken over from what an account kept before
+ * E6, once, on a device that has none yet. Returns null to keep "no choice".
+ *
+ * Two sources: the account's own app id (`byoClientId`) and the key the
+ * stored sign-in was made with. Either may hold PLAINVA's key - the old
+ * account page wrote whatever its field showed on leaving it, and it showed
+ * the stored sign-in's key, the standard one included - so Plainva's key is
+ * the standard sign-in, never an "own" key. A key that does not look like
+ * one is not adopted (it stays on the account, where nothing reads it).
+ */
+export function adoptedDropboxAccess(candidates: ReadonlyArray<string | undefined>, plainvaKey: string = PLAINVA_DROPBOX_APP_KEY): StoredOAuthAccess | null {
+  let sawStandard = false;
+  for (const raw of candidates) {
+    const key = raw?.trim();
+    if (!key) continue;
+    if (key === plainvaKey) { sawStandard = true; continue; }
+    if (validClientId("dropbox", key)) return { source: "own", clientId: key };
+  }
+  return sawStandard ? { source: "plainva" } : null;
+}
+
 /** Device-local storage key of the access choice (one per family). */
-export function oauthAccessKey(family: OAuthFamily): string {
+export function oauthAccessKey(family: AccessFamily): string {
   return `oauth_access_${family}`;
 }
 
@@ -184,12 +232,13 @@ export function shortClientId(clientId: string): string {
 }
 
 export function accessLineText(
-  resolved: AccessResolution,
+  resolved: AccessResolution | DropboxAccessResolution,
   t: (key: string, options?: Record<string, unknown>) => string,
   problemKey: (problem: AccessProblem) => string,
 ): string {
   if (!resolved.ok) return t(problemKey(resolved.problem));
-  return resolved.access.source === "plainva" ? t("accountAccess.plainva") : t("accountAccess.ownLine", { id: shortClientId(resolved.access.clientId) });
+  if (resolved.access.source === "plainva") return t("accountAccess.plainva");
+  return t(resolved.access.family === "dropbox" ? "accountAccess.ownKeyLine" : "accountAccess.ownLine", { id: shortClientId(resolved.access.clientId) });
 }
 
 /**

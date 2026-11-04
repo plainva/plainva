@@ -1,11 +1,12 @@
-import { errorText, snoozeMoment, snoozeTask, toast } from "@plainva/ui";
+import { checkboxJumpTerm, errorText, noteTaskTick, relocateReminderLine, setPendingSearchJump, snoozeMoment, snoozeTask, toast, type ReminderLine } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import type { CalendarFocus } from "./calendarFocus";
 import { getPimCache, openMeetingNoteFor } from "./pim/pimService";
 import { setTaskDone } from "./taskCompletionAction";
 import { rescheduleReminders, type ReminderIntent } from "./reminderScheduler";
 import { getMobileSettings } from "./mobileSettings";
-import { getMobileVault } from "./vaultService";
+import { getMobileVault, vaultOps } from "./vaultService";
+import { syncSoon } from "./syncService";
 
 /**
  * What a tapped reminder actually does (S11).
@@ -38,7 +39,57 @@ export interface ReminderActionHost {
   openCalendar: (focus?: CalendarFocus) => void;
 }
 
+/**
+ * Where a checkbox reminder's line stands now: the index is asked, because the
+ * tap may come long after the reminder was planned — the note renamed or
+ * moved meanwhile (E3). Where the index cannot say, the line as it was planned.
+ */
+async function currentLine(line: ReminderLine): Promise<ReminderLine> {
+  try {
+    const vault = await getMobileVault();
+    const notes = await vault.queryService?.listTasks();
+    return (notes && relocateReminderLine(notes, line)) || line;
+  } catch {
+    return line;
+  }
+}
+
+/**
+ * A checkbox task's reminder (E3): "Done" and a plain tap. "Later" is the task
+ * note's own (`runReminderIntent`): it parks a moment under the reminder's
+ * key, which for a box is its line.
+ */
+async function runCheckboxIntent(intent: ReminderIntent & { line: ReminderLine }, host: ReminderActionHost): Promise<void> {
+  const line = await currentLine(intent.line);
+  if (intent.action === "done") {
+    // The tick a box gets anywhere: the note as it lies there, the line found
+    // again in it, completion date and recurrence by the shared mutation.
+    try {
+      const vault = await getMobileVault();
+      const update = await vaultOps.update(vault, line.path, noteTaskTick(line, true));
+      if (update.changed) {
+        syncSoon();
+        // An editor holding this note takes the new line (the chain reports
+        // no write of the app's own).
+        window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: line.path, vaultId: vault.vaultId } }));
+        toast.info(i18n.t("reminders.taskDone"));
+      }
+    } catch (e) {
+      // A box is no property: the reason as the vault gives it.
+      toast.error(errorText(e));
+    }
+    return;
+  }
+  // A plain tap: the note, at the line — the jump the task lists make.
+  setPendingSearchJump({ path: line.path, term: checkboxJumpTerm(line.text) });
+  host.openNote(line.path);
+}
+
 export async function runReminderIntent(intent: ReminderIntent, host: ReminderActionHost): Promise<void> {
+  if (intent.kind === "task" && intent.line && intent.action !== "later1h" && intent.action !== "laterTomorrow") {
+    await runCheckboxIntent({ ...intent, line: intent.line }, host);
+    return;
+  }
   if (intent.kind === "task") {
     if (intent.action === "done") {
       try {

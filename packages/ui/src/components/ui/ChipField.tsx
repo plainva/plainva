@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import { ICON } from "../../lib/iconSizes";
+import { accountInputProps } from "../../lib/machineText";
+import { useSpellcheck } from "../../lib/spellcheck";
 
 /**
  * A field whose values are chips: type, confirm with Enter (or a separator),
@@ -59,6 +61,12 @@ export function ChipField({
   onDraftChange,
 }: ChipFieldProps) {
   const [draft, setDraftState] = useState("");
+  // Every chip field holds addresses: no capitals, no correction, no spelling
+  // marks, the e-mail keyboard (Sammelplan § 3.43, `accountInputProps`). A
+  // field primitive like TextInput, so it applies the spelling rule itself;
+  // its inner input is not a .pv-field (the container is).
+  const { purpose, ...addressField } = accountInputProps("recipients");
+  const spellCheck = useSpellcheck(purpose);
   const setDraft = (next: string) => {
     setDraftState(next);
     onDraftChange?.(next);
@@ -109,6 +117,8 @@ export function ChipField({
         </span>
       ))}
       <input
+        {...addressField}
+        spellCheck={spellCheck}
         id={inputId}
         aria-label={ariaLabel}
         value={draft}

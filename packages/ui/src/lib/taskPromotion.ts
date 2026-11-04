@@ -1,4 +1,4 @@
-import { createFenceTracker, scanTasks, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
+import { createFenceTracker, joinSourceLines, scanTasks, sourceLinesOf, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
 import { TASK_LINE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -80,16 +80,12 @@ export interface CheckboxReplaceResult {
  * aware, in lock-step with `scanTasks`/`toggleTaskAtIndex`. The alias is
  * appended only when it differs from the link target.
  *
- * The lines are the ones `scanTasks` counts — the file's, split at `\n` — so
- * the ordinal it hands out names the same checkbox here. Counted in the text
- * an editor holds, a carriage return of its own between two checkboxes made
- * two lines of one, and the link replaced the checkbox after the one that was
- * promoted (finding 2026-10-22). The replaced line keeps what ends it: it
- * used to lose its `\r`, one line of the other kind in a note that lies there
- * with `\r\n` (finding 2026-10-09). And what such a line holds behind a
- * carriage return of its own — the next lines of a file from a classic Mac —
- * stays in the note: only the checkbox is replaced. The chain that writes the
- * note turns those line ends (`ConflictAwareVaultAdapter`).
+ * The lines are the ones `scanTasks` counts — the file's, split where an
+ * editor ends a line (`sourceLines.ts`) — so the ordinal it hands out names
+ * the same checkbox here, and the replaced line keeps the line end it has
+ * (findings 2026-10-09, 2026-10-22). A note whose lines end in a carriage
+ * return of its own is lines here as well; the chain that writes the note
+ * turns those line ends (`ConflictAwareVaultAdapter`).
  */
 export function replaceCheckboxWithLink(
   content: string,
@@ -97,25 +93,23 @@ export function replaceCheckboxWithLink(
   linkTarget: string,
   alias?: string
 ): CheckboxReplaceResult {
-  const lines = content.split("\n");
+  // The scan's lines (`sourceLines.ts`), each with its own line end: a
+  // carriage return of its own ends a line here as it does for the scan.
+  const lines = sourceLinesOf(content);
   const fence = createFenceTracker();
   let seen = 0;
   for (let i = 0; i < lines.length; i++) {
-    if (fence.step(lines[i]) !== null) continue;
-    const m = lines[i].match(TASK_LINE_RE);
+    const line = lines[i].text;
+    if (fence.step(line) !== null) continue;
+    const m = line.match(TASK_LINE_RE);
     if (!m) continue;
     if (seen === ordinal) {
       // m[1] ends with the checkbox "[": keep everything before it (indent +
       // blockquote markers + bullet + spacing), drop the "[x] text" rest.
-      const prefix = lines[i].slice(0, m[1].length - 1);
+      const prefix = line.slice(0, m[1].length - 1);
       const link = alias && alias !== linkTarget ? `[[${linkTarget}|${alias}]]` : `[[${linkTarget}]]`;
-      // What follows the checkbox's own line on the same `\n`-line: from the
-      // first carriage return of its own behind the box, or the `\r` of a
-      // `\r\n`. One in front of the box is part of the prefix and stays there.
-      const inner = lines[i].slice(m[1].length).search(/\r(?!$)/);
-      const rest = inner >= 0 ? lines[i].slice(m[1].length + inner) : lines[i].endsWith("\r") ? "\r" : "";
-      lines[i] = `${prefix}${link}${rest}`;
-      return { content: lines.join("\n"), changed: true };
+      lines[i] = { text: `${prefix}${link}`, eol: lines[i].eol };
+      return { content: joinSourceLines(lines), changed: true };
     }
     seen++;
   }
@@ -163,7 +157,20 @@ export interface PromoteTaskOptions {
 }
 
 export type PromoteTaskResult =
-  | { ok: true; notePath: string; title: string }
+  | {
+      ok: true;
+      notePath: string;
+      title: string;
+      /**
+       * The task note exists, but the checkbox stays in its note beside it
+       * (Sammelplan § 3.87 no. 5): `"changed"` — its line was not found again
+       * where it is written (the note changed after the guard); `"refused"` —
+       * the note did not take the link, `keptReason` says why. Both shells say
+       * it; it ended in the console, under a toast that said "Moved".
+       */
+      checkboxKept: null | "changed" | "refused";
+      keptReason?: unknown;
+    }
   | { ok: false; reason: "dbUnreadable" | "noFolder" | "stale" };
 
 interface BaseConfigShape {
@@ -264,12 +271,19 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
     const replaced = replaceCheckboxWithLink(fresh, same[0].ordinal, linkTarget, title);
     return replaced.changed ? replaced.content : null;
   };
-  const update = await updateVaultText(adapter, sourcePath, linked);
-  // The task note exists either way. A source that changed under the step
-  // keeps its checkbox, and says so where somebody looks for the reason.
-  if (linked(update.before) === null) console.warn(`[taskPromotion] ${sourcePath}: the task's line was not found again; its checkbox stays beside the new note`);
+  // The task note exists either way: what follows can keep the checkbox, never
+  // undo the move. Thrown, a refusal here said "Moving failed" about a task
+  // note that had been written.
+  let update: Awaited<ReturnType<typeof updateVaultText>>;
+  try {
+    update = await updateVaultText(adapter, sourcePath, linked);
+  } catch (error) {
+    console.warn(`[taskPromotion] ${sourcePath}: the link could not be written; its checkbox stays beside the new note`, error);
+    return { ok: true, notePath, title, checkboxKept: "refused", keptReason: error };
+  }
+  if (linked(update.before) === null) return { ok: true, notePath, title, checkboxKept: "changed" };
 
-  return { ok: true, notePath, title };
+  return { ok: true, notePath, title, checkboxKept: null };
 }
 
 export interface CreateTaskOptions {

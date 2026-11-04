@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NAV_KINDS, TAB_POOL, type TabScreenId } from "./navigation";
 import { PUSHED_ROUTES, TAB_ROUTES, type RouteContext } from "./routes";
 
@@ -120,11 +120,16 @@ describe("mobile routes", () => {
    * shell asked whether to discard what had succeeded a moment before.
    */
   it("gives a surface that finished its work an exit that does not ask", () => {
-    const ctx = { pop: () => {}, done: () => {}, push: () => {}, vault: {} } as unknown as RouteContext;
+    const done = vi.fn();
+    const ctx = { pop: () => {}, done, push: () => {}, vault: {} } as unknown as RouteContext;
     for (const [kind, path] of [["mailcompose", "{}"], ["securitywizard", "encryption"]] as const) {
-      const { props } = PUSHED_ROUTES[kind]({ kind, path }, ctx) as { props: { onBack: unknown; onDone: unknown } };
+      const entry = { kind, path };
+      const { props } = PUSHED_ROUTES[kind](entry, ctx) as { props: { onBack: unknown; onDone: () => void } };
       expect(props.onBack, `${kind}: the back arrow asks`).toBe(ctx.pop);
-      expect(props.onDone, `${kind}: its own exit does not`).toBe(ctx.done);
+      // Its own exit does not ask — and names the screen, so only that one goes (finding 2026-10-22).
+      done.mockClear();
+      props.onDone();
+      expect(done, `${kind}: its own exit does not`).toHaveBeenCalledWith(entry);
     }
   });
 });

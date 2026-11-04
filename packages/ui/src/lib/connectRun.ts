@@ -27,15 +27,23 @@ export interface ConnectRunProgress {
   pending: readonly CloudServiceId[];
   done: readonly CloudServiceId[];
   skipped?: readonly CloudServiceId[];
+  /**
+   * Whether the sign-in has happened (settings plan 2026-10-29, § 5.1): a run
+   * of Google or Microsoft starts after it, a run of Dropbox or of a provider
+   * with credentials starts before it. "Signed in" and the done step only
+   * after one took place. Absent in runs saved before = signed in.
+   */
+  signedIn?: boolean;
 }
 
 export function connectRunSteps(run: ConnectRunProgress): ConnectStep[] {
   const skipped = run.skipped ?? [];
-  const steps: ConnectStep[] = [{ id: "signin", state: "done" }];
+  const signedIn = run.signedIn !== false;
+  const steps: ConnectStep[] = [{ id: "signin", state: signedIn ? "done" : "active" }];
   for (const service of CONNECT_SERVICE_ORDER) {
     if (run.done.includes(service)) steps.push({ id: service, state: "done" });
     else if (skipped.includes(service)) steps.push({ id: service, state: "skipped" });
-    else if (run.pending.includes(service)) steps.push({ id: service, state: run.pending[0] === service ? "active" : "pending" });
+    else if (run.pending.includes(service)) steps.push({ id: service, state: signedIn && run.pending[0] === service ? "active" : "pending" });
   }
   return steps;
 }

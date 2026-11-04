@@ -54,9 +54,11 @@ describe("templateActions", () => {
     expect(files.get("Templates/Neue Vorlage.md")).toBe("existing");
   });
 
-  it("returns null when the folder cannot be created (and writes nothing)", async () => {
-    const path = await createNewTemplate(fakeAdapter(files, { failCreateDir: true }), "/vault", "Neue Vorlage");
-    expect(path).toBeNull();
+  it("throws the reason when the folder cannot be created (and writes nothing)", async () => {
+    // Answered as null, the reason was gone and the shells said nothing, or
+    // "Export failed." (Sammelplan § 3.134 no. 3).
+    await expect(createNewTemplate(fakeAdapter(files, { failCreateDir: true }), "/vault", "Neue Vorlage")).rejects.toThrow();
+    await expect(saveNoteAsTemplate(fakeAdapter(files, { failCreateDir: true }), "/vault", "Projekte/Plan.md")).rejects.toThrow();
     expect(files.size).toBe(0);
   });
 

@@ -1,4 +1,5 @@
-import { assertConnectionIdentity, ServiceConnectionError, type CloudServiceId, type CloudAccountRecord, type SyncProviderId, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { assertConnectionIdentity, ServiceConnectionError, withBoundCard, type CloudServiceId, type CloudAccountRecord, type SyncProviderId, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { listMailAccounts } from "@plainva/ui/mail";
 import type { AccountCard } from "./cloudAccountCards";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { startConnectQueue } from "./connectQueue";
@@ -45,12 +46,18 @@ export async function bindMailToConnection(context: ServiceConnectionContext | u
   if (!context?.cloudAccountId) return;
   const records = await loadCloudAccounts(context.vaultId);
   const record = records.find(r => r.id === context.cloudAccountId);
-  const current = record?.services.mail?.mailAccountId;
+  // A card that still names a mailbox this vault no longer has is free to
+  // take the new one (Sammelplan § 3.105): connecting mail again at the card
+  // whose mailbox was removed used to be refused here, and the new mailbox
+  // removed again. Only a mailbox that exists makes the card another one's.
+  const named = record?.services.mail?.mailAccountId;
+  const current = named && (await listMailAccounts(context.vaultId)).some((mailbox) => mailbox.id === named) ? named : undefined;
   const replacing = !!current && current !== bindingId && current === context.replacesMailAccountId;
   if (!record || (current && current !== bindingId && !replacing)) throw new ServiceConnectionError("accountChanged");
   if (identity) assertConnectionIdentity(record.verifiedProviderIdentity ?? context.expectedIdentity, identity);
   const next: CloudAccountRecord = { ...record, ...(identity ? { verifiedProviderIdentity: identity } : {}), services: { ...record.services, mail: { mailAccountId: bindingId } } };
-  await saveCloudAccounts(context.vaultId, records.map(r => r.id === record.id ? next : r));
+  // The mailbox is this card's alone (§ 3.107 Nr. 1).
+  await saveCloudAccounts(context.vaultId, withBoundCard(records, next));
   if ((await loadCloudAccounts(context.vaultId)).find(r => r.id === record.id)?.services.mail?.mailAccountId !== bindingId) throw new ServiceConnectionError("storageFailed");
   // The mailbox Google refused gives way to the app-password one (E7), with
   // everything the person set on it; filed mails stay notes (review finding 1).

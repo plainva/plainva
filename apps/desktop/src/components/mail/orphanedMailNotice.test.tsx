@@ -126,7 +126,7 @@ describe("the notice about mail accounts without a password, on the desktop", ()
     const onRemoved = vi.fn();
     await render(onRemoved);
     expect(container.textContent).toContain("1 email account without a password on this device");
-    expect(container.textContent).toContain("Remove deletes the entry on all devices");
+    expect(container.textContent).toContain("Removing deletes only the entry — on all devices");
     expect(container.querySelector('[data-testid="mail-orphan"]')).toBeNull();
 
     await click(container.querySelector('[data-testid="mail-orphans-review"]'));

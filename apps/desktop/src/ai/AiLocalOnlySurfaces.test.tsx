@@ -63,6 +63,13 @@ const type = async (el: Element | null, value: string) => {
 };
 const q = (id: string) => document.body.querySelector(`[data-testid="${id}"]`);
 const text = (el: Element | null | undefined) => el?.textContent ?? "";
+/** The text behind a card's ⓘ: explanations stand there since the settings plan of 2026-10-29. */
+const infoText = async (root: Element | null | undefined, label: string) => {
+  const button = Array.from(root?.querySelectorAll<HTMLButtonElement>("button.pv-infotip") ?? []).find((b) => b.getAttribute("aria-label") === `More about ${label}`);
+  expect(button, `the info button of ${label}`).toBeTruthy();
+  await click(button);
+  return text(root?.querySelector(".pv-infotip-panel"));
+};
 const fullyLocal = (session: AiSession) => act(async () => void (await session.updateSettings((settings) => ({ ...settings, localOnly: true }))));
 
 function Card({ session, onSetUp }: { session: AiSession; onSetUp: () => void }) {
@@ -82,7 +89,7 @@ describe("the mode card", () => {
     expect(text(card)).toContain("Now: Cloud — a provider answers");
     expect(text(card)).toContain("New conversations start with Anthropic · m-1.");
     expect(q("ai-local-only")!.getAttribute("aria-checked")).toBe("false");
-    expect(text(card)).toContain("Only “Fully local” is a switch, because only it promises something.");
+    expect(await infoText(card, "Mode")).toContain("Only “Fully local” is a switch, because only it promises something.");
     expect(text(card)).not.toContain("this rests");
   });
 
@@ -98,7 +105,7 @@ describe("the mode card", () => {
     // Every provider of the cloud that is set up, in one row; under it the profiles that will not answer.
     expect(text(card)).toContain("Anthropic, OpenAI, Google Gemini, and OpenRouter");
     expect(text(card)).toContain("Stay set up and receive nothing. This profile does not answer: Balanced.");
-    expect(text(card)).toContain("The switch is about the AI.");
+    expect(await infoText(card, "Mode")).toContain("The switch is about the AI.");
     expect(q("ai-mode-setup")).toBeNull();
     // Off again: the card is as it was.
     await click(q("ai-local-only"));

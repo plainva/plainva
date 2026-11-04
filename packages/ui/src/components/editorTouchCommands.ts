@@ -1,8 +1,9 @@
 import { startCompletion } from "@codemirror/autocomplete";
-import { undo, redo, selectAll } from "@codemirror/commands";
+import { undo, redo, selectAll, indentMore, indentLess } from "@codemirror/commands";
 import { openSearchPanel } from "@codemirror/search";
-import { EditorSelection } from "@codemirror/state";
+import { EditorSelection, type EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { listDepthAt } from "./listIndent";
 
 /**
  * Small selection-based editing commands for the mobile keyboard toolbar
@@ -16,6 +17,26 @@ import type { EditorView } from "@codemirror/view";
 export { undo, redo, selectAll };
 
 type TextChange = { from: number; to?: number; insert: string };
+
+/**
+ * Whether the caret stands in a list item - bullet, numbered or checklist
+ * (wish TestFlight 2026-10-25, W2). The keyboard toolbar shows indent and
+ * outdent only then. Read from the syntax tree, measured at the start of the
+ * line's text, so the end of a line or an empty "- " counts as well.
+ */
+export function caretInListItem(state: EditorState): boolean {
+  const line = state.doc.lineAt(state.selection.main.head);
+  const lead = line.text.length - line.text.trimStart().length;
+  return listDepthAt(state, line.from + lead) > 0;
+}
+
+/**
+ * Indent or outdent the selected lines - the same commands Tab and Shift+Tab
+ * run on the desktop, so a list nested on the phone nests the same way there.
+ */
+export function shiftListIndent(view: EditorView, direction: 1 | -1): boolean {
+  return direction > 0 ? indentMore(view) : indentLess(view);
+}
 
 /**
  * Returns the offset where inline content starts. Markdown block markers are

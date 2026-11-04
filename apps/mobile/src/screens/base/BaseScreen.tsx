@@ -34,7 +34,7 @@ import {
 import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
-import { toast } from "@plainva/ui";
+import { sayRewriteOutcome, toast } from "@plainva/ui";
 import { buildWikiTargetSet, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
@@ -56,7 +56,7 @@ import { syncSoon } from "../../services/syncService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments, listMobileCommentAuthors, noteWorkspaceCapabilities } from "../../services/mobileComments";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import { wikiLinkParts, type WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
@@ -466,7 +466,8 @@ export function BaseScreen({
       // does (finding 2026-10-21): it went on showing a config no file held,
       // and the next change made here wrote it along.
       if (shown !== undefined) setLoaded((now) => (now && now.config === next ? { ...now, config: shown } : now));
-      toast.error(t("editor.saveFailed"));
+      // With its reason, as the desktop says it (Sammelplan § 3.87 no. 1): an open conflict is named as one.
+      toast.error(t("writeFailed.databaseSave", { reason: errorText(e) }));
       return false;
     }
   });
@@ -1037,8 +1038,8 @@ export function BaseScreen({
     });
     setBulkBusy(null);
 
-    if (result.failed.length > 0) {
-      toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+    if (result.failed.length > 0 || result.skipped.length > 0) {
+      sayRewriteOutcome(result, toast);
     } else if (result.cancelled) {
       toast.info(t("database.bulkSetCancelled", { done: result.written.length }));
     } else {
@@ -1101,7 +1102,8 @@ export function BaseScreen({
         made = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder);
       }
       if (made.status === "created") onOpenNote(made.path);
-    })().catch((e) => toast.error(errorText(e)));
+      // The sentence of a new entry and its reason, as the desktop says it (Sammelplan § 3.134 no. 3).
+    })().catch((e) => toast.error(t("writeFailed.newEntry", { reason: errorText(e) })));
   };
 
   // Pinboard view options (plan Pinboard P6): patch the active view
@@ -1283,8 +1285,9 @@ export function BaseScreen({
         let rel = String(first)
           .trim()
           .replace(/^!?\[\[/, "")
-          .replace(/\]\]$/, "")
-          .split("|")[0];
+          .replace(/\]\]$/, "");
+        // In front of the bar and of the backslash of `\|` (Sammelplan § 3.133 Nr. 1).
+        rel = rel.slice(0, wikiLinkParts(rel).headEnd);
         if (!rel) continue;
         try {
           if (!(await vault.files.exists(rel))) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupByOrigin, isUnifiedId, mergeInboxes, parseUnifiedId, rowAddress, unifiedId } from "@plainva/ui/mail";
+import { addressRows, groupByOrigin, inPlace, isUnifiedId, mergeInboxes, parseUnifiedId, rowAddress, uidOf, unifiedId } from "@plainva/ui/mail";
 
 /**
  * The address of a message in a merged list (P9.3b).
@@ -85,7 +85,7 @@ describe("groupByOrigin", () => {
       unifiedId({ accountId: "acc-b", mailbox: "Posteingang", uid: "1" }),
       unifiedId({ accountId: "acc-a", mailbox: "INBOX", uid: "2" }),
     ];
-    const groups = groupByOrigin(ids, lookup, { account: null, mailbox: "" });
+    const groups = groupByOrigin(ids, lookup);
     expect(groups).toHaveLength(2);
     expect(groups.find((g) => g.account === a)).toEqual({ account: a, mailbox: "INBOX", uids: ["1", "2"] });
     // The SAME uid in the other account is a different message. This is the
@@ -98,24 +98,47 @@ describe("groupByOrigin", () => {
       unifiedId({ accountId: "acc-a", mailbox: "INBOX", uid: "7" }),
       unifiedId({ accountId: "acc-a", mailbox: "Sent", uid: "7" }),
     ];
-    expect(groupByOrigin(ids, lookup, { account: null, mailbox: "" })).toHaveLength(2);
+    expect(groupByOrigin(ids, lookup)).toHaveLength(2);
   });
 
-  it("falls back to the open folder for plain ids", () => {
-    expect(groupByOrigin(["5", "6"], lookup, { account: a, mailbox: "Archiv" })).toEqual([
-      { account: a, mailbox: "Archiv", uids: ["5", "6"] },
-    ]);
+  it("refuses a plain id instead of reading its folder off the screen (plan P1)", () => {
+    // The fallback was the open folder — the one a reply from Sent in a
+    // conversation does NOT lie in; its number names another message there.
+    expect(groupByOrigin(["5", "6"], lookup)).toEqual([]);
   });
 
   it("drops an id whose account is gone rather than guessing", () => {
     // An account removed while a selection was open. Guessing means acting on
     // someone else's mailbox.
     const ids = [unifiedId({ accountId: "acc-removed", mailbox: "INBOX", uid: "1" })];
-    expect(groupByOrigin(ids, lookup, { account: a, mailbox: "INBOX" })).toEqual([]);
+    expect(groupByOrigin(ids, lookup)).toEqual([]);
+  });
+});
+
+describe("addressRows — every row is its address (plan P1)", () => {
+  const place = { accountId: "acc-a", mailbox: "Sent" };
+
+  it("names each row of a folder by account, folder and number", () => {
+    const rows = addressRows([{ id: "91", subject: "Re" }], place);
+    expect(rows).toEqual([{ id: unifiedId({ accountId: "acc-a", mailbox: "Sent", uid: "91" }), subject: "Re" }]);
+    expect(uidOf(rows[0].id)).toBe("91");
+    expect(inPlace(rows[0].id, place)).toBe(true);
+    expect(inPlace(rows[0].id, { accountId: "acc-a", mailbox: "INBOX" })).toBe(false);
   });
 
-  it("drops plain ids when there is no open folder either", () => {
-    expect(groupByOrigin(["1"], lookup, { account: null, mailbox: "" })).toEqual([]);
+  it("keeps an address a row already has, so a second pass changes nothing", () => {
+    const own = unifiedId({ accountId: "acc-b", mailbox: "Posteingang", uid: "7" });
+    expect(addressRows([{ id: own }], place)).toEqual([{ id: own }]);
+    const once = addressRows([{ id: "3" }], place);
+    expect(addressRows(once, place)).toEqual(once);
+  });
+
+  it("tells the same number in two folders apart — the case behind the whole package", () => {
+    const inbox = addressRows([{ id: "2" }], { accountId: "acc-a", mailbox: "INBOX" })[0];
+    const sent = addressRows([{ id: "2" }], place)[0];
+    expect(inbox.id).not.toBe(sent.id);
+    const owner = { id: "acc-a" };
+    expect(groupByOrigin([sent.id], (id) => (id === owner.id ? owner : null))).toEqual([{ account: owner, mailbox: "Sent", uids: ["2"] }]);
   });
 });
 

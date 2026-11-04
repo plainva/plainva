@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FIXTURE_SIGN_IN, fixtureAccessToken, installMailFixture } from "../scripts/screenshot-services.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { readVaultFile, waitForVaultDirectory } from "./exampleVault";
 
 /**
  * A message is written from the mailbox it belongs to — on the phone (finding
@@ -174,6 +174,43 @@ test("a reply, a forward and a new message start from the mailbox they are writt
     expect(second.some((request) => request.method === "GET" && request.path === "/me/mailFolders")).toBe(true);
     expect(second.some((request) => request.method === "GET" && /^\/me\/messages\/[^/]+$/.test(request.path))).toBe(true);
     for (const request of second) expect(request.authorization, `${request.method} ${request.path}`).toBe(SECOND_BEARER);
+  } finally {
+    await sql.close();
+  }
+});
+
+/**
+ * "Reply as note" on the phone (Sammelplan § 3.171 Nr. 6: it was the desktop's
+ * only), and the note names the mailbox the message is in (decision E6): sent
+ * later, it starts from that mailbox and to the sender — the phone's "Send via
+ * email" opened an empty "To" and the first mailbox.
+ */
+test("a reply note made on the phone names its mailbox, and sent later starts from it", async ({ page, context }, testInfo) => {
+  test.setTimeout(120_000);
+  const { sql } = await bootTwoMailboxes(context, page);
+  try {
+    await page.locator(".m-mboxline").click();
+    await page.locator(".m-sheet button.m-row", { hasText: "privat@example.net" }).click();
+    await expect(page.locator(".m-mboxline-acct")).toHaveText("privat@example.net");
+    await page.locator("button.m-mailrow", { hasText: "Die neue Übersicht ist fertig." }).click();
+
+    await page.getByTestId("mail-message-menu").click();
+    await page.getByRole("button", { name: "Reply as note" }).click();
+    await expect(page.locator(".cm-content")).toContainText("Re: Projektübersicht", { timeout: 15_000 });
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-reply-note-phone.png") });
+    const notes = await page.evaluate(async () => {
+      const listing = await (globalThis as unknown as { Capacitor: { Plugins: { Filesystem: { readdir(o: unknown): Promise<{ files: Array<{ name: string }> }> } } } }).Capacitor.Plugins.Filesystem.readdir({ path: "vault/Mail", directory: "DATA" });
+      return listing.files.map((file) => file.name).filter((name) => name.includes("Re Projekt"));
+    });
+    expect(notes).toHaveLength(1);
+    const note = await readVaultFile(page, `Mail/${notes[0]}`);
+    expect(note).toContain("mailbox: privat@example.net");
+    expect(note).toMatch(/^to: .+@/m);
+
+    await page.getByTestId("note-menu").click();
+    await page.getByRole("button", { name: "Send via email" }).click();
+    await expectSecondMailbox(page);
+    await expect(page.getByRole("textbox", { name: "To", exact: true })).not.toHaveValue("");
   } finally {
     await sql.close();
   }

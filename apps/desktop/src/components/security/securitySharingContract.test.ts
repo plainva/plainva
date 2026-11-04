@@ -51,6 +51,12 @@ describe("security centre: what the source still wires (source guard, not behavi
     const nav = readFileSync(new URL("../settings/SecurityNav.tsx", import.meta.url), "utf8");
     expect(nav).toContain("SECURITY_AREA_GROUPS");
     expect(nav).toContain("workspaceSecurity.overview");
+    // Both rails render through the one rail with the settings search on top
+    // (Sammelplan § 3.169 Nr. 2): the second level kept no search of its own.
+    expect(nav).toContain("<SettingsRail");
+    const firstLevel = readFileSync(new URL("../settings/SettingsNav.tsx", import.meta.url), "utf8");
+    expect(firstLevel).toContain("<SettingsRail");
+    expect(firstLevel).not.toContain("searchSettings(");
     // Member rotation depth (future vs full) still routes through the gateway.
     // Since P5 it arrives as the mode a labelled choice produced, not as two
     // differently coloured buttons whose difference was explained afterwards.
@@ -230,7 +236,8 @@ describe("security centre: what the source still wires (source guard, not behavi
   });
 
   it("source: the mobile screen wires master/detail areas and QR fingerprint approval", () => {
-    expect(mobile).toContain('["overview", "devices", "team", "slices", "recovery"]');
+    // The desktop's second level, from the shared catalog (settings plan 2026-10-29, E12).
+    expect(mobile).toContain("SECURITY_AREA_GROUPS.map");
     expect(mobile).toContain("inspectMobileWorkspacePairing");
     expect(mobile).toContain("approveMobileWorkspacePairing");
     expect(mobile).toContain("pairPreview.fingerprint");
@@ -383,10 +390,13 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(dialog).toMatch(/publicationPreviewError \? <Banner kind="error" rounded>\{publicationPreviewError\}<\/Banner> : <SettingCardNote>\{t\("workspaceSecurity\.projectionLoading"/);
     const sheet = readFileSync(new URL("../../../../mobile/src/components/PublishSliceSheet.tsx", import.meta.url), "utf8");
     expect(sheet).not.toMatch(/setError\(e instanceof Error \? e\.message/);
-    // A failed creation and a failed preview, both through the shared text; a
-    // refused note's reason is kept with the mode it was asked in, any other
-    // failure of a preview stands for every mode.
+    // A failed creation and a failed preview, both through the shared text. A
+    // refused note is no failure of the preview since the publication goes
+    // past it (open-items plan 3.128 no. 1): it is named beside the numbers,
+    // by the shared notices.
     expect(sheet.match(/setError\(publicationErrorText\(e, t\)\)/g)).toHaveLength(1);
-    expect(sheet).toMatch(/setPreviewError\(\{ mode: refused \? mode : null, text: publicationErrorText\(e, t\) \}\)/);
+    expect(sheet).toMatch(/setPreviewError\(publicationErrorText\(e, t\)\)/);
+    expect(sheet).toContain("publicationPreviewNotices(shown, t)");
+    expect(dialog).toContain("publicationPreviewNotices(publicationPreview, t)");
   });
 });

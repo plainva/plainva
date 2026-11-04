@@ -486,8 +486,11 @@ export function fixtureStorage() {
         kind: "imap",
       },
     ],
-    // Signed in on THIS device — the state N4.2 built the row for.
-    [`secret_mail_${b64(CLOUD_VAULT)}_mail-fixture-team`]: { password: "fixture" },
+    // Signed in on THIS device — the state N4.2 built the row for. Under the
+    // name the mail module reads (`legacyMailSecretKey`: account, then vault)
+    // and with the field it reads (`pass`); the reversed name and `password`
+    // left this mailbox signed out in every picture (Sammelplan § 3.108).
+    [`secret_mail_mail-fixture-team_${b64(CLOUD_VAULT)}`]: { pass: "fixture" },
     /**
      * The calendar account's slot, so the card reads "signed in" rather than
      * "sign in". Safe here where the LOCAL vault's calendar slot was not: the
@@ -544,8 +547,6 @@ export function fixtureStorage() {
       },
     ],
     [`cloudAccounts_${LOCAL_VAULT}`]: cloudAccounts,
-    // Current vault-bound mail slot; the legacy slot above exercises migration.
-    [`secret_mail_${b64(LOCAL_VAULT)}_mail-fixture-1`]: { refreshToken: "local-fixture-only" },
     // NOT the calendar account, deliberately (tried in S5 and reverted): a
     // seeded PIM slot makes the runtime attempt a real token refresh against
     // the provider, so the card turns from "not signed in" into "sign-in

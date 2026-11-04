@@ -14,6 +14,8 @@ export type CommittedTextInputProps = Omit<
   normalize?: (draft: string) => string;
   delay?: number;
   compact?: boolean;
+  /** Says why a value cannot be stored and answers true; it is then not saved (`useFieldDraft`). */
+  refuse?: (value: string) => boolean;
 };
 
 /**
@@ -22,8 +24,8 @@ export type CommittedTextInputProps = Omit<
  * out from under the person typing. Use it for every setting a person types;
  * a field whose value lives only in the surface keeps the plain `TextInput`.
  */
-export function CommittedTextInput({ value, onSave, normalize, delay, ...rest }: CommittedTextInputProps) {
-  const draft = useFieldDraft({ value, onSave, normalize, delay });
+export function CommittedTextInput({ value, onSave, normalize, delay, refuse, ...rest }: CommittedTextInputProps) {
+  const draft = useFieldDraft({ value, onSave, normalize, delay, refuse });
   return (
     <TextInput
       {...rest}

@@ -22,6 +22,7 @@ import {
   semanticUnusedLine,
   searchRests,
   SettingCard,
+  SettingCardBlock,
   SettingCardNote,
   SettingRow,
   Switch,
@@ -123,10 +124,11 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
   const readyPackage = engine?.kind === "ready" && engine.source.kind === "package" ? engine.source.spec : null;
 
   return (
-    <SettingCard label={t("ai.semantic.title")}>
-      <SettingCardNote>{t("ai.semantic.description")}</SettingCardNote>
+    <>
+    <SettingCard label={t("ai.semantic.title")} info={t("ai.semantic.description")}>
       {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
       {settings && searchRests(settings) && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
+      <SettingCardBlock>
       <div className="pv-semantic-choices" role="radiogroup" aria-label={t("ai.semantic.title")}>
         <Radio name="semantic-model" checked={!chosen} disabled={Boolean(download)} onChange={() => void choose(null)} label={<strong>{t("ai.semantic.off")}</strong>} />
         {rows.map((row) => (
@@ -163,6 +165,7 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
           }
         />
       </div>
+      </SettingCardBlock>
       {download && (
         <SettingCardNote>
           <div role="status">
@@ -180,9 +183,14 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
           </Button>
         </SettingCardNote>
       )}
-      {state?.downloadError && <Banner kind="warning">{t("ai.semantic.loadFailed", { reason: state.downloadError })}</Banner>}
+      {state?.downloadError && (
+        <SettingCardBlock>
+          <Banner kind="warning">{t("ai.semantic.loadFailed", { reason: state.downloadError })}</Banner>
+        </SettingCardBlock>
+      )}
       {(engine?.kind === "checking" || engine?.kind === "opening") && <SettingCardNote>{t("ai.semantic.checking")}</SettingCardNote>}
       {engine?.kind === "failed" && (
+        <SettingCardBlock>
         <Banner kind="warning">
           <span className="pv-ai-notewithaction">
             <span>{semanticFailureText(t, engine)}</span>
@@ -193,9 +201,12 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
             )}
           </span>
         </Banner>
+        </SettingCardBlock>
       )}
       {engine?.kind === "approval" && (
-        <AiSendOverview manifest={engine.manifest} onSend={() => void controller?.approve()} onCancel={() => void session.updateSettings((s) => ({ ...s, semanticModel: null }))} />
+        <SettingCardBlock>
+          <AiSendOverview manifest={engine.manifest} onSend={() => void controller?.approve()} onCancel={() => void session.updateSettings((s) => ({ ...s, semanticModel: null }))} />
+        </SettingCardBlock>
       )}
       {engine?.kind === "ready" && progress && (
         <SettingRow label={semanticReadyLine(t, engine.source)} desc={semanticProgressLine(t, progress, i18n.language)}>
@@ -235,13 +246,19 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
           </Button>
         </SettingCardNote>
       )}
-      {state?.measureError && <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>}
+      {state?.measureError && (
+        <SettingCardBlock>
+          <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>
+        </SettingCardBlock>
+      )}
       {engine?.kind === "ready" && progress?.state === "failed" && (
-        <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
+        <SettingCardBlock>
+          <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
+        </SettingCardBlock>
       )}
       {engine?.kind === "ready" && settings && (
         <>
-          <SettingRow label={t("ai.related.show")} desc={t("ai.related.showDesc")}>
+          <SettingRow label={t("ai.related.show")} info={t("ai.related.showDesc")}>
             <Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} testId="related-show" />
           </SettingRow>
           {state?.related.vaultPaused && (
@@ -274,8 +291,9 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
           </Button>
         </SettingRow>
       )}
-      {asking && <LoadDialog spec={asking} onClose={() => setAsking(null)} onLoad={() => void load(asking)} />}
     </SettingCard>
+    {asking && <LoadDialog spec={asking} onClose={() => setAsking(null)} onLoad={() => void load(asking)} />}
+    </>
   );
 }
 

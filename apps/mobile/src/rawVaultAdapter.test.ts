@@ -60,7 +60,7 @@ const HISTORY =
 const VERSIONS_LAYER = "the versions layer's own control — when a version is taken and how long it is kept; no file of the user's is written";
 const BOOKMARKS =
   "`.plainva/bookmarks.json` is the app's own file: no version, never queued, and since 2026-10-20 no conflict check either — no link of the chain keeps anything about what the app writes under `.plainva`, so what is kept of it does not depend on the level (`own-files-chain.test.ts` in the core). It is written where the settings profile writes it, which carries the list between devices";
-const RECENTS = "`.plainva/recents.json`, the notes opened last on this device: the app's own file, never versioned, never synced";
+const RECENTS = "`.plainva/recents.<device>.json`, the notes opened last on this device: the app's own file, never versioned, never synced";
 const COMMENTS =
   "the comment files under `.plainva/sync` go up as a sideband of the sync, and are read and written where its steps read them (see `mobileCommentStore`)";
 const SIDEBAND = "the settings profile and the key file are sideband files of the sync (`.plainva/sync`), read and written where the sync's own steps read them";
@@ -100,7 +100,8 @@ const SITES: Record<string, Site[]> = {
   "screens/PimAccountsScreen.tsx": [["handed to listTemplates", 1, READS_ONLY]],
   "screens/SecurityAreaScreen.tsx": [["handed to resumeMobileWorkspaceSetup as vault", 1, WORKSPACE]],
   "screens/SecurityWizardScreen.tsx": [["handed to activatePreparedMobileWorkspace as vault", 1, WORKSPACE]],
-  "screens/SettingsAreaScreens.tsx": [["handed to listTemplates", 1, READS_ONLY]],
+  // The daily note's template picker; on the journal page since 2026-10-29 (E9).
+  "screens/JournalAreaScreen.tsx": [["handed to listTemplates", 1, READS_ONLY]],
   "screens/useOpenFileLookup.ts": [["handed to renameBookmarksOnDisk", 1, BOOKMARKS]],
   "services/accountVaultTransfer.ts": [
     ["builds CapacitorVaultAdapter", 1, NOT_OPEN],
@@ -126,8 +127,8 @@ const SITES: Record<string, Site[]> = {
     ["handed to keyfile.run", 1, SIDEBAND],
   ],
   "services/profileImportJournal.ts": [
-    ["calls writeTextFile", 1, `${BOOKMARKS} (the bookmarks an interrupted import had found are put back)`],
-    ["calls deleteItem", 1, `${BOOKMARKS} (…or taken away again, where there had been none)`],
+    ["handed to snapshotBookmarksFile", 1, `${BOOKMARKS} (the whole file, as an import finds it)`],
+    ["handed to restoreBookmarksFile", 1, `${BOOKMARKS} (put back as an interrupted import found it — or taken away again, where there had been none)`],
   ],
   "services/syncService.ts": [
     ["builds CapacitorVaultAdapter", 1, NOT_OPEN],
@@ -143,13 +144,16 @@ const SITES: Record<string, Site[]> = {
   "services/vaultService.ts": [
     ["builds CapacitorVaultAdapter", 2, `${BOOT}; ${NOT_OPEN} (\`createLocalVault\`)`],
     ["builds ExternalVaultAdapter", 1, BOOT],
-    ["handed to renameBookmarksOnDisk", 3, BOOKMARKS],
+    ["handed to renameBookmarksOnDisk", 4, BOOKMARKS],
     ["handed to importObsidianBookmarks", 1, BOOKMARKS],
     ["handed to toggleBookmarkOnDisk", 1, BOOKMARKS],
     ["handed to moveBookmarkOnDisk", 1, BOOKMARKS],
     ["handed to removeBookmarksOnDisk", 1, BOOKMARKS],
-    // pushRecent, and forgetRecent behind "Remove from list" in the Recent list (E8, 2026-10-24).
-    ["calls writeTextFile", 2, RECENTS],
+    // getRecents, pushRecent, and forgetRecent behind "Remove from list" in the Recent list (E8, 2026-10-24),
+    // since decision E7 of the bug clearing plan in this device's own file through the shared functions.
+    ["handed to readRecentsOnDisk", 1, RECENTS],
+    ["handed to pushRecentOnDisk", 1, RECENTS],
+    ["handed to forgetRecentOnDisk", 1, RECENTS],
   ],
 };
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { returnToApp, waitForVaultDirectory, type MobileTestGlobals, folderEntries } from "./exampleVault";
 import { installShareInbox } from "./shareInbox";
 
 /**
@@ -106,11 +106,8 @@ function readFile(page: Page, path: string): Promise<string | null> {
   }, path);
 }
 
-function listFolder(page: Page, folder: string): Promise<string[]> {
-  return page.evaluate(async (dir) => {
-    const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
-    return (await fs.readdir({ path: `vault/${dir}`, directory: "DATA" })).files.filter((f) => f.type === "file").map((f) => f.name).sort();
-  }, folder);
+async function listFolder(page: Page, folder: string): Promise<string[]> {
+  return (await folderEntries(page, `vault/${folder}`)).filter((f) => f.type === "file").map((f) => f.name).sort();
 }
 
 /** Every file below `folder` with its text, sorted by path. */
@@ -411,7 +408,9 @@ test("quick capture: New task from another tab opens the sheet, what it read sho
     await input.fill("tomorrow");
     await sheet.getByTestId("task-capture-submit").click();
     await expect(sheet.getByRole("alert")).toHaveText("The task needs a title.");
+    // What is typed is not thrown away unasked (finding 2026-10-22): Cancel asks, Discard closes.
     await sheet.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.getByTestId("confirm-act").click();
     await expect(sheet).toHaveCount(0);
     expect(await listFolder(page, "Aufgaben")).toEqual(["Call the plumber.md", "Order weekly planners.md", "Steuer abgeben.md"]);
     expect(errors).toEqual([]);
@@ -731,6 +730,12 @@ test("the due day on the phone: a box a finger can hit, a tap on the date opens 
     await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace("2026-09-19", "2026-09-21"));
 
     // The row's own sheet carries the same picker — the way a task without a date gets one.
+    // The notices of the moves above stand over the last rows now - above the
+    // bar and the "+", not over them (Sammelplan § 3.48) -, so they are put
+    // away first, as a finger would.
+    const notices = page.locator(".pv-toast");
+    for (let i = 0; i < 5 && (await notices.count()) > 0; i++) await notices.first().getByRole("button", { name: "Close" }).click();
+    await expect(notices).toHaveCount(0);
     const undated = page.getByTestId("task-row").filter({ hasText: "Ohne Datum" });
     const at = (await undated.locator(".pv-grouprow-title").boundingBox())!;
     const cdp = await page.context().newCDPSession(page);
@@ -862,7 +867,7 @@ test("change due date with quick choices and a time: Next week at 10:00 lands in
     await noteRow.getByTestId("task-due").click();
     await expect(sheet).toBeVisible();
     await expect(sheet.getByTestId("task-due-time-switch")).toHaveCount(0);
-    await expect(sheet.getByTestId("task-due-timerow")).toContainText("A checkbox in a note carries a day only");
+    await expect(sheet.getByTestId("task-due-timerow")).toContainText("Here a checkbox gets a day only.");
     await sheet.getByTestId("task-due-quick-none").click();
     await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace(" 📅 2026-09-19", ""));
     expect(errors).toEqual([]);
@@ -1037,6 +1042,46 @@ test("subtasks under their task, bullets as a preview, links as their text — a
     const noteBox = page.locator(".cm-content input.cm-md-task").first();
     await expect(noteBox).toBeVisible();
     expect(await noteBox.evaluate((el) => { const c = getComputedStyle(el); return [c.width, c.height, c.borderTopLeftRadius, c.appearance]; })).toEqual(["22px", "22px", "6px", "none"]);
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
+test("notes that took over a template's keys (open-items plan 3.136 no. 1, E2): the notice lists them, and only the ticked ones lose the keys", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const keys = '---\nplainva:\n  tasks: false\n  templateFor: ["[[Tasks.base]]"]\n---\n';
+  try {
+    await start(page, context, sql, [
+      ["Templates/Daily.md", `${keys}# Daily\n- [ ] example task\n`],
+      // A daily note made from that template by an older version: its task is missing.
+      ["Journal/2026-09-19.md", `${keys}# 2026-09-19\n- [ ] water the plants\n`],
+      // Hidden on purpose with the eye: the person keeps it hidden.
+      ["Hidden.md", "---\nplainva:\n  tasks: false\n---\n# Hidden\n- [ ] secret task\n"],
+    ]);
+    await openTasks(page);
+
+    const notice = page.getByTestId("template-keys-notice");
+    await expect(page.getByTestId("template-keys-banner")).toHaveText("Notes with keys from a template: 2", { timeout: 20_000 });
+    await expect(notice.getByTestId("template-keys-row")).toHaveCount(2);
+    await expect(notice.getByTestId("template-keys-row").nth(0)).toContainText("Hidden");
+    await expect(notice.getByTestId("template-keys-row").nth(1)).toContainText("2026-09-19");
+    await page.screenshot({ path: test.info().outputPath("phone-template-keys-notice.png") });
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: `${process.env.PLAINVA_EVIDENCE}/phone-template-keys-notice.png` });
+
+    // Untick the note hidden on purpose; remove asks first.
+    await notice.getByTestId("template-keys-pick").nth(0).uncheck();
+    await notice.getByTestId("template-keys-remove").click();
+    await expect(page.getByText("Remove the template keys?", { exact: true })).toBeVisible();
+    await page.getByTestId("confirm-act").click();
+    await expect(page.locator(".pv-toast").filter({ hasText: "Template keys removed from notes: 1" })).toBeVisible();
+
+    await expect.poll(() => readFile(page, "Journal/2026-09-19.md")).toBe("# 2026-09-19\n- [ ] water the plants\n");
+    expect(await readFile(page, "Hidden.md")).toBe("---\nplainva:\n  tasks: false\n---\n# Hidden\n- [ ] secret task\n");
+    expect(await readFile(page, "Templates/Daily.md")).toBe(`${keys}# Daily\n- [ ] example task\n`);
+    await expect(notice.getByTestId("template-keys-row")).toHaveCount(1, { timeout: 20_000 });
     expect(errors).toEqual([]);
   } finally {
     sql.close();

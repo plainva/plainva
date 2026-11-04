@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../test/helpers/timeBudget.js";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
@@ -211,11 +212,9 @@ describe("pre-write linter keeps what is legitimate", () => {
 
   it("stays quick on a text built to make it look back far, or read a long run again and again (strand 6, Nr. 12)", () => {
     for (const hostile of [`${"![".repeat(20_000)}${"](//attacker.example/x)".repeat(50)}`, `x ${"a=/".repeat(20_000)}`, `<a ${"x='".repeat(20_000)}`, `https://attacker.example/${")".repeat(20_000)}`, "https://a".repeat(11_000), "https://a.example/x?".repeat(5_000), "](".repeat(50_000), "]:".repeat(50_000)]) {
-      const started = Date.now();
-      const { text } = preWriteLint(hostile);
-      expect(text).not.toContain("](//attacker.example");
-      expect(text).not.toContain("https://attacker");
-      expect(Date.now() - started, hostile.slice(0, 12)).toBeLessThan(2_000);
+      const { text } = within(2_000, () => preWriteLint(hostile));
+      expect(text, hostile.slice(0, 12)).not.toContain("](//attacker.example");
+      expect(text, hostile.slice(0, 12)).not.toContain("https://attacker");
     }
   });
 

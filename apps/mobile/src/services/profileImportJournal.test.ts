@@ -26,7 +26,7 @@ vi.mock("@capacitor/core", () => ({
 }));
 
 import type { IVaultAdapter } from "@plainva/core";
-import { setPlatformServices, type ISettingsStore } from "@plainva/ui";
+import { setPlatformServices, toggleBookmarkOnDisk, type ISettingsStore } from "@plainva/ui";
 import {
   captureProfileSnapshot,
   clearProfileJournal,
@@ -206,5 +206,73 @@ describe("the way back out of a half-finished settings import (finding 2026-08-1
 
     await clearProfileJournal(VAULT);
     expect(files.has(profileJournalPath(VAULT))).toBe(false);
+  });
+
+  /**
+   * Sammelplan § 3.127 Nr. 1: the snapshot kept only the FILE bookmarks
+   * (`parsed.paths`), so rolling back an interrupted import wrote a list
+   * without a single folder — and the next profile upload carried
+   * `bookmarkFolders: []`, which every other device reads as "all folder
+   * bookmarks deleted". The snapshot now holds the file's whole text, as the
+   * desktop's always did.
+   */
+  it("gives the folder bookmarks back when it rolls back an interrupted import (§ 3.127 Nr. 1)", async () => {
+    const before = JSON.stringify({ items: [
+      { type: "folder", path: "Projects" },
+      { type: "file", path: "Notes/Keep.md" },
+      { type: "folder", path: "Areas/Health" },
+    ] }, null, 2);
+    const vaultFiles = new Map<string, string>([[".plainva/bookmarks.json", before]]);
+    const vault = mobileVault(vaultFiles);
+    await writeProfileJournal(VAULT, await captureProfileSnapshot(vault));
+
+    // ...the import replaces the list, then the process dies.
+    vaultFiles.set(".plainva/bookmarks.json", JSON.stringify({ items: [{ type: "file", path: "Notes/Imported.md" }] }));
+
+    expect(await recoverProfileImportIfNeeded(vault)).toBe(true);
+    expect(vaultFiles.get(".plainva/bookmarks.json")).toBe(before);
+  });
+
+  it("still reads a journal written before it kept the whole file, and leaves the folders alone", async () => {
+    const vaultFiles = new Map<string, string>([[".plainva/bookmarks.json", JSON.stringify({ items: [
+      { type: "folder", path: "Projects" },
+      { type: "file", path: "Notes/Imported.md" },
+    ] })]]);
+    const vault = mobileVault(vaultFiles);
+    const snapshot = await captureProfileSnapshot(vault);
+    // The old form: file paths only. It never knew the folders, so it must not
+    // be the one to delete them.
+    snapshot.bookmarks = { existed: true, paths: ["Notes/Keep.md"] };
+    await writeProfileJournal(VAULT, snapshot);
+
+    expect(await recoverProfileImportIfNeeded(vault)).toBe(true);
+    const restored = JSON.parse(vaultFiles.get(".plainva/bookmarks.json")!).items;
+    expect(restored).toEqual([{ type: "file", path: "Notes/Keep.md" }, { type: "folder", path: "Projects" }]);
+  });
+
+  it("rolls back on the bookmarks' own lane, so a star clicked in the same moment cannot write the import's list back", async () => {
+    const before = JSON.stringify({ items: [{ type: "folder", path: "Projects" }, { type: "file", path: "Notes/Keep.md" }] }, null, 2);
+    const vaultFiles = new Map<string, string>([[".plainva/bookmarks.json", before]]);
+    const vault = mobileVault(vaultFiles);
+    const snapshot = await captureProfileSnapshot(vault);
+    vaultFiles.set(".plainva/bookmarks.json", JSON.stringify({ items: [{ type: "file", path: "Notes/Imported.md" }] }));
+
+    // A star click has read the imported list and is about to write.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const adapter = vault.adapter as unknown as { writeTextFile: (p: string, t: string) => Promise<void> };
+    const plainWrite = adapter.writeTextFile;
+    let first = true;
+    adapter.writeTextFile = async (path, text) => {
+      if (first) { first = false; await gate; }
+      await plainWrite(path, text);
+    };
+    const star = toggleBookmarkOnDisk(vault.adapter, "Notes/Star.md");
+    await Promise.resolve();
+    const rollback = restoreProfileSnapshot(vault, snapshot);
+    release();
+    await Promise.all([star, rollback]);
+
+    expect(vaultFiles.get(".plainva/bookmarks.json")).toBe(before);
   });
 });

@@ -120,7 +120,7 @@ describe("the pull side leaves bookkeeping where it is", () => {
       getSyncState: vi.fn(async (p: string) => states.get(p) ?? null),
       updateLocalHashAndBaseText: vi.fn(), updateLocalHashAndBaseTextGuarded: vi.fn(),
       updateLocalHash: vi.fn(), updateLocalHashGuarded: vi.fn(), updateRemoteState: vi.fn(),
-      updateRemoteId: vi.fn(), updateBaseState: vi.fn(), updateBaseText: vi.fn(),
+      updateRemoteId: vi.fn(), updateBaseState: vi.fn(), recordSyncedBase: vi.fn(),
       clearPendingPushSha: vi.fn(), deleteSyncState: vi.fn(), getBaseText: vi.fn().mockResolvedValue(null),
     };
     const vault: any = {

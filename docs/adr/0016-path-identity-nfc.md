@@ -131,6 +131,31 @@ the plain-file sync.
   case-sensitive stores; folding them would make a write land in the wrong
   folder. They stay reported, not resolved.
 
+## Addendum 2026-11-03 (the card resolves a twin on request)
+
+A device report showed what rule 4 left behind: an iPhone syncing with Google
+Drive listed a long column of pairs `Aufgaben/Notiz.md ↔ Aufgaben/Notiz.md` —
+twins the cloud has held since before this decision, written by a device that
+stored names decomposed and uploaded its spelling as a name of its own. Both
+spellings look the same, so "rename one of the two" was not something a
+person could do, and on the phone the twin was not reachable at all.
+
+The decision stands: a twin is never merged or renamed by guesswork. What is
+added are two actions a person chooses on the card (`nameTwins.ts`), each
+acting only on facts read at that moment:
+
+- a twin whose bytes are the same as its composed file is a leftover copy and
+  is removed — never the composed file, never through the queue or the
+  deletion journal (which name paths by identity), always with the bytes kept
+  in the composed file's version history;
+- a twin with other bytes becomes a file of its own under a free composed
+  name (`Name (2).md`) and syncs like any other.
+
+Removal is not automatic. The deletion journal could not carry it (an entry
+would delete the composed note on every other device), Drive's DELETE has no
+trash, and a byte comparison that a later write could overtake is a decision
+a person should make once, not one the sync makes every cycle.
+
 ## Links
 
 - Issue #112; plan "Issues und Diskussionen" 2026-09-30, § 4 Teil O (O3, O4)
@@ -138,5 +163,6 @@ the plain-file sync.
 - `packages/core/src/sync/pathIdentity.ts`, `pathSpellings.ts`,
   `spellingSyncTarget.ts`, `packages/core/src/db/pathIdentityMigration.ts`.
 - `docs/engineering/Sync_Path_Identity.md`.
+- `packages/core/src/sync/nameTwins.ts` (addendum 2026-11-03).
 - Related: the encrypted workspace path rules
   (`packages/core/src/workspace/path.ts`, ADR 0014).

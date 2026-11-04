@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within, withinAsync } from "./helpers/timeBudget.js";
 import { peelBlockquotes, readAtxHeading, readBlockquoteLine } from "../src/markdownBlockLine.js";
 import { readFilterComparison } from "../src/vault/filterComparison.js";
 import { bumpRootOkfDeclaration, hasOkfVersionKey, readRootOkfDeclaration } from "../src/okf-migration.js";
@@ -15,12 +16,6 @@ import { linkTargetName } from "../src/vault/LinkResolver.js";
  * unchanged across the rewrite.
  */
 const N = 100_000;
-const within = (budgetMs: number, run: () => void) => {
-  const start = performance.now();
-  run();
-  expect(performance.now() - start).toBeLessThan(budgetMs);
-};
-
 describe("Markdown block lines", () => {
   it("reads an ATX heading the way the old pattern did", () => {
     expect(readAtxHeading("# Title #")).toEqual({ level: 1, text: "Title" });
@@ -127,9 +122,7 @@ describe("task note names", () => {
   it("runs in one pass over a long run", async () => {
     // Cut at 80 characters, the cut's own trailing dots and blanks go too.
     within(1_000, () => expect(taskNotePath("", `${". ".repeat(N / 2)}x`)).toBe("Task.md"));
-    const start = performance.now();
-    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored(`#${"\n".repeat(N)}`))).toBe("Tasks/Old 2.md");
-    expect(performance.now() - start).toBeLessThan(1_000);
+    await withinAsync(1_000, async () => expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored(`#${"\n".repeat(N)}`))).toBe("Tasks/Old 2.md"));
   });
 });
 

@@ -515,6 +515,56 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
 });
 
 /**
+ * A picture from the web in a message's text (open-items plan 3.79, decision
+ * E1). The editor and the reading view load a picture a note embeds from the
+ * web (`parse-budget.spec.ts`): filed unchanged, a tracking picture in the
+ * sender's text would be fetched each time the note opens. The filed note
+ * holds it as a link, and opening the note fetches nothing — in the editor and
+ * in the reading view. The phone holds the same in
+ * `apps/mobile/e2e-prod/mail-html-message.spec.ts`.
+ */
+test('a filed mail with pictures from the web: the note holds links, and opening it fetches nothing', async ({ page }, testInfo) => {
+  const fetched: string[] = [];
+  await page.route('https://pixel.example.org/**', (route: any) => {
+    fetched.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ status: 200, contentType: 'image/png', body: '' });
+  });
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = {
+      text: 'Hallo Marco,\n\n![](https://pixel.example.org/open.png?id=42)\n\nUnser Logo: ![Logo](https://pixel.example.org/logo.png)\n\n![[https://pixel.example.org/wiki.png]]\n\nGruß\n',
+      html: null,
+      attachments: [],
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-capture-note').click();
+  const filed = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const path = Object.keys(fs).find((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md'));
+      return path ? (fs[path] as string) : null;
+    });
+  await expect.poll(filed).toBeTruthy();
+  const note = (await filed())!;
+  expect(note).toContain('# Rechnung Q3\n\nHallo Marco,\n\n[https://pixel.example.org/open.png?id=42](https://pixel.example.org/open.png?id=42)\n\nUnser Logo: [Logo](https://pixel.example.org/logo.png)\n\n[https://pixel.example.org/wiki.png](https://pixel.example.org/wiki.png)\n\nGruß\n');
+  // The note opens in the editor: the links are there, nothing was fetched.
+  await expect(page.locator('.cm-content').getByText('Gruß')).toBeVisible({ timeout: 15000 });
+  await expect(page.locator('.cm-content').getByText('Logo', { exact: true })).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-filed-links-editor.png') });
+  await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+  const reader = page.locator('.markdown-reader').first();
+  await expect(reader.locator('a', { hasText: 'Logo' })).toHaveAttribute('href', 'https://pixel.example.org/logo.png');
+  await expect(reader.locator('img')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-filed-links-reader.png') });
+  // Long enough for a picture to have been asked for.
+  await page.waitForTimeout(1500);
+  expect(fetched).toEqual([]);
+});
+
+/**
  * A message without a plain-text part (finding 2026-10-09).
  *
  * Microsoft Graph hands a body over as HTML, and a sender is free to write
@@ -578,6 +628,61 @@ test('a message without a text part: reply and forward carry its text, the filed
   const note = (await filed())!;
   expect(note).toContain('# Rechnung Q3\n\nHallo Marco,\n\nanbei die Rechnung für Oktober.\n');
   expect(note).not.toContain('Rabatt');
+});
+
+/**
+ * A note filed while the message had no text gets it from a second "Als Notiz
+ * ablegen" (finding 2026-10-09, decision b): every message of a Microsoft
+ * mailbox was filed that way until 0.8.6. The first capture here is such a
+ * one — the double answers with no text at all —, the second sees the message
+ * as it is. The note is open in the editor between the two, and shows the text
+ * the second one put in. The phone holds the same in
+ * `apps/mobile/e2e-prod/mail-html-message.spec.ts`.
+ */
+test('a second "File as note" fills the note that was filed without the text of the message', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = { text: null, html: null, attachments: [] };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const subject = page.getByTestId('mail-subject');
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  const filed = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const path = Object.keys(fs).find((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md'));
+      return path ? (fs[path] as string) : null;
+    });
+  await page.getByTestId('mail-capture-note').click();
+  await expect.poll(filed).toBeTruthy();
+  // Properties and the title, nothing under it.
+  expect((await filed())!.trimEnd().endsWith('# Rechnung Q3')).toBe(true);
+  await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
+
+  // The message as it really is.
+  await page.evaluate(() => { delete (window as any).__fullMessage; });
+  await page.getByTestId('ribbon-mail').click();
+  const fetched = await page.evaluate(() => (window as any).__fetchAnswered ?? 0);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect.poll(() => page.evaluate(() => (window as any).__fetchAnswered ?? 0)).toBeGreaterThan(fetched);
+  await expect(subject).toHaveText('Rechnung Q3');
+  await expect.poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc')).toContain('anbei die');
+  await page.getByTestId('mail-capture-note').click();
+  await expect.poll(filed).toContain('# Rechnung Q3\n\nHallo,\n\nanbei die Rechnung.\n');
+  await expect(page.locator('.pv-toast').filter({ hasText: /was added to|eingesetzt/ })).toContainText('Rechnung Q3.md');
+  // One note, and the editor that holds it shows the text.
+  expect(await page.evaluate(() => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md')).length)).toBe(1);
+  await expect(page.locator('.cm-content').getByText('anbei die Rechnung.')).toBeVisible();
+
+  // Now it holds the text: a third capture only opens it.
+  const before = await filed();
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-capture-note').click();
+  await expect(page.locator('.cm-content').getByText('anbei die Rechnung.')).toBeVisible();
+  expect(await filed()).toBe(before);
 });
 
 /**
@@ -1084,6 +1189,133 @@ test('a Microsoft mailbox sends from the composer: through Graph, never through 
 });
 
 /**
+ * A file over one Graph request goes along (Sammelplan § 3.95 Nr. 3): until
+ * 2026-10-30 a Microsoft mailbox left every file over 2.8 MB behind, because
+ * Plainva attached each file in one request. Now the message becomes a draft,
+ * the file goes through an upload session in ranges, and the draft is sent.
+ *
+ * The answers are what Microsoft's reference describes for an upload session;
+ * that a real mailbox takes the file is not something a fake can show.
+ */
+test('a Microsoft mailbox sends a 5 MB file through an upload session', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    (window as any).__mailAccountsOverride = [
+      { id: 'ms', kind: 'microsoft', label: 'marco@outlook.com', host: '', port: 0, user: 'marco@outlook.com', clientId: 'cid' },
+    ];
+    const SIZE = 5 * 1024 * 1024;
+    const file = new Uint8Array(SIZE);
+    for (let i = 0; i < SIZE; i += 1) file[i] = (i * 31 + (i >> 8)) & 0xff;
+    const UPLOAD = "https://outlook.office.com/api/v2.0/Users('u')/Messages('d1')/AttachmentSessions('s1')?authtoken=SESSION";
+    const received = new Uint8Array(SIZE);
+    let receivedBytes = 0;
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    const requests = new Map<number, { url: string; status: number; body: string; read: boolean }>();
+    let nextRequest = 1;
+    (window as any).__graphCalls = [];
+    (window as any).__uploadCheck = () => {
+      if (receivedBytes !== SIZE) return `received ${receivedBytes} of ${SIZE}`;
+      for (let i = 0; i < SIZE; i += 1) if (received[i] !== file[i]) return `byte ${i} differs`;
+      return 'same';
+    };
+    const reply = (method: string, url: string, headers: Record<string, string>, data: Uint8Array): { status: number; json: unknown } => {
+      if (url === UPLOAD) {
+        if (method === 'DELETE') return { status: 204, json: null };
+        const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(headers['content-range'] ?? '');
+        if (method !== 'PUT' || !range || Number(range[3]) !== SIZE || data.length !== Number(range[2]) - Number(range[1]) + 1) return { status: 400, json: { error: { code: 'badRange' } } };
+        received.set(data, Number(range[1]));
+        receivedBytes += data.length;
+        return Number(range[2]) + 1 >= SIZE ? { status: 201, json: null } : { status: 200, json: { nextExpectedRanges: [`${Number(range[2]) + 1}-`] } };
+      }
+      const path = url.replace('https://graph.microsoft.com/v1.0', '');
+      if (method === 'POST' && path === '/me/messages') return { status: 201, json: { id: 'd1' } };
+      if (method === 'POST' && path === '/me/messages/d1/attachments/createUploadSession') return { status: 201, json: { uploadUrl: UPLOAD, nextExpectedRanges: ['0-'] } };
+      if (method === 'POST' && path === '/me/messages/d1/send') return { status: 202, json: null };
+      if (method !== 'GET') return { status: 404, json: { error: { code: 'unexpected' } } };
+      if (path.startsWith('/me/mailFolders?')) {
+        return { status: 200, json: { value: [{ id: 'f-in', displayName: 'Posteingang', childFolderCount: 0 }, { id: 'f-dr', displayName: 'Entwürfe', childFolderCount: 0 }] } };
+      }
+      if (path.startsWith('/me/mailFolders/inbox?')) return { status: 200, json: { id: 'f-in' } };
+      if (path.startsWith('/me/mailFolders/drafts?')) return { status: 200, json: { id: 'f-dr' } };
+      if (/^\/me\/mailFolders\/[^/?]+\/messages\?/.test(path)) return { status: 200, json: { value: [], '@odata.count': 0 } };
+      if (/^\/me\/mailFolders\/f-(in|dr)\?/.test(path)) return { status: 200, json: { unreadItemCount: 0 } };
+      return { status: 404, json: { error: { code: 'ErrorItemNotFound' } } };
+    };
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'oauth_token_request') return { status: 200, body: JSON.stringify({ access_token: 'graph-token', refresh_token: 'rt', expires_in: 3600 }) };
+      if (cmd === 'plugin:dialog|open') return 'C:\\Videos\\Film.mp4';
+      if (cmd === 'plugin:fs|read_file' && String(args?.path ?? options?.headers?.path ?? '').includes('Film.mp4')) return file.buffer.slice(0);
+      if (cmd === 'plugin:http|fetch') {
+        const cfg = args.clientConfig;
+        const id = nextRequest++;
+        const headers: Record<string, string> = {};
+        for (const [k, v] of cfg.headers as string[][]) headers[k.toLowerCase()] = v;
+        const data = cfg.data ? new Uint8Array(cfg.data) : new Uint8Array(0);
+        const answer = reply(cfg.method, cfg.url, headers, data);
+        requests.set(id, { url: cfg.url, status: answer.status, body: answer.json === null ? '' : JSON.stringify(answer.json), read: false });
+        (window as any).__graphCalls.push({
+          method: cfg.method,
+          url: cfg.url,
+          authorization: headers.authorization ?? null,
+          range: headers['content-range'] ?? null,
+          body: cfg.url === UPLOAD ? '' : new TextDecoder().decode(data),
+        });
+        return id;
+      }
+      if (cmd === 'plugin:http|fetch_send') {
+        const request = requests.get(args.rid)!;
+        return { status: request.status, statusText: '', url: request.url, headers: [['content-type', 'application/json']], rid: args.rid };
+      }
+      if (cmd === 'plugin:http|fetch_read_body') {
+        const request = requests.get(args.rid)!;
+        if (request.read) return [1];
+        request.read = true;
+        return [...new TextEncoder().encode(request.body), 0];
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-subject').fill('Film');
+  await page.getByTestId('draft-attach-file').click();
+  // The file goes: no "too large for this mailbox", no bound named.
+  await expect(page.getByTestId('draft-attachments')).toContainText('Film.mp4');
+  await expect(page.getByTestId('draft-files-limit')).toHaveCount(0);
+  await page.getByTestId('draft-send').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  const steps = () => page.evaluate(() => ((window as any).__graphCalls as any[])
+    .filter((c) => c.method !== 'GET')
+    .map((c) => (c.url.startsWith('https://outlook.office.com/') ? `${c.method} session ${c.range}` : `${c.method} ${c.url.replace('https://graph.microsoft.com/v1.0', '')}`)));
+  await expect.poll(async () => (await steps()).at(-1), { timeout: 30_000 }).toBe('POST /me/messages/d1/send');
+  const total = 5 * 1024 * 1024;
+  const chunk = 10 * 320 * 1024;
+  expect(await steps()).toEqual([
+    'POST /me/messages',
+    'POST /me/messages/d1/attachments/createUploadSession',
+    `PUT session bytes 0-${chunk - 1}/${total}`,
+    `PUT session bytes ${chunk}-${total - 1}/${total}`,
+    'POST /me/messages/d1/send',
+  ]);
+  const calls = await page.evaluate(() => (window as any).__graphCalls as any[]);
+  const session = calls.find((c) => c.url.endsWith('/createUploadSession'));
+  expect(JSON.parse(session.body)).toEqual({ AttachmentItem: { attachmentType: 'file', name: 'Film.mp4', size: total, contentType: 'application/octet-stream' } });
+  // The session's address carries its own authorisation: no token for outlook.office.com.
+  for (const put of calls.filter((c) => c.url.startsWith('https://outlook.office.com/'))) expect(put.authorization).toBeNull();
+  expect(await page.evaluate(() => (window as any).__uploadCheck())).toBe('same');
+  // The draft is the message, without the file in it.
+  const draft = JSON.parse(calls.find((c) => c.method === 'POST' && c.url.endsWith('/me/messages')).body);
+  expect(draft.subject).toBe('Film');
+  expect(draft).not.toHaveProperty('attachments');
+});
+
+/**
  * The counterpart: an account that really has no way to send keeps the hint.
  * A mailbox connected for reading only (IMAP without an SMTP host) is a valid
  * setup, and there the composer still says what is missing instead of offering
@@ -1258,9 +1490,16 @@ test('mail tab without accounts: ribbon entry is gated away, palette still opens
   await expect(page.getByTestId('mail-view')).toBeVisible();
   await expect(page.getByTestId('mail-open-settings')).toBeVisible();
   await page.getByTestId('mail-open-settings').click();
-  // The empty state deep-links into the new Cloud accounts area.
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByTestId('cloudacct-add')).toBeVisible();
+  // The empty state deep-links into Cloud accounts - into the connect
+  // assistant, with its own service ticked (settings plan 2026-10-29, E7).
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: /^(Cloud-Konten|Cloud accounts)$/ })).toBeVisible();
+  await expect(dialog.getByTestId('cloudacct-tile-search')).toBeVisible();
+  await dialog.getByTestId('cloudacct-provider-google').click();
+  await expect(dialog.getByTestId('cloudacct-svc-mail')).toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-files')).not.toBeChecked();
+  await expect(dialog.getByTestId('cloudacct-svc-calendar')).not.toBeChecked();
 });
 
 test('mail: switching accounts never loads the previous provider\'s folder name', async ({ page }) => {
@@ -1397,10 +1636,11 @@ test('mail: the cache is read before the network, and the banner says so (P7.1)'
     (window as any).__cachedEnvelopes = [
       { id: '77', subject: 'Aus dem Cache', sender: 'Cache <cache@example.org>', date_ts: Date.now(), seen: 1, flagged: 0, preview: 'lokal' },
     ];
-    (window as any).__cachedBody = JSON.stringify({
+    // Stored in the body form of this build (`MAIL_BODY_FORMAT`, § 3.83).
+    (window as any).__cachedBody = JSON.stringify({ format: 2, message: {
       id: '77', subject: 'Aus dem Cache', from: 'Cache <cache@example.org>',
       date: new Date().toISOString(), text: 'Aus dem lokalen Cache', html: null, attachments: [],
-    });
+    } });
     // Without a slow server the refresh lands before Playwright can look, and
     // the test would be measuring the mock rather than the app.
     (window as any).__slowList = 1500;
@@ -1677,6 +1917,40 @@ test('a reply goes out from the mailbox the message is in, not from the first on
   const sent = await sendFromSecondMailbox(page);
   expect(sent.to).toBe('anna@example.org');
   expect(sent.subject).toBe('Re: Rechnung Q3');
+});
+
+/**
+ * Decision E6 (Sammelplan § 3.58 Nr. 3): a reply note names the mailbox the
+ * message is in, and sent later it starts from there — it started from the
+ * first mailbox stored, whatever the message was answered from.
+ */
+test('a reply note names its mailbox, and the note sent later starts from it (E6)', async ({ page }) => {
+  await openSecondMailbox(page);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-reply-note').click();
+  const reply = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const p = Object.keys(fs).find((k) => k.includes('/Mail/') && k.includes('Re Rechnung'));
+      return p ? (fs[p] as string) : null;
+    });
+  await expect.poll(reply).toContain('mailbox: zweit@example.net');
+  expect(await reply()).toContain('to: Anna Beispiel <anna@example.org>');
+
+  await expect(page.locator('.cm-content').getByText('Re: Rechnung Q3').first()).toBeVisible();
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await expect(palette).toBeVisible();
+  await palette.getByRole('textbox').fill('draft');
+  await palette.getByRole('button', { name: /email draft|E-Mail-Entwurf/i }).click();
+  await expectSecondMailbox(page);
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.screenshot({ path: test.info().outputPath('reply-note-from-its-mailbox.png') });
+  }
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('Anna Beispiel <anna@example.org>');
 });
 
 test('a forward goes out from the mailbox the message is in', async ({ page }) => {
@@ -2411,6 +2685,190 @@ test('conversations: a reply from Sent with the number of an unread message of t
   expect(await page.evaluate(() => (window as any).__seenCalls ?? [])).toEqual([]);
 });
 
+/**
+ * One number in two folders (plan P1).
+ *
+ * IMAP numbers each folder on its own: your reply in Sent can carry the number
+ * of a message in the inbox (`__sentReplyUid = 3` gives it the number of the
+ * inbox's unread "Re: Rechnung Q3"). With conversations on, both stand in one
+ * thread. Every row is named by its address — account, folder, number — so
+ * what is done to the one in Sent reaches Sent, and the one in the inbox stays
+ * as it was; and the other way round. The reader's bar, the row menu and the
+ * selection named the open message by its bare number and acted in the folder
+ * on screen: the inbox's message was marked, starred, moved or reported.
+ */
+async function openSharedNumberThread(page: any, knobs: Record<string, unknown> = {}) {
+  await page.addInitScript((given: Record<string, unknown>) => {
+    (window as any).__threadFixture = true;
+    (window as any).__sentReplyUid = 3;
+    Object.assign(window, given);
+  }, knobs);
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-thread-row').first().click();
+  const fromSent = page.getByTestId('mail-thread-message').filter({ has: page.getByTestId('mail-thread-folder') });
+  // The inbox's "Re: Rechnung Q3" — number 3 there, unread; the newest of the thread.
+  const inboxReply = page.getByTestId('mail-thread-message').filter({ hasNot: page.getByTestId('mail-thread-folder') }).last();
+  await expect(fromSent).toHaveCount(1);
+  await expect(inboxReply).not.toHaveClass(/(^|\s)read(\s|$)/);
+  return { fromSent, inboxReply };
+}
+
+const lastBulk = (page: any) => page.evaluate(() => ((window as any).__bulkCalls ?? []).at(-1) ?? null);
+
+test('one number in two folders: read, star and delete on the reply in Sent reach Sent, and leave the inbox message alone', async ({ page }) => {
+  const { fromSent, inboxReply } = await openSharedNumberThread(page);
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__fetchCalls.at(-1))).toEqual({ user: 'marco@example.org', mailbox: 'Sent', uid: 3 });
+  // Its row is the open one, and only it: the inbox's number 3 is another row.
+  await expect(page.locator('[data-testid="mail-thread-message"].on')).toHaveCount(1);
+  await expect(fromSent).toHaveClass(OPEN_ROW);
+
+  // The reply is read, so the bar offers "unread" — read off ITS row, not the
+  // inbox's unread number 3.
+  const seen = page.getByTestId('mail-mark-seen');
+  await expect(seen).toHaveAttribute('aria-label', /unread|ungelesen/i);
+  await seen.click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'seen', value: false } });
+
+  await page.getByTestId('mail-flag').click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'flagged', value: true } });
+  expect((await page.evaluate(() => (window as any).__bulkCalls)).every((c: any) => c.mailbox === 'Sent')).toBe(true);
+
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'move', target: 'Trash' } });
+  // The reply has left the conversation; the inbox message with the same
+  // number is still there, unread, and nothing was asked of the inbox.
+  await expect(fromSent).toHaveCount(0);
+  await expect(inboxReply).toBeVisible();
+  await expect(inboxReply).not.toHaveClass(/(^|\s)read(\s|$)/);
+  expect((await page.evaluate(() => (window as any).__bulkCalls)).filter((c: any) => c.mailbox === 'INBOX')).toEqual([]);
+});
+
+test('one number in two folders: the inbox message is acted on in the inbox, and the reply in Sent stays', async ({ page }) => {
+  const { fromSent, inboxReply } = await openSharedNumberThread(page);
+  await inboxReply.click({ button: 'right' });
+  await page.getByTestId('mail-ctx-read').click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'INBOX', uids: [3], action: { kind: 'seen', value: true } });
+  await inboxReply.click({ button: 'right' });
+  await page.getByTestId('mail-ctx-move').click();
+  await page.getByRole('menuitem', { name: /Entwürfe/ }).click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'INBOX', uids: [3], action: { kind: 'move' } });
+  await expect(fromSent).toHaveCount(1);
+  expect((await page.evaluate(() => (window as any).__bulkCalls)).filter((c: any) => c.mailbox === 'Sent')).toEqual([]);
+});
+
+test('one number in two folders: Move from the bar and Spam take the reply out of Sent', async ({ page }) => {
+  const { fromSent } = await openSharedNumberThread(page, { __withJunk: true });
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  await page.getByTestId('mail-junk').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__moved ?? null)).toEqual({ user: 'marco@example.org', mailbox: 'Sent', uid: 3, target: 'Junk' });
+  expect(await page.evaluate(() => (window as any).__junk)).toEqual([{ mailbox: 'Sent', uid: 3, junk: true }]);
+});
+
+test('one number in two folders: Move from the reader moves the reply out of Sent', async ({ page }) => {
+  const { fromSent } = await openSharedNumberThread(page);
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  await page.getByTestId('mail-move').click();
+  // Sent is where it lies — not offered; the inbox is.
+  await expect(page.getByRole('menuitem', { name: /^Sent$/ })).toHaveCount(0);
+  await page.getByRole('menuitem', { name: /^INBOX$/ }).click();
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [3], action: { kind: 'move', target: 'INBOX' } });
+});
+
+test('a conversation in the trash: Delete on your reply from Sent moves it to the trash, it is not deleted for good', async ({ page }) => {
+  // In the trash, Delete removes for good — what lies in the trash. Your reply
+  // read along from Sent does not: it was offered "Delete permanently" and
+  // deleted at its address in Sent, past the trash (open-items plan 3.137 no. 1).
+  await page.addInitScript(() => { (window as any).__threadFixture = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.locator('[data-testid="mail-folder"][data-tip="Trash"]').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Trash/);
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-thread-row').first().click();
+  const fromSent = page.getByTestId('mail-thread-message').filter({ has: page.getByTestId('mail-thread-folder') });
+  await fromSent.click();
+  await expect(page.getByTestId('mail-subject')).toBeVisible();
+  await expect(page.getByTestId('mail-delete')).toHaveAttribute('aria-label', /^(Delete|Löschen)$/);
+  await page.getByTestId('mail-delete').click();
+  await confirmDelete(page);
+  await expect.poll(() => lastBulk(page)).toMatchObject({ mailbox: 'Sent', uids: [91], action: { kind: 'move', target: 'Trash' } });
+  // A message that lies in the trash is still deleted for good from there.
+  const inTrash = page.getByTestId('mail-thread-message').filter({ hasNot: page.getByTestId('mail-thread-folder') }).first();
+  await inTrash.click();
+  await expect(page.getByTestId('mail-delete')).toHaveAttribute('aria-label', /permanently|Endgültig/i);
+});
+
+test('all inboxes with conversations: picked rows are read where they lie, in each mailbox', async ({ page }) => {
+  // The selection id put the OPEN account in front of a row's address — an
+  // address inside an address. Marking read sent nothing and reported the
+  // row as unconfirmed under the first mailbox (open-items plan 3.110 no. 1).
+  await openFirstMailbox(page);
+  await page.getByTestId('mail-filter-threads').click();
+  await page.getByTestId('mail-all-inboxes').click();
+  const unread = page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' });
+  await expect(unread).toHaveCount(2);
+  await unread.nth(0).click({ modifiers: ['ControlOrMeta'] });
+  await unread.nth(1).click({ modifiers: ['ControlOrMeta'] });
+  await page.getByTestId('mail-bulk-read').click();
+  await expect.poll(() => page.evaluate(() => ((window as any).__bulkCalls ?? []).map((c: any) => `${c.user}|${c.mailbox}|${c.uids.join(',')}`).sort()))
+    .toEqual(['marco@example.org|INBOX|2', 'zweit@example.net|Posteingang|2']);
+  await expect(page.getByTestId('mail-bulk-report')).toHaveCount(0);
+});
+
+test('all inboxes: a row put aside leaves the merged list and its own folder, and nothing else', async ({ page }) => {
+  // Snoozing in the merged list noted the OPEN mailbox and the folder behind
+  // the list, under the merged row's id: the row stayed, behind a notice that
+  // it was put aside (open-items plan 3.137 no. 5).
+  await openFirstMailbox(page, { __secondTrash: true });
+  await showAllInboxes(page);
+  await rowOf(page, 'Privat').click({ button: 'right' });
+  await page.getByTestId('mail-ctx-snooze').click();
+  await page.getByTestId('mail-snooze-laterToday').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+  await expect(rowOf(page, 'Privat')).toHaveCount(0);
+  await expect(rowOf(page, 'Arbeit')).toHaveCount(1);
+  // In its own folder it is put aside too; the first mailbox's number 2 is not.
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(1);
+  await accountChooser(page).click();
+  await page.getByRole('option', { name: 'Privat', exact: true }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/);
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(1);
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(0);
+});
+
+test('all inboxes: Undo on the notice of a snooze brings the row back, in the merged list and in its own folder', async ({ page }) => {
+  // Decision E17: snooze is offered in "All inboxes", put aside where the row
+  // lies - and a snooze by mistake is taken back from its notice, as a move to
+  // the trash is.
+  await openFirstMailbox(page, { __secondTrash: true });
+  await showAllInboxes(page);
+  await rowOf(page, 'Privat').click({ button: 'right' });
+  await page.getByTestId('mail-ctx-snooze').click();
+  await page.getByTestId('mail-snooze-laterToday').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(3);
+  await expect(page.getByTestId('mail-filter-snoozed')).toHaveCount(1);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('all-inboxes-snooze-notice.png') });
+  await page.locator('.pv-toast').filter({ hasText: /Snoozed until|Zurückgestellt bis/ }).locator('.pv-toast-action').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+  await expect(rowOf(page, 'Privat')).toHaveCount(1);
+  // Nothing is put aside any more: the way to the snoozed messages goes too.
+  await expect(page.getByTestId('mail-filter-snoozed')).toHaveCount(0);
+  // And in its own folder it is there.
+  await page.getByTestId('mail-all-inboxes').click();
+  await accountChooser(page).click();
+  await page.getByRole('option', { name: 'Privat', exact: true }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/);
+  await expect(page.getByTestId('mail-envelope').filter({ hasText: 'Rechnung Q3' })).toHaveCount(1);
+});
+
 test('a folder with no messages says so — again after another folder, and after a refresh', async ({ page }) => {
   // "No messages." waits for the list of the folder that is shown; once that
   // list is in, it must come, every time.
@@ -2516,7 +2974,8 @@ test('conversations: Open in the menu of a message from Sent opens it in Sent, w
   // Its row in Sent is the open one, and the reader never closed on the way …
   const thread = page.getByTestId('mail-thread-row').filter({ hasText: 'Rechnung Q3' });
   if ((await thread.getAttribute('aria-expanded')) !== 'true') await thread.click();
-  await expect(page.locator('[data-testid="mail-thread-message"][data-nav-id="91"]')).toHaveClass(OPEN_ROW);
+  // In Sent it is a row of the folder on screen (no folder tag): your reply, by its sender.
+  await expect(page.getByTestId('mail-thread-message').filter({ hasText: 'Marco' })).toHaveClass(OPEN_ROW);
   expect((await readerCount(page)).closed).toBe(0);
   // … and the bar acts on it there: the reply is read, so it offers "unread".
   const seen = page.getByTestId('mail-mark-seen');
@@ -2784,13 +3243,17 @@ test('out-of-office: with a Sieve server the form appears and names where the no
 
   await expect(dlg.getByTestId('vacation-enabled')).toBeVisible();
   await expect(dlg.getByTestId('vacation-message')).toBeVisible();
-  // The sentence that makes the feature honest: it keeps answering without us.
+  // The sentence that makes the feature honest: it keeps answering without us —
+  // one state line since the settings plan of 2026-10-29 (B3) …
   const where = dlg.getByTestId('vacation-where');
-  await expect(where).toContainText('sieve.example.org');
   await expect(where).toContainText(/Plainva is closed|Plainva geschlossen/i);
-  // ...and it never claims to own the whole script.
-  await expect(where).toContainText(/hand-written|von Hand/i);
-  await expect(where).not.toContainText('{{');
+  // … and WHICH server, and that it never claims the whole script, behind its info.
+  await dlg.getByRole('button', { name: /^(Mehr zu Abwesenheitsnotiz|More about Out-of-office notice)$/ }).click();
+  const info = dlg.locator('.pv-infotip-panel');
+  await expect(info).toContainText('sieve.example.org');
+  await expect(info).toContainText(/hand-written|von Hand/i);
+  await expect(info).not.toContainText('{{');
+  await page.keyboard.press('Escape');
 });
 
 test('rules: a local rule files a fetched message, and the card says what "local" means', async ({ page }) => {
@@ -2821,7 +3284,7 @@ test('rules: a local rule files a fetched message, and the card says what "local
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
   const where = dlg.getByTestId('rules-where');
-  await expect(where).toContainText(/only while Plainva is open|nur, während Plainva geöffnet/i);
+  await expect(where).toContainText(/only while Plainva is open|solange Plainva offen/i);
   await expect(where).toContainText(/fetched|abgerufen/i);
   await expect(where).not.toContainText('{{');
 });
@@ -2865,10 +3328,14 @@ test('rules: storing them with the provider writes the rule AND keeps a hand-wri
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
 
-  // With a Sieve server the card says the rule outlives a closed Plainva.
-  // "runs on the server" is only believable when it says WHICH one.
-  await expect(dlg.getByTestId('rules-where')).toContainText(/Plainva is closed|Plainva geschlossen/i);
-  await expect(dlg.getByTestId('rules-where')).toContainText('sieve.mailbox.org');
+  // With a Sieve server the state line says the rules run here until they are
+  // stored there; the info says they then outlive a closed Plainva — and on
+  // WHICH server, or "runs on the server" would not be believable.
+  await expect(dlg.getByTestId('rules-where')).toContainText(/store the rules|beim Anbieter hinterlegst/i);
+  await dlg.getByRole('button', { name: /^(Mehr zu Regeln|More about Rules)$/ }).click();
+  await expect(dlg.locator('.pv-infotip-panel')).toContainText(/Plainva is closed|Plainva geschlossen/i);
+  await expect(dlg.locator('.pv-infotip-panel')).toContainText('sieve.mailbox.org');
+  await page.keyboard.press('Escape');
 
   await dlg.getByTestId('rules-publish').click();
   const put = await expect
@@ -2934,10 +3401,11 @@ test('rules: a Microsoft mailbox is offered the server-side path and says so', a
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
 
-  await expect(dlg.getByTestId('rules-where')).toContainText('Microsoft');
   await expect(dlg.getByTestId('rules-where')).toContainText(/Plainva is closed|Plainva geschlossen/i);
-  // It never claims to own the mailbox's other rules.
-  await expect(dlg.getByTestId('rules-where')).toContainText(/created itself|selbst angelegt/i);
+  // It never claims to own the mailbox's other rules — said behind the info.
+  await dlg.getByRole('button', { name: /^(Mehr zu Regeln|More about Rules)$/ }).click();
+  await expect(dlg.locator('.pv-infotip-panel')).toContainText(/created itself|selbst angelegt/i);
+  await page.keyboard.press('Escape');
   await expect(dlg.getByTestId('rules-publish')).toBeVisible();
 });
 
@@ -2976,7 +3444,7 @@ test('rules: filing as a note runs on a fetched message, and twice gives one not
   await page.keyboard.press('Control+,');
   const dlg = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
   await dlg.getByRole('button', { name: /^(E-Mail|Email)$/ }).click();
-  await expect(dlg.getByTestId('rules-local-action')).toContainText(/only Plainva|nur Plainva/i);
+  await expect(dlg.getByTestId('rules-local-action')).toContainText(/only in Plainva|nur in Plainva/i);
 });
 
 test('mail list: a mailbox never signed in HERE offers the sign-in instead of a raw error', async ({ page }) => {
@@ -3661,6 +4129,124 @@ test('a plain-text message has links, with the same bar', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as any).__openedUrls ?? [])).toEqual(['https://nordlicht.example/r?id=1']);
   // The app did not navigate away.
   await expect(page.getByTestId('mail-view')).toBeVisible();
+});
+
+/**
+ * A long plain-text mail in the text view (open-items plan 3.76). Over IMAP
+ * the desktop's command reported every plain-text mail with HTML that
+ * mail-parser made out of the text, so the reader showed it in the frame: no
+ * links, and a run of blanks fell together. The command reports `html: null`
+ * for it now (`a_plain_text_message_has_no_html` in `mail_imap.rs`), which is
+ * the shape the double answers with here: what the text view does with a long
+ * real mail — its lines, indents and a table of blanks, a long address.
+ */
+test('a long plain-text mail keeps its lines, its blanks and its links in the text view', async ({ page }, testInfo) => {
+  const text =
+    'Hallo Marco,\n\nhier die Zahlen für das dritte Quartal, wie besprochen:\n\n' +
+    '  Monat      Umsatz     Kosten\n  Juli       12.400      8.100\n  August     11.900      7.950\n  September  13.250      8.420\n\n' +
+    'Die ausführliche Fassung liegt unter https://nordlicht.example/kunden/berichte/2026/q3/umsatz-und-kosten-ausfuehrlich?format=pdf&ref=mail-2026-10 bereit.\n\n' +
+    'Eine sehr lange Zeile ohne Umbruch, damit man sieht, wie der Text an der Breite des Lesebereichs umbricht und nicht seitlich aus dem Fenster läuft, auch wenn der Absender keinen einzigen Zeilenumbruch gesetzt hat.\n\n' +
+    '> Zitat aus der letzten Mail:\n> Bitte bis Freitag.\n\nViele Grüße\nAnna\n-- \nAnna Beispiel · buchhaltung@nordlicht.example\n';
+  await page.addInitScript((body: string) => {
+    (window as any).__fullMessage = { html: null, text: body, attachments: [] };
+  }, text);
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  const view = page.getByTestId('mail-text');
+  await expect(view).toBeVisible();
+  await expect(page.getByTestId('mail-frame')).toHaveCount(0);
+  expect(await view.evaluate((el: HTMLElement) => el.textContent)).toBe(text);
+  // Blanks stay blanks, lines stay lines.
+  expect(await view.evaluate((el: HTMLElement) => getComputedStyle(el).whiteSpace)).toBe('pre-wrap');
+  // A web address is a link; a mail address in a plain text is not, on either shell.
+  await expect(view.locator('a.pv-maillink')).toHaveCount(1);
+  // The long line breaks at the width of the reading area: nothing runs out sideways.
+  expect(await view.evaluate((el: HTMLElement) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-plain-text-long.png') });
+});
+
+/**
+ * A mail address in a message opens Plainva's composer (open-items plan
+ * 3.82), from the mailbox the message lies in, with recipient, subject and
+ * text from the link — the phone has done it so since M1. The desktop handed
+ * it to the system's mail program. The phone holds the same in
+ * `apps/mobile/e2e-prod/mail.spec.ts`.
+ */
+test('a mail address in a message of the second mailbox opens the composer from that mailbox', async ({ page }, testInfo) => {
+  await openSecondMailbox(page, {
+    html: '<p>Fragen an die <a id="mail" href="mailto:buchhaltung@nordlicht.example?subject=Frage%20zu%20Q3&amp;body=Hallo%20Buchhaltung">Buchhaltung</a>.</p>',
+    text: null,
+  });
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect.poll(() => page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => !!el.contentDocument?.querySelector('#mail'))).toBe(true);
+
+  // A click: the composer, addressed — not the system's mail program.
+  await page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => (el.contentDocument!.querySelector('#mail') as HTMLElement).click());
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'buchhaltung@nordlicht.example' })).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Frage zu Q3');
+  await expect(page.getByTestId('draft-body')).toContainText('Hallo Buchhaltung');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-mailto-composer.png') });
+  expect(await page.evaluate(() => (window as any).__openedUrls ?? [])).toEqual([]);
+  await page.getByTestId('draft-close').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // The link's own menu names it as the phone does, and goes the same way.
+  const at = await hoverInFrame(page, '#mail');
+  await page.mouse.click(at.x, at.y, { button: 'right' });
+  await expect(page.getByTestId('mail-link-open')).toHaveText('New message');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-mailto-menu.png') });
+  await page.getByTestId('mail-link-open').click();
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'buchhaltung@nordlicht.example' })).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__openedUrls ?? [])).toEqual([]);
+});
+
+/**
+ * "+ .eml" on a message filed before (open-items plan 3.77): the desktop
+ * fetched and stored the raw copy only when the note was new in the same
+ * step; a note that was there opened without it, without a word. One rule for
+ * both shells now (`addEmlToMailNote`); the phone holds the same in
+ * `apps/mobile/e2e-prod/mail.spec.ts`.
+ */
+test('"+ .eml" gives a note filed before its raw copy, once', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  const subject = page.getByTestId('mail-subject');
+  const open = async () => {
+    await page.getByTestId('ribbon-mail').click();
+    await page.getByTestId('mail-envelope').first().click();
+    await expect(subject).toHaveText('Rechnung Q3');
+  };
+  const files = (ending: string) =>
+    page.evaluate((end: string) => Object.keys((window as any).mockFs).filter((p) => p.startsWith('/test-vault/Mail/') && p.endsWith(end)).sort(), ending);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(subject).toHaveText('Rechnung Q3');
+
+  // Filed without the raw copy first.
+  await page.getByTestId('mail-capture-note').click();
+  await expect.poll(() => files('.md')).toHaveLength(1);
+  const [note] = await files('.md');
+  await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
+
+  // "+ .eml" now: the note that is there gets the raw copy, and the editor that holds it shows the link.
+  await open();
+  await page.getByTestId('mail-capture-eml').click();
+  await expect.poll(() => files('.eml')).toHaveLength(1);
+  const [eml] = await files('.eml');
+  const link = `[[${eml.slice('/test-vault/'.length)}]]`;
+  await expect.poll(() => page.evaluate((p: string) => (window as any).mockFs[p] as string, note)).toContain(link);
+  await expect(page.locator('.pv-toast').filter({ hasText: /Raw copy added|Rohkopie/ })).toHaveCount(1);
+  expect(await files('.md')).toEqual([note]);
+
+  // Once: a second "+ .eml" adds nothing and says the note is there.
+  await open();
+  await page.getByTestId('mail-capture-eml').click();
+  await expect(page.locator('.pv-toast').filter({ hasText: /already exists|schon eine Notiz/ })).toHaveCount(1);
+  expect(await files('.eml')).toEqual([eml]);
+  expect((await page.evaluate((p: string) => (window as any).mockFs[p] as string, note)).split(link)).toHaveLength(2);
 });
 
 test('spam: "always load remote images" does not reach into the junk folder, and the release holds for one view', async ({ page }, testInfo) => {

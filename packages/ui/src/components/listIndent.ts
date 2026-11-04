@@ -48,26 +48,61 @@ export const MAX_LIST_GUIDES = 8;
 const MARKER_INDENT_EM = 1;
 /** Breathing room between the line box's start edge and a measured prefix. */
 const PREFIX_GUTTER_PX = 4;
-const MARKER_RE = /^\s*([-*+]|\d+[.)])\s/;
-const TASK_BOX_RE = /^\[[ xX/-]\]\s?/;
+const MARKER_RE = /^[ \t]*(?:[-*+]|\d+[.)])(?=[ \t])/;
+const TASK_BOX_RE = /^\[[ xX/-]\](?=[ \t]|$)/;
 
 /** Whether a line begins a list item (bullet or ordered marker). */
 export function isListMarkerLine(text: string): boolean {
   return MARKER_RE.test(text);
 }
 
+/** Columns a run of spaces and tabs takes from `column` on (a tab stops at the next multiple of four, as CommonMark counts). */
+function whitespaceColumns(ws: string, column: number): number {
+  let at = column;
+  for (const ch of ws) at = ch === "\t" ? at + 4 - (at % 4) : at + 1;
+  return at - column;
+}
+
+/** Where a list item's box and text begin on its marker line, as offsets into the line. */
+export interface ListItemStart {
+  /** Offset of a task box (`[ ]`, `[x]`, `[/]`, `[-]`), or null for an item without one. */
+  boxFrom: number | null;
+  /** Offset of the first character of the item's text. */
+  textStart: number;
+}
+
+/**
+ * Where the text of a list item begins, given its marker line and the offset
+ * just past its marker (`-`, `*`, `+`, `1.`, `1)`).
+ *
+ * The whitespace after a marker belongs to the marker, not to the text
+ * (finding 2026-11-02): CommonMark allows one to four spaces there, and many
+ * generators write three - `*   item`, `4.  item`. With five columns or more,
+ * one belongs to the marker and the rest is the item's content (an indented
+ * code block). A task box and the whitespace after it belong to the prefix too.
+ * Counting only ONE space put the measured hanging indent two spaces short of
+ * the text, so wrapped lines started left of it.
+ */
+export function listItemTextStart(text: string, markerEnd: number): ListItemStart {
+  const ws = /^[ \t]*/.exec(text.slice(markerEnd))![0];
+  let at = markerEnd + (ws.length > 0 && whitespaceColumns(ws, markerEnd) >= 5 ? 1 : ws.length);
+  const box = TASK_BOX_RE.exec(text.slice(at));
+  if (!box) return { boxFrom: null, textStart: at };
+  const boxFrom = at;
+  at += box[0].length;
+  at += /^[ \t]*/.exec(text.slice(at))![0].length;
+  return { boxFrom, textStart: at };
+}
+
 /**
  * Length of the rendered prefix of a marker line in characters: leading
- * whitespace, the marker, the following space — and for a task item the
+ * whitespace, the marker, the whitespace after it — and for a task item the
  * `[ ] ` box, because the checkbox widget replaces it. Null for non-marker lines.
  */
 export function listMarkerPrefixLength(text: string): number | null {
   const m = MARKER_RE.exec(text);
   if (!m) return null;
-  let len = m[0].length;
-  const box = TASK_BOX_RE.exec(text.slice(len));
-  if (box) len += box[0].length;
-  return len;
+  return listItemTextStart(text, m[0].length).textStart;
 }
 
 /** Padding (in em) for a list line at `depth`. */

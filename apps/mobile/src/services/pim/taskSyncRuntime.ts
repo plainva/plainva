@@ -10,6 +10,8 @@ import {
   afterTaskSyncResume,
   formatTaskSync,
   logDiagnostic,
+  entryEventWindow,
+  runEntryEventSync,
   type TaskDeletionOrder,
 } from "@plainva/ui";
 import { updateVaultText, type PimAccountRow, type PimCacheRepository, type IPimTarget } from "@plainva/core";
@@ -163,6 +165,54 @@ export async function runMobileTaskSync(): Promise<void> {
   }
 }
 
+let entryEventsRunning = false;
+let entryEventsQueued = false;
+
+/**
+ * An entry that was put in the calendar follows its appointment: the new date
+ * into its date column, the anchor gone when the provider dropped the
+ * appointment (open-items plan 3.87 no. 16). The reconcile is shared
+ * (`runEntryEventSync` in @plainva/ui); until it was wired here only the
+ * desktop ran it, and an entry kept only from the phone kept its old date.
+ *
+ * On the same hook as the task reconcile (the end of every PIM cycle) and
+ * independent of the task database, as on the desktop; single-flight like it.
+ */
+export async function runMobileEntryEventSync(): Promise<void> {
+  const w = wiring;
+  if (!w) return;
+  if (entryEventsRunning) {
+    entryEventsQueued = true;
+    return;
+  }
+  entryEventsRunning = true;
+  try {
+    const db = w.vault.db;
+    if (!db) return;
+    const res = await runEntryEventSync({
+      // Through the sync chain, so the moved date reaches the other devices.
+      adapter: w.vault.files,
+      db,
+      cache: w.cache,
+      window: entryEventWindow(),
+    });
+    if (res.changedNotes.length > 0) {
+      await w.vault.reindexPaths(res.changedNotes);
+      window.dispatchEvent(new CustomEvent("m-vault-changed"));
+      window.dispatchEvent(new CustomEvent("m-pim-changed"));
+    }
+    for (const err of res.errors) console.warn("[mobile] entry event sync:", err);
+  } catch (e) {
+    console.warn("[mobile] entry event sync failed", e);
+  } finally {
+    entryEventsRunning = false;
+    if (entryEventsQueued) {
+      entryEventsQueued = false;
+      void runMobileEntryEventSync();
+    }
+  }
+}
+
 /**
  * Going into the background CANCELS a running deletion window — the opposite of
  * what mail does on the very same event, and deliberately so.
@@ -188,4 +238,6 @@ export function __resetTaskSyncRuntimeForTest(): void {
   wiring = null;
   running = false;
   queued = false;
+  entryEventsRunning = false;
+  entryEventsQueued = false;
 }

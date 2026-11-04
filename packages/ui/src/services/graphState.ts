@@ -1,10 +1,21 @@
 import type { IVaultAdapter } from "@plainva/core";
+import { ownDeviceFilePath, readDeviceOwnText } from "../lib/deviceOwnFiles";
 
 /**
- * Per-vault graph state in `.plainva/graph.json` (decision E4, precised):
- * `.plainva` is excluded from sync everywhere, so pins and dismissed
- * suggestions are DEVICE-LOCAL like vault.db — the deterministic base layout
- * keeps the map recognizable across devices even without them.
+ * Per-vault graph state of ONE device (decision E4, precised): `.plainva` is
+ * excluded from sync everywhere, so pins and dismissed suggestions are
+ * DEVICE-LOCAL like vault.db — the deterministic base layout keeps the map
+ * recognizable across devices even without them.
+ *
+ * The file is the device's own, `.plainva/graph.<device>.json` (decision E7,
+ * Sammelplan § 3.127 Nr. 3): in a vault folder a file service carries, the one
+ * `graph.json` of older versions was shared by every device, and the last one
+ * to save had it — the other device's pins were gone. All of it is per device:
+ * pins are positions on THIS device's map (screens differ), the pin mode and
+ * the overlay mode are how this device shows the map, and a dismissed
+ * suggestion was never more than that — over Plainva's own sync no other
+ * device ever saw it. A device without its own file starts from the shared
+ * one, which stays where it is for older versions (`deviceOwnFiles.ts`).
  *
  * Contexts key the pin sets: "vault" for the vault map, "base:<path>#<view>"
  * for saved base graph views.
@@ -38,7 +49,6 @@ interface GraphStateFile {
   mapMode?: string;
 }
 
-const FILE_PATH = ".plainva/graph.json";
 const WRITE_DEBOUNCE_MS = 800;
 /** Bump when the vault-map layout changes coordinate semantics. */
 const VAULT_LAYOUT_GENERATION = 2;
@@ -86,18 +96,42 @@ export function suggestionKey(reason: string, source: string, target: string): s
 
 export class GraphStateStore {
   private state: GraphStateFile = emptyState();
-  private loaded = false;
+  /**
+   * The one load, shared by every caller. A second view that asked while the
+   * first read was still under way used to get an immediate "loaded" over the
+   * EMPTY state: it showed no pins, and its first change (the overlay mode a
+   * map sets as it opens) wrote that empty state over the file — and, since
+   * E7, created this device's own file before the shared one was ever read.
+   */
+  private loading: Promise<void> | null = null;
   private writeTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<() => void>();
+  /** This device's own file, resolved once (the device id is asked for asynchronously). */
+  private ownPath: Promise<string> | null = null;
 
   constructor(private readonly adapter: IVaultAdapter) {}
 
-  /** Loads once; a corrupt or missing file resets to the empty state. */
-  async load(): Promise<void> {
-    if (this.loaded) return;
-    this.loaded = true;
+  private filePath(): Promise<string> {
+    if (!this.ownPath) this.ownPath = ownDeviceFilePath("graph");
+    return this.ownPath;
+  }
+
+  private async write(): Promise<void> {
+    // Never before what is on disk is in: a write while the load is still
+    // reading would put a state on disk that does not hold the file's pins.
+    if (this.loading) await this.loading;
+    await this.adapter.writeTextFile(await this.filePath(), JSON.stringify(this.state, null, 2));
+  }
+
+  /** Loads once — every caller waits for the same read; a corrupt or missing file resets to the empty state. */
+  load(): Promise<void> {
+    if (!this.loading) this.loading = this.read();
+    return this.loading;
+  }
+
+  private async read(): Promise<void> {
     try {
-      const raw = await this.adapter.readTextFile(FILE_PATH);
+      const raw = (await readDeviceOwnText(this.adapter, "graph", await this.filePath())).text;
       const parsed = JSON.parse(raw) as Partial<GraphStateFile> | null;
       if (parsed && typeof parsed === "object" && parsed.version === 1) {
         this.state = {
@@ -142,7 +176,7 @@ export class GraphStateStore {
     if (this.writeTimer) clearTimeout(this.writeTimer);
     this.writeTimer = setTimeout(() => {
       this.writeTimer = null;
-      void this.adapter.writeTextFile(FILE_PATH, JSON.stringify(this.state, null, 2)).catch(() => {
+      void this.write().catch(() => {
         /* state is a cache — a failed write must never break the view */
       });
     }, WRITE_DEBOUNCE_MS);
@@ -154,7 +188,7 @@ export class GraphStateStore {
     clearTimeout(this.writeTimer);
     this.writeTimer = null;
     try {
-      await this.adapter.writeTextFile(FILE_PATH, JSON.stringify(this.state, null, 2));
+      await this.write();
     } catch {
       /* see persistSoon */
     }

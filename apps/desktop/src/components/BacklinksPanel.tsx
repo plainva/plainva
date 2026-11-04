@@ -102,7 +102,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
 
       try {
         setLoadError(null);
-        const links = await queryService.getBacklinks(activePath);
+        const links = await queryService.getBacklinks(activePath, { visibleOnly: true });
         if (active) {
           setBacklinks(links);
         }

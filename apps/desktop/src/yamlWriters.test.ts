@@ -69,25 +69,21 @@ const KNOWN = new Map<string, { takes: string[]; why: string }>([
   ],
   [
     "packages/core/src/frontmatter-surgical.ts",
-    { takes: ["CST", "Scalar", "isAlias", "isMap", "isScalar", "isSeq"], why: "finds the scalars of a block that was read; a link's target changes in the token of its one scalar" },
+    { takes: ["CST", "Scalar", "YAMLMap", "isAlias", "isMap", "isScalar", "isSeq"], why: "finds the scalars of a block that was read; a link's target changes in the token of its one scalar. `YAMLMap` holds one entry that was read, to ask the library the name the index gives its key (`indexNameOf`) — it is read as data, never printed" },
   ],
   ["packages/core/src/okf-conversion.ts", { takes: ["parse", "parseDocument"], why: "asks whether a block holds anything; it prints nothing" }],
   [
     "packages/core/src/metadata-extractor.ts",
     {
-      takes: ["isAlias", "isMap", "isScalar", "isSeq", "parseDocument"],
+      takes: ["isAlias", "isMap", "isScalar", "isSeq"],
       why: "the index's reader: reads a block as a document, so that a value that is not of its field's kind is read as the text it is written with (ADR 0009, addendum 2026-10-22); it prints nothing (pinned below)",
     },
   ],
   [
-    "packages/core/src/metadata-updater.ts",
-    { takes: ["stringify"], why: "YAML from a set of properties for the node of a parsed tree — no caller in either shell: a note is not written back from its tree (`markdownSerializerUse.test.ts`)" },
-  ],
-  [
     "packages/core/src/workspace/publishedSlices.ts",
     {
-      takes: ["stringify"],
-      why: "the COPY of a note that leaves the vault: the properties its allow-list lets through are written anew on purpose — a comment or a line left standing could carry what was withheld. It reads the block through the one reader (`parseBlockYaml`, which refuses a block that is no map), and the note itself is not written",
+      takes: ["CST", "Lexer", "stringify"],
+      why: "the COPY of a note that leaves the vault: the note's block with the withheld entries taken out and every comment with them (the lexer finds the comments; a comment could carry what was withheld), the rest in its own characters; written anew from the values only where that copy would not say exactly what goes out (open-items plan 3.72 no. 2). It reads the block through the one reader (`parseBlockYaml`, which refuses a block that is no map), and the note itself is not written",
     },
   ],
   ["packages/ui/src/base/baseFormat.ts", { takes: ["parse", "stringify"], why: "a `.base` file: a database's definition, written whole from its model — not a note's properties" }],

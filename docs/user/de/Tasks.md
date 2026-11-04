@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-10-25
+Stand: 2026-11-04
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -17,11 +17,11 @@ Sie öffnet sich als Tab, wie jede Notiz.
 
 ## Auf dem Telefon
 
-Die Aufgabenansicht gibt es auch mobil. Du öffnest sie über **Bereiche** in der Navigationsleiste (oder langes Drücken auf die Leiste) und kannst sie auch direkt in die Navigationsleiste legen (**Einstellungen** → **Leisten & Bereiche**).
+Die Aufgabenansicht gibt es auch mobil. Du öffnest sie über **Bereiche** in der Navigationsleiste (oder langes Drücken auf die Leiste) und kannst sie auch direkt in die Navigationsleiste legen (**Einstellungen** → **Navigationsleiste**).
 
 Sie zeigt dieselben zwei Bereiche wie am Desktop: oben die **Aufgaben-Datenbank**, darunter **Aus Notizen** die Checkbox-Liste, mit den Filtern **Offen**/**Erledigt**/**Alle** und der Freitext-Suche. Abhaken, **Status ändern**, eine Checkbox **zur Datenbank verschieben**, **+ Neue Aufgabe**, **Zeit blocken** und die **Wiederholung** funktionieren wie beschrieben und schreiben dieselben Dateien: dieselbe Notiz mit Frontmatter, derselbe `[[Wiki-Link]]` in der Ursprungszeile, dieselbe Regel unter `plainva.repeat`.
 
-Welche Datenbank Dein Vault als Aufgaben-Datenbank nutzt, stellst Du mobil unter **Einstellungen** → **Inhalt & Struktur** ein. Die Einstellung reist über die [Einstellungs-Synchronisation](Sync_Setup.md) mit — Du legst sie also nur einmal fest, auf dem Gerät Deiner Wahl.
+Welche Datenbank Dein Vault als Aufgaben-Datenbank nutzt, stellst Du mobil unter **Einstellungen** → **Notizen & Ablage** ein. Die Einstellung reist über die [Einstellungs-Synchronisation](Sync_Setup.md) mit — Du legst sie also nur einmal fest, auf dem Gerät Deiner Wahl.
 
 Die vier Filter der Desktop-Leiste stehen mobil als Chips über der Liste: **Ordner**, **Tag**, **Nur mit Fälligkeit** und **Ausgeblendete anzeigen**. Als Chips statt als Auswahlfelder, weil eine Filterleiste über einer ohnehin schmalen Liste mehr Platz kostet als sie einbringt — ein Tipp öffnet die Auswahl, ein zweiter räumt sie wieder weg.
 
@@ -51,7 +51,7 @@ Hat sich eine Notiz seit dem Aufbau der Liste geändert, wird ein veraltetes Ums
 
 ## Standard-Aufgabendatenbank
 
-Checkboxen sind schnell notiert, aber manchmal wächst eine Zeile zu einer „richtigen" Aufgabe heran — mit Status, Fälligkeit und eigener Notiz. Dafür legst Du in den Einstellungen unter **Inhalt & Struktur** eine **Standard-Aufgabendatenbank** fest: eine [Datenbank (`.base`)](Databases_Base.md), in der solche Aufgaben als eigene Notizen leben. Mit **Neue Datenbank anlegen…** erstellt Plainva eine fertige Datenbank (Ablage-Ordner plus `.base` mit einer **Erledigt-Checkbox-Spalte** (`erledigt`), Status-Spalte, Fälligkeits-Spalte sowie Tabellen-, Board- und Zeitleisten-Ansicht — die Zeitleiste setzt jede Aufgabe auf ihren Fälligkeitstag); genauso kannst Du eine bestehende Datenbank auswählen. Die Checkbox-Eigenschaft ist die Erledigt-Wahrheit einer Aufgabe (an/aus, wie bei den Anbietern); die Status-Spalte wird beim Abhaken konsistent mitgeführt. Hat eine Datenbank keine Checkbox-Spalte, gilt die Status-Konvention: erste Option = offen, letzte = erledigt.
+Checkboxen sind schnell notiert, aber manchmal wächst eine Zeile zu einer „richtigen" Aufgabe heran — mit Status, Fälligkeit und eigener Notiz. Dafür legst Du in den Einstellungen unter **Notizen & Ablage** eine **Standard-Aufgabendatenbank** fest: eine [Datenbank (`.base`)](Databases_Base.md), in der solche Aufgaben als eigene Notizen leben. Mit **Neue Datenbank anlegen…** erstellt Plainva eine fertige Datenbank (Ablage-Ordner plus `.base` mit einer **Erledigt-Checkbox-Spalte** (`erledigt`), Status-Spalte, Fälligkeits-Spalte sowie Tabellen-, Board- und Zeitleisten-Ansicht — die Zeitleiste setzt jede Aufgabe auf ihren Fälligkeitstag); genauso kannst Du eine bestehende Datenbank auswählen. Die Checkbox-Eigenschaft ist die Erledigt-Wahrheit einer Aufgabe (an/aus, wie bei den Anbietern); die Status-Spalte wird beim Abhaken konsistent mitgeführt. Hat eine Datenbank keine Checkbox-Spalte, gilt die Status-Konvention: erste Option = offen, letzte = erledigt.
 
 Ist sie festgelegt, zeigt die Aufgabenansicht zwei Bereiche: oben die Einträge der **Aufgaben-Datenbank**, darunter **Aus Notizen** — die gewohnte Checkbox-Liste. Der Status lässt sich direkt in der Übersicht ändern: das Kästchen ist die Erledigt-Checkbox-Eigenschaft der Notiz und schaltet sie um (die Status-Spalte folgt); ein Klick auf den Status-Chip öffnet ein Menü mit allen Optionen (**Status ändern**). Die Filter **Offen**/**Erledigt**/**Alle** wirken auf beide Bereiche, und **Als Datenbank öffnen** springt zur vollen Datenbank-Ansicht mit Board und Filtern. **Aktualisieren** stößt bei verbundenen Konten zusätzlich einen echten Abgleich mit dem Anbieter an.
 
@@ -108,12 +108,87 @@ Dieses Feld musst Du nicht von Hand schreiben:
 - **Aus Aufgaben ausblenden** — Am rechten Rand jeder Notiz-Kopfzeile sitzt ein Augen-Symbol; ein Klick schreibt den Marker in genau diese Notiz und blendet sie aus.
 - **Ausgeblendete anzeigen** — Diese Option in der Filterleiste zeigt die ausgeblendeten Notizen wieder an (gedimmt), jeweils mit einem Symbol zum **Wiedereinblenden** (das den Marker entfernt).
 - **Vorlagen ausblenden** — Enthält Dein Vorlagen-Ordner Notizen mit Checkboxen, erscheint oben rechts ein Knopf **Vorlagen ausblenden**, der den Marker in einem Rutsch in alle diese Notizen schreibt.
+- **Notizen mit Schlüsseln aus einer Vorlage** — Eine Notiz, die bis Version 0.8.5 aus einer Vorlage entstand, kann die eigenen Schlüssel der Vorlage übernommen haben (`plainva.tasks: false`, `plainva.templateFor`); ihre Aufgaben fehlen dann hier. Gibt es solche Notizen außerhalb des Vorlagen-Ordners, listet ein Hinweis sie mit je einem Kästchen auf: **Schlüssel entfernen …** nimmt die beiden Schlüssel aus den angehakten heraus, sonst ändert sich nichts an ihnen. Nimm den Haken bei einer Notiz weg, die Du absichtlich ausgeblendet hast; **Ausblenden** legt den Hinweis weg, bis eine weitere Notiz dazukommt.
 
 Neu erstellte Vorlagen tragen den Marker automatisch. Erstellst Du eine Notiz **aus** einer Vorlage, wird er wieder entfernt — die neue Notiz ist echter Inhalt und zeigt ihre Aufgaben ganz normal.
+
+## Erinnerungen für Checkboxen
+
+Eine Checkbox erinnert Dich, wenn ihr Fälligkeitsdatum eine Uhrzeit trägt: Schreib die Uhrzeit direkt hinter das Datum, als `HH:MM` im 24-Stunden-Format (`00:00` zählt als keine Uhrzeit).
+
+```markdown
+- [ ] Bob anrufen 📅 2026-11-02 14:30
+```
+
+Einschalten kannst Du das unter **Einstellungen → Kalender → Erinnerungen** mit **Checkboxen mit Uhrzeit** — je Vault und auf diesem Gerät, aus, bis Du es einschaltest. Die Erinnerung kommt zu dieser Uhrzeit, abzüglich des Vorlaufs unter **Vorlauf für Aufgaben mit Uhrzeit**. Am Telefon bietet sie **Abhaken**, **In 1 Stunde** und **Morgen früh** an, wie die Erinnerung einer Aufgabe aus der Aufgaben-Datenbank; am Desktop bietet der Hinweis daneben **Aufgabe öffnen** an. So oder so landest Du in der Notiz an der Zeile der Aufgabe, auch nachdem die Notiz umbenannt oder verschoben wurde.
+
+Eine Checkbox, die Du abhakst, löschst oder auf eine andere Uhrzeit setzt, wird binnen Sekunden neu eingeplant. Eine Checkbox mit Datum, aber ohne Uhrzeit erinnert nicht, und Notizen mit `plainva.tasks: false` bleiben draußen. Plainva schreibt für eine Erinnerung nichts in die Notiz. Obsidian kennt keine Uhrzeit: Ein `📅`-Datum, hinter dem eine Uhrzeit steht, liest es nicht mehr.
 
 ## Obsidian-Kompatibilität
 
 Aufgaben sind gewöhnliche GFM-Checkboxen (GitHub Flavored Markdown). Plainva fügt nie eine Sondersyntax hinzu: Dieselben `- [ ]`-Zeilen werden in Obsidian als Checkboxen dargestellt und lesen sich in jedem Editor sauber. Die Konventionen `📅 Datum` und `#tag` sind der übliche Obsidian-Tasks-Stil, aber sie sind nur Text in Deiner Notiz.
+
+## Tasks-Abfragen aus Obsidian
+
+Eine Notiz aus Obsidian kann einen Codeblock `tasks` mit einer Abfrage enthalten. Plainva zeichnet ihn als Aufgabenliste — in der Live-Vorschau und im Lesemodus, am Desktop und am Telefon, auch innerhalb eines Zitats oder Callouts:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+Die Abfrage bleibt genau so in der Notiz, wie Du sie geschrieben hast; Plainva schreibt nie in den Block. Der Quelltext-Modus zeigt immer den Text.
+
+### Mit der Liste arbeiten
+
+- Hake das Kästchen einer Aufgabe ab: Plainva schreibt die Zeile der Aufgabe in ihrer eigenen Notiz — mit Erledigt-Datum und Wiederholung, wie in der Aufgabenansicht.
+- Klicke oder tippe auf eine Zeile: Die Notiz öffnet sich an der Zeile der Aufgabe.
+- Rechtsklick auf eine Zeile am Desktop oder gedrückt halten am Telefon öffnet das Zeilenmenü: **Erledigt**/**Offen**, **Fälligkeit ändern**, **Priorität setzen**, **Zustand setzen**.
+- In einer eingebetteten Notiz (`![[…]]`) ist die Liste nur zum Ansehen: kein Abhaken, kein Menü.
+- Steht die Schreibmarke im Block, zeigt der Editor die Abfrage als Text. **Abfrage bearbeiten** setzt die Schreibmarke in die Abfrage; am Telefon wechselt die Ansicht dafür zuerst ins Bearbeiten.
+
+Am Fuß des Blocks stehen die Anzahl der Aufgaben („12 Aufgaben“), der Schalter **Erklärung** und **Abfrage bearbeiten**. **Erklärung** zeigt, wie Plainva jede Zeile der Abfrage gelesen hat, Daten als echte Tage. Ein großes Ergebnis wird nicht stillschweigend abgeschnitten: Plainva zeigt die ersten 100 Zeilen, danach **Alle n zeigen**.
+
+### Was Plainva versteht
+
+Plainva liest diese Zeilen der Abfragesprache der `tasks`-Blöcke von Obsidian:
+
+| Thema | Zeilen |
+|---|---|
+| Zustand | `done`, `not done`, `status.type is …` |
+| Daten | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, jeweils mit `on`, `before`, `after`, `on or before`, `on or after` oder `in`; als Tage: `2026-11-04`, `today`, `tomorrow`, `yesterday`, Wochentage, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — Wochen laufen von Montag bis Sonntag, wie in Tasks |
+| Datum vorhanden oder nicht | `has due date`, `no scheduled date`, `due date is invalid` |
+| Wiederholung | `is recurring`, `recurrence includes …` |
+| Priorität | `priority is high`, `priority is above none` — sechs Stufen von der höchsten bis zur niedrigsten |
+| Text und Ort | `description`, `path`, `filename`, `folder`, `root` und `heading`, jeweils mit `includes` oder `does not include` |
+| Tags | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Unteraufgaben | `exclude sub-items` |
+| Verknüpfen | `AND`, `OR`, `NOT`, `XOR`, mit `( )`, `[ ]`, `{ }` oder `" "` um die Teile |
+| Sortieren | `sort by …` mit jedem Schlüssel außer `random`, `status.name` und `id`, auf Wunsch mit `reverse`; nach Deinen eigenen Zeilen gilt die Standardreihenfolge von Obsidian, Dringlichkeit eingeschlossen |
+| Gruppieren | `group by …`, bis zu drei Ebenen |
+| Darstellung und Umfang | `show tree`, `hide backlink`, `hide task count` und Ähnliches, `limit 20`, `limit groups 5`, `explain` |
+| Kommentare und Platzhalter | Zeilen, die mit `#` beginnen; Platzhalter wie `{{query.file.path}}`, die sich auf die Notiz beziehen, in der die Abfrage steht |
+
+### Zeilen, denen Plainva nicht folgen kann
+
+Jede Zeile einer Abfrage fällt in einen von drei Fällen:
+
+- Eine Zeile, die Obsidian kennt und Plainva noch nicht — etwa Code (`filter by function`; Plainva führt nie Code aus Notizen aus), reguläre Ausdrücke (`regex matches`), Abhängigkeiten (`is blocked`), Presets oder andere Datumsangaben. Ein Hinweis über der Liste nennt die Zeile und den Grund; die Zeile wird ausgelassen, die Liste zeigt dann womöglich mehr Aufgaben als in Obsidian — bei `sort by`- und `group by`-Zeilen eine andere Reihenfolge.
+- Eine Darstellungszeile ohne Gegenstück in Plainva (`hide edit button`, `short mode`, …) wird stillschweigend angenommen.
+- Eine Zeile, die auch Obsidian ablehnt (Tippfehler, gemischte Klammern, ein unmögliches Datum), zeigt einen Fehler mit der Zeile und dem Grund — und keine Liste.
+
+### Unterschiede zu Obsidian
+
+- „Heute“ ist der Kalendertag.
+- Notizen mit `plainva.tasks: false` zählen hier mit; Obsidian kennt diese Eigenschaft nicht.
+- Ein in Obsidian gesetzter globaler Filter und eine globale Abfrage werden in der **Erklärung** genannt, aber nicht angewendet.
+- Eigene Zustandszeichen (`[>]`, `[!]`, …) sind in Plainva keine Aufgaben.
+
+Dataview-Blöcke bleiben einfacher Text.
 
 ## Siehe auch
 
@@ -165,13 +240,13 @@ Die Aufgabenansicht öffnet sich auf **Heute**. Die Listen — am Desktop eine L
 
 Über den Listen steht das Erfassungsfeld; am Telefon öffnen **+ Neue Aufgabe** und der **＋**-Knopf es als Blatt. Tippe eine Zeile — `Angebot abschicken morgen 14 Uhr !!! #kunde wöchentlich` — und drücke Enter: Plainva legt die Aufgabe in der Aufgaben-Datenbank an. Es versteht heute, morgen, übermorgen, Wochentage, „in 3 Tagen“, „nächste Woche“, Datumsangaben in Ziffern, eine Uhrzeit (`14:30`, `14 Uhr`), einen Rhythmus (täglich, wöchentlich, monatlich, jährlich, „jeden Montag“, „alle 2 Wochen“), `!`, `!!` und `!!!` für niedrige, mittlere und hohe Priorität sowie `#tags` — die Wörter in der Sprache der App, Ziffern und Zeichen in jeder Sprache. Alles Erkannte ist im Feld hinterlegt und steht darunter als abwählbarer Baustein, **bevor** etwas gespeichert wird; nimmst Du einen Baustein weg, zählen seine Wörter einfach wieder zum Titel. Am Telefon schreiben Schnellknöpfe dieselben Wörter für Dich. Nennt die Aufgaben-Datenbank eine Anbieter-Liste, entscheidet ein Chip, ob die Aufgabe auch dort angelegt wird.
 
-**Priorität setzen** im Menü einer Zeile (Rechtsklick am Desktop, gedrückt halten am Telefon) bietet **hoch**, **mittel**, **niedrig** und **keine**; eine Fahne vor dem Titel zeigt sie. In der Aufgaben-Datenbank ist die Priorität eine Auswahl-Spalte: eine jetzt angelegte Datenbank hat sie, eine ältere bekommt sie, wenn Du zum ersten Mal eine Priorität setzt — nie durch bloßes Öffnen. Eine Checkbox trägt das Zeichen des Obsidian-Tasks-Plugins in ihrer Zeile: Plainva liest 🔺 und ⏫ als hoch, 🔼 als mittel, 🔽 und ⏬ als niedrig und schreibt ⏫, 🔼 oder 🔽.
+**Priorität setzen** im Menü einer Zeile (Rechtsklick am Desktop, gedrückt halten am Telefon) bietet **hoch**, **mittel**, **niedrig** und **keine**; eine Fahne vor dem Titel zeigt sie. In der Aufgaben-Datenbank ist die Priorität eine Auswahl-Spalte: eine jetzt angelegte Datenbank hat sie, eine ältere bekommt sie, wenn Du zum ersten Mal eine Priorität setzt — nie durch bloßes Öffnen. Eine Checkbox trägt das aus Obsidian bekannte Prioritätszeichen in ihrer Zeile: Plainva liest 🔺 und ⏫ als hoch, 🔼 als mittel, 🔽 und ⏬ als niedrig und schreibt ⏫, 🔼 oder 🔽.
 
 `- [/]` (**In Arbeit**) und `- [-]` (**Abgebrochen**) sind ebenfalls Aufgaben. Sie bekommen im Editor, im Lesemodus und in jeder Liste ein eigenes Kästchen; „in Arbeit“ zählt als offen, „abgebrochen“ als geschlossen. Ein Klick schaltet weiterhin nur zwischen offen und erledigt — er erledigt eine Aufgabe in Arbeit und öffnet eine abgebrochene wieder. **Zustand setzen** im Zeilenmenü setzt die beiden Zustände; von sich aus schreibt Plainva sie nie.
 
 **Das Datum einer Aufgabe ist der Weg, es zu ändern.** Tippe oder klicke auf das Datum einer Aufgabe (innerhalb eines Tages: auf ihre Uhrzeit), und die Datumswahl öffnet sich — am Desktop unter dem Datum, am Telefon als Blatt. **Fälligkeit ändern** im Menü der Zeile öffnet dieselbe Datumswahl; so bekommt auch eine Aufgabe ohne Datum eines. Am Telefon wählen **Neue Aufgabe** und die Datumszelle einer Datenbank ihren Tag aus demselben Kalender, nicht aus dem Datumsrad des Systems. Eine Checkbox in einer Notiz — im Editor, in der Leseansicht und im Journal — ist am Telefon auf den Finger zugeschnitten. Ein Eintrag der Aufgaben-Datenbank behält seine Uhrzeit, eine Checkbox bekommt oder ändert ihr `📅`-Datum. An der Überschrift **Überfällig** verschiebt **Alle auf heute** alle überfälligen Aufgaben in einem Schritt auf heute. Beides bestätigt ein Hinweis, der **Rückgängig** anbietet. Im Erfassungsfeld schlägt `[[` Notizen vor und `#` Tags, wie im Editor: `Enter` oder `Tab` übernimmt den markierten Vorschlag, `Esc` schließt die Liste.
 
-**Schnellwahl und Uhrzeit.** Über dem Kalender stehen **Heute**, **Morgen**, **Dieses Wochenende**, **Nächste Woche** und **Kein Datum**, jeweils mit dem Wochentag. Dieses Wochenende ist der kommende Samstag — heute, wenn Samstag oder Sonntag ist; Nächste Woche ist der erste Tag der nächsten Woche, wie unter **Wochenbeginn** eingestellt. Unten hat **Uhrzeit** einen Schalter: aus ist die Aufgabe ganztägig fällig, an wählst Du daneben die Zeit. Eine Schnellwahl oder ein Tag behält eine schon gesetzte Uhrzeit; um nur die Uhrzeit zu ändern, tippe auf **Fertig**. Ein Eintrag der Aufgaben-Datenbank speichert die Uhrzeit in seinem Fälligkeitswert (`2026-10-26T10:00`). Eine Checkbox in einer Notiz trägt nur einen Tag — das `📅` des Tasks-Plugins kennt keine Uhrzeit —, deshalb sagt der Wähler das dort, statt den Schalter anzubieten. Zeigt die Fälligkeitsspalte der Datenbank nur Tage, bietet Plainva einmal **Auf Datum & Uhrzeit umstellen** an.
+**Schnellwahl und Uhrzeit.** Über dem Kalender stehen **Heute**, **Morgen**, **Dieses Wochenende**, **Nächste Woche** und **Kein Datum**, jeweils mit dem Wochentag. Dieses Wochenende ist der kommende Samstag — heute, wenn Samstag oder Sonntag ist; Nächste Woche ist der erste Tag der nächsten Woche, wie unter **Wochenbeginn** eingestellt. Unten hat **Uhrzeit** einen Schalter: aus ist die Aufgabe ganztägig fällig, an wählst Du daneben die Zeit. Eine Schnellwahl oder ein Tag behält eine schon gesetzte Uhrzeit; um nur die Uhrzeit zu ändern, tippe auf **Fertig**. Ein Eintrag der Aufgaben-Datenbank speichert die Uhrzeit in seinem Fälligkeitswert (`2026-10-26T10:00`). Für eine Checkbox in einer Notiz setzt der Wähler nur den Tag — das `📅` aus Obsidian kennt keine Uhrzeit — und sagt das dort, statt den Schalter anzubieten; eine Uhrzeit, die Du selbst hinter das Datum schreibst (siehe *Erinnerungen für Checkboxen*), bleibt stehen, wenn sich der Tag ändert. Zeigt die Fälligkeitsspalte der Datenbank nur Tage, bietet Plainva einmal **Auf Datum & Uhrzeit umstellen** an.
 
 Weitere Wege hinein: **Neue Aufgabe** im Tray-Menü am Desktop (wenn Plainva im Hintergrund weiterläuft), unter Android der Startmenü-Eintrag **Neue Aufgabe** (App-Symbol gedrückt halten) und am Telefon **Als Aufgabe anlegen**, wenn Du etwas an Plainva teilst — Text und Anhänge landen in der Notiz der Aufgabe. Wie eine Aufgabe mit Uhrzeit erinnert, steht unter [Kalender & externe Aufgaben](Calendar_and_Tasks.md). Am iPhone und iPad nehmen auch Siri und Kurzbefehle eine Aufgabe an (**Aufgabe hinzufügen**); Plainva legt sie beim nächsten Öffnen an — siehe [Die mobile App](Mobile_App.md).
 
@@ -183,7 +258,7 @@ Das Kästchen im Widget **Heute** nimmt einen Auftrag auf: der Haken erscheint s
 <!-- task-rows-2026-10-24 -->
 ## Unteraufgaben, Stichpunkte und was heute erledigt ist
 
-**Unteraufgaben.** Ein Kästchen, das unter einem anderen eingerückt steht, ist dessen Unteraufgabe — wie `show tree` im Obsidian-Plugin Tasks. In den Listen **Heute**, **Demnächst**, **Eingang** und **Erledigt** trägt eine Aufgabe ihre Unteraufgaben eingerückt unter sich — offene und erledigte, die erledigten durchgestrichen —, und ein Pfeil am Ende der Zeile klappt sie zu. Eine Unteraufgabe mit eigenem Datum steht zusätzlich an ihrem Tag; eine ohne Datum steht unter ihrer Aufgabe und nicht noch einmal allein im **Eingang**. Die Liste **Alle** behält jedes Kästchen in der Reihenfolge seiner Notiz.
+**Unteraufgaben.** Ein Kästchen, das unter einem anderen eingerückt steht, ist dessen Unteraufgabe — wie `show tree` in den `tasks`-Blöcken von Obsidian. In den Listen **Heute**, **Demnächst**, **Eingang** und **Erledigt** trägt eine Aufgabe ihre Unteraufgaben eingerückt unter sich — offene und erledigte, die erledigten durchgestrichen —, und ein Pfeil am Ende der Zeile klappt sie zu. Eine Unteraufgabe mit eigenem Datum steht zusätzlich an ihrem Tag; eine ohne Datum steht unter ihrer Aufgabe und nicht noch einmal allein im **Eingang**. Die Liste **Alle** behält jedes Kästchen in der Reihenfolge seiner Notiz.
 
 **Stichpunkte.** Einfache Punkte, die unter einer Aufgabe eingerückt stehen — Fragen, Notizen —, zeigt die Zeile unter dem Titel als bis zu zwei Zeilen Vorschau; den Rest hält die Notiz.
 

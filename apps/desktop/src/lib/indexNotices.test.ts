@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import i18n from "@plainva/ui/i18n";
-import { LEFT_OUT_NAMES_SHOWN, createIndexNotices, indexLeftOutText, indexScanFailedText, indexUnavailableText } from "@plainva/ui";
+import { LEFT_OUT_NAMES_SHOWN, createIndexNotices, indexFailureSaid, indexLeftOutText, indexScanFailedText, indexUnavailableText } from "@plainva/ui";
 import { REPO } from "../test-sourceTree";
 
 // Issue #125: one link in an iCloud vault, to a folder that exists only on the
@@ -86,6 +86,33 @@ describe("what both shells say about the search index", () => {
     notices.scanned({ skipped: [] });
     notices.failed({ trigger: "refresh", error: new Error("database is locked") });
     expect(said).toHaveLength(3);
+  });
+
+  it("tells a shell whether it has named a failure, so a refresh that fails says it once (Sammelplan 3.94)", () => {
+    const said: string[] = [];
+    const notices = createIndexNotices({ warning: (m) => void said.push(m), error: (m) => void said.push(m) });
+    const first = new Error("disk I/O error");
+    notices.failed({ trigger: "manual refresh", error: first });
+    expect(indexFailureSaid(first)).toBe(true);
+    // The same failure again is no news for the notices: the shell says it.
+    const again = new Error("disk I/O error");
+    notices.failed({ trigger: "manual refresh", error: again });
+    expect(indexFailureSaid(again)).toBe(false);
+    // Not a scan's failure at all.
+    expect(indexFailureSaid(new Error("watcher"))).toBe(false);
+    expect(indexFailureSaid("text")).toBe(false);
+  });
+
+  it("is asked by every refresh somebody starts, in both shells, before it says that the vault could not be read", () => {
+    const desktop = readFileSync(join(REPO, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
+    // The refresh of the whole vault and the rebuild ask; a folder's
+    // reconcile is no full scan and has no notice of its own.
+    expect(desktop).toMatch(/if \(!opts\?\.silent && !indexFailureSaid\(e\)\) \{\s*toast\.error\(i18n\.t\("refresh\.failed"/);
+    expect(desktop).toMatch(/index rebuild failed", e\);\s*if \(!indexFailureSaid\(e\)\) toast\.error\(i18n\.t\("refresh\.failed"/);
+    const pull = readFileSync(join(REPO, "apps/mobile/src/lib/usePullToRefresh.tsx"), "utf8");
+    expect(pull).toMatch(/if \(!indexFailureSaid\(e\)\) toast\.error\(i18n\.t\("refresh\.failed"\)\)/);
+    const rebuild = readFileSync(join(REPO, "apps/mobile/src/services/indexMaintenance.ts"), "utf8");
+    expect(rebuild).toMatch(/if \(!indexFailureSaid\(e\)\) toast\.warning\(i18n\.t\("settings\.rebuildIndexFailed"\)\)/);
   });
 
   it("is said by both shells through the shared notices, and a failed first scan keeps the vault", () => {

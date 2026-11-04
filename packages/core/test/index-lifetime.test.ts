@@ -34,20 +34,23 @@ describe("index lifetime", () => {
     expect(listDirReport).toHaveBeenCalledTimes(1);
   });
 
-  it("coalesces overlapping reconciles and waits for the active scan", async () => {
+  it("coalesces overlapping reconciles into one follow-up and waits for both", async () => {
+    // A caller arriving during a scan gets the scan after it (3.118), and
+    // every further caller shares that one: two scans, not three.
     let finish!: () => void;
     const gate = new Promise<void>(resolve => { finish = resolve; });
     const listDir = vi.fn(async () => { await gate; return []; });
     const indexer = new VaultIndexer({ listDir } as unknown as IVaultAdapter, new MockDatabaseAdapter());
     const first = indexer.indexVaultFull();
     const second = indexer.indexVaultFull();
-    expect(second).toBe(first);
+    expect(second).not.toBe(first);
+    expect(indexer.indexVaultFull()).toBe(second);
     let idle = false;
     const waiting = indexer.whenIdle().then(() => { idle = true; });
     await Promise.resolve();
     expect(idle).toBe(false);
     finish();
     await Promise.all([first, second, waiting]);
-    expect(listDir).toHaveBeenCalledTimes(1);
+    expect(listDir).toHaveBeenCalledTimes(2);
   });
 });

@@ -58,7 +58,7 @@ export function MailSendingCard({ vaultPath, account, onChanged }: { vaultPath: 
   return (
     <SettingCard label={t("mail.sendingGroup")}>
       {senderOptions(account).length > 1 && (
-        <SettingRow label={t("mail.signatureAddress")} desc={t("mail.signatureAddressHint")}>
+        <SettingRow label={t("mail.signatureAddress")} info={t("mail.signatureAddressHint")}>
           <Select
             value={sigAddress}
             onChange={setSigAddress}
@@ -74,12 +74,12 @@ export function MailSendingCard({ vaultPath, account, onChanged }: { vaultPath: 
           />
         </SettingRow>
       )}
-      <SettingRow label={t("mail.signature")} desc={t("mail.signatureHint")} wide>
+      <SettingRow label={t("mail.signature")} info={t("mail.signatureHint")} wide>
         <div onBlur={() => void persistSignature(signature)}>
           <ComposeEditor value={signature} onChange={setSignature} resizable data-testid="mail-signature" />
         </div>
       </SettingRow>
-      <SettingRow label={t("mail.senders")} desc={t("mail.sendersHint")} wide>
+      <SettingRow label={t("mail.senders")} desc={t("mail.sendersEnter")} info={t("mail.sendersHint")} wide>
         <ChipField
           values={senders}
           onChange={(next) => {

@@ -91,7 +91,7 @@ export const NAV_KINDS = [
   "folder", "note", "base", "today", "pimcalendar", "mail", "mailmsg", "mailcompose",
   "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "journal", "cleanup", "tags", "bookmarks", "recent",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme",
-  "cloudaccounts", "cloudaccount", "accountservice", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
+  "cloudaccounts", "cloudaccount", "accountservice", "cloudconnect", "sync", "vault", "vaultsync", "syncchain", "syncdiag", "securitywizard",
   "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration", "pinentry", "ai", "aihistory",
 ] as const;
 
@@ -132,6 +132,7 @@ export type NavKind =
   | "cloudconnect"
   | "sync"
   | "vault"
+  | "vaultsync"
   | "syncchain"
   | "syncdiag"
   | "securitywizard"
@@ -174,7 +175,7 @@ export interface NavEntry {
   family?: CloudProviderFamily;
 }
 
-const GLOBAL_KINDS = new Set<NavKind>(["search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme", "cloudaccounts", "cloudaccount", "accountservice", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "overviews"]);
+const GLOBAL_KINDS = new Set<NavKind>(["search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme", "cloudaccounts", "cloudaccount", "accountservice", "cloudconnect", "sync", "vault", "vaultsync", "syncchain", "syncdiag", "overviews"]);
 
 export const isGlobalKind = (kind: NavKind): boolean => GLOBAL_KINDS.has(kind);
 
@@ -307,6 +308,19 @@ export function activeNotePath(top?: NavEntry): string | null {
 export function commandNotePath(state: NavState): string | null {
   const top = navTop(state);
   return activeNotePath(top?.kind === "search" ? navTop(popTop(state)) : top);
+}
+
+/**
+ * A focused setup runs without the bar: the connect assistant, and the form
+ * screens of a connect run while services are still queued. The assistant's
+ * last step ends in the button that signs in, and on a long sign-in form that
+ * button sat under the bar until the page was scrolled (settings plan
+ * 2026-10-29, leftover of P5) - without the bar it stays reachable, as in the
+ * security wizards.
+ */
+export function isFocusedSetup(top: NavEntry | undefined, runPending: boolean): boolean {
+  if (top?.kind === "cloudconnect") return true;
+  return runPending && ["sync", "pimaccounts", "mailaccounts"].includes(top?.kind ?? "");
 }
 
 export function hidesTabBar(top?: NavEntry): boolean {
@@ -470,4 +484,39 @@ export function currentArea(state: NavState): TabScreenId {
     if (area) return area;
   }
   return state.activeTab;
+}
+
+/** A place the long press on Back can jump to (F6): what it shows, and the state after the jump. */
+export interface BackStop {
+  /** The entry the jump lands on; null for the root of the active tab. */
+  entry: NavEntry | null;
+  next: NavState;
+}
+
+/**
+ * The places behind the current screen, for the long press on Back (F6,
+ * S7): the root of the active tab first, then the screens below the current
+ * one, newest first, at most `limit` of them. Jumping drops everything above
+ * the chosen place - the same as pressing Back that many times. Empty on a
+ * tab root, where there is nothing to go back to.
+ */
+export function backStops(state: NavState, limit = 8): BackStop[] {
+  const stack = state.stacks[state.activeTab];
+  const layers = stack.length + state.overlay.length;
+  if (layers === 0) return [];
+  const stops: BackStop[] = [];
+  // Below the current screen, newest first: the overlay floats above the stack.
+  for (let i = layers - 2; i >= 0 && stops.length < limit; i -= 1) {
+    if (i >= stack.length) {
+      const o = i - stack.length;
+      stops.push({ entry: state.overlay[o]!, next: { ...state, overlay: state.overlay.slice(0, o + 1) } });
+    } else {
+      stops.push({
+        entry: stack[i]!,
+        next: { ...state, overlay: [], stacks: { ...state.stacks, [state.activeTab]: stack.slice(0, i + 1) } },
+      });
+    }
+  }
+  const root: BackStop = { entry: null, next: { ...state, overlay: [], stacks: { ...state.stacks, [state.activeTab]: [] } } };
+  return [root, ...stops];
 }

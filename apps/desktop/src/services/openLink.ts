@@ -1,6 +1,6 @@
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import { linkDiskProbe, planLinkOpen, requestAnchorJump, toast, type LinkToOpen } from "@plainva/ui";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalUrl as openUrl } from "./openExternal";
 
 /**
  * The desktop's ONE opener for a link — in the editor and the reading view, a

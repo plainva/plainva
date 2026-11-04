@@ -2,7 +2,7 @@ import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, Vault
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
-import { NotTextFileError, isHashWithoutMark, isMarkerTakenWithoutMark, readExactText, readLocalText } from "./localText.js";
+import { NotTextFileError, copyFileContent, fileSha256, isHashWithoutMark, isMarkerTakenWithoutMark, isNotTextFileError, readExactText, readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
 import { hasUnkeptLineEnds, readTextShape, withKeptLineEnds, type TextFileShape } from "../textFileShape.js";
@@ -123,7 +123,8 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   private readonly sessions: ConflictSessions;
   constructor(
     private readonly inner: IVaultAdapter,
-    private readonly syncRepo: Pick<SyncStateRepository, "getSyncState" | "getBaseText" | "updateLocalHash" | "updateLocalHashAndUnsyncedBaseText" | "getConflictSession" | "listConflictSessions" | "saveConflictSession" | "removeConflictSession" | "recordConflictDiagnostic" | "listConflictDiagnostics">,
+    private readonly syncRepo: Pick<SyncStateRepository, "getSyncState" | "getBaseText" | "updateLocalHash" | "updateLocalHashAndUnsyncedBaseText" | "getConflictSession" | "listConflictSessions" | "saveConflictSession" | "removeConflictSession" | "recordConflictDiagnostic" | "listConflictDiagnostics">
+      & Partial<Pick<SyncStateRepository, "markNotText">>,
     private readonly onAutoMerge?: (path: string, mergedText: string) => void,
     private readonly mutationScope: object = syncRepo,
     private readonly adapterKind = "local",
@@ -339,13 +340,106 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     });
   }
 
+  /**
+   * The answer to a comparison of two texts: the file's open conflict — or,
+   * with `copyPath` naming a copy that is no working copy of one, that copy
+   * beside the file (Sammelplan § 3.86 no. 8).
+   *
+   * Such a copy used to be checked by the comparison and then settled step by
+   * step through the chain: a write of the app that landed between the check
+   * and the write was overwritten by the copy, and a copy changed between the
+   * check and its deletion was deleted. Here both happen under the gate every
+   * write of the chain takes for the file, its copy and the name the copy may
+   * get: what arrives meanwhile waits, and lands after the answer.
+   */
   async resolveConflict(path: string, resolution: ConflictResolution): Promise<void> {
-    await this.sessions.resolve(path, resolution);
+    const copyPath = resolution.copyPath ? conflictSessionKey(resolution.copyPath) : null;
+    await this.sessions.withMutation(path, async gate => {
+      if (gate.session && (copyPath === null || copyPath === gate.session.workingCopyPath)) return this.sessions.resolveLocked(gate, resolution);
+      if (copyPath === null) throw new Error("Conflict session no longer exists");
+      return this.settleTextCopyLocked(path, copyPath, gate, resolution);
+    }, [...(copyPath ? [copyPath] : []), ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])]);
+  }
+
+  /** A side of a copy's comparison as text: null where no file lies there, refused as a change where it is no text. */
+  private async seenText(path: string): Promise<string | null> {
+    if (!await this.inner.exists(path)) return null;
+    try {
+      return await readExactText(this.inner, path);
+    } catch (error) {
+      // Saved in another encoding since: not the text the comparison saw.
+      if (isNotTextFileError(error)) throw new Error("comparisonChanged", { cause: error });
+      throw error;
+    }
+  }
+
+  /** `resolveConflict` for a copy beside the file, inside the gate (see there). */
+  private async settleTextCopyLocked(path: string, copyPath: string, gate: ConflictSessionGate, resolution: ConflictResolution): Promise<void> {
+    const original = await this.seenText(path);
+    const copy = await this.seenText(copyPath);
+    if (original !== resolution.originalText || copy === null || copy !== resolution.copyText) throw new Error("comparisonChanged");
+    const discard = resolution.disposition === "discard";
+    const keepCopyAs = resolution.keepCopyAs;
+    // Letting the copy go where no file is left would leave nothing at all.
+    if (discard && !keepCopyAs && original === null) throw new Error("Cannot discard a conflict whose original is missing");
+    if (keepCopyAs && (!discard || await this.inner.exists(keepCopyAs))) throw new Error("comparisonChanged");
+    if (!discard) {
+      // The file's place, while a conflict of another copy is open at it, is that conflict's.
+      if (gate.session) throw new OpenConflictError(gate.session.workingCopyPath);
+      const written = this.keptLineEnds(original, resolution.content);
+      await this.inner.writeTextFile(path, written);
+      this.lineEndsWritten(path, original, written);
+      const hash = await sha256Hash(written);
+      this.rememberWrite(path, hash);
+      // A file the index knows gets its marker, as for any write of the chain;
+      // a file made anew here is announced by the index (see `writeTextFileLocked`).
+      if (original !== null) await this.syncRepo.updateLocalHash(path, hash);
+      await this.inner.deleteItem(copyPath);
+    } else if (keepCopyAs) {
+      await this.requireResolved(keepCopyAs);
+      await this.inner.renameItem(copyPath, keepCopyAs);
+    } else {
+      await this.inner.deleteItem(copyPath);
+    }
   }
 
   /** The way out of an open conflict whose file is no text any more — byte for byte (see `ConflictBytesResolution`). */
   async resolveConflictBytes(path: string, resolution: ConflictBytesResolution): Promise<void> {
-    await this.sessions.resolveBytes(path, resolution);
+    const copyPath = resolution.copyPath ? conflictSessionKey(resolution.copyPath) : null;
+    await this.sessions.withMutation(path, async gate => {
+      if (gate.session && (copyPath === null || copyPath === gate.session.workingCopyPath)) return this.sessions.resolveBytesLocked(gate, resolution);
+      if (copyPath === null) throw new Error("Conflict session no longer exists");
+      return this.settleByteCopyLocked(path, copyPath, gate, resolution);
+    }, [...(copyPath ? [copyPath] : []), ...(resolution.keepCopyAs ? [resolution.keepCopyAs] : [])]);
+  }
+
+  /**
+   * A copy beside the file that is no working copy, byte for byte — checked
+   * and settled in one gate, as `resolveConflict` does it for texts
+   * (Sammelplan § 3.86 no. 8).
+   */
+  private async settleByteCopyLocked(path: string, copyPath: string, gate: ConflictSessionGate, resolution: ConflictBytesResolution): Promise<void> {
+    const original = await fileSha256(this.inner, path);
+    const copy = await fileSha256(this.inner, copyPath);
+    if (original !== resolution.originalSha256 || copy === null || copy !== resolution.copySha256) throw new Error("comparisonChanged");
+    const keepCopyAs = resolution.disposition === "discard" ? resolution.keepCopyAs : undefined;
+    // Letting the copy go where no file is left would leave nothing at all.
+    if (resolution.disposition === "discard" && !keepCopyAs && original === null) throw new Error("Cannot discard a conflict whose original is missing");
+    if (resolution.disposition === "adopt") {
+      // Bytes are not written into an open conflict (see `writeBinaryFile`).
+      if (gate.session) throw new OpenConflictError(gate.session.workingCopyPath);
+      await copyFileContent(this.inner, copyPath, path);
+      if (await fileSha256(this.inner, path) !== copy) throw new Error("Conflict resolution could not be confirmed");
+      this.rememberWrite(path, copy);
+      if (original !== null) await this.syncRepo.updateLocalHash(path, copy);
+      await this.inner.deleteItem(copyPath);
+    } else if (keepCopyAs) {
+      if (await this.inner.exists(keepCopyAs)) throw new Error("comparisonChanged");
+      await this.requireResolved(keepCopyAs);
+      await this.inner.renameItem(copyPath, keepCopyAs);
+    } else {
+      await this.inner.deleteItem(copyPath);
+    }
   }
 
   /**
@@ -401,7 +495,47 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
    * with either kind of text reader below (see the class comment).
    */
   async readTextFile(path: string): Promise<string> {
-    return readExactText(this.inner, path);
+    const text = await readExactText(this.inner, path);
+    this.noteReading(path, text);
+    return text;
+  }
+
+  /**
+   * The text readings of each file this chain handed out since it was made,
+   * by the hash of what they read (Sammelplan § 3.86 no. 2).
+   *
+   * A write without a starting text (`writeTextFile`) tells nothing of the
+   * text it started from. For a file whose row names a version that is no
+   * text (`SyncState.not_text_sha256`) and that another program has made
+   * UTF-8 again since, this says it: where every reading of the file handed
+   * out holds the bytes that lie there now, whatever the writer holds was
+   * made of them — no reading of the version that was no text exists, and
+   * none of anything older. A reading of anything else, kept by a view since
+   * before (or outdated by a later change), leaves the write to the
+   * conflict copy, as before.
+   *
+   * Kept for as long as the chain lives, which is as long as anything can
+   * hold what it handed out. A file read more often than `READINGS_MAX`
+   * times in other versions counts as "anything else".
+   */
+  private readings = new Map<string, Array<Promise<string>> | "many">();
+  private static readonly READINGS_MAX = 16;
+
+  private noteReading(path: string, text: string): void {
+    if (isOwnFile(path)) return;
+    const key = conflictSessionKey(path);
+    const known = this.readings.get(key) ?? [];
+    if (known === "many") return;
+    if (known.length >= ConflictAwareVaultAdapter.READINGS_MAX) { this.readings.set(key, "many"); return; }
+    known.push(sha256Hash(text));
+    this.readings.set(key, known);
+  }
+
+  /** Whether readings of `path` were handed out, and every one of them holds the bytes with hash `sha256`. */
+  private async onlyReadingsOf(path: string, sha256: string): Promise<boolean> {
+    const known = this.readings.get(conflictSessionKey(path));
+    if (!known || known === "many" || known.length === 0) return false;
+    return (await Promise.all(known)).every(hash => hash === sha256);
   }
 
   async acknowledgeExternalUpdate(path: string): Promise<void> {
@@ -417,7 +551,11 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     // file in another encoding is the hash of no file: compared with a marker
     // any of the others wrote, it reads as "changed by someone else".
     return this.runExclusive(path, async () => {
-      await this.syncRepo.updateLocalHash(path, (await readLocalText(this.inner, path)).sha256);
+      const file = await readLocalText(this.inner, path);
+      await this.syncRepo.updateLocalHash(path, file.sha256);
+      // A file that is no text: the row says the version its marker now names
+      // is none (`SyncState.not_text_sha256`, § 3.86 no. 2).
+      if (!file.exact) await this.syncRepo.markNotText?.(path, file.sha256);
     });
   }
 
@@ -535,6 +673,8 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     // The file's text, or the refusal: no change is handed a reading of bytes
     // that are not UTF-8, so none can write one back (see the class comment).
     const text = await readExactText(this.inner, path);
+    // A reading handed out: the half of `updateTextFile` a window over the bus reads with.
+    this.noteReading(path, text);
     return { text, workingCopy: gate.session ? await this.sessions.draftLocked(gate.session) : null };
   }
 
@@ -634,6 +774,28 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         }
       } catch {
         // readBinaryFile failed — fall through to the normal conflict handling below.
+      }
+
+      // The version the marker names is no text (`SyncState.not_text_sha256`,
+      // § 3.86 no. 2), and another program has made the file UTF-8 again:
+      // nobody holds a reading of that version — the chain hands out none —,
+      // so it is no ancestor of what this writer holds. Where every reading of
+      // the file this chain handed out is of the bytes that lie there now,
+      // the writer started from them, and its text is written over them: the
+      // merge with them as the base gives that text. A reading of anything
+      // else — kept by a view since before the file was no text, or outdated
+      // by another change since — goes on to the conflict copy below.
+      if (syncState.not_text_sha256 && syncState.not_text_sha256 === syncState.local_sha256
+        && await this.onlyReadingsOf(path, diskSha256)) {
+        const written = this.keptLineEnds(currentDiskContent, localContent);
+        await this.inner.writeTextFile(path, written);
+        this.lineEndsWritten(path, currentDiskContent, written);
+        const writtenHash = await sha256Hash(written);
+        this.rememberWrite(path, writtenHash);
+        // A local change like any other: the text is the base only where no sync has seen the file.
+        await this.syncRepo.updateLocalHashAndUnsyncedBaseText(path, writtenHash, written);
+        await this.syncRepo.markNotText?.(path, null);
+        return;
       }
 
       // External modification detected! Attempt 3-way merge.

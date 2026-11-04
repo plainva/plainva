@@ -1,6 +1,6 @@
 # Grafo
 
-Última revisão: 2026-10-22
+Última revisão: 2026-11-02
 
 O grafo do Plainva é uma ferramenta de trabalho, não um pôster: ele mostra onde você está, o que está conectado, o que está faltando — e você pode agir diretamente nele. Existe UM único motor de grafo com três formas de aparecer.
 
@@ -51,5 +51,5 @@ No celular, essa visualização tem o mesmo funcionamento que o mapa do vault: b
 ## Limites
 
 - O grafo mostra notas (arquivos), não parágrafos individuais.
-- Fixações e sugestões descartadas ficam em `.plainva/` e não viajam com a sincronização — o layout base é idêntico em todos os dispositivos.
+- Fixações e sugestões descartadas ficam em `.plainva/` e não viajam com a sincronização — o layout base é idêntico em todos os dispositivos. Cada dispositivo os guarda em um arquivo próprio (`graph.<dispositivo>.json`): mesmo quando um serviço de arquivos como Dropbox ou iCloud Drive leva a pasta do vault entre dispositivos, nenhum sobrescreve o arranjo de outro.
 - As sugestões são análises puramente do vault; nada sai da sua máquina.

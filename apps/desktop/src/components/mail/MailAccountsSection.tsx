@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Users } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardNote, SettingRow, familyOfMailAccount, serviceConnectionMessage, toast, type CloudServiceId } from "@plainva/ui";
+import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
@@ -115,7 +115,8 @@ function MailAccountRow({
       {needsSignIn && open && !oauth && (
         <SettingRow
           label={t("mail.password", { defaultValue: "Passwort" })}
-          desc={t("deviceSignIn.cardBodyStatic")}
+          desc={t("deviceSignIn.cardBodyStaticShort")}
+          info={t("deviceSignIn.cardBodyStaticInfo")}
         >
           <input
             type="password"
@@ -183,24 +184,30 @@ export function OrphanedMailNotice({ vaultPath, reloadToken, onRemoved, onSignIn
     }
   };
 
+  // A row of the mailboxes card like the account rows below it (settings plan
+  // 2026-10-29, P1): the banner gets the row inset, the orphans are .pv-acct rows.
   return (
     <>
-      <Banner
-        kind="warning"
-        rounded
-        actions={
-          <>
-            <Button size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="mail-orphans-review">
-              {t("mail.orphans.review")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => void notice.later()} data-testid="mail-orphans-later">
-              {t("mail.orphans.later")}
-            </Button>
-          </>
-        }
-      >
-        <strong>{t("mail.orphans.title", { count: notice.orphans.length })}</strong> {t("mail.orphans.body")}
-      </Banner>
+      <SettingCardBlock>
+        <Banner
+          kind="warning"
+          rounded
+          actions={
+            <>
+              <Button size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="mail-orphans-review">
+                {t("mail.orphans.review")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => void notice.later()} data-testid="mail-orphans-later">
+                {t("mail.orphans.later")}
+              </Button>
+            </>
+          }
+        >
+          <strong>{t("mail.orphans.title", { count: notice.orphans.length })}</strong>
+          <InfoTip label={t("mail.orphans.title", { count: notice.orphans.length })} info={t("mail.orphans.body")} />{" "}
+          {t("mail.orphans.bodyShort")}
+        </Banner>
+      </SettingCardBlock>
       {open &&
         notice.orphans.map((account) => (
           <div className="pv-acct" data-testid="mail-orphan" key={account.id}>
@@ -309,6 +316,11 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   const persistMailFolder = useCallback(async () => {
     if (!vaultPath) return;
     const store = await getSettingsStore();
+    // No folder under .plainva or outside the vault (3.127 no. 4): the field goes back to what is stored.
+    if (refuseVaultPathSetting(mailFolder.trim())) {
+      setMailFolder((await store.get<string>(mailFolderKey(vaultPath))) ?? "");
+      return;
+    }
     await store.set(mailFolderKey(vaultPath), mailFolder.trim());
     await store.save();
   }, [vaultPath, mailFolder]);
@@ -348,7 +360,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
         {accounts.length === 0 && (
           <EmptyState title={t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })} icon={<Users size={ICON.empty} />}>
             {onOpenCloudAccounts && (
-              <Button variant="primary" onClick={() => onOpenCloudAccounts()} data-testid="mail-open-cloudaccounts">
+              <Button variant="primary" onClick={() => onOpenCloudAccounts(undefined, "mail")} data-testid="mail-open-cloudaccounts">
                 {t("cloudAccounts.openArea")}
               </Button>
             )}
@@ -368,7 +380,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
       </SettingCard>
 
       <SettingCard label={t("cloudAccounts.mailCaptureGroup")}>
-        <SettingRow label={t("mail.folder", { defaultValue: "E-Mail-Ordner" })} desc={t("mail.folderHint", { defaultValue: "Ablage für abgelegte E-Mails (Notizen und .eml-Dateien)." })}>
+        <SettingRow label={t("mail.folder", { defaultValue: "E-Mail-Ordner" })} info={t("mail.folderHint")}>
           <input
             autoComplete="off"
             value={mailFolder}
@@ -380,24 +392,22 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
             style={{ width: 180 }}
           />
         </SettingRow>
-        <SettingRow label={t("mail.loadRemoteImages", { defaultValue: "Externe Bilder immer laden" })}>
-          <input
-            type="checkbox"
+        {/* The privacy consequence and the spam exception stay visible; how
+            the default works is behind the info. The switch does not reach
+            into the spam folder (plan Befunde 06.10., E6) — said here, where
+            the switch is, on both shells. */}
+        <SettingRow
+          label={t("mail.loadRemoteImages", { defaultValue: "Externe Bilder immer laden" })}
+          desc={`${t("mail.loadRemoteImagesShort")} ${t("mail.loadRemoteImagesJunkShort")}`}
+          info={[t("mail.loadRemoteImagesHint"), t("mail.loadRemoteImagesJunk")].join("\n\n")}
+        >
+          <Switch
             checked={remoteImages}
-            onChange={(e) => void persistRemoteImages(e.target.checked)}
-            data-testid="mail-remote-images"
-            className="pv-check"
+            onChange={(on) => void persistRemoteImages(on)}
+            label={t("mail.loadRemoteImages", { defaultValue: "Externe Bilder immer laden" })}
+            testId="mail-remote-images"
           />
         </SettingRow>
-        <SettingCardNote>
-          {t("mail.loadRemoteImagesHint", {
-            defaultValue:
-              "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden.",
-          })}{" "}
-          {/* The switch does not reach into the spam folder (plan Befunde
-              06.10., E6) — said here, where the switch is, on both shells. */}
-          <span data-testid="mail-remote-images-junk-note">{t("mail.loadRemoteImagesJunk")}</span>
-        </SettingCardNote>
       </SettingCard>
 
       {/* The out-of-office notice belongs to the SENDING account, so it sits
@@ -413,6 +423,15 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
               options={accounts.map((a) => ({ value: a.id, label: a.label || a.user }))}
             />
           </SettingRow>
+          {/* Sender and signature are on the account's e-mail page — a link
+              rather than a sentence that names the place (Q4). */}
+          {onOpenCloudAccounts && (
+            <SettingRow label={t("cloudAccounts.mailAccountPickLink")}>
+              <Button variant="ghost" size="sm" onClick={() => onOpenCloudAccounts(sendingId, "mail")} data-testid="mail-sender-signature">
+                {t("mobile.open")} ›
+              </Button>
+            </SettingRow>
+          )}
         </SettingCard>
       )}
       {accounts.length > 0 && <RulesSettings vaultPath={vaultPath} account={sendingAccount ?? null} />}

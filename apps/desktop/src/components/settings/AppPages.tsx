@@ -13,11 +13,11 @@ import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
 import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
 import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, Switch, type CustomThemeDesign } from "@plainva/ui";
-import type { JournalCheckResult } from "@plainva/core";
-import { BackgroundSettings } from "./BackgroundSettings";
+import { AutostartRow, BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
-import { WindowSettings } from "./WindowSettings";
+import { WindowRestoreRow } from "./WindowSettings";
 import { LinkStyleSettings } from "./LinkStyleSettings";
+import { StoredCredentialsCard } from "./StoredCredentialsCard";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
 import { pinnedModeHintKey } from "@plainva/ui";
@@ -29,7 +29,8 @@ import type { EditorViewMode } from "../../services/viewModeDefault";
 import type { PerfStat } from "../../services/perfMetrics";
 
 /**
- * The five APP-world settings pages (redesign 2026-07-18, P2). All state and
+ * The APP-world settings pages (redesign 2026-07-18, P2; Updates became a
+ * group of About & diagnostics, settings plan 2026-10-29, E10). All state and
  * persistence stays in SettingsModal — these components only render the
  * quiet-cards layout for it (page head + named group cards).
  */
@@ -50,12 +51,12 @@ const FONT_PRESET_LABEL: Record<Exclude<ContentFontFamily, "theme" | "custom">, 
 
 /** One font slot: a family choice, and the catalogue field once it is "custom".
  * The code slot offers monospace only — presets and catalogue alike (P2). */
-const FontSlotRow: React.FC<{ slot: FontSlot; label: string; desc: string; choice: FontChoice; onChange: (choice: FontChoice) => void }> = ({ slot, label, desc, choice, onChange }) => {
+const FontSlotRow: React.FC<{ slot: FontSlot; label: string; info: string; choice: FontChoice; onChange: (choice: FontChoice) => void }> = ({ slot, label, info, choice, onChange }) => {
   const { t } = useTranslation();
   // The content slot keeps the test ids the E2E smoke has used since A3.
   const idBase = slot === "content" ? "content-font" : `${slot}-font`;
   return (
-    <SettingRow label={label} desc={desc}>
+    <SettingRow label={label} info={info}>
       <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         <Select
           ariaLabel={label}
@@ -102,9 +103,6 @@ export interface AppearancePageProps {
   onDensity: (d: Density) => void;
   /** "Colour tags" (finding 2026-09-19): device-local, off by default. */
   tagColors: boolean;
-  /** May the journal capture offer the place button (plan Journal-Erweiterungen, E6)? Device-local, off by default. */
-  placeStamp: boolean;
-  onPlaceStamp: (v: boolean) => void;
   onTagColors: (on: boolean) => void;
   uiZoom: number;
   onUiZoom: (z: number) => void;
@@ -162,14 +160,16 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
       {/* One card for the three font slots (issue #82, plan 2026-09-06 P2/E2):
           interface, content, code — the content font used to live on the
           Editor page and the interface font inside "My design"; the code font
-          could not be set at all. Device-local: installed fonts differ per device. */}
-      <SettingCard label={t("settings.groupFonts")}>
-        <FontSlotRow slot="ui" label={t("settings.fontUi")} desc={t("settings.fontUiDesc")} choice={p.fonts.fonts.ui} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, ui: c } })} />
-        <FontSlotRow slot="content" label={t("settings.fontContent")} desc={t("settings.fontContentDesc")} choice={p.fonts.fonts.content} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, content: c } })} />
-        <FontSlotRow slot="code" label={t("settings.fontCode")} desc={t("settings.fontCodeDesc")} choice={p.fonts.fonts.code} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, code: c } })} />
+          could not be set at all. What each slot covers is behind its ⓘ, and
+          the card's ⓘ says why fonts are a matter of the device (settings plan
+          2026-10-29, appendix 2.1). */}
+      <SettingCard label={t("settings.groupFonts")} info={t("settings.fontsDeviceHint")} testId="appearance-fonts">
+        <FontSlotRow slot="ui" label={t("settings.fontUi")} info={t("settings.fontUiDesc")} choice={p.fonts.fonts.ui} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, ui: c } })} />
+        <FontSlotRow slot="content" label={t("settings.fontContent")} info={t("settings.fontContentDesc")} choice={p.fonts.fonts.content} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, content: c } })} />
+        <FontSlotRow slot="code" label={t("settings.fontCode")} info={t("settings.fontCodeDesc")} choice={p.fonts.fonts.code} onChange={(c) => p.onFonts({ ...p.fonts, fonts: { ...p.fonts.fonts, code: c } })} />
         <SettingRow
           label={t("settings.contentFontSize", { defaultValue: "Inhalts-Schriftgröße" })}
-          desc={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
+          info={t("settings.contentFontSizeDesc", { defaultValue: "Schriftgröße von Editor und Leseansicht; die Oberfläche bleibt unverändert." })}
         >
           <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <input
@@ -187,10 +187,12 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
             </span>
           </div>
         </SettingRow>
-        <SettingCardNote>{t("settings.fontsDeviceHint")}</SettingCardNote>
       </SettingCard>
 
-      <SettingCard label={t("settings.groupLanguageDisplay", { defaultValue: "Sprache & Darstellung" })}>
+      {/* "Sprache & Darstellung" held eight unlike rows; it is three cards now,
+          one subject each (settings plan 2026-10-29, appendix 2.1 B1). The
+          place stamp went to Editor & notes › Journal (B2). */}
+      <SettingCard label={t("settings.groupLanguageRegion")} testId="appearance-language-region">
         <SettingRow label={t("settings.language")}>
           <div style={{ width: "100%" }}>
             <Select
@@ -203,7 +205,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
         </SettingRow>
         <SettingRow
           label={t("settings.weekStart", { defaultValue: "Wochenbeginn" })}
-          desc={t("settings.weekStartDesc", { defaultValue: "Erster Wochentag in allen Kalender-Ansichten." })}
+          info={t("settings.weekStartDesc", { defaultValue: "Erster Wochentag in allen Kalender-Ansichten." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -218,9 +220,12 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
             />
           </div>
         </SettingRow>
+      </SettingCard>
+
+      <SettingCard label={t("settings.groupDisplay")} testId="appearance-display">
         <SettingRow
           label={t("settings.density", { defaultValue: "Kompaktheitsgrad" })}
-          desc={t("settings.densityDesc", { defaultValue: "Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert." })}
+          info={t("settings.densityDesc", { defaultValue: "Kompakt verdichtet Dateibaum, Listen, Menüs und Tabellen; der Notiz-Inhalt bleibt unverändert." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -234,16 +239,9 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
             />
           </div>
         </SettingRow>
-        <SettingRow label={t("settings.placeStamp")} desc={t("settings.placeStampDesc")}>
-          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} testId="place-stamp-switch" />
-        </SettingRow>
-        <SettingRow label={t("settings.tagColors")} desc={t("settings.tagColorsDesc")}>
-          <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />
-        </SettingRow>
-        <LinkStyleSettings />
         <SettingRow
           label={t("settings.uiZoom", { defaultValue: "Oberflächen-Zoom" })}
-          desc={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
+          info={t("settings.uiZoomDesc", { defaultValue: "Skaliert die gesamte Oberfläche. Auch per Strg/Cmd + Plus/Minus; 0 setzt zurück." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -256,6 +254,13 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
               ).map((z) => ({ value: String(z), label: `${z} %${z === DEFAULT_UI_ZOOM ? ` (${t("settings.uiZoomDefault", { defaultValue: "Standard" })})` : ""}` }))}
             />
           </div>
+        </SettingRow>
+      </SettingCard>
+
+      <SettingCard label={t("settings.groupLinksTags")} testId="appearance-links-tags">
+        <LinkStyleSettings />
+        <SettingRow label={t("settings.tagColors")} info={t("settings.tagColorsDesc")}>
+          <Switch checked={p.tagColors} label={t("settings.tagColors")} onChange={p.onTagColors} />
         </SettingRow>
       </SettingCard>
     </div>
@@ -274,6 +279,9 @@ export interface EditorPageProps {
   /** Open a new note in a tab of its own (issue 135): device-local, off by default. */
   newNotesInNewTab: boolean;
   onNewNotesInNewTab: (on: boolean) => void;
+  /** May the journal capture offer the place button (plan Journal-Erweiterungen, E6)? Device-local, off by default. */
+  placeStamp: boolean;
+  onPlaceStamp: (v: boolean) => void;
 }
 
 /**
@@ -291,7 +299,7 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
       <SettingCard label={t("settings.groupView", { defaultValue: "Ansicht" })}>
         <SettingRow
           label={t("settings.defaultViewMode", { defaultValue: "Standard-Ansicht" })}
-          desc={t("settings.defaultViewModeDesc", { defaultValue: "Notizen öffnen in dieser Ansicht; ein manueller Wechsel gilt je Datei für die laufende Sitzung." })}
+          info={t("settings.defaultViewModeDesc", { defaultValue: "Notizen öffnen in dieser Ansicht; ein manueller Wechsel gilt je Datei für die laufende Sitzung." })}
         >
           <div style={{ width: "100%" }}>
             <Select
@@ -306,32 +314,43 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
             />
           </div>
         </SettingRow>
-        <SettingRow label={t("settings.newNotesInNewTab")} desc={t("settings.newNotesInNewTabDesc")}>
+        <SettingRow label={t("settings.newNotesInNewTab")} info={t("settings.newNotesInNewTabDesc")}>
           <Switch checked={p.newNotesInNewTab} label={t("settings.newNotesInNewTab")} onChange={p.onNewNotesInNewTab} />
         </SettingRow>
       </SettingCard>
 
-      <SettingCard label={t("settings.groupWriting")}>
+      {/* "Writing" and "Links" were two cards of one row each; one card now
+          (settings plan 2026-10-29, appendix 2.3 B1). What spell checking
+          covers and what the right-click does are behind its ⓘ; that the
+          switch does nothing on Linux stays visible. */}
+      <SettingCard label={t("settings.groupWriting")} testId="editor-writing">
         <SettingRow
           label={t("settings.spellcheck")}
-          desc={`${t("settings.spellcheckDesc")} ${t("settings.spellcheckMenuDesc")}${IS_LINUX_DESKTOP ? ` ${t("settings.spellcheckLinux")}` : ""}`}
+          info={`${t("settings.spellcheckDesc")}\n\n${t("settings.spellcheckMenuDesc")}`}
+          desc={IS_LINUX_DESKTOP ? t("settings.spellcheckLinux") : undefined}
         >
           <Switch checked={p.spellcheck} label={t("settings.spellcheck")} onChange={p.onSpellcheck} />
         </SettingRow>
-      </SettingCard>
-
-      <SettingCard label={t("settings.groupLinks", { defaultValue: "Links" })}>
         <SettingRow
           label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
-          desc={t("settings.askBeforeCreateLinkDesc", { defaultValue: "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt." })}
+          info={t("settings.askBeforeCreateLinkDesc", { defaultValue: "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt." })}
         >
-          <input
-            type="checkbox"
-            id="askBeforeCreateLink"
-            aria-label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
+          <Switch
+            testId="askBeforeCreateLink"
+            label={t("settings.askBeforeCreateLink", { defaultValue: "Vor dem Anlegen leerer Links fragen" })}
             checked={p.askBeforeCreateLink}
-            onChange={(e) => p.onAskBeforeCreateLink(e.target.checked)}
+            onChange={p.onAskBeforeCreateLink}
           />
+        </SettingRow>
+      </SettingCard>
+
+      {/* The journal's device settings (appendix 2.3 B2): the place stamp came
+          from Appearance — it is about capturing, not about how Plainva looks.
+          The global quick capture stays in Startup & behavior, beside running
+          in the background it depends on (B3). */}
+      <SettingCard label={t("settings.editorGroupJournal")} testId="editor-journal">
+        <SettingRow label={t("settings.placeStamp")} info={t("settings.placeStampDesc")}>
+          <Switch checked={p.placeStamp} label={t("settings.placeStamp")} onChange={p.onPlaceStamp} testId="place-stamp-switch" />
         </SettingRow>
       </SettingCard>
     </div>
@@ -353,19 +372,23 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
   return (
     <div>
       <AreaHead areaId="behavior" />
-      <SettingCard label={t("settings.groupStart", { defaultValue: "Start" })}>
-        <SettingRow label={t("splash.autoOpenLastVault")} desc={t("settings.autoOpenLastVaultDesc")}>
-          <input type="checkbox" id="autoOpenLastVault" aria-label={t("splash.autoOpenLastVault")} checked={p.autoOpenLastVault} onChange={(e) => p.onAutoOpenLastVault(e.target.checked)} />
+      {/* "Startup" and "Windows" were cards of one row each; starting with the
+          system is a start behaviour too (settings plan 2026-10-29, appendix
+          2.4 B1). Background, quick capture and hints follow (B2-B4). */}
+      <SettingCard label={t("settings.groupStart", { defaultValue: "Start" })} testId="behavior-start">
+        <AutostartRow />
+        <SettingRow label={t("splash.autoOpenLastVault")} info={t("settings.autoOpenLastVaultDesc")}>
+          <Switch testId="autoOpenLastVault" label={t("splash.autoOpenLastVault")} checked={p.autoOpenLastVault} onChange={p.onAutoOpenLastVault} />
         </SettingRow>
+        <WindowRestoreRow />
       </SettingCard>
-      <WindowSettings />
       <BackgroundSettings />
       <QuickCaptureSettings />
       <SettingCard label={t("settings.groupHints", { defaultValue: "Hinweise" })}>
         <SettingRow label={t("settings.showCompatWarning")}>
-          <input type="checkbox" id="showCompat" aria-label={t("settings.showCompatWarning")} checked={p.showCompatibilityWarning} onChange={(e) => p.onShowCompatibilityWarning(e.target.checked)} />
+          <Switch testId="showCompat" label={t("settings.showCompatWarning")} checked={p.showCompatibilityWarning} onChange={p.onShowCompatibilityWarning} />
         </SettingRow>
-        <SettingRow label={t("settings.showWhatsNew", "Release-Highlights erneut anzeigen")}>
+        <SettingRow label={t("settings.showWhatsNew", "Neuerungen erneut anzeigen")}>
           <Button variant="secondary" size="sm" onClick={() => {
             p.onShowWhatsNew?.();
             window.dispatchEvent(new CustomEvent("plainva-show-whats-new"));
@@ -387,8 +410,11 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
   );
 };
 
-export interface UpdatesPageProps {
+/** The update controls: a group of About & diagnostics on the desktop (E10). */
+export interface UpdatesGroupProps {
   autoUpdateCheckEnabled: boolean;
+  /** The package manager that updates this installation (Nix); `null` when Plainva updates itself. */
+  managedBy?: string | null;
   onAutoUpdateCheck: (v: boolean) => void;
   updateStatus: string;
   updateAvailable: boolean;
@@ -397,33 +423,45 @@ export interface UpdatesPageProps {
   onInstallUpdate: () => void;
 }
 
-export const UpdatesPage: React.FC<UpdatesPageProps> = (p) => {
+/**
+ * "Updates" was a page of two rows; it is the second group of About &
+ * diagnostics now — the version and the way to the next one belong together
+ * (settings plan 2026-10-29, appendix 2.5 B1). The phone has no such group:
+ * Google Play and TestFlight update the app (parity catalog in-app-updates).
+ */
+const UpdatesGroup: React.FC<UpdatesGroupProps> = (p) => {
   const { t } = useTranslation();
-  return (
-    <div>
-      <AreaHead areaId="updates" />
-      <SettingCard label={t("settings.groupUpdate", { defaultValue: "Aktualisierung" })}>
-        <SettingRow label={t("settings.autoUpdateCheck")} desc={t("settings.autoUpdateCheckDesc")}>
-          <input type="checkbox" id="autoUpdateCheck" aria-label={t("settings.autoUpdateCheck")} checked={p.autoUpdateCheckEnabled} onChange={(e) => p.onAutoUpdateCheck(e.target.checked)} />
-        </SettingRow>
-        <SettingRow label={t("settings.updates", "Updates")} desc={p.updateStatus || undefined}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
-            <button
-              onClick={p.onCheckUpdates}
-              disabled={p.isUpdating}
-              className="pv-btn pv-btn--secondary" style={{ cursor: p.isUpdating ? "not-allowed" : "pointer" }}
-            >
-              {t("settings.checkUpdates", "Nach Updates suchen")}
-            </button>
-            {p.updateAvailable && !p.isUpdating && (
-              <button onClick={p.onInstallUpdate} className="pv-btn pv-btn--primary">
-                {t("settings.installUpdate", "Jetzt installieren & Neustarten")}
-              </button>
-            )}
-          </div>
-        </SettingRow>
+  if (p.managedBy) {
+    // A copy a package manager installed cannot replace itself (the Nix store is
+    // read-only): no switch, no button — the line says who brings the next version.
+    return (
+      <SettingCard label={t("settings.updates", "Updates")} testId="about-updates">
+        <SettingRow label={t("settings.updatesManagedBy", { manager: p.managedBy })} desc={t("settings.updatesManagedByDesc")} />
       </SettingCard>
-    </div>
+    );
+  }
+  return (
+    <SettingCard label={t("settings.updates", "Updates")} testId="about-updates">
+      <SettingRow label={t("settings.autoUpdateCheck")} info={t("settings.autoUpdateCheckDesc")}>
+        <Switch testId="autoUpdateCheck" label={t("settings.autoUpdateCheck")} checked={p.autoUpdateCheckEnabled} onChange={p.onAutoUpdateCheck} />
+      </SettingRow>
+      <SettingRow label={t("settings.groupUpdate", { defaultValue: "Aktualisierung" })} desc={p.updateStatus || undefined}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+          <button
+            onClick={p.onCheckUpdates}
+            disabled={p.isUpdating}
+            className="pv-btn pv-btn--secondary" style={{ cursor: p.isUpdating ? "not-allowed" : "pointer" }}
+          >
+            {t("settings.checkUpdates", "Nach Updates suchen")}
+          </button>
+          {p.updateAvailable && !p.isUpdating && (
+            <button onClick={p.onInstallUpdate} className="pv-btn pv-btn--primary">
+              {t("settings.installUpdate", "Jetzt installieren & Neustarten")}
+            </button>
+          )}
+        </div>
+      </SettingRow>
+    </SettingCard>
   );
 };
 
@@ -435,32 +473,12 @@ export interface AboutPageProps {
   onExportPerfMetrics: () => void;
   onExportDiagnostics: () => void;
   onReportIssue: () => void;
-  /**
-   * Checks the synced deletion log against the cloud and takes back entries
-   * whose file still exists (finding 2026-09-20). Absent without a file sync.
-   */
-  onCheckDeletionLog?: (onProgress: (done: number, total: number) => void) => Promise<JournalCheckResult>;
+  /** The update controls, shown as the page's second group (E10). */
+  updates: UpdatesGroupProps;
 }
 
 export const AboutPage: React.FC<AboutPageProps> = (p) => {
   const { t } = useTranslation();
-  const [journalBusy, setJournalBusy] = React.useState(false);
-  const [journalNote, setJournalNote] = React.useState<string | null>(null);
-  const checkDeletionLog = async () => {
-    if (!p.onCheckDeletionLog || journalBusy) return;
-    setJournalBusy(true);
-    try {
-      const result = await p.onCheckDeletionLog((done, total) => setJournalNote(t("sync.journalCheckProgress", { done, total })));
-      setJournalNote(result.checked === 0 && result.unknown === 0
-        ? t("sync.journalCheckEmpty")
-        : t("sync.journalCheckDone", { retracted: result.retracted, absent: result.absent, unknown: result.unknown }));
-    } catch (e) {
-      console.error("[settings] deletion log check failed", e);
-      setJournalNote(t("sync.journalCheckFailed"));
-    } finally {
-      setJournalBusy(false);
-    }
-  };
   return (
     <div>
       <AreaHead areaId="about" />
@@ -470,25 +488,16 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
             {t("settings.exportDiagnostics")}
           </Button>
         </SettingRow>
-        <SettingRow label={t("settings.osKeychain")}>
-          <strong style={{ color: p.keychainStatus === "native" ? "var(--accent-color)" : "var(--error-text)", fontSize: "var(--text-md)" }}>
-            {p.keychainStatus === "checking" ? t("settings.keychainChecking") : p.keychainStatus === "native" ? t("settings.keychainNative") : t("settings.keychainFallback")}
-          </strong>
-        </SettingRow>
       </SettingCard>
 
+      <UpdatesGroup {...p.updates} />
+
+      {/* Stored access and the OS keychain (settings plan 2026-10-29, move 15, B1):
+          app-wide, so here, beside each other. */}
+      <StoredCredentialsCard keychainStatus={p.keychainStatus} />
+
       <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })}>
-        {/* The deletion log travels to every device and explains absences there
-            without a question — so a wrong entry is worth a way to find it
-            (finding 2026-09-20). The result replaces the hint. */}
-        {p.onCheckDeletionLog && (
-          <SettingRow label={t("sync.journalCheck")} desc={journalNote ?? t("sync.journalCheckHint")}>
-            <Button variant="secondary" size="sm" disabled={journalBusy} onClick={() => void checkDeletionLog()} data-testid="check-deletion-log">
-              {t("sync.journalCheck")}
-            </Button>
-          </SettingRow>
-        )}
-        <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} desc={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
+        <SettingRow label={t("settings.perfMetrics", { defaultValue: "Performance-Messwerte" })} info={t("settings.perfMetricsDesc", { defaultValue: "Lokale Messpunkte dieser Sitzung (Median/p95 in ms) — verlassen das Gerät nie." })}>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="secondary" size="sm" onClick={p.onRefreshPerfStats}>
               {t("settings.perfMetricsRefresh", { defaultValue: "Anzeigen/Aktualisieren" })}
@@ -559,9 +568,10 @@ export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange
           ‹ {t("settings.sectionAppearance")}
         </Button>
       </div>
-      <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} />
-      <CustomThemeEditor spec={spec} onChange={onChange} active={active} />
-      <CustomThemeSync {...designSync} />
+      <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} info={t("settings.customThemePairHint")} />
+      <CustomThemeEditor spec={spec} onChange={onChange} active={active}>
+        <CustomThemeSync {...designSync} />
+      </CustomThemeEditor>
     </div>
   );
 };

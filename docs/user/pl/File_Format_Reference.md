@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-10-24
+Stan na: 2026-11-03
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -29,6 +29,8 @@ Vault to zwykły folder. Typy plików, które napotkasz:
 
 Zarezerwowane nazwy `index.md` i `log.md` nigdy nie są zwykłymi notatkami; nie twórz zwykłej treści pod tymi nazwami.
 
+Pliki i foldery, których nazwa zaczyna się od kropki — np. `.notatki.md` lub `.attachments/` — należą do sejfu: Plainva trzyma je w indeksie i synchronizuje jak każdy inny plik, ale ich nie pokazuje, tak jak Obsidian. Nie pojawiają się w żadnym wyszukiwaniu, liście plików, grafie, podpowiedzi, liście linków zwrotnych, liście tagów lub zadań ani w bazie danych. Link, który wskazuje taki plik, nadal go otwiera. Własny folder Plainva `.plainva/` i folder Obsidian `.obsidian/` mają własne reguły.
+
 ---
 
 ## Notatki (`.md`)
@@ -52,9 +54,9 @@ A **bold** thought that links to [[Another Note]].
 - [ ] First task
 ```
 
-Blok może być pusty: `---`, po którym bezpośrednio następuje `---`, to blok bez właściwości, a nie dwa separatory — treść notatki zaczyna się w następnej linii. Plainva nie zostawia pustego bloku: gdy usuwana jest ostatnia właściwość, obie linie `---` znikają razem z nią. Pozostają tylko wtedy, gdy sama treść zaczyna się od linii `---`, która w przeciwnym razie zostałaby odczytana jako początek bloku.
+Blok może być pusty: `---`, po którym bezpośrednio następuje `---`, to blok bez właściwości, a nie dwa separatory — treść notatki zaczyna się w następnej linii. Plainva nie zostawia pustego bloku: gdy usuwana jest ostatnia właściwość, obie linie `---` znikają razem z nią. Pozostają tylko wtedy, gdy sama treść zaczyna się od linii `---`, która w przeciwnym razie zostałaby odczytana jako początek bloku. Blok, w którym został tylko komentarz, zostaje razem z komentarzem.
 
-Blok, którego Plainva nie potrafi odczytać jako właściwości, pozostaje dokładnie taki, jaki jest: tekst między dwiema liniami `---`, który nie jest YAML-em, albo YAML będący listą zamiast linii `klucz: wartość`. Sekcja **Właściwości** mówi o tym, zamiast nie pokazywać żadnych właściwości, a zmiana właściwości takiej notatki — tam, w bazie danych, na tablicy korkowej, na liście zadań albo jej ikony i koloru — niczego nie zmienia, a Plainva o tym informuje: **Nie udało się zapisać właściwości**, a dalej przyczyna. Popraw blok w treści notatki, a zmiana zostanie zapisana. Pojedyncza wartość w nieoczekiwanej postaci nie czyni bloku nieczytelnym: Plainva odczytuje ją tak, jak jest zapisana — puste `tags:` to notatka bez tagów, liczba wśród tagów (`- 2024`) to tag `2024`, liczba jako `title` to ten tytuł, a `timestamp` będący datą to zwykła właściwość.
+Blok, którego Plainva nie potrafi odczytać jako właściwości, pozostaje dokładnie taki, jaki jest: tekst między dwiema liniami `---`, który nie jest YAML-em, albo YAML będący listą zamiast linii `klucz: wartość`. Pojedynczy wiersz tekstu, liczba lub zbiór (`!!set`) między dwiema liniami to również taki blok: także wyszukiwanie, linki i bazy danych nie odczytują z niego żadnej właściwości. Sekcja **Właściwości** mówi o tym, zamiast nie pokazywać żadnych właściwości, a zmiana właściwości takiej notatki — tam, w bazie danych, na tablicy korkowej, na liście zadań albo jej ikony i koloru — niczego nie zmienia, a Plainva o tym informuje: **Nie udało się zapisać właściwości**, a dalej przyczyna. Popraw blok w treści notatki, a zmiana zostanie zapisana. Pojedyncza wartość w nieoczekiwanej postaci nie czyni bloku nieczytelnym: Plainva odczytuje ją tak, jak jest zapisana — puste `tags:` to notatka bez tagów, liczba wśród tagów (`- 2024`) to tag `2024`, liczba jako `title` to ten tytuł, a `timestamp` będący datą to zwykła właściwość. `tag` i `alias` w liczbie pojedynczej to zwykłe właściwości — jak w Obsidianie od wersji 1.9 —, więc tagiem jest tylko to, co stoi pod `tags`.
 
 ### Pola frontmatter OKF
 
@@ -246,7 +248,7 @@ Plik `.base` to YAML. Przechowuje *widok* na notatki — jakie notatki (źródł
 
 ### Zasady twarde — złamanie jednej sprawia, że Obsidian odrzuca cały plik
 
-- **Tylko te klucze najwyższego poziomu:** `filters`, `formulas`, `properties`, `views`. Nigdy nie dodawaj innego klucza najwyższego poziomu. (Historycznie klucz najwyższego poziomu `columns:` psuł każdy plik — nie wprowadzaj ponownie tego wzorca.)
+- **Tylko te klucze najwyższego poziomu:** `filters`, `formulas`, `properties`, `summaries`, `views`. Nigdy nie dodawaj innego klucza najwyższego poziomu. (Historycznie klucz najwyższego poziomu `columns:` psuł każdy plik — nie wprowadzaj ponownie tego wzorca.)
 - **Każdy widok potrzebuje niepustego stringa `name`.**
 - **Obiekt `filters` niesie dokładnie jedno z `and` / `or` / `not` na każdym poziomie** — nigdy dwa obok siebie.
 
@@ -597,7 +599,7 @@ Dla relacji, której celem jest ta sama baza danych, skieruj `relationBase` na t
 
 `index.md` to zarezerwowana nazwa dla spisu treści folderu.
 
-- **Tylko główna `index.md` może nieść frontmatter**, i tylko `okf_version` — wersję konwencji, którą przestrzega vault (obecnie `"0.2"`; oznacza to vault jako aktywny w OKF). Vault, który wciąż deklaruje `"0.1"`, jest podnoszony w **Ustawienia → Vault → Treść i struktura → Wersja pakietu → Podnieś…**; w tym samym kroku można usunąć przestarzałe pole `okf_version` z notatek. `index.md` poza folderem głównym musi być **wolna od frontmatter** — frontmatter tam jest naruszeniem nazwy zarezerwowanej.
+- **Tylko główna `index.md` może nieść frontmatter**, i tylko `okf_version` — wersję konwencji, którą przestrzega vault (obecnie `"0.2"`; oznacza to vault jako aktywny w OKF). Vault, który wciąż deklaruje `"0.1"`, jest podnoszony w **Ustawienia → Vault → Konserwacja → Format OKF → Wersja pakietu → Podnieś…**; w tym samym kroku można usunąć przestarzałe pole `okf_version` z notatek. `index.md` poza folderem głównym musi być **wolna od frontmatter** — frontmatter tam jest naruszeniem nazwy zarezerwowanej.
 - **Zarządzana** przez Plainva `index.md` kończy się znacznikiem `<!-- plainva:index generated -->` (komentarz HTML, niewidoczny w trybie czytania). Jego obecność oznacza, że Plainva automatycznie utrzymuje plik aktualny. Jeśli edytujesz taki plik ręcznie, albo zachowaj znacznik (i utrzymaj wygenerowany kształt), albo usuń go świadomie, aby na stałe przejąć plik.
 - Generowane listingi to sekcje linków w formie `* [Tytuł](względny/url) - opis`.
 
@@ -651,7 +653,7 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 - **`.agent/`** zawiera reguły AI, skille i pamięć Plainva. Zmieniaj go tylko wtedy, gdy użytkownik dokładnie o to prosi, i przestrzegaj `cloud: deny` oraz `web: deny` (patrz reguła prywatności AI wyżej).
 - **Nieznane klucze są święte.** Gdy przepisujesz `.base` lub notatkę, przenieś każdy klucz, którego nie zamierzałeś zmienić, bez zmian. Sam Plainva zachowuje nieznane klucze `.base` przez wewnętrzną surową kopię; zewnętrzny program piszący powinien robić to samo (sparsuj → zmień tylko to, co zamierzasz → zserializuj).
 - **Wartości zmieniają się w notatce, nie w `.base`.** Aby ustawić komórkę, edytuj frontmatter notatki. `.base` decyduje tylko o tym, które notatki i kolumny są pokazywane.
-- **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `views`.
+- **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `summaries` / `views`.
 - **Kodowanie:** UTF-8. Nowe pliki: zakończenia linii LF, bez BOM. Notatka lub plik tekstowy, który ma już zakończenia linii CRLF albo BOM, zachowuje je — Plainva ich nie zmienia i narzędzie też nie powinno. Jedynym wyjątkiem jest `.base`: Plainva zapisuje go na nowo, z LF i bez BOM, za każdym razem, gdy zmienia się jego konfiguracja. Sam znak powrotu karetki (CR) jako zakończenie linii (stare pliki z Maca) jest odczytywany, ale nie jest zachowywany: przy pierwszej zmianie takiego pliku Plainva zapisuje go z LF.
 
 ## Zobacz też

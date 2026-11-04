@@ -92,38 +92,69 @@ export interface OriginGroup<A> {
 }
 
 /**
- * Groups selected row ids by the mailbox they actually live in, so a bulk action
- * runs once per (account, folder) instead of once per id against whatever the
- * screen had selected.
+ * Groups row ids by the mailbox they actually live in, so a bulk action runs
+ * once per (account, folder).
  *
- * `lookup` resolves an account id to the account object; ids whose account is
- * gone are dropped rather than guessed at — the alternative is acting on someone
- * else's mailbox. Plain ids fall back to `fallback`, which keeps every existing
- * single-folder caller behaving exactly as before.
+ * Every id has to BE an address (finding 2026-10-12, plan P1). A plain id names
+ * no folder, and there was a fallback for it: the folder on screen. That is
+ * exactly the folder a message of a conversation does not lie in — your reply
+ * in Sent carries a number that names another message in the inbox, or none —
+ * so a plain id is refused here, like an id whose account is gone, rather than
+ * read off whatever the screen shows. The lists of both shells name every row
+ * by its address (`addressRows`), so nothing a person picked is lost by this.
  */
 export function groupByOrigin<A>(
   ids: readonly string[],
   lookup: (accountId: string) => A | null | undefined,
-  fallback: { account: A | null; mailbox: string },
 ): Array<OriginGroup<A>> {
   const groups = new Map<string, OriginGroup<A>>();
-  const push = (account: A, mailbox: string, uid: string, accountKey: string) => {
-    const key = `${accountKey}${SEP}${mailbox}`;
-    const existing = groups.get(key);
-    if (existing) existing.uids.push(uid);
-    else groups.set(key, { account, mailbox, uids: [uid] });
-  };
   for (const id of ids) {
     const origin = parseUnifiedId(id);
-    if (!origin) {
-      if (fallback.account) push(fallback.account, fallback.mailbox, id, "\u0001fallback");
-      continue;
-    }
+    if (!origin) continue;
     const account = lookup(origin.accountId);
     if (!account) continue;
-    push(account, origin.mailbox, origin.uid, origin.accountId);
+    const key = `${origin.accountId}${SEP}${origin.mailbox}`;
+    const existing = groups.get(key);
+    if (existing) existing.uids.push(origin.uid);
+    else groups.set(key, { account, mailbox: origin.mailbox, uids: [origin.uid] });
   }
   return [...groups.values()];
+}
+
+/**
+ * The rows of one folder of one account, each named by its ADDRESS.
+ *
+ * The one rule of both mail lists (plan P1): a row is its address — account,
+ * folder, number — in a folder as in "All inboxes", in a conversation as in a
+ * search. A list that named its rows by their bare number made every action on
+ * them a question to the screen ("which folder is open?"), and a conversation,
+ * a merged list or an answer that arrived after a switch answered it wrongly:
+ * a reply from Sent was marked, moved or deleted in the inbox under its number
+ * there. Addressed here, where a list comes from the transport, an action needs
+ * nothing but the row.
+ *
+ * A row that already carries an address keeps it, so applying this twice is
+ * harmless. The transport keeps its bare ids: the cache and the server never
+ * see an address.
+ */
+export function addressRows<T extends { id: string }>(
+  rows: readonly T[],
+  place: { accountId: string; mailbox: string },
+): T[] {
+  return rows.map((row) =>
+    isUnifiedId(row.id) ? row : { ...row, id: unifiedId({ accountId: place.accountId, mailbox: place.mailbox, uid: row.id }) },
+  );
+}
+
+/** The number the transport knows a row by — its address's, or the plain id. */
+export function uidOf(id: string): string {
+  return parseUnifiedId(id)?.uid ?? id;
+}
+
+/** Whether an address lies in this folder of this account. */
+export function inPlace(id: string, place: { accountId: string; mailbox: string }): boolean {
+  const origin = parseUnifiedId(id);
+  return !!origin && origin.accountId === place.accountId && origin.mailbox === place.mailbox;
 }
 
 /**

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import { ICON } from "@plainva/ui";
 import { haptics } from "../services/haptics";
+import { useAutoHideChrome } from "../hooks/useAutoHideChrome";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
 import { getChromeScroll, subscribeChromeScroll } from "../services/chromeScroll";
 import { getWindowClass, subscribeWindowClass, isRailClass } from "../services/windowClass";
@@ -73,6 +74,10 @@ export function NavBar({
   // mockup's retreating bar); it opens again on the way back up. Its
   // destinations stay tappable throughout — this hides words, never targets.
   const { away } = useSyncExternalStore(subscribeChromeScroll, getChromeScroll);
+  // With "Hide bars while scrolling" on, the bar leaves altogether instead of
+  // only folding its words (W3): on a small phone the capsule and the "+"
+  // took a fifth of the screen.
+  const autoHide = useAutoHideChrome();
   const windowClass = useSyncExternalStore(subscribeWindowClass, getWindowClass);
   const rail = isRailClass(windowClass);
 
@@ -95,7 +100,7 @@ export function NavBar({
   return (
     <nav
       aria-label="Tabs"
-      className={`m-tabbar${rail ? " m-tabbar--rail" : ""}${!rail && away ? " is-away" : ""}`}
+      className={`m-tabbar${rail ? " m-tabbar--rail" : ""}${!rail && away ? (autoHide ? " is-hidden" : " is-away") : ""}`}
       {...(rail
         ? {}
         : {

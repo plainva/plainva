@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { within } from "./helpers/timeBudget.js";
 import { htmlToVisibleText } from "../src/pim/htmlVisibleText.js";
 
 /**
@@ -113,6 +114,23 @@ describe("htmlToVisibleText", () => {
     expect(htmlToVisibleText("<object><p>Ersatztext</p></object>")).toBe("Ersatztext");
   });
 
+  it("leaves out four more things the reader does not show (Sammelplan § 3.84)", () => {
+    // A closed details: the summary, nothing of what is folded away — open, all of it.
+    expect(htmlToVisibleText("<p>Davor</p><details><summary>Mehr</summary><p>Verborgen</p></details><p>Danach</p>")).toBe("Davor\n\nMehr\n\nDanach");
+    expect(htmlToVisibleText("<details>Ohne Überschrift</details><p>Danach</p>")).toBe("Danach");
+    expect(htmlToVisibleText("<details open><summary>Mehr</summary><p>Offen</p></details>")).toBe("Mehr\n\nOffen");
+    // A popover is shown on request only — like the hidden attribute, its own style can show it.
+    expect(htmlToVisibleText('<p>Davor</p><div popover>Verborgen</div><div popover="manual">auch</div><p>Danach</p>')).toBe("Davor\n\nDanach");
+    expect(htmlToVisibleText('<div popover style="display:block">X</div>')).toBe("X");
+    // A comment in a style is nothing, wherever it stands; one left open runs to the end.
+    expect(htmlToVisibleText('<p>Davor</p><div style="display:/**/none">X</div><div style="display:none/* bis zum Ende">Y</div><p>Danach</p>')).toBe("Davor\n\nDanach");
+    expect(htmlToVisibleText('<div style="display:none;/*display:block*/">X</div>Z')).toBe("Z");
+    // A font size that is none sets nothing: under a font of no size its text stays unreadable.
+    expect(htmlToVisibleText('<div style="font-size:0">a<span style="font-size:banana">b</span><span style="font-size:-12px">c</span><span style="font-size:12furlongs">d</span><span style="font-size:small">e</span></div>')).toBe("e");
+    // ... and a readable font stays readable around such a value.
+    expect(htmlToVisibleText('<p>a<span style="font-size:banana">b</span>c</p>')).toBe("abc");
+  });
+
   it("leaves out the preview line a sender hides above the message", () => {
     const html =
       '<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">Nur heute: 50 % Rabatt</div>' +
@@ -203,9 +221,7 @@ describe("htmlToVisibleText", () => {
     // line ended in a blank was asked of the line itself, which flattened the
     // growing string once per text: a quarter of a minute for this one.
     const pieces = Array.from({ length: 200_000 }, () => ({ nodeName: "b", attrs: [], childNodes: [{ nodeName: "#text", value: " a" }] }));
-    const start = performance.now();
-    const text = htmlToVisibleText("", () => ({ nodeName: "#root", childNodes: pieces }));
-    expect(performance.now() - start).toBeLessThan(2_000);
+    const text = within(2_000, () => htmlToVisibleText("", () => ({ nodeName: "#root", childNodes: pieces })));
     expect(text.length).toBe(2 * 200_000 - 1);
     expect(text.startsWith("a a a ")).toBe(true);
     expect(text.endsWith(" a a")).toBe(true);

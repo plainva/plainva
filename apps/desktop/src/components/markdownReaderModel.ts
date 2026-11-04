@@ -49,14 +49,32 @@ interface MdastNodeLike {
   position?: { start: { line: number; column: number; offset: number }; end: { line: number; column: number; offset: number } };
 }
 
-/** Preserve parser positions when splitting a literal text node. */
+/** Where the line breaks of a text node's value stand, read once per node. */
+const lineBreaksOf = new WeakMap<MdastNodeLike, number[]>();
+
+/**
+ * Preserve parser positions when splitting a literal text node.
+ *
+ * A place's line and column are read from the breaks before it by a binary
+ * search over the node's breaks, read once. Each place used to split the
+ * whole text before it: a paragraph of 12 000 lines took the reading view
+ * seconds to cut into its lines (open-items plan 3.133 no. 4).
+ */
 function slicedText(node: MdastNodeLike, from: number, to: number): MdastNodeLike {
   const value = String(node.value ?? "");
   const result: MdastNodeLike = { type: "text", value: value.slice(from, to) };
   if (!node.position || node.position.end.offset - node.position.start.offset !== value.length) return result;
+  let breaks = lineBreaksOf.get(node);
+  if (!breaks) {
+    breaks = [];
+    for (let at = value.indexOf("\n"); at >= 0; at = value.indexOf("\n", at + 1)) breaks.push(at);
+    lineBreaksOf.set(node, breaks);
+  }
   const point = (at: number) => {
-    const before = value.slice(0, at), lines = before.split("\n");
-    return { offset: node.position!.start.offset + at, line: node.position!.start.line + lines.length - 1, column: lines.length > 1 ? lines[lines.length - 1].length + 1 : node.position!.start.column + at };
+    // How many breaks stand before `at`, and where the last of them is.
+    let lo = 0, hi = breaks!.length;
+    while (lo < hi) { const mid = (lo + hi) >>> 1; if (breaks![mid] < at) lo = mid + 1; else hi = mid; }
+    return { offset: node.position!.start.offset + at, line: node.position!.start.line + lo, column: lo > 0 ? at - breaks![lo - 1] : node.position!.start.column + at };
   };
   result.position = { start: point(from), end: point(to) };
   return result;

@@ -7,7 +7,7 @@ vi.mock("@plainva/ui", async original => ({ ...await original<typeof import("@pl
   save: async () => { if (state.fail) throw Error("storage unavailable"); },
 }) }) }));
 vi.mock("./services/vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ id: "vault" }) }));
-import { buildQueue, withCompleted, nextService, isExpired, QUEUE_TTL_MS, outcomeBelongsToRun, startConnectQueue, loadConnectQueue, recordConnectOutcome, advanceOnAccountsChanged, confirmConnectSelection, clearConnectQueue, skipConnectStep, runServices, prepareConnectVault, releaseConnectVault } from "./services/connectQueue";
+import { buildQueue, withCompleted, nextService, isExpired, QUEUE_TTL_MS, outcomeBelongsToRun, startConnectQueue, loadConnectQueue, recordConnectOutcome, advanceOnAccountsChanged, confirmConnectSelection, clearConnectQueue, skipConnectStep, runServices, prepareConnectVault, releaseConnectVault, markConnectSignedIn } from "./services/connectQueue";
 
 beforeEach(async () => { state.fail = false; await clearConnectQueue(); });
 describe("exact account connection progress", () => {
@@ -106,5 +106,17 @@ describe("exact account connection progress", () => {
     state.fail = true;
     await expect(recordConnectOutcome(context, "calendar", { state: "connected", bindingId: "calendar" })).rejects.toThrow("storage unavailable");
     expect((await loadConnectQueue())!.outcomes).toEqual({});
+  });
+});
+
+describe("the sign-in of a run that starts before it (settings plan 2026-10-29)", () => {
+  it("is marked once it happened, for its own run only", async () => {
+    await startConnectQueue("dropbox", ["files"], undefined, { signedIn: false });
+    const run = (await loadConnectQueue())!;
+    expect(run.signedIn).toBe(false);
+    await markConnectSignedIn({ ...run.context, runId: "another" });
+    expect((await loadConnectQueue())!.signedIn).toBe(false);
+    await markConnectSignedIn(run.context);
+    expect((await loadConnectQueue())!.signedIn).toBe(true);
   });
 });

@@ -292,9 +292,14 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
           templateVault: await phoneTemplateVault(),
           allNotePaths,
           fallbackTitle: t("tasks.promoteFallbackTitle"),
-        }).catch(() => null);
-        if (!res || !res.ok) {
-          const reason = res && !res.ok ? res.reason : null;
+        }).catch((e: unknown) => {
+          // Said with its reason, as the desktop says it: "Moving failed" alone named none.
+          toast.error(t("writeFailed.promote", { reason: errorText(e) }));
+          return null;
+        });
+        if (!res) return;
+        if (!res.ok) {
+          const reason = res.reason;
           if (reason === "stale") {
             toast.info(t("tasks.promoteStale"));
             onChanged();
@@ -308,7 +313,10 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
         // on WHERE a task was born whether it gets there.
         await sendTaskToProviderList(vaultTextFiles(vault), dbPath, res.notePath, res.title, task.due ?? undefined);
         syncSoon();
-        toast.info(t("tasks.promoted", { name: res.title }));
+        // The task note is there; a checkbox that stayed beside it is said (Sammelplan § 3.87 no. 5).
+        if (res.checkboxKept === "changed") toast.warning(t("writeFailed.promotedCheckboxKept", { name: res.title }));
+        else toast.info(t("tasks.promoted", { name: res.title }));
+        if (res.checkboxKept === "refused") toast.error(t("writeFailed.checkbox", { reason: errorText(res.keptReason) }));
         onChanged();
       })();
     },

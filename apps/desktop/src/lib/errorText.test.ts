@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { afterAll, beforeEach, describe, it, expect } from "vitest";
+import { ConflictError, OPEN_CONFLICT_MESSAGE, OpenConflictError, VaultFileExistsError, VaultFileNotFoundError, VaultPermissionDeniedError } from "@plainva/core";
 import { errorText } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 
 /**
  * The case that shipped: a string from the Tauri boundary, `.message` on it is
@@ -43,5 +45,46 @@ describe("errorText", () => {
 
   it("trims surrounding whitespace", () => {
     expect(errorText("  path is a directory  ")).toBe("path is a directory");
+  });
+});
+
+/**
+ * The vault's own refusals are the reason of a write that did not land. They
+ * reached the user in English with the vault path, or not at all (Sammelplan
+ * § 3.135 no. 3: "File or directory already exists: Projects/index.md" under
+ * an overview that could not be adopted; § 3.87 no. 1: the open conflict of a
+ * database that could not be saved).
+ */
+describe("errorText: the vault's refusals in the user's words", () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
+  });
+  afterAll(async () => {
+    await i18n.changeLanguage("en");
+  });
+
+  it("an open conflict, as the error and as the text that crossed a window boundary", () => {
+    const said = "The file has an open conflict. Resolve the conflict first, then try again.";
+    expect(errorText(new OpenConflictError("Note.CONFLICT-1.md"))).toBe(said);
+    expect(errorText(OPEN_CONFLICT_MESSAGE)).toBe(said);
+    expect(errorText(new ConflictError("Resolve the open conflict before moving or deleting this file or folder", "x"))).toBe(said);
+  });
+
+  it("a refused, a taken and a vanished file, named by its name", () => {
+    expect(errorText(new VaultPermissionDeniedError("Projects/Plan.md"))).toBe("No permission to change “Plan.md”.");
+    expect(errorText(new VaultFileExistsError("Projects/index.md"))).toBe("“index.md” already exists.");
+    expect(errorText(new VaultFileNotFoundError("Projects/Gone.md"))).toBe("“Gone.md” is no longer there.");
+    // Across the window bus the error is its message.
+    expect(errorText("File or directory already exists: Projects/index.md")).toBe("“index.md” already exists.");
+  });
+
+  it("speaks the user's language", async () => {
+    await i18n.changeLanguage("de");
+    expect(errorText(new VaultFileExistsError("Projects/index.md"))).toBe("„index.md“ ist schon vorhanden.");
+    expect(errorText(new OpenConflictError())).toMatch(/offenen Konflikt/);
+  });
+
+  it("leaves every other text as it is", () => {
+    expect(errorText("Permission denied (os error 13)")).toBe("Permission denied (os error 13)");
   });
 });

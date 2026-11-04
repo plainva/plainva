@@ -4,15 +4,17 @@ import { Button } from "../ui/Button";
 import { Banner } from "../ui/Banner";
 import { Radio } from "../ui/Radio";
 import { TextInput } from "../ui/Field";
-import { SettingCard, SettingCardNote, SettingRow } from "../ui/SettingsSurface";
+import { SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow } from "../ui/SettingsSurface";
+import { DeviceOnlyBadge } from "../ui/DeviceOnlyBadge";
+import type { InfoContent } from "../ui/InfoTip";
 import {
   ownAccessRequirements,
   validClientId,
+  type AccessFamily,
   type AccessPlatform,
   type AccessProblem,
   type StoredOAuthAccess,
 } from "../../lib/oauthAccess";
-import type { OAuthFamily } from "../../lib/oauthScopes";
 import { googleClientGuideUrl, ONEDRIVE_DROPBOX_BYO_GUIDE, userGuideUrl } from "../../lib/docsLinks";
 import { getPlatformServices } from "../../platform/services";
 
@@ -20,16 +22,19 @@ import { getPlatformServices } from "../../platform/services";
  * The guide for an own client of this family on this device: the Google page
  * (and on a phone its "iOS" section), or the Microsoft one.
  */
-export function ownAccessGuideUrl(family: OAuthFamily, platform: AccessPlatform): string {
+export function ownAccessGuideUrl(family: AccessFamily, platform: AccessPlatform): string {
   return family === "google" ? googleClientGuideUrl(platform) : userGuideUrl(ONEDRIVE_DROPBOX_BYO_GUIDE);
 }
+
+const PROVIDER_NAME: Record<AccessFamily, string> = { google: "Google", microsoft: "Microsoft", dropbox: "Dropbox" };
 
 /**
  * Which client this device signs in with (account sign-in plan E3, mockup
  * view 6). One surface for both shells: Plainva's access is the default, the
  * own access asks exactly what this device type needs - a Desktop-type Google
  * client with its secret on a computer, an iOS-type client without one on a
- * phone, a client id for Microsoft.
+ * phone, a client id for Microsoft, an app key for Dropbox (settings plan
+ * 2026-10-29, E6: the same editor, the same place, per device).
  */
 export function OAuthAccessEditor({
   family,
@@ -38,8 +43,17 @@ export function OAuthAccessEditor({
   plainvaAvailable,
   onSave,
   onCancel,
+  label,
+  info,
 }: {
-  family: OAuthFamily;
+  /**
+   * The group's name when the editor stands for it - on the account page it
+   * replaces the "Access on this device" card while it is open, so the name
+   * says the scope. Without one the editor says it with the badge (E3).
+   */
+  label?: string;
+  info?: InfoContent;
+  family: AccessFamily;
   platform: AccessPlatform;
   value: StoredOAuthAccess | null;
   /** Whether this build ships Plainva's client for this family and platform. */
@@ -61,8 +75,10 @@ export function OAuthAccessEditor({
 
   return (
     <div data-testid={`oauth-access-${family}`}>
-    <SettingCard>
-      <SettingCardNote>{t("accountAccess.deviceOnly")}</SettingCardNote>
+    <SettingCard label={label} info={info}>
+      {/* The choice is this device's (E6); one sentence used to say so, the badge says it now. */}
+      {label === undefined && <SettingCardNote><DeviceOnlyBadge testId="oauth-access-device-only" /></SettingCardNote>}
+      <SettingCardBlock>
       <div role="radiogroup" style={{ display: "grid", gap: "var(--space-2)" }} aria-label={t(`accountAccess.title.${family}`)}>
         <Radio
           name={name}
@@ -77,12 +93,13 @@ export function OAuthAccessEditor({
           checked={source === "own"}
           onChange={() => setSource("own")}
           data-testid={`oauth-access-${family}-own`}
-          label={<span><b>{t("accountAccess.own")}</b><br />{t(`accountAccess.ownDesc.${family}`)}</span>}
+          label={<span><b>{t(family === "dropbox" ? "accountAccess.ownKey" : "accountAccess.own")}</b><br />{t(`accountAccess.ownDesc.${family}`)}</span>}
         />
       </div>
+      </SettingCardBlock>
       {source === "own" && (
         <>
-          <SettingRow label={t("settings.clientId")} wide>
+          <SettingRow label={t(family === "dropbox" ? "settings.appKey" : "settings.clientId")} wide>
             <TextInput value={clientId} onChange={(event) => setClientId(event.target.value)} data-testid={`oauth-access-${family}-client-id`} aria-invalid={idInvalid || undefined} />
           </SettingRow>
           {needs.secret && (
@@ -94,22 +111,22 @@ export function OAuthAccessEditor({
           {/* issue 142: Google answers a client of the wrong type on its own error
               page, which never reaches Plainva — so the editor says it first. */}
           {family === "google" && <SettingCardNote>{t(`accountAccess.ownTypeMismatch.${needs.clientType}`)}</SettingCardNote>}
-          <div>
+          <SettingCardBlock>
             <Button
               variant="ghost"
               size="sm"
               data-testid={`oauth-access-${family}-guide`}
               onClick={() => void getPlatformServices().openExternal(ownAccessGuideUrl(family, platform)).catch(() => undefined)}
             >
-              {t("cloudAccounts.providerHelp", { provider: family === "google" ? "Google" : "Microsoft" })}
+              {t("cloudAccounts.providerHelp", { provider: PROVIDER_NAME[family] })}
             </Button>
-          </div>
-          {idInvalid && <Banner kind="warning" rounded>{t("accountAccess.problem.ownClientInvalid")}</Banner>}
+          </SettingCardBlock>
+          {idInvalid && <SettingCardBlock><Banner kind="warning" rounded>{t("accountAccess.problem.ownClientInvalid")}</Banner></SettingCardBlock>}
         </>
       )}
       <SettingCardNote>{t("accountAccess.signInAgainHint")}</SettingCardNote>
-      {error && <Banner kind="error" rounded>{error}</Banner>}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+      {error && <SettingCardBlock><Banner kind="error" rounded>{error}</Banner></SettingCardBlock>}
+      <SettingCardActions>
         {onCancel && <Button variant="ghost" onClick={onCancel}>{t("common.cancel")}</Button>}
         <Button
           variant="primary"
@@ -131,7 +148,7 @@ export function OAuthAccessEditor({
         >
           {t("common.save")}
         </Button>
-      </div>
+      </SettingCardActions>
     </SettingCard>
     </div>
   );

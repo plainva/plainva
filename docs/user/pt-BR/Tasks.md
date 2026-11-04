@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-10-25
+Última revisão: 2026-11-04
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -17,11 +17,11 @@ Ela abre como uma aba, como qualquer nota.
 
 ## No telefone
 
-A visualização de Tarefas também existe no mobile. Você a abre por **Seções** na barra de navegação (ou mantendo a barra pressionada), e pode colocá-la na própria barra de navegação (**Configurações** → **Barras e áreas**).
+A visualização de Tarefas também existe no mobile. Você a abre por **Seções** na barra de navegação (ou mantendo a barra pressionada), e pode colocá-la na própria barra de navegação (**Configurações** → **Barra de navegação**).
 
 Ela mostra as mesmas duas seções do desktop: o **Banco de tarefas** no topo, a lista de caixas de seleção em **Das notas** abaixo, com os filtros **Abertas**/**Concluídas**/**Todas** e a busca por texto livre. Marcar como concluída, **Alterar status**, mover uma caixa de seleção **para o banco de dados**, **+ Nova tarefa**, **Bloquear tempo** e **Repetição** funcionam como descrito acima e gravam os mesmos arquivos: a mesma nota com frontmatter, o mesmo `[[wiki link]]` na linha original, a mesma regra em `plainva.repeat`.
 
-Qual banco de dados o seu vault usa como banco de tarefas é definido no telefone em **Configurações** → **Conteúdo e estrutura**. A configuração viaja pela [sincronização de configurações](Sync_Setup.md), então você só a escolhe uma vez, no dispositivo que preferir.
+Qual banco de dados o seu vault usa como banco de tarefas é definido no telefone em **Configurações** → **Notas e organização**. A configuração viaja pela [sincronização de configurações](Sync_Setup.md), então você só a escolhe uma vez, no dispositivo que preferir.
 
 Os quatro filtros da barra do desktop aparecem no telefone como chips acima da lista: **Pasta**, **Etiqueta**, **Com vencimento** e **Mostrar ocultas**. Chips em vez de menus suspensos, porque uma barra de filtros acima de uma lista já estreita custa mais espaço do que rende — um toque abre a escolha, um segundo a limpa de novo.
 
@@ -51,7 +51,7 @@ Se uma nota mudou desde que a lista foi construída, uma alternância desatualiz
 
 ## Banco de tarefas padrão
 
-Caixas de seleção são rápidas de anotar, mas às vezes uma linha cresce até virar uma tarefa "de verdade" — com um status, uma data de vencimento e uma nota própria. Para isso, escolha um **Banco de tarefas padrão** em **Configurações → Vault → Conteúdo e estrutura**: um [banco de dados (`.base`)](Databases_Base.md) onde essas tarefas vivem como notas próprias. **Criar banco de dados…** já cria um pronto para uso (uma pasta de armazenamento e uma `.base` com uma **coluna de caixa de seleção de concluído** (`feito`), uma coluna de status, uma coluna de vencimento, além de uma visualização de tabela, uma de quadro e uma de linha do tempo — a linha do tempo coloca cada tarefa no seu dia de vencimento); você também pode simplesmente escolher um banco de dados já existente. A propriedade da caixa de seleção é a verdade de conclusão da tarefa (ligada/desligada, assim como nos provedores); a coluna de status é mantida consistente quando você a marca como concluída. Um banco de dados sem uma coluna de caixa de seleção recorre à convenção de status: primeira opção = aberta, última = concluída.
+Caixas de seleção são rápidas de anotar, mas às vezes uma linha cresce até virar uma tarefa "de verdade" — com um status, uma data de vencimento e uma nota própria. Para isso, escolha um **Banco de tarefas padrão** em **Configurações → Vault → Notas e organização**: um [banco de dados (`.base`)](Databases_Base.md) onde essas tarefas vivem como notas próprias. **Criar banco de dados…** já cria um pronto para uso (uma pasta de armazenamento e uma `.base` com uma **coluna de caixa de seleção de concluído** (`feito`), uma coluna de status, uma coluna de vencimento, além de uma visualização de tabela, uma de quadro e uma de linha do tempo — a linha do tempo coloca cada tarefa no seu dia de vencimento); você também pode simplesmente escolher um banco de dados já existente. A propriedade da caixa de seleção é a verdade de conclusão da tarefa (ligada/desligada, assim como nos provedores); a coluna de status é mantida consistente quando você a marca como concluída. Um banco de dados sem uma coluna de caixa de seleção recorre à convenção de status: primeira opção = aberta, última = concluída.
 
 Uma vez definido, a visualização de Tarefas mostra duas seções: no topo, as entradas do **Banco de tarefas**, e abaixo, **Das notas** — a familiar lista de caixas de seleção. O status é editável direto na visão geral: a caixa de seleção É a propriedade de caixa de seleção de concluído da nota e a alterna (a coluna de status a acompanha), e clicar no chip de status abre um menu com todas as opções (**Alterar status**). Os filtros **Abertas**/**Concluídas**/**Todas** se aplicam a ambas as seções, e **Abrir como banco de dados** leva à visualização completa do banco de dados, com seu quadro e filtros. **Atualizar** também dispara uma sincronização de verdade com o provedor quando há contas conectadas.
 
@@ -108,12 +108,87 @@ Você não precisa escrever esse campo manualmente:
 - **Ocultar das tarefas** — um ícone de olho fica à direita da linha de cabeçalho de cada nota; um clique grava o marcador nessa nota e a oculta.
 - **Mostrar ocultas** — esta opção na barra de filtros traz de volta as notas ocultas (esmaecidas), cada uma com um ícone para **Mostrar nas tarefas novamente** (que remove o marcador).
 - **Ocultar modelos** — se sua pasta de modelos contém notas com caixas de seleção, um botão **Ocultar modelos** aparece no canto superior direito e grava o marcador em todas elas de uma só vez.
+- **Notas com chaves de um modelo** — uma nota criada a partir de um modelo até a versão 0.8.5 pode ter herdado as chaves próprias do modelo (`plainva.tasks: false`, `plainva.templateFor`), e então as tarefas dela faltam aqui. Quando existem notas assim fora da pasta de modelos, um aviso as lista, cada uma com uma caixa: **Remover chaves…** tira as duas chaves das marcadas, nada mais muda nelas. Desmarque uma nota que você ocultou de propósito; **Ocultar** guarda o aviso até que outra nota entre na lista.
 
 Modelos recém-criados carregam o marcador automaticamente. Quando você cria uma nota **a partir de** um modelo, ele é removido novamente — a nova nota é conteúdo real e mostra suas tarefas normalmente.
+
+## Lembretes para caixas de seleção
+
+Uma caixa de seleção avisa você quando a data de vencimento traz um horário: escreva o horário logo depois da data, como `HH:MM` no formato de 24 horas (`00:00` conta como sem horário).
+
+```markdown
+- [ ] Ligar para o Bob 📅 2026-11-02 14:30
+```
+
+Ative em **Configurações → Calendário → Lembretes** com **Caixas de seleção com horário** — por vault e neste dispositivo, desligado até você ativar. O lembrete chega nesse horário, menos a antecedência de **Antecedência para tarefas com horário**. No celular ele oferece **Concluir**, **Em 1 hora** e **Amanhã de manhã**, como o lembrete de uma tarefa do banco de tarefas; no desktop o aviso ao lado oferece **Abrir tarefa**. De qualquer forma você chega à nota na linha da tarefa, também depois que a nota foi renomeada ou movida.
+
+Uma caixa que você marca, exclui ou muda de horário é planejada de novo em segundos. Uma caixa com data mas sem horário não avisa, e notas com `plainva.tasks: false` ficam de fora. O Plainva não escreve nada na nota para um lembrete. O Obsidian não conhece horários: ele deixa de ler uma data `📅` seguida de um horário.
 
 ## Compatibilidade com o Obsidian
 
 As tarefas são caixas de seleção comuns do GFM (GitHub-Flavored Markdown). O Plainva nunca adiciona uma sintaxe especial: as mesmas linhas `- [ ]` são renderizadas como caixas de seleção no Obsidian e são lidas corretamente em qualquer editor. As convenções `📅 data` e `#tag` são o estilo comum do Obsidian-Tasks, mas são apenas texto na sua nota.
+
+## Consultas Tasks do Obsidian
+
+Uma nota vinda do Obsidian pode conter um bloco de código `tasks` com uma consulta. O Plainva o desenha como uma lista de tarefas — na visualização ao vivo e no modo de leitura, no computador e no telefone, também dentro de uma citação ou de um callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+A consulta fica na nota exatamente como você a escreveu; o Plainva nunca escreve dentro do bloco. O modo de código-fonte sempre mostra o texto simples.
+
+### Trabalhando com a lista
+
+- Marque a caixa de uma tarefa: o Plainva grava a linha da tarefa na própria nota — com a data de conclusão e a repetição, como na visualização de Tarefas.
+- Clique ou toque em uma linha: a nota abre na linha da tarefa.
+- Clique com o botão direito em uma linha no computador, ou toque e segure no telefone, para abrir o menu da linha: **Concluídas**/**Abertas**, **Alterar vencimento**, **Definir prioridade**, **Definir estado**.
+- Em uma nota incorporada (`![[…]]`) a lista é somente leitura: sem marcar, sem menu.
+- Com o cursor dentro do bloco, o editor mostra a consulta como texto. **Editar consulta** coloca o cursor na consulta; no telefone, antes ele passa para a edição.
+
+O rodapé do bloco mostra o número de tarefas (“12 tarefas”), o interruptor **Explicação** e **Editar consulta**. **Explicação** mostra como o Plainva leu cada linha da consulta, com as datas como dias reais. Um resultado grande não é cortado em silêncio: o Plainva mostra as primeiras 100 linhas e depois **Mostrar todas (n)**.
+
+### O que o Plainva entende
+
+O Plainva lê estas linhas da linguagem de consulta do Tasks:
+
+| Assunto | Linhas |
+|---|---|
+| Estado | `done`, `not done`, `status.type is …` |
+| Datas | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, cada uma com `on`, `before`, `after`, `on or before`, `on or after` ou `in`; como dias: `2026-11-04`, `today`, `tomorrow`, `yesterday`, dias da semana, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — as semanas vão de segunda a domingo, como no Tasks |
+| Data presente ou não | `has due date`, `no scheduled date`, `due date is invalid` |
+| Repetição | `is recurring`, `recurrence includes …` |
+| Prioridade | `priority is high`, `priority is above none` — seis níveis, do mais alto ao mais baixo |
+| Texto e local | `description`, `path`, `filename`, `folder`, `root` e `heading`, cada um com `includes` ou `does not include` |
+| Tags | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Subitens | `exclude sub-items` |
+| Combinação | `AND`, `OR`, `NOT`, `XOR`, com `( )`, `[ ]`, `{ }` ou `" "` em volta das partes |
+| Ordenação | `sort by …` com todas as chaves exceto `random`, `status.name` e `id`, se quiser com `reverse`; depois das suas próprias linhas vale a ordem padrão do Obsidian, urgência incluída |
+| Agrupamento | `group by …`, até três níveis |
+| Exibição e quantidade | `show tree`, `hide backlink`, `hide task count` e semelhantes, `limit 20`, `limit groups 5`, `explain` |
+| Comentários e espaços reservados | linhas que começam com `#`; espaços reservados como `{{query.file.path}}`, que se referem à nota em que a consulta está |
+
+### Linhas que o Plainva não consegue seguir
+
+Cada linha de uma consulta cai em um de três casos:
+
+- Uma linha que o Obsidian conhece e o Plainva ainda não — por exemplo código (`filter by function`; o Plainva nunca executa código vindo de notas), expressões regulares (`regex matches`), dependências (`is blocked`), predefinições ou outras expressões de data. Um aviso acima da lista nomeia a linha e o motivo; a linha é deixada de fora, então a lista pode mostrar mais tarefas do que no Obsidian — ou em outra ordem, nas linhas `sort by` e `group by`.
+- Uma linha de layout sem equivalente no Plainva (`hide edit button`, `short mode`, …) é aceita em silêncio.
+- Uma linha que o Obsidian também rejeita (um erro de digitação, parênteses misturados, uma data impossível) mostra um erro com a linha e o motivo, e nenhuma lista.
+
+### Diferenças em relação ao Obsidian
+
+- “Hoje” é o dia do calendário.
+- Notas com `plainva.tasks: false` contam aqui; o Obsidian não conhece essa propriedade.
+- Um filtro global e uma consulta global definidos no Obsidian são citados na **Explicação**, mas não são aplicados.
+- Caracteres de estado personalizados (`[>]`, `[!]`, …) não são tarefas no Plainva.
+
+Blocos do Dataview continuam sendo texto simples.
 
 ## Veja também
 
@@ -165,13 +240,13 @@ A visão de tarefas abre em **Hoje**. As listas — uma barra à esquerda no com
 
 Acima das listas fica o campo de captura; no telefone, **+ Nova tarefa** e o botão **＋** o abrem como uma folha. Digite uma linha — `Enviar oferta amanhã 14h !!! #cliente toda semana` — e pressione Enter: o Plainva cria a tarefa no banco de tarefas. Ele entende hoje, amanhã, depois de amanhã, os dias da semana, “em 3 dias”, “semana que vem”, datas em algarismos, um horário (`14:30`, `14h`), uma recorrência (diária, semanal, mensal, anual, “toda segunda-feira”, “a cada 2 semanas”), `!`, `!!` e `!!!` para prioridade baixa, média e alta, e `#tags` — as palavras no idioma do aplicativo, algarismos e sinais em qualquer idioma. Tudo o que é reconhecido fica marcado dentro do campo e listado abaixo como um bloco removível **antes** de qualquer coisa ser salva; remova um bloco e as palavras dele voltam a contar simplesmente como título. No telefone, botões rápidos escrevem as mesmas palavras por você. Se o banco de tarefas indicar uma lista de um provedor, um chip decide se a tarefa também é criada lá.
 
-**Definir prioridade** no menu de uma linha (clique com o botão direito no computador, toque e segure no telefone) oferece **alta**, **média**, **baixa** e **nenhuma**; uma bandeira na frente do título a mostra. No banco de tarefas, a prioridade é uma coluna de seleção: um banco criado agora já a tem, um mais antigo a recebe na primeira vez que você define uma prioridade — nunca só por ser aberto. Uma caixa de seleção carrega a marca do plugin Obsidian Tasks em sua linha: o Plainva lê 🔺 e ⏫ como alta, 🔼 como média, 🔽 e ⏬ como baixa, e escreve ⏫, 🔼 ou 🔽.
+**Definir prioridade** no menu de uma linha (clique com o botão direito no computador, toque e segure no telefone) oferece **alta**, **média**, **baixa** e **nenhuma**; uma bandeira na frente do título a mostra. No banco de tarefas, a prioridade é uma coluna de seleção: um banco criado agora já a tem, um mais antigo a recebe na primeira vez que você define uma prioridade — nunca só por ser aberto. Uma caixa de seleção carrega em sua linha a marca de prioridade conhecida do Obsidian: o Plainva lê 🔺 e ⏫ como alta, 🔼 como média, 🔽 e ⏬ como baixa, e escreve ⏫, 🔼 ou 🔽.
 
 `- [/]` (**Em andamento**) e `- [-]` (**Cancelada**) também são tarefas. Elas ganham uma caixa própria no editor, no modo de leitura e em cada lista; em andamento conta como aberta, cancelada como fechada. Um clique continua alternando só entre aberta e concluída — ele conclui uma tarefa em andamento e reabre uma cancelada. **Definir estado** no menu da linha define os dois estados; o Plainva nunca os escreve por conta própria.
 
 **A data de uma tarefa é o caminho para alterá-la.** Toque na data de uma tarefa (dentro de um dia, no horário dela) e o seletor de data se abre — abaixo da data no desktop, como folha no celular. **Alterar vencimento** no menu da linha abre o mesmo seletor; é assim também que uma tarefa sem data ganha uma. No celular, **Nova tarefa** e a célula de data de um banco de dados escolhem o dia no mesmo calendário, não na roda de datas do sistema. Uma caixa de seleção em uma nota — no editor, na visualização de leitura e no diário — tem no celular um tamanho pensado para o dedo. Uma entrada do banco de dados de tarefas mantém o horário, uma caixa de seleção ganha ou muda a data `📅`. Ao lado do título **Atrasadas**, **Todas para hoje** move de uma vez todas as tarefas atrasadas para hoje. As duas ações são confirmadas por um aviso que oferece **Desfazer**. No campo de captura, `[[` sugere notas e `#` tags, como no editor: `Enter` ou `Tab` aceita a sugestão destacada, `Esc` fecha a lista.
 
-**Escolhas rápidas e um horário.** Acima do calendário o seletor oferece **Hoje**, **Amanhã**, **Este fim de semana**, **Próxima semana** e **Sem data**, cada uma com o dia da semana. Este fim de semana é o próximo sábado — hoje, se for sábado ou domingo; a próxima semana é o primeiro dia da semana seguinte, conforme **Início da semana**. Embaixo, **Horário** tem um interruptor: desligado, a tarefa vence o dia todo; ligado, você escolhe o horário ao lado. Uma escolha rápida ou um dia mantêm um horário já definido; para mudar só o horário, toque em **Concluído**. Um item do banco de tarefas guarda o horário no valor de vencimento (`2026-10-26T10:00`). Uma caixa de seleção numa nota leva só um dia — o `📅` do plugin Tasks não tem horário —, então o seletor avisa isso ali em vez de oferecer o interruptor. Se a coluna de vencimento do banco mostra só dias, o Plainva oferece uma vez **Mudar para data e hora**.
+**Escolhas rápidas e um horário.** Acima do calendário o seletor oferece **Hoje**, **Amanhã**, **Este fim de semana**, **Próxima semana** e **Sem data**, cada uma com o dia da semana. Este fim de semana é o próximo sábado — hoje, se for sábado ou domingo; a próxima semana é o primeiro dia da semana seguinte, conforme **Início da semana**. Embaixo, **Horário** tem um interruptor: desligado, a tarefa vence o dia todo; ligado, você escolhe o horário ao lado. Uma escolha rápida ou um dia mantêm um horário já definido; para mudar só o horário, toque em **Concluído**. Um item do banco de tarefas guarda o horário no valor de vencimento (`2026-10-26T10:00`). Para uma caixa de seleção numa nota o seletor define só o dia — o `📅` do Obsidian não tem horário — e avisa isso ali em vez de oferecer o interruptor; um horário que você mesmo escreve depois da data (veja *Lembretes para caixas de seleção*) fica quando o dia muda. Se a coluna de vencimento do banco mostra só dias, o Plainva oferece uma vez **Mudar para data e hora**.
 
 Mais formas de entrada: **Nova tarefa** no menu da bandeja no computador (quando o Plainva continua rodando em segundo plano), no Android o atalho do launcher **Nova tarefa** (toque e segure o ícone do aplicativo), e no telefone **Criar como tarefa** quando você compartilha algo com o Plainva — o texto e os anexos terminam na nota da tarefa. Como uma tarefa com horário te avisa está descrito em [Calendário e tarefas externas](Calendar_and_Tasks.md). No iPhone e no iPad, a Siri e os Atalhos também aceitam uma tarefa (**Adicionar tarefa**); o Plainva a cria na próxima vez que for aberto — veja [O app mobile](Mobile_App.md).
 
@@ -183,7 +258,7 @@ A caixa do widget **Hoje** registra um pedido: a marca aparece na hora, a nota m
 <!-- task-rows-2026-10-24 -->
 ## Subtarefas, marcadores e o que foi feito hoje
 
-**Subtarefas.** Uma caixa de seleção recuada sob outra é a sua subtarefa, como `show tree` no plugin Tasks do Obsidian. Nas listas **Hoje**, **Em breve**, **Caixa de entrada** e **Concluídas**, uma tarefa traz as suas subtarefas recuadas abaixo dela — abertas e concluídas, estas tachadas — e uma seta no fim da linha as recolhe. Uma subtarefa com data própria aparece também no seu próprio dia; uma sem data é listada sob a sua tarefa e não sozinha na **Caixa de entrada**. A lista **Todas** mantém cada caixa de seleção na ordem da sua nota.
+**Subtarefas.** Uma caixa de seleção recuada sob outra é a sua subtarefa, como `show tree` nos blocos `tasks` do Obsidian. Nas listas **Hoje**, **Em breve**, **Caixa de entrada** e **Concluídas**, uma tarefa traz as suas subtarefas recuadas abaixo dela — abertas e concluídas, estas tachadas — e uma seta no fim da linha as recolhe. Uma subtarefa com data própria aparece também no seu próprio dia; uma sem data é listada sob a sua tarefa e não sozinha na **Caixa de entrada**. A lista **Todas** mantém cada caixa de seleção na ordem da sua nota.
 
 **Marcadores.** Itens simples recuados sob uma tarefa — perguntas, anotações — aparecem sob o título dela como uma prévia de até duas linhas; o restante fica na nota.
 

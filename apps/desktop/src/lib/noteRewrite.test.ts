@@ -7,9 +7,11 @@ import {
   renamePropertyAcrossNotes,
   renameRefusedText,
   rewriteNoteTexts,
+  rewriteNoteProperties,
+  sayRewriteOutcome,
   type PropertyWriteAdapter,
 } from "@plainva/ui";
-import { renameFrontmatterKey } from "@plainva/core";
+import { renameFrontmatterKey, VaultFileNotFoundError } from "@plainva/core";
 
 /**
  * A property renamed across the notes of a database, and one removed from
@@ -39,7 +41,7 @@ function vault(files: Record<string, string>) {
   const adapter: PropertyWriteAdapter = {
     readTextFile: async (path) => {
       const text = store.get(path);
-      if (text === undefined) throw new Error(`no such file: ${path}`);
+      if (text === undefined) throw new VaultFileNotFoundError(path);
       return text;
     },
     writeTextFile: async (path, text) => {
@@ -74,7 +76,7 @@ describe("a property renamed across notes", () => {
       adapter: v.adapter, paths: ["a.md", "b.md", "c.md"], oldName: "prio", newName: "priority",
       confirm: g.confirm, saveConfig: g.saveConfig, onProgress: (done, total) => progress.push(`${done}/${total}`),
     });
-    expect(outcome).toEqual({ status: "renamed", result: { written: ["a.md", "b.md"], unchanged: ["c.md"], failed: [] } });
+    expect(outcome).toEqual({ status: "renamed", result: { written: ["a.md", "b.md"], unchanged: ["c.md"], failed: [], skipped: [] } });
     expect(g.steps).toEqual(["asked", "database saved"]);
     expect(v.store.get("a.md")).toBe("---\ntype: note\npriority: 2 # kept\nowner: Anna\n---\nText\n");
     expect(v.store.get("b.md")).toBe("---\npriority: 3\n---\nB\n");
@@ -136,21 +138,24 @@ describe("a property renamed across notes", () => {
     const outcome = await renamePropertyAcrossNotes({ adapter: v.adapter, paths: ["a.md", "locked.md", "z.md"], oldName: "prio", newName: "priority", saveConfig: async () => {} });
     expect(outcome).toEqual({
       status: "renamed",
-      result: { written: ["a.md", "z.md"], unchanged: [], failed: [{ path: "locked.md", message: "Operation not permitted (os error 1)" }] },
+      result: { written: ["a.md", "z.md"], unchanged: [], failed: [{ path: "locked.md", message: "Operation not permitted (os error 1)" }], skipped: [] },
     });
     expect(v.store.get("locked.md")).toBe("---\nprio: 5\n---\nL\n");
     expect(v.store.get("z.md")).toBe("---\npriority: 7\n---\nZ\n");
   });
 
-  it("does not take a note that is gone for one that refuses", async () => {
+  it("does not take a note that is gone for one that refuses — and skips it, it does not fail", async () => {
     // The index still lists it. Nothing is settled by correcting a note that
-    // is not there, so the rename runs — and counts it.
+    // is not there, so the rename runs. A note that is gone has nothing to
+    // rename: skipped, as a due date and a template follow-up have counted it
+    // since § 3.71 — it was the one loop that called it failed (decision E20).
     const v = vault({ "a.md": PLAIN });
     const outcome = await renamePropertyAcrossNotes({ adapter: v.adapter, paths: ["a.md", "gone.md"], oldName: "prio", newName: "priority", saveConfig: async () => {} });
     expect(outcome.status).toBe("renamed");
     if (outcome.status !== "renamed") return;
     expect(outcome.result.written).toEqual(["a.md"]);
-    expect(outcome.result.failed).toEqual([{ path: "gone.md", message: "no such file: gone.md" }]);
+    expect(outcome.result.failed).toEqual([]);
+    expect(outcome.result.skipped).toEqual(["gone.md"]);
   });
 
   it("leaves the notes alone when the database cannot be saved", async () => {
@@ -177,6 +182,38 @@ describe("a property removed from the notes of a database", () => {
     expect(v.store.get("list.md")).toBe(LIST);
     expect(v.store.get("broken.md")).toBe(UNPARSEABLE);
     expect(v.store.get("without.md")).toBe(files["without.md"]);
+  });
+
+  it("skips a note that is gone instead of counting it as failed (decision E20)", async () => {
+    const v = vault({ "a.md": PLAIN });
+    const result = await removePropertyAcrossNotes(v.adapter, ["a.md", "gone.md"], "prio");
+    expect(result).toEqual({ written: ["a.md"], unchanged: [], failed: [], skipped: ["gone.md"] });
+  });
+});
+
+describe("one rule for a note that is gone, in every loop over many notes (decision E20)", () => {
+  it("a whole set of properties skips it as well", async () => {
+    const v = vault({ "a.md": PLAIN });
+    const result = await rewriteNoteProperties(v.adapter, ["gone.md", "a.md"], (props) => ({ ...props, prio: 9 }));
+    expect(result).toEqual({ written: ["a.md"], failed: [], skipped: ["gone.md"] });
+  });
+
+  it("a write that is refused is still a failure", async () => {
+    const v = vault({ "a.md": PLAIN });
+    v.failing.add("a.md");
+    const result = await rewriteNoteTexts(v.adapter, ["a.md"], (text) => text + "x");
+    expect(result.failed.map((f) => f.path)).toEqual(["a.md"]);
+    expect(result.skipped).toEqual([]);
+  });
+
+  it("both shells say the count of what failed, and apart from it how many were skipped", () => {
+    const said: string[] = [];
+    const sink = { error: (m: string) => { said.push("error: " + m); }, warning: (m: string) => { said.push("warning: " + m); } };
+    sayRewriteOutcome({ written: ["a.md"], failed: [{ path: "b.md", message: "x" }], skipped: ["c.md", "d.md"] }, sink);
+    expect(said).toEqual(["error: 1 changed, 1 failed.", "warning: Skipped because the note is no longer there: 2"]);
+    said.length = 0;
+    sayRewriteOutcome({ written: ["a.md"], failed: [], skipped: [] }, sink);
+    expect(said).toEqual([]);
   });
 });
 
@@ -259,12 +296,12 @@ describe("a property a note carries in another spelling", () => {
     const v = vault({ "upper.md": UPPER });
     const g = gesture();
     const outcome = await renamePropertyAcrossNotes({ adapter: v.adapter, paths: ["upper.md"], oldName: "prio", newName: "priority", confirm: g.confirm, saveConfig: g.saveConfig });
-    expect(outcome).toEqual({ status: "renamed", result: { written: ["upper.md"], unchanged: [], failed: [] } });
+    expect(outcome).toEqual({ status: "renamed", result: { written: ["upper.md"], unchanged: [], failed: [], skipped: [] } });
     expect(v.store.get("upper.md")).toBe("---\npriority: 3\nowner: Ben\n---\nText\n");
 
     const w = vault({ "upper.md": UPPER });
     const removed = await removePropertyAcrossNotes(w.adapter, ["upper.md"], "prio");
-    expect(removed).toEqual({ written: ["upper.md"], unchanged: [], failed: [] });
+    expect(removed).toEqual({ written: ["upper.md"], unchanged: [], failed: [], skipped: [] });
     expect(w.store.get("upper.md")).toBe("---\nowner: Ben\n---\nText\n");
   });
 
@@ -273,7 +310,7 @@ describe("a property a note carries in another spelling", () => {
     const v = vault(files);
     const g = gesture();
     const outcome = await renamePropertyAcrossNotes({ adapter: v.adapter, paths: Object.keys(files), oldName: "prio", newName: "Prio", confirm: g.confirm, saveConfig: g.saveConfig });
-    expect(outcome).toEqual({ status: "renamed", result: { written: ["old.md"], unchanged: ["done.md"], failed: [] } });
+    expect(outcome).toEqual({ status: "renamed", result: { written: ["old.md"], unchanged: ["done.md"], failed: [], skipped: [] } });
     expect(v.store.get("done.md")).toBe(files["done.md"]);
     expect(v.store.get("old.md")).toBe("---\nPrio: 1\n---\nText\n");
   });
@@ -306,6 +343,6 @@ describe("a new name a note carries in another casing", () => {
     const v = vault({ "other.md": "---\nPriority: high\n---\nText\n" });
     const g = gesture();
     const outcome = await renamePropertyAcrossNotes({ adapter: v.adapter, paths: ["other.md"], oldName: "prio", newName: "priority", confirm: g.confirm, saveConfig: g.saveConfig });
-    expect(outcome).toEqual({ status: "renamed", result: { written: [], unchanged: ["other.md"], failed: [] } });
+    expect(outcome).toEqual({ status: "renamed", result: { written: [], unchanged: ["other.md"], failed: [], skipped: [] } });
   });
 });

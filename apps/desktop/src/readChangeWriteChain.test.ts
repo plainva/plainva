@@ -163,7 +163,7 @@ function tick(task: Pick<TaskRecord, "path" | "ordinal" | "text" | "state">): Pr
     vaultAdapter, taskMutationGate: new TaskMutationGate(), resolveTaskOrdinal, isOpenTaskState, toggleTaskAtIndex, updateVaultText,
     setRefreshTick: () => {}, setTasks: () => {}, indexer, triggerFileTreeUpdate: () => {},
     // `applyIndexChanges` of the desktop, for the one thing it is asked here: the written note into the index.
-    applyIndexChanges: async (index: VaultIndexer, changes: { added?: string[] }) => { for (const path of changes.added ?? []) await index.indexPath(path); },
+    applyIndexChanges: async (index: VaultIndexer, changes: { added?: string[] }) => { for (const path of changes.added ?? []) await index.indexPath(path); return { leftBehind: [] }; },
     ...surface,
   })(task);
 }
@@ -307,8 +307,8 @@ function saveConfig(text: string, scope: Record<string, unknown> = {}, options?:
   return run<(config: unknown, options?: { park?: boolean }) => Promise<boolean>>(saveCode, "saveConfig", {
     vaultAdapter, activePath: BASE, embedded: false, indexer: null, queryService: null, activeViewIndex: 0, dbConfig: null, content: "",
     serializeBaseConfig: (config: string) => config, setContent: () => {}, setDbConfig: () => {}, setPendingConfig: () => {}, setDbData: () => {},
-    assertFileStillThere: async () => {}, isFileNotFound: () => false, lookForFile: () => {}, applyIndexChanges: async () => {}, rememberFile: () => {},
-    queryForActiveView: async () => [], ...surface, ...scope,
+    assertFileStillThere: async () => {}, isFileNotFound: () => false, lookForFile: () => {}, applyIndexChanges: async () => ({ leftBehind: [] }), rememberFile: () => {},
+    queryForActiveView: async () => [], errorText, saveTurn: { current: 0 }, showViewLayout: () => true, ...surface, ...scope,
   })(text, options);
 }
 
@@ -341,7 +341,11 @@ describe("a database with an open conflict: its view's save does not go in place
     expect(await raw.readTextFile(copy)).toBe(baseText("My table"));
     expect(await raw.readTextFile(BASE)).toBe(baseText("Their table"));
     // Said, not only logged (finding 2026-10-12): the view went on as if the database had been saved.
-    expect(shown).toEqual(["console: Failed to save database config The file has an open conflict; nothing was written. Resolve the conflict first", "error: editor.saveFailed"]);
+    // With its reason (Sammelplan § 3.87 no. 1): "Save failed!" did not say that the conflict is what stands in the way.
+    expect(shown).toEqual([
+      "console: Failed to save database config The file has an open conflict; nothing was written. Resolve the conflict first",
+      `error: writeFailed.databaseSave ${JSON.stringify({ reason: "The file has an open conflict. Resolve the conflict first, then try again." })}`,
+    ]);
   });
 
   it("a save that is refused puts the view back on the database it showed", async () => {
@@ -357,6 +361,25 @@ describe("a database with an open conflict: its view's save does not go in place
     expect(view.state.config).toBe("the database as shown");
     expect(view.state.text).toBe(baseText("Their table"));
     expect(view.state.pending).toBeNull();
+  });
+
+  it("a refused save puts back what the caller set ahead of it — unless a later save changed the view since", async () => {
+    // The columns shown, the view type, the grouping, the cover are set by the
+    // caller before it saves; a refused save left them standing, and the next
+    // save that landed wrote them along (Sammelplan § 3.71 no. 5).
+    await openVault({ [BASE]: baseText("Table") });
+    await landedFromOutside(BASE, baseText("Their table"));
+    await vaultAdapter.writeEditorText(BASE, baseText("My table"), baseText("Table"));
+    const shownAgain: unknown[] = [];
+    const view = viewState("the database as shown", baseText("Their table"));
+    const layout = { showViewLayout: (config: unknown) => { shownAgain.push(config); return true; }, saveTurn: { current: 0 } };
+    expect(await saveConfig(baseText("Their table, columns"), { ...view.scope, ...layout })).toBe(false);
+    expect(shownAgain).toEqual(["the database as shown"]);
+    // A save that started after this one owns the view: the refused one leaves it alone.
+    shownAgain.length = 0;
+    const later = { ...layout, saveTurn: { get current() { return 7; }, set current(_value: number) { /* a later save took the turn */ } } };
+    expect(await saveConfig(baseText("Their table, columns"), { ...view.scope, ...later })).toBe(false);
+    expect(shownAgain).toEqual([]);
   });
 
   it("a change other files follow is not kept for a database that has moved", async () => {

@@ -8,7 +8,10 @@ import {
   isReservedOkfName,
   noteWithoutProperties,
   replaceVaultText,
+  resolveLinkRow,
+  buildLinkTargetIndex,
   VaultFileExistsError,
+  type TextUpdateFiles,
   type FrontmatterLinkRename,
   type IndexCandidate,
   type LinkRecord,
@@ -16,7 +19,8 @@ import {
   type WikilinkConversionResult,
 } from "@plainva/core";
 import { backupIndexFile, generateIndexForFolder, listMarkdownPaths } from "./indexMdGenerate";
-import { applyLinkUpdates, planLinkUpdates, renameFileWithLinkUpdates, type LinkUpdatePlan, type RenameAdapter } from "./renameNote";
+import { applyLinkUpdates, pathFromFolder, planLinkUpdates, renameFileWithLinkUpdates, type LinkUpdatePlan, type RenameAdapter } from "./renameNote";
+
 
 // Generation moved into @plainva/ui (2026-08-20) so the phone shares it;
 // re-exported so every existing import path keeps working and the unchanged
@@ -237,6 +241,14 @@ export async function adoptFileAsIndex(opts: {
   candidatePath: string;
   folder: string;
   prepare: boolean;
+  /**
+   * What the shell's own rename does once a note has moved — its bookmarks,
+   * its open tabs, its drafts — run as soon as the note is at its new path
+   * (Sammelplan § 3.135 Nr. 1). An adoption moved the note past all of it: a
+   * bookmark on the overview pointed at the old path afterwards. Required, so
+   * no shell can adopt without it.
+   */
+  afterMove: (from: string, to: string) => Promise<void>;
 }): Promise<AdoptionResult> {
   const { adapter, queryService, candidatePath, folder, prepare } = opts;
   const indexPath = folder ? `${folder}/index.md` : "index.md";
@@ -280,6 +292,7 @@ export async function adoptFileAsIndex(opts: {
     oldPath: candidatePath,
     newPath: indexPath,
   });
+  await opts.afterMove(candidatePath, indexPath);
 
   let { renamedLinks, changedFiles, linkUpdateFailed } = renamed;
   if (byTitle) {
@@ -298,14 +311,187 @@ export async function adoptFileAsIndex(opts: {
  * What an adoption did, in the one line both shells show: the desktop's
  * dialog in its list of results, the phone in its notice. The numbers a
  * preparation leaves behind are part of it — the embeds and the wikilinks it
- * could not convert, and the wikilinks it did not convert because they stand
- * in a link's label.
+ * could not convert, the wikilinks it did not convert because they stand in a
+ * link's label, and the links to a section of the note itself, which lead
+ * where they led (counted on their own, Sammelplan § 3.135 Nr. 2: they read
+ * as "unresolvable"). `pinned` is the number of links to other overviews
+ * written with their folder on the way (`planOverviewLinkPins`).
  */
-export function adoptionSummary(t: TFunction, file: string, result: AdoptionResult): string {
+export function adoptionSummary(t: TFunction, file: string, result: AdoptionResult, pinned = 0): string {
   const extras: string[] = [];
   if (result.renamedLinks > 0) extras.push(t("indexMd.resultLinks", { links: result.renamedLinks, files: result.changedFiles }));
+  if (pinned > 0) extras.push(t("indexMd.resultPinned", { links: pinned }));
   const left = result.preparation;
   if (left && (left.embeds > 0 || left.unresolved > 0)) extras.push(t("indexMd.resultPrepLeftovers", { embeds: left.embeds, unresolved: left.unresolved }));
   if (left && left.inLabels > 0) extras.push(t("indexMd.resultPrepInLabels", { links: left.inLabels }));
+  if (left && left.sectionLinks > 0) extras.push(t("indexMd.resultPrepSectionLinks", { links: left.sectionLinks }));
   return `${t("indexMd.resultAdopted", { file })}${extras.length ? ` (${extras.join("; ")})` : ""}`;
+}
+
+/**
+ * Where an overview lands: a note adopted as the folder's `index.md`
+ * (`candidatePath` moves to `indexPath`), or a listing generated there
+ * (no `candidatePath`: a new file at `indexPath`, where none is yet).
+ */
+export interface OverviewPlacement {
+  indexPath: string;
+  candidatePath?: string;
+}
+
+/**
+ * The overviews a generation writes — "Create overview" for one folder, or
+ * every folder without one at once —, as the placements `planOverviewLinkPins`
+ * reads (P21): a generated `index.md` takes a bare link over like an adopted one.
+ */
+export function newOverviewPlacements(folders: readonly string[]): OverviewPlacement[] {
+  return folders.map((folder) => ({ indexPath: folder ? `${folder}/index.md` : "index.md" }));
+}
+
+/** The links to other overviews an adoption would take over, and the way each keeps its own. */
+export interface OverviewLinkPins {
+  /** The rewrites, as a rename's plan: each link written with the folder of the overview it leads to. */
+  plan: LinkUpdatePlan;
+  /** How many links that is — what the offer counts. */
+  links: number;
+  /** Some links could not be read or cannot be written so that they keep leading there. */
+  failed: boolean;
+}
+
+/**
+ * The links an adoption would let tip over to the new overview, and how each
+ * keeps leading where it leads (Sammelplan § 3.135 Nr. 6).
+ *
+ * `index.md` is the name of every folder's overview. A link that names one
+ * only by that name — `[[index]]`, `[[index#Part]]`, `[x](index.md)` — leads
+ * wherever the link rule finds an `index.md` first: the vault's own (step 2),
+ * the one in the linking note's folder, the shortest path. Since 13b a rename
+ * writes a link to a folder's overview with its folder; links written before,
+ * or by Obsidian, still name it bare and tip over as soon as an adoption puts
+ * a new `index.md` where the rule looks first — an adoption at the vault's
+ * root takes them all.
+ *
+ * Read against the index before anything is written: where every link that
+ * names an `index.md` leads now, and where it leads once the adopted notes are
+ * at their new paths. A link that changes its way — and leads to another file
+ * than the adopted note, whose links the rename itself follows — is written
+ * with the folder of the overview it leads to now (`[[Projects/index]]`, for a
+ * Markdown link the path from its note's folder), so the rule reads it back
+ * there. A link no such name brings back is left and counted in `failed`, as
+ * is a name a wiki link cannot carry (`applyLinkUpdates` says so).
+ *
+ * A generated overview (a placement without `candidatePath`, P21) is a new
+ * file at its path and takes such links over the same way; one run's
+ * placements — adopted and generated, in every folder of the run — are read
+ * together, since a link may be taken over by any of them. An overview that is
+ * there already (in any spelling: the file system does not tell them apart)
+ * is regenerated in place and takes nothing over.
+ *
+ * The plan is applied BEFORE the adoptions and generations
+ * (`pinOverviewLinks`): a link written with its folder leads there whatever
+ * else the run changes, so a pinned link is right even where an adoption is
+ * refused afterwards.
+ */
+export async function planOverviewLinkPins(
+  queryService: Pick<VaultQueryService, "linkTargets" | "linksNamingFile">,
+  placements: readonly OverviewPlacement[],
+): Promise<OverviewLinkPins> {
+  const plan: LinkUpdatePlan = { oldPath: "", newPath: "", sources: [] };
+  if (placements.length === 0) return { plan, links: 0, failed: false };
+  let files: Awaited<ReturnType<VaultQueryService["linkTargets"]>>;
+  let rows: LinkRecord[];
+  try {
+    files = await queryService.linkTargets();
+    rows = await queryService.linksNamingFile("index.md");
+  } catch (e) {
+    console.warn("[indexMd] reading the links to the overviews failed", e);
+    return { plan, links: 0, failed: true };
+  }
+  const moved = new Map(placements.flatMap((p) => (p.candidatePath ? [[p.candidatePath, p.indexPath] as const] : [])));
+  const landsAt = (path: string) => moved.get(path) ?? path;
+  const before = buildLinkTargetIndex(files);
+  const afterFiles: { path: string; title: string | null; mode?: string | null }[] = files.map((file) => (moved.has(file.path) ? { ...file, path: moved.get(file.path)! } : file));
+  const present = new Set(afterFiles.map((file) => file.path.normalize("NFC").toLowerCase()));
+  for (const placement of placements) {
+    const key = placement.indexPath.normalize("NFC").toLowerCase();
+    if (placement.candidatePath || present.has(key)) continue;
+    present.add(key);
+    afterFiles.push({ path: placement.indexPath, title: null, mode: null });
+  }
+  const after = buildLinkTargetIndex(afterFiles);
+
+  const folderOf = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+  const bySource = new Map<string, { body: Map<string, { raw: string; target: string; kind: "wiki" | "markdown" }>; frontmatter: Map<string, FrontmatterLinkRename> }>();
+  let links = 0;
+  let failed = false;
+  for (const row of rows) {
+    const linkType = row.property_key ? null : row.link_type;
+    const was = resolveLinkRow(row.source_path, row.target_path, linkType, before);
+    // Nowhere before, or the adopted note itself: the rename follows that one.
+    if (was === null || moved.has(was)) continue;
+    const from = landsAt(row.source_path);
+    if (resolveLinkRow(from, row.target_path, linkType, after) === was) continue;
+    const markdown = linkType === "markdown-link";
+    const target = markdown ? pathFromFolder(folderOf(from), was) : /\.md$/i.test(row.target_path) ? was : was.replace(/\.md$/i, "");
+    if (resolveLinkRow(from, target, linkType, after) !== was) {
+      failed = true;
+      continue;
+    }
+    if (!bySource.has(row.source_path)) bySource.set(row.source_path, { body: new Map(), frontmatter: new Map() });
+    const source = bySource.get(row.source_path)!;
+    if (row.property_key) source.frontmatter.set(`${row.property_key}\n${row.target_path}`, { key: row.property_key, oldTarget: row.target_path, newTarget: target });
+    else source.body.set(`${markdown ? "markdown" : "wiki"}\n${row.target_path}`, { raw: row.target_path, target, kind: markdown ? "markdown" : "wiki" });
+    links++;
+  }
+  for (const [path, source] of bySource) plan.sources.push({ path, body: [...source.body.values()], frontmatter: [...source.frontmatter.values()] });
+  return { plan, links, failed };
+}
+
+/**
+ * Writes the links of `planOverviewLinkPins` with their folder — before the
+ * adoptions, while every source is still at the path the plan names. What
+ * the shells report: how many links, which notes changed (an open editor of
+ * one is told), and whether a link was left as it was.
+ */
+export async function pinOverviewLinks(
+  adapter: TextUpdateFiles,
+  pins: OverviewLinkPins,
+): Promise<{ pinned: number; changedPaths: string[]; failed: boolean }> {
+  if (pins.plan.sources.length === 0) return { pinned: 0, changedPaths: [], failed: pins.failed };
+  const applied = await applyLinkUpdates(adapter, pins.plan);
+  return { pinned: applied.renamedLinks, changedPaths: applied.changedPaths, failed: pins.failed || applied.failed };
+}
+
+/**
+ * The offer before overviews are generated (P21, maintainer 03.11.), as both
+ * shells make it — "Create overview" for one folder, and generating in every
+ * folder without one at once on the phone. The desktop's index.md manager asks
+ * it in its own list (a checkbox beside the run) and calls the two steps itself.
+ *
+ * Counts the links the new overviews would take over (`planOverviewLinkPins`,
+ * all placements together). Nothing to offer: nothing is asked. Otherwise
+ * `ask` gets the count and answers whether to write them (`null`: the person
+ * cancelled — then nothing is generated either). A yes writes them before any
+ * overview exists, read again (the count may be older than the vault), and
+ * tells `changed` each note it wrote, for an open editor of it.
+ */
+export async function pinLinksBeforeOverviews(opts: {
+  queryService: Pick<VaultQueryService, "linkTargets" | "linksNamingFile">;
+  adapter: TextUpdateFiles;
+  placements: readonly OverviewPlacement[];
+  ask: (links: number) => Promise<boolean | null>;
+  changed: (path: string) => void;
+}): Promise<{ pinned: number; failed: boolean } | null> {
+  const offered = (await planOverviewLinkPins(opts.queryService, opts.placements)).links;
+  if (offered === 0) return { pinned: 0, failed: false };
+  const yes = await opts.ask(offered);
+  if (yes === null) return null;
+  if (!yes) return { pinned: 0, failed: false };
+  const done = await pinOverviewLinks(opts.adapter, await planOverviewLinkPins(opts.queryService, opts.placements));
+  for (const path of done.changedPaths) opts.changed(path);
+  return { pinned: done.pinned, failed: done.failed };
+}
+
+/** A result line that also counts the links written with their folder on the way (`indexMd.resultPinned`). */
+export function withPinnedLinks(t: TFunction, text: string, pinned: number): string {
+  return pinned > 0 ? `${text} (${t("indexMd.resultPinned", { links: pinned })})` : text;
 }

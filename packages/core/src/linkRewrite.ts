@@ -470,6 +470,8 @@ export function rewriteNoteLinks(
   const { links, unplaced } = readNoteLinks(content);
   const left = [...unplaced];
   const edits: Edit[] = [];
+  /** The links whose target is rewritten, by their edit — read back in the note below. */
+  const retargeted = new Map<Edit, { link: NoteLink; target: string }>();
   const seen = new Map<string, string | null>();
   const carried = new Map<string, boolean>();
   const canName = (target: string): boolean => {
@@ -492,10 +494,66 @@ export function rewriteNoteLinks(
     }
     const written = content.slice(link.targetStart, link.targetEnd);
     const part = link.type === "markdown-link" ? destinationChange(written, link, change.target, seen) : { start: 0, end: written.length, text: change.target };
-    if (part.text !== written.slice(part.start, part.end)) edits.push({ from: link.targetStart + part.start, to: link.targetStart + part.end, text: part.text });
+    if (part.text !== written.slice(part.start, part.end)) {
+      const edit = { from: link.targetStart + part.start, to: link.targetStart + part.end, text: part.text };
+      edits.push(edit);
+      // Only a character that can pair with text outside the link — a code
+      // span's backtick, the angle brackets of a tag or an autolink — can turn
+      // the line around a link that reads as one for itself. A Markdown link's
+      // destination is written encoded, without them.
+      if (link.type !== "markdown-link" && CONTEXT_SENSITIVE.test(part.text)) retargeted.set(edit, { link, target: change.target });
+    }
   }
-  const { text, made } = withEdits(content, edits);
-  return { content: text, rewritten: made, unplaced: left };
+  // Each rewritten link is read back where it stands in the rewritten note, not
+  // only for itself (Sammelplan § 3.135 Nr. 7). A name can carry what the text
+  // around it reads differently: a backtick in it closes a code span that a
+  // single backtick opened further up the line, and the link becomes code. A
+  // link that does not read back as itself is left as it was and counted with
+  // `unplaced` — it still names the file it named. A span that a later link
+  // closes takes the links in front of it along, so each round leaves out the
+  // last link that does not read back — the one that closes — and reads again;
+  // each round leaves out one, so the rounds end.
+  for (;;) {
+    const { text, made } = withEdits(content, edits);
+    if (retargeted.size === 0) return { content: text, rewritten: made, unplaced: left };
+    const lost = editsNotReadBack(text, edits, retargeted);
+    if (lost.length === 0) return { content: text, rewritten: made, unplaced: left };
+    const last = lost.reduce((a, b) => (b.from > a.from ? b : a));
+    const { link } = retargeted.get(last)!;
+    left.push({ type: link.type, target: link.target });
+    retargeted.delete(last);
+    edits.splice(edits.indexOf(last), 1);
+  }
+}
+
+/** What in a wiki link's new name can pair with the text around the link. */
+const CONTEXT_SENSITIVE = /[`<>]/;
+
+/**
+ * The rewritten links that the rewritten note does not read as the link they
+ * were made to be: a link of the same kind at the same place, of the same
+ * length, naming the new file.
+ */
+function editsNotReadBack(text: string, edits: readonly Edit[], retargeted: ReadonlyMap<Edit, { link: NoteLink; target: string }>): Edit[] {
+  const sorted = [...edits].sort((a, b) => a.from - b.from);
+  /** Where a place of the old note lies in the new one: shifted by every edit in front of it. */
+  const moved = (at: number): number => {
+    let shift = 0;
+    for (const edit of sorted) {
+      if (edit.to > at) break;
+      shift += edit.text.length - (edit.to - edit.from);
+    }
+    return at + shift;
+  };
+  const read = new Map<number, NoteLink>();
+  for (const link of readNoteLinks(text).links) read.set(link.start, link);
+  const lost: Edit[] = [];
+  for (const [edit, { link, target }] of retargeted) {
+    const found = read.get(moved(link.start));
+    const same = found !== undefined && found.type === link.type && found.end === moved(link.end) && found.target === target;
+    if (!same) lost.push(edit);
+  }
+  return lost;
 }
 
 /**

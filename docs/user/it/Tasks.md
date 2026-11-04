@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-10-25
+Ultimo aggiornamento: 2026-11-04
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -17,11 +17,11 @@ Si apre come una scheda, come qualsiasi nota.
 
 ## Sul telefono
 
-La vista Attività esiste anche su mobile. La apri tramite **Aree** nella barra di navigazione (o tenendo premuta la barra), e puoi collocarla nella barra di navigazione stessa (**Impostazioni** → **Barre e aree**).
+La vista Attività esiste anche su mobile. La apri tramite **Aree** nella barra di navigazione (o tenendo premuta la barra), e puoi collocarla nella barra di navigazione stessa (**Impostazioni** → **Barra di navigazione**).
 
 Mostra le stesse due sezioni del desktop: in alto il **Database attività**, sotto l'elenco delle caselle di controllo in **Dalle note**, con i filtri **Aperte**/**Completate**/**Tutte** e la ricerca libera per testo. Spuntare, **Cambia stato**, spostare una casella di controllo **nel database**, **+ Nuova attività**, **Blocca tempo** e **Ripetizione** funzionano come descritto sopra e scrivono gli stessi file: la stessa nota con il frontmatter, lo stesso `[[wiki-link]]` nella riga originale, la stessa regola in `plainva.repeat`.
 
-Quale database il tuo vault usa come database attività si imposta sul telefono in **Impostazioni** → **Contenuto e struttura**. L'impostazione viaggia tramite la [sincronizzazione delle impostazioni](Sync_Setup.md), quindi la scegli una sola volta, sul dispositivo che preferisci.
+Quale database il tuo vault usa come database attività si imposta sul telefono in **Impostazioni** → **Note e archiviazione**. L'impostazione viaggia tramite la [sincronizzazione delle impostazioni](Sync_Setup.md), quindi la scegli una sola volta, sul dispositivo che preferisci.
 
 I quattro filtri della barra desktop appaiono sul telefono come chip sopra l'elenco: **Cartella**, **Tag**, **Con scadenza** e **Mostra nascoste**. Chip anziché menu a tendina, perché una barra di filtri sopra un elenco già stretto costa più spazio di quanto ne guadagni — un tocco apre la scelta, un secondo la cancella di nuovo.
 
@@ -51,7 +51,7 @@ Se una nota è cambiata da quando l'elenco è stato generato, un clic obsoleto v
 
 ## Database attività predefinito
 
-Le caselle di controllo si scrivono in fretta, ma a volte una riga cresce fino a diventare un'attività "vera" — con uno stato, una scadenza e una nota propria. Per questo, scegli un **Database attività predefinito** nelle Impostazioni sotto **Contenuto e struttura**: un [database (`.base`)](Databases_Base.md) in cui queste attività vivono come note proprie. **Crea database…** ne genera uno già pronto (cartella di archiviazione più un `.base` con una **colonna casella di controllo di completamento** (`fatto`), una colonna di stato, una colonna di scadenza, oltre a una vista tabella, una bacheca e una cronologia — la cronologia colloca ogni attività nel suo giorno di scadenza); puoi altrettanto bene scegliere un database già esistente. La proprietà della casella di controllo è la verità sul completamento di un'attività (attiva/disattiva, come per i provider); la colonna di stato resta coerente quando la spunti. Un database senza colonna casella di controllo ricade sulla convenzione di stato: prima opzione = aperta, ultima = completata.
+Le caselle di controllo si scrivono in fretta, ma a volte una riga cresce fino a diventare un'attività "vera" — con uno stato, una scadenza e una nota propria. Per questo, scegli un **Database attività predefinito** nelle Impostazioni sotto **Note e archiviazione**: un [database (`.base`)](Databases_Base.md) in cui queste attività vivono come note proprie. **Crea database…** ne genera uno già pronto (cartella di archiviazione più un `.base` con una **colonna casella di controllo di completamento** (`fatto`), una colonna di stato, una colonna di scadenza, oltre a una vista tabella, una bacheca e una cronologia — la cronologia colloca ogni attività nel suo giorno di scadenza); puoi altrettanto bene scegliere un database già esistente. La proprietà della casella di controllo è la verità sul completamento di un'attività (attiva/disattiva, come per i provider); la colonna di stato resta coerente quando la spunti. Un database senza colonna casella di controllo ricade sulla convenzione di stato: prima opzione = aperta, ultima = completata.
 
 Una volta impostato, la vista Attività mostra due sezioni: in alto le voci del **Database attività**, e in basso **Dalle note** — il consueto elenco di caselle di controllo. Lo stato è modificabile direttamente nella panoramica: la casella di controllo è la proprietà casella di controllo di completamento della nota e la commuta (la colonna di stato la segue), e un clic sul chip di stato apre un menu con tutte le opzioni (**Cambia stato**). I filtri **Aperte**/**Completate**/**Tutte** si applicano a entrambe le sezioni, e **Apri come database** salta alla vista completa del database con la sua bacheca e i suoi filtri. **Aggiorna** avvia inoltre una vera sincronizzazione con il provider quando sono collegati degli account.
 
@@ -108,12 +108,87 @@ Non devi scrivere questo campo a mano:
 - **Nascondi dalle attività** — un'icona a forma di occhio si trova a destra della riga di intestazione di ogni nota; un clic scrive il marcatore in quella nota e la nasconde.
 - **Mostra nascoste** — questa opzione nella barra dei filtri fa ricomparire le note nascoste (attenuate), ciascuna con un'icona **Mostra di nuovo nelle attività** (che rimuove il marcatore).
 - **Nascondi modelli** — se la cartella dei tuoi modelli contiene note con caselle di controllo, in alto a destra compare il pulsante **Nascondi modelli**, che scrive il marcatore in tutte contemporaneamente.
+- **Note con chiavi di un modello** — una nota creata da un modello fino alla versione 0.8.5 può aver ripreso le chiavi proprie del modello (`plainva.tasks: false`, `plainva.templateFor`), e allora le sue attività mancano qui. Quando esistono note simili fuori dalla cartella dei modelli, un avviso le elenca, ciascuna con una casella: **Rimuovi chiavi…** toglie le due chiavi da quelle spuntate, nient'altro cambia in esse. Togli la spunta a una nota che hai nascosto di proposito; **Nascondi** mette via l'avviso finché non se ne aggiunge un'altra.
 
 I modelli appena creati portano il marcatore automaticamente. Quando crei una nota **a partire da** un modello, il marcatore viene rimosso di nuovo — la nuova nota è contenuto reale e mostra le sue attività normalmente.
+
+## Promemoria per le caselle di controllo
+
+Una casella di controllo ti avvisa quando la sua data di scadenza porta un orario: scrivi l'orario subito dopo la data, come `HH:MM` nel formato a 24 ore (`00:00` conta come nessun orario).
+
+```markdown
+- [ ] Chiamare Bob 📅 2026-11-02 14:30
+```
+
+Lo attivi in **Impostazioni → Calendario → Promemoria** con **Caselle di controllo con orario**: per vault e su questo dispositivo, spento finché non lo attivi. Il promemoria arriva a quell'orario, meno l'anticipo impostato in **Anticipo per attività con orario**. Sul telefono offre **Spunta**, **Tra 1 ora** e **Domani mattina**, come il promemoria di un'attività del database attività; sul desktop l'avviso accanto offre **Apri attività**. In entrambi i casi arrivi nella nota alla riga dell'attività, anche dopo che la nota è stata rinominata o spostata.
+
+Una casella che spunti, elimini o a cui dai un altro orario viene ripianificata in pochi secondi. Una casella con una data ma senza orario non avvisa, e le note con `plainva.tasks: false` restano fuori. Plainva non scrive nulla nella nota per un promemoria. Obsidian non conosce orari: non legge più una data `📅` seguita da un orario.
 
 ## Compatibilità con Obsidian
 
 Le attività sono normali caselle di controllo GFM (GitHub-Flavored Markdown). Plainva non aggiunge mai una sintassi speciale: le stesse righe `- [ ]` vengono renderizzate come caselle di controllo in Obsidian e si leggono correttamente in qualsiasi editor. Le convenzioni `📅 data` e `#tag` sono lo stile comune di Obsidian-Tasks, ma sono solo testo nella tua nota.
+
+## Query Tasks da Obsidian
+
+Una nota proveniente da Obsidian può contenere un blocco di codice `tasks` con una query. Plainva lo disegna come elenco di attività — nell'anteprima dal vivo e nella modalità lettura, sul desktop e sul telefono, anche dentro una citazione o un callout:
+
+````markdown
+```tasks
+not done
+tags include #project
+show tree
+sort by filename reverse
+```
+````
+
+La query resta nella nota esattamente come l'hai scritta; Plainva non scrive mai nel blocco. La modalità sorgente mostra sempre il testo semplice.
+
+### Lavorare con l'elenco
+
+- Spunta la casella di un'attività: Plainva scrive la riga dell'attività nella sua nota — con la data di completamento e la ricorrenza, come nella vista Attività.
+- Clicca o tocca una riga: la nota si apre alla riga dell'attività.
+- Clic destro su una riga sul desktop, o tocco prolungato sul telefono, apre il menu della riga: **Completate**/**Aperte**, **Cambia scadenza**, **Imposta priorità**, **Imposta stato**.
+- In una nota incorporata (`![[…]]`) l'elenco è di sola lettura: niente casella, niente menu.
+- Con il cursore dentro il blocco, l'editor mostra la query come testo. **Modifica query** mette il cursore nella query; sul telefono prima passa alla modifica.
+
+In fondo al blocco compaiono il numero di attività («12 attività»), l'interruttore **Spiegazione** e **Modifica query**. **Spiegazione** mostra come Plainva ha letto ogni riga della query, con le date come giorni reali. Un risultato grande non viene tagliato in silenzio: Plainva mostra le prime 100 righe, poi **Mostra tutte (n)**.
+
+### Che cosa capisce Plainva
+
+Plainva legge queste righe del linguaggio di query di Tasks:
+
+| Argomento | Righe |
+|---|---|
+| Stato | `done`, `not done`, `status.type is …` |
+| Date | `due`, `scheduled`, `starts`, `done`, `created`, `cancelled`, `happens`, ciascuna con `on`, `before`, `after`, `on or before`, `on or after` oppure `in`; come giorni: `2026-11-04`, `today`, `tomorrow`, `yesterday`, giorni della settimana, `3 days ago`, `in 2 weeks`, `last week`, `this month`, `next quarter`, `2026-W44`, `2026-10`, `2026-Q4`, `2026` — le settimane vanno da lunedì a domenica, come in Tasks |
+| Data presente o no | `has due date`, `no scheduled date`, `due date is invalid` |
+| Ricorrenza | `is recurring`, `recurrence includes …` |
+| Priorità | `priority is high`, `priority is above none` — sei livelli, dal più alto al più basso |
+| Testo e posizione | `description`, `path`, `filename`, `folder`, `root` e `heading`, ciascuno con `includes` oppure `does not include` |
+| Tag | `tags include #project`, `tags do not include #project`, `has tags`, `no tags` |
+| Sotto-elementi | `exclude sub-items` |
+| Combinazione | `AND`, `OR`, `NOT`, `XOR`, con `( )`, `[ ]`, `{ }` oppure `" "` attorno alle parti |
+| Ordinamento | `sort by …` con ogni chiave tranne `random`, `status.name` e `id`, a richiesta con `reverse`; dopo le tue righe vale l'ordine predefinito di Obsidian, urgenza compresa |
+| Raggruppamento | `group by …`, fino a tre livelli |
+| Layout e quantità | `show tree`, `hide backlink`, `hide task count` e simili, `limit 20`, `limit groups 5`, `explain` |
+| Commenti e segnaposto | righe che iniziano con `#`; segnaposto come `{{query.file.path}}`, che rimandano alla nota in cui si trova la query |
+
+### Righe che Plainva non può seguire
+
+Ogni riga di una query rientra in uno di tre casi:
+
+- Una riga che Obsidian conosce e Plainva non ancora — per esempio codice (`filter by function`; Plainva non esegue mai codice preso dalle note), espressioni regolari (`regex matches`), dipendenze (`is blocked`), preset o altre espressioni di data. Un avviso sopra l'elenco indica la riga e il motivo; la riga viene saltata, quindi l'elenco può mostrare più attività che in Obsidian — oppure in un altro ordine, per le righe `sort by` e `group by`.
+- Una riga di layout senza equivalente in Plainva (`hide edit button`, `short mode`, …) viene accettata in silenzio.
+- Una riga che anche Obsidian rifiuta (un errore di battitura, parentesi miste, una data impossibile) mostra un errore con la riga e il motivo, e nessun elenco.
+
+### Differenze rispetto a Obsidian
+
+- «Oggi» è il giorno del calendario.
+- Le note con `plainva.tasks: false` qui contano; Obsidian non conosce questa proprietà.
+- Un filtro globale e una query globale impostati in Obsidian sono nominati nella **Spiegazione**, ma non applicati.
+- I caratteri di stato personalizzati (`[>]`, `[!]`, …) in Plainva non sono attività.
+
+I blocchi Dataview restano testo semplice.
 
 ## Vedi anche
 
@@ -165,13 +240,13 @@ La vista Attività si apre su **Oggi**. Gli elenchi — una barra a sinistra sul
 
 Sopra gli elenchi si trova il campo di cattura; sul telefono, **+ Nuova attività** e il pulsante **＋** lo aprono come foglio. Digita una riga — `Inviare offerta domani alle 14:00 !!! #cliente ogni settimana` — e premi Invio: Plainva crea l'attività nel database delle attività. Riconosce oggi, domani, dopodomani, i giorni della settimana, «tra 3 giorni», «la prossima settimana», le date in cifre, un orario (`14:30`, `14h`), una ricorrenza (giornaliera, settimanale, mensile, annuale, «ogni lunedì», «ogni 2 settimane»), `!`, `!!` e `!!!` per priorità bassa, media e alta, e `#tags` — le parole nella lingua dell'app, cifre e segni in qualsiasi lingua. Tutto ciò che riconosce viene evidenziato nel campo ed elencato sotto come un blocco rimovibile **prima** che venga salvato qualcosa; togli un blocco e le sue parole tornano semplicemente a contare come titolo. Sul telefono, dei pulsanti rapidi scrivono le stesse parole al posto tuo. Se il database delle attività indica un elenco di un provider, un chip decide se l'attività viene creata anche lì.
 
-**Imposta priorità** nel menu di una riga (clic destro sul desktop, tocco prolungato sul telefono) offre **alta**, **media**, **bassa** e **nessuna**; una bandierina davanti al titolo la mostra. Nel database delle attività, la priorità è una colonna a selezione: un database creato ora ce l'ha già, uno più vecchio la riceve la prima volta che imposti una priorità — mai per il solo fatto di essere aperto. Una casella porta il simbolo del plugin Obsidian Tasks sulla sua riga: Plainva legge 🔺 e ⏫ come alta, 🔼 come media, 🔽 e ⏬ come bassa, e scrive ⏫, 🔼 o 🔽.
+**Imposta priorità** nel menu di una riga (clic destro sul desktop, tocco prolungato sul telefono) offre **alta**, **media**, **bassa** e **nessuna**; una bandierina davanti al titolo la mostra. Nel database delle attività, la priorità è una colonna a selezione: un database creato ora ce l'ha già, uno più vecchio la riceve la prima volta che imposti una priorità — mai per il solo fatto di essere aperto. Una casella porta sulla sua riga il simbolo di priorità noto da Obsidian: Plainva legge 🔺 e ⏫ come alta, 🔼 come media, 🔽 e ⏬ come bassa, e scrive ⏫, 🔼 o 🔽.
 
 `- [/]` (**In corso**) e `- [-]` (**Annullata**) sono anch'esse attività. Ricevono una propria casella nell'editor, in modalità lettura e in ogni elenco; in corso conta come aperta, annullata come chiusa. Un clic continua a spostarsi solo tra aperta e completata — completa un'attività in corso e riapre una annullata. **Imposta stato** nel menu della riga imposta i due stati; Plainva non li scrive mai da sola.
 
 **La data di un'attività è il modo per cambiarla.** Premi la data di un'attività (dentro un giorno, il suo orario) e si apre il selettore di data — sotto la data sul desktop, come foglio sul telefono. **Cambia scadenza** nel menu della riga apre lo stesso selettore; così riceve una data anche un'attività che non ne ha. Sul telefono, **Nuova attività** e la cella data di un database scelgono il giorno dallo stesso calendario, non dalla rotella delle date del sistema. Una casella in una nota — nell'editor, nella vista di lettura e nel diario — ha sul telefono una dimensione pensata per il dito. Una voce del database delle attività conserva il suo orario, una casella riceve o cambia la sua data `📅`. Accanto al titolo **In ritardo**, **Tutte a oggi** sposta in un colpo tutte le attività in ritardo a oggi. Entrambe sono confermate da un avviso che offre **Annulla**. Nel campo di acquisizione `[[` suggerisce note e `#` tag, come nell'editor: `Invio` o `Tab` prende il suggerimento evidenziato, `Esc` chiude l'elenco.
 
-**Scelte rapide e un orario.** Sopra il calendario il selettore offre **Oggi**, **Domani**, **Questo fine settimana**, **La prossima settimana** e **Nessuna data**, ognuna con il suo giorno della settimana. Questo fine settimana è il prossimo sabato — oggi, se è sabato o domenica; la prossima settimana è il primo giorno della settimana seguente, secondo **Inizio settimana**. In basso, **Orario** ha un interruttore: spento, l'attività scade per tutto il giorno; acceso, scegli l'orario accanto. Una scelta rapida o un giorno mantengono un orario già impostato; per cambiare solo l'orario, premi **Fine**. Una voce del database attività salva l'orario nel suo valore di scadenza (`2026-10-26T10:00`). Una casella in una nota porta solo un giorno — il `📅` del plugin Tasks non ha orario —, quindi lì il selettore lo dice invece di offrire l'interruttore. Se la colonna di scadenza del database mostra solo giorni, Plainva propone una volta **Passa a data e ora**.
+**Scelte rapide e un orario.** Sopra il calendario il selettore offre **Oggi**, **Domani**, **Questo fine settimana**, **La prossima settimana** e **Nessuna data**, ognuna con il suo giorno della settimana. Questo fine settimana è il prossimo sabato — oggi, se è sabato o domenica; la prossima settimana è il primo giorno della settimana seguente, secondo **Inizio settimana**. In basso, **Orario** ha un interruttore: spento, l'attività scade per tutto il giorno; acceso, scegli l'orario accanto. Una scelta rapida o un giorno mantengono un orario già impostato; per cambiare solo l'orario, premi **Fine**. Una voce del database attività salva l'orario nel suo valore di scadenza (`2026-10-26T10:00`). Per una casella in una nota il selettore imposta solo il giorno — il `📅` di Obsidian non ha orario — e lo dice lì invece di offrire l'interruttore; un orario che scrivi tu dopo la data (vedi *Promemoria per le caselle di controllo*) resta quando il giorno cambia. Se la colonna di scadenza del database mostra solo giorni, Plainva propone una volta **Passa a data e ora**.
 
 Altri modi per crearle: **Nuova attività** nel menu del vassoio di sistema sul desktop (quando Plainva continua a girare in background), su Android la scorciatoia del launcher **Nuova attività** (tocco prolungato sull'icona dell'app), e sul telefono **Crea come attività** quando condividi qualcosa con Plainva — il testo e gli allegati finiscono nella nota dell'attività. Come un'attività con orario te lo ricorda è descritto in [Calendario e attività esterne](Calendar_and_Tasks.md). Su iPhone e iPad anche Siri e Comandi Rapidi accettano un'attività (**Aggiungi attività**); Plainva la crea alla prossima apertura — vedi [L'app mobile](Mobile_App.md).
 
@@ -183,7 +258,7 @@ La casella del widget **Oggi** registra una richiesta: la spunta compare subito,
 <!-- task-rows-2026-10-24 -->
 ## Sottoattività, elenchi puntati e ciò che è fatto oggi
 
-**Sottoattività.** Una casella rientrata sotto un'altra è la sua sottoattività, come `show tree` nel plugin Tasks di Obsidian. Negli elenchi **Oggi**, **Prossimamente**, **In entrata** e **Completate** un'attività porta le sue sottoattività rientrate sotto di sé — aperte e completate, queste barrate — e una freccia a fine riga le comprime. Una sottoattività con una data propria compare anche nel proprio giorno; una senza data è elencata sotto la sua attività e non da sola in **In entrata**. L'elenco **Tutte** mantiene ogni casella nell'ordine della sua nota.
+**Sottoattività.** Una casella rientrata sotto un'altra è la sua sottoattività, come `show tree` nei blocchi `tasks` di Obsidian. Negli elenchi **Oggi**, **Prossimamente**, **In entrata** e **Completate** un'attività porta le sue sottoattività rientrate sotto di sé — aperte e completate, queste barrate — e una freccia a fine riga le comprime. Una sottoattività con una data propria compare anche nel proprio giorno; una senza data è elencata sotto la sua attività e non da sola in **In entrata**. L'elenco **Tutte** mantiene ogni casella nell'ordine della sua nota.
 
 **Elenchi puntati.** I punti elenco semplici rientrati sotto un'attività — domande, appunti — compaiono sotto il titolo come anteprima di al massimo due righe; il resto lo conserva la nota.
 

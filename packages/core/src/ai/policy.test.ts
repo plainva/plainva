@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../test/helpers/timeBudget.js";
 import { DEFAULT_AI_POLICY, effectivePolicy, ENCRYPTED_WORKSPACE_AI_POLICY, normalizeFolder, notePolicyFrom, parsePolicyFile, serializePolicyFile } from "./policy.js";
 import { gateDecision, hardGate, redactDeniedLinks, WITHHELD_LINK, type GateRun } from "./egressGate.js";
 
@@ -168,9 +169,7 @@ describe("withheld links", () => {
 
   it("stays quick on a text built to make a pattern search for long", () => {
     const hostile = [`[a](${"(".repeat(4000)}`, `[b](<${"x ".repeat(4000)}`, `[c]:${" ".repeat(6000)}x y`, `${"[".repeat(6000)}`, `[d](x${" ".repeat(6000)}"`, `${"[a][".repeat(3000)}`].join("\n");
-    const started = Date.now();
-    expect(redactDeniedLinks(hostile, () => true).redacted).toBe(0);
-    expect(Date.now() - started).toBeLessThan(3_000);
+    expect(within(3_000, () => redactDeniedLinks(hostile, () => true)).redacted).toBe(0);
   });
 });
 

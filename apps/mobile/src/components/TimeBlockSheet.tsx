@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner, Button, minutesToTime, Segmented, type TaskBlockValues, TextInput, timeToMinutes } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { useSheetGuard } from "../hooks/useSheetGuard";
 import { mSelect } from "../services/mobileDialogs";
 
 /**
@@ -44,6 +45,13 @@ export function TimeBlockSheet({
   const [choice, setChoice] = useState<DurationChoice>("60");
   const [customMinutes, setCustomMinutes] = useState("90");
   const [calendarKey, setCalendarKey] = useState(initialCalendarKey || calendarOptions[0]?.value || "");
+  // Typed and not yet saved is asked about (finding 2026-10-22).
+  const [openedCalendar] = useState(calendarKey);
+  const close = useSheetGuard(
+    "time-block",
+    dayKey !== initialDayKey || startTime !== initialStartTime || choice !== "60" || customMinutes !== "90" || calendarKey !== openedCalendar,
+    onClose,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,9 +83,9 @@ export function TimeBlockSheet({
   };
 
   return (
-    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
+    <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={close}>
       <div className="pv-sheet m-sheet" data-testid="task-block-sheet" onClick={(e) => e.stopPropagation()}>
-        <SheetGrip onClose={onClose} />
+        <SheetGrip onClose={close} />
         <p className="m-sheet-title">{t("pim.blockTime")}</p>
         <p className="m-hint">{taskTitle}</p>
         <p className="m-hint">{t("pim.blockCreatesEvent")}</p>
@@ -134,7 +142,7 @@ export function TimeBlockSheet({
         )}
 
         <div className="m-btnrow">
-          <Button variant="ghost" disabled={busy} onClick={onClose}>
+          <Button variant="ghost" disabled={busy} onClick={close}>
             {t("common.cancel")}
           </Button>
           <Button

@@ -78,6 +78,9 @@ describe("every window tells its composer which mailbox the draft is written fro
       // mailbox of the request it was opened for.
       const told = /\brestore=\{/.test(tag) || /\binitialAccountId=\{[^}]*\baccountId\}/.test(tag);
       expect(told, `${file} renders the composer without the mailbox the draft is written from:\n${tag}`).toBe(true);
+      // ... and the address a reply note names (decision E6).
+      const named = /\brestore=\{/.test(tag) || /\binitialFromAddress=\{[^}]*\bfromAddress\}/.test(tag);
+      expect(named, `${file} renders the composer without the address the draft names:\n${tag}`).toBe(true);
     }
   });
 
@@ -91,6 +94,10 @@ describe("every window tells its composer which mailbox the draft is written fro
       expect(
         /\baccountId:\s*\w+\.accountId\b/.test(handler ?? ""),
         `${rel} answers "plainva-compose-mail" and drops the mailbox the request names (accountId):\n${handler}`,
+      ).toBe(true);
+      expect(
+        /\bfromAddress:\s*\w+\.fromAddress\b/.test(handler ?? ""),
+        `${rel} answers "plainva-compose-mail" and drops the address the request names (fromAddress, E6):\n${handler}`,
       ).toBe(true);
     }
   });

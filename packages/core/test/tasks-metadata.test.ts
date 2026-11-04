@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readTasksMetadata, nextTasksDates, tasksDescription } from "../src/vault/taskMetadata.js";
+import { readTasksMetadata, nextTasksDates, readTasksInvalidDates, setTasksField, tasksDescription } from "../src/vault/taskMetadata.js";
 import { scanTasks } from "../src/vault/taskScan.js";
 import { resolveTaskOrdinal, setChecklistTaskDone } from "../src/vault/taskMutation.js";
 
@@ -72,5 +72,52 @@ describe("Tasks emoji metadata and source edits", () => {
       expect(scanTasks(raw)[0].recurrenceSupported).toBe(false);
       expect(scanTasks(setChecklistTaskDone(raw, 0, true, options).content)).toHaveLength(scanTasks(raw).length);
     }
+  });
+});
+
+describe("the cancelled date and invalid dates (plan Tasks-Abfragen, T1)", () => {
+  it("reads ❌ as a field: kept in the source, left out of the description", () => {
+    const text = "Dropped 📅 2026-10-20 ❌ 2026-10-24";
+    expect(readTasksMetadata(text)).toMatchObject({ due: "2026-10-20", cancelled: "2026-10-24" });
+    expect(tasksDescription(text)).toBe("Dropped");
+    expect(setTasksField(text, "cancelled", null)).toBe("Dropped 📅 2026-10-20");
+  });
+  it("names the dated fields whose value is no day", () => {
+    expect(readTasksInvalidDates("a 📅 2026-02-30 ⏳ 2026-02-28 ✅ 2026-13-01")).toEqual(["due", "done"]);
+    expect(readTasksInvalidDates("a `📅 2026-02-30` 📅 2026-02-27")).toEqual([]);
+    expect(readTasksInvalidDates("a 📅 tomorrow")).toEqual([]);
+    expect(readTasksInvalidDates("a ❌ 2026-02-31 🛫 2026-04-31 ➕ 2025-02-29")).toEqual(["cancelled", "start", "created"]);
+  });
+  it("a recurring successor carries no cancelled date, and a cancelled task with fields gets its done date", () => {
+    const done = setChecklistTaskDone("- [ ] Water 📅 2026-09-14 🔁 every week ❌ 2026-09-01\n", 0, true, options);
+    expect(done.content).toBe("- [ ] Water 📅 2026-09-21 🔁 every week 🆔 pv-" + done.content.split("🆔 pv-")[1].split("\n")[0] + "\n- [x] Water 📅 2026-09-14 🔁 every week ❌ 2026-09-01 🆔 test-origin ✅ 2026-09-14\n");
+  });
+});
+
+describe("a due time after the due date (Sammelplan § 3.145 Nr. 1, E3)", () => {
+  it("reads `📅 YYYY-MM-DD HH:MM` as the day and the time the checkbox is due at", () => {
+    expect(readTasksMetadata("Call Bob 📅 2026-11-02 14:30")).toMatchObject({ due: "2026-11-02", dueTime: "14:30" });
+    expect(readTasksMetadata("Call Bob 📅 2026-11-02 09:05 #work 🔁 every week")).toMatchObject({ due: "2026-11-02", dueTime: "09:05" });
+    expect(scanTasks("- [ ] Call Bob 📅 2026-11-02 14:30")[0]).toMatchObject({ due: "2026-11-02", dueTime: "14:30" });
+  });
+  it("reads nothing that is not a clock standing right after the date", () => {
+    for (const text of ["Call 📅 2026-11-02", "Call 📅 2026-11-02 24:00", "Call 📅 2026-11-02 9:30", "Call 📅 2026-11-02 14:30h", "Call 📅 2026-11-02 14:305", "Call 14:30 📅 2026-11-02", "Call 📅 2026-11-02, 14:30", "Call `📅 2026-11-02 14:30`"]) {
+      expect(readTasksMetadata(text).dueTime).toBeNull();
+    }
+    expect(scanTasks("- [ ] Call 📅 2026-11-02")[0]).not.toHaveProperty("dueTime");
+    // A time beside a date that is no day is no time either.
+    expect(readTasksMetadata("Call 📅 2026-02-30 14:30")).toMatchObject({ due: null, dueTime: null });
+  });
+  it("the time is part of the field: left out of the description, kept when the day moves, gone with the date", () => {
+    const text = "Call Bob 📅 2026-11-02 14:30 #work";
+    expect(tasksDescription(text)).toBe("Call Bob #work");
+    expect(setTasksField(text, "due", "2026-11-06")).toBe("Call Bob 📅 2026-11-06 14:30 #work");
+    expect(setTasksField(text, "due", null)).toBe("Call Bob #work");
+    // Done and its successor keep the time: a weekly call at 14:30 stays at 14:30.
+    const done = setChecklistTaskDone("- [ ] Call 📅 2026-09-14 10:00 🔁 every week\n", 0, true, options);
+    expect(scanTasks(done.content).map((task) => [task.due, task.dueTime, task.done])).toEqual([
+      ["2026-09-21", "10:00", false],
+      ["2026-09-14", "10:00", true],
+    ]);
   });
 });

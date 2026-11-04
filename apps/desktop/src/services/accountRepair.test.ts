@@ -224,6 +224,73 @@ describe("verified account-card repair", () => {
     expect(state.map).toEqual(emptyAccountMap());
     expect(state.journal).toBeNull();
   });
+
+  // Sammelplan § 3.104: the automatic fold left a mailbox without a card and a
+  // sign-in in a slot no card points at. Every row and every sign-in keeps a
+  // card; what cannot fold stays for the guided repair.
+  const everyRowHasACard = (accounts: readonly CloudAccountRecord[], rows: { mail?: string[]; pim?: string[] }) => {
+    for (const id of rows.mail ?? []) expect(accounts.some((a) => a.services.mail?.mailAccountId === id), `mailbox ${id} has a card`).toBe(true);
+    for (const id of rows.pim ?? []) expect(accounts.some((a) => a.services.calendar?.pimAccountId === id), `calendar ${id} has a card`).toBe(true);
+  };
+
+  it("never folds away a card whose mailbox differs from the survivor's (§ 3.104 Nr. 1)", () => {
+    const accounts = [
+      card({ id: "card-a", services: { mail: { mailAccountId: "mail-1" } } }),
+      card({ id: "card-b", services: { mail: { mailAccountId: "mail-2" } } }),
+    ];
+
+    const plan = planAccountRepair(accounts, emptyAccountMap(), [accountRepairBindingKey("account", "card-a")]);
+
+    everyRowHasACard(plan.accounts, { mail: ["mail-1", "mail-2"] });
+    expect(plan.merges).toEqual([]);
+    // Still two cards of one account: the guided repair is offered for them.
+    expect(plan.needsReview.map((need) => need.accountIds)).toEqual([["card-a", "card-b"]]);
+  });
+
+  it("keeps a Gmail OAuth mailbox and an app-password mailbox of the same account each on its card (§ 3.104 Nr. 1)", () => {
+    const accounts = [
+      card({ id: "oauth", services: { files: { provider: "drive" }, mail: { mailAccountId: "gmail-oauth" } } }),
+      card({ id: "password", services: { mail: { mailAccountId: "gmail-password" } } }),
+    ];
+
+    const plan = planAccountRepair(accounts, emptyAccountMap(), [
+      accountRepairBindingKey("account", "oauth"),
+      accountRepairBindingKey("mail", "gmail-password"),
+    ]);
+
+    everyRowHasACard(plan.accounts, { mail: ["gmail-oauth", "gmail-password"] });
+    expect(plan.accounts.find((a) => a.id === "oauth")?.services.mail).toEqual({ mailAccountId: "gmail-oauth" });
+  });
+
+  it("never folds away a card that holds a sign-in of its own (§ 3.104 Nr. 2)", () => {
+    const accounts = [
+      card({ id: "card-a", services: { files: { provider: "drive" }, calendar: { pimAccountId: "pim-1" } } }),
+      card({ id: "card-b", services: { mail: { mailAccountId: "mail-1" } } }),
+    ];
+
+    const plan = planAccountRepair(accounts, emptyAccountMap(), [
+      accountRepairBindingKey("account", "card-a"),
+      accountRepairBindingKey("account", "card-b"),
+    ]);
+
+    // The mailbox stays with the card whose sign-in covers it.
+    expect(plan.accounts.find((a) => a.id === "card-b")?.services.mail).toEqual({ mailAccountId: "mail-1" });
+    expect(plan.merges).toEqual([]);
+  });
+
+  it("still folds a card without a sign-in whose services the survivor lacks, and folds only that one of three", () => {
+    const accounts = [
+      card({ id: "card-a", services: { files: { provider: "drive" } } }),
+      card({ id: "card-b", services: { mail: { mailAccountId: "mail-1" } } }),
+      card({ id: "card-c", services: { mail: { mailAccountId: "mail-2" } } }),
+    ];
+
+    const plan = planAccountRepair(accounts, emptyAccountMap(), [accountRepairBindingKey("account", "card-a")]);
+
+    expect(plan.merges).toEqual([{ targetId: "card-a", sourceIds: ["card-b"], affectedServices: ["files", "mail"] }]);
+    expect(plan.accounts.map((a) => a.id)).toEqual(["card-a", "card-c"]);
+    everyRowHasACard(plan.accounts, { mail: ["mail-1", "mail-2"] });
+  });
 });
 
 describe("guided account-card repair", () => {

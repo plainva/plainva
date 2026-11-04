@@ -109,7 +109,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
       {/* The mode this device is in, and the one switch that promises something (plan KI-Harness P7). */}
       {settings.enabled && <AiModeCard session={session} state={state} onSetUp={() => setAdding(true)} />}
 
-      <SettingCard label={t("ai.settings.providers")}>
+      <SettingCard label={t("ai.settings.providers")} info={t("ai.settings.keysBody")}>
         {rows.map((row) => (
           <SettingRow key={row.provider.id} label={row.provider.label} desc={providerStatus(t, row)}>
             <div className="pv-ai-rowactions">
@@ -137,10 +137,6 @@ function AiSettingsBody({ session }: { session: AiSession }) {
         </SettingCardNote>
       </SettingCard>
 
-      <SettingCard label={t("ai.settings.keysTitle")}>
-        <SettingCardNote>{t("ai.settings.keysBody")}</SettingCardNote>
-      </SettingCard>
-
       <SettingCard label={t("ai.settings.profiles")}>
         {AI_PROFILE_IDS.map((id) => (
           <SettingRow key={id} label={t(`ai.profile.${id}`)} desc={profileLine(id)}>
@@ -166,16 +162,15 @@ function AiSettingsBody({ session }: { session: AiSession }) {
         </SettingRow>
         <SettingCardNote>{t("ai.settings.audioHint")}</SettingCardNote>
         {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
-        <SettingRow label={t("ai.profile.embedding")} desc={profileLine(AI_EMBEDDING_PROFILE)}>
+        <SettingRow label={t("ai.profile.embedding")} desc={profileLine(AI_EMBEDDING_PROFILE)} info={t("ai.settings.embeddingHint")}>
           <Button size="sm" variant="secondary" disabled={rows.length === 0} onClick={() => setModelFor(AI_EMBEDDING_PROFILE)} data-testid="ai-profile-embedding">
             {t("ai.settings.change")}
           </Button>
         </SettingRow>
-        <SettingCardNote>{t("ai.settings.embeddingHint")}</SettingCardNote>
       </SettingCard>
 
       <SettingCard label={t("ai.settings.sending")}>
-        <SettingRow label={t("ai.settings.confirmEvery")} desc={t("ai.settings.confirmEveryDesc")}>
+        <SettingRow label={t("ai.settings.confirmEvery")} info={t("ai.settings.confirmEveryDesc")}>
           <Switch
             checked={settings.confirmEveryRequest}
             label={t("ai.settings.confirmEvery")}

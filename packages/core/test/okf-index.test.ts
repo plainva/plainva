@@ -132,6 +132,16 @@ describe("convertWikilinksToMarkdownLinks", () => {
     expect(out).toBe("See [Alpha](Alpha.md) and [Beta](Beta%20Note.md) and [Gamma#Intro](../Other/Gamma.md#Intro).");
   });
 
+  it("counts a link to a section of the note on its own, not as unresolvable (Sammelplan § 3.135 Nr. 2)", () => {
+    // `[[#Part]]` names no file: it stays a wiki link and leads where it led.
+    // It counted as "unresolvable", which told the person adopting an overview
+    // that a link of theirs was broken.
+    const md = "Up to [[#Teil]], [[#Teil|there]] and [[Alpha]] - and [[Nowhere]].";
+    const { content: out, result } = convertWikilinksToMarkdownLinks(md, { sourcePath: "Projects/MOC.md", allFilePaths: allFiles });
+    expect(result).toEqual({ converted: 1, embeds: 0, unresolved: 1, inLabels: 0, sectionLinks: 2 });
+    expect(out).toBe("Up to [[#Teil]], [[#Teil|there]] and [Alpha](Alpha.md) - and [[Nowhere]].");
+  });
+
   it("leaves embeds and unresolved targets untouched", () => {
     const md = "Embed ![[Alpha]] and missing [[Nowhere]].";
     const { content: out, result } = convertWikilinksToMarkdownLinks(md, {
@@ -139,7 +149,7 @@ describe("convertWikilinksToMarkdownLinks", () => {
       allFilePaths: allFiles,
     });
 
-    expect(result).toEqual({ converted: 0, embeds: 1, unresolved: 1, inLabels: 0 });
+    expect(result).toEqual({ converted: 0, embeds: 1, unresolved: 1, inLabels: 0, sectionLinks: 0 });
     expect(out).toContain("![[Alpha]]");
     expect(out).toContain("[[Nowhere]]");
     // Nothing to convert: the very text that was handed in.
@@ -178,7 +188,7 @@ describe("convertWikilinksToMarkdownLinks", () => {
     for (const [text, after] of [[note, expected], [mark + note.replace(/\n/g, "\r\n"), mark + expected.replace(/\n/g, "\r\n")]]) {
       const { content, result } = convertWikilinksToMarkdownLinks(text, { sourcePath: "Projects/MOC.md", allFilePaths: allFiles });
       expect(content).toBe(after);
-      expect(result).toEqual({ converted: 4, embeds: 1, unresolved: 1, inLabels: 0 });
+      expect(result).toEqual({ converted: 4, embeds: 1, unresolved: 1, inLabels: 0, sectionLinks: 0 });
     }
   });
 
@@ -192,12 +202,12 @@ describe("convertWikilinksToMarkdownLinks", () => {
     // The link names "Alpha &amp; Co", as the line spells it (finding 2026-10-11) —
     // not the note "Alpha & Co", which it was taken for until then.
     const note = "[[Alpha &amp; Co]] and ![[Alpha &amp; Co]]\n";
-    expect(convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: [...allFiles, "Projects/Alpha & Co.md"] })).toEqual({ content: note, result: { converted: 0, embeds: 1, unresolved: 1, inLabels: 0 } });
+    expect(convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: [...allFiles, "Projects/Alpha & Co.md"] })).toEqual({ content: note, result: { converted: 0, embeds: 1, unresolved: 1, inLabels: 0, sectionLinks: 0 } });
     // The Markdown link is written so that it reads as that name: `\&` keeps `&amp;` from being read as `&`.
     const converted = convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: [...allFiles, "Projects/Alpha &amp; Co.md"] });
     expect(converted).toEqual({
       content: "[Alpha \\&amp; Co](Alpha%20\\&amp;%20Co.md) and ![[Alpha &amp; Co]]\n",
-      result: { converted: 1, embeds: 1, unresolved: 0, inLabels: 0 },
+      result: { converted: 1, embeds: 1, unresolved: 0, inLabels: 0, sectionLinks: 0 },
     });
     expect(readNoteLinks(converted.content).links.map((link) => link.target)).toEqual(["Alpha &amp; Co.md", "Alpha &amp; Co"]);
     // The bar in an alias is the bar it spells, `\|` as well: the label reads "a|b".
@@ -209,12 +219,12 @@ describe("convertWikilinksToMarkdownLinks", () => {
     // An address behind a bracket is cut out of the text only after the link behind it was read.
     expect(convertWikilinksToMarkdownLinks("[www.example.com/[[Alpha]] [[Alpha]]]\n", options)).toEqual({
       content: "[www.example.com/[Alpha](Alpha.md) [Alpha](Alpha.md)]\n",
-      result: { converted: 2, embeds: 0, unresolved: 0, inLabels: 0 },
+      result: { converted: 2, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 0 },
     });
     // `&#33;` is a `!` by reference — text; the link behind it is no embed.
     expect(convertWikilinksToMarkdownLinks("&#33;[[Alpha]] and [[Alpha]]\n", options)).toEqual({
       content: "&#33;[Alpha](Alpha.md) and [Alpha](Alpha.md)\n",
-      result: { converted: 2, embeds: 0, unresolved: 0, inLabels: 0 },
+      result: { converted: 2, embeds: 0, unresolved: 0, inLabels: 0, sectionLinks: 0 },
     });
   });
 
@@ -233,7 +243,7 @@ describe("convertWikilinksToMarkdownLinks", () => {
     const only = new Set(["Projects/Archiv/Brief.md", "Projects/Alpha.md"]);
     const { content: out, result } = convertWikilinksToMarkdownLinks("See [[Brief]], [[Alpha]] and [[Aufgaben.base]].", { sourcePath: "Projects/MOC.md", allFilePaths: vault, only });
 
-    expect(result).toEqual({ converted: 1, embeds: 0, unresolved: 2, inLabels: 0 });
+    expect(result).toEqual({ converted: 1, embeds: 0, unresolved: 2, inLabels: 0, sectionLinks: 0 });
     expect(out).toContain("[[Brief]]");
     expect(out).not.toContain("Archiv/Brief.md");
     expect(out).toContain("[Alpha](Alpha.md)");
@@ -258,7 +268,7 @@ describe("convertWikilinksToMarkdownLinks", () => {
     const { content, result } = convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: allFiles });
 
     expect(content).toBe(note.replace("[[Alpha]] beside it", "[Alpha](Alpha.md) beside it"));
-    expect(result).toEqual({ converted: 1, embeds: 0, unresolved: 0, inLabels: 3 });
+    expect(result).toEqual({ converted: 1, embeds: 0, unresolved: 0, inLabels: 3, sectionLinks: 0 });
     // The links around them are the links they were: each still names its file.
     const links = (text: string) => readNoteLinks(text).links.filter((link) => link.type === "markdown-link").map((link) => link.target);
     expect(links(content)).toEqual(["Beta Note.md", "Alpha.md", "../Other/Gamma.md"]);
@@ -268,7 +278,7 @@ describe("convertWikilinksToMarkdownLinks", () => {
   it("counts a wikilink in a label once, whether or not it leads anywhere", () => {
     const { content, result } = convertWikilinksToMarkdownLinks("[to [[Nowhere]]](Alpha.md) and [[Nowhere]]\n", { sourcePath: "Projects/MOC.md", allFilePaths: allFiles });
     expect(content).toBe("[to [[Nowhere]]](Alpha.md) and [[Nowhere]]\n");
-    expect(result).toEqual({ converted: 0, embeds: 0, unresolved: 1, inLabels: 1 });
+    expect(result).toEqual({ converted: 0, embeds: 0, unresolved: 1, inLabels: 1, sectionLinks: 0 });
   });
 
   // Finding 2026-10-12: adopted as `index.md`, a note's links to itself were
@@ -288,7 +298,7 @@ describe("convertWikilinksToMarkdownLinks", () => {
       expect(content).toBe(
         "# Map\n\n[Map](./index.md), [here](./index.md#Part%20One), [Projects/Map#Part One](./index.md#Part%20One), [Projects Map](./index.md) and ![[Map]] beside [Alpha](Alpha.md) and [Gamma](../Other/Gamma.md).\n"
       );
-      expect(result).toEqual({ converted: 6, embeds: 1, unresolved: 0, inLabels: 0 });
+      expect(result).toEqual({ converted: 6, embeds: 1, unresolved: 0, inLabels: 0, sectionLinks: 0 });
       // Read as the index reads them once the note lies there, every one of
       // them is the note itself — though the vault's root holds an `index.md` too.
       const after = buildLinkTargetIndex(vault.map((file) => (file.path === "Projects/Map.md" ? "Projects/index.md" : file.path)));

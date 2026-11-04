@@ -81,8 +81,11 @@ describe("the card of external agents", () => {
     const h = await acpHarness();
     await mount(h);
     const text = host!.textContent!;
-    expect(text).toContain("An agent is a program of another maker that you installed and signed in to yourself.");
-    expect(text).toContain("Plainva installs no agent and keeps no credential of one.");
+    // What an agent is stands behind the card's ⓘ (settings plan 2026-10-29).
+    await click(h, host!.querySelector('button.pv-infotip[aria-label="More about External agents"]'));
+    const info = host!.querySelector(".pv-infotip-panel")?.textContent ?? "";
+    expect(info).toContain("An agent is a program of another maker that you installed and signed in to yourself.");
+    expect(info).toContain("Plainva installs no agent and keeps no credential of one.");
     expect(text).toContain("Gemini CLI");
     expect(text).toContain("/usr/bin/gemini --acp · How it writes has not been seen on this computer yet");
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { within } from "../../../../../packages/core/test/helpers/timeBudget";
 // Not part of the core's public surface; the providers call it internally.
 import { htmlToMarkdown } from "../../../../../packages/core/src/pim/htmlToMarkdown";
 import {
@@ -204,9 +205,7 @@ describe("parseEventDescription is linear on hostile input", () => {
   ];
   for (const [name, input] of hostile) {
     it(name, () => {
-      const started = performance.now();
-      parseEventDescription(input);
-      expect(performance.now() - started).toBeLessThan(1_000);
+      within(1_000, () => parseEventDescription(input));
     });
   }
 });

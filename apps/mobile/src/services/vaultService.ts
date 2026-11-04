@@ -35,7 +35,7 @@ import {
   formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
-import { isInternalPath, linkTargetName, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
+import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -53,7 +53,9 @@ import {
   setActiveVault,
   LOCAL_VAULT_ID,
   type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
-import { getStoredProvider, purgeCredentials, stopSyncAndDrain, syncSoon } from "./syncService";
+import { getStoredProvider, purgeCredentials, startSyncIfConfigured, stopSyncAndDrain, syncSoon } from "./syncService";
+import { armedLeaveGuards, foreignInputArmed } from "./leaveGuard";
+import { takeScreen } from "./screenStep";
 import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
@@ -77,13 +79,13 @@ import {
   ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
   conflictCopyPath,
   importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, type BookmarkEntry,
-  parseRecentsFile,
-  pushRecentEntry,
-  dropRecentEntry,
+  readRecentsOnDisk,
+  pushRecentOnDisk,
+  forgetRecentOnDisk,
   renameFileWithLinkUpdates,
-  serializeRecentsFile,
   parkTemplateCaret,
   sweepPinboardRefs,
+  carryTemplateAssignments,
   toast,
   isImagePath,
   wikiTargetToPath,
@@ -206,11 +208,24 @@ export async function discardPreparedContainer(vaultId: string, sourceVaultId?: 
   // A copy that broke off may have written a slot before the record naming it
   // (third review 2026-10-28): the copy takes its ids from the vault it came
   // from, so those name every slot it can have written.
+  //
+  // The vault the run started in need not be the one open now (Sammelplan
+  // § 3.160 Nr. 2): the person may have switched before the copy was turned
+  // down. Its index is read where it lies then - the open one, or its own
+  // database opened for this (`openPreparedVaultDatabase`); only reading the
+  // open one left the slots of such a copy behind.
   const current = sourceVaultId && bootPromise ? await bootPromise.catch(() => null) : null;
-  const sourceDb = current && current.vaultId === sourceVaultId ? current.db : null;
-  const sourcePim = sourceDb
-    ? await new PimCacheRepository(sourceDb).listAccounts().then((rows) => rows.map((row) => row.id)).catch(() => [] as string[])
-    : [];
+  const sourcePim = !sourceVaultId
+    ? []
+    : current && current.vaultId === sourceVaultId
+      ? current.db
+        ? await new PimCacheRepository(current.db).listAccounts().then((rows) => rows.map((row) => row.id)).catch(() => [] as string[])
+        : []
+      : await openPreparedVaultDatabase(sourceVaultId)
+          .then(async (db) => {
+            try { return (await new PimCacheRepository(db).listAccounts()).map((row) => row.id); } finally { await db.close().catch(() => {}); }
+          })
+          .catch(() => [] as string[]);
   const also = sourceVaultId
     ? {
         cloud: await loadCloudAccounts(sourceVaultId).then((rows) => rows.map((r) => r.id)).catch(() => [] as string[]),
@@ -309,43 +324,148 @@ export async function previousMobileVault(): Promise<VaultEntry | null> {
   return entry && entry.id !== active.id ? entry : null;
 }
 
+/** The switch under way, by the vault it goes to. */
+let switching: { id: string; done: Promise<void> } | null = null;
+
 /**
  * Activates another registry vault: stops the sync worker, closes the
  * current per-vault database and reboots. Screens listen for the event and
  * reset their stacks.
+ *
+ * One switch at a time (finding 2026-10-22, § 3.139 Nr. 5). Two flows that
+ * end in the same vault — a sign-in coming back to it, a connect run
+ * activating it — each switched for itself: the second stopped the boot the
+ * first had just begun (`bootPromise = null`, its vault never closed) and
+ * dropped the stacks a second time, with whatever the first flow had put on
+ * top after it. A switch to the vault already being switched to is now that
+ * same switch; a switch to another waits for it.
  */
-export async function switchVault(id: string): Promise<void> {
+export function switchVault(id: string): Promise<void> {
+  if (switching?.id === id) return switching.done;
+  const before = switching?.done.catch(() => undefined) ?? Promise.resolve();
+  const mine = { id, done: before.then(() => switchTo(id)) };
+  switching = mine;
+  const over = () => {
+    if (switching === mine) switching = null;
+  };
+  mine.done.then(over, over);
+  return mine.done;
+}
+
+async function switchTo(id: string): Promise<void> {
   // Already opening this very vault: stopping its boot to start it again would only lose the scan so far.
   if (bootPromise && !bootSettled && (await getActiveVaultEntry()).id === id) return;
   const current = await retireBoot();
   if (current?.vaultId === id) return;
-  // Asked for the same vault, this is "try again" on the boot surface: no vault to go back to from there.
-  const leaving = (await getActiveVaultEntry()).id;
-  if (leaving !== id) previousVaultId = leaving;
-  // Pending editor saves must land BEFORE the worker stops and the database
-  // closes — and they land in the vault they were typed in (the coordinator
-  // captured that instance per schedule call).
-  await noteSaver.flushAll();
-  // Drain, don't just flag-stop (P3.4/M4): a cycle still downloading or
-  // writing must finish before dispose() closes the per-vault database.
-  await stopSyncAndDrain();
-  await setActiveVault(id);
-  // Swap the per-vault settings slice (folders, backup retention) to the new
-  // vault BEFORE the next boot reads the backup policy / screens re-read
-  // getMobileSettings() on the event below (package A vault isolation).
-  await reloadMobileSettingsForActiveVault();
+  let leaving: string | undefined;
+  const previous = previousVaultId;
+  try {
+    // Asked for the same vault, this is "try again" on the boot surface: no vault to go back to from there.
+    leaving = (await getActiveVaultEntry()).id;
+    if (leaving !== id) previousVaultId = leaving;
+    // Pending editor saves must land BEFORE the worker stops and the database
+    // closes — and they land in the vault they were typed in (the coordinator
+    // captured that instance per schedule call).
+    await noteSaver.flushAll();
+    // Drain, don't just flag-stop (P3.4/M4): a cycle still downloading or
+    // writing must finish before dispose() closes the per-vault database.
+    await stopSyncAndDrain();
+    await setActiveVault(id);
+    // Swap the per-vault settings slice (folders, backup retention) to the new
+    // vault BEFORE the next boot reads the backup policy / screens re-read
+    // getMobileSettings() on the event below (package A vault isolation).
+    await reloadMobileSettingsForActiveVault();
+  } catch (error) {
+    // A switch that did not happen leaves the vault on screen as it was
+    // (finding 2026-10-22, § 3.139 Nr. 7): it is the active one in the list
+    // again — whoever asked "am I in the new vault?" read "yes" — and its sync
+    // runs again, which the switch had stopped first.
+    previousVaultId = previous;
+    if (leaving !== undefined && leaving !== id) {
+      const now = await getActiveVaultEntry().catch(() => null);
+      if (now?.id !== leaving) {
+        await setActiveVault(leaving).catch((e: unknown) => console.error("[switch] the vault on screen could not be made active again", e));
+        await reloadMobileSettingsForActiveVault().catch(() => {});
+      }
+    }
+    await resumeOnScreen(current, leaving);
+    throw error;
+  }
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));
 }
 
-export async function reloadActiveMobileVault(): Promise<void> {
+/**
+ * The vault on screen after a step that stopped its sync and then failed: the
+ * sync starts again through the one start (so a pause and "files off" are
+ * still asked). Without an open vault — its boot was stopped for the step —
+ * the vault boots again.
+ */
+async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Promise<void> {
+  if (current) {
+    await startSyncIfConfigured(current).catch((e: unknown) => console.error("[switch] sync restart failed", e));
+    return;
+  }
+  bootPromise = null;
+  window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: vaultId } }));
+}
+
+/** A reload waiting behind someone else's input (`screenStep.ts`). */
+const RELOAD_STEP = "vault-reload";
+
+/**
+ * Opens the vault on screen again: after its workspace was unlocked, paired,
+ * recovered or lifted, its folder was picked anew, or its index rebuilt.
+ * True: reloaded now. False: it waits — see below.
+ *
+ * Such a step begins at the screen on top and reloads after a key
+ * derivation or the network (finding 2026-10-22, § 3.139 Nr. 2). The reload
+ * drops every stack, so a message begun meanwhile somewhere else went with
+ * it. While a surface that is not the step's own (`own`) holds unsaved input,
+ * the reload waits behind a notice and runs once that input is sent, saved
+ * or discarded — or when the person takes the notice's button, which asks
+ * first. The vault keeps working in the meantime. Its sync does not start
+ * again before the reload: a step that stopped it (lifting the encryption,
+ * resuming a setup) did so because the vault's state changes under it, and
+ * only the reloaded vault starts it in the new state.
+ */
+export async function reloadActiveMobileVault(own?: string | readonly string[]): Promise<boolean> {
+  const vaultId = (await getActiveVaultEntry()).id;
+  if (foreignInputArmed(own)) {
+    offerReload(vaultId, own);
+    return false;
+  }
   const current = await retireBoot();
   await noteSaver.flushAll();
   await stopSyncAndDrain();
+  // The drain can take a transfer's length: input begun in it is at stake too.
+  if (current && foreignInputArmed(own)) {
+    offerReload(vaultId, own);
+    return false;
+  }
   if (current) await current.dispose().catch(() => {});
   bootPromise = null;
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current?.vaultId } }));
+  return true;
+}
+
+function offerReload(vaultId: string, own?: string | readonly string[]): void {
+  takeScreen(RELOAD_STEP, {
+    // A vault switched away from meanwhile has been opened anew already.
+    // What is armed when it runs was given up: by "Discard" at the notice's
+    // button (the question keeps the guards until their surfaces go, and the
+    // reload is what takes them), or there is nothing left by then.
+    run: async () => {
+      const given = armedLeaveGuards().map((g) => g.id);
+      const mine = own === undefined ? [] : typeof own === "string" ? [own] : own;
+      if ((await getActiveVaultEntry()).id === vaultId) await reloadActiveMobileVault([...mine, ...given]);
+    },
+    offer: i18n.t("mobile.vaultReloadOffer"),
+    label: i18n.t("mobile.vaultReloadOfferAction"),
+    own,
+    whenFree: true,
+  });
 }
 
 /**
@@ -951,8 +1071,12 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       // The batch was announced to the screens when it was handed over; what
       // got through only now is not in the lists they drew then.
       onFollowedLate: () => window.dispatchEvent(new CustomEvent("m-vault-changed")),
-      // A saved file sends no m-vault-changed: whoever plans work on the index hears of it by this (AI harness P2a-4).
-      onFollowed: () => window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT)),
+      // A saved file sends no m-vault-changed: whoever plans work on the index hears of it by this —
+      // the AI's search by meaning (AI harness P2a-4) and the reminders, which re-plan from it (E3).
+      onFollowed: () => {
+        window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT));
+        window.dispatchEvent(new CustomEvent("m-paths-indexed"));
+      },
     }),
     dispose: async () => {
       clearPinboardCache(queryService ?? files);
@@ -1047,6 +1171,25 @@ function reportFollowUp(to: string, error: string | undefined): void {
   if (error) toast.warning(i18n.t("dialogs.movedWithFollowUpError", { name: moveItemName(to), error }));
 }
 
+/**
+ * The template assignments (`plainva.templateFor`) of the databases a move
+ * carried follow them (open-items plan 3.71 no. 4) — the sweep the desktop
+ * runs, from @plainva/ui. A template that could not follow is said with the
+ * sentence of a rename whose links could not all be updated. Returns the
+ * templates it changed, for the index.
+ */
+async function carryTemplatesAfterMove(v: MobileVault, moves: Array<{ from: string; to: string }>): Promise<string[]> {
+  try {
+    const sweep = await carryTemplateAssignments({ adapter: v.files, queryService: v.queryService }, getMobileSettings().templateFolder, moves);
+    if (sweep.failed.length > 0) toast.warning(i18n.t("dialogs.renameLinksFailed"));
+    return sweep.changedPaths;
+  } catch (e) {
+    console.warn("[vaultService] templateFor sweep after move failed", e);
+    toast.warning(i18n.t("dialogs.renameLinksFailed"));
+    return [];
+  }
+}
+
 /** Callers of a move: the refusal was already said; everything else is a failed move. */
 export function reportMoveFailure(error: unknown): void {
   if (error instanceof MoveBlockedError) return;
@@ -1079,7 +1222,8 @@ export const vaultOps = {
     const junk = await Promise.all(
       listed.map((e) => (e.isDirectory ? false : isSystemJunkFile(e.path, (p) => v.adapter.readBinaryFile(p)))),
     );
-    const entries = listed.filter((_, i) => !junk[i]);
+    // A dot file or dot folder is hidden (E8) — whichever adapter listed it.
+    const entries = listed.filter((e, i) => !junk[i] && !e.name.startsWith("."));
     // Note counts per subfolder (mockup 1 "24 Notizen").
     //
     // S21: this counted ONE level with a directory listing, so a folder holding
@@ -1188,6 +1332,31 @@ export const vaultOps = {
     return { newPath, ...report, ...(followUpError ? { followUpError } : {}) };
   },
 
+  /** Unsaved text of `path` lands before it moves, or nothing moves — as before a rename. */
+  async flushBeforeNoteMove(v: MobileVault, path: string): Promise<void> {
+    await flushBeforeMove(v, path, false);
+  },
+
+  /**
+   * What follows a note that another door moved: the index, the bookmarks,
+   * the drafts, the open screens — the steps `renameReport` takes after its
+   * own move. The overview manager's adoption moved a note past all of them
+   * (Sammelplan § 3.135 Nr. 1); `pendingSaveFlush.test.ts` holds both to the
+   * order of the journal and the notice.
+   */
+  async followNoteMove(v: MobileVault, oldPath: string, newPath: string, changedPaths: readonly string[] = []): Promise<void> {
+    if (v.indexer) {
+      // The index follows the rename (issue 113): reporting the old name as
+      // deleted queued a remote DELETE next to the queued MOVE.
+      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
+      await v.reindexPaths([newPath, ...changedPaths]);
+    }
+    await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
+    notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  },
+
   /** Deletes a note; with sync active the deletion reaches the cloud too. */
   async remove(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<void> {
     // S2: a queued save landing after the delete resurrects the note. Flushing
@@ -1235,6 +1404,10 @@ export const vaultOps = {
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
     await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(() => {});
+    // The databases in the folder take their template assignments along
+    // (3.71 no. 4); before, the phone carried none, and a qualified entry
+    // named a file that was no longer there. The full pass below indexes them.
+    await carryTemplatesAfterMove(v, [{ from: oldPath, to: newPath }]);
     if (v.indexer) {
       // Rows follow first, so the full pass finds every note at its new place
       // and reports nothing as vanished (issue 113).
@@ -1269,6 +1442,8 @@ export const vaultOps = {
     const followUpError = await moveStep(v, path, newPath, () => v.files.renameItem(path, newPath));
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
+    // A database that moved takes its template assignments along (3.71 no. 4).
+    sweptBases.push(...(await carryTemplatesAfterMove(v, [{ from: path, to: newPath }])));
     if (v.indexer) {
       // Follows the move as a rename, never as a deletion (issue 113). The
       // databases whose pinboard places were rewritten are files like any
@@ -1330,14 +1505,14 @@ export const vaultOps = {
   async recent(v: MobileVault, limit: number): Promise<Array<{ path: string; title: string; mtime: number }>> {
     const all = await v.files.listDir("", true);
     return all
-      .filter((e) => !e.isDirectory && /\.md$/i.test(e.name) && !e.path.startsWith("."))
+      .filter((e) => !e.isDirectory && /\.md$/i.test(e.name) && !isHiddenPath(e.path))
       .sort((a, b) => b.mtime - a.mtime)
       .slice(0, limit)
       .map((e) => ({ path: e.path, title: noteTitle(e.path), mtime: e.mtime }));
   },
 
-  /* ---- B2: real MRU (last OPENED, .plainva/recents.json — device-local,
-     shared contract with the desktop in @plainva/ui). mtime `recent()` above
+  /* ---- B2: real MRU (last OPENED, this device's own `.plainva/recents.<device>.json`
+     — decision E7 — shared contract with the desktop in @plainva/ui). mtime `recent()` above
      stays the first-run fallback: it surfaces synced files, not opens. ---- */
 
   async getRecents(
@@ -1345,7 +1520,7 @@ export const vaultOps = {
     limit: number,
   ): Promise<Array<{ path: string; title: string; openedAt?: number }>> {
     try {
-      const entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
+      const entries = await readRecentsOnDisk(v.adapter);
       const out: Array<{ path: string; title: string; openedAt?: number }> = [];
       for (const e of entries) {
         if (out.length >= limit) break;
@@ -1385,24 +1560,14 @@ export const vaultOps = {
    * since P4. It drops the entry, never the file.
    */
   async forgetRecent(v: MobileVault, path: string): Promise<void> {
-    const entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
-    await v.adapter.writeTextFile(".plainva/recents.json", serializeRecentsFile(dropRecentEntry(entries, path)));
+    await forgetRecentOnDisk(v.adapter, path);
     window.dispatchEvent(new CustomEvent("m-recents-changed"));
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {
-    if (!/\.md$/i.test(path) || path.startsWith(".")) return;
+    if (!/\.md$/i.test(path) || isHiddenPath(path)) return;
     try {
-      let entries: ReturnType<typeof parseRecentsFile> = [];
-      try {
-        entries = parseRecentsFile(await v.adapter.readTextFile(".plainva/recents.json"));
-      } catch {
-        /* first use */
-      }
-      await v.adapter.writeTextFile(
-        ".plainva/recents.json",
-        serializeRecentsFile(pushRecentEntry(entries, path, Date.now())),
-      );
+      await pushRecentOnDisk(v.adapter, path, Date.now());
     } catch {
       /* recents are best-effort; never block opening a note */
     }
@@ -1689,7 +1854,7 @@ export const vaultOps = {
   async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string, kind?: "wiki" | "markdown"): Promise<string | null> {
     if (!target.trim()) return null;
     // Without a kind the text may carry a wiki link's alias: the name ends at the bar.
-    const named = markdownLinkTarget(kind === undefined ? target.split("|")[0] : target).target;
+    const named = markdownLinkTarget(kind === undefined ? target.slice(0, wikiLinkParts(target).headEnd) : target).target;
     const asMarkdown = kind === "markdown" || (kind === undefined && (named.includes("/") || /\.(md|base)$/i.test(named)));
     if (asMarkdown) {
       const answer = await this.resolveMarkdownLink(v, named, hostPath);

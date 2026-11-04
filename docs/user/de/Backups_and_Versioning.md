@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-10-08
+Stand: 2026-10-30
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -10,7 +10,7 @@ Bei jedem Speichern legt Plainva vorher einen Snapshot der alten Fassung an — 
 
 Aufbewahrung (je Vault einstellbar):
 
-- **Snapshot-Intervall**: Bei jeder Änderung / 30 s / 2 min / 5 min / 10 min
+- **Snapshot-Intervall**: Bei jeder Änderung / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versionen pro Datei**: Standard 100 — darüber fliegen die ältesten raus
 - **Maximales Alter**: Standard 90 Tage — ältere Versionen werden bei einem täglichen Aufräumlauf **endgültig** entfernt („Unbegrenzt" schaltet das ab)
 - **Große Dateien**: über 5 MB wird nur die neueste Version behalten — siehe unten
@@ -31,7 +31,7 @@ Auch Bilder haben Versionen (mit Vorschau); andere Binärdateien lassen sich ohn
 
 ## Gelöschte Dateien wiederherstellen
 
-Da jedes Löschen vorher einen Snapshot anlegt, kann Plainva gelöschte Dateien zurückholen: Rechtsklick auf den Vault-Namen ganz oben im Dateibaum → **Gelöschte Dateien wiederherstellen…** (auch über die Einstellungen erreichbar). Die Liste zeigt alle Dateien, deren Snapshots noch da sind, das Original aber fehlt — **Wiederherstellen** legt die jüngste Fassung am ursprünglichen Ort wieder an (Ordner werden bei Bedarf neu erstellt), **Versionen…** öffnet die komplette Historie der gelöschten Datei.
+Da jedes Löschen vorher einen Snapshot anlegt, kann Plainva gelöschte Dateien zurückholen: Rechtsklick auf den Vault-Namen ganz oben im Dateibaum → **Gelöschte Dateien wiederherstellen…** (auch unter **Einstellungen → Vault → Backup & Versionierung → Versionsverlauf** erreichbar). Die Liste zeigt alle Dateien, deren Snapshots noch da sind, das Original aber fehlt — **Wiederherstellen** legt die jüngste Fassung am ursprünglichen Ort wieder an (Ordner werden bei Bedarf neu erstellt), **Versionen…** öffnet die komplette Historie der gelöschten Datei.
 
 Hinweis: Wird ein **ganzer Ordner** gelöscht, landet er im Papierkorb des Betriebssystems — für diesen Fall ist der System-Papierkorb der erste Weg; in Plainva findest Du dann ggf. nur ältere Snapshots der enthaltenen Dateien.
 
@@ -67,9 +67,11 @@ Einstellungen → **Vault** → **Backup & Versionierung**:
 - Plainvas eigener Sync überträgt `.plainva` nie. Synchronisierst Du den Vault-Ordner aber mit einem Drittanbieter-Client (z. B. der Nextcloud-App), wandern die Snapshots dort mit — das kostet etwas Speicher, schadet aber nicht.
 - Sync-Konflikte sind zusätzlich über `.CONFLICT`-Dateien abgesichert (siehe [FAQ](FAQ.md)); der Versionsverlauf ergänzt das um die zeitliche Historie jeder Datei.
 
+Am Telefon steht **ZIP-Backups** als erste Gruppe der Seite **Backup & Versionierung**, darunter folgt der **Versionsverlauf** mit **Gelöschte Dateien wiederherstellen** an seinem Ende.
+
 Mobil wird ein Vault bei einem fehlgeschlagenen Notizspeichervorgang nicht gewechselt oder neu geladen; auch das Entfernen des Vaults wird abgebrochen. Die Eingabe bleibt zur Wiederholung vorgemerkt. Gleichnamige Notizen in verschiedenen Vaults behalten eigene Aufträge und Entwürfe. Ein Speicherkonflikt sichert die betroffene Textfassung; später getippter Text wird anschließend gesondert gespeichert oder als weitere Konfliktkopie gesichert. Die Entwurfsjournale beider Oberflächen ordnen Schreiben und Löschen, damit ein verspäteter Abschluss keine neuere Sicherung entfernt. Eine fehlgeschlagene Konfliktsicherung ersetzt den mobilen Editorinhalt nicht.
 
-Eine ZIP-Sicherung gilt erst als erfolgreich, wenn alle ausgewählten Dateien lesbar waren und das vollständige Archiv gespeichert wurde. Bei einem Fehler werden keine älteren Archive durch diesen Lauf entfernt und der letzte erfolgreiche Sicherungszeitpunkt bleibt unverändert. Mobil werden automatische Fehler mit dem Vault-Namen gemeldet; **Jetzt sichern** in den Vault-Einstellungen startet einen neuen Versuch. Versteckte Nutzerkonfiguration wie `.obsidian` gehört auf beiden Plattformen dazu. Die Verzeichnisse `.plainva`, `.git`, `.trash` und `node_modules` bleiben auf jeder Ordnerebene ausgeschlossen. Entstehen mehrere Archive in derselben Sekunde, erhält der neue Dateiname einen Zusatz wie `_001`.
+Eine ZIP-Sicherung gilt erst als erfolgreich, wenn alle ausgewählten Dateien lesbar waren und das vollständige Archiv gespeichert wurde. Bei einem Fehler werden keine älteren Archive durch diesen Lauf entfernt und der letzte erfolgreiche Sicherungszeitpunkt bleibt unverändert. Mobil werden automatische Fehler mit dem Vault-Namen gemeldet; **Jetzt sichern** unter **Backup & Versionierung** → **ZIP-Backups** startet einen neuen Versuch. Versteckte Nutzerkonfiguration wie `.obsidian` gehört auf beiden Plattformen dazu. Die Verzeichnisse `.plainva`, `.git`, `.trash` und `node_modules` bleiben auf jeder Ordnerebene ausgeschlossen. Entstehen mehrere Archive in derselben Sekunde, erhält der neue Dateiname einen Zusatz wie `_001`.
 
 Ein Speichervorgang wird erst nach bestätigtem Schreiben als abgeschlossen gemeldet. Neue Eingaben während einer laufenden Speicherung bleiben ungespeichert, bis auch ihr eigener Stand geschrieben wurde. Desktop-Entwürfe gehören zur jeweiligen Editor-Sitzung: Der Abschluss einer alten Sitzung löscht keinen Entwurf einer neu geöffneten Notiz. Werden gleichzeitig fremde Änderungen eingelesen, führt Plainva vereinbare Änderungen zusammen; bei einem Widerspruch bleibt Dein Text als Entwurf und Konfliktkopie erhalten.
 

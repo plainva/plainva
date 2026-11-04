@@ -1,4 +1,5 @@
 import { delimitedText } from "@plainva/core";
+import { mailtoDraft } from "./mailtoDraft";
 /**
  * Reading `List-Unsubscribe` (S23, plan P12).
  *
@@ -55,13 +56,11 @@ export function parseUnsubscribe(headers: {
 
   for (const part of delimitedText(raw, "<", ">")) {
     const uri = part.inner.trim();
-    if (/^mailto:/i.test(uri)) {
-      const rest = uri.slice("mailto:".length);
-      const [addr, query = ""] = rest.split("?", 2);
-      const address = (addr ?? "").trim();
-      if (!address) continue;
-      const subject = new URLSearchParams(query).get("subject") ?? undefined;
-      routes.push({ kind: "mailto", target: address, subject: subject || undefined, oneClick: false });
+    // Read as every mail address in a message is read (`mailtoDraft`).
+    const draft = mailtoDraft(uri);
+    if (draft) {
+      if (!draft.to) continue;
+      routes.push({ kind: "mailto", target: draft.to, subject: draft.subject || undefined, oneClick: false });
       continue;
     }
     if (/^https:\/\//i.test(uri)) {

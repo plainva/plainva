@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-10-08
+Dernière mise à jour : 2026-11-02
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -10,14 +10,14 @@ Avant chaque enregistrement, Plainva stocke un instantané de l'état précéden
 
 Conservation (configurable par vault) :
 
-- **Intervalle des instantanés** : À chaque modification / 30 s / 2 min / 5 min / 10 min
+- **Intervalle des instantanés** : À chaque modification / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versions par fichier** : par défaut 100 — au-delà, les plus anciennes sont supprimées
 - **Âge maximal** : par défaut 90 jours — les versions plus anciennes sont supprimées **définitivement** par un nettoyage quotidien (« Illimité » désactive cette limite)
 - **Fichiers volumineux** : au-delà de 5 Mo, seule la version la plus récente est conservée — voir ci-dessous
 
 Lorsque vous renommez ou déplacez un fichier, son historique de versions le suit. Deux choses sont conservées quel que soit l'intervalle des instantanés : un fichier avant sa suppression, et une note avant qu'une suggestion acceptée n'y soit écrite (voir [Commentaires et suggestions](Comments_and_Suggestions.md)).
 
-**Pourquoi les fichiers volumineux sont traités différemment :** une pièce jointe de 90 Mo modifiée à répétition pourrait sinon remplir le coffre de cent copies — neuf gigaoctets pour un seul fichier. Au-delà de la limite, Plainva conserve la version la plus récente plutôt que tout l'historique, et le signale une fois par coffre. Les notes et les images ordinaires sont bien en dessous et ne sont pas concernées. **Une suppression est toujours sauvegardée intégralement**, quelle que soit la taille : la nouvelle version d'un fichier enregistré est encore sur le disque, un fichier supprimé ne l'est plus — l'instantané est alors le seul retour possible.
+**Pourquoi les fichiers volumineux sont traités différemment :** une pièce jointe de 90 Mo modifiée à répétition pourrait sinon remplir le vault de cent copies — neuf gigaoctets pour un seul fichier. Au-delà de la limite, Plainva conserve la version la plus récente plutôt que tout l'historique, et le signale une fois par vault. Les notes et les images ordinaires sont bien en dessous et ne sont pas concernées. **Une suppression est toujours sauvegardée intégralement**, quelle que soit la taille : la nouvelle version d'un fichier enregistré est encore sur le disque, un fichier supprimé ne l'est plus — l'instantané est alors le seul retour possible.
 
 ## Consulter et restaurer des versions
 
@@ -31,7 +31,7 @@ Les images ont aussi des versions (avec aperçu) ; les autres fichiers binaires 
 
 ## Restaurer des fichiers supprimés
 
-Comme chaque suppression crée d'abord un instantané du fichier, Plainva peut ramener des fichiers supprimés : un clic droit sur le nom du vault en haut de l'arborescence → **Restaurer les fichiers supprimés…** (également accessible depuis les paramètres). La liste affiche tous les fichiers dont les instantanés existent encore alors que l'original a disparu — **Restaurer** recrée l'état le plus récent à l'emplacement d'origine (les dossiers sont recréés si nécessaire), **Versions…** ouvre l'historique complet du fichier supprimé.
+Comme chaque suppression crée d'abord un instantané du fichier, Plainva peut ramener des fichiers supprimés : un clic droit sur le nom du vault en haut de l'arborescence → **Restaurer les fichiers supprimés…** (également accessible sous **Paramètres → Vault → Sauvegarde & historique des versions → Historique des versions**). La liste affiche tous les fichiers dont les instantanés existent encore alors que l'original a disparu — **Restaurer** recrée l'état le plus récent à l'emplacement d'origine (les dossiers sont recréés si nécessaire), **Versions…** ouvre l'historique complet du fichier supprimé.
 
 Remarque : la suppression de tout un **dossier** le déplace vers la corbeille du système d'exploitation — dans ce cas, la corbeille du système est le premier moyen de récupération ; dans Plainva, vous ne trouverez éventuellement que d'anciens instantanés des fichiers qu'il contenait.
 
@@ -67,9 +67,11 @@ Paramètres → **Vault** → **Sauvegarde & historique des versions** :
 - La synchronisation propre de Plainva ne transfère jamais `.plainva`. Si vous synchronisez le dossier du vault avec un client tiers (p. ex. l'application Nextcloud), les instantanés voyagent avec lui — cela coûte un peu d'espace de stockage, mais ne cause aucun dommage.
 - Les conflits de synchronisation sont en plus protégés via des fichiers `.CONFLICT` (voir la [FAQ](FAQ.md)) ; l'historique des versions complète cela avec la chronologie de chaque fichier.
 
+Sur le téléphone, **Sauvegardes ZIP** est le premier groupe de la page **Sauvegarde & historique des versions** ; l’**Historique des versions** vient ensuite, avec **Restaurer les fichiers supprimés** à sa fin.
+
 Sur mobile, l’échec de l’enregistrement d’une note interrompt le changement, le rechargement ou le retrait du vault. Le texte reste en attente d’une nouvelle tentative. Les notes portant le même nom dans des vaults différents conservent des enregistrements et brouillons séparés. Un conflit préserve la version concernée ; le texte saisi ensuite est enregistré séparément ou conservé dans une autre copie de conflit. Les deux interfaces ordonnent les écritures et suppressions du journal des brouillons pour qu’une opération tardive ne supprime pas une copie plus récente. L’échec d’une copie de conflit ne remplace pas le texte de l’éditeur mobile.
 
-Une sauvegarde ZIP n’est considérée comme réussie qu’après la lecture de tous les fichiers sélectionnés et l’enregistrement de l’archive complète. Un échec ne supprime aucune archive antérieure et ne change pas la date de la dernière sauvegarde réussie. Sur mobile, le message d’échec automatique nomme le vault ; **Sauvegarder maintenant** dans ses réglages permet de réessayer. Les réglages utilisateur cachés, comme `.obsidian`, sont inclus sur les deux plateformes. Les dossiers `.plainva`, `.git`, `.trash` et `node_modules` sont exclus à tous les niveaux. Plusieurs archives créées dans la même seconde reçoivent un suffixe tel que `_001`.
+Une sauvegarde ZIP n’est considérée comme réussie qu’après la lecture de tous les fichiers sélectionnés et l’enregistrement de l’archive complète. Un échec ne supprime aucune archive antérieure et ne change pas la date de la dernière sauvegarde réussie. Sur mobile, le message d’échec automatique nomme le vault ; **Sauvegarder maintenant** sous **Sauvegarde & historique des versions** → **Sauvegardes ZIP** permet de réessayer. Les réglages utilisateur cachés, comme `.obsidian`, sont inclus sur les deux plateformes. Les dossiers `.plainva`, `.git`, `.trash` et `node_modules` sont exclus à tous les niveaux. Plusieurs archives créées dans la même seconde reçoivent un suffixe tel que `_001`.
 
 L’enregistrement n’est indiqué comme terminé qu’après confirmation de l’écriture. Le texte saisi pendant un enregistrement reste en attente jusqu’à l’écriture de sa propre version. Sur ordinateur, chaque brouillon appartient à sa session d’édition : la fin d’une ancienne session ne supprime pas le brouillon d’un éditeur nouvellement ouvert. Si des modifications externes arrivent en même temps, Plainva fusionne les changements compatibles ; en cas de conflit, le texte reste disponible dans le brouillon et une copie de conflit.
 

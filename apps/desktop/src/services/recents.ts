@@ -21,34 +21,19 @@
  * A first read migrates the old `localStorage` list and then clears it, so the
  * move costs nobody their history. Writes are best-effort: a strip that cannot
  * be persisted is not worth failing an open over.
+ *
+ * The file is this device's own (`recents.<device>.json`, decision E7): the
+ * read and the write are the shared ones the phone uses too
+ * (`readRecentsOnDisk` / `updateRecentsOnDisk` in `@plainva/ui`).
  */
 
-import { parseRecentsFile, serializeRecentsFile, pushRecentEntry, dropRecentEntry, RECENTS_MAX } from "@plainva/ui";
+import { readRecentsOnDisk, updateRecentsOnDisk, pushRecentOnDisk, forgetRecentOnDisk, pushRecentEntry, RECENTS_MAX } from "@plainva/ui";
 import type { IVaultAdapter } from "@plainva/core";
 import { isVirtualPath } from "../components/graph/virtualPaths";
-
-const RECENTS_FILE = ".plainva/recents.json";
 
 /** The legacy per-vault key; read once for the migration, then removed. */
 export function legacyRecentsKey(vaultPath: string): string {
   return `recentPaths-${vaultPath}`;
-}
-
-async function readEntries(adapter: IVaultAdapter): Promise<ReturnType<typeof parseRecentsFile>> {
-  try {
-    return parseRecentsFile(await adapter.readTextFile(RECENTS_FILE));
-  } catch {
-    return [];
-  }
-}
-
-async function writeEntries(adapter: IVaultAdapter, entries: ReturnType<typeof parseRecentsFile>): Promise<void> {
-  try {
-    await adapter.createDir(".plainva");
-  } catch {
-    /* already there */
-  }
-  await adapter.writeTextFile(RECENTS_FILE, serializeRecentsFile(entries));
 }
 
 /**
@@ -57,7 +42,7 @@ async function writeEntries(adapter: IVaultAdapter, entries: ReturnType<typeof p
  * have no file to check.
  */
 export async function loadRecents(adapter: IVaultAdapter, vaultPath: string, now = Date.now()): Promise<string[]> {
-  let entries = await readEntries(adapter);
+  let entries = await readRecentsOnDisk(adapter);
   const legacyKey = legacyRecentsKey(vaultPath);
   const legacyRaw = typeof localStorage !== "undefined" ? localStorage.getItem(legacyKey) : null;
   if (legacyRaw) {
@@ -69,10 +54,14 @@ export async function loadRecents(adapter: IVaultAdapter, vaultPath: string, now
         const paths: unknown = JSON.parse(legacyRaw);
         if (Array.isArray(paths)) {
           // Oldest first so the push order reproduces the stored MRU order.
-          for (const p of [...paths].reverse()) {
-            if (typeof p === "string") entries = pushRecentEntry(entries, p, now);
-          }
-          await writeEntries(adapter, entries);
+          entries = await updateRecentsOnDisk(adapter, (current) => {
+            if (current.length > 0) return current;
+            let next = current;
+            for (const p of [...paths].reverse()) {
+              if (typeof p === "string") next = pushRecentEntry(next, p, now);
+            }
+            return next;
+          });
         }
       } catch {
         /* unreadable legacy value — the strip simply starts empty */
@@ -105,14 +94,10 @@ export async function loadRecents(adapter: IVaultAdapter, vaultPath: string, now
 
 /** Moves `path` to the front and persists. Returns the new list. */
 export async function pushRecent(adapter: IVaultAdapter, path: string, now = Date.now()): Promise<string[]> {
-  const entries = pushRecentEntry(await readEntries(adapter), path, now);
-  await writeEntries(adapter, entries);
-  return entries.map((e) => e.path);
+  return (await pushRecentOnDisk(adapter, path, now)).map((e) => e.path);
 }
 
 /** Removes `path` ("forget this entry") and persists. Returns the new list. */
 export async function forgetRecent(adapter: IVaultAdapter, path: string): Promise<string[]> {
-  const entries = dropRecentEntry(await readEntries(adapter), path);
-  await writeEntries(adapter, entries);
-  return entries.map((e) => e.path);
+  return (await forgetRecentOnDisk(adapter, path)).map((e) => e.path);
 }

@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-10-08
+Última actualización: 2026-10-30
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -10,7 +10,7 @@ Antes de cada guardado, Plainva almacena un snapshot del estado anterior — com
 
 Retención (configurable por vault):
 
-- **Intervalo de snapshots**: En cada cambio / 30 s / 2 min / 5 min / 10 min
+- **Intervalo de snapshots**: En cada cambio / 30 s / 1 min / 2 min / 5 min / 10 min
 - **Versiones por archivo**: predeterminado 100 — por encima de esa cifra se eliminan las más antiguas
 - **Antigüedad máxima**: predeterminado 90 días — las versiones más antiguas se eliminan **permanentemente** en una limpieza diaria ("Ilimitado" desactiva esto)
 - **Archivos grandes**: por encima de 5 MB solo se conserva la versión más reciente — véase más abajo
@@ -31,7 +31,7 @@ Las imágenes también tienen versiones (con vista previa); otros archivos binar
 
 ## Restaurar archivos eliminados
 
-Como cada eliminación crea antes un snapshot del archivo, Plainva puede recuperar archivos eliminados: haz clic derecho en el nombre del vault en la parte superior del árbol de archivos → **Restaurar archivos eliminados…** (también accesible desde la configuración). La lista muestra todos los archivos cuyos snapshots todavía existen mientras el original ha desaparecido — **Restaurar** recrea el estado más reciente en la ubicación original (las carpetas se recrean según sea necesario), **Versiones…** abre el historial completo del archivo eliminado.
+Como cada eliminación crea antes un snapshot del archivo, Plainva puede recuperar archivos eliminados: haz clic derecho en el nombre del vault en la parte superior del árbol de archivos → **Restaurar archivos eliminados…** (también accesible en **Configuración → Vault → Copias de seguridad y versionado → Historial de versiones**). La lista muestra todos los archivos cuyos snapshots todavía existen mientras el original ha desaparecido — **Restaurar** recrea el estado más reciente en la ubicación original (las carpetas se recrean según sea necesario), **Versiones…** abre el historial completo del archivo eliminado.
 
 Nota: eliminar una **carpeta entera** la traslada a la papelera del sistema operativo — en ese caso la papelera del sistema es la vía principal de recuperación; en Plainva es posible que solo encuentres snapshots más antiguos de los archivos que contenía.
 
@@ -67,9 +67,11 @@ Configuración → **Vault** → **Copias de seguridad y versionado**:
 - La propia sincronización de Plainva nunca transfiere `.plainva`. Si sincronizas la carpeta del vault con un cliente de terceros (p. ej. la app de Nextcloud), los snapshots viajan también — eso cuesta algo de espacio, pero no hace daño.
 - Los conflictos de sincronización están protegidos adicionalmente mediante archivos `.CONFLICT` (ver [FAQ](FAQ.md)); el historial de versiones complementa eso con la línea temporal de cada archivo.
 
+En el teléfono, **Copias ZIP** es el primer grupo de la página **Copias de seguridad y versionado**; debajo sigue el **Historial de versiones**, con **Restaurar archivos eliminados** al final.
+
 En móvil, si falla el guardado de una nota, se detiene el cambio, la recarga o la eliminación del vault. El texto queda pendiente de otro intento. Las notas con el mismo nombre en distintos vaults mantienen guardados y borradores independientes. Un conflicto conserva la versión afectada; el texto escrito después se guarda por separado o en otra copia de conflicto. Ambas interfaces ordenan las escrituras y eliminaciones del registro de borradores para que una operación tardía no borre una copia más reciente. Si falla la copia de conflicto, el texto del editor móvil se conserva.
 
-Una copia ZIP solo se considera correcta si se han podido leer todos los archivos seleccionados y guardar el archivo completo. Un intento fallido no elimina copias anteriores ni cambia la fecha de la última copia correcta. En móvil, los errores automáticos indican el vault; **Crear copia ahora** en sus ajustes permite reintentar. La configuración oculta del usuario, como `.obsidian`, se incluye en ambas plataformas. Se excluyen los directorios `.plainva`, `.git`, `.trash` y `node_modules` a cualquier profundidad. Si se crean varias copias en el mismo segundo, el nuevo nombre recibe un sufijo como `_001`.
+Una copia ZIP solo se considera correcta si se han podido leer todos los archivos seleccionados y guardar el archivo completo. Un intento fallido no elimina copias anteriores ni cambia la fecha de la última copia correcta. En móvil, los errores automáticos indican el vault; **Crear copia de seguridad ahora** en **Copias de seguridad y versionado** → **Copias ZIP** permite reintentar. La configuración oculta del usuario, como `.obsidian`, se incluye en ambas plataformas. Se excluyen los directorios `.plainva`, `.git`, `.trash` y `node_modules` a cualquier profundidad. Si se crean varias copias en el mismo segundo, el nuevo nombre recibe un sufijo como `_001`.
 
 El guardado solo se indica como completado cuando se confirma la escritura. El texto introducido durante un guardado permanece pendiente hasta que se escribe su propia versión. Los borradores de escritorio pertenecen a su sesión del editor: finalizar una sesión anterior no elimina el borrador de un editor recién abierto. Si llegan cambios externos al mismo tiempo, Plainva combina los cambios compatibles; el texto en conflicto se conserva como borrador y como copia de conflicto.
 

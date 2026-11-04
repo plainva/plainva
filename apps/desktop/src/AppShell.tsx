@@ -1,6 +1,7 @@
 import { useWindowBookmarks } from "./hooks/useWindowBookmarks";
 import { useTabTransferSource, useTabTransferTarget } from "./hooks/useTabTransfer";
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
+import { PATH_RENAMED_EVENT, type FileMovedDetail } from "./services/fileMoved";
 const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
 import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
@@ -66,7 +67,7 @@ import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
 import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
-import { styleOutcomeText, toast } from "@plainva/ui";
+import { errorText, styleOutcomeText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
@@ -260,6 +261,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [aiPick, setAiPick] = useState<"pin" | "style" | null>(null);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
+  // What was opened while the strip of this vault was still being read: the
+  // read (its own file, the device id first — E7) can end after a quick first
+  // open, and must not take that open back off the strip.
+  const openedWhileLoadingRecents = useRef<string[] | null>(null);
   const { bookmarks, toggleBookmark, moveBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
   // The two sides need different floors (plan P3): on the left a narrow strip
   // still works — file names simply truncate — while on the right no section is
@@ -337,6 +342,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // contract owns the grammar, the click must not wait for a write.
     onOpenPath: (p) => {
       setRecentPaths((prev) => [p, ...prev.filter((x) => x !== p)].slice(0, RECENTS_MAX));
+      openedWhileLoadingRecents.current?.unshift(p);
       if (vaultAdapter) void recentsModule().then((m) => m.pushRecent(vaultAdapter, p)).catch(() => undefined);
     },
     // (P7.2 continues below the hook: the per-kind right-sidebar apply effect
@@ -359,6 +365,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // key.
     layoutScope: windowLabel,
   });
+  // A note Plainva moved where no tab strip is at hand (the overview manager's
+  // adoption): the tabs follow it, as after a rename in the file tree.
+  useEffect(() => {
+    const onRenamed = (e: Event) => {
+      const detail = (e as CustomEvent<FileMovedDetail>).detail;
+      if (detail && detail.vaultPath === vaultPath) renameTabPrefix(detail.from, detail.to);
+    };
+    window.addEventListener(PATH_RENAMED_EVENT, onRenamed);
+    return () => window.removeEventListener(PATH_RENAMED_EVENT, onRenamed);
+  }, [vaultPath, renameTabPrefix]);
   useTabTransferTarget(vaultPath, vaultAdapter, layoutReady, !windowLabel, adoptTransferredTab);
   const tabTransfer = useTabTransferSource(vaultPath, windowLabel ?? null, layout, selectTab, closeTab);
 
@@ -689,15 +705,20 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       setRecentPaths([]);
       return;
     }
+    const opened: string[] = [];
+    openedWhileLoadingRecents.current = opened;
+    const settle = (paths: string[]) => {
+      if (cancelled) return;
+      if (openedWhileLoadingRecents.current === opened) openedWhileLoadingRecents.current = null;
+      const front = [...new Set(opened)];
+      setRecentPaths([...front, ...paths.filter((p) => !front.includes(p))].slice(0, RECENTS_MAX));
+    };
     void recentsModule().then((m) => m.loadRecents(vaultAdapter, vaultPath))
-      .then((paths) => {
-        if (!cancelled) setRecentPaths(paths);
-      })
-      .catch(() => {
-        if (!cancelled) setRecentPaths([]);
-      });
+      .then(settle)
+      .catch(() => settle([]));
     return () => {
       cancelled = true;
+      if (openedWhileLoadingRecents.current === opened) openedWhileLoadingRecents.current = null;
     };
   }, [vaultPath, vaultAdapter]);
 
@@ -1359,12 +1380,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         void import("./services/templateActions")
           .then(async ({ createNewTemplate }) => {
             const path = await createNewTemplate(vaultAdapter, vaultPath, t("database.newTemplateName", "Neue Vorlage"));
-            if (!path) return;
             if (indexer) applyIndexChanges(indexer, { added: [path] }).then(() => triggerFileTreeUpdate()).catch(() => {});
             markFreshNote(path);
             openInFocusedPane(path, true);
           })
-          .catch((e) => console.error("[App] creating a template failed", e));
+          .catch((e) => {
+            // Said with its reason (Sammelplan § 3.134 no. 3), as the database menu and the phone say it.
+            console.error("[App] creating a template failed", e);
+            toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
+          });
       },
       saveActiveAsTemplate: () => {
         const p = activePath;
@@ -1372,11 +1396,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         void import("./services/templateActions")
           .then(async ({ saveNoteAsTemplate }) => {
             const saved = await saveNoteAsTemplate(vaultAdapter, vaultPath, p);
-            if (!saved) return;
             if (indexer) applyIndexChanges(indexer, { added: [saved] }).then(() => triggerFileTreeUpdate()).catch(() => {});
             toast.info(t("editor.templateSaved", { name: saved.split("/").pop() ?? saved }));
           })
-          .catch((e) => console.error("[App] saving note as template failed", e));
+          .catch((e) => {
+            console.error("[App] saving note as template failed", e);
+            toast.error(t("writeFailed.newTemplate", { reason: errorText(e) }));
+          });
       },
       // Mail-raus (stage 6): three SMTP-free ways out of the vault.
       copyNoteAsEmail: () => {
@@ -1405,10 +1431,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         void (async () => {
           try {
             const content = await vaultAdapter.readTextFile(p);
-            const [{ buildMailtoUrl }, { markdownToPlainText }, { openUrl }] = await Promise.all([
+            const [{ buildMailtoUrl }, { markdownToPlainText }, { openExternalUrl: openUrl }] = await Promise.all([
               import("@plainva/ui/mail"),
               import("@plainva/ui"),
-              import("@tauri-apps/plugin-opener"),
+              import("./services/openExternal"),
             ]);
             const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
             const res = buildMailtoUrl(title, markdownToPlainText(stripFrontmatter(content)), frontmatterToAddress(content) ?? "");
@@ -1428,8 +1454,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
             // The composer is hosted beside this shell (MailComposeHost), so
             // the palette asks for it the way the editor and the mail view do.
+            const { noteMailPrefill } = await import("@plainva/ui/mail");
+            const { to, from } = noteMailPrefill(content);
             window.dispatchEvent(new CustomEvent("plainva-compose-mail", {
-              detail: { subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined },
+              detail: { subject: title, markdown: stripFrontmatter(content), to, fromAddress: from },
             }));
           } catch (e) {
             console.error("[App] draft prefill failed", e);
@@ -1978,11 +2006,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               closeTabsByPrefix(outcome.conflictPath);
               // The fork record follows its file (C36); the governance card re-reads.
               if (outcome.forkId) void discardLocalFork(outcome.forkId).catch(console.error);
-              if (outcome.mergedContent !== null) {
-                // Same adoption path as a version restore: the open editor
-                // takes the merged text without re-dirtying or racing a save.
-                window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: outcome.originalPath, content: outcome.mergedContent } }));
-              }
+              // The open editor of the file heard of the answer from the
+              // comparison itself, whichever it was (§ 3.86 no. 7).
               void (async () => {
                 if (indexer) {
                   for (const p of outcome.touched) await indexer.indexPath(p).catch(console.error);

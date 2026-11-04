@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { indexFailureSaid, toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import { haptics } from "../services/haptics";
 import { getSyncStatus, subscribeSyncStatus, syncNow } from "../services/syncService";
 
@@ -49,8 +51,12 @@ export async function refreshVaultAction(opts: { rereadLocal?: boolean } = {}): 
       // free of the vault runtime's native plugins.
       const { rereadVault } = await import("../services/vaultService");
       await rereadVault();
-    } catch {
-      /* a failed read must not wedge the indicator; the sync still runs */
+    } catch (e) {
+      // A failed read must not wedge the indicator; the sync still runs. It is
+      // said once, as on the desktop (Sammelplan § 3.94): by the scan's own
+      // notice with its reason, or here when that notice did not name it - a
+      // pull that failed used to end without a word.
+      if (!indexFailureSaid(e)) toast.error(i18n.t("refresh.failed"));
     }
   }
   if (getSyncStatus().status !== "off") {

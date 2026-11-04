@@ -43,12 +43,8 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
 
   const handleOpenBlog = async () => {
     if (!blogUrl) return;
-    try {
-      const { openUrl } = await import('@tauri-apps/plugin-opener');
-      await openUrl(blogUrl);
-    } catch {
-      window.open(blogUrl, '_blank');
-    }
+    const { openExternalUrl } = await import('../../services/openExternal');
+    await openExternalUrl(blogUrl).catch(() => undefined);
   };
 
   /** The pill. It replaces the word "(experimental)" inside a sentence, which

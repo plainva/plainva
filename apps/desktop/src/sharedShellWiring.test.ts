@@ -173,7 +173,7 @@ describe("a new note's caret is parked through the shared function", () => {
   it("is the only way into the store: the module keeps no setter for a bare number", () => {
     const source = readFileSync(fileURLToPath(new URL("../../../packages/ui/src/lib/templateCaret.ts", import.meta.url)), "utf8");
     const exported = [...source.matchAll(/^export function (\w+)/gm)].map((match) => match[1]).sort();
-    expect(exported).toEqual(["clearPendingTemplateCaret", "consumePendingTemplateCaret", "handTemplateCaretOver", "parkTemplateCaret", "takeTemplateCaret", "templateCaretInEditor", "templateCaretInNote", "templateInsertInEditor"]);
+    expect(exported).toEqual(["clearPendingTemplateCaret", "consumePendingTemplateCaret", "handTemplateCaretAcrossRename", "handTemplateCaretOver", "parkTemplateCaret", "takeTemplateCaret", "templateCaretInEditor", "templateCaretInNote", "templateInsertInEditor"]);
     // One place writes the store, and it converts what it is given.
     expect(source.match(/\bpending = \{/g)).toHaveLength(1);
     expect(source).toMatch(/pending = \{ path, offset: templateCaretInEditor\(note, caret\) \}/);

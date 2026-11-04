@@ -42,7 +42,8 @@ export default defineConfig(({ mode }) => ({
     // print a "--localstorage-file" warning on every start. vaultBackup's
     // `localStorage.clear()` threw on the harness while CI's Node 22 stayed
     // green (2026-09-10); the shim and the flag close the class here too.
-    setupFiles: ["./src/test-localstorage.ts"],
+    // test-setup gives `vi.waitFor` the suites' common default (Sammelplan 3.160 Nr. 3).
+    setupFiles: ["./src/test-localstorage.ts", "./src/test-setup.ts"],
     execArgv: ["--no-experimental-webstorage"],
   },
   build: {

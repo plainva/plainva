@@ -51,10 +51,20 @@ describe("the picture preview leaves written-out syntax alone", () => {
     }
   });
 
-  it("still draws a picture in an HTML block, and after an escaped backslash", () => {
-    // `<p align="center">` around a picture is common in notes from GitHub,
-    // and the phone reads in the editor: the picture stays, as it always did.
-    for (const doc of ["<p align=\"center\">\n![[a.png]]\n</p>", "A backslash \\\\![[a.png]] and then the picture"]) {
+  it("draws none in an HTML block — one rule with the reading view and the note embeds (E12)", () => {
+    // Obsidian renders no Markdown inside an HTML element (its help page
+    // "HTML content"); the reading view and the note embeds left such an
+    // embed as text, and only this preview drew it (3.131 no. 6).
+    for (const doc of ["<p align=\"center\">\n![[a.png]]\n</p>", "<details>\n<summary>S</summary>\n![[a.png]]\n</details>", "<div>\n![](a.png)\n</div>"]) {
+      const { view, pictures, parent } = mountImages(doc);
+      expect(pictures(), doc).toBe(0);
+      expect(parent.textContent, doc).toMatch(/!\[/);
+      view.destroy();
+    }
+  });
+
+  it("draws a picture behind a blank line that ends the HTML block, and after an escaped backslash", () => {
+    for (const doc of ["<p align=\"center\">\n\n![[a.png]]\n\n</p>", "A backslash \\\\![[a.png]] and then the picture"]) {
       const { view, pictures } = mountImages(doc);
       expect(pictures(), doc).toBe(1);
       view.destroy();

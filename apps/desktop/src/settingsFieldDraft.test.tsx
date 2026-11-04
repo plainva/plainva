@@ -6,7 +6,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import ts from "typescript";
 import { FIELD_DRAFT_DELAY_MS, useFieldDraft } from "@plainva/ui";
-import { ContentPage, type ContentPageProps } from "./components/settings/VaultPages";
+import { JournalPage, type JournalPageProps } from "./components/settings/VaultPages";
 
 /**
  * A settings field keeps the caret and every key (E23, TestFlight finding
@@ -59,12 +59,13 @@ describe("useFieldDraft", () => {
   let setStored: (v: string) => void = () => {};
 
   /** A field over a stored value, like every settings page has one. */
-  function Field({ multiline, normalize }: { multiline?: boolean; normalize?: (v: string) => string }) {
+  function Field({ multiline, normalize, refuse }: { multiline?: boolean; normalize?: (v: string) => string; refuse?: (v: string) => boolean }) {
     const [stored, set] = useState("Daily");
     setStored = set;
     const draft = useFieldDraft({
       value: stored,
       normalize,
+      refuse,
       onSave: (v) => {
         saves.push(v);
         if (failNext) {
@@ -139,6 +140,32 @@ describe("useFieldDraft", () => {
     expect(saves).toEqual(["Arch"]);
   });
 
+  it("does not save a value it refuses, says why once, and shows the stored value when left (3.127 no. 4)", async () => {
+    const reasons: string[] = [];
+    const refuse = (v: string) => {
+      if (!v.startsWith(".plainva")) return false;
+      reasons.push(v);
+      return true;
+    };
+    await act(async () => { root.render(<Field refuse={refuse} />); });
+    const el = field();
+    el.focus();
+    await act(async () => { edit(el, ".plainva/Daily", 14); });
+    // A pause while typing: refused, and the text stays under the fingers.
+    await act(async () => { vi.advanceTimersByTime(FIELD_DRAFT_DELAY_MS); });
+    expect(saves).toEqual([]);
+    expect(el.value).toBe(".plainva/Daily");
+    await act(async () => { el.blur(); });
+    expect(saves).toEqual([]);
+    expect(reasons).toEqual([".plainva/Daily"]);
+    expect(el.value).toBe("Daily");
+    // A value it takes is saved as before.
+    el.focus();
+    await act(async () => { edit(el, "Journal", 7); });
+    await act(async () => { el.blur(); });
+    expect(saves).toEqual(["Journal"]);
+  });
+
   it("takes over a change from elsewhere while idle — never under the caret", async () => {
     await act(async () => { root.render(<Field />); });
     const el = field();
@@ -183,33 +210,24 @@ describe("useFieldDraft", () => {
   });
 });
 
-describe("desktop: Content & structure keeps the caret (E23)", () => {
+describe("desktop: Daily notes & journal keeps the caret (E23)", () => {
   const persisted: string[] = [];
 
   /** The page with its date format wired the way SettingsModal wires it. */
   function Page() {
     const [format, setFormat] = useState("YYYY-MM-DD");
     const noop = () => {};
-    const props: ContentPageProps = {
+    const props: JournalPageProps = {
       isActiveVault: false,
       dailyNotesFolder: "", onDailyNotesFolder: noop, onBrowseDailyFolder: noop,
       dailyNotesFormat: format,
       onDailyNotesFormat: (v) => { setFormat(v); persisted.push(v); },
-      templateFolder: "", folderTemplates: [], onFolderTemplates: noop, templateChoices: [], onBrowseRuleFolder: noop,
-      typeTemplates: [], onTypeTemplates: noop, onTemplateFolder: noop, onBrowseTemplateFolder: noop,
-      inboxFolder: "", onInboxFolder: noop, onBrowseInboxFolder: noop,
-      attachmentFolder: "", onAttachmentFolder: noop, onBrowseAttachmentFolder: noop,
-      textFileExtensions: "", onTextFileExtensions: noop,
       dailyNoteTemplate: "", onDailyNoteTemplate: noop, templateFiles: [],
-      taskDatabase: "", onTaskDatabase: noop, baseFiles: [], onCreateTaskDb: noop, canCreateTaskDb: false,
-      defaultNoteType: "", onDefaultNoteType: noop, dailyNoteType: "", onDailyNoteType: noop,
+      dailyNoteType: "", onDailyNoteType: noop,
       journalHeading: "", onJournalHeading: noop, dayEndsAt: 0, onDayEndsAt: noop,
-      journalMoodProperty: "", onJournalMoodProperty: noop, verifierName: "", onVerifierName: noop,
-      okfViolations: null, okfVersionState: null,
-      onShowOkfMigration: noop, onShowOkfWizard: noop, onShowOkfInfo: noop, onShowIndexManager: noop, onUpdateAllIndexes: noop,
-      extendedDatabases: false, commentAnchors: false, onCommentAnchors: noop, onExtendedDatabases: noop,
+      journalMoodProperty: "", onJournalMoodProperty: noop,
     };
-    return <ContentPage {...props} />;
+    return <JournalPage {...props} />;
   }
 
   beforeEach(() => {

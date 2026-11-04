@@ -29,8 +29,7 @@ export function ExternalToolsCard() {
   const servers = state.mcp.servers;
   return (
     <>
-      <SettingCard label={t("ai.ext.title")}>
-        <SettingCardNote>{t("ai.ext.desc")}</SettingCardNote>
+      <SettingCard label={t("ai.ext.title")} info={t("ai.ext.desc")}>
         {/* Fully local (plan P7): no server is asked or called. */}
         {state.settings.localOnly && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
         {servers.length === 0 && <SettingCardNote>{t("ai.ext.none")}</SettingCardNote>}

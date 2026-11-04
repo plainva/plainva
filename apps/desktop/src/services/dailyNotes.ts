@@ -91,7 +91,10 @@ export { noteStamp };
  * any other note has that name, and a daily note's name is a date.
  *
  * Never throws: the task sync asks for it on every cycle, and a store that
- * cannot be read must not stop a cycle over a template's daily links.
+ * cannot be read must not stop a cycle over a template's daily links. Such a
+ * store leaves the daily notes unknown (`dailyUnknown`): `{{daily}}` stays
+ * text rather than linking into the vault's root under the default format
+ * (open-items plan 3.143 no. 5).
  */
 export async function templateVaultOf(vaultPath: string): Promise<TemplateVault> {
   const name = vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "";
@@ -103,7 +106,7 @@ export async function templateVaultOf(vaultPath: string): Promise<TemplateVault>
       dailyFormat: (await store.get<string>(dailyNotesFormatKey(vaultPath))) || "",
     };
   } catch {
-    return { name, dailyFolder: "", dailyFormat: "" };
+    return { name, dailyFolder: "", dailyFormat: "", dailyUnknown: true };
   }
 }
 

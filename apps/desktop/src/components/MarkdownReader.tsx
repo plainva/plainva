@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
-import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
+import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
 import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
 import { parseHeadings, requestAnchorJump, slugify } from '@plainva/ui';
 import { isWikiTargetResolved, opensOutside } from '@plainva/ui';
 import { useWikiResolver } from '../hooks/useWikiResolver';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { openExternalUrl as openUrl } from '../services/openExternal';
 import { Folder, FileText } from 'lucide-react';
 import { useVault } from '../contexts/VaultContext';
 import { calloutColor, calloutColorKey, calloutLine, calloutTint, calloutIconPath, parseCalloutMarker } from '@plainva/ui';
@@ -20,6 +20,7 @@ import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
 import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates } from './markdownReaderModel';
 import { openLink } from '../services/openLink';
+import { TasksQueryView } from './tasks/TasksQueryView';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
 import type { DocIconEntry } from '../hooks/useDocumentIcons';
 import { ICON } from "@plainva/ui";
@@ -57,6 +58,12 @@ interface MarkdownReaderProps {
   anchors?: readonly AnchorHighlight[];
   /** A click on a tint, frame or region opens that comment's card. */
   onActivateAnchor?: (commentId: string) => void;
+  /**
+   * "Edit query" of a ```tasks block (plan Tasks-Abfragen, T5): the editor
+   * switches to writing with the caret on this 1-based line of the note.
+   * Absent (embeds, managed index.md): no such button.
+   */
+  onEditAtLine?: (line: number) => void;
 }
 
 /**
@@ -301,7 +308,7 @@ export function taskCheckboxOrdinal(box: HTMLInputElement): number {
   return ord;
 }
 
-export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, onToggleHtmlBox, anchors, onActivateAnchor }) => {
+export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenPath, embedDepth = 0, fullWidth = false, sourcePath, docIcons, showLinkIcons = false, onToggleTask, onToggleHtmlBox, anchors, onActivateAnchor, onEditAtLine }) => {
   const { vaultAdapter, queryService } = useVault();
   const { t, i18n } = useTranslation();
   const source = useMemo(() => prepareReaderSource(content, {
@@ -396,7 +403,11 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     return <FileText size={ICON.ui} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />;
   };
 
-  const processedContent = source.text;
+  // A stretch over the parse budget is read as written (open-items plan 3.133
+  // no. 4): the parser gets it as plain text, the first remark plugin gives
+  // the values back their characters. Every place stays where it was.
+  const bounded = useMemo(() => boundReaderMarkdown(source.text), [source]);
+  const processedContent = bounded.text;
 
   // The reading view's heading ids are the outline's slugs, looked up by the
   // heading's source line (issue #92): the second "Heading" is `heading-1`
@@ -416,8 +427,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
         remarkPlugins={mathPlugins
-          ? [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
-          : [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills]}
+          ? [bounded.remarkRestore, remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
+          : [bounded.remarkRestore, remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills]}
         rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{
@@ -666,7 +677,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           // and opens its comment on click.
           th: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <th style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, textAlign: 'start', verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
           td: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <td style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
-          code: ({ node: _node, className, children, ...props }) => {
+          code: ({ node, className, children, ...props }) => {
             const text = Array.isArray(children) ? children.join("") : String(children ?? "");
             const isBlock = !!className || text.includes("\n");
             if (isBlock) {
@@ -675,6 +686,20 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               // loads lazily inside the component.
               if (lang === "mermaid") {
                 return <MermaidDiagram code={text.replace(/\n$/, "")} />;
+              }
+              // A query of the Tasks plugin draws its tasks (plan Tasks-Abfragen,
+              // T5) — in an embedded note only to look at.
+              if (lang === "tasks") {
+                const fenceLine = Number((node as { properties?: { dataSourceLine?: unknown } } | undefined)?.properties?.dataSourceLine) || 0;
+                return (
+                  <TasksQueryView
+                    source={text.replace(/\n$/, "")}
+                    notePath={sourcePath ?? ""}
+                    readOnly={embedDepth > 0}
+                    onOpenPath={onOpenPath}
+                    onEditQuery={onEditAtLine && fenceLine > 0 && embedDepth === 0 ? (line) => onEditAtLine(fenceLine + (line ?? 1)) : undefined}
+                  />
+                );
               }
               return <CodeBlock code={text.replace(/\n$/, "")} lang={lang} />;
             }

@@ -1,11 +1,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { OAuthAccessEditor, plainvaGoogleClient, type OAuthFamily, type StoredOAuthAccess } from "@plainva/ui";
+import { OAuthAccessEditor, PLAINVA_DROPBOX_APP_KEY, plainvaGoogleClient, type AccessFamily, type StoredOAuthAccess } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { devicePlatform, readDeviceAccess, saveDeviceAccess } from "../services/accountSignIn";
 
+const TITLE: Record<AccessFamily, string> = {
+  google: "accountAccess.title.google",
+  microsoft: "accountAccess.title.microsoft",
+  dropbox: "accountAccess.title.dropbox",
+};
+
 /**
- * This phone's access for Google or Microsoft (account sign-in plan E3), as a
+ * This phone's access for Google, Microsoft or Dropbox (account sign-in plan
+ * E3; Dropbox's app key since E6 of the settings plan 2026-10-29), as a
  * sheet: the same editor as on the desktop, asking what a phone needs - for
  * an own Google project a client of type iOS, without a secret.
  *
@@ -19,7 +26,7 @@ export function AccountAccessSheet({
   title,
   extra,
 }: {
-  family: OAuthFamily;
+  family: AccessFamily;
   onCancel: () => void;
   /** "Other sign-in" of the add flow (plan "Verbinden", E5) names the sheet itself. */
   title?: string;
@@ -40,13 +47,13 @@ export function AccountAccessSheet({
     <div className="m-sheet-backdrop" onClick={onCancel}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="account-access-sheet">
         <SheetGrip onClose={onCancel} />
-        <p className="m-sheet-title">{title ?? t(family === "google" ? "accountAccess.title.google" : "accountAccess.title.microsoft")}</p>
+        <p className="m-sheet-title">{title ?? t(TITLE[family])}</p>
         {value !== undefined && (
           <OAuthAccessEditor
             family={family}
             platform={platform}
             value={value}
-            plainvaAvailable={family === "microsoft" || !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, platform)}
+            plainvaAvailable={family === "google" ? !!plainvaGoogleClient(import.meta.env as unknown as Record<string, unknown>, platform) : family === "microsoft" || !!PLAINVA_DROPBOX_APP_KEY}
             onSave={async (next) => {
               await saveDeviceAccess(family, next);
               onSaved();

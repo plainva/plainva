@@ -9,7 +9,13 @@ export {
   collectFolderIndexInfos,
   foldersMissingIndex,
   generateIndexForFolder,
+  newOverviewPlacements,
+  pinLinksBeforeOverviews,
+  pinOverviewLinks,
+  planOverviewLinkPins,
+  withPinnedLinks,
   type AdoptionResult,
   type FolderIndexInfo,
   type IndexMdAdapter,
+  type OverviewPlacement,
 } from "@plainva/ui";

@@ -1,7 +1,7 @@
 import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
-import { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
+import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
 import { createYielder } from "./yielder.js";
 import { trimChars } from "../textScan.js";
 import { runStatementsAtomic } from "../db/batch.js";
@@ -43,7 +43,7 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
 
 // The internal-path rules live in internalPath.ts (as data, shared with the
 // native vault walk); re-exported so the many existing importers keep their path.
-export { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules };
+export { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules };
 
 /** Re-exported so the many existing importers keep their path. */
 export { escapeLikePrefix };
@@ -185,6 +185,14 @@ export interface VaultIndexerOptions {
   onFullScan?: (info: FullScanInfo) => void;
   /** Called once for a full scan that failed, not for one that was cancelled (issue #125). */
   onFullScanFailed?: (info: FullScanFailure) => void;
+  /**
+   * How many statements a full scan collects before it hands them over as
+   * one batch (default 4000). Only a test sets it: the scan's handling of a
+   * batch that fails is the same for forty statements as for four thousand,
+   * and a scene of 560 real notes on disk ran into the 20 s limit under a
+   * loaded commit hook (Sammelplan § 3.142 Nr. 1).
+   */
+  scanBatchStatements?: number;
 }
 
 /**
@@ -765,9 +773,15 @@ export class VaultIndexer {
       // local_sha256 for existing files during index, as it would destroy the
       // knowledge of the "base text" for 3-way merges. A base the sync
       // recorded is never ours to write: only the local marker is renewed.
+      //
+      // Nor one the sync recorded after this pass looked at the row: the
+      // statement itself leaves the text of a row that carries a base hash
+      // by now (Sammelplan § 3.102 no. 3). A first upload that ended while a
+      // full pass was under way got the text of a later version under its
+      // own hash — the row named one version and held another.
       if (isNewLocalFile) {
         if (keepsSyncedBase) await this.syncRepo.updateLocalHash(fileInfo.path, sha256, writer);
-        else await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
+        else await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
       }
 
       // Insert links (rows built above): ONE multi-row batch — inserting row
@@ -809,7 +823,7 @@ export class VaultIndexer {
         [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, indexedSyncState]
       );
       if (!oldSyncState) {
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, content, writer);
+        await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
       }
     }
 
@@ -820,6 +834,12 @@ export class VaultIndexer {
     // against (`mergeableText`).
     if (!read.exact && (isNewLocalFile || !oldSyncState)) {
       await this.syncRepo.clearBaseText(fileInfo.path, writer);
+    }
+    // And the row says the version it now names is no text (§ 3.86 no. 2):
+    // no reading of it was handed out, so a text written over the file once
+    // another program made it UTF-8 again did not start from it.
+    if (!read.exact && isNewLocalFile) {
+      await this.syncRepo.markNotText(fileInfo.path, sha256, writer);
     }
 
     // A brand-new local file is indexed (and visible) but was never enqueued for sync.
@@ -910,8 +930,10 @@ export class VaultIndexer {
 
     if (isNewLocalFile) {
       if (textLike && textContent !== null && !keepsSyncedBase) {
-        // Text-like file: store a base_text so it is mergeable, matching the write path.
-        await this.syncRepo.updateLocalHashAndBaseText(fileInfo.path, sha256, textContent, writer);
+        // Text-like file: store a base_text so it is mergeable, matching the
+        // write path — unless a sync recorded a base since this pass looked
+        // at the row (as for a note above).
+        await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, textContent, writer);
       } else {
         // Hash only — true binary files have no base_text, and a text file the
         // sync knows keeps the base the sync recorded (see judgeSyncState).
@@ -924,6 +946,8 @@ export class VaultIndexer {
     // the one an earlier file under this name left in its row.
     if (isNewLocalFile && textLike && textContent === null) {
       await this.syncRepo.clearBaseText(fileInfo.path, writer);
+      // …and the row says that version is no text (§ 3.86 no. 2, as for a note above).
+      await this.syncRepo.markNotText(fileInfo.path, sha256, writer);
     }
   }
 
@@ -1535,11 +1559,37 @@ export class VaultIndexer {
   /**
    * `trigger` names why the scan runs, for the diagnostics line (`onFullScan`):
    * a short token such as "open", "manual refresh" or "watcher: folder
-   * created or renamed" — never a path. A caller that joins a scan already
-   * under way gets that scan's report; its own trigger is not recorded.
+   * created or renamed" — never a path.
+   *
+   * A caller gets a scan that BEGAN after its call (open-items plan 3.118).
+   * Whoever asks for a full scan has usually just changed something - moved
+   * or removed a folder, written a daily note, converted notes - and wants
+   * the index to see it. A scan already under way may have read the index and
+   * listed the disk before that change, so it is not handed out; the caller
+   * gets the scan that follows it. Every caller arriving during one scan
+   * shares that one follow-up (its trigger is the first one's), so a burst
+   * of requests still costs at most one extra scan.
    */
   indexVaultFull(trigger = "unspecified"): Promise<IndexScanReport> {
-    if (this.fullScan) return this.fullScan;
+    if (!this.fullScan) return this.startFullScan(trigger);
+    if (!this.nextFullScan) {
+      const next: Promise<IndexScanReport> = this.fullScan
+        .catch(() => undefined)
+        .then(() => {
+          if (this.nextFullScan === next) this.nextFullScan = null;
+          // A scan that somebody started in the moment between the two began
+          // after every call that is waiting here: joining it is enough.
+          return this.fullScan ?? this.startFullScan(trigger);
+        });
+      this.nextFullScan = next;
+    }
+    return this.nextFullScan;
+  }
+
+  /** The scan that follows the one under way, shared by everyone who asked during it (indexVaultFull). */
+  private nextFullScan: Promise<IndexScanReport> | null = null;
+
+  private startFullScan(trigger: string): Promise<IndexScanReport> {
     const run = this.inPass((pass) => this.indexVaultFullInternal(pass))
       .then((report) => {
         // Like a failure, not said for a vault that is being closed: a scan
@@ -1568,7 +1618,13 @@ export class VaultIndexer {
   }
 
   /** The owner closes the shared database only after an already-started commit. */
-  async whenIdle(): Promise<void> { await this.fullScan?.catch(() => {}); }
+  async whenIdle(): Promise<void> {
+    // The scan that follows the one under way is part of being busy: a caller
+    // is waiting on it, and it reads the index the owner wants to close.
+    while (this.fullScan || this.nextFullScan) {
+      await (this.nextFullScan ?? this.fullScan)!.catch(() => {});
+    }
+  }
 
   /**
    * Whether a full scan has gone through on this index since it was empty
@@ -1839,7 +1895,7 @@ export class VaultIndexer {
       // desktop a batch that went through stays when the scan ends there —
       // the app was closed, the process ended — and no failure is ever said.
       if (startsEmpty) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
-      const FLUSH_AT = 4000;
+      const FLUSH_AT = this.options?.scanBatchStatements ?? 4000;
       // The flushes run inside this very transaction, and say so: where a
       // batch is a transaction of its own (the phone's single connection), one
       // that did not would wait for the scan it belongs to.
@@ -1863,6 +1919,10 @@ export class VaultIndexer {
         if (i % 10 === 0) {
           // Yield to event loop to allow UI updates
           await new Promise(r => setTimeout(r, 0));
+          // A vault that is being left is not written any further (3.120):
+          // the loop used to run to its end for a vault nobody had open, and
+          // the open that was called off went on behind it.
+          signal?.throwIfAborted();
         }
         i++;
         const reading = await this.readOrLeaveOut(file, unreadable);
@@ -1875,7 +1935,10 @@ export class VaultIndexer {
       // Process attachment registration (lightweight, no parsing/FTS)
       let j = 0;
       for (const file of attachmentsToIndex) {
-        if (j % 20 === 0) await new Promise(r => setTimeout(r, 0));
+        if (j % 20 === 0) {
+          await new Promise(r => setTimeout(r, 0));
+          signal?.throwIfAborted();
+        }
         j++;
         const reading = await this.readOrLeaveOut(file, unreadable);
         if (!reading) continue;

@@ -35,6 +35,7 @@ vi.mock("./CredentialManager", () => ({
     saveDriveCredentials: vi.fn(async (_v: string, creds: unknown) => { h.secrets.set("drive", creds); }),
     getOneDriveCredentials: vi.fn(async () => h.secrets.get("onedrive") ?? null),
     saveOneDriveCredentials: vi.fn(async (_v: string, creds: unknown) => { h.secrets.set("onedrive", creds); }),
+    getDropboxCredentials: vi.fn(async () => h.secrets.get("dropbox") ?? null),
   },
 }));
 vi.mock("./driveAuth", () => ({
@@ -92,7 +93,8 @@ const runtime = {
   isActive: () => true,
 } as never;
 
-const { signInCloudAccount, AccessUnavailableError, readDeviceAccess } = await import("./accountSignIn");
+const { signInCloudAccount, AccessUnavailableError, readDeviceAccess, deviceAccess } = await import("./accountSignIn");
+const { PLAINVA_DROPBOX_APP_KEY } = await import("@plainva/ui");
 
 beforeEach(() => {
   h.provider = new FakeOAuthProvider({ family: "google", accounts: [ALICE, BOB], clients: [OWN] });
@@ -179,10 +181,50 @@ describe("connecting a Google account on the desktop", () => {
   });
 });
 
+describe("this device's Dropbox app key (settings plan 2026-10-29, E6)", () => {
+  const dropboxCard = (byoClientId?: string): CloudAccountRecord => ({ id: "dbx", family: "dropbox", label: "anna", services: { files: { provider: "dropbox" } }, ...(byoClientId ? { byoClientId } : {}) });
+
+  it("takes the key an account kept over onto the device, once, and leaves the account as it was", async () => {
+    h.registry = [dropboxCard("abcd1234efgh")];
+    expect(await readDeviceAccess("dropbox", "V")).toEqual({ source: "own", clientId: "abcd1234efgh" });
+    expect(h.secrets.get("oauth_access_dropbox")).toEqual({ source: "own", clientId: "abcd1234efgh" });
+    expect(h.registry[0].byoClientId).toBe("abcd1234efgh");
+    // From now on the device's choice is read, whatever the account says.
+    h.registry = [dropboxCard("zzzz9999yyyy")];
+    expect(await readDeviceAccess("dropbox", "V")).toEqual({ source: "own", clientId: "abcd1234efgh" });
+  });
+
+  it("reads Plainva's key on the account - written there by the old page's field - as the standard sign-in", async () => {
+    h.registry = [dropboxCard(PLAINVA_DROPBOX_APP_KEY)];
+    expect(await readDeviceAccess("dropbox", "V")).toEqual({ source: "plainva" });
+    const resolved = await deviceAccess("dropbox", "V");
+    expect(resolved).toEqual({ ok: true, access: { family: "dropbox", source: "plainva", clientId: PLAINVA_DROPBOX_APP_KEY } });
+  });
+
+  it("takes the key of the stored sign-in when the account names none", async () => {
+    h.registry = [dropboxCard()];
+    h.secrets.set("dropbox", { appKey: "own5678keyab", refreshToken: "r" });
+    expect(await readDeviceAccess("dropbox", "V")).toEqual({ source: "own", clientId: "own5678keyab" });
+  });
+
+  it("stores nothing for a device with nothing to take over, and signs in with Plainva's key", async () => {
+    expect(await readDeviceAccess("dropbox", "V")).toBeNull();
+    expect(h.secrets.has("oauth_access_dropbox")).toBe(false);
+    expect(await deviceAccess("dropbox", "V")).toMatchObject({ ok: true, access: { source: "plainva" } });
+  });
+});
+
 describe("this device's access", () => {
   it("names a missing access instead of trying some other client", async () => {
     h.secrets = new Map();
-    await expect(signInCloudAccount("V", () => runtime, { family: "google", add: ["files"] })).rejects.toBeInstanceOf(AccessUnavailableError);
+    // A build without Plainva's own Google client: a developer's .env.local may carry one, the release build reads it from CI.
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_ID", "");
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_DESKTOP_CLIENT_SECRET", "");
+    try {
+      await expect(signInCloudAccount("V", () => runtime, { family: "google", add: ["files"] })).rejects.toBeInstanceOf(AccessUnavailableError);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("adopts the own client an account held before this plan, once", async () => {

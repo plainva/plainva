@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { clampBoundary, placeStampEnabled, setExtraTextExtensions, setPlaceStampEnabled, toast } from "@plainva/ui";
+import { clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -21,7 +21,7 @@ import {
   loadZipBackupSettings,
 } from "../services/backupPolicy";
 import { credentialManager } from "../services/CredentialManager";
-import { firstSettingsArea, settingsArea, hasCloudService, parseFolderTemplateRules, parseTypeTemplateRules, type SettingsWorld, type CloudAccountRecord, type CloudServiceId, type SecurityAreaId, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
+import { firstSettingsArea, settingsArea, revealSetting, securityArea as securityAreaDef, type SettingsSearchHit, hasCloudService, parseFolderTemplateRules, parseTypeTemplateRules, type SettingsWorld, type CloudAccountRecord, type CloudServiceId, type SecurityAreaId, type FolderTemplateRule, type TypeTemplateRule } from "@plainva/ui";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, observeSyncSlot } from "../services/cloudAccounts";
 import { listMailAccounts } from "@plainva/ui/mail";
@@ -33,7 +33,6 @@ import { scanVaultOkf } from "../services/okfConversion";
 import { scanVaultOkfVersion, type OkfVersionState } from "../services/okfMigration";
 import { OkfConversionModal } from "./OkfConversionModal";
 import { OkfMigrationModal } from "./OkfMigrationModal";
-import { OkfInfoModal } from "./OkfInfoModal";
 import { IndexMdModal } from "./IndexMdModal";
 import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName, getStoredCustomThemeDesign, setStoredCustomTheme } from "../services/theme";
 import { defaultCustomThemeDesign, setCustomThemePreview, usePersonalDesignSync, type CustomThemeDesign } from "@plainva/ui";
@@ -44,6 +43,7 @@ import { Modal } from "@plainva/ui";
 import { getStoredDensity, setStoredDensity, DEFAULT_DENSITY, type Density } from "../services/density";
 import { getStoredTagColors, setStoredTagColors, DEFAULT_TAG_COLORS } from "../services/tagColors";
 import { getWeekStartSetting, setWeekStartSetting, type WeekStartSetting } from "@plainva/ui";
+import { notifyAppearanceChanged } from "../services/appearanceSync";
 import { getStoredAppFonts, setStoredAppFonts, defaultAppFontSettings, type AppFontSettings } from "../services/appFonts";
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
@@ -51,14 +51,16 @@ import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/link
 import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK } from "../services/spellcheck";
 import { DEFAULT_NEW_NOTES_IN_NEW_TAB, getStoredNewNotesInNewTab, setStoredNewNotesInNewTab } from "../services/newNoteTab";
 import type { Update } from "@tauri-apps/plugin-updater";
-import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
+import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, getUpdatesManagedBy, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
+import { VaultDetailsPage } from "./settings/VaultDetailsPage";
+import { useVaultLabels } from "../services/vaultNames";
 import { VaultPickerModal } from "./settings/VaultPickerModal";
-import { AppearancePage, EditorPage, BehaviorPage, UpdatesPage, AboutPage, CustomThemePage } from "./settings/AppPages";
+import { AppearancePage, EditorPage, BehaviorPage, AboutPage, CustomThemePage } from "./settings/AppPages";
 import { SyncPage, type SyncProvider } from "./settings/SyncPage";
-import { PimPage, MailPage, ContentPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
+import { PimPage, MailPage, ContentPage, JournalPage, BackupPage, MaintenancePage, clampZipKeep, clampVersionMaxCount } from "./settings/VaultPages";
 import { BarsPage } from "./settings/BarsPage";
 import { CloudAccountsPage } from "./settings/CloudAccountsPage";
 import { AiSettingsPage } from "./settings/AiSettingsPage";
@@ -76,6 +78,8 @@ interface SettingsModalProps {
   /** Lands Cloud-Konten on this account's detail page (D2): the record id, or
    * the id of the mail/calendar account it owns. */
   initialAccountId?: string;
+  /** Opens the connect assistant on Cloud-Konten with this service ticked (E7 of the settings plan). */
+  initialConnect?: CloudServiceId;
 }
 
 const GENERAL = "general";
@@ -93,13 +97,15 @@ const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = (
   </div>
 );
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId }) => {
-  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex } = useVault();
+export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId, initialConnect }) => {
+  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex, openVault, closeVault, removeRecentVault } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
   const { t, i18n } = useTranslation();
 
   const vaults = Array.from(new Set([vaultPath, ...recentVaults].filter(Boolean) as string[]));
+  // What each vault is called in Plainva: its own name, else its folder's.
+  const vaultLabelOf = useVaultLabels(vaults);
 
   const [section, setSection] = useState<string>(vaultPath || GENERAL);
   // Which vault the VAULT areas show (two-worlds nav); the identity card's
@@ -111,7 +117,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [vaultPage, setVaultPage] = useState<string>(() =>
     initialArea && settingsArea(initialArea)?.world === "vault"
       ? initialArea
-      : initialProvider
+      : initialProvider || initialConnect
         ? "cloudAccounts"
         : firstSettingsArea("vault").id
   );
@@ -233,7 +239,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [okfViolations, setOkfViolations] = useState<number | null>(null);
   const [showOkfWizard, setShowOkfWizard] = useState(false);
   const [showIndexManager, setShowIndexManager] = useState(false);
-  const [showOkfInfo, setShowOkfInfo] = useState(false);
   // Bundle version (OKF v0.2 plan, P2): what the root index.md declares and
   // how many notes still carry the legacy per-note key. Null until scanned.
   const [okfVersionState, setOkfVersionState] = useState<OkfVersionState | null>(null);
@@ -260,9 +265,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const [updateAvailable, setUpdateAvailable] = useState<Update | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [autoUpdateCheckEnabled, setAutoUpdateCheckEnabled] = useState(true);
+  // A package manager (Nix) that updates this installation replaces the update controls with one line.
+  const [updatesManagedBy, setUpdatesManagedBy] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
     void getAutoUpdateCheck().then((v) => { if (alive) setAutoUpdateCheckEnabled(v); });
+    void getUpdatesManagedBy().then((v) => { if (alive) setUpdatesManagedBy(v); });
     return () => { alive = false; };
   }, []);
 
@@ -350,7 +358,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       `Plainva ${aboutInfo?.appVersion ?? "dev"} (${formatBuildLine()}) · Tauri ${aboutInfo?.tauriVersion ?? "-"} · WebView ${webViewVersion} · ${aboutInfo?.os ?? "?"} · ${i18n.language}\n\n`
     );
     try {
-      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      const { openExternalUrl: openUrl } = await import("../services/openExternal");
       await openUrl(`https://github.com/plainva/plainva/issues/new?body=${body}`);
     } catch (e) {
       toast.error(String(e));
@@ -635,7 +643,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       setTaskDatabase(path);
       void persistFeature(section, taskDatabaseKey(section), path);
     } catch (e) {
-      toast.error(String(e));
+      // The sentence and its reason, as the phone says it (Sammelplan § 3.63 no. 1): the raw text stood here.
+      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
     }
   };
 
@@ -658,6 +667,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     } else if (result.status === "none") {
       setUpdateAvailable(null);
       setUpdateStatus(t("settings.noUpdate", "Du bist auf dem neuesten Stand."));
+    } else if (result.status === "managed") {
+      setUpdateAvailable(null);
+      setUpdatesManagedBy(result.by);
+      setUpdateStatus("");
     } else if (result.status === "no-release") {
       setUpdateStatus(t("settings.updateErrorNoRelease", "Aktuell sind noch keine öffentlichen Updates (Releases) verfügbar."));
     } else {
@@ -682,13 +695,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // decides which WORLD the content shows and keys every persistence handler.
   // Which cloud account the accounts page should open (D2). The nonce lets the
   // same account be asked for twice in a row — the page applies each request once.
-  const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref: string; nonce: number; service?: CloudServiceId } | null>(() =>
+  const [cloudAccountFocus, setCloudAccountFocus] = useState<{ ref?: string; nonce: number; service?: CloudServiceId; list?: boolean } | null>(() =>
     initialAccountId ? { ref: initialAccountId, nonce: 1 } : null,
   );
-  /** `service` lands on that service's page of the account (plan "Verbinden", V3). */
+  /** A request for the connect assistant, with the service a side door ticks (E7); the nonce applies each once. */
+  const [connectRequest, setConnectRequest] = useState<{ service?: CloudServiceId; nonce: number } | null>(() => (initialConnect ? { service: initialConnect, nonce: 1 } : null));
+  /**
+   * `service` lands on that service's page of the account (plan "Verbinden", V3);
+   * without an account it opens the connect assistant with that service ticked -
+   * the calendar's and the mail's way in (settings plan 2026-10-29, E7).
+   */
   const openCloudAccounts = (accountRef?: string, service?: CloudServiceId) => {
     if (accountRef) setCloudAccountFocus((prev) => ({ ref: accountRef, nonce: (prev?.nonce ?? 0) + 1, ...(service ? { service } : {}) }));
+    else if (service) setConnectRequest((prev) => ({ service, nonce: (prev?.nonce ?? 0) + 1 }));
     openArea("vault", "cloudAccounts");
+  };
+
+  /** Opens or closes Sync's own sub-page (the chain) for a search hit; the nonce applies each once. */
+  const [syncChainRequest, setSyncChainRequest] = useState<{ open: boolean; nonce: number } | null>(null);
+  // The search over all settings belongs to the window, not to one rail: the
+  // second level of Security & Sharing swaps the rail, and the query stays.
+  const [settingsQuery, setSettingsQuery] = useState("");
+
+  /**
+   * A search hit (settings plan 2026-10-29, § 4.3): open its page - and the
+   * sub-page it sits on - then scroll to the row and light it up. A page that
+   * is hidden in this state (no account carries its service) cannot open: the
+   * hit says why, and Cloud accounts is where that changes.
+   */
+  const openSearchHit = (hit: SettingsSearchHit) => {
+    if (hit.hidden) {
+      openArea("vault", "cloudAccounts");
+      return;
+    }
+    if (hit.world === "app") {
+      openArea("app", hit.sub === "customTheme" ? "customTheme" : hit.area);
+    } else {
+      openArea("vault", hit.area);
+      if (hit.area === "security" && hit.sub && securityAreaDef(hit.sub)) setSecurityArea(hit.sub as SecurityAreaId);
+      if (hit.area === "sync") setSyncChainRequest((prev) => ({ open: hit.sub === "syncChain", nonce: (prev?.nonce ?? 0) + 1 }));
+      if (hit.area === "cloudAccounts") {
+        const service = hit.sub?.startsWith("service:") ? (hit.sub.slice("service:".length) as CloudServiceId) : undefined;
+        setCloudAccountFocus((prev) => ({ nonce: (prev?.nonce ?? 0) + 1, ...(hit.sub ? (service ? { service } : {}) : { list: true }) }));
+      }
+    }
+    if (hit.kind === "page") return;
+    void revealSetting(
+      () => contentRef.current?.querySelector(".pv-setpage[data-active='true']") ?? null,
+      { title: hit.kind === "row" ? hit.title : undefined, cardText: hit.cardText },
+    );
   };
   const openArea = (world: SettingsWorld, areaId: string) => {
     setSecurityArea(null); // any nav click leaves the security second level
@@ -753,13 +808,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
               area={securityArea}
               onSelect={setSecurityArea}
               onBack={() => setSecurityArea(null)}
+              searchQuery={settingsQuery}
+              onSearchQuery={setSettingsQuery}
+              hiddenAreaIds={hiddenVaultAreas}
+              onOpenHit={openSearchHit}
             />
           ) : (
             <SettingsNav
               world={section === GENERAL ? "app" : "vault"}
               page={section === GENERAL ? (appPage === "customTheme" ? "appearance" : appPage) : vaultPage}
               onOpenArea={openArea}
-              vaultName={selectedVault ? basename(selectedVault) : null}
+              vaultName={selectedVault ? vaultLabelOf(selectedVault) : null}
               vaultPath={selectedVault || null}
               vaultIsActive={selectedVault === vaultPath}
               vaultHasSync={configuredVaults.has(selectedVault)}
@@ -767,6 +826,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
               onSwitchVault={() => setShowVaultPicker(true)}
               onShowShortcuts={() => setShowShortcuts(true)}
               hiddenAreaIds={hiddenVaultAreas}
+              onOpenHit={openSearchHit}
+              searchQuery={settingsQuery}
+              onSearchQuery={setSettingsQuery}
+              onOpenVaultDetails={() => openArea("vault", "vaultDetails")}
+              vaultDetailsActive={!inAppWorld && vaultPage === "vaultDetails"}
             />
           )}
 
@@ -787,13 +851,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       appLanguage={appLanguage}
                       onLanguage={(v) => { void handleLanguageChange(v); }}
                       weekStart={weekStart}
-                      onWeekStart={(v) => { setWeekStart(v); void setWeekStartSetting(v); }}
+                      onWeekStart={(v) => { setWeekStart(v); void setWeekStartSetting(v).then(notifyAppearanceChanged); }}
                       density={density}
                       onDensity={(v) => { setDensity(v); void setStoredDensity(v); }}
                       tagColors={tagColors}
                       onTagColors={(v) => { setTagColors(v); void setStoredTagColors(v); }}
-                      placeStamp={placeStamp}
-                      onPlaceStamp={(v) => { setPlaceStamp(v); setPlaceStampEnabled(v); }}
                       uiZoom={uiZoom}
                       onUiZoom={(z) => { setUiZoom(z); void setStoredUiZoom(z); }}
                       fonts={fonts}
@@ -820,6 +882,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onSpellcheck={(v) => { setSpellcheck(v); void setStoredSpellcheck(v); }}
                       newNotesInNewTab={newNotesInNewTab}
                       onNewNotesInNewTab={(v) => { setNewNotesInNewTab(v); void setStoredNewNotesInNewTab(v); }}
+                      placeStamp={placeStamp}
+                      onPlaceStamp={(v) => { setPlaceStamp(v); setPlaceStampEnabled(v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "behavior"}>
@@ -844,17 +908,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   <SettingsPage active={inAppWorld && appPage === "ai"}>
                     <AiSettingsPage />
                   </SettingsPage>
-                  <SettingsPage active={inAppWorld && appPage === "updates"}>
-                    <UpdatesPage
-                      autoUpdateCheckEnabled={autoUpdateCheckEnabled}
-                      onAutoUpdateCheck={(val) => { setAutoUpdateCheckEnabled(val); void setAutoUpdateCheck(val); }}
-                      updateStatus={updateStatus}
-                      updateAvailable={!!updateAvailable && !isUpdating}
-                      isUpdating={isUpdating}
-                      onCheckUpdates={() => { void checkForUpdates(); }}
-                      onInstallUpdate={() => { void installUpdate(); }}
-                    />
-                  </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "about"}>
                     <AboutPage
                       aboutLine={aboutInfo ? `Plainva ${aboutInfo.appVersion} (${formatBuildLine()}) · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}
@@ -864,18 +917,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onExportPerfMetrics={() => { void handleExportPerfMetrics(); }}
                       onExportDiagnostics={() => { void handleExportDiagnostics(); }}
                       onReportIssue={() => { void handleReportIssue(); }}
-                      // Only the plain file sync keeps a deletion log; the encrypted
-                      // workspace worker stores sealed objects and has none.
-                      onCheckDeletionLog={syncWorker?.verifyDeletionJournal
-                        ? (onProgress) => syncWorker.verifyDeletionJournal!(onProgress)
-                        : undefined}
+                      updates={{
+                        autoUpdateCheckEnabled,
+                        managedBy: updatesManagedBy,
+                        onAutoUpdateCheck: (val) => { setAutoUpdateCheckEnabled(val); void setAutoUpdateCheck(val); },
+                        updateStatus,
+                        updateAvailable: !!updateAvailable && !isUpdating,
+                        isUpdating,
+                        onCheckUpdates: () => { void checkForUpdates(); },
+                        onInstallUpdate: () => { void installUpdate(); },
+                      }}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>
-                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} focusAccount={cloudAccountFocus} onOpenArea={(areaId) => openArea("vault", areaId)} />
+                    <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} connectRequest={connectRequest} focusAccount={cloudAccountFocus} onOpenArea={(areaId) => openArea("vault", areaId)} />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
+                      chainRequest={syncChainRequest}
                       selectedVault={selectedVault}
                       isActiveVault={isActiveVault}
                       activeProvider={activeProvider}
@@ -912,19 +971,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   <SettingsPage active={!inAppWorld && vaultPage === "content"}>
                     <ContentPage
                       isActiveVault={isActiveVault}
-                      dailyNotesFolder={dailyNotesFolder}
-                      onDailyNotesFolder={(v) => { setDailyNotesFolder(v); void persistFeature(section, dailyNotesFolderKey(section), v); }}
-                      onBrowseDailyFolder={() => setVaultFolderPicker("daily")}
-                      dailyNotesFormat={dailyNotesFormat}
-                      onDailyNotesFormat={(v) => { setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }}
                       templateFolder={templateFolder}
                       onTemplateFolder={(v) => { setTemplateFolder(v); void persistFeature(section, templateFolderKey(section), v); }}
-                  folderTemplates={folderTemplates}
-                  onFolderTemplates={(rules) => { setFolderTemplates(rules); void persistFeature(section, folderTemplatesKey(section), rules); }}
-                  templateChoices={templateChoices}
-                  onBrowseRuleFolder={(index) => setVaultFolderPicker({ rule: index })}
-                  typeTemplates={typeTemplates}
-                  onTypeTemplates={(rules) => { setTypeTemplates(rules); void persistFeature(section, typeTemplatesKey(section), rules); }}
+                      folderTemplates={folderTemplates}
+                      onFolderTemplates={(rules) => { setFolderTemplates(rules); void persistFeature(section, folderTemplatesKey(section), rules); }}
+                      templateChoices={templateChoices}
+                      onBrowseRuleFolder={(index) => setVaultFolderPicker({ rule: index })}
+                      typeTemplates={typeTemplates}
+                      onTypeTemplates={(rules) => { setTypeTemplates(rules); void persistFeature(section, typeTemplatesKey(section), rules); }}
                       onBrowseTemplateFolder={() => setVaultFolderPicker("templates")}
                       attachmentFolder={attachmentFolder}
                       inboxFolder={inboxFolder}
@@ -935,16 +989,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       textFileExtensions={textFileExtensions}
                       onTextFileExtensions={(v) => {
                         setTextFileExtensions(v);
-                        // Split on what people type between entries; the rule
-                        // itself sanitises (dot, case, junk) so both callers
-                        // cannot disagree about what an extension is.
-                        const list = v.split(/[\s,;]+/).map((e) => e.trim()).filter(Boolean);
+                        // Split on what people type between entries — the same
+                        // split as the phone's row; the rule itself sanitises
+                        // (dot, case, junk) so no caller can disagree about
+                        // what an extension is.
+                        const list = splitTextFileExtensions(v);
                         void persistFeature(section, textFileExtensionsKey(section), list);
                         setExtraTextExtensions(list);
                       }}
-                      dailyNoteTemplate={dailyNoteTemplate}
-                      onDailyNoteTemplate={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
-                      templateFiles={templateFiles}
                       taskDatabase={taskDatabase}
                       onTaskDatabase={(v) => { setTaskDatabase(v); void persistFeature(section, taskDatabaseKey(section), v); }}
                       baseFiles={baseFiles}
@@ -952,6 +1004,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       canCreateTaskDb={isActiveVault && !!vaultAdapter}
                       defaultNoteType={defaultNoteType}
                       onDefaultNoteType={(v) => { setDefaultNoteType(v); void persistFeature(section, defaultNoteTypeKey(section), v.trim() || DEFAULT_NOTE_TYPE); }}
+                      verifierName={verifierName}
+                      onVerifierName={(v) => { setVerifierName(v); void persistFeature(section, verifierNameKey(section), v.trim()); }}
+                      extendedDatabases={extendedDatabases}
+                      onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
+                      commentAnchors={commentAnchors}
+                      onCommentAnchors={(v) => { setCommentAnchors(v); void persistFeature(section, commentAnchorsKey(section), v); }}
+                    />
+                  </SettingsPage>
+                  <SettingsPage active={!inAppWorld && vaultPage === "journal"}>
+                    <JournalPage
+                      isActiveVault={isActiveVault}
+                      dailyNotesFolder={dailyNotesFolder}
+                      onDailyNotesFolder={(v) => { setDailyNotesFolder(v); void persistFeature(section, dailyNotesFolderKey(section), v); }}
+                      onBrowseDailyFolder={() => setVaultFolderPicker("daily")}
+                      dailyNotesFormat={dailyNotesFormat}
+                      onDailyNotesFormat={(v) => { setDailyNotesFormat(v); void persistFeature(section, dailyNotesFormatKey(section), v); }}
+                      dailyNoteTemplate={dailyNoteTemplate}
+                      onDailyNoteTemplate={(v) => { setDailyNoteTemplate(v); void persistFeature(section, dailyNoteTemplateKey(section), v); }}
+                      templateFiles={templateFiles}
                       dailyNoteType={dailyNoteType}
                       onDailyNoteType={(v) => { setDailyNoteType(v); void persistFeature(section, dailyNoteTypeKey(section), v.trim() || DEFAULT_DAILY_NOTE_TYPE); }}
                       journalHeading={journalHeading}
@@ -960,19 +1031,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDayEndsAt={(v) => { setDayEndsAt(v); void persistFeature(section, dayEndsAtKey(section), v); }}
                       journalMoodProperty={journalMoodProperty}
                       onJournalMoodProperty={(v) => { setJournalMoodProperty(v); void persistFeature(section, journalMoodPropertyKey(section), v.trim()); }}
-                      verifierName={verifierName}
-                      onVerifierName={(v) => { setVerifierName(v); void persistFeature(section, verifierNameKey(section), v.trim()); }}
-                      okfViolations={okfViolations}
-                      okfVersionState={okfVersionState}
-                      onShowOkfMigration={() => setShowOkfMigration(true)}
-                      onShowOkfWizard={() => setShowOkfWizard(true)}
-                      onShowOkfInfo={() => setShowOkfInfo(true)}
-                      onShowIndexManager={() => setShowIndexManager(true)}
-                      onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
-                      extendedDatabases={extendedDatabases}
-                      onExtendedDatabases={(v) => { setExtendedDatabases(v); void persistFeature(section, extendedDatabasesKey(section), v); }}
-                      commentAnchors={commentAnchors}
-                      onCommentAnchors={(v) => { setCommentAnchors(v); void persistFeature(section, commentAnchorsKey(section), v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "bars"}>
@@ -1026,7 +1084,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                       versionMaxAgeDays={versionMaxAgeDays}
                       onVersionMaxAge={(v) => { setVersionMaxAgeDays(v); void persistBackupSetting(section, backupMaxAgeDaysKey(section), parseInt(v, 10)); }}
+                      onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
                     />
+                  </SettingsPage>
+                  {/* The vault itself — the phone's vault page (Sammelplan § 3.169 Nr. 3). */}
+                  <SettingsPage active={!inAppWorld && vaultPage === "vaultDetails"}>
+                    {selectedVault && (
+                      <VaultDetailsPage
+                        vaultPath={selectedVault}
+                        isActiveVault={isActiveVault}
+                        hasSync={configuredVaults.has(selectedVault)}
+                        onOpenSync={() => openArea("vault", "sync")}
+                        onUse={() => { void openVault(selectedVault); onClose(); }}
+                        onCloseActive={() => { onClose(); closeVault(); }}
+                        removeRecentVault={removeRecentVault}
+                        onDeleted={(gone) => {
+                          const next = vaults.find((v) => v !== gone) ?? "";
+                          setSelectedVault(next);
+                          if (next) { setSection(next); setVaultPage(firstSettingsArea("vault").id); }
+                          else { setSection(GENERAL); setAppPage(firstSettingsArea("app").id); }
+                        }}
+                      />
+                    )}
                   </SettingsPage>
                   <SettingsPage active={!inAppWorld && vaultPage === "maintenance"}>
                     <MaintenancePage
@@ -1041,8 +1120,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           .catch((e) => console.error("[Settings] reindex failed", e))
                           .finally(() => setReindexRunning(false));
                       }}
-                      onShowDeletedFiles={() => { window.dispatchEvent(new CustomEvent("plainva-show-deleted-files")); onClose(); }}
                       vaultStats={vaultStats}
+                      okfViolations={okfViolations}
+                      okfVersionState={okfVersionState}
+                      onShowOkfMigration={() => setShowOkfMigration(true)}
+                      onShowOkfWizard={() => setShowOkfWizard(true)}
+                      onShowIndexManager={() => setShowIndexManager(true)}
+                      onUpdateAllIndexes={() => window.dispatchEvent(new CustomEvent("plainva-update-all-indexes"))}
                     />
                   </SettingsPage>
               </div>
@@ -1071,6 +1155,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
           rootLabel={basename(section)}
           listFolders={listVaultFolders}
           onSelect={(picked) => {
+            // The browser lists `.plainva` as well: no folder setting may point there (3.127 no. 4).
+            if (refuseVaultPathSetting(picked)) return;
             if (typeof vaultFolderPicker === "object") {
               const index = vaultFolderPicker.rule;
               const next = folderTemplates.map((r, i) => (i === index ? { ...r, folder: picked } : r));
@@ -1110,7 +1196,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         />
       )}
       {showIndexManager && <IndexMdModal onClose={() => { setShowIndexManager(false); refreshOkfScan(); }} />}
-      {showOkfInfo && <OkfInfoModal onClose={() => setShowOkfInfo(false)} />}
     </>
   );
 };
