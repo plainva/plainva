@@ -1,6 +1,6 @@
 # Plainva Mobile 0.8.7
 
-One account, one sign-in — on Android and iOS. This coordinated update brings the account and connect rework, Plainva's own Google sign-in, searchable settings, queries from the Obsidian Tasks plugin, reminders for checkbox tasks, one-handed writing and the sync, mail and editing fixes since 0.8.6.
+One account, one sign-in — on Android and iOS. This coordinated update brings the account and connect rework, Plainva's own Google sign-in, searchable settings, `tasks` queries from Obsidian, reminders for checkbox tasks, one-handed writing and the sync, mail and editing fixes since 0.8.6.
 
 If you use Plainva on more than one device, please update all of them: a service you switch off and a mailbox you remove now reach every device, and a device on 0.8.6 does not understand either.
 
@@ -11,8 +11,8 @@ If you use Plainva on more than one device, please update all of them: a service
 - **Opening a vault shows what it is doing.** Connecting an existing vault folder left a blank screen for minutes; the phone now shows the vault's name and how many files it has read, offers a way back, reads a folder vault in the background on the first run, and gives up waiting for storage with a message ([#143](https://github.com/plainva/plainva/issues/143)). Opening a second database no longer closes the open vault's, which stopped the assistant at its first step.
 - **One-handed writing.** The keyboard bar ends in a button that puts the keyboard away and brings it back, indent and outdent sit beside the plus in a list, **Hide bars while scrolling** hides the bottom bar and the plus as you read, back follows your finger from the edge on the iPhone, and holding back lists the places behind the screen. The first button of a note's bar is your choice: bookmark, outline or backlinks.
 - **Settings you can search.** A search above the areas finds every setting; explanations sit behind the ⓘ; the **Sync** screen carries only the sync, the vault's own page holds rename, export and delete.
-- **Queries from the Tasks plugin.** A ` ```tasks ` block shows as a task list in the editor and reading mode, also in a callout, with **Explanation** and **Edit query**; holding a row opens its sheet.
-- **Reminders for checkbox tasks.** A checkbox with `📅 2026-11-10 14:30` reminds you once **Checkboxes with a time** is on for the vault; **Today** and the planner show it at its hour. Obsidian's Tasks plugin does not recognise the date of such a line.
+- **Task queries from Obsidian.** A ` ```tasks ` block shows as a task list in the editor and reading mode, also in a callout, with **Explanation** and **Edit query**; holding a row opens its sheet.
+- **Reminders for checkbox tasks.** A checkbox with `📅 2026-11-10 14:30` reminds you once **Checkboxes with a time** is on for the vault; **Today** and the planner show it at its hour. A `tasks` query in Obsidian does not recognise the date of such a line.
 - **Tasks.** Due dates with quick choices and a time, links in a task's title that read as text, subtasks under their task, **Done (n)**, one task box sized for a finger, and a swiped row that keeps itself in sight.
 - **Lists and calendar.** **Recent** and **Bookmarks** open full lists from their headings; every plain list draws its divider again; no line stays marked after a tap. The calendar head reads back, period, forward, with sync next to search.
 - **What you type is kept.** A sheet with typed text asks before it closes, and a step the app takes — the next screen of a connection, a vault reload — waits until your input is sent, saved or discarded. A failed vault switch leaves the vault and its sync running.

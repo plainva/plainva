@@ -7,7 +7,7 @@ reaches 1.0.
 
 ## [0.8.7] - 2026-11-03
 
-One account, one sign-in. This release brings together the changes since 0.8.6: every account signs in once for files, calendar and mail and has a page of its own, Plainva brings its own Google sign-in, one assistant connects every provider, the settings can be searched, queries from the Obsidian Tasks plugin show as task lists, checkbox tasks with a time can remind you, and a long round of fixes for sync, mail, typed input, properties, `.base` files and the phone. Shared improvements apply to desktop and mobile.
+One account, one sign-in. This release brings together the changes since 0.8.6: every account signs in once for files, calendar and mail and has a page of its own, Plainva brings its own Google sign-in, one assistant connects every provider, the settings can be searched, `tasks` queries from Obsidian show as task lists, checkbox tasks with a time can remind you, and a long round of fixes for sync, mail, typed input, properties, `.base` files and the phone. Shared improvements apply to desktop and mobile.
 
 If you use Plainva on more than one device, please update all of them (see *Accounts and sign-in* below).
 
@@ -42,8 +42,8 @@ If you use Plainva on more than one device, please update all of them (see *Acco
 
 ### Tasks and calendar
 
-- **Queries from the Tasks plugin.** A ` ```tasks ` block of the Obsidian Tasks plugin shows as a task list in the editor and in reading mode, also inside a quote or callout, with group headings, **Explanation**, rows you can tick and **Edit query**. Lines Plainva does not understand yet are named, not dropped in silence; nothing is ever written into the block.
-- **Reminders for checkbox tasks.** A checkbox with a due date and a time — `- [ ] Call Bob 📅 2026-11-10 14:30` — reminds you once **Checkboxes with a time** is switched on for the vault (off by default); a date alone does not remind, and nothing is written into the note. Obsidian's Tasks plugin does not recognise the date of a line with a time after it; Plainva accepts that and says so at the switch.
+- **Task queries from Obsidian.** A ` ```tasks ` block from Obsidian shows as a task list in the editor and in reading mode, also inside a quote or callout, with group headings, **Explanation**, rows you can tick and **Edit query**. Lines Plainva does not understand yet are named, not dropped in silence; nothing is ever written into the block.
+- **Reminders for checkbox tasks.** A checkbox with a due date and a time — `- [ ] Call Bob 📅 2026-11-10 14:30` — reminds you once **Checkboxes with a time** is switched on for the vault (off by default); a date alone does not remind, and nothing is written into the note. A `tasks` query in Obsidian does not recognise the date of a line with a time after it; Plainva accepts that and says so at the switch.
 - **Due dates with quick choices and a time**: Today, Tomorrow, This weekend, Next week and No date, then the month and a time row. “Next week” follows your week start, also when snoozing a mail.
 - **A task row does the same everywhere**: a link in a task's title reads as its text and opens its note, subtasks stand under their task, and today's finished tasks fold under **Done (n)**.
 - **Deleting an event works the first time.** After an edit the calendar kept the event's old version, so the next delete was refused as “changed remotely” and only a second delete a minute later went through. Every write now keeps the version it got back, and a refused delete looks again before it asks. Thanks for [#119](https://github.com/plainva/plainva/issues/119).
@@ -62,7 +62,7 @@ If you use Plainva on more than one device, please update all of them (see *Acco
 
 ### Files and `.base`
 
-- **A `.base` file saved without a change comes back unchanged.** Unknown keys, the keys of each view, view types Plainva does not know (a map, a plugin's board) and Obsidian's own `groupBy` are kept as written. A filter condition Plainva cannot read shows **Not applied** instead of silently showing more rows; `file.folder == ""` means the vault's root, and the `file.tags` column fills. The user guide has a complete `.base` reference.
+- **A `.base` file saved without a change comes back unchanged.** Unknown keys, the keys of each view, view types Plainva does not know (a map, a board from Obsidian) and Obsidian's own `groupBy` are kept as written. A filter condition Plainva cannot read shows **Not applied** instead of silently showing more rows; `file.folder == ""` means the vault's root, and the `file.tags` column fills. The user guide has a complete `.base` reference.
 - **Dot files** such as `.notes.md` or files in `.attachments/` are hidden from every surface — tree, search, graph, suggestions, tags, tasks, databases — the same in both shells and every vault location, and they keep syncing. A link to one still resolves.
 - **Pins of the graph and recently opened notes are each device's own.** In a vault folder shared through Dropbox, iCloud or a network share, two devices no longer overwrite each other's pins and recent notes. Obsidian's bookmarks are taken over once each, so a bookmark you removed no longer comes back.
 - A note with a pathological paragraph — a line of a hundred thousand brackets, say — no longer holds the app for minutes.
