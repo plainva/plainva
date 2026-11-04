@@ -5,7 +5,7 @@ All notable changes to Plainva are documented here. The format is based on
 follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once it
 reaches 1.0.
 
-## [0.8.7] - 2026-11-03
+## [0.8.7] - 2026-11-04
 
 One account, one sign-in. This release brings together the changes since 0.8.6: every account signs in once for files, calendar and mail and has a page of its own, Plainva brings its own Google sign-in, one assistant connects every provider, the settings can be searched, `tasks` queries from Obsidian show as task lists, checkbox tasks with a time can remind you, and a long round of fixes for sync, mail, typed input, properties, `.base` files and the phone. Shared improvements apply to desktop and mobile.
 

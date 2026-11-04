@@ -84,7 +84,7 @@ export { getWhatsNewBlogUrl } from "./releaseBlog.mjs";
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {
     version: "0.8.7",
-    releaseDate: "2026-11-03",
+    releaseDate: "2026-11-04",
     highlights: [
       { icon: "key" },
       { icon: "layout" },
