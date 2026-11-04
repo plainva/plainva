@@ -82,7 +82,9 @@ Files:
 Notes:
 - `tauri-driver` is installed with cargo on first use (the workflow sets up
   Rust), the Edge WebDriver is managed by the service on Windows, Linux needs
-  `webkit2gtk-driver`.
+  the WebKitGTK WebDriver: `webkit2gtk-driver` up to Ubuntu 24.04,
+  `webkitgtk-webdriver` from 26.04 on (the workflow installs whichever the
+  image offers).
 - Not run in the mocked Vitest/Playwright harness (no native build there).
 
 ## Status
