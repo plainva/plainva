@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { GroupCard, Row, RowList, SectionLabel, Switch, toast } from "@plainva/ui";
+import { ChevronRight } from "lucide-react";
+import { GroupCard, ICON, Row, RowList, SectionLabel, START_VIEWS, startViewLabelKey, Switch, toast, type StartView } from "@plainva/ui";
+import { mSelect } from "../services/mobileDialogs";
 import { AppBar } from "../components/AppBar";
 import { updateMobileSettings } from "../services/mobileSettings";
 import { useSettingsState } from "../hooks/useSettingsState";
@@ -22,6 +24,18 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
   // The one optimistic settings hook (E23) — this screen had its own copy.
   const { settings, update } = useSettingsState();
+  // On start (plan 2026-11-05, P10): as you left it, or Home. The desktop asks
+  // the same question with "Empty workspace" for its second answer.
+  const startLabel = (view: StartView) => t(startViewLabelKey(view, "mobile"));
+  const pickStartView = () => {
+    void mSelect({
+      title: t("settings.startView"),
+      options: START_VIEWS.map((v) => ({ value: v, label: startLabel(v) })),
+      value: settings.startView,
+    }).then((v) => {
+      if (v !== null) update({ startView: v as StartView });
+    });
+  };
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionBehavior")} testId="appbar-area-behavior" />
@@ -39,6 +53,19 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
 
             A sealed workspace is not covered by these two - it shows nothing
             either way, because the app empties the snapshot when it locks. */}
+        <SectionLabel>{t("settings.groupStart")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<><span className="m-prop-val">{startLabel(settings.startView)}</span><ChevronRight className="m-chevron" size={ICON.ui} /></>}
+              info={t("settings.startViewInfoMobile")}
+              onClick={pickStartView}
+              data-testid="behavior-start-view"
+              title={t("settings.startView")}
+            />
+          </RowList>
+        </GroupCard>
+
         <SectionLabel info={t("settings.widgetsDesc")}>{t("settings.widgetsSection")}</SectionLabel>
         <GroupCard>
           <RowList>

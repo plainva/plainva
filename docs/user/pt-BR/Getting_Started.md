@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-11-03
+Última revisão: 2026-11-05
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -145,7 +145,7 @@ Uma **segunda janela** tem essas duas — e tem seu **próprio vault**. Ela abre
 
 O ícone **Sempre visível** no título da janela mantém uma janela em primeiro plano enquanto você trabalha na outra.
 
-Na próxima inicialização, todo vault que tinha uma janela volta, e suas janelas adicionais voltam para onde estavam. Se você preferir que não voltem: **Configurações → Inicialização e comportamento → Inicialização**. Uma **mensagem não enviada** nunca é restaurada — o que está em uma janela de redação vive na memória, e uma janela que afirmasse tê-la guardado seria pior do que nenhuma janela.
+Na próxima inicialização, todo vault que tinha uma janela volta, e suas janelas adicionais voltam para onde estavam. Se você preferir que não voltem: **Configurações → Inicialização e comportamento → Inicialização**. Uma **mensagem não enviada** nunca é restaurada — o que está em uma janela de redação vive na memória, e uma janela que afirmasse tê-la guardado seria pior do que nenhuma janela. O que as janelas mostram é decidido por **Ao iniciar** no mesmo grupo: **Como você deixou** reabre as abas da última vez, **Espaço de trabalho vazio** começa sem abas — o tamanho da janela e as barras laterais continuam. Vale só para a inicialização; um vault que você abrir depois traz suas abas.
 
 ## Vários vaults ao mesmo tempo
 

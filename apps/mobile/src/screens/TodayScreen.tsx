@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { consumePendingNew, consumeEventSeed, getPlatformServices } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import { CalendarClock, CalendarDays, FileText, ListTodo, Trash2 } from "lucide-react";
+import { CalendarClock, CalendarDays, ChevronDown, FileText, ListTodo, Trash2 } from "lucide-react";
 import { doneTasksOnDay, dueTimeOf, errorText, noteDisplayName, setPendingSearchJump, TaskCheckButton, TaskDoneFold, taskDueMovedText, TaskTitle, toast, useDoneFold, useTodayKey, type DuePick, type PlannerRow, type TaskDueChange } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { loadPhoneDueTasks, taskJumpTerm, tickPhoneDueTask, type PhoneDueTasks } from "../services/dueTasks";
-import { buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, isOpenState, journalToday, RowList, Row, SectionLabel, useJournalDayKey } from "@plainva/ui";
+import { buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, DateJumpPicker, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, isOpenState, journalToday, RowList, Row, SectionLabel, useJournalDayKey, useWeekStartDay } from "@plainva/ui";
+import { SheetGrip } from "../components/SheetGrip";
 import { isoOf } from "../lib/dates";
 import { listShownPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -23,6 +24,12 @@ import { AppBar } from "../components/AppBar";
 import { useEventEditor } from "../components/useEventEditor";
 import type { PimEventRow } from "@plainva/core";
 import { TodayJournalSection } from "../components/TodayJournalSection";
+
+/** A local midnight for a `YYYY-MM-DD` key. */
+function dateOfKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
 
 /** Before the first read, and after one that failed. */
 const NO_DUE_TASKS: PhoneDueTasks = { rows: [], dueKey: null, database: false, databaseTickable: false };
@@ -68,7 +75,10 @@ export function TodayScreen({
   // Both directions (redesign § 3.6). It used to end at TOMORROW, which made
   // the surface a review tool: you could see what you had done and not what is
   // coming. Two weeks each way fits a month of context without an endless rail.
-  const days = buildDayStrip(journalToday(), 14, 14);
+  // A day picked from the jump sheet outside these four weeks moves the strip
+  // with it (issue 153): the strip then centres on that day, "Today" brings it back.
+  const [stripCenter, setStripCenter] = useState<string | null>(null);
+  const days = buildDayStrip(stripCenter ? dateOfKey(stripCenter) : journalToday(), 14, 14);
   // The DIARY day, not the calendar one (plan Journal-Erweiterungen, X1/X2):
   // this screen is where the daily note and the journal section live, and at
   // 01:30 with a 04:00 boundary they are still yesterday's. The calendar tab
@@ -78,6 +88,27 @@ export function TodayScreen({
   // the diary's today, the due section leads with it (`dueTasksForDay`).
   const calendarToday = useTodayKey();
   const [selectedIso, setSelectedIso] = useState(todayIso);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  // Counts jumps, so the strip scrolls to the picked day after each one — a tap
+  // on the strip itself does not move it under the finger.
+  const [jumpCount, setJumpCount] = useState(0);
+  const weekStart = useWeekStartDay();
+  const jumpTo = (key: string) => {
+    setJumpOpen(false);
+    setSelectedIso(key);
+    // Today puts the strip back where it starts; a day it already shows leaves
+    // it; any other day becomes its centre.
+    const shown = days.some((d) => isoOf(d) === key);
+    setStripCenter(key === todayIso ? null : shown ? stripCenter : key);
+    setJumpCount((n) => n + 1);
+  };
+  const loadDailyDays = useCallback(
+    (dates: Date[]) => {
+      const s = getMobileSettings();
+      return existingDailyNoteDays(dates, { folder: s.dailyFolder, format: s.dailyFormat }, (p) => vault.files.exists(p));
+    },
+    [vault],
+  );
   const [dailyExists, setDailyExists] = useState(false);
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
   const [edited, setEdited] = useState<Array<{ path: string; title: string; editedAt: number }>>([]);
@@ -266,7 +297,7 @@ export function TodayScreen({
     stripRef.current
       ?.querySelector(".is-selected")
       ?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, []);
+  }, [jumpCount]);
 
   // The strip's dots: the expected path per day, asked of the disk — the
   // same rule as the desktop calendar (P4). A folder listing compared raw
@@ -285,7 +316,7 @@ export function TodayScreen({
     };
     // `days` is rebuilt every render around the same today; the settings decide.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vault, settings.dailyFolder, settings.dailyFormat, bump]);
+  }, [vault, settings.dailyFolder, settings.dailyFormat, bump, stripCenter]);
 
   useEffect(() => {
     let stale = false;
@@ -380,7 +411,53 @@ export function TodayScreen({
 
   return (
     <div className="m-page m-page--today" ref={ptrRef}>
-      <AppBar large={!onBack} onBack={onBack} onMenu={onMenu} onSearch={onSearch} subtitle={barDate} title={t("mobile.tabToday")} />
+      <AppBar
+        large={!onBack}
+        onBack={onBack}
+        onMenu={onMenu}
+        onSearch={onSearch}
+        // The date under the title opens the jump sheet the journal and the
+        // calendar have (issue 153): the strip only reaches two weeks either way.
+        subtitle={
+          <button
+            aria-haspopup="dialog"
+            aria-label={`${barDate} — ${t("journal.jumpToDay")}`}
+            className="m-appbar-subbtn"
+            data-testid="today-jump"
+            onClick={() => setJumpOpen(true)}
+            type="button"
+          >
+            {barDate}
+            <ChevronDown aria-hidden="true" size={ICON.meta} />
+          </button>
+        }
+        title={t("mobile.tabToday")}
+      />
+      {jumpOpen && (
+        <div className="m-sheet-backdrop" onClick={() => setJumpOpen(false)}>
+          <div className="pv-sheet m-sheet" data-testid="today-jump-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setJumpOpen(false)} />
+            <p className="m-sheet-title">{t("journal.jumpToDay")}</p>
+            <DateJumpPicker
+              value={selectedIso}
+              weekStart={weekStart}
+              loadMarkedDays={loadDailyDays}
+              marksRevision={bump}
+              onPick={jumpTo}
+              // As in the calendar's sheet: a tap marks the day, then "Go to
+              // date" shows it here or the second button opens its daily note.
+              onOpenDailyNote={(key) => {
+                setJumpOpen(false);
+                onOpenDate(key);
+              }}
+              onToday={() => jumpTo(todayIso)}
+              onClose={() => setJumpOpen(false)}
+              size="sheet"
+              testId="today-jump-grid"
+            />
+          </div>
+        </div>
+      )}
       {ptrIndicator}
       <div className="m-datestrip" ref={stripRef}>
         {days.map((d) => {

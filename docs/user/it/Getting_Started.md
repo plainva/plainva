@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-11-03
+Ultimo aggiornamento: 2026-11-05
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -145,7 +145,7 @@ Una **seconda finestra** invece le porta — e porta il **proprio vault**. Si ap
 
 La **puntina** nella barra del titolo tiene una finestra in primo piano mentre lavori nell'altra.
 
-Al prossimo avvio ogni vault che aveva una finestra torna, e le sue finestre aggiuntive tornano dov'erano. Se preferisci di no: **Impostazioni → Avvio e comportamento → Avvio**. Un **messaggio non inviato** non viene mai ripristinato — quello che sta in una finestra di composizione vive in memoria, e una finestra che sostenesse di averlo conservato sarebbe peggio di nessuna finestra.
+Al prossimo avvio ogni vault che aveva una finestra torna, e le sue finestre aggiuntive tornano dov'erano. Se preferisci di no: **Impostazioni → Avvio e comportamento → Avvio**. Un **messaggio non inviato** non viene mai ripristinato — quello che sta in una finestra di composizione vive in memoria, e una finestra che sostenesse di averlo conservato sarebbe peggio di nessuna finestra. Cosa mostrano le finestre lo decide **All'avvio** nello stesso gruppo: **Come l'hai lasciato** riapre le schede dell'ultima volta, **Area di lavoro vuota** parte senza schede — dimensione della finestra e barre laterali restano. Vale solo per l'avvio; un vault che apri dopo porta con sé le sue schede.
 
 ## Più vault contemporaneamente
 

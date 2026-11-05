@@ -45,6 +45,11 @@ updates:
       # copies with mismatched types in the tree (#107). Leave it until imap has
       # a stable release on imap-proto 0.16, then move both together.
       - dependency-name: imap-proto
+      # ort is pinned exactly (=2.0.0-rc.x) in Cargo.toml: its feature api-17
+      # keeps the Intel-Mac ONNX Runtime 1.23.2 loadable, and each release
+      # candidate changes the session API (rc.15 broke embedding.rs, #157).
+      # It moves by hand, together with the bundled runtime: its own change.
+      - dependency-name: ort
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

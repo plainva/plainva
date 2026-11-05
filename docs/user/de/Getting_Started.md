@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-11-03
+Stand: 2026-11-05
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -145,7 +145,7 @@ Ein **zweites Fenster** hat beides — und es hat seinen **eigenen Vault**. Beim
 
 Die **Nadel** im Fenstertitel hält ein Fenster im Vordergrund, während Du im anderen arbeitest.
 
-Beim nächsten Start kommen alle Vaults zurück, die ein Fenster hatten, und ihre Zusatzfenster dorthin, wo sie waren. Wenn Du das nicht möchtest: **Einstellungen → Start & Verhalten → Start**. Eine **noch nicht gesendete Nachricht** wird nie wiederhergestellt — was in einem Verfassen-Fenster steht, lebt im Arbeitsspeicher, und ein Fenster, das behauptet, es aufbewahrt zu haben, wäre schlimmer als keins.
+Beim nächsten Start kommen alle Vaults zurück, die ein Fenster hatten, und ihre Zusatzfenster dorthin, wo sie waren. Wenn Du das nicht möchtest: **Einstellungen → Start & Verhalten → Start**. Eine **noch nicht gesendete Nachricht** wird nie wiederhergestellt — was in einem Verfassen-Fenster steht, lebt im Arbeitsspeicher, und ein Fenster, das behauptet, es aufbewahrt zu haben, wäre schlimmer als keins. Was in den Fenstern offen ist, entscheidet **Beim Start** in derselben Gruppe: **Wie verlassen** öffnet die Tabs vom letzten Mal wieder, **Leerer Arbeitsbereich** beginnt ohne Tabs — Fenstergröße und Seitenleisten bleiben. Das gilt nur für den Start; ein Vault, den Du danach öffnest, bringt seine Tabs mit.
 
 ## Mehrere Vaults gleichzeitig
 

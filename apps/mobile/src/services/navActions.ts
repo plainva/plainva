@@ -1,7 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
-import { navTop, popTop, pushEntry, replaceTop, type NavEntry, type NavState, type TabScreenId } from "../navigation";
+import { initialNavState, navTop, popTop, pushEntry, replaceTop, type NavEntry, type NavState, type TabScreenId } from "../navigation";
 import { askBeforeLeaving } from "./leaveQuestion";
 import { recallLastOpen, rememberLastOpen } from "@plainva/ui";
+import { getMobileSettings } from "./mobileSettings";
 import type { MobileVault } from "./vaultService";
 import { markSessionReady, readNavState, restoreNavState } from "./sessionState";
 import { loadMobileBar, shownBarTabs } from "./mobileBar";
@@ -106,6 +107,14 @@ export async function restoreSession(
 ): Promise<void> {
   const stored = readNavState(vault.vaultId);
   markSessionReady(vault.vaultId);
+  // "On start: Home" (plan 2026-11-05, P10): nothing comes back, the app opens
+  // on Home. The session is still marked ready above, so it keeps being saved
+  // and "As you left it" finds what was open when the app was last left.
+  if (getMobileSettings().startView === "fresh") {
+    const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
+    if (visible.includes("notes")) setNav(initialNavState("notes"));
+    return;
+  }
   if (stored) {
     const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
     const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => null);

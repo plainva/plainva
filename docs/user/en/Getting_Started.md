@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-11-03
+Last updated: 2026-11-05
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -145,7 +145,7 @@ A **second window** does carry them — and it carries its **own vault**. It ope
 
 The **pin** in the window title keeps a window on top while you work in the other one.
 
-On the next start, every vault that had a window comes back, and its auxiliary windows come back where they were. If you would rather they did not: **Settings → Startup & behavior → Startup**. An **unsent message** is never restored — what sits in a composer lives in memory, and a window claiming to have kept it would be worse than no window.
+On the next start, every vault that had a window comes back, and its auxiliary windows come back where they were. If you would rather they did not: **Settings → Startup & behavior → Startup**. An **unsent message** is never restored — what sits in a composer lives in memory, and a window claiming to have kept it would be worse than no window. What the windows show is up to **On start** in the same group: **As you left it** reopens the tabs from last time, **Empty workspace** starts without tabs — window size and sidebars stay. It applies to the start only; a vault you open afterwards brings its tabs along.
 
 ## Several vaults at once
 

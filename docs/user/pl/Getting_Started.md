@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-11-03
+Stan na: 2026-11-05
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -145,7 +145,7 @@ Wysunięte okno to pełnoprawne Plainva: ma **karty**, można je **podzielić** 
 
 **Pinezka** w tytule okna trzyma je na wierzchu, podczas gdy pracujesz w drugim.
 
-Przy następnym uruchomieniu wraca każdy vault, który miał okno, a jego okna dodatkowe wracają tam, gdzie były. Jeśli wolisz inaczej: **Ustawienia → Uruchamianie i zachowanie → Uruchamianie**. **Niewysłana wiadomość** nigdy nie jest przywracana — to, co znajduje się w oknie tworzenia wiadomości, żyje w pamięci, a okno twierdzące, że to zachowało, byłoby gorsze niż brak okna.
+Przy następnym uruchomieniu wraca każdy vault, który miał okno, a jego okna dodatkowe wracają tam, gdzie były. Jeśli wolisz inaczej: **Ustawienia → Uruchamianie i zachowanie → Uruchamianie**. **Niewysłana wiadomość** nigdy nie jest przywracana — to, co znajduje się w oknie tworzenia wiadomości, żyje w pamięci, a okno twierdzące, że to zachowało, byłoby gorsze niż brak okna. O tym, co pokazują okna, decyduje **Przy uruchomieniu** w tej samej grupie: **Tak, jak zostawiono** ponownie otwiera karty z ostatniego razu, **Pusty obszar roboczy** zaczyna bez kart — rozmiar okna i paski boczne zostają. Dotyczy to tylko uruchomienia; vault otwarty później przynosi swoje karty.
 
 ## Kilka vaultów naraz
 
