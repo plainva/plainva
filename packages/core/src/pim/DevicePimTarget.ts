@@ -159,6 +159,23 @@ export function deviceUpdateSpan(handle: DeviceEventHandle, draft: DeviceEventDr
   return "rrule" in draft ? "series" : "occurrence";
 }
 
+/**
+ * A series-wide save arrives with the start of the row the person edited, which
+ * is an occurrence of the series, not its first one (finding 2026-11-02: saving
+ * "All events" moved the series' start to that occurrence). The series keeps the
+ * date of its first occurrence; what the person changed - time of day, duration,
+ * the all-day switch - is laid on that date. A date change in "All events" does
+ * not move the series. Both platforms receive the corrected start and end.
+ */
+export function anchorSeriesDraft(first: Pick<DeviceEventRecord, "startTs">, draft: DeviceEventDraft): DeviceEventDraft {
+  const anchor = new Date(first.startTs);
+  const edited = new Date(draft.startTs);
+  const start = draft.allDay
+    ? new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()).getTime()
+    : new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate(), edited.getHours(), edited.getMinutes(), edited.getSeconds(), edited.getMilliseconds()).getTime();
+  return { ...draft, startTs: start, endTs: start + (draft.endTs - draft.startTs) };
+}
+
 function civilDate(ts: number): string {
   const d = new Date(ts);
   const p = (n: number) => String(n).padStart(2, "0");
@@ -279,7 +296,14 @@ export class DevicePimTarget implements IPimTarget {
   async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
     const handle = deviceHandleOf(ref.uid);
     await this.assertUnchanged(handle, ref.etag);
-    const r = await this.port.updateEvent(handle, toDeviceDraft(draft));
+    let deviceDraft = toDeviceDraft(draft);
+    // A handle without an occurrence start names the whole event: for a series
+    // the port answers with its first occurrence, whose date the series keeps.
+    if (handle.occurrenceStartTs === undefined) {
+      const first = await this.port.event(handle);
+      if (first?.rrule) deviceDraft = anchorSeriesDraft(first, deviceDraft);
+    }
+    const r = await this.port.updateEvent(handle, deviceDraft);
     return { etag: r.version };
   }
 

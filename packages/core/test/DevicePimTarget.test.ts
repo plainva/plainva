@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DevicePimTarget, deviceFieldVersion, deviceHandleOf, deviceUpdateSpan, PimConflictError } from "../src/index.js";
+import { DevicePimTarget, deviceFieldVersion, deviceHandleOf, deviceUpdateSpan, anchorSeriesDraft, PimConflictError } from "../src/index.js";
 import type { DeviceCollection, DeviceEventDraft, DeviceEventHandle, DeviceEventRecord, DevicePimPort, DeviceReminderDraft, DeviceReminderRecord } from "../src/index.js";
 
 /**
@@ -264,5 +264,46 @@ describe("deviceUpdateSpan (iPhone: All events without a rule change)", () => {
   it("treats any write that carries a rule - even a removal - as the series", () => {
     expect(deviceUpdateSpan(deviceHandleOf("series-1@1700000000000"), { ...draft, rrule: "FREQ=DAILY" })).toBe("series");
     expect(deviceUpdateSpan(deviceHandleOf("series-1@1700000000000"), { ...draft, rrule: null })).toBe("series");
+  });
+});
+
+describe("a series-wide save keeps the series' first date (iPhone/Android 'All events')", () => {
+  const at = (day: number, h: number, m = 0) => new Date(2026, 10, day, h, m, 0, 0).getTime();
+  const first = { startTs: at(2, 9) }; // Monday, first occurrence of a weekly series
+  const fourth = (): DeviceEventDraft => ({ title: "Jour fixe", startTs: at(23, 9), endTs: at(23, 10), allDay: false });
+
+  it("moving the time of the series from its 4th occurrence keeps the first date", () => {
+    const out = anchorSeriesDraft(first, { ...fourth(), startTs: at(23, 9, 30), endTs: at(23, 10, 30) });
+    expect(out.startTs).toBe(at(2, 9, 30));
+    expect(out.endTs).toBe(at(2, 10, 30));
+  });
+
+  it("changing only the title keeps start and end exactly", () => {
+    const out = anchorSeriesDraft(first, { ...fourth(), title: "Neu" });
+    expect(out).toMatchObject({ title: "Neu", startTs: at(2, 9), endTs: at(2, 10) });
+  });
+
+  it("switching to all-day lays the day on the first date", () => {
+    const out = anchorSeriesDraft(first, { ...fourth(), allDay: true, startTs: at(23, 0), endTs: at(24, 0) });
+    expect(out).toMatchObject({ allDay: true, startTs: at(2, 0), endTs: at(3, 0) });
+  });
+
+  it("is applied by the target to a series save, not to an occurrence save or a single event", async () => {
+    const port = new FakePort(true);
+    const row = (id: string, startTs: number, rrule?: string): DeviceEventRecord => ({
+      id, title: "Jour fixe", startTs, endTs: startTs + 3_600_000, allDay: false, version: "v", ...(rrule ? { rrule, seriesId: id } : {}),
+    });
+    port.eventRows = [row("cal-1:s", at(2, 9), "FREQ=WEEKLY"), row("cal-1:single", at(5, 9))];
+    const t = target(port);
+    const draft = (title: string, day: number) => ({ title, allDay: false, start: { ts: at(day, 9, 30) }, end: { ts: at(day, 10, 30) } });
+
+    await t.updateEvent({ calendarId: "cal-1", uid: "cal-1:s" }, draft("A", 23));
+    expect(port.eventRows[0]).toMatchObject({ startTs: at(2, 9, 30), endTs: at(2, 10, 30) });
+
+    await t.updateEvent({ calendarId: "cal-1", uid: "cal-1:single" }, draft("B", 6));
+    expect(port.eventRows[1]).toMatchObject({ startTs: at(6, 9, 30) });
+
+    await t.updateEvent({ calendarId: "cal-1", uid: `cal-1:s@${at(2, 9, 30)}` }, draft("C", 9));
+    expect(port.eventRows[0]).toMatchObject({ startTs: at(9, 9, 30) });
   });
 });
