@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-10-30
+Última actualización: 2026-11-05
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -27,7 +27,7 @@ Haz clic derecho en un archivo del árbol de archivos (o en su pestaña), o usa 
 - **Restaurar** reemplaza el contenido actual con la versión seleccionada. No te preocupes: el estado actual se guarda primero como un snapshot — así que una restauración siempre se puede deshacer.
 - **Restaurar como copia** crea la versión como un archivo nuevo junto al original (`Name (Version 2026-07-05 14-30).md`) sin tocarlo.
 
-Las imágenes también tienen versiones (con vista previa); otros archivos binarios se pueden restaurar sin vista previa.
+Las imágenes también tienen versiones (con vista previa); otros archivos binarios se pueden restaurar sin vista previa. En el teléfono, mantén pulsado un archivo en la lista de archivos y elige **Historial de versiones…**.
 
 ## Restaurar archivos eliminados
 

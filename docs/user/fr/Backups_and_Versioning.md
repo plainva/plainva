@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-05
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -27,7 +27,7 @@ Un clic droit sur un fichier dans l'arborescence (ou sur son onglet), ou le menu
 - **Restaurer** remplace le contenu actuel par la version sélectionnée. Ne vous inquiétez pas : l'état actuel est lui-même d'abord enregistré comme instantané — une restauration peut donc toujours être annulée.
 - **Restaurer en tant que copie** crée la version sous forme de nouveau fichier à côté de l'original (`Name (Version 2026-07-05 14-30).md`) sans toucher à celui-ci.
 
-Les images ont aussi des versions (avec aperçu) ; les autres fichiers binaires peuvent être restaurés sans aperçu.
+Les images ont aussi des versions (avec aperçu) ; les autres fichiers binaires peuvent être restaurés sans aperçu. Sur le téléphone, maintiens un fichier dans la liste des fichiers et choisis **Historique des versions…**.
 
 ## Restaurer des fichiers supprimés
 

@@ -8,6 +8,7 @@ import {
   pruneSnoozes,
   removeSnooze,
   filterSnoozedRows,
+  onlySnoozedRows,
   snoozeEntryFor,
   snoozeUntil,
   undoSnoozes,
@@ -213,6 +214,25 @@ describe("filterSnoozedRows — rows named by their address (plan P1)", () => {
     expect(filterSnoozedRows([inbox], [snoozeEntryFor(inbox.id, 50)!], 100)).toEqual([inbox]);
     expect(filterSnoozedRows([{ id: "42" }], [entry({ until: 900 })], 100)).toEqual([{ id: "42" }]);
     expect(snoozeEntryFor("42", 900)).toBeNull();
+  });
+});
+
+describe("onlySnoozedRows - the Snoozed list of both shells", () => {
+  const row = (accountId: string, mailbox: string, uid: string) => ({ id: unifiedId({ accountId, mailbox, uid }) });
+  const inbox = row("a1", "INBOX", "42");
+  const sent = row("a1", "Sent", "42");
+  const other = row("a2", "Posteingang", "42");
+
+  it("keeps exactly the rows filterSnoozedRows hides", () => {
+    const state = [snoozeEntryFor(other.id, 900)!, snoozeEntryFor(sent.id, 900)!];
+    const rows = [inbox, sent, other];
+    expect(onlySnoozedRows(rows, state, 100)).toEqual([sent, other]);
+    expect(filterSnoozedRows(rows, state, 100)).toEqual([inbox]);
+  });
+
+  it("is empty once the time has passed or for a row without an address", () => {
+    expect(onlySnoozedRows([inbox], [snoozeEntryFor(inbox.id, 50)!], 100)).toEqual([]);
+    expect(onlySnoozedRows([{ id: "42" }], [entry({ until: 900 })], 100)).toEqual([]);
   });
 });
 

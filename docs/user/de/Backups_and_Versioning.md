@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-10-30
+Stand: 2026-11-05
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -27,7 +27,7 @@ Rechtsklick auf eine Datei im Dateibaum (oder auf ihren Tab) oder das **⋮**-Me
 - **Wiederherstellen** ersetzt den aktuellen Inhalt durch die gewählte Version. Keine Angst: Der aktuelle Stand wird vorher selbst als Snapshot gesichert — Wiederherstellen ist also selbst rückgängig machbar.
 - **Als Kopie wiederherstellen** legt die Version als neue Datei daneben an (`Name (Version 2026-07-05 14-30).md`), ohne das Original anzufassen.
 
-Auch Bilder haben Versionen (mit Vorschau); andere Binärdateien lassen sich ohne Vorschau wiederherstellen.
+Auch Bilder haben Versionen (mit Vorschau); andere Binärdateien lassen sich ohne Vorschau wiederherstellen. Am Telefon hältst Du dafür eine Datei in der Dateiliste gedrückt und wählst **Versionsverlauf…**.
 
 ## Gelöschte Dateien wiederherstellen
 

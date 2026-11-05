@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, History } from "lucide-react";
 import { VersionHistoryService, type FileVersion } from "@plainva/core";
-import { Button, EmptyState, ICON, comparesAsText, editorTextOf, toast, versionCopyPath } from "@plainva/ui";
+import { Button, EmptyState, ICON, comparesAsText, editorTextOf, imageMimeType, isImagePath, toast, versionCopyPath } from "@plainva/ui";
 import { CompareVersions } from "./CompareVersions";
 import { mConfirm } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
@@ -49,6 +49,30 @@ export function VersionsPanel({
   // What the NAME says — the rule both shells' comparisons share; whether a
   // version or the file IS text is asked of its bytes, where it is read.
   const namedText = comparesAsText(path);
+  const isImage = isImagePath(path);
+  /** The chosen version of an image, drawn from its bytes (revoked when it goes). */
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const selectedBackup = selected?.backupPath ?? null;
+
+  useEffect(() => {
+    setImageUrl(null);
+    if (!isImage || !selectedBackup) return;
+    let alive = true;
+    let url: string | null = null;
+    service
+      .readVersionBinary(selectedBackup)
+      .then((bytes) => {
+        if (!alive) return;
+        url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: imageMimeType(path) }));
+        setImageUrl(url);
+      })
+      // A version that cannot be read as bytes keeps the "no preview" line.
+      .catch(() => alive && setNoPreview(true));
+    return () => {
+      alive = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [service, isImage, selectedBackup, path]);
 
   useEffect(() => {
     let stale = false;
@@ -77,7 +101,7 @@ export function VersionsPanel({
     setSelected(v);
     setPreview(null);
     // A file that is no text by its name is not put through a text reader.
-    setNoPreview(!namedText);
+    setNoPreview(!namedText && !isImage);
     if (!namedText) return;
     void service
       .readVersionText(v.backupPath)
@@ -197,6 +221,15 @@ export function VersionsPanel({
             <p className="m-hint" data-testid="version-no-preview">{t(namedText ? "editor.notTextBody" : "versions.binaryNoPreview")}</p>
             <div className="m-compare-footer"><div className="m-compare-actions">{actions}</div></div>
           </div>
+        ) : isImage ? (
+          imageUrl === null ? (
+            <p className="m-hint">{t("versions.loading")}</p>
+          ) : (
+            <div className="m-compare">
+              <img className="m-version-image" data-testid="version-image" src={imageUrl} alt={path.split("/").pop() ?? ""} />
+              <div className="m-compare-footer"><div className="m-compare-actions">{actions}</div></div>
+            </div>
+          )
         ) : preview === null ? (
           <p className="m-hint">{t("versions.loading")}</p>
         ) : current === null ? (

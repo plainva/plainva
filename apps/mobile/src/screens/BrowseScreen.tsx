@@ -89,12 +89,13 @@ export function BrowseScreen({
   // then toggle membership and the action bar bulk-deletes with the shared
   // large-deletion double-check (>10 items OR >20% of the listing).
   const [selected, setSelected] = useState<Set<string> | null>(null);
-  const { setSheet, press, folderPress, basePress, swipeFor, sheetLayer } = useFileRowSheet({
+  const { setSheet, press, folderPress, basePress, attachmentPress, swipeFor, sheetLayer } = useFileRowSheet({
     vault,
     bump,
     onOpenNote,
     onOpenFolder,
     onOpenBase,
+    onOpenAttachment,
     // Selecting several is the sheet's first entry here (S22): the list owns
     // the selection, the shared row grammar only names it.
     onSelectMany: (path) => setSelected((prev) => (prev ? prev : new Set([path]))),
@@ -392,7 +393,16 @@ export function BrowseScreen({
             ? <ImageIcon className="m-accent" size={ICON.ui} />
             : <Paperclip className="m-accent" size={ICON.ui} />}
           key={a.path}
-          onClick={() => (resolveOpenAction(a.path) === "text" ? onOpenNote(a.path) : onOpenAttachment(a.path, a.isImage))}
+          onClick={() => {
+            if (!attachmentPress.clicked()) return; // the hold already opened the sheet
+            if (resolveOpenAction(a.path) === "text") onOpenNote(a.path);
+            else onOpenAttachment(a.path, a.isImage);
+          }}
+          onContextMenu={(e) => { e.preventDefault(); setSheet({ path: a.path, title: a.name, attachment: { isImage: a.isImage } }); }}
+          onPointerCancel={attachmentPress.clear}
+          onPointerDown={() => attachmentPress.start({ path: a.path, title: a.name, isImage: a.isImage })}
+          onPointerLeave={attachmentPress.clear}
+          onPointerUp={attachmentPress.clear}
           title={a.name}
         />
       ))}

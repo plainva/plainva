@@ -13,6 +13,7 @@ import {
   preferredRoute,
   addSnooze,
   filterSnoozedRows,
+  onlySnoozedRows,
   snoozeEntryFor,
   parseSnoozeState,
   pruneSnoozes,
@@ -1116,14 +1117,16 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       // someone searching for a mail by name wants to find it. The merged list
       // is: a row is put aside where it lies, and each row names that place
       // (plan P1) — in "All inboxes" as in its folder.
-      if (searchResults || flaggedResults || showSnoozed) return kept;
+      // The Snoozed list shows exactly the messages put aside (both shells).
+      if (showSnoozed) return onlySnoozedRows(kept, snoozed, snoozeNow);
+      if (searchResults || flaggedResults) return kept;
       return filterSnoozedRows(kept, snoozed, snoozeNow);
     },
     [displayedEnvelopes, filterUnread, filterFlagged, filterAttachments, searchResults, flaggedResults, showSnoozed, snoozed, snoozeNow]
   );
   /** Sent, read along for conversations — a reply put aside there leaves them too. */
   const visibleSent = useMemo(
-    () => (showSnoozed ? sentEnvelopes : filterSnoozedRows(sentEnvelopes, snoozed, snoozeNow)),
+    () => (showSnoozed ? onlySnoozedRows(sentEnvelopes, snoozed, snoozeNow) : filterSnoozedRows(sentEnvelopes, snoozed, snoozeNow)),
     [sentEnvelopes, showSnoozed, snoozed, snoozeNow]
   );
   /**

@@ -941,22 +941,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-30",
   },
   {
-    id: "mail-snoozed-list",
-    title: "Look at the snoozed messages and bring one back early",
-    area: "pim",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop's mail list has a button for the messages put aside (mail-filter-snoozed): it shows " +
-      "them, and each offers \"Bring back now\". The phone hides a snoozed message until its time and has " +
-      "no such list, so there a message comes back early only through the Undo of its snooze's notice " +
-      "(decision E17) or on the desktop - the marker travels with the vault's settings. Nothing of the " +
-      "platform stands in the way: the row actions already carry \"Bring back now\" (rowActions). Found " +
-      "on 2026-11-03 while the snooze notice got its Undo; reported for the maintainer's open-items plan.",
-    verified: "2026-11-03",
-  },
-  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",
@@ -1665,20 +1649,5 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "external-change-watcher). A settings row for it would be a second way to " +
       "the same reconcile, so the phone keeps the gesture.",
     verified: "2026-10-29",
-  },
-  {
-    id: "version-image-preview",
-    title: "The version history shows an image version as an image",
-    area: "vault",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "The desktop's version history draws an image version as an image " +
-      "(CompareModal.tsx). The phone's (VersionsPanel.tsx) asks comparesAsText " +
-      "and shows \"no preview\" for an image; restoring it works as on the " +
-      "desktop. Closing this draws the version from its bytes on the phone. " +
-      "Written down on 2026-10-30; open-items plan 3.123.",
-    verified: "2026-10-30",
   },
 ];
