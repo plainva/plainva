@@ -145,6 +145,66 @@ export function deviceHandleOf(uid: string): DeviceEventHandle {
   return Number.isFinite(ts) ? { id: uid.slice(0, at), occurrenceStartTs: ts } : { id: uid };
 }
 
+/**
+ * What a device-calendar save applies to. A handle without an occurrence start
+ * names the whole event (for a series: its master row, "All events"); a draft
+ * that carries a rule also changes the series. Only an occurrence handle with
+ * the rule left alone is "this event" (finding 2026-11-02: "All events" without
+ * a rule change saved one occurrence on the iPhone).
+ */
+export type DeviceUpdateSpan = "occurrence" | "series";
+
+export function deviceUpdateSpan(handle: DeviceEventHandle, draft: DeviceEventDraft): DeviceUpdateSpan {
+  if (handle.occurrenceStartTs === undefined || handle.occurrenceStartTs === null) return "series";
+  return "rrule" in draft ? "series" : "occurrence";
+}
+
+/** Local wall-clock reading of a timestamp as a plain number, so differences ignore DST shifts. */
+function wallClock(ts: number): number {
+  const d = new Date(ts);
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+}
+
+/** The timestamp whose local wall-clock reading is `wall`. */
+function fromWallClock(wall: number): number {
+  const d = new Date(wall);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds()).getTime();
+}
+
+/**
+ * A series-wide save arrives with the row the person edited: the series'
+ * master row, whose start is the first occurrence in the pulled window - not
+ * the series' own first start (finding 2026-11-02: saving "All events" moved
+ * the series' start to that occurrence). The sheet opened with start W, the
+ * draft carries D, the platform's true series start is F: the new start is
+ * F + (D - W), computed on the wall clock so a DST change keeps the time of
+ * day. A title-only edit (D = W) keeps F, a time change keeps the first date,
+ * a date move moves the series by as many days. The end keeps the draft's
+ * duration. Without W only the time of day is taken from the draft.
+ */
+export function anchorSeriesDraft(
+  first: Pick<DeviceEventRecord, "startTs">,
+  draft: DeviceEventDraft,
+  original?: { startTs: number; date?: string },
+): DeviceEventDraft {
+  if (draft.allDay) {
+    // All-day: whole days. The draft names its day by UTC midnight, the rows by
+    // the local date they were read with (`civilDate`), so each is read its own way.
+    const draftDay = Date.parse(new Date(draft.startTs).toISOString().slice(0, 10));
+    const firstDay = Date.parse(civilDate(first.startTs));
+    const originalDay = original ? Date.parse(original.date ?? civilDate(original.startTs)) : draftDay;
+    const start = firstDay + (draftDay - originalDay);
+    return { ...draft, startTs: start, endTs: start + (draft.endTs - draft.startTs) };
+  }
+  const f = wallClock(first.startTs);
+  const d = wallClock(draft.startTs);
+  const startWall = original === undefined
+    ? f - (f % 86_400_000) + (d % 86_400_000)
+    : f + (d - wallClock(original.startTs));
+  const endWall = startWall + (wallClock(draft.endTs) - d);
+  return { ...draft, startTs: fromWallClock(startWall), endTs: fromWallClock(endWall) };
+}
+
 function civilDate(ts: number): string {
   const d = new Date(ts);
   const p = (n: number) => String(n).padStart(2, "0");
@@ -265,7 +325,14 @@ export class DevicePimTarget implements IPimTarget {
   async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
     const handle = deviceHandleOf(ref.uid);
     await this.assertUnchanged(handle, ref.etag);
-    const r = await this.port.updateEvent(handle, toDeviceDraft(draft));
+    let deviceDraft = toDeviceDraft(draft);
+    // A handle without an occurrence start names the whole event: for a series
+    // the port answers with its first occurrence, whose date the series keeps.
+    if (handle.occurrenceStartTs === undefined) {
+      const first = await this.port.event(handle);
+      if (first?.rrule) deviceDraft = anchorSeriesDraft(first, deviceDraft, ref.originalStartTs === undefined ? undefined : { startTs: ref.originalStartTs, date: ref.originalStartDate });
+    }
+    const r = await this.port.updateEvent(handle, deviceDraft);
     return { etag: r.version };
   }
 

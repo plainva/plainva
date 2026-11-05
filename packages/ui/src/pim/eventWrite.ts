@@ -161,7 +161,7 @@ export async function updateCalendarEvent(
       targets,
       event.accountId,
       "update",
-      (target) => target.updateEvent({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, draft),
+      (target) => target.updateEvent({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href, ...(event.start ? { originalStartTs: event.start.ts, originalStartDate: event.start.date } : {}) }, draft),
       "no writable target for this account",
     );
   } catch (err) {

@@ -215,7 +215,7 @@ describe("BackupVaultAdapter", () => {
 
       await adapter.deleteItem("Projekte", true);
 
-      expect(asked).toEqual([{ followLinks: false, dotEntries: false }]);
+      expect(asked).toEqual([{ followLinks: false, dotEntries: true }]);
       expect(reported).toEqual([]);
       const backups = await innerAdapter.listDir(".plainva/backups", true);
       const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
@@ -223,9 +223,9 @@ describe("BackupVaultAdapter", () => {
       delete reporting.listDirReport;
     });
 
-    it("keeps what the tree shows: nothing under a dot-named entry, whatever the walk lists", async () => {
-      // The phone's own folder lists dot-named entries in its reporting walk;
-      // `.git` and another program's settings are not copied one by one.
+    it("snapshots dot-named files too, but never the app's own .plainva tree", async () => {
+      // The delete takes `.git` and another program's settings along, so the
+      // safety copy holds them (finding 2026-11-02); `.plainva` stays out.
       const reporting = innerAdapter as typeof innerAdapter & { listDirReport?: (p?: string, r?: boolean, o?: unknown) => Promise<{ files: VaultFileInfo[]; skipped: { path: string; reason: "cycle" | "unreadable" }[] }> };
       const hidden: VaultFileInfo[] = [
         { path: "Projekte/.git/config", name: "config", isDirectory: false, size: 1, mtime: 1 },
@@ -246,7 +246,8 @@ describe("BackupVaultAdapter", () => {
 
       const backups = await innerAdapter.listDir(".plainva/backups", true);
       const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
-      expect(contents.sort()).toEqual(["A", "B"]);
+      // A, B and the two dot files; the `.plainva/backups/old.md` copy is not snapshotted.
+      expect(contents.sort()).toEqual(["A", "B", "hidden", "hidden"]);
       delete reporting.listDirReport;
     });
 

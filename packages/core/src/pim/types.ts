@@ -308,6 +308,14 @@ export interface PimEventRef {
    * it, a refused guard is a conflict, as before.
    */
   expect?: PimEventSubstance;
+  /**
+   * The start the edit began from (the row the sheet was opened with). Only
+   * the device calendars use it: a series-wide save moves the series by the
+   * difference between this and the draft's start.
+   */
+  originalStartTs?: number;
+  /** The row's own start date, for an all-day event (`YYYY-MM-DD`). */
+  originalStartDate?: string;
 }
 
 export interface PimTaskDraft {

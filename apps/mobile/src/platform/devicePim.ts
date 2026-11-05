@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor
 import type {
   DeviceCollection, DeviceEventDraft, DeviceEventHandle, DeviceEventRecord, DevicePimPort, DeviceReminderDraft, DeviceReminderRecord,
 } from "@plainva/core";
+import { deviceUpdateSpan } from "@plainva/core";
 
 /**
  * The device's calendars and reminders, through one native plugin on both
@@ -31,7 +32,7 @@ export interface DevicePimNative {
   events(opts: { calendarId: string; fromTs: number; toTs: number }): Promise<{ events: DeviceEventRecord[] }>;
   event(opts: DeviceEventHandle): Promise<{ event: DeviceEventRecord | null }>;
   createEvent(opts: { calendarId: string; draft: DeviceEventDraft }): Promise<{ event: DeviceEventRecord }>;
-  updateEvent(opts: { handle: DeviceEventHandle; draft: DeviceEventDraft }): Promise<{ event: DeviceEventRecord }>;
+  updateEvent(opts: { handle: DeviceEventHandle; draft: DeviceEventDraft; span: "occurrence" | "series" }): Promise<{ event: DeviceEventRecord }>;
   deleteEvent(opts: DeviceEventHandle): Promise<void>;
   reminders(opts: { listId: string }): Promise<{ reminders: DeviceReminderRecord[] }>;
   reminder(opts: { id: string }): Promise<{ reminder: DeviceReminderRecord | null }>;
@@ -86,7 +87,7 @@ export function devicePimPort(): DevicePimPort {
     events: async (calendarId, fromTs, toTs) => (await DevicePim.events({ calendarId, fromTs, toTs })).events,
     event: async (handle) => (await DevicePim.event(handle)).event,
     createEvent: async (calendarId, draft) => (await DevicePim.createEvent({ calendarId, draft })).event,
-    updateEvent: async (handle, draft) => (await DevicePim.updateEvent({ handle, draft })).event,
+    updateEvent: async (handle, draft) => (await DevicePim.updateEvent({ handle, draft, span: deviceUpdateSpan(handle, draft) })).event,
     deleteEvent: (handle) => DevicePim.deleteEvent(handle),
     reminders: async (listId) => (await DevicePim.reminders({ listId })).reminders,
     reminder: async (id) => (await DevicePim.reminder({ id })).reminder,

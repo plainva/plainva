@@ -18,7 +18,7 @@
  * occurrence that happened to be open. Only the CHANGED fields travel.
  */
 
-import type { EventFormValues } from "./calendarForm";
+import { shiftDayKey, type EventFormValues } from "./calendarForm";
 
 /** A field of the form, as far as a human cares about it. */
 export type EventFieldKey =
@@ -95,6 +95,12 @@ export function hasEventChanges(before: EventFormValues, after: EventFormValues)
  * own start date, its own description, its own attendees, and takes over only
  * what the user actually edited on the occurrence they had open.
  */
+/** Whole days from `from` to `to` (both `YYYY-MM-DD`). */
+function dayDistance(from: string, to: string): number {
+  const day = (k: string) => Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10));
+  return Math.round((day(to) - day(from)) / 86_400_000);
+}
+
 export function applyEventChanges(base: EventFormValues, after: EventFormValues, changes: readonly EventChange[]): EventFormValues {
   const out: EventFormValues = { ...base };
   for (const c of changes) {
@@ -106,11 +112,16 @@ export function applyEventChanges(base: EventFormValues, after: EventFormValues,
         out.allDay = after.allDay;
         break;
       case "date":
-        // A date change on an occurrence moves the series ANCHOR when it is
-        // applied to all — that is what the user asked for, but it is also why
-        // the question names the change before it happens.
-        out.dayKey = after.dayKey;
-        out.endDayKey = after.endDayKey;
+        // A date change on an occurrence moves the whole series by the same
+        // number of days - the base is the series' own row, whose date is not
+        // the open occurrence's, so the day itself must not be copied over.
+        // That is what the user asked for, and why the question names the
+        // change before it happens.
+        {
+          const days = dayDistance(c.from.slice(0, 10), c.to.slice(0, 10));
+          out.dayKey = shiftDayKey(base.dayKey, days);
+          out.endDayKey = shiftDayKey(base.endDayKey, days);
+        }
         break;
       case "time":
         out.startTime = after.startTime;

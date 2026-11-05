@@ -585,9 +585,16 @@ export function undoDraftFor(before: PimEventRow, written: PimEventDraft): PimEv
   };
 }
 
+/** Minute precision: the edit sheet works in minutes, an event may carry seconds. */
+const minuteOf = (ts: number): number => Math.floor(ts / 60_000);
+
 /** True when the write changed when the event is, not only what it says. */
 export function movedInTime(before: PimEventRow, draft: PimEventDraft): boolean {
-  return before.allDay !== draft.allDay || before.start.ts !== draft.start.ts || before.end.ts !== draft.end.ts;
+  return (
+    before.allDay !== draft.allDay ||
+    minuteOf(before.start.ts) !== minuteOf(draft.start.ts) ||
+    minuteOf(before.end.ts) !== minuteOf(draft.end.ts)
+  );
 }
 
 /** "15:00", or the day for an all-day event or one that changed its day — for the message that names where it went. */
