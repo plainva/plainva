@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyEventChanges, describeEventChanges, emptyEventForm, hasEventChanges, type EventFormValues } from "@plainva/ui";
+import { applyEventChanges, describeEventChanges, emptyEventForm, hasEventChanges, movedInTime, type EventFormValues } from "@plainva/ui";
+import type { PimEventDraft, PimEventRow } from "@plainva/core";
 
 const base = (): EventFormValues => ({
   ...emptyEventForm("2026-08-11", "a1 cal"),
@@ -113,5 +114,27 @@ describe("applying a change to the whole series", () => {
     const m = master();
     applyEventChanges(m, { ...base(), title: "Neu" }, [{ field: "title", from: "a", to: "b" }]);
     expect(m.title).toBe("Jour fixe Produkt");
+  });
+});
+
+describe("movedInTime compares at the precision of the edit sheet", () => {
+  // An event whose start carries seconds (the phone's sheet works in minutes).
+  const start = Date.UTC(2026, 10, 5, 9, 0, 30);
+  const end = Date.UTC(2026, 10, 5, 9, 30, 30);
+  const before = { allDay: false, start: { ts: start }, end: { ts: end } } as unknown as PimEventRow;
+  const draft = (s: number, e: number): PimEventDraft =>
+    ({ title: "x", allDay: false, start: { ts: s }, end: { ts: e } }) as unknown as PimEventDraft;
+
+  it("a title-only edit of an event with seconds is not a move", () => {
+    expect(movedInTime(before, draft(start - 30_000, end - 30_000))).toBe(false);
+    expect(movedInTime(before, draft(start, end))).toBe(false);
+  });
+
+  it("a real move by a minute still is one", () => {
+    expect(movedInTime(before, draft(start + 60_000, end + 60_000))).toBe(true);
+  });
+
+  it("an all-day switch is one", () => {
+    expect(movedInTime(before, { ...draft(start, end), allDay: true } as PimEventDraft)).toBe(true);
   });
 });
