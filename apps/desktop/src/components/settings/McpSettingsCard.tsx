@@ -70,7 +70,7 @@ export function McpSettingsCard({ session, enabled, resting = false }: { session
     <SettingCard label={t("ai.mcp.title")}>
       {/* Fully local (plan P7): nothing listens — what an app does with what it reads, nobody here can see. */}
       {resting && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
-      <SettingRow label={t("ai.mcp.switch")} info={t("ai.mcp.switchDesc")}>
+      <SettingRow label={t("ai.mcp.switch")} desc={t("ai.mcp.switchLine")} info={t("ai.mcp.switchDesc")}>
         <Switch
           checked={enabled}
           label={t("ai.mcp.switch")}

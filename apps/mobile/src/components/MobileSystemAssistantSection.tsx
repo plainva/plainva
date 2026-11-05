@@ -50,6 +50,7 @@ export function MobileSystemAssistantSection({ session }: { session: AiSession }
           <Row
             wrap
             title={t("ai.system.find")}
+            subtitle={t("ai.system.findLine")}
             info={t("ai.system.findDesc")}
             end={<Switch checked={settings.systemFind} label={t("ai.system.find")} onChange={(on) => void session.updateSettings((s) => ({ ...s, systemFind: on }))} />}
             data-testid="ai-system-find"

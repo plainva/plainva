@@ -179,7 +179,8 @@ export function AiPolicyScreen({
             <Row
               wrap
               title={t("ai.web.settings.switch")}
-              subtitle={t("ai.web.settings.switchDesc")}
+              subtitle={t("ai.web.settings.switchLine")}
+              info={t("ai.web.settings.switchDesc")}
               end={<Switch checked={web.enabled} label={t("ai.web.settings.switch")} onChange={(enabled) => void session.setWebEnabled(enabled)} />}
               data-testid="settings-ai-web"
             />
