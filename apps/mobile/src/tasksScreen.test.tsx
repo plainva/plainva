@@ -135,11 +135,12 @@ describe("TasksScreen and a New task from elsewhere", () => {
     expect(sheet()).not.toBeNull();
   });
 
-  it("takes the request and opens nothing when the vault has no task database", async () => {
+  it("opens the sheet without a task database too: the task goes to today's daily note (plan Rückmeldungen 2026-11-05, E1)", async () => {
     env.taskDatabase = "";
     requestNew("task");
     await mount();
-    expect(sheet()).toBeNull();
+    expect(sheet()).not.toBeNull();
+    expect(document.querySelector('[data-testid="task-capture-daily"]')).not.toBeNull();
     expect(takePendingNew("task")).toBe(false);
   });
 });

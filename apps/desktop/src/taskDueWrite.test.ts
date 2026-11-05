@@ -70,7 +70,7 @@ describe("applyTaskDueChanges", () => {
     const outcome = await applyTaskDueChanges(deps, [line("Shopping.md", LIST, 3)]);
     expect(outcome.moved).toBe(1);
     expect(store.get("Shopping.md")).toBe(LIST.replace("📅 2026-10-03", "📅 2026-10-06"));
-    expect(outcome.lines).toEqual([{ path: "Shopping.md", ordinal: 3, text: "Tea ⏫ 📅 2026-10-06 🔁 every week", day: "2026-10-06" }]);
+    expect(outcome.lines).toEqual([{ path: "Shopping.md", ordinal: 3, text: "Tea ⏫ 📅 2026-10-06 🔁 every week", day: "2026-10-06", time: null }]);
   });
 
   it("gives a task without a date one — and undo takes it away again, byte for byte", async () => {
@@ -333,13 +333,48 @@ describe("applyTaskDueChanges with a time of day", () => {
     expect(store.get("Tasks/Offer.md")).toBe(DB_NOTE);
   });
 
-  it("never writes a time onto a checkbox: its 📅 holds the day", async () => {
+  it("writes a time after a checkbox's 📅 date, nothing else on the line, and undo takes it back (plan Rückmeldungen 2026-11-05, E3)", async () => {
     const { deps, store } = vault({ "Shopping.md": LIST });
-    // A checkbox change has no time field; a stray one from a caller is not read.
-    const change = { ...line("Shopping.md", LIST, 0), day: "2026-10-26", time: "10:00" } as TaskDueChange;
-    const outcome = await applyTaskDueChanges(deps, [change]);
+    const outcome = await applyTaskDueChanges(deps, [{ ...line("Shopping.md", LIST, 3), day: "2026-10-26", time: "10:00" }]);
     expect(outcome.moved).toBe(1);
-    expect(store.get("Shopping.md")).toBe(LIST.replace("Milk 📅 2026-10-02", "Milk 📅 2026-10-26"));
+    expect(store.get("Shopping.md")).toBe(LIST.replace("Tea ⏫ 📅 2026-10-03 🔁 every week", "Tea ⏫ 📅 2026-10-26 10:00 🔁 every week"));
+    expect(outcome.lines[0]).toMatchObject({ day: "2026-10-26", time: "10:00", text: "Tea ⏫ 📅 2026-10-26 10:00 🔁 every week" });
+    await applyTaskDueChanges(deps, outcome.undo);
+    expect(store.get("Shopping.md")).toBe(LIST);
+  });
+
+  it("changes a checkbox's time, keeps it on a plain move, and takes it away with no time", async () => {
+    const timed = LIST.replace("Milk 📅 2026-10-02", "Milk 📅 2026-10-02 09:00");
+    const { deps, store } = vault({ "Shopping.md": timed });
+    const first = line("Shopping.md", timed, 0);
+    await applyTaskDueChanges(deps, [{ ...first, day: "2026-10-02", time: "17:30" }]);
+    expect(store.get("Shopping.md")).toBe(LIST.replace("Milk 📅 2026-10-02", "Milk 📅 2026-10-02 17:30"));
+    // "All to today" and the like name no time: the time stays.
+    const moved = await applyTaskDueChanges(deps, [{ ...line("Shopping.md", store.get("Shopping.md")!, 0), day: "2026-10-06" }]);
+    expect(store.get("Shopping.md")).toBe(LIST.replace("Milk 📅 2026-10-02", "Milk 📅 2026-10-06 17:30"));
+    expect(moved.undo).toEqual([expect.not.objectContaining({ time: expect.anything() })]);
+    const cleared = await applyTaskDueChanges(deps, [{ ...line("Shopping.md", store.get("Shopping.md")!, 0), day: "2026-10-06", time: null }]);
+    expect(store.get("Shopping.md")).toBe(LIST.replace("Milk 📅 2026-10-02", "Milk 📅 2026-10-06"));
+    await applyTaskDueChanges(deps, cleared.undo);
+    expect(store.get("Shopping.md")).toBe(LIST.replace("Milk 📅 2026-10-02", "Milk 📅 2026-10-06 17:30"));
+  });
+
+  it("gives a checkbox without a date its date and time, and taking the date takes the time — undo brings both back", async () => {
+    const { deps, store } = vault({ "Shopping.md": LIST });
+    await applyTaskDueChanges(deps, [{ ...line("Shopping.md", LIST, 1), day: "2026-10-26", time: "08:15" }]);
+    expect(store.get("Shopping.md")).toBe(LIST.replace("- [ ] Bread\n", "- [ ] Bread 📅 2026-10-26 08:15\n"));
+    const dated = store.get("Shopping.md")!;
+    const gone = await applyTaskDueChanges(deps, [{ ...line("Shopping.md", dated, 1), day: null }]);
+    expect(store.get("Shopping.md")).toBe(LIST);
+    await applyTaskDueChanges(deps, gone.undo);
+    expect(store.get("Shopping.md")).toBe(dated);
+  });
+
+  it("skips a checkbox time that is not a time of day", async () => {
+    const { deps, store } = vault({ "Shopping.md": LIST });
+    const outcome = await applyTaskDueChanges(deps, [{ ...line("Shopping.md", LIST, 0), day: "2026-10-26", time: "25:00" }]);
+    expect(outcome).toMatchObject({ moved: 0, skipped: 1 });
+    expect(store.get("Shopping.md")).toBe(LIST);
   });
 
   it("names the day and the time in the notice, or that the date is gone", async () => {

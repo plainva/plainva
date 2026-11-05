@@ -1,4 +1,4 @@
-import { stripTasksPriority, tasksDescription, type TaskRecord } from "@plainva/core";
+import { stripTasksPriority, taskNameText, tasksDescription, type TaskRecord } from "@plainva/core";
 import type { TaskDbRow } from "./taskDatabase";
 import type { PlannerRow, TaskPriority } from "./taskPlanner";
 import { calendarDay } from "./today";
@@ -58,7 +58,8 @@ export function plannerRowsFromTasks(tasks: readonly TaskRecord[]): PlannerRow[]
     path: task.path,
     ordinal: task.ordinal,
     line: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) },
-    title: taskDisplayText(task.text) || task.text,
+    // A journal task is named without the time it was noted (`taskNameText`).
+    title: taskDisplayText(taskNameText(task)) || taskNameText(task) || task.text,
     noteTitle: task.title,
     state: task.state ?? (task.done ? "done" : "open"),
     due: task.due,

@@ -4772,7 +4772,8 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-datejump-time > svg { flex-shrink: 0; color: var(--text-muted); }
 .pv-datejump-tlabel { margin-right: auto; }
 .pv-datejump-tfield { width: auto; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
-.pv-datejump-tnote { flex: 1 1 100%; }
+/* The reminder row's sentence takes the room beside its switch. */
+.pv-datejump-tnote { flex: 1 1 0; min-width: 0; }
 .pv-datejump-due--sheet .pv-datejump-qitem { min-height: var(--touch-sm); font-size: var(--text-md); }
 .pv-datejump-due--sheet .pv-datejump-qday { font-size: var(--text-sm); }
 .pv-datejump-due--sheet .pv-datejump-time { min-height: var(--touch-sm); font-size: var(--text-md); }

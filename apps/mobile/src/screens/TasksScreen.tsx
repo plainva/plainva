@@ -4,11 +4,14 @@ import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptLis
 import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
 import { convertDueColumnToDateTime, offerDueTimeColumn, TaskPriorityFlag } from "@plainva/ui";
+import { checkboxTextOfCapture, createTaskDatabase, taskDatabaseLabels } from "@plainva/ui";
+import { subtaskProgress } from "@plainva/ui";
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarPlus, Database, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
 import { dueTimeOf, overdueToDayChanges, TaskCheckButton, taskDueMovedText, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
+import { useCheckboxReminders } from "../hooks/useCheckboxReminders";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { applyTaskStatusOption, Button, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, noteDisplayName, parseBaseConfig, repeatFromNamespace, type RepeatRule, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, toast, toggleTaskAtIndex } from "@plainva/ui";
 import {
@@ -26,11 +29,12 @@ import { TemplateKeysNotice } from "../components/TemplateKeysNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLinkTargetLookup } from "../lib/useLinkTargetLookup";
-import { getMobileSettings } from "../services/mobileSettings";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { configuredNoteType } from "../services/newNote";
 import { phoneTemplateVault } from "../services/templateVault";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
-import { mSelect } from "../services/mobileDialogs";
+import { mPrompt, mSelect } from "../services/mobileDialogs";
+import { captureJournalEntry } from "../services/journalService";
 import { openLink } from "../services/openLink";
 import { setTaskDone } from "../services/taskCompletionAction";
 import { getPimCache, pimForegroundSync, pimSyncNow } from "../services/pim/pimService";
@@ -413,10 +417,11 @@ export function TasksScreen({
    * a task without a date gets one. "All to today" at the Overdue heading moves
    * the whole section. Every move answers with a toast that carries Undo — the
    * same write, pointed back at the days that were there. The picker offers
-   * quick choices and a time (wishes 2026-10-24, E2); a time only where the
-   * task can hold one — a database entry, not a checkbox's `📅`.
+   * quick choices and a time (wishes 2026-10-24, E2) — for a checkbox too,
+   * written right after its `📅` date (plan Rückmeldungen 2026-11-05, E3).
    */
-  const [dueTarget, setDueTarget] = useState<{ value: string | null; time: string | null; timeAllowed: boolean; change: (pick: DuePick) => TaskDueChange } | null>(null);
+  const [dueTarget, setDueTarget] = useState<{ value: string | null; time: string | null; checkbox: boolean; change: (pick: DuePick) => TaskDueChange } | null>(null);
+  const checkboxReminders = useCheckboxReminders();
   const applyDue = useCallback(
     async (changes: readonly TaskDueChange[]): Promise<TaskDueOutcome | null> => {
       if (changes.length === 0) return null;
@@ -427,7 +432,7 @@ export function TasksScreen({
         if (moved.size > 0) {
           setTasks((prev) => prev.map((tk) => {
             const hit = moved.get(`${tk.path}#${tk.ordinal}`);
-            return hit ? { ...tk, text: hit.text, due: hit.day } : tk;
+            return hit ? { ...tk, text: hit.text, due: hit.day, dueTime: hit.time ?? undefined } : tk;
           }));
         }
         return outcome;
@@ -450,14 +455,14 @@ export function TasksScreen({
   const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || (pick.day === target.value && (!target.timeAllowed || pick.time === target.time))) return;
+    if (!target || (pick.day === target.value && pick.time === target.time)) return;
     void moveDue([target.change(pick)], () => taskDueMovedText(pick));
   };
   const dbDueChange = (path: string) => (pick: DuePick): TaskDueChange => ({ source: "database", path, day: pick.day, time: pick.time });
-  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day });
+  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day, time: pick.time });
   /** Opens the date sheet for a database entry — or not at all when its database has no date column. */
-  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, time: dueTimeOf(row.dueMinutes), timeAllowed: true, change: dbDueChange(row.path) }) : undefined);
-  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) });
+  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, time: dueTimeOf(row.dueMinutes), checkbox: false, change: dbDueChange(row.path) }) : undefined);
+  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, time: task.dueTime ?? null, checkbox: true, change: noteDueChange(task) });
 
   /**
    * Writes the NEXT occurrence of a repeating task: a copy of the note, open
@@ -500,15 +505,51 @@ export function TasksScreen({
    */
   const [capture, setCapture] = useState<{ providerList: string | null; text: string } | null>(null);
   const createDbTask = useCallback((text = "") => {
-    if (!taskDb) return;
+    // Without a task database the sheet opens all the same (plan Rückmeldungen
+    // 2026-11-05, E1): the task becomes a checkbox in today's daily note. The
+    // request used to be taken and dropped, and "+" did nothing.
+    if (!taskDb) {
+      setCapture({ providerList: null, text });
+      return;
+    }
     // The list the database names (C4, S17): the chip only appears when there IS one.
     void providerListLabel(promotionAdapter, taskDb)
       .catch(() => null)
       .then((name) => setCapture({ providerList: name ?? null, text }));
   }, [taskDb, promotionAdapter]);
+  /** A task database made from the capture's hint: named, created, set for this vault — the sheet stays open and now makes a task note. */
+  const createDatabaseFromCapture = useCallback(async () => {
+    const name = await mPrompt({
+      title: t("settings.taskDatabaseCreate"),
+      message: t("settings.taskDatabaseCreateName"),
+      initial: t("settings.taskDatabaseDefaultName"),
+    });
+    if (name.cancelled || !name.value.trim()) return;
+    const path = await createTaskDatabase(vault.files, name.value, taskDatabaseLabels((key) => t(key))).catch((e: unknown) => {
+      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
+      return null;
+    });
+    if (!path) return;
+    await updateMobileSettings({ taskDatabase: path });
+    // No watcher on the phone: the index is told, so the tab lists the database now.
+    void vault.reindexPaths([path]);
+    setTaskDb(path);
+    setTick((x) => x + 1);
+  }, [vault, t]);
   const createFromCapture = useCallback(
     async (result: CaptureResult, alsoAtProvider: boolean) => {
-      if (!taskDb) return;
+      if (!taskDb) {
+        // The rule Siri and Shortcuts follow (intentService): a checkbox line in
+        // the journal of the moment, through the journal's one writer — with
+        // what the capture recognised as the Tasks plugin's marks.
+        const text = checkboxTextOfCapture(result);
+        if (!text) return;
+        const written = await captureJournalEntry(vault, { text, task: true });
+        if (!written) return;
+        setCapture(null);
+        setTick((x) => x + 1);
+        return;
+      }
       const res = await createTaskInDatabase({
         adapter: promotionAdapter,
         dbPath: taskDb,
@@ -555,8 +596,8 @@ export function TasksScreen({
   );
 
   // "New task" from the FAB or the palette (Design-Runde E4): the shell opened
-  // this tab and parked the request. Without a task database nothing can be
-  // created — the section above says so, and the request is simply taken.
+  // this tab and parked the request; with or without a task database it opens
+  // the capture sheet.
   useEffect(() => consumePendingNew("task", createDbTask), [createDbTask]);
 
   const open = (task: TaskRecord) => {
@@ -589,6 +630,9 @@ export function TasksScreen({
   // Subtasks under their task (E6): an undated subtask of an open task is
   // listed under it rather than on its own in the Inbox.
   const planner = useMemo(() => buildPlanner(subtasks ? plannerRowsForTree(plannerRows) : plannerRows, todayKey), [plannerRows, subtasks, todayKey]);
+  // "1 of 3 done" at a task with subtasks (P11, 2026-11-05): from every checkbox
+  // the screen knows, so a filter that hides a subtask does not change the count.
+  const progress = useMemo(() => subtaskProgress(plannerRowsFromTasks(visibleTasks)), [visibleTasks]);
   // What was finished today, folded under Today (E5).
   const doneToday = useMemo(() => doneTasksOnDay(plannerRows, todayKey), [plannerRows, todayKey]);
   const openCount = useMemo(() => plannerRows.filter((r) => isOpenState(r.state)).length, [plannerRows]);
@@ -820,6 +864,7 @@ export function TasksScreen({
             linkLookup={linkLookup}
             subtasks={subtasks ? plannerRows : undefined}
             details={details}
+            progress={progress}
             doneToday={list === "today" ? doneToday : undefined}
           />
         )
@@ -951,16 +996,14 @@ export function TasksScreen({
       )}
 
       {loading ? null : count === 0 ? (
-        /* The same flow the section header's button runs — which only exists
-           when a task database is set, so the offer appears exactly when it can
-           be kept (N7). */
+        /* The same flow the section header's button runs. Without a task
+           database it is the same sheet too: the task lands in today's daily
+           note (E1, 2026-11-05) — the offer used to be missing there. */
         <EmptyState
           action={
-            taskDb ? (
-              <Button data-testid="tasks-empty-new" onClick={() => createDbTask()} variant="tonal">
-                {t("tasks.newDbTask")}
-              </Button>
-            ) : undefined
+            <Button data-testid="tasks-empty-new" onClick={() => createDbTask()} variant="tonal">
+              {t("tasks.newDbTask")}
+            </Button>
           }
           title={t("tasks.title")}
         >
@@ -1090,12 +1133,13 @@ export function TasksScreen({
           onClose={() => setCapture(null)}
           onSubmit={createFromCapture}
           onSwitchToJournal={onCaptureJournal ? (text) => { setCapture(null); onCaptureJournal(text); } : undefined}
+          daily={taskDb ? undefined : { onCreateDatabase: () => void createDatabaseFromCapture() }}
         />
       )}
 
       {rowKit.element}
 
-      {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} timeAllowed={dueTarget.timeAllowed} onPick={pickDue} onClose={() => setDueTarget(null)} />}
+      {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} checkboxReminders={dueTarget.checkbox ? checkboxReminders : undefined} onPick={pickDue} onClose={() => setDueTarget(null)} />}
 
       <TaskDuplicatesSheet
         dupes={dupes}

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarDays, ChevronDown, FileText, ListTodo, Trash2 } from "lucide-react";
 import { doneTasksOnDay, dueTimeOf, errorText, noteDisplayName, setPendingSearchJump, TaskCheckButton, TaskDoneFold, taskDueMovedText, TaskTitle, toast, useDoneFold, useTodayKey, type DuePick, type PlannerRow, type TaskDueChange } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
+import { useCheckboxReminders } from "../hooks/useCheckboxReminders";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { loadPhoneDueTasks, taskJumpTerm, tickPhoneDueTask, type PhoneDueTasks } from "../services/dueTasks";
 import { buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, DateJumpPicker, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, isOpenState, journalToday, RowList, Row, SectionLabel, useJournalDayKey, useWeekStartDay } from "@plainva/ui";
@@ -123,6 +124,7 @@ export function TodayScreen({
   // 2026-10-06, W2), as in the tasks screen: the same sheet, the same write,
   // the same notice with Undo. The task then leaves the day it was listed under.
   const [dueTarget, setDueTarget] = useState<PlannerRow | null>(null);
+  const checkboxReminders = useCheckboxReminders();
   const [dueTick, setDueTick] = useState(0);
   const moveDue = (changes: readonly TaskDueChange[], pick: DuePick | null) => {
     void moveTaskDueOnPhone(vault, taskDueKey, changes)
@@ -615,16 +617,17 @@ export function TodayScreen({
         <TaskDueSheet
           value={dueTarget.due}
           time={dueTimeOf(dueTarget.dueMinutes)}
-          timeAllowed={dueTarget.source === "database"}
+          checkboxReminders={dueTarget.source === "note" ? checkboxReminders : undefined}
           onClose={() => setDueTarget(null)}
           onPick={(pick) => {
             const target = dueTarget;
             setDueTarget(null);
-            if (pick.day === target.due && (target.source !== "database" || pick.time === dueTimeOf(target.dueMinutes))) return;
+            if (pick.day === target.due && pick.time === dueTimeOf(target.dueMinutes)) return;
             // Each source the way it stores its day: the date column of a
-            // database entry (with its time), the `📅` of a checkbox line (`applyTaskDueChanges`).
+            // database entry, the `📅` of a checkbox line with its time after
+            // it (`applyTaskDueChanges`; plan Rückmeldungen 2026-11-05, E3).
             if (target.source === "database") moveDue([{ source: "database", path: target.path, day: pick.day, time: pick.time }], pick);
-            else if (target.line) moveDue([{ source: "note", path: target.path, task: target.line, day: pick.day }], pick);
+            else if (target.line) moveDue([{ source: "note", path: target.path, task: target.line, day: pick.day, time: pick.time }], pick);
           }}
         />
       )}

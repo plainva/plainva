@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, readFrontmatterPath, readTasksMetadata, resolveTaskOrdinal, setChecklistTaskDue, setFrontmatterPath, setTasksField, type TextChange } from "@plainva/core";
+import { deleteFrontmatterPath, readFrontmatterPath, readTasksMetadata, resolveTaskOrdinal, setChecklistTaskDue, setFrontmatterPath, setTasksDue, type TextChange } from "@plainva/core";
 import i18n from "i18next";
 import { parseDueValue } from "../pim/dueTime";
 import { formatPickedDay } from "./dueLabel";
@@ -16,8 +16,9 @@ import { isOpenState, type PlannerRow } from "./taskPlanner";
  * keeps its due value in the database's date column; a move changes the DAY
  * there, so a task due at 14:00 stays due at 14:00 — unless the change names a
  * time of day too (wishes 2026-10-24, E2: "Change due date" with a time). A
- * checkbox carries the Tasks plugin's `📅` field on its line, which holds a
- * day and nothing else: a checkbox has no time to set.
+ * checkbox carries the Tasks plugin's `📅` field on its line, and its time
+ * right after the date (`📅 2026-11-06 14:30`, plan Rückmeldungen 2026-11-05,
+ * E3) — the one spelling Plainva reads and reminds of.
  *
  * Every write answers with what it would take to put things back — the same
  * kind of change, pointing at the day that was there — so "Undo" is this
@@ -33,7 +34,7 @@ export interface TaskDueLineRef {
 }
 
 /**
- * `day: null` takes the date away.
+ * `day: null` takes the date away (and a checkbox's time with it).
  *
  * A database entry may name a time of day as well (`time`, 24-hour `HH:MM`):
  * absent — the time that is written stays as it is (a plain move, "All to
@@ -42,10 +43,13 @@ export interface TaskDueLineRef {
  * a zone after it stay), or as `YYYY-MM-DDTHH:MM` where there was none, the
  * form a captured task gets. `exact` is what Undo carries: the whole value as
  * it stood, written back verbatim.
+ *
+ * A checkbox's `time` follows the same three meanings: absent keeps a time
+ * written after the date, `null` removes it, a time writes `📅 YYYY-MM-DD HH:MM`.
  */
 export type TaskDueChange =
   | { source: "database"; path: string; day: string | null; time?: string | null; exact?: string }
-  | { source: "note"; path: string; task: TaskDueLineRef; day: string | null };
+  | { source: "note"; path: string; task: TaskDueLineRef; day: string | null; time?: string | null };
 
 /**
  * Both writes are the shell's entry for a change of a note where it lies
@@ -81,7 +85,7 @@ export interface TaskDueOutcome {
   /** Notes with checkboxes that were rewritten, for the shell's index update. */
   notePaths: string[];
   /** The checkbox lines that moved, with the text they carry now — what a view shows until the index catches up. */
-  lines: Array<{ path: string; ordinal: number; text: string; day: string | null }>;
+  lines: Array<{ path: string; ordinal: number; text: string; day: string | null; time?: string | null }>;
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -135,6 +139,10 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
       out.skipped += 1;
       continue;
     }
+    if (change.source === "note" && change.time != null && !DUE_TIME.test(change.time)) {
+      out.skipped += 1;
+      continue;
+    }
     if (change.source === "note") {
       const list = byNote.get(change.path);
       if (list) list.push(change);
@@ -185,15 +193,18 @@ export async function applyTaskDueChanges(deps: TaskDueDeps, changes: readonly T
         for (const change of list) {
           // The ordinal comes from a listing; the note may have changed since.
           const ordinal = resolveTaskOrdinal(content, change.task);
-          const next = ordinal < 0 ? null : setChecklistTaskDue(content, ordinal, change.day);
+          const time = change.day === null ? undefined : change.time;
+          const next = ordinal < 0 ? null : setChecklistTaskDue(content, ordinal, change.day, time);
           if (!next || !next.changed) {
             skipped += 1;
             continue;
           }
           content = next.content;
-          const text = setTasksField(change.task.text, "due", change.day);
-          lines.push({ path, ordinal, text, day: change.day });
-          undo.push({ source: "note", path, task: { ordinal, text, ...(change.task.taskId ? { taskId: change.task.taskId } : {}) }, day: readTasksMetadata(change.task.text).due });
+          const text = setTasksDue(change.task.text, change.day, time);
+          lines.push({ path, ordinal, text, day: change.day, time: readTasksMetadata(text).dueTime });
+          // Back to the day it had — and, where this change named a time or took the date, to the time it had (or none).
+          const was = readTasksMetadata(change.task.text);
+          undo.push({ source: "note", path, task: { ordinal, text, ...(change.task.taskId ? { taskId: change.task.taskId } : {}) }, day: was.due, ...(time !== undefined || change.day === null ? { time: was.due ? was.dueTime : null } : {}) });
         }
         return { content, undo, lines, skipped };
       };

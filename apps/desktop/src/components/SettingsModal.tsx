@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, toast } from "@plainva/ui";
+import { clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, taskDatabaseLabels, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -625,16 +625,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     });
     if (name === null) return;
     try {
-      const path = await createTaskDatabase(vaultAdapter, name, {
-        viewTable: t("database.viewTable"),
-        viewBoard: t("database.viewBoard"),
-        viewTimeline: t("database.viewTimeline"),
-        doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
-        dueKey: t("tasks.dbDueKey"),
-        statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
-        priorityKey: t("tasks.dbPriorityKey"),
-        priorityOptions: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")],
-      });
+      const path = await createTaskDatabase(vaultAdapter, name, taskDatabaseLabels((key) => t(key)));
       if (!path) return;
       // Optimistic list entry — the index picks the new file up via the
       // watcher, but the dropdown should show the selection immediately.

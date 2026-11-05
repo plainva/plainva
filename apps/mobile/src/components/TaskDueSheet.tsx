@@ -14,7 +14,7 @@ import { SheetGrip } from "./SheetGrip";
 export function TaskDueSheet({
   value,
   time,
-  timeAllowed,
+  checkboxReminders,
   onPick,
   onClose,
 }: {
@@ -22,8 +22,8 @@ export function TaskDueSheet({
   value: string | null;
   /** The time it carries now (`HH:MM`); null when it is due all day. */
   time: string | null;
-  /** False where the task keeps a day only (a checkbox in a note). */
-  timeAllowed: boolean;
+  /** A checkbox in a note: the vault's "Checkboxes with a time" switch (`useCheckboxReminders`). */
+  checkboxReminders?: { on: boolean; onChange: (on: boolean) => void };
   onPick: (pick: DuePick) => void;
   onClose: () => void;
 }) {
@@ -38,7 +38,7 @@ export function TaskDueSheet({
         <DuePicker
           day={value}
           time={time}
-          timeAllowed={timeAllowed}
+          checkboxReminders={checkboxReminders}
           todayKey={todayKey}
           weekStart={weekStart}
           onPick={onPick}

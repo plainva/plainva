@@ -40,6 +40,31 @@ export function plannerRowsForTree(rows: readonly PlannerRow[]): PlannerRow[] {
   });
 }
 
+/** How many of a task's direct subtasks are done. */
+export interface SubtaskProgress {
+  done: number;
+  total: number;
+}
+
+/**
+ * "1 of 3 done" at a task with subtasks (plan Rückmeldungen 2026-11-05, P11):
+ * per task row id, its DIRECT subtasks — a subtask's own subtasks count at
+ * that subtask. A cancelled subtask was not done and is not to do either, so
+ * it does not count. Tasks without subtasks are not in the map.
+ */
+export function subtaskProgress(rows: readonly PlannerRow[]): Map<string, SubtaskProgress> {
+  const ids = new Set(rows.map((row) => row.id));
+  const out = new Map<string, SubtaskProgress>();
+  for (const row of rows) {
+    if (!row.parentId || !ids.has(row.parentId) || row.state === "cancelled") continue;
+    const entry = out.get(row.parentId) ?? { done: 0, total: 0 };
+    entry.total += 1;
+    if (row.state === "done") entry.done += 1;
+    out.set(row.parentId, entry);
+  }
+  return out;
+}
+
 /** Document order inside one note: the order the subtasks were written in. */
 function byOrdinal(a: PlannerRow, b: PlannerRow): number {
   return (a.ordinal ?? 0) - (b.ordinal ?? 0) || comparePlannerRows(a, b);

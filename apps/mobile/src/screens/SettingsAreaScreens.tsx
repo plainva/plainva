@@ -6,7 +6,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
 import { ZipBackupGroup } from "../components/ZipBackupGroup";
-import { errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
+import { errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, taskDatabaseLabels, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
 import { noteTypeOf } from "../services/newNote";
@@ -217,16 +217,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       if (name.cancelled || !name.value.trim()) return;
       // The scaffold is the shared one, so a database created here is the same
       // file the desktop would have written — same views, same status options.
-      const path = await createTaskDatabase(vault.files, name.value, {
-        viewTable: t("database.viewTable"),
-        viewBoard: t("database.viewBoard"),
-        viewTimeline: t("database.viewTimeline"),
-        doneKey: t("tasks.dbDoneKey", { defaultValue: "done" }),
-        dueKey: t("tasks.dbDueKey"),
-        statusOptions: [t("tasks.dbStatusOpen"), t("tasks.dbStatusInProgress"), t("tasks.dbStatusDone")],
-        priorityKey: t("tasks.dbPriorityKey"),
-        priorityOptions: [t("tasks.priorityHigh"), t("tasks.priorityMedium"), t("tasks.priorityLow")],
-      }).catch((e: unknown) => {
+      const path = await createTaskDatabase(vault.files, name.value, taskDatabaseLabels((key) => t(key))).catch((e: unknown) => {
         // Said with its reason (Sammelplan § 3.63 no. 1): a refusal — a member
         // without write access in an encrypted workspace — said nothing here.
         toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));

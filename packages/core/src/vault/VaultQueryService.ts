@@ -33,6 +33,7 @@ import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
 import { decodeIndexedProperty } from "./indexedProperty.js";
 import { EDITED_AT_SQL } from "./editedAt.js";
 import { isHiddenPath, visiblePathSql } from "./internalPath.js";
+import { splitJournalStamp } from "../journal.js";
 
 export { EDITED_AT_SQL };
 
@@ -181,6 +182,12 @@ export interface TaskRecord extends ScannedTask {
   /** True when the note opts out of task aggregation (`plainva.tasks: false`
    * in its frontmatter) — the view hides these by default. */
   excluded: boolean;
+  /**
+   * The journal stamp in front of the text (`- [ ] 10:15 Call Anna`) — the
+   * time of the entry, not part of the task's name (`taskNameText`). Only for
+   * a checkbox in a daily note, where the journal writes; `text` keeps it.
+   */
+  journalTime?: string;
 }
 
 /** Body/tags/ctime of one note, for content-rendering views (plan Pinboard P2). */
@@ -667,8 +674,13 @@ export class VaultQueryService {
       // `plainva.tasks: false` in its frontmatter (templates, drafts, …). The
       // frontmatter parse only runs for notes that actually contain tasks.
       const excluded = readFrontmatterPath(content, ["plainva", "tasks"]) === false;
+      // A daily note is where the journal writes its tasks, each behind the
+      // time it was noted (plan Rückmeldungen 2026-11-05): that stamp is the
+      // entry's, not the task's name. In any other note the text is the name.
+      const daily = this.dayOfPath?.(r.path) != null;
       for (const task of scanned) {
-        out.push({ path: r.path, title, excluded, ...task });
+        const stamp = daily ? splitJournalStamp(task.text) : null;
+        out.push({ path: r.path, title, excluded, ...task, ...(stamp ? { journalTime: stamp.time } : {}) });
       }
     }
     return out;

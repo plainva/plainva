@@ -53,6 +53,9 @@ const SITES: Site[] = [
   { file: "apps/mobile/src/EditorHost.tsx", writer: "createInlineBase", calls: 1, how: "the sentence of a new database, with its reason", says: [said("newDatabase")], within: 900 },
   { file: "apps/desktop/src/components/SettingsModal.tsx", writer: "createTaskDatabase", calls: 1, how: "the sentence of a new database, with its reason", says: [said("newDatabase")], within: 1500 },
   { file: "apps/mobile/src/screens/SettingsAreaScreens.tsx", writer: "createTaskDatabase", calls: 1, how: "the sentence of a new database, with its reason", says: [said("newDatabase")], within: 900 },
+  // The task database made from the hint of the task capture (plan Rückmeldungen 2026-11-05, E1).
+  { file: "apps/desktop/src/components/tasks/TasksView.tsx", writer: "createTaskDatabase", calls: 1, how: "the sentence of a new database, with its reason", says: [said("newDatabase")], within: 900 },
+  { file: "apps/mobile/src/screens/TasksScreen.tsx", writer: "createTaskDatabase", calls: 1, how: "the sentence of a new database, with its reason", says: [said("newDatabase")], within: 300 },
   // ── A new template (§ 3.134 no. 3) ──
   { file: "apps/desktop/src/AppShell.tsx", writer: "createNewTemplate", calls: 1, how: "the sentence of a new template, with its reason", says: [said("newTemplate")], within: 700 },
   { file: "apps/desktop/src/components/BaseViewer.tsx", writer: "createNewTemplate", calls: 1, how: "the sentence of a new template, with its reason", says: [said("newTemplate")], within: 800 },

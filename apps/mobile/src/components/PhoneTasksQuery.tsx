@@ -10,6 +10,7 @@ import {
   TASKS_PLUGIN_SETTINGS_PATH,
   TasksQueryBlock,
   toast,
+  dueTimeOf,
   useTasksForQueries,
   useTasksPluginSettings,
   useTodayKey,
@@ -19,6 +20,7 @@ import {
   getPlatformServices,
 } from "@plainva/ui";
 import { TaskDueSheet } from "./TaskDueSheet";
+import { useCheckboxReminders } from "../hooks/useCheckboxReminders";
 import { SwipeRow } from "./SwipeRow";
 import { useTaskRowActions, type MutateCheckbox } from "./useTaskRowActions";
 import { taskJumpTerm } from "../services/dueTasks";
@@ -64,6 +66,7 @@ export function PhoneTasksQuery({ vault, source, notePath, onOpenNote, onEditQue
   const pluginSettings = useTasksPluginSettings(vault, key, readSettings);
   const linkLookup = useLinkTargetLookup(vault, version);
   const [dueRow, setDueRow] = useState<PlannerRow | null>(null);
+  const checkboxReminders = useCheckboxReminders();
 
   /** Every write of a task line: through the editor for this note, else through the vault. */
   const mutateCheckbox = useCallback<MutateCheckbox>(
@@ -157,14 +160,15 @@ export function PhoneTasksQuery({ vault, source, notePath, onOpenNote, onEditQue
           {dueRow && (
             <TaskDueSheet
               value={dueRow.due}
-              time={null}
-              timeAllowed={false}
+              time={dueTimeOf(dueRow.dueMinutes)}
+              checkboxReminders={checkboxReminders}
               onClose={() => setDueRow(null)}
               onPick={(pick) => {
                 const row = dueRow;
                 setDueRow(null);
                 const ref = refOf(row);
-                if (ref && pick.day !== row.due) void mutateCheckbox(ref, (text, ordinal) => setChecklistTaskDue(text, ordinal, pick.day), (r) => r);
+                // The time goes right after the `📅` date (plan Rückmeldungen 2026-11-05, E3); no date takes it along.
+                if (ref && (pick.day !== row.due || pick.time !== dueTimeOf(row.dueMinutes))) void mutateCheckbox(ref, (text, ordinal) => setChecklistTaskDue(text, ordinal, pick.day, pick.day === null ? undefined : pick.time), (r) => r);
               }}
             />
           )}

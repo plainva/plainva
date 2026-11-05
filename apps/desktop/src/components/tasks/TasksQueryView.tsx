@@ -20,6 +20,7 @@ import {
   TasksQueryBlock,
   taskRowActions,
   toast,
+  dueTimeOf,
   useTasksForQueries,
   useTasksPluginSettings,
   useTodayKey,
@@ -30,6 +31,7 @@ import {
   type TaskPriority,
   type TaskRowSheet,
 } from "@plainva/ui";
+import { useCheckboxReminders } from "../../hooks/useCheckboxReminders";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { useVault } from "../../contexts/VaultContext";
 import { writeTaskNote } from "../../services/taskCompletion";
@@ -76,6 +78,7 @@ export function TasksQueryView({ source, notePath, readOnly, onOpenPath, onEditQ
   const [stateMenu, setStateMenu] = useState<{ at: { x: number; y: number }; row: PlannerRow } | null>(null);
   const [priorityMenu, setPriorityMenu] = useState<{ at: { x: number; y: number }; row: PlannerRow } | null>(null);
   const [dueTarget, setDueTarget] = useState<{ anchorRef: { current: HTMLElement | null }; row: PlannerRow } | null>(null);
+  const checkboxReminders = useCheckboxReminders();
 
   const links = useMemo<InlineLinkHandlers>(() => ({
     onOpenNote: (target, newTab, kind, fromPath) => {
@@ -143,8 +146,9 @@ export function TasksQueryView({ source, notePath, readOnly, onOpenPath, onEditQ
   const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || pick.day === target.row.due) return;
-    void writeLine(target.row, (text, ordinal) => setChecklistTaskDue(text, ordinal, pick.day));
+    if (!target || (pick.day === target.row.due && pick.time === dueTimeOf(target.row.dueMinutes))) return;
+    // The time goes right after the `📅` date (plan Rückmeldungen 2026-11-05, E3); no date takes it along.
+    void writeLine(target.row, (text, ordinal) => setChecklistTaskDue(text, ordinal, pick.day, pick.day === null ? undefined : pick.time));
   };
   const applyPriority = (rank: TaskPriority) => {
     const target = priorityMenu;
@@ -208,8 +212,8 @@ export function TasksQueryView({ source, notePath, readOnly, onOpenPath, onEditQ
         {dueTarget && (
           <DuePicker
             day={dueTarget.row.due}
-            time={null}
-            timeAllowed={false}
+            time={dueTimeOf(dueTarget.row.dueMinutes)}
+            checkboxReminders={checkboxReminders ?? undefined}
             todayKey={today}
             weekStart={weekStart}
             onPick={pickDue}

@@ -45,13 +45,15 @@ export function TaskPlannerNav({ variant, value, onChange, counts, allCount, tag
     list === "today" ? counts.overdue + counts.today : list === "upcoming" ? counts.upcoming : list === "inbox" ? counts.inbox : list === "all" ? allCount : null;
 
   if (variant === "segment") {
+    // Today carries its number always; the chosen list carries its own as
+    // well (plan Rückmeldungen 2026-11-05, P11) — the rail shows every count.
     return (
       <Segmented
         ariaLabel={t("tasks.plannerLists")}
         className="pv-planner-segment"
         options={TASK_VIEW_LISTS.map((list) => {
-          const n = countOf(list);
-          return { value: list, label: n && list === "today" ? `${t(LIST_KEY[list])} ${n}` : t(LIST_KEY[list]), testId: `tasks-list-${list}` };
+          const n = list === "done" ? counts.done : countOf(list);
+          return { value: list, label: n && (list === "today" || list === value) ? `${t(LIST_KEY[list])} ${n}` : t(LIST_KEY[list]), testId: `tasks-list-${list}` };
         })}
         value={value}
         onChange={onChange}

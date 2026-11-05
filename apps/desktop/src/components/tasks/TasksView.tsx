@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
-import { type PimSyncProblem, isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
+import { type PimSyncProblem, isOpenTaskState, taskNameText, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
 import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { Select } from "../Select";
-import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
+import { useVault, templateFolderKey, defaultCalendarKey, taskDatabaseKey } from "../../contexts/VaultContext";
+import { appPrompt } from "../../services/appDialogs";
+import { useJournalCapture } from "../../hooks/useJournal";
+import { useCheckboxReminders } from "../../hooks/useCheckboxReminders";
 import { getSettingsStore } from "../../services/settingsStore";
-import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
+import { createTaskDatabase, getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
 import { templateVaultOf } from "../../services/dailyNotes";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
@@ -29,7 +32,7 @@ import {
   type TaskBlockValues,
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
-import { calendarDay } from "@plainva/ui";
+import { calendarDay, checkboxTextOfCapture, subtaskProgress, taskDatabaseLabels } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
@@ -108,6 +111,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
+  // Which vault the setting above was read for: until it is known, a capture
+  // must not take "no database" for an answer and file into the daily note.
+  const [taskDbFor, setTaskDbFor] = useState<string | null>(null);
   const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null; dueMinutes?: number; priority?: TaskPriority; repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** Date column of the task database — the generated occurrence writes its
@@ -251,6 +257,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       const db = await getTaskDatabasePath(vaultPath);
       if (!alive) return;
       setTaskDb(db);
+      setTaskDbFor(vaultPath);
       if (!db || !queryService || !vaultAdapter) {
         setDbRows(null);
         return;
@@ -470,9 +477,21 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * prompt of "+ New task" (issue #34), which could only name a task. The note
    * is not opened: capturing is the point, and the toast offers the way in.
    */
+  const captureJournal = useJournalCapture();
   const createFromCapture = useCallback(
     async (result: CaptureResult, alsoAtProvider: boolean): Promise<boolean> => {
-      if (!vaultAdapter || !vaultPath || !taskDb) return false;
+      if (!vaultAdapter || !vaultPath || taskDbFor !== vaultPath) return false;
+      if (!taskDb) {
+        // No task database (plan Rückmeldungen 2026-11-05, E1): the rule Siri
+        // and Shortcuts follow on the phone — a checkbox line in the journal of
+        // the moment, through the journal's one writer, carrying what the
+        // capture recognised as the Tasks plugin's marks.
+        const text = checkboxTextOfCapture(result);
+        if (!text) return false;
+        const written = await captureJournal({ text, task: true });
+        if (written) setRefreshTick((x) => x + 1);
+        return written !== null;
+      }
       try {
         const res = await createTaskInDatabase({
           adapter: vaultAdapter,
@@ -525,8 +544,30 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         return false;
       }
     },
-    [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, t]
+    [vaultAdapter, vaultPath, taskDb, taskDbFor, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, captureJournal, t]
   );
+  /** A task database made from the capture's hint: named, created and set for this vault — the same steps as in Settings. */
+  const createDatabaseFromCapture = useCallback(async () => {
+    if (!vaultAdapter || !vaultPath) return;
+    const name = await appPrompt({
+      title: t("settings.taskDatabaseCreate"),
+      message: t("settings.taskDatabaseCreateName"),
+      initial: t("settings.taskDatabaseDefaultName"),
+    });
+    if (name === null) return;
+    try {
+      const path = await createTaskDatabase(vaultAdapter, name, taskDatabaseLabels((key) => t(key)));
+      if (!path) return;
+      const store = await getSettingsStore();
+      await store.set(taskDatabaseKey(vaultPath), path);
+      await store.save();
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+      triggerFileTreeUpdate([path]);
+      setRefreshTick((x) => x + 1);
+    } catch (e) {
+      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
+    }
+  }, [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, t]);
   // `seeded` counts the requests that BROUGHT text (the capture dialog's kind
   // switch, plan Journal J4): the bar is keyed by it, so such a request starts
   // it over with that text instead of an effect writing into its state.
@@ -536,8 +577,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   }, []);
 
   // "New task" from anywhere (Design-Runde E4): the shell opens this view and
-  // parks the request; without a task database there is nothing to create in,
-  // and the section above says so.
+  // parks the request; the bar takes it with or without a task database.
   useEffect(() => consumePendingNew("task", focusCapture), [focusCapture]);
 
   const openPromoteMenu = useCallback(
@@ -623,6 +663,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   const planner = useMemo(() => buildPlanner(subtasks ? plannerRowsForTree(plannerRows) : plannerRows, todayKey), [plannerRows, subtasks, todayKey]);
   // What was finished today, folded under Today (E5).
   const doneToday = useMemo(() => doneTasksOnDay(plannerRows, todayKey), [plannerRows, todayKey]);
+  // "1 of 3 done" at a task with subtasks (P11, 2026-11-05): from every checkbox
+  // the view knows, so a filter that hides a subtask does not change the count.
+  const progress = useMemo(() => subtaskProgress(plannerRowsFromTasks(visibleTasks)), [visibleTasks]);
   // Links in a task's title open their note (E3), read from the note the task
   // stands in and opened as the editor opens a link there.
   const titleLinks = useMemo<InlineLinkHandlers>(() => ({
@@ -903,8 +946,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * Overdue heading moves the whole section. Every move answers with a toast
    * that carries Undo — the same write, pointed back at the days that were
    * there. The phone's twin is the due sheet in TasksScreen. The picker offers
-   * quick choices and a time (wishes 2026-10-24, E2); a time only where the
-   * task can hold one — a database entry, not a checkbox's `📅`.
+   * quick choices and a time (wishes 2026-10-24, E2) — for a checkbox too,
+   * written right after its `📅` date (plan Rückmeldungen 2026-11-05, E3).
    */
   const weekStart = useWeekStartDay();
   const [dueTarget, setDueTarget] = useState<{
@@ -913,7 +956,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     value: string | null;
     /** The time it carries now (`HH:MM`); null when it is due all day. */
     time: string | null;
-    timeAllowed: boolean;
+    /** A checkbox in a note: the picker offers the vault's checkbox-reminder switch. */
+    checkbox: boolean;
     change: (pick: DuePick) => TaskDueChange;
   } | null>(null);
   const applyDue = useCallback(
@@ -942,7 +986,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       if (moved.size > 0) {
         setTasks((prev) => prev.map((row) => {
           const hit = moved.get(`${row.path}#${row.ordinal}`);
-          return hit ? { ...row, text: hit.text, due: hit.day } : row;
+          return hit ? { ...row, text: hit.text, due: hit.day, dueTime: hit.time ?? undefined } : row;
         }));
       }
       let reindexed = false;
@@ -979,7 +1023,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || (pick.day === target.value && (!target.timeAllowed || pick.time === target.time))) return;
+    if (!target || (pick.day === target.value && pick.time === target.time)) return;
     const change = target.change(pick);
     void moveDue([change], () => taskDueMovedText(pick)).then(() => {
       // A time set on a database whose due column shows a day only: the same
@@ -998,7 +1042,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     });
   };
   const dbDueChange = (path: string) => (pick: DuePick): TaskDueChange => ({ source: "database", path, day: pick.day, time: pick.time });
-  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day });
+  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day, time: pick.time });
+  const checkboxReminders = useCheckboxReminders();
   /** The element a menu was opened on — the picker of a menu entry hangs there. */
   const anchorAt = (at: { x: number; y: number }) => ({ current: (document.elementFromPoint(at.x, at.y) as HTMLElement | null) ?? document.body });
 
@@ -1008,7 +1053,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     repeat: r.mirrored ? undefined : () => setRepeatTarget({ path: r.path, title: noteDisplayName(r.title), rule: r.repeat, due: r.due ?? null }),
     block: calendarOptions.length > 0 ? () => setBlockTarget({ title: noteDisplayName(r.title), due: r.due, notePath: r.path, linkPath: r.path }) : undefined,
     // Only a database with a date column can carry a due day.
-    due: dbDueKey ? () => setDueTarget({ anchorRef: anchorAt(at), value: r.due ?? null, time: dueTimeOf(r.dueMinutes), timeAllowed: true, change: dbDueChange(r.path) }) : undefined,
+    due: dbDueKey ? () => setDueTarget({ anchorRef: anchorAt(at), value: r.due ?? null, time: dueTimeOf(r.dueMinutes), checkbox: false, change: dbDueChange(r.path) }) : undefined,
     priority: () => setPriorityMenu({ at, target: { kind: "db", path: r.path } }),
   });
   const noteRowCaps = (task: TaskRecord, at: { x: number; y: number }): TaskRowCaps => ({
@@ -1017,9 +1062,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     promote: () => (taskDb ? void promote(task) : void openPromoteMenu(task, at)),
     block:
       calendarOptions.length > 0
-        ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
+        ? () => setBlockTarget({ title: stripTaskMeta(taskNameText(task)) || task.text, due: task.due ?? null, linkPath: task.path })
         : undefined,
-    due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) }),
+    due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, time: task.dueTime ?? null, checkbox: true, change: noteDueChange(task) }),
     priority: () => setPriorityMenu({ at, target: { kind: "note", task } }),
     state: () => setStateMenu({ at, task }),
   });
@@ -1052,7 +1097,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   };
   const onPlannerDue = (row: PlannerRow, anchor: HTMLElement) => {
     const change = plannerDueChange(row);
-    if (change) setDueTarget({ anchorRef: { current: anchor }, value: row.due ?? null, time: row.source === "database" ? dueTimeOf(row.dueMinutes) : null, timeAllowed: row.source === "database", change });
+    if (change) setDueTarget({ anchorRef: { current: anchor }, value: row.due ?? null, time: dueTimeOf(row.dueMinutes), checkbox: row.source === "note", change });
   };
   const overdueToToday = () => {
     const overdue = planner.sections("today").find((section) => section.kind === "overdue")?.rows ?? [];
@@ -1174,7 +1219,16 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       <div className="pv-planner-split">
       <TaskPlannerNav variant="rail" value={list} onChange={setList} counts={planner.counts} allCount={openCount} tags={railTags} activeTag={tag} onTag={setTag} />
       <div className="pv-planner-main">
-      {taskDb && <TaskCaptureBar key={captureSeed.seeded} initialValue={captureSeed.text} todayKey={todayKey} providerList={providerList} focusTick={captureSeed.focus} onSubmit={createFromCapture} />}
+      {/* Without a task database too (E1, 2026-11-05): the task becomes a checkbox in today's daily note, and the bar says so. */}
+      <TaskCaptureBar
+        key={captureSeed.seeded}
+        initialValue={captureSeed.text}
+        todayKey={todayKey}
+        providerList={taskDb ? providerList : null}
+        focusTick={captureSeed.focus}
+        onSubmit={createFromCapture}
+        daily={taskDb || taskDbFor !== vaultPath ? undefined : { onCreateDatabase: () => void createDatabaseFromCapture() }}
+      />
       {list !== "all" ? (
         <div className="pv-planner-scroll">
           {namesNotice}
@@ -1194,6 +1248,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
               links={titleLinks}
               linkLookup={linkLookup}
               subtasks={subtasks ? plannerRows : undefined}
+              progress={progress}
               details={details}
               doneToday={list === "today" ? doneToday : undefined}
             />
@@ -1262,7 +1317,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                           testId="task-db-due"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: r.due ?? null, time: dueTimeOf(r.dueMinutes), timeAllowed: true, change: dbDueChange(r.path) });
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: r.due ?? null, time: dueTimeOf(r.dueMinutes), checkbox: false, change: dbDueChange(r.path) });
                           }}
                         >
                           <DueLabel due={r.due} />
@@ -1428,7 +1483,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                       >
                         <TaskPriorityFlag rank={task.priority} />
                         <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>
-                          {stripTaskMeta(task.text) || task.text ? <TaskTitle text={stripTaskMeta(task.text) || task.text} notePath={task.path} links={titleLinks} linkLookup={linkLookup} /> : t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
+                          {stripTaskMeta(taskNameText(task)) || task.text ? <TaskTitle text={stripTaskMeta(taskNameText(task)) || task.text} notePath={task.path} links={titleLinks} linkLookup={linkLookup} /> : t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
                         </span>
                         <TaskMetadataDetails task={task} />
                       </span>
@@ -1440,7 +1495,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                           testId="task-due"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) });
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: task.due ?? null, time: task.dueTime ?? null, checkbox: true, change: noteDueChange(task) });
                           }}
                         >
                           <DueLabel due={task.due} />
@@ -1460,7 +1515,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                         data-testid="task-block"
                         onClick={() =>
                           setBlockTarget({
-                            title: stripTaskMeta(task.text) || task.text,
+                            title: stripTaskMeta(taskNameText(task)) || task.text,
                             due: task.due ?? null,
                             // A checkbox has no note of its own — only the event
                             // is created, linking back to the note it lives in.
@@ -1511,7 +1566,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           <DuePicker
             day={dueTarget.value}
             time={dueTarget.time}
-            timeAllowed={dueTarget.timeAllowed}
+            checkboxReminders={dueTarget.checkbox ? checkboxReminders ?? undefined : undefined}
             todayKey={todayKey}
             weekStart={weekStart}
             onPick={pickDue}
