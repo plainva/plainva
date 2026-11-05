@@ -4418,6 +4418,7 @@
     "fieldName": "名前",
     "renameHint": "保存すると、一致するすべてのノートでこのプロパティの名前が変更されます。",
     "renameInvalid": "名前が空、既に使用されている、または予約語です（file./note./formula.）。",
+    "renameInNoteHint": "変更されるのはこのノートだけです。プロパティの値は新しい名前のまま保たれます。",
     "fieldType": "フィールドタイプ",
     "options": "選択肢",
     "optionValue": "値",

@@ -4618,6 +4618,7 @@
     "fieldName": "Nom",
     "renameHint": "L'enregistrement renomme cette propriété dans toutes les notes correspondantes.",
     "renameInvalid": "Le nom est vide, déjà pris ou réservé (file./note./formula.).",
+    "renameInNoteHint": "Seule cette note change : la propriété garde sa valeur sous le nouveau nom.",
     "fieldType": "Type de champ",
     "options": "Options",
     "optionValue": "Valeur",

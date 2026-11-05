@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useSheetGuard } from "../../hooks/useSheetGuard";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, MessageSquare, FileText, Sparkles } from "lucide-react";
+import { Check, ExternalLink, MessageSquare, FileText, PenLine, Sparkles } from "lucide-react";
 import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type CuratedOption, DateJumpPicker, dateTimeEditorValue, GrowingField, useShowWeekNumbers, useWeekStartDay, weekNumbersShown, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput, PropertyDiffLine, type SuggestedProperty } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
@@ -63,9 +63,17 @@ export function CellEditSheet({
   onCommit,
   onClose,
   onCommentProperty,
+  onRename,
   proposal,
   fill,
 }: {
+  /**
+   * Renames this property of the note (Sammelplan § 3.173 no. 2): offered by
+   * the note's own sheet for a property the note carries, at the sheet's foot
+   * beside the remark — the desktop renames in the name field of its panel.
+   * Absent in a database, where a column is renamed in its own sheet.
+   */
+  onRename?: () => void;
   /**
    * The assistant can fill this cell's column (plan KI-Harness P5-4): the
    * door to that, named with the column as the database calls it. Absent
@@ -455,6 +463,12 @@ export function CellEditSheet({
           <button className="m-row" onClick={proposal.onOpenNote} data-testid="cell-proposal-open">
             <FileText size={ICON.head} />
             <span>{t("database.proposedOpenNote")}</span>
+          </button>
+        )}
+        {onRename && (
+          <button className="m-row" onClick={onRename} data-testid="prop-rename">
+            <PenLine size={ICON.head} />
+            <span>{t("common.rename")}</span>
           </button>
         )}
         {onCommentProperty && (

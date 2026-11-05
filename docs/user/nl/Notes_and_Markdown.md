@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-04
+Laatst bijgewerkt: 2026-11-05
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -76,6 +76,8 @@ De sectie **Eigenschappen** in de rechterzijbalk toont de frontmatter van de not
 | **Web & contact** | URL, E-mail, Telefoon |
 
 Keuzetypen kunnen vaste opties dragen met een **Kleur** en (bij **Status**) een **Groep**/fase — deze optielijsten worden beheerd in databases (`.base`), zie [Databases (.base)](Databases_Base.md).
+
+**Hernoemen:** de naam van een eigenschap wijzig je in haar rij — alleen in deze notitie. Waarde, opmerking en volgorde blijven, en een naam die de notitie al heeft (in welke schrijfwijze ook) weigert Plainva met een melding. Op de telefoon opent een tik op de eigenschap onder **Notitiedetails** → **Eigenschappen** haar blad, met onderaan **Hernoemen** (ook na lang drukken). Een kolom van een database hernoem je daarentegen in al haar notities, zie [Databases (.base)](Databases_Base.md).
 
 Beschermd zijn de **OKF-systeemvelden** die Plainva beheert: `type` (de waarde is kiesbaar uit een vervolgkeuzelijst met bekende typen, naam/veldtype/verwijderen zijn vergrendeld) en — waar oudere notities het nog dragen — `okf_version` (alleen ter weergave; sinds OKF 0.2 hoort het veld alleen nog thuis in de root-`index.md`). Achtergrond: [OKF](OKF.md).
 

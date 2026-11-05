@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-04
+Stand: 2026-11-05
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -76,6 +76,8 @@ Der Abschnitt **Eigenschaften** in der rechten Seitenleiste zeigt das Frontmatte
 | **Web & Kontakt** | URL, E-Mail, Telefon |
 
 Auswahl-Typen können feste Optionen mit **Farbe** und (bei **Status**) **Gruppe**/Stufe tragen — diese Optionslisten werden in Datenbanken (`.base`) gepflegt, siehe [Datenbanken (.base)](Databases_Base.md).
+
+**Umbenennen:** Der Name einer Eigenschaft wird in ihrer Zeile geändert — nur in dieser Notiz. Wert, Kommentar und Reihenfolge bleiben, und einen Namen, den die Notiz schon trägt (gleich in welcher Schreibweise), lehnt Plainva mit einer Meldung ab. Am Telefon öffnet ein Tipp auf die Eigenschaft unter **Notiz-Details** → **Eigenschaften** ihr Blatt; unten steht **Umbenennen** (ebenso nach langem Drücken). Eine Spalte einer Datenbank benennst Du dagegen in allen ihren Notizen um, siehe [Datenbanken (.base)](Databases_Base.md).
 
 Geschützt sind die **OKF-Systemfelder**, die Plainva verwaltet: `type` (der Wert ist als Dropdown bekannter Typen wählbar, Name/Feldtyp/Löschen sind gesperrt) und — wo es in älteren Notizen noch steht — `okf_version` (reine Anzeige; seit OKF 0.2 gehört das Feld nur in die Wurzel-`index.md`). Hintergrund: [OKF](OKF.md).
 

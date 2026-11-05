@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-04
+Stan na: 2026-11-05
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -76,6 +76,8 @@ Sekcja **Właściwości** w prawym pasku bocznym pokazuje frontmatter notatki ja
 | **Internet i kontakt** | URL, E-mail, Telefon |
 
 Typy wyboru mogą mieć stałe opcje z **Kolorem** i (dla **Status**) **Grupą**/etapem — te listy opcji są zarządzane w bazach danych (`.base`), patrz [Bazy danych (.base)](Databases_Base.md).
+
+**Zmiana nazwy:** nazwę właściwości zmienia się w jej wierszu — tylko w tej notatce. Wartość, komentarz i kolejność pozostają, a nazwę, którą notatka już ma (niezależnie od wielkości liter), Plainva odrzuca z komunikatem. Na telefonie dotknięcie właściwości w **Szczegóły notatki** → **Właściwości** otwiera jej arkusz, z opcją **Zmień nazwę** na dole (także po długim naciśnięciu). Kolumnę bazy danych zmienia się natomiast we wszystkich jej notatkach, zob. [Bazy danych (.base)](Databases_Base.md).
 
 Chronione są **pola systemowe OKF** zarządzane przez Plainva: `type` (wartość można wybrać z listy rozwijanej znanych typów, nazwa/typ pola/usuwanie są zablokowane) oraz — gdzie starsze notatki wciąż je niosą — `okf_version` (tylko do wyświetlania; od OKF 0.2 pole należy wyłącznie do głównej `index.md`). Tło: [OKF](OKF.md).
 

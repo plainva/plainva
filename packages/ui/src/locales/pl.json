@@ -4718,6 +4718,7 @@
     "fieldName": "Nazwa",
     "renameHint": "Zapisanie zmieni nazwę tej właściwości we wszystkich pasujących notatkach.",
     "renameInvalid": "Nazwa jest pusta, zajęta lub zastrzeżona (file./note./formula.).",
+    "renameInNoteHint": "Zmienia się tylko ta notatka: właściwość zachowuje wartość pod nową nazwą.",
     "fieldType": "Typ pola",
     "options": "Opcje",
     "optionValue": "Wartość",

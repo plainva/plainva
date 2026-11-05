@@ -4518,6 +4518,7 @@
     "fieldName": "Naam",
     "renameHint": "Bij het opslaan wordt deze eigenschap in elke overeenkomende notitie hernoemd.",
     "renameInvalid": "Naam is leeg, al in gebruik of gereserveerd (file./note./formula.).",
+    "renameInNoteHint": "Alleen deze notitie verandert: de eigenschap houdt haar waarde onder de nieuwe naam.",
     "fieldType": "Veldtype",
     "options": "Opties",
     "optionValue": "Waarde",

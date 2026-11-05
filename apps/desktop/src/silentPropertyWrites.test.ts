@@ -386,14 +386,23 @@ const STRETCHES: Stretch[] = [
     says: [COUNTED, SAID],
   },
 
-  // ── A property renamed in the desktop's panel ────────────────────────────
+  // ── A property of one note renamed, in the panel of either shell ─────────
   {
-    file: "apps/desktop/src/components/PropertiesSection.tsx", at: "function renamedEntry(", until: "interface Row {", calls: { renameFrontmatterKey: 1 },
-    how: "thrown on to the panel's one write, listed next — a rename that finds no entry of the name as well",
-    says: [/if \(next === content\) throw new FrontmatterSurgicalError\(/], never: THROWN_ON, passesOn: ["renamedEntry"],
+    file: "packages/ui/src/lib/notePropertyEdit.ts", at: "export function renamedNoteProperty(", until: "\n}\n", calls: { renameFrontmatterKey: 1 },
+    how: "thrown on to the two panels' writes, listed next — a taken name and a rename that finds no entry of the name as well",
+    says: [/throw new FrontmatterSurgicalError\(`Cannot rename/, /if \(next === content\) throw new FrontmatterSurgicalError\(/], never: THROWN_ON, passesOn: ["renamedNoteProperty"],
   },
   {
-    file: "apps/desktop/src/components/PropertiesSection.tsx", at: "const commit = useCallback(", until: "const markReviewed = useCallback(", calls: { renamedEntry: 1 },
+    file: "apps/mobile/src/services/baseOps.ts", at: "export async function renameNoteProperty(", until: "\n}\n", calls: { renamedNoteProperty: 1 },
+    how: "thrown on to the caller of renameNoteProperty, listed next", never: THROWN_ON, passesOn: ["renameNoteProperty"],
+  },
+  {
+    file: "apps/mobile/src/components/NoteContextSheet.tsx", at: "const renameProp = (key: string) => {", span: 900, calls: { renameNoteProperty: 1 },
+    how: "a message with the reason; the sheet reads the note again only after a rename that landed",
+    says: [SAID, /return;\s*\}\s*renamePropertyType\(/],
+  },
+  {
+    file: "apps/desktop/src/components/PropertiesSection.tsx", at: "const commit = useCallback(", until: "const markReviewed = useCallback(", calls: { renamedNoteProperty: 1 },
     how: "the panel's one write, beside the set's (SITES): a message, the panel keeps what the note says, and the handler is told",
     says: [SAID, /setRefusals\(/, /return false;/],
   },

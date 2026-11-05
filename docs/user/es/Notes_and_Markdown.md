@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-04
+Última actualización: 2026-11-05
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -76,6 +76,8 @@ La sección **Propiedades** de la barra lateral derecha muestra el frontmatter d
 | **Web y contacto** | URL, Correo electrónico, Teléfono |
 
 Los tipos de elección pueden llevar opciones fijas con un **Color** y (para **Estado**) un **Grupo**/etapa — estas listas de opciones se gestionan en las bases de datos (`.base`), ver [Bases de datos (.base)](Databases_Base.md).
+
+**Renombrar:** el nombre de una propiedad se cambia en su fila, solo en esta nota. El valor, el comentario y el orden se mantienen, y un nombre que la nota ya lleva (con cualquier combinación de mayúsculas) se rechaza con un aviso. En el teléfono, un toque en la propiedad en **Detalles de la nota** → **Propiedades** abre su hoja, con **Renombrar** al pie (también con una pulsación larga). Una columna de una base de datos, en cambio, se renombra en todas sus notas; consulta [Bases de datos (.base)](Databases_Base.md).
 
 Protegidos están los **campos de sistema OKF** que gestiona Plainva: `type` (el valor se puede elegir en un desplegable de tipos conocidos, nombre/tipo de campo/eliminar están bloqueados) y — donde las notas más antiguas todavía lo lleven — `okf_version` (solo visualización; desde OKF 0.2 el campo pertenece únicamente al `index.md` raíz). Contexto: [OKF](OKF.md).
 

@@ -672,24 +672,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-29",
   },
   {
-    id: "note-property-rename",
-    title: "Rename a property of one note in its properties surface",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop's properties section renames a note's property in its name " +
-      "field (PropertiesSection.tsx: the entry is renamed where it stands, a name " +
-      "another property has — in any casing — is refused and said). The phone's " +
-      "note sheet edits a property's value and adds or removes one, but offers no " +
-      "rename of a single note's property (NoteContextSheet.tsx); renaming a " +
-      "column of a database renames it across its notes on both shells. Written " +
-      "down on 2026-11-02 while the desktop's rename learned the taken-name rule " +
-      "(open-items plan 3.144 no. 10); Sammelplan § 3.173.",
-    verified: "2026-11-02",
-  },
-  {
     id: "print-note",
     title: "Print a note or save it as PDF",
     area: "editor",

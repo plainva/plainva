@@ -41,6 +41,7 @@ import {
   type ReverseRelationOutcome,
   type RewriteResult,
   renamePropertyAcrossNotes,
+  renamedNoteProperty,
   removePropertyAcrossNotes,
   type BulkSetOptions,
   type BulkSetResult,
@@ -236,6 +237,17 @@ export async function editReverseCell(
   const outcome = await editReverseRelation({ adapter: noteFiles(v), queryService: v.queryService, rowPath, owning, current, next });
   if (outcome.changed.size > 0) syncSoon();
   return outcome;
+}
+
+/**
+ * Renames a property of one note (Sammelplan § 3.173 no. 2): its name changes
+ * where it stands and nothing else of the note (`renamedNoteProperty`, the
+ * desktop panel's rename), through the phone's one way of changing a file
+ * where it lies. A name the note has already is refused, and thrown on.
+ */
+export async function renameNoteProperty(v: MobileVault, notePath: string, from: string, to: string): Promise<void> {
+  await vaultOps.update(v, notePath, (text) => renamedNoteProperty(text, from, to));
+  syncSoon();
 }
 
 /** Candidate rows of a relation's target base (desktop picker contract). */

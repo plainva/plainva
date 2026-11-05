@@ -4418,6 +4418,7 @@
     "fieldName": "名称",
     "renameHint": "保存时会在所有匹配的笔记中重命名此属性。",
     "renameInvalid": "名称为空、已被占用或为保留名（file./note./formula.）。",
+    "renameInNoteHint": "只更改这篇笔记：该属性在新名称下保留原值。",
     "fieldType": "字段类型",
     "options": "选项",
     "optionValue": "值",

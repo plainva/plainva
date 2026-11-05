@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { isHiddenPropertyKey, propertyPanelModel, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
+import { isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
+import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, PenLine, Plus } from "lucide-react";
 import {
   appendVerification,
   errorText,
@@ -43,7 +43,7 @@ import {
 } from "@plainva/ui";
 import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
-import { commitCellValue, resolveGoverningBaseOf } from "../services/baseOps";
+import { commitCellValue, renameNoteProperty, resolveGoverningBaseOf } from "../services/baseOps";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { CellEditSheet, type CellEditTarget } from "../screens/base/CellEditSheet";
@@ -352,6 +352,29 @@ export function NoteContextSheet({
 
   const addProp = () => setAdding(true);
 
+  // A property of this note renamed (Sammelplan § 3.173 no. 2), as the
+  // desktop's panel renames it in its name field: the name changes where it
+  // stands, the value and the rest of the note stay, and a name the note has
+  // already — in any casing — is refused and said. The vault's type of the
+  // property follows the name, as on the desktop. The OKF keys keep theirs.
+  const renamable = (key: string) => canWrite && !propertyNameFixed(key) && props.some(([k]) => k === key);
+  const renameProp = (key: string) => {
+    void (async () => {
+      const { value, cancelled } = await mPrompt({ title: t("common.rename"), message: t("properties.renameInNoteHint"), initial: key });
+      const name = value.trim();
+      if (cancelled || !name || name === key) return;
+      try {
+        await renameNoteProperty(vault, path, key, name);
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return;
+      }
+      renamePropertyType(vault.vaultId, key, name);
+      setTick((n) => n + 1);
+      onMutated();
+    })();
+  };
+
   return (
     <>
       <div
@@ -391,7 +414,9 @@ export function NoteContextSheet({
                 const locked = LOCKED.has(k) || !canWrite;
                 const row = { key: k, value: v, editable: !locked };
                 const count = commentCounts?.get(k) ?? 0;
-                const press = canComment && onCommentProperty
+                // A long press offers what one does to the property: edit,
+                // rename, remark — wherever there is something beside the tap.
+                const press = (canComment && onCommentProperty) || renamable(k)
                   ? {
                       onPointerDown: () => propPress.start(row),
                       onPointerUp: propPress.clear,
@@ -682,6 +707,7 @@ export function NoteContextSheet({
       {edit && (
         <CellEditSheet key={`${vault.vaultId}:${edit.notePath}:${edit.col}`}
           onClose={() => setEdit(null)}
+          onRename={renamable(edit.col) ? () => { const key = edit.col; setEdit(null); renameProp(key); } : undefined}
           onCommit={(value) => {
             const target = edit;
             setEdit(null);
@@ -725,12 +751,22 @@ export function NoteContextSheet({
                   onClick: () => { const row = propSheet; setPropSheet(null); editProp(row.key, row.value); },
                 }]
               : []),
-            {
-              icon: <MessageSquare size={ICON.head} />,
-              label: t("comments.commentOnProperty"),
-              testId: "prop-comment",
-              onClick: () => { const key = propSheet.key; setPropSheet(null); onCommentProperty?.(key); },
-            },
+            ...(renamable(propSheet.key)
+              ? [{
+                  icon: <PenLine size={ICON.head} />,
+                  label: t("common.rename"),
+                  testId: "prop-rename",
+                  onClick: () => { const key = propSheet.key; setPropSheet(null); renameProp(key); },
+                }]
+              : []),
+            ...(canComment && onCommentProperty
+              ? [{
+                  icon: <MessageSquare size={ICON.head} />,
+                  label: t("comments.commentOnProperty"),
+                  testId: "prop-comment",
+                  onClick: () => { const key = propSheet.key; setPropSheet(null); onCommentProperty(key); },
+                }]
+              : []),
           ]}
           onClose={() => setPropSheet(null)}
           title={propSheet.key}

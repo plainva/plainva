@@ -4618,6 +4618,7 @@
     "fieldName": "Nome",
     "renameHint": "Il salvataggio rinomina questa proprietà in ogni nota corrispondente.",
     "renameInvalid": "Il nome è vuoto, già usato o riservato (file./note./formula.).",
+    "renameInNoteHint": "Cambia solo questa nota: la proprietà mantiene il suo valore con il nuovo nome.",
     "fieldType": "Tipo di campo",
     "options": "Opzioni",
     "optionValue": "Valore",

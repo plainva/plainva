@@ -226,6 +226,17 @@ describe("a write that fails is said for what it is", () => {
     }
   });
 
+  it("a property of one note renamed in its sheet says a refusal and changes nothing then", () => {
+    // Sammelplan § 3.173 no. 2: a taken name, a block that is no map — said
+    // with the reason, and neither the type nor the sheet move on.
+    const sheet = strip(read("components", "NoteContextSheet.tsx"));
+    const rename = from(sheet, "const renameProp = (key: string) => {", 900);
+    expect(rename).toMatch(/await renameNoteProperty\(vault, path, key, name\);\s*\} catch \(e\) \{\s*toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*return;\s*\}/);
+    const ops = strip(read("services", "baseOps.ts"));
+    expect(from(ops, "export async function renameNoteProperty(", 400)).not.toMatch(/catch/);
+    for (const lang of LANGS) expect(dict(lang).properties?.renameInNoteHint, `${lang} lacks properties.renameInNoteHint`).toBeTruthy();
+  });
+
   it("the sentences exist in every language", () => {
     for (const lang of LANGS) {
       const d = dict(lang);
@@ -275,6 +286,7 @@ function dict(lang: string): {
   mail?: Record<string, string>;
   database?: Record<string, string>;
   inputRejected?: Record<string, string>;
+  properties?: Record<string, string>;
   graph?: Record<string, string>;
   editor?: Record<string, string>;
 } {

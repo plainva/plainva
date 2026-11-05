@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -76,6 +76,8 @@ The **Properties** section in the right sidebar shows the note's frontmatter as 
 | **Web & contact** | URL, Email, Phone |
 
 Choice types can carry fixed options with a **Color** and (for **Status**) a **Group**/stage — these option lists are managed in databases (`.base`), see [Databases (.base)](Databases_Base.md).
+
+**Renaming:** a property's name is changed in its row — in this note only. Value, comment and order stay, and a name the note already carries (in any casing) is refused with a message. On the phone a tap on the property under **Note details** → **Properties** opens its sheet, with **Rename** at its foot (a long press offers it too). A database's column, by contrast, is renamed in all of its notes, see [Databases (.base)](Databases_Base.md).
 
 Protected are the **OKF system fields** Plainva manages: `type` (the value is selectable from a dropdown of known types, name/field type/delete are locked) and — where older notes still carry it — `okf_version` (display only; since OKF 0.2 the field belongs in the root `index.md` alone). Background: [OKF](OKF.md).
 
