@@ -257,8 +257,10 @@ public class DevicePimPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let ev = findEvent(id: id, occurrenceStartTs: ts) else { call.reject("event not found"); return }
         let ruleTouched = apply(draft, to: ev)
         do {
-            // Editing the rule means the series; everything else means this occurrence.
-            try store.save(ev, span: ruleTouched ? .futureEvents : .thisEvent, commit: true)
+            // The JS side names the scope (`deviceUpdateSpan`): "series" is "All events",
+            // applied from the first occurrence on; a changed rule is always the series.
+            let wholeSeries = ruleTouched || (call.getString("span") ?? "occurrence") == "series"
+            try store.save(ev, span: wholeSeries ? .futureEvents : .thisEvent, commit: true)
             call.resolve(["event": eventJSON(ev)])
         } catch {
             call.reject(error.localizedDescription)

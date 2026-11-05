@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DevicePimTarget, deviceFieldVersion, deviceHandleOf, PimConflictError } from "../src/index.js";
+import { DevicePimTarget, deviceFieldVersion, deviceHandleOf, deviceUpdateSpan, PimConflictError } from "../src/index.js";
 import type { DeviceCollection, DeviceEventDraft, DeviceEventHandle, DeviceEventRecord, DevicePimPort, DeviceReminderDraft, DeviceReminderRecord } from "../src/index.js";
 
 /**
@@ -249,3 +249,20 @@ describe("DevicePimTarget", () => {
 function target(port: DevicePimPort) {
   return new DevicePimTarget(port);
 }
+
+describe("deviceUpdateSpan (iPhone: All events without a rule change)", () => {
+  const draft: DeviceEventDraft = { title: "T", startTs: 1, endTs: 2, allDay: false };
+
+  it("treats a handle without an occurrence start as the whole event", () => {
+    expect(deviceUpdateSpan(deviceHandleOf("series-1"), draft)).toBe("series");
+  });
+
+  it("treats an occurrence handle with the rule left alone as this event", () => {
+    expect(deviceUpdateSpan(deviceHandleOf("series-1@1700000000000"), draft)).toBe("occurrence");
+  });
+
+  it("treats any write that carries a rule - even a removal - as the series", () => {
+    expect(deviceUpdateSpan(deviceHandleOf("series-1@1700000000000"), { ...draft, rrule: "FREQ=DAILY" })).toBe("series");
+    expect(deviceUpdateSpan(deviceHandleOf("series-1@1700000000000"), { ...draft, rrule: null })).toBe("series");
+  });
+});

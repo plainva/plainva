@@ -145,6 +145,20 @@ export function deviceHandleOf(uid: string): DeviceEventHandle {
   return Number.isFinite(ts) ? { id: uid.slice(0, at), occurrenceStartTs: ts } : { id: uid };
 }
 
+/**
+ * What a device-calendar save applies to. A handle without an occurrence start
+ * names the whole event (for a series: its master row, "All events"); a draft
+ * that carries a rule also changes the series. Only an occurrence handle with
+ * the rule left alone is "this event" (finding 2026-11-02: "All events" without
+ * a rule change saved one occurrence on the iPhone).
+ */
+export type DeviceUpdateSpan = "occurrence" | "series";
+
+export function deviceUpdateSpan(handle: DeviceEventHandle, draft: DeviceEventDraft): DeviceUpdateSpan {
+  if (handle.occurrenceStartTs === undefined || handle.occurrenceStartTs === null) return "series";
+  return "rrule" in draft ? "series" : "occurrence";
+}
+
 function civilDate(ts: number): string {
   const d = new Date(ts);
   const p = (n: number) => String(n).padStart(2, "0");
