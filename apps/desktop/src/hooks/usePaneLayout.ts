@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SplitDirection } from "../components/SplitButton";
 import { isVirtualPath } from "../components/graph/virtualPaths";
 import { opensExternally } from "@plainva/ui";
+import { markFirstHydrate, startsEmpty } from "../services/startView";
 
 // --- Split editor: pane/tab model ---------------------------------------
 // A pane is one editor group with its own tab set; the layout holds 1..2 panes
@@ -427,9 +428,15 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     setLayout(emptyLayout());
     setSplitRatioState(DEFAULT_SPLIT_RATIO);
     if (!vaultPath) return;
+    // "On start: Empty workspace" (plan 2026-11-05, P10) skips the stored tabs
+    // of the main window once, at the start. Decided before the await, so a
+    // StrictMode re-run asks the same question. The stored tabs are not
+    // overwritten by the empty start; the window's first change is saved.
+    const empty = startsEmpty(layoutScope);
     (async () => {
-      const restored = await restoreLayout(vaultPath, validateRef.current, layoutScope);
+      const restored = empty ? await Promise.resolve(null) : await restoreLayout(vaultPath, validateRef.current, layoutScope);
       if (cancelled) return;
+      markFirstHydrate(layoutScope);
       if (restored) {
         setLayout(restored.layout);
         setSplitRatioState(restored.splitRatio);

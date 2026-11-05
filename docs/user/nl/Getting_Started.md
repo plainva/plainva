@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-11-03
+Laatst bijgewerkt: 2026-11-05
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -145,7 +145,7 @@ Een **tweede venster** heeft die wel — en het heeft zijn **eigen vault**. Het 
 
 De **pin** in de venstertitel houdt een venster op de voorgrond terwijl je in het andere werkt.
 
-Bij de volgende start komt elke vault die een venster had terug, en de extra vensters ervan komen terug op hun plek. Wil je dat niet: **Instellingen → Opstarten en gedrag → Opstarten**. Een **niet-verzonden bericht** wordt nooit hersteld — wat in een opstelvenster staat, leeft in het geheugen, en een venster dat beweert het te hebben bewaard, zou erger zijn dan geen venster.
+Bij de volgende start komt elke vault die een venster had terug, en de extra vensters ervan komen terug op hun plek. Wil je dat niet: **Instellingen → Opstarten en gedrag → Opstarten**. Een **niet-verzonden bericht** wordt nooit hersteld — wat in een opstelvenster staat, leeft in het geheugen, en een venster dat beweert het te hebben bewaard, zou erger zijn dan geen venster. Wat de vensters tonen, bepaalt **Bij het starten** in dezelfde groep: **Zoals je het verliet** opent de tabbladen van de vorige keer opnieuw, **Lege werkruimte** begint zonder tabbladen — venstergrootte en zijbalken blijven. Het geldt alleen voor het starten; een vault die je daarna opent, brengt zijn tabbladen mee.
 
 ## Meerdere vaults tegelijk
 

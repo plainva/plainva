@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-11-03
+Dernière mise à jour : 2026-11-05
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -145,7 +145,7 @@ Une **deuxième fenêtre**, elle, les porte — et elle porte son **propre vault
 
 L'**épingle** dans le titre de la fenêtre la maintient au premier plan pendant que vous travaillez dans l'autre.
 
-Au démarrage suivant, chaque vault qui avait une fenêtre revient, et ses fenêtres secondaires reviennent là où elles étaient. Si vous préférez qu'il n'en soit rien : **Paramètres → Démarrage et comportement → Démarrage**. Un **message non envoyé** n'est jamais restauré — ce qui se trouve dans une fenêtre de rédaction vit dans la mémoire, et une fenêtre qui prétendrait l'avoir conservé serait pire que pas de fenêtre du tout.
+Au démarrage suivant, chaque vault qui avait une fenêtre revient, et ses fenêtres secondaires reviennent là où elles étaient. Si vous préférez qu'il n'en soit rien : **Paramètres → Démarrage et comportement → Démarrage**. Un **message non envoyé** n'est jamais restauré — ce qui se trouve dans une fenêtre de rédaction vit dans la mémoire, et une fenêtre qui prétendrait l'avoir conservé serait pire que pas de fenêtre du tout. Ce que montrent les fenêtres dépend de **Au démarrage** dans le même groupe : **Comme vous l'avez laissé** rouvre les onglets de la dernière fois, **Espace de travail vide** démarre sans onglets — la taille de la fenêtre et les barres latérales restent. Cela ne vaut que pour le démarrage ; un vault ouvert ensuite ramène ses onglets.
 
 ## Plusieurs vaults à la fois
 

@@ -49,6 +49,7 @@ export * from "./lib/syncDiagnostics";
 export * from "./lib/taskList";
 export * from "./lib/templateActions";
 export * from "./lib/dayAgenda";
+export * from "./lib/startView";
 export * from "./lib/renameTagVault";
 export * from "./lib/zipBackup";
 export * from "./lib/backupChoices";

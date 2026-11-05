@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-11-03
+Última actualización: 2026-11-05
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -145,7 +145,7 @@ Una **segunda ventana** sí las tiene — y tiene su **propio vault**. Se abre c
 
 El botón **Siempre visible** en el título de la ventana la mantiene en primer plano mientras trabajas en la otra.
 
-Al iniciar de nuevo, todos los vaults que tenían una ventana regresan, y sus ventanas auxiliares vuelven a aparecer donde estaban. Si prefieres que no sea así: **Configuración → Inicio y comportamiento → Inicio**. Un **mensaje sin enviar** nunca se restaura — lo que hay en una ventana de redacción vive en memoria, y una ventana que afirmara haberlo conservado sería peor que ninguna ventana.
+Al iniciar de nuevo, todos los vaults que tenían una ventana regresan, y sus ventanas auxiliares vuelven a aparecer donde estaban. Si prefieres que no sea así: **Configuración → Inicio y comportamiento → Inicio**. Un **mensaje sin enviar** nunca se restaura — lo que hay en una ventana de redacción vive en memoria, y una ventana que afirmara haberlo conservado sería peor que ninguna ventana. Lo que muestran las ventanas lo decide **Al iniciar** en el mismo grupo: **Como lo dejaste** vuelve a abrir las pestañas de la última vez, **Espacio de trabajo vacío** empieza sin pestañas — el tamaño de la ventana y las barras laterales se mantienen. Solo vale para el inicio; un vault que abras después trae sus pestañas.
 
 ## Varios vaults a la vez
 

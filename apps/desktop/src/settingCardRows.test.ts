@@ -42,6 +42,7 @@ const ROW_COMPONENTS: Record<string, string> = {
   FontSlotRow: "renders a SettingRow",
   AutostartRow: "renders a SettingRow (Startup & behavior)",
   WindowRestoreRow: "renders a SettingRow (Startup & behavior)",
+  StartViewRow: "renders a SettingRow (Startup & behavior)",
   LinkStyleSettings: "renders SettingRows",
   RoleMatrix: "renders a SettingCardNote",
   TechDetails: "renders a SettingCardNote",

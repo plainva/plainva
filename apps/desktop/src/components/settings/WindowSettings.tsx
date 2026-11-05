@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettingRow, Switch } from "@plainva/ui";
+import { Select, SettingRow, START_VIEWS, startViewLabelKey, Switch, type StartView } from "@plainva/ui";
 import { getRestoreWindowsSetting, setRestoreWindowsSetting } from "../../services/windowManager";
+import { getStartView, setStartView } from "../../services/startView";
 
 /**
  * Restore the window layout — a row of Settings → Startup & behavior → Startup
@@ -41,6 +42,31 @@ export function WindowRestoreRow() {
   return (
     <SettingRow label={t("window.restoreWindows")} desc={t("window.restoreWindowsDrafts")} info={t("window.restoreWindowsDesc")}>
       <Switch checked={restore} onChange={toggle} label={t("window.restoreWindows")} />
+    </SettingRow>
+  );
+}
+
+/**
+ * On start (plan 2026-11-05, P10): as you left it, or an empty workspace. The
+ * phone asks the same question, with Home for its second answer. Window size,
+ * sidebars and the windows above stay either way; only the tabs are skipped.
+ */
+export function StartViewRow() {
+  const { t } = useTranslation();
+  const [view, setView] = useState<StartView>(getStartView);
+  return (
+    <SettingRow label={t("settings.startView")} info={t("settings.startViewInfo")}>
+      <Select
+        ariaLabel={t("settings.startView")}
+        data-testid="startView"
+        value={view}
+        onChange={(v) => {
+          const next = v as StartView;
+          setView(next);
+          setStartView(next);
+        }}
+        options={START_VIEWS.map((v) => ({ value: v, label: t(startViewLabelKey(v, "desktop")) }))}
+      />
     </SettingRow>
   );
 }

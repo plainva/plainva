@@ -15,7 +15,7 @@ import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
 import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, Switch, type CustomThemeDesign } from "@plainva/ui";
 import { AutostartRow, BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
-import { WindowRestoreRow } from "./WindowSettings";
+import { StartViewRow, WindowRestoreRow } from "./WindowSettings";
 import { LinkStyleSettings } from "./LinkStyleSettings";
 import { StoredCredentialsCard } from "./StoredCredentialsCard";
 import { Select } from "../Select";
@@ -380,6 +380,7 @@ export const BehaviorPage: React.FC<BehaviorPageProps> = (p) => {
         <SettingRow label={t("splash.autoOpenLastVault")} info={t("settings.autoOpenLastVaultDesc")}>
           <Switch testId="autoOpenLastVault" label={t("splash.autoOpenLastVault")} checked={p.autoOpenLastVault} onChange={p.onAutoOpenLastVault} />
         </SettingRow>
+        <StartViewRow />
         <WindowRestoreRow />
       </SettingCard>
       <BackgroundSettings />

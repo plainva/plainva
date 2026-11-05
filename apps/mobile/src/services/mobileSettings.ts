@@ -1,4 +1,5 @@
 import { sameStoredValue } from "@plainva/core";
+import type { StartView } from "@plainva/ui";
 import {
   applyAppFonts,
   applyTagColors,
@@ -95,6 +96,8 @@ export interface MobileSettings extends VaultScopedSettings {
    * note details.
    */
   noteHeadButton: NoteHeadButton;
+  /** On start (plan 2026-11-05, P10): as you left it, or Home. Device-local. */
+  startView: StartView;
   /** Empty = follow the system language. */
   language: string;
   /** First-start onboarding shown and answered. */
@@ -240,6 +243,7 @@ function defaults(): MobileSettings {
     motion: "system",
     readerAutoHide: true,
     noteHeadButton: "bookmark",
+    startView: "restore",
     contextPanelDocked: false,
     tagColors: false,
     noteLinkStyle: "underline",
