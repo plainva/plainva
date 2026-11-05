@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarPlus, Database, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
 import { dueTimeOf, overdueToDayChanges, TaskCheckButton, taskDueMovedText, type DuePick, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TaskDueSheet } from "../components/TaskDueSheet";
+import { useCheckboxReminders } from "../hooks/useCheckboxReminders";
 import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { applyTaskStatusOption, Button, checkboxJumpTerm, Chip, formatDueLabel, NotePath, createTaskInDatabase, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, noteDisplayName, parseBaseConfig, repeatFromNamespace, type RepeatRule, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, toast, toggleTaskAtIndex } from "@plainva/ui";
 import {
@@ -415,10 +416,11 @@ export function TasksScreen({
    * a task without a date gets one. "All to today" at the Overdue heading moves
    * the whole section. Every move answers with a toast that carries Undo — the
    * same write, pointed back at the days that were there. The picker offers
-   * quick choices and a time (wishes 2026-10-24, E2); a time only where the
-   * task can hold one — a database entry, not a checkbox's `📅`.
+   * quick choices and a time (wishes 2026-10-24, E2) — for a checkbox too,
+   * written right after its `📅` date (plan Rückmeldungen 2026-11-05, E3).
    */
-  const [dueTarget, setDueTarget] = useState<{ value: string | null; time: string | null; timeAllowed: boolean; change: (pick: DuePick) => TaskDueChange } | null>(null);
+  const [dueTarget, setDueTarget] = useState<{ value: string | null; time: string | null; checkbox: boolean; change: (pick: DuePick) => TaskDueChange } | null>(null);
+  const checkboxReminders = useCheckboxReminders();
   const applyDue = useCallback(
     async (changes: readonly TaskDueChange[]): Promise<TaskDueOutcome | null> => {
       if (changes.length === 0) return null;
@@ -429,7 +431,7 @@ export function TasksScreen({
         if (moved.size > 0) {
           setTasks((prev) => prev.map((tk) => {
             const hit = moved.get(`${tk.path}#${tk.ordinal}`);
-            return hit ? { ...tk, text: hit.text, due: hit.day } : tk;
+            return hit ? { ...tk, text: hit.text, due: hit.day, dueTime: hit.time ?? undefined } : tk;
           }));
         }
         return outcome;
@@ -452,14 +454,14 @@ export function TasksScreen({
   const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || (pick.day === target.value && (!target.timeAllowed || pick.time === target.time))) return;
+    if (!target || (pick.day === target.value && pick.time === target.time)) return;
     void moveDue([target.change(pick)], () => taskDueMovedText(pick));
   };
   const dbDueChange = (path: string) => (pick: DuePick): TaskDueChange => ({ source: "database", path, day: pick.day, time: pick.time });
-  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day });
+  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day, time: pick.time });
   /** Opens the date sheet for a database entry — or not at all when its database has no date column. */
-  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, time: dueTimeOf(row.dueMinutes), timeAllowed: true, change: dbDueChange(row.path) }) : undefined);
-  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) });
+  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, time: dueTimeOf(row.dueMinutes), checkbox: false, change: dbDueChange(row.path) }) : undefined);
+  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, time: task.dueTime ?? null, checkbox: true, change: noteDueChange(task) });
 
   /**
    * Writes the NEXT occurrence of a repeating task: a copy of the note, open
@@ -1132,7 +1134,7 @@ export function TasksScreen({
 
       {rowKit.element}
 
-      {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} timeAllowed={dueTarget.timeAllowed} onPick={pickDue} onClose={() => setDueTarget(null)} />}
+      {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} checkboxReminders={dueTarget.checkbox ? checkboxReminders : undefined} onPick={pickDue} onClose={() => setDueTarget(null)} />}
 
       <TaskDuplicatesSheet
         dupes={dupes}

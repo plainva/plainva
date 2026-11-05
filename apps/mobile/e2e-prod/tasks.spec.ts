@@ -829,7 +829,7 @@ test("the Today screen: a tap on a task's date opens the same date sheet, and th
   }
 });
 
-test("change due date with quick choices and a time: Next week at 10:00 lands in the file, a checkbox is told it holds a day only (wishes 2026-10-24, E2)", async ({ page, context }) => {
+test("change due date with quick choices and a time: Next week at 10:00 lands in the file, and a checkbox takes a time too (wishes 2026-10-24, E2; plan Rückmeldungen 2026-11-05, E3)", async ({ page, context }) => {
   test.setTimeout(120_000);
   const errors = collectErrors(page);
   const sql = await installSqlBridge(context);
@@ -862,12 +862,12 @@ test("change due date with quick choices and a time: Next week at 10:00 lands in
     await moved.locator(".pv-toast-action").click();
     await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-25"));
 
-    // A checkbox's 📅 holds a day only: the sheet says so instead of offering the switch.
+    // A checkbox takes a time as well: it goes right after its 📅 date (E3).
     const noteRow = page.getByTestId("task-row").filter({ hasText: "Drucker einrichten" });
     await noteRow.getByTestId("task-due").click();
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByTestId("task-due-time-switch")).toHaveCount(0);
-    await expect(sheet.getByTestId("task-due-timerow")).toContainText("Here a checkbox gets a day only.");
+    await expect(sheet.getByTestId("task-due-time-switch")).toBeVisible();
+    await expect(sheet).not.toContainText("a day only");
     await sheet.getByTestId("task-due-quick-none").click();
     await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace(" 📅 2026-09-19", ""));
     expect(errors).toEqual([]);

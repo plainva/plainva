@@ -7,8 +7,8 @@ import { act } from "react";
  * "Change due date" with quick choices and a time (wishes 2026-10-24, E2):
  * the dates behind Today, Tomorrow, This weekend and Next week, and the
  * picker both shells render — a quick choice keeps a time already set, a time
- * changed alone is taken with Done, and a checkbox (which holds a day only)
- * is told so instead of offered a switch.
+ * changed alone is taken with Done, and a checkbox takes a time too — with
+ * the vault's checkbox-reminder switch beside it where that is off.
  */
 
 import i18n from "@plainva/ui/i18n";
@@ -96,7 +96,7 @@ const typeTime = (input: HTMLInputElement, value: string) =>
 describe("DuePicker", () => {
   it("lists the five quick choices with their weekdays and marks the task's day", async () => {
     await i18n.changeLanguage("en");
-    const m = await mount(<DuePicker day="2026-10-26" time={null} timeAllowed todayKey={SAT} weekStart={1} onPick={() => {}} />);
+    const m = await mount(<DuePicker day="2026-10-26" time={null} todayKey={SAT} weekStart={1} onPick={() => {}} />);
     const rows = [...m.host.querySelectorAll(".pv-datejump-qitem")];
     expect(rows.map((r) => r.querySelector(".pv-datejump-qlabel")?.textContent)).toEqual(["Today", "Tomorrow", "This weekend", "Next week", "No date"]);
     expect(rows.map((r) => r.querySelector(".pv-datejump-qday")?.textContent ?? null)).toEqual(["Sat", "Sun", "Sat", "Mon", null]);
@@ -109,7 +109,7 @@ describe("DuePicker", () => {
   it("a quick choice keeps the time the task has; the switch off makes it all-day", async () => {
     await i18n.changeLanguage("en");
     const onPick = vi.fn();
-    const m = await mount(<DuePicker day="2026-10-22" time="14:00" timeAllowed todayKey={SAT} weekStart={1} onPick={onPick} />);
+    const m = await mount(<DuePicker day="2026-10-22" time="14:00" todayKey={SAT} weekStart={1} onPick={onPick} />);
     expect((by(m.host, "task-due-time") as HTMLInputElement).value).toBe("14:00");
     await click(by(m.host, "task-due-quick-nextWeek"));
     expect(onPick).toHaveBeenLastCalledWith({ day: "2026-10-26", time: "14:00" });
@@ -125,7 +125,7 @@ describe("DuePicker", () => {
   it("sets a time and a day in one go, and Done takes a time changed alone", async () => {
     await i18n.changeLanguage("en");
     const onPick = vi.fn();
-    const m = await mount(<DuePicker day="2026-10-22" time={null} timeAllowed todayKey={SAT} weekStart={1} onPick={onPick} />);
+    const m = await mount(<DuePicker day="2026-10-22" time={null} todayKey={SAT} weekStart={1} onPick={onPick} />);
     expect(by(m.host, "task-due-time-done")).toBeNull();
     await click(by(m.host, "task-due-time-switch"));
     await typeTime(by(m.host, "task-due-time") as HTMLInputElement, "10:00");
@@ -137,15 +137,32 @@ describe("DuePicker", () => {
     await unmount(m);
   });
 
-  it("a checkbox holds a day only: no switch, a sentence instead, and every pick is all-day", async () => {
+  it("a checkbox takes a time as well; with its reminders off the switch stands under the time (plan Rückmeldungen 2026-11-05, E3)", async () => {
     await i18n.changeLanguage("en");
     const onPick = vi.fn();
-    const m = await mount(<DuePicker day={null} time={null} timeAllowed={false} todayKey={SAT} weekStart={0} onPick={onPick} />);
-    expect(by(m.host, "task-due-time-switch")).toBeNull();
-    expect(by(m.host, "task-due-timerow")?.textContent).toContain("Here a checkbox gets a day only.");
+    const onChange = vi.fn();
+    const m = await mount(<DuePicker day={null} time={null} checkboxReminders={{ on: false, onChange }} todayKey={SAT} weekStart={0} onPick={onPick} />);
     expect(by(m.host, "task-due-quick-none")?.getAttribute("aria-pressed")).toBe("true");
+    // No time chosen: nothing would remind, so nothing is asked.
+    expect(by(m.host, "task-due-reminders")).toBeNull();
+    await click(by(m.host, "task-due-time-switch"));
+    await typeTime(by(m.host, "task-due-time") as HTMLInputElement, "14:30");
+    expect(by(m.host, "task-due-reminders")?.textContent).toContain("Reminders for checkboxes with a time are off for this vault.");
+    await click(by(m.host, "task-due-reminders-switch"));
+    expect(onChange).toHaveBeenLastCalledWith(true);
     await click(by(m.host, "task-due-quick-tomorrow"));
-    expect(onPick).toHaveBeenLastCalledWith({ day: SUN, time: null });
+    expect(onPick).toHaveBeenLastCalledWith({ day: SUN, time: "14:30" });
     await unmount(m);
+  });
+
+  it("shows no reminder row where the checkbox reminders are on, or for a database entry", async () => {
+    await i18n.changeLanguage("en");
+    const on = await mount(<DuePicker day="2026-10-22" time="14:00" checkboxReminders={{ on: true, onChange: () => {} }} todayKey={SAT} weekStart={1} onPick={() => {}} />);
+    expect(by(on.host, "task-due-time")).not.toBeNull();
+    expect(by(on.host, "task-due-reminders")).toBeNull();
+    await unmount(on);
+    const db = await mount(<DuePicker day="2026-10-22" time="14:00" todayKey={SAT} weekStart={1} onPick={() => {}} />);
+    expect(by(db.host, "task-due-reminders")).toBeNull();
+    await unmount(db);
   });
 });

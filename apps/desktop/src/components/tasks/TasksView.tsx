@@ -7,6 +7,7 @@ import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { appPrompt } from "../../services/appDialogs";
 import { useJournalCapture } from "../../hooks/useJournal";
+import { useCheckboxReminders } from "../../hooks/useCheckboxReminders";
 import { getSettingsStore } from "../../services/settingsStore";
 import { createTaskDatabase, getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
@@ -942,8 +943,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * Overdue heading moves the whole section. Every move answers with a toast
    * that carries Undo — the same write, pointed back at the days that were
    * there. The phone's twin is the due sheet in TasksScreen. The picker offers
-   * quick choices and a time (wishes 2026-10-24, E2); a time only where the
-   * task can hold one — a database entry, not a checkbox's `📅`.
+   * quick choices and a time (wishes 2026-10-24, E2) — for a checkbox too,
+   * written right after its `📅` date (plan Rückmeldungen 2026-11-05, E3).
    */
   const weekStart = useWeekStartDay();
   const [dueTarget, setDueTarget] = useState<{
@@ -952,7 +953,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     value: string | null;
     /** The time it carries now (`HH:MM`); null when it is due all day. */
     time: string | null;
-    timeAllowed: boolean;
+    /** A checkbox in a note: the picker offers the vault's checkbox-reminder switch. */
+    checkbox: boolean;
     change: (pick: DuePick) => TaskDueChange;
   } | null>(null);
   const applyDue = useCallback(
@@ -981,7 +983,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       if (moved.size > 0) {
         setTasks((prev) => prev.map((row) => {
           const hit = moved.get(`${row.path}#${row.ordinal}`);
-          return hit ? { ...row, text: hit.text, due: hit.day } : row;
+          return hit ? { ...row, text: hit.text, due: hit.day, dueTime: hit.time ?? undefined } : row;
         }));
       }
       let reindexed = false;
@@ -1018,7 +1020,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   const pickDue = (pick: DuePick) => {
     const target = dueTarget;
     setDueTarget(null);
-    if (!target || (pick.day === target.value && (!target.timeAllowed || pick.time === target.time))) return;
+    if (!target || (pick.day === target.value && pick.time === target.time)) return;
     const change = target.change(pick);
     void moveDue([change], () => taskDueMovedText(pick)).then(() => {
       // A time set on a database whose due column shows a day only: the same
@@ -1037,7 +1039,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     });
   };
   const dbDueChange = (path: string) => (pick: DuePick): TaskDueChange => ({ source: "database", path, day: pick.day, time: pick.time });
-  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day });
+  const noteDueChange = (task: TaskRecord) => (pick: DuePick): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day: pick.day, time: pick.time });
+  const checkboxReminders = useCheckboxReminders();
   /** The element a menu was opened on — the picker of a menu entry hangs there. */
   const anchorAt = (at: { x: number; y: number }) => ({ current: (document.elementFromPoint(at.x, at.y) as HTMLElement | null) ?? document.body });
 
@@ -1047,7 +1050,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     repeat: r.mirrored ? undefined : () => setRepeatTarget({ path: r.path, title: noteDisplayName(r.title), rule: r.repeat, due: r.due ?? null }),
     block: calendarOptions.length > 0 ? () => setBlockTarget({ title: noteDisplayName(r.title), due: r.due, notePath: r.path, linkPath: r.path }) : undefined,
     // Only a database with a date column can carry a due day.
-    due: dbDueKey ? () => setDueTarget({ anchorRef: anchorAt(at), value: r.due ?? null, time: dueTimeOf(r.dueMinutes), timeAllowed: true, change: dbDueChange(r.path) }) : undefined,
+    due: dbDueKey ? () => setDueTarget({ anchorRef: anchorAt(at), value: r.due ?? null, time: dueTimeOf(r.dueMinutes), checkbox: false, change: dbDueChange(r.path) }) : undefined,
     priority: () => setPriorityMenu({ at, target: { kind: "db", path: r.path } }),
   });
   const noteRowCaps = (task: TaskRecord, at: { x: number; y: number }): TaskRowCaps => ({
@@ -1058,7 +1061,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       calendarOptions.length > 0
         ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
         : undefined,
-    due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) }),
+    due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, time: task.dueTime ?? null, checkbox: true, change: noteDueChange(task) }),
     priority: () => setPriorityMenu({ at, target: { kind: "note", task } }),
     state: () => setStateMenu({ at, task }),
   });
@@ -1091,7 +1094,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   };
   const onPlannerDue = (row: PlannerRow, anchor: HTMLElement) => {
     const change = plannerDueChange(row);
-    if (change) setDueTarget({ anchorRef: { current: anchor }, value: row.due ?? null, time: row.source === "database" ? dueTimeOf(row.dueMinutes) : null, timeAllowed: row.source === "database", change });
+    if (change) setDueTarget({ anchorRef: { current: anchor }, value: row.due ?? null, time: dueTimeOf(row.dueMinutes), checkbox: row.source === "note", change });
   };
   const overdueToToday = () => {
     const overdue = planner.sections("today").find((section) => section.kind === "overdue")?.rows ?? [];
@@ -1310,7 +1313,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                           testId="task-db-due"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: r.due ?? null, time: dueTimeOf(r.dueMinutes), timeAllowed: true, change: dbDueChange(r.path) });
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: r.due ?? null, time: dueTimeOf(r.dueMinutes), checkbox: false, change: dbDueChange(r.path) });
                           }}
                         >
                           <DueLabel due={r.due} />
@@ -1488,7 +1491,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                           testId="task-due"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: task.due ?? null, time: null, timeAllowed: false, change: noteDueChange(task) });
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: task.due ?? null, time: task.dueTime ?? null, checkbox: true, change: noteDueChange(task) });
                           }}
                         >
                           <DueLabel due={task.due} />
@@ -1559,7 +1562,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
           <DuePicker
             day={dueTarget.value}
             time={dueTarget.time}
-            timeAllowed={dueTarget.timeAllowed}
+            checkboxReminders={dueTarget.checkbox ? checkboxReminders ?? undefined : undefined}
             todayKey={todayKey}
             weekStart={weekStart}
             onPick={pickDue}

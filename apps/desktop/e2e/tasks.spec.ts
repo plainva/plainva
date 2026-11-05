@@ -1488,3 +1488,51 @@ test('without a task database the capture files a checkbox in today\'s daily not
   expect(Object.keys(await page.evaluate(() => (window as any).mockFs)).filter((p) => p.endsWith('.base'))).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test('a checkbox gets a time from the date picker, and the picker offers its reminder switch (plan Rückmeldungen 2026-11-05, E3)', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const key = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+    (window as any).__dayKey = key;
+    fs['/test-vault/Todo.md'] = `# Todo\n- [ ] Anruf Bank ⏫ 🔁 every week 📅 ${key(-1)} #geld\n`;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+  const file = () => page.evaluate(() => String((window as any).mockFs['/test-vault/Todo.md']));
+  const yesterday = await page.evaluate(() => (window as any).__dayKey(-1));
+
+  const row = page.getByTestId('task-planner-section-overdue').locator('[data-testid="task-planner-row"]', { hasText: 'Anruf Bank' });
+  await row.getByTestId('task-planner-due').click();
+  const picker = page.getByTestId('task-due-picker');
+  await expect(picker).toBeVisible();
+  // The time row has its switch for a checkbox too; the old "a day only" sentence is gone.
+  await expect(picker).not.toContainText('a day only');
+  await picker.getByTestId('task-due-time-switch').click();
+  await picker.getByTestId('task-due-time').fill('14:30');
+  // Reminders for such a checkbox are off in this vault: the switch stands right here.
+  const reminders = picker.getByTestId('task-due-reminders');
+  await expect(reminders).toContainText('Reminders for checkboxes with a time are off for this vault.');
+  await reminders.getByTestId('task-due-reminders-switch').click();
+  await expect(reminders).toContainText('are on for this vault');
+  await page.screenshot({ path: testInfo.outputPath('tasks-checkbox-time.png') });
+  await picker.getByTestId('task-due-time-done').click();
+
+  // Only the time is new on the line; every other mark stays where it stood.
+  await expect.poll(file).toBe(`# Todo\n- [ ] Anruf Bank ⏫ 🔁 every week 📅 ${yesterday} 14:30 #geld\n`);
+  await expect(row).toContainText(/14:30|02:30\sPM/);
+
+  // "No time": the switch off takes the time away again, cleanly.
+  await row.getByTestId('task-planner-due').click();
+  await expect(picker.getByTestId('task-due-time')).toHaveValue('14:30');
+  await picker.getByTestId('task-due-time-switch').click();
+  await picker.getByTestId('task-due-time-done').click();
+  await expect.poll(file).toBe(`# Todo\n- [ ] Anruf Bank ⏫ 🔁 every week 📅 ${yesterday} #geld\n`);
+  expect(errors).toEqual([]);
+});
