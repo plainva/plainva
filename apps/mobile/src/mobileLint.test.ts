@@ -1643,10 +1643,13 @@ describe("today answers the whole day", () => {
     // `journalToday()`, not `new Date()` (plan Journal-Erweiterungen, X1): this
     // screen carries the daily note and the journal section, and with a day
     // boundary set they are still yesterday's at 01:30.
-    expect(screen).toMatch(/buildDayStrip\(journalToday\(\), \d+, \d+\)/);
+    // A day picked past the strip in the jump sheet (issue 153) becomes its centre;
+    // until then, and after "Today", the centre is the diary's today.
+    expect(screen).toMatch(/buildDayStrip\(stripCenter \? dateOfKey\(stripCenter\) : journalToday\(\), \d+, \d+\)/);
+    expect(screen).toMatch(/<DateJumpPicker/);
     // A day view whose future is one day long cannot answer "what does next
     // week look like" — the old strip ran -27..+1.
-    const m = /buildDayStrip\(journalToday\(\), \d+, (\d+)\)/.exec(screen);
+    const m = /buildDayStrip\(stripCenter \? dateOfKey\(stripCenter\) : journalToday\(\), \d+, (\d+)\)/.exec(screen);
     expect(Number(m?.[1] ?? 0)).toBeGreaterThan(1);
   });
 });
@@ -2410,7 +2413,7 @@ describe("the type scale", () => {
     // state"); the app used it on 1 of 34.
     const bars = [
       ["screens/NavigatorScreen.tsx", /subtitle=\{syncSubtitle\}/],
-      ["screens/TodayScreen.tsx", /subtitle=\{barDate\}/],
+      ["screens/TodayScreen.tsx", /subtitle=\{\s*<button[\s\S]*?\{barDate\}/],
       ["screens/NoteScreen.tsx", /subtitle=\{folder\}/],
       ["VaultDetailScreen.tsx", /subtitle=\{entry\.provider/],
     ] as const;

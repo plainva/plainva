@@ -350,6 +350,25 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A context line that opens something (Today's date opens the day jump, issue 153):
+   the line's own size, in the accent so it reads as a control, with a chevron. */
+.m-appbar-subbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent-color);
+  cursor: pointer;
+}
+.m-appbar-subbtn:active {
+  background: var(--state-highlight);
+  border-radius: var(--radius-sm);
+}
 /* With a line of context under the title, the buttons sit level with the
    title, not with the middle of the two lines (feedback 2026-10-29: the menu
    hung between "Heute" and its date). The title line is as tall as a button,

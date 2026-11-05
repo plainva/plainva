@@ -117,3 +117,45 @@ test("daily-note marks use the configured path, and the action opens or creates 
     })).toBeTruthy();
   } finally { sql.close(); }
 });
+
+test("Today: the date under the title jumps past the strip, and Today brings the strip back (issue 153)", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-05T10:00:00"));
+  await page.addInitScript(() => {
+    globalThis.localStorage.setItem(
+      "CapacitorStorage.mobile-settings",
+      JSON.stringify({ onboarded: true, language: "en", motion: "off" }),
+    );
+  });
+  await page.goto("/");
+  await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20000 });
+  await page.waitForTimeout(1500);
+  if (await page.getByTestId("whats-new-close").isVisible()) await page.getByTestId("whats-new-close").click();
+  const tab = page.locator(".m-tabbar .m-tab", { hasText: /^Today$/ });
+  if (await tab.count()) await tab.first().click();
+  else {
+    await page.getByTestId("tab-areas").click();
+    await page.getByRole("button", { name: /^Today$/ }).first().click();
+  }
+
+  const date = page.getByTestId("today-jump");
+  await expect(date).toContainText("November 5");
+  await date.click();
+  const sheet = page.getByTestId("today-jump-sheet");
+  await expect(sheet).toBeVisible();
+  // December is outside the two weeks the strip shows around today.
+  await sheet.getByTestId("today-jump-grid-month-11").click();
+  await sheet.getByTestId("today-jump-grid-day-2026-12-19").click();
+  await sheet.getByTestId("today-jump-grid-go").click();
+  await expect(sheet).toHaveCount(0);
+  await expect(date).toContainText("December 19");
+  const selected = page.locator(".m-datestrip .m-datestrip-day.is-selected");
+  await expect(selected).toHaveCount(1);
+  await expect(selected.locator(".m-datestrip-num")).toHaveText("19");
+  await expect(selected).toBeInViewport();
+  await expect(page.locator(".m-bigcard h4")).toContainText("December 19, 2026");
+
+  await date.click();
+  await page.getByTestId("today-jump-grid-today").click();
+  await expect(date).toContainText("November 5");
+  await expect(page.locator(".m-datestrip .m-datestrip-day.is-selected.is-today")).toBeInViewport();
+});
