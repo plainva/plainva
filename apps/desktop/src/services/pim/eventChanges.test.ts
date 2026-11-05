@@ -100,10 +100,11 @@ describe("applying a change to the whole series", () => {
     expect(out.descriptionTouched).toBe(true);
   });
 
-  it("moves the series anchor when the date itself was changed", () => {
+  it("moves the series by as many days as the date was moved", () => {
     const after = { ...base(), dayKey: "2026-08-12", endDayKey: "2026-08-12" };
     const out = applyEventChanges(master(), after, describeEventChanges(base(), after));
-    expect(out.dayKey).toBe("2026-08-12");
+    expect(out.dayKey).toBe("2026-06-03");
+    expect(out.endDayKey).toBe("2026-06-03");
   });
 
   it("changes nothing at all when nothing was edited", () => {

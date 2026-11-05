@@ -267,25 +267,50 @@ describe("deviceUpdateSpan (iPhone: All events without a rule change)", () => {
   });
 });
 
-describe("a series-wide save keeps the series' first date (iPhone/Android 'All events')", () => {
-  const at = (day: number, h: number, m = 0) => new Date(2026, 10, day, h, m, 0, 0).getTime();
+describe("a series-wide save moves the series by what the person changed (iPhone/Android 'All events')", () => {
+  const at = (day: number, h: number, m = 0, month = 10) => new Date(2026, month, day, h, m, 0, 0).getTime();
   const first = { startTs: at(2, 9) }; // Monday, first occurrence of a weekly series
-  const fourth = (): DeviceEventDraft => ({ title: "Jour fixe", startTs: at(23, 9), endTs: at(23, 10), allDay: false });
+  // The sheet opened on the master row, whose start is the 4th occurrence (W).
+  const opened = { startTs: at(23, 9) };
+  const draft = (over: Partial<DeviceEventDraft> = {}): DeviceEventDraft => ({ title: "Jour fixe", startTs: at(23, 9), endTs: at(23, 10), allDay: false, ...over });
 
-  it("moving the time of the series from its 4th occurrence keeps the first date", () => {
-    const out = anchorSeriesDraft(first, { ...fourth(), startTs: at(23, 9, 30), endTs: at(23, 10, 30) });
+  it("a title-only change keeps start and end exactly", () => {
+    const out = anchorSeriesDraft(first, draft({ title: "Neu" }), opened);
+    expect(out).toMatchObject({ title: "Neu", startTs: at(2, 9), endTs: at(2, 10) });
+  });
+
+  it("a time-only change from the 4th occurrence keeps the first date with the new time", () => {
+    const out = anchorSeriesDraft(first, draft({ startTs: at(23, 9, 30), endTs: at(23, 10, 30) }), opened);
     expect(out.startTs).toBe(at(2, 9, 30));
     expect(out.endTs).toBe(at(2, 10, 30));
   });
 
-  it("changing only the title keeps start and end exactly", () => {
-    const out = anchorSeriesDraft(first, { ...fourth(), title: "Neu" });
-    expect(out).toMatchObject({ title: "Neu", startTs: at(2, 9), endTs: at(2, 10) });
+  it("a date move by +1 day from the 4th occurrence moves the first occurrence by +1 day", () => {
+    const out = anchorSeriesDraft(first, draft({ startTs: at(24, 9), endTs: at(24, 10) }), opened);
+    expect(out.startTs).toBe(at(3, 9));
+    expect(out.endTs).toBe(at(3, 10));
   });
 
-  it("switching to all-day lays the day on the first date", () => {
-    const out = anchorSeriesDraft(first, { ...fourth(), allDay: true, startTs: at(23, 0), endTs: at(24, 0) });
-    expect(out).toMatchObject({ allDay: true, startTs: at(2, 0), endTs: at(3, 0) });
+  it("keeps the wall-clock time across a DST change (first occurrence in October, opened in November)", () => {
+    // Europe/Berlin switched on 2026-10-25; elsewhere this is plain arithmetic and holds as well.
+    const f = { startTs: at(19, 9, 0, 9) };
+    const w = { startTs: at(23, 9) };
+    const out = anchorSeriesDraft(f, draft({ startTs: at(23, 9, 30), endTs: at(23, 10, 30) }), w);
+    expect(out.startTs).toBe(at(19, 9, 30, 9));
+    expect(out.endTs).toBe(at(19, 10, 30, 9));
+  });
+
+  it("an all-day series: unchanged keeps the first day, +1 day moves it, the switch lays the day on the first date", () => {
+    const utc = (day: number) => Date.UTC(2026, 10, day);
+    const f = { startTs: utc(2) };
+    const orig = { startTs: utc(23), date: "2026-11-23" };
+    const allDay = (day: number): DeviceEventDraft => ({ title: "x", allDay: true, startTs: utc(day), endTs: utc(day + 1) });
+    expect(anchorSeriesDraft(f, allDay(23), orig)).toMatchObject({ startTs: utc(2), endTs: utc(3) });
+    expect(anchorSeriesDraft(f, allDay(24), orig)).toMatchObject({ startTs: utc(3), endTs: utc(4) });
+    // From a timed event to all-day (no row date): the original day is its local date.
+    const timed = anchorSeriesDraft({ startTs: at(2, 9) }, allDay(23), { startTs: at(23, 9) });
+    expect(timed.allDay).toBe(true);
+    expect(timed.startTs).toBe(utc(2));
   });
 
   it("is applied by the target to a series save, not to an occurrence save or a single event", async () => {
@@ -295,15 +320,15 @@ describe("a series-wide save keeps the series' first date (iPhone/Android 'All e
     });
     port.eventRows = [row("cal-1:s", at(2, 9), "FREQ=WEEKLY"), row("cal-1:single", at(5, 9))];
     const t = target(port);
-    const draft = (title: string, day: number) => ({ title, allDay: false, start: { ts: at(day, 9, 30) }, end: { ts: at(day, 10, 30) } });
+    const d = (title: string, day: number) => ({ title, allDay: false, start: { ts: at(day, 9, 30) }, end: { ts: at(day, 10, 30) } });
 
-    await t.updateEvent({ calendarId: "cal-1", uid: "cal-1:s" }, draft("A", 23));
+    await t.updateEvent({ calendarId: "cal-1", uid: "cal-1:s", originalStartTs: at(23, 9) }, d("A", 23));
     expect(port.eventRows[0]).toMatchObject({ startTs: at(2, 9, 30), endTs: at(2, 10, 30) });
 
-    await t.updateEvent({ calendarId: "cal-1", uid: "cal-1:single" }, draft("B", 6));
+    await t.updateEvent({ calendarId: "cal-1", uid: "cal-1:single", originalStartTs: at(5, 9) }, d("B", 6));
     expect(port.eventRows[1]).toMatchObject({ startTs: at(6, 9, 30) });
 
-    await t.updateEvent({ calendarId: "cal-1", uid: `cal-1:s@${at(2, 9, 30)}` }, draft("C", 9));
+    await t.updateEvent({ calendarId: "cal-1", uid: `cal-1:s@${at(2, 9, 30)}` }, d("C", 9));
     expect(port.eventRows[0]).toMatchObject({ startTs: at(9, 9, 30) });
   });
 });
