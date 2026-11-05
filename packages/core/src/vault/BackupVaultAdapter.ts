@@ -5,7 +5,6 @@ import {
   makeBackupPath,
   parseBackupFileName,
 } from "./backupNaming.js";
-import { trimEndChars } from "../textScan.js";
 import { readLocalFile } from "./localText.js";
 
 export interface BackupRetentionPolicy {
@@ -384,12 +383,11 @@ export class BackupVaultAdapter implements IVaultAdapter {
   }
 
   /**
-   * Snapshots the files under `folder` a recursive delete takes that the
-   * tree shows: the folder's own, not what a link in it points at — the
-   * delete takes the link, not its target —, and nothing under a dot-named
-   * entry (`.git`, `.obsidian`, an imported vault's own `.plainva`), which is
-   * another program's bookkeeping. One rule for every adapter, asked of the
-   * walk (it does not go into such a folder) and held here as well.
+   * Snapshots every file under `folder` that a recursive delete takes: the
+   * folder's own, not what a link in it points at — the delete takes the
+   * link, not its target —, dot-named files and folders included (`.git`,
+   * `.obsidian`: the delete removes them, so the safety copy must hold them;
+   * finding 2026-11-02). Only the app's own `.plainva` tree is left out.
    */
   private async snapshotFolderContents(folder: string): Promise<void> {
     let listing: VaultListing;
@@ -397,7 +395,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
       // The walk that says what it could not list (issue 125): a folder below
       // that cannot be listed is no folder whose files were covered.
       listing = this.inner.listDirReport
-        ? await this.inner.listDirReport(folder, true, { followLinks: false, dotEntries: false })
+        ? await this.inner.listDirReport(folder, true, { followLinks: false, dotEntries: true })
         : { files: await this.inner.listDir(folder, true), skipped: [] };
     } catch (error) {
       // Cannot enumerate — report once against the folder rather than
@@ -409,14 +407,9 @@ export class BackupVaultAdapter implements IVaultAdapter {
     // fails costs no file its snapshot.
     const uncovered = listing.skipped.filter((s) => s.reason === "unreadable");
     if (uncovered.length > 0) this.reportBackupError(folder, new Error(`${uncovered.length} entr(ies) below could not be listed: ${uncovered.map((s) => s.path).join(", ")}`));
-    // What lies below the folder, however the caller spelled it (a trailing
-    // slash); where the walk names its files in another spelling, the whole
-    // path is held to the rule, and a folder the tree shows has no dot in it.
-    const root = trimEndChars(folder, "/");
-    const below = (path: string) => (root && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path);
     for (const entry of listing.files) {
-      if (entry.isDirectory || isPlainvaInternalPath(entry.path)) continue;
-      if (below(entry.path).split("/").some((segment) => segment.startsWith("."))) continue;
+      // The app's own tree, wherever it lies below the folder (an imported vault's).
+      if (entry.isDirectory || isPlainvaInternalPath(entry.path) || entry.path.split("/").includes(".plainva")) continue;
       await this.safeBackup(entry.path, true, true);
     }
   }
