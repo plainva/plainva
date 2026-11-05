@@ -1,6 +1,6 @@
 # Backups & Histórico de Versões
 
-Última revisão: 2026-10-30
+Última revisão: 2026-11-05
 
 O Plainva protege seu trabalho em dois níveis: **versões de arquivo** (snapshots automáticos de cada arquivo individual ao editar e excluir) e **backups do vault** (arquivos ZIP regulares de todo o vault, armazenados fora da pasta do vault). Ambos rodam em segundo plano sem qualquer configuração e podem ser ajustados nas configurações em **Backup e versionamento**.
 
@@ -27,7 +27,7 @@ Clique com o botão direito em um arquivo na árvore de arquivos (ou na aba dele
 - **Restaurar** substitui o conteúdo atual pela versão selecionada. Não se preocupe: o estado atual é salvo primeiro como um snapshot — então uma restauração sempre pode ser desfeita.
 - **Restaurar como cópia** cria a versão como um novo arquivo ao lado do original (`Name (Version 2026-07-05 14-30).md`) sem alterá-lo.
 
-Imagens também têm versões (com pré-visualização); outros arquivos binários podem ser restaurados sem pré-visualização.
+Imagens também têm versões (com pré-visualização); outros arquivos binários podem ser restaurados sem pré-visualização. No telefone, mantenha um arquivo pressionado na lista de arquivos e escolha **Histórico de versões…**.
 
 ## Restaurando arquivos excluídos
 

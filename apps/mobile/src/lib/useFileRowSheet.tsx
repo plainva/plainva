@@ -4,6 +4,7 @@ import { CheckSquare, Database, FileText, Folder } from "lucide-react";
 import { bookmarkKey, fileRowActions, ICON, isLargeDeletion, pickRowActions, toast, type RowActionSpec } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
+import { VersionsPanel } from "../components/VersionsPanel";
 import type { SwipeAction } from "../components/SwipeRow";
 import { countFolderFiles, countVaultFiles } from "./folderDeletion";
 import { confirmDeleteFile } from "./deleteFile";
@@ -35,6 +36,8 @@ export interface FileRowSheetTarget {
   title: string;
   isFolder?: boolean;
   isBase?: boolean;
+  /** An attachment (picture, PDF, ...): opened by the list's own handler. */
+  attachment?: { isImage: boolean };
 }
 
 export function fileRowKind(path: string, isFolder = false): FileRowKind {
@@ -48,6 +51,7 @@ export function useFileRowSheet({
   onOpenNote,
   onOpenFolder,
   onOpenBase,
+  onOpenAttachment,
   onSelectMany,
   onRemoveFromList,
 }: {
@@ -57,6 +61,8 @@ export function useFileRowSheet({
   onOpenFolder: (path: string) => void;
   /** Defaults to `onOpenNote`, whose router sends a database to its screen. */
   onOpenBase?: (path: string) => void;
+  /** Lists that show attachments: what "Open" does for one. */
+  onOpenAttachment?: (path: string, isImage: boolean) => void;
   /** The sheet's first entry where the list can select several (S22). */
   onSelectMany?: (path: string) => void;
   /** "Remove from list" for a list that is not the vault itself (Recent). */
@@ -79,6 +85,8 @@ export function useFileRowSheet({
    * index.md is the user's own, where nothing is offered at all.
    */
   const [sheetIndex, setSheetIndex] = useState<FolderIndexState | null>(null);
+  /** The version history of a file (the desktop's "Version history…" on any file row). */
+  const [history, setHistory] = useState<{ path: string; title: string } | null>(null);
   const [movePick, setMovePick] = useState<{ path: string; title: string; isFolder?: boolean } | null>(null);
   // S22: holding a row opens what that row can do — on EVERY kind of row.
   //
@@ -234,6 +242,7 @@ export function useFileRowSheet({
     }
     if (kind === "base") {
       return fileRowActions(t, {
+        versionHistory: closeThen(() => setHistory({ path: target.path, title: target.title })),
         removeFromList: removeFromList && (() => removeFromList(target)),
         delete: closeThen(() => void confirmDeleteFile(vault, target.path, target.title, t)),
       });
@@ -244,6 +253,7 @@ export function useFileRowSheet({
       move: () => startMove(target),
       bookmarked: bookmarked.has(bookmarkKey({ type: "file", path: target.path })),
       bookmark: () => bookmarkNote(target),
+      versionHistory: closeThen(() => setHistory({ path: target.path, title: target.title })),
       removeFromList: removeFromList && (() => removeFromList(target)),
       delete: () => deleteNote(target),
     });
@@ -293,19 +303,20 @@ export function useFileRowSheet({
               onClick={() => {
                 const s = sheet;
                 setSheet(null);
-                if (s.isBase) openBase(s.path);
+                if (s.attachment) onOpenAttachment?.(s.path, s.attachment.isImage);
+                else if (s.isBase) openBase(s.path);
                 else if (s.isFolder) onOpenFolder(s.path);
                 else onOpenNote(s.path);
               }}
             >
-              {sheet.isBase ? <Database size={ICON.head} /> : sheet.isFolder ? <Folder size={ICON.head} /> : <FileText size={ICON.head} />}
+              {sheet.isBase || sheet.attachment ? <Database size={ICON.head} /> : sheet.isFolder ? <Folder size={ICON.head} /> : <FileText size={ICON.head} />}
               <span>{t("mobile.sheetOpen")}</span>
             </button>
             {/* The row's actions, from the ONE list both shells read (Design-
                 Runde E2): the same entries, words and order as the desktop's
                 context menu and the swipe on this row. The delete sits last,
                 behind its hairline, because the list says so. */}
-            {rowActionsFor(sheet, sheet.isFolder ? "folder" : sheet.isBase ? "base" : "note", sheetIndex).map((a, i, all) => (
+            {rowActionsFor(sheet, sheet.isFolder ? "folder" : sheet.isBase || sheet.attachment ? "base" : "note", sheetIndex).map((a, i, all) => (
               <button
                 key={a.id}
                 className={a.danger ? "m-row m-danger" : "m-row"}
@@ -317,6 +328,22 @@ export function useFileRowSheet({
                 <span>{a.label}</span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {history && (
+        <div className="m-sheet-backdrop" onClick={() => setHistory(null)}>
+          <div className="pv-sheet m-sheet" data-testid="file-history-sheet" onClick={(e) => e.stopPropagation()}>
+            <SheetGrip onClose={() => setHistory(null)} />
+            <p className="m-sheet-title">{history.title}</p>
+            <VersionsPanel
+              key={history.path}
+              vault={vault}
+              path={history.path}
+              onDone={() => setHistory(null)}
+              onRestored={() => window.dispatchEvent(new CustomEvent("m-vault-changed"))}
+            />
           </div>
         </div>
       )}
@@ -339,5 +366,9 @@ export function useFileRowSheet({
     </>
   );
 
-  return { sheet, setSheet, press, folderPress, basePress, rowActionsFor, asSheet, swipeFor, sheetLayer };
+  const attachmentPress = useLongPress<{ path: string; title: string; isImage: boolean }>((x) =>
+    setSheet({ path: x.path, title: x.title, attachment: { isImage: x.isImage } }),
+  );
+
+  return { sheet, setSheet, press, folderPress, basePress, attachmentPress, rowActionsFor, asSheet, swipeFor, sheetLayer };
 }

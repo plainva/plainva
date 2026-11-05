@@ -479,8 +479,7 @@ test("all inboxes: a row put aside leaves the merged list and its own inbox", as
 
 test("all inboxes: Undo on the notice of a snooze brings the row back, in the merged list and in its own inbox", async ({ page, context }) => {
   // Decision E17: snooze is offered here, put aside where the row lies - and
-  // a snooze by mistake is taken back from its notice. The phone has no list
-  // of snoozed messages to take it back from.
+  // a snooze by mistake is taken back from its notice.
   test.setTimeout(120_000);
   const { sql } = await bootTwoMailboxes(context, page);
   try {
@@ -501,6 +500,40 @@ test("all inboxes: Undo on the notice of a snooze brings the row back, in the me
     await expect(page.locator(".m-mboxline-acct")).toHaveText(SECOND_BOX.address);
     await expect(rows(page)).toHaveCount(4, { timeout: 15000 });
     await expect(rows(page).filter({ hasText: "Kontoauszug" })).toHaveCount(1);
+  } finally {
+    await sql.close();
+  }
+});
+
+test("all inboxes: the Snoozed list shows what is put aside and brings a message back now; conversations name the mailbox too", async ({ page, context }) => {
+  // The phone's half of the desktop's Snoozed button (open-items plan 3.175 no. 4),
+  // and the mailbox on the rows of conversations (3.110 no. 2).
+  test.setTimeout(120_000);
+  const { sql } = await bootTwoMailboxes(context, page);
+  try {
+    await showAllInboxes(page, 7);
+    // Nothing put aside: no way to a list of them.
+    await expect(page.getByTestId("mail-filter-snoozed")).toHaveCount(0);
+    const offered = await swipeOpen(page, page.locator(".m-swipe").filter({ hasText: "Kontoauszug" }));
+    await offered.filter({ hasText: /Snooze/ }).click();
+    await page.getByRole("button", { name: "Later today" }).click();
+    await expect(rows(page)).toHaveCount(6);
+    await page.getByTestId("mail-filter-snoozed").click();
+    await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).filter({ hasText: "Kontoauszug" })).toHaveCount(1);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("phone-snoozed-list.png") });
+    const back = await swipeOpen(page, page.locator(".m-swipe").filter({ hasText: "Kontoauszug" }));
+    await back.filter({ hasText: /Bring back now/ }).click();
+    // Nothing is put aside any more: the list closes and the way to it goes.
+    await expect(page.getByTestId("mail-filter-snoozed")).toHaveCount(0);
+    await expect(rows(page)).toHaveCount(7);
+    await expect(rows(page).filter({ hasText: "Kontoauszug" })).toHaveCount(1);
+
+    await page.getByTestId("mail-threads-toggle").click();
+    await expect(page.getByTestId("mail-row-account").first()).toBeVisible();
+    const labelled = await page.getByTestId("mail-row-account").count();
+    expect(labelled).toBeGreaterThanOrEqual(5);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("phone-threads-account.png") });
   } finally {
     await sql.close();
   }

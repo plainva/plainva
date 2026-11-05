@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, CheckSquare, ChevronDown, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { Ban, CheckSquare, ChevronDown, Clock, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
-import { addSnooze, filterSnoozedRows, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeEntryFor, snoozeUntil, undoSnoozes, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
+import { addSnooze, filterSnoozedRows, onlySnoozedRows, parseSnoozeState, pruneSnoozes, removeSnooze, SNOOZE_PRESETS, snoozeEntryFor, snoozeUntil, undoSnoozes, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
 import { useFloatingSelectionSpace } from "../hooks/useFloatingSelectionSpace";
@@ -170,6 +170,10 @@ export function MailListScreen({
     const h = setInterval(() => setSnoozeNow(Date.now()), 60_000);
     return () => clearInterval(h);
   }, []);
+  // The Snoozed list (as on the desktop): shows exactly the messages put aside.
+  const [snoozedPicked, setShowSnoozed] = useState(false);
+  // With nothing put aside any more the list closes by itself.
+  const showSnoozed = snoozedPicked && snoozed.length > 0;
   const persistSnoozed = async (next: SnoozeEntry[]) => {
     await updateMobileSettings({ mailSnoozed: next });
   };
@@ -796,7 +800,10 @@ export function MailListScreen({
   // lie in — each row names it (plan P1), in "All inboxes" as in its folder and
   // in a conversation. A search and the flagged list are not filtered, as on
   // the desktop: a snooze says "not in my way", not "gone".
-  const unsnoozed = useCallback((list: MailEnvelope[]) => filterSnoozedRows(list, snoozed, snoozeNow), [snoozed, snoozeNow]);
+  const unsnoozed = useCallback(
+    (list: MailEnvelope[]) => (showSnoozed ? onlySnoozedRows(list, snoozed, snoozeNow) : filterSnoozedRows(list, snoozed, snoozeNow)),
+    [showSnoozed, snoozed, snoozeNow]
+  );
   const listRows = useMemo(() => (view.replaced ? view.listRows : unsnoozed(view.listRows)), [view.replaced, view.listRows, unsnoozed]);
 
   const threads = useMemo(
@@ -1131,7 +1138,9 @@ export function MailListScreen({
       // `originOf`, and the sheet opens for a merged row: its selection holds
       // the row by its address.)
       move: unified ? undefined : () => void moveOne(m),
+      snoozed: showSnoozed,
       snooze: () => void swipeSnooze(m),
+      unsnooze: () => void unsnoozeOne(m),
       junkDirection: box && isJunkFolder(box, folders) ? "restore" : "report",
       junk: unified ? undefined : () => void swipeJunk(m),
       // The trash of the row's own folder, by the rule the desktop reads
@@ -1161,6 +1170,15 @@ export function MailListScreen({
     setSnoozed(next);
     void persistSnoozed(next);
   });
+
+  /** Brings a message back now: its marker goes (the desktop's "Bring back now"). */
+  const unsnoozeOne = async (m: MailEnvelope) => {
+    const at = parseUnifiedId(m.id);
+    if (!at) return;
+    const next = removeSnooze(snoozed, { account: at.accountId, folder: at.mailbox, id: at.uid });
+    setSnoozed(next);
+    await persistSnoozed(next);
+  };
 
   const swipeSnooze = async (m: MailEnvelope) => {
     const chosenPreset = (await mActions({
@@ -1493,6 +1511,16 @@ export function MailListScreen({
             <Star size={ICON.head} />
           </IconButton>
         )}
+        {snoozed.length > 0 && (
+          <IconButton
+            label={t("mail.showSnoozed")}
+            active={showSnoozed}
+            data-testid="mail-filter-snoozed"
+            onClick={() => setShowSnoozed(!showSnoozed)}
+          >
+            <Clock size={ICON.head} />
+          </IconButton>
+        )}
         <IconButton
           label={t("mail.conversations")}
           active={threadMode}
@@ -1638,6 +1666,11 @@ export function MailListScreen({
                           <span className="m-mailrow-lines">
                             <span className="m-mailrow-top">
                               <span className="m-mailrow-from">{latest.from || t("mail.unknownSender")}</span>
+                              {unified && (
+                                <span className="m-mailrow-box" data-testid="mail-row-account">
+                                  {mailAccountLabel(accounts.find((a) => a.id === parseUnifiedId(latest.id)?.accountId)?.label)}
+                                </span>
+                              )}
                               <span className="m-mailrow-date">{formatDate(latest.dateTs, i18n.language)}</span>
                             </span>
                             <span className="m-mailrow-subject">
@@ -1694,6 +1727,11 @@ export function MailListScreen({
                         <span className="m-mailrow-lines">
                           <span className="m-mailrow-top">
                             <span className="m-mailrow-from">{row.participants.join(", ")}</span>
+                            {unified && (
+                              <span className="m-mailrow-box" data-testid="mail-row-account">
+                                {mailAccountLabel(accounts.find((a) => a.id === parseUnifiedId(latest.id)?.accountId)?.label)}
+                              </span>
+                            )}
                             <span className="m-mailrow-count" data-testid="mail-thread-count">{row.count}</span>
                             <span className="m-mailrow-date">{formatDate(row.thread.latestTs, i18n.language)}</span>
                           </span>
@@ -1728,6 +1766,11 @@ export function MailListScreen({
                             <span className="m-mailrow-lines">
                               <span className="m-mailrow-top">
                                 <span className="m-mailrow-from">{m.from || t("mail.unknownSender")}</span>
+                                {unified && (
+                                  <span className="m-mailrow-box" data-testid="mail-row-account">
+                                    {mailAccountLabel(accounts.find((a) => a.id === parseUnifiedId(m.id)?.accountId)?.label)}
+                                  </span>
+                                )}
                                 {m.mailbox && m.mailbox !== mailbox && (
                                   <span className="m-mailrow-box" data-testid="mail-thread-folder">
                                     {mailFolderLabel(m.mailbox, folders[0]?.delimiter)}

@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-10-30
+Stan na: 2026-11-05
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -27,7 +27,7 @@ Kliknij prawym przyciskiem myszy plik w drzewie plików (lub jego kartę) albo u
 - **Przywróć** zastępuje bieżącą treść wybraną wersją. Bez obaw: bieżący stan sam jest najpierw zapisywany jako migawka — więc przywrócenie zawsze można cofnąć.
 - **Przywróć jako kopię** tworzy wersję jako nowy plik obok oryginału (`Name (Version 2026-07-05 14-30).md`), nie dotykając go.
 
-Obrazy również mają wersje (z podglądem); pozostałe pliki binarne można przywrócić bez podglądu.
+Obrazy również mają wersje (z podglądem); pozostałe pliki binarne można przywrócić bez podglądu. Na telefonie przytrzymaj plik na liście plików i wybierz **Historia wersji…**.
 
 ## Przywracanie usuniętych plików
 

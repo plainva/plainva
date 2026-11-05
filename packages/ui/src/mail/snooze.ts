@@ -230,6 +230,20 @@ export function filterSnoozedRows<T extends { id: string }>(rows: readonly T[], 
 }
 
 /**
+ * The rows of a list that are put aside right now - the "Snoozed" list of both
+ * shells. The same address rule as `filterSnoozedRows`, turned around: a row
+ * is in it when its own folder holds a marker that is not yet due.
+ */
+export function onlySnoozedRows<T extends { id: string }>(rows: readonly T[], state: SnoozeState, now: number): T[] {
+  const hidden = new Set(state.filter((e) => e.until > now).map(keyOf));
+  if (hidden.size === 0) return [];
+  return rows.filter((r) => {
+    const at = parseUnifiedId(r.id);
+    return !!at && hidden.has(snoozeKey(at.accountId, at.mailbox, at.uid));
+  });
+}
+
+/**
  * Drops entries that are long past due, so the profile does not grow forever.
  *
  * A week of grace, because a device that was off for a few days must still see

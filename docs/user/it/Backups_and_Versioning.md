@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-10-30
+Ultimo aggiornamento: 2026-11-05
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -27,7 +27,7 @@ Clic destro su un file nell'albero dei file (o sulla sua scheda), oppure il menu
 - **Ripristina** sostituisce il contenuto attuale con la versione selezionata. Nessuna preoccupazione: lo stato attuale viene prima salvato a sua volta come snapshot — quindi un ripristino può sempre essere annullato.
 - **Ripristina come copia** crea la versione come nuovo file accanto all'originale (`Name (Version 2026-07-05 14-30).md`) senza toccarlo.
 
-Anche le immagini hanno versioni (con anteprima); gli altri file binari possono essere ripristinati senza anteprima.
+Anche le immagini hanno versioni (con anteprima); gli altri file binari possono essere ripristinati senza anteprima. Sul telefono, tieni premuto un file nell'elenco dei file e scegli **Cronologia delle versioni…**.
 
 ## Ripristinare i file eliminati
 
