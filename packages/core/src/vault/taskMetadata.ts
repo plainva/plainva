@@ -128,6 +128,27 @@ export function setTasksField(text: string, field: Field, value: string | null):
   const at = block && block.index > 0 && /\s/.test(tail[block.index - 1]) ? tail.slice(0, block.index).trimEnd().length : tail.length;
   return text.slice(0, at) + " " + symbol + " " + value + text.slice(at);
 }
+const DUE_CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Sets the due date of a task line together with its time of day (plan
+ * Rückmeldungen 2026-11-05, E3): `📅 YYYY-MM-DD HH:MM`, the one spelling
+ * Plainva reads. `time` undefined keeps a time already written (a plain move),
+ * `null` takes it away, a `HH:MM` writes it right after the date. Only the
+ * field changes; every other mark and word of the line stays where it is. A
+ * line with two due dates is left alone, as `setTasksField` does.
+ */
+export function setTasksDue(text: string, day: string | null, time?: string | null): string {
+  if (day === null || time === undefined) return setTasksField(text, "due", day);
+  if (time !== null && !DUE_CLOCK.test(time)) throw new Error("invalid_task_due_time");
+  const value = time === null ? day : `${day} ${time}`;
+  const found = tokens(text).filter((token) => token.field === "due");
+  if (found.length > 1) return text;
+  if (found.length === 0) return setTasksField(text, "due", value);
+  const token = found[0];
+  return text.slice(0, token.from) + "📅 " + value + text.slice(token.timeTo ?? token.to);
+}
+
 /**
  * Priority marks of the Tasks plugin. READ in three ranks — 🔺 and ⏫ as high,
  * 🔼 as medium, 🔽 and ⏬ as low — because a to-do list has room for three and

@@ -1450,3 +1450,41 @@ test('notes that took over a template\'s keys: the notice lists them, and only t
   await notice.getByTestId('template-keys-hide').click();
   await expect(notice).toHaveCount(0);
 });
+
+test('without a task database the capture files a checkbox in today\'s daily note, and says so (plan Rückmeldungen 2026-11-05, E1)', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    (window as any).__dayKey = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+  await page.getByTestId('tasks-list-today').click();
+
+  // No database: the bar is there all the same, and says where the task lands.
+  const hint = page.getByTestId('task-capture-daily');
+  await expect(hint).toContainText(/today's daily note|Tagesnotiz von heute/);
+  await expect(hint.getByTestId('task-capture-create-db')).toBeVisible();
+  await expect(page.getByTestId('task-capture-provider')).toHaveCount(0);
+
+  const input = page.getByTestId('task-capture-input');
+  await input.fill('Steuerunterlagen sortieren today');
+  await page.screenshot({ path: testInfo.outputPath('tasks-capture-no-database.png') });
+  await input.press('Enter');
+
+  const todayPath = await page.evaluate(() => `/test-vault/${(window as any).__dayKey(0)}.md`);
+  const todayKey = await page.evaluate(() => (window as any).__dayKey(0));
+  await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p] ?? ''), todayPath)).toContain(`Steuerunterlagen sortieren 📅 ${todayKey}\n`);
+  expect(await page.evaluate((p) => String((window as any).mockFs[p]), todayPath)).toMatch(/- \[ \] \d{2}:\d{2} Steuerunterlagen sortieren 📅 \d{4}-\d{2}-\d{2}\n/);
+  await expect(input).toHaveValue('');
+  // …and stands in Today at once, a checkbox like any other.
+  const today = page.getByTestId('task-planner-section-today');
+  await expect(today.locator('[data-testid="task-planner-row"]', { hasText: 'Steuerunterlagen sortieren' })).toHaveAttribute('data-source', 'note');
+  expect(Object.keys(await page.evaluate(() => (window as any).mockFs)).filter((p) => p.endsWith('.base'))).toEqual([]);
+  expect(errors).toEqual([]);
+});

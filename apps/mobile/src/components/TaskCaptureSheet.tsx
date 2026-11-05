@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight } from "lucide-react";
 import {
-  addDaysToKey, Button, Chip, DateJumpPicker, ICON, nextPriorityWord, setCaptureWord, TaskCaptureField, TextInput,
+  addDaysToKey, Button, Chip, DateJumpPicker, ICON, nextPriorityWord, setCaptureWord, TaskCaptureDailyHint, TaskCaptureField, TextInput,
   useShowWeekNumbers, useWeekStartDay, weekNumbersShown, type CaptureResult, type TaskCaptureApi,
 } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
@@ -24,8 +24,15 @@ export function TaskCaptureSheet({
   onClose,
   onSubmit,
   onSwitchToJournal,
+  daily,
 }: {
   todayKey: string;
+  /**
+   * The vault has no task database (plan Rückmeldungen 2026-11-05, E1): the task
+   * becomes a checkbox in today's daily note, and the sheet says so — with the
+   * way to a database where the shell offers one.
+   */
+  daily?: { onCreateDatabase?: () => void };
   /** Text a request brought along — the journal sheet's kind switch hands over what was typed. */
   initialValue?: string;
   /** The other kind of the capture (plan Journal, J4): takes the typed text to the journal sheet. */
@@ -112,6 +119,7 @@ export function TaskCaptureSheet({
             onChange={(e) => { if (e.target.value) put("time", e.target.value); }}
           />
         )}
+        {daily && <TaskCaptureDailyHint onCreateDatabase={daily.onCreateDatabase} />}
         <div className="m-btnrow">
           <Button variant="ghost" disabled={busy} onClick={close}>
             {t("common.cancel")}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Chip, TaskCaptureField, type CaptureResult } from "@plainva/ui";
+import { Chip, TaskCaptureDailyHint, TaskCaptureField, type CaptureResult } from "@plainva/ui";
 
 /**
  * Quick capture above the task lists (plan Aufgaben-Oberfläche, B2): one line,
@@ -17,7 +17,10 @@ export function TaskCaptureBar({
   focusTick,
   initialValue = "",
   onSubmit,
+  daily,
 }: {
+  /** No task database (E1, 2026-11-05): the task lands in today's daily note, said under the field with the way to a database. */
+  daily?: { onCreateDatabase?: () => void };
   todayKey: string;
   /** Name of the provider list a new task can also go to; null = none set. */
   providerList: string | null;
@@ -55,13 +58,18 @@ export function TaskCaptureBar({
             .finally(() => setBusy(false));
         }}
         extras={
-          providerList
+          providerList || daily
             ? () => (
-                <div className="pv-capture-quick">
-                  <Chip testId="task-capture-provider" selected={atProvider} onClick={() => setAtProvider((x) => !x)}>
-                    {t("tasks.alsoCreateAt", { list: providerList })}
-                  </Chip>
-                </div>
+                <>
+                  {providerList && (
+                    <div className="pv-capture-quick">
+                      <Chip testId="task-capture-provider" selected={atProvider} onClick={() => setAtProvider((x) => !x)}>
+                        {t("tasks.alsoCreateAt", { list: providerList })}
+                      </Chip>
+                    </div>
+                  )}
+                  {daily && <TaskCaptureDailyHint onCreateDatabase={daily.onCreateDatabase} />}
+                </>
               )
             : undefined
         }

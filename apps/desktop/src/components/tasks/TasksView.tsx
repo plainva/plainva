@@ -4,9 +4,11 @@ import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database,
 import { type PimSyncProblem, isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
 import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { Select } from "../Select";
-import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
+import { useVault, templateFolderKey, defaultCalendarKey, taskDatabaseKey } from "../../contexts/VaultContext";
+import { appPrompt } from "../../services/appDialogs";
+import { useJournalCapture } from "../../hooks/useJournal";
 import { getSettingsStore } from "../../services/settingsStore";
-import { getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
+import { createTaskDatabase, getTaskDatabasePath, resolveTaskCompletionModel, applyTaskStatusOption, taskDbDueKey, taskDbRows, type TaskCompletionModel } from "../../services/taskDatabase";
 import { createTaskInDatabase, promoteTask } from "../../services/taskPromotion";
 import { templateVaultOf } from "../../services/dailyNotes";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
@@ -29,7 +31,7 @@ import {
   type TaskBlockValues,
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
-import { calendarDay } from "@plainva/ui";
+import { calendarDay, checkboxTextOfCapture, taskDatabaseLabels } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
@@ -108,6 +110,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   // Standard task database (PIM plan 1a): its entries render as an own section
   // above the checkbox groups, and every checkbox row can be promoted into it.
   const [taskDb, setTaskDb] = useState<string | null>(null);
+  // Which vault the setting above was read for: until it is known, a capture
+  // must not take "no database" for an answer and file into the daily note.
+  const [taskDbFor, setTaskDbFor] = useState<string | null>(null);
   const [dbRows, setDbRows] = useState<{ path: string; title: string; status: string | null; done: boolean; due: string | null; dueMinutes?: number; priority?: TaskPriority; repeat: RepeatRule | null; mirrored: boolean; providerRepeats: boolean }[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** Date column of the task database — the generated occurrence writes its
@@ -251,6 +256,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       const db = await getTaskDatabasePath(vaultPath);
       if (!alive) return;
       setTaskDb(db);
+      setTaskDbFor(vaultPath);
       if (!db || !queryService || !vaultAdapter) {
         setDbRows(null);
         return;
@@ -470,9 +476,21 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * prompt of "+ New task" (issue #34), which could only name a task. The note
    * is not opened: capturing is the point, and the toast offers the way in.
    */
+  const captureJournal = useJournalCapture();
   const createFromCapture = useCallback(
     async (result: CaptureResult, alsoAtProvider: boolean): Promise<boolean> => {
-      if (!vaultAdapter || !vaultPath || !taskDb) return false;
+      if (!vaultAdapter || !vaultPath || taskDbFor !== vaultPath) return false;
+      if (!taskDb) {
+        // No task database (plan Rückmeldungen 2026-11-05, E1): the rule Siri
+        // and Shortcuts follow on the phone — a checkbox line in the journal of
+        // the moment, through the journal's one writer, carrying what the
+        // capture recognised as the Tasks plugin's marks.
+        const text = checkboxTextOfCapture(result);
+        if (!text) return false;
+        const written = await captureJournal({ text, task: true });
+        if (written) setRefreshTick((x) => x + 1);
+        return written !== null;
+      }
       try {
         const res = await createTaskInDatabase({
           adapter: vaultAdapter,
@@ -525,8 +543,30 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         return false;
       }
     },
-    [vaultAdapter, vaultPath, taskDb, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, t]
+    [vaultAdapter, vaultPath, taskDb, taskDbFor, indexer, triggerFileTreeUpdate, onOpenPath, sendToProvider, captureJournal, t]
   );
+  /** A task database made from the capture's hint: named, created and set for this vault — the same steps as in Settings. */
+  const createDatabaseFromCapture = useCallback(async () => {
+    if (!vaultAdapter || !vaultPath) return;
+    const name = await appPrompt({
+      title: t("settings.taskDatabaseCreate"),
+      message: t("settings.taskDatabaseCreateName"),
+      initial: t("settings.taskDatabaseDefaultName"),
+    });
+    if (name === null) return;
+    try {
+      const path = await createTaskDatabase(vaultAdapter, name, taskDatabaseLabels((key) => t(key)));
+      if (!path) return;
+      const store = await getSettingsStore();
+      await store.set(taskDatabaseKey(vaultPath), path);
+      await store.save();
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+      triggerFileTreeUpdate([path]);
+      setRefreshTick((x) => x + 1);
+    } catch (e) {
+      toast.error(t("writeFailed.newDatabase", { reason: errorText(e) }));
+    }
+  }, [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, t]);
   // `seeded` counts the requests that BROUGHT text (the capture dialog's kind
   // switch, plan Journal J4): the bar is keyed by it, so such a request starts
   // it over with that text instead of an effect writing into its state.
@@ -536,8 +576,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   }, []);
 
   // "New task" from anywhere (Design-Runde E4): the shell opens this view and
-  // parks the request; without a task database there is nothing to create in,
-  // and the section above says so.
+  // parks the request; the bar takes it with or without a task database.
   useEffect(() => consumePendingNew("task", focusCapture), [focusCapture]);
 
   const openPromoteMenu = useCallback(
@@ -1174,7 +1213,16 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       <div className="pv-planner-split">
       <TaskPlannerNav variant="rail" value={list} onChange={setList} counts={planner.counts} allCount={openCount} tags={railTags} activeTag={tag} onTag={setTag} />
       <div className="pv-planner-main">
-      {taskDb && <TaskCaptureBar key={captureSeed.seeded} initialValue={captureSeed.text} todayKey={todayKey} providerList={providerList} focusTick={captureSeed.focus} onSubmit={createFromCapture} />}
+      {/* Without a task database too (E1, 2026-11-05): the task becomes a checkbox in today's daily note, and the bar says so. */}
+      <TaskCaptureBar
+        key={captureSeed.seeded}
+        initialValue={captureSeed.text}
+        todayKey={todayKey}
+        providerList={taskDb ? providerList : null}
+        focusTick={captureSeed.focus}
+        onSubmit={createFromCapture}
+        daily={taskDb || taskDbFor !== vaultPath ? undefined : { onCreateDatabase: () => void createDatabaseFromCapture() }}
+      />
       {list !== "all" ? (
         <div className="pv-planner-scroll">
           {namesNotice}

@@ -2,7 +2,7 @@ import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
 import { createFenceTracker } from "../markdownFence.js";
 import { joinSourceLines, sourceLinesOf } from "../sourceLines.js";
 import { GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
-import { nextTasksDates, readTasksMetadata, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
+import { nextTasksDates, readTasksMetadata, setTasksDue, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
 import { htmlInputTagRanges, readHtmlCheckbox, withHtmlCheckboxChecked } from "./htmlCheckbox.js";
 
 export { readHtmlCheckbox };
@@ -102,9 +102,10 @@ export function setChecklistTaskPriority(content: string, index: number, rank: 0
  * Tasks plugin reads. A line that already carries two due dates is ambiguous
  * and stays as it is (`changed: false`), like every other field edit.
  */
-export function setChecklistTaskDue(content: string, index: number, day: string | null): ChecklistMutationResult {
+export function setChecklistTaskDue(content: string, index: number, day: string | null, time?: string | null): ChecklistMutationResult {
   if (day !== null && tasksDayNumber(day) === null) throw new Error("invalid_task_due_day");
-  return rewriteChecklistTaskText(content, index, (text) => setTasksField(text, "due", day));
+  // `time`: undefined keeps a written time, null removes it, `HH:MM` writes it after the date (`setTasksDue`).
+  return rewriteChecklistTaskText(content, index, (text) => setTasksDue(text, day, time));
 }
 
 /**
