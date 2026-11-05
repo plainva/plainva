@@ -32,21 +32,28 @@ export function useSheetGuard(id: string, dirty: boolean, onClose: () => void, m
  * accounts' sheet arms its own).
  */
 export function useGuardedClose(id: string, onClose: () => void): () => void {
-  return useCallback(() => {
-    if (!isLeaveGuardArmed(id)) {
-      onClose();
-      return;
-    }
-    const guard = armedLeaveGuards().find((g) => g.id === id);
-    void mConfirm({
-      title: i18n.t("mobile.leaveTitle"),
-      message: guard?.message ?? i18n.t("mobile.leaveSheet"),
-      danger: true,
-      confirmLabel: i18n.t("mobile.leaveDiscard"),
-    }).then((discard) => {
-      if (!discard) return;
-      disarmLeaveGuard(id);
-      onClose();
-    });
-  }, [id, onClose]);
+  return useCallback(() => leaveGuarded(id, onClose), [id, onClose]);
+}
+
+/**
+ * Runs `proceed` — a step that takes the sheet away from OUTSIDE its own
+ * close paths (a card that jumps into the text and closes the sheet) — after
+ * asking, while the guard `id` is armed.
+ */
+export function leaveGuarded(id: string, proceed: () => void): void {
+  if (!isLeaveGuardArmed(id)) {
+    proceed();
+    return;
+  }
+  const guard = armedLeaveGuards().find((g) => g.id === id);
+  void mConfirm({
+    title: i18n.t("mobile.leaveTitle"),
+    message: guard?.message ?? i18n.t("mobile.leaveSheet"),
+    danger: true,
+    confirmLabel: i18n.t("mobile.leaveDiscard"),
+  }).then((discard) => {
+    if (!discard) return;
+    disarmLeaveGuard(id);
+    proceed();
+  });
 }

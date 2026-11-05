@@ -66,6 +66,15 @@ describe("dialog guard coverage", () => {
     });
   }
 
+  it("the comments column's toggle in the editor asks over a typed remark, on the phone too", () => {
+    const editor = readFileSync(join(here, "components/Editor.tsx"), "utf8");
+    expect(editor).toMatch(/commentDraftRef\.current/);
+    expect(editor).toMatch(/onDraftChange=\{onCommentDraftChange\}/);
+    expect(readFileSync(join(here, "components/workspace/WorkspaceCommentsColumn.tsx"), "utf8")).toMatch(/onDraftChange\?\.\(dirty\)/);
+    // The phone's sheet is also closed from outside (a card that jumps into the text).
+    expect(readFileSync(join(here, "../../mobile/src/screens/NoteScreen.tsx"), "utf8")).toMatch(/leaveGuarded\("comment-compose"/);
+  });
+
   it("a substitute token typed in the review of an external tool is reported to both shells' close guard", () => {
     expect(readFileSync(join(ui, "ai/AiExternalReview.tsx"), "utf8")).toMatch(/review\.reportSecretTyped\(/);
     expect(readFileSync(join(here, "components/settings/ExternalToolsDialogs.tsx"), "utf8")).toMatch(/review\.secretTyped/);

@@ -68,6 +68,8 @@ export interface WorkspaceCommentsColumnProps {
   onRetryPending?(outboxId: string): void;
   /** The head's close button (K3) - the toolbar button reopens the column. */
   onClose?(): void;
+  /** Reports whether a remark or reply is typed and not sent: the editor asks before it takes the column away. */
+  onDraftChange?(dirty: boolean): void;
   /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
   onOpenNote?(target: string, kind?: "wiki" | "markdown"): void;
   onOpenUrl?(url: string): void;
@@ -145,7 +147,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, suggestedProperties, canComment, canWrite, activeCommentId, selectionQuote,
-  operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
+  operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onDraftChange, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
   publicationComments = [], muted, onToggleMute, locked, legacyLocked, ai = null,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -193,11 +195,16 @@ export function WorkspaceCommentsColumn({
   ) : null;
   const [replyDraft, setReplyDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  // A remark or reply being written is asked about before the column hides or
-  // the reply box goes away, and the window knows about it (closing it or
-  // switching the vault asks too).
+  // A remark or reply being written is asked about before the reply box goes
+  // away (the column's own toggle asks in the editor).
   const dirty = draft.trim() !== "" || replyDraft.trim() !== "";
-  const hide = useDiscardGuard(dirty, () => onClose?.());
+  // The window is told (closing it or switching the vault asks); the editor is
+  // told too, and asks itself when the column is toggled away.
+  useDiscardGuard(dirty, () => {});
+  useEffect(() => {
+    onDraftChange?.(dirty);
+    return () => onDraftChange?.(false);
+  }, [dirty, onDraftChange]);
   const openReply = (id: string) => {
     const next = replyTo === id ? null : id;
     if (replyDraft.trim() === "") { setReplyTo(next); setReplyDraft(""); return; }
@@ -512,7 +519,7 @@ export function WorkspaceCommentsColumn({
           </IconButton>
         )}
         {onClose && (
-          <IconButton label={t("comments.commentColumnHide")} onClick={hide} data-testid="comment-column-close">
+          <IconButton label={t("comments.commentColumnHide")} onClick={onClose} data-testid="comment-column-close">
             <X size={ICON.ui} />
           </IconButton>
         )}

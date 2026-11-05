@@ -18,7 +18,7 @@ import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
 import { parkEditorSuggestion, clearEditorSuggestion } from "../services/editorSuggestionPark";
-import { readSourceSelection } from "@plainva/ui";
+import { askDiscard, readSourceSelection } from "@plainva/ui";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
@@ -677,13 +677,24 @@ export const Editor: React.FC<{
   // open took half of it. Its switch is a session choice - a peek never
   // rewrites the preference the main pane keeps.
   const commentColumnOpen = commentsAccessible && (commentColumnSession ?? (peek ? "closed" : commentColumnPref ?? (openCommentThreads > 0 ? "open" : "closed"))) === "open";
-  const toggleCommentColumn = useCallback(() => {
+  /** A remark or reply is typed in the column and not sent (reported by the column). */
+  const commentDraftRef = useRef(false);
+  const onCommentDraftChange = useCallback((dirty: boolean) => { commentDraftRef.current = dirty; }, []);
+  const applyCommentColumnToggle = useCallback(() => {
     const next = commentColumnOpen ? "closed" : "open";
     setCommentColumnSession(next);
     if (peek) return;
     setCommentColumnPref(next);
     if (vaultPath) void getSettingsStore().then((store) => store.set(commentColumnKey(vaultPath), next).then(() => store.save())).catch(() => {});
   }, [commentColumnOpen, vaultPath, peek]);
+  // Taking the column away over a typed remark asks first.
+  const toggleCommentColumn = useCallback(() => {
+    if (commentColumnOpen && commentDraftRef.current) {
+      void askDiscard().then((discard) => { if (discard) applyCommentColumnToggle(); });
+      return;
+    }
+    applyCommentColumnToggle();
+  }, [commentColumnOpen, applyCommentColumnToggle]);
   useEffect(() => {
     if (!vaultPath) return;
     let alive = true;
@@ -3919,6 +3930,7 @@ export const Editor: React.FC<{
         <WorkspaceCommentsColumn
           operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={content} />}
           onClose={toggleCommentColumn}
+          onDraftChange={onCommentDraftChange}
           onOpenNote={openNoteFromComment}
           onOpenUrl={(url) => { void openExternalUrl(url); }}
           comments={workspaceComments}
