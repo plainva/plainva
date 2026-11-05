@@ -7,9 +7,10 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
-import { isImageTarget, parseWikiImageTarget } from "../lib/imageTarget";
+import { embedKindOf, parseWikiImageTarget } from "../lib/imageTarget";
 import { syntaxTree } from "@codemirror/language";
 import { isEscapedAt, isLiteralAt } from "./literalSyntax";
+import { interactivityChanged, revealedLineSet } from "./LivePreviewPlugin";
 
 /**
  * Shell-neutral core of the `![[...]]` note-embed live plugin (M3E package H):
@@ -70,7 +71,9 @@ export function buildNoteEmbedCoreExtension(
         // (the selected line reveals its raw syntax, desktop semantics).
         // A rebuild also when the parser reaches more of the text: whether an
         // embed stands in code is the syntax tree's answer (literalSyntax.ts).
-        let needsRebuild = update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state);
+        let needsRebuild = update.docChanged || update.viewportChanged || syntaxTree(update.startState) !== syntaxTree(update.state)
+          // Read mode and editing reveal differently (GitHub issue 118).
+          || interactivityChanged(update.startState, update.state);
         if (!needsRebuild && update.selectionSet) {
           const oldRanges = update.startState.selection.ranges;
           const newRanges = update.state.selection.ranges;
@@ -91,10 +94,9 @@ export function buildNoteEmbedCoreExtension(
 
       buildDecorations(view: EditorView) {
         const builder = new RangeSetBuilder<Decoration>();
-        const selectionLines = new Set<number>();
-        for (const range of view.state.selection.ranges) {
-          selectionLines.add(view.state.doc.lineAt(range.head).number);
-        }
+        // The caret's line shows the syntax while editing; in read mode a
+        // selection leaves the embed as it is (GitHub issue 118).
+        const selectionLines = revealedLineSet(view.state);
         for (const { from, to } of view.visibleRanges) {
           let pos = from;
           while (pos < to) {
@@ -104,10 +106,12 @@ export function buildNoteEmbedCoreExtension(
             let match: RegExpExecArray | null;
             while ((match = EMBED_RE.exec(line.text)) !== null) {
               const target = match[1];
-              // Images have their own plugin — including `![[foto.png|300]]`,
-              // whose width suffix used to hide the extension from this test
-              // and turn a picture into a note card (Build-91 feedback, P3).
-              if (isImageTarget(parseWikiImageTarget(target).target)) continue;
+              // Images and sounds have their own plugin — including
+              // `![[foto.png|300]]`, whose width suffix used to hide the
+              // extension from this test and turn a picture into a note card
+              // (Build-91 feedback, P3). A sound drew its player AND a card
+              // that read the recording as text (plan Rückmeldungen 05.11., P4).
+              if (embedKindOf(parseWikiImageTarget(target).target)) continue;
               const matchFrom = line.from + match.index;
               const matchTo = matchFrom + match[0].length;
               if (isEscapedAt(line.text, match.index)) continue;

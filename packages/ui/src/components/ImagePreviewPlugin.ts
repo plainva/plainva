@@ -9,6 +9,7 @@ import type { AudioPlace } from "../ai/aiTranscribe";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import { pickImageRegion } from "./anchorRegion";
 import { isEscapedAt, isLiteralAt } from "./literalSyntax";
+import { interactivityChanged, revealsRange } from "./LivePreviewPlugin";
 import i18n from "../i18n";
 
 /**
@@ -283,7 +284,9 @@ export function imagePreviewPlugin(
         || syntaxTree(update.startState) !== syntaxTree(update.state)
         // A comment appearing or being selected changes the frame, and the
         // frame lives inside the widget's DOM.
-        || update.transactions.some(hasAnchorHighlightChange);
+        || update.transactions.some(hasAnchorHighlightChange)
+        // Read mode and editing reveal differently (GitHub issue 118).
+        || interactivityChanged(update.startState, update.state);
       if (!needsRebuild && update.selectionSet) {
         const oldRanges = update.startState.selection.ranges;
         const newRanges = update.state.selection.ranges;
@@ -307,7 +310,6 @@ export function imagePreviewPlugin(
 
     buildDecorations(view: EditorView) {
       const builder = new RangeSetBuilder<Decoration>();
-      const selection = view.state.selection;
 
       for (const { from, to } of view.visibleRanges) {
         const text = view.state.sliceDoc(from, to);
@@ -324,14 +326,9 @@ export function imagePreviewPlugin(
           const matchStart = from + embed.start;
           const matchEnd = from + embed.end;
 
-          // Check if cursor overlaps this match
-          let isFocused = false;
-          for (const range of selection.ranges) {
-            if (range.from <= matchEnd && range.to >= matchStart) {
-              isFocused = true;
-              break;
-            }
-          }
+          // The caret on the embed shows its syntax - while editing; a
+          // selection in read mode leaves the picture (GitHub issue 118).
+          const isFocused = revealsRange(view.state, matchStart, matchEnd);
 
           if (embed.kind === "audio") {
             const notePath = source.kind === "vault" ? lookup?.()?.notePath : undefined;

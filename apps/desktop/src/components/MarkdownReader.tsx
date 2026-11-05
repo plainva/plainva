@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
-import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
+import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
 import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
@@ -208,7 +208,7 @@ const VaultImage: React.FC<{
 export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?: (path: string, newTab: boolean) => void; hostPath?: string }> = ({ target, depth, onOpenPath, hostPath }) => {
   const { vaultAdapter, queryService, fileTreeVersion } = useVault();
   const { t } = useTranslation();
-  const [result, setResult] = React.useState<{ path?: string; anchor?: string | null; content?: string; error?: string } | null>(null);
+  const [result, setResult] = React.useState<{ path?: string; anchor?: string | null; content?: string; error?: string; file?: { size: number | null } } | null>(null);
   React.useEffect(() => {
     let alive = true;
     setResult(null);
@@ -218,6 +218,13 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
       const resolved = await resolveNoteEmbed(target, hostPath, { resolve: async (name, from) => queryService ? queryService.resolveNotePath(name, from) : null });
       if (!alive) return;
       if (resolved.status !== "found") { setResult({ error: t("noteEmbed." + resolved.status, { target }) }); return; }
+      // A file that is no note (a PDF, an archive, a spreadsheet) is a card
+      // with "Open", never text read from its bytes (plan Rückmeldungen 05.11., P4).
+      if (embedTargetKindOf(resolved.path) !== "note") {
+        const info = await vaultAdapter.getFileInfo(resolved.path).catch(() => null);
+        if (alive) setResult({ path: resolved.path, file: { size: info ? info.size : null } });
+        return;
+      }
       if (resolved.path.toLowerCase().endsWith(".base")) { setResult(resolved); return; }
       const text = await vaultAdapter.readTextFile(resolved.path);
       if (!alive) return;
@@ -232,6 +239,7 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
     if (result.anchor && !result.error) requestAnchorJump(result.path, result.anchor);
   };
   if (!result) return <div className="embedded-note">{t("editor.loading")}</div>;
+  if (result.file && result.path) return <FileEmbedCard path={result.path} size={result.file.size} onOpen={(p) => onOpenPath?.(p, false)} />;
   const base = result.path?.toLowerCase().endsWith(".base");
   return <div className={base ? "embedded-note embedded-note--base" : "embedded-note"}>
     {result.error ? <p role="status">{result.error}</p> : base && result.path

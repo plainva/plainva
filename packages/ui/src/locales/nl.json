@@ -7573,6 +7573,8 @@
   },
   "noteEmbed": {
     "openSource": "Bron openen",
+    "openFile": "Openen",
+    "openFileNamed": "‘{{name}}’ openen",
     "depth": "De maximale diepte voor insluitingen is bereikt.",
     "unreadable": "‘{{target}}’ kon niet worden gelezen.",
     "missing": "‘{{target}}’ is niet gevonden.",

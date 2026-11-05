@@ -864,6 +864,21 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
 [data-theme-name="lcars"] .pv-audio-seek {
   accent-color: var(--lcars-1);
 }
+
+/* File embed card (P4): the console's square corners, like the sound player. */
+[data-theme-name="lcars"] .pv-filecard {
+  border-radius: 0;
+  border-color: var(--lcars-1);
+}
+[data-theme-name="lcars"] .pv-filecard-badge {
+  border-radius: 0;
+  background: var(--lcars-1);
+  color: var(--bg-primary);
+}
+[data-theme-name="lcars"] .pv-filecard-name {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 [data-theme-name="lcars"] .pv-audio-name {
   text-transform: uppercase;
   letter-spacing: 0.06em;

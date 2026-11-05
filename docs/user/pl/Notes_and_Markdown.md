@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-04
+Stan na: 2026-11-05
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -185,7 +185,8 @@ Twoje notatki to zwykłe pliki `.md`, więc może je otworzyć dowolny edytor Ma
 
 - **Wstawianie**: polecenia slash **Obraz wewnętrzny** (wyszukaj i osadź z vaultu) lub **Obraz (z sieci)** (przez URL). Możesz też po prostu **wkleić** plik ze schowka (Ctrl+V) — zarówno obraz, jak i PDF czy arkusz. A **pliki z eksploratora plików można przeciągnąć do edytora**: obrazy są osadzane (`![[…]]`), inne pliki są kopiowane i linkowane (`[[…]]`). To, gdzie trafiają te pliki, jest ustawieniem: **Ustawienia → Twój sejf → Notatki i archiwizacja → Folder załączników** (domyślnie `Attachments`, z przeglądarką folderów). Zostaw puste, aby trzymać je obok notatki, tak jak Plainva robiła przed tym ustawieniem. Folder podróżuje z synchronizacją ustawień, więc komputer i telefon odkładają załączniki w tym samym miejscu.
 - **Załącz plik…**: polecenie slash **Załącz plik…** i ta sama pozycja w menu **⋮** notatki otwierają okno wyboru plików Twojego systemu; w telefonie znajdziesz je w arkuszu **＋** jako **Plik z urządzenia…**. Plik zostaje skopiowany do folderu załączników — obrazy są osadzane (`![[…]]`), wszystko inne linkowane (`[[…]]`).
-- **Dźwięk się odtwarza**: osadzony plik audio (`.m4a`, `.mp3`, `.wav`, `.ogg`, `.opus`, `.webm`, `.flac`, `.aac`) pokazuje odtwarzacz zamiast swojej nazwy — w edytorze, w trybie czytania, na kartach tablicy i w wierszach dziennika. Dlatego dołączony dźwięk jest osadzany jak obraz (`![[…]]`), a nie tylko linkowany. Plainva nie odtwarza wideo; `.mp4` pozostaje linkiem.
+- **Dźwięk się odtwarza**: osadzony plik audio (`.m4a`, `.mp3`, `.wav`, `.ogg`, `.opus`, `.webm`, `.flac`, `.aac`) pokazuje odtwarzacz zamiast swojej nazwy — w edytorze, w trybie czytania, na kartach tablicy i w wierszach dziennika. Dlatego dołączony dźwięk jest osadzany jak obraz (`![[…]]`), a nie tylko linkowany. Plainva nie odtwarza wideo; osadzony `.mp4` pojawia się jako karta pliku (następny punkt).
+- **Inne pliki jako karta**: osadzony plik, który nie jest ani obrazem, ani dźwiękiem, ani notatką — `![[Umowa.pdf]]`, arkusz kalkulacyjny, archiwum, wideo — pojawia się jako karta z nazwą, rozmiarem i folderem, w edytorze i w trybie czytania, na komputerze i na telefonie. **Otwórz** przekazuje go systemowi: na komputerze otwiera go program ustawiony dla tego typu, na telefonie menu udostępniania proponuje aplikacje, które to potrafią. Plainva nie pokazuje PDF wewnątrz notatki. Dodatek taki jak `#height=600` z Obsidiana za nazwą zostaje w pliku i niczego nie zmienia. Jeśli pliku nie ma w vaulcie, karta mówi, że nie został znaleziony.
 - **Osadzenia w HTML** — osadzenie między znacznikami HTML (`<p align="center">`, `<details>`) pozostaje tekstem w edytorze, tak jak w trybie czytania i w Obsidianie, który nie wyświetla Markdownu wewnątrz HTML. Zostaw pusty wiersz wewnątrz elementu, a obraz się pojawi.
 - **Linkowanie**: wpisz `[[`, a Plainva zaproponuje najpierw notatki, a pod nimi, w sekcji **Załączniki**, pliki z Twojego sejfu.
 - **Podgląd**: pliki graficzne (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) otwierają się we wbudowanej przeglądarce obrazów z opcjami **Powiększ**/**Pomniejsz**, **Dopasuj** i **Rozmiar rzeczywisty (1:1)**.

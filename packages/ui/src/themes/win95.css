@@ -729,6 +729,22 @@
   accent-color: #000080;
 }
 
+/* File embed card (P4): a sunken square panel with the title-bar blue, like the sound player. */
+[data-theme-name="win95"] .pv-filecard {
+  border-radius: 0;
+  border: 2px inset #DFDFDF;
+  background: #C0C0C0;
+  color: #000000;
+}
+[data-theme-name="win95"] .pv-filecard-badge {
+  border-radius: 0;
+  background: #000080;
+  color: #FFFFFF;
+}
+[data-theme-name="win95"] .pv-filecard-meta {
+  color: #404040;
+}
+
 /* Voice memo: a raised control group with the 95 recorder's square corners. */
 [data-theme-name="win95"] .pv-voicememo--live {
   border-radius: 0;

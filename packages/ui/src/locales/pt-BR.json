@@ -7727,6 +7727,8 @@
   },
   "noteEmbed": {
     "openSource": "Abrir origem",
+    "openFile": "Abrir",
+    "openFileNamed": "Abrir “{{name}}”",
     "depth": "A profundidade máxima de incorporação foi atingida.",
     "unreadable": "Não foi possível ler “{{target}}”.",
     "missing": "“{{target}}” não foi encontrado.",

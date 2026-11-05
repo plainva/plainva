@@ -7573,6 +7573,8 @@
   },
   "noteEmbed": {
     "openSource": "Quelle öffnen",
+    "openFile": "Öffnen",
+    "openFileNamed": "„{{name}}“ öffnen",
     "depth": "Die maximale Verschachtelung der Einbettung ist erreicht.",
     "unreadable": "„{{target}}“ konnte nicht gelesen werden.",
     "missing": "„{{target}}“ wurde nicht gefunden.",

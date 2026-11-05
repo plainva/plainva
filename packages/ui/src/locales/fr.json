@@ -7727,6 +7727,8 @@
   },
   "noteEmbed": {
     "openSource": "Ouvrir la source",
+    "openFile": "Ouvrir",
+    "openFileNamed": "Ouvrir « {{name}} »",
     "depth": "La profondeur maximale des inclusions est atteinte.",
     "unreadable": "Impossible de lire « {{target}} ».",
     "missing": "« {{target}} » est introuvable.",
