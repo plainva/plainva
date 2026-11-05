@@ -107,7 +107,10 @@ const BOOT = [
   "})",
 ].join("\n");
 
-/** The script's code as the function it is the body of. The first line of the code stays the first line. */
+/**
+ * The script's code as the function it is the body of. The first line of the code stays the first line.
+ * Running untrusted code is this file's purpose: it is compiled only inside the engine, never by the host.
+ */
 const asFunction = (code: string): string => `(async function (input, tools) {${code}\n})`;
 
 const oneLine = (text: string): string => text.replace(/[\p{Cc}\p{Cf}]/gu, " ").replace(/\s+/g, " ").trim();

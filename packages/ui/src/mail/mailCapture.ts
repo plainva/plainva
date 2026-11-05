@@ -138,8 +138,21 @@ export interface CaptureMailResult {
   filled: boolean;
 }
 
-/** A line that is nothing but a link to the raw copy of a message (`[[… .eml]]`), as a capture with the .eml writes it. */
-const EML_LINK_LINE = /^\[\[[^[\]]+\.eml(\|[^[\]]*)?\]\]$/i;
+/**
+ * A line that is nothing but a link to the raw copy of a message (`[[… .eml]]`,
+ * `[[… .eml|…]]`), as a capture with the .eml writes it — what
+ * `/^\[\[[^[\]]+\.eml(\|[^[\]]*)?\]\]$/i` reads, in one pass over the line.
+ */
+function isEmlLinkLine(line: string): boolean {
+  if (line.length < 4 || !line.startsWith("[[") || !line.endsWith("]]")) return false;
+  const inner = line.slice(2, -2);
+  if (inner.includes("[") || inner.includes("]")) return false;
+  // The target is everything up to the end or up to a "|", and at least one character before ".eml".
+  const targetEnds = (end: number): boolean => end >= 5 && inner.slice(end - 4, end).toLowerCase() === ".eml";
+  if (targetEnds(inner.length)) return true;
+  for (let bar = inner.indexOf("|"); bar >= 0; bar = inner.indexOf("|", bar + 1)) if (targetEnds(bar)) return true;
+  return false;
+}
 
 /**
  * Whether a filed mail note holds no text of its message: under its title — the
@@ -160,7 +173,7 @@ export function isEmptyMailNote(content: string): boolean {
       titled = true;
       continue;
     }
-    if (EML_LINK_LINE.test(line)) continue;
+    if (isEmlLinkLine(line)) continue;
     return false;
   }
   return true;
@@ -177,7 +190,7 @@ function withMailText(content: string, text: string): string {
   const body = lf.length - noteBodyOf(lf).length;
   // The first line of the body that links the raw copy, counted in lines of the whole text.
   const bodyStart = lf.slice(0, body).split("\n").length - 1;
-  const eml = lines.findIndex((line, at) => at >= bodyStart && EML_LINK_LINE.test(line.trim()));
+  const eml = lines.findIndex((line, at) => at >= bodyStart && isEmlLinkLine(line.trim()));
   const next =
     eml < 0
       ? `${lf.trimEnd()}\n\n${text}\n`

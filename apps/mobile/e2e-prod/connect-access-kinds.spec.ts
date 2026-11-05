@@ -18,6 +18,9 @@ import { PLAINVA_DROPBOX_APP_KEY } from "../../../packages/ui/src/services/provi
 
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, PUT, DELETE, PROPFIND, MKCOL, MOVE, OPTIONS, HEAD", "access-control-allow-headers": "*", "access-control-expose-headers": "*" };
 const LISTING = '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>';
+/** A host is compared as the parsed URL's, never as a piece of the text. */
+const originOf = (url: string): string => { try { return new URL(url).origin; } catch { return ""; } };
+const isDropbox = (url: string): boolean => { try { const host = new URL(url).hostname; return host === "dropbox.com" || host.endsWith(".dropbox.com"); } catch { return false; } };
 const S3_LISTING = '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>notes</Name><Prefix></Prefix><KeyCount>0</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated></ListBucketResult>';
 
 interface Harness {
@@ -33,11 +36,11 @@ async function boot(context: BrowserContext, page: Page): Promise<Harness> {
     const method = route.request().method();
     if (method === "OPTIONS") { await route.fulfill({ status: 204, headers: CORS }); return; }
     // Fastmail's files let the app password in, its calendar turns it away.
-    if (url.startsWith("https://webdav.fastmail.com")) {
+    if (originOf(url) === "https://webdav.fastmail.com") {
       await route.fulfill({ status: method === "PROPFIND" ? 207 : 200, headers: { ...CORS, "content-type": "application/xml" }, body: method === "PROPFIND" ? LISTING : "" });
       return;
     }
-    if (url.startsWith("https://caldav.fastmail.com")) {
+    if (originOf(url) === "https://caldav.fastmail.com") {
       await route.fulfill({ status: 401, headers: { ...CORS, "content-type": "text/plain" }, body: "Unauthorized" });
       return;
     }
@@ -204,8 +207,8 @@ test("Dropbox: the sign-in starts from the services page, and 'Signed in' waits 
   await page.getByTestId("connect-start").click();
 
   // The browser opens on Dropbox with this phone's key, at once.
-  await expect.poll(() => harness.opened.find((url) => url.includes("dropbox.com")), { timeout: 15000 }).toBeTruthy();
-  const consent = new URL(harness.opened.find((url) => url.includes("dropbox.com"))!);
+  await expect.poll(() => harness.opened.find(isDropbox), { timeout: 15000 }).toBeTruthy();
+  const consent = new URL(harness.opened.find(isDropbox)!);
   expect(consent.searchParams.get("client_id")).toBe(PLAINVA_DROPBOX_APP_KEY);
   // The run's frame: the sign-in is the step on screen, not a done one, and no "Signed in" yet.
   await expect(page.getByTestId("connectrun-frame")).toHaveAttribute("data-step", "files", { timeout: 20000 });

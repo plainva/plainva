@@ -143,7 +143,8 @@ describe("escape: what a script cannot reach", () => {
       "WebAssembly", "setTimeout", "setInterval", "setImmediate", "requestAnimationFrame", "queueMicrotask", "performance", "crypto", "require", "module", "process",
       "Buffer", "Deno", "Bun", "std", "os", "bjson", "scriptArgs", "__TAURI__", "__TAURI_INTERNALS__", "Capacitor", "__dirname", "__filename", "call", "log", "main",
     ];
-    const seen = valueOf(await play(`return ${JSON.stringify(names)}.filter((name) => { try { return typeof globalThis[name] !== "undefined" || eval("typeof " + name) !== "undefined"; } catch (e) { return true; } });`)) as string[];
+    // The names come in as the input: what a script is handed is data, never code to build.
+    const seen = valueOf(await play(`return input.names.split(",").filter((name) => { try { return typeof globalThis[name] !== "undefined" || eval("typeof " + name) !== "undefined"; } catch (e) { return true; } });`, { input: { names: names.join(",") } })) as string[];
     expect(seen).toEqual([]);
     // What is there: the language's own objects, the tools, the log.
     const globals = valueOf(await play("return Object.getOwnPropertyNames(globalThis).sort();")) as string[];
@@ -153,7 +154,9 @@ describe("escape: what a script cannot reach", () => {
 
   it("cannot load code: no module of the host, none from the network", async () => {
     for (const specifier of ["fs", "node:fs", "node:child_process", "https://example.com/x.js", "./engine", "@tauri-apps/api/core", "data:text/javascript,export default 1"]) {
-      const played = await play(`try { await import(${JSON.stringify(specifier)}); return "imported"; } catch (error) { return "refused"; }`);
+      // A literal specifier, as a script would write it; none of them holds a quote, a backslash or a line break.
+      expect(specifier).not.toMatch(/["\\\n\r]/);
+      const played = await play(`try { await import("${specifier}"); return "imported"; } catch (error) { return "refused"; }`);
       expect(valueOf(played), specifier).toBe("refused");
     }
   });

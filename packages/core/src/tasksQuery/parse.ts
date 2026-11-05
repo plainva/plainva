@@ -520,7 +520,16 @@ function expandPlaceholders(text: string, filePath: string | undefined): Expansi
 
 /** `{{! … }}` comments, which may run over lines; their line breaks stay so line numbers hold. */
 function removeInlineComments(source: string): string {
-  return source.replace(/\{\{!([\s\S]*?)\}\}/g, (whole) => whole.replace(/[^\n]/g, ""));
+  // One pass, as `/\{\{!([\s\S]*?)\}\}/g` reads it: a `{{!` without `}}` behind it ends the scan — none further on has one.
+  let out = "";
+  let from = 0;
+  for (let open = source.indexOf("{{!"); open >= 0; open = source.indexOf("{{!", from)) {
+    const close = source.indexOf("}}", open + 3);
+    if (close < 0) break;
+    out += source.slice(from, open) + source.slice(open, close + 2).replace(/[^\n]/g, "");
+    from = close + 2;
+  }
+  return out + source.slice(from);
 }
 
 /**

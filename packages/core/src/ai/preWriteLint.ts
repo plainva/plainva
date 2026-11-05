@@ -264,7 +264,7 @@ export function classifyUrl(raw: string, allowedHosts: readonly string[] = [], k
 const HTML_TAG = /<\/?[a-z][a-z0-9:-]*(?:\s[^<>]*)?\/?>/gi;
 const ALWAYS_ESCAPED_TAG = /^<\/?(?:script|style|iframe|frame|frameset|object|embed|applet|link|meta|base|form|svg|math|template|portal|noscript)\b/i;
 const HTML_URL_ATTRIBUTE = /\b(?:src|href|srcset|poster|data|background|action|formaction|xlink:href|cite|longdesc|codebase|manifest|ping|lowsrc|dynsrc|imagesrcset)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
-const CSS_URL = /url\(([^)]*)\)/gi;
+const CSS_URL_OPEN = /url\(/gi;
 const STYLE_ATTRIBUTE = /\bstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 
 /**
@@ -275,6 +275,25 @@ const STYLE_ATTRIBUTE = /\bstyle\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
 const ATTRIBUTE = /(?<![^\t\n\f\r /"'])([^\t\n\f\r />"'=<][^\t\n\f\r />=]*)[\t\n\f\r ]*=/g;
 /** The attributes whose value a browser loads or follows — SVG's animation values among them, which can set an `href`. */
 const LOADING_ATTRIBUTES = new Set(["src", "href", "srcset", "poster", "data", "background", "action", "formaction", "xlink:href", "cite", "longdesc", "codebase", "manifest", "ping", "lowsrc", "dynsrc", "imagesrcset", "to", "from", "by", "values"]);
+
+/**
+ * What stands inside each `url(…)` of a style sheet, up to the first `)` —
+ * what `/url\(([^)]*)\)/gi` reads, in one pass: where one `url(` has no `)`
+ * behind it, none further on has, so the scan ends there instead of reading
+ * the rest again from every `url(` (`url(url(url(…`).
+ */
+function cssUrlInners(css: string): string[] {
+  const inners: string[] = [];
+  const open = new RegExp(CSS_URL_OPEN.source, CSS_URL_OPEN.flags);
+  for (let m = open.exec(css); m; m = open.exec(css)) {
+    const start = m.index + m[0].length;
+    const close = css.indexOf(")", start);
+    if (close < 0) break;
+    inners.push(css.slice(start, close));
+    open.lastIndex = close + 1;
+  }
+  return inners;
+}
 
 /** The address inside `url(…)`: blanks and one pair of quotes around it removed. */
 function cssUrlValue(inner: string): string {
@@ -328,7 +347,7 @@ function tagCandidates(tag: string): string[] {
   }
   // A style sheet decodes its own escapes: `u\72l(` is `url(`, and `image-set` loads its strings.
   const css = decodeCss(decoded);
-  for (const m of css.matchAll(CSS_URL)) candidates.push(cssUrlValue(m[1]!));
+  for (const inner of cssUrlInners(css)) candidates.push(cssUrlValue(inner));
   for (const m of css.matchAll(STYLE_ATTRIBUTE)) candidates.push(...cssStrings(m[1]!.replace(/^["']|["']$/g, "")));
   return candidates;
 }
@@ -564,7 +583,7 @@ function lintAttributes(text: string, judge: Judge): Edit[] {
     const urls = loading ? attributeUrls(lower, value) : [];
     const css = decodeCss(value);
     if (lower === "style" || /url\(/i.test(css)) {
-      for (const u of css.matchAll(CSS_URL)) urls.push(cssUrlValue(u[1]!));
+      for (const inner of cssUrlInners(css)) urls.push(cssUrlValue(inner));
       if (lower === "style") urls.push(...cssStrings(css));
     }
     for (const url of urls) {

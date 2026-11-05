@@ -70,7 +70,7 @@ function npmEntry(name: string): { specifier: string; version: string } | null {
   const rest = lock.slice(start + 1);
   const next = rest.search(/\n {2}\S/);
   const importer = next < 0 ? rest : rest.slice(0, next);
-  const match = new RegExp(`\\n {6}'${name.replace(/[/.]/g, "\\$&")}':\\n {8}specifier: (\\S+)\\n {8}version: (\\d+\\.\\d+\\.\\d+)`).exec(importer);
+  const match = new RegExp(`\\n {6}'${name.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&")}':\\n {8}specifier: (\\S+)\\n {8}version: (\\d+\\.\\d+\\.\\d+)`).exec(importer);
   return match ? { specifier: match[1]!, version: match[2]! } : null;
 }
 

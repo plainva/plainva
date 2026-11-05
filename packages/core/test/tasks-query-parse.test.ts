@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isBooleanInstruction, parseTasksQuery, tasksQueryFilePlaceholders, TASKS_DEFAULT_LAYOUT, type TasksQueryLine } from "../src/tasksQuery/index.js";
+import { within } from "./helpers/timeBudget.js";
 
 /** The parser of a Tasks query (plan Tasks-Abfragen, T2). */
 
@@ -16,6 +17,12 @@ describe("lines", () => {
   it("skips blank lines and both kinds of comment, and numbers lines as in the block", () => {
     const query = parse("\n# a comment\nnot done\n{{! one\ntwo }}\n   \ndue today {{! behind }}\n");
     expect(query.lines.map((l) => [l.line, l.source])).toEqual([[3, "not done"], [7, "due today"]]);
+  });
+
+  it("removes comments in one pass: an unclosed one stays text, and many of them stay quick", () => {
+    expect(parse("{{! a }}{{!}} not done\n{{!}}}due today\n{{! open\nnot done").lines.map((l) => [l.line, l.source])).toEqual([[1, "not done"], [2, "}due today"], [3, "{{! open"], [4, "not done"]]);
+    const hostile = `${"{{!a".repeat(200_000)}\nnot done`;
+    expect(within(1_000, () => parse(hostile)).lines.at(-1)?.source).toBe("not done");
   });
 
   it("joins a line ending in a backslash with the next, and keeps a doubled one as one backslash", () => {

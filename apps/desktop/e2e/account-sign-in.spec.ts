@@ -115,9 +115,11 @@ async function wire(page: Page, seed: Seed = {}): Promise<Harness> {
     let pimGone = false;
     const responses = new Map<number, { status: number; url: string; body: string; read: boolean; type?: string }>();
     // A WebDAV server that lets anyone in: an empty folder for every listing.
-    const isDav = (url: string) => url.startsWith('https://dav.example/') || url.startsWith('https://webdav.fastmail.com');
+    // A host is compared as the parsed origin, never as the start of the text.
+    const originOf = (url: string) => { try { return new URL(url).origin; } catch { return ''; } };
+    const isDav = (url: string) => originOf(url) === 'https://dav.example' || originOf(url) === 'https://webdav.fastmail.com';
     // Fastmail's calendar turns the app password away: one service fails, the others connect.
-    const isRefusingCalDav = (url: string) => url.startsWith('https://caldav.fastmail.com');
+    const isRefusingCalDav = (url: string) => originOf(url) === 'https://caldav.fastmail.com';
     // An S3 bucket that lets anyone in, empty.
     const isS3 = (url: string) => url.startsWith('https://s3.example/');
     const EMPTY_BUCKET = '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>plainva</Name><Prefix></Prefix><KeyCount>0</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated></ListBucketResult>';

@@ -22,9 +22,12 @@ scope.onmessage = (event) => {
   const message = event.data as ToScriptWorker | null;
   if (!message || typeof message !== "object") return;
   if (message.type === "result") {
+    // Only the app posts here, and only for a call this worker made: an answer is one of ours, or nothing.
+    if (typeof message.id !== "number") return;
     const answer = answers.get(message.id);
     answers.delete(message.id);
-    answer?.(typeof message.json === "string" ? message.json : "");
+    if (typeof answer !== "function") return;
+    answer(typeof message.json === "string" ? message.json : "");
     return;
   }
   if (taken || (message.type !== "run" && message.type !== "check")) return;

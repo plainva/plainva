@@ -52,7 +52,7 @@ const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const THROTTLE_MS = 400;
 
 /** This run's saver. Its revisions count from 1 again in the next run. */
-const RUN_SESSION = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const RUN_SESSION = `run-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
 
 interface PendingDraft {
   v: MobileVault;
@@ -248,7 +248,7 @@ export async function offerDraft(v: MobileVault, path: string, diskText: string)
         offer = toNoteDraft(found);
         return;
       }
-      const held: DraftJournalEntry = { ...found, sessionId: `offer-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}` };
+      const held: DraftJournalEntry = { ...found, sessionId: `offer-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}` };
       await writeEntries(file, entries.map((entry) => (entry === found ? held : entry)));
       offer = toNoteDraft(held);
     } catch {

@@ -218,6 +218,17 @@ describe("pre-write linter keeps what is legitimate", () => {
     }
   });
 
+  it("reads a style sheet's url(…) in one pass, however many of them stay open", () => {
+    const open = "url(".repeat(120_000);
+    for (const hostile of [`<b style="${open}">x</b>`, `<svg><rect fill="${open}"/></svg>`, `<b style="${open}url(https://attacker.example/x)">x</b>`]) {
+      const { text } = within(2_000, () => preWriteLint(hostile));
+      expect(text, hostile.slice(0, 16)).not.toContain("https://attacker");
+    }
+    // What is closed is still read, behind one that is not: the first `)` ends it, as a style sheet reads it.
+    const { findings } = preWriteLint('<b style="background: url(url(https://attacker.example/a.png)">x</b>');
+    expect(findings.map((finding) => finding.destination)).toEqual(["attacker.example"]);
+  });
+
   it("names what it defused, by kind and destination, in the order it stands", () => {
     const { findings } = preWriteLint("![a](https://attacker.example/i.png) [b](https://cdn.attacker.example/)\n\n[r]: //attacker.example/x");
     expect(findings.map((f) => [f.kind, f.destination])).toEqual([

@@ -180,6 +180,9 @@ describe("how an answer is read", () => {
     expect(plainSentence("Linked [[Clients/Northwind.md|the client]] and [[Roadmap]].")).toBe("Linked the client and Roadmap.");
     expect(plainSentence('Noted <img src="https://evil.example/p.png"> the date <b>twice</b>.')).toBe("Noted the date twice.");
     expect(plainSentence("Noted that 3 < 5.")).toBe("Noted that 3 &lt; 5.");
+    // A tag the removal would make whole opens nothing either; no `<` is ever left.
+    expect(plainSentence("Noted <<b>script>alert(1)<</b>/script> twice.")).toBe("Noted &lt;script>alert(1)&lt;/script> twice.");
+    expect(plainSentence("[a<b](x) and [[c<d]] then <i>e</i> < f")).toBe("a&lt;b and c&lt;d then e &lt; f");
     expect(plainSentence("  ## - Added   the\tdates.  ")).toBe("Added the dates.");
     expect(plainSentence("—")).toBe("");
     expect(plainSentence(`a${String.fromCharCode(0x202e)}b`)).toBe("ab");
