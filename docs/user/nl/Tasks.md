@@ -258,7 +258,7 @@ Het vakje in de widget **Vandaag** neemt een verzoek op: het vinkje verschijnt m
 <!-- task-rows-2026-10-24 -->
 ## Subtaken, opsommingen en wat vandaag klaar is
 
-**Subtaken.** Een vakje dat onder een ander is ingesprongen, is zijn subtaak, zoals `show tree` in de `tasks`-blokken van Obsidian. In de lijsten **Vandaag**, **Binnenkort**, **Inbox** en **Klaar** draagt een taak haar subtaken ingesprongen onder zich — open en afgeronde, de afgeronde doorgestreept — en een pijl aan het eind van de regel klapt ze in. Een subtaak met een eigen datum staat ook op zijn eigen dag; een subtaak zonder datum staat onder zijn taak en niet nog eens apart in de **Inbox**. De lijst **Alle** houdt elk vakje in de volgorde van zijn notitie.
+**Subtaken.** Een vakje dat onder een ander is ingesprongen, is zijn subtaak, zoals `show tree` in de `tasks`-blokken van Obsidian. In de lijsten **Vandaag**, **Binnenkort**, **Inbox** en **Klaar** draagt een taak haar subtaken ingesprongen onder zich — open en afgeronde, de afgeronde doorgestreept — en een pijl aan het eind van de regel klapt ze in. Een subtaak met een eigen datum staat ook op zijn eigen dag; een subtaak zonder datum staat onder zijn taak en niet nog eens apart in de **Inbox**. De lijst **Alle** houdt elk vakje in de volgorde van zijn notitie. Een taak met subtaken zegt hoeveel van zijn directe subtaken klaar zijn — **1 van 3 klaar** —, ook als **Subtaken** uit staat. Op de telefoon draagt de gekozen lijst zijn aantal, zoals **Vandaag** dat altijd doet.
 
 **Opsommingen.** Gewone opsommingstekens die onder een taak zijn ingesprongen — vragen, aantekeningen — toont de regel onder de titel als voorvertoning van maximaal twee regels; de rest bewaart de notitie.
 

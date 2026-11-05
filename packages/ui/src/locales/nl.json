@@ -5409,6 +5409,8 @@
     "showDetails": "Opsommingen",
     "subtasksExpand": "Subtaken tonen",
     "subtasksCollapse": "Subtaken verbergen",
+    "subtaskProgress_one": "{{done}} van {{count}} klaar",
+    "subtaskProgress_other": "{{done}} van {{count}} klaar",
     "hideTemplates": "Sjablonen verbergen",
     "templateKeysBanner": "Notities met sleutels uit een sjabloon: {{count}}",
     "templateKeysHint": "Ze staan buiten de sjablonenmap en hebben sleutels overgenomen die voor sjablonen bedoeld zijn — „plainva.tasks: false” houdt hun taken uit deze lijst. Haal het vinkje weg bij een notitie die je bewust hebt verborgen.",

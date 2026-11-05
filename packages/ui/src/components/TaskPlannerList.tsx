@@ -1,11 +1,11 @@
 import { Fragment, useMemo, useState, type HTMLAttributes, type MouseEvent, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, CalendarClock, CheckSquare, ChevronDown, ChevronRight, Repeat } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckSquare, ChevronDown, ChevronRight, ListChecks, Repeat } from "lucide-react";
 import { ICON } from "../lib/iconSizes";
 import { formatDueLabel } from "../lib/dueLabel";
 import { noteDisplayName } from "../lib/noteTitle";
 import { isOpenState, type PlannerRow, type PlannerSection } from "../lib/taskPlanner";
-import { nestPlannerRows, type PlannerTreeNode } from "../lib/taskPlannerTree";
+import { nestPlannerRows, type PlannerTreeNode, type SubtaskProgress } from "../lib/taskPlannerTree";
 import { taskPlainTitle } from "../lib/taskTitle";
 import type { InlineLinkHandlers } from "../lib/inlineMarkdown";
 import type { WikiTargetSet } from "../lib/wikiResolver";
@@ -66,6 +66,12 @@ export interface TaskPlannerListProps {
   /** Up to two bullets indented under a task, as a preview under it (E6). */
   details?: boolean;
   /**
+   * "1 of 3 done" at a task with subtasks (plan Rückmeldungen 2026-11-05,
+   * P11), by row id (`subtaskProgress`) — shown whether or not the subtasks
+   * stand under their task.
+   */
+  progress?: ReadonlyMap<string, SubtaskProgress>;
+  /**
    * Tasks finished today (E5), behind a "Done (n)" fold under Today — closed
    * until opened, remembered by the device. Absent or empty: no fold.
    */
@@ -99,7 +105,7 @@ function clock(minutes: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60));
 }
 
-export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps, onDue, canDue, onOverdueToToday, links, linkLookup, subtasks, details, doneToday, display, readOnly }: TaskPlannerListProps) {
+export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps, onDue, canDue, onOverdueToToday, links, linkLookup, subtasks, details, progress, doneToday, display, readOnly }: TaskPlannerListProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   // Which tasks show their subtasks folded away — for as long as the list is
@@ -170,6 +176,7 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
     const hasChildren = node.children.length > 0;
     const isFolded = folded.has(row.id);
     const closed = !isOpenState(row.state);
+    const steps = progress?.get(row.id);
     const element = (
       <Row
         wrap
@@ -203,6 +210,11 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
                   <span key={i}>{taskPlainTitle(line)}</span>
                 ))}
               </span>
+            )}
+            {steps && (
+              <Chip size="sm" tone="muted" icon={<ListChecks size={ICON.meta} />} testId="task-planner-progress">
+                {t("tasks.subtaskProgress", { count: steps.total, done: steps.done })}
+              </Chip>
             )}
             {when(row, section)}
             {show("repeat") && (row.repeats || row.repeatsAtProvider) && (

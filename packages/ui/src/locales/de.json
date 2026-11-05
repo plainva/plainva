@@ -5409,6 +5409,8 @@
     "showDetails": "Stichpunkte",
     "subtasksExpand": "Unteraufgaben zeigen",
     "subtasksCollapse": "Unteraufgaben ausblenden",
+    "subtaskProgress_one": "{{done}} von {{count}} erledigt",
+    "subtaskProgress_other": "{{done}} von {{count}} erledigt",
     "hideTemplates": "Vorlagen ausblenden",
     "templateKeysBanner": "Notizen mit Schlüsseln aus einer Vorlage: {{count}}",
     "templateKeysHint": "Sie liegen außerhalb des Vorlagen-Ordners und haben Schlüssel übernommen, die für Vorlagen gedacht sind — „plainva.tasks: false“ hält ihre Aufgaben aus dieser Liste heraus. Nimm den Haken bei einer Notiz weg, die Du absichtlich ausgeblendet hast.",

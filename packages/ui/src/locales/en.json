@@ -5409,6 +5409,8 @@
     "showDetails": "Bullet points",
     "subtasksExpand": "Show subtasks",
     "subtasksCollapse": "Hide subtasks",
+    "subtaskProgress_one": "{{done}} of {{count}} done",
+    "subtaskProgress_other": "{{done}} of {{count}} done",
     "hideTemplates": "Hide templates",
     "templateKeysBanner": "Notes with keys from a template: {{count}}",
     "templateKeysHint": "They lie outside the template folder and took over keys meant for templates — “plainva.tasks: false” keeps their tasks out of this list. Take the tick away from a note you hid on purpose.",

@@ -5297,6 +5297,7 @@
     "showDetails": "箇条書き",
     "subtasksExpand": "サブタスクを表示",
     "subtasksCollapse": "サブタスクを隠す",
+    "subtaskProgress_other": "{{count}} 件中 {{done}} 件完了",
     "hideTemplates": "テンプレートを隠す",
     "templateKeysBanner": "テンプレートのキーを持つノート: {{count}} 件",
     "templateKeysHint": "テンプレートフォルダーの外にあり、テンプレート用のキーを引き継いでいます。「plainva.tasks: false」があると、そのタスクはこの一覧に表示されません。意図して隠したノートはチェックを外してください。",

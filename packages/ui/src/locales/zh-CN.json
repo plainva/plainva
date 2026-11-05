@@ -5297,6 +5297,7 @@
     "showDetails": "要点",
     "subtasksExpand": "显示子任务",
     "subtasksCollapse": "隐藏子任务",
+    "subtaskProgress_other": "已完成 {{done}}/{{count}}",
     "hideTemplates": "隐藏模板",
     "templateKeysBanner": "带有模板键的笔记：{{count}} 篇",
     "templateKeysHint": "它们位于模板文件夹之外，沿用了本应只属于模板的键——“plainva.tasks: false”会让其中的任务不出现在此列表中。对你有意隐藏的笔记，请取消勾选。",

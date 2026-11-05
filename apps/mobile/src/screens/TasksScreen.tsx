@@ -5,6 +5,7 @@ import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicat
 import type { PimSyncProblem } from "@plainva/core";
 import { convertDueColumnToDateTime, offerDueTimeColumn, TaskPriorityFlag } from "@plainva/ui";
 import { checkboxTextOfCapture, createTaskDatabase, taskDatabaseLabels } from "@plainva/ui";
+import { subtaskProgress } from "@plainva/ui";
 import { buildPlanner, doneTasksOnDay, isOpenState, plannerRowsForTree, plannerRowsFromDb, plannerRowsFromTasks, TaskPlannerList, TaskPlannerNav, TaskTitle, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarPlus, Database, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
@@ -629,6 +630,9 @@ export function TasksScreen({
   // Subtasks under their task (E6): an undated subtask of an open task is
   // listed under it rather than on its own in the Inbox.
   const planner = useMemo(() => buildPlanner(subtasks ? plannerRowsForTree(plannerRows) : plannerRows, todayKey), [plannerRows, subtasks, todayKey]);
+  // "1 of 3 done" at a task with subtasks (P11, 2026-11-05): from every checkbox
+  // the screen knows, so a filter that hides a subtask does not change the count.
+  const progress = useMemo(() => subtaskProgress(plannerRowsFromTasks(visibleTasks)), [visibleTasks]);
   // What was finished today, folded under Today (E5).
   const doneToday = useMemo(() => doneTasksOnDay(plannerRows, todayKey), [plannerRows, todayKey]);
   const openCount = useMemo(() => plannerRows.filter((r) => isOpenState(r.state)).length, [plannerRows]);
@@ -860,6 +864,7 @@ export function TasksScreen({
             linkLookup={linkLookup}
             subtasks={subtasks ? plannerRows : undefined}
             details={details}
+            progress={progress}
             doneToday={list === "today" ? doneToday : undefined}
           />
         )

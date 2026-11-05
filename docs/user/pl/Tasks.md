@@ -258,7 +258,7 @@ Pole w widgecie **Dziś** przyjmuje prośbę: ptaszek pojawia się od razu, nota
 <!-- task-rows-2026-10-24 -->
 ## Podzadania, wypunktowania i to, co zrobiono dzisiaj
 
-**Podzadania.** Pole wyboru wcięte pod innym jest jego podzadaniem, tak jak `show tree` w blokach `tasks` Obsidiana. Na listach **Dziś**, **Nadchodzące**, **Skrzynka** i **Ukończone** zadanie niesie swoje podzadania wcięte pod sobą — otwarte i ukończone, te drugie przekreślone — a strzałka na końcu wiersza je zwija. Podzadanie z własną datą stoi dodatkowo w swoim dniu; to bez daty jest wymienione pod swoim zadaniem, a nie osobno w **Skrzynka**. Lista **Wszystkie** zachowuje każde pole wyboru w kolejności jego notatki.
+**Podzadania.** Pole wyboru wcięte pod innym jest jego podzadaniem, tak jak `show tree` w blokach `tasks` Obsidiana. Na listach **Dziś**, **Nadchodzące**, **Skrzynka** i **Ukończone** zadanie niesie swoje podzadania wcięte pod sobą — otwarte i ukończone, te drugie przekreślone — a strzałka na końcu wiersza je zwija. Podzadanie z własną datą stoi dodatkowo w swoim dniu; to bez daty jest wymienione pod swoim zadaniem, a nie osobno w **Skrzynka**. Lista **Wszystkie** zachowuje każde pole wyboru w kolejności jego notatki. Zadanie z podzadaniami pokazuje, ile jego bezpośrednich podzadań jest ukończonych — **ukończono 1 z 3** — także przy wyłączonej opcji **Podzadania**. Na telefonie wybrana lista nosi swoją liczbę, tak jak zawsze **Dziś**.
 
 **Wypunktowania.** Zwykłe punkty wcięte pod zadaniem — pytania, uwagi — wiersz pokazuje pod tytułem jako podgląd do dwóch linii; resztę trzyma notatka.
 

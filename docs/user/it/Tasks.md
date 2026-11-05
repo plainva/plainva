@@ -258,7 +258,7 @@ La casella del widget **Oggi** registra una richiesta: la spunta compare subito,
 <!-- task-rows-2026-10-24 -->
 ## Sottoattività, elenchi puntati e ciò che è fatto oggi
 
-**Sottoattività.** Una casella rientrata sotto un'altra è la sua sottoattività, come `show tree` nei blocchi `tasks` di Obsidian. Negli elenchi **Oggi**, **Prossimamente**, **In entrata** e **Completate** un'attività porta le sue sottoattività rientrate sotto di sé — aperte e completate, queste barrate — e una freccia a fine riga le comprime. Una sottoattività con una data propria compare anche nel proprio giorno; una senza data è elencata sotto la sua attività e non da sola in **In entrata**. L'elenco **Tutte** mantiene ogni casella nell'ordine della sua nota.
+**Sottoattività.** Una casella rientrata sotto un'altra è la sua sottoattività, come `show tree` nei blocchi `tasks` di Obsidian. Negli elenchi **Oggi**, **Prossimamente**, **In entrata** e **Completate** un'attività porta le sue sottoattività rientrate sotto di sé — aperte e completate, queste barrate — e una freccia a fine riga le comprime. Una sottoattività con una data propria compare anche nel proprio giorno; una senza data è elencata sotto la sua attività e non da sola in **In entrata**. L'elenco **Tutte** mantiene ogni casella nell'ordine della sua nota. Un'attività con sottoattività dice quante delle sue sottoattività dirette sono completate — **1 di 3 completate** —, anche con **Sottoattività** disattivato. Sul telefono l'elenco scelto porta il suo numero, come fa sempre **Oggi**.
 
 **Elenchi puntati.** I punti elenco semplici rientrati sotto un'attività — domande, appunti — compaiono sotto il titolo come anteprima di al massimo due righe; il resto lo conserva la nota.
 

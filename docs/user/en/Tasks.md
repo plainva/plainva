@@ -258,7 +258,7 @@ The checkbox in the **Today** widget records a request: the tick appears at once
 <!-- task-rows-2026-10-24 -->
 ## Subtasks, bullet points and what was done today
 
-**Subtasks.** A checkbox indented under another is its subtask, as with `show tree` in the `tasks` blocks of Obsidian. In the lists **Today**, **Upcoming**, **Inbox** and **Done** a task carries its subtasks below it, indented — open and finished ones, the finished struck through — and an arrow at the end of the row folds them away. A subtask with a date of its own also stands on its own day; one without a date is listed under its task and not on its own in the **Inbox**. The list **All** keeps every checkbox in the order of its note.
+**Subtasks.** A checkbox indented under another is its subtask, as with `show tree` in the `tasks` blocks of Obsidian. In the lists **Today**, **Upcoming**, **Inbox** and **Done** a task carries its subtasks below it, indented — open and finished ones, the finished struck through — and an arrow at the end of the row folds them away. A subtask with a date of its own also stands on its own day; one without a date is listed under its task and not on its own in the **Inbox**. The list **All** keeps every checkbox in the order of its note. A task with subtasks says how many of its direct subtasks are done — **1 of 3 done** — also while **Subtasks** is switched off. On the phone the chosen list carries its number, as **Today** always does.
 
 **Bullet points.** Plain bullets indented under a task — questions, notes — show below its title as up to two lines of preview; the note holds the rest.
 

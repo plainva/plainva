@@ -32,7 +32,7 @@ import {
   type TaskBlockValues,
 } from "../../services/pim/calendarModel";
 import { createTaskTimeBlock } from "../../services/pim/taskTimeBlock";
-import { calendarDay, checkboxTextOfCapture, taskDatabaseLabels } from "@plainva/ui";
+import { calendarDay, checkboxTextOfCapture, subtaskProgress, taskDatabaseLabels } from "@plainva/ui";
 import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
@@ -663,6 +663,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   const planner = useMemo(() => buildPlanner(subtasks ? plannerRowsForTree(plannerRows) : plannerRows, todayKey), [plannerRows, subtasks, todayKey]);
   // What was finished today, folded under Today (E5).
   const doneToday = useMemo(() => doneTasksOnDay(plannerRows, todayKey), [plannerRows, todayKey]);
+  // "1 of 3 done" at a task with subtasks (P11, 2026-11-05): from every checkbox
+  // the view knows, so a filter that hides a subtask does not change the count.
+  const progress = useMemo(() => subtaskProgress(plannerRowsFromTasks(visibleTasks)), [visibleTasks]);
   // Links in a task's title open their note (E3), read from the note the task
   // stands in and opened as the editor opens a link there.
   const titleLinks = useMemo<InlineLinkHandlers>(() => ({
@@ -1245,6 +1248,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
               links={titleLinks}
               linkLookup={linkLookup}
               subtasks={subtasks ? plannerRows : undefined}
+              progress={progress}
               details={details}
               doneToday={list === "today" ? doneToday : undefined}
             />

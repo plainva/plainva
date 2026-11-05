@@ -258,7 +258,7 @@ A caixa do widget **Hoje** registra um pedido: a marca aparece na hora, a nota m
 <!-- task-rows-2026-10-24 -->
 ## Subtarefas, marcadores e o que foi feito hoje
 
-**Subtarefas.** Uma caixa de seleção recuada sob outra é a sua subtarefa, como `show tree` nos blocos `tasks` do Obsidian. Nas listas **Hoje**, **Em breve**, **Caixa de entrada** e **Concluídas**, uma tarefa traz as suas subtarefas recuadas abaixo dela — abertas e concluídas, estas tachadas — e uma seta no fim da linha as recolhe. Uma subtarefa com data própria aparece também no seu próprio dia; uma sem data é listada sob a sua tarefa e não sozinha na **Caixa de entrada**. A lista **Todas** mantém cada caixa de seleção na ordem da sua nota.
+**Subtarefas.** Uma caixa de seleção recuada sob outra é a sua subtarefa, como `show tree` nos blocos `tasks` do Obsidian. Nas listas **Hoje**, **Em breve**, **Caixa de entrada** e **Concluídas**, uma tarefa traz as suas subtarefas recuadas abaixo dela — abertas e concluídas, estas tachadas — e uma seta no fim da linha as recolhe. Uma subtarefa com data própria aparece também no seu próprio dia; uma sem data é listada sob a sua tarefa e não sozinha na **Caixa de entrada**. A lista **Todas** mantém cada caixa de seleção na ordem da sua nota. Uma tarefa com subtarefas diz quantas das suas subtarefas diretas estão concluídas — **1 de 3 concluídas** —, também com **Subtarefas** desligado. No telefone a lista escolhida mostra seu número, como **Hoje** sempre faz.
 
 **Marcadores.** Itens simples recuados sob uma tarefa — perguntas, anotações — aparecem sob o título dela como uma prévia de até duas linhas; o restante fica na nota.
 

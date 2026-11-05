@@ -1536,3 +1536,27 @@ test('a checkbox gets a time from the date picker, and the picker offers its rem
   await expect.poll(file).toBe(`# Todo\n- [ ] Anruf Bank ⏫ 🔁 every week 📅 ${yesterday} #geld\n`);
   expect(errors).toEqual([]);
 });
+
+test('a task with subtasks says how many of them are done (plan Rückmeldungen 2026-11-05, P11)', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const d = new Date();
+    const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    fs['/test-vault/Todo.md'] = `# Todo\n- [ ] Umzug vorbereiten 📅 ${today}\n  - [x] Kartons bestellen\n  - [ ] Halteverbot beantragen\n  - [-] Möbelwagen\n  - [ ] Nachsendeauftrag\n- [ ] Steuerunterlagen sortieren 📅 ${today}\n`;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+  await page.getByTestId('tasks-list-today').click();
+  const today = page.getByTestId('task-planner-section-today');
+  const parent = today.locator('[data-testid="task-planner-row"]', { hasText: 'Umzug vorbereiten' }).first();
+  // Direct subtasks only, a cancelled one not counted.
+  await expect(parent.getByTestId('task-planner-progress')).toHaveText('1 of 3 done');
+  await expect(today.getByTestId('task-planner-progress')).toHaveCount(1);
+  // The rail counts every list, as it did.
+  await expect(page.getByTestId('tasks-list-today')).toContainText('2');
+  await page.screenshot({ path: testInfo.outputPath('tasks-subtask-progress.png') });
+  expect(errors).toEqual([]);
+});

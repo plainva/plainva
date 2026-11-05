@@ -258,7 +258,7 @@ La casilla del widget **Hoy** recoge un encargo: la marca aparece enseguida, la 
 <!-- task-rows-2026-10-24 -->
 ## Subtareas, viñetas y lo hecho hoy
 
-**Subtareas.** Una casilla sangrada bajo otra es su subtarea, como `show tree` en los bloques `tasks` de Obsidian. En las listas **Hoy**, **Próximamente**, **Bandeja de entrada** y **Hechas**, una tarea lleva sus subtareas sangradas debajo — abiertas y terminadas, estas tachadas — y una flecha al final de la fila las pliega. Una subtarea con fecha propia aparece además en su propio día; una sin fecha se lista bajo su tarea y no sola en **Bandeja de entrada**. La lista **Todas** mantiene cada casilla en el orden de su nota.
+**Subtareas.** Una casilla sangrada bajo otra es su subtarea, como `show tree` en los bloques `tasks` de Obsidian. En las listas **Hoy**, **Próximamente**, **Bandeja de entrada** y **Hechas**, una tarea lleva sus subtareas sangradas debajo — abiertas y terminadas, estas tachadas — y una flecha al final de la fila las pliega. Una subtarea con fecha propia aparece además en su propio día; una sin fecha se lista bajo su tarea y no sola en **Bandeja de entrada**. La lista **Todas** mantiene cada casilla en el orden de su nota. Una tarea con subtareas indica cuántas de sus subtareas directas están hechas — **1 de 3 hechas** —, también con **Subtareas** desactivado. En el teléfono, la lista elegida lleva su número, como siempre hace **Hoy**.
 
 **Viñetas.** Las viñetas simples sangradas bajo una tarea — preguntas, notas — se muestran bajo su título como una vista previa de hasta dos líneas; el resto lo guarda la nota.
 
