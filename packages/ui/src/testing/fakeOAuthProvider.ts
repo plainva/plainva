@@ -54,6 +54,16 @@ interface PendingCode {
 const DAY = 24 * 60 * 60 * 1000;
 const IDENTITY = new Set(["openid", "email", "profile", "offline_access", "User.Read"]);
 
+/** Microsoft's token endpoint of any tenant: `https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token`. */
+function isMicrosoftToken(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === "https://login.microsoftonline.com" && /^\/[^/]+\/oauth2\/v2\.0\/token$/.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
 export interface FakeProviderOptions {
   family: FakeFamily;
   accounts: FakeAccount[];
@@ -192,7 +202,7 @@ export class FakeOAuthProvider {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
     try {
-      if (url.startsWith("https://oauth2.googleapis.com/token") || /login\.microsoftonline\.com\/.*\/oauth2\/v2\.0\/token/.test(url)) {
+      if (url.startsWith("https://oauth2.googleapis.com/token") || isMicrosoftToken(url)) {
         const form = new URLSearchParams(typeof init?.body === "string" ? init.body : String(init?.body ?? ""));
         if (form.get("grant_type") === "authorization_code") {
           return json(200, this.exchange({ code: form.get("code") ?? "", clientId: form.get("client_id") ?? "", clientSecret: form.get("client_secret") ?? undefined }));

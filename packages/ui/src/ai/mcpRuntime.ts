@@ -211,6 +211,25 @@ export function mcpServerOnDevice(server: McpRegisteredServer): boolean {
 
 const BLANK: McpServerRecord = { label: "", addedAt: "", target: "", review: NEW_MCP_SERVER, snapshot: null };
 
+/**
+ * A server's record, read as an own property only. Ids follow
+ * `MCP_SERVER_ID_PATTERN`, so none is a name every object has (`__proto__`,
+ * `constructor`) — this keeps it so even if one got through, and a change to
+ * a record can never reach `Object.prototype`.
+ */
+function ownRecord(records: Record<string, McpServerRecord>, id: string): McpServerRecord | undefined {
+  return Object.prototype.hasOwnProperty.call(records, id) ? records[id] : undefined;
+}
+
+/** The server's record, made from `make` where there is none yet. */
+function recordFor(records: Record<string, McpServerRecord>, id: string, make: () => McpServerRecord): McpServerRecord {
+  const known = ownRecord(records, id);
+  if (known) return known;
+  const made = make();
+  records[id] = made;
+  return made;
+}
+
 export class McpRuntime {
   private readonly links = new Map<string, Link>();
   private lane: Promise<unknown> = Promise.resolve();
@@ -253,7 +272,7 @@ export class McpRuntime {
     const [registered, records] = await Promise.all([this.host.native.servers(), this.host.store.load()]);
     return registered
       .map((server) => {
-        const record = records[server.id] ?? { ...BLANK, label: server.id };
+        const record = ownRecord(records, server.id) ?? { ...BLANK, label: server.id };
         return { id: server.id, registered: server, record, current: record.target === mcpServerTarget(server) };
       })
       .sort((a, b) => a.record.label.localeCompare(b.record.label) || a.id.localeCompare(b.id));
@@ -326,7 +345,7 @@ export class McpRuntime {
 
   async rename(id: string, label: string): Promise<void> {
     await this.change((records) => {
-      const record = records[id];
+      const record = ownRecord(records, id);
       if (record && label.trim()) record.label = label.trim().slice(0, 60);
     });
   }
@@ -503,7 +522,7 @@ export class McpRuntime {
    * are another server's.
    */
   private async readSkills(server: McpRegisteredServer, link: Link, signal?: AbortSignal): Promise<SkillsRead> {
-    const record = (await this.host.store.load())[server.id];
+    const record = ownRecord(await this.host.store.load(), server.id);
     const before = record && record.target === mcpServerTarget(server) ? record.skills : undefined;
     const added = before?.added ?? [];
     const kept = (uri: string) => before?.entries.find((entry) => entry.uri === uri) ?? null;
@@ -589,7 +608,7 @@ export class McpRuntime {
     const { hello, listing, clipped, skills } = await this.load(server, signal);
     const now = this.host.now();
     const review = await this.change((records) => {
-      const record = (records[id] ??= { ...BLANK, label: id, addedAt: now.toISOString() });
+      const record = recordFor(records, id, () => ({ ...BLANK, label: id, addedAt: now.toISOString() }));
       // A registration other than the approved one voids the approval: its texts were another server's — and its skills.
       if (record.target !== target) {
         record.review = NEW_MCP_SERVER;
@@ -611,7 +630,7 @@ export class McpRuntime {
     const server = await this.registered(id);
     const now = this.host.now();
     await this.change((records) => {
-      const record = (records[id] ??= { ...BLANK, label: id, addedAt: now.toISOString() });
+      const record = recordFor(records, id, () => ({ ...BLANK, label: id, addedAt: now.toISOString() }));
       record.review = approveMcpListing({ ...listing, promptBodies: {} }, now);
       record.snapshot = { ...listing, promptBodies: {} };
       record.target = mcpServerTarget(server);
@@ -631,7 +650,7 @@ export class McpRuntime {
     } catch {
       return { ok: false, reason: "not-approved" };
     }
-    const record = (await this.host.store.load())[id];
+    const record = ownRecord(await this.host.store.load(), id);
     if (!record || record.target !== mcpServerTarget(server) || record.review.status === "new") return { ok: false, reason: "not-approved" };
     if (record.review.status === "blocked") return { ok: false, reason: "blocked" };
     const existing = this.links.get(id);
@@ -645,7 +664,7 @@ export class McpRuntime {
     }
     const now = this.host.now();
     const review = await this.change((records) => {
-      const current = records[id];
+      const current = ownRecord(records, id);
       if (!current) return NEW_MCP_SERVER;
       current.review = reviewMcpListing(current.review, listing, now);
       if (current.target === record.target) this.skillsAfter(current, skills, now);
@@ -697,7 +716,7 @@ export class McpRuntime {
     const key = mcpPromptKey(name, args, answers.length ? mcpHash(answers) : undefined);
     const now = this.host.now();
     const standing = await this.change((records) => {
-      const record = records[id];
+      const record = ownRecord(records, id);
       if (!record || record.review.status !== "approved" || record.target !== mcpServerTarget(server)) return "changed" as const;
       const found = checkMcpPromptBody(record.review.pin, key, body);
       if (found === "changed") record.review = reviewMcpPromptBody(record.review, key, body, now);
@@ -709,7 +728,7 @@ export class McpRuntime {
   /** The user read this expansion and sent it: from now on it is the approved one. */
   async pinPrompt(id: string, key: string, body: unknown): Promise<void> {
     await this.change((records) => {
-      const record = records[id];
+      const record = ownRecord(records, id);
       if (record?.review.status !== "approved") return;
       // The newest at the end; beyond the bound the oldest go — an expansion that is no longer pinned is shown first again.
       const bodies = Object.entries(record.review.pin.promptBodies).filter(([known]) => known !== key);
@@ -758,7 +777,7 @@ export class McpRuntime {
     const now = this.host.now();
     const target = mcpServerTarget(server);
     return this.change((records): McpSkillAdd => {
-      const record = records[id];
+      const record = ownRecord(records, id);
       if (!record || record.target !== target) return { ok: false, reason: "not-approved" };
       const before: McpSkillsRecord = record.skills ?? { at: now.toISOString(), failed: false, clipped: false, entries: [], added: [] };
       if (!before.added.includes(address) && before.added.length >= MCP_SKILL_LIMITS.added) return { ok: false, reason: "full" };
@@ -817,7 +836,7 @@ export class McpRuntime {
     if (!gone && readMcpSkillEntry(raw)?.uri !== uri) return;
     const target = mcpServerTarget(server);
     await this.change((records) => {
-      const record = records[server.id];
+      const record = ownRecord(records, server.id);
       if (!record?.skills || record.target !== target) return;
       const fresh = gone ? null : readMcpSkillEntry(raw);
       const entries = record.skills.entries.flatMap((entry) => (entry.uri !== uri ? [entry] : fresh ? [fresh] : []));

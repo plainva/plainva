@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "@plainva/core";
 import { addEmlToMailNote, buildEmailNoteContent, captureMailAsNote, isEmptyMailNote, mailCaptureNotice, mailDayKey, mailNoteStem, saveEmlFile, type MailCaptureAdapter } from "@plainva/ui/mail";
 import type { MailMessage } from "@plainva/ui/mail";
+import { within } from "../../../../../packages/core/test/helpers/timeBudget";
 
 function fakeAdapter(initial: Record<string, string> = {}) {
   const files = new Map<string, string | Uint8Array>(Object.entries(initial));
@@ -265,6 +266,17 @@ describe("a second capture fills a note that holds no text of its message", () =
     expect(isEmptyMailNote("# Rechnung Q3\n# Noch eine\n")).toBe(false);
     // A line before the title is text too.
     expect(isEmptyMailNote("Vorweg.\n# Rechnung Q3\n")).toBe(false);
+  });
+
+  it("reads a line as the link to the raw copy as the pattern it replaced did, and in one pass", () => {
+    const pattern = /^\[\[[^[\]]+\.eml(\|[^[\]]*)?\]\]$/i;
+    const lines = [
+      "[[Mail/2026/a.eml]]", "[[a.EML]]", "[[a.eml|the raw copy]]", "[[a.eml|]]", "[[x|a.eml]]", "[[x|a.eml|b]]", "[[a.eml|b|c]]",
+      "[[.eml]]", "[[a.emlx]]", "[[a.eml]", "[a.eml]]", "[[a[b].eml]]", "[[a.eml|[b]]]", "[[]]", "[[|]]", "[[a.eml]] more", "[[a.md]]", "[[a.eml|x.eml]]",
+    ];
+    for (const line of lines) expect(isEmptyMailNote(`# T\n${line}\n`), line).toBe(pattern.test(line));
+    const hostile = `[[Z.eml|${"Z.eml|".repeat(100_000)}`;
+    expect(within(1_000, () => isEmptyMailNote(`# T\n${hostile}\n`))).toBe(false);
   });
 });
 

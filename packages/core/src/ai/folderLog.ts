@@ -245,11 +245,12 @@ function numberedLine(line: string): { number: number; text: string } | null {
  */
 export function plainSentence(raw: string): string {
   let text = stripInvisible(raw.slice(0, ANSWER_LINE_MAX)).text;
-  text = text.replace(/<[^<>]*>/g, "");
+  // A tag goes, and in the same pass every `<` left is written so that it opens nothing — what is left
+  // never holds a `<` at all (a tag the removal would only have made whole, `<<b>script>`, included).
+  text = text.replace(/<[^<>]*>|</g, (found) => (found === "<" ? "&lt;" : ""));
   text = text.replace(/!?\[([^[\]]*)\]\([^()]*\)/g, "$1");
   text = text.replace(/\[\[([^[\]|]*)\|([^[\]]*)\]\]/g, "$2");
   text = text.replace(/\[\[([^[\]]*)\]\]/g, (_all, target: string) => target.slice(target.lastIndexOf("/") + 1).replace(/\.md$/i, ""));
-  text = text.replace(/</g, "&lt;");
   text = text.replace(/\s+/g, " ").trim();
   text = text.replace(/^(?:[-–—*+>#]\s*)+/, "").trim();
   if (text.length > FOLDER_LOG_SENTENCE_MAX) {

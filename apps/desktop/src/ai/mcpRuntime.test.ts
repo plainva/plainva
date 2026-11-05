@@ -125,6 +125,21 @@ describe("the review", () => {
     expect(t.asked).toHaveLength(1);
   });
 
+  it("reads a record as the server's own: an id that names what every object has changes no other object", async () => {
+    const t = setup();
+    // No id the runtime gives out can be one; a native side that held one anyway is the case here.
+    for (const id of ["__proto__", "constructor"]) t.host.registry.push({ id, kind: "http", url: URL, args: [], env: [], sandbox: false, stored: [] });
+    for (const id of ["__proto__", "constructor"]) {
+      const look = await t.runtime.inspect(id);
+      await t.runtime.approve(id, look.listing);
+      await t.runtime.check(id);
+    }
+    await t.runtime.servers();
+    const plain = {} as Record<string, unknown>;
+    expect([plain.review, plain.snapshot, plain.target, plain.seen, plain.skills]).toEqual([undefined, undefined, undefined, undefined, undefined]);
+    expect(Object.getOwnPropertyNames(Object.prototype)).not.toContain("review");
+  });
+
   it("cannot approve a listing that is too large to keep", async () => {
     const t = setup({ server: createScriptedMcpServer({ tools: Array.from({ length: 150 }, (_, n) => ({ ...search, name: `tool_${n}`, inputSchema: { type: "object", description: "x".repeat(8000) } })) }) });
     await t.runtime.addHttp("Tracker", URL, "", CONFIRM);
