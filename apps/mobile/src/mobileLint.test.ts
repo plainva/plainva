@@ -3730,6 +3730,16 @@ describe("the top safe area is one token", () => {
     expect(uses.map((line) => line.trim())).toEqual(["--m-safe-top: env(safe-area-inset-top, 0px);"]);
   });
 
+  it("a note bar tucked away for writing keeps the inset as a spacer (TestFlight 2026-11-03)", () => {
+    const rules = [...stripComments(css).matchAll(/([^{}]*\.m-note-chrome\.is-tucked[^{}]*)\{([^}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+    const own = rules.find((r) => r.selector === ".m-note-chrome.is-tucked");
+    expect(own, "the tucked chrome rule").toBeDefined();
+    // The block itself never leaves the flow: only its content does.
+    expect(own!.body).not.toMatch(/display:\s*none/);
+    expect(own!.body).toMatch(/padding-top:\s*var\(--m-header-safe-top, var\(--m-safe-top\)\)/);
+    expect(rules.some((r) => r.selector === ".m-note-chrome.is-tucked > *" && /display:\s*none/.test(r.body))).toBe(true);
+  });
+
   it("is what the app bar, the rail and the share notice keep clear of", () => {
     expect(css).toMatch(/--m-header-safe-top: var\(--m-safe-top\);/);
     expect(css).toMatch(/\.m-share-notice \{[^}]*var\(--m-safe-top\)/);

@@ -5062,8 +5062,13 @@ textarea {
 .m-page--note[data-reader-overlay] .m-editor .cm-scroller { --pv-editor-covered-top: var(--m-reader-chrome-height); }
 .m-note-chrome.is-away { transform: translateY(-100%); pointer-events: none; }
 /* Writing with the keyboard up: the bar gives its height to the text (F8);
-   pulling the text down or putting the keyboard away brings it back. */
-.m-note-chrome.is-tucked { display: none; }
+   pulling the text down or putting the keyboard away brings it back. Only the
+   bar's content goes: the strip the system draws over (clock, camera, Dynamic
+   Island) stays as a spacer, or the first line ran under it (TestFlight
+   2026-11-03). The app bar carries that inset, so the tucked chrome takes it
+   over; a notice above that owns the inset leaves it at zero. */
+.m-note-chrome.is-tucked { padding-top: var(--m-header-safe-top, var(--m-safe-top)); }
+.m-note-chrome.is-tucked > * { display: none; }
 .m-note-pencil { transition: transform var(--dur-2) var(--ease-effects), opacity var(--dur-2) var(--ease-effects); }
 .m-note-pencil.is-away { transform: translateY(calc(100% + 32px)); opacity: 0; pointer-events: none; }
 

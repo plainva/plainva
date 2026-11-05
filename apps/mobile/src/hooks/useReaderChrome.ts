@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { chromeNow, getChromeScroll, noteChromeTucked, readerScrollSource, subscribeChromeScroll } from "../services/chromeScroll";
 import { useAutoHideChrome } from "./useAutoHideChrome";
 import { useSoftKeyboard } from "./useSoftKeyboard";
@@ -24,6 +24,16 @@ export function useReaderChrome(vaultId: string, path: string, overlay: boolean,
     read(); const observer = new ResizeObserver(read); observer.observe(node);
     return () => observer.disconnect();
   }, [chromeNode]);
+  // A focused control that leaves the page fires no blur: the pencil goes the
+  // moment writing starts, and in a Chromium WebView a tapped button holds the
+  // focus. The chrome then stayed "focused" for good and never stepped aside
+  // for the keyboard (Android). The next focus anywhere ends that hold.
+  useEffect(() => {
+    if (!focused) return;
+    const next = (event: FocusEvent) => setFocused(!!chromeNode?.contains(event.target as Node | null));
+    document.addEventListener("focusin", next);
+    return () => document.removeEventListener("focusin", next);
+  }, [focused, chromeNode]);
   const active = scroll.source === readerScrollSource(vaultId, path);
   return {
     chromeRef: setChromeNode,

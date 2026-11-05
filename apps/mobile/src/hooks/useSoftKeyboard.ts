@@ -12,7 +12,10 @@ import { Keyboard } from "@capacitor/keyboard";
  */
 export function useSoftKeyboard(onChange: (open: boolean) => void): void {
   useEffect(() => {
-    if (Capacitor.getPlatform() === "web") return;
+    // Whenever the shell has a keyboard plugin: the native apps always do, a
+    // browser does not - unless a production test stands one in
+    // (e2e-prod/note-tuck.spec.ts), which is how the tucked bar gets tested.
+    if (!Capacitor.isPluginAvailable("Keyboard")) return;
     let showHandle: { remove: () => Promise<void> } | undefined;
     let hideHandle: { remove: () => Promise<void> } | undefined;
 
