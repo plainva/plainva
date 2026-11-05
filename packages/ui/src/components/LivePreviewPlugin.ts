@@ -259,6 +259,27 @@ class CalloutLabelWidget extends WidgetType {
   }
 }
 
+/**
+ * The lines whose Markdown source shows: those the selection touches, while
+ * the note is being edited — none in read mode (GitHub issue 118). A long
+ * press in read mode selects text, and the table it stood in turned into its
+ * source; so did an embed, a picture or a diagram whose line the selection
+ * reached. Every live widget that steps aside for the caret asks this.
+ */
+export function revealedLineSet(state: EditorState): Set<number> {
+  return isEditorInteractive(state) ? activeLineSet(state) : new Set<number>();
+}
+
+/** True when the selection reveals the source of [from, to] (see `revealedLineSet`). */
+export function revealsRange(state: EditorState, from: number, to: number): boolean {
+  return isEditorInteractive(state) && state.selection.ranges.some((r) => r.from <= to && r.to >= from);
+}
+
+/** True when a transaction turns read mode into editing or back: what the caret reveals changes. */
+export function interactivityChanged(before: EditorState, after: EditorState): boolean {
+  return isEditorInteractive(before) !== isEditorInteractive(after);
+}
+
 // Lines (1-based) touched by the selection — their raw markdown stays visible.
 export function activeLineSet(state: EditorState): Set<number> {
   const set = new Set<number>();
@@ -453,6 +474,11 @@ class TableWidget extends WidgetType {
           e.stopPropagation();
           return;
         }
+        // Read mode (GitHub issue 118, Android): holding a word in a cell
+        // selects it, as anywhere else in the note. The table menu edits the
+        // table, so it belongs to a note that is being edited — like the tap
+        // beside it, which opens the cell's field only then.
+        if (!isEditorInteractive(view.state)) return;
         e.preventDefault();
         e.stopPropagation();
         window.dispatchEvent(new CustomEvent("plainva-open-table-menu", {
@@ -549,7 +575,7 @@ function buildTableDecorations(state: EditorState, isLive: boolean): DecorationS
   const decos: Range<Decoration>[] = [];
   try {
     const tree = syntaxTree(state);
-    const activeLines = activeLineSet(state);
+    const activeLines = revealedLineSet(state);
     tree.iterate({
       enter: (node) => {
         if (node.name !== "Table") return;
@@ -584,7 +610,7 @@ export function tableField(isLive: boolean) {
   return StateField.define<DecorationSet>({
     create: (state) => buildTableDecorations(state, isLive),
     update: (value, tr) => {
-      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state) || interactivityChanged(tr.startState, tr.state)) {
         return buildTableDecorations(tr.state, isLive);
       }
       return value;

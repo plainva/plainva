@@ -375,6 +375,7 @@ export * from "./components/AudioEmbed";
 export * from "./components/ui/Rating";
 export * from "./components/audioPlayer";
 export * from "./components/fileEmbedMount";
+export { isEditorInteractive } from "./components/editorInteractive";
 export * from "./components/FileEmbedCard";
 export * from "./services/voiceMemo";
 export * from "./services/placeStamp";

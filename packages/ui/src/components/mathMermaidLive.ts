@@ -1,7 +1,8 @@
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { EditorState, Range, RangeSetBuilder, StateField } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { activeLineSet } from "./LivePreviewPlugin";
+import { interactivityChanged, revealedLineSet, revealsRange } from "./LivePreviewPlugin";
+import { isEditorInteractive } from "./editorInteractive";
 import { fenceOpenerFor, fencedCodeRanges, findFencedBlocks } from "./fencedBlocks";
 import { renderMermaidDiagram, currentMermaidTheme } from "../services/mermaidRender";
 import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
@@ -71,6 +72,9 @@ function katexHtml(expr: string, displayMode: boolean): string | null {
 // (safe across eq()-reused DOM), which is inside the replaced range and
 // triggers the caret guard.
 function caretIntoWidget(view: EditorView, el: HTMLElement, event: MouseEvent) {
+  // Read mode keeps the rendered form (GitHub issue 118): the press is the
+  // system's, to select text, not a way into the source.
+  if (!isEditorInteractive(view.state)) return;
   event.preventDefault();
   const pos = view.posAtDOM(el);
   view.dispatch({ selection: { anchor: pos } });
@@ -218,7 +222,8 @@ export function mathInlinePlugin() {
         update.docChanged ||
         update.viewportChanged ||
         update.selectionSet ||
-        syntaxTree(update.startState) !== syntaxTree(update.state)
+        syntaxTree(update.startState) !== syntaxTree(update.state) ||
+        interactivityChanged(update.startState, update.state)
       ) {
         this.decorations = this.buildDecorations(update.view);
       }
@@ -226,7 +231,6 @@ export function mathInlinePlugin() {
 
     buildDecorations(view: EditorView) {
       const builder = new RangeSetBuilder<Decoration>();
-      const selection = view.state.selection;
 
       for (const { from, to } of view.visibleRanges) {
         const excluded = codeRanges(view.state, from, to);
@@ -241,12 +245,8 @@ export function mathInlinePlugin() {
           const matchEnd = matchStart + match[0].length;
           if (overlaps(matchStart, matchEnd, excluded)) continue;
 
-          // Caret/selection touching the expression keeps it raw source.
-          let focused = false;
-          for (const r of selection.ranges) {
-            if (r.from <= matchEnd && r.to >= matchStart) { focused = true; break; }
-          }
-          if (focused) continue;
+          // Caret/selection touching the expression keeps it raw source - while editing.
+          if (revealsRange(view.state, matchStart, matchEnd)) continue;
 
           builder.add(matchStart, matchEnd, Decoration.replace({ widget: new MathWidget(expr, display) }));
         }
@@ -355,7 +355,7 @@ const MERMAID_OPEN = fenceOpenerFor("mermaid");
 function buildBlockDecorations(state: EditorState, texts: MathMermaidTexts): DecorationSet {
   const decos: Range<Decoration>[] = [];
   try {
-    const activeLines = activeLineSet(state);
+    const activeLines = revealedLineSet(state);
     const doc = state.doc;
     const fences = fencedCodeRanges(state);
 
@@ -424,7 +424,7 @@ export function mathMermaidBlockField(texts: MathMermaidTexts) {
   return StateField.define<DecorationSet>({
     create: (state) => buildBlockDecorations(state, texts),
     update: (value, tr) => {
-      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
+      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state) || interactivityChanged(tr.startState, tr.state)) {
         return buildBlockDecorations(tr.state, texts);
       }
       return value;
