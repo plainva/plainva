@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Chip, TaskCaptureDailyHint, TaskCaptureField, type CaptureResult } from "@plainva/ui";
+import { Chip, TaskCaptureDailyHint, TaskCaptureField, useDiscardGuard, type CaptureResult } from "@plainva/ui";
 
 /**
  * Quick capture above the task lists (plan Aufgaben-Oberfläche, B2): one line,
@@ -9,7 +9,9 @@ import { Chip, TaskCaptureDailyHint, TaskCaptureField, type CaptureResult } from
  * "+ New task" used to open.
  *
  * The text is only cleared once the task EXISTS: a capture that fails (no
- * storage folder, an unreadable database) keeps what was typed.
+ * storage folder, an unreadable database) keeps what was typed. Escape on typed
+ * text asks before it clears, and the window knows about the text (closing it
+ * or switching the vault asks too).
  */
 export function TaskCaptureBar({
   todayKey,
@@ -38,6 +40,7 @@ export function TaskCaptureBar({
   const [atProvider, setAtProvider] = useState(true);
   const [busy, setBusy] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
+  const clear = useDiscardGuard(value.trim() !== "", () => setValue(""));
 
   useEffect(() => {
     if (focusTick > 0) hostRef.current?.querySelector("input")?.focus();
@@ -49,7 +52,7 @@ export function TaskCaptureBar({
         value={value}
         onChange={setValue}
         todayKey={todayKey}
-        onCancel={() => setValue("")}
+        onCancel={clear}
         onSubmit={(result) => {
           if (busy) return;
           setBusy(true);

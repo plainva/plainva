@@ -196,6 +196,8 @@ function model(change: Partial<ExternalReviewModel> = {}) {
     setSecret: async (name, value) => {
       calls.push(`secret ${name ?? "token"} ${value}`);
     },
+    secretTyped: false,
+    reportSecretTyped: () => {},
     signIn: signIn(calls, { possible: server?.registered.kind === "http" }),
     ...change,
   };
@@ -321,6 +323,18 @@ describe("the review of a server", () => {
     type(field, "new-token");
     click(container.querySelector('[data-testid="ai-ext-secret-save"]'));
     expect(calls).toEqual(["secret token new-token"]);
+  });
+
+  it("reports a token that is typed and not saved, and takes the report back when it is gone", () => {
+    const reports: string[] = [];
+    const { review } = model({ server: { ...fresh, registered: { ...registered, stored: [""] } }, reportSecretTyped: (name, typed) => reports.push(`${name ?? "token"} ${typed}`) });
+    const container = mount(<AiExternalReview review={review} vaultFolders={[]} />);
+    click(container.querySelector('[data-testid="ai-ext-secret-change"]'));
+    type(container.querySelector('[data-testid="ai-ext-secret-input"]'), "new-token");
+    expect(reports[reports.length - 1]).toBe("token true");
+    act(() => root?.unmount());
+    root = null;
+    expect(reports[reports.length - 1]).toBe("token false");
   });
 
   it("shows a program's command and what it wrote, and the calls of this vault", () => {

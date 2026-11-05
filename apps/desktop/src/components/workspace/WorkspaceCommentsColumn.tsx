@@ -6,7 +6,7 @@ import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, Messag
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread, CommentThreadAi } from "@plainva/ui";
-import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, EmptyState, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type SuggestedProperty } from "@plainva/ui";
+import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, askDiscard, EmptyState, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, useDiscardGuard, type SuggestedProperty } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -68,6 +68,8 @@ export interface WorkspaceCommentsColumnProps {
   onRetryPending?(outboxId: string): void;
   /** The head's close button (K3) - the toolbar button reopens the column. */
   onClose?(): void;
+  /** Reports whether a remark or reply is typed and not sent: the editor asks before it takes the column away. */
+  onDraftChange?(dirty: boolean): void;
   /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
   onOpenNote?(target: string, kind?: "wiki" | "markdown"): void;
   onOpenUrl?(url: string): void;
@@ -145,7 +147,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, suggestedProperties, canComment, canWrite, activeCommentId, selectionQuote,
-  operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
+  operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onDraftChange, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
   publicationComments = [], muted, onToggleMute, locked, legacyLocked, ai = null,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -193,6 +195,21 @@ export function WorkspaceCommentsColumn({
   ) : null;
   const [replyDraft, setReplyDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  // A remark or reply being written is asked about before the reply box goes
+  // away (the column's own toggle asks in the editor).
+  const dirty = draft.trim() !== "" || replyDraft.trim() !== "";
+  // The window is told (closing it or switching the vault asks); the editor is
+  // told too, and asks itself when the column is toggled away.
+  useDiscardGuard(dirty, () => {});
+  useEffect(() => {
+    onDraftChange?.(dirty);
+    return () => onDraftChange?.(false);
+  }, [dirty, onDraftChange]);
+  const openReply = (id: string) => {
+    const next = replyTo === id ? null : id;
+    if (replyDraft.trim() === "") { setReplyTo(next); setReplyDraft(""); return; }
+    void askDiscard().then((discard) => { if (discard) { setReplyTo(next); setReplyDraft(""); } });
+  };
 
   const threads = useMemo(
     () => buildCommentThreads(comments, selfMemberId, memberNames),
@@ -409,7 +426,7 @@ export function WorkspaceCommentsColumn({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(event) => { event.stopPropagation(); setReplyTo(replyTo === root.commentId ? null : root.commentId); setReplyDraft(""); }}
+                onClick={(event) => { event.stopPropagation(); openReply(root.commentId); }}
               >
                 <CornerDownRight size={ICON.meta} /> {t("comments.commentReply")}
               </Button>

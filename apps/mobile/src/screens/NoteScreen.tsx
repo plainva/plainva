@@ -58,6 +58,7 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
 import { useCommentMute } from "../hooks/useCommentMute";
+import { leaveGuarded } from "../hooks/useSheetGuard";
 import { mobileCommentStore, listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, mobileCommentStoreState, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { mobileCommentOperations } from "../services/commentOperations";
 import { consumeNoteCommands, type NoteCommand } from "../services/noteCommands";
@@ -1244,10 +1245,13 @@ export function NoteScreen({
       toast.error(t("comments.suggestionOrphan"));
       return;
     }
-    setCommentsOpen(false);
-    window.dispatchEvent(new CustomEvent("m-editor-goto-range", {
-      detail: { vaultId: vault.vaultId, path, from: resolution.from, to: resolution.to },
-    }));
+    // The sheet closes over a comment being written: ask first.
+    leaveGuarded("comment-compose", () => {
+      setCommentsOpen(false);
+      window.dispatchEvent(new CustomEvent("m-editor-goto-range", {
+        detail: { vaultId: vault.vaultId, path, from: resolution.from, to: resolution.to },
+      }));
+    });
   };
 
   const [readerBlocked, setReaderBlocked] = useState(false);

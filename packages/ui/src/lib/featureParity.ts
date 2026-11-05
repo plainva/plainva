@@ -1635,18 +1635,20 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     id: "settings-backup-zip-destination",
     title: "Where the daily ZIP archive goes: choose, reset and open the folder (Backup & version history)",
     area: "vault",
-    kind: "gap",
+    kind: "decision",
     desktop: "yes",
     mobile: "partial",
     mobileReason:
-      "The phone writes its archives into its own documents folder (\"Plainva Backups/<vault>\", " +
-      "visible in the Files app) and offers no row to choose another one or to open it. The " +
-      "rest of the card is the same since the check of 2026-10-30 (Sammelplan § 3.169 Nr. 3): " +
-      "the switch, the archives kept, \"Back up now\" and the three version pickers, with one " +
-      "list of choices (backupChoices.ts). A folder of one's own needs the persistent folder " +
-      "grant of the external-folder vaults for an unattended write - deferred to the open-items " +
-      "plan, § 3.169.",
-    verified: "2026-10-30",
+      "The platform offers no free target folder for an unattended write: a phone has no " +
+      "directory picker like the desktop's, and a folder of one's own would need the " +
+      "persistent folder grant of the external-folder vaults for every scheduled run. The " +
+      "phone therefore writes its archives into its own documents folder (\"Plainva " +
+      "Backups/<vault>\", visible in the Files app and part of the device backup) and the " +
+      "system decides where else they go; there is no row to choose, reset or open a " +
+      "folder (decided 2026-11-05, plan of 2026-11-05 E6). The rest of the card is the " +
+      "same since the check of 2026-10-30: the switch, the archives kept, \"Back up now\" " +
+      "and the three version pickers, with one list of choices (backupChoices.ts).",
+    verified: "2026-11-05",
   },
   {
     id: "settings-reread-vault-row",

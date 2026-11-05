@@ -136,7 +136,7 @@ export function ExternalReviewDialog({ session, servers, serverId, onClose }: { 
   const { queryService } = useVault();
   const review = useExternalReview(session, servers, serverId, t);
   // Choices made here and not saved — tools, folders, on or off — are asked about, as on the phone (ExternalToolsSheets).
-  const close = useDiscardGuard(review.dirty && !review.busy, onClose);
+  const close = useDiscardGuard((review.dirty || review.secretTyped) && !review.busy, onClose);
   const [vaultFolders, setVaultFolders] = useState<string[]>([]);
   useEffect(() => {
     if (!queryService) return;

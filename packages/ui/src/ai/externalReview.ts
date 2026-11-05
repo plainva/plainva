@@ -235,6 +235,10 @@ export interface ExternalReviewModel {
   showLog(): void;
   /** Stores a value in the keychain — an empty one deletes it — and asks the server again. */
   setSecret(name: string | null, value: string): Promise<void>;
+  /** A replacement value is typed in a field and not saved yet: the container asks before it closes over it. */
+  secretTyped: boolean;
+  /** A value field reports whether it holds text (name as in `setSecret`). */
+  reportSecretTyped(name: string | null, typed: boolean): void;
   signIn: ExternalSignIn;
 }
 
@@ -247,6 +251,7 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
   const [approved, setApproved] = useState(false);
   // What the user changed here and did not store yet. `choice` is kept apart from the grant: "chosen folders" with
   // none ticked yet grants what "none" grants, and is still another answer on the screen.
+  const [typedSecrets, setTypedSecrets] = useState<string[]>([]);
   const [edit, setEdit] = useState<{ enabled?: boolean; grant?: McpServerGrant; choice?: ExternalFolders; kept?: string[] }>({});
   const [busy, setBusy] = useState(false);
   const [audit, setAudit] = useState<McpAuditEntry[]>([]);
@@ -452,6 +457,11 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
     setSecret: async (name, value) => {
       await session.mcp.setSecret(serverId, name, value);
       retry();
+    },
+    secretTyped: typedSecrets.length > 0,
+    reportSecretTyped: (name, typed) => {
+      const key = name ?? "";
+      setTypedSecrets((before) => (typed ? (before.includes(key) ? before : [...before, key]) : before.filter((entry) => entry !== key)));
     },
     signIn,
   };
