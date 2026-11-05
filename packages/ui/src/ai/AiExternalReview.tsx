@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { capMcpText } from "@plainva/core";
 import { LineCompare } from "../components/LineCompare";
@@ -23,11 +23,17 @@ import { externalAuditLines, externalDriftLines, externalFacts, externalFailureT
  */
 
 /** One stored value of a server: whether there is one, and a field to replace or delete it. The value itself never comes back. */
-function SecretRow({ secret, onSave }: { secret: ExternalSecret; onSave: (value: string) => Promise<void> }) {
+function SecretRow({ secret, onSave, onTyped }: { secret: ExternalSecret; onSave: (value: string) => Promise<void>; onTyped: (typed: boolean) => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const label = secret.name ?? t("ai.ext.review.token");
+  // The container asks before it closes over a value typed and not saved.
+  useEffect(() => {
+    onTyped(value !== "");
+    return () => onTyped(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
   const save = () => {
     void onSave(value).then(() => {
       setValue("");
@@ -205,7 +211,7 @@ export function AiExternalReview({ review, vaultFolders }: AiExternalReviewProps
             <dt>{t("ai.ext.review.values")}</dt>
             <dd>
               {secrets.map((secret) => (
-                <SecretRow key={secret.name ?? ""} secret={secret} onSave={(value) => review.setSecret(secret.name, value)} />
+                <SecretRow key={secret.name ?? ""} secret={secret} onSave={(value) => review.setSecret(secret.name, value)} onTyped={(typed) => review.reportSecretTyped(secret.name, typed)} />
               ))}
             </dd>
           </>

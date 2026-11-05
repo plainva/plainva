@@ -6,7 +6,7 @@ import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, Messag
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread, CommentThreadAi } from "@plainva/ui";
-import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, EmptyState, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type SuggestedProperty } from "@plainva/ui";
+import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, askDiscard, EmptyState, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, useDiscardGuard, type SuggestedProperty } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -193,6 +193,16 @@ export function WorkspaceCommentsColumn({
   ) : null;
   const [replyDraft, setReplyDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  // A remark or reply being written is asked about before the column hides or
+  // the reply box goes away, and the window knows about it (closing it or
+  // switching the vault asks too).
+  const dirty = draft.trim() !== "" || replyDraft.trim() !== "";
+  const hide = useDiscardGuard(dirty, () => onClose?.());
+  const openReply = (id: string) => {
+    const next = replyTo === id ? null : id;
+    if (replyDraft.trim() === "") { setReplyTo(next); setReplyDraft(""); return; }
+    void askDiscard().then((discard) => { if (discard) { setReplyTo(next); setReplyDraft(""); } });
+  };
 
   const threads = useMemo(
     () => buildCommentThreads(comments, selfMemberId, memberNames),
@@ -409,7 +419,7 @@ export function WorkspaceCommentsColumn({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(event) => { event.stopPropagation(); setReplyTo(replyTo === root.commentId ? null : root.commentId); setReplyDraft(""); }}
+                onClick={(event) => { event.stopPropagation(); openReply(root.commentId); }}
               >
                 <CornerDownRight size={ICON.meta} /> {t("comments.commentReply")}
               </Button>
@@ -502,7 +512,7 @@ export function WorkspaceCommentsColumn({
           </IconButton>
         )}
         {onClose && (
-          <IconButton label={t("comments.commentColumnHide")} onClick={onClose} data-testid="comment-column-close">
+          <IconButton label={t("comments.commentColumnHide")} onClick={hide} data-testid="comment-column-close">
             <X size={ICON.ui} />
           </IconButton>
         )}

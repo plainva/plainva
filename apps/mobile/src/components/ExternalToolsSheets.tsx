@@ -74,7 +74,7 @@ export function ExternalReviewSheet({ vault, serverId, onClose }: { vault: Mobil
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const review = useExternalReview(session, state.mcp.servers, serverId, t);
   // The vault's choices not yet saved, or a client id typed for the sign-in; saving and removing close plainly.
-  const close = useSheetGuard("ai-ext-review", review.dirty || (review.signIn.stage === "client" && review.signIn.clientId.trim() !== ""), onClose);
+  const close = useSheetGuard("ai-ext-review", review.dirty || review.secretTyped || (review.signIn.stage === "client" && review.signIn.clientId.trim() !== ""), onClose);
   const [vaultFolders, setVaultFolders] = useState<string[]>([]);
   useEffect(() => {
     if (!vault.queryService) return;

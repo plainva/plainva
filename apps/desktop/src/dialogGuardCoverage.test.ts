@@ -52,6 +52,26 @@ describe("dialog guard coverage", () => {
     });
   }
 
+  // Surfaces that hold typed text without a `Modal` (Sammelplan 3.174 Nr. 1,
+  // 3.176 Nr. 6): the task capture bar, the add-property popover, the comments
+  // column and the substitute token of an external tool's review.
+  const NON_MODAL_SURFACES = [
+    "components/tasks/TaskCaptureBar.tsx",
+    "components/PropertyValues.tsx",
+    "components/workspace/WorkspaceCommentsColumn.tsx",
+  ];
+  for (const f of NON_MODAL_SURFACES) {
+    it(`${f} asks before it drops typed text`, () => {
+      expect(readFileSync(join(here, f), "utf8")).toMatch(/useDiscardGuard\(/);
+    });
+  }
+
+  it("a substitute token typed in the review of an external tool is reported to both shells' close guard", () => {
+    expect(readFileSync(join(ui, "ai/AiExternalReview.tsx"), "utf8")).toMatch(/review\.reportSecretTyped\(/);
+    expect(readFileSync(join(here, "components/settings/ExternalToolsDialogs.tsx"), "utf8")).toMatch(/review\.secretTyped/);
+    expect(readFileSync(join(here, "../../mobile/src/components/ExternalToolsSheets.tsx"), "utf8")).toMatch(/review\.secretTyped/);
+  });
+
   it("the desktop registers the question in every window and in the tests", () => {
     expect(readFileSync(join(here, "main.tsx"), "utf8")).toMatch(/installDiscardQuestion\(\)/);
     expect(readFileSync(join(here, "services/discardQuestionInstall.ts"), "utf8")).toMatch(/registerDiscardQuestion\(desktopDiscardHost\)/);

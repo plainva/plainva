@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
-import { asSingleLineValue, Button, contactPropertyHref, GrowingField, IconButton, ICON, PropRow, Rating, tagColorAttrs, useFixedPopover, useOutsidePress, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
+import { asSingleLineValue, Button, contactPropertyHref, GrowingField, IconButton, ICON, PropRow, Rating, tagColorAttrs, useFixedPopover, useDiscardGuard, useOutsidePress, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, Star, MessageSquare,
@@ -716,8 +716,11 @@ export function AddPropertyPopover({ onAdd, onClose, t, anchorRef, source, colum
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const ref = useFixedPopover(!!anchorRef, anchorRef, { minWidth: 240 });
+  // A typed name is asked about before a press beside the popover or Escape
+  // takes it; the type filter is a search, typed again in a moment.
+  const leave = useDiscardGuard(name.trim() !== "", onClose);
   // As the type menu: a press beside it closes it, its button toggles it.
-  useOutsidePress(true, onClose, ref, anchorRef);
+  useOutsidePress(true, leave, ref, anchorRef);
 
   const q = query.trim().toLowerCase();
   // Name is optional: picking a type creates the property (with a default name if
@@ -727,7 +730,7 @@ export function AddPropertyPopover({ onAdd, onClose, t, anchorRef, source, colum
   return (
     <div className={`pv-popover pv-add-popover${anchorRef ? " pv-popover--fixed" : ""}`} ref={ref}>
       <PropertyNameInput source={source} columns={columns} registry={registry} existing={existing}
-        value={name} onChange={setName} onClose={onClose} onPick={(key, type) => { onAdd(key, type); onClose(); }} />
+        value={name} onChange={setName} onClose={leave} onPick={(key, type) => { onAdd(key, type); onClose(); }} />
       <div className="pv-popover-search"><Search size={ICON.ui} /><input value={query} placeholder={t("properties.chooseType")} onChange={(e) => setQuery(e.target.value)} /></div>
       <div className="pv-add-types">
         {TYPE_GROUPS.map((g) => {
