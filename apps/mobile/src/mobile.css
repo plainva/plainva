@@ -5143,15 +5143,17 @@ textarea {
 
 /* Opening and going back (F5, S6). The working column slides in from the
    right on a push and from the left on a pop; the motion tokens collapse to
-   nothing under "Animations off" and the system's reduced motion. */
-@keyframes m-nav-push-0 { from { transform: translateX(24%); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@keyframes m-nav-push-1 { from { transform: translateX(24%); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@keyframes m-nav-pop-0 { from { transform: translateX(-16%); opacity: 0.6; } to { transform: none; opacity: 1; } }
-@keyframes m-nav-pop-1 { from { transform: translateX(-16%); opacity: 0.6; } to { transform: none; opacity: 1; } }
-.m-col.is-nav-push-0 { animation: m-nav-push-0 var(--dur-2) var(--ease-spatial); }
-.m-col.is-nav-push-1 { animation: m-nav-push-1 var(--dur-2) var(--ease-spatial); }
-.m-col.is-nav-pop-0 { animation: m-nav-pop-0 var(--dur-2) var(--ease-spatial); }
-.m-col.is-nav-pop-1 { animation: m-nav-pop-1 var(--dur-2) var(--ease-spatial); }
+   nothing under "Animations off" and the system's reduced motion. On the
+   longer spatial duration with a wider way in (TestFlight 2026-11-02: the
+   change of page was too quick to follow). */
+@keyframes m-nav-push-0 { from { transform: translateX(30%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes m-nav-push-1 { from { transform: translateX(30%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes m-nav-pop-0 { from { transform: translateX(-20%); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@keyframes m-nav-pop-1 { from { transform: translateX(-20%); opacity: 0.6; } to { transform: none; opacity: 1; } }
+.m-col.is-nav-push-0 { animation: m-nav-push-0 var(--dur-3) var(--ease-spatial); }
+.m-col.is-nav-push-1 { animation: m-nav-push-1 var(--dur-3) var(--ease-spatial); }
+.m-col.is-nav-pop-0 { animation: m-nav-pop-0 var(--dur-3) var(--ease-spatial); }
+.m-col.is-nav-pop-1 { animation: m-nav-pop-1 var(--dur-3) var(--ease-spatial); }
 /* The app comes up with a short fade instead of appearing at once (F5). */
 @keyframes m-app-in { from { opacity: 0; } to { opacity: 1; } }
 /* Back from the left edge on iOS (W5): the column follows the finger, then
