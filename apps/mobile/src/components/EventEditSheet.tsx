@@ -153,7 +153,9 @@ export function EventEditSheet({
           </div>
         ) : (
           <div className="m-row m-row--split">
-            <span className="m-peeklabel">{t("pim.eventWhen")}</span>
+            {/* The date has its own row above: this one carries the two times
+                only (TestFlight 2026-11-02 - "Date & time" wrapped over three lines). */}
+            <span className="m-peeklabel">{t("editor.time")}</span>
             <TextInput
               aria-label={t("pim.eventFrom")}
               onChange={(e) => set({ startTime: e.target.value })}

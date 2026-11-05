@@ -164,6 +164,17 @@
 .pv-field--select { cursor: pointer; }
 .pv-field--area { height: auto; min-height: calc(var(--control-md) * 2); padding: var(--space-3); resize: vertical; line-height: 1.45; }
 .pv-field--compact.pv-field--area { padding: var(--space-2); }
+/* Date and time fields (TestFlight 2026-11-02, iPhone): WebKit draws their
+   value in a box of its own (`::-webkit-date-and-time-value` on iOS, the
+   `::-webkit-datetime-edit` fields on macOS and in Chromium), as tall as its
+   text and at the top of the field - the field's height went unused. The box
+   takes the field's whole height and centres its text in it, so the field's
+   height governs in every date and time field of both shells; the field
+   itself stays a block (as a flex box, Chromium pulls its picker icon to the
+   value). Separate rules: a browser that does not know a pseudo-element
+   drops the whole rule that names it. */
+.pv-field::-webkit-date-and-time-value { display: flex; align-items: center; height: 100%; margin-block: 0; }
+.pv-field::-webkit-datetime-edit { display: flex; align-items: center; height: 100%; padding-block: 0; }
 /* A one-value field as tall as its text (issue 118, GrowingField): one line to
    begin with, wrapping at its own width, its height set from its content. */
 .pv-field--grow {

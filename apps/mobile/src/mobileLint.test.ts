@@ -3718,6 +3718,32 @@ describe("the system's assistant reaches the app on the phone (AI harness P4.7)"
 });
 
 /**
+ * Opening and going back slide the column (F5), on the spatial duration since
+ * TestFlight 2026-11-02 ("too quick to follow"). "Animations off" and the
+ * system's reduced motion stay the way out: the duration is a token, and both
+ * switches collapse that token in tokens.css.
+ */
+describe("the page change runs on a motion token that the motion switches collapse", () => {
+  const css = stripComments(readFileSync(join(SRC, "mobile.css"), "utf8"));
+  const tokens = stripComments(readFileSync(join(SRC, "..", "..", "..", "packages", "ui", "src", "styles", "tokens.css"), "utf8"));
+
+  it("push and pop animate on --dur-3", () => {
+    for (const kind of ["push-0", "push-1", "pop-0", "pop-1"]) {
+      expect(css).toMatch(new RegExp(`\\.m-col\\.is-nav-${kind} \\{ animation: m-nav-${kind} var\\(--dur-3\\) var\\(--ease-spatial\\); \\}`));
+    }
+  });
+
+  it("\"Animations off\" and reduced motion collapse --dur-3", () => {
+    const off = /:root\[data-motion="off"\] \{([^}]*)\}/.exec(tokens);
+    expect(off, "the motion-off block").not.toBeNull();
+    expect(off![1]).toMatch(/--dur-3: 0\.01ms;/);
+    const reduced = /@media \(prefers-reduced-motion: reduce\) \{\s*:root:not\(\[data-motion="on"\]\) \{([^}]*)\}/.exec(tokens);
+    expect(reduced, "the reduced-motion block").not.toBeNull();
+    expect(reduced![1]).toMatch(/--dur-3: 0\.01ms;/);
+  });
+});
+
+/**
  * The strip the system draws over the top of the screen has ONE name
  * (TestFlight 2026-09-27: the note's find panel under the Dynamic Island).
  * Every rule that keeps clear of it reads `--m-safe-top`; the environment
@@ -3731,6 +3757,16 @@ describe("the top safe area is one token", () => {
   it("reads the environment value exactly once, in the token", () => {
     const uses = css.split("\n").filter((line) => line.includes("env(safe-area-inset-top"));
     expect(uses.map((line) => line.trim())).toEqual(["--m-safe-top: env(safe-area-inset-top, 0px);"]);
+  });
+
+  it("a note bar tucked away for writing keeps the inset as a spacer (TestFlight 2026-11-03)", () => {
+    const rules = [...stripComments(css).matchAll(/([^{}]*\.m-note-chrome\.is-tucked[^{}]*)\{([^}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+    const own = rules.find((r) => r.selector === ".m-note-chrome.is-tucked");
+    expect(own, "the tucked chrome rule").toBeDefined();
+    // The block itself never leaves the flow: only its content does.
+    expect(own!.body).not.toMatch(/display:\s*none/);
+    expect(own!.body).toMatch(/padding-top:\s*var\(--m-header-safe-top, var\(--m-safe-top\)\)/);
+    expect(rules.some((r) => r.selector === ".m-note-chrome.is-tucked > *" && /display:\s*none/.test(r.body))).toBe(true);
   });
 
   it("is what the app bar, the rail and the share notice keep clear of", () => {
