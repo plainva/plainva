@@ -7,7 +7,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
-import { isImageTarget, parseWikiImageTarget } from "../lib/imageTarget";
+import { embedKindOf, parseWikiImageTarget } from "../lib/imageTarget";
 import { syntaxTree } from "@codemirror/language";
 import { isEscapedAt, isLiteralAt } from "./literalSyntax";
 
@@ -104,10 +104,12 @@ export function buildNoteEmbedCoreExtension(
             let match: RegExpExecArray | null;
             while ((match = EMBED_RE.exec(line.text)) !== null) {
               const target = match[1];
-              // Images have their own plugin — including `![[foto.png|300]]`,
-              // whose width suffix used to hide the extension from this test
-              // and turn a picture into a note card (Build-91 feedback, P3).
-              if (isImageTarget(parseWikiImageTarget(target).target)) continue;
+              // Images and sounds have their own plugin — including
+              // `![[foto.png|300]]`, whose width suffix used to hide the
+              // extension from this test and turn a picture into a note card
+              // (Build-91 feedback, P3). A sound drew its player AND a card
+              // that read the recording as text (plan Rückmeldungen 05.11., P4).
+              if (embedKindOf(parseWikiImageTarget(target).target)) continue;
               const matchFrom = line.from + match.index;
               const matchTo = matchFrom + match[0].length;
               if (isEscapedAt(line.text, match.index)) continue;

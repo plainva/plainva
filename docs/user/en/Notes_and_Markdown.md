@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -185,7 +185,8 @@ Your notes are plain `.md` files, so any Markdown editor can open them. The edit
 
 - **Inserting**: slash commands **Internal image** (search & embed from the vault) or **Image (web)** (by URL). Also: simply **paste** a file from the clipboard (Ctrl+V) — an image just as much as a PDF or a spreadsheet. And you can **drag files from the file explorer into the editor**: images embed (`![[…]]`), other files are copied in and linked (`[[…]]`). Where these files land is a setting: **Settings → Your vault → Notes & filing → Attachments folder** (default `Attachments`, with a folder browser). Leave it empty to keep them beside the note, the way Plainva did before this setting existed. The folder travels with the settings sync, so both your computer and your phone file attachments in the same place.
 - **Attach file…**: the slash command **Attach file…** and the same entry in the note's **⋮** menu open your system's file dialog; on the phone it is in the **＋** sheet as **File from device…**. The file is copied into the attachments folder — images embed (`![[…]]`), everything else is linked (`[[…]]`).
-- **Sound plays**: an embedded audio file (`.m4a`, `.mp3`, `.wav`, `.ogg`, `.opus`, `.webm`, `.flac`, `.aac`) shows a player instead of its name — in the editor, in reading mode, on pinboard cards and in journal lines. Attached audio is therefore embedded like a picture (`![[…]]`) rather than just linked. Plainva plays no video; an `.mp4` stays a link.
+- **Sound plays**: an embedded audio file (`.m4a`, `.mp3`, `.wav`, `.ogg`, `.opus`, `.webm`, `.flac`, `.aac`) shows a player instead of its name — in the editor, in reading mode, on pinboard cards and in journal lines. Attached audio is therefore embedded like a picture (`![[…]]`) rather than just linked. Plainva plays no video; an embedded `.mp4` shows as a file card (next point).
+- **Other files as a card**: an embedded file that is neither a picture, a sound nor a note — `![[Lease.pdf]]`, a spreadsheet, an archive, a video — shows as a card with its name, size and folder, in the editor and in reading mode, on the computer and on the phone. **Open** hands it to the system: on the computer the program set for that type opens it, on the phone the share sheet offers the apps that can. Plainva shows no PDF inside the note. An addition such as Obsidian's `#height=600` after the name stays in the file and changes nothing. If the file is not in the vault, the card says that it was not found.
 - **Embeds inside HTML** — an embed between HTML tags (`<p align="center">`, `<details>`) stays text in the editor as in reading mode and in Obsidian, which renders no Markdown inside HTML. Leave a blank line inside the element and the picture shows.
 - **Linking**: type `[[` and Plainva suggests notes first, with your vault's files below them under **Attachments**.
 - **Viewing**: image files (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) open in the built-in image viewer with **Zoom in**/**Zoom out**, **Fit** and **Actual size (1:1)**.

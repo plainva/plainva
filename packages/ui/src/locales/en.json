@@ -7568,6 +7568,8 @@
   },
   "noteEmbed": {
     "openSource": "Open source",
+    "openFile": "Open",
+    "openFileNamed": "Open “{{name}}”",
     "depth": "The maximum embed depth has been reached.",
     "unreadable": "“{{target}}” could not be read.",
     "missing": "“{{target}}” was not found.",

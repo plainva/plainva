@@ -7414,6 +7414,8 @@
   },
   "noteEmbed": {
     "openSource": "参照元を開く",
+    "openFile": "開く",
+    "openFileNamed": "「{{name}}」を開く",
     "depth": "埋め込みの最大階層に達しました。",
     "unreadable": "「{{target}}」を読み取れませんでした。",
     "missing": "「{{target}}」が見つかりませんでした。",

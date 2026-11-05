@@ -7414,6 +7414,8 @@
   },
   "noteEmbed": {
     "openSource": "打开来源",
+    "openFile": "打开",
+    "openFileNamed": "打开“{{name}}”",
     "depth": "已达到嵌入的最大层级。",
     "unreadable": "无法读取“{{target}}”。",
     "missing": "未找到“{{target}}”。",

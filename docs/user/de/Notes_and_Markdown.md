@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-04
+Stand: 2026-11-05
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -185,7 +185,8 @@ Deine Notizen sind einfache `.md`-Dateien, jeder Markdown-Editor kann sie öffne
 
 - **Einfügen**: Slash-Befehle **Internes Bild** (aus dem Vault suchen & einbetten) oder **Bild (Web)** (per URL). Außerdem: Eine Datei aus der Zwischenablage einfach **einfügen** (Strg+V) — ein Bild ebenso wie ein PDF oder eine Tabelle. Und Du kannst Dateien **aus dem Datei-Explorer in den Editor ziehen**: Bilder werden eingebettet (`![[…]]`), andere Dateien kopiert und verlinkt (`[[…]]`). Wohin diese Dateien kommen, ist eine Einstellung: **Einstellungen → Dein Vault → Notizen & Ablage → Anhänge-Ordner** (Vorgabe `Attachments`, mit Ordner-Browser). Lässt Du sie leer, bleiben die Dateien neben der Notiz — so wie Plainva es vor dieser Einstellung gemacht hat. Der Ordner reist mit der Einstellungs-Synchronisation, also legen Rechner und Telefon Anhänge am selben Ort ab.
 - **Datei anhängen…**: Der Slash-Befehl **Datei anhängen…** und derselbe Eintrag im **⋮**-Menü der Notiz öffnen den Dateidialog Deines Systems; am Telefon findest Du ihn im **＋**-Blatt unter **Datei vom Gerät…**. Die Datei wird in den Anhänge-Ordner kopiert — Bilder werden eingebettet (`![[…]]`), alles andere verlinkt (`[[…]]`).
-- **Ton wird abgespielt**: Eine eingebettete Tondatei (`.m4a`, `.mp3`, `.wav`, `.ogg`, `.opus`, `.webm`, `.flac`, `.aac`) zeigt einen Abspieler statt ihres Namens — im Editor, im Lesemodus, auf Pinnwand-Karten und in Journal-Zeilen. Angehängter Ton wird deshalb wie ein Bild eingebettet (`![[…]]`) und nicht nur verlinkt. Filme spielt Plainva nicht ab; eine `.mp4` bleibt ein Link.
+- **Ton wird abgespielt**: Eine eingebettete Tondatei (`.m4a`, `.mp3`, `.wav`, `.ogg`, `.opus`, `.webm`, `.flac`, `.aac`) zeigt einen Abspieler statt ihres Namens — im Editor, im Lesemodus, auf Pinnwand-Karten und in Journal-Zeilen. Angehängter Ton wird deshalb wie ein Bild eingebettet (`![[…]]`) und nicht nur verlinkt. Filme spielt Plainva nicht ab; eine eingebettete `.mp4` erscheint als Dateikarte (nächster Punkt).
+- **Andere Dateien als Karte**: Eine eingebettete Datei, die weder Bild noch Ton noch Notiz ist — `![[Mietvertrag.pdf]]`, eine Tabelle, ein Archiv, ein Film —, erscheint als Karte mit Name, Größe und Ordner, im Editor und im Lesemodus, am Computer und am Telefon. **Öffnen** gibt sie ans System: Am Computer öffnet sie das Programm, das für diesen Typ eingestellt ist, am Telefon bietet das Teilen-Menü die Apps an, die es können. Eine PDF zeigt Plainva nicht in der Notiz. Ein Zusatz wie Obsidians `#height=600` hinter dem Namen bleibt in der Datei und ändert nichts. Liegt die Datei nicht im Vault, sagt die Karte, dass sie nicht gefunden wurde.
 - **Einbettungen in HTML** — Eine Einbettung zwischen HTML-Tags (`<p align="center">`, `<details>`) bleibt im Editor Text, wie im Lesemodus und in Obsidian, das in HTML kein Markdown darstellt. Lass eine Leerzeile im Element, dann erscheint das Bild.
 - **Verlinken**: Tippst Du `[[`, schlägt Plainva zuerst Notizen vor und darunter, unter **Anhänge**, die Dateien Deines Vaults.
 - **Ansehen**: Bilddateien (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) öffnen im eingebauten Bildviewer mit **Vergrößern**/**Verkleinern**, **Einpassen** und **Originalgröße (1:1)**.

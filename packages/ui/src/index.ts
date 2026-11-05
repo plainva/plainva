@@ -374,6 +374,8 @@ export * from "./components/ImagePreviewPlugin";
 export * from "./components/AudioEmbed";
 export * from "./components/ui/Rating";
 export * from "./components/audioPlayer";
+export * from "./components/fileEmbedMount";
+export * from "./components/FileEmbedCard";
 export * from "./services/voiceMemo";
 export * from "./services/placeStamp";
 export * from "./components/PlaceStampButton";

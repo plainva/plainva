@@ -69,6 +69,29 @@ export function embedKindOf(target: string): EmbedKind | null {
   return IMAGE_EXT_RE.test(t) ? "image" : AUDIO_EXT_RE.test(t) ? "audio" : null;
 }
 
+/**
+ * What an embed shows once its target is a vault file (plan Rückmeldungen
+ * 05.11., P4): a picture, a sound, a note (Markdown, a database, a canvas,
+ * which expand as before), or any other file, which gets a card with its
+ * name, size and "Open".
+ *
+ * `![[Mietvertrag.pdf]]` used to fall through to the note path, was read as
+ * text and said "could not be read" about a file that was there. The answer
+ * is asked of the RESOLVED path, not of the text: `![[v1.2]]` is the note
+ * `v1.2.md`, which only the link rule knows.
+ */
+export type EmbedTargetKind = EmbedKind | "note" | "file";
+
+const NOTE_EMBED_EXT_RE = /\.(md|base|canvas)$/i;
+
+/** The kind of a resolved vault path (see `EmbedTargetKind`). */
+export function embedTargetKindOf(path: string): EmbedTargetKind {
+  const name = path.trim().split(/[/\\]/).pop() ?? "";
+  const media = embedKindOf(name);
+  if (media) return media;
+  return NOTE_EMBED_EXT_RE.test(name) ? "note" : "file";
+}
+
 export interface ImageLookup {
   /** Vault-relative path of the note the embed is in. */
   notePath: string;
