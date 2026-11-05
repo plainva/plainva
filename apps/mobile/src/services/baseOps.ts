@@ -34,6 +34,12 @@ import {
   viewPrefill,
   writeNoteProperty,
   bulkSetProperty,
+  convertDateColumns,
+  editReverseRelation,
+  fillMissingProperty,
+  type DateInput,
+  type ReverseRelationOutcome,
+  type RewriteResult,
   renamePropertyAcrossNotes,
   removePropertyAcrossNotes,
   type BulkSetOptions,
@@ -187,6 +193,49 @@ function noteFiles(v: MobileVault): PropertyWriteAdapter {
     // written, in one step of the chain (finding 2026-10-12).
     updateTextFile: (p, change) => vaultOps.update(v, p, change),
   };
+}
+
+/**
+ * Writes a property (empty) into the notes at `paths` that lack it — the
+ * desktop's "Add to N source files" (decision F1, Sammelplan § 3.71 no. 1),
+ * through the same shared loop. Answers the notes written and the notes that
+ * failed; the caller says them.
+ */
+export async function fillBaseProperty(v: MobileVault, paths: readonly string[], col: string): Promise<RewriteResult> {
+  const result = await fillMissingProperty(noteFiles(v), paths, col);
+  if (result.written.length > 0) syncSoon();
+  return result;
+}
+
+/**
+ * Rewrites the values of a date column switched between "Date only" and
+ * "Date & time" (Sammelplan § 3.71 no. 2) in the notes at `paths`, through
+ * the shared loop the desktop runs. The caller asks first where a time is
+ * dropped, and says what failed.
+ */
+export async function convertBaseDateColumn(v: MobileVault, paths: readonly string[], col: string, to: DateInput): Promise<RewriteResult> {
+  const result = await convertDateColumns(noteFiles(v), paths, [col], to);
+  if (result.written.length > 0) syncSoon();
+  return result;
+}
+
+/**
+ * An edit of a reverse relation's cell (Sammelplan § 3.71 no. 3): each link
+ * added or taken out is written in the OTHER note's owning property, through
+ * the shared `editReverseRelation` the desktop's cell runs. Answers what was
+ * written and what failed; the caller says it.
+ */
+export async function editReverseCell(
+  v: MobileVault,
+  rowPath: string,
+  owning: { base?: string; property: string },
+  current: readonly string[],
+  next: readonly string[],
+): Promise<ReverseRelationOutcome | null> {
+  if (!v.queryService) return null;
+  const outcome = await editReverseRelation({ adapter: noteFiles(v), queryService: v.queryService, rowPath, owning, current, next });
+  if (outcome.changed.size > 0) syncSoon();
+  return outcome;
 }
 
 /** Candidate rows of a relation's target base (desktop picker contract). */

@@ -37,12 +37,19 @@ const WRITERS: Record<string, string[]> = {
   updateFrontmatterString: SHELLS,
   bulkSetProperty: SHELLS,
   rewriteNoteProperties: SHELLS,
+  // The two loops built on it (Sammelplan § 3.71 no. 1 and 2): a property
+  // filled in where it is missing, a date column's values converted.
+  fillMissingProperty: SHELLS,
+  convertDateColumns: SHELLS,
   // The phone's wrapper around `writeNoteProperty`. The desktop's cell hook has
   // a function of the same name; that one answers a boolean and never throws.
   commitCellValue: ["apps/mobile/src"],
   // The phone's wrapper around `bulkSetProperty`: the same note files as a
   // cell, one note at a time (finding 2026-10-09, `vaultChainWrites.test.ts`).
   commitBulkValue: ["apps/mobile/src"],
+  // The phone's wrappers around the two loops above.
+  fillBaseProperty: ["apps/mobile/src"],
+  convertBaseDateColumn: ["apps/mobile/src"],
 };
 
 interface Site {
@@ -81,9 +88,14 @@ const SITES: Site[] = [
     says: [COUNTED], within: 1500,
   },
   {
-    file: "apps/desktop/src/components/BaseViewer.tsx", writer: "rewriteNoteProperties", calls: 2,
+    file: "apps/desktop/src/components/BaseViewer.tsx", writer: "fillMissingProperty", calls: 1,
     how: "one message that counts the notes written and the notes that failed",
-    says: [/reportRewrite\(result, /], within: 700,
+    says: [/reportRewrite\(result, /], within: 200,
+  },
+  {
+    file: "apps/desktop/src/components/BaseViewer.tsx", writer: "convertDateColumns", calls: 1,
+    how: "one message that counts the notes written and the notes that failed; a row that could not be written keeps its value",
+    says: [/reportRewrite\(result, /, /notConverted\.add\(failure\.path\)/], within: 400,
   },
   {
     file: "apps/desktop/src/components/journal/JournalView.tsx", writer: "writeNoteProperty", calls: 1,
@@ -133,6 +145,31 @@ const SITES: Site[] = [
     says: [COUNTED], within: 800,
   },
   {
+    file: "apps/mobile/src/services/baseOps.ts", writer: "fillMissingProperty", calls: 1,
+    how: "handed back to the caller of fillBaseProperty, which is listed below: the notes written and the notes that failed",
+    says: [/return result;\s*\}/], never: [/catch/], within: 200,
+  },
+  {
+    file: "apps/mobile/src/services/baseOps.ts", writer: "convertDateColumns", calls: 1,
+    how: "handed back to the caller of convertBaseDateColumn, which is listed below: the notes written and the notes that failed",
+    says: [/return result;\s*\}/], never: [/catch/], within: 200,
+  },
+  {
+    file: "apps/mobile/src/screens/base/PropertyEditSheet.tsx", writer: "fillBaseProperty", calls: 1,
+    how: "one message that counts the notes written and the notes that failed, or the reason of an error",
+    says: [/^vault, missing, column\), toast\);/, SAID], within: 260,
+  },
+  {
+    file: "apps/mobile/src/screens/base/BaseScreen.tsx", writer: "fillBaseProperty", calls: 1,
+    how: "one message that counts the notes written and the notes that failed, or the reason of an error",
+    says: [/\), toast\);/, SAID], within: 300,
+  },
+  {
+    file: "apps/mobile/src/screens/base/PropertyEditSheet.tsx", writer: "convertBaseDateColumn", calls: 1,
+    how: "one message that counts the notes written and the notes that failed, or the reason of an error; the type is set after it",
+    says: [/^vault, paths, column, to\), toast\);/, SAID], within: 260,
+  },
+  {
     file: "apps/mobile/src/screens/JournalScreen.tsx", writer: "writeNoteProperty", calls: 1,
     how: "a message; the rating is drawn from the note and never shown ahead of it",
     says: [SAID], within: 600,
@@ -147,6 +184,16 @@ const SITES: Site[] = [
     file: "packages/ui/src/base/bulkSetProperty.ts", writer: "updateFrontmatterString", calls: 1,
     how: "collected per note in failed, which every caller above counts",
     says: [/failed\.push\(\{ path, message: /], within: 300,
+  },
+  {
+    file: "packages/ui/src/base/columnFill.ts", writer: "rewriteNoteProperties", calls: 1,
+    how: "handed back to the caller of fillMissingProperty, which is listed above: the notes written and the notes that failed",
+    says: [/^adapter, paths, /], never: [/catch/], within: 160,
+  },
+  {
+    file: "packages/ui/src/base/dateColumnType.ts", writer: "rewriteNoteProperties", calls: 1,
+    how: "handed back to the caller of convertDateColumns, which is listed above: the notes written and the notes that failed",
+    says: [/^adapter, paths, /], never: [/catch/], within: 160,
   },
   {
     file: "packages/ui/src/base/writeProperty.ts", writer: "updateFrontmatterString", calls: 1,
@@ -573,11 +620,11 @@ const STRETCHES: Stretch[] = [
 
   // ── Relations ────────────────────────────────────────────────────────────
   {
-    file: "apps/desktop/src/services/relations.ts", at: "export async function addRelationLink(", calls: { [upsert]: 2 },
+    file: "packages/ui/src/base/relationLinks.ts", at: "export async function addRelationLink(", calls: { [upsert]: 2 },
     how: "thrown on to the caller of addRelationLink", never: THROWN_ON, passesOn: ["addRelationLink"],
   },
   {
-    file: "apps/desktop/src/services/relations.ts", at: "export async function removeRelationLinksToNote(", calls: { removeRelationLinksToNoteShared: 1 },
+    file: "packages/ui/src/base/relationLinks.ts", at: "export async function removeRelationLinksToNote(", calls: { removeRelationLinksToNoteShared: 1 },
     how: "thrown on to the caller of removeRelationLinksToNote", never: THROWN_ON, passesOn: ["removeRelationLinksToNote"],
   },
   {
@@ -585,9 +632,24 @@ const STRETCHES: Stretch[] = [
     how: "thrown on to the caller of removeRelationLinksToNoteShared", never: THROWN_ON, passesOn: ["removeRelationLinksToNoteShared"],
   },
   {
-    file: "apps/desktop/src/components/base/useBaseCells.tsx", at: "const commitReverseCellValue = async (", span: 4600, calls: { addRelationLink: 1, removeRelationLinksToNote: 1 },
-    how: "each counterpart note is a write of its own: one that fails is said (several are counted), and the cell shows what the notes hold",
-    says: [SAID, COUNTED, /if \(p === rowPath\) return \{ \.\.\.r, \[col\]: shown \};/, /notAdded\.add\(key\);/, /notRemoved\.add\(key\);/],
+    file: "packages/ui/src/base/relationLinks.ts", at: "export async function editReverseRelation(", until: "\n}\n", calls: { addRelationLink: 1, removeRelationLinksToNote: 1 },
+    how: "each counterpart note is a write of its own: one that fails is collected and the next is tried; what the cell shows leaves it out",
+    says: [/failed\(key, notAdded, e\);/, /failed\(key, notRemoved, e\);/, /outcome\.shown = \[\.\.\.next\.filter/],
+    passesOn: ["editReverseRelation"],
+  },
+  {
+    file: "apps/desktop/src/components/base/useBaseCells.tsx", at: "const commitReverseCellValue = async (", span: 4600, calls: { editReverseRelation: 1 },
+    how: "one that fails is said (several are counted), and the cell shows what the notes hold",
+    says: [/sayReverseRelationOutcome\(outcome, toast\);/, /if \(p === rowPath\) return \{ \.\.\.r, \[col\]: shown \};/],
+  },
+  {
+    file: "apps/mobile/src/services/baseOps.ts", at: "export async function editReverseCell(", until: "\n}\n", calls: { editReverseRelation: 1 },
+    how: "handed back to the caller of editReverseCell", never: THROWN_ON, passesOn: ["editReverseCell"],
+  },
+  {
+    file: "apps/mobile/src/screens/base/BaseScreen.tsx", at: "const commitReverseCell = async (", span: 900, calls: { editReverseCell: 1 },
+    how: "one that fails is said (several are counted), an error with its reason, and the rows are queried anew",
+    says: [/if \(outcome\) sayReverseRelationOutcome\(outcome, toast\);/, SAID, /requery\(config, viewIndex\);/],
   },
   {
     file: "apps/desktop/src/services/cascadeDelete.ts", at: "export async function executeDeletionPlan(", span: 2200, calls: { removeRelationLinksToNote: 1 },

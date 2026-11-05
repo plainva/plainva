@@ -10,7 +10,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS, withColumnValues } from "@plainva/ui";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
@@ -1829,9 +1829,9 @@ export function BaseViewer({
   // Writes a property (empty) into the notes that lack it and answers which
   // ones got it. A note that turns out to hold a value there — the index was
   // behind — keeps it.
+  // The loop is the phone's too (`fillMissingProperty`).
   const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string): Promise<string[]> => {
-    // Under the key the note carries the property, in any casing (3.144 no. 3).
-    const result = await rewriteNoteProperties(adapter, paths, (props) => withColumnValues(props, [col], (value) => (isEmptyPropertyValue(value) ? "" : undefined)));
+    const result = await fillMissingProperty(adapter, paths, col);
     reportRewrite(result, "Failed to add property to file");
     return result.written;
   };
@@ -1859,8 +1859,7 @@ export function BaseViewer({
       if (vaultAdapter) {
         // Run asynchronously so we don't block the UI
         setTimeout(() => {
-          const missing = dbData.filter((row) => row[selectedColumn] === undefined).map((row) => String(row['file.path']));
-          void fillPropertyIn(vaultAdapter, missing, selectedColumn);
+          void fillPropertyIn(vaultAdapter, notesMissingProperty(dbData, selectedColumn), selectedColumn);
         }, 0);
       }
     }
@@ -1936,7 +1935,7 @@ export function BaseViewer({
   // that lacks it. Never triggered implicitly.
   const materializeColumn = async (col: string) => {
     if (!vaultAdapter) return;
-    const missing = dbData.filter((row) => row[col] === undefined);
+    const missing = notesMissingProperty(dbData, col);
     if (missing.length === 0) return;
     const ok = await appConfirm({
       title: t("common.confirm", { defaultValue: "Bestätigen" }),
@@ -1944,7 +1943,7 @@ export function BaseViewer({
       kind: "warning",
     });
     if (!ok) return;
-    const written = new Set(await fillPropertyIn(vaultAdapter, missing.map((row) => String(row["file.path"])), col));
+    const written = new Set(await fillPropertyIn(vaultAdapter, missing, col));
     // Reflect the new (empty) values right away — the re-index lags the writes.
     // Only in the notes that got one: the others still lack the property.
     setDbData((prev) => prev.map((r) => (r[col] === undefined && written.has(String(r["file.path"])) ? { ...r, [col]: "" } : r)));
@@ -2154,6 +2153,16 @@ export function BaseViewer({
   // open viewer of that file.
   const handleColumnEditorSave = async (column: string, s: any, newName?: string, reverseIntent?: ReverseIntent) => {
     if (!vaultAdapter || !dbConfig) return;
+    // A switch between "Date only" and "Date & time" rewrites the values, as
+    // in the view settings of a calendar (Sammelplan § 3.71 no. 2): the notes
+    // are converted under the name they carry now, before the column is saved.
+    // A declined question saves nothing.
+    const dateSwitch = dateInputSwitch(cells.getColumnInput(column), s?.input);
+    let notConverted: Set<string> | null = null;
+    if (dateSwitch) {
+      notConverted = await convertDateColumnsOf([column], dateSwitch);
+      if (notConverted === null) return;
+    }
     // The two-file orchestration is SHARED (S21) so the phone writes the same
     // pair — which file, in which order, and the self-relation case where the
     // reverse column has to travel with the owning save.
@@ -2192,6 +2201,7 @@ export function BaseViewer({
       throw e;
     }
     if (!ok) console.error("[BaseViewer] applying the reverse column to the target base failed", s?.relationBase);
+    if (dateSwitch && notConverted && !newName) showConvertedDates([column], dateSwitch, notConverted);
   };
 
   // --- Sub-items (P10, Notion model) ---------------------------------------
@@ -2464,9 +2474,11 @@ export function BaseViewer({
   };
 
   // Switch the active date field(s) between date-only and date & time. Switching the
-  // type also converts the stored values in every matching note so data and type stay
+  // type also converts the stored values in the notes so data and type stay
   // consistent: date -> datetime appends a default time of 12:00; datetime -> date drops
-  // the time (after the user confirms, since that loses information).
+  // the time (after the user confirms, since that loses information). The rule
+  // and the loop are shared with the column editor and the phone's property
+  // sheet (`convertDateColumns`).
   const setDateFieldType = async (inputType: "date" | "datetime") => {
     const field = getDateProperty();
     if (!field || !dbConfig) return;
@@ -2475,38 +2487,11 @@ export function BaseViewer({
 
     const endField = getEndDateProperty();
     const fields = [field, endField].filter((f): f is string => !!f);
-
-    if (inputType === "date") {
-      const ok = await appConfirm({
-        title: t("common.confirm", { defaultValue: "Bestätigen" }),
-        message: t("database.confirmDropTime", "Beim Wechsel auf \"Nur Datum\" gehen die Uhrzeiten der ausgewählten Felder verloren. Fortfahren?"),
-        kind: "warning",
-      });
-      if (!ok) {
-        // Snap the (controlled) select back to the current type.
-        setDbConfig({ ...dbConfig });
-        return;
-      }
-    }
-
-    const convert = (v: any): any => {
-      if (v === undefined || v === null || v === "") return v;
-      const datePart = String(v).slice(0, 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return v; // leave unparseable values alone
-      if (inputType === "datetime") return String(v).length > 10 ? String(v) : `${datePart}T12:00`;
-      return datePart;
-    };
-
-    // Rewrite the affected frontmatter values in every matching note.
-    const notConverted = new Set<string>();
-    if (vaultAdapter) {
-      // Each value under the key the note carries it, in any casing: a note
-      // with `Frist:` under the column `frist` was left as it was (3.144 no. 3).
-      const result = await rewriteNoteProperties(vaultAdapter, dbData.map((row) => String(row['file.path'])), (props) =>
-        withColumnValues(props, fields, (value) => convert(value))
-      );
-      reportRewrite(result, "Failed to convert date field type in");
-      for (const failure of result.failed) notConverted.add(failure.path);
+    const converted = await convertDateColumnsOf(fields, inputType);
+    if (converted === null) {
+      // Snap the (controlled) select back to the current type.
+      setDbConfig({ ...dbConfig });
+      return;
     }
 
     const newConfig = JSON.parse(JSON.stringify(dbConfig));
@@ -2515,14 +2500,44 @@ export function BaseViewer({
       newConfig.columns[f] = { ...newConfig.columns[f], input: inputType };
     }
     await saveConfig(newConfig);
+    showConvertedDates(fields, inputType, converted);
+  };
 
-    // The DB re-index lags the file writes; reflect the converted values right
-    // away — except in a note that could not be written: its row keeps what
-    // the note says.
+  // A date column switched between "Date only" and "Date & time" (Sammelplan
+  // § 3.71 no. 2): asks before a time is dropped, then rewrites the values in
+  // every note of the database's sources that carries one of the fields.
+  // Answers the notes that could not be written, or null where the question
+  // was declined — then nothing changes, the type neither.
+  const convertDateColumnsOf = async (fields: string[], inputType: "date" | "datetime"): Promise<Set<string> | null> => {
+    if (dateSwitchLosesTime(inputType)) {
+      const ok = await appConfirm({
+        title: t("common.confirm", { defaultValue: "Bestätigen" }),
+        message: t("database.confirmDropTime", "Beim Wechsel auf \"Nur Datum\" gehen die Uhrzeiten der ausgewählten Felder verloren. Fortfahren?"),
+        kind: "warning",
+      });
+      if (!ok) return null;
+    }
+    const notConverted = new Set<string>();
+    if (vaultAdapter) {
+      const paths = new Set<string>();
+      for (const f of fields) for (const p of await notesCarryingProperty(queryService, dbConfig, f, dbData)) paths.add(p);
+      // Each value under the key the note carries it, in any casing: a note
+      // with `Frist:` under the column `frist` was left as it was (3.144 no. 3).
+      const result = await convertDateColumns(vaultAdapter, [...paths], fields, inputType);
+      reportRewrite(result, "Failed to convert date field type in");
+      for (const failure of result.failed) notConverted.add(failure.path);
+    }
+    return notConverted;
+  };
+
+  // The DB re-index lags the file writes; reflect the converted values right
+  // away — except in a note that could not be written: its row keeps what
+  // the note says.
+  const showConvertedDates = (fields: string[], inputType: "date" | "datetime", notConverted: Set<string>) => {
     setDbData(prev => prev.map(row => {
       if (notConverted.has(String(row['file.path']))) return row;
       const updated = { ...row };
-      for (const f of fields) updated[f] = convert(updated[f]);
+      for (const f of fields) updated[f] = convertDateValue(updated[f], inputType);
       return updated;
     }));
   };
@@ -3279,7 +3294,7 @@ export function BaseViewer({
           currentBasePath={activePath}
           existingColumns={availableColumns}
           rows={dbData}
-          missingCount={dbData.filter((r) => r[editingColumn] === undefined).length}
+          missingCount={notesMissingProperty(dbData, editingColumn).length}
           onFillMissing={() => { void materializeColumn(editingColumn); }}
           allColumns={dbConfig?.columns && !Array.isArray(dbConfig.columns) ? dbConfig.columns : undefined}
           loadBaseConfig={vaultAdapter ? async (p) => parseBaseConfig(await vaultAdapter.readTextFile(p)) : undefined}

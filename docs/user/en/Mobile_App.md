@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-11-02
+Last updated: 2026-11-05
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -49,7 +49,7 @@ The **folder → template** and **note type → template** rules can be set on t
 
 ## Databases (`.base`)
 
-`.base` databases work like on the desktop: every view (table, list, gallery, board, calendar, timeline), typed cell editing, board cards move via press-and-hold. **Configure** manages views, columns, filters (including groups), sorting and properties.
+`.base` databases work like on the desktop: every view (table, list, gallery, board, calendar, timeline), typed cell editing, board cards move via press-and-hold. **Configure** manages views, columns, filters (including groups), sorting and properties. A reverse relation's cell can be edited too: a tap lists the notes of the linking database, and a pick writes the link into that note. A property's sheet (**Configure** → **Properties**) writes a missing property (empty) into the shown notes under **Missing values**, and a switch between **Date** and **Date & time** rewrites the values in the notes — before times are dropped, Plainva asks. For the date field of a calendar or timeline and the grouping of a board, **Configure** offers **Create new field**.
 
 The **calendar view** has three periods: **month**, **week**, **day**. The month stays the entry point — it is the only one that still shows a shape on a phone screen; week and day are lists, because seven columns of content stop being readable at that width. An entry spanning several days appears as a **bar** instead of once per day, and times come before the title. The **timeline** shows a **row per entry** with a bar from start to end: both ends can be **dragged with a finger**, which writes the note's date field. Under **Configure** you pick the date and end-date field and **colour by** — same setting, same file as on the desktop. Relation schemas (targets, cardinality) are still maintained on the desktop.
 

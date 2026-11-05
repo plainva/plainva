@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-11-03
+Stan na: 2026-11-05
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -61,7 +61,7 @@ Na telefonie **Konfiguruj** otwiera te same obszary jako listę; dotknięcie jed
 Kliknięcie nagłówka kolumny otwiera edytor właściwości (**Właściwość: X**):
 
 - **Nazwa** — zmiana nazwy wpływa na notatki: po zapisaniu właściwość jest zmieniana we frontmatter każdej pasującej notatki (z potwierdzeniem i wskaźnikiem postępu). Plainva najpierw sprawdza każdą notatkę: jeśli któraś nie może przyjąć nowej nazwy — ma już właściwość o tej nazwie albo bloku na jej początku nie da się odczytać jako właściwości — nic nie zostaje zmienione, a komunikat wskazuje te notatki.
-- **Typ pola** — Tekst, Liczba, Ocena, Pole wyboru, Data, Data i godzina, Lista, Tagi, Wybór, Status, Wielokrotny wybór, URL, E-mail, Telefon, Relacja (to samo pogrupowane menu typów co w panelu **Właściwości** notatek). Właściwość typu URL, e-mail lub telefon otwiera tylko linki internetowe, e-mailowe i telefoniczne ([Notatki i Markdown](Notes_and_Markdown.md), „Linki na zewnątrz”).
+- **Typ pola** — Tekst, Liczba, Ocena, Pole wyboru, Data, Data i godzina, Lista, Tagi, Wybór, Status, Wielokrotny wybór, URL, E-mail, Telefon, Relacja (to samo pogrupowane menu typów co w panelu **Właściwości** notatek). Właściwość typu URL, e-mail lub telefon otwiera tylko linki internetowe, e-mailowe i telefoniczne ([Notatki i Markdown](Notes_and_Markdown.md), „Linki na zewnątrz”). Gdy kolumna zmienia się między **Data** a **Data i godzina**, Plainva przepisuje wartości w notatkach: dzień otrzymuje 12:00, a zanim godziny przepadną, Plainva pyta — w edytorze kolumny, w polu **Format** widoku kalendarza lub osi czasu i na telefonie.
   **Ocena** to liczba rysowana jako kropki (pięć, jeśli kolumna nie mówi inaczej). W pliku stoi `nastroj: 4` — zwykła liczba, którą przeczyta też Obsidian i każdy arkusz; sortowanie i filtrowanie działają jak dla liczby. Naciskasz kropkę, która ma się liczyć; naciśnięcie bieżącej wartości ją kasuje.
 - **Dzień z nazwy pliku** (`file.day`) — kalendarze i osie czasu mogą umieszczać notatki dzienne według ich **nazwy pliku**, bez zapisywania daty także we frontmatterze. Pole pojawia się w wyborze pola daty, gdy tylko sejf nazywa notatki dzienne (folder i format w **Ustawienia → Twój sejf → Notatki dzienne i dziennik**); jest wyliczane z nazwy, nie stoi w żadnej notatce i nie da się go edytować — karty umieszczonej w ten sposób nie przeciągniesz też na inny dzień (to zmieniłoby nazwę pliku). Obsidian nie zna tego pola: widok, który go używa, pozostaje tam pusty.
 - **Opcje** (dla Wybór/Status/Wielokrotny wybór) — stałe wartości z **kolorem** i, dla **Status**, **grupą**/etapem (np. do zrobienia → w toku → gotowe); zmiana kolejności przez przeciąganie. Po otwarciu edytora kolumny lista opcji jest już wypełniona wartościami używanymi w bazie danych, dzięki czemu możesz nadać każdej z nich kolor bez konieczności wpisywania jej od nowa.
@@ -69,7 +69,7 @@ Kliknięcie nagłówka kolumny otwiera edytor właściwości (**Właściwość: 
 
 Uwagi dotyczące zachowania:
 
-- Jeśli właściwości brakuje w niektórych notatkach, Plainva oferuje **dodanie jej (pustej) do N plików źródłowych**.
+- Jeśli właściwości brakuje w niektórych notatkach, Plainva oferuje **dodanie jej (pustej) do N plików źródłowych**. Na telefonie arkusz właściwości oferuje to samo w sekcji **Brakujące wartości**. W **Konfiguruj** pole daty kalendarza lub osi czasu oraz grupowanie tablicy oferują opcję **Utwórz nowe pole**: Plainva tworzy właściwość i wpisuje ją (pustą) do pokazanych notatek.
 - Dla **Wybór**, **Status**, **Wielokrotny wybór**, **Lista** i **Tagi** przecinek w wartości oddziela wiele wpisów; w typie **Tekst** przecinek pozostaje zwykłym tekstem.
 - Pola systemowe OKF `type` i `okf_version` są tu również chronione: nazwa, typ pola i usuwanie są zablokowane, a komórki `okf_version` są tylko do odczytu (kontekst: [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Relacje łączą notatki ze sobą — jak w Notion, ale zapisywane jako zupełni
 
 - **Tworzenie**: dodaj właściwość typu pola **Relacja**. Opcjonalnie wybierz **docelową bazę danych (.base)** — wtedy wybór podpowiada tylko notatki z tej bazy danych (puste = **dowolna notatka**; **ta baza danych** włącza relacje do samej siebie). **Kardynalność** ogranicza do **dokładnie 1** lub pozwala na **brak ograniczeń**.
 - **Ustawianie wartości**: wybór przeszukuje notatki, wyklucza bieżący wpis i może utworzyć cel w locie przez **Utwórz nową notatkę**. Chip „Powiązana notatka nie istnieje” oznacza zerwany link (cel usunięty/zmieniona nazwa poza Plainva).
-- **Relacja odwrotna**: opcja **Pokaż w „X”** tworzy w docelowej bazie danych obliczaną kolumnę pokazującą linki w drugą stronę — jest bezpośrednio edytowalna (edycje zapisują się w linkujących notatkach). Usunięcie relacji usuwa też jej kolumnę odwrotną.
+- **Relacja odwrotna**: opcja **Pokaż w „X”** tworzy w docelowej bazie danych obliczaną kolumnę pokazującą linki w drugą stronę — jest bezpośrednio edytowalna (edycje zapisują się w linkujących notatkach). Usunięcie relacji usuwa też jej kolumnę odwrotną. Na telefonie dotknięcie takiej komórki otwiera wybór spośród notatek bazy danych, która tworzy powiązanie; wybór zapisuje link w tej notatce.
 - **Elementy podrzędne**: dla relacji do samej siebie można **Włączyć elementy podrzędne** — wpisy z relacją do rodzica pojawiają się w tabeli jako rozwijane pod wpisem nadrzędnym (cykle są obsługiwane; po wyłączeniu lista pozostaje płaska, a wartości są zachowane).
 - **Tablica według relacji**: tablice mogą grupować według relacji; przeciąganie kart między kolumnami przepisuje link.
 - **Filtrowanie na relacjach**: zawiera / nie zawiera / jest puste / nie jest puste, z wyborem notatki.

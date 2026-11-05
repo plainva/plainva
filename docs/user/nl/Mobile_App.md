@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-11-02
+Laatst bijgewerkt: 2026-11-05
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -49,7 +49,7 @@ De koppelingen **map → sjabloon** en **notitietype → sjabloon** stel je ook 
 
 ## Databases (`.base`)
 
-`.base`-databases werken zoals op de desktop: elke weergave (tabel, lijst, galerij, bord, kalender, tijdlijn), celbewerking per veldtype, kaarten op het bord verplaats je door ze ingedrukt te houden. **Configureren** beheert weergaven, kolommen, filters (inclusief groepen), sortering en eigenschappen.
+`.base`-databases werken zoals op de desktop: elke weergave (tabel, lijst, galerij, bord, kalender, tijdlijn), celbewerking per veldtype, kaarten op het bord verplaats je door ze ingedrukt te houden. **Configureren** beheert weergaven, kolommen, filters (inclusief groepen), sortering en eigenschappen. Ook de cel van een omgekeerde relatie is te bewerken: een tik toont de notities van de koppelende database, en een keuze schrijft de koppeling in die notitie. Het blad van een eigenschap (**Configureren** → **Eigenschappen**) voegt een ontbrekende eigenschap (leeg) toe aan de getoonde notities onder **Ontbrekende waarden**, en een wissel tussen **Datum** en **Datum & tijd** schrijft de waarden in de notities om — voordat tijden verdwijnen, vraagt Plainva het eerst. Voor het datumveld van een kalender of tijdlijn en de groepering van een bord biedt **Configureren** **Nieuw veld aanmaken** aan.
 
 De **agendaweergave** kent drie perioden: **maand**, **week**, **dag**. De maand blijft de ingang — het is de enige die op een telefoonscherm nog een vorm laat zien; week en dag zijn lijsten, omdat zeven kolommen inhoud op die breedte niet meer leesbaar zijn. Een item over meerdere dagen verschijnt als **balk** in plaats van elke dag opnieuw, en tijden staan vóór de titel. De **tijdlijn** toont een **rij per item** met een balk van begin tot eind: beide uiteinden zijn **met de vinger te slepen**, en dat schrijft het datumveld van de notitie. Onder **Configureren** kies je het datum- en einddatumveld en **kleur op** — dezelfde instelling, hetzelfde bestand als op de computer. Relatieschema's (doelen, kardinaliteit) worden nog steeds op de desktop onderhouden.
 

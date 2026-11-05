@@ -11,7 +11,7 @@ import {
 
 /**
  * Shared "clean up references" step of the cascade deletion (desktop wraps it
- * in services/relations.ts, mobile calls it directly): removes every value of
+ * in relationLinks.ts, mobile calls it directly): removes every value of
  * `propertyKey` in `notePath` that RESOLVES to `targetNotePath` — robust
  * against bare vs qualified raw forms, aliases and anchors. Deletes the key
  * when the value empties; list values stay lists otherwise. Body links are

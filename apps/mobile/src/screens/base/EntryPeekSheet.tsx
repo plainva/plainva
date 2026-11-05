@@ -28,7 +28,7 @@ export function EntryPeekSheet({
   peek: EntryPeek;
   columnLabel: (col: string) => string;
   displayCell: (col: string, v: unknown) => string;
-  /** Computed reverse columns are not editable — they live in the other note. */
+  /** Whether a column can be edited here — not a file field. A reverse relation can (its cell writes the other notes). */
   isEditable: (col: string) => boolean;
   onEdit: (col: string) => void;
   onStep: (path: string) => void;

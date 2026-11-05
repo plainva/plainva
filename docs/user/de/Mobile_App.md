@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-11-02
+Stand: 2026-11-05
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -49,7 +49,7 @@ Die Zuordnungen **Ordner → Vorlage** und **Notiztyp → Vorlage** legst Du auc
 
 ## Datenbanken (`.base`)
 
-`.base`-Datenbanken funktionieren wie am Desktop: alle Ansichten (Tabelle, Liste, Galerie, Board, Kalender, Zeitleiste), typgerechtes Bearbeiten der Zellen, Karten im Board per Gedrückthalten verschieben. Über **Konfigurieren** verwaltest Du Ansichten, Spalten, Filter (auch Gruppen), Sortierung und Eigenschaften.
+`.base`-Datenbanken funktionieren wie am Desktop: alle Ansichten (Tabelle, Liste, Galerie, Board, Kalender, Zeitleiste), typgerechtes Bearbeiten der Zellen, Karten im Board per Gedrückthalten verschieben. Über **Konfigurieren** verwaltest Du Ansichten, Spalten, Filter (auch Gruppen), Sortierung und Eigenschaften. Auch die Zelle einer Rückrelation lässt sich bearbeiten: ein Tipp zeigt die Notizen der verlinkenden Datenbank, und eine Wahl schreibt den Link in die gewählte Notiz. Das Blatt einer Eigenschaft (**Konfigurieren** → **Eigenschaften**) trägt fehlende Eigenschaften unter **Fehlende Werte** leer in die angezeigten Notizen ein, und ein Wechsel zwischen **Datum** und **Datum & Uhrzeit** schreibt die Werte in den Notizen um — bevor Uhrzeiten wegfallen, fragt Plainva nach. Für das Datumsfeld eines Kalenders oder einer Zeitleiste und die Gruppierung eines Boards bietet **Konfigurieren** **Neues Feld anlegen** an.
 
 Die **Kalenderansicht** kennt drei Zeiträume: **Monat**, **Woche**, **Tag**. Der Monat bleibt der Einstieg — er ist der einzige, der auf einem Telefonschirm noch eine Form zeigt; Woche und Tag sind Listen, weil sieben Spalten Inhalt dort nicht mehr lesbar wären. Ein Eintrag über mehrere Tage erscheint als **Balken** statt an jedem Tag erneut, und Uhrzeiten stehen vor dem Titel. Die **Zeitleiste** zeigt eine **Zeile je Eintrag** mit einem Balken von Anfang bis Ende: an beiden Enden lässt sich der Balken **mit dem Finger ziehen** und schreibt damit das Datumsfeld der Notiz. Unter **Konfigurieren** wählst Du Datums- und Enddatumsfeld sowie **Farbe nach** — dieselbe Einstellung, dieselbe Datei wie am Rechner. Relationen-Schema (Ziele, Kardinalität) pflegst Du weiterhin am Desktop.
 

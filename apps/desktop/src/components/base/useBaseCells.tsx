@@ -16,7 +16,7 @@ import { FILE_DAY, parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
 import { isWikiTargetResolved, wikiTargetPath } from "@plainva/ui";
 import { useWikiResolver } from "../../hooks/useWikiResolver";
-import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";
+import { editReverseRelation, sayReverseRelationOutcome } from "@plainva/ui";
 import { buildNewNoteContent, getConfiguredNoteType } from "../../services/newNote";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 import type { ColumnSchema, ReverseRelationDef } from "../../services/baseSchema";
@@ -315,65 +315,21 @@ export function useBaseCells({
     const rowPath: string = row["file.path"];
     const targetOf = (v: string) => (parseWikiLinkValue(v)?.target ?? v.replace(/^\[\[/, "").replace(/\]\]$/, "")).toLowerCase();
     const current: string[] = Array.isArray(row[col]) ? row[col].map(String) : [];
-    const currentByTarget = new Map(current.map((v) => [targetOf(v), v]));
-    const nextByTarget = new Map(nextArr.map((v) => [targetOf(v), v]));
-    const added = [...nextByTarget.entries()].filter(([k]) => !currentByTarget.has(k));
-    const removed = [...currentByTarget.entries()].filter(([k]) => !nextByTarget.has(k));
-    if (added.length === 0 && removed.length === 0) return;
 
     reverseBusyRef.current = true;
     try {
-      // The owning side's cardinality comes from the counterpart base's schema.
-      let owningLimit: "one" | undefined;
-      try {
-        const cfg = rev.base ? parseBaseConfig(await vaultAdapter.readTextFile(rev.base)) : null;
-        owningLimit = cfg?.columns?.[rev.property]?.relationLimit === "one" ? "one" : undefined;
-      } catch { /* default: unlimited */ }
-
       const rowLinkText = noteIndex ? noteIndex.targetFor(rowPath) : String(row["file.name"] ?? rowPath);
-      const changedPaths = new Map<string, "added" | "removed">();
-      // Every counterpart note is a write of its own. One that fails — a
-      // properties block the writer refuses, an error of the vault — is said,
-      // and the cell goes on showing what that note holds: the link it could
-      // not be given is not shown, the link it could not be relieved of stays.
-      // The writes stood in a `try … finally` without a catch (finding
-      // 2026-10-09): the first failure left the editor as an unhandled
-      // rejection, the notes behind it were never tried, nothing was said.
-      const notAdded = new Set<string>();
-      const notRemoved = new Set<string>();
-      let firstFailure: unknown = null;
-      for (const [key, rawValue] of added) {
-        const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        try {
-          const notePath = await queryService.resolveNotePath(target, rowPath);
-          if (!notePath || notePath === rowPath) continue;
-          await addRelationLink({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath, limit: owningLimit });
-          changedPaths.set(notePath, "added");
-        } catch (e) {
-          console.error("Failed to add a relation link", target, e);
-          notAdded.add(key);
-          firstFailure ??= e;
-        }
-      }
-      for (const [key, rawValue] of removed) {
-        const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        try {
-          const notePath = await queryService.resolveNotePath(target, rowPath);
-          if (!notePath) continue;
-          await removeRelationLinksToNote({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath });
-          changedPaths.set(notePath, "removed");
-        } catch (e) {
-          console.error("Failed to remove a relation link", target, e);
-          notRemoved.add(key);
-          firstFailure ??= e;
-        }
-      }
-      const failures = notAdded.size + notRemoved.size;
-      if (failures === 1) toast.error(t("mobile.propertyWriteFailed", { message: errorText(firstFailure) }));
-      else if (failures > 1) toast.error(t("database.bulkSetPartial", { done: changedPaths.size, failed: failures }));
-      const shown = failures === 0
-        ? nextArr
-        : [...nextArr.filter((v) => !notAdded.has(targetOf(v))), ...current.filter((v) => notRemoved.has(targetOf(v)))];
+      // Every counterpart note is a write of its own (shared with the phone,
+      // `editReverseRelation`). One that fails — a properties block the
+      // writer refuses, an error of the vault — is said, and the cell goes on
+      // showing what that note holds: the link it could not be given is not
+      // shown, the link it could not be relieved of stays. The writes stood
+      // in a `try … finally` without a catch (finding 2026-10-09): the first
+      // failure left the editor as an unhandled rejection, the notes behind
+      // it were never tried, nothing was said.
+      const outcome = await editReverseRelation({ adapter: vaultAdapter, queryService, rowPath, owning: { base: rev.base, property: rev.property }, current, next: nextArr });
+      sayReverseRelationOutcome(outcome, toast);
+      const { changed: changedPaths, shown, owningLimit } = outcome;
 
       // In-memory: the edited reverse cell plus visible counterpart rows'
       // owning property (self-relations show both sides in the same table).

@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-05
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre vault reste identique dans les deux mondes.
 
@@ -49,7 +49,7 @@ Les règles **dossier → modèle** et **type de note → modèle** se définiss
 
 ## Bases de données (`.base`)
 
-Les bases de données `.base` fonctionnent comme dans l'application de bureau : chaque vue (**Tableau**, **Liste**, **Galerie**, **Kanban**, **Calendrier**, **Chronologie**), l'édition typée des cellules, les cartes du **Kanban** se déplacent par appui long. **Configurer** gère les vues, les colonnes, les filtres (y compris les groupes), le tri et les propriétés.
+Les bases de données `.base` fonctionnent comme dans l'application de bureau : chaque vue (**Tableau**, **Liste**, **Galerie**, **Kanban**, **Calendrier**, **Chronologie**), l'édition typée des cellules, les cartes du **Kanban** se déplacent par appui long. **Configurer** gère les vues, les colonnes, les filtres (y compris les groupes), le tri et les propriétés. La cellule d'une relation inverse se modifie aussi : un appui affiche les notes de la base de données qui crée le lien, et un choix écrit le lien dans cette note. La fiche d'une propriété (**Configurer** → **Propriétés**) ajoute une propriété manquante (vide) aux notes affichées sous **Valeurs manquantes**, et un passage entre **Date** et **Date & heure** réécrit les valeurs dans les notes — avant que les heures ne disparaissent, Plainva demande confirmation. Pour le champ de date d'un calendrier ou d'une chronologie et le regroupement d'un tableau, **Configurer** propose **Créer un champ**.
 
 La **vue calendrier** propose trois périodes : **mois**, **semaine**, **jour**. Le mois reste le point d'entrée — c'est le seul qui garde une forme lisible sur l'écran d'un téléphone ; semaine et jour sont des listes, car sept colonnes de contenu cessent d'être lisibles à cette largeur. Une entrée sur plusieurs jours apparaît comme une **barre** au lieu de se répéter chaque jour, et les heures précèdent le titre. La **frise** affiche une **ligne par entrée** avec une barre du début à la fin : les deux extrémités se **tirent au doigt**, ce qui écrit le champ de date de la note. Sous **Configurer**, tu choisis le champ de date, celui de fin et **couleur selon** — même réglage, même fichier que sur l'ordinateur. Les schémas de relation (cibles, cardinalité) restent gérés dans l'application de bureau.
 

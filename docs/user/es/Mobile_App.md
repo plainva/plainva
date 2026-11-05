@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-11-02
+Última actualización: 2026-11-05
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -49,7 +49,7 @@ Las reglas **carpeta → plantilla** y **tipo de nota → plantilla** también s
 
 ## Bases de datos (`.base`)
 
-Las bases de datos `.base` funcionan como en la aplicación de escritorio: cada vista (**Tabla**, **Lista**, **Galería**, **Tablero**, **Calendario**, **Cronología**), la edición tipada de celdas, las tarjetas del **Tablero** se mueven manteniendo pulsado. **Configurar** gestiona las vistas, las columnas, los filtros (incluidos los grupos), el orden y las propiedades.
+Las bases de datos `.base` funcionan como en la aplicación de escritorio: cada vista (**Tabla**, **Lista**, **Galería**, **Tablero**, **Calendario**, **Cronología**), la edición tipada de celdas, las tarjetas del **Tablero** se mueven manteniendo pulsado. **Configurar** gestiona las vistas, las columnas, los filtros (incluidos los grupos), el orden y las propiedades. También se puede editar la celda de una relación inversa: un toque muestra las notas de la base de datos que enlaza, y elegir una escribe el enlace en esa nota. La hoja de una propiedad (**Configurar** → **Propiedades**) añade una propiedad que falta (vacía) a las notas mostradas en **Faltan valores**, y un cambio entre **Fecha** y **Fecha y hora** reescribe los valores en las notas — antes de que se pierdan las horas, Plainva pregunta. Para el campo de fecha de un calendario o de una línea de tiempo y la agrupación de un tablero, **Configurar** ofrece **Crear campo nuevo**.
 
 La **vista de calendario** tiene tres periodos: **mes**, **semana**, **día**. El mes sigue siendo la entrada — es el único que aún muestra una forma en la pantalla de un teléfono; semana y día son listas, porque siete columnas de contenido dejan de ser legibles a ese ancho. Una entrada que abarca varios días aparece como **barra** en lugar de repetirse cada día, y las horas van antes del título. La **línea de tiempo** muestra una **fila por entrada** con una barra de principio a fin: ambos extremos se pueden **arrastrar con el dedo**, lo que escribe el campo de fecha de la nota. En **Configurar** eliges el campo de fecha y de fecha final y **color por** — el mismo ajuste, el mismo archivo que en el escritorio. Los esquemas de relación (destinos, cardinalidad) se siguen gestionando en la aplicación de escritorio.
 

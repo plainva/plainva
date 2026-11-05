@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-11-02
+Última atualização: 2026-11-05
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -49,7 +49,7 @@ As regras **pasta → modelo** e **tipo de nota → modelo** também são defini
 
 ## Bancos de dados (`.base`)
 
-Os bancos de dados `.base` funcionam como no desktop: todas as visualizações (tabela, lista, galeria, quadro, calendário, linha do tempo), edição tipada de células, os cartões do quadro se movem tocando e segurando. **Configurar** gerencia visualizações, colunas, filtros (incluindo grupos), ordenação e propriedades.
+Os bancos de dados `.base` funcionam como no desktop: todas as visualizações (tabela, lista, galeria, quadro, calendário, linha do tempo), edição tipada de células, os cartões do quadro se movem tocando e segurando. **Configurar** gerencia visualizações, colunas, filtros (incluindo grupos), ordenação e propriedades. A célula de uma relação reversa também pode ser editada: um toque mostra as notas do banco de dados que cria o vínculo, e escolher uma grava o link nessa nota. A folha de uma propriedade (**Configurar** → **Propriedades**) adiciona uma propriedade ausente (vazia) às notas exibidas em **Valores ausentes**, e uma troca entre **Data** e **Data e hora** reescreve os valores nas notas — antes que os horários se percam, o Plainva pergunta. Para o campo de data de um calendário ou de uma linha do tempo e o agrupamento de um quadro, **Configurar** oferece **Criar campo novo**.
 
 A **visualização de calendário** tem três períodos: **mês**, **semana**, **dia**. O mês continua sendo a entrada — é o único que ainda mostra uma forma na tela de um celular; semana e dia são listas, porque sete colunas de conteúdo deixam de ser legíveis nessa largura. Uma entrada que atravessa vários dias aparece como **barra** em vez de se repetir a cada dia, e os horários vêm antes do título. A **linha do tempo** mostra uma **linha por entrada** com uma barra do começo ao fim: as duas pontas podem ser **arrastadas com o dedo**, o que escreve o campo de data da nota. Em **Configurar** você escolhe o campo de data e o de data final e **cor por** — mesma configuração, mesmo arquivo que no desktop. Os esquemas de relação (destinos, cardinalidade) continuam sendo mantidos no desktop.
 

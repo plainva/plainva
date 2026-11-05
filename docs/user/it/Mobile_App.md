@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-11-02
+Ultimo aggiornamento: 2026-11-05
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -49,7 +49,7 @@ Le regole **cartella → modello** e **tipo di nota → modello** si impostano a
 
 ## Database (`.base`)
 
-I database `.base` funzionano come su desktop: ogni vista (tabella, elenco, galleria, bacheca, calendario, cronologia), modifica tipizzata delle celle, le schede della bacheca si spostano tenendo premuto. **Configura** gestisce viste, colonne, filtri (inclusi i gruppi), ordinamento e proprietà.
+I database `.base` funzionano come su desktop: ogni vista (tabella, elenco, galleria, bacheca, calendario, cronologia), modifica tipizzata delle celle, le schede della bacheca si spostano tenendo premuto. **Configura** gestisce viste, colonne, filtri (inclusi i gruppi), ordinamento e proprietà. Anche la cella di una relazione inversa si può modificare: un tocco mostra le note del database che crea il collegamento, e una scelta scrive il collegamento in quella nota. Il foglio di una proprietà (**Configura** → **Proprietà**) aggiunge una proprietà mancante (vuota) alle note mostrate in **Valori mancanti**, e un passaggio tra **Data** e **Data e ora** riscrive i valori nelle note — prima che gli orari vadano persi, Plainva chiede conferma. Per il campo data di un calendario o di una timeline e il raggruppamento di una bacheca, **Configura** offre **Crea nuovo campo**.
 
 La **vista calendario** ha tre periodi: **mese**, **settimana**, **giorno**. Il mese resta il punto di partenza — è l'unico che mostra ancora una forma sullo schermo di un telefono; settimana e giorno sono elenchi, perché sette colonne di contenuto smettono di essere leggibili a quella larghezza. Una voce che copre più giorni compare come **barra** invece di ripetersi ogni giorno, e gli orari precedono il titolo. La **linea del tempo** mostra una **riga per voce** con una barra dall'inizio alla fine: entrambe le estremità si **trascinano col dito**, e questo scrive il campo data della nota. In **Configura** scegli il campo data e quello di fine e **colore per** — stessa impostazione, stesso file del computer. Gli schemi di relazione (destinazioni, cardinalità) restano gestiti dal desktop.
 

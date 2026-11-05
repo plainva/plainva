@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-11-03
+Última revisão: 2026-11-05
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -61,7 +61,7 @@ No celular, **Configurar** abre as mesmas áreas como uma lista; tocar em uma de
 Clicar no cabeçalho de uma coluna abre o editor de propriedade (**Propriedade: X**):
 
 - **Nome** — renomear afeta as notas: ao salvar, a propriedade é renomeada no frontmatter de todas as notas correspondentes (com confirmação e um indicador de progresso). O Plainva consulta antes cada nota: se alguma não puder receber o novo nome — ela já tem uma propriedade com esse nome, ou o bloco no início não pode ser lido como propriedades —, nada é renomeado e uma mensagem cita essas notas.
-- **Tipo de campo** — Texto, Número, Avaliação, Caixa de seleção, Data, Data e hora, Lista, Tags, Seleção, Status, Seleção múltipla, URL, E-mail, Telefone, Relação (o mesmo menu de tipo agrupado do painel de **Propriedades** das notas). Uma propriedade de URL, e-mail ou telefone abre apenas links da web, de e-mail e de telefone ([Notas & Markdown](Notes_and_Markdown.md), “Links para fora”).
+- **Tipo de campo** — Texto, Número, Avaliação, Caixa de seleção, Data, Data e hora, Lista, Tags, Seleção, Status, Seleção múltipla, URL, E-mail, Telefone, Relação (o mesmo menu de tipo agrupado do painel de **Propriedades** das notas). Uma propriedade de URL, e-mail ou telefone abre apenas links da web, de e-mail e de telefone ([Notas & Markdown](Notes_and_Markdown.md), “Links para fora”). Quando uma coluna muda entre **Data** e **Data e hora**, o Plainva reescreve os valores nas notas: um dia recebe 12:00 e, antes que os horários se percam, o Plainva pergunta — no editor da coluna, no **Formato** de uma visualização de calendário ou linha do tempo e no celular.
   Uma **Avaliação** é um número desenhado como pontos (cinco, a menos que a coluna diga outra coisa). O arquivo guarda `humor: 4` — um número simples que o Obsidian e qualquer planilha também leem; a ordenação e o filtro são os de um número. Você pressiona o ponto que deve contar; pressionar o valor atual o apaga.
 - **Dia do nome do arquivo** (`file.day`) — calendários e linhas do tempo podem colocar notas diárias pelo seu **nome de arquivo**, sem que a data esteja também no frontmatter. O campo aparece no seletor de campo de data assim que o cofre dá nome às notas diárias (pasta e formato em **Configurações → Seu cofre → Notas diárias e diário**); é calculado a partir do nome, não está em nenhuma nota e não pode ser editado — então um cartão colocado assim também não pode ser arrastado para outro dia (isso renomearia o arquivo). O Obsidian não conhece este campo: uma visão que o use fica vazia lá.
 - **Opções** (para Seleção/Status/Seleção múltipla) — valores fixos com uma **Cor** e, para **Status**, um **Grupo**/etapa (por exemplo, a fazer → em andamento → concluído); reordene arrastando. Ao abrir o editor de propriedade, a lista de opções já vem preenchida com os valores já usados no banco de dados, para que você possa atribuir uma cor a cada um sem precisar digitá-lo novamente.
@@ -69,7 +69,7 @@ Clicar no cabeçalho de uma coluna abre o editor de propriedade (**Propriedade: 
 
 Notas de comportamento:
 
-- Se uma propriedade estiver ausente em algumas notas, o Plainva oferece **adicioná-la (vazia) a N arquivos de origem**.
+- Se uma propriedade estiver ausente em algumas notas, o Plainva oferece **adicioná-la (vazia) a N arquivos de origem**. No celular, a folha da propriedade oferece o mesmo em **Valores ausentes**. Em **Configurar**, o campo de data de um calendário ou de uma linha do tempo e o agrupamento de um quadro oferecem **Criar campo novo**: o Plainva cria a propriedade e a adiciona (vazia) às notas exibidas.
 - Para **Seleção**, **Status**, **Seleção múltipla**, **Lista** e **Tags**, uma vírgula em um valor separa várias entradas; no tipo **Texto**, uma vírgula permanece texto simples.
 - Os campos de sistema do OKF `type` e `okf_version` também são protegidos aqui: nome, tipo de campo e exclusão ficam travados, e as células de `okf_version` são somente leitura (contexto: [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Relações conectam notas entre si — como no Notion, mas armazenadas como `[[w
 
 - **Criando**: adicione uma propriedade do tipo de campo **Relação**. Opcionalmente, escolha um **Banco de dados de destino (.base)** — o seletor então só sugere notas desse banco de dados (vazio = **Qualquer nota**; **Este banco de dados** habilita autorrelações). A **Cardinalidade** limita a **Exatamente 1** ou permite **Sem limite**.
 - **Definindo valores**: o seletor busca notas, exclui o item atual e pode criar um destino na hora via **Criar nova nota**. Um chip dizendo "A nota vinculada não existe" marca um link quebrado (destino excluído/renomeado fora do Plainva).
-- **Relação reversa**: a opção **Mostrar em "X"** cria uma coluna calculada no banco de dados de destino mostrando os links no sentido inverso — ela é diretamente editável (as edições gravam nas notas que fazem o link). Excluir a relação remove também sua coluna reversa.
+- **Relação reversa**: a opção **Mostrar em "X"** cria uma coluna calculada no banco de dados de destino mostrando os links no sentido inverso — ela é diretamente editável (as edições gravam nas notas que fazem o link). Excluir a relação remove também sua coluna reversa. No celular, um toque nessa célula abre o seletor com as notas do banco de dados que cria o vínculo; escolher uma grava o link nessa nota.
 - **Subitens**: para autorrelações, você pode **Ativar subitens** — itens com uma relação de pai aparecem recolhíveis sob o item pai na tabela (ciclos são tratados; quando desativado, a lista permanece plana e os valores são mantidos).
 - **Quadro por relação**: quadros podem ser agrupados por uma relação; arrastar cartões entre colunas reescreve o link.
 - **Filtrando por relações**: contém / não contém / está vazio / não está vazio, com um seletor de notas.

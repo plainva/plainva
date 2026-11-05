@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-11-03
+Stand: 2026-11-05
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -61,7 +61,7 @@ Auf dem Smartphone öffnet **Konfigurieren** dieselben Bereiche als Liste; ein T
 Ein Klick auf einen Spaltenkopf öffnet den Eigenschafts-Editor (**Eigenschaft: X**):
 
 - **Name** — Umbenennen wirkt auf die Notizen: Beim Speichern wird die Eigenschaft in allen passenden Notizen im Frontmatter umbenannt (mit Bestätigung und Fortschrittsanzeige). Plainva fragt vorher jede Notiz: Kann eine den neuen Namen nicht annehmen — sie hat schon eine Eigenschaft dieses Namens, oder der Block an ihrem Anfang lässt sich nicht als Eigenschaften lesen —, wird nichts umbenannt, und eine Meldung nennt diese Notizen.
-- **Feldtyp** — Text, Zahl, Bewertung, Kontrollkästchen, Datum, Datum & Uhrzeit, Liste, Tags, Auswählen, Status, Mehrfachauswahl, URL, E-Mail, Telefon, Relation (dasselbe gruppierte Typ-Menü wie im **Eigenschaften**-Panel der Notizen). Eine URL-, E-Mail- oder Telefon-Eigenschaft öffnet nur Web-, Mail- und Telefon-Links ([Notizen & Markdown](Notes_and_Markdown.md), „Links nach draußen“).
+- **Feldtyp** — Text, Zahl, Bewertung, Kontrollkästchen, Datum, Datum & Uhrzeit, Liste, Tags, Auswählen, Status, Mehrfachauswahl, URL, E-Mail, Telefon, Relation (dasselbe gruppierte Typ-Menü wie im **Eigenschaften**-Panel der Notizen). Eine URL-, E-Mail- oder Telefon-Eigenschaft öffnet nur Web-, Mail- und Telefon-Links ([Notizen & Markdown](Notes_and_Markdown.md), „Links nach draußen“). Wechselt eine Spalte zwischen **Datum** und **Datum & Uhrzeit**, schreibt Plainva die Werte in den Notizen um: ein Tag bekommt 12:00, und bevor Uhrzeiten wegfallen, fragt Plainva nach — im Spalteneditor, im **Format** einer Kalender- oder Zeitleistenansicht und am Telefon.
   Eine **Bewertung** ist eine Zahl, die als Punkte gezeichnet wird (fünf, wenn die Spalte nichts anderes sagt). In der Datei steht `stimmung: 4` — eine schlichte Zahl, die auch Obsidian und jede Tabellenkalkulation lesen; sortiert und gefiltert wird wie bei einer Zahl. Du klickst den Punkt, der zählen soll; ein Klick auf den aktuellen Wert löscht ihn wieder.
 - **Tag aus dem Dateinamen** (`file.day`) — Kalender und Zeitleiste können Tagesnotizen nach ihrem **Dateinamen** einsortieren, ohne dass das Datum zusätzlich im Frontmatter steht. Das Feld erscheint im Wähler für das Datumsfeld, sobald der Vault Tagesnotizen benennt (Ordner und Format unter **Einstellungen → Dein Vault → Tagesnotizen & Journal**); es wird aus dem Namen berechnet, steht in keiner Notiz und lässt sich nicht bearbeiten — eine Karte, die so platziert ist, lässt sich deshalb auch nicht auf einen anderen Tag ziehen (das würde die Datei umbenennen). Obsidian kennt dieses Feld nicht: eine Ansicht, die es benutzt, bleibt dort leer. Der Preis dafür, das Datum nicht zweimal zu führen.
 - **Optionen** (bei Auswahl/Status/Mehrfachauswahl) — feste Werte mit **Farbe** und bei **Status** einer **Gruppe**/Stufe (z. B. offen → in Arbeit → erledigt); Reihenfolge per Drag. Beim Öffnen des Spalten-Editors ist die Optionsliste bereits mit den Werten vorbelegt, die in der Datenbank vorkommen — so kannst Du jedem eine Farbe geben, ohne ihn erst neu einzutippen.
@@ -69,7 +69,7 @@ Ein Klick auf einen Spaltenkopf öffnet den Eigenschafts-Editor (**Eigenschaft: 
 
 Hinweise zum Verhalten:
 
-- Fehlt eine Eigenschaft in manchen Notizen, bietet Plainva an, sie leer **in N Quelldateien einzutragen**.
+- Fehlt eine Eigenschaft in manchen Notizen, bietet Plainva an, sie leer **in N Quelldateien einzutragen**. Am Telefon steht dasselbe im Blatt der Eigenschaft unter **Fehlende Werte**. Unter **Konfigurieren** bieten das Datumsfeld eines Kalenders oder einer Zeitleiste und die Gruppierung eines Boards **Neues Feld anlegen** an: Plainva legt die Eigenschaft an und trägt sie leer in die angezeigten Notizen ein.
 - Bei **Auswählen**, **Status**, **Mehrfachauswahl**, **Liste** und **Tags** trennt ein Komma im Wert mehrere Einträge; im Typ **Text** bleibt das Komma normaler Text.
 - Die OKF-Systemfelder `type` und `okf_version` sind auch hier geschützt: Name, Feldtyp und Löschen sind gesperrt, und `okf_version` lässt sich in den Zellen nicht bearbeiten (Hintergrund: [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Relationen verknüpfen Notizen miteinander — wie in Notion, aber gespeichert a
 
 - **Anlegen**: Neue Eigenschaft vom Feldtyp **Relation**. Optional wählst Du eine **Ziel-Datenbank (.base)** — dann schlägt der Picker nur Notizen aus dieser Datenbank vor (leer = **Beliebige Notiz**; **Diese Datenbank** erlaubt Selbst-Relationen). Die **Kardinalität** begrenzt auf **Genau 1** oder lässt **Keine Begrenzung**.
 - **Werte setzen**: Der Picker sucht Notizen, schließt den aktuellen Eintrag aus und kann per **Neue Notiz anlegen** direkt ein Ziel erstellen. Zeigt ein Chip „Verlinkte Notiz existiert nicht", ist der Link verwaist (Ziel gelöscht/umbenannt außerhalb von Plainva).
-- **Rückrelation**: Die Option **Auf „X" anzeigen** legt in der Ziel-Datenbank eine berechnete Spalte an, die die Verknüpfungen rückwärts zeigt — sie ist direkt editierbar (Änderungen schreiben in die verlinkenden Notizen). Löschen der Relation nimmt ihre Rückspalte mit.
+- **Rückrelation**: Die Option **Auf „X" anzeigen** legt in der Ziel-Datenbank eine berechnete Spalte an, die die Verknüpfungen rückwärts zeigt — sie ist direkt editierbar (Änderungen schreiben in die verlinkenden Notizen). Löschen der Relation nimmt ihre Rückspalte mit. Am Telefon öffnet ein Tipp auf eine solche Zelle die Auswahl über die Notizen der verlinkenden Datenbank; eine Wahl schreibt den Link in die gewählte Notiz.
 - **Unterelemente**: Bei Selbst-Relationen kannst Du **Unterelemente aktivieren** — Einträge mit Eltern-Relation erscheinen in der Tabelle aufklappbar unter ihrem Eltern-Eintrag (Zyklen werden abgefangen; ausgeschaltet bleibt die Liste flach, die Werte bleiben erhalten).
 - **Board nach Relation**: Boards können nach einer Relation gruppieren; Karten-Drag zwischen Spalten setzt den Link um.
 - **Filter auf Relationen**: enthält / enthält nicht / ist leer / ist nicht leer, mit Notiz-Auswahl.

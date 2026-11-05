@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-11-02
+Stan na: 2026-11-05
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -49,7 +49,7 @@ Reguły **folder → szablon** i **typ notatki → szablon** ustala się także 
 
 ## Bazy danych (`.base`)
 
-Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, galeria, tablica, kalendarz, oś czasu), edycja komórek zgodna z typem pola, karty na tablicy przenosisz, przytrzymując je. **Konfiguruj** zarządza widokami, kolumnami, filtrami (w tym grupami), sortowaniem i właściwościami.
+Bazy danych `.base` działają jak na komputerze: każdy widok (tabela, lista, galeria, tablica, kalendarz, oś czasu), edycja komórek zgodna z typem pola, karty na tablicy przenosisz, przytrzymując je. **Konfiguruj** zarządza widokami, kolumnami, filtrami (w tym grupami), sortowaniem i właściwościami. Komórkę relacji odwrotnej też można edytować: dotknięcie pokazuje notatki bazy danych, która tworzy powiązanie, a wybór zapisuje link w tej notatce. Arkusz właściwości (**Konfiguruj** → **Właściwości**) wpisuje brakującą właściwość (pustą) do pokazanych notatek w sekcji **Brakujące wartości**, a zmiana między **Data** a **Data i godzina** przepisuje wartości w notatkach — zanim godziny przepadną, Plainva pyta. Dla pola daty kalendarza lub osi czasu oraz grupowania tablicy **Konfiguruj** oferuje opcję **Utwórz nowe pole**.
 
 **Widok kalendarza** ma trzy zakresy: **miesiąc**, **tydzień**, **dzień**. Miesiąc pozostaje punktem wejścia — jako jedyny wciąż pokazuje kształt na ekranie telefonu; tydzień i dzień są listami, bo siedem kolumn treści przestaje być czytelne przy tej szerokości. Wpis obejmujący kilka dni pojawia się jako **pasek**, zamiast powtarzać się każdego dnia, a godziny stoją przed tytułem. **Oś czasu** pokazuje **wiersz na wpis** z paskiem od początku do końca: oba końce można **przeciągnąć palcem**, co zapisuje pole daty w notatce. W **Konfiguruj** wybierasz pole daty i daty końcowej oraz **kolor według** — to samo ustawienie, ten sam plik co na komputerze. Schematy relacji (cele, liczność) nadal są utrzymywane na komputerze.
 
