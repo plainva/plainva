@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { VaultQueryService } from "../src/vault/VaultQueryService.ts";
 import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.ts";
+import { splitJournalStamp, taskNameText, withTaskName } from "../src/journal.ts";
+import { setChecklistTaskDue } from "../src/vault/taskMutation.ts";
+import { scanTasks } from "../src/vault/taskScan.ts";
 
 describe("VaultQueryService.listTasks", () => {
   it("flattens tasks across notes with path and title", async () => {
@@ -43,5 +46,67 @@ describe("VaultQueryService.listTasks", () => {
     expect(excludedByPath["Templates/Weekly.md"]).toBe(true);
     expect(excludedByPath["Real.md"]).toBe(false);
     expect(excludedByPath["Plain.md"]).toBe(false);
+  });
+});
+
+/**
+ * A task the journal wrote (`- [ ] 10:15 Call Anna`, by Siri, Shortcuts or the
+ * capture without a task database) is named without its time: the stamp is
+ * the entry's (plan Rückmeldungen 2026-11-05). Only in a daily note — where
+ * the journal writes; a hand-written `- [ ] 10:15 call Anna` elsewhere keeps
+ * its text — and the file is never rewritten for it.
+ */
+describe("the journal stamp in front of a task", () => {
+  const DAILY = ["# 2026-11-05", "", "## Journal", "", "- [ ] 10:15 Call Anna 📅 2026-11-06 14:30", "- 11:00 Coffee", "- [ ] Plain task", "- [x] 09:05:30 Done early", ""].join("\n");
+  const OTHER = ["- [ ] 10:15 call Anna", ""].join("\n");
+  const service = () => {
+    const db = new MockDatabaseAdapter();
+    db.mockedResults = [[
+      { path: "Daily/2026-11-05.md", title: "2026-11-05", content: DAILY },
+      { path: "Projects/Calls.md", title: "Calls", content: OTHER },
+    ]];
+    const query = new VaultQueryService(db);
+    query.setDayOfPath((path) => (/^Daily\/\d{4}-\d{2}-\d{2}\.md$/.test(path) ? path.slice(6, 16) : null));
+    return query;
+  };
+
+  it("reads the stamp in a daily note only, and keeps the text as it stands", async () => {
+    const tasks = await service().listTasks();
+    expect(tasks.map((t) => [t.path, t.text, t.journalTime ?? null, taskNameText(t)])).toEqual([
+      ["Daily/2026-11-05.md", "10:15 Call Anna 📅 2026-11-06 14:30", "10:15", "Call Anna 📅 2026-11-06 14:30"],
+      ["Daily/2026-11-05.md", "Plain task", null, "Plain task"],
+      ["Daily/2026-11-05.md", "09:05:30 Done early", "09:05:30", "Done early"],
+      ["Projects/Calls.md", "10:15 call Anna", null, "10:15 call Anna"],
+    ]);
+    // Its due date and time are still read from the line.
+    expect(tasks[0]).toMatchObject({ due: "2026-11-06", dueTime: "14:30" });
+  });
+
+  it("reads nothing without the daily-note naming", async () => {
+    const db = new MockDatabaseAdapter();
+    db.mockedResults = [[{ path: "Daily/2026-11-05.md", title: "2026-11-05", content: DAILY }]];
+    const tasks = await new VaultQueryService(db).listTasks();
+    expect(tasks.every((t) => t.journalTime === undefined)).toBe(true);
+  });
+
+  it("is the journal's own rule: a time of day, then the text", () => {
+    expect(splitJournalStamp("10:15 Call Anna")).toEqual({ time: "10:15", name: "Call Anna" });
+    expect(splitJournalStamp("7:05 early")).toEqual({ time: "7:05", name: "early" });
+    expect(splitJournalStamp("25:00 not a time")).toBeNull();
+    expect(splitJournalStamp("10:15h meeting")).toBeNull();
+    expect(splitJournalStamp("Call Anna at 10:15")).toBeNull();
+  });
+
+  it("a renamed task keeps its stamp in front; a task without one gets none", () => {
+    expect(withTaskName({ text: "10:15 Call Anna", journalTime: "10:15" }, "Call Anna back")).toBe("10:15 Call Anna back");
+    expect(withTaskName({ text: "10:15 call Anna" }, "call Anna back")).toBe("call Anna back");
+    expect(withTaskName({ text: "Plain task" }, "Renamed")).toBe("Renamed");
+  });
+
+  it("a write finds the line by its text, stamp included", () => {
+    const [task] = scanTasks(DAILY);
+    expect(task.text).toBe("10:15 Call Anna 📅 2026-11-06 14:30");
+    const moved = setChecklistTaskDue(DAILY, 0, "2026-11-07", null);
+    expect(moved.content.split("\n")).toContain("- [ ] 10:15 Call Anna 📅 2026-11-07");
   });
 });

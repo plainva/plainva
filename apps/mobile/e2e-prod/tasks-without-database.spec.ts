@@ -58,6 +58,8 @@ test("no task database: New task opens the sheet, the task becomes a checkbox in
     await page.getByTestId("tasks-list-today").click();
     const today = page.getByTestId("task-planner-section-today");
     await expect(today.getByTestId("task-planner-row").filter({ hasText: "Steuerunterlagen sortieren" })).toHaveAttribute("data-source", "note", { timeout: 20_000 });
+    // Named without the journal's time stamp: that is when it was noted, not what it is called.
+    await expect(today.getByTestId("task-planner-row").filter({ hasText: "Steuerunterlagen sortieren" }).locator(".pv-grouprow-title")).toHaveText("Steuerunterlagen sortieren");
 
     // From another tab, through the ＋ menu, the same sheet.
     await page.locator(".m-tabbar .m-tab", { hasText: "Home" }).click();

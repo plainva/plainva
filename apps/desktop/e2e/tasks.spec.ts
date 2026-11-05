@@ -1485,6 +1485,8 @@ test('without a task database the capture files a checkbox in today\'s daily not
   // …and stands in Today at once, a checkbox like any other.
   const today = page.getByTestId('task-planner-section-today');
   await expect(today.locator('[data-testid="task-planner-row"]', { hasText: 'Steuerunterlagen sortieren' })).toHaveAttribute('data-source', 'note');
+  // Named without the journal's time stamp: that is when it was noted, not what it is called.
+  await expect(today.locator('[data-testid="task-planner-row"]', { hasText: 'Steuerunterlagen sortieren' }).locator('.pv-grouprow-title')).toHaveText('Steuerunterlagen sortieren');
   expect(Object.keys(await page.evaluate(() => (window as any).mockFs)).filter((p) => p.endsWith('.base'))).toEqual([]);
   expect(errors).toEqual([]);
 });

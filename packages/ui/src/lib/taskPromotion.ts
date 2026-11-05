@@ -1,4 +1,4 @@
-import { createFenceTracker, joinSourceLines, scanTasks, sourceLinesOf, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
+import { createFenceTracker, joinSourceLines, scanTasks, taskNameText, sourceLinesOf, trimEndChars, updateVaultText, wikiTargetForPath, type TextUpdateFiles } from "@plainva/core";
 import { TASK_LINE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -143,7 +143,7 @@ export interface PromoteTaskOptions {
   /** Vault-relative path of the note holding the checkbox. */
   sourcePath: string;
   /** The listed task (ordinal + text act as the stale guard). */
-  task: { ordinal: number; text: string; tags: string[]; due: string | null; done: boolean };
+  task: { ordinal: number; text: string; tags: string[]; due: string | null; done: boolean; journalTime?: string };
   /** Vault-relative path of the target `.base`. */
   dbPath: string;
   /** Configured default OKF `type` for new notes. */
@@ -226,7 +226,8 @@ export async function promoteTask(opts: PromoteTaskOptions): Promise<PromoteTask
     return { ok: false, reason: "stale" };
   }
 
-  const title = taskTextToTitle(task.text) || fallbackTitle;
+  // A journal task's time stamp is when it was noted, not part of its title.
+  const title = taskTextToTitle(taskNameText(task)) || fallbackTitle;
   const notePath = await freePath(adapter, target.folder, taskFileStem(title) ?? fallbackTitle);
   const templateText = await readTemplate(adapter, config);
 

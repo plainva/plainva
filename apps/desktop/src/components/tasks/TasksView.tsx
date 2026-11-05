@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
-import { type PimSyncProblem, isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
+import { type PimSyncProblem, isOpenTaskState, taskNameText, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
 import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey, taskDatabaseKey } from "../../contexts/VaultContext";
@@ -1062,7 +1062,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     promote: () => (taskDb ? void promote(task) : void openPromoteMenu(task, at)),
     block:
       calendarOptions.length > 0
-        ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
+        ? () => setBlockTarget({ title: stripTaskMeta(taskNameText(task)) || task.text, due: task.due ?? null, linkPath: task.path })
         : undefined,
     due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, time: task.dueTime ?? null, checkbox: true, change: noteDueChange(task) }),
     priority: () => setPriorityMenu({ at, target: { kind: "note", task } }),
@@ -1483,7 +1483,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                       >
                         <TaskPriorityFlag rank={task.priority} />
                         <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>
-                          {stripTaskMeta(task.text) || task.text ? <TaskTitle text={stripTaskMeta(task.text) || task.text} notePath={task.path} links={titleLinks} linkLookup={linkLookup} /> : t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
+                          {stripTaskMeta(taskNameText(task)) || task.text ? <TaskTitle text={stripTaskMeta(taskNameText(task)) || task.text} notePath={task.path} links={titleLinks} linkLookup={linkLookup} /> : t("tasks.empty", { defaultValue: "Keine Aufgaben" })}
                         </span>
                         <TaskMetadataDetails task={task} />
                       </span>
@@ -1515,7 +1515,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                         data-testid="task-block"
                         onClick={() =>
                           setBlockTarget({
-                            title: stripTaskMeta(task.text) || task.text,
+                            title: stripTaskMeta(taskNameText(task)) || task.text,
                             due: task.due ?? null,
                             // A checkbox has no note of its own — only the event
                             // is created, linking back to the note it lives in.

@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { readTasksMetadata, readTasksPriority, scanTasks } from "@plainva/core";
-import { appendJournalEntry, checkboxTextOfCapture, parseTaskCapture, tasksRecurrenceOf, type CaptureVocabulary, type JournalFiles } from "@plainva/ui";
+import { readTasksMetadata, readTasksPriority, scanTasks, taskNameText, type TaskRecord } from "@plainva/core";
+import { appendJournalEntry, checkboxTextOfCapture, parseTaskCapture, plannerRowsFromTasks, tasksRecurrenceOf, taskTextToTitle, type CaptureVocabulary, type JournalFiles } from "@plainva/ui";
+
+describe("a journal task's name", () => {
+  const record = (text: string, journalTime?: string): TaskRecord => ({ ...scanTasks(`- [ ] ${text}\n`)[0], path: "2026-11-05.md", title: "2026-11-05", excluded: false, ...(journalTime ? { journalTime } : {}) });
+
+  it("every task list shows it without the time it was noted; the line keeps the stamp for every write", () => {
+    const [row] = plannerRowsFromTasks([record("10:15 Steuerunterlagen sortieren #steuer 📅 2026-11-06 14:30", "10:15")]);
+    expect(row.title).toBe("Steuerunterlagen sortieren");
+    expect(row.line?.text).toBe("10:15 Steuerunterlagen sortieren #steuer 📅 2026-11-06 14:30");
+    expect(row.dueMinutes).toBe(14 * 60 + 30);
+  });
+
+  it("a task the index did not mark keeps its time as words: outside a daily note it is the task's own", () => {
+    expect(plannerRowsFromTasks([record("10:15 call Anna")])[0].title).toBe("10:15 call Anna");
+  });
+
+  it("a promoted journal task is titled without the stamp", () => {
+    expect(taskTextToTitle(taskNameText(record("10:15 Call Anna 📅 2026-11-06", "10:15")))).toBe("Call Anna");
+  });
+});
 
 /**
  * A task captured without a task database (plan Rückmeldungen 2026-11-05, E1):

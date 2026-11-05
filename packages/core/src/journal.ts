@@ -119,6 +119,41 @@ export function journalTimeOf(date: Date, withSeconds = false): string {
 }
 
 /**
+ * The journal's stamp at the start of a checkbox's text — `10:15 Call Anna` is
+ * the entry's time and the task's name (plan Rückmeldungen 2026-11-05). The
+ * same rule an entry line is read by, so the two never disagree about what a
+ * stamp is. `null` when the text does not start with one. Whether a stamp is
+ * one at all is the caller's question: only in a daily note, where the journal
+ * writes (`VaultQueryService.listTasks`); anywhere else `- [ ] 10:15 call
+ * Anna` is a task about 10:15.
+ */
+export function splitJournalStamp(text: string): { time: string; name: string } | null {
+  const parts = entryLineParts(`- ${text}`);
+  if (!parts || parts.box !== undefined || secondsOf(parts.h, parts.m, parts.s) === null) return null;
+  return { time: parts.time, name: parts.rest };
+}
+
+/**
+ * What a task is called: its text without the journal stamp the index found in
+ * front of it (`TaskRecord.journalTime`). The text itself — the line as it
+ * stands, what every write finds the task by — keeps the stamp.
+ */
+export function taskNameText(task: { text: string; journalTime?: string }): string {
+  if (!task.journalTime) return task.text;
+  const split = splitJournalStamp(task.text);
+  return split && split.time === task.journalTime ? split.name : task.text;
+}
+
+/**
+ * A task's text after its name was changed to `name`: a journal stamp in
+ * front stays in front, so a renamed task is still the entry of its minute.
+ */
+export function withTaskName(task: { text: string; journalTime?: string }, name: string): string {
+  const split = task.journalTime ? splitJournalStamp(task.text) : null;
+  return split && split.time === task.journalTime ? `${split.time} ${name}` : name;
+}
+
+/**
  * Whether ONE line opens a journal entry, judged without any context — what the
  * sync merge needs, which sees lines and no sections. `parseJournal` is the
  * stricter reader: it also knows the heading and the code fences.
