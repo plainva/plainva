@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-11-03
+Stand: 2026-11-06
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -201,6 +201,10 @@ Die neue Anmeldung deckt nicht alle Dienste ab. Deine bisherigen Zugänge bleibe
 ## Google Drive: offene Downloads
 
 Wenn Google Drive vorübergehend zu viele Anfragen meldet, versucht Plainva den Download mit Abstand erneut. Bleibt ein Download erfolglos, wird er nicht als fehlende Datei oder erledigte Änderung gewertet. Der vorhandene lokale Inhalt und der bestätigte Sync-Stand bleiben erhalten; der nächste Durchlauf versucht die offene Änderung erneut. Erfolgreich geladene Nachbardateien bleiben verfügbar. Fehlende Rechte oder andere dauerhafte Ablehnungen erscheinen mit Dateipfad und Ursache als Fehler. Das gilt auf Desktop und Mobilgeräten.
+
+## Google Drive: Dateien, die Drive nicht mehr meldet
+
+Manchmal führt Google Drive eine Datei nicht mehr auf, die Du auf diesem Gerät geändert hast, und Plainva kann Drive nicht direkt nach ihr fragen, weil es noch keine Kennung dafür hat. Plainva sucht die Datei dann zuerst über ihren genauen Namen. Findet es genau eine, merkt es sich diese Datei und fragt Drive nach ihr; meldet Drive sie als gelöscht, geht die Datei wie jede geänderte Datei wieder hoch. Findet die Namenssuche nichts, weiß Plainva nicht, ob die Datei in Drive gelöscht oder nur aus der Liste ausgelassen wurde, und löscht nie eine Datei, weil Drive keine Antwort gab. Die Datei bleibt mit Deinen Änderungen auf diesem Gerät, und der Sync-Bereich zeigt **N Dateien meldet Google Drive nicht mehr**: am Desktop mit der Liste der Dateien im Hinweis, am Telefon als Hinweis, der die Liste mit **Ansehen** öffnet. **Erneut hochladen** sendet eine Datei als neue Datei, **Alle erneut hochladen** alle; liegt die alte Datei doch noch in Drive, gibt es sie dort danach zweimal. **Ausblenden** stellt den Hinweis weg, bis sich die Menge der Dateien ändert. Das gilt auf Desktop und Mobil.
 
 ## Unterbrochene Dateiübertragungen
 

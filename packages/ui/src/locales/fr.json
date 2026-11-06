@@ -3688,7 +3688,19 @@
     "collisionDone": "Supprimés : {{removed}} · Conservés : {{kept}}",
     "collisionSkipped": "Laissés tels quels : {{count}}. Le contenu a changé ou une étape a échoué.",
     "collisionRestored": "Le cloud a aussi supprimé le fichier synchronisé. Plainva le renvoie depuis cet appareil : {{count}}",
-    "collisionFailed": "Cela n’a pas fonctionné : {{error}}"
+    "collisionFailed": "Cela n’a pas fonctionné : {{error}}",
+    "unverifiedTitle_one": "Google Drive ne signale plus {{count}} fichier",
+    "unverifiedTitle_many": "Google Drive ne signale plus {{count}} fichiers",
+    "unverifiedTitle_other": "Google Drive ne signale plus {{count}} fichiers",
+    "unverifiedSheetTitle": "Fichiers non signalés",
+    "unverifiedBody": "Plainva ne les trouve dans Drive ni par leur identifiant ni par leur nom et ne sait donc pas s’ils y ont été supprimés. Sur cet appareil, ils restent avec vos modifications.",
+    "unverifiedBodyShort": "Ils restent sur cet appareil. Plainva ne sait pas s’ils ont été supprimés dans Drive.",
+    "unverifiedUploadAgain": "Téléverser à nouveau",
+    "unverifiedUploadAll": "Tout téléverser à nouveau",
+    "unverifiedHide": "Masquer",
+    "unverifiedView": "Afficher",
+    "unverifiedTwice": "Si l’ancien fichier existe encore dans Drive, il y sera ensuite en double.",
+    "unverifiedDone": "En attente de téléversement : {{count}}"
   },
   "sidebar": {
     "files": "Fichiers",

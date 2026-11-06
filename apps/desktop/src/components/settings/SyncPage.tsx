@@ -27,6 +27,7 @@ import {
   type CloudAccountRecord,
   type SyncDiagnostics,
   NameCollisionsNotice,
+  UnverifiedFilesNotice,
   resolveNameCollisionCases,
 } from "@plainva/ui";
 import { groupNameCollisions, type JournalCheckResult } from "@plainva/core";
@@ -519,6 +520,16 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           })
         }
       />
+
+      {/* Files Google Drive no longer reports and that could not be asked about
+          (D7): kept as they are, named here, "Upload again" per file or all. */}
+      {syncSnapshot && (
+        <UnverifiedFilesNotice
+          paths={syncSnapshot.unverifiedFiles}
+          vaultKey={p.selectedVault}
+          onUploadAgain={async (paths) => (await syncWorker?.uploadUnverifiedAgain?.(paths)) ?? 0}
+        />
+      )}
 
       {/* "Connection" and "Behaviour" are one group since the cloud folder and
           the interval moved to the account's files page (B1, move 18): the

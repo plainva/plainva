@@ -3518,7 +3518,17 @@
     "collisionDone": "削除: {{removed}} · 保持: {{kept}}",
     "collisionSkipped": "変更なし: {{count}}。内容が変わったか、処理の一部が失敗しました。",
     "collisionRestored": "クラウドは同期中のファイルも削除しました。Plainva はこのデバイスから再アップロードします: {{count}}",
-    "collisionFailed": "うまくいきませんでした: {{error}}"
+    "collisionFailed": "うまくいきませんでした: {{error}}",
+    "unverifiedTitle_other": "Google ドライブが報告しなくなったファイル: {{count}} 件",
+    "unverifiedSheetTitle": "報告されないファイル",
+    "unverifiedBody": "Plainva はこれらをドライブで ID でも名前でも見つけられないため、ドライブ側で削除されたかどうか分かりません。この端末には、あなたの変更を含めて残ります。",
+    "unverifiedBodyShort": "この端末には残ります。ドライブ側で削除されたかどうかは Plainva には分かりません。",
+    "unverifiedUploadAgain": "もう一度アップロード",
+    "unverifiedUploadAll": "すべてもう一度アップロード",
+    "unverifiedHide": "非表示",
+    "unverifiedView": "表示",
+    "unverifiedTwice": "古いファイルがドライブにまだある場合は、その後ドライブに二つ存在することになります。",
+    "unverifiedDone": "アップロード待ちにしました: {{count}} 件"
   },
   "sidebar": {
     "files": "ファイル",

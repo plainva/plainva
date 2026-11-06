@@ -155,6 +155,26 @@ describe("Drive — asked about the object, not the search", () => {
     expect(await target.probeExists({ path: "b.md" })).toBe("unknown");
   });
 
+  it("a name search gives an id only for exactly one file of the exact name, and never deletes", async () => {
+    let files: Array<{ id: string; name: string }> = [{ id: "f1", name: "a.md" }];
+    const { target, fetchFn } = drive(async (url) => {
+      const u = String(url);
+      if (isFolderLookup(u)) return res({ files: [{ id: "root", name: "Plainva" }] });
+      if (u.includes("/drive/v3/files?")) return res({ files });
+      throw new Error(`unexpected ${u}`);
+    });
+    expect(await target.lookupRemoteId("a.md")).toBe("f1");
+    files = [];
+    expect(await target.lookupRemoteId("b.md")).toBeNull();
+    // Another note whose name differs only in case is no hit.
+    files = [{ id: "f9", name: "C.md" }];
+    expect(await target.lookupRemoteId("c.md")).toBeNull();
+    // Two files of one name cannot be told apart: no id, no guess.
+    files = [{ id: "f2", name: "d.md" }, { id: "f3", name: "d.md" }];
+    expect(await target.lookupRemoteId("d.md")).toBeNull();
+    expect(fetchFn.mock.calls.every((c: any) => (c[1]?.method ?? "GET") === "GET")).toBe(true);
+  });
+
   it("a full listing carries every file id and its own counters", async () => {
     const { target } = drive(async (url) => {
       // URLSearchParams writes a space as "+".

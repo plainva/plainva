@@ -3688,7 +3688,19 @@
     "collisionDone": "Removidos: {{removed}} · Mantidos: {{kept}}",
     "collisionSkipped": "Deixados sem alteração: {{count}}. O conteúdo mudou ou uma etapa falhou.",
     "collisionRestored": "A nuvem também removeu o arquivo sincronizado. O Plainva o envia de novo a partir daqui: {{count}}",
-    "collisionFailed": "Não deu certo: {{error}}"
+    "collisionFailed": "Não deu certo: {{error}}",
+    "unverifiedTitle_one": "O Google Drive não informa mais {{count}} arquivo",
+    "unverifiedTitle_many": "O Google Drive não informa mais {{count}} arquivos",
+    "unverifiedTitle_other": "O Google Drive não informa mais {{count}} arquivos",
+    "unverifiedSheetTitle": "Arquivos não informados",
+    "unverifiedBody": "O Plainva não os encontra no Drive nem pelo identificador nem pelo nome e, por isso, não sabe se foram excluídos lá. Neste dispositivo eles ficam com as suas alterações.",
+    "unverifiedBodyShort": "Eles ficam neste dispositivo. O Plainva não sabe se foram excluídos no Drive.",
+    "unverifiedUploadAgain": "Enviar novamente",
+    "unverifiedUploadAll": "Enviar todos novamente",
+    "unverifiedHide": "Ocultar",
+    "unverifiedView": "Ver",
+    "unverifiedTwice": "Se o arquivo antigo ainda estiver no Drive, depois haverá dois lá.",
+    "unverifiedDone": "Na fila para envio: {{count}}"
   },
   "sidebar": {
     "files": "Arquivos",

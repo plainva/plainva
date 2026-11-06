@@ -3773,7 +3773,20 @@
     "collisionDone": "Usunięte: {{removed}} · Zachowane: {{kept}}",
     "collisionSkipped": "Pozostawione bez zmian: {{count}}. Treść się zmieniła albo któryś krok się nie powiódł.",
     "collisionRestored": "Chmura usunęła też synchronizowany plik. Plainva wysyła go ponownie z tego urządzenia: {{count}}",
-    "collisionFailed": "To się nie udało: {{error}}"
+    "collisionFailed": "To się nie udało: {{error}}",
+    "unverifiedTitle_one": "Google Drive nie zgłasza już {{count}} pliku",
+    "unverifiedTitle_few": "Google Drive nie zgłasza już {{count}} plików",
+    "unverifiedTitle_many": "Google Drive nie zgłasza już {{count}} plików",
+    "unverifiedTitle_other": "Google Drive nie zgłasza już {{count}} pliku",
+    "unverifiedSheetTitle": "Niezgłaszane pliki",
+    "unverifiedBody": "Plainva nie znajduje ich w Dysku ani po identyfikatorze, ani po nazwie, więc nie wie, czy zostały tam usunięte. Na tym urządzeniu zostają z Twoimi zmianami.",
+    "unverifiedBodyShort": "Zostają na tym urządzeniu. Plainva nie wie, czy zostały usunięte z Dysku.",
+    "unverifiedUploadAgain": "Wyślij ponownie",
+    "unverifiedUploadAll": "Wyślij ponownie wszystkie",
+    "unverifiedHide": "Ukryj",
+    "unverifiedView": "Pokaż",
+    "unverifiedTwice": "Jeśli stary plik nadal jest na Dysku, potem będzie tam dwa razy.",
+    "unverifiedDone": "Zaplanowano do wysłania: {{count}}"
   },
   "sidebar": {
     "files": "Pliki",

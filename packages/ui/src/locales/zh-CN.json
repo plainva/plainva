@@ -3518,7 +3518,17 @@
     "collisionDone": "已移除：{{removed}} · 已保留：{{kept}}",
     "collisionSkipped": "保持不变：{{count}}。内容已更改或某一步失败。",
     "collisionRestored": "云端也移除了已同步的文件。Plainva 会从此处重新上传：{{count}}",
-    "collisionFailed": "未能完成：{{error}}"
+    "collisionFailed": "未能完成：{{error}}",
+    "unverifiedTitle_other": "Google 云端硬盘不再报告 {{count}} 个文件",
+    "unverifiedSheetTitle": "未报告的文件",
+    "unverifiedBody": "Plainva 在云端硬盘中既无法通过 ID 也无法通过名称找到它们，因此不知道它们是否已在那里被删除。它们会连同你的更改保留在此设备上。",
+    "unverifiedBodyShort": "它们会保留在此设备上。Plainva 不知道它们是否已在云端硬盘中被删除。",
+    "unverifiedUploadAgain": "重新上传",
+    "unverifiedUploadAll": "全部重新上传",
+    "unverifiedHide": "隐藏",
+    "unverifiedView": "查看",
+    "unverifiedTwice": "如果旧文件仍在云端硬盘中，之后那里将有两份。",
+    "unverifiedDone": "已加入上传队列：{{count}} 个"
   },
   "sidebar": {
     "files": "文件",

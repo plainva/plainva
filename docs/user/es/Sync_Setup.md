@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-11-03
+Última actualización: 2026-11-06
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -201,6 +201,10 @@ El nuevo acceso no cubre todos los servicios. Se conservaron tus accesos anterio
 ## Google Drive: descargas pendientes
 
 Cuando Google Drive limita temporalmente las solicitudes, Plainva vuelve a intentar la descarga tras una pausa. Una descarga fallida no se considera un archivo ausente ni un cambio completado. Se conservan el contenido local y el estado de sincronización confirmado; el siguiente ciclo vuelve a intentar el cambio pendiente. Los demás archivos descargados siguen disponibles. Los permisos insuficientes u otros rechazos permanentes aparecen como errores con la ruta y la causa. Esto se aplica en escritorio y móvil.
+
+## Google Drive: archivos que Drive ya no informa
+
+A veces Google Drive ya no lista un archivo que cambiaste en este dispositivo, y Plainva no puede preguntar a Drive directamente por él porque aún no tiene un identificador. Plainva busca primero el archivo por su nombre exacto. Si encuentra exactamente uno, lo recuerda y pregunta a Drive por él; si Drive dice que ya no existe, el archivo se vuelve a subir como cualquier archivo modificado. Si la búsqueda por nombre no encuentra nada, Plainva no sabe si el archivo se eliminó en Drive o solo falta en la lista, y nunca elimina un archivo porque Drive no respondiera. El archivo se queda en este dispositivo con tus cambios y el área de sincronización muestra **Google Drive ya no informa de N archivos**: en el escritorio con la lista de archivos en el aviso, en el teléfono como un aviso que abre la lista con **Ver**. **Subir de nuevo** envía un archivo como archivo nuevo, **Subir todos de nuevo** todos; si el archivo antiguo sigue en Drive, después estará allí dos veces. **Ocultar** guarda el aviso hasta que cambie el conjunto de archivos. Esto vale en el escritorio y en el móvil.
 
 ## Transferencias de archivos interrumpidas
 

@@ -3603,7 +3603,18 @@
     "collisionDone": "Entfernt: {{removed}} · Behalten: {{kept}}",
     "collisionSkipped": "Unverändert gelassen: {{count}}. Der Inhalt hat sich geändert oder ein Schritt ist fehlgeschlagen.",
     "collisionRestored": "Die Cloud hat auch die abgeglichene Datei entfernt. Plainva lädt sie von hier neu hoch: {{count}}",
-    "collisionFailed": "Das hat nicht geklappt: {{error}}"
+    "collisionFailed": "Das hat nicht geklappt: {{error}}",
+    "unverifiedTitle_one": "{{count}} Datei meldet Google Drive nicht mehr",
+    "unverifiedTitle_other": "{{count}} Dateien meldet Google Drive nicht mehr",
+    "unverifiedSheetTitle": "Nicht gemeldete Dateien",
+    "unverifiedBody": "Plainva findet sie in Drive weder über ihre Kennung noch über ihren Namen und weiß deshalb nicht, ob sie dort gelöscht wurden. Auf diesem Gerät bleiben sie mit Deinen Änderungen erhalten.",
+    "unverifiedBodyShort": "Auf diesem Gerät bleiben sie erhalten. Plainva weiß nicht, ob sie in Drive gelöscht wurden.",
+    "unverifiedUploadAgain": "Erneut hochladen",
+    "unverifiedUploadAll": "Alle erneut hochladen",
+    "unverifiedHide": "Ausblenden",
+    "unverifiedView": "Ansehen",
+    "unverifiedTwice": "Liegt die alte Datei doch noch in Drive, gibt es sie dort danach zweimal.",
+    "unverifiedDone": "Zum Hochladen vorgemerkt: {{count}}"
   },
   "sidebar": {
     "files": "Dateien",

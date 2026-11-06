@@ -626,6 +626,17 @@ export class SyncWorker {
   public onFullListingTrusted?: () => void;
   /** Fired after every cycle that mirrored or held back at least one deletion. */
   public onDeletionReport?: (report: DeletionReport) => void;
+  /**
+   * Files with changes of this device that the remote's listing no longer
+   * carries and that could not be asked for by an id of their own (a Drive row
+   * without an id, whose name search finds nothing): neither deleted nor
+   * uploaded, because nothing says whether the original still exists. Reported
+   * whenever the set changes, an empty list included, so the shell can name
+   * them and offer "upload again" (`uploadUnverifiedAgain`).
+   */
+  public onUnverifiedFiles?: (paths: readonly string[]) => void;
+  private unverifiedPaths = new Set<string>();
+  private unverifiedSignaled = "";
   private readonly deletionJournal?: DeletionJournal;
   /**
    * The conflict copy the byte-wise reconcile wrote for a path, by the hash of
@@ -1556,11 +1567,76 @@ export class SyncWorker {
     if (!this.target.probeExists) return "unknown";
     this.noteCycleActivity();
     try {
-      return await this.target.probeExists({ path, remoteId: state?.remote_id ?? null });
+      let remoteId = state?.remote_id ?? null;
+      // A row without an id leaves an id-based provider nothing to ask the
+      // object about. A name search that finds exactly one file of that name
+      // proves it is there and gives the id to remember: from then on the file
+      // is asked for by its id like any other, and an answer of "gone" is the
+      // object's own (finding 2026-09-20; D7). A search that finds nothing
+      // proves nothing and leaves the file "unknown".
+      if (!remoteId && state && this.target.lookupRemoteId) {
+        const found = await this.target.lookupRemoteId(path);
+        if (found) {
+          remoteId = found;
+          state.remote_id = found;
+          await this.stateRepo.updateRemoteId(path, found).catch((e) => console.warn(`[SyncWorker] could not record the remote id of ${path}`, e));
+        }
+      }
+      return await this.target.probeExists({ path, remoteId });
     } catch (e) {
       console.warn(`[SyncWorker] existence probe failed for ${path}; treated as unknown`, e);
       return "failed";
     }
+  }
+
+  /** The files the remote does not report any more and could not be asked about (see `onUnverifiedFiles`). */
+  public getUnverifiedFiles(): string[] {
+    return [...this.unverifiedPaths].sort();
+  }
+
+  private publishUnverified(next: Iterable<string>): void {
+    this.unverifiedPaths = new Set(next);
+    const signature = this.getUnverifiedFiles().join("\n");
+    if (signature === this.unverifiedSignaled) return;
+    this.unverifiedSignaled = signature;
+    try {
+      this.onUnverifiedFiles?.(this.getUnverifiedFiles());
+    } catch (e) {
+      console.error("[SyncWorker] onUnverifiedFiles consumer failed:", e);
+    }
+  }
+
+  /**
+   * "Upload again" for files that stay unverified (D7): the row goes, so the
+   * push treats the file as new instead of as an update to a remote file it
+   * cannot find, and the write is queued. Nothing is deleted anywhere. If the
+   * old file still exists in Drive there are two of them afterwards, which the
+   * person was told. A file still to be compared with the server's copy
+   * (`SyncState.recheck`) takes the way of a kept file instead. Returns how
+   * many files were queued.
+   */
+  public async uploadUnverifiedAgain(paths?: readonly string[]): Promise<number> {
+    const wanted = (paths ?? this.getUnverifiedFiles()).filter((p) => this.unverifiedPaths.has(p));
+    let queued = 0;
+    const rest = new Set(this.unverifiedPaths);
+    for (const p of wanted) {
+      if (!(await this.vault.exists(p))) {
+        rest.delete(p);
+        continue;
+      }
+      if ((await this.stateRepo.getSyncState(p))?.recheck) {
+        this.keptMissingPaths.add(p);
+        continue;
+      }
+      await this.stateRepo.deleteSyncState(p);
+      await this.queue.queueWrite(p);
+      this.keptMissingPaths.delete(p);
+      rest.delete(p);
+      queued++;
+    }
+    this.publishUnverified(rest);
+    if (queued > 0) this.triggerImmediate();
+    return queued;
   }
 
   /** Keeps `remoteView` in step with a listing (see there). */
@@ -2436,7 +2512,10 @@ export class SyncWorker {
       // assignments and would type the variable as `null` for good.
       const incompleteListing = (): ListingIncompleteInfo | null => listingIncomplete;
       const deletionReport: DeletionReport = { mirrored: 0, explained: 0, keptLocalEdits: [] };
+      // Files of this full listing the remote could not be asked about (D7).
+      const unverifiedNow = new Set<string>();
       const noteMirror = (path: string, outcome: MirrorDeletionOutcome, explained: boolean) => {
+        if (outcome === "unverified") unverifiedNow.add(path);
         if (outcome === "deleted") {
           deletionReport.mirrored++;
           if (explained) deletionReport.explained++;
@@ -2543,6 +2622,7 @@ export class SyncWorker {
                 movedButPresent.push(candidate.path);
               }
               else if (outcome === "keptLocalEdits") deletionReport.keptLocalEdits.push(candidate.path);
+              else if (outcome === "unverified") unverifiedNow.add(candidate.path);
             });
           }
         }
@@ -2682,6 +2762,12 @@ export class SyncWorker {
             }
           } else {
             await mirrorVerified(open, false);
+            // Replaced only by a pass that went through every file: a pass cut
+            // short by a contradicting listing says nothing about the rest.
+            if (!listingIncomplete && alive()) {
+              for (const p of unverifiedNow) if (excludedFromSync(p)) unverifiedNow.delete(p);
+              this.publishUnverified(unverifiedNow);
+            }
             if (!listingIncomplete) {
               // Condition cleared (listing complete again, or the answer was carried
               // out): re-arm the guard for a NEW incident.

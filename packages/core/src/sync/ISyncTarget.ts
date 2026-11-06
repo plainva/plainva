@@ -278,6 +278,13 @@ export interface ISyncTarget {
    */
   probeExists?(probe: RemoteProbe): Promise<RemotePresence>;
   /**
+   * Optional, for an id-based provider: the id of the ONE file that carries
+   * this path's exact name, found by a name search; null when the search finds
+   * none or cannot say. A hit is evidence of presence and gives the worker an id
+   * to ask the object about (`probeExists`); null is never evidence of absence.
+   */
+  lookupRemoteId?(path: string): Promise<string | null>;
+  /**
    * Optional: a fresh change token representing "now", for change-token providers (Drive
    * `changes.getStartPageToken`). The worker fetches one right before a full listing and
    * then passes it to `pull(cursor)` on subsequent cycles to fetch only what changed —

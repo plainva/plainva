@@ -3688,7 +3688,19 @@
     "collisionDone": "Rimossi: {{removed}} · Conservati: {{kept}}",
     "collisionSkipped": "Lasciati invariati: {{count}}. Il contenuto è cambiato o un passaggio non è riuscito.",
     "collisionRestored": "Il cloud ha rimosso anche il file sincronizzato. Plainva lo carica di nuovo da qui: {{count}}",
-    "collisionFailed": "Non ha funzionato: {{error}}"
+    "collisionFailed": "Non ha funzionato: {{error}}",
+    "unverifiedTitle_one": "Google Drive non segnala più {{count}} file",
+    "unverifiedTitle_many": "Google Drive non segnala più {{count}} file",
+    "unverifiedTitle_other": "Google Drive non segnala più {{count}} file",
+    "unverifiedSheetTitle": "File non segnalati",
+    "unverifiedBody": "Plainva non li trova in Drive né tramite l’ID né tramite il nome e quindi non sa se siano stati eliminati lì. Su questo dispositivo restano con le tue modifiche.",
+    "unverifiedBodyShort": "Restano su questo dispositivo. Plainva non sa se sono stati eliminati in Drive.",
+    "unverifiedUploadAgain": "Carica di nuovo",
+    "unverifiedUploadAll": "Carica di nuovo tutti",
+    "unverifiedHide": "Nascondi",
+    "unverifiedView": "Mostra",
+    "unverifiedTwice": "Se il vecchio file esiste ancora in Drive, dopo ci sarà due volte.",
+    "unverifiedDone": "In coda per il caricamento: {{count}}"
   },
   "sidebar": {
     "files": "File",
