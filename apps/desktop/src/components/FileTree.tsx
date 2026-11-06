@@ -28,6 +28,7 @@ import { listVaultFolders } from "../services/vaultFolders";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder, newOverviewPlacements, pinLinksBeforeOverviews, withPinnedLinks } from "../services/indexMd";
 import { opensExternally } from "@plainva/ui";
+import { deleteWithNet } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { flushUnsavedBeforeMove } from "../services/moveFlush";
 import { serializeBaseConfig } from "@plainva/ui";
@@ -916,7 +917,9 @@ export const FileTree: React.FC<{
     // Confirmation travels with this actual filesystem deletion.
 
     try {
-      await vaultAdapter.deleteItem(path, true, { confirmed: true });
+      // Through the net rule of a deletion: where neither the trash nor a
+      // snapshot can keep what goes, the person is asked first (D1).
+      if (!(await deleteWithNet(vaultAdapter, path, true))) return;
     } catch (err: any) {
       // Names the item and says it is STILL THERE — the trash-unavailable
       // warning says the opposite (deleted permanently), and the two used to be
@@ -996,7 +999,8 @@ export const FileTree: React.FC<{
     const deletedOps: { type: "delete"; path: string; isFolder: boolean }[] = [];
     for (const p of roots) {
       try {
-        await vaultAdapter.deleteItem(p, true, { confirmed: true });
+        // Kept where the person said "Cancel" to "Delete without a backup?" (D1).
+        if (!(await deleteWithNet(vaultAdapter, p, true))) continue;
         onCloseTabsByPrefix?.(p);
         deletedOps.push({ type: "delete", path: p, isFolder: folderPaths.has(p) });
       } catch (err) {

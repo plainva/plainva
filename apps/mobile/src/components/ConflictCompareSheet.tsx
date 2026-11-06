@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, ConflictHistory, FileComparisonDetails, comparesAsText, conflictCopyStamp, toast, versionCopyPath } from "@plainva/ui";
+import { Banner, Button, ConflictHistory, FileComparisonDetails, comparesAsText, conflictCopyStamp, settleWithNet, toast, versionCopyPath } from "@plainva/ui";
 import { assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, isNotTextFileError, seeConflictCopy, separateTaskConflict, settleConflictCopy, settleConflictText, type ConflictCopySight } from "@plainva/core";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { CompareVersions } from "./CompareVersions";
@@ -145,7 +145,8 @@ export function ConflictCompareSheet({
     window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: originalPath, vaultId: vault.vaultId } }));
   };
 
-  const run = async (work: () => Promise<string[]>) => {
+  /** `work` answers null where the person kept the copy at "Delete without a backup?" (D1): nothing changed. */
+  const run = async (work: () => Promise<string[] | null>) => {
     if (running.current || !sidesKnown) return;
     running.current = true;
     setBusy(true);
@@ -157,6 +158,10 @@ export function ConflictCompareSheet({
       // bytes that were seen — the byte-wise exits ask that themselves.
       if (!notText) await assertComparisonUnchanged(vault.files, originalPath, originalSnapshot.current, conflictPath, copy!);
       const touched = await work();
+      if (touched === null) {
+        setBusy(false);
+        return;
+      }
       tellEditorOf();
       await finish(touched);
     } catch (e) {
@@ -184,7 +189,7 @@ export function ConflictCompareSheet({
       // means to take a file's place.
       await run(async () => {
         if (await vault.files.exists(originalPath)) await vault.backup?.forceBackup(originalPath);
-        await settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "adopt" });
+        if (!(await settleWithNet((noNet) => settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "adopt", ...noNet })))) return null;
         toast.success(t("compare.resolvedAdopted"));
         return [originalPath, conflictPath];
       });
@@ -198,7 +203,7 @@ export function ConflictCompareSheet({
       // losing version back. Checked and written in one step, for an open
       // conflict's working copy and a copy beside the note alike
       // (`settleConflictText`, § 3.86 no. 8).
-      await settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: taken }, { disposition: "adopt", content: taken });
+      if (!(await settleWithNet((noNet) => settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: taken }, { disposition: "adopt", content: taken, ...noNet })))) return null;
       toast.success(t("compare.resolvedAdopted"));
       return [originalPath, conflictPath];
     });
@@ -217,7 +222,7 @@ export function ConflictCompareSheet({
     if (notText && seen) {
       // The copy becomes a file of its own, as it lies there.
       await run(async () => {
-        await settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "discard", keepCopyAs: candidate });
+        if (!(await settleWithNet((noNet) => settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "discard", keepCopyAs: candidate, ...noNet })))) return null;
         toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
         return [conflictPath, candidate];
       });
@@ -227,7 +232,7 @@ export function ConflictCompareSheet({
     await run(async () => {
       const session = differentTasks ? await vault.files.getConflictSession?.(originalPath) : null;
       if (differentTasks && session?.workingCopyPath !== conflictPath) await separateTaskConflict(vault.files, originalPath, held, conflictPath, kept, candidate);
-      else await settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: kept }, { disposition: "discard", keepCopyAs: candidate });
+      else if (!(await settleWithNet((noNet) => settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: kept }, { disposition: "discard", keepCopyAs: candidate, ...noNet })))) return null;
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return [conflictPath, candidate];
     });
@@ -246,14 +251,14 @@ export function ConflictCompareSheet({
     if (notText && seen) {
       // The copy goes; the file stays as it lies.
       await run(async () => {
-        await settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "discard" });
+        if (!(await settleWithNet((noNet) => settleConflictCopy(vault.files, originalPath, conflictPath, seen, { disposition: "discard", ...noNet })))) return null;
         toast.success(t("compare.resolvedDiscarded"));
         return [conflictPath];
       });
       return;
     }
     await run(async () => {
-      await settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: copy! }, { disposition: "discard" });
+      if (!(await settleWithNet((noNet) => settleConflictText(vault.files, originalPath, conflictPath, { original: originalSnapshot.current, copy: copy! }, { disposition: "discard", ...noNet })))) return null;
       toast.success(t("compare.resolvedDiscarded"));
       return [conflictPath];
     });

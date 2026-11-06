@@ -1,5 +1,5 @@
 import type { IVaultAdapter } from "@plainva/core";
-import { pinboardDraftLedger, sweepPinboardDrafts, type PinboardDraftSweep, type PinboardDraftSweepFiles } from "@plainva/ui";
+import { deleteWithNet, pinboardDraftLedger, sweepPinboardDrafts, type PinboardDraftSweep, type PinboardDraftSweepFiles } from "@plainva/ui";
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { notifyFileOps } from "./indexMdAutoUpdate";
 
@@ -9,12 +9,16 @@ import { notifyFileOps } from "./indexMdAutoUpdate";
  * like any other), the trash for the delete itself, then the index and the
  * managed overviews (plan Befunde 2026-09-24, E15).
  */
-export function desktopDraftFiles(adapter: IVaultAdapter, indexer: RenameReindexer | null): PinboardDraftSweepFiles {
+export function desktopDraftFiles(adapter: IVaultAdapter, indexer: RenameReindexer | null, background = false): PinboardDraftSweepFiles {
   return {
     exists: (path) => adapter.exists(path),
     readBytes: (path) => adapter.readBinaryFile(path),
     remove: async (path) => {
-      await adapter.deleteItem(path, false, { confirmed: true });
+      // The person's draft asks "Delete without a backup?" where no net is
+      // there (D1); the sweep at the vault's opening asks nobody, and a draft
+      // it cannot delete with a net stays (the sweep keeps it remembered).
+      if (background) await adapter.deleteItem(path, false, { confirmed: true });
+      else if (!(await deleteWithNet(adapter, path, false))) return;
       if (indexer) await applyIndexChanges(indexer, { removed: [path] }).catch(() => {});
       notifyFileOps([{ type: "delete", path }]);
     },
@@ -27,5 +31,5 @@ export function desktopDraftFiles(adapter: IVaultAdapter, indexer: RenameReindex
  * draft goes the way closing its window would have taken it.
  */
 export function sweepDesktopPinboardDrafts(vaultPath: string, adapter: IVaultAdapter, indexer: RenameReindexer | null): Promise<PinboardDraftSweep> {
-  return sweepPinboardDrafts(desktopDraftFiles(adapter, indexer), pinboardDraftLedger(vaultPath));
+  return sweepPinboardDrafts(desktopDraftFiles(adapter, indexer, true), pinboardDraftLedger(vaultPath));
 }

@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -224,7 +224,7 @@ Snapshots (version history), a draft journal (after a crash the note offers your
 
 **Differences** opens the same comparison surface as on the desktop: the note on the left, your copy on the right, identical lines collapsed, and the same exits — **adopt**, **keep both** (the copy is then named `Note (Version …).md`), **discard copy**, each asking first.
 
-**When you delete a folder**, the prompt names how many files are inside — the number is on the button as well. Plainva snapshots every file in it first, and you can bring those back under **Settings** → **Backup & version history** → **Restore deleted files**. The dialog states one limit openly: **only what this phone has written at least once can be preserved.** A note that merely arrived through synchronisation and was never edited here exists in no snapshot. Unlike the desktop, a phone has no system trash to catch that. If the deletion affects more than ten files, or more than a fifth of the vault, Plainva asks a second time — exactly as the desktop does.
+**When you delete a folder**, the prompt names how many files are inside — the number is on the button as well. A phone has no system trash, so Plainva snapshots every file in it first, and you can bring those back under **Settings** → **Backup & version history** → **Restore deleted files**. If a snapshot cannot be written — a full phone is enough — Plainva does not delete silently: it asks **Delete without a backup?**, names the files that would be gone and suggests checking the free storage; **Cancel** keeps them, only **Delete anyway** deletes. The same question comes for a single file, a selection, a conflict copy you delete and a task copy you clean up. If the deletion affects more than ten files, or more than a fifth of the vault, Plainva asks a second time — exactly as the desktop does.
 
 ## Sharing and shortcuts
 

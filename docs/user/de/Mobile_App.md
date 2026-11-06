@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-11-05
+Stand: 2026-11-06
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -224,7 +224,7 @@ Snapshots (Versionsverlauf), ein Entwurfs-Journal (nach einem Absturz bietet die
 
 Die **Unterschiede** öffnen dieselbe Vergleichsfläche wie am Desktop: links die Notiz, rechts Deine Kopie, gleiche Zeilen eingeklappt, und dieselben Ausgänge — **übernehmen**, **beide behalten** (die Kopie heißt dann `Notiz (Version …).md`), **Kopie verwerfen**, jeder mit Rückfrage.
 
-**Beim Löschen eines Ordners** nennt die Rückfrage, wie viele Dateien darin liegen — die Zahl steht auch auf dem Knopf. Plainva legt vorher von jeder Datei darin einen Snapshot an, den Du unter **Einstellungen** → **Backup & Versionierung** → **Gelöschte Dateien wiederherstellen** zurückholen kannst. Eine Grenze nennt der Dialog offen: **gesichert werden kann nur, was dieses Telefon schon einmal geschrieben hat.** Eine Notiz, die nur per Synchronisation angekommen und hier nie bearbeitet wurde, liegt in keinem Snapshot. Anders als am Desktop gibt es auf dem Telefon keinen Papierkorb des Systems, der das auffangen würde. Betrifft die Löschung mehr als zehn Dateien oder mehr als ein Fünftel des Vaults, fragt Plainva ein zweites Mal — genau wie am Desktop.
+**Beim Löschen eines Ordners** nennt die Rückfrage, wie viele Dateien darin liegen — die Zahl steht auch auf dem Knopf. Ein Telefon hat keinen Papierkorb des Systems, deshalb sichert Plainva vorher jede Datei darin als Snapshot, und Du holst sie unter **Einstellungen** → **Backup & Versionierung** → **Gelöschte Dateien wiederherstellen** zurück. Lässt sich ein Snapshot nicht schreiben — ein volles Telefon reicht —, löscht Plainva nicht still: Es fragt **Ohne Sicherung löschen?**, nennt die Dateien, die weg wären, und rät, den freien Speicher zu prüfen; **Abbrechen** behält sie, nur **Trotzdem löschen** löscht. Dieselbe Frage kommt für eine einzelne Datei, eine Auswahl, eine Konfliktkopie, die Du löschst, und eine Aufgabenkopie, die Du aufräumst. Betrifft das Löschen mehr als zehn Dateien oder mehr als ein Fünftel des Vaults, fragt Plainva ein zweites Mal — genau wie am Desktop.
 
 ## Teilen und Verknüpfungen
 

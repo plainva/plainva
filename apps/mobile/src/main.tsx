@@ -23,6 +23,7 @@ import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { applyMobileSlashSupport } from "./services/slashSupport";
 import App from "./App";
 import { registerSignInHandler } from "./services/accountSignIn";
+import { installDeletionNetQuestion } from "./services/deletionNetInstall";
 
 // A black screen on a real device (TestFlight) gives no clue why the app
 // failed to mount. This overlay renders any boot/runtime error straight into
@@ -129,6 +130,9 @@ registerMailSignIn();
 
 // The one account sign-in (account sign-in plan K4): its consent may come back after a cold start.
 registerSignInHandler();
+
+// "Delete without a backup?" where a deletion has no net (D1, data-safety plan 2026-11-06).
+installDeletionNetQuestion();
 
 async function boot(): Promise<void> {
   // Never let an init failure blank the screen: log and render anyway, so an

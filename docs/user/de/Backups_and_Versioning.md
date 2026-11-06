@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-11-05
+Stand: 2026-11-06
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -33,7 +33,7 @@ Auch Bilder haben Versionen (mit Vorschau); andere Binärdateien lassen sich ohn
 
 Da jedes Löschen vorher einen Snapshot anlegt, kann Plainva gelöschte Dateien zurückholen: Rechtsklick auf den Vault-Namen ganz oben im Dateibaum → **Gelöschte Dateien wiederherstellen…** (auch unter **Einstellungen → Vault → Backup & Versionierung → Versionsverlauf** erreichbar). Die Liste zeigt alle Dateien, deren Snapshots noch da sind, das Original aber fehlt — **Wiederherstellen** legt die jüngste Fassung am ursprünglichen Ort wieder an (Ordner werden bei Bedarf neu erstellt), **Versionen…** öffnet die komplette Historie der gelöschten Datei.
 
-Hinweis: Wird ein **ganzer Ordner** gelöscht, landet er im Papierkorb des Betriebssystems — für diesen Fall ist der System-Papierkorb der erste Weg; in Plainva findest Du dann ggf. nur ältere Snapshots der enthaltenen Dateien.
+**Gelöscht wird nur mit Netz.** Eine gelöschte Datei oder ein gelöschter Ordner landet im Papierkorb des Betriebssystems; eine Datei sichert Plainva vorher zusätzlich als Snapshot, damit die Liste oben sie findet. Wo der Papierkorb nicht verfügbar ist — etwa auf einem Netzlaufwerk —, sichert Plainva jede Datei, die gehen würde, auch die eines Ordners, bevor es endgültig löscht, und sagt das. Nur wenn auch diese Sicherung nicht gelingt (ein voller Datenträger reicht), fragt es **Ohne Sicherung löschen?** und nennt die Dateien, die weg wären: **Abbrechen** behält alles, nur **Trotzdem löschen** löscht. Das Telefon hat gar keinen Papierkorb; dort wird jede gelöschte Datei vorher gesichert, und dieselbe Frage kommt, wo das scheitert (siehe [Die mobile App](Mobile_App.md)).
 
 ## Automatische Vault-Backups (ZIP)
 

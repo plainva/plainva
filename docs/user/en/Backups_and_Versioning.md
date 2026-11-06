@@ -1,6 +1,6 @@
 # Backups & Version History
 
-Last reviewed: 2026-11-05
+Last reviewed: 2026-11-06
 
 Plainva protects your work on two levels: **file versions** (automatic snapshots of every single file as you edit and delete) and **vault backups** (regular ZIP archives of the whole vault, stored outside the vault folder). Both run in the background without any setup and can be tuned in the settings under **Backup & version history**.
 
@@ -33,7 +33,7 @@ Images have versions too (with preview); other binary files can be restored with
 
 Because every deletion snapshots the file first, Plainva can bring deleted files back: right-click the vault name at the top of the file tree → **Restore deleted files…** (also reachable under **Settings → Vault → Backup & version history → Version history**). The list shows all files whose snapshots still exist while the original is gone — **Restore** recreates the newest state at the original location (folders are recreated as needed), **Versions…** opens the full history of the deleted file.
 
-Note: deleting a **whole folder** moves it to the operating system's trash — for that case the system trash is the primary way back; in Plainva you may only find older snapshots of the contained files.
+**Deleting needs a net.** A deleted file or folder goes to the operating system's trash, and a file is snapshotted beforehand as well, so the list above finds it. Where the trash is not available — on a network drive, for example — Plainva snapshots every file that would go, a folder's included, before it deletes for good, and says so. Only where that snapshot cannot be written either (a full disk is enough) does it ask **Delete without a backup?** and name the files that would be gone: **Cancel** keeps everything, only **Delete anyway** deletes. The phone has no trash at all; there every deleted file is snapshotted first, and the same question comes where that fails (see [The mobile app](Mobile_App.md)).
 
 ## Automatic vault backups (ZIP)
 

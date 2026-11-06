@@ -1,6 +1,6 @@
 # Backup e cronologia delle versioni
 
-Ultimo aggiornamento: 2026-11-05
+Ultimo aggiornamento: 2026-11-06
 
 Plainva protegge il tuo lavoro su due livelli: **versioni dei file** (snapshot automatici di ogni singolo file durante la modifica e l'eliminazione) e **backup del vault** (archivi ZIP regolari dell'intero vault, salvati fuori dalla cartella del vault). Entrambi funzionano in background senza alcuna configurazione e possono essere regolati nelle impostazioni sotto **Backup e cronologia delle versioni**.
 
@@ -33,7 +33,7 @@ Anche le immagini hanno versioni (con anteprima); gli altri file binari possono 
 
 Poiché ogni eliminazione crea prima uno snapshot del file, Plainva può recuperare i file eliminati: clic destro sul nome del vault in cima all'albero dei file → **Ripristina i file eliminati…** (raggiungibile anche in **Impostazioni → Vault → Backup e cronologia delle versioni → Cronologia delle versioni**). L'elenco mostra tutti i file i cui snapshot esistono ancora mentre l'originale è sparito — **Ripristina** ricrea lo stato più recente nella posizione originale (le cartelle vengono ricreate se necessario), **Versioni…** apre la cronologia completa del file eliminato.
 
-Nota: eliminare un'**intera cartella** la sposta nel cestino del sistema operativo — in questo caso il cestino di sistema è il modo principale per recuperarla; in Plainva potresti trovare solo snapshot più vecchi dei file contenuti.
+**Eliminare richiede una rete.** Un file o una cartella eliminati finiscono nel cestino del sistema operativo, e di un file viene inoltre salvato prima uno snapshot, così l'elenco qui sopra lo trova. Dove il cestino non è disponibile — ad esempio su un'unità di rete — Plainva salva uno snapshot di ogni file che andrebbe perso, anche quelli di una cartella, prima di eliminare definitivamente, e lo segnala. Solo se nemmeno questo snapshot si può scrivere (basta un disco pieno) chiede **Eliminare senza backup?** e nomina i file che andrebbero persi: **Annulla** conserva tutto, solo **Elimina comunque** elimina. Il telefono non ha alcun cestino; lì ogni file eliminato viene prima salvato, e la stessa domanda compare dove ciò non riesce (vedi [L'app mobile](Mobile_App.md)).
 
 ## Backup automatici del vault (ZIP)
 

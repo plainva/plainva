@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-11-05
+Última actualización: 2026-11-06
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -224,7 +224,7 @@ Los snapshots (historial de versiones), un diario de borradores (tras un fallo, 
 
 **Diferencias** abre la misma vista de comparación que en el escritorio: la nota a la izquierda, tu copia a la derecha, las líneas iguales plegadas y las mismas salidas: **adoptar**, **conservar ambas** (la copia pasa a llamarse `Nota (Version …).md`), **descartar copia**, cada una preguntando antes.
 
-**Al eliminar una carpeta**, el diálogo indica cuántos archivos contiene — el número también aparece en el botón. Plainva crea antes un snapshot de cada archivo que hay dentro, que puedes recuperar en **Ajustes** → **Copias de seguridad y versionado** → **Restaurar archivos eliminados**. También declara un límite abiertamente: **solo puede conservarse lo que este teléfono haya escrito al menos una vez.** Una nota que solo llegó por sincronización y nunca se editó aquí no existe en ningún snapshot. A diferencia del escritorio, un teléfono no tiene papelera del sistema operativo que lo recoja. Si la eliminación afecta a más de diez archivos, o a más de una quinta parte del vault, Plainva pregunta una segunda vez — exactamente igual que en el escritorio.
+**Al eliminar una carpeta**, el diálogo indica cuántos archivos contiene — el número también aparece en el botón. Un teléfono no tiene papelera del sistema, así que Plainva guarda antes un snapshot de cada archivo que contiene, y puedes recuperarlos en **Ajustes** → **Copias de seguridad y versionado** → **Restaurar archivos eliminados**. Si no se puede escribir un snapshot —basta con un teléfono lleno—, Plainva no elimina en silencio: pregunta **¿Eliminar sin copia de seguridad?**, nombra los archivos que se perderían y sugiere comprobar el espacio libre; **Cancelar** los conserva, solo **Eliminar de todos modos** elimina. La misma pregunta aparece para un solo archivo, una selección, una copia de conflicto que eliminas y una copia de tarea que limpias. Si la eliminación afecta a más de diez archivos, o a más de una quinta parte del vault, Plainva pregunta una segunda vez — exactamente como en el escritorio.
 
 ## Compartir y accesos directos
 

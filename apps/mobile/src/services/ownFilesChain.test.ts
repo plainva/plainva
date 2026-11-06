@@ -152,7 +152,7 @@ let root: string, raw: LocalVaultAdapter, db: IDatabaseAdapter, backup: BackupVa
 
 /** `boot()`: storage, above it versions, the sync queue and the conflict check — again for "the app starts again", over the same files and database. */
 function openChain(): void {
-  backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION, snapshotRecursiveDeletes: true });
+  backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION });
   repo = new SyncStateRepository(db, raw, "phone-a");
   chain = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), repo, () => {}, repo, "external-folder");
   // `db` stays out of the stand-in: the profile port would start the calendar cache on it.

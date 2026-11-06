@@ -100,7 +100,7 @@ import {
 } from "@plainva/ui";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
-import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet } from "@plainva/ui";
 import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
@@ -128,7 +128,11 @@ export interface MobileVault {
   external: ExternalFolderRef | null;
   /** App-facing adapter: the conflict-aware chain natively, raw on the web. */
   files: IVaultAdapter;
-  backup: BackupVaultAdapter | null;
+  /**
+   * The version history over the raw storage, on every vault: every deletion and
+   * write below `files` passes it, so a deletion happens only with a net (D1).
+   */
+  backup: BackupVaultAdapter;
   syncQueue: SyncQueue | null;
   syncRepo: SyncStateRepository | null;
   /**
@@ -787,7 +791,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   };
 
   let files: IVaultAdapter;
-  let backup: BackupVaultAdapter | null;
+  let backup: BackupVaultAdapter;
   /** The plain vault's queueing link: its owed entries get their last attempt before the database closes. */
   let ownQueue: QueueingVaultAdapter | null = null;
   let syncRepo: SyncStateRepository | null;
@@ -828,10 +832,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
           );
         })();
       },
-      // S4: this device has no trash. A recursively deleted folder is final
-      // here, so every file below it gets a snapshot first — the desktop
-      // deletes into the OS trash and names that in its confirmation.
-      snapshotRecursiveDeletes: true,
+      // No `moveToTrash` here: this device has no trash, so every file a
+      // deletion takes — a folder's included — gets a snapshot first, and a
+      // deletion whose snapshot fails asks before it goes (S4, D1).
     });
     queue = new SyncQueue(db);
     workspaceState = workspaceStatus ? new SqlWorkspaceStateStore(db) : null;
@@ -1023,7 +1026,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     const settings = getMobileSettings();
     backup = new BackupVaultAdapter(adapter, { policy: { ...DEFAULT_BACKUP_RETENTION,
       minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
-      onBackupError: reportSnapshotFailure, snapshotRecursiveDeletes: true });
+      onBackupError: reportSnapshotFailure });
     files = new ConflictAwareVaultAdapter(backup, new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
       isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
       (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
@@ -1357,13 +1360,24 @@ export const vaultOps = {
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
 
-  /** Deletes a note; with sync active the deletion reaches the cloud too. */
-  async remove(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<void> {
+  /**
+   * Deletes a note; with sync active the deletion reaches the cloud too.
+   * Answers whether it was deleted: a deletion the person confirmed asks
+   * "Delete without a backup?" where the snapshot before it could not be
+   * written (D1), and "Cancel" keeps the file. One without the person's
+   * confirmation, or a clean-up nobody watches (`ask` false), is not
+   * carried out without a net and throws.
+   */
+  async remove(v: MobileVault, path: string, confirmation?: DeletionConfirmation, ask = true): Promise<boolean> {
     // S2: a queued save landing after the delete resurrects the note. Flushing
     // (rather than discarding) also awaits a write already in flight, which
     // `discard` cannot recall — and it leaves a snapshot of the last state.
     await noteSaver.flush(path, v);
-    await v.files.deleteItem(path, undefined, confirmation);
+    if (confirmation?.confirmed && ask) {
+      if (!(await deleteWithNet(v.files, path, undefined, confirmation))) return false;
+    } else {
+      await v.files.deleteItem(path, undefined, confirmation);
+    }
     if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
     // Without a sync target nobody ever cleans the sync_state row — the sync
     // layer owns it and does not exist here — and a new note reusing the name
@@ -1374,6 +1388,7 @@ export const vaultOps = {
     // Keep the bookmark visible as missing; deletion is not an unstar action.
     notifyFileOps([{ type: "delete", path }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    return true;
   },
 
   /* ---- P3: full file/folder operations (all through the sync chain) ---- */
@@ -1421,14 +1436,20 @@ export const vaultOps = {
     reportFollowUp(newPath, followUpError);
   },
 
-  async removeFolder(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<void> {
+  /** A folder and everything in it, with the net rule of `remove` (D1); answers whether it was deleted. */
+  async removeFolder(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<boolean> {
     // S2: same reasoning as renameFolder — a queued save for any note inside
     // would recreate it after the folder is gone.
     await noteSaver.flushAll(v);
-    await v.files.deleteItem(path, true, confirmation);
+    if (confirmation?.confirmed) {
+      if (!(await deleteWithNet(v.files, path, true, confirmation))) return false;
+    } else {
+      await v.files.deleteItem(path, true, confirmation);
+    }
     if (v.indexer) await v.indexer.indexVaultFull("folder deleted in the app").catch(() => {});
     notifyFileOps([{ type: "delete", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    return true;
   },
 
   async moveNote(v: MobileVault, path: string, targetFolder: string): Promise<string> {

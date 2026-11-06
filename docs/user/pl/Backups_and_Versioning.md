@@ -1,6 +1,6 @@
 # Backup i historia wersji
 
-Stan na: 2026-11-05
+Stan na: 2026-11-06
 
 Plainva chroni Twoją pracę na dwóch poziomach: **wersje plików** (automatyczne migawki każdego pojedynczego pliku podczas edycji i usuwania) oraz **kopie zapasowe vaultu** (regularne archiwa ZIP całego vaultu, przechowywane poza folderem vaultu). Obie funkcje działają w tle bez żadnej konfiguracji i można je dostosować w ustawieniach, w sekcji **Backup i historia wersji**.
 
@@ -33,7 +33,7 @@ Obrazy również mają wersje (z podglądem); pozostałe pliki binarne można pr
 
 Ponieważ każde usunięcie najpierw tworzy migawkę pliku, Plainva może przywrócić usunięte pliki: kliknij prawym przyciskiem myszy nazwę vaultu na górze drzewa plików → **Przywróć usunięte pliki…** (dostępne też w **Ustawienia → Vault → Backup i historia wersji → Historia wersji**). Lista pokazuje wszystkie pliki, których migawki nadal istnieją, mimo że oryginał zniknął — **Przywróć** odtwarza najnowszy stan w pierwotnej lokalizacji (foldery są odtwarzane w razie potrzeby), **Wersje…** otwiera pełną historię usuniętego pliku.
 
-Uwaga: usunięcie **całego folderu** przenosi go do kosza systemu operacyjnego — w tym przypadku kosz systemowy jest głównym sposobem odzyskania; w Plainva mogą znajdować się co najwyżej starsze migawki zawartych w nim plików.
+**Usuwanie wymaga zabezpieczenia.** Usunięty plik lub folder trafia do kosza systemu operacyjnego, a z pliku Plainva dodatkowo wcześniej zapisuje migawkę, aby lista powyżej go znalazła. Tam, gdzie kosz jest niedostępny — np. na dysku sieciowym — Plainva przed trwałym usunięciem zapisuje migawkę każdego pliku, który by zniknął, także plików folderu, i o tym informuje. Dopiero gdy i tej migawki nie da się zapisać (wystarczy pełny dysk), pyta **Usunąć bez kopii zapasowej?** i wymienia pliki, które by zniknęły: **Anuluj** zachowuje wszystko, tylko **Usuń mimo to** usuwa. Telefon w ogóle nie ma kosza; tam każdy usuwany plik jest najpierw zapisywany, a to samo pytanie pojawia się, gdy to się nie uda (zob. [Aplikacja mobilna](Mobile_App.md)).
 
 ## Automatyczne kopie zapasowe vaultu (ZIP)
 

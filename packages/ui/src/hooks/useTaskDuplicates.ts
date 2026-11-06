@@ -33,7 +33,8 @@ export interface TaskDuplicatesDeps {
    * The shell's plain, confirmed note delete (snapshot, index, sync queue). NOT
    * the task-deletion path that makes the provider's task follow.
    */
-  deleteNote: (path: string) => Promise<void>;
+  /** `false` where the person kept the copy at "Delete without a backup?" (D1). */
+  deleteNote: (path: string) => Promise<boolean | void>;
   onRemoved?: (removed: string[]) => void | Promise<void>;
   onError: (error: unknown) => void;
 }

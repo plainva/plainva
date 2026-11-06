@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-11-05
+Dernière mise à jour : 2026-11-06
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre vault reste identique dans les deux mondes.
 
@@ -224,7 +224,7 @@ Les instantanés (historique des versions), un journal des brouillons (après un
 
 **Différences** ouvre la même vue de comparaison que sur l’ordinateur : la note à gauche, votre copie à droite, les lignes identiques repliées, et les mêmes issues — **adopter**, **garder les deux** (la copie s’appelle alors `Note (Version …).md`), **rejeter la copie**, chacune demandant d’abord.
 
-**Lors de la suppression d'un dossier**, la boîte de dialogue indique combien de fichiers il contient — le nombre figure aussi sur le bouton. Plainva crée d'abord un instantané de chaque fichier qu'il contient, que vous pouvez récupérer sous **Paramètres** → **Sauvegarde & historique des versions** → **Restaurer les fichiers supprimés**. Elle énonce aussi une limite ouvertement : **seul ce que ce téléphone a écrit au moins une fois peut être conservé.** Une note simplement arrivée par synchronisation et jamais modifiée ici ne figure dans aucun instantané. Contrairement au bureau, un téléphone n'a pas de corbeille du système pour la rattraper. Si la suppression concerne plus de dix fichiers, ou plus d'un cinquième du vault, Plainva demande une seconde fois — exactement comme sur le bureau.
+**Lors de la suppression d'un dossier**, la boîte de dialogue indique combien de fichiers il contient — le nombre figure aussi sur le bouton. Un téléphone n'a pas de corbeille système ; Plainva enregistre donc d'abord un instantané de chaque fichier qu'il contient, et vous pouvez les récupérer dans **Paramètres** → **Sauvegarde & historique des versions** → **Restaurer les fichiers supprimés**. Si un instantané ne peut pas être écrit — un téléphone plein suffit —, Plainva ne supprime pas en silence : il demande **Supprimer sans sauvegarde ?**, nomme les fichiers qui seraient perdus et suggère de vérifier l'espace libre ; **Annuler** les garde, seul **Supprimer quand même** supprime. La même question apparaît pour un seul fichier, une sélection, une copie de conflit que vous supprimez et une copie de tâche que vous nettoyez. Si la suppression concerne plus de dix fichiers, ou plus d'un cinquième du vault, Plainva demande une seconde fois — exactement comme sur l'ordinateur.
 
 ## Partage et raccourcis
 
