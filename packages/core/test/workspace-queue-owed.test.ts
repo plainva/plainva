@@ -116,13 +116,17 @@ describe("an entry of the encrypted workspace's queue that fails after the chang
   });
 
   it("an entry that keeps failing is given up: then the write fails, and the report names the database's words", async () => {
+    // The test's clock moves on with every refused attempt, not with the
+    // machine's: the third attempt is past the limit, however slow the disk.
     let now = 0;
     const adapter = workspace({ now: () => now, giveUpAfterMs: 1_000, retryAtMs: [5] });
     refusals = 1_000;
+    beforeEveryWrite(db, (sql) => {
+      if (/INSERT INTO workspace_queue/.test(sql)) now += 600;
+    });
     const write = adapter.writeTextFile("Note.md", "the text").then(() => "saved", (error: Error) => error.message);
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    now = 2_000;
     expect(await write).toBe("database is locked");
+    expect(refused).toBe(2);
     // On disk it is — the index announces it on its next pass.
     expect(await disk.readTextFile("Note.md")).toBe("the text");
     expect(await queued()).toEqual([]);

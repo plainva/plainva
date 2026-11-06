@@ -66,11 +66,23 @@ async function world(files: Record<string, string>) {
   const repo = new SyncStateRepository(db);
   // The next attempt of a failed entry is a minute away: the cycle below runs in the wait.
   const app = new QueueingVaultAdapter(backup, queue, { retryAtMs: [60_000] });
+  /** The chain's writes a test started: settled before the database closes, so no attempt outlives the test. */
+  const started: Promise<unknown>[] = [];
   worlds.push(async () => {
+    // The entries' last attempts, while the database is open; then whatever a
+    // failed test left unawaited is settled before the database goes.
+    await app.flush();
+    await Promise.allSettled(started);
     await app.flush();
     await db.close();
     await fs.rm(root, { recursive: true, force: true });
   });
+  /** A change through the chain, followed to its end by the world (see above). */
+  const track = <T,>(change: Promise<T>): Promise<T> => {
+    started.push(change);
+    change.catch(() => {});
+    return change;
+  };
 
   const remote = new Map<string, { text: string; etag: string }>();
   const downloads: string[] = [];
@@ -115,7 +127,7 @@ async function world(files: Record<string, string>) {
   const worker = new SyncWorker(engine, target, repo, backup, queue, 60_000);
   (worker as any).isRunning = true;
   return {
-    raw, app, queue, remote, downloads, pushes, refuse, refused,
+    raw, app, queue, remote, downloads, pushes, refuse, refused, track,
     async cycle() {
       (worker as any).cyclesSinceFull = 1_000;
       await worker.runCycle();
@@ -142,7 +154,7 @@ describe("a deletion whose entry waits in the chain", () => {
   it("is seen by the sync: a newer version in the cloud does not bring the deleted note back", async () => {
     const w = await world({ "Note.md": "# Note\n" });
     w.refuse(1);
-    const deleting = w.app.deleteItem("Note.md", false, { confirmed: true });
+    const deleting = w.track(w.app.deleteItem("Note.md", false, { confirmed: true }));
     await until(() => w.refused() === 1, "the entry's first attempt");
     // On disk it is gone; in the queue it is not yet — its next attempt is a minute away.
     expect(await w.raw.exists("Note.md")).toBe(false);
@@ -168,11 +180,16 @@ describe("a deletion whose entry waits in the chain", () => {
 
   it("a folder's deletion covers the files below it, a rename both of its ends", async () => {
     const w = await world({ "Folder/a.md": "a", "Old.md": "old" });
-    // The deletion's entry fails; the rename's waits behind it, in the order of the changes.
-    w.refuse(1);
-    const deleting = w.app.deleteItem("Folder", true, { confirmed: true });
-    const renaming = w.app.renameItem("Old.md", "New.md");
-    await until(async () => w.refused() === 1 && !(await w.raw.exists("Old.md")), "both changes on disk");
+    // The deletion's entry fails and waits a minute. The rename, made after
+    // it, sets off another attempt of the deletion's entry (an entry that
+    // comes along tries the ones before it at once); that one fails too, and
+    // the rename's entry waits behind it, in the order of the changes. One
+    // state after the other, never a race with the clock.
+    w.refuse(2);
+    const deleting = w.track(w.app.deleteItem("Folder", true, { confirmed: true }));
+    await until(() => w.refused() === 1, "the deletion's first attempt");
+    const renaming = w.track(w.app.renameItem("Old.md", "New.md"));
+    await until(() => w.refused() === 2 && w.app.owedEntries.owedPaths().includes("New.md"), "the rename's entry, owed behind the deletion");
     expect(await w.queue.hasPendingStructuralOp("Folder/a.md")).toBe(true);
     expect(await w.queue.hasPendingStructuralOp("Old.md")).toBe(true);
     expect(await w.queue.hasPendingStructuralOp("New.md")).toBe(true);
