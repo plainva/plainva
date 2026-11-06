@@ -34,6 +34,7 @@ import {
   type MemoryRow,
   type MemoryRowCaps,
   type UpkeepRow,
+  startAiSkill,
 } from "@plainva/ui";
 import { SkillApprovalModal } from "./SkillApprovalModal";
 import { appConfirm } from "../../services/appDialogs";
@@ -223,9 +224,7 @@ export function MemoryView({
                 size="sm"
                 variant="ghost"
                 onClick={() => {
-                  const view = skillView(t, care);
-                  onRun();
-                  void session.runSkill(view.id, view.start);
+                  startAiSkill(session, t, skillView(t, care), onRun);
                 }}
                 data-testid="ai-memory-care"
               >

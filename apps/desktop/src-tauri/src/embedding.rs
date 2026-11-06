@@ -59,6 +59,13 @@ fn library_candidates(app: &AppHandle) -> Vec<PathBuf> {
     out
 }
 
+/// Whether this build finds an ONNX runtime at all. The settings ask before they offer a local
+/// model package, instead of failing only after one was downloaded and loaded (Befunde 06.11., B3).
+#[tauri::command]
+pub fn embedding_runtime_available(app: AppHandle) -> bool {
+    library_candidates(&app).iter().any(|path| path.is_file())
+}
+
 fn ensure_runtime(app: &AppHandle) -> Result<(), String> {
     RUNTIME
         .get_or_init(|| {

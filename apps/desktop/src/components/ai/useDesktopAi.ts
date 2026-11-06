@@ -29,6 +29,7 @@ import {
   type AppCommand,
   watchLearnSurfaces,
   watchRoutineReady,
+  startAiSkill,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
@@ -428,7 +429,13 @@ export function useDesktopAi(input: DesktopAiInput) {
     session?.present("window");
     setCompanionOpen(true);
   });
-  const closeCompanion = useStableHandler(() => setCompanionOpen(false));
+  // Closed while a question waits (the send overview, a page, a server's question): where no other surface shows the
+  // conversation, nobody could answer it, so it ends as a no and the session is free again (Befunde 06.11., B6).
+  // Asked after the window has unmounted: the tab or the dock may still show it.
+  const closeCompanion = useStableHandler(() => {
+    setCompanionOpen(false);
+    window.setTimeout(() => session?.questionLeftUnseen(), 0);
+  });
   // The selection door opens the companion wherever it sits (plan P1.5).
   useEffect(() => {
     const open = () => openCompanion();
@@ -460,11 +467,12 @@ export function useDesktopAi(input: DesktopAiInput) {
   // The skills a person can start now (plan KI-Harness P3): the palette lists them.
   const skills = useMemo(() => (state ? startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries) : []), [state]);
   // A skill from the palette: a new conversation in the companion, bound to it.
+  // A start while an answer is under way says so instead of doing nothing (Befunde 06.11., B6); the window shows either.
   const runSkill = useStableHandler((id: string) => {
-    if (!session || session.getState().live) return openCompanion();
-    const skill = startableSkills((key, vars) => i18n.t(key, vars), session.getState().skills.entries).find((s) => s.id === id);
     openCompanion();
-    if (skill) void session.runSkill(skill.id, skill.start);
+    if (!session) return;
+    const skill = startableSkills((key, vars) => i18n.t(key, vars), session.getState().skills.entries).find((s) => s.id === id);
+    if (skill) startAiSkill(session, (key) => i18n.t(key), skill);
   });
   const openAsTab = useStableHandler(() => {
     setCompanionOpen(false);

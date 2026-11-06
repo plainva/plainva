@@ -1,5 +1,7 @@
 {
   "ai": {
+    "preparingSkill": "Préparation de la compétence…",
+    "startBusy": "L'IA est encore en train de répondre. Arrête la réponse ou attends qu'elle soit terminée.",
     "start": {
       "skillsAndMemory": "Compétences et mémoire",
       "allConversations": "Toutes les conversations",
@@ -2102,6 +2104,7 @@
         "startFailed": "Le programme n'a pas pu être démarré."
       },
       "add": {
+        "kindAddress": "Adresse du serveur",
         "title": "Ajouter un serveur",
         "name": "Nom",
         "nameHint": "Le nom que vous lui donnez. Il apparaît partout où l'IA utilise le serveur.",
@@ -2533,6 +2536,7 @@
       }
     },
     "semantic": {
+      "runtimeAbsent": "Cette version ne contient pas d'environnement d'exécution pour les modèles sur cet appareil. « Fournisseur personnel » reste disponible.",
       "providerHintPhone": "Un cloud seulement après que vous avez autorisé ce qui y part.",
       "measureRowDesc": "La vitesse de calcul de cet appareil — avec un texte d'exemple, jamais avec vos notes.",
       "measureRow": "Mesure",

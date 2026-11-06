@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { PanelTop, Sparkles, SquarePen, X } from "lucide-react";
 import { editorSelectionReader } from "../../services/editorSelection";
-import { AiConversation, FloatingWindow, ICON, IconButton, useAiSession, useAiState } from "@plainva/ui";
+import { AiConversation, FloatingWindow, ICON, IconButton, startAiConversation, useAiSession } from "@plainva/ui";
 
 /**
  * The companion (plan KI-Harness §19.1, dress A): the quick question over the
@@ -32,7 +32,6 @@ export function AiCompanion({
 }) {
   const { t } = useTranslation();
   const session = useAiSession();
-  const state = useAiState();
   return (
     <FloatingWindow
       persistKey="ai-companion"
@@ -46,7 +45,7 @@ export function AiCompanion({
         <>
           <Sparkles size={ICON.ui} className="pv-ai-headicon" aria-hidden="true" />
           <span className="pv-ai-headtitle">{t("ai.title")}</span>
-          <IconButton label={t("ai.newConversation")} disabled={Boolean(state?.live)} onClick={() => session?.newConversation()} data-testid="ai-companion-new">
+          <IconButton label={t("ai.newConversation")} onClick={() => session && startAiConversation(session, t)} data-testid="ai-companion-new">
             <SquarePen size={ICON.ui} />
           </IconButton>
           <IconButton label={t("ai.openAsTab")} onClick={onOpenAsTab} data-testid="ai-companion-tab">

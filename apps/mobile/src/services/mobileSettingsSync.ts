@@ -73,6 +73,7 @@ import {
 import { listMailAccounts, mailSecretKey, replaceMailAccounts } from "@plainva/ui/mail";
 import {
   barDef,
+  adoptNewBarAreas,
   barLayoutIsInherited,
   loadBarLayout,
   parseBookmarksFile,
@@ -784,6 +785,8 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
         if (canonical.barLayoutMobileBar !== undefined) {
           await saveBarLayout("mobileBar", vaultId, sanitizeAreaOrder(canonical.barLayoutMobileBar, barDef("mobileBar").spec));
         }
+        // An arrangement from another device may predate an action this version added: the shared rule brings it in (Befunde 06.11., B1).
+        await adoptNewBarAreas(vaultId);
 
         const known = new Set([...Object.keys(mobileBinding()), "pimAccounts", "pimSelections", "mailAccounts", "cloudAccounts", "bookmarks", "bookmarkFolders", "folderTemplates", "typeTemplates", "textFileExtensions", "calendarOverlays", "barLayoutMobileBar", "personalDesign", "removedAccounts", "accountActs"]);
         const unknown = Object.fromEntries(Object.entries(canonical).filter(([key]) => !known.has(key)));

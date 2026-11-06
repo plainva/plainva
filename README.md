@@ -106,7 +106,7 @@ pnpm --filter desktop test:e2e      # Playwright E2E (Vite dev server)
 pnpm --filter desktop smoke:prod    # production-build smoke (vite build + preview + boot check)
 ```
 
-Search by meaning (optional local model packages) runs Microsoft's ONNX Runtime, which the app bundles but the repository does not hold: `node apps/desktop/scripts/fetch-onnxruntime.mjs` downloads the pinned release for your platform into `apps/desktop/src-tauri/resources/onnxruntime/` (the Labs build and the release workflow run it themselves). Without it the app builds and runs as before; only the local model packages are unavailable.
+Search by meaning (optional local model packages) runs Microsoft's ONNX Runtime, which the app bundles but the repository does not hold: `node apps/desktop/scripts/fetch-onnxruntime.mjs` downloads the pinned release for your platform into `apps/desktop/src-tauri/resources/onnxruntime/` (`tauri:isolated`, the Labs build and the release workflow run it themselves; it keeps a library that is already there). Without it the app builds and runs as before; only the local model packages are unavailable, and the settings say so before they offer one.
 
 With Nix, the flake provides the toolchain and the native libraries, so nothing has to be installed by hand:
 

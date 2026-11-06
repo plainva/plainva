@@ -867,6 +867,59 @@ test('Selection formatting stays visible and follows the editor scroller', async
   await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Selection.md'])).toContain('**EdgeTarget**');
 });
 
+// Befunde 06.11., B9: the selection toolbar's AI button opened no menu. The menu took the focus, the editor lost it,
+// and the toolbar — with the button and its menu — was taken down with the selection's focus.
+test('AI in the selection toolbar: the button opens its menu, and an action shows its conversation', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Marked.md'] = '# Marked\n\nA sentence called MarkTarget to explain.\n';
+    // The AI is opt-in per device: switched on here as the settings would store it.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+  });
+  await page.goto('/');
+  await page.getByTestId('file-tree').getByText('Marked', { exact: true }).click();
+  const line = page.locator('.cm-line').filter({ hasText: 'MarkTarget' }).first();
+  await expect(line).toBeVisible();
+  const point = await line.evaluate(el => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode, from = node.textContent?.indexOf('MarkTarget') ?? -1;
+      if (from < 0) continue;
+      const range = document.createRange(); range.setStart(node, from); range.setEnd(node, from + 10);
+      const rect = range.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    }
+    throw new Error('The editor did not render the selection target');
+  });
+  await page.mouse.dblclick(point.x, point.y);
+  const toolbar = page.locator('.pv-seltoolbar');
+  await expect(toolbar.getByTestId('selection-ai')).toBeVisible();
+  await toolbar.getByTestId('selection-ai').click();
+  const menu = page.getByRole('menu', { name: /^(AI|KI)$/ });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /^(Explain|Erklären)$/ })).toBeVisible();
+  // It stays open while the pointer moves to it, and an action from it shows its conversation.
+  await page.waitForTimeout(300);
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: /^(Ask|Fragen)/ }).click();
+  await expect(page.getByTestId('ai-companion')).toBeVisible();
+});
+
+// Befunde 06.11., B7: "Open settings" in the AI's surfaces opened the first page of the vault's settings, not the AI's.
+// The settings take a page of the app's settings as their target too; every AI surface asks for the page "AI".
+test('AI settings from a conversation: "Set up" opens the page "AI", not the first page of the settings', async ({ page }) => {
+  await page.addInitScript(() => {
+    // The AI is on, nothing is set up: the conversation names the step that is missing.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('file-tree')).toBeVisible();
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await expect(companion).toBeVisible();
+  await companion.getByRole('button', { name: /^(Set up|Einrichten)$/ }).click();
+  await expect(page.getByTestId('ai-beta-switch')).toBeVisible();
+  await expect(page.getByTestId('ai-setup-provider')).toBeVisible();
+});
+
 test('Document header: /icon sets an emoji icon via the picker (W3)', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Icons.md'] = "---\ntype: Note\n---\n\nIcon test body\n";
@@ -4655,6 +4708,16 @@ test('AI internet: a fresh vault has none; switched on, a page is read only afte
   await expect(companion.getByTestId('ai-web-toggle')).toHaveCount(0);
   await companion.getByTestId('ai-input').fill(`Read ${URL} for me.`);
   await companion.getByTestId('ai-send').click();
+  // The send overview in the narrow window is one column (Befunde 06.11., B5): each value under its label, at the
+  // window's width — two columns pressed a value to one letter per line.
+  await expect(companion.getByTestId('ai-consent-send')).toBeVisible();
+  const lefts = await companion.locator('.pv-ai-overview-list').first().evaluate((list) => {
+    const dt = list.querySelector('dt')!.getBoundingClientRect();
+    const dd = list.querySelector('dd')!.getBoundingClientRect();
+    return { dt: Math.round(dt.left), dd: Math.round(dd.left), wide: dd.width >= list.getBoundingClientRect().width - 1 };
+  });
+  expect(lefts.dd).toBe(lefts.dt);
+  expect(lefts.wide).toBe(true);
   await companion.getByTestId('ai-consent-send').click();
   await expect(companion.getByText('I cannot open web pages in this conversation.')).toBeVisible();
   expect((await requests())[0]).not.toMatch(/fetch_url|web_search/);

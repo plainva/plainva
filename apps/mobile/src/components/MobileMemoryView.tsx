@@ -26,6 +26,7 @@ import {
   type MemoryRow,
   type MemoryRowCaps,
   type UpkeepRow,
+  startAiSkill,
 } from "@plainva/ui";
 import { SkillApprovalSheet } from "./SkillApprovalSheet";
 import { MemoryEntrySheet } from "./MemoryEntrySheet";
@@ -175,9 +176,7 @@ export function MobileMemoryView({
               subtitle={t("ai.upkeep.care.desc", { skill: skillView(t, care).title })}
               wrap
               onClick={() => {
-                const view = skillView(t, care);
-                onRun();
-                void session.runSkill(view.id, view.start);
+                startAiSkill(session, t, skillView(t, care), onRun);
               }}
               end={<ChevronRight size={ICON.ui} />}
               data-testid="ai-memory-care"

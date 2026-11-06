@@ -9,6 +9,8 @@ import {
   getPlatformServices,
   Modal,
   readStatedWindow,
+  Row,
+  RowList,
   Select,
   statedChoice,
   STATED_WINDOW_BOUNDS,
@@ -246,12 +248,22 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
           </Button>
         </div>
         {models.length > 0 && (
-          <div className="pv-ai-models" role="listbox" aria-label={t("ai.settings.modelFromList")}>
+          // Real rows, name over id, the chosen one in the accent pair (Befunde 06.11., B2): buttons in one line were cut
+          // to their height and pushed the list sideways.
+          <div className="pv-ai-models" role="group" aria-label={t("ai.settings.modelFromList")} data-testid="ai-model-list">
+          <RowList>
             {models.slice(0, 60).map((m) => (
-              <Button key={m.id} size="sm" variant={m.id === model ? "tonal" : "ghost"} role="option" aria-selected={m.id === model} onClick={() => setModel(m.id)}>
-                {m.label && m.label !== m.id ? `${m.label} · ${m.id}` : m.id}
-              </Button>
+              <Row
+                key={m.id}
+                wrap
+                title={m.label && m.label !== m.id ? m.label : m.id}
+                {...(m.label && m.label !== m.id ? { subtitle: <span className="pv-ai-modelid">{m.id}</span> } : {})}
+                current={m.id === model}
+                onClick={() => setModel(m.id)}
+                data-testid="ai-model-option"
+              />
             ))}
+          </RowList>
           </div>
         )}
         {stating && (

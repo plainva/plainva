@@ -1,7 +1,6 @@
-import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Maximize2, SquarePen } from "lucide-react";
-import { AiConversation, AiSessionContext, ICON, IconButton, noteDisplayName } from "@plainva/ui";
+import { AiConversation, AiSessionContext, ICON, IconButton, noteDisplayName, startAiConversation } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";
 import { editorSelectionReader } from "../services/editorSelection";
@@ -26,7 +25,6 @@ export function AiSheet({
 }) {
   const { t } = useTranslation();
   const session = getMobileAiSession();
-  const running = Boolean(useSyncExternalStore(session.subscribe, session.getState).live);
   return (
     <AiSessionContext.Provider value={session}>
       <div className="m-sheet-backdrop" onClick={onClose}>
@@ -34,8 +32,8 @@ export function AiSheet({
           <SheetGrip onClose={onClose} />
           <div className="m-ai-sheethead">
             <p className="m-sheet-title">{t("ai.title")}</p>
-            {/* Not while an answer streams, as the desktop's companion and tab (plan KI-Oberflächen K11). */}
-            <IconButton label={t("ai.newConversation")} disabled={running} onClick={() => session.newConversation()}>
+            {/* While an answer streams it says so instead of doing nothing (Befunde 06.11., B8), as the desktop's companion and tab. */}
+            <IconButton label={t("ai.newConversation")} onClick={() => startAiConversation(session, t)}>
               <SquarePen size={ICON.head} />
             </IconButton>
             <IconButton label={t("ai.openFullScreen")} onClick={onOpenScreen}>

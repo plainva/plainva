@@ -105,6 +105,21 @@ describe("adding a server", () => {
     expect(s.getState().mcp.servers).toMatchObject([{ id: "tracker", label: "Tracker", review: { status: "new" }, enabled: false }]);
   });
 
+  // Befunde 06.11., B4: the label "Address" stood in the line of the switch, which itself was called "Address".
+  it("puts the switch on a line of its own, named apart from the field's label", async () => {
+    const { s } = await mcpSession([]);
+    await mount(<ExternalAddDialog session={s} programs={true} onClose={() => undefined} onAdded={() => undefined} />);
+    const segment = $("ai-ext-add-kind-address")!;
+    expect(segment.textContent).toBe("Server address");
+    const field = document.querySelector<HTMLLabelElement>('label[for="pv-ext-url"]')!;
+    expect(field.textContent).toBe("Address");
+    // The switch stands in a block of its own: the label is not its inline neighbour.
+    const line = segment.closest(".pv-modal-body > *")!;
+    expect(line.tagName).toBe("DIV");
+    expect(line.contains(field)).toBe(false);
+    expect(field.previousElementSibling).toBe(line);
+  });
+
   it("asks for a command where the shell starts programs, and points at one that starts a shell", async () => {
     const { s } = await mcpSession([]);
     await mount(<ExternalAddDialog session={s} programs onClose={() => undefined} onAdded={() => undefined} />);

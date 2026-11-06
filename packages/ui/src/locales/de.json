@@ -1,5 +1,7 @@
 {
   "ai": {
+    "preparingSkill": "Der Skill wird vorbereitet …",
+    "startBusy": "Die KI antwortet noch. Halte die Antwort an oder warte, bis sie fertig ist.",
     "start": {
       "skillsAndMemory": "Skills und Gedächtnis",
       "allConversations": "Alle Gespräche",
@@ -2034,6 +2036,7 @@
         "startFailed": "Das Programm ließ sich nicht starten."
       },
       "add": {
+        "kindAddress": "Server-Adresse",
         "title": "Server hinzufügen",
         "name": "Name",
         "nameHint": "Dein eigener Name dafür. Er steht überall dort, wo die KI den Server nutzt.",
@@ -2457,6 +2460,7 @@
       }
     },
     "semantic": {
+      "runtimeAbsent": "Diesem Build fehlt die Laufzeit für Modelle auf diesem Gerät. Wählbar bleibt „Eigener Anbieter“.",
       "providerHintPhone": "Eine Cloud erst, nachdem Du freigegeben hast, was dorthin geht.",
       "measureRowDesc": "Wie schnell dieses Gerät rechnet — mit Beispieltext, nie mit Deinen Notizen.",
       "measureRow": "Messung",

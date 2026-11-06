@@ -27,6 +27,9 @@ export const desktopLocalModels: LocalModelBridge = {
   },
   readText: (model, name) => invoke<string>("model_read_text", { model, name }),
   load: (modelFile) => invoke<string>("embedding_load", { model: modelFile }),
+  // Asked before a package is offered (Befunde 06.11., B3). An answer that is not a plain no blocks nothing:
+  // loading still says what is missing.
+  runtimeAvailable: async () => (await invoke<boolean>("embedding_runtime_available").catch(() => true)) !== false,
   run: (handle, batch) => invoke<{ vectors: string; dim: number }>("embedding_run", { handle, request: batch }),
   async unload(handle) {
     await invoke("embedding_unload", { handle });

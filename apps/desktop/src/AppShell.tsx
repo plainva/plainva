@@ -19,7 +19,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useAiWaitingCount, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -41,6 +41,7 @@ const LearnDialogs = lazy(() => import('./components/ai/LearnDialogs').then(m =>
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { AiSelectionMenu } from "./components/ai/AiSelectionButton";
 import { AiCommandSourceLink, useDesktopAi } from "./components/ai/useDesktopAi";
 import { useDesktopEmbeddings } from "./components/ai/useDesktopEmbeddings";
 import { useDesktopGists } from "./components/ai/useDesktopGists";
@@ -1972,7 +1973,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             ai.enabled
               ? {
                   activeNote: ai.activeNote,
-                  onNewConversation: () => void ai.session?.newConversation(),
+                  onNewConversation: () => void (ai.session && startAiConversation(ai.session, t)),
                   onOpenNote: ai.openNoteTarget,
                   onOpenCreated: (path) => openInFocusedPane(path, true),
                   onOpenUrl: ai.openUrl,
@@ -2040,6 +2041,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             <LearnDialogs onOpenPath={(path) => openInFocusedPane(path, true)} />
           </Suspense>
         )}
+        {/* The menu of the selection toolbar's AI button, once for every editor: beside the toolbar, which goes when the menu takes the focus (Befunde 06.11., B9). */}
+        {ai.enabled && <AiSelectionMenu />}
         {ai.companionOpen && (
           <Suspense fallback={null}>
             <AiCompanion

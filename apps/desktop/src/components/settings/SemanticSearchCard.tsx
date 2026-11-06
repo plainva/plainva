@@ -55,6 +55,17 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
   const [approval, setApproval] = useState<StandingApproval | null>(null);
   // The choice of model folds away behind one line (plan KI-Oberflächen K5): what it computes with, and "Change".
   const [choosing, setChoosing] = useState(false);
+  // Whether this build runs a model at all (Befunde 06.11., B3): asked once the choice opens, before a package is offered.
+  const [runtime, setRuntime] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!choosing || runtime !== null) return;
+    let alive = true;
+    void (desktopLocalModels.runtimeAvailable?.() ?? Promise.resolve(true)).then((found) => alive && setRuntime(found));
+    return () => {
+      alive = false;
+    };
+  }, [choosing, runtime]);
+  const noRuntime = runtime === false;
   const chosen = settings?.semanticModel ?? null;
   // Stable between renders: the effects below follow it.
   const source = useMemo(() => (settings ? semanticSourceOf(settings) : null), [settings]);
@@ -142,6 +153,7 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
           {choosing ? t("common.done") : t("ai.semantic.change")}
         </Button>
       </SettingRow>
+      {choosing && noRuntime && <SettingCardNote>{t("ai.semantic.runtimeAbsent")}</SettingCardNote>}
       {choosing && (
       <SettingCardBlock>
       <div className="pv-semantic-choices" role="radiogroup" aria-label={t("ai.semantic.title")}>
@@ -151,7 +163,7 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
             key={row.spec.id}
             name="semantic-model"
             checked={chosen === row.spec.id}
-            disabled={Boolean(download)}
+            disabled={Boolean(download) || noRuntime}
             onChange={() => void choose(row.spec)}
             data-testid={`semantic-model-${row.spec.id}`}
             label={

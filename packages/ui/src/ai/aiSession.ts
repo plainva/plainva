@@ -987,6 +987,12 @@ export interface AiState {
   draftRedact: string[];
   live: LiveRun | null;
   /**
+   * A skill is being started: its instructions are read before anything is
+   * sent (Befunde 06.11., B6). The conversation says so meanwhile, rather than
+   * showing nothing until the request goes.
+   */
+  preparing?: boolean;
+  /**
    * The last run's end, when it ended in a way the reader must see. `related`:
    * when no answer came back, the notes that match the question best (plan
    * §19.4) — found on this device, shown on this device.
@@ -2006,6 +2012,27 @@ export class AiSession {
     // The screen changes only now: a message of the composer begun since the click goes nowhere either.
     if (this.state.active?.id !== id) this.leaveComposerMessage();
     this.set({ active: record, excludeActive: false, notice: null });
+  }
+
+  /**
+   * Whether a new conversation, a skill or a message cannot start now — an
+   * answer is under way or a request is being put together (Befunde 06.11.,
+   * B6, B8). A surface that starts one says so instead of doing nothing.
+   */
+  startBlocked(): boolean {
+    return Boolean(this.state.live || this.sending);
+  }
+
+  /**
+   * The surface that showed the conversation was closed (the floating window,
+   * Befunde 06.11., B6). A question that waits — the send overview, a page a
+   * tool wants, a server's question — goes on where another surface shows the
+   * conversation; where none does, nobody could answer it, so it ends as a
+   * no: nothing is sent, and the session is free for the next start.
+   */
+  questionLeftUnseen(): void {
+    if (this.surfaces > 0) return;
+    if (this.state.consent || this.state.effect || this.state.question) this.stop();
   }
 
   newConversation(): void {
@@ -4102,6 +4129,8 @@ export class AiSession {
     const message = text.trim();
     if (!message || !vault || !choice || this.state.live || this.sending || !this.state.settings.enabled) return null;
     this.sending = true;
+    // Its instructions are read first: the conversation says that something is on its way (Befunde 06.11., B6).
+    this.set({ preparing: true });
     const screen = this.screens;
     const since = this.clearsOf(vault);
     try {
@@ -4112,7 +4141,7 @@ export class AiSession {
       this.set({ skills: this.skillsState(entries, this.state.skills.servers) });
       const entry = entries.find((e) => e.source.id === id);
       if (!entry || entry.status !== "active" || !entry.source.skill) return null;
-      this.set({ active: null, excludeActive: false, notice: null });
+      this.set({ active: null, excludeActive: false, notice: null, preparing: false });
       return (await this.runMessage(message, vault, this.choice() ?? choice, { skills: { entries, bind: id }, since }))?.stop ?? null;
     } catch (error) {
       this.abort = null;
@@ -4121,6 +4150,7 @@ export class AiSession {
       return stop;
     } finally {
       this.sending = false;
+      if (this.state.preparing) this.set({ preparing: false });
     }
   }
 

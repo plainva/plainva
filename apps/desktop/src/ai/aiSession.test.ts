@@ -818,6 +818,48 @@ describe("the AI session", () => {
 });
 
 /** Plan KI-Harness P1.5 (E32, E33): an action at a selection comes back as a suggestion round. */
+// Befunde 06.11., B6 and B8: a start that cannot begin says so, and a question nobody can see ends as a no.
+describe("starting from a surface, and a surface that closes (Befunde 06.11.)", () => {
+  it("a question left without a surface ends as a no: nothing is sent, and the next start can begin", async () => {
+    const { s, fake } = session([answer("Later.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Offer.md");
+    await s.attachVault(vault.host);
+    // The floating window shows the conversation while the send overview asks.
+    const unmount = s.mountSurface();
+    const asked = consentAsked(s);
+    const sent = s.send("Where is the offer?");
+    await asked;
+    expect(s.startBlocked()).toBe(true);
+    // The window is closed: no other surface shows the question.
+    unmount();
+    s.questionLeftUnseen();
+    expect(await sent).toBeNull();
+    expect(s.getState().consent).toBeNull();
+    expect(fake.sent).toHaveLength(0);
+    expect(s.startBlocked()).toBe(false);
+  });
+
+  it("a question another surface still shows stays there", async () => {
+    const { s, fake } = session([answer("Here.")], { approve: false });
+    await s.load();
+    const vault = vaultHost("Offer.md");
+    await s.attachVault(vault.host);
+    const tab = s.mountSurface();
+    const window = s.mountSurface();
+    const asked = consentAsked(s);
+    const sent = s.send("Where is the offer?");
+    await asked;
+    window();
+    s.questionLeftUnseen();
+    expect(s.getState().consent).not.toBeNull();
+    s.answerConsent(true);
+    expect(await sent).toEqual({ kind: "answered" });
+    expect(fake.sent).toHaveLength(1);
+    tab();
+  });
+});
+
 describe("an AI action at a selection", () => {
   const passage = "The contract runs until the end of the year and renews itself.";
   const contract = files["Contract.md"]!;

@@ -1,5 +1,7 @@
 {
   "ai": {
+    "preparingSkill": "Vaardigheid wordt voorbereid…",
+    "startBusy": "De AI antwoordt nog. Stop het antwoord of wacht tot het klaar is.",
     "start": {
       "skillsAndMemory": "Vaardigheden en geheugen",
       "allConversations": "Alle gesprekken",
@@ -2034,6 +2036,7 @@
         "startFailed": "Het programma kon niet worden gestart."
       },
       "add": {
+        "kindAddress": "Serveradres",
         "title": "Server toevoegen",
         "name": "Naam",
         "nameHint": "Je eigen naam ervoor. Hij staat overal waar de AI de server gebruikt.",
@@ -2457,6 +2460,7 @@
       }
     },
     "semantic": {
+      "runtimeAbsent": "Deze build bevat geen runtime voor modellen op dit apparaat. “Eigen provider” blijft te kiezen.",
       "providerHintPhone": "Een cloud pas nadat je hebt goedgekeurd wat daarheen gaat.",
       "measureRowDesc": "Hoe snel dit apparaat rekent — met voorbeeldtekst, nooit met je notities.",
       "measureRow": "Meting",

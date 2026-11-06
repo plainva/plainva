@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare } from "lucide-react";
-import { AiOpenPanel, startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, openLearnSurface, openWritesCount, Row, RowList, SearchField, SectionLabel, Segmented, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
+import { AiOpenPanel, startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, openLearnSurface, openWritesCount, Row, RowList, SearchField, SectionLabel, Segmented, startAiSkill, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
@@ -136,13 +136,9 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
               icon={<skill.icon size={ICON.ui} />}
               title={skill.title}
               subtitle={skill.description}
-              disabled={Boolean(state.live)}
               data-testid={skill.commandId.replace(/^ai-skill-/, "ai-history-skill-")}
-              onClick={() => {
-                // A new conversation bound to the skill, shown on the KI screen while it streams.
-                void session.runSkill(skill.id, skill.start);
-                onBack();
-              }}
+              // A new conversation bound to the skill, shown on the KI screen while it streams — or said why not now.
+              onClick={() => startAiSkill(session, t, skill, onBack)}
             />
           ))}
         </RowList>

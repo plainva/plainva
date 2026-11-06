@@ -115,7 +115,7 @@ import type { PimRuntime } from "./pim/pimRuntime";
 import { mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
-import { BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
+import { adoptNewBarAreas, BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 import { weekStartKey } from "./weekStartVault";
 import { recoverDesktopAccountRepair, repairDesktopAccounts } from "./accountRepair";
 
@@ -575,6 +575,8 @@ export async function applyProfileValues(
   // This monotonic register is committed after the ordinary profile journal.
   // A retry joins it again; rollback must never discard a concurrent local edit.
   await (await desktopPersonalDesign(vaultPath, context.memberId ?? null, store)).receive(values.personalDesign);
+  // An arrangement from another device may predate an action this version added: it gets it, as at start (Befunde 06.11., B1).
+  await adoptNewBarAreas(vaultPath);
   // on next use (daily/template/task) or on next vault open (sync interval).
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("plainva-backup-settings-changed"));

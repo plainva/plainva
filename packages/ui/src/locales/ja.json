@@ -1,5 +1,7 @@
 {
   "ai": {
+    "preparingSkill": "スキルを準備中…",
+    "startBusy": "AIはまだ回答中です。回答を停止するか、終わるまでお待ちください。",
     "start": {
       "skillsAndMemory": "スキルと記憶",
       "allConversations": "すべての会話",
@@ -1966,6 +1968,7 @@
         "startFailed": "プログラムを起動できませんでした。"
       },
       "add": {
+        "kindAddress": "サーバーのアドレス",
         "title": "サーバーを追加",
         "name": "名前",
         "nameHint": "自分で付ける名前です。AIがサーバーを使う場所すべてに表示されます。",
@@ -2381,6 +2384,7 @@
       }
     },
     "semantic": {
+      "runtimeAbsent": "このビルドにはこのデバイスでモデルを動かすランタイムがありません。「独自のプロバイダー」は引き続き選べます。",
       "providerHintPhone": "クラウドは、送ってよい内容を承認したあとにだけ使われます。",
       "measureRowDesc": "この端末の計算速度です。サンプルの文章を使い、ノートは使いません。",
       "measureRow": "計測",

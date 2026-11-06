@@ -35,6 +35,12 @@ export interface LocalModelBridge {
   /** A checked text file of a package (the tokenizer). */
   readText(model: string, name: string): Promise<string>;
   load(modelFile: string): Promise<string>;
+  /**
+   * Whether this build can run a model at all (Befunde 06.11., B3): a desktop
+   * build without the ONNX runtime offered the packages and failed only after
+   * loading one. Absent where the shell brings its own runtime (the phone).
+   */
+  runtimeAvailable?(): Promise<boolean>;
   run(handle: string, batch: { ids: string; mask: string; batch: number; seq: number; pooling: EmbeddingPooling }): Promise<{ vectors: string; dim: number }>;
   unload(handle: string): Promise<void>;
 }

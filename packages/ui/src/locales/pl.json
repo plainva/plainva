@@ -1,5 +1,7 @@
 {
   "ai": {
+    "preparingSkill": "Przygotowywanie umiejętności…",
+    "startBusy": "AI wciąż odpowiada. Zatrzymaj odpowiedź albo poczekaj, aż się skończy.",
     "start": {
       "skillsAndMemory": "Umiejętności i pamięć",
       "allConversations": "Wszystkie rozmowy",
@@ -2170,6 +2172,7 @@
         "startFailed": "Nie udało się uruchomić programu."
       },
       "add": {
+        "kindAddress": "Adres serwera",
         "title": "Dodaj serwer",
         "name": "Nazwa",
         "nameHint": "Własna nazwa serwera. Widać ją wszędzie tam, gdzie AI z niego korzysta.",
@@ -2609,6 +2612,7 @@
       }
     },
     "semantic": {
+      "runtimeAbsent": "Ta wersja nie zawiera środowiska uruchomieniowego dla modeli na tym urządzeniu. „Własny dostawca” nadal jest do wyboru.",
       "providerHintPhone": "Chmura dopiero po zatwierdzeniu tego, co tam trafia.",
       "measureRowDesc": "Jak szybko liczy to urządzenie — na tekście przykładowym, nigdy na Twoich notatkach.",
       "measureRow": "Pomiar",

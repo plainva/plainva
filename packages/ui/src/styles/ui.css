@@ -5314,8 +5314,10 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-dock { display: flex; flex-direction: column; height: min(560px, 70vh); min-height: 280px; }
 .pv-ai-dock > .pv-ai { flex: 1; min-height: 0; }
 .pv-ai--dock .pv-ai-msg { max-width: 100%; }
-.pv-ai--dock .pv-ai-overview-list { grid-template-columns: minmax(0, 1fr); }
-.pv-ai--dock .pv-ai-overview-list dd { margin-bottom: var(--space-1); }
+.pv-ai--dock .pv-ai-overview-list,
+.pv-ai--window .pv-ai-overview-list { grid-template-columns: minmax(0, 1fr); }
+.pv-ai--dock .pv-ai-overview-list dd,
+.pv-ai--window .pv-ai-overview-list dd { margin-bottom: var(--space-1); }
 /* The companion's head and the AI tab (desktop dresses of the conversation). */
 .pv-ai-headicon { flex: none; color: var(--accent-color); }
 .pv-ai-headtitle { flex: 1; min-width: 0; font-size: var(--text-ui); font-weight: 500; }
@@ -5384,5 +5386,5 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-form { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .pv-ai-nokey { padding-top: var(--space-2); border-top: 1px solid var(--border-color-light); }
 .pv-ai-modelhead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.pv-ai-models { display: flex; flex-direction: column; align-items: stretch; max-height: 240px; overflow-y: auto; }
-.pv-ai-models > .pv-btn { justify-content: flex-start; }
+.pv-ai-models { max-height: 240px; overflow-x: hidden; overflow-y: auto; }
+.pv-ai-modelid { font-family: var(--font-mono); overflow-wrap: anywhere; }

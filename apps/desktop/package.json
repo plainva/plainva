@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:isolated": "vite --port 1440 --strictPort",
     "dev:labs": "vite --port 1450 --strictPort --mode labs",
-    "tauri:isolated": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "tauri:isolated": "node scripts/fetch-onnxruntime.mjs && tauri dev --config src-tauri/tauri.dev.conf.json",
     "tauri:labs": "node scripts/fetch-onnxruntime.mjs && cargo build --manifest-path src-tauri/Cargo.toml --bin plainva-mcp && tauri dev --config src-tauri/tauri.labs.conf.json",
     "build": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc && vite build",
     "lint": "eslint .",

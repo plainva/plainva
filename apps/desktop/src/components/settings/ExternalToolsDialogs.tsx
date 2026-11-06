@@ -65,16 +65,19 @@ export function ExternalAddDialog({ session, programs, onClose, onAdded }: { ses
       </label>
       <TextInput id="pv-ext-name" value={form.name} maxLength={60} onChange={(event) => form.setName(event.target.value)} data-testid="ai-ext-add-name" />
       <p className="pv-modal-hint">{t("ai.ext.add.nameHint")}</p>
+      {/* A line of its own (Befunde 06.11., B4): the switch is inline, and the field's label after it stood in its line. */}
       {programs && (
-        <Segmented<ExternalKind>
-          ariaLabel={t("ai.ext.add.kind")}
-          value={form.kind}
-          onChange={form.setKind}
-          options={[
-            { value: "address", label: t("ai.ext.add.address"), testId: "ai-ext-add-kind-address" },
-            { value: "program", label: t("ai.ext.add.kindProgram"), testId: "ai-ext-add-kind-program" },
-          ]}
-        />
+        <div>
+          <Segmented<ExternalKind>
+            ariaLabel={t("ai.ext.add.kind")}
+            value={form.kind}
+            onChange={form.setKind}
+            options={[
+              { value: "address", label: t("ai.ext.add.kindAddress"), testId: "ai-ext-add-kind-address" },
+              { value: "program", label: t("ai.ext.add.kindProgram"), testId: "ai-ext-add-kind-program" },
+            ]}
+          />
+        </div>
       )}
       {form.kind === "address" ? (
         <>

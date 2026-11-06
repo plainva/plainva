@@ -364,23 +364,8 @@ export async function migrateLegacyBarLayouts(vaultPath: string | null): Promise
     // localStorage unavailable (never in the app, but keep the store part working)
   }
 
-  // An action added by an APP UPDATE has to arrive where it belongs. Stored
-  // arrangements are {order, visibleCount}, and sanitizeAreaOrder appends
-  // unknown-to-the-store ids at the END — below the visible run, so a new rail
-  // button would exist but be hidden, and the update would look like it did
-  // nothing. Insert it after the area it belongs next to and grow the count
-  // when that neighbour is itself visible: offered by default, hideable in one
-  // click. Runs once per stored value; a user who later hides it keeps it
-  // hidden, because from then on the id IS in the stored order.
-  touched =
-    // Order matters where one new id follows another: "journal" is placed after "comments", which may itself be new.
-    (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder", comments: "mail", journal: "comments", ai: "palette" })) ||
-    touched;
-  touched =
-    // The AI dock (plan KI-Harness §19.1, dress B) closes the column; it shows only while the AI is on.
-    // Related notes (P2b-4) follow the backlinks: what is linked, then what is close and not yet linked.
-    (await adoptNewAreas(store, vaultPath, "rightSections", { journal: "calendar", ai: "properties", related: "backlinks" })) ||
-    touched;
+  // An action added by an APP UPDATE has to arrive where it belongs (adoptNewBarAreas).
+  touched = (await adoptInStore(store, vaultPath)) || touched;
 
   if (touched) {
     await store.save();
@@ -391,41 +376,117 @@ export async function migrateLegacyBarLayouts(vaultPath: string | null): Promise
 type BarStore = Awaited<ReturnType<typeof getSettingsStore>>;
 
 /**
- * @param after  new area id -> the id it should follow
+ * Where new actions go: new area id -> the id it should follow. Order matters
+ * where one new id follows another ("journal" after "comments", which may itself be new).
  */
-async function adoptNewAreas(
-  store: BarStore,
-  vaultPath: string | null,
-  bar: BarId,
-  after: Record<string, string>,
-): Promise<boolean> {
-  const def = barDef(bar);
-  const keys = [barLayoutDefaultKey(bar), ...(vaultPath ? [barLayoutKey(bar, vaultPath)] : [])];
-  let changed = false;
+const ADOPTIONS: { bar: BarId; after: Record<string, string>; introduce?: readonly string[] }[] = [
+  // The AI button (plan KI-Harness P1a) beside the palette — Ctrl+J beside Ctrl+P — and introduced (Befunde 06.11., B1, E3).
+  { bar: "ribbon", after: { newFolder: "new", newBase: "newFolder", comments: "mail", journal: "comments", ai: "palette" }, introduce: ["ai"] },
+  // The AI dock (plan KI-Harness §19.1, dress B) closes the column; it shows only while the AI is on.
+  // Related notes (P2b-4) follow the backlinks: what is linked, then what is close and not yet linked.
+  { bar: "rightSections", after: { journal: "calendar", ai: "properties", related: "backlinks" } },
+];
 
-  for (const key of keys) {
-    const raw = await store.get<unknown>(key);
-    if (raw === undefined) continue; // nothing stored: the spec default already has it
-    const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Partial<AreaOrder>) : {};
-    const order = Array.isArray(stored.order) ? stored.order.filter((v): v is string => typeof v === "string") : [];
-    if (order.length === 0) continue;
-    let count = typeof stored.visibleCount === "number" ? stored.visibleCount : order.length;
-    let dirty = false;
+/** Which introduced ids each stored arrangement has been given — on this device, by the arrangement's key. */
+const INTRODUCED_KEY = "barLayoutIntroduced";
 
-    for (const [id, predecessor] of Object.entries(after)) {
-      if (order.includes(id)) continue;
-      const at = order.indexOf(predecessor);
-      const index = at >= 0 ? at + 1 : order.length;
-      order.splice(index, 0, id);
-      // Visible exactly when the action it follows is visible — including the
-      // last visible one: "index < count" sent an id placed right after it into
-      // the hidden half (the AI button behind a palette at the end of the rail).
-      if (at >= 0 && at < count) count += 1;
-      dirty = true;
-    }
-    if (!dirty) continue;
-    await store.set(key, sanitizeAreaOrder({ order, visibleCount: count }, def.spec));
-    changed = true;
+/**
+ * Brings the actions an APP UPDATE added into every stored arrangement — at
+ * start and after every settings sync, which may bring an arrangement from a
+ * device that never knew them. Stored arrangements are {order, visibleCount},
+ * and `sanitizeAreaOrder` appends ids the store does not know at the END, below
+ * the visible run: the action would exist but be hidden, and the update would
+ * look like it did nothing.
+ *
+ * An ordinary new action goes after the area it belongs next to and is visible
+ * exactly when that neighbour is; from then on the id IS in the stored order,
+ * and a user who hides it keeps it hidden.
+ *
+ * An INTRODUCED action is the way into a feature (the AI button, Befunde
+ * 06.11., B1, E3): it is made visible once per arrangement — after its
+ * neighbour where that is visible, else at the end of the visible part — also
+ * where an earlier start put it hidden at the end. A protocol of this device
+ * remembers that it was introduced; a user who hides it afterwards keeps that.
+ * An arrangement that does not name it at all comes from before it, and gets it.
+ */
+export async function adoptNewBarAreas(vaultPath: string | null): Promise<void> {
+  let store: BarStore;
+  try {
+    store = await getSettingsStore();
+  } catch {
+    return;
   }
-  return changed;
+  if (await adoptInStore(store, vaultPath)) {
+    await store.save();
+    for (const def of BAR_DEFS) announce(def.id);
+  }
+}
+
+async function adoptInStore(store: BarStore, vaultPath: string | null): Promise<boolean> {
+  const rawProtocol = await store.get<unknown>(INTRODUCED_KEY);
+  const protocol: Record<string, string[]> = {};
+  if (rawProtocol && typeof rawProtocol === "object" && !Array.isArray(rawProtocol)) {
+    for (const [key, ids] of Object.entries(rawProtocol as Record<string, unknown>)) {
+      if (Array.isArray(ids)) protocol[key] = ids.filter((v): v is string => typeof v === "string");
+    }
+  }
+  let protocolChanged = false;
+  let changed = false;
+  for (const adoption of ADOPTIONS) {
+    const def = barDef(adoption.bar);
+    const keys = [barLayoutDefaultKey(adoption.bar), ...(vaultPath ? [barLayoutKey(adoption.bar, vaultPath)] : [])];
+    for (const key of keys) {
+      const raw = await store.get<unknown>(key);
+      const record = (id: string) => {
+        const ids = protocol[key] ?? [];
+        if (ids.includes(id)) return;
+        protocol[key] = [...ids, id];
+        protocolChanged = true;
+      };
+      const stored = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Partial<AreaOrder>) : {};
+      const order = Array.isArray(stored.order) ? stored.order.filter((v): v is string => typeof v === "string") : [];
+      if (raw === undefined || order.length === 0) {
+        // Nothing stored: the spec default already shows it — that is its introduction.
+        for (const id of adoption.introduce ?? []) record(id);
+        continue;
+      }
+      let count = typeof stored.visibleCount === "number" ? stored.visibleCount : order.length;
+      let dirty = false;
+      for (const [id, predecessor] of Object.entries(adoption.after)) {
+        const introduce = adoption.introduce?.includes(id) ?? false;
+        const at = order.indexOf(id);
+        if (introduce) {
+          const known = (protocol[key] ?? []).includes(id);
+          if (at >= 0 && at < count) {
+            record(id);
+            continue;
+          }
+          // Hidden on purpose after it was introduced: the user's choice stays.
+          if (at >= 0 && known) continue;
+          if (at >= 0) order.splice(at, 1);
+          const before = order.indexOf(predecessor);
+          const index = before >= 0 && before < count ? before + 1 : Math.min(count, order.length);
+          order.splice(index, 0, id);
+          count += 1;
+          record(id);
+          dirty = true;
+          continue;
+        }
+        if (at >= 0) continue;
+        const before = order.indexOf(predecessor);
+        const index = before >= 0 ? before + 1 : order.length;
+        order.splice(index, 0, id);
+        // Visible exactly when the action it follows is visible — including the
+        // last visible one: "index < count" sent an id placed right after it into
+        // the hidden half.
+        if (before >= 0 && before < count) count += 1;
+        dirty = true;
+      }
+      if (!dirty) continue;
+      await store.set(key, sanitizeAreaOrder({ order, visibleCount: count }, def.spec));
+      changed = true;
+    }
+  }
+  if (protocolChanged) await store.set(INTRODUCED_KEY, protocol);
+  return changed || protocolChanged;
 }

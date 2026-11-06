@@ -1,5 +1,7 @@
 {
   "ai": {
+    "preparingSkill": "Preparing the skill…",
+    "startBusy": "The AI is still answering. Stop the answer or wait until it is done.",
     "start": {
       "skillsAndMemory": "Skills and memory",
       "allConversations": "All conversations",
@@ -2034,6 +2036,7 @@
         "startFailed": "The program could not be started."
       },
       "add": {
+        "kindAddress": "Server address",
         "title": "Add a server",
         "name": "Name",
         "nameHint": "Your own name for it. It is shown wherever the AI uses the server.",
@@ -2457,6 +2460,7 @@
       }
     },
     "semantic": {
+      "runtimeAbsent": "This build has no runtime for models on this device. “Own provider” can still be chosen.",
       "providerHintPhone": "A cloud only after you approve what goes there.",
       "measureRowDesc": "How fast this device computes — with sample text, never with your notes.",
       "measureRow": "Measurement",

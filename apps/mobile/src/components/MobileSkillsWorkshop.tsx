@@ -31,6 +31,7 @@ import {
   type AiServerSkills,
   type SkillRowCaps,
   type UpkeepRow,
+  startAiSkill,
 } from "@plainva/ui";
 import { MobileUpkeepGroup } from "./MobileUpkeepGroup";
 import { RowActionSheet } from "./RowActionSheet";
@@ -138,9 +139,8 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       ...(entry.status === "active" && entry.source.kind === "skill"
         ? {
             run: () => {
-              const view = skillView(t, entry);
-              onRun();
-              void session.runSkill(view.id, view.start);
+              // Shown where it runs, or said why it cannot start now (Befunde 06.11., B6).
+              startAiSkill(session, t, skillView(t, entry), onRun);
             },
           }
         : {}),

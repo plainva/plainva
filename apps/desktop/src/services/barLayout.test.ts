@@ -26,6 +26,7 @@ import {
   barLayoutDefaultKey,
   barDef,
   migrateLegacyBarLayouts,
+  adoptNewBarAreas,
   BAR_DEFS,
   BAR_LAYOUT_CHANGED_EVENT,
   RIGHT_SECTION_IDS,
@@ -227,16 +228,69 @@ describe("migration of the three places that carried an arrangement before", () 
   it("never overwrites a deliberate choice, so it can run on every start", async () => {
     await saveBarLayoutAsDefault("ribbon", { order: ["mail"], visibleCount: 1 });
     storeValues["ribbonOrder"] = { top: ["palette", "new"] };
+    await migrateLegacyBarLayouts(VAULT);
+    // The one thing a start adds is the AI button, once (Befunde 06.11., E3); the legacy order changes nothing.
+    expect(visibleAreas(await loadBarLayout("ribbon", VAULT))).toEqual(["mail", "ai"]);
     setSpy.mockClear();
     await migrateLegacyBarLayouts(VAULT);
     expect(setSpy).not.toHaveBeenCalled();
     expect((await loadBarLayout("ribbon", VAULT)).order[0]).toBe("mail");
   });
 
-  it("does nothing when there is nothing to migrate", async () => {
+  it("does nothing when there is nothing to migrate, but remember that the defaults show the AI button", async () => {
+    setSpy.mockClear();
+    await migrateLegacyBarLayouts(VAULT);
+    // Only the protocol: no arrangement is written where none was stored.
+    expect(setSpy.mock.calls.map(([key]) => key)).toEqual(["barLayoutIntroduced"]);
     setSpy.mockClear();
     await migrateLegacyBarLayouts(VAULT);
     expect(setSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Befunde 06.11., B1 (plan KB2, E3): the AI button was missing from the rail of a stored arrangement — appended at the
+// end, in the hidden part, by an earlier start, and never looked at again; and a rail from the sync was never adopted.
+describe("the AI button is introduced into every stored rail, once", () => {
+  const rail = () => storeValues[barLayoutKey("ribbon", VAULT)] as { order: string[]; visibleCount: number };
+  const NINE = ["new", "open", "palette", "journal", "tasks", "calendar", "mail", "graph", "comments", "newFolder", "newBase", "daily"];
+
+  it("a rail without it gets it behind the palette, visible", async () => {
+    storeValues[barLayoutKey("ribbon", VAULT)] = { order: NINE, visibleCount: 9 };
+    await adoptNewBarAreas(VAULT);
+    expect(rail().order.indexOf("ai")).toBe(rail().order.indexOf("palette") + 1);
+    expect(isAreaVisible(rail(), "ai")).toBe(true);
+    expect(rail().visibleCount).toBe(10);
+  });
+
+  it("a rail whose palette is hidden gets it at the end of its visible part", async () => {
+    storeValues[barLayoutKey("ribbon", VAULT)] = { order: ["new", "open", "journal", "palette", ...NINE.filter((id) => !["new", "open", "journal", "palette"].includes(id))], visibleCount: 3 };
+    await adoptNewBarAreas(VAULT);
+    expect(visibleAreas(rail())).toEqual(["new", "open", "journal", "ai"]);
+  });
+
+  it("a rail where an earlier start put it hidden at the end gets it visible — once; hidden again, it stays hidden", async () => {
+    storeValues[barLayoutKey("ribbon", VAULT)] = { order: [...NINE, "ai"], visibleCount: 9 };
+    await adoptNewBarAreas(VAULT);
+    expect(isAreaVisible(rail(), "ai")).toBe(true);
+    // The user hides it: the next start, and every one after, keeps that.
+    await saveBarLayout("ribbon", VAULT, { order: [...NINE, "ai"], visibleCount: 9 });
+    await adoptNewBarAreas(VAULT);
+    await adoptNewBarAreas(VAULT);
+    expect(isAreaVisible(rail(), "ai")).toBe(false);
+  });
+
+  it("a rail that arrives with the settings sync and predates it gets it too, after the sync", async () => {
+    storeValues[barLayoutKey("ribbon", VAULT)] = { order: NINE, visibleCount: 9 };
+    await adoptNewBarAreas(VAULT);
+    // Another device, an older Plainva, writes its rail into the vault's settings; the sync brings it here.
+    storeValues[barLayoutKey("ribbon", VAULT)] = { order: NINE, visibleCount: 5 };
+    const announced = vi.fn();
+    window.addEventListener(BAR_LAYOUT_CHANGED_EVENT, announced);
+    await adoptNewBarAreas(VAULT);
+    window.removeEventListener(BAR_LAYOUT_CHANGED_EVENT, announced);
+    expect(visibleAreas(rail())).toEqual(["new", "open", "palette", "ai", "journal", "tasks"]);
+    // The rail on screen re-reads it.
+    expect(announced).toHaveBeenCalled();
   });
 });
 
@@ -315,14 +369,17 @@ describe("an action added by an app update", () => {
     expect(stored.order.indexOf("ai")).toBe(stored.order.indexOf("palette") + 1);
     expect(stored.visibleCount).toBe(13);
 
+    // The palette hidden: the AI button is the way into a feature (Befunde 06.11., B1, E3) — it stands at the end of
+    // the visible part instead of behind its hidden neighbour.
     storeValues[barLayoutDefaultKey("ribbon")] = {
       order: ["new", "open", "daily", "newFolder", "newBase", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette"],
       visibleCount: 3,
     };
+    storeValues["barLayoutIntroduced"] = {};
     await migrateLegacyBarLayouts(null);
     const hidden = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
-    expect(hidden.visibleCount).toBe(3);
-    expect(visibleAreas(hidden)).not.toContain("ai");
+    expect(hidden.visibleCount).toBe(4);
+    expect(visibleAreas(hidden)).toEqual(["new", "open", "daily", "ai"]);
   });
 
   it("counts an id that follows the last visible action as visible", async () => {
@@ -336,7 +393,7 @@ describe("an action added by an app update", () => {
     expect(visibleAreas(stored)).toEqual(["calendar", "journal"]);
   });
 
-  it("leaves them hidden when the action they follow is hidden", async () => {
+  it("leaves them hidden when the action they follow is hidden — all but the AI button", async () => {
     storeValues[barLayoutDefaultKey("ribbon")] = {
       order: ["open", "daily", "new", "graph", "tasks", "calendar", "mail", "comments", "palette"],
       visibleCount: 2, // only "open" and "daily" are visible
@@ -345,8 +402,8 @@ describe("an action added by an app update", () => {
     await migrateLegacyBarLayouts(null);
 
     const stored = storeValues[barLayoutDefaultKey("ribbon")] as { order: string[]; visibleCount: number };
-    expect(stored.visibleCount).toBe(2);
-    expect(visibleAreas(stored)).toEqual(["open", "daily"]);
+    expect(stored.visibleCount).toBe(3);
+    expect(visibleAreas(stored)).toEqual(["open", "daily", "ai"]);
   });
 
   it("runs harmlessly on every start once the ids are stored", async () => {
@@ -354,6 +411,8 @@ describe("an action added by an app update", () => {
       order: ["new", "newFolder", "newBase", "open", "daily", "graph", "tasks", "calendar", "mail", "comments", "journal", "palette", "ai"],
       visibleCount: 4,
     };
+    // The AI button was introduced on this device before; hidden since, it stays hidden.
+    storeValues["barLayoutIntroduced"] = { [barLayoutDefaultKey("ribbon")]: ["ai"] };
     setSpy.mockClear();
 
     await migrateLegacyBarLayouts(null);

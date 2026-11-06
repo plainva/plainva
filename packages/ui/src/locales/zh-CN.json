@@ -1,5 +1,7 @@
 {
   "ai": {
+    "preparingSkill": "正在准备技能…",
+    "startBusy": "AI 仍在回答。请停止回答，或等它结束。",
     "start": {
       "skillsAndMemory": "技能与记忆",
       "allConversations": "所有对话",
@@ -1966,6 +1968,7 @@
         "startFailed": "无法启动程序。"
       },
       "add": {
+        "kindAddress": "服务器地址",
         "title": "添加服务器",
         "name": "名称",
         "nameHint": "你自己给它起的名称。AI使用这个服务器的地方都会显示它。",
@@ -2381,6 +2384,7 @@
       }
     },
     "semantic": {
+      "runtimeAbsent": "此版本不包含在本设备上运行模型的运行时。仍可选择“自有服务商”。",
       "providerHintPhone": "只有在你批准哪些内容可以发送到云端之后，才会使用云端。",
       "measureRowDesc": "此设备的计算速度——使用示例文字，绝不使用你的笔记。",
       "measureRow": "测速",

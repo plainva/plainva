@@ -24,6 +24,7 @@ import { AiSendOverview } from "./AiSendOverview";
 import { AiRunOverview } from "./AiRunOverview";
 import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
+import { startAiSkill } from "./aiStart";
 import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
 import { requestAiSettingsIntent } from "./aiSetup";
 import type { AiDress } from "./aiSession";
@@ -724,6 +725,13 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         {/* What the dress adds to an empty conversation (plan K11): the phone lists what waits and the last conversations. */}
         {items.length === 0 && !live && start}
         {items.map((item, index) => renderItem(item, index))}
+        {/* A skill reads its instructions before anything goes (Befunde 06.11., B6): the conversation says it is on its way. */}
+        {state.preparing && !live && (
+          <p className="pv-ai-working" role="status" data-testid="ai-preparing">
+            <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
+            {t("ai.preparingSkill")}
+          </p>
+        )}
         {live && (
           <div className="pv-ai-live" aria-live="polite">
             {liveTools.length > 0 && (
@@ -938,7 +946,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         {items.length === 0 && !live && !consent && state.hasVault && (
           <div className="pv-ai-skills" role="group" aria-label={t("ai.skills.title")} data-testid="ai-skills">
             {featuredSkills.map((skill) => (
-                <Chip key={skill.id} size={chipSize} icon={<skill.icon size={ICON.meta} />} testId={skill.commandId} onClick={() => void session.runSkill(skill.id, skill.start)}>
+                <Chip key={skill.id} size={chipSize} icon={<skill.icon size={ICON.meta} />} testId={skill.commandId} onClick={() => startAiSkill(session, t, skill)}>
                   {skill.title}
                 </Chip>
               ))}
@@ -966,7 +974,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             )}
             <MenuSurface open={allSkillsOpen} onClose={() => setAllSkillsOpen(false)} anchorRef={allSkillsAnchor} ariaLabel={t("ai.skills.title")}>
               {allSkills.map((skill) => (
-                <MenuItem key={skill.id} icon={<skill.icon size={ICON.ui} />} onSelect={() => { setAllSkillsOpen(false); void session.runSkill(skill.id, skill.start); }} data-testid={skill.commandId.replace(/^ai-skill-/, "ai-skill-menu-")}>
+                <MenuItem key={skill.id} icon={<skill.icon size={ICON.ui} />} onSelect={() => { setAllSkillsOpen(false); startAiSkill(session, t, skill); }} data-testid={skill.commandId.replace(/^ai-skill-/, "ai-skill-menu-")}>
                   {skill.title}
                 </MenuItem>
               ))}

@@ -8,6 +8,7 @@ import {
   Button,
   openLearnSurface,
   openWritesCount,
+  startAiConversation,
   useOpenProposals,
   conversationRowActions,
   EmptyState,
@@ -161,7 +162,7 @@ export function AiTabView({
         />
         {/* A new conversation is the assistant's; an agent's session starts and ends in its own place. */}
         {view !== "agent" && (
-          <Button size="sm" variant="primary" icon={<SquarePen size={ICON.ui} />} disabled={Boolean(state.live)} onClick={() => session.newConversation()} data-testid="ai-tab-new">
+          <Button size="sm" variant="primary" icon={<SquarePen size={ICON.ui} />} onClick={() => startAiConversation(session, t, () => setView("chats"))} data-testid="ai-tab-new">
             {t("ai.newConversation")}
           </Button>
         )}

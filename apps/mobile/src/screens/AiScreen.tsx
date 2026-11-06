@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { History, SquarePen } from "lucide-react";
-import { AiConversation, AiSessionContext, GroupCard, ICON, IconButton, openWritesCount, Row, RowList, SectionLabel, useOpenProposals, waitingCount } from "@plainva/ui";
+import { AiConversation, AiSessionContext, GroupCard, ICON, IconButton, openWritesCount, Row, RowList, SectionLabel, startAiConversation, useOpenProposals, waitingCount } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";
 
@@ -44,7 +44,7 @@ export function AiScreen({
               <IconButton label={t("ai.history.title")} onClick={() => onHistory()} data-testid="ai-history-open">
                 <History size={ICON.head} />
               </IconButton>
-              <IconButton label={t("ai.newConversation")} onClick={() => session.newConversation()} data-testid="ai-new">
+              <IconButton label={t("ai.newConversation")} onClick={() => startAiConversation(session, t)} data-testid="ai-new">
                 <SquarePen size={ICON.head} />
               </IconButton>
             </>
