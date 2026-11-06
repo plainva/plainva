@@ -66,9 +66,10 @@ test("the APP pages carry the desktop's groups, with the explanations behind the
     await shoot(page, testInfo, "m-editor");
     await back();
 
-    // Startup & behavior: Widgets before Hints, the widget note behind its ⓘ.
+    // Startup & behavior: "On start" first (plan 2026-11-05, P10), then Widgets before Hints.
     await page.locator('[data-testid="settings-area-behavior"]').click();
-    await expect(labels(page)).toHaveText(["Widgets", "Hints"]);
+    await expect(labels(page)).toHaveText(["Startup", "Widgets", "Hints"]);
+    await expect(page.getByTestId("behavior-start-view")).toBeVisible();
     await shoot(page, testInfo, "m-behavior");
     await back();
 
