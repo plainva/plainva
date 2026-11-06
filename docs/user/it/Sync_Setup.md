@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-11-03
+Ultimo aggiornamento: 2026-11-06
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -162,6 +162,8 @@ Un account che rimuovi resta rimosso: l'eliminazione viaggia tramite la sincroni
 ## Che cosa viaggia e che cosa resta qui
 
 Se in **Account cloud** appare **Controlla gli account duplicati**, Plainva non decide intenzionalmente in base al nome. Scegli **Mantieni questo account** sulla scheda corretta. La conferma indica destinazione, origini e servizi interessati e crea prima un backup su questo dispositivo. **Annulla** non modifica nulla. L’unione rimuove solo account locali, cache e credenziali orfani; nulla viene eliminato presso il provider.
+
+Se appare **Controlla le caselle doppie**, la stessa casella di posta è salvata in più voci. Ogni voce può avere un proprio accesso su questo dispositivo, quindi Plainva chiede prima. Scegli **Mantieni questa voce** su quella da conservare; ogni voce indica quale account la usa e se ha l’accesso effettuato su questo dispositivo. Le altre confluiscono in essa: nome, firme e indirizzi mittente passano a lei dove non li ha, e la posta dell’account passa a lei. Presso il provider non viene eliminato nulla. Una casella salvata più volte nella stessa voce viene unita da sola all’apertura del vault.
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 

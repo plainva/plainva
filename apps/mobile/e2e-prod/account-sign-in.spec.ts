@@ -457,6 +457,33 @@ test("an IMAP account: the same sections, a check that names the failing mailbox
 });
 
 /*
+ * Finding 2026-11-06, M2: one mailbox stored under two entries, the phone's
+ * side of the desktop case in `apps/desktop/e2e/account-sign-in.spec.ts`. The
+ * Accounts screen asks which entry to keep; the card then uses it.
+ */
+test("one mailbox stored under two entries: the Accounts screen asks which to keep, and the card uses the kept one", async ({ context, page }, testInfo) => {
+  await boot(context, page, (storage) => {
+    withImap(storage);
+    const rows = storage[`mailAccounts_${LOCAL_KEY}`] as { id: string }[];
+    const imap = rows.find((row) => row.id === "m-imap")!;
+    storage[`mailAccounts_${LOCAL_KEY}`] = [...rows, { ...imap, id: "m-imap-old", signature: "Anna" }];
+  });
+  await page.locator('[data-testid="nav-settings"]').first().click();
+  await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
+  const entries = page.getByTestId("cloudacct-mailbox-keep");
+  await expect(entries).toHaveCount(2, { timeout: 15000 });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mailbox-duplicates.png"), fullPage: true });
+
+  await entries.filter({ hasNotText: "Not signed in" }).click();
+  await page.getByTestId("confirm-act").click();
+  await expect(entries).toHaveCount(0, { timeout: 15000 });
+  const stored = JSON.parse((await page.evaluate((key) => localStorage.getItem(`CapacitorStorage.mailAccounts_${key}`), LOCAL_KEY)) ?? "[]") as { id: string; signature?: string }[];
+  expect(stored.filter((row) => row.id.startsWith("m-imap")).map((row) => [row.id, row.signature ?? null])).toEqual([["m-imap", "Anna"]]);
+  const card = (await storedCards(page)).find((entry) => entry.id === "card-imap") as { services: { mail?: { mailAccountId: string } } } | undefined;
+  expect(card?.services.mail?.mailAccountId).toBe("m-imap");
+});
+
+/*
  * A first connect from nothing (device finding 2026-10-27, TestFlight 146):
  * no card, no slot, no cloud vault. Google is chosen with files and a
  * calendar, the sign-in returns, "Connect" opens the Drive folder picker, a

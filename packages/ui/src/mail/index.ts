@@ -34,6 +34,7 @@ export * from "./sieveRules";
 export * from "./graphRules";
 export * from "./sieveSync";
 export * from "./mailboxReplacement";
+export * from "./mailboxDuplicates";
 export * from "./replyQuote";
 export * from "./messageText";
 export * from "./mailSanitize";

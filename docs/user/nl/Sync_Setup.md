@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-11-03
+Laatst bijgewerkt: 2026-11-06
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -162,6 +162,8 @@ Een account dat je verwijdert, blijft verwijderd: de verwijdering reist via de i
 ## Wat meereist en wat hier blijft
 
 Als onder **Cloudaccounts** de sectie **Dubbele accounts controleren** verschijnt, raadt Plainva bewust niet op basis van de naam. Kies **Dit account behouden** bij de juiste kaart. De bevestiging noemt doel, bronnen en betrokken diensten en maakt eerst een back-up op dit apparaat. **Annuleren** wijzigt niets. Samenvoegen verwijdert alleen verweesde lokale accounts, caches en aanmeldgegevens; bij de provider wordt niets verwijderd.
+
+Als **Dubbele postbussen controleren** verschijnt, is dezelfde postbus onder meerdere items opgeslagen. Elk item kan op dit apparaat een eigen aanmelding hebben, dus Plainva vraagt het eerst. Kies **Dit item behouden** bij het item dat moet blijven; elk item noemt het account dat het gebruikt en of het op dit apparaat is aangemeld. De andere gaan erin op: hun naam, handtekeningen en afzenderadressen gaan ernaar waar het er geen heeft, en de mail van het account gaat erop over. Bij de provider wordt niets verwijderd. Een postbus die meerdere keren onder hetzelfde item is opgeslagen, voegt Plainva bij het openen van de vault vanzelf samen.
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 

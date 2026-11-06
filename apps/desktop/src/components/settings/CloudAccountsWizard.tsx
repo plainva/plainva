@@ -59,7 +59,7 @@ import type { PimRuntime } from "../../services/pim/pimRuntime";
 import { AccessUnavailableError, readDeviceAccess, saveDeviceAccess, deviceAccess, signInCloudAccount } from "../../services/accountSignIn";
 import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";
-import { AccountMark, SERVICE_ICONS, familyLabel, serviceLabel } from "./cloudAccountsShared";
+import { AccountMark, SERVICE_ICONS, accountDisplayName, familyLabel, serviceLabel } from "./cloudAccountsShared";
 import { ConnectFieldsCard, ConnectOtherCard, ConnectSummaryCard, ServiceStatusCard, connectValue, failedServiceStatus, type ConnectValues } from "./ConnectSignInStep";
 
 /**
@@ -429,7 +429,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                     {serviceLabel(service)}
                     {takenByOther && (
                       <span className="pv-svcchip pv-svcchip--off">
-                        {t("cloudAccounts.filesTaken", { account: filesTakenBy!.label || familyLabel(filesTakenBy!.family, filesTakenBy!.flavor) })}
+                        {t("cloudAccounts.filesTaken", { account: accountDisplayName(filesTakenBy!) })}
                       </span>
                     )}
                     {service === "mail" && gmailNeedsPassword && <span className="pv-svcchip pv-svcchip--off">{t("cloudAccounts.appPasswordBadge")}</span>}
@@ -438,7 +438,7 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
                     {unavailable
                       ? t(unavailable, { provider: providerName })
                       : takenByOther
-                        ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy!.label || familyLabel(filesTakenBy!.family, filesTakenBy!.flavor) })
+                        ? t("cloudAccounts.filesTakenDetail", { account: accountDisplayName(filesTakenBy!) })
                         : needsRuntime
                           ? t("pim.openVaultFirst")
                           : service === "files"

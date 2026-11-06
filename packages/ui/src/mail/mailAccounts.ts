@@ -4,6 +4,9 @@ import { readSlot, removeSlot, shellSlotName } from "../lib/keychainSlots";
 import { quotedOriginalStart } from "./replyQuote";
 import { withAccountCredentialLock } from "../lib/tokenRefreshCoordinator";
 import { ServiceConnectionError } from "../lib/serviceConnection";
+import { collapseMailAccountRows } from "./mailAccountRows";
+
+export { collapseMailAccountRows, mergeMailAccountRows } from "./mailAccountRows";
 
 /**
  * Mail accounts (PIM stage 5+): the non-secret account list lives in the
@@ -300,18 +303,44 @@ export function keepUnchangedAccounts(before: MailAccountConfig[], after: MailAc
   return kept.length === before.length && kept.every((a, i) => a === before[i]) ? before : kept;
 }
 
-export async function listMailAccounts(vaultPath: string): Promise<MailAccountConfig[]> {
+async function readStoredMailRows(vaultPath: string): Promise<MailAccountConfig[]> {
   const store = await getPlatformServices().loadSettings();
   const raw = await store.get<MailAccountConfig[]>(mailAccountsKey(vaultPath));
   return Array.isArray(raw) ? raw.filter((a) => a && typeof a.id === "string") : [];
 }
 
+/** The vault's mailboxes, every id once (`collapseMailAccountRows`). */
+export async function listMailAccounts(vaultPath: string): Promise<MailAccountConfig[]> {
+  return collapseMailAccountRows(await readStoredMailRows(vaultPath));
+}
+
+/**
+ * Writes the folded list back once, where the store still holds a mailbox more
+ * than once (finding 2026-11-06, M2; decision E2: silently, because one id is one
+ * mailbox). Both shells call it when a vault opens; every read already sees the
+ * folded list, this makes it what is stored - and what the next profile export
+ * carries. Returns whether anything was written.
+ */
+export async function healMailAccounts(vaultPath: string): Promise<boolean> {
+  return withAccountCredentialLock(mailAccountsKey(vaultPath), async () => {
+    const stored = await readStoredMailRows(vaultPath);
+    const folded = collapseMailAccountRows(stored);
+    if (folded === stored) return false;
+    const store = await getPlatformServices().loadSettings();
+    await store.set(mailAccountsKey(vaultPath), folded);
+    await store.save();
+    announceMailAccounts(vaultPath);
+    return true;
+  });
+}
+
 /** Replaces non-secret account metadata during settings-profile import. No
  * credential slot is touched; imported accounts therefore correctly show as
- * needing sign-in until an allowed secret is imported or OAuth is completed. */
+ * needing sign-in until an allowed secret is imported or OAuth is completed.
+ * Never stores one id twice (`collapseMailAccountRows`). */
 export async function replaceMailAccounts(vaultPath: string, accounts: MailAccountConfig[]): Promise<void> {
   const store = await getPlatformServices().loadSettings();
-  await store.set(mailAccountsKey(vaultPath), accounts);
+  await store.set(mailAccountsKey(vaultPath), collapseMailAccountRows(accounts));
   await store.save();
   announceMailAccounts(vaultPath);
 }

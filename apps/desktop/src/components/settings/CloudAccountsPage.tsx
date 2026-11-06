@@ -64,6 +64,7 @@ import {
   backfillCalendarIdentity,
   loadCloudAccounts,
   refreshCloudAccounts,
+  saveCloudAccounts,
 } from "../../services/cloudAccounts";
 import {
   bindConnectResult,
@@ -92,8 +93,8 @@ import { AccountServicePage } from "./AccountServicePage";
 import { readAccountPageFacts, type AccountPageFacts } from "../../services/accountPageFacts";
 import { AccessUnavailableError, deviceAccess, readDeviceAccess, saveDeviceAccess, signInCloudAccount } from "../../services/accountSignIn";
 import { oauthErrorText } from "../../services/oauthLoopback";
-import { listMailAccounts, replacementMailAddress } from "@plainva/ui/mail";
-import { AccountMark, SERVICE_ICONS, ServiceChip, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
+import { foldDuplicateMailboxes, listMailAccounts, mailboxDuplicateEntries, replacementMailAddress, type MailboxDuplicateEntry } from "@plainva/ui/mail";
+import { AccountMark, SERVICE_ICONS, ServiceChip, accountDisplayName, accountTitle, familyLabel, serviceLabel } from "./cloudAccountsShared";
 
 /**
  * The "Cloud-Konten" vault area (mockup screens 1 + 4): the ONE place where
@@ -132,6 +133,8 @@ export const CloudAccountsPage: React.FC<{
   useEffect(() => { runtimeRef.current = runtime; }, [runtime]);
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
+  /** One mailbox stored under several entries (finding 2026-11-06, M2): the guided step. */
+  const [mailboxDuplicates, setMailboxDuplicates] = useState<MailboxDuplicateEntry[][]>([]);
   // The splash "open an online vault" path deep-links here with the provider
   // the user already picked — land in the wizard on that tile, not on the list.
   const [mode, setMode] = useState<Mode>(initialProvider || connectRequest ? { kind: "wizard" } : { kind: "list" });
@@ -217,6 +220,7 @@ export const CloudAccountsPage: React.FC<{
     ]);
     setRecords(next);
     setRepairNeeds(needs);
+    setMailboxDuplicates(await mailboxDuplicateEntries(selectedVault, next).catch(() => []));
   }, [selectedVault, isActiveVault, runtime]);
 
   useEffect(() => {
@@ -519,7 +523,7 @@ export const CloudAccountsPage: React.FC<{
     const ok = await appConfirm({
       title: t("cloudAccounts.removeConfirmTitle"),
       message: t("cloudAccounts.removeConfirmMsg", {
-        account: record.label || familyLabel(record.family, record.flavor),
+        account: accountDisplayName(record),
         goes: confirm.goes.map((key) => t(key)).join("; "),
         stays: confirm.stays.map((key) => t(key)).join("; "),
       }),
@@ -611,12 +615,12 @@ export const CloudAccountsPage: React.FC<{
     target: CloudAccountRecord,
   ): Promise<boolean> => {
     const sourceNames = plan.merges[0].sourceIds
-      .map((id) => records.find((record) => record.id === id)?.label || id)
+      .map((id) => { const record = records.find((entry) => entry.id === id); return record ? accountDisplayName(record) : id; })
       .join(", ");
     return appConfirm({
       title: t("cloudAccounts.repairConfirmTitle"),
       message: t("cloudAccounts.repairConfirmMessage", {
-        target: target.label || familyLabel(target.family, target.flavor),
+        target: accountDisplayName(target),
         sources: sourceNames,
         services: serviceNames(plan.merges[0].affectedServices),
       }),
@@ -682,6 +686,34 @@ export const CloudAccountsPage: React.FC<{
       toast.error(t("cloudAccounts.repairFailed"));
     } finally {
       setBusy(false);
+    }
+  };
+
+  /**
+   * Keeps one entry of a mailbox stored more than once and folds the others
+   * into it (finding 2026-11-06, M2; decision E2: on the person's word, because
+   * each entry can carry its own sign-in).
+   */
+  const keepMailbox = async (entry: MailboxDuplicateEntry) => {
+    const ok = await appConfirm({
+      title: t("cloudAccounts.repairMailboxConfirmTitle"),
+      message: t("cloudAccounts.repairMailboxConfirmMessage", { mailbox: entry.account.user || entry.account.label }),
+      confirmLabel: t("cloudAccounts.repairMailboxConfirmAction"),
+      kind: "warning",
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await foldDuplicateMailboxes(selectedVault, entry.account.id, {
+        listCards: () => loadCloudAccounts(selectedVault),
+        replaceCards: (cards) => saveCloudAccounts(selectedVault, cards),
+      });
+      toast.success(t("cloudAccounts.repairMailboxDone"));
+    } catch {
+      toast.error(t("cloudAccounts.repairMailboxFailed"));
+    } finally {
+      setBusy(false);
+      await reload();
     }
   };
 
@@ -819,7 +851,7 @@ export const CloudAccountsPage: React.FC<{
                   <div className="pv-svcline-title">{serviceLabel(row.service)}</div>
                   <div className="pv-svcline-desc">
                     {takenElsewhere
-                      ? t("cloudAccounts.filesTakenDetail", { account: filesAccount!.label || familyLabel(filesAccount!.family, filesAccount!.flavor) })
+                      ? t("cloudAccounts.filesTakenDetail", { account: accountDisplayName(filesAccount!) })
                       : needsRuntime
                         ? t("pim.openVaultFirst")
                         : row.summary ?? t(row.stateKey)}
@@ -962,7 +994,7 @@ export const CloudAccountsPage: React.FC<{
                     { value: "", label: t("cloudAccounts.mergeManualNone") },
                     ...others.map((r) => ({
                       value: r.id,
-                      label: r.label || familyLabel(r.family, r.flavor),
+                      label: accountDisplayName(r),
                     })),
                   ]}
                 />
@@ -1014,7 +1046,7 @@ export const CloudAccountsPage: React.FC<{
               return (
                 <SettingRow
                   key={`${needIndex}:${accountId}`}
-                  label={record.label || familyLabel(record.family, record.flavor)}
+                  label={accountDisplayName(record)}
                   desc={serviceNames(accountServices(record))}
                 >
                   <Button
@@ -1028,6 +1060,32 @@ export const CloudAccountsPage: React.FC<{
                 </SettingRow>
               );
             }),
+          )}
+        </SettingCard>
+      )}
+      {mailboxDuplicates.length > 0 && (
+        <SettingCard label={t("cloudAccounts.repairMailboxTitle")} info={t("cloudAccounts.repairMailboxHint")}>
+          <SettingCardNote>{t("cloudAccounts.repairMailboxStep")}</SettingCardNote>
+          {mailboxDuplicates.flatMap((group, groupIndex) =>
+            group.map((entry) => (
+              <SettingRow
+                key={`${groupIndex}:${entry.account.id}`}
+                label={entry.account.user || entry.account.label}
+                desc={[
+                  ...(entry.signedIn === null ? [] : [t(entry.signedIn ? "cloudAccounts.repairMailboxSignedIn" : "cloudAccounts.repairMailboxNotSignedIn")]),
+                  entry.card ? accountDisplayName(entry.card) : t("cloudAccounts.repairMailboxUnused"),
+                ].join(" · ")}
+              >
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void keepMailbox(entry)}
+                  data-testid="cloudacct-mailbox-keep"
+                >
+                  {t("cloudAccounts.repairMailboxKeep")}
+                </Button>
+              </SettingRow>
+            )),
           )}
         </SettingCard>
       )}
@@ -1077,7 +1135,7 @@ export const CloudAccountsPage: React.FC<{
         })}
         {filesAccount && (
           <SettingCardNote>
-            {t("cloudAccounts.filesXorNote", { account: filesAccount.label || familyLabel(filesAccount.family, filesAccount.flavor) })}
+            {t("cloudAccounts.filesXorNote", { account: accountDisplayName(filesAccount) })}
           </SettingCardNote>
         )}
       </SettingCard>

@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-11-03
+Stan na: 2026-11-06
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -162,6 +162,8 @@ Konto, które usuniesz, pozostaje usunięte: usunięcie podróżuje przez synchr
 ## Co podróżuje, a co zostaje tutaj
 
 Jeśli w sekcji **Konta w chmurze** pojawi się **Sprawdź zduplikowane konta**, Plainva celowo nie zgaduje na podstawie nazwy. Wybierz **Zachowaj to konto** przy właściwej karcie. Potwierdzenie pokazuje cel, źródła i usługi, a wcześniej tworzy kopię zapasową na tym urządzeniu. **Anuluj** niczego nie zmienia. Połączenie usuwa tylko osierocone lokalne konta, pamięci podręczne i dane logowania — u dostawcy nic nie jest usuwane.
+
+Jeśli pojawi się **Sprawdź zdublowane skrzynki**, ta sama skrzynka pocztowa jest zapisana jako kilka wpisów. Każdy wpis może mieć na tym urządzeniu własne logowanie, dlatego Plainva najpierw pyta. Wybierz **Zachowaj ten wpis** przy tym, który ma zostać; każdy wpis podaje konto, które z niego korzysta, i czy jest zalogowany na tym urządzeniu. Pozostałe zostaną z nim połączone: ich nazwa, podpisy i adresy nadawcy przejdą do niego tam, gdzie ich nie ma, a poczta konta przejdzie na niego. U dostawcy nic nie zostanie usunięte. Skrzynkę zapisaną kilka razy jako ten sam wpis Plainva łączy sama przy otwarciu vaulta.
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 

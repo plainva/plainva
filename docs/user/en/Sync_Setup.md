@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-11-03
+Last updated: 2026-11-06
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -162,6 +162,8 @@ An account you remove stays removed: the deletion travels through the settings s
 ## What travels, and what stays here
 
 If **Review duplicate accounts** appears under **Cloud accounts**, Plainva deliberately does not guess from the name. Choose **Keep this account** on the correct card. The confirmation names the target, sources and affected services, and creates a backup on this device first. **Cancel** changes nothing. Merging removes only orphaned local accounts, caches and credentials — nothing is deleted at the provider.
+
+If **Review duplicate mailboxes** appears, the same mailbox is stored under several entries. Each entry can carry its own sign-in on this device, so Plainva asks first. Choose **Keep this entry** on the one that should remain; each entry says which account uses it and whether it is signed in on this device. The others are folded into it: their name, signatures and sender addresses go to it where it has none, and the account's mail switches to it. Nothing is deleted at the provider. A mailbox stored more than once under the same entry is folded on its own when the vault opens.
 
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 

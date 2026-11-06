@@ -3,6 +3,7 @@ import { trimEndChars } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
+import { mergeMailAccountRows } from "../mail/mailAccountRows.js";
 import { getPlatformServices } from "../platform/services.js";
 
 /** Provider-owned account key proven by a successful authenticated API call. */
@@ -855,11 +856,21 @@ export async function importAccountMetadata(
       used.add(localId);
       mailMap.set(imported.id, localId);
       previousMap.secretLocalToLogical[ports.mailSecretSlot(localId)] = imported.id;
-      importedRows.push({
+      // `firstFetchAt` is only ever GAINED (like a verified identity above): a
+      // document older than this device's first fetch must not take it back.
+      const row: MailAccountConfig = {
         ...imported,
         id: localId,
         ...(same?.clientId ? { clientId: same.clientId } : {}),
-      });
+        ...(!imported.firstFetchAt && same?.firstFetchAt ? { firstFetchAt: same.firstFetchAt } : {}),
+      };
+      // Several document rows can name ONE local mailbox - by id, or by the
+      // same address under old ids. Each used to be appended, so a document
+      // with one mailbox seven times left seven rows with one id (finding
+      // 2026-11-06, M2). They fold into the first, keeping every set field.
+      const earlier = importedRows.findIndex((entry) => entry.id === localId);
+      if (earlier >= 0) importedRows[earlier] = mergeMailAccountRows(importedRows[earlier], row);
+      else importedRows.push(row);
     }
     const importedIds = new Set(importedRows.map((a) => a.id));
     const removedMailLocals = new Set(

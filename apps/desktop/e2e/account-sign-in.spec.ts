@@ -818,6 +818,34 @@ test('an IMAP account signs out on this device and in again, and its mail page s
 });
 
 /*
+ * Finding 2026-11-06, M2: one mailbox stored under two entries. Each entry can
+ * carry its own sign-in, so the Accounts page asks which to keep (decision E2);
+ * the kept one takes the other's sign-in where it has none, the card points at
+ * it, and the other entry is gone. The phone runs the same step in
+ * `apps/mobile/e2e-prod/account-sign-in.spec.ts`.
+ */
+test('one mailbox stored under two entries: the Accounts page asks which to keep, and the card uses the kept one', async ({ page }, testInfo) => {
+  const row = { label: 'anna@mail.example', host: 'imap.mail.example', port: 993, user: 'anna@mail.example', smtpHost: 'smtp.mail.example', smtpPort: 587 };
+  await wire(page, {
+    cards: [{ ...IMAP_CARD, services: { mail: { mailAccountId: 'm2' } } }],
+    settings: { [`mailAccounts_${vaultKey}`]: [{ id: 'm1', ...row }, { id: 'm2', ...row, signature: 'Anna' }] },
+    keychain: { [`mail_m2_${vaultKey}`]: JSON.stringify({ pass: 'secret' }) },
+  });
+  const dialog = await openCloudAccounts(page);
+  const entries = dialog.getByTestId('cloudacct-mailbox-keep');
+  await expect(entries).toHaveCount(2, { timeout: 15_000 });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mailbox-duplicates.png') });
+
+  await entries.first().click();
+  const asked = await confirmDialog(page);
+  expect(asked).toContain('anna@mail.example');
+  await expect(entries).toHaveCount(0, { timeout: 15_000 });
+  const after = await page.evaluate((key) => (window as any).__settings.get(`mailAccounts_${key}`) as any[], vaultKey);
+  expect(after.map((entry: any) => [entry.id, entry.signature ?? null])).toEqual([['m1', 'Anna']]);
+  expect((await cards(page))[0].services.mail.mailAccountId).toBe('m1');
+});
+
+/*
  * Device finding 2026-10-27, the desktop's side: connecting files to a cloud
  * folder that already holds many files goes on at once - nothing of the folder
  * is read up front -, and the files arrive through the vault's sync, which the
