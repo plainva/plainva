@@ -27,7 +27,7 @@ Clique com o botão direito em um arquivo na árvore de arquivos (ou na aba dele
 - **Restaurar** substitui o conteúdo atual pela versão selecionada. Não se preocupe: o estado atual é salvo primeiro como um snapshot — então uma restauração sempre pode ser desfeita.
 - **Restaurar como cópia** cria a versão como um novo arquivo ao lado do original (`Name (Version 2026-07-05 14-30).md`) sem alterá-lo.
 
-Imagens também têm versões (com pré-visualização); outros arquivos binários podem ser restaurados sem pré-visualização. No telefone, mantenha um arquivo pressionado na lista de arquivos e escolha **Histórico de versões…**.
+Imagens também têm versões (com pré-visualização); outros arquivos binários podem ser restaurados sem pré-visualização. No telefone, mantenha um arquivo pressionado na lista de arquivos e escolha **Histórico de versões…**. Uma versão que o assistente de IA escreveu com **Aplicar diretamente** aparece marcada como **IA** no histórico; o Plainva guarda a versão anterior a cada alteração desse tipo (veja [Assistente de IA](AI_Assistant.md)).
 
 ## Restaurando arquivos excluídos
 

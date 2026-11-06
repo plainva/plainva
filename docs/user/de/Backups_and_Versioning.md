@@ -27,7 +27,7 @@ Rechtsklick auf eine Datei im Dateibaum (oder auf ihren Tab) oder das **⋮**-Me
 - **Wiederherstellen** ersetzt den aktuellen Inhalt durch die gewählte Version. Keine Angst: Der aktuelle Stand wird vorher selbst als Snapshot gesichert — Wiederherstellen ist also selbst rückgängig machbar.
 - **Als Kopie wiederherstellen** legt die Version als neue Datei daneben an (`Name (Version 2026-07-05 14-30).md`), ohne das Original anzufassen.
 
-Auch Bilder haben Versionen (mit Vorschau); andere Binärdateien lassen sich ohne Vorschau wiederherstellen. Am Telefon hältst Du dafür eine Datei in der Dateiliste gedrückt und wählst **Versionsverlauf…**.
+Auch Bilder haben Versionen (mit Vorschau); andere Binärdateien lassen sich ohne Vorschau wiederherstellen. Am Telefon hältst Du dafür eine Datei in der Dateiliste gedrückt und wählst **Versionsverlauf…**. Eine Fassung, die der KI-Assistent mit **Direkt übernehmen** geschrieben hat, trägt im Verlauf die Kennzeichnung **KI**; die Fassung davor hält Plainva vor jeder solchen Änderung fest (siehe [KI-Assistent](AI_Assistant.md)).
 
 ## Gelöschte Dateien wiederherstellen
 

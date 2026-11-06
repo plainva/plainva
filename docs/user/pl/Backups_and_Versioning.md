@@ -27,7 +27,7 @@ Kliknij prawym przyciskiem myszy plik w drzewie plików (lub jego kartę) albo u
 - **Przywróć** zastępuje bieżącą treść wybraną wersją. Bez obaw: bieżący stan sam jest najpierw zapisywany jako migawka — więc przywrócenie zawsze można cofnąć.
 - **Przywróć jako kopię** tworzy wersję jako nowy plik obok oryginału (`Name (Version 2026-07-05 14-30).md`), nie dotykając go.
 
-Obrazy również mają wersje (z podglądem); pozostałe pliki binarne można przywrócić bez podglądu. Na telefonie przytrzymaj plik na liście plików i wybierz **Historia wersji…**.
+Obrazy również mają wersje (z podglądem); pozostałe pliki binarne można przywrócić bez podglądu. Na telefonie przytrzymaj plik na liście plików i wybierz **Historia wersji…**. Wersja, którą asystent AI zapisał przez **Zastosuj od razu**, jest w historii oznaczona jako **AI**; Plainva zachowuje wersję sprzed każdej takiej zmiany (zobacz [Asystent AI](AI_Assistant.md)).
 
 ## Przywracanie usuniętych plików
 

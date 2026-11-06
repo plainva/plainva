@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-11-03
+Última revisão: 2026-11-06
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -189,6 +189,8 @@ folders:
   Private/: { cloud: deny }
   Research/: { web: deny }
 ```
+
+Além de `cloud` e `web`, uma pasta pode ter `write: direct` — **Alterar sem perguntar**: o assistente de IA pode alterar e criar notas ali diretamente. `write: ask` retira isso para uma subpasta; sem a chave, toda pasta pergunta. Não é uma regra de privacidade e não aparece em nenhuma nota.
 
 `true`/`false` valem como `allow`/`deny`; qualquer outro valor é ignorado e nunca libera nada. O restante da pasta oculta `.agent/` — skills (`skills/<name>/SKILL.md`), memória e notas de conversa — pertence ao assistente do Plainva. O Plainva só segue um arquivo novo ou alterado ali depois que o usuário o aprova naquele dispositivo; por isso, uma ferramenta só deve escrever em `.agent/` se o usuário pedir exatamente isso.
 

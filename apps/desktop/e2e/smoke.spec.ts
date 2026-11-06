@@ -9170,3 +9170,158 @@ test('Hide puts the Drive notice away until the set of files changes', async ({ 
   });
   await expect(notice).toHaveCount(0);
 });
+
+// "Apply directly" (plan "KI direkt schreiben", W5) in the real desktop shell,
+// with the real wiring, against the mock file system that stands for the vault
+// and the scripted model behind `ai_http`: the chip writes a change at once,
+// with a version before it and the AI mark in the history; Undo takes it back;
+// a folder's rule "Change without asking" does the same without the chip; and
+// a note open with unsaved keystrokes gets a suggestion instead.
+
+const directSse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+const directSays = (text: string) => directSse([
+  ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+  ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+  ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+  ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+  ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+  ['message_stop', { type: 'message_stop' }],
+]);
+// A found tool is called through the conversation's dispatcher.
+const directCalls = (...list: Array<[id: string, name: string, args: unknown]>) => directSse([
+  ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+  ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+    ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: 'call_tool', input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ name, args }) } }],
+    ['content_block_stop', { type: 'content_block_stop', index }],
+  ]),
+  ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+  ['message_stop', { type: 'message_stop' }],
+]);
+
+const DIRECT_OFFER = '# Offer\n\nThe day rate is 1,800 euros.\n';
+const DIRECT_RAISED = '# Offer\n\nThe day rate is 1,900 euros.\n';
+const DIRECT_TODAY = '# Today\n\nWrote the offer.\n';
+
+async function directVault(page: Page, script: string[], extra: Record<string, string> = {}) {
+  await page.addInitScript(({ script, files }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.plainva/sync'] = { isDir: true };
+    fs['/test-vault/.agent'] = { isDir: true };
+    fs['/test-vault/Projects'] = { isDir: true };
+    fs['/test-vault/Journal'] = { isDir: true };
+    for (const [path, text] of Object.entries(files)) fs[`/test-vault/${path}`] = text;
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, files: { 'Projects/Offer.md': DIRECT_OFFER, 'Journal/Today.md': DIRECT_TODAY, ...extra } });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const fileAt = (path: string) => page.evaluate((p) => {
+    const value = (window as any).mockFs[p];
+    return typeof value === 'string' ? value : null;
+  }, `/test-vault/${path}`);
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  return { fileAt, requests };
+}
+
+async function directAsk(page: Page, text: string) {
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill(text);
+  await companion.getByTestId('ai-send').click();
+  const consent = companion.getByTestId('ai-consent-send');
+  return { companion, consent };
+}
+
+test('AI apply directly: the chip writes a change at once, with a version marked AI, and Undo takes it back', async ({ page }) => {
+  const { fileAt, requests } = await directVault(page, [
+    directCalls(['c1', 'propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }] }], ['c2', 'create_note', { title: 'Rates', content: 'The day rate is 1,900 euros.' }]),
+    directSays('I raised the rate and wrote down the rates.'),
+  ]);
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  // Off by default; on, the marking line says what it lets the AI do.
+  const chip = companion.getByTestId('ai-direct-toggle');
+  await expect(chip).toHaveAttribute('aria-pressed', 'false');
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await expect(companion.getByTestId('ai-direct-marking')).toHaveText('The AI may change and create notes in this conversation. Deleting, renaming and moving still ask.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-chip-desktop.png') });
+
+  const { consent } = await directAsk(page, 'Raise the day rate to 1,900 euros and note the rates.');
+  // The overview before sending names it.
+  await expect(consent).toBeVisible();
+  await expect(companion.getByTestId('ai-overview-direct')).toHaveText('The AI may change and create notes; deleting still asks.');
+  await consent.click();
+  await expect(companion.getByText('I raised the rate and wrote down the rates.')).toBeVisible();
+
+  // Written at once: the note, and a new one in the inbox; the model was told so.
+  expect(await fileAt('Projects/Offer.md')).toBe(DIRECT_RAISED);
+  expect((await requests())[1]).toContain('Changed Projects/Offer.md directly: 1 change.');
+  await expect(companion.getByTestId('ai-direct-changed')).toContainText('Changed: 1 note, 1 new');
+  await expect(companion.getByTestId('ai-direct-row')).toHaveCount(2);
+  await expect(companion.getByTestId('ai-proposed')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-changed-desktop.png') });
+
+  // Undo of the edit puts the version back; the row says so.
+  await companion.locator('[data-testid="ai-direct-row"][data-path="Projects/Offer.md"]').getByTestId('ai-direct-undo').click();
+  await expect.poll(() => fileAt('Projects/Offer.md')).toBe(DIRECT_OFFER);
+  await expect(companion.locator('[data-testid="ai-direct-row"][data-path="Projects/Offer.md"]').getByTestId('ai-direct-undone')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-undone-desktop.png') });
+
+  // The version history keeps what the assistant wrote, marked AI.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-show-version-history', { detail: { path: 'Projects/Offer.md' } })));
+  await expect(page.getByTestId('version-ai').first()).toHaveText('AI');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-history-desktop.png') });
+});
+
+test('AI apply directly: a folder with "Change without asking" takes changes without the chip; elsewhere they wait', async ({ page }) => {
+  const { fileAt } = await directVault(
+    page,
+    [
+      directCalls(['c1', 'propose_edit', { path: 'Journal/Today.md', append: 'Raised the rate.' }], ['c2', 'propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }] }]),
+      directSays('Done where I may; the offer waits for you.'),
+    ],
+    { '.agent/policy.yml': 'folders:\n  "Journal/":\n    write: direct\n' },
+  );
+  await page.keyboard.press('Control+j');
+  const { companion, consent } = await directAsk(page, 'Note the raise in the journal and raise the rate.');
+  await consent.click();
+  await expect(companion.getByText('Done where I may; the offer waits for you.')).toBeVisible();
+  expect(await fileAt('Journal/Today.md')).toBe(`${DIRECT_TODAY}\nRaised the rate.\n`);
+  expect(await fileAt('Projects/Offer.md')).toBe(DIRECT_OFFER);
+  await expect(companion.getByTestId('ai-direct-row')).toHaveCount(1);
+  await expect(companion.getByTestId('ai-proposed')).toContainText('Offer');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-folder-desktop.png') });
+});
+
+test('AI apply directly: a note open with unsaved keystrokes gets a suggestion instead, and the answer says why', async ({ page }) => {
+  const { fileAt } = await directVault(page, [directCalls(['c1', 'propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }] }]), directSays('It waits as a suggestion.')]);
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-direct-toggle').click();
+  // The editor of the note holds keystrokes it has not saved yet: its dirty mark, as the tab's dot shows it.
+  await page.evaluate(async () => {
+    const { dirtyStore } = await import('/src/services/dirtyStore.ts');
+    dirtyStore.set('Projects/Offer.md', true, 'e2e');
+  });
+  const { consent } = await directAsk(page, 'Raise the day rate.');
+  await consent.click();
+  await expect(companion.getByText('It waits as a suggestion.')).toBeVisible();
+  expect(await fileAt('Projects/Offer.md')).toBe(DIRECT_OFFER);
+  await expect(companion.getByTestId('ai-direct-fallback')).toHaveText('“Offer” was open in the editor with unsaved changes — the change waits there as a suggestion.');
+  await expect(companion.getByTestId('ai-proposed')).toContainText('Offer');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-fallback-desktop.png') });
+});

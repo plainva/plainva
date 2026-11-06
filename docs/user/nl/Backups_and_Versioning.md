@@ -27,7 +27,7 @@ Rechtsklik op een bestand in de bestandsboom (of op het bijbehorende tabblad), o
 - **Herstellen** vervangt de huidige inhoud door de gekozen versie. Geen zorgen: de huidige staat wordt zelf eerst als snapshot opgeslagen — een herstelactie kan dus altijd ongedaan worden gemaakt.
 - **Als kopie herstellen** maakt de versie aan als nieuw bestand naast het origineel (`Name (Version 2026-07-05 14-30).md`) zonder dat bestand aan te raken.
 
-Ook afbeeldingen hebben versies (met voorbeeld); andere binaire bestanden kunnen zonder voorbeeld worden hersteld. Op de telefoon houd je een bestand in de bestandslijst ingedrukt en kies je **Versiegeschiedenis…**.
+Ook afbeeldingen hebben versies (met voorbeeld); andere binaire bestanden kunnen zonder voorbeeld worden hersteld. Op de telefoon houd je een bestand in de bestandslijst ingedrukt en kies je **Versiegeschiedenis…**. Een versie die de AI-assistent met **Direct toepassen** heeft geschreven, is in de geschiedenis gemarkeerd met **AI**; Plainva bewaart de versie van vóór elke zo'n wijziging (zie [AI-assistent](AI_Assistant.md)).
 
 ## Verwijderde bestanden herstellen
 

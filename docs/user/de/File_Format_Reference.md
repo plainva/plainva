@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-11-03
+Stand: 2026-11-06
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -189,6 +189,8 @@ folders:
   Private/: { cloud: deny }
   Research/: { web: deny }
 ```
+
+Neben `cloud` und `web` kann ein Ordner `write: direct` tragen — **Ohne Nachfrage ändern**: Der KI-Assistent darf dort Notizen direkt ändern und anlegen. `write: ask` nimmt das für einen Unterordner zurück; ohne den Schlüssel fragt jeder Ordner. Es ist keine Datenschutzregel und steht in keiner Notiz.
 
 `true`/`false` gelten als `allow`/`deny`; jeder andere Wert wird ignoriert und öffnet nie etwas. Der Rest des versteckten Ordners `.agent/` — Skills (`skills/<name>/SKILL.md`), Gedächtnis und Gesprächsnotizen — gehört Plainvas Assistenten. Plainva folgt einer Datei dort, die neu oder geändert ist, erst, wenn Du sie auf dem jeweiligen Gerät freigegeben hast; ein Werkzeug sollte deshalb nur dann in `.agent/` schreiben, wenn Du genau das verlangst.
 

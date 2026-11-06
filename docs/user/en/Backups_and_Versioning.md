@@ -27,7 +27,7 @@ Right-click a file in the file tree (or its tab), or use the **⋮** menu at the
 - **Restore** replaces the current content with the selected version. Don't worry: the current state is itself saved as a snapshot first — so a restore can always be undone.
 - **Restore as copy** creates the version as a new file next to the original (`Name (Version 2026-07-05 14-30).md`) without touching it.
 
-Images have versions too (with preview); other binary files can be restored without a preview. On the phone, hold a file in the file list and choose **Version history…**.
+Images have versions too (with preview); other binary files can be restored without a preview. On the phone, hold a file in the file list and choose **Version history…**. A version the AI assistant wrote with **Apply directly** is marked **AI** in the history; Plainva keeps the version before every such change (see [AI Assistant](AI_Assistant.md)).
 
 ## Restoring deleted files
 

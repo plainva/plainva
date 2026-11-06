@@ -27,7 +27,7 @@ Un clic droit sur un fichier dans l'arborescence (ou sur son onglet), ou le menu
 - **Restaurer** remplace le contenu actuel par la version sélectionnée. Ne vous inquiétez pas : l'état actuel est lui-même d'abord enregistré comme instantané — une restauration peut donc toujours être annulée.
 - **Restaurer en tant que copie** crée la version sous forme de nouveau fichier à côté de l'original (`Name (Version 2026-07-05 14-30).md`) sans toucher à celui-ci.
 
-Les images ont aussi des versions (avec aperçu) ; les autres fichiers binaires peuvent être restaurés sans aperçu. Sur le téléphone, maintiens un fichier dans la liste des fichiers et choisis **Historique des versions…**.
+Les images ont aussi des versions (avec aperçu) ; les autres fichiers binaires peuvent être restaurés sans aperçu. Sur le téléphone, maintiens un fichier dans la liste des fichiers et choisis **Historique des versions…**. Une version que l'assistant IA a écrite avec **Appliquer directement** est marquée **IA** dans l'historique ; Plainva conserve la version précédant chaque modification de ce genre (voir [Assistant IA](AI_Assistant.md)).
 
 ## Restaurer des fichiers supprimés
 

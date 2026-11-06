@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-11-03
+Last reviewed: 2026-11-06
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -189,6 +189,8 @@ folders:
   Private/: { cloud: deny }
   Research/: { web: deny }
 ```
+
+Besides `cloud` and `web` a folder can carry `write: direct` — **Change without asking**: the AI assistant may change and create notes there directly. `write: ask` takes that back for a subfolder; without the key every folder asks. It is no privacy rule and stands in no note.
 
 `true`/`false` are read as `allow`/`deny`; any other value is ignored and never widens anything. The rest of the hidden `.agent/` folder — skills (`skills/<name>/SKILL.md`), memory and conversation notes — belongs to Plainva's assistant. Plainva does not follow a file there that is new or changed until the user has approved it on that device, so a tool should not write into `.agent/` unless the user asked for exactly that.
 

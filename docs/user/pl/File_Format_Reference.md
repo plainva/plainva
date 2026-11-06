@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-11-03
+Stan na: 2026-11-06
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -189,6 +189,8 @@ folders:
   Private/: { cloud: deny }
   Research/: { web: deny }
 ```
+
+Oprócz `cloud` i `web` folder może mieć `write: direct` — **Zmieniaj bez pytania**: asystent AI może tam od razu zmieniać i tworzyć notatki. `write: ask` cofa to dla podfolderu; bez tego klucza każdy folder pyta. To nie jest reguła prywatności i nie występuje w żadnej notatce.
 
 `true`/`false` są odczytywane jako `allow`/`deny`; każda inna wartość jest pomijana i nigdy niczego nie otwiera. Reszta ukrytego folderu `.agent/` — skille (`skills/<name>/SKILL.md`), pamięć i notatki z rozmów — należy do asystenta Plainva. Plainva stosuje się do nowego lub zmienionego pliku w tym miejscu dopiero wtedy, gdy użytkownik zatwierdzi go na danym urządzeniu; narzędzie powinno więc zapisywać w `.agent/` tylko wtedy, gdy użytkownik dokładnie o to prosi.
 

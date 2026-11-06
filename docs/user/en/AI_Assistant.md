@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-11-06
 
-Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
+Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It changes a note itself only where you let it (**Apply directly**). The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
 ## Switching it on
 
@@ -133,9 +133,9 @@ Scripts are small programs you write for what a model does badly — counting, s
 
 ## Routines
 
-A routine starts a skill at a time you set — the morning brief on working days at seven, the weekly review on Friday afternoon. You set one up in the vault's settings under **Settings → AI in this vault**, in the card **Routines**: **New routine**, then a name, the **Skill**, the sentence it is told each time (left empty: the skill's own request), the days and the time, what happens **If Plainva was closed at that time** — **Catch up once** or **Skip** —, and the **Model**. Only skills that are active on this device and only read can become a routine.
+A routine starts a skill at a time you set — the morning brief on working days at seven, the weekly review on Friday afternoon. You set one up in the vault's settings under **Settings → AI in this vault**, in the card **Routines**: **New routine**, then a name, the **Skill**, the sentence it is told each time (left empty: the skill's own request), the days and the time, what happens **If Plainva was closed at that time** — **Catch up once** or **Skip** —, and the **Model**. Only skills that are active on this device and only read can become a routine. If the vault has a folder with **Change without asking**, so can skills that change or create notes.
 
-The form's button **On to the overview** leads to a confirmation titled “How “⟨name⟩” runs without you”. Before a routine exists, Plainva shows what holds for a run nobody watches, and only your yes — **Set up routine** — makes it. A routine only reads: no suggestion, no draft, no internet, no external tool, no script, no command of the app. It has a small budget. Its result is a note in your inbox folder, called after the routine and the day, marked as written by the AI, with the notes it rests on. With a model on this device nothing leaves it. With a provider's model you confirm what a run brings along by itself — the overview shows what that would be today —, and a run that would bring along more than that sends nothing and waits for you. What the model then reads through its tools is decided by your privacy rules, as in every conversation. A routine does not read e-mails for a provider's model: Plainva asks about that anew in every session, and nobody is there to answer.
+The form's button **On to the overview** leads to a confirmation titled “How “⟨name⟩” runs without you”. Before a routine exists, Plainva shows what holds for a run nobody watches, and only your yes — **Set up routine** — makes it. A routine only reads — no suggestion, no draft, no internet, no external tool, no script, no command of the app —, except in folders with **Change without asking** (see **Apply directly**): there it may change and create notes, never delete, rename or move them, and the confirmation says so. What a run changed stands in the routine's row under **Changed:**, with **Undo**. It has a small budget. Its result is a note in your inbox folder, called after the routine and the day, marked as written by the AI, with the notes it rests on. With a model on this device nothing leaves it. With a provider's model you confirm what a run brings along by itself — the overview shows what that would be today —, and a run that would bring along more than that sends nothing and waits for you. What the model then reads through its tools is decided by your privacy rules, as in every conversation. A routine does not read e-mails for a provider's model: Plainva asks about that anew in every session, and nobody is there to answer.
 
 A routine never asks a question. Where it would need an answer — more would go than you confirmed, this device asks before every request, its skill was changed since you confirmed the routine, the provider of its model is no longer set up, or its model is not on this device while **Fully local** is on — its row says what it needs, with **Look at it**. There you see what a run would send now and what of it is new, and **Confirm again** lets it run again.
 
@@ -260,6 +260,19 @@ The assistant is asked to name a note as a link, so a link is the one claim in i
 
 A skill has these abilities only when it names them, and its review says so — see [Skills](AI_Skills.md).
 
+## Apply directly
+
+Out of the box the assistant changes no note itself — everything above is a suggestion, a draft or a question. For routine work ("clean up the links in these ten notes") you can let it apply changes directly, in two ways:
+
+- **For one conversation:** the chip **Apply directly** in the footer of the conversation, beside **Internet** and **My style**, switches it on for this one conversation — before the first message or in the middle of it. While it is on, the line above the conversation says: **The AI may change and create notes in this conversation. Deleting, renaming and moving still ask.** After Plainva restarts it is off again for every conversation; the overview before sending names it under **Apply directly**.
+- **For a folder:** under **Settings → AI in this vault**, in **What may leave this vault**, every folder rule has the column (on the phone the line) **Change without asking**. Set to **allowed**, the assistant applies changes there directly, without the chip; on a note from that folder the chip then reads **Apply directly · folder**. **not allowed** takes it back for a subfolder. The rule is kept in `.agent/policy.yml` and travels with the vault like the other rules.
+
+Applied directly are a change to a note and to its properties, a new note, a database entry, a task and a journal entry. Renaming, moving and deleting still ask, and so do a note's own privacy rules; an e-mail and an appointment stay drafts. External agents, AI apps through the MCP server and the actions on a selection always write suggestions.
+
+Every direct change has a net. Before it, Plainva keeps the note as a version, whatever the interval between backups; where that fails, the change becomes a suggestion. What the assistant wrote stands in the note's version history marked **AI**. Under the answer, **Changed:** says how many notes — each with **View** and **Undo**, plus **Undo all**. **Undo** puts back the version from before, and takes away a note the assistant created. If the note has changed since, Plainva overwrites nothing: a notice offers **Compare** and opens the version history.
+
+A change still becomes a suggestion when the note is open in the editor and not saved yet, when it has an open sync conflict, when it changed while the assistant worked on it, or when it may not be written here. The line under the answer then says why — for example **“Planning” was open in the editor with unsaved changes — the change waits there as a suggestion.** If the note is open and saved, the editor takes the change at once.
+
 ## Keeping an answer as a note
 
 Under every finished answer, **Keep as a note** turns the answer into a note of your vault. You press it and Plainva writes the note — the assistant itself still changes nothing. A note kept from an answer about a picture shows that picture, and an answer that opens with a heading of its own gives the note its name.
@@ -300,6 +313,6 @@ Conversations stay on this device, per vault — never in the vault and never sy
 
 - On the desktop the AI runs in the main window only.
 - On the phone an answer comes only while the app is open.
-- The assistant changes no note itself: a change to a note and the transcript of a voice note are suggestions you accept or decline, something new is a draft until you press **Create**, an e-mail or an appointment a draft until you send or save it yourself, and a rename, a move or a deletion waits for your yes; in a comment thread it writes a reply beside the note, never text in it. An answer becomes a note only when you press **Keep as a note**; Plainva writes it then, not the assistant.
+- Out of the box the assistant changes no note itself: a change to a note and the transcript of a voice note are suggestions you accept or decline, something new is a draft until you press **Create**, an e-mail or an appointment a draft until you send or save it yourself, and a rename, a move or a deletion waits for your yes; in a comment thread it writes a reply beside the note, never text in it. An answer becomes a note only when you press **Keep as a note**; Plainva writes it then, not the assistant. Where you switch on **Apply directly** or a folder allows **Change without asking**, it writes changes and new notes directly — with a version before and **Undo** (see **Apply directly**).
 
 Feedback on the beta goes to the project's discussions on GitHub: **Feedback on the AI (Beta)** in the settings starts one.

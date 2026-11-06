@@ -27,7 +27,7 @@ Clic destro su un file nell'albero dei file (o sulla sua scheda), oppure il menu
 - **Ripristina** sostituisce il contenuto attuale con la versione selezionata. Nessuna preoccupazione: lo stato attuale viene prima salvato a sua volta come snapshot — quindi un ripristino può sempre essere annullato.
 - **Ripristina come copia** crea la versione come nuovo file accanto all'originale (`Name (Version 2026-07-05 14-30).md`) senza toccarlo.
 
-Anche le immagini hanno versioni (con anteprima); gli altri file binari possono essere ripristinati senza anteprima. Sul telefono, tieni premuto un file nell'elenco dei file e scegli **Cronologia delle versioni…**.
+Anche le immagini hanno versioni (con anteprima); gli altri file binari possono essere ripristinati senza anteprima. Sul telefono, tieni premuto un file nell'elenco dei file e scegli **Cronologia delle versioni…**. Una versione che l'assistente IA ha scritto con **Applica direttamente** è contrassegnata come **IA** nella cronologia; Plainva conserva la versione precedente a ogni modifica di questo tipo (vedi [Assistente IA](AI_Assistant.md)).
 
 ## Ripristinare i file eliminati
 

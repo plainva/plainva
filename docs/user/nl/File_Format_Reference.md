@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-11-03
+Laatst bijgewerkt: 2026-11-06
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -189,6 +189,8 @@ folders:
   Private/: { cloud: deny }
   Research/: { web: deny }
 ```
+
+Naast `cloud` en `web` kan een map `write: direct` dragen — **Wijzigen zonder te vragen**: de AI-assistent mag daar notities direct wijzigen en aanmaken. `write: ask` neemt dat terug voor een submap; zonder de sleutel vraagt elke map. Het is geen privacyregel en staat in geen enkele notitie.
 
 `true`/`false` gelden als `allow`/`deny`; elke andere waarde wordt genegeerd en zet nooit iets open. De rest van de verborgen map `.agent/` — skills (`skills/<name>/SKILL.md`), geheugen en gespreksnotities — hoort bij de assistent van Plainva. Plainva volgt een nieuw of gewijzigd bestand daar pas als de gebruiker het op dat apparaat heeft goedgekeurd; een tool zou dus alleen in `.agent/` moeten schrijven als de gebruiker precies dat vraagt.
 
