@@ -230,6 +230,27 @@ describe("a person's text", () => {
   });
 });
 
+describe("a request to keep a conflict from outside the chain (D8)", () => {
+  it("refuses the adapter's own writer for an own file under `.plainva`, at run time too, and leaves nothing", async () => {
+    await files.writeTextFile(OWN_FILES[0], "the list the profile wrote");
+    await expect((top.preserveConflict as (p: string, t: string, w: string) => Promise<unknown>)(OWN_FILES[0], "mine", "adapter")).rejects.toThrow(/adapter/);
+    expect(await opened()).toEqual([]);
+    expect(await conflictCopies()).toEqual([]);
+    expect(await files.readTextFile(OWN_FILES[0])).toBe("the list the profile wrote");
+  });
+
+  it("lists the editor's own request on a note that lies under `.plainva`", async () => {
+    await files.writeTextFile(NOTE_UNDER_PLAINVA, "# Plan\n\nfrom elsewhere\n");
+    const kept = await top.preserveConflict(NOTE_UNDER_PLAINVA, "# Plan\n\ntyped\n", "editor-external");
+    expect(kept.writer).toBe("editor-external");
+    expect((await top.listConflictSessions()).map((session) => session.originalPath)).toEqual([NOTE_UNDER_PLAINVA]);
+    expect((await top.getConflictSession(NOTE_UNDER_PLAINVA))?.workingCopyPath).toBe(kept.workingCopyPath);
+    await top.endOwnFileConflicts();
+    expect(await opened()).toEqual([NOTE_UNDER_PLAINVA]);
+    expect(await files.readTextFile(kept.workingCopyPath)).toBe("# Plan\n\ntyped\n");
+  });
+});
+
 describe("a conflict an older version left on an own file", () => {
   const BOOKMARKS = OWN_FILES[0];
 

@@ -1,4 +1,4 @@
-import type { ConflictBytesResolution, ConflictDiagnostic, ConflictEditSession, ConflictResolution, ConflictWriter, EditorWriteResult } from "./conflictSession.js";
+import type { ConflictBytesResolution, ConflictDiagnostic, ConflictEditSession, ConflictResolution, EditorWriteResult, PreservingConflictWriter } from "./conflictSession.js";
 
 export class VaultError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -113,7 +113,7 @@ export interface IVaultAdapter {
   getConflictSession?(path: string): Promise<ConflictEditSession | null>;
   listConflictSessions?(): Promise<ConflictEditSession[]>;
   listConflictDiagnostics?(): Promise<ConflictDiagnostic[]>;
-  preserveConflict?(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession>;
+  preserveConflict?(path: string, text: string, writer: PreservingConflictWriter): Promise<ConflictEditSession>;
   writeEditorText?(path: string, text: string, baseText: string | null): Promise<EditorWriteResult>;
   resolveConflict?(path: string, resolution: ConflictResolution): Promise<void>;
   /** The way out of an open conflict whose file is no text any more: byte for byte, by the hashes the comparison saw. */
