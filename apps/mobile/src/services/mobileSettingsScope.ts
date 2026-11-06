@@ -205,6 +205,8 @@ export interface VaultScopedSettings {
    *  with the profile like its folder. */
   meetingTemplate: string;
   defaultCalendar: string;
+  /** The vault's default mailbox, device-local id; "" = the first (finding 2026-11-06, M1). Travels with the profile. */
+  defaultMailAccount: string;
   /**
    * The day this vault's week starts on (decision E4): "monday", "saturday",
    * "sunday", or "" = not said, the device's choice applies. Travels with the
@@ -279,6 +281,7 @@ export const VAULT_KEYS: readonly (keyof VaultScopedSettings)[] = [
   "meetingFolder",
   "meetingTemplate",
   "defaultCalendar",
+  "defaultMailAccount",
   "weekStart",
   "calendarColors",
   "verifierName",
@@ -336,6 +339,7 @@ export function vaultDefaults(): VaultScopedSettings {
     meetingFolder: profileDefault<string>("meetingFolder")!,
     meetingTemplate: profileDefault<string>("meetingNoteTemplate")!,
     defaultCalendar: profileDefault<string>("defaultCalendar")!,
+    defaultMailAccount: profileDefault<string>("defaultMailAccount")!,
     weekStart: profileDefault<string>("weekStart")!,
     calendarColors: {},
     mailRemoteImages: profileDefault<boolean>("mailRemoteImages")!,
@@ -399,6 +403,7 @@ export function pickVault(src: Partial<VaultScopedSettings>): VaultScopedSetting
     meetingFolder: src.meetingFolder ?? d.meetingFolder,
     meetingTemplate: src.meetingTemplate ?? d.meetingTemplate,
     defaultCalendar: src.defaultCalendar ?? d.defaultCalendar,
+    defaultMailAccount: src.defaultMailAccount ?? d.defaultMailAccount,
     weekStart: src.weekStart ?? d.weekStart,
     calendarColors: src.calendarColors ?? d.calendarColors,
     mailRemoteImages: src.mailRemoteImages ?? d.mailRemoteImages,

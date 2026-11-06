@@ -57,3 +57,17 @@ export function familyLabel(family: CloudProviderFamily, flavor?: "nextcloud"): 
       return i18n.t("cloudAccounts.familyImap");
   }
 }
+
+/**
+ * An account in ONE line: its provider, then the name it carries
+ * ("Dropbox · anna@example.com"). A card's label is the address it signed in
+ * with, and one address serves several providers - a Dropbox account opened
+ * with a Gmail address read exactly like the Google card beside it wherever a
+ * card was named by its label alone (finding 2026-11-06, M2). The two-line list
+ * rows show both parts already; every one-line mention reads this.
+ */
+export function accountDisplayName(record: { family: CloudProviderFamily; flavor?: "nextcloud"; label: string }): string {
+  const provider = familyLabel(record.family, record.flavor);
+  const label = record.label.trim();
+  return label && label.toLocaleLowerCase() !== provider.toLocaleLowerCase() ? `${provider} · ${label}` : provider;
+}

@@ -17,13 +17,16 @@ import {
   Row,
   RowList,
   SectionLabel,
+  accountDisplayName,
   familyLabel,
   serviceLabel,
   toast,
 } from "@plainva/ui";
+import { foldDuplicateMailboxes, mailboxDuplicateEntries, type MailboxDuplicateEntry } from "@plainva/ui/mail";
+import { notifyMailChanged } from "../services/mail/mailRuntime";
 import { accountMonogram, type CloudProviderFamily } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
-import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccountsStore";
+import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, saveCloudAccounts } from "../services/cloudAccountsStore";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { backfillMobileCalendarIdentity, backfillMobileSyncIdentity } from "../services/cloudIdentityBackfill";
@@ -32,6 +35,7 @@ import {
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
 import { mConfirm } from "../services/mobileDialogs";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { AppBar } from "../components/AppBar";
 import { ConnectRunSummary } from "../components/ConnectRunFrame";
 import { useConnectionRun } from "../hooks/useConnectionRun";
@@ -90,6 +94,8 @@ export function CloudAccountsScreen({
   const [cloudRecords, setCloudRecords] = useState<CloudAccountRecord[]>([]);
   const [repairNeeds, setRepairNeeds] = useState<AccountRepairNeed[]>([]);
   const [repairBusy, setRepairBusy] = useState(false);
+  /** One mailbox stored under several entries (finding 2026-11-06, M2): the guided step. */
+  const [mailboxDuplicates, setMailboxDuplicates] = useState<MailboxDuplicateEntry[][]>([]);
 
   const reload = useCallback(() => {
     void loadAccountCards()
@@ -104,9 +110,11 @@ export function CloudAccountsScreen({
     void getActiveVaultEntry()
       .then(async (entry) => {
         setRepairNeeds(await loadMobileAccountRepairNeeds(entry.id));
+        setMailboxDuplicates(await mailboxDuplicateEntries(entry.id, await loadCloudAccounts(entry.id)).catch(() => []));
       })
       .catch(() => {
         setRepairNeeds([]);
+        setMailboxDuplicates([]);
       });
   }, []);
 
@@ -151,12 +159,12 @@ export function CloudAccountsScreen({
       const vaultId = (await getActiveVaultEntry()).id;
       const confirm = async (plan: GuidedAccountRepairPlan) => {
         const sourceNames = plan.merges[0].sourceIds
-          .map((id) => cloudRecords.find((record) => record.id === id)?.label || id)
+          .map((id) => { const record = cloudRecords.find((entry) => entry.id === id); return record ? accountDisplayName(record) : id; })
           .join(", ");
         return mConfirm({
           title: t("cloudAccounts.repairConfirmTitle"),
           message: t("cloudAccounts.repairConfirmMessage", {
-            target: target.label,
+            target: accountDisplayName(target),
             sources: sourceNames,
             services: serviceNames(plan.merges[0].affectedServices),
           }),
@@ -176,6 +184,50 @@ export function CloudAccountsScreen({
       toast.error(t("cloudAccounts.repairFailed"));
     } finally {
       setRepairBusy(false);
+    }
+  };
+
+  /**
+   * Keeps one entry of a mailbox stored more than once and folds the others
+   * into it (finding 2026-11-06, M2; decision E2: on the person's word). Same
+   * shared step as the desktop's Accounts page.
+   */
+  const keepMailbox = async (entry: MailboxDuplicateEntry) => {
+    if (repairBusy) return;
+    const ok = await mConfirm({
+      title: t("cloudAccounts.repairMailboxConfirmTitle"),
+      message: t("cloudAccounts.repairMailboxConfirmMessage", { mailbox: entry.account.user || entry.account.label }),
+      confirmLabel: t("cloudAccounts.repairMailboxConfirmAction"),
+    });
+    if (!ok) return;
+    setRepairBusy(true);
+    try {
+      const vaultId = (await getActiveVaultEntry()).id;
+      await foldDuplicateMailboxes(vaultId, entry.account.id, {
+        listCards: () => loadCloudAccounts(vaultId),
+        replaceCards: (cards) => saveCloudAccounts(vaultId, cards),
+        defaultMailAccount: {
+          read: async () => getMobileSettings().defaultMailAccount,
+          write: async (id) => { await updateMobileSettings({ defaultMailAccount: id }); },
+        },
+        // A message put aside in a removed entry comes back in the kept one,
+        // and a list last open on a removed entry opens on the kept one.
+        snoozes: {
+          read: async () => getMobileSettings().mailSnoozed,
+          write: async (next) => { await updateMobileSettings({ mailSnoozed: next }); },
+        },
+        rememberedMailbox: {
+          read: async () => getMobileSettings().mailAccountId,
+          write: async (id) => { await updateMobileSettings({ mailAccountId: id }); },
+        },
+      });
+      notifyMailChanged();
+      toast.success(t("cloudAccounts.repairMailboxDone"));
+    } catch {
+      toast.error(t("cloudAccounts.repairMailboxFailed"));
+    } finally {
+      setRepairBusy(false);
+      reload();
     }
   };
 
@@ -219,7 +271,7 @@ export function CloudAccountsScreen({
                       key={`${needIndex}:${accountId}`}
                       data-testid="cloudacct-repair-target"
                       icon={<Mark family={record.family} />}
-                      title={record.label}
+                      title={accountDisplayName(record)}
                       subtitle={`${serviceNames(accountServices(record))} · ${t("cloudAccounts.repairKeep")}`}
                       end={<ChevronRight className="m-chevron" size={ICON.ui} />}
                       disabled={repairBusy}
@@ -227,6 +279,34 @@ export function CloudAccountsScreen({
                     />
                   );
                 }),
+              )}
+            </RowList>
+          </GroupCard>
+        </>
+      )}
+
+      {mailboxDuplicates.length > 0 && (
+        <>
+          <SectionLabel info={t("cloudAccounts.repairMailboxHint")}>{t("cloudAccounts.repairMailboxTitle")}</SectionLabel>
+          <p className="m-hint">{t("cloudAccounts.repairMailboxStep")}</p>
+          <GroupCard tone="warn">
+            <RowList>
+              {mailboxDuplicates.flatMap((group, groupIndex) =>
+                group.map((entry) => (
+                  <Row
+                    key={`${groupIndex}:${entry.account.id}`}
+                    data-testid="cloudacct-mailbox-keep"
+                    title={entry.account.user || entry.account.label}
+                    subtitle={[
+                      // What tells two entries apart comes first: a narrow row cuts the end.
+                      ...(entry.signedIn === null ? [] : [t(entry.signedIn ? "cloudAccounts.repairMailboxSignedIn" : "cloudAccounts.repairMailboxNotSignedIn")]),
+                      entry.card ? accountDisplayName(entry.card) : t("cloudAccounts.repairMailboxUnused"),
+                    ].join(" · ")}
+                    end={<ChevronRight className="m-chevron" size={ICON.ui} />}
+                    disabled={repairBusy}
+                    onClick={() => void keepMailbox(entry)}
+                  />
+                )),
               )}
             </RowList>
           </GroupCard>

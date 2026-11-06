@@ -1,6 +1,6 @@
 import React from "react";
 import { Folder, CalendarDays, Mail } from "lucide-react";
-import { ICON, accountMonogram, cx, familyLabel, serviceLabel, type CloudAccountRecord, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
+import { ICON, accountDisplayName, accountMonogram, cx, familyLabel, serviceLabel, type CloudAccountRecord, type CloudProviderFamily, type CloudServiceId } from "@plainva/ui";
 
 /** Shared bits of the Cloud-Konten surfaces (list, wizard, detail). */
 
@@ -12,7 +12,7 @@ export const SERVICE_ICONS: Record<CloudServiceId, React.ComponentType<{ size?: 
 
 /** The names and the monogram table live in @plainva/ui so both shells read
  * the same vocabulary (H9); the phone had none until the mobile rework. */
-export { accountMonogram, familyLabel, serviceLabel };
+export { accountDisplayName, accountMonogram, familyLabel, serviceLabel };
 
 export const AccountMark: React.FC<{ family: CloudProviderFamily; flavor?: "nextcloud"; small?: boolean }> = ({
   family,

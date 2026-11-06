@@ -163,6 +163,8 @@ Uma conta que você remove permanece removida: a remoção viaja pela sincroniza
 
 Se **Revisar contas duplicadas** aparecer em **Contas na nuvem**, o Plainva não tenta decidir pelo nome. Escolha **Manter esta conta** no cartão correto. A confirmação mostra destino, origens e serviços afetados e primeiro cria um backup neste dispositivo. **Cancelar** não altera nada. A mesclagem remove apenas contas locais, caches e credenciais órfãos — nada é excluído no provedor.
 
+Se aparecer **Revisar caixas de correio duplicadas**, a mesma caixa de correio está salva em várias entradas. Cada entrada pode ter o próprio login neste dispositivo, então o Plainva pergunta primeiro. Escolha **Manter esta entrada** naquela que deve ficar; cada entrada mostra qual conta a usa e se está conectada neste dispositivo. As outras são incorporadas a ela: nome, assinaturas e endereços de remetente vão para ela quando ela não os tem, e o e-mail da conta passa a usá-la. Nada é apagado no provedor. Uma caixa de correio salva várias vezes na mesma entrada é juntada sozinha quando o vault é aberto.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Viaja com o cofre | Fica neste dispositivo |

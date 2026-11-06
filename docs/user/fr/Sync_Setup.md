@@ -163,6 +163,8 @@ Un compte que vous supprimez reste supprimé : la suppression se propage via la 
 
 Si **Examiner les comptes en double** apparaît sous **Comptes cloud**, Plainva ne se fie volontairement pas au nom. Choisissez **Conserver ce compte** sur la bonne carte. La confirmation indique la cible, les sources et les services concernés, puis crée d’abord une sauvegarde sur cet appareil. **Annuler** ne modifie rien. La fusion supprime uniquement les comptes locaux, caches et identifiants orphelins — rien n’est supprimé chez le fournisseur.
 
+Si **Vérifier les boîtes en double** apparaît, la même boîte aux lettres est enregistrée sous plusieurs entrées. Chaque entrée peut porter sa propre connexion sur cet appareil ; Plainva demande donc d’abord. Choisissez **Conserver cette entrée** sur celle qui doit rester ; chaque entrée indique le compte qui l’utilise et si elle est connectée sur cet appareil. Les autres y sont fondues : leur nom, leurs signatures et leurs adresses d’expéditeur lui reviennent là où elle n’en a pas, et la messagerie du compte passe à elle. Rien n’est supprimé chez le fournisseur. Une boîte enregistrée plusieurs fois sous la même entrée est réunie automatiquement à l’ouverture du vault.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Voyage avec le vault | Reste sur cet appareil |

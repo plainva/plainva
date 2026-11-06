@@ -56,7 +56,7 @@ import {
 import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { getSyncRootFolder } from "../../services/cloudAccountsActions";
-import { AccountMark, familyLabel } from "./cloudAccountsShared";
+import { AccountMark, accountDisplayName, familyLabel } from "./cloudAccountsShared";
 
 /**
  * The Sync settings page after the cloud-accounts split (mockup screen 5):
@@ -267,7 +267,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const connected = provider !== "none";
   // Registry label when known, family name otherwise — never the raw provider id.
   const accountName = filesAccount
-    ? filesAccount.label.trim() || familyLabel(filesAccount.family, filesAccount.flavor)
+    ? accountDisplayName(filesAccount)
     : connected
       ? familyLabel(familyOfSyncProvider(provider))
       : "";

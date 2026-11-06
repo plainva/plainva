@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-11-05
+Stan na: 2026-11-06
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -90,7 +90,9 @@ Na stronie poczty swojego konta — **Konta w chmurze** → konto → **E-mail**
 - **Podpis dla adresu** — gdy masz dodatkowe adresy nadawcy, nad polem pojawia się wybór **Podpis dla**. „Domyślny (wszystkie adresy)” to podpis konta; wybierz adres, aby napisać podpis tylko dla niego. Adresy bez własnego podpisu nadal używają domyślnego, a zmiana nadawcy podczas pisania wstawia właściwy — także między dwoma adresami tego samego konta. Gdy opróżnisz pole adresu, wróci on do domyślnego.
 - **Dodatkowe adresy nadawcy** — jeden w wierszu, np. `Imię <alias@example.org>`. Pole **Od** pokazuje wtedy adresy zamiast kont: najpierw własny adres skrzynki, potem aliasy. O tym, czy adres faktycznie zostanie przyjęty, decyduje Twój dostawca — serwer, który odmawia wysyłki z aliasu, mówi to wprost, a Plainva pokazuje ten błąd, zamiast po cichu wysyłać pod innym nazwiskiem.
 
-**Z której skrzynki wychodzi wiadomość.** Przy więcej niż jednej skrzynce pole **Od** otwiera się na skrzynce, z której piszesz, razem z jej podpisem. **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej** zaczynają od skrzynki, w której leży wiadomość (w widoku **Wszystkie skrzynki odbiorcze**: od skrzynki otwartego wiersza). **Nowa wiadomość** zaczyna od skrzynki otwartej na karcie e-mail. Wiadomość, której lista mailingowa wymaga przy **Wypisz się**, zaczyna od skrzynki, na którą lista napisała. To, co zaczyna się poza kartą e-mail — **Ta notatka e-mailem** albo zaproszenie z kalendarza — zaczyna od Twojej pierwszej skrzynki; notatka utworzona przez **Odpowiedz jako notatka** zaczyna od skrzynki, którą podaje (`mailbox:`). Pole **Od** możesz zmienić przed wysłaniem.
+**Z której skrzynki wychodzi wiadomość.** Przy więcej niż jednej skrzynce pole **Od** otwiera się na skrzynce, z której piszesz, razem z jej podpisem. **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej** zaczynają od skrzynki, w której leży wiadomość (w widoku **Wszystkie skrzynki odbiorcze**: od skrzynki otwartego wiersza). **Nowa wiadomość** zaczyna od skrzynki otwartej na karcie e-mail. Wiadomość, której lista mailingowa wymaga przy **Wypisz się**, zaczyna od skrzynki, na którą lista napisała. To, co zaczyna się poza kartą e-mail — **Ta notatka e-mailem** albo zaproszenie z kalendarza — zaczyna od Twojej domyślnej skrzynki; notatka utworzona przez **Odpowiedz jako notatka** zaczyna od skrzynki, którą podaje (`mailbox:`). Pole **Od** możesz zmienić przed wysłaniem.
+
+**Domyślna skrzynka.** Przy więcej niż jednej skrzynce jedna z nich ma w **E-mail** > **Skrzynki pocztowe** oznaczenie **Domyślna**: E-mail pokazuje ją jako pierwszą, a to, co zaczyna się bez własnej skrzynki, zaczyna od niej. Aby wybrać inną, otwórz menu jej wiersza i wybierz **Ustaw jako domyślną** (na telefonie przyciskiem **…** wiersza). Bez wyboru, a także gdy domyślna skrzynka zostanie usunięta lub jej poczta wyłączona, obowiązuje pierwsza skrzynka na liście. Wybór jest synchronizowany z vaultem na Twoje inne urządzenia.
 
 ## Działania w skrzynce
 

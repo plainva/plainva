@@ -4,13 +4,13 @@ import { connectGmailFromCard } from "../services/mail/gmailAuth";
 import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Pencil, Plus } from "lucide-react";
-import { accountInputProps, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
+import { ChevronRight, MoreHorizontal, Pencil, Plus } from "lucide-react";
+import { accountInputProps, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
-import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
+import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, pickDefaultMailAccount, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
 import { getConnectSecrets } from "../services/connectSecrets";
-import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
+import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
 import {
   connectMicrosoftMail,
   listMobileMailAccounts,
@@ -157,14 +157,20 @@ export function MailAccountsScreen({
     }
   };
 
+  /** The vault's default mailbox (finding 2026-11-06, M1) and the mailboxes whose mail is on (E3). */
+  const [defaultId, setDefaultId] = useState(() => getMobileSettings().defaultMailAccount);
+  const [switchedOn, setSwitchedOn] = useState<ReadonlySet<string>>(new Set());
   const reload = useCallback(() => {
     void listMobileMailAccounts()
       .then(async (rows) => {
         setAccounts(rows);
+        setDefaultId(getMobileSettings().defaultMailAccount);
         setLoaded(true);
         setReloads((n) => n + 1);
         const vault = mailVaultId();
         setSignIn(vault ? await deviceSignInStates("mail", vault, rows.map((r) => r.id)) : new Map());
+        const cards = vault ? await loadCloudAccounts(vault).catch(() => []) : [];
+        setSwitchedOn(new Set(mailboxesSwitchedOn(rows, cards).map((a) => a.id)));
       })
       .catch(() => {
         setAccounts([]);
@@ -212,7 +218,19 @@ export function MailAccountsScreen({
 
   // Keep the sending form on a real account and show ITS values; a removed
   // account falls back to the first one instead of editing a ghost.
-  const sendingAccount = accounts.find((a) => a.id === sendingId) ?? accounts[0] ?? null;
+  const sendingAccount = accounts.find((a) => a.id === sendingId) ?? pickDefaultMailAccount(accounts, defaultId);
+  // The mailbox the rest of the app falls to, among those whose mail is on;
+  // marked only where there is another one (same rule as the desktop).
+  const effectiveDefault = accounts.length > 1 ? pickDefaultMailAccount(accounts.filter((a) => switchedOn.has(a.id)), defaultId)?.id : undefined;
+  /** "Set as default" in the row's sheet (the pattern of the default AI profile). */
+  const mailboxActions = async (a: MailAccountConfig) => {
+    const choice = await mActions({ title: a.label || a.user, options: [{ value: "default", label: t("mail.setDefault") }] });
+    if (choice !== "default") return;
+    // Mail opens there next, as on the desktop: the remembered place of the
+    // list (device report B1) moves to the new default.
+    await updateMobileSettings({ defaultMailAccount: a.id, mailAccountId: a.id, mailMailbox: "" });
+    setDefaultId(a.id);
+  };
 
   /**
    * The out-of-office notice (S13). Offered only where the server keeps
@@ -422,7 +440,7 @@ export function MailAccountsScreen({
       <div className="m-settings">
         {/* Sign-ins do not travel: each account's own state says it now
             (settings plan 2026-10-29, Q1), not a sentence over the page. */}
-        {!mailRun && <SectionLabel>{t("cloudAccounts.mailboxesGroup")}</SectionLabel>}
+        {!mailRun && <SectionLabel info={t("mail.defaultHint")}>{t("cloudAccounts.mailboxesGroup")}</SectionLabel>}
         {!mailRun && orphanNotice.visible && (
           <Banner
             kind="warning"
@@ -487,9 +505,22 @@ export function MailAccountsScreen({
                 <Row
                   controls
                   data-testid={`mail-account-${a.id}`}
-                  end={<>
+                  // The second line carries what the row says about the mailbox -
+                  // its kind, this device's sign-in, the default mark - so the
+                  // address keeps the width of the row at the narrowest phone
+                  // (finding 2026-11-06, M1: the kind was cut to "Micr…" beside
+                  // the badge and the menu button).
+                  subtitle={<>
+                    <span className="m-prop-val">{a.kind === "gmail" ? "Gmail" : imap ? "IMAP" : "Microsoft"}</span>{" "}
                     <DeviceSignInBadge state={state} />
-                    <span className="m-prop-val">{a.kind === "gmail" ? "Gmail" : imap ? "IMAP" : "Microsoft"}</span>
+                    {a.id === effectiveDefault && <>{" "}<span className="pv-badge pv-badge--accent pv-badge--text" data-testid="mail-account-default">{t("mail.defaultBadge")}</span></>}
+                  </>}
+                  end={<>
+                    {effectiveDefault !== undefined && a.id !== effectiveDefault && switchedOn.has(a.id) && (
+                      <IconButton label={t("common.moreActions")} onClick={() => void mailboxActions(a)} data-testid={`mail-account-more-${a.id}`}>
+                        <MoreHorizontal size={ICON.ui} />
+                      </IconButton>
+                    )}
                     {imap && (
                       /* Editing an existing mailbox (B4) — a server move used
                          to mean removing the account and adding it again. */

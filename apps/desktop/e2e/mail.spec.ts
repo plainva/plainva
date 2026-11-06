@@ -88,6 +88,8 @@ test.beforeEach(async ({ page }) => {
           // "Always load remote images" (plan Befunde 06.10., M2) — off unless a test turns it on.
           if (String(args.key || '').startsWith('mailRemoteImages_')) return [(window as any).__remoteAlways === true, (window as any).__remoteAlways === true];
           if (String(args.key || '').startsWith('mailRules_')) return [(window as any).__mailRules ?? null, !!(window as any).__mailRules];
+          // The default mailbox (finding 2026-11-06, M1): what a test seeds, or what the page wrote.
+          if (String(args.key || '').startsWith('defaultMailAccount_')) return [(window as any).__defaultMailAccount ?? null, !!(window as any).__defaultMailAccount];
           if (String(args.key || '').startsWith('mailAccounts_')) {
             if ((window as any).__noMailAccounts) return [null, false];
             // A test can supply its own mailboxes (e.g. with a signature/aliases).
@@ -95,6 +97,10 @@ test.beforeEach(async ({ page }) => {
             return [(window as any).__twoMailAccounts ? [mailAccount, mailAccount2] : [mailAccount], true];
           }
           return [null, false];
+        }
+        if (cmd === 'plugin:store|set' && String(args.key || '').startsWith('defaultMailAccount_')) {
+          (window as any).__defaultMailAccount = args.value;
+          return null;
         }
         if (cmd === 'plugin:store|set' || cmd === 'plugin:store|save') return null;
         if (cmd === 'keychain_get') {
@@ -1978,6 +1984,43 @@ test('a new message goes out from the mailbox that is open', async ({ page }) =>
   const sent = await sendFromSecondMailbox(page);
   expect(sent.to).toBe('ben@example.org');
   expect(sent.subject).toBe('Hallo');
+});
+
+/*
+ * Finding 2026-11-06, M1: Mail opened on the mailbox connected first, and a
+ * new message started there. With a default mailbox chosen in the settings
+ * (row menu, "Set as default"), Mail opens on it and a new message starts from
+ * it; what names a mailbox still wins (the tests above). The phone holds the
+ * same in `apps/mobile/e2e-prod/mail-sender.spec.ts`.
+ */
+test('the default mailbox: chosen in the settings, Mail opens on it and a new message starts from it', async ({ page }, testInfo) => {
+  await page.addInitScript((list: unknown[]) => { (window as any).__mailAccountsOverride = list; }, twoSigningMailboxes);
+  await openVault(page);
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(E-Mail|Email)$/ }).first().click();
+  // Without a choice the first mailbox is the default, and says so.
+  const rows = dialog.getByTestId('mail-account');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).getByTestId('mail-account-default')).toBeVisible();
+  await expect(rows.nth(1).getByTestId('mail-account-default')).toHaveCount(0);
+
+  await dialog.getByTestId('mail-account-more-m2').click();
+  await page.getByTestId('mail-account-set-default').click();
+  await expect(rows.nth(1).getByTestId('mail-account-default')).toBeVisible();
+  await expect(rows.nth(0).getByTestId('mail-account-default')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).__defaultMailAccount)).toBe('m2');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('default-mailbox-settings.png') });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // Mail opens on the default mailbox: the second one's folders, without choosing it.
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/, { timeout: 10000 });
+  await page.getByTestId('mail-compose').click();
+  await expectSecondMailbox(page);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('default-mailbox-compose.png') });
 });
 
 test('a reply to all and the message a list asks for to unsubscribe start from that mailbox too', async ({ page }) => {

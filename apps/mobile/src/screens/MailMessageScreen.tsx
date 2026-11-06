@@ -52,6 +52,7 @@ import { LONG_PRESS_MS } from "../lib/useLongPress";
 import { haptics } from "../services/haptics";
 import { runJunkAction } from "./mail/junkAction";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
+import { mobileMailAccountAliases } from "../services/mail/mailAliases";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
 import { configuredNoteType } from "../services/newNote";
@@ -522,7 +523,7 @@ export function MailMessageScreen({
       // Message-ID becomes the note's source — same stamp as the desktop.
       // Asked for by hand, a note of this message that holds none of its text
       // gets it now (finding 2026-10-09, decision b) - a rule never.
-      const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true });
+      const res = await captureMailAsNote({ adapter: vault.files, message, accountId: account.id, mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true, accountAliases: await mobileMailAccountAliases() });
       // The index hears of what was filed now, not at the next full scan (finding 2026-10-12).
       const filed = [res.path];
       // S20: what decides is whether a raw copy is already linked, not whether

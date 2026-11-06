@@ -163,6 +163,8 @@ Ein Konto, das Du entfernst, bleibt entfernt: die Löschung reist über die Eins
 
 Wenn unter **Cloud-Konten** der Abschnitt **Doppelte Konten prüfen** erscheint, entscheidet Plainva absichtlich nicht anhand des Namens. Wähle **Dieses Konto behalten** bei der richtigen Karte. Die Bestätigung nennt Ziel, Quellen und betroffene Dienste; vorher wird auf diesem Gerät eine Sicherung angelegt. **Abbrechen** verändert nichts. Beim Zusammenführen werden nur verwaiste lokale Konten, Caches und Zugangsdaten entfernt — beim Anbieter wird nichts gelöscht.
 
+Wenn **Doppelte Postfächer prüfen** erscheint, ist dasselbe Postfach unter mehreren Einträgen gespeichert. Jeder Eintrag kann auf diesem Gerät eine eigene Anmeldung tragen, deshalb fragt Plainva zuerst. Wähle **Diesen Eintrag behalten** bei dem, der bleiben soll; jeder Eintrag nennt das Konto, das ihn nutzt, und ob er auf diesem Gerät angemeldet ist. Die anderen gehen in ihm auf: ihr Name, ihre Signaturen und Absenderadressen gehen an ihn, wo er keine hat, und die E-Mail des Kontos wechselt zu ihm. Beim Anbieter wird nichts gelöscht. Ein Postfach, das mehrfach unter demselben Eintrag gespeichert ist, legt Plainva beim Öffnen des Vaults von selbst zusammen.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Reist mit dem Vault | Bleibt auf diesem Gerät |

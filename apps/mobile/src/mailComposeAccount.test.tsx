@@ -27,6 +27,10 @@ import { currentMobileDialog, dismissMobileDialog } from "./services/mobileDialo
 
 const mocks = vi.hoisted(() => ({
   accounts: [] as unknown[],
+  /** The vault's default mailbox (finding 2026-11-06, M1); "" = none chosen. */
+  defaultMailbox: "",
+  /** Removed ids of folded mailboxes → the kept one (finding 2026-11-06, M2). */
+  aliases: {} as Record<string, string>,
   sendMail: vi.fn(async (..._args: unknown[]) => undefined),
 }));
 
@@ -46,6 +50,11 @@ vi.mock("./screens/mail/MailComposeEditor", async () => {
   };
 });
 vi.mock("./components/AttachPickSheet", () => ({ AttachPickSheet: () => null }));
+vi.mock("./services/mail/mailAliases", () => ({ mobileMailAccountAliases: async () => mocks.aliases }));
+vi.mock("./services/mobileSettings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./services/mobileSettings")>();
+  return { ...actual, getMobileSettings: () => ({ ...actual.getMobileSettings(), defaultMailAccount: mocks.defaultMailbox }) };
+});
 vi.mock("@plainva/ui/mail", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   sendMail: mocks.sendMail,
@@ -62,6 +71,8 @@ let root: Root;
 
 beforeEach(() => {
   mocks.accounts = [work, home];
+  mocks.defaultMailbox = "";
+  mocks.aliases = {};
   mocks.sendMail.mockClear();
   resetLeaveGuard();
   container = document.createElement("div");
@@ -126,6 +137,31 @@ describe("the mailbox the composer starts from", () => {
 
     expect(from()).toBe("me@example.org");
     expect(body()).toContain("Signed at work");
+    expect(body()).not.toContain("Signed at home");
+  });
+
+  it("is the default mailbox where the draft names none (finding 2026-11-06, M1)", async () => {
+    mocks.defaultMailbox = "home";
+    await open({ accountId: "", to: "", subject: "Offer", body: "" });
+
+    expect(from()).toBe("me@example.net");
+    expect(body()).toContain("Signed at home");
+    expect(body()).not.toContain("Signed at work");
+  });
+
+  it("is the kept one when the draft's mailbox was folded into it (finding 2026-11-06, M2)", async () => {
+    mocks.aliases = { "home-old": "home" };
+    await open(reply("home-old"));
+
+    expect(from()).toBe("me@example.net");
+    expect(body()).toContain("Signed at home");
+  });
+
+  it("is still the one the draft names when another is the default", async () => {
+    mocks.defaultMailbox = "home";
+    await open(reply("work"));
+
+    expect(from()).toBe("me@example.org");
     expect(body()).not.toContain("Signed at home");
   });
 

@@ -6,6 +6,7 @@ import { generatedStamp } from "../lib/okfProvenance";
 import { mailMessageText } from "./messageText";
 import { defuseRemoteImages } from "../lib/remoteImages";
 import type { MailMessage } from "./types";
+import { sameMailAccount } from "./mailAccountRows";
 
 /**
  * Mail capture (PIM stage 5): turns a fetched message into vault content.
@@ -129,6 +130,11 @@ export interface CaptureMailOptions extends MailCaptureStampOptions {
    * asked for exactly this one (decision on finding 2026-10-09, option b).
    */
   fillEmpty?: boolean;
+  /**
+   * Removed ids of folded mailboxes → the kept one (`loadMailAccountAliases`):
+   * a note filed from a folded entry is found again as this mailbox's note.
+   */
+  accountAliases?: Readonly<Record<string, string>>;
 }
 
 export interface CaptureMailResult {
@@ -227,7 +233,9 @@ export async function captureMailAsNote(opts: CaptureMailOptions): Promise<Captu
         readFrontmatterPath(existing, ["plainva", "pim", "mailbox"]) === mailbox;
       if (
         !(sameStableMessage || sameUidEpoch) ||
-        readFrontmatterPath(existing, ["plainva", "pim", "account"]) !== accountId
+        // A note filed from a mailbox entry that was folded into this one is
+        // this mailbox's note (finding 2026-11-06, M2).
+        !sameMailAccount(opts.accountAliases ?? {}, readFrontmatterPath(existing, ["plainva", "pim", "account"]), accountId)
       ) {
         continue;
       }

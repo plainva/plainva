@@ -36,6 +36,8 @@ import {
   pimAccountsForProfile,
   defaultCalendarForProfile,
   defaultCalendarFromProfile,
+  defaultMailAccountForProfile,
+  defaultMailAccountFromProfile,
   pimSelectionsForProfile,
   mailAccountsForProfile,
   normalizeAccountMap,
@@ -622,6 +624,7 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
       // The store holds the device-local account id; the document carries the
       // logical one, or the choice never resolves on any other device.
       if (typeof values.defaultCalendar === "string") values.defaultCalendar = defaultCalendarForProfile(values.defaultCalendar, map);
+      if (typeof values.defaultMailAccount === "string") values.defaultMailAccount = defaultMailAccountForProfile(values.defaultMailAccount, map);
 
       // Accounts (plan P3). Until now they fell into `unknown`, were written
       // back untouched and never applied — which is why a phone kept asking the
@@ -729,6 +732,9 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
         // not exist here — silently falling back to "first writable".
         const localDefaultCalendar = defaultCalendarFromProfile(patch.defaultCalendar, idMap.pim);
         if (localDefaultCalendar !== undefined) patch.defaultCalendar = localDefaultCalendar;
+        // The default mailbox, the same way (finding 2026-11-06, M1).
+        const localDefaultMail = defaultMailAccountFromProfile(patch.defaultMailAccount, idMap.mail);
+        if (localDefaultMail !== undefined) patch.defaultMailAccount = localDefaultMail;
 
         // Everything the phone does NOT understand is kept verbatim and written
         // back on the next export, so a newer Plainva on another device does not
