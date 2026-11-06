@@ -113,6 +113,10 @@ const SITES: Record<string, Site[]> = {
     ["handed to adapterInstructionVersions", 1, "reads: a skill's earlier versions, listed and read where the versions layer keeps them (AI harness P6)"],
     ["returned", 1, `${VERSIONS_LAYER} (a version of a skill's file as it is, taken before a proposal of the assistant rewrites it; the write goes through \`vault.files\`)`],
   ],
+  "services/ai/mobileAiWrites.ts": [
+    ["calls ensureSnapshot", 1, `${VERSIONS_LAYER} (a version of the note as it is, taken before a change the user let the assistant write directly — and of what it wrote, marked; the write goes through \`vault.files\`)`],
+    ["handed to new VersionHistoryService", 1, HISTORY],
+  ],
   "services/commentOperations.ts": [
     ["calls ensureSnapshot", 1, `${VERSIONS_LAYER} (a version of the note as it is, taken before an accepted suggestion writes over it; the write goes through \`vault.files\`)`],
   ],

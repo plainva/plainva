@@ -5,6 +5,7 @@ import {
   updateVaultText,
   type AiPermission,
   type AiPolicyDimension,
+  type AiWriteRule,
   type FolderPolicyRule,
   type IVaultAdapter,
   type TextUpdateFiles,
@@ -30,8 +31,26 @@ export function withRuleValue(rules: readonly FolderPolicyRule[], folder: string
   const next: FolderPolicyRule = { ...existing };
   if (choice === "inherit") delete next[dimension];
   else next[dimension] = choice;
+  return placed(rules, key, next);
+}
+
+/**
+ * Sets a folder's "Change without asking" (plan KI direkt schreiben, W3): `direct` lets an assistant change and create
+ * notes there at once, `ask` takes that back below a folder that has it, "inherit" removes the folder's own say. The
+ * folder's privacy rules stay as they are.
+ */
+export function withWriteRule(rules: readonly FolderPolicyRule[], folder: string, choice: AiWriteRule | "inherit"): FolderPolicyRule[] {
+  const key = normalizeFolder(folder);
+  const next: FolderPolicyRule = { ...(rules.find((r) => r.folder === key) ?? { folder: key }) };
+  if (choice === "inherit") delete next.write;
+  else next.write = choice;
+  return placed(rules, key, next);
+}
+
+/** The rules with `next` in the place of the folder's rule — gone where it says nothing any more. */
+function placed(rules: readonly FolderPolicyRule[], key: string, next: FolderPolicyRule): FolderPolicyRule[] {
   const others = rules.filter((r) => r.folder !== key);
-  const empty = !next.cloud && !next.web;
+  const empty = !next.cloud && !next.web && !next.write;
   return (empty ? others : [...others, next]).sort((a, b) => a.folder.localeCompare(b.folder));
 }
 

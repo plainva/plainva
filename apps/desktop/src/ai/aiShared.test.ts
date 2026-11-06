@@ -239,6 +239,8 @@ describe("the settings model", () => {
     skillTests: { records: [], running: null },
     web: { enabled: false, allow: [] },
     draftWeb: false,
+    draftDirect: false,
+    directChats: [],
     effect: null,
     question: null,
     mcp: NO_MCP,

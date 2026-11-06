@@ -8,12 +8,15 @@ import {
   parseBatchFolderStamp,
 } from "./backupNaming.js";
 import { readExactText, readLocalFile, writeFileVersion } from "./localText.js";
+import { readAiVersionMarks } from "./versionOrigins.js";
 import { isTextFile } from "../sync/fileType.js";
 
 export interface FileVersion {
   backupPath: string;
   timestamp: number;
   size: number;
+  /** `ai`: a change an assistant applied directly (plan KI direkt schreiben); the history marks it. */
+  origin?: "ai";
 }
 
 export interface OrphanedBackupGroup {
@@ -47,11 +50,13 @@ export class VersionHistoryService {
     }
     const basename = originalPath.split(/[/\\]/).pop() || "";
     const versions: FileVersion[] = [];
+    const marks = await readAiVersionMarks(this.adapter);
     for (const f of files) {
       if (f.isDirectory) continue;
       const parsed = parseBackupFileName(f.name);
       if (parsed && parsed.originalName === basename) {
-        versions.push({ backupPath: f.path, timestamp: parsed.timestamp, size: f.size });
+        const origin = marks.has(f.path.replace(/\\/g, "/")) ? { origin: "ai" as const } : {};
+        versions.push({ backupPath: f.path, timestamp: parsed.timestamp, size: f.size, ...origin });
       }
     }
     versions.sort((a, b) => b.timestamp - a.timestamp);

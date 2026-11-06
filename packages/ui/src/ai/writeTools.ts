@@ -14,7 +14,11 @@ import {
   WRITE_RESULTS,
   addedNoteTargets,
   appendToNote,
+  applyDirectChange,
   applyNoteEdits,
+  keepBeforeMaking,
+  madeDirectly,
+  recordApplied,
   createWorkspaceObjectId,
   editProblemSentence,
   isCivilDay,
@@ -27,6 +31,9 @@ import {
   propertyTarget,
   readFrontmatterPath,
   type AiPolicyDimension,
+  type AppliedWrite,
+  type DirectFallback,
+  type DirectWriteFiles,
   type EffectivePolicy,
   type LinkCheckResult,
   type LinkedNoteState,
@@ -48,13 +55,22 @@ import { defuseNewAddresses, defuseNoteText } from "./aiWriteLint";
 
 /**
  * The writing tools of the assistant (plan KI-Harness P5, ADR 0019 §2), one
- * implementation for both shells. None of them changes the vault:
+ * implementation for both shells. Of themselves none of them changes the vault:
  *
  * - a change to a note that is there is laid on the note as a suggestion
  *   round, in the margin where a person's suggestions wait;
  * - something that does not exist yet is left as a draft;
  * - a rename, a move and a deletion are a question to the user, and the
  *   app's own operation does it after a yes.
+ *
+ * Where the user let changes apply directly (plan "KI direkt schreiben") — the
+ * conversation's "Apply directly", or a folder's rule "Change without asking"
+ * (`WriteRun.direct`) — the first two are written at once instead, each with a
+ * version of the note before it and a line under the answer that takes it
+ * back (`writes/direct.ts` in the core). Where that cannot be — the note is
+ * open with unsaved keystrokes, has an open conflict, its version could not be
+ * kept —, the change is laid down as before, and the tool says why. A rename,
+ * a move and a deletion always ask.
  *
  * Everything a tool reads passes the same gate as a read: a note the rules
  * keep from this recipient is answered like a note that is not there, here
@@ -140,7 +156,22 @@ export interface VaultWriteDeps {
    * two drafts are not offered.
    */
   pim?: { mail(): Promise<boolean>; calendar(): Promise<boolean> };
+  /**
+   * How this shell writes a change directly (plan "KI direkt schreiben", W1): its chain, its snapshots, whether a
+   * note is open with unsaved keystrokes, and how its editors and its index learn of a change. Absent where the
+   * shell cannot: then every change is laid down for the user, as ever.
+   */
+  direct?: DirectWriteFiles;
 }
+
+/** What let a change be written directly: the conversation's "Apply directly", or a folder's rule. */
+export type DirectLeave = AppliedWrite["by"];
+
+/**
+ * Where a direct write would go, as `WriteRun.direct` is asked: a note's path, the folder a new note goes into (null:
+ * the inbox), or a place nobody can name — which no folder's rule reaches.
+ */
+export type DirectTarget = { path: string } | { folder: string | null } | { unknown: true };
 
 /**
  * What renaming a note to `title` would do — where it ends up, and which
@@ -202,6 +233,18 @@ export interface WriteRun {
   /** The journal's day and the time, as the app counts them. */
   today(): string;
   clock(): string;
+  /**
+   * Whether a change at `target` may be written directly, and by whose leave; null where it is laid down for the
+   * user. Absent: nothing is written directly in this run.
+   */
+  direct?(target: DirectTarget): Promise<DirectLeave | null>;
+  /**
+   * A run nobody watches (a routine, plan W4, E3): what may not be written directly is refused instead of being
+   * laid down — no suggestion and no draft waits for someone who did not ask for it.
+   */
+  directOnly?: boolean;
+  /** Makes at once what the draft would describe, the way "Create" on a draft makes it; the path made. */
+  make?(input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }): Promise<string>;
 }
 
 /** The executor's own view of the vault: the same gate every read passes. */
@@ -305,16 +348,17 @@ const NO_LINKS: LinkCheckResult = { told: [], missing: [], withheld: [] };
 /** The names of both lists, each once, the ones that were there first. */
 const joined = (had: readonly string[] | undefined, more: readonly string[]) => [...(had ?? []), ...more.filter((name) => !(had ?? []).includes(name))];
 
-function recordRound(writes: RunWrites, path: string, blocks: number, properties: number, links: LinkCheckResult = NO_LINKS): void {
+function recordRound(writes: RunWrites, path: string, blocks: number, properties: number, links: LinkCheckResult = NO_LINKS, fallback: DirectFallback | null = null): void {
   const existing = writes.rounds.find((round) => round.path === path);
   if (existing) {
     existing.blocks += blocks;
     existing.properties += properties;
+    if (fallback) existing.fallback = fallback;
     const missing = joined(existing.missing, links.missing);
     const withheld = joined(existing.withheld, links.withheld);
     if (missing.length) existing.missing = missing;
     if (withheld.length) existing.withheld = withheld;
-  } else writes.rounds.push({ path, blocks, properties, ...linkRecord(links) });
+  } else writes.rounds.push({ path, blocks, properties, ...linkRecord(links), ...(fallback ? { fallback } : {}) });
 }
 
 /** What the source check found, as a draft and a run's record keep it for the user: nothing where nothing was found. */
@@ -378,6 +422,62 @@ export function noteAsEdited(raw: string): string {
   return readTextShape(raw).text;
 }
 
+/**
+ * Whether a change at `target` goes directly, and by whose leave: only where the shell can write directly, the run
+ * may, and the user let it. A question that fails is a no — the change is then laid down, as ever.
+ */
+async function directLeave(deps: VaultWriteDeps, run: WriteRun, target: DirectTarget): Promise<DirectLeave | null> {
+  if (!deps.direct || !run.direct) return null;
+  return run.direct(target).catch(() => null);
+}
+
+/** The sentence of a suggestion or a draft that could have gone directly: why it did not, first. */
+const withReason = (reason: DirectFallback | null, sentence: string) => (reason ? `${WRITE_RESULTS.notApplied(reason)}${sentence}` : sentence);
+
+/**
+ * Makes a note, a task, an entry or a line of the journal directly (plan "KI direkt schreiben"): the version of the
+ * note it goes into first, where that note is there — the journal's day —, then the shell's own way of making it,
+ * then the record. A fallback where it cannot be; the caller lays the draft down then.
+ */
+async function makeDirectly(
+  deps: VaultWriteDeps,
+  run: WriteRun,
+  leave: DirectLeave,
+  kind: AppliedWrite["kind"],
+  into: string | null,
+  input: Parameters<NonNullable<WriteRun["make"]>>[0],
+): Promise<{ ok: true; path: string } | { ok: false; fallback: DirectFallback }> {
+  if (!deps.direct || !run.make) return { ok: false, fallback: "failed" };
+  const kept = await keepBeforeMaking(deps.direct, into);
+  if (!kept.ok) return kept;
+  let path: string;
+  try {
+    path = await run.make(input);
+  } catch {
+    return { ok: false, fallback: "failed" };
+  }
+  // A line that went into the note kept above takes that version along; anything else is new.
+  const before = into !== null && path === into ? kept.before : null;
+  const made = await madeDirectly(deps.direct, path, before);
+  if (made) recordApplied(run.writes, { path, kind, created: made.before === null, passages: 0, properties: 0, before: made.before, after: made.after, by: leave });
+  return { ok: true, path };
+}
+
+/** Leaves a draft — after a direct write that could not be, with its reason in the record and the sentence. */
+async function leftAsDraft(
+  run: WriteRun,
+  reason: DirectFallback | null,
+  input: Parameters<WriteRun["draft"]>[0],
+  kind: string,
+  sentence: string,
+  data: Record<string, unknown>,
+): Promise<ToolOutcome> {
+  const left = await run.draft(input);
+  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+  run.writes.drafts.push({ id: left.id, kind, title: input.title, ...(reason ? { fallback: reason } : {}) });
+  return said(withReason(reason, sentence), data);
+}
+
 async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
   const note = await ctx.readAllowed(a.path);
   if (!note) return refuse("no-note");
@@ -385,10 +485,14 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const edits = Array.isArray(a.edits) ? (a.edits as NoteEdit[]) : [];
   const append = typeof a.append === "string" ? a.append : "";
   if ((edits.length > 0) === (append.trim().length > 0)) return refuse("edits-or-append");
+  const leave = await directLeave(deps, run, { path: note.path });
+  if (!leave && run.directOnly) return refuse("not-direct");
+  // Asked before the pending keystrokes are written below: a note somebody is typing in is not changed under them.
+  let reason: DirectFallback | null = leave && deps.direct?.unsaved(note.path) ? "unsaved" : null;
   // The editor's pending keystrokes land first: the proposal is made against the note as it is.
   const base = noteAsEdited((await deps.current(note.path)) ?? note.text);
-  // A suggestion is attached to the words around it; a file with nothing in it has none.
-  if (base.length === 0) return refuse("empty-note");
+  // A suggestion is attached to the words around it; a file with nothing in it has none. A direct addition is not.
+  if (base.length === 0 && !(leave && !reason && append.trim())) return refuse("empty-note");
   const outcome = edits.length ? applyNoteEdits(base, edits) : appendToNote(base, append, typeof a.section === "string" ? a.section : undefined);
   if (!outcome.ok) return { content: editProblemSentence(outcome.problem, outcome.edit), isError: true };
 
@@ -401,13 +505,24 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const start = noteBodyStart(base);
   const intended = base.slice(0, start) + linted.text.slice(noteBodyStart(linted.text));
   const chunks = selectionChunks(base, 0, base.length, intended, "replace");
-  if (chunks.length === 0) return refuse("unchanged");
+  if (chunks.length === 0 && intended === base) return refuse("unchanged");
   if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
   // The source check: what the change ADDS as links. A link the note already had is not this run's claim.
   const links = await linksNowhere(run, ctx, addedNoteTargets(base, intended), note.path);
+  const passages = Math.max(1, chunks.length);
+  if (leave && !reason) {
+    const outcome = await applyDirectChange(deps.direct!, note.path, base, intended);
+    if (outcome.ok) {
+      recordApplied(run.writes, { path: note.path, kind: "edit", created: false, passages, properties: 0, before: outcome.before, after: outcome.after, by: leave });
+      return said(WRITE_RESULTS.applied(note.path, passages, linted.defused, links.told), { applied: true, path: note.path, passages });
+    }
+    reason = outcome.fallback;
+  }
+  // Laid down for the user after all: a suggestion is attached to the words around it, and needs some.
+  if (base.length === 0 || chunks.length === 0) return refuse(base.length === 0 ? "empty-note" : "unchanged");
   await propose(deps, run, { path: note.path, base, chunks, note: oneLine(a.note, 300) });
-  recordRound(run.writes, note.path, chunks.length, 0, links);
-  return said(WRITE_RESULTS.proposed(note.path, chunks.length, linted.defused, links.told), { proposed: true, path: note.path, passages: chunks.length });
+  recordRound(run.writes, note.path, chunks.length, 0, links, reason);
+  return said(withReason(reason, WRITE_RESULTS.proposed(note.path, chunks.length, linted.defused, links.told)), { proposed: true, path: note.path, passages: chunks.length });
 }
 
 /**
@@ -424,6 +539,9 @@ async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   if (!/\.md$/i.test(note.path)) return refuse("not-a-note");
   const key = typeof a.key === "string" ? a.key.trim() : "";
   if (a.value === undefined) return refuse("bad-property");
+  const leave = await directLeave(deps, run, { path: note.path });
+  // Asked before the pending keystrokes are written below: a note somebody is typing in is not changed under them.
+  let reason: DirectFallback | null = leave && deps.direct?.unsaved(note.path) ? "unsaved" : null;
   // The editor's pending keystrokes land first: the proposal is made against the note as it is.
   const base = noteAsEdited((await deps.current(note.path)) ?? note.text);
   // An address the model brings is as inert in a property as in the text: a property can be a link.
@@ -446,15 +564,27 @@ async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string
     const set = value !== null;
     const has = readFrontmatterPath(base, target.path) === "deny";
     if (has === set) return refuse("unchanged");
+    // A rule of the note is the user's to confirm, also where changes apply directly; a routine has nobody to ask.
+    if (run.directOnly) return refuse("nobody");
     return asked(run, ctx, { plan: "rule", path: note.path, rule, set }, () => deps.setRule(note.path, rule, set), () => WRITE_RESULTS.ruleSet(note.path, set));
   }
+  if (!leave && run.directOnly) return refuse("not-direct");
   // A suggestion is attached to the words around it; a file with nothing in it has none. (A rule is the app's own write.)
-  if (base.length === 0) return refuse("empty-note");
+  if (base.length === 0 && !(leave && !reason)) return refuse("empty-note");
   const name = target.path[0]!;
   const plan = planPropertyChange(base, name, value);
   if (!plan.ok) return refuse(plan.problem);
   // A round inherits nothing, so it may only go where the rules of what the conversation rests on already hold.
   if (!(await placeTakes(run, ctx, note.path, base))) return refuse("restricted");
+  if (leave && !reason) {
+    const outcome = await applyDirectChange(deps.direct!, note.path, base, plan.intended);
+    if (outcome.ok) {
+      recordApplied(run.writes, { path: note.path, kind: "edit", created: false, passages: 0, properties: 1, before: outcome.before, after: outcome.after, by: leave });
+      return said(WRITE_RESULTS.appliedProperty(note.path, name, value === null, defused), { applied: true, path: note.path, property: name });
+    }
+    reason = outcome.fallback;
+    if (base.length === 0) return refuse("empty-note");
+  }
   // One block where the change is one entry — with the hint, where an anchor can quote the entry in full —;
   // otherwise the blocks a comparison of the two notes gives.
   const chunks: RoundChunk[] = plan.block
@@ -463,8 +593,8 @@ async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   if (chunks.length === 0) return refuse("unchanged");
   if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
   await propose(deps, run, { path: note.path, base, chunks, note: oneLine(a.note, 300) });
-  recordRound(run.writes, note.path, 0, 1);
-  return said(WRITE_RESULTS.proposedProperty(note.path, name, value === null, defused), { proposed: true, path: note.path, property: name });
+  recordRound(run.writes, note.path, 0, 1, NO_LINKS, reason);
+  return said(withReason(reason, WRITE_RESULTS.proposedProperty(note.path, name, value === null, defused)), { proposed: true, path: note.path, property: name });
 }
 
 /** The text of a note a model drafted: its addresses inert, its links flat, and no properties block of its own. */
@@ -487,10 +617,16 @@ async function createNote(deps: VaultWriteDeps, run: WriteRun, a: Record<string,
   const drafted = draftedText(typeof a.content === "string" ? a.content : "", run);
   if (!drafted) return refuse("frontmatter");
   const links = await linksNowhere(run, ctx, linkedNoteTargets(drafted.text), `${folder ? `${folder}/` : ""}${title}.md`);
-  const left = await run.draft({ title, body: { kind: "note", path: null, folder, content: drafted.text }, defused: drafted.defused, ...linkRecord(links) });
-  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
-  run.writes.drafts.push({ id: left.id, kind: "note", title });
-  return said(WRITE_RESULTS.drafted(`a note "${title}"`, drafted.defused, links.told), { drafted: true, kind: "note", title });
+  const body: WriteDraftBody = { kind: "note", path: null, folder, content: drafted.text };
+  const leave = await directLeave(deps, run, { folder });
+  if (!leave && run.directOnly) return refuse("not-direct");
+  let reason: DirectFallback | null = null;
+  if (leave) {
+    const made = await makeDirectly(deps, run, leave, "note", null, { title, body, defused: drafted.defused, ...linkRecord(links) });
+    if (made.ok) return said(WRITE_RESULTS.made(`a note "${title}"`, made.path, drafted.defused, links.told), { applied: true, kind: "note", title, path: made.path });
+    reason = made.fallback;
+  }
+  return leftAsDraft(run, reason, { title, body, defused: drafted.defused, ...linkRecord(links) }, "note", WRITE_RESULTS.drafted(`a note "${title}"`, drafted.defused, links.told), { drafted: true, kind: "note", title });
 }
 
 /**
@@ -535,10 +671,17 @@ async function createEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const drafted = draftedText(typeof a.content === "string" ? a.content : "", run);
   if (!drafted) return refuse("frontmatter");
   const links = await linksNowhere(run, ctx, linkedNoteTargets(drafted.text), capturedNotePath(place.folder, title));
-  const left = await run.draft({ title, body: { kind: "entry", base: base.path, properties, content: drafted.text }, defused: defused + drafted.defused, ...linkRecord(links) });
-  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
-  run.writes.drafts.push({ id: left.id, kind: "entry", title });
-  return said(WRITE_RESULTS.drafted(`an entry "${title}" of the database ${base.path}`, defused + drafted.defused, links.told), { drafted: true, kind: "entry", title, base: base.path });
+  const body: WriteDraftBody = { kind: "entry", base: base.path, properties, content: drafted.text };
+  const what = `an entry "${title}" of the database ${base.path}`;
+  const leave = await directLeave(deps, run, { folder: place.folder });
+  if (!leave && run.directOnly) return refuse("not-direct");
+  let reason: DirectFallback | null = null;
+  if (leave) {
+    const made = await makeDirectly(deps, run, leave, "entry", null, { title, body, defused: defused + drafted.defused, ...linkRecord(links) });
+    if (made.ok) return said(WRITE_RESULTS.made(what, made.path, defused + drafted.defused, links.told), { applied: true, kind: "entry", title, base: base.path, path: made.path });
+    reason = made.fallback;
+  }
+  return leftAsDraft(run, reason, { title, body, defused: defused + drafted.defused, ...linkRecord(links) }, "entry", WRITE_RESULTS.drafted(what, defused + drafted.defused, links.told), { drafted: true, kind: "entry", title, base: base.path });
 }
 
 const clockOf = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
@@ -548,12 +691,27 @@ const PRIORITY_WORDS = ["", "high", "medium", "low"] as const;
 async function createTask(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
   const text = oneLine(a.text, 500);
   if (!text) return refuse("empty");
-  if (!(await placeTakes(run, ctx, await deps.draftPlace("task", run.today()).catch(() => null)))) return refuse("restricted");
+  const taskPlace = await deps.draftPlace("task", run.today()).catch(() => null);
+  if (!(await placeTakes(run, ctx, taskPlace))) return refuse("restricted");
   const read = parseTaskCapture(text, deps.taskVocabulary(), run.today());
   const title = (read.title.trim() || text).slice(0, 200);
-  const left = await run.draft({ title, body: { kind: "task", text, day: run.today() }, defused: 0 });
-  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
-  run.writes.drafts.push({ id: left.id, kind: "task", title });
+  const body: WriteDraftBody = { kind: "task", text, day: run.today() };
+  const leave = await directLeave(deps, run, taskPlace === null ? { unknown: true } : { path: taskPlace });
+  if (!leave && run.directOnly) return refuse("not-direct");
+  let reason: DirectFallback | null = null;
+  let madeAt: string | null = null;
+  if (leave) {
+    // Without a task database a task is a line in the journal: the day's note is kept before it, where it is there.
+    const journal = await deps.draftPlace("journal", run.today()).catch(() => null);
+    const made = await makeDirectly(deps, run, leave, "task", journal !== null && journal === taskPlace ? journal : null, { title, body, defused: 0 });
+    if (made.ok) madeAt = made.path;
+    else reason = made.fallback;
+  }
+  if (madeAt === null) {
+    const left = await run.draft({ title, body, defused: 0 });
+    if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+    run.writes.drafts.push({ id: left.id, kind: "task", title, ...(reason ? { fallback: reason } : {}) });
+  }
   // How Plainva read the words, so the answer can say it: the date is the app's reading, not the model's.
   const details = [
     read.due ? `due ${read.due}${read.minutes !== null ? ` ${clockOf(read.minutes)}` : ""}` : "",
@@ -561,21 +719,30 @@ async function createTask(deps: VaultWriteDeps, run: WriteRun, a: Record<string,
     read.tags.length ? `tags ${read.tags.join(", ")}` : "",
     read.repeat ? "repeating" : "",
   ].filter(Boolean);
-  return said(WRITE_RESULTS.drafted(`a task "${title}"${details.length ? ` (${details.join("; ")})` : ""}`, 0), { drafted: true, kind: "task", title });
+  const what = `a task "${title}"${details.length ? ` (${details.join("; ")})` : ""}`;
+  if (madeAt !== null) return said(WRITE_RESULTS.made(what, madeAt, 0), { applied: true, kind: "task", title, path: madeAt });
+  return said(withReason(reason, WRITE_RESULTS.drafted(what, 0)), { drafted: true, kind: "task", title });
 }
 
 async function addJournalEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
   const raw = typeof a.text === "string" ? a.text.trim() : "";
   if (!raw) return refuse("empty");
-  if (!(await placeTakes(run, ctx, await deps.draftPlace("journal", run.today()).catch(() => null)))) return refuse("restricted");
+  const journal = await deps.draftPlace("journal", run.today()).catch(() => null);
+  if (!(await placeTakes(run, ctx, journal))) return refuse("restricted");
   const linted = defuseNewAddresses(raw.slice(0, 2000), run.userTexts());
   const text = flattenInertLinks(linted.text);
   const title = oneLine(text, 200);
-  const links = await linksNowhere(run, ctx, linkedNoteTargets(text), (await deps.draftPlace("journal", run.today()).catch(() => null)) ?? "");
-  const left = await run.draft({ title, body: { kind: "journal", text, day: run.today(), time: run.clock(), task: a.task === true }, defused: linted.defused, ...linkRecord(links) });
-  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
-  run.writes.drafts.push({ id: left.id, kind: "journal", title });
-  return said(WRITE_RESULTS.drafted("a journal entry", linted.defused, links.told), { drafted: true, kind: "journal" });
+  const links = await linksNowhere(run, ctx, linkedNoteTargets(text), journal ?? "");
+  const body: WriteDraftBody = { kind: "journal", text, day: run.today(), time: run.clock(), task: a.task === true };
+  const leave = await directLeave(deps, run, journal === null ? { unknown: true } : { path: journal });
+  if (!leave && run.directOnly) return refuse("not-direct");
+  let reason: DirectFallback | null = null;
+  if (leave) {
+    const made = await makeDirectly(deps, run, leave, "journal", journal, { title, body, defused: linted.defused, ...linkRecord(links) });
+    if (made.ok) return said(WRITE_RESULTS.made("a journal entry", made.path, linted.defused, links.told), { applied: true, kind: "journal", path: made.path });
+    reason = made.fallback;
+  }
+  return leftAsDraft(run, reason, { title, body, defused: linted.defused, ...linkRecord(links) }, "journal", WRITE_RESULTS.drafted("a journal entry", linted.defused, links.told), { drafted: true, kind: "journal" });
 }
 
 /**

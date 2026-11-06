@@ -30,6 +30,7 @@ export * from "./vault/IVaultAdapter.js";
 export * from "./vault/backupNaming.js";
 export * from "./vault/BackupVaultAdapter.js";
 export * from "./vault/VersionHistoryService.js";
+export * from "./vault/versionOrigins.js";
 export * from "./vault/ConflictAwareVaultAdapter.js";
 export * from "./vault/updateText.js";
 export * from "./vault/localText.js";

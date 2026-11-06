@@ -269,6 +269,12 @@ export function VersionsPanel({
             <button className="m-row" onClick={() => open(v)}>
               <History size={ICON.head} />
               <span>{timeOf.format(new Date(v.timestamp))}</span>
+              {/* A change the assistant wrote directly (plan "KI direkt schreiben"): marked, as the desktop marks it. */}
+              {v.origin === "ai" && (
+                <span className="pv-badge pv-badge--accent pv-badge--text" data-testid="version-ai">
+                  {t("versions.ai")}
+                </span>
+              )}
               {delta !== null && (
                 <span className={`m-delta${delta >= 0 ? " is-plus" : " is-minus"}`}>{deltaLabel(delta)}</span>
               )}

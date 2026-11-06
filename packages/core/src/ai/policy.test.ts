@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { within } from "../../test/helpers/timeBudget.js";
-import { DEFAULT_AI_POLICY, effectivePolicy, ENCRYPTED_WORKSPACE_AI_POLICY, normalizeFolder, notePolicyFrom, parsePolicyFile, serializePolicyFile } from "./policy.js";
+import { DEFAULT_AI_POLICY, directFolderOf, effectivePolicy, hasDirectFolder, ENCRYPTED_WORKSPACE_AI_POLICY, normalizeFolder, notePolicyFrom, parsePolicyFile, serializePolicyFile } from "./policy.js";
 import { gateDecision, hardGate, redactDeniedLinks, WITHHELD_LINK, type GateRun } from "./egressGate.js";
 
 const cloudRun: GateRun = { recipient: { kind: "cloud", provider: "anthropic", model: "m" }, webTools: false };
@@ -183,5 +183,61 @@ describe("writing the policy file", () => {
     const text = serializePolicyFile(rules);
     expect(text.startsWith("# Plainva AI privacy rules")).toBe(true);
     expect(parsePolicyFile(text)).toEqual({ rules: [{ folder: "", cloud: "allow", web: "deny" }, { folder: "Finance/", cloud: "deny" }], problems: [] });
+  });
+});
+
+describe("change without asking (plan KI direkt schreiben)", () => {
+  const file = [
+    "folders:",
+    '  "/":',
+    "    cloud: allow",
+    '  "Journal/":',
+    "    web: deny",
+    "    write: direct",
+    '  "Journal/Private/":',
+    "    write: ask",
+    '  "Inbox/":',
+    "    write: direct",
+    '  "Odd/":',
+    "    write: yes",
+  ].join("\n");
+
+  it("reads write: direct and write: ask, and reports anything else without opening it", () => {
+    const parsed = parsePolicyFile(file);
+    expect(parsed.rules).toEqual([
+      { folder: "", cloud: "allow" },
+      { folder: "Journal/", web: "deny", write: "direct" },
+      { folder: "Journal/Private/", write: "ask" },
+      { folder: "Inbox/", write: "direct" },
+      { folder: "Odd/" },
+    ]);
+    expect(parsed.problems).toEqual(['folder "Odd/": write must be direct or ask']);
+  });
+
+  it("lets the nearest folder decide, and ask takes it back below", () => {
+    const { rules } = parsePolicyFile(file);
+    expect(directFolderOf("Journal/2026-11-06.md", rules)).toBe("Journal/");
+    expect(directFolderOf("Journal/Private/Diary.md", rules)).toBeNull();
+    expect(directFolderOf("Inbox/Idea.md", rules)).toBe("Inbox/");
+    expect(directFolderOf("Projects/Plan.md", rules)).toBeNull();
+    // A permission holds for its exact spelling only; a case-sensitive disk never widens it.
+    expect(directFolderOf("inbox/Idea.md", rules)).toBeNull();
+    expect(hasDirectFolder(rules)).toBe(true);
+    expect(hasDirectFolder(parsePolicyFile('folders:\n  "Private/":\n    cloud: deny\n').rules)).toBe(false);
+  });
+
+  it("changes no rule of a file written before it: read and written back, the file says what it said", () => {
+    const before = 'folders:\n  "/":\n    web: deny\n  "Private/":\n    cloud: deny\n';
+    const rules = parsePolicyFile(before).rules;
+    expect(rules.every((rule) => rule.write === undefined)).toBe(true);
+    expect(parsePolicyFile(serializePolicyFile(rules)).rules).toEqual(rules);
+    expect(serializePolicyFile(rules)).not.toContain("write");
+    // Nothing lets a change go directly in such a vault.
+    expect(directFolderOf("Private/x.md", rules)).toBeNull();
+  });
+
+  it("is written back with the folder's other rules, and a folder that only lets changes go keeps its rule", () => {
+    const rules = parsePolicyFile(file).rules.filter((rule) => rule.folder !== "Odd/");
+    expect(parsePolicyFile(serializePolicyFile(rules)).rules).toEqual(rules);
   });
 });

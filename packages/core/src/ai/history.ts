@@ -177,11 +177,42 @@ export interface RunWrites {
    * links to notes that are there and that the rules kept from the run: said to the user, on this device, and
    * never part of anything a model is sent — they are names of notes the rules keep back.
    */
-  rounds: { path: string; blocks: number; properties: number; missing?: string[]; withheld?: string[] }[];
+  rounds: { path: string; blocks: number; properties: number; missing?: string[]; withheld?: string[]; fallback?: DirectFallback }[];
   /** Drafts by id, with the kind and the title they were laid down with. */
-  drafts: { id: string; kind: string; title: string }[];
+  drafts: { id: string; kind: string; title: string; fallback?: DirectFallback }[];
   /** Plans the user was asked about: `done`, `declined` or `failed`. */
   plans: { kind: string; path: string; outcome: string }[];
+  /**
+   * What the run changed or made directly (plan "KI direkt schreiben"), one line per note: shown under the answer
+   * with "Undo". Absent where it changed nothing directly.
+   */
+  applied?: AppliedWrite[];
+}
+
+/**
+ * Why a change that could have gone directly became a suggestion (or a draft) after all: the note was open with
+ * unsaved keystrokes, had an open conflict, was changed since it was read, could not be written here, its version
+ * could not be kept first, or the write failed.
+ */
+export type DirectFallback = "unsaved" | "conflict" | "changed" | "rights" | "snapshot" | "failed";
+export const DIRECT_FALLBACKS: readonly DirectFallback[] = ["unsaved", "conflict", "changed", "rights", "snapshot", "failed"];
+
+/**
+ * One note a run changed or made directly. `before`: the backup path of the version kept before the run's first change
+ * of it — null where the run made the note. `after`: the hash of the text the run left, by which "Undo" knows the note
+ * is still that. `by`: what let it — the conversation's "Apply directly", or a folder's rule.
+ */
+export interface AppliedWrite {
+  path: string;
+  kind: "edit" | "note" | "entry" | "task" | "journal";
+  created: boolean;
+  passages: number;
+  properties: number;
+  before: string | null;
+  after: string;
+  by: "chat" | "folder";
+  /** Taken back with "Undo". */
+  undone?: true;
 }
 
 export const RUN_WRITES_CAP = 64;
@@ -554,20 +585,52 @@ function readRunWrites(raw: unknown): RunWrites | null {
   const r = raw as Partial<Record<keyof RunWrites, unknown>>;
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
   const list = (v: unknown) => (Array.isArray(v) ? (v.filter((item) => item && typeof item === "object") as Record<string, unknown>[]).slice(0, RUN_WRITES_CAP) : []);
+  const fallback = (v: unknown) => (DIRECT_FALLBACKS.includes(v as DirectFallback) ? { fallback: v as DirectFallback } : {});
   const rounds = list(r.rounds)
     .map((item) => {
       const missing = parseMissingLinks(item.missing);
       const withheld = parseMissingLinks(item.withheld);
-      return { path: text(item.path, 1024), blocks: Math.floor(count(item.blocks)), properties: Math.floor(count(item.properties)), ...(missing.length ? { missing } : {}), ...(withheld.length ? { withheld } : {}) };
+      return { path: text(item.path, 1024), blocks: Math.floor(count(item.blocks)), properties: Math.floor(count(item.properties)), ...(missing.length ? { missing } : {}), ...(withheld.length ? { withheld } : {}), ...fallback(item.fallback) };
     })
     .filter((item) => item.path && item.blocks + item.properties > 0);
   const drafts = list(r.drafts)
-    .map((item) => ({ id: text(item.id, 64), kind: text(item.kind, 16), title: text(item.title, 200) }))
+    .map((item) => ({ id: text(item.id, 64), kind: text(item.kind, 16), title: text(item.title, 200), ...fallback(item.fallback) }))
     .filter((item) => item.id && item.kind);
   const plans = list(r.plans)
     .map((item) => ({ kind: text(item.kind, 16), path: text(item.path, 1024), outcome: text(item.outcome, 16) }))
     .filter((item) => item.kind && item.path);
-  return rounds.length || drafts.length || plans.length ? { rounds, drafts, plans } : null;
+  const applied = readAppliedWrites(r.applied);
+  return rounds.length || drafts.length || plans.length || applied.length ? { rounds, drafts, plans, ...(applied.length ? { applied } : {}) } : null;
+}
+
+const APPLIED_KINDS: readonly AppliedWrite["kind"][] = ["edit", "note", "entry", "task", "journal"];
+
+/** The direct changes of a run (or a routine's run), read defensively: paths, counts, a version's path and a hash. */
+export function readAppliedWrites(raw: unknown): AppliedWrite[] {
+  if (!Array.isArray(raw)) return [];
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  return (raw.filter((item) => item && typeof item === "object") as Record<string, unknown>[])
+    .slice(0, RUN_WRITES_CAP)
+    .flatMap((item): AppliedWrite[] => {
+      const path = text(item.path, 1024);
+      const kind = APPLIED_KINDS.find((known) => known === item.kind);
+      const after = text(item.after, 128);
+      const before = item.before === null ? null : text(item.before, 2048);
+      if (!path || !kind || !after || before === "") return [];
+      return [
+        {
+          path,
+          kind,
+          created: item.created === true,
+          passages: Math.floor(count(item.passages)),
+          properties: Math.floor(count(item.properties)),
+          before,
+          after,
+          by: item.by === "folder" ? "folder" : "chat",
+          ...(item.undone === true ? { undone: true as const } : {}),
+        },
+      ];
+    });
 }
 
 /** A run's record of its calls to foreign servers, read defensively: names and outcomes, bounded. */

@@ -10,6 +10,7 @@ import {
   createAudioTranscriber,
   createImageExplainer,
   createTaskInDatabase,
+  deleteWithNet,
   parseTaskCapture,
   getPlatformServices,
   noteDisplayName,
@@ -150,7 +151,7 @@ export function useDesktopAi(input: DesktopAiInput) {
   const allComments = useRef(listAllWorkspaceComments);
   const authors = useRef(listWorkspaceMembers);
   // The ways that need the vault's adapter and index; opening the composer or the calendar needs neither (see below).
-  const writeHost = useRef<Pick<DesktopWriteHost, "rename" | "move" | "createTask" | "taskList" | "addJournal"> | null>(null);
+  const writeHost = useRef<Pick<DesktopWriteHost, "rename" | "move" | "discard" | "createTask" | "taskList" | "addJournal"> | null>(null);
   useLayoutEffect(() => {
     allComments.current = listAllWorkspaceComments;
     authors.current = listWorkspaceMembers;
@@ -193,6 +194,17 @@ export function useDesktopAi(input: DesktopAiInput) {
         triggerFileTreeUpdate();
         notifyFileOps([{ type: "move", from: path, to: result.newPath, isFolder: false }]);
         return result.newPath;
+      },
+      async discard(path) {
+        // What the assistant made, taken back with "Undo": as the file tree deletes — the net first, then the index,
+        // the tree, whoever follows file operations, and an open editor of it.
+        if (!(await landed(path))) return false;
+        if (!(await deleteWithNet(adapter, path))) return false;
+        if (indexer) await applyIndexChanges(indexer, { removed: [path] }).catch(() => undefined);
+        triggerFileTreeUpdate();
+        notifyFileOps([{ type: "delete", path }]);
+        window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path, vaultPath: root } }));
+        return true;
       },
       async move(path, folder) {
         if (!(await landed(path))) return null;
@@ -299,6 +311,7 @@ export function useDesktopAi(input: DesktopAiInput) {
       writes: {
         rename: async (path, title) => (await writeHost.current?.rename(path, title)) ?? null,
         move: async (path, folder) => (await writeHost.current?.move(path, folder)) ?? null,
+        discard: async (path) => (await writeHost.current?.discard(path)) ?? false,
         createTask: (text, day, atProvider) => (writeHost.current ? writeHost.current.createTask(text, day, atProvider) : Promise.reject(new Error("no vault"))),
         taskList: async () => (await writeHost.current?.taskList()) ?? null,
         addJournal: (entry) => (writeHost.current ? writeHost.current.addJournal(entry) : Promise.reject(new Error("no vault"))),

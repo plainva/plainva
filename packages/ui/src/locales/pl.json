@@ -5172,7 +5172,9 @@
     "deletedMeta": "{{when}} · wersje: {{versions}} · {{size}}",
     "scanning": "Skanowanie migawek… (sprawdzono: {{scanned}})",
     "showVersions": "Wersje…",
-    "restoreFailed": "Przywracanie nie powiodło się."
+    "restoreFailed": "Przywracanie nie powiodło się.",
+    "ai": "AI",
+    "aiTip": "AI zapisała tę wersję bezpośrednio."
   },
   "compat": {
     "title": "Rozszerzenie Plainva",

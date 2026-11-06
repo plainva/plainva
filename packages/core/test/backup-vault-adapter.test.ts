@@ -407,7 +407,7 @@ describe("BackupVaultAdapter", () => {
 
     it("tolerates a missing file, leaves Plainva's own files alone, counts towards the limit — and lets a failure be heard", async () => {
       const adapter = makeAdapter({ minSnapshotIntervalSeconds: 3600, maxBackupsPerFile: 2 });
-      await expect(adapter.ensureSnapshot("missing.md")).resolves.toBeUndefined();
+      await expect(adapter.ensureSnapshot("missing.md")).resolves.toBeNull();
       await innerAdapter.writeTextFile(".plainva/sync/comments.device.json", "{}");
       await adapter.ensureSnapshot(".plainva/sync/comments.device.json");
       expect(await kept()).toEqual([]);

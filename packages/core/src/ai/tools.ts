@@ -105,6 +105,14 @@ export const HISTORY_TOOL_NAMES: readonly string[] = ["get_changes", "get_note_h
  * run waits for the user's yes, and the app's own operation carries it out.
  * All of them are found with `find_tools`, like every tool that is not read
  * in every conversation.
+ *
+ * One exception, and the user makes it (plan "KI direkt schreiben"): where
+ * they let changes apply directly — the conversation's "Apply directly", or a
+ * folder's rule "Change without asking" —, a change of a note and a new note,
+ * task, entry or journal line are written at once (`direct`), each with a
+ * version before it and an "Undo". A rename, a move and a deletion stay
+ * plans, and every other tool stays what it is; a program outside Plainva
+ * (MCP, an agent) and an action on a selection only ever propose.
  */
 /**
  * The two drafts that reach other people once the user sends or saves them
@@ -127,6 +135,21 @@ export const MEMORY_DRAFT_TOOL_NAMES: readonly string[] = ["remember", "forget"]
 export const PROPOSAL_TOOL_NAMES: readonly string[] = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "create_entry", ...MEMORY_DRAFT_TOOL_NAMES, ...PIM_DRAFT_TOOL_NAMES];
 export const PLAN_TOOL_NAMES: readonly string[] = ["rename_note", "move_note", "delete_note"];
 export const WRITE_TOOL_NAMES: readonly string[] = [...PROPOSAL_TOOL_NAMES, ...PLAN_TOOL_NAMES];
+/** The proposals that "Apply directly" writes at once: a note's text and properties, and what the shell makes anew. */
+export const DIRECT_TOOL_NAMES: readonly string[] = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry"];
+
+/**
+ * How a writing tool's call is carried out in Plainva's own conversations:
+ * laid down for the user (`propose`), written at once (`direct`, only where
+ * the user let it), or asked about first (`plan`). Null for a tool that writes nothing.
+ */
+export type WriteLevel = "propose" | "direct" | "plan";
+
+export function writeLevel(name: string, direct: boolean): WriteLevel | null {
+  if (PLAN_TOOL_NAMES.includes(name)) return "plan";
+  if (!PROPOSAL_TOOL_NAMES.includes(name)) return null;
+  return direct && DIRECT_TOOL_NAMES.includes(name) ? "direct" : "propose";
+}
 
 /**
  * How Plainva's own MCP server serves a tool (plan KI-Harness §17.3, stage 2;

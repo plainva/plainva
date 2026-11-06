@@ -125,6 +125,8 @@ export interface DraftCreator {
   journal(input: { text: string; day: string; time: string; task: boolean }): Promise<string>;
   /** The rules of the place a new note would land in, for what it still has to carry itself. */
   placeDenies?(folder: string | null, stem: string): Promise<readonly AiPolicyDimension[]>;
+  /** The vault's inbox: the folder a note goes into where nobody named one ("" is the vault itself). */
+  inbox?(): Promise<string>;
   /**
    * Where a new entry of the database at `base` goes, and what it has to
    * carry to be one of its entries (plan P5-4): the folder the database keeps

@@ -4964,7 +4964,9 @@
     "deletedMeta": "{{when}} · {{versions}} versions · {{size}}",
     "scanning": "Scanning snapshots… ({{scanned}} checked)",
     "showVersions": "Versions…",
-    "restoreFailed": "Restore failed."
+    "restoreFailed": "Restore failed.",
+    "ai": "AI",
+    "aiTip": "The AI wrote this version directly."
   },
   "compat": {
     "title": "Plainva extension",

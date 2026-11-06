@@ -735,6 +735,12 @@ export const CompareModal: React.FC<{
                         }}
                       >
                         <span style={{ fontVariantNumeric: "tabular-nums" }}>{timeLabel.format(new Date(v.timestamp))}</span>
+                        {/* A change the assistant wrote directly (plan "KI direkt schreiben"): marked, as the phone marks it. */}
+                        {v.origin === "ai" && (
+                          <span className="pv-badge pv-badge--accent pv-badge--text" data-tip={t("versions.aiTip")} data-testid="version-ai">
+                            {t("versions.ai")}
+                          </span>
+                        )}
                         {delta !== null && delta !== 0 && (
                           <span style={{ fontSize: "var(--text-xs)", color: delta > 0 ? "var(--success-text)" : "var(--error-text)" }}>
                             {delta > 0 ? "+" : "−"}{formatBytes(Math.abs(delta))}

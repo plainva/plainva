@@ -1,4 +1,5 @@
 import { EFFECT_DECLINED } from "../orchestrator.js";
+import type { DirectFallback } from "../history.js";
 import type { NoteEditProblem } from "./edits.js";
 import { LINK_CHECK_LIMITS } from "./links.js";
 
@@ -64,6 +65,9 @@ export const WRITE_REFUSALS = {
   declined: EFFECT_DECLINED,
   nobody: "Nobody is there to confirm this, so it was not done.",
   failed: "Plainva could not do it.",
+  // A routine (plan "KI direkt schreiben", E3): nobody is there to look at a suggestion, so it changes only where a folder lets it.
+  "not-direct":
+    "A routine changes and creates notes only in folders whose rule lets the assistant change without asking, and this place has none. Nothing was changed. Say in your answer what you would have changed.",
 } as const;
 
 export type WriteRefusal = keyof typeof WRITE_REFUSALS;
@@ -75,6 +79,19 @@ export function editProblemSentence(problem: NoteEditProblem, edit?: number): st
 }
 
 const WAITS = "Nothing in the vault has changed.";
+/** Said of every change written directly: the user let it, and can take it back. */
+const APPLIED = "The user let changes apply directly here, and can undo this in Plainva.";
+const INERT = " Web addresses you added were made inert: the user sees them as text.";
+
+/** Why a change that could have gone directly is a suggestion after all — for the model, before what became of it. */
+const NOT_APPLIED: Record<DirectFallback, string> = {
+  unsaved: "The note is open in an editor with changes the user has not saved yet, so it was not changed directly.",
+  conflict: "The note has an open sync conflict, so it was not changed directly.",
+  changed: "The note changed while you worked on it, so it was not changed directly.",
+  rights: "This vault does not let this change be written here, so it was not changed directly.",
+  snapshot: "Plainva could not keep a version of the note first, so it was not changed directly.",
+  failed: "Plainva could not write the change directly.",
+};
 
 /**
  * What the source check found (plan P5-7): the notes a text links to that are not in the vault — or that this run
@@ -112,6 +129,15 @@ export const WRITE_RESULTS = {
   forgotten: `Drafted: taking an entry out of the memory. ${WAITS} The entry goes once the user says so in Plainva.`,
   ruleDrafted: (defused: number) =>
     `Drafted: a rule for assistants. ${WAITS} It becomes a line of the vault's instructions once the user says so, and counts on each device only after that device approved the file.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  // Written directly (plan "KI direkt schreiben"): counts and the path the model named, never the text.
+  applied: (path: string, changes: number, defused: number, told: readonly string[] = []) =>
+    `Changed ${path} directly: ${changes} change${changes === 1 ? "" : "s"}. ${APPLIED}${defused ? INERT : ""}${linksNowhere(told)}`,
+  appliedProperty: (path: string, key: string, removed: boolean, defused: number) =>
+    `Changed ${path} directly: ${removed ? `the property ${key} removed` : `the property ${key} set`}. ${APPLIED}${defused ? INERT : ""}`,
+  made: (what: string, path: string, defused: number, told: readonly string[] = []) =>
+    `Created directly: ${what}, at ${path}. ${APPLIED}${defused ? INERT : ""}${linksNowhere(told)}`,
+  /** What a suggestion that could have gone directly says first: why it did not. */
+  notApplied: (reason: DirectFallback) => `${NOT_APPLIED[reason]} `,
   ruleSet: (path: string, set: boolean) => (set ? `Done. The rule is written into ${path}.` : `Done. The rule is removed from ${path}.`),
   renamed: (path: string) => `Renamed. The note is now ${path}.`,
   moved: (path: string) => `Moved. The note is now ${path}.`,

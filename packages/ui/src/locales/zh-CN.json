@@ -4860,7 +4860,9 @@
     "deletedMeta": "{{when}} · {{versions}}个版本 · {{size}}",
     "scanning": "正在扫描快照…（已检查{{scanned}}个）",
     "showVersions": "版本…",
-    "restoreFailed": "恢复失败。"
+    "restoreFailed": "恢复失败。",
+    "ai": "AI",
+    "aiTip": "这个版本由 AI 直接写入。"
   },
   "compat": {
     "title": "Plainva扩展功能",

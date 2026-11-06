@@ -181,7 +181,7 @@ export interface CommentOperationDeps {
    * operation before the note is touched, like a restore that cannot keep
    * what it would replace.
    */
-  snapshot?(path: string): Promise<void>;
+  snapshot?(path: string): Promise<unknown>;
   post(marker: DurableCommentPost, operation?: CommentOperation): Promise<void>;
   changed?(operation: CommentOperation): void;
   now?(): string;

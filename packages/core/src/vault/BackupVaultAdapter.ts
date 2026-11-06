@@ -6,6 +6,7 @@ import {
   parseBackupFileName,
 } from "./backupNaming.js";
 import { readLocalFile } from "./localText.js";
+import { markAiVersion } from "./versionOrigins.js";
 
 export interface BackupRetentionPolicy {
   /**
@@ -144,16 +145,29 @@ export class BackupVaultAdapter implements IVaultAdapter {
    *
    * Unlike a snapshot before an ordinary write, a failure is the caller's to
    * hear: whoever asks for this means not to write without it.
+   *
+   * Answers the snapshot that holds the text — the one taken, or the newest
+   * that already held it —, or null where there is no file to keep. `origin:
+   * "ai"`: the text is a change an assistant wrote (plan KI direkt schreiben),
+   * and the history marks that version so (`versionOrigins.ts`). A mark that
+   * cannot be written costs the version nothing: it stays, unmarked.
    */
-  async ensureSnapshot(path: string): Promise<void> {
-    if (isPlainvaInternalPath(path)) return;
+  async ensureSnapshot(path: string, options: { origin?: "ai" } = {}): Promise<string | null> {
+    if (isPlainvaInternalPath(path)) return null;
     let current: string;
     try {
       current = await this.inner.readTextFile(path);
     } catch (err: any) {
-      if (err instanceof VaultFileNotFoundError || err.code === "FILE_NOT_FOUND" || err.name === "VaultFileNotFoundError") return;
+      if (err instanceof VaultFileNotFoundError || err.code === "FILE_NOT_FOUND" || err.name === "VaultFileNotFoundError") return null;
       throw err;
     }
+    const kept = await this.keptText(path, current);
+    if (options.origin === "ai") await markAiVersion(this.inner, kept).catch(() => undefined);
+    return kept;
+  }
+
+  /** The snapshot of `path` that holds `current`: the newest, where it does, or one taken now. */
+  private async keptText(path: string, current: string): Promise<string> {
     const existing = await this.listFileBackups(path);
     const newest = existing[existing.length - 1];
     if (newest) {
@@ -163,13 +177,15 @@ export class BackupVaultAdapter implements IVaultAdapter {
       } catch {
         // A snapshot that cannot be read keeps nothing: a new one is taken.
       }
-      if (kept === current) return;
+      if (kept === current) return newest.path;
     }
     // Never onto the name of the snapshot before it: two in one millisecond are two versions.
     const ts = Math.max(this.now(), (newest?.timestamp ?? 0) + 1);
-    await this.inner.writeTextFile(makeBackupPath(path, ts), current);
+    const backupPath = makeBackupPath(path, ts);
+    await this.inner.writeTextFile(backupPath, current);
     this.lastSnapshotAt.set(path, ts);
     await this.rotate(existing);
+    return backupPath;
   }
 
   /**

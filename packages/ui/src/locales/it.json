@@ -5068,7 +5068,9 @@
     "deletedMeta": "{{when}} · {{versions}} versioni · {{size}}",
     "scanning": "Scansione degli snapshot… ({{scanned}} controllati)",
     "showVersions": "Versioni…",
-    "restoreFailed": "Ripristino non riuscito."
+    "restoreFailed": "Ripristino non riuscito.",
+    "ai": "IA",
+    "aiTip": "L'IA ha scritto questa versione direttamente."
   },
   "compat": {
     "title": "Estensione Plainva",

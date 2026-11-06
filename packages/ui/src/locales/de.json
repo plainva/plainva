@@ -4964,7 +4964,9 @@
     "deletedMeta": "{{when}} · {{versions}} Versionen · {{size}}",
     "scanning": "Sicherungen werden geprüft… ({{scanned}} geprüft)",
     "showVersions": "Versionen…",
-    "restoreFailed": "Wiederherstellen fehlgeschlagen."
+    "restoreFailed": "Wiederherstellen fehlgeschlagen.",
+    "ai": "KI",
+    "aiTip": "Diese Fassung hat die KI direkt geschrieben."
   },
   "compat": {
     "title": "Plainva-Erweiterung",

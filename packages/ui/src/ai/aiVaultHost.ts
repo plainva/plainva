@@ -290,7 +290,7 @@ function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore
  * be taken, and `snapshot` says so by throwing: whoever asks for it means not
  * to write without one.
  */
-export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () => { ensureSnapshot(path: string): Promise<void> } | null | undefined): InstructionVersions {
+export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () => { ensureSnapshot(path: string): Promise<unknown> } | null | undefined): InstructionVersions {
   const history = new VersionHistoryService(adapter);
   return {
     async snapshot(path) {
@@ -476,6 +476,9 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     drafts: createWriteDraftStore(input.files, input.vaultKey),
     ...(input.creates ? { creates: input.creates } : {}),
     ...(input.proposals ? { proposals: input.proposals } : {}),
+    // Writing directly (plan "KI direkt schreiben"): the shell's ways the writing tools use, for "Undo" as well — and
+    // the folder rules, for "Change without asking". A shell that cannot write directly offers neither.
+    ...(input.toolDeps?.writes?.direct ? { direct: input.toolDeps.writes.direct, folderRules: async () => (await input.policy.rules()).rules } : {}),
     // Which notes embed a picture (plan P4-5): their rules decide with the picture's own. Without an index nobody can tell — `null`, never "none".
     embedders: (path) => {
       const containing = input.retrieval?.notesContaining?.bind(input.retrieval);

@@ -4860,7 +4860,9 @@
     "deletedMeta": "{{when}}・{{versions}} バージョン・{{size}}",
     "scanning": "スナップショットを確認しています…（{{scanned}}件確認済み）",
     "showVersions": "バージョン…",
-    "restoreFailed": "復元に失敗しました。"
+    "restoreFailed": "復元に失敗しました。",
+    "ai": "AI",
+    "aiTip": "この版は AI が直接書き込みました。"
   },
   "compat": {
     "title": "Plainva拡張機能",

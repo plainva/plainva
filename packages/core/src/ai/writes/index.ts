@@ -18,3 +18,4 @@ export * from "./links.js";
 export * from "./properties.js";
 export * from "./drafts.js";
 export * from "./sentences.js";
+export * from "./direct.js";

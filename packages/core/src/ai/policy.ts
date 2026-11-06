@@ -26,6 +26,15 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
  * (longest matching prefix); otherwise the default. Each dimension resolves on
  * its own, so a folder can deny the web while a note in it only says
  * something about the cloud.
+ *
+ * Beside the two dimensions a folder can carry one permission of another
+ * kind (plan "KI direkt schreiben", W1): `write: direct` — an assistant may
+ * change and create notes there without asking first. It is no privacy rule:
+ * it says nothing about where content may go, only whether a change waits for
+ * the user, so it is not one of `AI_POLICY_DIMENSIONS` and no note carries it.
+ * `write: ask` takes it back for a folder below one that has it. A file
+ * without the key reads as it always did — nothing in it changes, and every
+ * folder asks (`directFolderOf`).
  */
 
 export type AiPermission = "allow" | "deny";
@@ -38,11 +47,16 @@ export interface AiPolicy {
 export type AiPolicyDimension = keyof AiPolicy;
 export const AI_POLICY_DIMENSIONS: readonly AiPolicyDimension[] = ["cloud", "web"];
 
+/** Whether an assistant's change in a folder waits for the user (`ask`, the default) or is written at once (`direct`). */
+export type AiWriteRule = "direct" | "ask";
+
 export interface FolderPolicyRule {
   /** Vault-relative folder, normalised to forward slashes with a trailing slash. */
   folder: string;
   cloud?: AiPermission;
   web?: AiPermission;
+  /** "Change without asking" (plan KI direkt schreiben): absent, the folder above decides, and at the top: ask. */
+  write?: AiWriteRule;
 }
 
 /** Why a dimension resolved the way it did — shown as the "effective policy". */
@@ -140,6 +154,10 @@ export function parsePolicyFile(text: string): ParsedPolicyFile {
       if (parsed) rule[dimension] = parsed;
       else problems.push(`folder "${rawFolder}": ${dimension} must be allow or deny`);
     }
+    // A value Plainva does not understand opens nothing: it is reported, and the folder asks as before.
+    const write = (value as Record<string, unknown>).write;
+    if (write === "direct" || write === "ask") rule.write = write;
+    else if (write !== undefined) problems.push(`folder "${rawFolder}": write must be direct or ask`);
     rules.push(rule);
   }
   return { rules, problems };
@@ -152,10 +170,11 @@ export function parsePolicyFile(text: string): ParsedPolicyFile {
  * as an empty mapping the parser would report.
  */
 export function serializePolicyFile(rules: readonly FolderPolicyRule[]): string {
-  const folders: Record<string, Partial<Record<AiPolicyDimension, AiPermission>>> = {};
+  const folders: Record<string, Partial<Record<AiPolicyDimension, AiPermission>> & { write?: AiWriteRule }> = {};
   for (const rule of rules) {
-    const entry: Partial<Record<AiPolicyDimension, AiPermission>> = {};
+    const entry: Partial<Record<AiPolicyDimension, AiPermission>> & { write?: AiWriteRule } = {};
     for (const dimension of AI_POLICY_DIMENSIONS) if (rule[dimension]) entry[dimension] = rule[dimension];
+    if (rule.write) entry.write = rule.write;
     if (Object.keys(entry).length) folders[rule.folder === "" ? "/" : rule.folder] = entry;
   }
   const header = "# Plainva AI privacy rules (see the File Format Reference of the user guide).";
@@ -201,4 +220,31 @@ export function effectivePolicy(
     }
   }
   return { policy, sources };
+}
+
+/**
+ * The folder whose rule lets an assistant change and create notes at `path`
+ * without asking (`write: direct`), or null where the user is asked as ever.
+ * The nearest folder that says anything decides: `write: ask` below a folder
+ * with `direct` takes it back. A permission matches its folder's exact
+ * spelling only, as every allow does (`effectivePolicy`), so a case-sensitive
+ * file system never widens it by accident; `ask` reaches every spelling.
+ */
+export function directFolderOf(path: string, rules: readonly FolderPolicyRule[]): string | null {
+  const normalized = path.replace(/\\/g, "/").replace(/^\/+/, "").normalize("NFC");
+  let best: FolderPolicyRule | undefined;
+  for (const rule of rules) {
+    const value = rule.write;
+    if (!value) continue;
+    const folder = rule.folder.normalize("NFC");
+    const inside = folder === "" || (value === "ask" ? normalized.toLowerCase().startsWith(folder.toLowerCase()) : normalized.startsWith(folder));
+    if (!inside) continue;
+    if (!best || rule.folder.length > best.folder.length || (rule.folder.length === best.folder.length && value === "ask")) best = rule;
+  }
+  return best?.write === "direct" ? best.folder : null;
+}
+
+/** Whether any folder of the vault lets an assistant change without asking — what a routine may then carry (plan W4). */
+export function hasDirectFolder(rules: readonly FolderPolicyRule[]): boolean {
+  return rules.some((rule) => rule.write === "direct");
 }

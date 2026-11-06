@@ -21,6 +21,7 @@ import {
   resolveLinkTargetIndexed,
   type CommentOperationService,
   type ConversationRecord,
+  type DirectWriteFiles,
   type EgressChunk,
   type IDatabaseAdapter,
   type InstructionApprovals,
@@ -86,6 +87,11 @@ export interface GateOptions {
    * journal, the same notes. `notes` is ignored then.
    */
   beside?: { root: string };
+  /**
+   * The shell can write a change directly (plan "KI direkt schreiben"): `unsaved` holds the notes an editor has
+   * unsaved keystrokes in, `snapshotFails` makes the version before a change fail.
+   */
+  direct?: { unsaved?: Set<string>; snapshotFails?: () => boolean };
 }
 
 const roots: string[] = [];
@@ -170,6 +176,26 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
   const policyOf = policy.policyOf;
   const acts: string[] = [];
   const created: string[] = [];
+  /** What the shell was told changed outside its editor, and what it took away after an "Undo". */
+  const told: string[] = [];
+  const history = new VersionHistoryService(backup);
+  const direct: DirectWriteFiles | null = options.direct
+    ? {
+        files,
+        snapshot: async (path, origin) => {
+          if (options.direct?.snapshotFails?.()) throw new Error("disk full");
+          return backup.ensureSnapshot(path, origin ? { origin } : {});
+        },
+        unsaved: (path) => options.direct?.unsaved?.has(path) ?? false,
+        changed: async (path) => void told.push(`changed ${path}`),
+        readVersion: (backupPath) => history.readVersionText(backupPath),
+        discard: async (path) => {
+          await files.deleteItem(path, false, { confirmed: true });
+          told.push(`discarded ${path}`);
+          return true;
+        },
+      }
+    : null;
 
   const writes: VaultWriteDeps = {
     sealed: () => false,
@@ -205,6 +231,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
       return false;
     },
     entryPlace: async () => null,
+    ...(direct ? { direct } : {}),
   };
   const deps: VaultToolDeps = {
     search: async () => [],
@@ -245,6 +272,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     },
     entryPlace: async () => null,
     placeDenies: async () => [],
+    inbox: async () => "Inbox",
   };
   const host: AiVaultHost = {
     conversations: {
@@ -276,6 +304,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     drafts: createWriteDraftStore(appData, "vault-gate"),
     creates,
     proposals: async () => [],
+    ...(direct ? { direct, folderRules: async () => (await policy.rules()).rules } : {}),
   };
 
   /** The note as the editor holds it: what "Accept" plans against. */
@@ -290,7 +319,6 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     const chosen = pick(await open(path));
     return service.run(await service.prepare(planCommentDecision(path, await asEdited(path), chosen, outcome)));
   };
-  const history = new VersionHistoryService(backup);
   /** The versions kept of a note, newest first, each with its exact text. */
   const versions = async (path: string) => Promise.all((await history.listVersions(path)).map(async (version) => ({ ...version, text: await history.readVersionText(version.backupPath) })));
   /** Puts a kept version back, as the version history's "Restore" does: what is there now is kept first. */
@@ -308,6 +336,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     host,
     acts,
     created,
+    told,
     appData,
     /** What waits to be synced to the other devices, in the order it was queued: "write Projects/Offer.md", "rename a.md -> b.md". */
     queued: async () =>

@@ -2,7 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaultText, withTodoAsTask } from "@plainva/core";
+import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaultText, VersionHistoryService, withTodoAsTask } from "@plainva/core";
+import type { DirectWriteFiles } from "@plainva/core";
+import { dirtyStore } from "../dirtyStore";
 import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, PimEventRow, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
 import type { EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
@@ -276,8 +278,11 @@ export interface DesktopVaultInput {
   db: () => IDatabaseAdapter | null | undefined;
   /** The vault's comment service: where an AI suggestion round is written (plan P1.5). */
   commentOperations: () => CommentOperationService | null;
-  /** The vault's snapshot store: a skill's version is kept there before a proposal rewrites it (plan P6). Null while there is none. */
-  backup?: () => { ensureSnapshot(path: string): Promise<void> } | null;
+  /**
+   * The vault's snapshot store: a skill's version is kept there before a proposal rewrites it (plan P6), and a note's
+   * before the assistant changes it directly (plan "KI direkt schreiben"). Null while there is none.
+   */
+  backup?: () => { ensureSnapshot(path: string, options?: { origin?: "ai" }): Promise<string | null> } | null;
   /** Makes a note the assistant's "Keep as a note" wrote known to the index and the file tree (plan P4-6). */
   noteCreated?: (path: string) => Promise<void>;
   /**
@@ -307,6 +312,11 @@ export interface DesktopVaultInput {
 export interface DesktopWriteHost {
   /** The new path, or null where the note stayed what it was. */
   rename(path: string, title: string): Promise<string | null>;
+  /**
+   * Takes away a note the assistant made directly, after the user's "Undo" (plan "KI direkt schreiben"): the way the
+   * file tree deletes — with the net of every deletion —, the index and the tree after. True where it is gone.
+   */
+  discard(path: string): Promise<boolean>;
   move(path: string, folder: string): Promise<string | null>;
   /**
    * A task from a captured line, read with `day` as "today"; the path of what
@@ -347,6 +357,29 @@ export function currentAiPolicy(): VaultPolicyHost | null {
 }
 
 /** The vault side of the session for the open desktop vault. */
+/**
+ * How the desktop writes a change of the assistant directly (plan "KI direkt schreiben", W1): through the window's
+ * chain; a version first from its snapshot store, whatever the interval says; "unsaved" is the editor's dirty mark
+ * (the dot on the tab); the index and an open editor learn of the change as of every other change the assistant makes.
+ */
+function desktopDirectWrites(input: DesktopVaultInput, writes: DesktopWriteHost): DirectWriteFiles {
+  const versions = new VersionHistoryService(input.adapter);
+  return {
+    files: input.adapter,
+    async snapshot(path, origin) {
+      const store = input.backup?.();
+      if (!store) throw new Error("this vault keeps no versions");
+      return store.ensureSnapshot(path, origin ? { origin } : {});
+    },
+    unsaved: (path) => dirtyStore.get().has(path),
+    changed: async (path) => {
+      await input.noteChanged?.(path);
+    },
+    readVersion: (backupPath) => versions.readVersionText(backupPath),
+    discard: (path) => writes.discard(path),
+  };
+}
+
 export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaultHost; policy: VaultPolicyHost } {
   const read = async (path: string): Promise<string | null> => {
     try {
@@ -436,6 +469,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
         entryPlace,
         // A draft of an e-mail or an appointment (plan P5-6) is offered only where it has somewhere to go.
         pim: { mail: () => writes.mailConnected(), calendar: () => writes.calendarWritable() },
+        ...(input.backup ? { direct: desktopDirectWrites(input, writes) } : {}),
       }
     : undefined;
   /** Checkbox tasks and the task database, as every task view reads them. */
@@ -603,6 +637,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
               return true;
             },
             entryPlace,
+            inbox: inboxFolder,
             async placeDenies(folder, stem) {
               const effective = await policy.policyOf(capturedNotePath(folder ?? (await inboxFolder()), stem), "");
               return AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny");

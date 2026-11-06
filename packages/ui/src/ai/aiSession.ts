@@ -19,7 +19,7 @@ import {
 } from "./aiSelectionActions";
 import { defuseNewAddresses, defuseNoteText } from "./aiWriteLint";
 import { draftedEntryContent, draftedNoteContent, EMPTY_WRITE_DRAFTS, namedNoteContent, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
-import { isWriteToolName, type PlanQuestion, type WriteRun } from "./writeTools";
+import { isWriteToolName, type DirectTarget, type PlanQuestion, type WriteRun } from "./writeTools";
 import { bringsAddress, FILL_INSTRUCTION, FILL_LIMITS, fillColumnLine, isFillColumn, parseFillAnswer, type FillColumn } from "./aiFill";
 import { FILTER_INSTRUCTION, FILTER_WORDS_LIMITS, filterSchemaLines, parseFilterAnswer, type FilterSchemaColumn } from "./aiBaseFilter";
 import type { PropertyFilterRule } from "../base/filterExpr";
@@ -103,6 +103,11 @@ import {
   type RunWrites,
   type WriteDraft,
   type WriteDraftBody,
+  type AppliedWrite,
+  type DirectWriteFiles,
+  type FolderPolicyRule,
+  directFolderOf,
+  undoDirectChange,
   calledToolName,
   dispatchedArgs,
   allowHost,
@@ -559,6 +564,13 @@ export interface AiVaultHost {
   creates?: DraftCreator;
   /** The notes that carry open suggestions of a machine, from the vault's comments (plan P5); absent where the shell cannot list them. */
   proposals?(): Promise<OpenProposal[]>;
+  /**
+   * How this shell writes a change directly and takes it back (plan "KI direkt schreiben"): the same ways the writing
+   * tools use. Absent where it cannot: then nothing goes directly, and "Apply directly" is not offered.
+   */
+  direct?: DirectWriteFiles;
+  /** The vault's folder rules, for "Change without asking" (plan W3); absent, no folder lets a change go directly. */
+  folderRules?(): Promise<readonly FolderPolicyRule[]>;
 }
 
 export interface AiInstructionsHost {
@@ -1014,6 +1026,13 @@ export interface AiState {
   web: WebSettings;
   /** The next new conversation starts with the internet. Chosen per conversation, never kept as a default. */
   draftWeb: boolean;
+  /**
+   * "Apply directly" (plan "KI direkt schreiben", W2): the next new conversation, and the conversations of this
+   * session, by id, whose changes are written at once. Chosen per conversation and never kept: after a restart every
+   * conversation proposes again.
+   */
+  draftDirect: boolean;
+  directChats: readonly string[];
   /** A page or a search waiting for the user's answer. */
   effect: EffectRequest | null;
   /** A question of a foreign server waiting for the user's answer (plan P9-4a). */
@@ -1097,6 +1116,21 @@ export type FilterWordsOutcome =
   | { kind: "refused"; reason: "off" | "no-model" | "busy" | "empty" | "denied" | "cancelled" | "none" | "invalid" | "failed"; failure?: ModelFailure; provider?: string; model?: string };
 
 /** How "Create" on a draft ended (plan P5). */
+/**
+ * What "Undo" did with direct changes (plan "KI direkt schreiben"): taken back, changed since — the comparison is
+ * offered instead of overwriting —, or not possible (the note is gone, its version could not be read).
+ */
+export interface DirectUndoReport {
+  undone: string[];
+  changed: string[];
+  failed: string[];
+}
+
+/** The direct changes with the ones at `paths` marked as taken back. */
+export function withUndone(applied: readonly AppliedWrite[], paths: readonly string[]): AppliedWrite[] {
+  return applied.map((entry) => (!entry.undone && paths.includes(entry.path) ? { ...entry, undone: true as const } : entry));
+}
+
 export type DraftOutcome =
   | { kind: "created"; path: string }
   /**
@@ -1616,6 +1650,8 @@ export class AiSession {
       skillTests: { records: [], running: null },
       web: DEFAULT_WEB_SETTINGS,
       draftWeb: false,
+      draftDirect: false,
+      directChats: [],
       effect: null,
       question: null,
       mcp: this.mcp.state,
@@ -1906,6 +1942,9 @@ export class AiSession {
       // Another vault's switch says nothing about this one: off until its own settings are read.
       web: DEFAULT_WEB_SETTINGS,
       draftWeb: false,
+      // Another vault's conversations are not this one's: none of them applies directly.
+      draftDirect: false,
+      directChats: [],
       // Another vault's drafts are not this one's.
       drafts: EMPTY_WRITE_DRAFTS,
       // A column that was being filled belongs to the vault that is gone; its run ends with its next entry.
@@ -2040,7 +2079,7 @@ export class AiSession {
     this.dropWriteQuestion();
     // Its drafts begin anew: a message of the composer that waits in its overview goes nowhere.
     this.leaveComposerMessage();
-    this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, notice: null });
+    this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, draftDirect: false, notice: null });
   }
 
   /**
@@ -2370,32 +2409,16 @@ export class AiSession {
       }
       if (body.kind === "note" && body.path) {
         // A draft that names its own file is another writer's (an agent, plan P5-6): the note is made exactly there,
-        // or not at all — with the writer's whole text and the stamp that says who wrote it (ADR 0023 §3).
+        // or not at all — with the writer's whole text and the stamp that says who wrote it (ADR 0023 §3). Only here,
+        // on the user's own click on its card: nothing that writes directly makes it (plan "KI direkt schreiben", E4).
         if (!creates.noteAt) return refused("unavailable");
         const made = await creates.noteAt({ path: body.path, content: namedNoteContent(draft, this.host.now()) });
         if (made === null) return refused("exists");
         path = made;
-      } else if (body.kind === "note") {
-        const stem = safeFileStem(draft.title) ?? "Note";
-        const denied = creates.placeDenies ? await creates.placeDenies(body.folder, stem).catch(() => []) : [];
-        const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));
-        path = await creates.note({ folder: body.folder, stem, content: draftedNoteContent(draft, this.host.now(), rules, await noteTypeOf(vault)) });
-      } else if (body.kind === "task") {
-        // Also at the provider list the task database names — only where the user left that on, on the card.
-        path = await creates.task({ text: body.text, day: body.day, atProvider: choice.atProvider === true });
-      }
-      else if (body.kind === "journal") path = await creates.journal({ text: body.text, day: body.day, time: body.time, task: body.task });
-      else {
-        // An entry of a database is a note in the folder the database keeps its entries in (plan P5-4): the shell says
-        // where that is and what an entry carries there; without a folder there is nowhere to make it yet.
-        if (!creates.entryPlace) return refused("unavailable");
-        const place = await creates.entryPlace(body.base);
-        // The draft stays: the user chooses the folder with the database's first entry and creates it then.
-        if (!place) return refused("no-entry-folder");
-        const stem = safeFileStem(draft.title) ?? "Entry";
-        const denied = creates.placeDenies ? await creates.placeDenies(place.folder, stem).catch(() => []) : [];
-        const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));
-        path = await creates.note({ folder: place.folder, stem, content: draftedEntryContent(draft, this.host.now(), rules, place) });
+      } else {
+        const made = await this.makeDraft(vault, creates, draft, choice.atProvider === true);
+        if (typeof made !== "string") return refused(made.refused);
+        path = made;
       }
       const at = this.host.now().toISOString();
       await this.changeDrafts(vault, (state) => ({
@@ -2408,6 +2431,89 @@ export class AiSession {
     } finally {
       this.creatingDraft = false;
     }
+  }
+
+  /**
+   * Makes what a draft of a note, an entry, a task or a journal line describes, through the shell's own way of making
+   * that kind of thing — what "Create" on its card does, and what a write the user let apply directly does at once
+   * (plan "KI direkt schreiben"). The path made, or why nothing was.
+   */
+  /** The folder whose rule lets a direct write at `target` go (plan W3), or null: a new note's folder, the inbox for none. */
+  private async directFolderOfTarget(vault: AiVaultHost, target: DirectTarget): Promise<string | null> {
+    if (!vault.folderRules || "unknown" in target) return null;
+    const rules = await vault.folderRules().catch(() => [] as readonly FolderPolicyRule[]);
+    if ("path" in target) return directFolderOf(target.path, rules);
+    const folder = target.folder ?? (await vault.creates?.inbox?.().catch(() => null)) ?? null;
+    // A note made in the inbox nobody can name lies in no folder a rule could name.
+    if (folder === null) return null;
+    return directFolderOf(`${folder ? `${folder}/` : ""}x.md`, rules);
+  }
+
+  /**
+   * Makes at once what a draft would describe (plan "KI direkt schreiben"): the draft as the writing tool would lay
+   * it down — signed, with the rules and the sources of what the conversation rests on —, made by the shell's own
+   * way, never kept in the list of drafts. Rejects where nothing was made; the tool then lays the draft down.
+   */
+  private async makeDirectly(
+    vault: AiVaultHost,
+    record: ConversationRecord,
+    writer: { id: string; displayName: string },
+    input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] },
+    inherited: () => Promise<readonly AiPolicyDimension[]>,
+    sources: readonly { path: string }[],
+    reads: { paths: ReadonlySet<string>; more: boolean },
+  ): Promise<string> {
+    const creates = vault.creates;
+    if (!creates) throw new Error("this shell makes nothing");
+    const carried = await this.carriedBy(vault, record, sources, reads).catch(() => ({ paths: [] as string[], more: false }));
+    const draft: WriteDraft = {
+      id: `d-${this.host.newId()}`,
+      createdAt: this.host.now().toISOString(),
+      author: { id: writer.id, label: writer.displayName },
+      conversationId: record.id,
+      title: input.title,
+      body: input.body,
+      inherited: [...(await inherited())],
+      sources: input.body.kind === "note" || input.body.kind === "entry" ? carried.paths.filter((path) => /\.md$/i.test(path)).slice(0, 50).map((path) => ({ resource: path })) : [],
+      defused: input.defused,
+      ...(input.missing?.length ? { missing: [...input.missing] } : {}),
+      ...(input.withheld?.length ? { withheld: [...input.withheld] } : {}),
+      ...(record.instructions?.style?.features ? { style: true as const } : {}),
+    };
+    const made = await this.makeDraft(vault, creates, draft, false);
+    if (typeof made !== "string") throw new Error(made.refused);
+    return made;
+  }
+
+  private async makeDraft(
+    vault: AiVaultHost,
+    creates: DraftCreator,
+    draft: WriteDraft,
+    atProvider: boolean,
+  ): Promise<string | { refused: "unavailable" | "no-entry-folder" }> {
+    const body = draft.body;
+    // A draft that names its own file is an agent's: made from its card alone (`createDraft`), never here.
+    if (body.kind === "note" && body.path) return { refused: "unavailable" };
+    if (body.kind === "note") {
+      const stem = safeFileStem(draft.title) ?? "Note";
+      const denied = creates.placeDenies ? await creates.placeDenies(body.folder, stem).catch(() => []) : [];
+      const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));
+      return creates.note({ folder: body.folder, stem, content: draftedNoteContent(draft, this.host.now(), rules, await noteTypeOf(vault)) });
+    }
+    // Also at the provider list the task database names — only where the user left that on, on the card.
+    if (body.kind === "task") return creates.task({ text: body.text, day: body.day, atProvider });
+    if (body.kind === "journal") return creates.journal({ text: body.text, day: body.day, time: body.time, task: body.task });
+    if (body.kind !== "entry") return { refused: "unavailable" };
+    // An entry of a database is a note in the folder the database keeps its entries in (plan P5-4): the shell says
+    // where that is and what an entry carries there; without a folder there is nowhere to make it yet.
+    if (!creates.entryPlace) return { refused: "unavailable" };
+    const place = await creates.entryPlace(body.base);
+    // The draft stays: the user chooses the folder with the database's first entry and creates it then.
+    if (!place) return { refused: "no-entry-folder" };
+    const stem = safeFileStem(draft.title) ?? "Entry";
+    const denied = creates.placeDenies ? await creates.placeDenies(place.folder, stem).catch(() => []) : [];
+    const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));
+    return creates.note({ folder: place.folder, stem, content: draftedEntryContent(draft, this.host.now(), rules, place) });
   }
 
   /**
@@ -2629,6 +2735,71 @@ export class AiSession {
   setDraftWeb(on: boolean): void {
     if (this.state.active) return;
     this.set({ draftWeb: on && this.state.web.enabled && !this.state.settings.localOnly });
+  }
+
+  /**
+   * "Apply directly" (plan "KI direkt schreiben", W2) for the open conversation, or for the next new one. Unlike the
+   * internet it can be switched while a conversation goes on: it changes no tool the conversation carries, only
+   * whether its next change waits for the user — and the user switches it, nobody else.
+   */
+  setDirect(on: boolean): void {
+    if (!this.vault?.direct) return;
+    const active = this.state.active;
+    if (!active) {
+      this.set({ draftDirect: on });
+      return;
+    }
+    const others = this.state.directChats.filter((id) => id !== active.id);
+    this.set({ directChats: on ? [...others, active.id] : others });
+  }
+
+  /** Whether the open conversation — or the next new one — writes its changes directly. */
+  directOn(): boolean {
+    const active = this.state.active;
+    return active ? this.state.directChats.includes(active.id) : this.state.draftDirect;
+  }
+
+  /**
+   * The folder whose rule lets a change at `path` go directly ("Change without asking", plan W3), or null. Asked of the
+   * vault's rules as they are now; a vault whose rules cannot be read lets nothing go directly.
+   */
+  async directFolder(path: string): Promise<string | null> {
+    const vault = this.vault;
+    if (!vault?.direct || !vault.folderRules) return null;
+    return directFolderOf(path, await vault.folderRules().catch(() => []));
+  }
+
+  /**
+   * "Undo" under an answer (plan "KI direkt schreiben", W2): takes back the direct changes of one run of the open
+   * conversation — the one at `path`, or all of them. A note that changed since is not overwritten: it comes back in
+   * `changed`, for the comparison to be offered. What was taken back is kept with the conversation.
+   */
+  async undoDirect(runIndex: number, path?: string): Promise<DirectUndoReport> {
+    const report: DirectUndoReport = { undone: [], changed: [], failed: [] };
+    const vault = this.vault;
+    const active = this.state.active;
+    const run = active?.runs[runIndex];
+    if (!vault?.direct || !active || !run?.writes?.applied || this.running.has(active.id)) return report;
+    const entries = run.writes.applied.filter((entry) => !entry.undone && (path === undefined || entry.path === path));
+    await this.undoEntries(vault.direct, entries, report);
+    if (report.undone.length === 0) return report;
+    // The conversation as it stands now: a choice made meanwhile stays.
+    const now = this.state.active?.id === active.id ? this.state.active : active;
+    const runs = now.runs.map((meta, index) => (index === runIndex && meta.writes ? { ...meta, writes: { ...meta.writes, applied: withUndone(meta.writes.applied ?? [], report.undone) } } : meta));
+    const next = { ...now, runs };
+    this.set({ active: next });
+    await this.write(vault, next).catch(() => undefined);
+    return report;
+  }
+
+  /** Takes each change back, the last first; what became of each goes into `report`. */
+  private async undoEntries(direct: DirectWriteFiles, entries: readonly AppliedWrite[], report: DirectUndoReport): Promise<void> {
+    for (const entry of [...entries].reverse()) {
+      const outcome = await undoDirectChange(direct, entry);
+      if (outcome === "undone") report.undone.push(entry.path);
+      else if (outcome === "changed") report.changed.push(entry.path);
+      else report.failed.push(entry.path);
+    }
   }
 
   /** The user's answer to a page or a search that waits. */
@@ -6757,6 +6928,8 @@ export class AiSession {
       const withMemory: ConversationInstructions | null = memory ? { ...(start.instructions ?? {}), memory: { ...memory.record, lookup } } : start.instructions;
       const instructions: ConversationInstructions | null = style && (style.record.features > 0 || style.record.withheld > 0) ? { ...(withMemory ?? {}), style: style.record } : withMemory;
       const id = this.host.newId();
+      // "Apply directly" chosen in the composer holds for the conversation this message begins (plan W2).
+      if (begun && this.state.draftDirect && vault.direct) this.set({ directChats: [...this.state.directChats, id] });
       record = {
         version: 1 as const,
         id,
@@ -6885,6 +7058,14 @@ export class AiSession {
             writes: writesLog,
             today: () => this.host.today(),
             clock: () => clockOf(this.host.now()),
+            // "Apply directly" (plan "KI direkt schreiben"): this conversation's own leave, asked at every call — the user
+            // can switch it while the run goes on —, else a folder's rule "Change without asking".
+            ...(vault.direct
+              ? {
+                  direct: async (target: DirectTarget) => (this.state.directChats.includes(record.id) ? "chat" : (await this.directFolderOfTarget(vault, target)) ? "folder" : null),
+                  make: (input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }) => this.makeDirectly(vault, record, writer, input, inherited, sending.sources, reads),
+                }
+              : {}),
           }
         : undefined;
     const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillRunTools(skillState), () => foreign, writing, () => scriptTools) : null;
@@ -7369,7 +7550,7 @@ export class AiSession {
     this.abort = controller;
     const toolLog: LedgerEntry["tools"] = [];
     // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
-    const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
+    const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, draftStyle: false, draftDirect: false, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
     if (!input.background) {
       // An opening that comes back after this does not take the screen from the run (step 8).
       this.started++;
@@ -7509,7 +7690,7 @@ export class AiSession {
       ...(input.reads?.changed?.size ? { readChanged: [...input.reads.changed] } : {}),
       ...(input.reads?.unhashed ? { readUnhashed: true as const } : {}),
       ...(input.mcp?.calls.length ? { mcp: input.mcp } : {}),
-      ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length) ? { writes: input.writes } : {}),
+      ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length || input.writes.applied?.length) ? { writes: input.writes } : {}),
       ...(input.scriptLog?.runs.length ? { scripts: input.scriptLog } : {}),
     };
     // The conversation as the user has it now, with what this run brings (step 8). Until its end is decided, a choice

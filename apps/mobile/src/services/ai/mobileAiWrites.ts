@@ -1,4 +1,4 @@
-import { AI_POLICY_DIMENSIONS, type VaultQueryService } from "@plainva/core";
+import { AI_POLICY_DIMENSIONS, VersionHistoryService, type DirectWriteFiles, type VaultQueryService } from "@plainva/core";
 import {
   calendarDay,
   capturedNotePath,
@@ -33,7 +33,7 @@ import { getMobileSettings } from "../mobileSettings";
 import { configuredNoteType } from "../newNote";
 import { providerListLabel, sendTaskToProviderList } from "../pim/taskToProvider";
 import { phoneTemplateVault } from "../templateVault";
-import { vaultOps, vaultTextFiles, type MobileVault } from "../vaultService";
+import { noteSaver, vaultOps, vaultTextFiles, type MobileVault } from "../vaultService";
 
 /**
  * What the phone does for the assistant's writing tools (plan KI-Harness P5).
@@ -113,6 +113,28 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
     // A draft of an e-mail or an appointment (plan P5-6) is offered only where it has somewhere to go. Asked when one
     // is laid down or listed, so mail and calendars load then and not with the assistant.
     pim: { mail: mailConnected, calendar: calendarWritable },
+    direct: mobileDirectWrites(vault),
+  };
+}
+
+/**
+ * How the phone writes a change of the assistant directly (plan "KI direkt schreiben", W1), as the desktop does: through
+ * the vault's chain; a version first from its snapshot store, whatever the interval says; "unsaved" is a save that
+ * waits in the note saver; the index and the open editor learn of the change as of every other change the assistant makes.
+ */
+export function mobileDirectWrites(vault: MobileVault): DirectWriteFiles {
+  const versions = new VersionHistoryService(vault.adapter);
+  return {
+    files: vault.files,
+    snapshot: (path, origin) => vault.backup.ensureSnapshot(path, origin ? { origin } : {}),
+    unsaved: (path) => noteSaver.hasPending(path, vault),
+    async changed(path) {
+      await vault.reindexPaths([path]).catch(() => undefined);
+      window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+    },
+    readVersion: (backupPath) => versions.readVersionText(backupPath),
+    // What the assistant made, taken back with "Undo": as every delete on the phone, with its net.
+    discard: (path) => vaultOps.remove(vault, path, { confirmed: true }),
   };
 }
 
@@ -140,6 +162,7 @@ export function mobileDraftCreator(vault: MobileVault, policy: VaultPolicyHost, 
     appendPlannedJournalEntry(vault, { date: entry.day, time: entry.time, heading: journalHeading(), text: entry.text, ...(entry.task ? { task: true } : {}) });
   return {
     note: ({ folder, stem, content }) => vaultOps.createNoteWithContent(vault, folder ?? inboxFolder(), stem, content),
+    inbox: async () => inboxFolder(),
     // An e-mail and an appointment are opened, never made (plan P5-6): the phone's own composer screen, and the event
     // sheet of the Today screen. The composer is a screen of its own, so there is never another mail in its way.
     async mail(mail, done) {

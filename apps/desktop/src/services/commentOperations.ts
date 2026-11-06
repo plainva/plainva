@@ -12,7 +12,7 @@ export function desktopCommentOperations(deps: {
    * (AI harness P5-7) — whatever the snapshot interval says, because accepting is not undone by the editor; and
    * not twice, where a save a moment ago already kept exactly this text.
    */
-  backup?: { ensureSnapshot(path: string): Promise<void> } | null;
+  backup?: { ensureSnapshot(path: string): Promise<unknown> } | null;
   assertCurrent(): void;
   ensureAuthorName(input: CommentOperationInput): Promise<void>;
   noteWritten(path: string): Promise<void>;
