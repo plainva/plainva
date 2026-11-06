@@ -238,6 +238,34 @@ function numberedLine(line: string): { number: number; text: string } | null {
 }
 
 /**
+ * A tag goes, and in the same pass every `<` left is written so that it opens
+ * nothing: what is left never holds a `<` at all (a tag the removal would only
+ * have made whole, `<<b>script>`, included). One scan, no pattern: a `<` up to
+ * the next `>` with no `<` between is a tag; any other `<` is `&lt;`.
+ */
+function withoutTags(text: string): string {
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch !== "<") {
+      out += ch;
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j < text.length && text[j] !== "<" && text[j] !== ">") j++;
+    if (j < text.length && text[j] === ">") {
+      i = j + 1;
+    } else {
+      out += "&lt;";
+      i++;
+    }
+  }
+  return out;
+}
+
+/**
  * Words of a model as they may stand in a log: one line of plain prose.
  * Links, pictures and wikilinks leave their words and lose their targets,
  * markup of HTML goes, a `<` that is left is written so that it opens
@@ -245,9 +273,7 @@ function numberedLine(line: string): { number: number; text: string } | null {
  */
 export function plainSentence(raw: string): string {
   let text = stripInvisible(raw.slice(0, ANSWER_LINE_MAX)).text;
-  // A tag goes, and in the same pass every `<` left is written so that it opens nothing — what is left
-  // never holds a `<` at all (a tag the removal would only have made whole, `<<b>script>`, included).
-  text = text.replace(/<[^<>]*>|</g, (found) => (found === "<" ? "&lt;" : ""));
+  text = withoutTags(text);
   text = text.replace(/!?\[([^[\]]*)\]\([^()]*\)/g, "$1");
   text = text.replace(/\[\[([^[\]|]*)\|([^[\]]*)\]\]/g, "$2");
   text = text.replace(/\[\[([^[\]]*)\]\]/g, (_all, target: string) => target.slice(target.lastIndexOf("/") + 1).replace(/\.md$/i, ""));

@@ -218,6 +218,7 @@ const BLANK: McpServerRecord = { label: "", addedAt: "", target: "", review: NEW
  * a record can never reach `Object.prototype`.
  */
 function ownRecord(records: Record<string, McpServerRecord>, id: string): McpServerRecord | undefined {
+  if (id === "__proto__" || id === "constructor" || id === "prototype") return undefined;
   return Object.prototype.hasOwnProperty.call(records, id) ? records[id] : undefined;
 }
 
@@ -226,6 +227,7 @@ function recordFor(records: Record<string, McpServerRecord>, id: string, make: (
   const known = ownRecord(records, id);
   if (known) return known;
   const made = make();
+  if (id === "__proto__" || id === "constructor" || id === "prototype") return made;
   records[id] = made;
   return made;
 }
