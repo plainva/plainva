@@ -24,6 +24,7 @@ import { loadAnchoredNotes, readProviderTaskAnchor, type ProviderTaskAnchor } fr
 import { requestTaskDeletion } from "./pim/taskDeletion";
 import { getTemplateFolder } from "./newItemFlow";
 import { removeRelationLinksToNote } from "@plainva/ui";
+import { deleteWithNet } from "@plainva/ui";
 import { requestSaveFlush } from "./saveFlush";
 import type { IndexerApi } from "./remoteIndexer";
 
@@ -234,8 +235,8 @@ export async function executeDeletionPlan(opts: {
   const deleted: string[] = [];
   for (const p of paths) {
     try {
-      await adapter.deleteItem(p, true, { confirmed: true });
-      deleted.push(p);
+      // Kept where the person said "Cancel" to "Delete without a backup?" (D1).
+      if (await deleteWithNet(adapter, p, true)) deleted.push(p);
     } catch (e) {
       console.error("cascade delete failed", p, e);
       errors.push(p.split(/[/\\]/).pop() ?? p);

@@ -36,6 +36,7 @@ import {
   type TextUpdateFiles,
   type ToolManifest,
 } from "@plainva/core";
+import { deleteWithNet } from "../lib/deletionNet";
 import type { AcpVaultAccess } from "./acpFiles";
 import { createAcpVaultStore } from "./acpStores";
 import { notesEmbedding } from "./aiImage";
@@ -232,8 +233,11 @@ export function adapterInstructionWriter(
       const update = await updateVaultText(adapter, path, (text) => change(text));
       return update.changed ? update.text : null;
     },
-    // The user confirmed in the workshop; the adapters back the files up before they go.
-    remove: (path) => adapter.deleteItem(path, true, { confirmed: true }),
+    // The user confirmed in the workshop; the adapters back the files up before they go, and where they
+    // cannot, the person is asked first (D1). Kept at that question, the file stays and says so.
+    remove: async (path) => {
+      if (!(await deleteWithNet(adapter, path, true))) throw new Error(`kept: ${path} was not deleted without a backup`);
+    },
   };
 }
 

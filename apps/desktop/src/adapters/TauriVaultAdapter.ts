@@ -216,10 +216,47 @@ export class TauriVaultAdapter implements IVaultAdapter {
 
 
 
+  /**
+   * Items the system's trash refused a moment ago (`moveToTrash`), by path:
+   * the deletion that follows — after the backup adapter has snapshotted what
+   * goes (D1) — goes straight to the permanent removal instead of asking the
+   * trash a second time.
+   */
+  private readonly trashRefused = new Set<string>();
+
+  /**
+   * The system's trash for a file or folder of the vault (D1). True where the
+   * item went there or was gone already; false where the trash refused it — a
+   * network share without a recycle bin, a disabled trash — and it is still in
+   * place. The backup adapter then snapshots every file that would go before
+   * it deletes for good, and asks first where it cannot.
+   */
+  async moveToTrash(path: string): Promise<boolean> {
+    const raw = await this.realPath(path);
+    const absPath = await this.getAbsolutePath(raw);
+    if (!(await checkedPathExists(await this.rootId(), raw))) return true;
+    try {
+      await invoke("move_to_trash", { path: absPath });
+      this.spellings.forget(path);
+      return true;
+    } catch (err) {
+      // Both outcomes of a failed trash used to end up on screen as "something
+      // went wrong", and they mean the OPPOSITE: here the item is still there,
+      // while a permanent removal after it means it is gone (issue #34). Each
+      // writes its own diagnostics line.
+      console.warn(`[TauriVaultAdapter] OS trash unavailable for ${absPath}`, err);
+      logDiagnostic("vault", `trash unavailable for ${path}: ${String(err)}`);
+      this.trashRefused.add(path.replace(/\\/g, "/"));
+      return false;
+    }
+  }
+
   async deleteItem(path: string, recursive: boolean = false): Promise<void> {
     const raw = await this.realPath(path);
     this.spellings.forget(path);
     const absPath = await this.getAbsolutePath(raw);
+    const norm = path.replace(/\\/g, "/");
+    const refused = this.trashRefused.delete(norm);
     // Idempotent: a target that is already gone (e.g. a folder the sync removed
     // remotely, or an external deletion) is a successful delete — same contract
     // as every remote sync target ("not found = success"). Throwing here left a
@@ -230,35 +267,32 @@ export class TauriVaultAdapter implements IVaultAdapter {
     // Internal housekeeping (backup rotation, pruning) must not flood the OS
     // trash — hard-delete everything under .plainva; user content keeps
     // going to the trash.
-    const norm = path.replace(/\\/g, "/");
     if (norm === ".plainva" || norm.startsWith(".plainva/")) {
       await remove(absPath, { recursive });
       return;
     }
 
-    try {
-      await invoke("move_to_trash", { path: absPath });
-    } catch (err) {
-      // Fallback to tauri-plugin-fs remove if OS trash fails (network share
-      // without a recycle bin, disabled trash, …). A user who confirmed
-      // "delete" expects the TRASH — a silent hard-delete breaks that
-      // expectation, so it must be visible. Pre-delete snapshots in
-      // .plainva/backups (BackupVaultAdapter) remain the safety net.
-      //
-      // Both outcomes end up on screen as "something went wrong", and they mean
-      // the OPPOSITE: here the item IS gone, while a thrown error means it is
-      // still there. A reporter's "still get an error" could not be told apart
-      // (issue #34), so each writes its own diagnostics line.
-      console.warn(`[TauriVaultAdapter] OS trash unavailable for ${absPath}; deleting permanently`, err);
-      logDiagnostic("vault", `trash unavailable for ${path}: ${String(err)} — deleting permanently instead`);
+    if (!refused) {
       try {
-        await remove(absPath, { recursive });
-      } catch (hardErr) {
-        logDiagnostic("vault", `delete FAILED for ${path}: ${String(hardErr)} — the item is still there`);
-        throw hardErr;
+        await invoke("move_to_trash", { path: absPath });
+        return;
+      } catch (err) {
+        console.warn(`[TauriVaultAdapter] OS trash unavailable for ${absPath}; deleting permanently`, err);
+        logDiagnostic("vault", `trash unavailable for ${path}: ${String(err)} — deleting permanently instead`);
       }
-      toast.warning(i18n.t("dialogs.trashUnavailableMsg", { name: path.split(/[/\\]/).pop() }));
     }
+    // The trash is not there for this item. A user who confirmed "delete"
+    // expects the TRASH, so the permanent removal is said on screen. The net
+    // is the snapshot of every file that goes, which the backup adapter wrote
+    // before it came here — or the person's "Delete anyway" to its question
+    // where it could not (D1).
+    try {
+      await remove(absPath, { recursive });
+    } catch (hardErr) {
+      logDiagnostic("vault", `delete FAILED for ${path}: ${String(hardErr)} — the item is still there`);
+      throw hardErr;
+    }
+    toast.warning(i18n.t("dialogs.trashUnavailableMsg", { name: path.split(/[/\\]/).pop() }));
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
@@ -306,7 +340,14 @@ export class TauriVaultAdapter implements IVaultAdapter {
     depth: number,
     /** True once the walk is inside an explicitly requested internal folder. */
     insideInternal: boolean,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    /**
+     * The walk of what a recursive delete takes (`followLinks: false`): a
+     * link is neither listed nor followed — the delete removes the link and
+     * leaves its target —, and dot-named folders the vault's walk leaves out
+     * (`.git`, `.obsidian`) are listed, because the delete takes them too.
+     */
+    takes = false
   ): Promise<VaultFileInfo[]> {
     signal?.throwIfAborted();
     if (visited.has(absPath)) {
@@ -369,7 +410,8 @@ export class TauriVaultAdapter implements IVaultAdapter {
       const name = e.name;
       if (!name) return false;
       const childPath = path ? `${path}/${name}` : name;
-      if (!insideInternal && isInternalPath(childPath)) return false;
+      if (takes && e.isSymlink) return false;
+      if (!takes && !insideInternal && isInternalPath(childPath)) return false;
       if (e.unreadable) {
         // ONE entry the walk cannot use (issue 110, E8): it is reported and
         // protected on its own. The whole folder used to count as unreadable,
@@ -443,7 +485,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
         resolved
           .filter((e) => e.isDirectory)
           .map((entry) =>
-            this._listDirInternal(entry.path, entry.absPath, true, visited, limit, skipped, depth + 1, insideInternal, signal)
+            this._listDirInternal(entry.path, entry.absPath, true, visited, limit, skipped, depth + 1, insideInternal, signal, takes)
           )
       );
       for (const cl of childLists) results.push(...cl);
@@ -508,11 +550,15 @@ export class TauriVaultAdapter implements IVaultAdapter {
   }
 
   async listDirReport(path: string = "", recursive: boolean = false, options?: VaultWalkOptions): Promise<VaultListing> {
-    // This walk follows links (#72) and lists dot-named entries that are not
-    // internal; it cannot leave either out. Nothing on the desktop asks it to
-    // (the snapshot before a recursive delete is the phone's, which has no
-    // trash); answering with them would be more than was asked for.
-    if (options?.followLinks === false || options?.dotEntries === false) throw new Error("The desktop's folder walk follows links and lists dot-named entries; it cannot leave them out");
+    // The vault's walk follows links (#72) and lists dot-named entries that
+    // are not internal; it cannot leave dot-named entries out, and nothing
+    // asks it to. Asked not to follow links, it is the walk of what a
+    // recursive delete takes: the snapshot of every file of a folder before
+    // it is deleted for good where the trash refused it (D1) — links left
+    // out, `.git` and the like listed. The native walk knows only the vault's
+    // rules, so the walker here does that one.
+    if (options?.dotEntries === false) throw new Error("The desktop's folder walk lists dot-named entries; it cannot leave them out");
+    const takes = options?.followLinks === false;
     const raw = path ? await this.realPath(path) : "";
     const absPath = await this.getAbsolutePath(raw);
     // The internal-path filter hides `.plainva`, `.git`, … from a walk over the
@@ -520,11 +566,11 @@ export class TauriVaultAdapter implements IVaultAdapter {
     // folder — the version history lists `.plainva/backups/...` and would come
     // back empty. Asking for an internal path is an explicit request for it.
     const insideInternal = isInternalPath(path);
-    const native = await this.walkNative(raw, recursive, insideInternal, options?.signal);
+    const native = takes ? null : await this.walkNative(raw, recursive, insideInternal, options?.signal);
     const skipped: VaultWalkSkip[] = native ? native.skipped : [];
     const found = native ? native.found : await this._listDirInternal(
       raw, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0,
-      insideInternal, options?.signal
+      insideInternal, options?.signal, takes
     );
     // Stored spellings become identities (ADR 0016), the walk's skip list too.
     const anchor = { raw, identity: raw ? this.spellings.identityOfStored(raw) : "" };

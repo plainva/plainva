@@ -31,6 +31,7 @@ import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
 import { currentWindowParams } from "./windowContext";
+import { SnapshotBeforeDeleteError, isSnapshotBeforeDeleteError } from "@plainva/core";
 import type { CommentOperation, CommentOperationInput, CommentOperationPhase, CommentPostInput } from "@plainva/core";
 
 /** Label of the window that owns the services. Tauri's own default label. */
@@ -630,6 +631,12 @@ interface RpcReply {
   ok: boolean;
   value?: unknown;
   error?: string;
+  /**
+   * A deletion the owner did not carry out because it had no net (D1): what
+   * the question "Delete without a backup?" needs, so the window that asked
+   * for the deletion can put it — an error crosses the bus as its message only.
+   */
+  noNet?: { path: string; uncovered: string[]; total: number; net: SnapshotBeforeDeleteError["net"]; folder: boolean };
 }
 
 export interface WindowBus {
@@ -731,6 +738,7 @@ export function createWindowBus(
           return;
         }
         if (reply.ok) waiting.resolve(reply.value);
+        else if (reply.noNet) waiting.reject(new SnapshotBeforeDeleteError(reply.noNet.path, reply.noNet.uncovered, reply.noNet.total, reply.noNet.net, reply.noNet.folder));
         else waiting.reject(new Error(reply.error || "window RPC failed"));
       }),
       transport.listen(EV_RPC_ALIVE, (raw) => {
@@ -872,6 +880,7 @@ export function createWindowBus(
             // The caller gets the message, not a silent no-op: an aux window
             // whose write vanished must be able to say so.
             reply = { id: env.id, ok: false, error: e instanceof Error ? e.message : String(e) };
+            if (isSnapshotBeforeDeleteError(e)) reply.noNet = { path: e.path, uncovered: [...e.uncovered], total: e.total, net: e.net, folder: e.folder };
           } finally {
             if (beat !== null) clearInterval(beat);
           }

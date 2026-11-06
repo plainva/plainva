@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-11-05
+Stan na: 2026-11-06
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -224,7 +224,7 @@ Migawki (historia wersji), dziennik wersji roboczych (po awarii notatka oferuje 
 
 **Różnice** otwierają ten sam widok porównania co na komputerze: notatka po lewej, Twoja kopia po prawej, identyczne wiersze zwinięte, i te same wyjścia — **przyjmij**, **zachowaj obie** (kopia nazywa się wtedy `Notatka (Version …).md`), **odrzuć kopię**, każde z pytaniem.
 
-**Podczas usuwania folderu** okno dialogowe podaje, ile plików on zawiera — liczba widnieje też na przycisku. Plainva najpierw tworzy migawkę każdego znajdującego się w nim pliku, którą możesz przywrócić w **Ustawieniach** → **Backup i historia wersji** → **Przywróć usunięte pliki**. Otwarcie podaje przy tym jedno ograniczenie: **zachować można tylko to, co ten telefon zapisał choć raz.** Notatka, która dotarła wyłącznie przez synchronizację i nigdy nie była tu edytowana, nie istnieje w żadnej migawce. W przeciwieństwie do komputera telefon nie ma kosza systemowego, który by to złapał. Jeśli usunięcie dotyczy ponad 10 plików lub ponad jedną piątą vaultu, Plainva pyta drugi raz — dokładnie tak samo jak na komputerze.
+**Podczas usuwania folderu** okno dialogowe podaje, ile plików on zawiera — liczba widnieje też na przycisku. Telefon nie ma kosza systemowego, dlatego Plainva najpierw zapisuje migawkę każdego pliku w folderze, a przywrócisz je w **Ustawieniach** → **Backup i historia wersji** → **Przywróć usunięte pliki**. Jeśli migawki nie da się zapisać — wystarczy pełny telefon — Plainva nie usuwa po cichu: pyta **Usunąć bez kopii zapasowej?**, wymienia pliki, które by zniknęły, i radzi sprawdzić wolne miejsce; **Anuluj** je zachowuje, tylko **Usuń mimo to** usuwa. To samo pytanie pojawia się dla pojedynczego pliku, zaznaczenia, usuwanej kopii konfliktu i porządkowanej kopii zadania. Jeśli usunięcie obejmuje więcej niż dziesięć plików lub ponad jedną piątą vaulta, Plainva pyta po raz drugi — dokładnie tak jak na komputerze.
 
 ## Udostępnianie i skróty
 

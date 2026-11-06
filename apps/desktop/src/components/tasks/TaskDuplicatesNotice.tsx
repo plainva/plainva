@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Banner, Button, Modal, TaskDuplicatesList, errorText, toast, useTaskDuplicates, type TaskCompletionModel } from "@plainva/ui";
+import { Banner, Button, Modal, TaskDuplicatesList, deleteWithNet, errorText, toast, useTaskDuplicates, type TaskCompletionModel } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { applyIndexChanges } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
@@ -36,7 +36,8 @@ export function TaskDuplicatesNotice({
     queryService: queryService ?? null,
     listBoundTaskNotes: () => (pimRuntime ? pimRuntime.cache.listBoundTaskNotes() : Promise.resolve([])),
     readTextFile: (path) => vaultAdapter!.readTextFile(path),
-    deleteNote: (path) => vaultAdapter!.deleteItem(path, false, { confirmed: true }),
+    // The person's own button: through the net rule of a deletion, with its question (D1).
+    deleteNote: (path) => deleteWithNet(vaultAdapter!, path, false),
     onRemoved: async (removed) => {
       if (indexer) await applyIndexChanges(indexer, { removed }).catch(() => undefined);
       notifyFileOps(removed.map((path) => ({ type: "delete" as const, path })));

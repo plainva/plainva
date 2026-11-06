@@ -66,13 +66,24 @@ describe("one entry the walk cannot use", () => {
   });
 });
 
-describe("a walk without links", () => {
-  it("is refused, not answered with what lies behind them: this walk follows links (#72)", async () => {
-    listing = [file("keep.md")];
-    await expect(new TauriVaultAdapter("/vault").listDirReport("", true, { followLinks: false })).rejects.toThrow("cannot leave them out");
+describe("a walk without links: what a recursive delete takes (D1)", () => {
+  it("leaves links out and does not follow them, and lists the dot-named folders the vault's walk leaves out", async () => {
+    // The snapshot of every file of a folder before it is deleted for good,
+    // where the trash refused it: the delete removes a link and leaves its
+    // target, and it takes `.git` along. This walk used to refuse, and a
+    // folder on a share without a trash then had no snapshot of anything.
+    listing = [
+      file("keep.md"),
+      { name: "elsewhere", isFile: false, isDirectory: false, isSymlink: true },
+      { name: "linked.md", isFile: false, isDirectory: false, isSymlink: true },
+      file(".git"),
+    ];
+    const report = await new TauriVaultAdapter("/vault").listDirReport("docs", true, { followLinks: false, dotEntries: true });
+    expect(report.files.map((f) => f.path).sort()).toEqual(["docs/.git", "docs/keep.md"]);
+    expect(report.skipped).toEqual([]);
   });
 
-  it("…and so is one without dot-named entries, which this walk lists", async () => {
+  it("one without dot-named entries is refused: this walk lists them", async () => {
     listing = [file("keep.md")];
     await expect(new TauriVaultAdapter("/vault").listDirReport("", true, { dotEntries: false })).rejects.toThrow("cannot leave them out");
   });

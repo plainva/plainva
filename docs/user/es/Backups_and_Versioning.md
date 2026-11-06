@@ -1,6 +1,6 @@
 # Copias de seguridad y versionado
 
-Última actualización: 2026-11-05
+Última actualización: 2026-11-06
 
 Plainva protege tu trabajo en dos niveles: **versiones de archivo** (snapshots automáticos de cada archivo individual al editar y eliminar) y **copias de seguridad del vault** (archivos ZIP periódicos de todo el vault, guardados fuera de la carpeta del vault). Ambos funcionan en segundo plano sin ninguna configuración y se pueden ajustar en la configuración bajo **Copias de seguridad y versionado**.
 
@@ -33,7 +33,7 @@ Las imágenes también tienen versiones (con vista previa); otros archivos binar
 
 Como cada eliminación crea antes un snapshot del archivo, Plainva puede recuperar archivos eliminados: haz clic derecho en el nombre del vault en la parte superior del árbol de archivos → **Restaurar archivos eliminados…** (también accesible en **Configuración → Vault → Copias de seguridad y versionado → Historial de versiones**). La lista muestra todos los archivos cuyos snapshots todavía existen mientras el original ha desaparecido — **Restaurar** recrea el estado más reciente en la ubicación original (las carpetas se recrean según sea necesario), **Versiones…** abre el historial completo del archivo eliminado.
 
-Nota: eliminar una **carpeta entera** la traslada a la papelera del sistema operativo — en ese caso la papelera del sistema es la vía principal de recuperación; en Plainva es posible que solo encuentres snapshots más antiguos de los archivos que contenía.
+**Eliminar necesita una red.** Un archivo o una carpeta eliminados van a la papelera del sistema operativo, y de un archivo se guarda además antes un snapshot, para que la lista de arriba lo encuentre. Donde la papelera no está disponible —por ejemplo, en una unidad de red—, Plainva guarda un snapshot de cada archivo que se eliminaría, también los de una carpeta, antes de eliminar definitivamente, y lo indica. Solo si tampoco se puede guardar ese snapshot (basta con un disco lleno) pregunta **¿Eliminar sin copia de seguridad?** y nombra los archivos que se perderían: **Cancelar** lo conserva todo, solo **Eliminar de todos modos** elimina. El teléfono no tiene papelera; allí cada archivo eliminado se guarda antes como snapshot, y la misma pregunta aparece donde eso falla (consulta [La app móvil](Mobile_App.md)).
 
 ## Copias de seguridad automáticas del vault (ZIP)
 

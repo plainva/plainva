@@ -159,7 +159,7 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   clock = Date.now();
   merged = []; foreign = []; kicks = 0; syncing = false; enqueued = Promise.resolve(); shown = [];
   // boot(): storage, above it versions, the sync queue and the conflict check — and the index over all of it.
-  const backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION, now: () => clock, snapshotRecursiveDeletes: true });
+  const backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION, now: () => clock });
   const queue = new SyncQueue(db);
   repo = new SyncStateRepository(db, raw, "phone-a");
   chain = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, queue), repo, (path) => { merged.push(path); }, repo, "container");

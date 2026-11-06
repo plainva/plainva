@@ -191,7 +191,8 @@ export function removableTaskCopies(groups: readonly TaskDuplicateGroup[]): stri
 export async function removeTaskCopies(
   shown: readonly TaskDuplicateGroup[],
   opts: FindTaskDuplicatesOptions,
-  deleteNote: (path: string) => Promise<void>
+  /** Deletes one copy; `false` where the person kept it (the question "Delete without a backup?", D1). */
+  deleteNote: (path: string) => Promise<boolean | void>
 ): Promise<{ removed: string[]; skipped: string[] }> {
   const wanted = new Set(removableTaskCopies(shown));
   const current = new Set(removableTaskCopies(await findDuplicateTaskNotes(opts)));
@@ -203,7 +204,10 @@ export async function removeTaskCopies(
       continue;
     }
     try {
-      await deleteNote(path);
+      if ((await deleteNote(path)) === false) {
+        skipped.push(path);
+        continue;
+      }
       removed.push(path);
     } catch (e) {
       console.warn("[taskDuplicates] could not remove a task copy", path, e);

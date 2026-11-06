@@ -534,7 +534,8 @@ export async function createBaseItem(
  * vanished from the board it was captured on) and, with several folder
  * sources, silently the first one.
  */
-export function pinboardEntryFiles(v: MobileVault): PinboardEntryFiles {
+/** `background`: the sweep at the vault's opening, which asks nobody — a draft it cannot delete with a net stays (D1). */
+export function pinboardEntryFiles(v: MobileVault, background = false): PinboardEntryFiles {
   return {
     exists: (p) => v.files.exists(p),
     // The editor's pending keystrokes land before anything is decided.
@@ -547,7 +548,9 @@ export function pinboardEntryFiles(v: MobileVault): PinboardEntryFiles {
     rename: (p, stem) => vaultOps.rename(v, p, stem),
     // The person's own draft with nothing in it, a confirmed discard, or what
     // an app that went away during an entry left behind unchanged.
-    remove: (p) => vaultOps.remove(v, p, { confirmed: true }),
+    remove: async (p) => {
+      await vaultOps.remove(v, p, { confirmed: true }, !background);
+    },
     // The file's bytes, exactly, on a phone. The web build's Filesystem keeps a
     // text file as the text it was given and hands that back even when bytes
     // are asked for, so there the text IS the file.
@@ -571,7 +574,7 @@ export function mobileDraftLedger(v: MobileVault): PinboardDraftLedger {
  * since stays. The same rule the next entry's plan applies first.
  */
 export async function sweepMobilePinboardDrafts(v: MobileVault): Promise<PinboardDraftSweep> {
-  const swept = await sweepPinboardDrafts(pinboardEntryFiles(v), mobileDraftLedger(v));
+  const swept = await sweepPinboardDrafts(pinboardEntryFiles(v, true), mobileDraftLedger(v));
   if (swept.removed.length > 0) syncSoon();
   return swept;
 }

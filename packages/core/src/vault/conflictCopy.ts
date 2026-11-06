@@ -17,7 +17,17 @@ export interface ConflictCopySight {
  * copy takes the file's place ("adopt"); or the file stays and the copy goes
  * ("discard") — or stays beside it as a file of its own (`keepCopyAs`).
  */
-export type ConflictCopyAnswer = { disposition: "adopt" } | { disposition: "discard"; keepCopyAs?: string };
+export type ConflictCopyAnswer = ({ disposition: "adopt" } | { disposition: "discard"; keepCopyAs?: string }) & NoNetAnswer;
+
+/**
+ * The person's "Delete anyway" to "Delete without a backup?" (D1): an exit
+ * that lets the copy's content go deletes it even where no snapshot of it
+ * could be written first. Without it, such an exit throws
+ * `SnapshotBeforeDeleteError` and leaves both files as they are.
+ */
+export interface NoNetAnswer {
+  withoutSnapshot?: true;
+}
 
 type SettleFiles = Pick<IVaultAdapter, "exists" | "readTextFile" | "readBinaryFile" | "writeTextFile" | "writeBinaryFile" | "renameItem" | "deleteItem"
   | "getConflictSession" | "resolveConflictBytes">;
@@ -29,7 +39,7 @@ export interface ConflictTextSight {
 }
 
 /** The three exits of a comparison of two texts: `content` takes the file's place, or the file stays and the copy goes or is kept. */
-export type ConflictTextAnswer = { disposition: "adopt"; content: string } | { disposition: "discard"; keepCopyAs?: string };
+export type ConflictTextAnswer = ({ disposition: "adopt"; content: string } | { disposition: "discard"; keepCopyAs?: string }) & NoNetAnswer;
 
 type SettleTextFiles = Pick<IVaultAdapter, "exists" | "readTextFile" | "writeTextFile" | "renameItem" | "deleteItem" | "getConflictSession" | "resolveConflict">;
 
@@ -57,20 +67,23 @@ export async function settleConflictText(files: SettleTextFiles, originalPath: s
       originalText: seen.original, copyText: seen.copy, content, copyPath,
       ...(answer.disposition === "discard" ? { disposition: "discard" as const } : {}),
       ...(keepCopyAs ? { keepCopyAs } : {}),
+      ...(answer.withoutSnapshot ? { withoutSnapshot: true as const } : {}),
     });
     return;
   }
+  // A copy whose text took the file's place needs no snapshot of its own to go (D1).
+  const noNet = answer.withoutSnapshot || (answer.disposition === "adopt" && answer.content === seen.copy) ? { withoutSnapshot: true as const } : undefined;
   const current = await files.exists(originalPath) ? await files.readTextFile(originalPath) : null;
   if (current !== seen.original || !await files.exists(copyPath) || await files.readTextFile(copyPath) !== seen.copy) throw new Error("comparisonChanged");
   if (answer.disposition === "adopt") {
     await files.writeTextFile(originalPath, answer.content);
-    await files.deleteItem(copyPath);
+    await files.deleteItem(copyPath, false, noNet);
   } else if (keepCopyAs) {
     if (await files.exists(keepCopyAs)) throw new Error("comparisonChanged");
     await files.renameItem(copyPath, keepCopyAs);
   } else {
     if (seen.original === null) throw new Error("Cannot discard a conflict whose original is missing");
-    await files.deleteItem(copyPath);
+    await files.deleteItem(copyPath, false, noNet);
   }
 }
 
@@ -105,7 +118,7 @@ export async function seeConflictCopy(files: Pick<IVaultAdapter, "exists" | "rea
 export async function settleConflictCopy(files: SettleFiles, originalPath: string, copyPath: string, seen: ConflictCopySight, answer: ConflictCopyAnswer): Promise<void> {
   const keepCopyAs = answer.disposition === "discard" ? answer.keepCopyAs : undefined;
   if (files.resolveConflictBytes) {
-    await files.resolveConflictBytes(originalPath, { originalSha256: seen.original, copySha256: seen.copy, disposition: answer.disposition, copyPath, ...(keepCopyAs ? { keepCopyAs } : {}) });
+    await files.resolveConflictBytes(originalPath, { originalSha256: seen.original, copySha256: seen.copy, disposition: answer.disposition, copyPath, ...(keepCopyAs ? { keepCopyAs } : {}), ...(answer.withoutSnapshot ? { withoutSnapshot: true as const } : {}) });
     return;
   }
   const session = await files.getConflictSession?.(originalPath);
@@ -115,11 +128,12 @@ export async function settleConflictCopy(files: SettleFiles, originalPath: strin
   if (answer.disposition === "discard" && !keepCopyAs && seen.original === null) throw new Error("Cannot discard a conflict whose original is missing");
   if (answer.disposition === "adopt") {
     await copyFileContent(files, copyPath, originalPath);
-    await files.deleteItem(copyPath);
+    // Its bytes are the file's now (D1).
+    await files.deleteItem(copyPath, false, { withoutSnapshot: true });
   } else if (keepCopyAs) {
     if (await files.exists(keepCopyAs)) throw new Error("comparisonChanged");
     await files.renameItem(copyPath, keepCopyAs);
   } else {
-    await files.deleteItem(copyPath);
+    await files.deleteItem(copyPath, false, answer.withoutSnapshot ? { withoutSnapshot: true } : undefined);
   }
 }

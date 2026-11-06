@@ -89,7 +89,7 @@ export const DeletedFilesModal: React.FC<{ onClose: () => void }> = ({ onClose }
       closeOnOverlay={!busyPath}
     >
       <div style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginBottom: "var(--space-3)" }}>
-        {t("versions.deletedHint", { defaultValue: "Every deletion in Plainva saves a snapshot first. Files removed by deleting a whole folder may only have older snapshots — the system trash is the primary recovery for those." })}
+        {t("versions.deletedHint")}
       </div>
 
       {error && (

@@ -275,6 +275,7 @@ export * from "./lib/typography";
 export * from "./lib/useDebouncedValue";
 export * from "./lib/useStableHandler";
 export * from "./lib/discardQuestion";
+export * from "./lib/deletionNet";
 export * from "./lib/wordCount";
 
 // .base database layer (R4.1): the Obsidian-compatible (de)serialization,

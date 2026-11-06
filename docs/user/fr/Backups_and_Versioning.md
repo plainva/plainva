@@ -1,6 +1,6 @@
 # Sauvegardes & historique des versions
 
-Dernière mise à jour : 2026-11-05
+Dernière mise à jour : 2026-11-06
 
 Plainva protège votre travail à deux niveaux : les **versions de fichiers** (instantanés automatiques de chaque fichier lors de l'édition et de la suppression) et les **sauvegardes du vault** (archives ZIP régulières de tout le vault, stockées en dehors du dossier du vault). Les deux fonctionnent en arrière-plan sans aucune configuration et peuvent être ajustés dans les paramètres sous **Sauvegarde & historique des versions**.
 
@@ -33,7 +33,7 @@ Les images ont aussi des versions (avec aperçu) ; les autres fichiers binaires 
 
 Comme chaque suppression crée d'abord un instantané du fichier, Plainva peut ramener des fichiers supprimés : un clic droit sur le nom du vault en haut de l'arborescence → **Restaurer les fichiers supprimés…** (également accessible sous **Paramètres → Vault → Sauvegarde & historique des versions → Historique des versions**). La liste affiche tous les fichiers dont les instantanés existent encore alors que l'original a disparu — **Restaurer** recrée l'état le plus récent à l'emplacement d'origine (les dossiers sont recréés si nécessaire), **Versions…** ouvre l'historique complet du fichier supprimé.
 
-Remarque : la suppression de tout un **dossier** le déplace vers la corbeille du système d'exploitation — dans ce cas, la corbeille du système est le premier moyen de récupération ; dans Plainva, vous ne trouverez éventuellement que d'anciens instantanés des fichiers qu'il contenait.
+**Supprimer demande un filet.** Un fichier ou un dossier supprimé va dans la corbeille du système d'exploitation, et un fichier est en outre enregistré au préalable sous forme d'instantané, pour que la liste ci-dessus le retrouve. Là où la corbeille n'est pas disponible — par exemple sur un lecteur réseau —, Plainva enregistre un instantané de chaque fichier qui partirait, y compris ceux d'un dossier, avant de supprimer définitivement, et le signale. Ce n'est que si cet instantané ne peut pas non plus être écrit (un disque plein suffit) qu'il demande **Supprimer sans sauvegarde ?** et nomme les fichiers qui seraient perdus : **Annuler** garde tout, seul **Supprimer quand même** supprime. Le téléphone n'a pas de corbeille du tout ; là, chaque fichier supprimé est d'abord enregistré, et la même question apparaît en cas d'échec (voir [L'application mobile](Mobile_App.md)).
 
 ## Sauvegardes automatiques du vault (ZIP)
 

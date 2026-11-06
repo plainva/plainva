@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { BackupVaultAdapter, DEFAULT_BACKUP_RETENTION } from "../src/vault/BackupVaultAdapter.js";
-import type { VaultFileInfo } from "../src/vault/IVaultAdapter.js";
+import { SnapshotBeforeDeleteError, deleteWithSafetyNet, isSnapshotBeforeDeleteError, type VaultFileInfo } from "../src/vault/IVaultAdapter.js";
 
 describe("BackupVaultAdapter", () => {
   let tempDir: string;
@@ -136,8 +136,9 @@ describe("BackupVaultAdapter", () => {
   describe("deleting a folder (S4)", () => {
     // A phone has no trash. Deleting a folder there is final, and for every
     // note never edited on that device there was nothing to restore from —
-    // the adapter only ever snapshotted non-directories. The desktop keeps
-    // the old behaviour: it deletes into the OS trash and says so.
+    // the adapter only ever snapshotted non-directories. A storage without a
+    // trash (this local adapter, the phone's) now snapshots every file below;
+    // one with a trash (the desktop) lets the trash take the folder (D1).
     const seedFolder = async () => {
       await innerAdapter.createDir("Projekte");
       await innerAdapter.createDir("Projekte/Sub");
@@ -150,7 +151,6 @@ describe("BackupVaultAdapter", () => {
       const adapter = new BackupVaultAdapter(innerAdapter, {
         policy: { minSnapshotIntervalSeconds: 3600 },
         now: () => clock,
-        snapshotRecursiveDeletes: true,
       });
       await seedFolder();
 
@@ -165,10 +165,11 @@ describe("BackupVaultAdapter", () => {
       expect(contents.sort()).toEqual(["A", "B"]);
     });
 
-    it("says when it could not cover a folder below, and still snapshots the rest (issue 125)", async () => {
+    it("does not delete a folder with a folder below it could not cover, and names it (issue 125, D1)", async () => {
       // A walk that names what it could not list — the phone's picked folder
       // since issue 125 — instead of failing as a whole: a folder it named was
-      // not covered, and the person deleting the folder is told so.
+      // not covered. Without a trash that is a deletion without a net: it
+      // stops, and says what has no copy; only `withoutSnapshot` goes on.
       const reported: string[] = [];
       const reporting = innerAdapter as typeof innerAdapter & { listDirReport?: (p?: string, r?: boolean) => Promise<{ files: VaultFileInfo[]; skipped: { path: string; reason: "cycle" | "unreadable" }[] }> };
       const listDir = innerAdapter.listDir.bind(innerAdapter);
@@ -179,17 +180,24 @@ describe("BackupVaultAdapter", () => {
       const adapter = new BackupVaultAdapter(innerAdapter, {
         policy: { minSnapshotIntervalSeconds: 3600 },
         now: () => clock,
-        snapshotRecursiveDeletes: true,
         onBackupError: (path) => void reported.push(path),
       });
       await seedFolder();
 
-      await adapter.deleteItem("Projekte", true);
+      const refusal = await adapter.deleteItem("Projekte", true).then(() => null, (e: unknown) => e);
+      expect(refusal).toBeInstanceOf(SnapshotBeforeDeleteError);
+      expect((refusal as SnapshotBeforeDeleteError).uncovered).toEqual(["Projekte/Sub"]);
+      expect((refusal as SnapshotBeforeDeleteError).net).toBe("no-trash");
+      expect(await innerAdapter.exists("Projekte/a.md")).toBe(true);
+      // The question replaces the notice: nothing says "saved" for a deletion.
+      expect(reported).toEqual([]);
 
-      expect(reported).toEqual(["Projekte"]);
+      await adapter.deleteItem("Projekte", true, { confirmed: true, withoutSnapshot: true });
+      expect(await innerAdapter.exists("Projekte")).toBe(false);
       const backups = await innerAdapter.listDir(".plainva/backups", true);
       const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
-      expect(contents).toEqual(["A"]);
+      // The snapshot was still taken where it could be: twice, once per attempt.
+      expect(new Set(contents)).toEqual(new Set(["A"]));
       delete reporting.listDirReport;
     });
 
@@ -208,7 +216,6 @@ describe("BackupVaultAdapter", () => {
       const adapter = new BackupVaultAdapter(innerAdapter, {
         policy: { minSnapshotIntervalSeconds: 3600 },
         now: () => clock,
-        snapshotRecursiveDeletes: true,
         onBackupError: (path) => void reported.push(path),
       });
       await seedFolder();
@@ -237,7 +244,6 @@ describe("BackupVaultAdapter", () => {
       const adapter = new BackupVaultAdapter(innerAdapter, {
         policy: { minSnapshotIntervalSeconds: 3600 },
         now: () => clock,
-        snapshotRecursiveDeletes: true,
       });
       await seedFolder();
       for (const h of hidden) await innerAdapter.writeTextFile(h.path, "hidden");
@@ -255,7 +261,6 @@ describe("BackupVaultAdapter", () => {
       const adapter = new BackupVaultAdapter(innerAdapter, {
         policy: { minSnapshotIntervalSeconds: 3600 },
         now: () => clock,
-        snapshotRecursiveDeletes: true,
       });
       await innerAdapter.createDir(".archive/x");
       await innerAdapter.writeTextFile(".archive/x/a.md", "A");
@@ -272,36 +277,33 @@ describe("BackupVaultAdapter", () => {
       expect(contents.sort()).toEqual(["A", "B"]);
     });
 
-    it("keeps the files when the report of a gap fails", async () => {
-      const reporting = innerAdapter as typeof innerAdapter & { listDirReport?: (p?: string, r?: boolean, o?: unknown) => Promise<{ files: VaultFileInfo[]; skipped: { path: string; reason: "cycle" | "unreadable" }[] }> };
-      const listDir = innerAdapter.listDir.bind(innerAdapter);
-      reporting.listDirReport = async (p = "", r = false) => ({
-        files: (await listDir(p, r)).filter((f) => !f.path.startsWith("Projekte/Sub")),
-        skipped: [{ path: "Projekte/Sub", reason: "unreadable" }],
-      });
-      const adapter = new BackupVaultAdapter(innerAdapter, {
-        policy: { minSnapshotIntervalSeconds: 3600 },
-        now: () => clock,
-        snapshotRecursiveDeletes: true,
-        onBackupError: () => { throw new Error("the notice could not be shown"); },
-      });
-      await seedFolder();
-
-      await adapter.deleteItem("Projekte", true);
-
-      expect(await innerAdapter.exists("Projekte")).toBe(false);
-      const backups = await innerAdapter.listDir(".plainva/backups", true);
-      const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
-      expect(contents).toEqual(["A"]);
-      delete reporting.listDirReport;
-    });
-
-    it("leaves the desktop alone — off by default", async () => {
+    it("does not delete a folder it cannot list at all (D1)", async () => {
+      const listing = vi.spyOn(innerAdapter, "listDir").mockRejectedValueOnce(new Error("no listing"));
       const adapter = makeAdapter();
       await seedFolder();
 
-      await adapter.deleteItem("Projekte", true);
+      const refusal = await adapter.deleteItem("Projekte", true).then(() => null, (e: unknown) => e);
+      expect(isSnapshotBeforeDeleteError(refusal)).toBe(true);
+      expect(refusal).toMatchObject({ uncovered: ["Projekte"], total: 0, folder: true });
+      expect(await innerAdapter.exists("Projekte/Sub/b.md")).toBe(true);
+      listing.mockRestore();
+    });
 
+    it("lets a working trash take the folder: no snapshot of its files is needed (desktop)", async () => {
+      const trashed: string[] = [];
+      const withTrash = Object.assign(Object.create(innerAdapter) as LocalVaultAdapter, {
+        moveToTrash: async (p: string) => {
+          trashed.push(p);
+          await innerAdapter.deleteItem(p, true);
+          return true;
+        },
+      });
+      const adapter = new BackupVaultAdapter(withTrash, { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+      await seedFolder();
+
+      await adapter.deleteItem("Projekte", true, { confirmed: true });
+
+      expect(trashed).toEqual(["Projekte"]);
       expect(await innerAdapter.exists("Projekte")).toBe(false);
       expect(await innerAdapter.exists(".plainva/backups")).toBe(false);
     });
@@ -312,7 +314,6 @@ describe("BackupVaultAdapter", () => {
       // what matters here is that nothing was snapshotted on the way.)
       const adapter = new BackupVaultAdapter(innerAdapter, {
         now: () => clock,
-        snapshotRecursiveDeletes: true,
       });
       await seedFolder();
 
@@ -602,7 +603,8 @@ describe("BackupVaultAdapter", () => {
       expect(Array.from(await innerAdapter.readBinaryFile("img.png"))).toEqual([2]);
     });
 
-    it("delete proceeds and reports when the pre-delete snapshot fails", async () => {
+    it("a deletion whose snapshot fails is not carried out without a trash, and names the file (D1)", async () => {
+      // It used to go on, and the phone said the file "was still saved".
       const errors: string[] = [];
       const adapter = new BackupVaultAdapter(makeFailingBackupInner(), {
         policy: { minSnapshotIntervalSeconds: 0 },
@@ -610,9 +612,156 @@ describe("BackupVaultAdapter", () => {
         onBackupError: (path) => errors.push(path),
       });
       await innerAdapter.writeTextFile("doomed.md", "content");
-      await adapter.deleteItem("doomed.md");
+
+      const refusal = await adapter.deleteItem("doomed.md", false, { confirmed: true }).then(() => null, (e: unknown) => e);
+
+      expect(refusal).toBeInstanceOf(SnapshotBeforeDeleteError);
+      expect(refusal).toMatchObject({ path: "doomed.md", uncovered: ["doomed.md"], total: 1, net: "no-trash", folder: false, code: "NO_SAFETY_NET" });
+      expect(await innerAdapter.readTextFile("doomed.md")).toBe("content");
+      expect(errors).toEqual([]);
+    });
+
+    it("with the person's withoutSnapshot the file goes", async () => {
+      const adapter = new BackupVaultAdapter(makeFailingBackupInner(), { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+      await innerAdapter.writeTextFile("doomed.md", "content");
+      await adapter.deleteItem("doomed.md", false, { confirmed: true, withoutSnapshot: true });
       expect(await innerAdapter.exists("doomed.md")).toBe(false);
-      expect(errors).toEqual(["doomed.md"]);
+    });
+
+    it("a folder is not deleted while one of its files has no copy, and the others' are kept (D1)", async () => {
+      // Only Projekte/b.md fails: a failing inner adapter for that one snapshot.
+      const failing = Object.create(innerAdapter) as LocalVaultAdapter;
+      failing.writeBinaryFile = async (p: string, c: Uint8Array) => {
+        if (p.startsWith(".plainva/backups/Projekte/b.md")) throw new Error("disk full");
+        return innerAdapter.writeBinaryFile(p, c);
+      };
+      const adapter = new BackupVaultAdapter(failing, { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+      await innerAdapter.createDir("Projekte");
+      await innerAdapter.writeTextFile("Projekte/a.md", "A");
+      await innerAdapter.writeTextFile("Projekte/b.md", "B");
+
+      const refusal = await adapter.deleteItem("Projekte", true, { confirmed: true }).then(() => null, (e: unknown) => e);
+
+      expect(refusal).toMatchObject({ path: "Projekte", uncovered: ["Projekte/b.md"], total: 2, net: "no-trash", folder: true });
+      expect(await innerAdapter.readTextFile("Projekte/b.md")).toBe("B");
+      expect(await innerAdapter.readTextFile("Projekte/a.md")).toBe("A");
+
+      await adapter.deleteItem("Projekte", true, { confirmed: true, withoutSnapshot: true });
+      expect(await innerAdapter.exists("Projekte")).toBe(false);
+    });
+
+    /** The failing inner adapter with a trash that works or refuses. */
+    const withTrash = (works: boolean) => {
+      const asked: string[] = [];
+      const inner = Object.assign(makeFailingBackupInner(), {
+        moveToTrash: async (p: string) => {
+          asked.push(p);
+          if (!works) return false;
+          await innerAdapter.deleteItem(p, true);
+          return true;
+        },
+      });
+      return { inner, asked };
+    };
+
+    it("a working trash is the net: a failed snapshot does not hold the deletion up, and says nothing", async () => {
+      const errors: string[] = [];
+      const { inner, asked } = withTrash(true);
+      const adapter = new BackupVaultAdapter(inner, { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock, onBackupError: (p) => errors.push(p) });
+      await innerAdapter.writeTextFile("doomed.md", "content");
+      await adapter.deleteItem("doomed.md", false, { confirmed: true });
+      expect(asked).toEqual(["doomed.md"]);
+      expect(await innerAdapter.exists("doomed.md")).toBe(false);
+      expect(errors).toEqual([]);
+    });
+
+    it("where the trash refuses, every file of the folder is snapshotted before it is deleted for good (desktop, D1)", async () => {
+      const permanent: string[] = [];
+      const inner = Object.assign(Object.create(innerAdapter) as LocalVaultAdapter, {
+        moveToTrash: async () => false,
+        deleteItem: async (p: string, r?: boolean) => {
+          permanent.push(p);
+          return innerAdapter.deleteItem(p, r);
+        },
+      });
+      const adapter = new BackupVaultAdapter(inner, { policy: { minSnapshotIntervalSeconds: 3600 }, now: () => clock });
+      await innerAdapter.createDir("Netz/Sub");
+      await innerAdapter.writeTextFile("Netz/a.md", "A");
+      await innerAdapter.writeTextFile("Netz/Sub/b.md", "B");
+
+      await adapter.deleteItem("Netz", true, { confirmed: true });
+
+      expect(permanent).toEqual(["Netz"]);
+      expect(await innerAdapter.exists("Netz")).toBe(false);
+      const backups = await innerAdapter.listDir(".plainva/backups", true);
+      const contents = await Promise.all(backups.filter((b) => !b.isDirectory).map((b) => innerAdapter.readTextFile(b.path)));
+      expect(contents.sort()).toEqual(["A", "B"]);
+    });
+
+    it("where the trash refuses and the snapshot fails too, nothing is deleted and the refusal says so", async () => {
+      const { inner, asked } = withTrash(false);
+      const adapter = new BackupVaultAdapter(inner, { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+      await innerAdapter.writeTextFile("doomed.md", "content");
+
+      const refusal = await adapter.deleteItem("doomed.md", false, { confirmed: true }).then(() => null, (e: unknown) => e);
+
+      expect(asked).toEqual(["doomed.md"]);
+      expect(refusal).toMatchObject({ uncovered: ["doomed.md"], net: "trash-unavailable" });
+      expect(await innerAdapter.readTextFile("doomed.md")).toBe("content");
+      await adapter.deleteItem("doomed.md", false, { confirmed: true, withoutSnapshot: true });
+      expect(await innerAdapter.exists("doomed.md")).toBe(false);
+    });
+
+    it("a file that is not there goes to the storage below, as before, and needs no snapshot", async () => {
+      const calls: string[] = [];
+      const inner = Object.assign(makeFailingBackupInner(), { deleteItem: async (p: string) => { calls.push(p); } });
+      const adapter = new BackupVaultAdapter(inner, { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+      await adapter.deleteItem("missing.md", false, { confirmed: true });
+      expect(calls).toEqual(["missing.md"]);
+    });
+
+    it("the app's own files are deleted without a snapshot", async () => {
+      const adapter = new BackupVaultAdapter(makeFailingBackupInner(), { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+      await innerAdapter.writeTextFile(".plainva/cache.json", "{}");
+      await adapter.deleteItem(".plainva/cache.json");
+      expect(await innerAdapter.exists(".plainva/cache.json")).toBe(false);
+    });
+
+    describe("deleteWithSafetyNet: the question, and only a yes deletes", () => {
+      it("asks once with the refusal; a no keeps the file", async () => {
+        const adapter = new BackupVaultAdapter(makeFailingBackupInner(), { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+        await innerAdapter.writeTextFile("doomed.md", "content");
+        const asked: SnapshotBeforeDeleteError[] = [];
+        const deleted = await deleteWithSafetyNet((c) => adapter.deleteItem("doomed.md", false, c), async (r) => { asked.push(r); return false; });
+        expect(deleted).toBe(false);
+        expect(asked.map((r) => r.uncovered)).toEqual([["doomed.md"]]);
+        expect(await innerAdapter.exists("doomed.md")).toBe(true);
+      });
+
+      it("a yes deletes with withoutSnapshot and the confirmation it came with", async () => {
+        const calls: unknown[] = [];
+        const adapter = new BackupVaultAdapter(makeFailingBackupInner(), { policy: { minSnapshotIntervalSeconds: 0 }, now: () => clock });
+        await innerAdapter.writeTextFile("doomed.md", "content");
+        const deleted = await deleteWithSafetyNet(async (c) => { calls.push(c); await adapter.deleteItem("doomed.md", false, c); }, async () => true);
+        expect(deleted).toBe(true);
+        expect(calls).toEqual([{ confirmed: true }, { confirmed: true, withoutSnapshot: true }]);
+        expect(await innerAdapter.exists("doomed.md")).toBe(false);
+      });
+
+      it("with a net nobody is asked; another error goes on unasked", async () => {
+        const adapter = makeAdapter();
+        await innerAdapter.writeTextFile("fine.md", "x");
+        let asked = 0;
+        expect(await deleteWithSafetyNet((c) => adapter.deleteItem("fine.md", false, c), async () => { asked++; return true; })).toBe(true);
+        await expect(deleteWithSafetyNet(async () => { throw new Error("permission denied"); }, async () => { asked++; return true; })).rejects.toThrow("permission denied");
+        expect(asked).toBe(0);
+      });
+
+      it("knows a refusal that crossed a boundary as data", () => {
+        const crossed = { name: "Error", message: "x", code: "NO_SAFETY_NET", uncovered: ["a.md"] };
+        expect(isSnapshotBeforeDeleteError(crossed)).toBe(true);
+        expect(isSnapshotBeforeDeleteError(new Error("NO_SAFETY_NET"))).toBe(false);
+      });
     });
 
     it("a throwing onBackupError callback does not break the write", async () => {

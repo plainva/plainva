@@ -1244,7 +1244,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   const journal = new DeletionJournal(v.backup ?? v.adapter, await mobileSyncDeviceId());
   if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   deletionJournal = journal;
-  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, syncIntervalMs(), {
+  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,
