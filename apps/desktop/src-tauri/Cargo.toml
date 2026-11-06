@@ -82,7 +82,7 @@ rmcp = { version = "3.5", default-features = false, features = ["server"] }
 # Paths from a client are compared in one Unicode form (NFC).
 unicode-normalization = "0.1"
 # Secrets for paired MCP clients.
-getrandom = "0.3"
+getrandom = "0.4"
 # Streaming content hash for sync_file_sha256 — otherwise the renderer would still
 # read a whole attachment just to hash it, keeping half the memory peak (issue #48).
 sha2 = "0.11"
