@@ -470,7 +470,9 @@
       "problems": "Plainva no entiende algunas líneas de .agent/policy.yml; no tienen efecto: {{lines}}",
       "saved": "Reglas de privacidad guardadas.",
       "inherit": "como la carpeta superior",
-      "addRule": "Añadir"
+      "addRule": "Añadir",
+      "write": "Cambiar sin preguntar",
+      "writeNote": "«Cambiar sin preguntar» permite que la IA cambie y cree notas allí, también en rutinas. Eliminar, renombrar y mover siempre preguntan."
     },
     "shortcutNote": "Solo mientras Plainva IA (Beta) está activada en este dispositivo.",
     "openLinkTitle": "¿Abrir un enlace de una respuesta de la IA?",

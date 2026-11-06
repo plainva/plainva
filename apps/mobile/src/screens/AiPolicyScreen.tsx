@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Plug, Plus } from "lucide-react";
-import { mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type FolderPolicyRule } from "@plainva/core";
+import { mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
 import {
   AI_POLICY_FILE,
   Banner,
@@ -22,6 +22,7 @@ import {
   unruledFolders,
   withoutRule,
   withRuleValue,
+  withWriteRule,
   type PolicyChoice,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
@@ -98,10 +99,12 @@ export function AiPolicyScreen({
     }
   };
   const word = (choice: PolicyChoice | undefined) => (choice === "deny" ? t("ai.policy.deny") : choice === "allow" ? t("ai.policy.allow") : t("ai.policy.inherit"));
+  // "Change without asking" (plan "KI direkt schreiben", W3): allowed or not, in the words of the other two questions.
+  const writeWord = (choice: AiWriteRule | "inherit" | undefined) => (choice === "direct" ? t("ai.policy.allow") : choice === "ask" ? t("ai.policy.deny") : t("ai.policy.inherit"));
   // The two questions of a rule, named (plan KI-Oberflächen K6). The rules travel with the vault, the internet switch is
   // this phone's: the answer stays, and it is said when the internet is off here.
   const line = (rule: FolderPolicyRule | undefined, inherit: boolean) =>
-    `${t("ai.policy.cloud")}: ${word(rule?.cloud ?? (inherit ? "inherit" : "allow"))} · ${t("ai.policy.web")}: ${word(rule?.web ?? (inherit ? "inherit" : "allow"))}${aiState.web.enabled ? "" : ` (${t("ai.policy.webOff")})`}`;
+    `${t("ai.policy.cloud")}: ${word(rule?.cloud ?? (inherit ? "inherit" : "allow"))} · ${t("ai.policy.web")}: ${word(rule?.web ?? (inherit ? "inherit" : "allow"))}${aiState.web.enabled ? "" : ` (${t("ai.policy.webOff")})`} · ${t("ai.policy.write")}: ${writeWord(rule?.write ?? (inherit ? "inherit" : "ask"))}`;
 
   const edit = async (folder: string, inherit: boolean) => {
     const rule = ruleOf(rules, folder);
@@ -110,12 +113,22 @@ export function AiPolicyScreen({
       options: [
         { value: "cloud", label: t("ai.policy.cloud"), desc: word(rule?.cloud ?? (inherit ? "inherit" : "allow")) },
         { value: "web", label: t("ai.policy.web"), desc: word(rule?.web ?? (inherit ? "inherit" : "allow")) },
+        { value: "write", label: t("ai.policy.write"), desc: writeWord(rule?.write ?? (inherit ? "inherit" : "ask")) },
         ...(folder ? [{ value: "remove", label: t("ai.policy.removeRule"), danger: true }] : []),
       ],
     });
     if (!pick) return;
     if (pick === "remove") {
       void save((current) => withoutRule(current, folder));
+      return;
+    }
+    if (pick === "write") {
+      const value = await mSelect({
+        title: `${folder || t("ai.policy.vaultDefault")} · ${t("ai.policy.write")}`,
+        options: [...(inherit ? [{ value: "inherit", label: t("ai.policy.inherit") }] : []), { value: "direct", label: t("ai.policy.allow") }, { value: "ask", label: t("ai.policy.deny") }],
+        value: rule?.write ?? (inherit ? "inherit" : "ask"),
+      });
+      if (value) void save((current) => withWriteRule(current, folder, value as AiWriteRule | "inherit"));
       return;
     }
     const dimension = pick as AiPolicyDimension;
@@ -193,6 +206,7 @@ export function AiPolicyScreen({
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.policy.localAllowed")}</p>
+        <p className="m-hint">{t("ai.policy.writeNote")}</p>
         {vault.workspaceRuntime !== null && <p className="m-hint">{t("ai.policy.encrypted")}</p>}
         {/* External tools (plan KI-Harness P4.5): the servers this phone knows, and whether this vault uses each — as on the desktop. */}
         {aiState.mcp.available && aiState.mcp.loaded && (

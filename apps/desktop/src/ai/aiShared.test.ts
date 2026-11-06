@@ -18,6 +18,7 @@ import {
   unruledFolders,
   withoutRule,
   withRuleValue,
+  withWriteRule,
   type AiFileStore,
   type AiState,
 } from "@plainva/ui";
@@ -116,6 +117,17 @@ describe("the policy rules editor", () => {
     expect(rules).toEqual([{ folder: "", web: "deny" }]);
     expect(withoutRule(rules, "")).toEqual([]);
     expect(unruledFolders([{ folder: "Finance/", cloud: "deny" }], ["Finance", "Journal", ".agent", "Projects/"])).toEqual(["Journal/", "Projects/"]);
+  });
+
+  it("sets \"Change without asking\" beside a folder's privacy rules and keeps a rule that only says that (plan KI direkt schreiben, W3)", () => {
+    let rules = withWriteRule([{ folder: "Journal/", web: "deny" }], "Journal", "direct");
+    expect(rules).toEqual([{ folder: "Journal/", web: "deny", write: "direct" }]);
+    // The privacy rules go; the folder still lets changes go without asking.
+    rules = withRuleValue(rules, "Journal/", "web", "inherit");
+    expect(rules).toEqual([{ folder: "Journal/", write: "direct" }]);
+    rules = withWriteRule(rules, "Journal/Private", "ask");
+    expect(rules).toEqual([{ folder: "Journal/", write: "direct" }, { folder: "Journal/Private/", write: "ask" }]);
+    expect(withWriteRule(rules, "Journal/", "inherit")).toEqual([{ folder: "Journal/Private/", write: "ask" }]);
   });
 
   it("reads note frontmatter and folder rules together, and caches the file briefly", async () => {

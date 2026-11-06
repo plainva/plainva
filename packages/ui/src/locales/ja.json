@@ -422,7 +422,9 @@
       "problems": "Plainvaは.agent/policy.ymlの一部の行を解釈できません。それらは効果を持ちません: {{lines}}",
       "saved": "プライバシールールを保存しました。",
       "inherit": "上のフォルダーと同じ",
-      "addRule": "追加"
+      "addRule": "追加",
+      "write": "確認なしで変更",
+      "writeNote": "「確認なしで変更」を設定すると、AI はそこでノートを変更・作成できます（ルーティンも含む）。削除・名前の変更・移動は常に確認します。"
     },
     "shortcutNote": "この端末でPlainva AI（ベータ版）がオンの間のみ。",
     "openLinkTitle": "AIの回答内のリンクを開きますか？",

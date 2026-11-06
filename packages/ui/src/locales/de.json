@@ -446,7 +446,9 @@
       "problems": "Einige Zeilen in .agent/policy.yml versteht Plainva nicht; sie wirken nicht: {{lines}}",
       "saved": "Datenschutzregeln gespeichert.",
       "inherit": "wie der Ordner darüber",
-      "addRule": "Hinzufügen"
+      "addRule": "Hinzufügen",
+      "write": "Ohne Nachfrage ändern",
+      "writeNote": "„Ohne Nachfrage ändern“ lässt die KI dort Notizen ändern und anlegen, auch in Routinen. Löschen, Umbenennen und Verschieben fragen immer."
     },
     "shortcutNote": "Nur, solange Plainva KI (Beta) auf diesem Gerät an ist.",
     "openLinkTitle": "Link aus einer KI-Antwort öffnen?",

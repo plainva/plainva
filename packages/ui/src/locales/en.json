@@ -446,7 +446,9 @@
       "problems": "Plainva does not understand some lines of .agent/policy.yml; they have no effect: {{lines}}",
       "saved": "Privacy rules saved.",
       "inherit": "as the folder above",
-      "addRule": "Add"
+      "addRule": "Add",
+      "write": "Change without asking",
+      "writeNote": "“Change without asking” lets the AI change and create notes there, routines included. Deleting, renaming and moving always ask."
     },
     "shortcutNote": "Only while Plainva AI (Beta) is on for this device.",
     "openLinkTitle": "Open a link from an AI answer?",

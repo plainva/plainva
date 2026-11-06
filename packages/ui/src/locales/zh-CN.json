@@ -422,7 +422,9 @@
       "problems": "Plainva无法理解.agent/policy.yml中的部分行，它们不会生效：{{lines}}",
       "saved": "隐私规则已保存。",
       "inherit": "与上级文件夹相同",
-      "addRule": "添加"
+      "addRule": "添加",
+      "write": "无需询问即可修改",
+      "writeNote": "“无需询问即可修改”让 AI 可以在那里修改和创建笔记，例程也一样。删除、重命名和移动始终会先询问。"
     },
     "shortcutNote": "仅当此设备已开启Plainva AI（测试版）时可用。",
     "openLinkTitle": "打开AI回答中的链接？",

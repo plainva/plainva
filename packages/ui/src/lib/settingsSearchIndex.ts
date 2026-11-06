@@ -230,7 +230,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsIndexEntry[] = [
   {"shell":"desktop","area":"aiVault","kind":"row","card":"ai.web.settings.title","label":"ai.web.settings.switch","desc":["ai.web.settings.switchLine"],"info":["ai.web.settings.switchDesc"]},
   {"shell":"desktop","area":"aiVault","kind":"row","card":"ai.web.settings.title","label":"ai.web.settings.sites","info":["ai.web.settings.sitesDesc"]},
   {"shell":"desktop","area":"aiVault","kind":"card","card":"ai.policy.title","info":["ai.policy.desc"]},
-  {"shell":"desktop","area":"aiVault","kind":"row","card":"ai.policy.title","label":"ai.policy.columns","desc":["ai.policy.cloud","ai.policy.web","ai.policy.webOff"]},
+  {"shell":"desktop","area":"aiVault","kind":"row","card":"ai.policy.title","label":"ai.policy.columns","desc":["ai.policy.cloud","ai.policy.web","ai.policy.webOff","ai.policy.write"]},
   {"shell":"desktop","area":"aiVault","kind":"row","card":"ai.policy.title","label":"ai.policy.vaultDefault"},
   {"shell":"desktop","area":"aiVault","kind":"row","card":"ai.policy.title","label":"ai.policy.addFolder"},
   {"shell":"desktop","area":"aiVault","kind":"card","card":"ai.ext.title","info":["ai.ext.desc"]},

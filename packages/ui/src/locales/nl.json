@@ -446,7 +446,9 @@
       "problems": "Plainva begrijpt sommige regels van .agent/policy.yml niet; ze hebben geen effect: {{lines}}",
       "saved": "Privacyregels opgeslagen.",
       "inherit": "zoals de map erboven",
-      "addRule": "Toevoegen"
+      "addRule": "Toevoegen",
+      "write": "Wijzigen zonder te vragen",
+      "writeNote": "“Wijzigen zonder te vragen” laat de AI daar notities wijzigen en aanmaken, ook in routines. Verwijderen, hernoemen en verplaatsen vragen altijd."
     },
     "shortcutNote": "Alleen zolang Plainva AI (Beta) op dit apparaat aan staat.",
     "openLinkTitle": "Link uit een AI-antwoord openen?",

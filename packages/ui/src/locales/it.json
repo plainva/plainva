@@ -470,7 +470,9 @@
       "problems": "Plainva non capisce alcune righe di .agent/policy.yml; non hanno effetto: {{lines}}",
       "saved": "Regole sulla privacy salvate.",
       "inherit": "come la cartella superiore",
-      "addRule": "Aggiungi"
+      "addRule": "Aggiungi",
+      "write": "Modifica senza chiedere",
+      "writeNote": "«Modifica senza chiedere» lascia che l'IA modifichi e crei note lì, anche nelle routine. Eliminare, rinominare e spostare chiedono sempre."
     },
     "shortcutNote": "Solo mentre Plainva IA (Beta) è attiva su questo dispositivo.",
     "openLinkTitle": "Aprire un link da una risposta dell'IA?",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import { parsePolicyFile, type FolderPolicyRule } from "@plainva/core";
+import { parsePolicyFile, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
 import {
   AI_POLICY_FILE,
   Banner,
@@ -24,6 +24,7 @@ import {
   unruledFolders,
   withoutRule,
   withRuleValue,
+  withWriteRule,
   type PolicyChoice,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
@@ -208,6 +209,12 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
     { value: "allow" as const, label: t("ai.policy.allow") },
     { value: "deny" as const, label: t("ai.policy.deny") },
   ];
+  // "Change without asking" (plan "KI direkt schreiben", W3): allowed or not, in the words of the other two columns.
+  const writeOptions = (withInherit: boolean) => [
+    ...(withInherit ? [{ value: "inherit" as const, label: t("ai.policy.inherit") }] : []),
+    { value: "direct" as const, label: t("ai.policy.allow") },
+    { value: "ask" as const, label: t("ai.policy.deny") },
+  ];
   const vaultRule = ruleOf(rules, "");
   const webOn = Boolean(aiState?.web.enabled);
   const folderRules = rules.filter((r) => r.folder !== "");
@@ -230,6 +237,12 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
         options={options(withInherit)}
         onChange={(choice) => void save((current) => withRuleValue(current, folder, "web", choice))}
       />
+      <Select<AiWriteRule | "inherit">
+        ariaLabel={`${t("ai.policy.write")} · ${folder || t("ai.policy.vaultDefault")}`}
+        value={rule?.write ?? (withInherit ? "inherit" : "ask")}
+        options={writeOptions(withInherit)}
+        onChange={(choice) => void save((current) => withWriteRule(current, folder, choice))}
+      />
     </div>
   );
 
@@ -251,7 +264,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
             <Banner kind="warning" rounded>{t("ai.policy.problems", { lines: problems.join("; ") })}</Banner>
           </SettingCardNote>
         )}
-        <SettingRow label={t("ai.policy.columns")} desc={`${t("ai.policy.cloud")} · ${t("ai.policy.web")}${webOn ? "" : ` (${t("ai.policy.webOff")})`}`} />
+        <SettingRow label={t("ai.policy.columns")} desc={`${t("ai.policy.cloud")} · ${t("ai.policy.web")}${webOn ? "" : ` (${t("ai.policy.webOff")})`} · ${t("ai.policy.write")}`} />
         <SettingRow label={t("ai.policy.vaultDefault")}>{controls("", vaultRule, false)}</SettingRow>
         {folderRules.map((rule) => (
           <SettingRow key={rule.folder} label={rule.folder}>
@@ -280,6 +293,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
           </SettingRow>
         )}
         <SettingCardNote>{t("ai.policy.localAllowed")}</SettingCardNote>
+        <SettingCardNote>{t("ai.policy.writeNote")}</SettingCardNote>
         {workspaceSecurityStatus !== null && <SettingCardNote>{t("ai.policy.encrypted")}</SettingCardNote>}
       </SettingCard>
       <ExternalToolsCard />

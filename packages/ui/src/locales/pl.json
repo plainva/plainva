@@ -494,7 +494,9 @@
       "problems": "Plainva nie rozumie niektórych wierszy .agent/policy.yml; nie mają one żadnego efektu: {{lines}}",
       "saved": "Zasady prywatności zapisane.",
       "inherit": "jak folder wyżej",
-      "addRule": "Dodaj"
+      "addRule": "Dodaj",
+      "write": "Zmieniaj bez pytania",
+      "writeNote": "„Zmieniaj bez pytania” pozwala AI zmieniać i tworzyć tam notatki, także w rutynach. Usuwanie, zmiana nazwy i przenoszenie zawsze pytają."
     },
     "shortcutNote": "Tylko gdy AI Plainvy (Beta) jest włączona na tym urządzeniu.",
     "openLinkTitle": "Otworzyć link z odpowiedzi AI?",
