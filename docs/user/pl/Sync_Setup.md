@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-11-03
+Stan na: 2026-11-06
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -201,6 +201,10 @@ Nowe logowanie nie obejmuje wszystkich usług. Zachowano Twój dotychczasowy dos
 ## Google Drive: nieukończone pobieranie
 
 Gdy Google Drive tymczasowo ogranicza żądania, Plainva ponawia pobieranie po przerwie. Nieudane pobranie nie jest traktowane jako brak pliku ani ukończona zmiana. Lokalna treść i potwierdzony stan synchronizacji pozostają zachowane; następny cykl ponawia oczekującą zmianę. Inne poprawnie pobrane pliki nadal są dostępne. Brak uprawnień i inne trwałe odmowy pojawiają się jako błędy ze ścieżką pliku i przyczyną. Dotyczy to komputera i urządzeń mobilnych.
+
+## Google Drive: pliki, których Dysk już nie zgłasza
+
+Czasem Dysk Google nie wymienia już pliku, który zmieniono na tym urządzeniu, a Plainva nie może zapytać Dysku o ten plik bezpośrednio, bo nie ma jeszcze jego identyfikatora. Plainva szuka więc najpierw pliku po dokładnej nazwie. Jeśli znajdzie dokładnie jeden, zapamiętuje go i pyta o niego Dysk; jeśli Dysk odpowie, że go nie ma, plik jest wysyłany ponownie jak każdy zmieniony plik. Jeśli wyszukiwanie po nazwie niczego nie znajdzie, Plainva nie wie, czy plik usunięto na Dysku, czy tylko pominięto go na liście, i nigdy nie usuwa pliku dlatego, że Dysk nie odpowiedział. Plik zostaje z Twoimi zmianami na tym urządzeniu, a obszar synchronizacji pokazuje **Google Drive nie zgłasza już N plików**: na komputerze z listą plików w komunikacie, na telefonie jako komunikat, który otwiera listę przyciskiem **Pokaż**. **Wyślij ponownie** wysyła jeden plik jako nowy, **Wyślij ponownie wszystkie** wszystkie; jeśli stary plik nadal jest na Dysku, potem będzie tam dwa razy. **Ukryj** chowa komunikat, dopóki zbiór plików się nie zmieni. Dotyczy to komputera i urządzeń mobilnych.
 
 ## Przerwane przesyłanie plików
 

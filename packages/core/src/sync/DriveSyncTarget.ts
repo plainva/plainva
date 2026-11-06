@@ -1067,6 +1067,20 @@ export class DriveSyncTarget implements ISyncTarget {
     }
   }
 
+  /**
+   * The id of the one file of this exact name, or null. "Several files of that
+   * name" and every failure are null as well: the name search proves presence
+   * and nothing else (finding 2026-09-20).
+   */
+  public async lookupRemoteId(filePath: string): Promise<string | null> {
+    if (filePath.includes(".CONFLICT")) return null;
+    try {
+      return await this.findFileId(filePath);
+    } catch {
+      return null;
+    }
+  }
+
   public async download(filePath: string): Promise<Uint8Array | null> {
     if (filePath.includes(".CONFLICT")) return null;
     const id = await this.findFileId(filePath);

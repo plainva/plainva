@@ -9,6 +9,7 @@ import {
   subscribeSyncStatus,
   syncNow,
   nameCollisionResolver,
+  unverifiedFilesUploader,
 } from "./services/syncService";
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
@@ -18,7 +19,7 @@ import { deleteVault, reloadActiveMobileVault, switchVault, vaultOps, type Mobil
 import { exportVault } from "./services/vaultExport";
 import { getMobileSettings } from "./services/mobileSettings";
 import { groupNameCollisions } from "@plainva/core";
-import { Banner, Button, NameCollisionsNotice, resolveNameCollisionCases, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
+import { Banner, Button, NameCollisionsNotice, UnverifiedFilesNotice, resolveNameCollisionCases, emptyDiagnostics, familyLabel, familyOfSyncProvider, GroupCard, ICON, InfoTip, Row, RowList, SectionLabel, type SyncDiagnostics, type SyncProviderId, toast } from "@plainva/ui";
 import { AppBar } from "./components/AppBar";
 import { syncStateLabel } from "./components/syncSubtitle";
 
@@ -260,6 +261,12 @@ export function VaultSyncScreen({
               })
             }
           />
+        )}
+        {/* Files Google Drive no longer reports and that could not be asked
+            about (D7): the notice opens the list as a sheet - the desktop's
+            notice lists them inside the sync page. */}
+        {isActive && unverifiedFilesUploader() && status.unverifiedFiles.length > 0 && (
+          <UnverifiedFilesNotice sheet paths={status.unverifiedFiles} vaultKey={vaultId} onUploadAgain={(paths) => unverifiedFilesUploader()!(paths)} />
         )}
         {/* Signed out on this phone: the status says "Sign-in needed" and leads
             to the account, where the sign-in is - as the desktop's sync dialog

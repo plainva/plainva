@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione
 
-Ultimo aggiornamento: 2026-11-03
+Ultimo aggiornamento: 2026-11-06
 
 Plainva sincronizza facoltativamente ogni vault con uno storage a tua scelta — direttamente dall'app, senza alcun servizio gestito da Plainva in mezzo: i tuoi dati viaggiano esclusivamente tra il tuo computer e il tuo account/server. Questa pagina illustra la configurazione per provider.
 
@@ -201,6 +201,10 @@ Il nuovo accesso non copre tutti i servizi. I tuoi accessi precedenti sono stati
 ## Google Drive: download incompleti
 
 Quando Google Drive limita temporaneamente le richieste, Plainva riprova il download dopo una pausa. Un download fallito non viene considerato un file mancante o una modifica completata. Il contenuto locale e lo stato di sincronizzazione confermato restano intatti; il ciclo successivo riprova la modifica in sospeso. Gli altri file scaricati restano disponibili. I permessi mancanti e gli altri rifiuti permanenti compaiono come errori con il percorso del file e la causa. Vale su desktop e dispositivi mobili.
+
+## Google Drive: file che Drive non segnala più
+
+A volte Google Drive non elenca più un file che hai modificato su questo dispositivo, e Plainva non può chiedere a Drive direttamente di quel file perché non ne ha ancora un ID. Plainva cerca prima il file con il suo nome esatto. Se ne trova esattamente uno, lo ricorda e chiede a Drive di quel file; se Drive risponde che non esiste più, il file viene caricato di nuovo come qualsiasi file modificato. Se la ricerca per nome non trova nulla, Plainva non sa se il file è stato eliminato in Drive o solo omesso dall’elenco, e non elimina mai un file perché Drive non ha risposto. Il file resta su questo dispositivo con le tue modifiche e l’area di sincronizzazione mostra **Google Drive non segnala più N file**: sul desktop con l’elenco dei file nell’avviso, sul telefono come avviso che apre l’elenco con **Mostra**. **Carica di nuovo** invia un file come nuovo file, **Carica di nuovo tutti** tutti i file; se il vecchio file esiste ancora in Drive, dopo ci sarà due volte. **Nascondi** mette da parte l’avviso finché l’insieme dei file non cambia. Vale sul desktop e su mobile.
 
 ## Trasferimenti di file interrotti
 

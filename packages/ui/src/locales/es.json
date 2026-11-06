@@ -3688,7 +3688,19 @@
     "collisionDone": "Eliminados: {{removed}} · Conservados: {{kept}}",
     "collisionSkipped": "Sin cambios: {{count}}. El contenido cambió o un paso falló.",
     "collisionRestored": "La nube también eliminó el archivo sincronizado. Plainva lo vuelve a subir desde aquí: {{count}}",
-    "collisionFailed": "No ha funcionado: {{error}}"
+    "collisionFailed": "No ha funcionado: {{error}}",
+    "unverifiedTitle_one": "Google Drive ya no informa de {{count}} archivo",
+    "unverifiedTitle_many": "Google Drive ya no informa de {{count}} archivos",
+    "unverifiedTitle_other": "Google Drive ya no informa de {{count}} archivos",
+    "unverifiedSheetTitle": "Archivos no informados",
+    "unverifiedBody": "Plainva no los encuentra en Drive ni por su identificador ni por su nombre, así que no sabe si se eliminaron allí. En este dispositivo se conservan con tus cambios.",
+    "unverifiedBodyShort": "Se conservan en este dispositivo. Plainva no sabe si se eliminaron en Drive.",
+    "unverifiedUploadAgain": "Subir de nuevo",
+    "unverifiedUploadAll": "Subir todos de nuevo",
+    "unverifiedHide": "Ocultar",
+    "unverifiedView": "Ver",
+    "unverifiedTwice": "Si el archivo antiguo sigue en Drive, después estará allí dos veces.",
+    "unverifiedDone": "Pendientes de subir: {{count}}"
   },
   "sidebar": {
     "files": "Archivos",

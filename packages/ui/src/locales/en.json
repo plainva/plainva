@@ -3603,7 +3603,18 @@
     "collisionDone": "Removed: {{removed}} · Kept: {{kept}}",
     "collisionSkipped": "Left unchanged: {{count}}. The content changed or a step failed.",
     "collisionRestored": "The cloud removed the synced file too. Plainva uploads it again from here: {{count}}",
-    "collisionFailed": "That did not work: {{error}}"
+    "collisionFailed": "That did not work: {{error}}",
+    "unverifiedTitle_one": "Google Drive no longer reports {{count}} file",
+    "unverifiedTitle_other": "Google Drive no longer reports {{count}} files",
+    "unverifiedSheetTitle": "Files not reported",
+    "unverifiedBody": "Plainva finds them in Drive neither by their ID nor by their name, so it does not know whether they were deleted there. They stay on this device with your changes.",
+    "unverifiedBodyShort": "They stay on this device. Plainva does not know whether they were deleted in Drive.",
+    "unverifiedUploadAgain": "Upload again",
+    "unverifiedUploadAll": "Upload all again",
+    "unverifiedHide": "Hide",
+    "unverifiedView": "View",
+    "unverifiedTwice": "If the old file still exists in Drive, it will be there twice afterwards.",
+    "unverifiedDone": "Queued for upload: {{count}}"
   },
   "sidebar": {
     "files": "Files",

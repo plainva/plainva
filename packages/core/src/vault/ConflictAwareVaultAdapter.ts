@@ -4,7 +4,7 @@ import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-res
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
 import { NotTextFileError, copyFileContent, fileSha256, isHashWithoutMark, isMarkerTakenWithoutMark, isNotTextFileError, readExactText, readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
-import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
+import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult, type PreservingConflictWriter } from "./conflictSession.js";
 import { hasUnkeptLineEnds, readTextShape, withKeptLineEnds, type TextFileShape } from "../textFileShape.js";
 
 export class ConflictError extends Error {
@@ -262,7 +262,10 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     return { before, text: made, changed: true, conflict: null };
   }
 
-  async preserveConflict(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession> {
+  async preserveConflict(path: string, text: string, writer: PreservingConflictWriter): Promise<ConflictEditSession> {
+    // A message from another window is not typed: the runtime refuses the
+    // adapter's own writer as well.
+    if ((writer as ConflictWriter) === "adapter") throw new Error("preserveConflict: the adapter writer is not accepted");
     const state = await this.syncRepo.getSyncState(path);
     return this.sessions.withMutation(path, async gate => this.preserveLocked(gate, path, text, state, writer));
   }

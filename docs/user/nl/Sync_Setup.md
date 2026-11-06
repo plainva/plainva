@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-11-03
+Laatst bijgewerkt: 2026-11-06
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -201,6 +201,10 @@ De nieuwe aanmelding dekt niet alle diensten. Je bestaande aanmeldingen zijn beh
 ## Google Drive: onvolledige downloads
 
 Wanneer Google Drive tijdelijk verzoeken beperkt, probeert Plainva de download na een pauze opnieuw. Een mislukte download telt niet als een ontbrekend bestand of een voltooide wijziging. De bestaande lokale inhoud en de bevestigde synchronisatiestatus blijven behouden; de volgende cyclus probeert de openstaande wijziging opnieuw. Andere succesvol gedownloade bestanden blijven beschikbaar. Ontbrekende rechten en andere blijvende weigeringen verschijnen als fouten met het bestandspad en de oorzaak. Dit geldt op desktop en mobiel.
+
+## Google Drive: bestanden die Drive niet meer meldt
+
+Soms toont Google Drive een bestand dat je op dit apparaat hebt gewijzigd niet meer in de lijst, en Plainva kan Drive er niet rechtstreeks naar vragen omdat het er nog geen id voor heeft. Plainva zoekt het bestand dan eerst op de exacte naam. Vindt het precies één bestand, dan onthoudt het dat bestand en vraagt het Drive ernaar; zegt Drive dat het weg is, dan wordt het bestand opnieuw geüpload zoals elk gewijzigd bestand. Vindt de zoekopdracht op naam niets, dan weet Plainva niet of het bestand in Drive is verwijderd of alleen uit de lijst is weggelaten, en het verwijdert nooit een bestand omdat Drive geen antwoord gaf. Het bestand blijft met jouw wijzigingen op dit apparaat staan en het synchronisatiegebied toont **Google Drive meldt N bestanden niet meer**: op de desktop met de lijst van bestanden in de melding, op de telefoon als melding die de lijst opent met **Bekijken**. **Opnieuw uploaden** stuurt één bestand als nieuw bestand, **Alles opnieuw uploaden** alle bestanden; staat het oude bestand toch nog in Drive, dan staat het daar daarna dubbel. **Verbergen** legt de melding weg tot de verzameling bestanden verandert. Dit geldt op de desktop en op mobiel.
 
 ## Onderbroken bestandsoverdrachten
 

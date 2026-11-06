@@ -78,7 +78,7 @@ export class RemoteVaultAdapter implements IVaultAdapter {
   getConflictSession(path: string) { return this.bus.request("conflict-read", { path }, { vaultPath: this.vaultPath }); }
   listConflictSessions() { return this.bus.request("conflict-list", {}, { vaultPath: this.vaultPath }); }
   listConflictDiagnostics() { return this.bus.request("conflict-diagnostics", {}, { vaultPath: this.vaultPath }); }
-  preserveConflict(path: string, content: string, writer: import("@plainva/core").ConflictWriter) {
+  preserveConflict(path: string, content: string, writer: import("@plainva/core").PreservingConflictWriter) {
     return this.bus.request("conflict-preserve", { path, content, writer }, { vaultPath: this.vaultPath });
   }
   writeEditorText(path: string, content: string, baseText: string | null) {

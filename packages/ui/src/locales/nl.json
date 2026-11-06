@@ -3603,7 +3603,18 @@
     "collisionDone": "Verwijderd: {{removed}} · Behouden: {{kept}}",
     "collisionSkipped": "Ongewijzigd gelaten: {{count}}. De inhoud is gewijzigd of een stap is mislukt.",
     "collisionRestored": "De cloud heeft ook het gesynchroniseerde bestand verwijderd. Plainva uploadt het opnieuw vanaf hier: {{count}}",
-    "collisionFailed": "Dat is niet gelukt: {{error}}"
+    "collisionFailed": "Dat is niet gelukt: {{error}}",
+    "unverifiedTitle_one": "Google Drive meldt {{count}} bestand niet meer",
+    "unverifiedTitle_other": "Google Drive meldt {{count}} bestanden niet meer",
+    "unverifiedSheetTitle": "Niet gemelde bestanden",
+    "unverifiedBody": "Plainva vindt ze in Drive niet via hun id en niet via hun naam en weet dus niet of ze daar zijn verwijderd. Op dit apparaat blijven ze met jouw wijzigingen bewaard.",
+    "unverifiedBodyShort": "Ze blijven op dit apparaat. Plainva weet niet of ze in Drive zijn verwijderd.",
+    "unverifiedUploadAgain": "Opnieuw uploaden",
+    "unverifiedUploadAll": "Alles opnieuw uploaden",
+    "unverifiedHide": "Verbergen",
+    "unverifiedView": "Bekijken",
+    "unverifiedTwice": "Staat het oude bestand toch nog in Drive, dan staat het daar daarna dubbel.",
+    "unverifiedDone": "Klaargezet voor upload: {{count}}"
   },
   "sidebar": {
     "files": "Bestanden",

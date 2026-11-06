@@ -174,7 +174,7 @@ export interface RpcMap {
   "conflict-read": { args: { path: string }; result: import("@plainva/core").ConflictEditSession | null };
   "conflict-list": { args: Record<string, never>; result: import("@plainva/core").ConflictEditSession[] };
   "conflict-diagnostics": { args: Record<string, never>; result: import("@plainva/core").ConflictDiagnostic[] };
-  "conflict-preserve": { args: { path: string; content: string; writer: import("@plainva/core").ConflictWriter }; result: import("@plainva/core").ConflictEditSession };
+  "conflict-preserve": { args: { path: string; content: string; writer: import("@plainva/core").PreservingConflictWriter }; result: import("@plainva/core").ConflictEditSession };
   "conflict-resolve": { args: { path: string; resolution: import("@plainva/core").ConflictResolution }; result: void };
   /** The way out of an open conflict whose file is no text any more: byte for byte (`resolveConflictBytes`). */
   "conflict-resolve-bytes": { args: { path: string; resolution: import("@plainva/core").ConflictBytesResolution }; result: void };

@@ -9009,3 +9009,86 @@ test('Keep both gives this device\'s file of a letter-case pair a free name thro
     .toEqual(['/test-vault/Ideen/idee (2).md']);
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Ideen/idee (2).md'])).toBe('# Idee\n\nhier\n');
 });
+
+/**
+ * "Google Drive no longer reports N files" on the desktop's sync page (D7,
+ * mockup M2): the notice names the files kept as they are, lists them inside
+ * itself with "Upload again" per file and for all, and "Hide" puts it away
+ * until the set of files changes. The facts are what the sync worker hands the
+ * shell (`onUnverifiedFiles`), set on the store the way the worker's callback
+ * sets them; the worker side (name search, probe by id, the queued upload) is
+ * covered by the core tests, the phone's side by its production smoke.
+ */
+
+async function openSyncPageWithUnverified(page: Page) {
+  await page.addInitScript(() => {
+    const slot = 'webdav_credentials_' + btoa('/test-vault');
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'keychain_get' && args?.key === slot) {
+        return JSON.stringify({ url: 'https://dav.example.org/files/anna/', user: 'anna', pass: 'secret' });
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    syncStatusStore.set('/test-vault', { unverifiedFiles: ['Journal/2026-03-14.md', 'Rezepte/Brot.md'] });
+  });
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Synchronisation|Sync)$/ }).click();
+  return dialog;
+}
+
+async function unverifiedEvidence(page: Page, info: TestInfo, name: string) {
+  if (!process.env.PLAINVA_EVIDENCE) return;
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.waitForTimeout(150);
+    await page.getByTestId('sync-unverified').screenshot({ path: info.outputPath(`${name}-${scheme}.png`) });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+}
+
+test('the Drive notice lists the files Drive no longer reports and offers Upload again for each and for all', async ({ page }, info) => {
+  const dialog = await openSyncPageWithUnverified(page);
+  const notice = dialog.getByTestId('sync-unverified');
+  await expect(notice).toBeVisible();
+  await expect(notice.getByTestId('sync-unverified-title')).toHaveText(/2 Dateien meldet Google Drive nicht mehr|Google Drive no longer reports 2 files/);
+  const rows = notice.getByTestId('sync-unverified-file');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Journal/2026-03-14.md');
+  await expect(rows.nth(1)).toContainText('Rezepte/Brot.md');
+  await expect(notice.getByTestId('sync-unverified-one')).toHaveCount(2);
+  await expect(notice.getByTestId('sync-unverified-all')).toBeVisible();
+  await expect(notice).toContainText(/zweimal|twice/);
+  await unverifiedEvidence(page, info, 'desktop-unverified-notice');
+});
+
+test('Hide puts the Drive notice away until the set of files changes', async ({ page }) => {
+  const dialog = await openSyncPageWithUnverified(page);
+  const notice = dialog.getByTestId('sync-unverified');
+  await notice.getByTestId('sync-unverified-hide').click();
+  await expect(notice).toHaveCount(0);
+  // The same set stays away ...
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    syncStatusStore.set('/test-vault', { unverifiedFiles: ['Rezepte/Brot.md', 'Journal/2026-03-14.md'] });
+  });
+  await expect(notice).toHaveCount(0);
+  // ... a changed set brings it back, and an empty one takes it down.
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    syncStatusStore.set('/test-vault', { unverifiedFiles: ['Rezepte/Brot.md'] });
+  });
+  await expect(notice.getByTestId('sync-unverified-file')).toHaveCount(1);
+  await page.evaluate(async () => {
+    const { syncStatusStore } = await import('/src/services/syncStatusStore.ts');
+    syncStatusStore.set('/test-vault', { unverifiedFiles: [] });
+  });
+  await expect(notice).toHaveCount(0);
+});

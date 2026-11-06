@@ -5,6 +5,14 @@ import { copyFileContent, fileSha256, isNotTextFileError, readExactText } from "
 
 export type ConflictWriter = "adapter" | "editor-save" | "editor-external" | "sync-pull";
 
+/**
+ * The writers that may ask to keep a conflict from outside the pipeline. The
+ * adapter's own writes open their conflicts inside it; a request from an
+ * editor or another window never names it, so an own file under `.plainva`
+ * cannot be given a session that is hidden from every list.
+ */
+export type PreservingConflictWriter = Exclude<ConflictWriter, "adapter">;
+
 /** Device-scoped state, excluded from Plainva sync and settings profiles. */
 export interface ConflictEditSession {
   version: 1;
