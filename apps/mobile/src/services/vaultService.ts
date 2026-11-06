@@ -789,7 +789,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   let files: IVaultAdapter;
   let backup: BackupVaultAdapter | null;
   /** The plain vault's queueing link: its owed entries get their last attempt before the database closes. */
-  let ownQueue: QueueingVaultAdapter | null = null;
+  let ownQueue: QueueingVaultAdapter | WorkspaceQueueingVaultAdapter | null = null;
   let syncRepo: SyncStateRepository | null;
   const ownDeletions = new OwnDeletionRegister();
   let indexer: VaultIndexer | null;
@@ -895,8 +895,11 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // An entry of the sync queue that fails after its change is on disk is made
     // up for while its write waits (QueueingVaultAdapter); one given up fails
     // its write and is named in the diagnostics, like on the desktop.
-    if (!workspaceState) ownQueue = new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
-    const queueing = workspaceState ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState) : ownQueue!;
+    // The encrypted workspace's queue makes up for its entries the same way (D2).
+    const queueing = workspaceState
+      ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) })
+      : new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
+    ownQueue = queueing;
     syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));

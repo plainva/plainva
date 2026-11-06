@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { initializeSchema, resetEmbeddingStores, sha256Hex, VaultQueryService, type IDatabaseAdapter } from "@plainva/core";
+import { initializeSchema, resetEmbeddingStores, sha256Hex, VaultQueryService, type IDatabaseAdapter, type SqlStatements } from "@plainva/core";
 
 /** The index database on real SQLite (node:sqlite), as the vault opens it. */
 export class NodeSqliteAdapter implements IDatabaseAdapter {
@@ -13,8 +13,8 @@ export class NodeSqliteAdapter implements IDatabaseAdapter {
   async queryOne<T>(sql: string, params: unknown[] = []): Promise<T | null> {
     return ((await this.query<T>(sql, params))[0] as T) ?? null;
   }
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return fn();
+  async transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
+    return fn(this);
   }
   async initialize(): Promise<void> {}
   async close(): Promise<void> {

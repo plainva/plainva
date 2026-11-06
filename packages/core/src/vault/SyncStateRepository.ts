@@ -1,4 +1,4 @@
-import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { IDatabaseAdapter, SqlStatements } from "../db/IDatabaseAdapter.js";
 import { conflictSessionKey, decodeConflictSession, type ConflictDiagnostic, type ConflictEditSession } from "./conflictSession.js";
 import { ConflictFileStore } from "./ConflictFileStore.js";
 import type { IVaultAdapter } from "./IVaultAdapter.js";
@@ -138,8 +138,9 @@ export class SyncStateRepository {
     return rows.map(row => JSON.parse(row.value) as ConflictDiagnostic);
   }
 
-  async getSyncState(path: string): Promise<SyncState | null> {
-    const rows = await this.db.query<SyncState>(
+  /** `sql`: the handle of the transaction this runs in, where it runs in one (D3). */
+  async getSyncState(path: string, sql: SqlStatements = this.db): Promise<SyncState | null> {
+    const rows = await sql.query<SyncState>(
       `SELECT * FROM sync_state WHERE path = ?`,
       [path]
     );
@@ -173,8 +174,9 @@ export class SyncStateRepository {
    * no-op cycle). base_text is deliberately NOT loaded: it holds whole file
    * contents; conflict handling fetches it per file via getBaseText.
    */
-  async getAllStates(): Promise<Map<string, SyncState>> {
-    const rows = await this.db.query<SyncState>(
+  /** `sql` as in `getSyncState`. */
+  async getAllStates(sql: SqlStatements = this.db): Promise<Map<string, SyncState>> {
+    const rows = await sql.query<SyncState>(
       `SELECT path, local_sha256, remote_etag, base_sha256, base_etag, remote_id, last_sync_ts, pending_push_sha, recheck FROM sync_state`
     );
     const map = new Map<string, SyncState>();

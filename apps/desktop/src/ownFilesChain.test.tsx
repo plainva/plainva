@@ -9,7 +9,7 @@ import { join } from "node:path";
 import ts from "typescript";
 import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictSessions, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository,
-  type IDatabaseAdapter, type IVaultAdapter,
+  type IDatabaseAdapter, type SqlStatements, type IVaultAdapter,
 } from "@plainva/core";
 import {
   applyBookmarkProfileOnDisk, parseBookmarksFile, parseRecentsFile, serializeBookmarksFile, serializeRecentsFile, setBookmarksLaneScope, setPlatformServices, toast,
@@ -119,7 +119,7 @@ function queueing(db: IDatabaseAdapter): IDatabaseAdapter {
   let tail: Promise<unknown> = Promise.resolve();
   return {
     ...db,
-    transaction<T>(fn: () => Promise<T>): Promise<T> {
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
       const turn = tail.then(() => db.transaction(fn));
       tail = turn.catch(() => {});
       return turn;

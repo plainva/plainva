@@ -14,7 +14,7 @@ import * as path from "node:path";
 import { performance } from "node:perf_hooks";
 import { DatabaseSync } from "node:sqlite";
 import { initializeSchema } from "../src/db/Schema.js";
-import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
+import type { IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { BackupVaultAdapter } from "../src/vault/BackupVaultAdapter.js";
 import { QueueingVaultAdapter } from "../src/vault/QueueingVaultAdapter.js";
@@ -34,9 +34,9 @@ class DatabasePort implements IDatabaseAdapter {
   async execute(sql: string, params: unknown[] = []) { this.raw.prepare(sql).run(...params as never[]); }
   async query<T>(sql: string, params: unknown[] = []): Promise<T[]> { return this.raw.prepare(sql).all(...params as never[]) as T[]; }
   async queryOne<T>(sql: string, params: unknown[] = []): Promise<T | null> { return (await this.query<T>(sql, params))[0] ?? null; }
-  async transaction<T>(action: () => Promise<T>) {
+  async transaction<T>(action: (tx: SqlStatements) => Promise<T>) {
     this.raw.exec("SAVEPOINT operation");
-    try { const value = await action(); this.raw.exec("RELEASE operation"); return value; }
+    try { const value = await action(this); this.raw.exec("RELEASE operation"); return value; }
     catch (error) { this.raw.exec("ROLLBACK TO operation; RELEASE operation"); throw error; }
   }
 }

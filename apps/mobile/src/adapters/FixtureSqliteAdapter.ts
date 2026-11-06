@@ -1,5 +1,5 @@
-import type { BatchOptions, BatchStatement, IDatabaseAdapter } from "@plainva/core";
-import { TransactionTurns } from "./transactionTurns";
+import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "@plainva/core";
+import { TransactionTurns, takeStatement, transactionLabel } from "./transactionTurns";
 
 /**
  * IDatabaseAdapter over a REAL SQLite that lives outside the browser.
@@ -67,7 +67,9 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
   /**
    * One transaction at a time, exactly as the native adapter has it
    * (transactionTurns.ts): the runner's database is one connection too, and
-   * SQLite refuses a second BEGIN.
+   * SQLite refuses a second BEGIN. A write sent to the adapter itself takes a
+   * turn as well, as on the phone (Datensicherheit D3); a body runs its
+   * statements through the handle it is given.
    *
    * This adapter used to count a depth instead and let a second transaction
    * ENTER the first — which kept the index alive (an unconditional BEGIN from
@@ -79,8 +81,6 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
    * transactions meet (finding 2026-10-12).
    */
   private readonly turns = new TransactionTurns();
-  /** The body of a `transaction()` is running. `runBatch` reads it. */
-  private inTransaction = false;
 
   constructor(private readonly dbName: string) {}
 
@@ -114,10 +114,17 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
     // purpose, so the index stays warm across the surfaces of one capture.
   }
 
-  async execute(query: string, params?: unknown[] | Record<string, unknown>): Promise<void> {
-    await this.conn().exec(this.dbName, query, toPositional(params));
+  /** One statement on the bridge, outside any turn: what a turn runs. */
+  private run(query: string, params?: unknown[] | Record<string, unknown>): Promise<void> {
+    return this.conn().exec(this.dbName, query, toPositional(params));
   }
 
+  /** A write of its own, in its turn: after the transaction that is open, never inside it. */
+  async execute(query: string, params?: unknown[] | Record<string, unknown>): Promise<void> {
+    await takeStatement(this.turns, () => this.run(query, params));
+  }
+
+  /** A read takes no turn, as on the phone. */
   async query<T = unknown>(query: string, params?: unknown[] | Record<string, unknown>): Promise<T[]> {
     return (await this.conn().all(this.dbName, query, toPositional(params))) as T[];
   }
@@ -129,50 +136,56 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
 
   /** BEGIN, `work`, COMMIT — or ROLLBACK, and the error of `work`. */
   private async inOneTransaction<T>(work: () => Promise<T>): Promise<T> {
-    await this.execute("BEGIN");
+    await this.run("BEGIN");
     let result: T;
     try {
       result = await work();
     } catch (err) {
-      await this.execute("ROLLBACK").catch(() => {
+      await this.run("ROLLBACK").catch(() => {
         /* connection state wins; surface the original error */
       });
       throw err;
     }
     try {
-      await this.execute("COMMIT");
+      await this.run("COMMIT");
     } catch (err) {
       // What a failed COMMIT left open must not ride into the next turn.
-      await this.execute("ROLLBACK").catch(() => {});
+      await this.run("ROLLBACK").catch(() => {});
       throw err;
     }
     return result;
   }
 
-  transaction<T>(fn: () => Promise<T>): Promise<T> {
+  transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
     return this.turns.take(() =>
       this.inOneTransaction(async () => {
-        this.inTransaction = true;
+        let open = true;
+        const live = () => {
+          if (!open) throw new Error("This transaction is over: its handle runs no more statements");
+        };
+        const tx: SqlStatements = {
+          execute: async (query, params) => { live(); await this.run(query, params); },
+          query: async (query, params) => { live(); return this.query(query, params); },
+          queryOne: async (query, params) => { live(); return this.queryOne(query, params); },
+          runBatch: async (statements) => {
+            live();
+            for (const s of statements) await this.run(s.sql, s.params);
+          },
+        };
         try {
-          return await fn();
+          return await fn(tx);
         } finally {
-          this.inTransaction = false;
+          open = false;
         }
       }),
-    );
+    transactionLabel());
   }
 
-  /**
-   * A transaction of its own, in its turn — except for the batch its caller
-   * sends from inside the body of its own `transaction()` and says so (the
-   * indexer's full scan): that one runs in the transaction that is open.
-   */
-  async runBatch(statements: BatchStatement[], options?: BatchOptions): Promise<void> {
+  /** A transaction of its own, in its turn. A batch from inside a body goes through the body's handle. */
+  async runBatch(statements: BatchStatement[]): Promise<void> {
     if (statements.length === 0) return;
-    const run = async () => {
-      for (const s of statements) await this.execute(s.sql, s.params);
-    };
-    if (options?.inOpenTransaction && this.inTransaction) await run();
-    else await this.turns.take(() => this.inOneTransaction(run));
+    await this.turns.take(() => this.inOneTransaction(async () => {
+      for (const s of statements) await this.run(s.sql, s.params);
+    }), "batch");
   }
 }

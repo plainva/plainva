@@ -1,4 +1,4 @@
-import { IDatabaseAdapter } from "../../src/db/IDatabaseAdapter.ts";
+import { IDatabaseAdapter, SqlStatements } from "../../src/db/IDatabaseAdapter.ts";
 
 export class MockDatabaseAdapter implements IDatabaseAdapter {
   public queries: { query: string; params: any[] | Record<string, any> }[] = [];
@@ -46,10 +46,11 @@ export class MockDatabaseAdapter implements IDatabaseAdapter {
     return (this.mockedOneResults.shift() || null) as T;
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  /** Records BEGIN/COMMIT/ROLLBACK around the body; the body's handle is this mock itself. */
+  async transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
     this.queries.push({ query: "BEGIN", params: [] });
     try {
-      const result = await fn();
+      const result = await fn(this);
       this.queries.push({ query: "COMMIT", params: [] });
       return result;
     } catch (e) {

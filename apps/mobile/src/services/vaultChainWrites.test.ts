@@ -619,7 +619,7 @@ async function phoneDatabase(platform: PhonePlatform): Promise<IDatabaseAdapter>
       onAsk?.();
       return inner.transaction(fn);
     },
-    runBatch: (statements, options) => inner.runBatch(statements, options),
+    runBatch: (statements) => inner.runBatch!(statements),
   };
 }
 
@@ -790,11 +790,14 @@ describe.each(["android", "ios"] as const)("one connection, two flows (%s)", (pl
 });
 
 it("boot hands its chain the reporter, as the desktop's vault context does: an entry made up for or given up is a line in the diagnostics", () => {
-  const built = all(serviceFile, ts.isNewExpression)
-    .filter((node) => node.expression.getText(serviceFile) === "QueueingVaultAdapter")
-    .map((node) => node.getText(serviceFile));
-  expect(built).toHaveLength(1);
-  expect(built[0]).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
+  // Both chains: the sync queue's and the encrypted workspace's (Datensicherheit D2).
+  for (const chain of ["QueueingVaultAdapter", "WorkspaceQueueingVaultAdapter"]) {
+    const built = all(serviceFile, ts.isNewExpression)
+      .filter((node) => node.expression.getText(serviceFile) === chain)
+      .map((node) => node.getText(serviceFile));
+    expect(built, chain).toHaveLength(1);
+    expect(built[0]).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
+  }
 });
 
 /**

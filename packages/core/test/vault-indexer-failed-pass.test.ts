@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { realSqlite } from "./helpers/realSqlite.js";
-import type { BatchStatement, IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
+import { beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
+import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 
@@ -46,16 +46,16 @@ function desktopLike(inner: IDatabaseAdapter): IDatabaseAdapter & { batches: num
   const db: IDatabaseAdapter & { batches: number; refuseBatch?: number } = {
     ...inner,
     batches: 0,
-    transaction<T>(fn: () => Promise<T>): Promise<T> {
-      const run = last.then(() => fn());
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
+      const run = last.then(() => fn(db));
       last = run.catch(() => undefined);
       return run;
     },
     async runBatch(statements: BatchStatement[]): Promise<void> {
       if (statements.length === 0) return;
       if (db.batches + 1 === db.refuseBatch) throw new Error("disk full");
-      await inner.transaction(async () => {
-        for (const s of statements) await inner.execute(s.sql, s.params ?? []);
+      await inner.transaction(async (tx) => {
+        for (const s of statements) await tx.execute(s.sql, s.params ?? []);
       });
       db.batches += 1;
     },
@@ -109,12 +109,10 @@ const onDisk = (p: string) => path.join(root, p);
  * left out and named, issue #125 — vault-indexer-unreadable-entry.test.ts.)
  */
 function refuseEveryWriteOf(db: IDatabaseAdapter, file: string): () => void {
-  const execute = db.execute.bind(db);
-  db.execute = async (sql, params) => {
-    if (Array.isArray(params) && params.includes(file)) throw new Error("disk full");
-    return execute(sql, params);
-  };
-  return () => { db.execute = execute; };
+  // Every write: one sent to the adapter, and one through a transaction's handle (D3).
+  return beforeEveryWrite(db, (_sql, params) => {
+    if (params.includes(file)) throw new Error("disk full");
+  });
 }
 
 const VANISHED = ["Gone 1.md", "Gone 2.csv"];

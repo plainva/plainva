@@ -889,7 +889,8 @@ export const VaultProvider: React.FC<{
         await workspaceStateStore.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
       }) : null;
       const queueingVaultAdapter = workspaceStateStore
-        ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore)
+        // The encrypted workspace's queue makes up for its entries the same way (D2).
+        ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) })
         : new QueueingVaultAdapter(backupVaultAdapter, syncQueue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
 
       const syncRepo = new SyncStateRepository(dbAdapter, backupVaultAdapter, await getDeviceId());

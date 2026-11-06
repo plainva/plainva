@@ -4,7 +4,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  BackupVaultAdapter, ConflictAwareVaultAdapter, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository, VaultIndexer, type IDatabaseAdapter,
+  BackupVaultAdapter, ConflictAwareVaultAdapter, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository, VaultIndexer, type IDatabaseAdapter, type SqlStatements,
 } from "@plainva/core";
 import { buildEmailNoteContent, captureMailAsNote, type MailMessage } from "@plainva/ui/mail";
 import { LocalVaultAdapter } from "../../../../../packages/core/src/vault/LocalVaultAdapter";
@@ -24,7 +24,7 @@ function queueing(inner: IDatabaseAdapter): IDatabaseAdapter {
   let tail: Promise<unknown> = Promise.resolve();
   return {
     ...inner,
-    transaction<T>(fn: () => Promise<T>): Promise<T> {
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
       const turn = tail.then(() => inner.transaction(fn));
       tail = turn.catch(() => {});
       return turn;

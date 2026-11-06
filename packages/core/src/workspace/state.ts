@@ -3,6 +3,7 @@ import { projectCommentRecords } from "../comments/commentProjection.js";
 import { isCommentDecisionProof, type CommentDecisionProof, type SuggestionDecisionState } from "../comments/commentDecisions.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { runStatementsAtomic } from "../db/batch.js";
+import type { OwedStructure } from "../vault/owedQueueEntries.js";
 import type { WorkspaceCommentAnchor } from "./commentAnchor.js";
 import type { PublicationManifest } from "./publication.js";
 import type { PublishedSliceConfig } from "./publishedSlices.js";
@@ -420,10 +421,25 @@ export interface WorkspaceStateStore {
   deleteLocalProbes(paths: string[]): Promise<void>;
   hasOperation(operationHash: string): Promise<boolean>;
   getOperationDocument(operationHash: string): Promise<string | null>;
+  /** A queued mutation touches `path` (as its path or a rename's target) — or one owed for a change on disk does (D4). */
   hasPendingForPath(path: string): Promise<boolean>;
-  /** Every path referenced by a queued mutation (path + rename target), for bulk pending checks. */
+  /** Every path referenced by a queued mutation (path + rename target), for bulk pending checks — owed ones included. */
   listQueuedPaths(): Promise<string[]>;
+  /**
+   * Queues a mutation and returns its id. Idempotent (Datensicherheit D2): where
+   * the newest entry touching these paths is this very mutation and not
+   * prepared yet, no second one is queued and its id comes back — an entry
+   * written again after its answer was lost is the same entry. A mutation that
+   * repeats after something else touched its paths (a write, a deletion, a
+   * write again) is queued anew: the worker pushes them in order.
+   */
   enqueue(operation: WorkspaceQueueOperation, path: string, newPath?: string | null): Promise<number>;
+  /**
+   * Lets the store answer for entries owed to its queue for changes already on
+   * disk (`WorkspaceQueueingVaultAdapter`, D4): `hasPendingForPath` and
+   * `listQueuedPaths` count them. Returns what detaches them.
+   */
+  consultOwedEntries?(owed: OwedStructure): () => void;
   listQueue(limit?: number): Promise<WorkspaceQueuedMutation[]>;
   reservePrepared(queueId: number, prepared: PreparedWorkspaceMutation, meta: WorkspaceRuntimeMeta): Promise<void>;
   discardQueue(queueId: number): Promise<void>;
@@ -598,14 +614,27 @@ export class MemoryWorkspaceStateStore implements WorkspaceStateStore {
     for (const path of paths) this.probes.delete(path);
   }
   async hasOperation(operationHash: string): Promise<boolean> { return this.operations.has(operationHash); }
+  private readonly owedEntries = new Set<OwedStructure>();
+  consultOwedEntries(owed: OwedStructure): () => void {
+    this.owedEntries.add(owed);
+    return () => { this.owedEntries.delete(owed); };
+  }
   async hasPendingForPath(path: string): Promise<boolean> {
-    return this.queue.some((entry) => entry.path === path || entry.newPath === path);
+    return this.queue.some((entry) => entry.path === path || entry.newPath === path)
+      || [...this.owedEntries].some((owed) => owed.hasOwedEntryFor(path));
   }
   async listQueuedPaths(): Promise<string[]> {
-    return this.queue.flatMap((entry) => (entry.newPath ? [entry.path, entry.newPath] : [entry.path]));
+    return [
+      ...this.queue.flatMap((entry) => (entry.newPath ? [entry.path, entry.newPath] : [entry.path])),
+      ...[...this.owedEntries].flatMap((owed) => owed.owedPaths()),
+    ];
   }
   async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
-    const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null };
+    const target = newPath ?? null;
+    const touches = (entry: WorkspaceQueuedMutation) => [entry.path, entry.newPath].some((a) => !!a && [path, target].some((b) => !!b && pathsOverlap(a, b)));
+    const newest = [...this.queue].reverse().find(touches);
+    if (newest && !newest.prepared && newest.operation === operation && newest.path === path && (newest.newPath ?? null) === target) return newest.id;
+    const item: WorkspaceQueuedMutation = { id: this.nextQueueId++, operation, path, newPath: target, queuedAt: Date.now(), retryCount: 0, lastError: null, prepared: null };
     this.queue.push(item);
     return item.id;
   }
@@ -822,6 +851,36 @@ function revisionWrite(record: WorkspaceRevisionRecord) {
   };
 }
 
+/** `a` and `b` are one path, or one lies in the other (a folder and what is below it). */
+function pathsOverlap(a: string, b: string): boolean {
+  return a === b || a.startsWith(b + "/") || b.startsWith(a + "/");
+}
+
+/**
+ * SQL for "a queued entry `later` touches one of `paths`" — as its path or a
+ * rename's target, the same path, a folder it lies in, or a path below it —
+ * with its parameters. The folders are named, so that no comparison has to
+ * cut a column apart.
+ */
+function laterTouches(paths: ReadonlyArray<string | null>): { sql: string; params: unknown[] } {
+  const parts: string[] = [];
+  const params: unknown[] = [];
+  for (const path of paths) {
+    if (!path) continue;
+    const folders: string[] = [];
+    for (let cut = path.indexOf("/"); cut > 0; cut = path.indexOf("/", cut + 1)) folders.push(path.slice(0, cut));
+    for (const column of ["later.path", "later.new_path"]) {
+      parts.push(`${column} = ?`, `substr(${column}, 1, ?) = ?`);
+      params.push(path, path.length + 1, path + "/");
+      if (folders.length > 0) {
+        parts.push(`${column} IN (${folders.map(() => "?").join(",")})`);
+        params.push(...folders);
+      }
+    }
+  }
+  return { sql: parts.join(" OR ") || "0", params };
+}
+
 /** SQLite-backed crash-safe P3 repository. Private keys never enter these tables. */
 export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   constructor(private readonly db: IDatabaseAdapter) {}
@@ -1005,16 +1064,45 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   async hasOperation(operationHash: string): Promise<boolean> {
     return (await this.db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM workspace_operation WHERE operation_hash = ?`, [operationHash]))?.n === 1;
   }
+  private readonly owedEntries = new Set<OwedStructure>();
+  consultOwedEntries(owed: OwedStructure): () => void {
+    this.owedEntries.add(owed);
+    return () => { this.owedEntries.delete(owed); };
+  }
   async hasPendingForPath(path: string): Promise<boolean> {
+    if ([...this.owedEntries].some((owed) => owed.hasOwedEntryFor(path))) return true;
     return ((await this.db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM workspace_queue WHERE path = ? OR new_path = ?`, [path, path]))?.n ?? 0) > 0;
   }
   async listQueuedPaths(): Promise<string[]> {
     const rows = await this.db.query<{ path: string; new_path: string | null }>(`SELECT path, new_path FROM workspace_queue`);
-    return rows.flatMap((row) => (row.new_path ? [row.path, row.new_path] : [row.path]));
+    return [
+      ...rows.flatMap((row) => (row.new_path ? [row.path, row.new_path] : [row.path])),
+      ...[...this.owedEntries].flatMap((owed) => owed.owedPaths()),
+    ];
   }
+  /**
+   * One statement, so it is one turn of its own on the phone's connection and
+   * never rides in somebody else's transaction (D3): it inserts unless the
+   * newest entry touching these paths is this very mutation and not prepared
+   * yet (`WorkspaceStateStore.enqueue`). The id is the one of that entry,
+   * asked by its fields — never "the newest row", which may be another flow's.
+   */
   async enqueue(operation: WorkspaceQueueOperation, path: string, newPath: string | null = null): Promise<number> {
-    await this.db.execute(`INSERT INTO workspace_queue (operation,path,new_path,queued_at) VALUES (?,?,?,?)`, [operation, path, newPath, Date.now()]);
-    const row = await this.db.queryOne<{ id: number }>(`SELECT id FROM workspace_queue ORDER BY id DESC LIMIT 1`);
+    const target = newPath ?? null;
+    const later = laterTouches([path, target]);
+    await this.db.execute(
+      `INSERT INTO workspace_queue (operation,path,new_path,queued_at)
+       SELECT ?,?,?,? WHERE NOT EXISTS (
+         SELECT 1 FROM workspace_queue same
+          WHERE same.operation = ? AND same.path = ? AND same.new_path IS ? AND same.prepared_json IS NULL
+            AND NOT EXISTS (SELECT 1 FROM workspace_queue later WHERE later.id > same.id AND (${later.sql}))
+       )`,
+      [operation, path, target, Date.now(), operation, path, target, ...later.params],
+    );
+    const row = await this.db.queryOne<{ id: number }>(
+      `SELECT id FROM workspace_queue WHERE operation = ? AND path = ? AND new_path IS ? AND prepared_json IS NULL ORDER BY id DESC LIMIT 1`,
+      [operation, path, target],
+    );
     if (!row) throw new Error("workspace queue insert did not return an id");
     return row.id;
   }
