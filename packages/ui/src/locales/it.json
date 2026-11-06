@@ -1595,7 +1595,8 @@
       },
       "kind": "Cosa fa",
       "kindSkill": "Esegue una competenza",
-      "kindLog": "Tiene il registro di una cartella"
+      "kindLog": "Tiene il registro di una cartella",
+      "eligibleDirect": "Ogni competenza attiva che si limita a leggere può diventare una routine — nelle cartelle con «Modifica senza chiedere» anche una che modifica o crea note."
     },
     "memory": {
       "segment": "Memoria",
@@ -2747,6 +2748,18 @@
       },
       "fallbackDraft": "«{{name}}» non è stata creata direttamente — aspetta come bozza.",
       "overviewFolders": "La routine può modificare e creare note nelle cartelle con «Modifica senza chiedere» — altrove legge soltanto."
+    },
+    "toolDirect": {
+      "propose_edit": "Nota modificata direttamente",
+      "set_property": "Proprietà impostata direttamente",
+      "create_note": "Nota creata direttamente",
+      "create_task": "Attività creata direttamente",
+      "add_journal_entry": "Voce del diario aggiunta direttamente",
+      "create_entry": "Voce di database creata direttamente"
+    },
+    "toolFallback": {
+      "suggestion": "Come proposta invece che direttamente",
+      "draft": "Come bozza invece che direttamente"
     }
   },
   "settingsSync": {

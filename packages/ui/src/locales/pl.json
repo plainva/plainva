@@ -1655,7 +1655,8 @@
       },
       "kind": "Co robi",
       "kindSkill": "Uruchamia umiejętność",
-      "kindLog": "Prowadzi log folderu"
+      "kindLog": "Prowadzi log folderu",
+      "eligibleDirect": "Każda aktywna umiejętność, która tylko czyta, może stać się rutyną — w folderach z „Zmieniaj bez pytania” także taka, która zmienia lub tworzy notatki."
     },
     "memory": {
       "segment": "Pamięć",
@@ -2833,6 +2834,18 @@
       },
       "fallbackDraft": "Nie udało się utworzyć „{{name}}” od razu — czeka jako szkic.",
       "overviewFolders": "Rutyna może zmieniać i tworzyć notatki w folderach z „Zmieniaj bez pytania” — gdzie indziej tylko czyta."
+    },
+    "toolDirect": {
+      "propose_edit": "Notatka zmieniona od razu",
+      "set_property": "Właściwość ustawiona od razu",
+      "create_note": "Notatka utworzona od razu",
+      "create_task": "Zadanie utworzone od razu",
+      "add_journal_entry": "Wpis w dzienniku dodany od razu",
+      "create_entry": "Wpis bazy danych utworzony od razu"
+    },
+    "toolFallback": {
+      "suggestion": "Jako propozycja zamiast od razu",
+      "draft": "Jako szkic zamiast od razu"
     }
   },
   "settingsSync": {

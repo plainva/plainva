@@ -149,7 +149,7 @@ export function RoutinesCard({ onOpenNote, folders = [] }: { onOpenNote?: (path:
             </div>
           );
         })}
-        <SettingRow label={t("ai.routines.add")} desc={full ? t("ai.routines.full", { max: ROUTINES_MAX }) : skills.length === 0 ? t("ai.routines.noSkill") : t("ai.routines.eligible")}>
+        <SettingRow label={t("ai.routines.add")} desc={full ? t("ai.routines.full", { max: ROUTINES_MAX }) : skills.length === 0 ? t("ai.routines.noSkill") : direct ? t("ai.routines.eligibleDirect") : t("ai.routines.eligible")}>
           {/* A folder's log needs no skill: without one, a new routine starts as a log. */}
           <Button size="sm" variant="secondary" icon={<Plus size={ICON.ui} />} disabled={full} onClick={() => setDialog({ routine: null, review: false })} data-testid="settings-ai-routine-add">
             {t("ai.routines.add")}

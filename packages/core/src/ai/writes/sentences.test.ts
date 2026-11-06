@@ -50,3 +50,18 @@ describe("what a writing tool answers a model with", () => {
     expect(WRITE_REFUSALS.declined).toBe(EFFECT_DECLINED);
   });
 });
+
+describe("what became of a direct write, read back from the tool's answer", () => {
+  it("tells applied, created and a suggestion after all from every other answer", async () => {
+    const { directOutcomeOf, WRITE_RESULTS: R } = await import("./sentences.js");
+    expect(directOutcomeOf(R.applied("Projects/Offer.md", 2, 0))).toBe("applied");
+    expect(directOutcomeOf(R.appliedProperty("Projects/Offer.md", "status", false, 0))).toBe("applied");
+    expect(directOutcomeOf(R.made('a note "Rates"', "Inbox/Rates.md", 0))).toBe("applied");
+    expect(directOutcomeOf(`${R.notApplied("unsaved")}${R.proposed("Projects/Offer.md", 1, 0)}`)).toBe("fallback");
+    expect(directOutcomeOf(`${R.notApplied("snapshot")}${R.drafted('a note "Rates"', 0)}`)).toBe("fallback");
+    expect(directOutcomeOf(R.proposed("Projects/Offer.md", 1, 0))).toBeNull();
+    expect(directOutcomeOf(R.renamed("Projects/Offer 2027.md"))).toBeNull();
+    // A note whose path begins with the word is no direct change: the sentence's own shape decides.
+    expect(directOutcomeOf("Changed nothing.")).toBeNull();
+  });
+});

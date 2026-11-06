@@ -1595,7 +1595,8 @@
       },
       "kind": "Qué hace",
       "kindSkill": "Ejecuta una habilidad",
-      "kindLog": "Lleva el registro de una carpeta"
+      "kindLog": "Lleva el registro de una carpeta",
+      "eligibleDirect": "Cualquier habilidad activa que solo lea puede convertirse en una rutina; en carpetas con «Cambiar sin preguntar», también una que cambia o crea notas."
     },
     "memory": {
       "segment": "Memoria",
@@ -2747,6 +2748,18 @@
       },
       "fallbackDraft": "«{{name}}» no se pudo crear directamente — espera como borrador.",
       "overviewFolders": "La rutina puede cambiar y crear notas en las carpetas con «Cambiar sin preguntar»; en el resto solo lee."
+    },
+    "toolDirect": {
+      "propose_edit": "Nota cambiada directamente",
+      "set_property": "Propiedad establecida directamente",
+      "create_note": "Nota creada directamente",
+      "create_task": "Tarea creada directamente",
+      "add_journal_entry": "Entrada del diario añadida directamente",
+      "create_entry": "Entrada de base de datos creada directamente"
+    },
+    "toolFallback": {
+      "suggestion": "Como sugerencia en lugar de directamente",
+      "draft": "Como borrador en lugar de directamente"
     }
   },
   "settingsSync": {

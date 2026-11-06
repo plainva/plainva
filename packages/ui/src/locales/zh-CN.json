@@ -1475,7 +1475,8 @@
       },
       "kind": "它做什么",
       "kindSkill": "运行技能",
-      "kindLog": "维护文件夹的更改记录"
+      "kindLog": "维护文件夹的更改记录",
+      "eligibleDirect": "每个已启用且只读取的技能都可以成为例程——在设置了“无需询问即可修改”的文件夹中，修改或创建笔记的技能也可以。"
     },
     "memory": {
       "segment": "记忆",
@@ -2575,6 +2576,18 @@
       },
       "fallbackDraft": "未能直接创建“{{name}}”——它作为草稿等待。",
       "overviewFolders": "例程可以在设置了“无需询问即可修改”的文件夹中修改和创建笔记——其他地方只读取。"
+    },
+    "toolDirect": {
+      "propose_edit": "已直接修改笔记",
+      "set_property": "已直接设置属性",
+      "create_note": "已直接创建笔记",
+      "create_task": "已直接创建任务",
+      "add_journal_entry": "已直接添加日志条目",
+      "create_entry": "已直接创建数据库条目"
+    },
+    "toolFallback": {
+      "suggestion": "以建议代替直接修改",
+      "draft": "以草稿代替直接创建"
     }
   },
   "settingsSync": {

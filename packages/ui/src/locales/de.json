@@ -1535,7 +1535,8 @@
       },
       "kind": "Was sie tut",
       "kindSkill": "Führt einen Skill aus",
-      "kindLog": "Führt das Log eines Ordners"
+      "kindLog": "Führt das Log eines Ordners",
+      "eligibleDirect": "Aktive Skills, die nur lesen, können Routinen werden — in Ordnern mit „Ohne Nachfrage ändern“ auch solche, die Notizen ändern oder anlegen."
     },
     "memory": {
       "segment": "Gedächtnis",
@@ -2661,6 +2662,18 @@
       },
       "fallbackDraft": "„{{name}}“ ließ sich nicht direkt anlegen — es liegt als Entwurf bereit.",
       "overviewFolders": "Die Routine darf in Ordnern mit „Ohne Nachfrage ändern“ Notizen ändern und anlegen — sonst nur lesen."
+    },
+    "toolDirect": {
+      "propose_edit": "Eine Notiz direkt geändert",
+      "set_property": "Eine Eigenschaft direkt gesetzt",
+      "create_note": "Eine Notiz direkt angelegt",
+      "create_task": "Eine Aufgabe direkt angelegt",
+      "add_journal_entry": "Einen Journal-Eintrag direkt angelegt",
+      "create_entry": "Einen Datenbank-Eintrag direkt angelegt"
+    },
+    "toolFallback": {
+      "suggestion": "Als Vorschlag statt direkt",
+      "draft": "Als Entwurf statt direkt"
     }
   },
   "settingsSync": {

@@ -182,6 +182,49 @@ export function serializePolicyFile(rules: readonly FolderPolicyRule[]): string 
 }
 
 /**
+ * Writes changed folder rules into `.agent/policy.yml` as it lies there —
+ * the settings' way of saving. What Plainva writes is the rules' own keys
+ * (`cloud`, `web`, `write`); every other key stays where it was: one a later
+ * version of the app reads, one another tool keeps, a top-level key beside
+ * `folders`. So no version of the app drops a key it does not know when the
+ * user changes a rule here — as versions before this one dropped `write`
+ * (plan "KI direkt schreiben"). A folder entry left with nothing but such
+ * keys stays with them. A file that does not read as a mapping is replaced
+ * by the rules alone, as before; its problems were reported where it was read.
+ */
+export function updatePolicyFile(text: string, rules: readonly FolderPolicyRule[]): string {
+  let doc: unknown;
+  try {
+    doc = parseYaml(text);
+  } catch {
+    return serializePolicyFile(rules);
+  }
+  if (doc == null || typeof doc !== "object" || Array.isArray(doc)) return serializePolicyFile(rules);
+  const top = doc as Record<string, unknown>;
+  const before = top.folders && typeof top.folders === "object" && !Array.isArray(top.folders) ? (top.folders as Record<string, unknown>) : {};
+  const own = new Set<string>([...AI_POLICY_DIMENSIONS, "write"]);
+  const foreign = (value: unknown): Record<string, unknown> =>
+    value && typeof value === "object" && !Array.isArray(value) ? Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key]) => !own.has(key))) : {};
+  const folders: Record<string, Record<string, unknown>> = {};
+  // What each folder carries besides Plainva's rules, under the spelling the file used for it.
+  const kept = new Map<string, { raw: string; rest: Record<string, unknown> }>();
+  for (const [raw, value] of Object.entries(before)) {
+    const rest = foreign(value);
+    if (Object.keys(rest).length) kept.set(normalizeFolder(raw), { raw, rest });
+  }
+  for (const rule of rules) {
+    const entry: Record<string, unknown> = { ...(kept.get(rule.folder)?.rest ?? {}) };
+    for (const dimension of AI_POLICY_DIMENSIONS) if (rule[dimension]) entry[dimension] = rule[dimension];
+    if (rule.write) entry.write = rule.write;
+    if (Object.keys(entry).length) folders[kept.get(rule.folder)?.raw ?? (rule.folder === "" ? "/" : rule.folder)] = entry;
+    kept.delete(rule.folder);
+  }
+  for (const { raw, rest } of kept.values()) folders[raw] = rest;
+  const header = "# Plainva AI privacy rules (see the File Format Reference of the user guide).";
+  return `${header}\n${stringifyYaml({ ...top, folders })}`;
+}
+
+/**
  * The effective policy of one vault-relative path. `defaults` is the app-wide
  * default merged with the vault override, or the encrypted-workspace policy.
  */

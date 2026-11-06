@@ -1595,7 +1595,8 @@
       },
       "kind": "Ce qu'elle fait",
       "kindSkill": "Lance une compétence",
-      "kindLog": "Tient le registre d'un dossier"
+      "kindLog": "Tient le registre d'un dossier",
+      "eligibleDirect": "Toute compétence active qui ne fait que lire peut devenir une routine — dans les dossiers avec « Modifier sans demander », aussi une qui modifie ou crée des notes."
     },
     "memory": {
       "segment": "Mémoire",
@@ -2747,6 +2748,18 @@
       },
       "fallbackDraft": "« {{name}} » n'a pas pu être créée directement — elle attend comme brouillon.",
       "overviewFolders": "La routine peut modifier et créer des notes dans les dossiers avec « Modifier sans demander » — ailleurs elle ne fait que lire."
+    },
+    "toolDirect": {
+      "propose_edit": "Note modifiée directement",
+      "set_property": "Propriété définie directement",
+      "create_note": "Note créée directement",
+      "create_task": "Tâche créée directement",
+      "add_journal_entry": "Entrée de journal ajoutée directement",
+      "create_entry": "Entrée de base de données créée directement"
+    },
+    "toolFallback": {
+      "suggestion": "En suggestion au lieu de directement",
+      "draft": "En brouillon au lieu de directement"
     }
   },
   "settingsSync": {

@@ -236,6 +236,36 @@ function tKeys(node: ts.Node | undefined): string[] {
   return out;
 }
 
+/**
+ * The keys a row's description shows, read through the page's own helpers: a phone row writes its line with a
+ * function of its page (`subtitle={line(rule)}`), and a key inside that function is as visible as one written in
+ * the attribute. Without this the phone's index missed what the desktop's held — the question "Change without
+ * asking" of a folder rule (plan "KI direkt schreiben"). A helper is a function or an arrow of the same file, each
+ * read once; one imported from elsewhere is not followed.
+ */
+function descKeys(node: ts.Node | undefined, file: ts.SourceFile): string[] {
+  const helpers = new Map<string, ts.Node>();
+  const collect = (n: ts.Node) => {
+    if (ts.isFunctionDeclaration(n) && n.name && n.body) helpers.set(n.name.text, n.body);
+    else if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) helpers.set(n.name.text, n.initializer.body);
+    ts.forEachChild(n, collect);
+  };
+  collect(file);
+  const out = tKeys(node);
+  const followed = new Set<string>();
+  const follow = (n: ts.Node) => {
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && helpers.has(n.expression.text) && !followed.has(n.expression.text)) {
+      followed.add(n.expression.text);
+      const body = helpers.get(n.expression.text)!;
+      for (const key of tKeys(body)) if (!out.includes(key)) out.push(key);
+      follow(body);
+    }
+    ts.forEachChild(n, follow);
+  };
+  if (node) follow(node);
+  return out;
+}
+
 /** Whether a `t()` call interpolates values (anything besides `defaultValue`). */
 function interpolates(expr: ts.Node): boolean {
   let found = false;
@@ -385,7 +415,7 @@ export function extractSettingsIndex(sources: readonly SettingsSource[] = SETTIN
           const spec = rows[tag];
           const place = placeOf(node);
           const label = singleKey(attr(node, spec.label));
-          const desc = spec.desc.flatMap((name) => tKeys(attr(node, name)));
+          const desc = spec.desc.flatMap((name) => descKeys(attr(node, name), file));
           visible(desc, where);
           if (!label) dynamicRows++;
           else if (place) {

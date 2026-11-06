@@ -1595,7 +1595,8 @@
       },
       "kind": "O que ela faz",
       "kindSkill": "Executa uma habilidade",
-      "kindLog": "Mantém o registro de uma pasta"
+      "kindLog": "Mantém o registro de uma pasta",
+      "eligibleDirect": "Toda habilidade ativa que só lê pode se tornar uma rotina — em pastas com “Alterar sem perguntar”, também uma que altera ou cria notas."
     },
     "memory": {
       "segment": "Memória",
@@ -2747,6 +2748,18 @@
       },
       "fallbackDraft": "“{{name}}” não pôde ser criada diretamente — espera como rascunho.",
       "overviewFolders": "A rotina pode alterar e criar notas nas pastas com “Alterar sem perguntar” — nas demais, apenas lê."
+    },
+    "toolDirect": {
+      "propose_edit": "Nota alterada diretamente",
+      "set_property": "Propriedade definida diretamente",
+      "create_note": "Nota criada diretamente",
+      "create_task": "Tarefa criada diretamente",
+      "add_journal_entry": "Entrada do diário adicionada diretamente",
+      "create_entry": "Entrada de banco de dados criada diretamente"
+    },
+    "toolFallback": {
+      "suggestion": "Como sugestão em vez de diretamente",
+      "draft": "Como rascunho em vez de diretamente"
     }
   },
   "settingsSync": {

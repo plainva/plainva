@@ -1535,7 +1535,8 @@
       },
       "kind": "Wat ze doet",
       "kindSkill": "Voert een vaardigheid uit",
-      "kindLog": "Houdt het logboek van een map bij"
+      "kindLog": "Houdt het logboek van een map bij",
+      "eligibleDirect": "Elke actieve vaardigheid die alleen leest, kan een routine worden — in mappen met “Wijzigen zonder te vragen” ook een vaardigheid die notities wijzigt of aanmaakt."
     },
     "memory": {
       "segment": "Geheugen",
@@ -2661,6 +2662,18 @@
       },
       "fallbackDraft": "“{{name}}” kon niet direct worden aangemaakt — het wacht als concept.",
       "overviewFolders": "De routine mag in mappen met “Wijzigen zonder te vragen” notities wijzigen en aanmaken — elders leest ze alleen."
+    },
+    "toolDirect": {
+      "propose_edit": "Notitie direct gewijzigd",
+      "set_property": "Eigenschap direct ingesteld",
+      "create_note": "Notitie direct aangemaakt",
+      "create_task": "Taak direct aangemaakt",
+      "add_journal_entry": "Journaalitem direct toegevoegd",
+      "create_entry": "Database-item direct aangemaakt"
+    },
+    "toolFallback": {
+      "suggestion": "Als voorstel in plaats van direct",
+      "draft": "Als concept in plaats van direct"
     }
   },
   "settingsSync": {

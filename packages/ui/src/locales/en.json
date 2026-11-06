@@ -1535,7 +1535,8 @@
       },
       "kind": "What it does",
       "kindSkill": "Runs a skill",
-      "kindLog": "Keeps a folder's log"
+      "kindLog": "Keeps a folder's log",
+      "eligibleDirect": "Active skills that only read can become routines — in folders with “Change without asking” also ones that change or create notes."
     },
     "memory": {
       "segment": "Memory",
@@ -2661,6 +2662,18 @@
       },
       "fallbackDraft": "“{{name}}” could not be created directly — it waits as a draft.",
       "overviewFolders": "The routine may change and create notes in folders with “Change without asking” — elsewhere it only reads."
+    },
+    "toolDirect": {
+      "propose_edit": "Changed a note directly",
+      "set_property": "Set a property directly",
+      "create_note": "Created a note directly",
+      "create_task": "Created a task directly",
+      "add_journal_entry": "Added a journal entry directly",
+      "create_entry": "Created a database entry directly"
+    },
+    "toolFallback": {
+      "suggestion": "As a suggestion instead of directly",
+      "draft": "As a draft instead of directly"
     }
   },
   "settingsSync": {

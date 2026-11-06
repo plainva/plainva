@@ -123,7 +123,7 @@ export function MobileRoutinesSection({ onOpenNote, folders = [] }: { onOpenNote
             wrap
             icon={<Plus size={ICON.ui} />}
             title={t("ai.routines.add")}
-            subtitle={full ? t("ai.routines.full", { max: ROUTINES_MAX }) : skills.length === 0 ? t("ai.routines.noSkill") : t("ai.routines.eligible")}
+            subtitle={full ? t("ai.routines.full", { max: ROUTINES_MAX }) : skills.length === 0 ? t("ai.routines.noSkill") : direct ? t("ai.routines.eligibleDirect") : t("ai.routines.eligible")}
             disabled={full}
             onClick={() => setSheet({ routine: null, review: false })}
             data-testid="settings-ai-routine-add"

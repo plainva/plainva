@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { within } from "../../test/helpers/timeBudget.js";
-import { DEFAULT_AI_POLICY, directFolderOf, effectivePolicy, hasDirectFolder, ENCRYPTED_WORKSPACE_AI_POLICY, normalizeFolder, notePolicyFrom, parsePolicyFile, serializePolicyFile } from "./policy.js";
+import { parse as parseYaml } from "yaml";
+import { DEFAULT_AI_POLICY, directFolderOf, effectivePolicy, hasDirectFolder, updatePolicyFile, ENCRYPTED_WORKSPACE_AI_POLICY, normalizeFolder, notePolicyFrom, parsePolicyFile, serializePolicyFile } from "./policy.js";
 import { gateDecision, hardGate, redactDeniedLinks, WITHHELD_LINK, type GateRun } from "./egressGate.js";
 
 const cloudRun: GateRun = { recipient: { kind: "cloud", provider: "anthropic", model: "m" }, webTools: false };
@@ -239,5 +240,24 @@ describe("change without asking (plan KI direkt schreiben)", () => {
   it("is written back with the folder's other rules, and a folder that only lets changes go keeps its rule", () => {
     const rules = parsePolicyFile(file).rules.filter((rule) => rule.folder !== "Odd/");
     expect(parsePolicyFile(serializePolicyFile(rules)).rules).toEqual(rules);
+  });
+});
+
+describe("saving the rules keeps what this version does not know", () => {
+  it("leaves unknown keys of a folder and of the file where they were, and changes only the rules' own", () => {
+    const file = 'version: 2\nfolders:\n  "Journal/":\n    cloud: deny\n    pin: true\n  "Old/":\n    web: deny\n    note: later\n';
+    const rules = parsePolicyFile(file).rules.filter((rule) => rule.folder !== "Old/").map((rule) => (rule.folder === "Journal/" ? { folder: "Journal/", write: "direct" as const } : rule));
+    const written = updatePolicyFile(file, [...rules, { folder: "New/", cloud: "deny" }]);
+    const doc = parseYaml(written) as { version: number; folders: Record<string, Record<string, unknown>> };
+    expect(doc.version).toBe(2);
+    expect(doc.folders["Journal/"]).toEqual({ pin: true, write: "direct" });
+    // A folder whose rules went keeps what is not Plainva's.
+    expect(doc.folders["Old/"]).toEqual({ note: "later" });
+    expect(doc.folders["New/"]).toEqual({ cloud: "deny" });
+    expect(parsePolicyFile(written).rules).toEqual([{ folder: "Journal/", write: "direct" }, { folder: "New/", cloud: "deny" }, { folder: "Old/" }]);
+  });
+
+  it("writes the rules alone where the file is no mapping", () => {
+    expect(updatePolicyFile("- a\n- b\n", [{ folder: "A/", cloud: "deny" }])).toBe(serializePolicyFile([{ folder: "A/", cloud: "deny" }]));
   });
 });

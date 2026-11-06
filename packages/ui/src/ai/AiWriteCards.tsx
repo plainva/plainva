@@ -431,9 +431,11 @@ export function AiAppliedList({ applied, busy, onOpenNote, onUndo }: { applied: 
     entry.created
       ? t("ai.direct.isNew")
       : [entry.passages ? t("ai.write.passages", { count: entry.passages }) : "", entry.properties ? t("ai.write.properties", { count: entry.properties }) : ""].filter(Boolean).join(", ");
+  // The rows of the context lens (one list pattern for the AI's lists): the note's name with what changed as its
+  // secondary line, the actions at the row's end — the same two text buttons in every row, so they stand in columns.
   return (
-    <>
-      <div className="pv-ai-actrow" data-testid="ai-direct-changed">
+    <div className="pv-ai-direct" data-testid="ai-direct-list">
+      <div className="pv-ai-notewithaction" data-testid="ai-direct-changed">
         <span className="pv-ai-capture">
           <Zap size={ICON.meta} aria-hidden="true" />
           {t("ai.direct.changed", { list })}
@@ -444,29 +446,36 @@ export function AiAppliedList({ applied, busy, onOpenNote, onUndo }: { applied: 
           </Button>
         )}
       </div>
-      {applied.map((entry) => (
-        <div key={entry.path} className="pv-ai-actrow" data-testid="ai-direct-row" data-path={entry.path}>
-          <span className="pv-ai-capture">{[noteName(entry.path), what(entry)].filter(Boolean).join(" · ")}</span>
-          {entry.undone ? (
-            <span className="pv-ai-capture" data-testid="ai-direct-undone">
-              <Check size={ICON.meta} aria-hidden="true" />
-              {t("ai.direct.undone")}
-            </span>
-          ) : (
-            <>
-              <Button size="sm" variant="ghost" onClick={() => onOpenNote(entry.path)} data-testid="ai-direct-view">
-                {t("ai.direct.view")}
-              </Button>
-              {onUndo && (
-                <Button size="sm" variant="ghost" icon={<Undo2 size={ICON.meta} />} disabled={busy} onClick={() => onUndo(entry.path)} data-testid="ai-direct-undo">
-                  {t("ai.direct.undo")}
-                </Button>
+      <ul className="pv-ai-lens-list">
+        {applied.map((entry) => (
+          <li key={entry.path} className="pv-ai-lens-row" data-testid="ai-direct-row" data-path={entry.path}>
+            <div className="pv-ai-lens-main">
+              <span className="pv-ai-overview-note" data-testid="ai-direct-name">{noteName(entry.path)}</span>
+              <span className="pv-ai-overview-form" data-testid="ai-direct-what">{what(entry)}</span>
+            </div>
+            <div className="pv-ai-lens-actions">
+              {entry.undone ? (
+                <span className="pv-ai-overview-form pv-ai-capture" data-testid="ai-direct-undone">
+                  <Check size={ICON.meta} aria-hidden="true" />
+                  {t("ai.direct.undone")}
+                </span>
+              ) : (
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => onOpenNote(entry.path)} data-testid="ai-direct-view">
+                    {t("ai.direct.view")}
+                  </Button>
+                  {onUndo && (
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => onUndo(entry.path)} data-testid="ai-direct-undo">
+                      {t("ai.direct.undo")}
+                    </Button>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
-      ))}
-    </>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

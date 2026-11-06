@@ -1,4 +1,4 @@
-import { calledToolName, contextStampPath, EFFECT_DECLINED, imagesOf, type ConversationRecord, type ImagePart, type RunMeta } from "@plainva/core";
+import { calledToolName, contextStampPath, directOutcomeOf, EFFECT_DECLINED, imagesOf, type ConversationRecord, type ImagePart, type RunMeta } from "@plainva/core";
 
 /**
  * What a reader sees of a conversation (P1a): the user's words, the answers,
@@ -10,7 +10,7 @@ export type TranscriptItem =
   /** `images`: the pictures the message carried (plan KI-Harness P4-5), as they were sent. */
   | { kind: "user"; key: string; text: string; context: string[]; images?: ImagePart[] }
   | { kind: "answer"; key: string; text: string }
-  | { kind: "steps"; key: string; steps: { id: string; name: string; state: StepState }[] }
+  | { kind: "steps"; key: string; steps: { id: string; name: string; state: StepState; effect?: StepEffect }[] }
   | { kind: "run"; key: string; run: RunMeta };
 
 /**
@@ -18,6 +18,12 @@ export type TranscriptItem =
  * and said no; that is an answer, not a failure. `open`: still running, or waiting for that answer.
  */
 export type StepState = "done" | "failed" | "declined" | "open";
+
+/**
+ * What became of a write the user let go directly (plan "KI direkt schreiben"): written at once, or laid down as a
+ * suggestion or a draft after all. Absent for every other step. Read from the step's answer (`directOutcomeOf`).
+ */
+export type StepEffect = "applied" | "fallback";
 
 /** The path of a context stamp (`path#hash`): the core's one reading of it. */
 export function stampPath(stamp: string): string {
@@ -35,7 +41,7 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
     runAfter.set(end, run);
   });
   let steps: Extract<TranscriptItem, { kind: "steps" }> | null = null;
-  const stepIndex = new Map<string, { state: StepState }>();
+  const stepIndex = new Map<string, { state: StepState; effect?: StepEffect }>();
   turns.forEach((turn, index) => {
     if (turn.role === "user") {
       const texts = turn.parts.filter((p) => p.type === "text");
@@ -43,6 +49,8 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
       for (const result of results) {
         const step = stepIndex.get(result.callId);
         if (step) step.state = !result.isError ? "done" : result.content === EFFECT_DECLINED ? "declined" : "failed";
+        const effect = step && !result.isError ? directOutcomeOf(result.content) : null;
+        if (step && effect) step.effect = effect;
       }
       const context = texts.flatMap((p) => (p.context ? p.context.map(stampPath) : []));
       const words = texts.filter((p) => !p.context).map((p) => p.text).join("\n\n");
@@ -64,7 +72,7 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
           items.push(steps);
         }
         // A call through the dispatcher is shown as the tool it meant (ADR 0019).
-        const step = { id: part.id, name: calledToolName(part), state: "open" as StepState };
+        const step: { id: string; name: string; state: StepState; effect?: StepEffect } = { id: part.id, name: calledToolName(part), state: "open" };
         steps.steps.push(step);
         stepIndex.set(part.id, step);
       }

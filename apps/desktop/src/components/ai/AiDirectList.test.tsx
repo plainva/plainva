@@ -47,7 +47,8 @@ describe("the list of what was changed directly", () => {
       applied: [entry({}), entry({ path: "Projekte/Website/Texte.md", passages: 0, properties: 1 }), entry({ path: "Projekte/Website/Übersicht.md", created: true, passages: 0, before: null })],
     });
     expect(byTest("ai-direct-changed")[0]!.textContent).toContain("Geändert: 2 Notizen, 1 neu");
-    expect(byTest("ai-direct-row").map((row) => row.querySelector("span")!.textContent)).toEqual(["Start · 3 Textstellen", "Texte · 1 Eigenschaft", "Übersicht · neu"]);
+    expect(byTest("ai-direct-name").map((name) => name.textContent)).toEqual(["Start", "Texte", "Übersicht"]);
+    expect(byTest("ai-direct-what").map((what) => what.textContent)).toEqual(["3 Textstellen", "1 Eigenschaft", "neu"]);
     act(() => byTest("ai-direct-undo")[1]!.click());
     expect(onUndo).toHaveBeenLastCalledWith("Projekte/Website/Texte.md");
     act(() => byTest("ai-direct-undo-all")[0]!.click());

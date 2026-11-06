@@ -2,6 +2,7 @@ import {
   normalizeFolder,
   parsePolicyFile,
   serializePolicyFile,
+  updatePolicyFile,
   updateVaultText,
   type AiPermission,
   type AiPolicyDimension,
@@ -83,7 +84,8 @@ export async function changeFolderRules(
   const written = { rules: [] as FolderPolicyRule[] };
   await updateVaultText(files, AI_POLICY_FILE, (current) => {
     written.rules = step(parsePolicyFile(current).rules);
-    return serializePolicyFile(written.rules);
+    // Keys this version does not know stay in the file (`updatePolicyFile`): a later one may read them.
+    return updatePolicyFile(current, written.rules);
   });
   return written.rules;
 }

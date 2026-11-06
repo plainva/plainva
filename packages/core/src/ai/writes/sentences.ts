@@ -138,8 +138,23 @@ export const WRITE_RESULTS = {
     `Created directly: ${what}, at ${path}. ${APPLIED}${defused ? INERT : ""}${linksNowhere(told)}`,
   /** What a suggestion that could have gone directly says first: why it did not. */
   notApplied: (reason: DirectFallback) => `${NOT_APPLIED[reason]} `,
+  /** The opening of every answer of a direct change, and of a direct creation — read back by `directOutcomeOf`. */
+  appliedOpening: "Changed ",
+  madeOpening: "Created directly: ",
   ruleSet: (path: string, set: boolean) => (set ? `Done. The rule is written into ${path}.` : `Done. The rule is removed from ${path}.`),
   renamed: (path: string) => `Renamed. The note is now ${path}.`,
   moved: (path: string) => `Moved. The note is now ${path}.`,
   deleted: "The user deleted the note.",
 } as const;
+
+/**
+ * What became of a write the user let go directly (plan "KI direkt schreiben"), read from the tool's answer — the
+ * one record a transcript keeps of a call: `applied` (a note changed or something made at once), `fallback` (laid
+ * down as a suggestion or a draft after all), or null for any other answer. The sentences are Plainva's own and
+ * fixed (above), so this reads them back exactly; a step line says what happened, not what the tool is called.
+ */
+export function directOutcomeOf(content: string): "applied" | "fallback" | null {
+  if (content.startsWith(WRITE_RESULTS.madeOpening)) return "applied";
+  if (content.startsWith(WRITE_RESULTS.appliedOpening) && /^Changed \S.* directly: /.test(content.split("\n")[0] ?? "")) return "applied";
+  return Object.values(NOT_APPLIED).some((sentence) => content.startsWith(sentence)) ? "fallback" : null;
+}

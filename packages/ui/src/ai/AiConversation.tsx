@@ -487,14 +487,22 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     ) : (
       <Check size={ICON.meta} aria-hidden="true" />
     );
-  const stepText = (name: string, state: StepLook) =>
+  // A write the user let go directly (plan "KI direkt schreiben") says what became of it: written at once, or a
+  // suggestion or a draft after all — not what the tool is called, which speaks of suggesting and drafting.
+  const doneText = (name: string, effect?: "applied" | "fallback") =>
+    effect === "applied"
+      ? t(`ai.toolDirect.${name}`, { defaultValue: toolLabel(name) })
+      : effect === "fallback"
+        ? t(/^(propose_edit|set_property)$/.test(name) ? "ai.toolFallback.suggestion" : "ai.toolFallback.draft")
+        : toolLabel(name);
+  const stepText = (name: string, state: StepLook, effect?: "applied" | "fallback") =>
     state === "running"
       ? t("ai.toolRunning", { tool: toolLabel(name) })
       : state === "failed"
         ? t("ai.toolFailed", { tool: toolLabel(name) })
         : state === "declined"
           ? t("ai.toolDeclined", { tool: toolLabel(name) })
-          : toolLabel(name);
+          : doneText(name, effect);
 
   /** The answer a run line closes: a run that sent notes should name one (§21, citation duty). */
   const answerBefore = (index: number) => {
@@ -541,7 +549,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             {steps.map((step) => (
               <li key={step.id} className={cx("pv-ai-step", step.state === "failed" && "pv-ai-step--failed", step.state === "declined" && "pv-ai-step--declined")}>
                 {stepIcon(step.state)}
-                <span>{stepText(step.name, step.state)}</span>
+                <span>{stepText(step.name, step.state, step.effect)}</span>
               </li>
             ))}
           </ul>
@@ -795,7 +803,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
                     className={cx("pv-ai-step", tool.state === "failed" && "pv-ai-step--failed", tool.state === "declined" && "pv-ai-step--declined", tool.state === "running" && "pv-ai-step--open")}
                   >
                     {stepIcon(tool.state)}
-                    <span>{stepText(tool.name, tool.state)}</span>
+                    <span>{stepText(tool.name, tool.state, tool.effect)}</span>
                   </li>
                 ))}
               </ul>

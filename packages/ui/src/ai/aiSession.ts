@@ -107,6 +107,7 @@ import {
   type DirectWriteFiles,
   type FolderPolicyRule,
   directFolderOf,
+  directOutcomeOf,
   hasDirectFolder,
   DIRECT_TOOL_NAMES,
   undoDirectChange,
@@ -975,7 +976,8 @@ export interface LiveRun {
   /** The text of the step that is streaming right now. */
   text: string;
   /** `declined`: the user said no to this call (a page, a search) — an answer, not a failure. */
-  tools: { id: string; name: string; state: "running" | "done" | "failed" | "declined" }[];
+  /** `effect`: what became of a write the user let go directly — written at once, or a suggestion after all. */
+  tools: { id: string; name: string; state: "running" | "done" | "failed" | "declined"; effect?: "applied" | "fallback" }[];
   steps: number;
 }
 
@@ -7672,10 +7674,11 @@ export class AiSession {
         if (event.type === "model" && event.event.type === "text") {
           this.set({ live: { ...live, text: live.text + event.event.text } });
         } else if (event.type === "tool_start") {
-          this.set({ live: { ...live, tools: [...live.tools, { id: event.call.id, name: event.call.name, state: "running" }] } });
+          this.set({ live: { ...live, tools: [...live.tools, { id: event.call.id, name: calledToolName(event.call), state: "running" }] } });
         } else if (event.type === "tool_done") {
           const state = !event.outcome.isError ? ("done" as const) : event.outcome.content === EFFECT_DECLINED ? ("declined" as const) : ("failed" as const);
-          this.set({ live: { ...live, tools: live.tools.map((t) => (t.id === event.call.id ? { ...t, state } : t)) } });
+          const effect = !event.outcome.isError ? directOutcomeOf(event.outcome.content) : null;
+          this.set({ live: { ...live, tools: live.tools.map((t) => (t.id === event.call.id ? { ...t, state, ...(effect ? { effect } : {}) } : t)) } });
         } else if (event.type === "turn") {
           this.set({ active: this.state.active?.id === record.id ? this.withUserChoices(record, this.running.get(record.id)) : this.state.active, live: { ...live, text: "", steps: live.steps + 1 } });
         }
