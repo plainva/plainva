@@ -499,6 +499,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     return config ? buildDailyNotePath(journalToday(new Date()), config.format, config.folder).fullPath : null;
   };
   const host = createAiVaultHost({
+    // The window's own version history, as its command opens it (plan "KI direkt schreiben": "Compare" after an Undo).
+    showVersions: (path) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path } })),
     files: desktopAiFiles,
     vaultKey: aiVaultKey(input.vaultPath),
     instructionIO: adapterInstructionIO(input.adapter),

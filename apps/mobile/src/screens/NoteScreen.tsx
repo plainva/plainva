@@ -66,6 +66,7 @@ import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
 import { aiEnabled, focusAiNote, getMobileAiSession, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
+import { NOTE_HISTORY_EVENT, takeNoteHistoryRequest } from "../services/noteHistoryRequest";
 
 /** A property value as the anchor quote carries it (desktop parity). */
 function propertyValueText(value: unknown): string {
@@ -157,7 +158,8 @@ export function NoteScreen({
   /** Content hash and modification time the index held at the last load or save. */
   const knownIdentityRef = useRef<KnownFileIdentity | null>(null);
   const [marked, setMarked] = useState(false);
-  const [info, setInfo] = useState<ContextTab | null>(null);
+  // The history may have been asked for before this screen was there ("Compare" after an AI "Undo"): it opens with it.
+  const [info, setInfo] = useState<ContextTab | null>(() => (takeNoteHistoryRequest(vault.vaultId, path) ? "history" : null));
   // The context surface can stand beside the work (S14) — but only where a
   // third column FITS and only when it was asked for (finding 2026-08-21). It
   // used to appear from 840 px on its own, which is how a 10" tablet ended up
@@ -856,6 +858,15 @@ export function NoteScreen({
     // card leads there at once, as the desktop's banner does.
     setLoadAgain((n) => n + 1);
   });
+  // …or while it is open: the request names this note, and the sheet opens at "History".
+  useEffect(() => {
+    const onHistory = (event: Event) => {
+      const detail = (event as CustomEvent<{ vaultId?: string; path?: string }>).detail;
+      if (detail?.vaultId === vault.vaultId && detail.path === path && takeNoteHistoryRequest(vault.vaultId, path)) setInfo("history");
+    };
+    window.addEventListener(NOTE_HISTORY_EVENT, onHistory);
+    return () => window.removeEventListener(NOTE_HISTORY_EVENT, onHistory);
+  }, [vault.vaultId, path]);
   useEffect(() => {
     window.addEventListener("m-external-update", noticeFileChanged);
     window.addEventListener("m-note-not-text", noticeFileChanged);

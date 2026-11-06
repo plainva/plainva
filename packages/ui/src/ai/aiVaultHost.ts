@@ -183,6 +183,8 @@ export interface AiVaultHostInput {
   creates?: DraftCreator;
   /** The notes that carry open suggestions of a machine, from the vault's comments (plan P5); absent where the shell cannot list them. */
   proposals?: AiVaultHost["proposals"];
+  /** Opens a note's version history (plan "KI direkt schreiben"): the comparison an "Undo" offers where the note changed since. */
+  showVersions?: AiVaultHost["showVersions"];
   /** The vault's folder entries and file bytes, for its own instructions (plan KI-Harness P3); absent, only the app's skills exist. */
   instructionIO?: InstructionIO;
   /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
@@ -479,6 +481,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     // Writing directly (plan "KI direkt schreiben"): the shell's ways the writing tools use, for "Undo" as well — and
     // the folder rules, for "Change without asking". A shell that cannot write directly offers neither.
     ...(input.toolDeps?.writes?.direct ? { direct: input.toolDeps.writes.direct, folderRules: async () => (await input.policy.rules()).rules } : {}),
+    ...(input.showVersions ? { showVersions: input.showVersions } : {}),
     // Which notes embed a picture (plan P4-5): their rules decide with the picture's own. Without an index nobody can tell — `null`, never "none".
     embedders: (path) => {
       const containing = input.retrieval?.notesContaining?.bind(input.retrieval);

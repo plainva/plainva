@@ -571,6 +571,8 @@ export interface AiVaultHost {
   direct?: DirectWriteFiles;
   /** The vault's folder rules, for "Change without asking" (plan W3); absent, no folder lets a change go directly. */
   folderRules?(): Promise<readonly FolderPolicyRule[]>;
+  /** Opens a note's version history, for the comparison an "Undo" offers where the note changed since. */
+  showVersions?(path: string): void;
 }
 
 export interface AiInstructionsHost {
@@ -2751,6 +2753,22 @@ export class AiSession {
     }
     const others = this.state.directChats.filter((id) => id !== active.id);
     this.set({ directChats: on ? [...others, active.id] : others });
+  }
+
+  /**
+   * Whether "Apply directly" is offered: the shell can write directly, the vault is no encrypted workspace (where
+   * nothing is proposed either, E32), and the open conversation carries the writing tools.
+   */
+  directOffer(): boolean {
+    const vault = this.vault;
+    if (!vault?.direct || vault.encrypted?.()) return false;
+    const active = this.state.active;
+    return !active || [...active.conversation.tools, ...(active.conversation.more ?? [])].some(isWriteToolName);
+  }
+
+  /** The version history of a note, where the shell has one — what "Compare" after an "Undo" opens. */
+  showVersions(path: string): void {
+    this.vault?.showVersions?.(path);
   }
 
   /** Whether the open conversation — or the next new one — writes its changes directly. */

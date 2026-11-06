@@ -2624,6 +2624,41 @@
       "failed": "Das Modell auf diesem Gerät hat nicht geantwortet: {{reason}}",
       "clear": "Kurzfassungen entfernen",
       "clearConfirm": "Alle Kurzfassungen dieses Vaults entfernen? Solange sie an sind, werden sie neu geschrieben."
+    },
+    "direct": {
+      "chip": "Direkt übernehmen",
+      "chipFolder": "Direkt übernehmen · Ordner",
+      "toggleOn": "An: Die KI darf in diesem Gespräch Notizen ändern und anlegen.",
+      "toggleOff": "Aus: Änderungen der KI warten als Vorschlag auf Dich.",
+      "folderTip": "Im Ordner dieser Notiz gilt „Ohne Nachfrage ändern“.",
+      "marking": "Die KI darf in diesem Gespräch Notizen ändern und anlegen. Löschen, Umbenennen und Verschieben fragen weiter.",
+      "overview": "Direkt übernehmen",
+      "overviewOn": "Die KI darf Notizen ändern und anlegen; Löschen fragt weiter.",
+      "changed": "Geändert: {{list}}",
+      "notes_one": "{{count}} Notiz",
+      "notes_other": "{{count}} Notizen",
+      "made_one": "{{count}} neu",
+      "made_other": "{{count}} neu",
+      "isNew": "neu",
+      "undoAll": "Alle zurücknehmen",
+      "view": "Ansehen",
+      "undo": "Rückgängig",
+      "undone": "Zurückgenommen",
+      "undoneToast_one": "{{count}} Änderung zurückgenommen.",
+      "undoneToast_other": "{{count}} Änderungen zurückgenommen.",
+      "changedSince": "„{{name}}“ hat sich seitdem geändert. Vergleiche die Fassungen, statt sie zu überschreiben.",
+      "compare": "Vergleichen",
+      "undoFailed": "„{{name}}“ ließ sich nicht zurücknehmen.",
+      "fallback": {
+        "unsaved": "„{{name}}“ war im Editor offen und nicht gespeichert — dort liegt die Änderung als Vorschlag.",
+        "conflict": "„{{name}}“ hat einen offenen Konflikt — dort liegt die Änderung als Vorschlag.",
+        "changed": "„{{name}}“ hat sich währenddessen geändert — dort liegt die Änderung als Vorschlag.",
+        "rights": "„{{name}}“ darf hier nicht geändert werden — dort liegt die Änderung als Vorschlag.",
+        "snapshot": "Von „{{name}}“ ließ sich vorher keine Fassung sichern — dort liegt die Änderung als Vorschlag.",
+        "failed": "„{{name}}“ ließ sich nicht direkt ändern — dort liegt die Änderung als Vorschlag."
+      },
+      "fallbackDraft": "„{{name}}“ ließ sich nicht direkt anlegen — es liegt als Entwurf bereit.",
+      "overviewFolders": "Die Routine darf in Ordnern mit „Ohne Nachfrage ändern“ Notizen ändern und anlegen — sonst nur lesen."
     }
   },
   "settingsSync": {

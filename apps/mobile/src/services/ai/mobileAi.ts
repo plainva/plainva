@@ -68,6 +68,7 @@ import { useMobileEmbeddings } from "./mobileEmbeddings";
 import { useMobileGists } from "./mobileGists";
 import { mobileDraftCreator, mobileProposals, mobileWriteDeps, type MobileDraftNavigation } from "./mobileAiWrites";
 import { mobileScriptKeys } from "./mobileScriptKeys";
+import { requestNoteHistory } from "../noteHistoryRequest";
 import { syncSoon } from "../syncService";
 
 /**
@@ -573,6 +574,12 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       // e-mail or an appointment (P5-6), the way to the phone's own composer and event sheet.
       creates: mobileDraftCreator(vault, vaultPolicy, () => navRef.current),
       proposals: () => mobileProposals(vault),
+      // The note's version history, as its context sheet shows it (plan "KI direkt schreiben": "Compare" after an Undo):
+      // the note opens, and its screen opens the sheet at "History".
+      showVersions: (path) => {
+        requestNoteHistory(vault.vaultId, path);
+        navRef.current.openNote(path);
+      },
     });
     currentPolicy = vaultPolicy;
     setPolicy(vaultPolicy);

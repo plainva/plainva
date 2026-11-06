@@ -659,6 +659,16 @@ Decision 6 holds that the linter does not depend on parsing Markdown. It still r
 
    Accepted with it: a note that holds such a tag has more of its own text linted when an assistant edits it, and the proposal shows that. A `<style>` of the user's, the way some Obsidian users style a single note, is written as text when an assistant edits after it.
 
+## Addendum 2026-11-06: changes the user lets apply directly
+
+Until now no writing tool changed the vault (§2): a change of a note was a suggestion round, something new a draft, a rename, a move or a deletion a plan. The user can now let changes apply directly (plan "KI direkt schreiben"): per conversation with the chip **Apply directly**, which holds for that conversation only and is off after a restart, and per folder with the rule **Change without asking** (`write: direct` in `.agent/policy.yml`; `write: ask` takes it back below). Both are off by default.
+
+1. **A third level beside `propose` and `plan`: `direct`** (`writeLevel` in `packages/core/src/ai/tools.ts`). It covers `propose_edit`, `set_property`, `create_note`, `create_entry`, `create_task` and `add_journal_entry` (`DIRECT_TOOL_NAMES`). Rename, move and delete stay plans that ask; a note's own privacy rule stays a question; an e-mail and an appointment stay drafts.
+2. **The net comes first.** A direct change goes through the chain's entry for replacing a text somebody keeps a backup of (`replaceVaultText`, `packages/core/src/ai/writes/direct.ts`): a version of the note is kept first whatever the snapshot interval says, the change lands only on the note exactly as the assistant read it, in the file's own shape, and never on a note with an open conflict. A note open with unsaved keystrokes, a note changed meanwhile, a version that cannot be kept and a write the vault refuses fall back to the suggestion, and the tool tells the model why. The assistant's text is kept as a version of its own and the history marks it **AI** (`.plainva/backups/ai-versions.json`, beside the snapshots).
+3. **Undo.** The run records one line per note (`RunWrites.applied`). Undo puts the version back only while the note is what the assistant left; otherwise nothing is overwritten and the comparison is offered. A note the assistant made is taken away with the net of every deletion.
+4. **Programs outside stay proposers** (E4): an external agent, a client of Plainva's MCP server and the actions on a selection never carry a direct leave; their runs have no `WriteRun.direct`.
+5. **The Rule of Two is unchanged** for a run a person watches: a direct write is the user's standing yes for that conversation or folder, given in advance where a suggestion's yes is given afterwards.
+
 ## Links
 
 - ADR 0017, ADR 0018, ADR 0022; `packages/ui/src/services/commandRegistry.ts`;

@@ -115,6 +115,11 @@ export interface AiSendOverviewProps {
   preview?: { title: string };
   /** After the answer: the run's snapshot (plan KI-Harness P9-2) — versions, tools, result, and the way to ask another model. */
   snapshot?: RunSnapshotView;
+  /**
+   * "Apply directly" (plan "KI direkt schreiben"): `chat` where the user switched it on for the conversation, `folders`
+   * where a routine changes notes in the folders whose rule lets it. Said before sending, in one line.
+   */
+  direct?: "chat" | "folders";
 }
 
 /** A page as a row names it: without the scheme every address shares. */
@@ -129,7 +134,7 @@ function useSkillTitle(): (id: string, name: string) => string {
   };
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind, external, externalCalls, preview, snapshot }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind, external, externalCalls, preview, snapshot, direct }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
   const replayButton = useRef<HTMLButtonElement>(null);
   const [replayOpen, setReplayOpen] = useState(false);
@@ -470,6 +475,13 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           <>
             <dt>{t("ai.overview.further")}</dt>
             <dd data-testid="ai-overview-further">{furtherLines.join(" · ")}</dd>
+          </>
+        )}
+        {/* Before sending: that the AI's changes are written at once (plan "KI direkt schreiben"), and what still asks. */}
+        {direct && (asking || preview) && (
+          <>
+            <dt>{t("ai.direct.overview")}</dt>
+            <dd data-testid="ai-overview-direct">{direct === "chat" ? t("ai.direct.overviewOn") : t("ai.direct.overviewFolders")}</dd>
           </>
         )}
         {/* Before sending: that the conversation may use the internet, and for which sites it will not ask. */}

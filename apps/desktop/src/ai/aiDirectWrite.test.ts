@@ -112,6 +112,34 @@ describe("Apply directly in the conversation", () => {
     expect(await vault.disk("Inbox/Rates.md")).toBeNull();
   });
 
+  it("can be switched on while the conversation goes on: the next change is written, the earlier one stays a suggestion", async () => {
+    const vault = await gateVault({ "Projects/Offer.md": OFFER }, { direct: {} });
+    const { s } = await gateSession(
+      [
+        turn({ calls: [viaDispatch("c1", "propose_edit", RAISE)] }),
+        turn({ text: "Proposed." }),
+        turn({ calls: [viaDispatch("c2", "propose_edit", { path: "Projects/Offer.md", append: "Valid for 2027." })] }),
+        turn({ text: "Done." }),
+      ],
+      vault,
+    );
+    expect(s.directOffer()).toBe(true);
+    await s.send("Raise the day rate.");
+    expect(s.getState().active!.runs[0]!.writes?.applied).toBeUndefined();
+    s.setDirect(true);
+    await s.send("And add the year.");
+    expect(s.getState().active!.runs[1]!.writes?.applied).toEqual([expect.objectContaining({ path: "Projects/Offer.md", by: "chat" })]);
+    expect(await vault.disk("Projects/Offer.md")).toBe(`${OFFER}\nValid for 2027.\n`);
+  });
+
+  it("is not offered where the shell cannot write directly", async () => {
+    const vault = await gateVault({ "Projects/Offer.md": OFFER });
+    const { s } = await gateSession([turn({ text: "Hi." })], vault);
+    expect(s.directOffer()).toBe(false);
+    s.setDirect(true);
+    expect(s.directOn()).toBe(false);
+  });
+
   it("still asks before a rename", async () => {
     const vault = await gateVault({ "Projects/Offer.md": OFFER }, { direct: {} });
     const { s } = await gateSession([turn({ calls: [viaDispatch("c1", "rename_note", { path: "Projects/Offer.md", title: "Offer 2027" })] }), turn({ text: "Done." })], vault);

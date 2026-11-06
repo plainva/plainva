@@ -2624,6 +2624,41 @@
       "failed": "The model on this device did not answer: {{reason}}",
       "clear": "Remove short summaries",
       "clearConfirm": "Remove every short summary of this vault? While they are on, they are written again."
+    },
+    "direct": {
+      "chip": "Apply directly",
+      "chipFolder": "Apply directly · folder",
+      "toggleOn": "On: the AI may change and create notes in this conversation.",
+      "toggleOff": "Off: the AI's changes wait for you as suggestions.",
+      "folderTip": "The folder of this note has “Change without asking”.",
+      "marking": "The AI may change and create notes in this conversation. Deleting, renaming and moving still ask.",
+      "overview": "Apply directly",
+      "overviewOn": "The AI may change and create notes; deleting still asks.",
+      "changed": "Changed: {{list}}",
+      "notes_one": "{{count}} note",
+      "notes_other": "{{count}} notes",
+      "made_one": "{{count}} new",
+      "made_other": "{{count}} new",
+      "isNew": "new",
+      "undoAll": "Undo all",
+      "view": "View",
+      "undo": "Undo",
+      "undone": "Undone",
+      "undoneToast_one": "{{count}} change undone.",
+      "undoneToast_other": "{{count}} changes undone.",
+      "changedSince": "“{{name}}” has changed since. Compare the versions instead of overwriting them.",
+      "compare": "Compare",
+      "undoFailed": "“{{name}}” could not be undone.",
+      "fallback": {
+        "unsaved": "“{{name}}” was open in the editor with unsaved changes — the change waits there as a suggestion.",
+        "conflict": "“{{name}}” has an open conflict — the change waits there as a suggestion.",
+        "changed": "“{{name}}” changed in the meantime — the change waits there as a suggestion.",
+        "rights": "“{{name}}” may not be changed here — the change waits there as a suggestion.",
+        "snapshot": "No version of “{{name}}” could be kept first — the change waits there as a suggestion.",
+        "failed": "“{{name}}” could not be changed directly — the change waits there as a suggestion."
+      },
+      "fallbackDraft": "“{{name}}” could not be created directly — it waits as a draft.",
+      "overviewFolders": "The routine may change and create notes in folders with “Change without asking” — elsewhere it only reads."
     }
   },
   "settingsSync": {

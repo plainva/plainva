@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookMarked, CalendarPlus, Check, Database, Eraser, EyeOff, FilePlus2, GraduationCap, ListChecks, Mail, NotebookPen, PencilLine, ScrollText, TriangleAlert, Unlink, X } from "lucide-react";
-import { machineAuthorKind, machineAuthorSubject, type MemoryPlace, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
+import { BookMarked, CalendarPlus, Check, Database, Eraser, EyeOff, FilePlus2, GraduationCap, Info, ListChecks, Mail, NotebookPen, PencilLine, ScrollText, TriangleAlert, Undo2, Unlink, X, Zap } from "lucide-react";
+import { machineAuthorKind, machineAuthorSubject, type AppliedWrite, type MemoryPlace, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -410,13 +410,73 @@ export interface AiRunWritesProps {
   onDiscard(id: string): void;
   taskList?: string | null;
   touch?: boolean;
+  /**
+   * "Undo" of what the run changed directly (plan "KI direkt schreiben", W2): one note, or all of them where no path
+   * is named. Absent where the surface offers no way back — the list then only says what was changed.
+   */
+  onUndo?(path?: string): void;
+}
+
+/**
+ * What a run changed directly (plan "KI direkt schreiben", W2), under its answer: "Changed: 3 notes, 1 new", each
+ * note with "View" and "Undo", and "Undo all" while more than one can still be taken back.
+ */
+function AiAppliedList({ applied, busy, onOpenNote, onUndo }: { applied: readonly AppliedWrite[]; busy: boolean; onOpenNote(path: string): void; onUndo?(path?: string): void }) {
+  const { t } = useTranslation();
+  const changed = applied.filter((entry) => !entry.created).length;
+  const made = applied.length - changed;
+  const list = [changed ? t("ai.direct.notes", { count: changed }) : "", made ? t("ai.direct.made", { count: made }) : ""].filter(Boolean).join(", ");
+  const open = applied.filter((entry) => !entry.undone);
+  const what = (entry: AppliedWrite) =>
+    entry.created
+      ? t("ai.direct.isNew")
+      : [entry.passages ? t("ai.write.passages", { count: entry.passages }) : "", entry.properties ? t("ai.write.properties", { count: entry.properties }) : ""].filter(Boolean).join(", ");
+  return (
+    <>
+      <div className="pv-ai-actrow" data-testid="ai-direct-changed">
+        <span className="pv-ai-capture">
+          <Zap size={ICON.meta} aria-hidden="true" />
+          {t("ai.direct.changed", { list })}
+        </span>
+        {onUndo && open.length > 1 && (
+          <Button size="sm" variant="ghost" icon={<Undo2 size={ICON.meta} />} disabled={busy} onClick={() => onUndo()} data-testid="ai-direct-undo-all">
+            {t("ai.direct.undoAll")}
+          </Button>
+        )}
+      </div>
+      {applied.map((entry) => (
+        <div key={entry.path} className="pv-ai-actrow" data-testid="ai-direct-row" data-path={entry.path}>
+          <span className="pv-ai-capture">{[noteName(entry.path), what(entry)].filter(Boolean).join(" · ")}</span>
+          {entry.undone ? (
+            <span className="pv-ai-capture" data-testid="ai-direct-undone">
+              <Check size={ICON.meta} aria-hidden="true" />
+              {t("ai.direct.undone")}
+            </span>
+          ) : (
+            <>
+              <Button size="sm" variant="ghost" onClick={() => onOpenNote(entry.path)} data-testid="ai-direct-view">
+                {t("ai.direct.view")}
+              </Button>
+              {onUndo && (
+                <Button size="sm" variant="ghost" icon={<Undo2 size={ICON.meta} />} disabled={busy} onClick={() => onUndo(entry.path)} data-testid="ai-direct-undo">
+                  {t("ai.direct.undo")}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      ))}
+    </>
+  );
 }
 
 /** Under an answer: the notes its run laid a proposal on, and its drafts — waiting, created or discarded. */
-export function AiRunWrites({ writes, state, canCreate, busy, onOpenNote, onCreate, onDiscard, taskList, touch }: AiRunWritesProps) {
+export function AiRunWrites({ writes, state, canCreate, busy, onOpenNote, onCreate, onDiscard, taskList, touch, onUndo }: AiRunWritesProps) {
   const { t } = useTranslation();
   return (
     <>
+      {/* Changed directly (plan "KI direkt schreiben"): first, since it already happened. */}
+      {writes.applied && writes.applied.length > 0 && <AiAppliedList applied={writes.applied} busy={busy} onOpenNote={onOpenNote} {...(onUndo ? { onUndo } : {})} />}
       {writes.rounds.map((round) => {
         const what = [round.blocks ? t("ai.write.passages", { count: round.blocks }) : "", round.properties ? t("ai.write.properties", { count: round.properties }) : ""].filter(Boolean).join(", ");
         return (
@@ -432,6 +492,13 @@ export function AiRunWrites({ writes, state, canCreate, busy, onOpenNote, onCrea
                 {t("ai.write.missingLinks", { names: missingNames(round.missing) })}
               </span>
             )}
+            {/* A change that could have gone directly and is a suggestion after all: why (plan "KI direkt schreiben"). */}
+            {round.fallback && (
+              <span className="pv-ai-runline pv-ai-capture pv-ai-runline--below" data-testid="ai-direct-fallback">
+                <Info size={ICON.meta} aria-hidden="true" />
+                {t(`ai.direct.fallback.${round.fallback}`, { name: noteName(round.path) })}
+              </span>
+            )}
             {round.withheld && round.withheld.length > 0 && (
               <span className="pv-ai-runline pv-ai-capture pv-ai-runline--below" data-testid="ai-proposed-withheld">
                 <EyeOff size={ICON.meta} aria-hidden="true" />
@@ -443,6 +510,14 @@ export function AiRunWrites({ writes, state, canCreate, busy, onOpenNote, onCrea
       })}
       {writes.drafts.map((entry) => {
         const waiting = state.drafts.find((draft) => draft.id === entry.id);
+        // A draft that could have been made directly: why it waits after all, above its card.
+        const why = entry.fallback ? (
+          <span key={`${entry.id}-why`} className="pv-ai-runline pv-ai-capture pv-ai-runline--below" data-testid="ai-direct-fallback">
+            <Info size={ICON.meta} aria-hidden="true" />
+            {t("ai.direct.fallbackDraft", { name: entry.title })}
+          </span>
+        ) : null;
+        if (why) return <Fragment key={entry.id}>{why}{waiting ? <AiDraftCard draft={waiting} canCreate={canCreate} busy={busy} onCreate={onCreate} onDiscard={onDiscard} taskList={taskList} touch={touch} /> : null}</Fragment>;
         if (waiting) return <AiDraftCard key={entry.id} draft={waiting} canCreate={canCreate} busy={busy} onCreate={onCreate} onDiscard={onDiscard} taskList={taskList} touch={touch} />;
         const done = state.done.find((outcome) => outcome.id === entry.id);
         // Neither waiting nor decided here: laid down on another device, or long ago. Nothing is claimed about it.

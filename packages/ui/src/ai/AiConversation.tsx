@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, Ban, Check, ChevronDown, CircleAlert, Copy, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, MoreHorizontal, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square } from "lucide-react";
+import { ArrowLeftRight, Ban, Check, ChevronDown, CircleAlert, Copy, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, MoreHorizontal, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square, Zap } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
@@ -27,7 +27,7 @@ import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
 import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
 import { requestAiSettingsIntent } from "./aiSetup";
-import type { AiDress } from "./aiSession";
+import type { AiDress, AiSession } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
 import type { McpPromptReview } from "./mcpSession";
 import { scriptToolLabel } from "./scriptsWorkshop";
@@ -136,6 +136,25 @@ export function AiWorkingLine({ here }: { here: boolean }) {
   );
 }
 
+/**
+ * The folder whose rule lets a change of the note at `path` go without asking (plan "KI direkt schreiben", W3), asked
+ * of the vault's rules; null for none, and while it is asked.
+ */
+function useDirectFolder(session: AiSession | null, path: string | null): string | null {
+  const [found, setFound] = useState<{ path: string; folder: string | null } | null>(null);
+  useEffect(() => {
+    if (!path || !session) return;
+    let alive = true;
+    void session.directFolder(path).then((folder) => {
+      if (alive) setFound({ path, folder });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session, path]);
+  return found && found.path === path ? found.folder : null;
+}
+
 export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection, start, onOpenRoomy }: AiConversationProps) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
@@ -215,6 +234,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   // "Create" on a draft makes the thing and opens it, like a note the user made themselves.
   const draftActions = useDraftActions(session, onOpenCreated ?? onOpenNote);
 
+  // The folder rule of the open note ("Change without asking", plan "KI direkt schreiben"): asked before any early return.
+  const folderOfNote = useDirectFolder(session ?? null, activeNote?.path ?? null);
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {
@@ -285,6 +306,21 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const toggleStyle = () => {
     if (active) toast.info(t("ai.style.fixed"));
     else session.setDraftStyle(!state.draftStyle);
+  };
+  // "Apply directly" (plan "KI direkt schreiben", W2): offered where this shell can write directly and the conversation
+  // carries the writing tools; switched per conversation, also while it goes on. Where the open note's folder lets
+  // changes go without asking, the chip says so — that holds there whether it is on or not.
+  const directOffer = session.directOffer();
+  const directOn = directOffer && (active ? state.directChats.includes(active.id) : state.draftDirect);
+  const directFolder = directOffer ? folderOfNote : null;
+  const toggleDirect = () => session.setDirect(!directOn);
+  /** Takes back what a run changed directly — one note, or all of them —, and says what became of each. */
+  const undoDirect = async (runIndex: number, path?: string) => {
+    const report = await session.undoDirect(runIndex, path);
+    if (report.undone.length) toast.success(t("ai.direct.undoneToast", { count: report.undone.length }));
+    const name = (note: string) => note.slice(note.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+    for (const note of report.changed) toast.info(t("ai.direct.changedSince", { name: name(note) }), { label: t("ai.direct.compare"), run: () => session.showVersions(note) });
+    for (const note of report.failed) toast.error(t("ai.direct.undoFailed", { name: name(note) }));
   };
   /** An address the model put together itself: it stood nowhere before the model wrote it. */
   const composed = (url: string) => (known ? addressOrigin(url, known) === "model" && !requested.has(comparableAddress(url) ?? "") : false);
@@ -548,7 +584,18 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             {uncited && <p className="pv-ai-nocite">{t("ai.noCitation")}</p>}
             {/* What the run laid down for the user to decide (plan P5): the notes that carry its proposals, and its drafts. */}
             {item.run.writes && (
-              <AiRunWrites writes={item.run.writes} state={state.drafts} canCreate={draftActions.canCreate} busy={draftActions.busy || running} onOpenNote={onOpenNote} onCreate={draftActions.create} onDiscard={draftActions.discard} taskList={draftActions.taskList} touch={touch} />
+              <AiRunWrites
+                writes={item.run.writes}
+                state={state.drafts}
+                canCreate={draftActions.canCreate}
+                busy={draftActions.busy || running}
+                onOpenNote={onOpenNote}
+                onCreate={draftActions.create}
+                onDiscard={draftActions.discard}
+                taskList={draftActions.taskList}
+                touch={touch}
+                onUndo={(path) => void undoDirect(active ? active.runs.indexOf(item.run) : -1, path)}
+              />
             )}
             {/* Under an answer, what can be done with it (plan KI-Oberflächen K8): copy it, keep it as a note, and the rest
                 in "…"; beside it the one quiet line of what went where, with the details on request. */}
@@ -675,6 +722,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         {active && withStyle && (
           <span className="pv-ai-marking-web" data-testid="ai-style-marking">
             {t("ai.style.marking", { count: styleFeatures })}
+          </span>
+        )}
+        {/* "Apply directly" (plan "KI direkt schreiben"): said for as long as it is on, before the first message too. */}
+        {directOn && (
+          <span className="pv-ai-marking-web" data-testid="ai-direct-marking">
+            {t("ai.direct.marking")}
           </span>
         )}
         {/* Fully local (plan P7): said for as long as it holds, wherever a conversation is shown. */}
@@ -910,6 +963,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             onOpenNote={onOpenNote}
             everyRequest={{ value: state.settings.confirmEveryRequest, onChange: (value) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: value })) }}
             touch={touch}
+            {...(directOn ? { direct: "chat" as const } : {})}
           />
         )}
         {/* One page or one search waits for an answer (plan P4): asked where the send overview is asked. */}
@@ -1048,6 +1102,18 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
           {!active && state.style.features.length > 0 && (
             <Chip size={chipSize} icon={<Signature size={ICON.meta} />} selected={withStyle} onClick={toggleStyle} disabled={running} tip={withStyle ? t("ai.style.toggleOn") : t("ai.style.toggleOff")} testId="ai-style-toggle">
               {t("ai.style.chip")}
+            </Chip>
+          )}
+          {directOffer && (
+            <Chip
+              size={chipSize}
+              icon={<Zap size={ICON.meta} />}
+              selected={directOn || directFolder !== null}
+              onClick={toggleDirect}
+              tip={directOn ? t("ai.direct.toggleOn") : directFolder !== null ? t("ai.direct.folderTip") : t("ai.direct.toggleOff")}
+              testId="ai-direct-toggle"
+            >
+              {directFolder !== null && !directOn ? t("ai.direct.chipFolder") : t("ai.direct.chip")}
             </Chip>
           )}
           {!side && (

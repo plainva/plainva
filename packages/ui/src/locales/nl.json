@@ -2624,6 +2624,41 @@
       "failed": "Het model op dit apparaat gaf geen antwoord: {{reason}}",
       "clear": "Samenvattingen verwijderen",
       "clearConfirm": "Alle samenvattingen van deze vault verwijderen? Zolang ze aan staan, worden ze opnieuw geschreven."
+    },
+    "direct": {
+      "chip": "Direct toepassen",
+      "chipFolder": "Direct toepassen · map",
+      "toggleOn": "Aan: de AI mag in dit gesprek notities wijzigen en aanmaken.",
+      "toggleOff": "Uit: wijzigingen van de AI wachten als voorstel op jou.",
+      "folderTip": "De map van deze notitie heeft “Wijzigen zonder te vragen”.",
+      "marking": "De AI mag in dit gesprek notities wijzigen en aanmaken. Verwijderen, hernoemen en verplaatsen vragen nog steeds.",
+      "overview": "Direct toepassen",
+      "overviewOn": "De AI mag notities wijzigen en aanmaken; verwijderen vraagt nog steeds.",
+      "changed": "Gewijzigd: {{list}}",
+      "notes_one": "{{count}} notitie",
+      "notes_other": "{{count}} notities",
+      "made_one": "{{count}} nieuw",
+      "made_other": "{{count}} nieuw",
+      "isNew": "nieuw",
+      "undoAll": "Alles terugdraaien",
+      "view": "Bekijken",
+      "undo": "Ongedaan maken",
+      "undone": "Teruggedraaid",
+      "undoneToast_one": "{{count}} wijziging teruggedraaid.",
+      "undoneToast_other": "{{count}} wijzigingen teruggedraaid.",
+      "changedSince": "“{{name}}” is sindsdien gewijzigd. Vergelijk de versies in plaats van ze te overschrijven.",
+      "compare": "Vergelijken",
+      "undoFailed": "“{{name}}” kon niet worden teruggedraaid.",
+      "fallback": {
+        "unsaved": "“{{name}}” stond open in de editor met niet-opgeslagen wijzigingen — de wijziging wacht daar als voorstel.",
+        "conflict": "“{{name}}” heeft een open conflict — de wijziging wacht daar als voorstel.",
+        "changed": "“{{name}}” is intussen gewijzigd — de wijziging wacht daar als voorstel.",
+        "rights": "“{{name}}” mag hier niet worden gewijzigd — de wijziging wacht daar als voorstel.",
+        "snapshot": "Er kon vooraf geen versie van “{{name}}” worden bewaard — de wijziging wacht daar als voorstel.",
+        "failed": "“{{name}}” kon niet direct worden gewijzigd — de wijziging wacht daar als voorstel."
+      },
+      "fallbackDraft": "“{{name}}” kon niet direct worden aangemaakt — het wacht als concept.",
+      "overviewFolders": "De routine mag in mappen met “Wijzigen zonder te vragen” notities wijzigen en aanmaken — elders leest ze alleen."
     }
   },
   "settingsSync": {
