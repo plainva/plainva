@@ -1,8 +1,8 @@
-import { BatchOptions, BatchStatement, IDatabaseAdapter } from "./IDatabaseAdapter.js";
+import { BatchStatement, SqlStatements } from "./IDatabaseAdapter.js";
 
 /**
  * Runs an ordered list of write statements atomically when the adapter offers a
- * native transactional batch ({@link IDatabaseAdapter.runBatch}) — BEGIN/COMMIT
+ * native transactional batch ({@link SqlStatements.runBatch}) — BEGIN/COMMIT
  * with ROLLBACK on error — and otherwise replays them one statement at a time.
  *
  * The fallback is exactly the pre-batch behavior (one auto-committed execute per
@@ -13,19 +13,18 @@ import { BatchOptions, BatchStatement, IDatabaseAdapter } from "./IDatabaseAdapt
  * The statements must be pure writes (no reads) whose relative order is enough —
  * see the indexer's cold-full-scan, where reads are pre-loaded before the batch.
  *
- * A caller inside the body of its own `transaction()` passes
- * `{ inOpenTransaction: true }` ({@link BatchOptions}): where transactions wait
- * for one another, a batch without that word would wait for its own caller.
+ * A caller inside the body of its own `transaction()` passes the body's handle
+ * (`tx`): its statements then run in that transaction. Sent to the adapter
+ * itself from there, the batch would be a transaction of its own and wait for
+ * its own caller (D3).
  */
 export async function runStatementsAtomic(
-  db: IDatabaseAdapter,
+  db: SqlStatements,
   statements: BatchStatement[],
-  options?: BatchOptions
 ): Promise<void> {
   if (statements.length === 0) return;
   if (db.runBatch) {
-    if (options) await db.runBatch(statements, options);
-    else await db.runBatch(statements);
+    await db.runBatch(statements);
     return;
   }
   for (const s of statements) {

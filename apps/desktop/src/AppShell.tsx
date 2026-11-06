@@ -144,6 +144,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       window.removeEventListener("plainva-credentials-saved", refresh);
     };
   }, [vaultPath, pimRuntime]);
+  // One mailbox stored several times under one id folds back into one row
+  // when the vault opens (finding 2026-11-06, M2; the phone does the same in
+  // its vault boot).
+  useEffect(() => {
+    if (!vaultPath) return;
+    void import("@plainva/ui/mail").then((m) => m.healMailAccounts(vaultPath)).catch(() => undefined);
+  }, [vaultPath]);
   // Sync status is NOT read here (2026-07-06 fix): the worker flips
   // idle→syncing→idle every 15 s poll, and a real network cycle (Dropbox/…)
   // outlasts the anti-flicker delay, so the display value genuinely changes

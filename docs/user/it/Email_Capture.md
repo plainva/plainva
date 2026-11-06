@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-11-05
+Ultimo aggiornamento: 2026-11-06
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -90,7 +90,9 @@ Nella pagina e-mail del suo account — **Account cloud** → l'account → **E-
 - **Firma per indirizzo** — quando hai altri indirizzi mittente, sopra il campo compare la scelta **Firma per**. «Predefinita (tutti gli indirizzi)» è la firma dell'account; scegli un indirizzo per scriverne una solo per lui. Gli indirizzi senza firma propria continuano a usare quella predefinita, e cambiare mittente mentre scrivi inserisce quella giusta — anche tra due indirizzi dello stesso account. Se svuoti il campo di un indirizzo, torna alla predefinita.
 - **Altri indirizzi mittente** — uno per riga, ad es. `Nome <alias@example.org>`. Il campo **Da** elenca allora indirizzi anziché account: prima quello della casella, poi i suoi alias. Se un indirizzo venga davvero accettato lo decide il tuo provider: un server che rifiuta l'invio con un alias lo dice, e Plainva mostra quell'errore invece di inviare in silenzio con un altro nome.
 
-**Da quale casella parte un messaggio.** Con più di una casella, **Da** si apre sulla casella da cui stai scrivendo, con la sua firma. **Rispondi**, **Rispondi a tutti** e **Inoltra** partono dalla casella in cui si trova il messaggio (in **Tutte le caselle di posta**: quella della riga che hai aperto). **Nuovo messaggio** parte dalla casella aperta nella scheda e-mail. Il messaggio che una mailing list chiede con **Disiscriviti** parte dalla casella a cui la lista ha scritto. Ciò che inizia fuori dalla scheda e-mail — **Questa nota via e-mail** o un invito dal calendario — parte dalla tua prima casella; una nota creata con **Rispondi come nota** parte dalla casella che indica (`mailbox:`). Puoi cambiare **Da** prima di inviare.
+**Da quale casella parte un messaggio.** Con più di una casella, **Da** si apre sulla casella da cui stai scrivendo, con la sua firma. **Rispondi**, **Rispondi a tutti** e **Inoltra** partono dalla casella in cui si trova il messaggio (in **Tutte le caselle di posta**: quella della riga che hai aperto). **Nuovo messaggio** parte dalla casella aperta nella scheda e-mail. Il messaggio che una mailing list chiede con **Disiscriviti** parte dalla casella a cui la lista ha scritto. Ciò che inizia fuori dalla scheda e-mail — **Questa nota via e-mail** o un invito dal calendario — parte dalla tua casella predefinita; una nota creata con **Rispondi come nota** parte dalla casella che indica (`mailbox:`). Puoi cambiare **Da** prima di inviare.
+
+**Casella predefinita.** Con più di una casella, una di esse porta **Predefinita** in **E-mail** > **Caselle di posta**: E-mail la mostra per prima, e ciò che inizia senza una casella propria parte da lei. Per sceglierne un’altra, apri il menu della sua riga e scegli **Imposta come predefinita** (sul telefono, con il pulsante **…** della riga). Senza scelta, e quando la casella predefinita viene rimossa o la sua posta è disattivata, vale la prima casella dell’elenco. La scelta viaggia con il vault sugli altri dispositivi.
 
 ## Azioni sulla casella
 

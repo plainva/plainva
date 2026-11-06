@@ -15,6 +15,7 @@ import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport"
 import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { getAppVersion } from "./services/whatsNew";
 import { installDiscardQuestion } from "./services/discardQuestionInstall";
+import { installDeletionNetQuestion } from "./services/deletionNetInstall";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
@@ -97,6 +98,8 @@ setPlatformServices({
 });
 // "Discard your input?" for every dialog that holds typed input (finding 2026-10-22).
 installDiscardQuestion();
+// "Delete without a backup?" where a deletion has no net (D1, data-safety plan 2026-11-06).
+installDeletionNetQuestion();
 
 // The mail seam (feinplan G0.1): IMAP/SMTP go to the Rust commands, Graph HTTP
 // to the Tauri http plugin with the Origin-free relay for token POSTs. The

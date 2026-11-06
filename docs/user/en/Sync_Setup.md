@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-11-03
+Last updated: 2026-11-06
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -163,6 +163,8 @@ An account you remove stays removed: the deletion travels through the settings s
 
 If **Review duplicate accounts** appears under **Cloud accounts**, Plainva deliberately does not guess from the name. Choose **Keep this account** on the correct card. The confirmation names the target, sources and affected services, and creates a backup on this device first. **Cancel** changes nothing. Merging removes only orphaned local accounts, caches and credentials — nothing is deleted at the provider.
 
+If **Review duplicate mailboxes** appears, the same mailbox is stored under several entries. Each entry can carry its own sign-in on this device, so Plainva asks first. Choose **Keep this entry** on the one that should remain; each entry says which account uses it and whether it is signed in on this device. The others are folded into it: their name, signatures and sender addresses go to it where it has none, and the account's mail switches to it. Nothing is deleted at the provider. A mailbox stored more than once under the same entry is folded on its own when the vault opens.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Travels with the vault | Stays on this device |
@@ -201,6 +203,10 @@ The new sign-in does not cover every service. Your existing sign-ins were kept. 
 ## Google Drive: incomplete downloads
 
 When Google Drive temporarily limits requests, Plainva retries the download with a delay. A failed download is not treated as a missing file or a completed change. Existing local content and the confirmed sync state are kept; the next cycle retries the outstanding change. Other files that downloaded successfully remain available. Missing permissions or other permanent refusals appear as errors with the file path and cause. This applies on desktop and mobile.
+
+## Google Drive: files Drive no longer reports
+
+Sometimes Google Drive no longer lists a file that you changed on this device, and Plainva cannot ask Drive about that file directly because it has no ID for it yet. Plainva first looks for the file by its exact name. If it finds exactly one, it remembers that file and asks Drive about it; if Drive says it is gone, the file is uploaded again like any changed file. If the name search finds nothing, Plainva does not know whether the file was deleted in Drive or only left out of the list, and it never deletes a file because Drive gave no answer. The file stays on this device with your changes, and the sync area shows **Google Drive no longer reports N files**: on the desktop with the list of files in the notice, on the phone as a notice that opens the list with **View**. **Upload again** sends one file as a new file, **Upload all again** all of them; if the old file still exists in Drive, it will be there twice afterwards. **Hide** puts the notice away until the set of files changes. This applies on desktop and mobile.
 
 ## Interrupted file transfers
 

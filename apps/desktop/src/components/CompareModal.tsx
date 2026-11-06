@@ -18,6 +18,7 @@ import {
   conflictOriginalPath,
   isImagePath,
   lineCount,
+  settleWithNet,
   toast,
   versionCopyPath,
   type CompareStats,
@@ -429,7 +430,8 @@ export const CompareModal: React.FC<{
     window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: target } }));
   };
 
-  const resolve = async (work: () => Promise<ConflictOutcome>) => {
+  /** `work` answers null where the person kept the copy at "Delete without a backup?" (D1): nothing changed. */
+  const resolve = async (work: () => Promise<ConflictOutcome | null>) => {
     if (resolving.current || !vaultAdapter || !conflictPath || !originalOfConflict || (!notText && copySnapshot.current === null)) return;
     resolving.current = true;
     setBusy(true);
@@ -441,6 +443,10 @@ export const CompareModal: React.FC<{
       // bytes that were seen — the byte-wise exits ask that themselves.
       if (!notText) await assertComparisonUnchanged(vaultAdapter, originalOfConflict, originalSnapshot.current, conflictPath, copySnapshot.current!);
       const outcome = await work();
+      if (outcome === null) {
+        setBusy(false);
+        return;
+      }
       tellEditorOf(originalOfConflict);
       onResolved?.(outcome);
     } catch (e) {
@@ -472,7 +478,7 @@ export const CompareModal: React.FC<{
       // What the copy replaces stays in the version history, whatever the
       // snapshot interval says: this write means to take a file's place.
       if (await vaultAdapter.exists(originalOfConflict)) await backupAdapter?.forceBackup(originalOfConflict);
-      await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "adopt" });
+      if (!(await settleWithNet((noNet) => settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "adopt", ...noNet })))) return null;
       toast.success(t("compare.resolvedAdopted"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "adopted", mergedContent: null, touched: [originalOfConflict, conflictPath] };
     });
@@ -489,7 +495,7 @@ export const CompareModal: React.FC<{
     });
     if (!ok) return;
     await resolve(async () => {
-      await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard", keepCopyAs: candidate });
+      if (!(await settleWithNet((noNet) => settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard", keepCopyAs: candidate, ...noNet })))) return null;
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
     });
@@ -505,7 +511,7 @@ export const CompareModal: React.FC<{
     });
     if (!ok) return;
     await resolve(async () => {
-      await settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard" });
+      if (!(await settleWithNet((noNet) => settleConflictCopy(vaultAdapter, originalOfConflict, conflictPath, seen, { disposition: "discard", ...noNet })))) return null;
       toast.success(t("compare.resolvedDiscarded"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "discarded", mergedContent: null, touched: [conflictPath] };
     });
@@ -533,7 +539,7 @@ export const CompareModal: React.FC<{
       // the note would otherwise overwrite the resolution a second later.
       // Checked and written in one step, for an open conflict's working copy
       // and a copy beside the note alike (`settleConflictText`, § 3.86 no. 8).
-      await settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "adopt", content: merged });
+      if (!(await settleWithNet((noNet) => settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "adopt", content: merged, ...noNet })))) return null;
       toast.success(rightEdited ? t("compare.resolvedMerged") : t("compare.resolvedAdopted"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: rightEdited ? "merged" : "adopted", mergedContent: merged, touched: [originalOfConflict, conflictPath] };
     });
@@ -554,7 +560,7 @@ export const CompareModal: React.FC<{
     await resolve(async () => {
       const session = differentTasks ? await vaultAdapter.getConflictSession?.(originalOfConflict) : null;
       if (differentTasks && session?.workingCopyPath !== conflictPath) await separateTaskConflict(vaultAdapter, originalOfConflict, originalSnapshot.current!, conflictPath, copySnapshot.current!, candidate);
-      else await settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "discard", keepCopyAs: candidate });
+      else if (!(await settleWithNet((noNet) => settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "discard", keepCopyAs: candidate, ...noNet })))) return null;
       toast.success(t("compare.resolvedKeptBoth", { name: candidate }));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "keptBoth", mergedContent: null, touched: [conflictPath, candidate] };
     });
@@ -572,7 +578,7 @@ export const CompareModal: React.FC<{
     });
     if (!ok) return;
     await resolve(async () => {
-      await settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "discard" });
+      if (!(await settleWithNet((noNet) => settleConflictText(vaultAdapter, originalOfConflict, conflictPath, { original: originalSnapshot.current, copy: copySnapshot.current! }, { disposition: "discard", ...noNet })))) return null;
       toast.success(t("compare.resolvedDiscarded"));
       return { originalPath: originalOfConflict, conflictPath, forkId, kind: "discarded", mergedContent: null, touched: [conflictPath] };
     });

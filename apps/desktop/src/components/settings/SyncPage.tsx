@@ -27,6 +27,7 @@ import {
   type CloudAccountRecord,
   type SyncDiagnostics,
   NameCollisionsNotice,
+  UnverifiedFilesNotice,
   resolveNameCollisionCases,
 } from "@plainva/ui";
 import { groupNameCollisions, type JournalCheckResult } from "@plainva/core";
@@ -55,7 +56,7 @@ import {
 import { EncryptionSetupModal } from "./EncryptionSetupModal";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { getSyncRootFolder } from "../../services/cloudAccountsActions";
-import { AccountMark, familyLabel } from "./cloudAccountsShared";
+import { AccountMark, accountDisplayName, familyLabel } from "./cloudAccountsShared";
 
 /**
  * The Sync settings page after the cloud-accounts split (mockup screen 5):
@@ -266,7 +267,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const connected = provider !== "none";
   // Registry label when known, family name otherwise — never the raw provider id.
   const accountName = filesAccount
-    ? filesAccount.label.trim() || familyLabel(filesAccount.family, filesAccount.flavor)
+    ? accountDisplayName(filesAccount)
     : connected
       ? familyLabel(familyOfSyncProvider(provider))
       : "";
@@ -519,6 +520,16 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
           })
         }
       />
+
+      {/* Files Google Drive no longer reports and that could not be asked about
+          (D7): kept as they are, named here, "Upload again" per file or all. */}
+      {syncSnapshot && (
+        <UnverifiedFilesNotice
+          paths={syncSnapshot.unverifiedFiles}
+          vaultKey={p.selectedVault}
+          onUploadAgain={async (paths) => (await syncWorker?.uploadUnverifiedAgain?.(paths)) ?? 0}
+        />
+      )}
 
       {/* "Connection" and "Behaviour" are one group since the cloud folder and
           the interval moved to the account's files page (B1, move 18): the

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { realSqlite } from "./helpers/realSqlite.js";
+import { beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
 import { migratePathIdentity, type PathIdentityReport } from "../src/db/pathIdentityMigration.js";
 
@@ -115,16 +115,11 @@ describe("path identity migration (ADR 0016)", () => {
   it("leaves everything as it was when interrupted, and finishes on the next start", async () => {
     await file(`${NFD}/a.md`);
     await state(`${NFD}/a.md`, "e1");
-    const failing: IDatabaseAdapter = {
-      ...db,
-      transaction: db.transaction.bind(db),
-      query: db.query.bind(db),
-      queryOne: db.queryOne.bind(db),
-      execute: async (sql: string, params?: any) => {
-        if (sql.startsWith("UPDATE sync_state")) throw new Error("app killed");
-        return db.execute(sql, params);
-      },
-    };
+    const failing: IDatabaseAdapter = { ...db };
+    // Every write: one sent to the adapter, and one through the transaction's handle (D3).
+    beforeEveryWrite(failing, (sql) => {
+      if (sql.startsWith("UPDATE sync_state")) throw new Error("app killed");
+    });
     await expect(migratePathIdentity(failing)).rejects.toThrow("app killed");
     expect(await paths(`SELECT path AS p FROM files`)).toEqual([`${NFD}/a.md`]);
     expect(await paths(`SELECT path AS p FROM sync_state`)).toEqual([`${NFD}/a.md`]);

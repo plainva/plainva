@@ -1,6 +1,6 @@
 # Comentários e sugestões
 
-Última revisão: 2026-11-02
+Última revisão: 2026-11-06
 
 Comentários e sugestões existem em **todo** cofre — com ou sem sincronização, com ou sem criptografia. Em um workspace criptografado são objetos assinados (veja [Segurança e compartilhamento](Security_and_Sharing.md)); em todos os outros levam o nome de **Seu nome (anotações e revisões)** nas configurações. Uma sugestão é um comentário com um texto de substituição: ambos passam pelo mesmo armazenamento, pela mesma coluna, pela mesma folha. Se o nome faltar, o Plainva pergunta uma vez no primeiro comentário; sem resposta, o dispositivo assina com o próprio rótulo (por exemplo “Dispositivo Windows 4f3a”). Suas próprias anotações aparecem como **Você**.
 
@@ -65,6 +65,8 @@ Antes de separar o arquivo danificado deste dispositivo, o Plainva lê o backup 
 ## Operações incompletas e decisões conflitantes
 
 O Plainva registra neste dispositivo o progresso de cada operação de comentários. Se o texto está salvo, mas falta atualizar o comentário, um aviso oferece **Tentar novamente**. A nova tentativa continua as etapas pendentes sem desfazer o texto salvo nem a digitação posterior. Uma rodada de sugestões parcialmente enviada continua com as mesmas propostas; alterações posteriores na sua cópia de trabalho permanecem sem envio.
+
+Um comentário que você está escrevendo não se perde ao sair da nota: fechar a aba, abrir outra nota na mesma aba ou voltar pergunta antes **Descartar o comentário?**; **Continuar escrevendo** volta a ele. Outro painel não pergunta.
 
 Se a nota mudou antes da confirmação do texto, abra **Comparar texto**. Compare a alteração planejada com o texto atual e edite a nota se necessário. A nova tentativa verifica novamente; um texto diferente nunca é substituído pela versão antiga.
 

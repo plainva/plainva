@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-11-05
+Última actualización: 2026-11-06
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -90,7 +90,9 @@ En la página de correo de su cuenta — **Cuentas en la nube** → la cuenta �
 - **Firma por dirección** — cuando tengas más direcciones de remitente, aparece el selector **Firma para** encima del campo. «Predeterminada (todas las direcciones)» es la firma de la cuenta; elige una dirección para escribir una solo para ella. Las direcciones sin firma propia siguen usando la predeterminada, y cambiar de remitente al redactar coloca la correcta, también entre dos direcciones de la misma cuenta. Si vacías el campo de una dirección, vuelve a la predeterminada.
 - **Direcciones de remitente adicionales** — una por línea, p. ej. `Nombre <alias@example.org>`. El campo **De** muestra entonces direcciones en vez de cuentas: primero la propia del buzón y después sus alias. Que una dirección se acepte realmente lo decide tu proveedor: un servidor que rechaza enviar con un alias lo dice, y Plainva muestra ese error en lugar de enviar en silencio con otro nombre.
 
-**Desde qué buzón sale un mensaje.** Con más de un buzón, **De** se abre con el buzón desde el que escribes, con su firma. **Responder**, **Responder a todos** y **Reenviar** parten del buzón en el que está el mensaje (en **Todas las bandejas de entrada**: el buzón de la fila que abriste). **Nuevo mensaje** parte del buzón que está abierto en la pestaña de correo. El mensaje que una lista de correo pide al **Darse de baja** parte del buzón al que escribió la lista. Lo que empieza fuera de la pestaña de correo — **Esta nota por correo** o una invitación desde el calendario — parte de tu primer buzón; una nota creada con **Responder como nota** parte del buzón que indica (`mailbox:`). Puedes cambiar **De** antes de enviar.
+**Desde qué buzón sale un mensaje.** Con más de un buzón, **De** se abre con el buzón desde el que escribes, con su firma. **Responder**, **Responder a todos** y **Reenviar** parten del buzón en el que está el mensaje (en **Todas las bandejas de entrada**: el buzón de la fila que abriste). **Nuevo mensaje** parte del buzón que está abierto en la pestaña de correo. El mensaje que una lista de correo pide al **Darse de baja** parte del buzón al que escribió la lista. Lo que empieza fuera de la pestaña de correo — **Esta nota por correo** o una invitación desde el calendario — parte de tu buzón predeterminado; una nota creada con **Responder como nota** parte del buzón que indica (`mailbox:`). Puedes cambiar **De** antes de enviar.
+
+**Buzón predeterminado.** Con más de un buzón, uno de ellos lleva **Predeterminado** en **Correo** > **Buzones**: Correo lo muestra primero, y lo que empieza sin un buzón propio parte de él. Para elegir otro, abre el menú de su fila y elige **Establecer como predeterminado** (en el teléfono, con el botón **…** de la fila). Sin elección, y cuando el buzón predeterminado se elimina o su correo está desactivado, se usa el primer buzón de la lista. La elección viaja con el vault a tus otros dispositivos.
 
 ## Acciones del buzón
 

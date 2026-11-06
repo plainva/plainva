@@ -7,7 +7,7 @@ import { join } from "node:path";
 import ts from "typescript";
 import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository,
-  VaultIndexer, VersionHistoryService, isOpenTaskState, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type TaskRecord,
+  VaultIndexer, VersionHistoryService, isOpenTaskState, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type SqlStatements, type TaskRecord,
 } from "@plainva/core";
 import { TaskMutationGate, bulkSetProperty, errorText, toggleTaskAtIndex, writeNoteProperty, type BulkSetResult } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../packages/core/src/vault/LocalVaultAdapter";
@@ -83,7 +83,7 @@ function queueing(db: IDatabaseAdapter): IDatabaseAdapter {
   let tail: Promise<unknown> = Promise.resolve();
   return {
     ...db,
-    transaction<T>(fn: () => Promise<T>): Promise<T> {
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
       const turn = tail.then(() => db.transaction(fn));
       tail = turn.catch(() => {});
       return turn;

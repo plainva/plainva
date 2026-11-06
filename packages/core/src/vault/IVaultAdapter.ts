@@ -1,4 +1,4 @@
-import type { ConflictBytesResolution, ConflictDiagnostic, ConflictEditSession, ConflictResolution, ConflictWriter, EditorWriteResult } from "./conflictSession.js";
+import type { ConflictBytesResolution, ConflictDiagnostic, ConflictEditSession, ConflictResolution, EditorWriteResult, PreservingConflictWriter } from "./conflictSession.js";
 
 export class VaultError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -49,7 +49,75 @@ export interface VaultFileInfo {
 
 /** Applies only to the successful delete call carrying it, never to a path's future contents. */
 export interface DeletionConfirmation {
-  confirmed: true;
+  /** The person confirmed this deletion: it reaches the other devices as one (`SyncQueue.queueDeletePaths`). */
+  confirmed?: true;
+  /**
+   * Delete even where no snapshot of what goes could be written first
+   * (`SnapshotBeforeDeleteError`). Set only after the person answered the
+   * question "Delete without a backup?" with "Delete anyway", or where what
+   * goes lies, checked, in another file — a conflict copy whose text took the
+   * note's place or a file of its own. The snapshot is still tried.
+   */
+  withoutSnapshot?: true;
+}
+
+/**
+ * Where a deletion has no net (D1 of the data-safety plan of 2026-11-06): a
+ * deletion that could not be undone is not carried out without a question.
+ *
+ * A net is the system's trash, or a snapshot in the version history written
+ * before the deletion. The phone has no trash, so "Deleted files" brings a
+ * file back from its snapshot; a desktop on a network share has none either.
+ * Where that snapshot could not be written — a full disk is enough —, the
+ * deletion stops here, with nothing deleted, and names what has no copy.
+ * Whoever can ask the person asks (`deleteWithSafetyNet`); whoever cannot (a
+ * background clean-up, the sync mirroring a deletion of another device) does
+ * not delete, and tries again another time.
+ */
+export class SnapshotBeforeDeleteError extends VaultError {
+  constructor(
+    /** What was to be deleted: a file or a folder. */
+    public readonly path: string,
+    /** The files that would be gone for good — `path` itself for a file, the uncovered ones below a folder. */
+    public readonly uncovered: readonly string[],
+    /** How many files the deletion would take: 1 for a file, 0 for a folder that could not be listed. */
+    public readonly total: number,
+    /** "no-trash": the storage has none (the phone); "trash-unavailable": the system's trash refused this item. */
+    public readonly net: "no-trash" | "trash-unavailable",
+    /** Whether `path` is a folder. */
+    public readonly folder: boolean = false,
+  ) {
+    super(`No backup could be written before deleting ${path} (${uncovered.length} of ${total} file(s) uncovered)`, "NO_SAFETY_NET");
+    this.name = "SnapshotBeforeDeleteError";
+  }
+}
+
+/** Whether `error` is a `SnapshotBeforeDeleteError` — also one rebuilt on the other side of a window bus. */
+export function isSnapshotBeforeDeleteError(error: unknown): error is SnapshotBeforeDeleteError {
+  return error instanceof SnapshotBeforeDeleteError
+    || (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "NO_SAFETY_NET" && Array.isArray((error as { uncovered?: unknown }).uncovered));
+}
+
+/**
+ * A deletion a person asked for, with the net rule (D1): `remove` is tried;
+ * where it has no net, `ask` puts the question "Delete without a backup?",
+ * and only a yes runs it again, with `withoutSnapshot`. Resolves whether it
+ * was deleted — false where the person kept it. Every other error goes on.
+ */
+export async function deleteWithSafetyNet(
+  remove: (confirmation: DeletionConfirmation) => Promise<void>,
+  ask: (refusal: SnapshotBeforeDeleteError) => Promise<boolean>,
+  confirmation: DeletionConfirmation = { confirmed: true },
+): Promise<boolean> {
+  try {
+    await remove(confirmation);
+    return true;
+  } catch (error) {
+    if (!isSnapshotBeforeDeleteError(error) || confirmation.withoutSnapshot) throw error;
+    if (!(await ask(error))) return false;
+    await remove({ ...confirmation, withoutSnapshot: true });
+    return true;
+  }
 }
 
 /**
@@ -113,7 +181,7 @@ export interface IVaultAdapter {
   getConflictSession?(path: string): Promise<ConflictEditSession | null>;
   listConflictSessions?(): Promise<ConflictEditSession[]>;
   listConflictDiagnostics?(): Promise<ConflictDiagnostic[]>;
-  preserveConflict?(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession>;
+  preserveConflict?(path: string, text: string, writer: PreservingConflictWriter): Promise<ConflictEditSession>;
   writeEditorText?(path: string, text: string, baseText: string | null): Promise<EditorWriteResult>;
   resolveConflict?(path: string, resolution: ConflictResolution): Promise<void>;
   /** The way out of an open conflict whose file is no text any more: byte for byte, by the hashes the comparison saw. */
@@ -185,6 +253,15 @@ export interface IVaultAdapter {
    * @throws VaultFileNotFoundError
    */
   deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void>;
+
+  /**
+   * Moves a file or folder into the system's trash. True where it went there
+   * (or was gone already); false where the trash is not available for it — a
+   * network share, a disabled trash — and it is still in place. Absent where
+   * the storage has no trash at all (the phone). The net rule of a deletion
+   * asks it first (`BackupVaultAdapter.deleteItem`).
+   */
+  moveToTrash?(path: string): Promise<boolean>;
 
   /**
    * Deletes a file only while it still holds the bytes whose sha256 (hex) is

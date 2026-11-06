@@ -1,5 +1,5 @@
 import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
-import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { BatchStatement, IDatabaseAdapter, SqlStatements } from "../db/IDatabaseAdapter.js";
 import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
 import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
 import { createYielder } from "./yielder.js";
@@ -22,9 +22,10 @@ const NUL = String.fromCharCode(0);
 /**
  * Minimal write sink. The cold full-scan (indexVaultFull) records its pure-write
  * statements into a buffer and flushes them as ONE atomic batch instead of issuing
- * one IPC execute() per row; every other path passes no writer and keeps writing
- * directly to the adapter. A stray execute during the scan's event-loop yields is
- * NOT captured — only the bulk helpers that receive the sink are redirected.
+ * one IPC execute() per row; every other path writes through the handle of its
+ * transaction (`IDatabaseAdapter.transaction`, D3). A stray execute during the
+ * scan's event-loop yields is NOT captured — only the bulk helpers that receive
+ * the sink are redirected.
  */
 type SqlWriter = { execute(query: string, params?: unknown[]): Promise<void> };
 async function sha256Hash(text: string): Promise<string> {
@@ -409,11 +410,11 @@ export class VaultIndexer {
    * An id is a key and nothing more — everything that refers to a row joins
    * through it.
    */
-  private async rowIdFor(path: string, lookups?: BulkIndexLookups): Promise<string> {
+  private async rowIdFor(path: string, sql: SqlStatements, lookups?: BulkIndexLookups): Promise<string> {
     const id = await this.generateFileId(path);
     const holder = lookups
       ? lookups.pathById.get(id)
-      : (await this.dbAdapter.queryOne<{ path: string }>(`SELECT path FROM files WHERE id = ?`, [id]))?.path;
+      : (await sql.queryOne<{ path: string }>(`SELECT path FROM files WHERE id = ?`, [id]))?.path;
     if (holder === undefined || holder === path) return id;
     return this.generateFileId(`${path}\u0000${holder}`);
   }
@@ -428,8 +429,8 @@ export class VaultIndexer {
    * large vault — and a file the app had moved in between was unknown to that
    * list: announced as new, for an upload nobody needed (finding 2026-10-12).
    */
-  private async loadBulkLookups(): Promise<BulkIndexLookups> {
-    const fileRows = await this.dbAdapter.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null }>(
+  private async loadBulkLookups(tx: SqlStatements): Promise<BulkIndexLookups> {
+    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null }>(
       `SELECT rowid, id, path, sync_state, ctime FROM files`
     );
     const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null }>();
@@ -441,7 +442,7 @@ export class VaultIndexer {
       if (r.id) pathById.set(r.id, r.path);
     }
 
-    const queueRows = await this.dbAdapter.query<{ file_path: string; new_path: string | null }>(
+    const queueRows = await tx.query<{ file_path: string; new_path: string | null }>(
       `SELECT file_path, new_path FROM offline_queue`
     );
     const queuedPaths = new Set<string>();
@@ -450,7 +451,7 @@ export class VaultIndexer {
       if (r.new_path) queuedPaths.add(r.new_path);
     }
 
-    const syncStateByPath = await this.syncRepo.getAllStates();
+    const syncStateByPath = await this.syncRepo.getAllStates(tx);
     return { fileStateByPath, pathByRow, pathById, queuedPaths, syncStateByPath };
   }
 
@@ -517,7 +518,7 @@ export class VaultIndexer {
     prefix: string,
     rowPlaceholders: string,
     rows: unknown[][],
-    writer: SqlWriter = this.dbAdapter
+    writer: SqlWriter
   ): Promise<void> {
     if (rows.length === 0) return;
     const CHUNK = 150;
@@ -561,9 +562,9 @@ export class VaultIndexer {
       // does not report it gone, and where it has not decided yet it leaves
       // the row too (stillMine) — also when this pass fails.
       this.touch(fileInfo.path);
-      await this.dbAdapter.transaction(async () => {
-        if (fileInfo.name.endsWith(".md")) await this._indexFileInternal(fileInfo, pass);
-        else await this._indexAttachmentInternal(fileInfo, pass);
+      await this.dbAdapter.transaction(async (tx) => {
+        if (fileInfo.name.endsWith(".md")) await this._indexFileInternal(fileInfo, pass, tx);
+        else await this._indexAttachmentInternal(fileInfo, pass, tx);
       });
       this.flushCallbacks(pass);
       return pass.metadataChanged;
@@ -578,8 +579,9 @@ export class VaultIndexer {
   private async _indexFileInternal(
     fileInfo: VaultFileInfo,
     pass: IndexPass,
+    tx: SqlStatements,
     lookups?: BulkIndexLookups,
-    writer: SqlWriter = this.dbAdapter,
+    writer: SqlWriter = tx,
     reading?: FileReading
   ): Promise<void> {
     // The hash is the one of the note's BYTES, and its text is a merge base
@@ -607,13 +609,13 @@ export class VaultIndexer {
         // here and no pass has read since. A new file under the old name used
         // to take that row for its own — the moved file's creation time, and
         // its title and tags to compare against (finding 2026-10-12).
-        await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null; title?: string | null; mode?: string | null }>(
+        await tx.queryOne<{ sync_state: string | null; ctime?: number | null; title?: string | null; mode?: string | null }>(
           `SELECT sync_state, ctime, title, mode FROM files WHERE path = ? COLLATE BINARY`,
           [fileInfo.path]
         );
     const hasPendingQueueOp = lookups
       ? lookups.queuedPaths.has(fileInfo.path)
-      : !!(await this.dbAdapter.queryOne<{ id: number }>(
+      : !!(await tx.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? OR new_path = ? LIMIT 1`,
           [fileInfo.path, fileInfo.path]
         ));
@@ -632,14 +634,14 @@ export class VaultIndexer {
     // transaction (the host handler enqueues, which must not nest inside our transaction).
     const oldSyncState = lookups
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
-      : await this.syncRepo.getSyncState(fileInfo.path);
+      : await this.syncRepo.getSyncState(fileInfo.path, tx);
     const knownToIndex = existingFileState !== null;
     const markerNamesThisFile = read.exact && await isMarkerTakenWithoutMark({ text: read.text, sha256 }, oldSyncState);
     const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
     // A row is written for the path: a pass that read the index earlier leaves it alone (stillMine).
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
-    const fileId = await this.rowIdFor(fileInfo.path, lookups);
+    const fileId = await this.rowIdFor(fileInfo.path, tx, lookups);
 
     try {
       const hasExtremelyLongLines = content.split('\n').some(line => line.length > 10000);
@@ -704,12 +706,12 @@ export class VaultIndexer {
           }
         }
         const newPropSig = newPropPairs.sort().join("\n");
-        const oldTagRows = await this.dbAdapter.query<{ tag: string }>(
+        const oldTagRows = await tx.query<{ tag: string }>(
           `SELECT tag FROM tags WHERE file_id = ?`,
           [fileId]
         );
         const oldTagSig = [...new Set(oldTagRows.map((r) => r.tag))].sort().join("\n");
-        const oldPropRows = await this.dbAdapter.query<{ key: string; value: string; type: string }>(
+        const oldPropRows = await tx.query<{ key: string; value: string; type: string }>(
           `SELECT key, value, type FROM properties WHERE file_id = ?`,
           [fileId]
         );
@@ -729,7 +731,7 @@ export class VaultIndexer {
           const linkSig = (target: unknown, raw: unknown, type: unknown, anchor: unknown, propKey: unknown) =>
             [target, raw, type, anchor, propKey].map((v) => String(v ?? "")).join("\t");
           const newLinkSig = linkRows.map((r) => linkSig(r[1], r[2], r[3], r[4], r[5])).sort().join("\n");
-          const oldLinkRows = await this.dbAdapter.query<{
+          const oldLinkRows = await tx.query<{
             target_path: string; target_raw: string; link_type: string; anchor: string | null; property_key: string | null;
           }>(
             `SELECT target_path, target_raw, link_type, anchor, property_key FROM links WHERE source_id = ?`,
@@ -858,8 +860,9 @@ export class VaultIndexer {
   private async _indexAttachmentInternal(
     fileInfo: VaultFileInfo,
     pass: IndexPass,
+    tx: SqlStatements,
     lookups?: BulkIndexLookups,
-    writer: SqlWriter = this.dbAdapter,
+    writer: SqlWriter = tx,
     reading?: FileReading
   ): Promise<void> {
     // Text-like non-.md files (e.g. `.base`, `.canvas`) must be hashed the SAME way the
@@ -884,13 +887,13 @@ export class VaultIndexer {
         // needed, its creation time reset, and its merge base replaced by
         // the current text (finding 2026-10-09; the fix for notes had left
         // this route behind).
-        await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null }>(
+        await tx.queryOne<{ sync_state: string | null; ctime?: number | null }>(
           `SELECT sync_state, ctime FROM files WHERE path = ? COLLATE BINARY`,
           [fileInfo.path]
         );
     const hasPendingQueueOp = lookups
       ? lookups.queuedPaths.has(fileInfo.path)
-      : !!(await this.dbAdapter.queryOne<{ id: number }>(
+      : !!(await tx.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? OR new_path = ? LIMIT 1`,
           [fileInfo.path, fileInfo.path]
         ));
@@ -907,13 +910,13 @@ export class VaultIndexer {
 
     const oldSyncState = lookups
       ? lookups.syncStateByPath.get(fileInfo.path) ?? null
-      : await this.syncRepo.getSyncState(fileInfo.path);
+      : await this.syncRepo.getSyncState(fileInfo.path, tx);
     const knownToIndex = existingFileState !== null;
     const markerNamesThisFile = textContent !== null && await isMarkerTakenWithoutMark({ text: textContent, sha256 }, oldSyncState);
     const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
-    const fileId = await this.rowIdFor(fileInfo.path, lookups);
+    const fileId = await this.rowIdFor(fileInfo.path, tx, lookups);
     // What `indexFile` hands back: nothing a view draws from changes for a
     // file the index already held. Only the single-file route is asked.
     if (!lookups) pass.metadataChanged = existingFileState === null;
@@ -1005,18 +1008,18 @@ export class VaultIndexer {
       // so this pass waits its turn.
       // The row that goes, for whoever asks whose deletion this was.
       let gone: IndexedRowStamp | undefined;
-      const outcome = await this.dbAdapter.transaction(async (): Promise<"reported" | "removed" | "unchanged" | "folder-gone"> => {
+      const outcome = await this.dbAdapter.transaction(async (tx): Promise<"reported" | "removed" | "unchanged" | "folder-gone"> => {
         // Only fire the deletion flow if it was actually indexed.
-        const known = await this.dbAdapter.queryOne<{ mtime_local: number | null }>(
+        const known = await tx.queryOne<{ mtime_local: number | null }>(
           `SELECT mtime_local FROM files WHERE path = ?`,
           [path]
         );
-        if (known && (await this.isVanishedAppleDouble(path))) {
+        if (known && (await this.isVanishedAppleDouble(path, tx))) {
           // An AppleDouble sidecar an older version indexed: the header can no
           // longer be read, so the path-only rule decides (systemJunk.ts). It
           // leaves the index without a word to the sync layer — the copy in the
           // cloud stays where it is (E10).
-          await this.deleteIndexRows([path]);
+          await this.deleteIndexRows([path], tx);
           return "removed";
         }
         if (!known) {
@@ -1026,7 +1029,7 @@ export class VaultIndexer {
           // scan, which purges the stale child rows and fires onLocalFileDeleted for
           // each (so remote deletes propagate). The trailing "/" keeps a deleted FILE
           // named "a" from matching a sibling "a.md" or a folder "ab/".
-          const child = await this.dbAdapter.queryOne<{ id: string }>(
+          const child = await tx.queryOne<{ id: string }>(
             `SELECT id FROM files WHERE path LIKE ? ESCAPE '\\' LIMIT 1`,
             [escapeLikePrefix(path) + "/%"]
           );
@@ -1043,7 +1046,7 @@ export class VaultIndexer {
         // that comes back or drops once in between answers one of the two
         // (one that drops and returns between the two questions does not).
         if (!(await this.vaultIsThere()) || (await this.lookAt(path)) || !(await this.vaultIsThere())) return "unchanged";
-        await this.deleteIndexRows([path]);
+        await this.deleteIndexRows([path], tx);
         gone = indexedRowStamp(known.mtime_local);
         return "reported";
       });
@@ -1058,7 +1061,7 @@ export class VaultIndexer {
       // silently: nothing was deleted, the file only stopped counting.
       const had = await this.dbAdapter.queryOne<{ id: string }>(`SELECT id FROM files WHERE path = ?`, [path]);
       if (!had) return "unchanged";
-      await this.deleteIndexRows([path]);
+      await this.deleteIndexRows([path], this.dbAdapter);
       return "removed";
     }
 
@@ -1076,11 +1079,11 @@ export class VaultIndexer {
     );
     if (knownRow && Number(knownRow.mtime_local) === info.mtime) return "unchanged";
 
-    await this.dbAdapter.transaction(async () => {
+    await this.dbAdapter.transaction(async (tx) => {
       if (info!.name.endsWith(".md")) {
-        await this._indexFileInternal(info!, pass);
+        await this._indexFileInternal(info!, pass, tx);
       } else if (!isInternalPath(info!.path)) {
-        await this._indexAttachmentInternal(info!, pass);
+        await this._indexAttachmentInternal(info!, pass, tx);
       }
     });
     this.flushCallbacks(pass);
@@ -1203,7 +1206,7 @@ export class VaultIndexer {
     // also reached too far in the other direction: after a rename, sha256 of the
     // OLD path is the id a row now sitting at the NEW path still carries, so
     // de-indexing the old path deleted a note that exists.
-    await this.deleteIndexRows([path]);
+    await this.deleteIndexRows([path], this.dbAdapter);
     // Same contract as the full scan: sync_state stays (the remote delete must
     // be pushed first); the host reacts via onLocalFileDeleted. Measured from
     // now: the caller knows the file went, whatever a pass under way has read.
@@ -1234,21 +1237,21 @@ export class VaultIndexer {
     const toPrefix = to + "/";
     const move = (p: string): string => (p === from ? to : to + p.substring(from.length));
     const back = (p: string): string => (p === to ? from : from + p.substring(to.length));
-    await this.dbAdapter.transaction(async () => {
+    await this.dbAdapter.transaction(async (tx) => {
       // Literal, case-sensitive prefix match — the same rule as queueRename.
-      const rows = await this.dbAdapter.query<{ path: string }>(
+      const rows = await tx.query<{ path: string }>(
         `SELECT path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
         [from, fromPrefix, fromPrefix]
       );
       const moving = new Set(rows.map((r) => r.path));
       const stale = rows.map((r) => move(r.path)).filter((p) => !moving.has(p));
-      if (stale.length > 0) await this.deleteIndexRows(stale);
+      if (stale.length > 0) await this.deleteIndexRows(stale, tx);
       for (const { path } of rows) {
-        await this.dbAdapter.execute(`UPDATE files SET path = ?, mtime_local = 0 WHERE path = ?`, [move(path), path]);
+        await tx.execute(`UPDATE files SET path = ?, mtime_local = 0 WHERE path = ?`, [move(path), path]);
       }
       // Asked only while a pass is under way: nobody else holds an older reading.
       if (this.openPasses > 0) {
-        const arrived = await this.dbAdapter.query<{ path: string }>(
+        const arrived = await tx.query<{ path: string }>(
           `SELECT path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
           [to, toPrefix, toPrefix]
         );
@@ -1257,13 +1260,13 @@ export class VaultIndexer {
           this.touch(path);
         }
       }
-      const ftsRows = await this.dbAdapter.query<{ path: string }>(
+      const ftsRows = await tx.query<{ path: string }>(
         `SELECT path FROM fts_notes WHERE path = ? OR substr(path, 1, length(?)) = ?`,
         [from, fromPrefix, fromPrefix]
       );
       for (const { path } of ftsRows) {
-        await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path = ?`, [move(path)]);
-        await this.dbAdapter.execute(`UPDATE fts_notes SET path = ? WHERE path = ?`, [move(path), path]);
+        await tx.execute(`DELETE FROM fts_notes WHERE path = ?`, [move(path)]);
+        await tx.execute(`UPDATE fts_notes SET path = ? WHERE path = ?`, [move(path), path]);
       }
     });
   }
@@ -1273,7 +1276,7 @@ export class VaultIndexer {
    * telling the sync layer anything. Callers decide whether the removal is a
    * deletion the remote must learn about; this only forgets.
    */
-  private async deleteIndexRows(paths: string[], writer: SqlWriter = this.dbAdapter): Promise<void> {
+  private async deleteIndexRows(paths: string[], writer: SqlWriter): Promise<void> {
     const CHUNK = 400;
     for (let k = 0; k < paths.length; k += CHUNK) {
       const slice = paths.slice(k, k + CHUNK);
@@ -1312,12 +1315,12 @@ export class VaultIndexer {
    * read: junk when its companion (`._x` → `x`) is known to the index or still
    * on disk — exactly when macOS writes one (systemJunk.ts, path-only rule).
    */
-  private async isVanishedAppleDouble(path: string, known?: (p: string) => boolean): Promise<boolean> {
+  private async isVanishedAppleDouble(path: string, sql: SqlStatements, known?: (p: string) => boolean): Promise<boolean> {
     const slash = path.lastIndexOf("/");
     if (!isAppleDoubleName(path.slice(slash + 1))) return false;
     const companion = `${path.slice(0, slash + 1)}${path.slice(slash + 3)}`;
     if (known) return isAppleDoubleCompanion(path, known);
-    const row = await this.dbAdapter.queryOne<{ id: string }>(`SELECT id FROM files WHERE path = ?`, [companion]);
+    const row = await sql.queryOne<{ id: string }>(`SELECT id FROM files WHERE path = ?`, [companion]);
     if (row) return true;
     return this.vaultAdapter.exists(companion).catch(() => false);
   }
@@ -1433,7 +1436,7 @@ export class VaultIndexer {
       // The file itself is asked for; an answer that fails proves nothing.
       if (indexedAt === 0 && (await this.vaultAdapter.exists(path).catch(() => true))) continue;
       const excluded = isInternalPath(path) || appleDouble.has(path)
-        || (await this.isVanishedAppleDouble(path, (p) => scoped.has(p) || onDisk.has(p)));
+        || (await this.isVanishedAppleDouble(path, this.dbAdapter, (p) => scoped.has(p) || onDisk.has(p)));
       (excluded ? silent : vanished).push(path);
     }
     const toIndex = [...onDisk.values()].filter((f) => scoped.get(f.path) !== f.mtime);
@@ -1442,20 +1445,20 @@ export class VaultIndexer {
     // The files this re-read indexed, and the ones that are there and could not be read (readOrLeaveOut).
     const indexed: string[] = [];
     const unreadable: VaultWalkSkip[] = [];
-    const mine = await this.dbAdapter.transaction(async () => {
+    const mine = await this.dbAdapter.transaction(async (tx) => {
       // Asked as late as it can be: what another pass indexed or reported
       // since this one began is not this one's to remove (stillMine).
       const mine = new Set(this.stillMine([...vanished, ...silent], pass));
       for (const f of toIndex) {
         const reading = await this.readOrLeaveOut(f, unreadable);
         if (!reading) continue;
-        if (f.name.endsWith(".md")) await this._indexFileInternal(f, pass, undefined, undefined, reading);
-        else await this._indexAttachmentInternal(f, pass, undefined, undefined, reading);
+        if (f.name.endsWith(".md")) await this._indexFileInternal(f, pass, tx, undefined, tx, reading);
+        else await this._indexAttachmentInternal(f, pass, tx, undefined, tx, reading);
         indexed.push(f.path);
       }
       // The rows of what went leave last, as in the full scan: a re-read that
       // fails on a file has not removed what it never gets to report.
-      await this.deleteIndexRows([...mine]);
+      await this.deleteIndexRows([...mine], tx);
       return mine;
     }).catch((error: unknown) => {
       // No batches here: whatever ran is in.
@@ -1639,12 +1642,12 @@ export class VaultIndexer {
    * dead link back for good.
    */
   async indexComplete(): Promise<boolean> {
-    return !(await this.indexOwed());
+    return !(await this.indexOwed(this.dbAdapter));
   }
 
   /** Whether the mark that this index is owed a full scan stands (read with `query`, not a write). */
-  private async indexOwed(): Promise<boolean> {
-    const rows = await this.dbAdapter.query<{ value?: string | null }>(`SELECT value FROM meta WHERE key = ?`, [INDEX_OWED_KEY]);
+  private async indexOwed(sql: SqlStatements): Promise<boolean> {
+    const rows = await sql.query<{ value?: string | null }>(`SELECT value FROM meta WHERE key = ?`, [INDEX_OWED_KEY]);
     return rows.some((row) => row.value === "1");
   }
 
@@ -1673,12 +1676,12 @@ export class VaultIndexer {
    */
   async rebuildIndex(trigger = "index rebuild"): Promise<IndexScanReport> {
     await this.whenIdle();
-    await this.dbAdapter.transaction(async () => {
-      await this.dbAdapter.execute(`UPDATE files SET mtime_local = 0`);
-      await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path NOT IN (SELECT path FROM files)`);
-      await this.dbAdapter.execute(`DELETE FROM links WHERE source_id IS NULL OR source_id NOT IN (SELECT id FROM files)`);
-      await this.dbAdapter.execute(`DELETE FROM tags WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);
-      await this.dbAdapter.execute(`DELETE FROM properties WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);
+    await this.dbAdapter.transaction(async (tx) => {
+      await tx.execute(`UPDATE files SET mtime_local = 0`);
+      await tx.execute(`DELETE FROM fts_notes WHERE path NOT IN (SELECT path FROM files)`);
+      await tx.execute(`DELETE FROM links WHERE source_id IS NULL OR source_id NOT IN (SELECT id FROM files)`);
+      await tx.execute(`DELETE FROM tags WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);
+      await tx.execute(`DELETE FROM properties WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);
     });
     // A scan that began before the reset read the old timestamps and would
     // read only what changed by them; the rebuild waits it out and runs its
@@ -1812,7 +1815,7 @@ export class VaultIndexer {
         // An excluded path (internal, OS junk, an AppleDouble sidecar — present
         // or vanished beside its companion) is forgotten, never reported.
         if (isInternalPath(dbPath) || appleDouble.has(dbPath)) continue;
-        if (await this.isVanishedAppleDouble(dbPath, knownOrPresent)) continue;
+        if (await this.isVanishedAppleDouble(dbPath, this.dbAdapter, knownOrPresent)) continue;
         vanishedFromDisk.push(dbPath);
       }
     }
@@ -1853,19 +1856,19 @@ export class VaultIndexer {
     if (mdToIndex.length === 0 && attachmentsToIndex.length === 0 && filesToDelete.length === 0) {
       // Nothing to do — but the walk still reports what it skipped, and an
       // index that was owed a scan has had one now.
-      if (!startsEmpty && (await this.indexOwed())) await this.dbAdapter.execute(`DELETE FROM meta WHERE key = ?`, [INDEX_OWED_KEY]);
+      if (!startsEmpty && (await this.indexOwed(this.dbAdapter))) await this.dbAdapter.execute(`DELETE FROM meta WHERE key = ?`, [INDEX_OWED_KEY]);
       return report();
     }
 
     // How far this scan's finds have been handed to the database (announceWhatStays).
     const written = { news: 0, mods: 0 };
-    await this.dbAdapter.transaction(async () => {
+    await this.dbAdapter.transaction(async (tx) => {
       // One-query-per-table lookups for the whole pass (P2.4) instead of three
       // SELECT round-trips per file — read here, so that they are as old as
       // the writes below and no older (loadBulkLookups).
-      const lookups = await this.loadBulkLookups();
+      const lookups = await this.loadBulkLookups(tx);
       // Whether an earlier scan left the index owed one (indexComplete).
-      const owedBefore = !startsEmpty && (await this.indexOwed());
+      const owedBefore = !startsEmpty && (await this.indexOwed(tx));
       signal?.throwIfAborted();
       // Added vs. changed: a file with no row was created outside Plainva, one
       // with a row just moved on. Against the index as it is now — a file
@@ -1896,13 +1899,12 @@ export class VaultIndexer {
       // the app was closed, the process ended — and no failure is ever said.
       if (startsEmpty) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
       const FLUSH_AT = this.options?.scanBatchStatements ?? 4000;
-      // The flushes run inside this very transaction, and say so: where a
+      // The flushes run inside this very transaction, on its handle: where a
       // batch is a transaction of its own (the phone's single connection), one
-      // that did not would wait for the scan it belongs to.
-      const INSIDE_THIS_SCAN = { inOpenTransaction: true } as const;
+      // sent to the adapter would wait for the scan it belongs to.
       const flushIfLarge = async () => {
         if (batch.length >= FLUSH_AT) {
-          await runStatementsAtomic(this.dbAdapter, batch, INSIDE_THIS_SCAN);
+          await runStatementsAtomic(tx, batch);
           batch.length = 0;
           // Each file's finds are noted after its statements: all of them so far are in.
           written.news = pass.newLocalFiles.length;
@@ -1927,7 +1929,7 @@ export class VaultIndexer {
         i++;
         const reading = await this.readOrLeaveOut(file, unreadable);
         if (!reading) continue;
-        await this._indexFileInternal(file, pass, lookups, sink, reading);
+        await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
         counted(file);
         await flushIfLarge();
       }
@@ -1942,7 +1944,7 @@ export class VaultIndexer {
         j++;
         const reading = await this.readOrLeaveOut(file, unreadable);
         if (!reading) continue;
-        await this._indexAttachmentInternal(file, pass, lookups, sink, reading);
+        await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
         counted(file);
         await flushIfLarge();
       }
@@ -1981,7 +1983,7 @@ export class VaultIndexer {
       if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
 
       // Flush the tail (all writes when runBatch is unavailable).
-      await runStatementsAtomic(this.dbAdapter, batch, INSIDE_THIS_SCAN);
+      await runStatementsAtomic(tx, batch);
     }).catch((error: unknown) => {
       this.announceWhatStays(pass, written);
       throw error;

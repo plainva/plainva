@@ -7,6 +7,7 @@ import { isPimRuntimeReady, restartPimAfterImport, startPim, stopPim } from "../
 import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
 import { resumePimOAuthResult } from "../services/pim/pimOAuth";
 import { startMobileMail, stopMobileMail } from "../services/mail/mailRuntime";
+import { healMailAccounts } from "@plainva/ui/mail";
 
 /**
  * Where the boot of the active vault stands — what the shell shows while it
@@ -68,6 +69,9 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
         const pim = startPim(v);
         void (first ? pim.then(resumePimOAuthResult) : pim).catch((e) => console.error("[boot] pim start failed", e));
+        // One mailbox stored several times under one id folds back into one
+        // row (finding 2026-11-06, M2; the desktop does the same on vault open).
+        void healMailAccounts(v.vaultId).catch(() => undefined);
         startMobileMail(v);
         stopReconcile?.();
         stopReconcile = startCloudAccountsReconcile(v.vaultId, isPimRuntimeReady);

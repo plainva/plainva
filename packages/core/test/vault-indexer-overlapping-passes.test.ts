@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { realSqlite } from "./helpers/realSqlite.js";
-import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
+import { beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
+import type { IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 
@@ -87,12 +87,10 @@ function beforeTheNthRead(nth: number, work: () => Promise<void>): void {
 
 /** Refuses every statement that writes for `file`, until the returned function is called. */
 function refuseEveryWriteOf(file: string): () => void {
-  const execute = db.execute.bind(db);
-  db.execute = async (sql, params) => {
-    if (Array.isArray(params) && params.includes(file)) throw new Error("disk full");
-    return execute(sql, params);
-  };
-  return () => { db.execute = execute; };
+  // Every write: one sent to the adapter, and one through a transaction's handle (D3).
+  return beforeEveryWrite(db, (_sql, params) => {
+    if (params.includes(file)) throw new Error("disk full");
+  });
 }
 
 /** The same database with the desktop adapter's manners: a second transaction waits for the first. */
@@ -100,7 +98,7 @@ function waiting(inner: IDatabaseAdapter): IDatabaseAdapter {
   let last: Promise<unknown> = Promise.resolve();
   return {
     ...inner,
-    transaction<T>(fn: () => Promise<T>): Promise<T> {
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
       const run = last.then(() => inner.transaction(fn));
       last = run.catch(() => undefined);
       return run;
@@ -415,8 +413,8 @@ describe("a removal is reported when its row is gone for good", () => {
     await fs.rm(onDisk("Old.md"));
 
     // A full scan has removed the row inside its transaction, and fails before it commits.
-    await expect(db.transaction(async () => {
-      await db.execute("DELETE FROM files WHERE path = ?", ["Old.md"]);
+    await expect(db.transaction(async (tx) => {
+      await tx.execute("DELETE FROM files WHERE path = ?", ["Old.md"]);
       await expect(indexer.indexPath("Old.md")).rejects.toThrow();
       throw new Error("rolled back");
     })).rejects.toThrow("rolled back");

@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-11-05
+Dernière mise à jour : 2026-11-06
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -90,7 +90,9 @@ Sur la page e-mail de son compte — **Comptes cloud** → le compte → **E-mai
 - **Signature par adresse** — dès que tu as d'autres adresses d'expéditeur, un sélecteur **Signature pour** apparaît au-dessus du champ. « Par défaut (toutes les adresses) » est la signature du compte ; choisis une adresse pour en écrire une rien que pour elle. Les adresses sans signature propre continuent d'utiliser celle par défaut, et changer d'expéditeur pendant la rédaction met la bonne en place — y compris entre deux adresses d'un même compte. Vide le champ d'une adresse et elle revient à la signature par défaut.
 - **Adresses d'expéditeur supplémentaires** — une par ligne, p. ex. `Nom <alias@example.org>`. Le champ **De** liste alors des adresses plutôt que des comptes : d'abord celle de la boîte, puis ses alias. Qu'une adresse soit réellement acceptée relève de votre fournisseur — un serveur qui refuse l'envoi sous un alias le dit, et Plainva affiche cette erreur au lieu d'envoyer discrètement sous un autre nom.
 
-**De quelle boîte part un message.** Avec plusieurs boîtes aux lettres, **De** s'ouvre sur la boîte depuis laquelle vous écrivez, avec sa signature. **Répondre**, **Répondre à tous** et **Transférer** partent de la boîte où se trouve le message (dans **Toutes les boîtes de réception** : celle de la ligne que vous avez ouverte). **Nouveau message** part de la boîte ouverte dans l'onglet e-mail. Le message qu'une liste de diffusion demande pour **Se désabonner** part de la boîte à laquelle la liste a écrit. Ce qui commence hors de l'onglet e-mail — **Cette note par e-mail** ou une invitation depuis le calendrier — part de votre première boîte ; une note créée avec **Répondre comme note** part de la boîte qu'elle indique (`mailbox:`). Vous pouvez changer **De** avant d'envoyer.
+**De quelle boîte part un message.** Avec plusieurs boîtes aux lettres, **De** s'ouvre sur la boîte depuis laquelle vous écrivez, avec sa signature. **Répondre**, **Répondre à tous** et **Transférer** partent de la boîte où se trouve le message (dans **Toutes les boîtes de réception** : celle de la ligne que vous avez ouverte). **Nouveau message** part de la boîte ouverte dans l'onglet e-mail. Le message qu'une liste de diffusion demande pour **Se désabonner** part de la boîte à laquelle la liste a écrit. Ce qui commence hors de l'onglet e-mail — **Cette note par e-mail** ou une invitation depuis le calendrier — part de votre boîte par défaut ; une note créée avec **Répondre comme note** part de la boîte qu'elle indique (`mailbox:`). Vous pouvez changer **De** avant d'envoyer.
+
+**Boîte par défaut.** Avec plusieurs boîtes, l’une d’elles porte **Par défaut** dans **E-mail** > **Boîtes mail** : E-mail l’affiche en premier, et ce qui commence sans boîte propre part d’elle. Pour en choisir une autre, ouvrez le menu de sa ligne et choisissez **Définir par défaut** (sur le téléphone, avec le bouton **…** de la ligne). Sans choix, et lorsque la boîte par défaut est supprimée ou que sa messagerie est désactivée, la première boîte de la liste s’applique. Le choix voyage avec le vault vers vos autres appareils.
 
 ## Actions sur la boîte aux lettres
 

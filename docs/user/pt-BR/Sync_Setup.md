@@ -1,6 +1,6 @@
 # Configurar Sincronização
 
-Última revisão: 2026-11-03
+Última revisão: 2026-11-06
 
 O Plainva sincroniza cada vault opcionalmente com um armazenamento de sua escolha — direto do app, sem nenhum serviço administrado pelo Plainva no meio: seus dados trafegam exclusivamente entre seu computador e sua própria conta/servidor. Esta página percorre a configuração por provedor.
 
@@ -163,6 +163,8 @@ Uma conta que você remove permanece removida: a remoção viaja pela sincroniza
 
 Se **Revisar contas duplicadas** aparecer em **Contas na nuvem**, o Plainva não tenta decidir pelo nome. Escolha **Manter esta conta** no cartão correto. A confirmação mostra destino, origens e serviços afetados e primeiro cria um backup neste dispositivo. **Cancelar** não altera nada. A mesclagem remove apenas contas locais, caches e credenciais órfãos — nada é excluído no provedor.
 
+Se aparecer **Revisar caixas de correio duplicadas**, a mesma caixa de correio está salva em várias entradas. Cada entrada pode ter o próprio login neste dispositivo, então o Plainva pergunta primeiro. Escolha **Manter esta entrada** naquela que deve ficar; cada entrada mostra qual conta a usa e se está conectada neste dispositivo. As outras são incorporadas a ela: nome, assinaturas e endereços de remetente vão para ela quando ela não os tem, e o e-mail da conta passa a usá-la. Nada é apagado no provedor. Uma caixa de correio salva várias vezes na mesma entrada é juntada sozinha quando o vault é aberto.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Viaja com o cofre | Fica neste dispositivo |
@@ -201,6 +203,10 @@ O novo login não abrange todos os serviços. Seus acessos anteriores foram mant
 ## Google Drive: downloads incompletos
 
 Quando o Google Drive limita temporariamente as solicitações, o Plainva tenta baixar novamente após uma pausa. Um download malsucedido não conta como arquivo ausente nem como alteração concluída. O conteúdo local e o estado de sincronização confirmado são preservados; o próximo ciclo tenta novamente a alteração pendente. Outros arquivos baixados com sucesso continuam disponíveis. Permissões ausentes e outras recusas permanentes aparecem como erros com o caminho do arquivo e a causa. Isso vale no desktop e em dispositivos móveis.
+
+## Google Drive: arquivos que o Drive não informa mais
+
+Às vezes o Google Drive deixa de listar um arquivo que você alterou neste dispositivo, e o Plainva não consegue perguntar ao Drive diretamente sobre ele porque ainda não tem um identificador. O Plainva procura então o arquivo primeiro pelo nome exato. Se encontrar exatamente um, ele o memoriza e pergunta ao Drive sobre ele; se o Drive disser que ele não existe mais, o arquivo é enviado de novo como qualquer arquivo alterado. Se a busca pelo nome não encontrar nada, o Plainva não sabe se o arquivo foi excluído no Drive ou apenas omitido da lista, e nunca exclui um arquivo porque o Drive não respondeu. O arquivo fica neste dispositivo com as suas alterações, e a área de sincronização mostra **O Google Drive não informa mais N arquivos**: no desktop com a lista de arquivos no aviso, no telefone como um aviso que abre a lista com **Ver**. **Enviar novamente** envia um arquivo como novo, **Enviar todos novamente** todos; se o arquivo antigo ainda estiver no Drive, depois haverá dois lá. **Ocultar** guarda o aviso até que o conjunto de arquivos mude. Isso vale no desktop e no celular.
 
 ## Transferências de arquivos interrompidas
 

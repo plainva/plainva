@@ -4,7 +4,7 @@ import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-res
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
 import { NotTextFileError, copyFileContent, fileSha256, isHashWithoutMark, isMarkerTakenWithoutMark, isNotTextFileError, readExactText, readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
-import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
+import { ConflictSessions, conflictDiagnostic, conflictSessionKey, type ConflictBytesResolution, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult, type PreservingConflictWriter } from "./conflictSession.js";
 import { hasUnkeptLineEnds, readTextShape, withKeptLineEnds, type TextFileShape } from "../textFileShape.js";
 
 export class ConflictError extends Error {
@@ -262,7 +262,10 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     return { before, text: made, changed: true, conflict: null };
   }
 
-  async preserveConflict(path: string, text: string, writer: ConflictWriter): Promise<ConflictEditSession> {
+  async preserveConflict(path: string, text: string, writer: PreservingConflictWriter): Promise<ConflictEditSession> {
+    // A message from another window is not typed: the runtime refuses the
+    // adapter's own writer as well.
+    if ((writer as ConflictWriter) === "adapter") throw new Error("preserveConflict: the adapter writer is not accepted");
     const state = await this.syncRepo.getSyncState(path);
     return this.sessions.withMutation(path, async gate => this.preserveLocked(gate, path, text, state, writer));
   }
@@ -394,12 +397,14 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       // A file the index knows gets its marker, as for any write of the chain;
       // a file made anew here is announced by the index (see `writeTextFileLocked`).
       if (original !== null) await this.syncRepo.updateLocalHash(path, hash);
-      await this.inner.deleteItem(copyPath);
+      // The net rule of a deletion (D1): a copy whose text took the file's place goes without a snapshot of its own.
+      await this.inner.deleteItem(copyPath, false, resolution.content === copy || resolution.withoutSnapshot ? { withoutSnapshot: true } : undefined);
     } else if (keepCopyAs) {
       await this.requireResolved(keepCopyAs);
       await this.inner.renameItem(copyPath, keepCopyAs);
     } else {
-      await this.inner.deleteItem(copyPath);
+      // Its text goes: only with a net, or after the person's "Delete anyway" (D1).
+      await this.inner.deleteItem(copyPath, false, resolution.withoutSnapshot ? { withoutSnapshot: true } : undefined);
     }
   }
 
@@ -432,13 +437,14 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       if (await fileSha256(this.inner, path) !== copy) throw new Error("Conflict resolution could not be confirmed");
       this.rememberWrite(path, copy);
       if (original !== null) await this.syncRepo.updateLocalHash(path, copy);
-      await this.inner.deleteItem(copyPath);
+      // Its bytes are the file's now, checked above (D1).
+      await this.inner.deleteItem(copyPath, false, { withoutSnapshot: true });
     } else if (keepCopyAs) {
       if (await this.inner.exists(keepCopyAs)) throw new Error("comparisonChanged");
       await this.requireResolved(keepCopyAs);
       await this.inner.renameItem(copyPath, keepCopyAs);
     } else {
-      await this.inner.deleteItem(copyPath);
+      await this.inner.deleteItem(copyPath, false, resolution.withoutSnapshot ? { withoutSnapshot: true } : undefined);
     }
   }
 

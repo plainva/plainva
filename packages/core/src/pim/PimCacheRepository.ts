@@ -190,8 +190,8 @@ export class PimCacheRepository {
       await this.db.runBatch(statements);
       return;
     }
-    await this.db.transaction(async () => {
-      for (const s of statements) await this.db.execute(s.sql, s.params ?? []);
+    await this.db.transaction(async (tx) => {
+      for (const s of statements) await tx.execute(s.sql, s.params ?? []);
     });
   }
 
@@ -236,9 +236,9 @@ export class PimCacheRepository {
    * calendars/tasklists rows cascade; events/tasks/state are keyed loosely and
    * are swept explicitly. */
   async deleteAccount(accountId: string): Promise<void> {
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (tx) => {
       for (const table of [...ACCOUNT_CACHE_TABLES].reverse()) {
-        await this.db.execute(`DELETE FROM ${table.name} WHERE ${table.accountColumn} = ?`, [accountId]);
+        await tx.execute(`DELETE FROM ${table.name} WHERE ${table.accountColumn} = ?`, [accountId]);
       }
     });
   }
@@ -262,14 +262,14 @@ export class PimCacheRepository {
   /** Restores a snapshot exactly, including selection and sync cursors. */
   async restoreAccount(snapshot: PimAccountCacheSnapshot): Promise<void> {
     if (snapshot.version !== 1) throw new Error("unsupported-pim-account-cache-snapshot");
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (tx) => {
       for (const table of [...ACCOUNT_CACHE_TABLES].reverse()) {
-        await this.db.execute(`DELETE FROM ${table.name} WHERE ${table.accountColumn} = ?`, [snapshot.accountId]);
+        await tx.execute(`DELETE FROM ${table.name} WHERE ${table.accountColumn} = ?`, [snapshot.accountId]);
       }
       for (const table of ACCOUNT_CACHE_TABLES) {
         const rows = snapshot.tables[table.name] ?? [];
         for (const row of rows) {
-          await this.db.execute(
+          await tx.execute(
             `INSERT OR REPLACE INTO ${table.name} (${table.columns.join(", ")}) VALUES (${table.columns.map(() => "?").join(", ")})`,
             table.columns.map((column) => row[column] ?? null),
           );
@@ -301,11 +301,11 @@ export class PimCacheRepository {
    */
   async reassignAccountRows(fromId: string, toId: string): Promise<void> {
     if (fromId === toId) return;
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (tx) => {
       for (const table of ACCOUNT_CACHE_TABLES) {
         if (table.accountColumn !== "account_id") continue;
-        await this.db.execute(`UPDATE OR IGNORE ${table.name} SET account_id = ? WHERE account_id = ?`, [toId, fromId]);
-        await this.db.execute(`DELETE FROM ${table.name} WHERE account_id = ?`, [fromId]);
+        await tx.execute(`UPDATE OR IGNORE ${table.name} SET account_id = ? WHERE account_id = ?`, [toId, fromId]);
+        await tx.execute(`DELETE FROM ${table.name} WHERE account_id = ?`, [fromId]);
       }
     });
   }

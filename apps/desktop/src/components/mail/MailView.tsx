@@ -31,12 +31,13 @@ import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
-import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccountsChanged, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
+import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccountsChanged, pickDefaultMailAccount, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
+import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
 import { attachMailLinks, LinkTargetText, MailPlainText, mailtoDraft, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
-import { addEmlToMailNote, captureMailAsNote, mailCaptureNotice, mailDayKey, writeReplyNote } from "@plainva/ui/mail";
+import { addEmlToMailNote, captureMailAsNote, loadMailAccountAliases, mailCaptureNotice, mailDayKey, writeReplyNote } from "@plainva/ui/mail";
 import { fetchAttachment, formatAttachmentSize, forwardSource, saveMailAttachment, type ForwardSource, type MailAttachmentInfo } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
 import { buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, isTrashMailbox, isJunkFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, rowAddress, unifiedId, addressRows, uidOf, inPlace } from "@plainva/ui/mail";
@@ -449,18 +450,25 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   useEffect(() => {
     let alive = true;
     if (!vaultPath) return;
-    void getSettingsStore()
-      .then((st) => st.get<unknown>(mailSnoozedKey(vaultPath)))
-      .then((raw) => {
-        if (!alive) return;
-        const parsed = parseSnoozeState(raw);
-        const pruned = pruneSnoozes(parsed, Date.now());
-        setSnoozed(pruned);
-        if (pruned.length !== parsed.length) void persistSnoozes(pruned);
-      })
-      .catch(() => {});
+    const load = () =>
+      void getSettingsStore()
+        .then((st) => st.get<unknown>(mailSnoozedKey(vaultPath)))
+        .then((raw) => {
+          if (!alive) return;
+          const parsed = parseSnoozeState(raw);
+          const pruned = pruneSnoozes(parsed, Date.now());
+          setSnoozed(pruned);
+          if (pruned.length !== parsed.length) void persistSnoozes(pruned);
+        })
+        .catch(() => {});
+    load();
+    // A fold of duplicate mailboxes moves messages put aside onto the kept
+    // one (finding 2026-11-06, M2): read them again, or this view writes its
+    // older copy back over the moved entries.
+    const stop = onMailAccountsChanged(vaultPath, load);
     return () => {
       alive = false;
+      stop();
     };
   }, [vaultPath, persistSnoozes]);
 
@@ -630,12 +638,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     void (async () => {
       if (!vaultPath) return;
       // A mailbox whose account has mail switched off for the vault is not read (E3).
-      const list = mailboxesSwitchedOn(await listMailAccounts(vaultPath), await loadCloudAccounts(vaultPath).catch(() => []));
+      const [stored, cards, defaultId] = await Promise.all([listMailAccounts(vaultPath), loadCloudAccounts(vaultPath).catch(() => []), loadDefaultMailAccount(vaultPath).catch(() => "")]);
+      const list = mailboxesSwitchedOn(stored, cards);
       if (!alive) return;
       // An unchanged mailbox stays the same object: everything that hangs on
       // `account` (the folders, the open message) would read anew otherwise.
       setAccounts((prev) => keepUnchangedAccounts(prev, list));
-      setAccountId((prev) => (list.some((a) => a.id === prev) ? prev : list[0]?.id ?? ""));
+      // The open mailbox stays; without one Mail opens on the default mailbox
+      // (finding 2026-11-06, M1), not on whichever was connected first.
+      setAccountId((prev) => pickDefaultMailAccount(list, defaultId, prev)?.id ?? "");
     })();
     return () => {
       alive = false;
@@ -728,7 +739,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         capture: vaultAdapter
           ? async (id) => {
               const msg = await fetchMessage(vaultPath, account, box, uidOf(id));
-              await captureMailAsNote({ adapter: vaultAdapter, message: msg, accountId: account.id, mailbox: box, folder: await mailFolder(), generatedBy: await plainvaProducer("mail-capture") });
+              await captureMailAsNote({ adapter: vaultAdapter, message: msg, accountId: account.id, mailbox: box, folder: await mailFolder(), generatedBy: await plainvaProducer("mail-capture"), accountAliases: await loadMailAccountAliases(vaultPath).catch(() => ({})) });
             }
           : undefined,
       });
@@ -1914,7 +1925,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         // note and names its producer; the Message-ID becomes its source.
         // Asked for by hand, a note of this message that holds none of its
         // text gets it now (finding 2026-10-09, decision b) - a rule never.
-        const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: from.id, mailbox: origin.mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true });
+        const res = await captureMailAsNote({ adapter: vaultAdapter, message, accountId: from.id, mailbox: origin.mailbox, folder, generatedBy: await plainvaProducer("mail-capture"), fillEmpty: true, accountAliases: await loadMailAccountAliases(vaultPath).catch(() => ({})) });
         const touched = [res.path];
         // "+ .eml" adds the raw copy to a note filed before as well, where it
         // links none — the phone's rule, one function for both (open-items

@@ -159,7 +159,7 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   clock = Date.now();
   merged = []; foreign = []; kicks = 0; syncing = false; enqueued = Promise.resolve(); shown = [];
   // boot(): storage, above it versions, the sync queue and the conflict check — and the index over all of it.
-  const backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION, now: () => clock, snapshotRecursiveDeletes: true });
+  const backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION, now: () => clock });
   const queue = new SyncQueue(db);
   repo = new SyncStateRepository(db, raw, "phone-a");
   chain = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, queue), repo, (path) => { merged.push(path); }, repo, "container");
@@ -619,7 +619,7 @@ async function phoneDatabase(platform: PhonePlatform): Promise<IDatabaseAdapter>
       onAsk?.();
       return inner.transaction(fn);
     },
-    runBatch: (statements, options) => inner.runBatch(statements, options),
+    runBatch: (statements) => inner.runBatch!(statements),
   };
 }
 
@@ -790,11 +790,14 @@ describe.each(["android", "ios"] as const)("one connection, two flows (%s)", (pl
 });
 
 it("boot hands its chain the reporter, as the desktop's vault context does: an entry made up for or given up is a line in the diagnostics", () => {
-  const built = all(serviceFile, ts.isNewExpression)
-    .filter((node) => node.expression.getText(serviceFile) === "QueueingVaultAdapter")
-    .map((node) => node.getText(serviceFile));
-  expect(built).toHaveLength(1);
-  expect(built[0]).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
+  // Both chains: the sync queue's and the encrypted workspace's (Datensicherheit D2).
+  for (const chain of ["QueueingVaultAdapter", "WorkspaceQueueingVaultAdapter"]) {
+    const built = all(serviceFile, ts.isNewExpression)
+      .filter((node) => node.expression.getText(serviceFile) === chain)
+      .map((node) => node.getText(serviceFile));
+    expect(built, chain).toHaveLength(1);
+    expect(built[0]).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
+  }
 });
 
 /**

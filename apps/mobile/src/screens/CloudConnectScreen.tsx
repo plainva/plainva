@@ -14,6 +14,7 @@ import {
   connectFieldsComplete,
   connectPresetFor,
   FAMILY_SERVICES,
+  accountDisplayName,
   familyLabel,
   filesCarrier,
   getPlatformServices,
@@ -467,7 +468,7 @@ export function CloudConnectScreen({
                   onClick={() => { if (!off) toggle(service); }}
                   subtitle={unavailable
                     ? t(unavailable, { provider: providerName })
-                    : taken && filesTakenBy ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy.label || familyLabel(filesTakenBy.family, filesTakenBy.flavor) }) : undefined}
+                    : taken && filesTakenBy ? t("cloudAccounts.filesTakenDetail", { account: accountDisplayName(filesTakenBy) }) : undefined}
                   title={serviceLabel(service)}
                   wrap={off}
                 />

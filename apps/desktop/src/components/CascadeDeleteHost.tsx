@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { initialSelection, planNeedsDialog, selectedPaths, type CascadeSelection, type DeletionPlan } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
-import { toast } from "@plainva/ui";
+import { deleteWithNet, toast } from "@plainva/ui";
 import { confirmDeletion, confirmLargeDeletion, isLargeDeletion } from "../services/deleteConfirm";
 import {
   buildDesktopDeletionPlan,
@@ -107,7 +107,7 @@ export function CascadeDeleteHost({ onDeleted }: { onDeleted: (paths: string[]) 
       });
       if (!ok) continue;
       try {
-        await d.vaultAdapter.deleteItem(folder, true, { confirmed: true });
+        if (!(await deleteWithNet(d.vaultAdapter, folder, true))) continue;
         if (d.indexer) await applyIndexChanges(d.indexer, { needsFullScan: true });
         d.triggerFileTreeUpdate();
         notifyFileOps([{ type: "delete", path: folder, isFolder: true }]);

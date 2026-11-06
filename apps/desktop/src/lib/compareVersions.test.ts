@@ -73,7 +73,7 @@ describe("compareVersions — where the comparison is wired", () => {
     expect(source).toMatch(/const merged = adoptedCopyText\(copySnapshot\.current,/);
     // …and it is what the one way of the adoption gets — for an open
     // conflict and a copy beside the note alike (Sammelplan § 3.86 no. 8).
-    expect(source).toMatch(/settleConflictText\(vaultAdapter, originalOfConflict, conflictPath, \{ original: originalSnapshot\.current, copy: copySnapshot\.current! \}, \{ disposition: "adopt", content: merged \}\)/);
+    expect(source).toMatch(/settleConflictText\(vaultAdapter, originalOfConflict, conflictPath, \{ original: originalSnapshot\.current, copy: copySnapshot\.current! \}, \{ disposition: "adopt", content: merged, \.\.\.noNet \}\)/);
     expect(source).not.toMatch(/writeTextFile\(originalOfConflict, merged\)/);
     // No normalisation of its own, and no decoder that drops a mark.
     expect(source).not.toMatch(/replace\(\/\\r/);

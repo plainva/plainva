@@ -44,6 +44,8 @@ import {
   pimAccountsForProfile,
   defaultCalendarForProfile,
   defaultCalendarFromProfile,
+  defaultMailAccountForProfile,
+  defaultMailAccountFromProfile,
   pimSelectionsForProfile,
   mailAccountsForProfile,
   normalizeAccountMap,
@@ -150,6 +152,7 @@ const mailRemoteImagesKey = (v: string) => `mailRemoteImages_${b64(v)}`;
 export const mailSnoozedKey = (v: string) => `mailSnoozed_${b64(v)}`;
 const syncIntervalKey = (v: string) => `syncIntervalSeconds_${b64(v)}`;
 const defaultCalendarKey = (v: string) => `defaultCalendar_${b64(v)}`;
+const defaultMailAccountKey = (v: string) => `defaultMailAccount_${b64(v)}`;
 // The vault's week start (decision E4): the key `weekStartVault.ts` reads and writes.
 const profileUnknownKey = (v: string) => `settingsSyncUnknown_${b64(v)}`;
 const profileAccountMapKey = (v: string) => `settingsSyncAccountMap_${b64(v)}`;
@@ -295,6 +298,7 @@ const DESKTOP_KEYS: Record<string, (vaultPath: string) => string> = {
   mailSnoozed: mailSnoozedKey,
   syncIntervalSeconds: syncIntervalKey,
   defaultCalendar: defaultCalendarKey,
+  defaultMailAccount: defaultMailAccountKey,
   weekStart: weekStartKey,
   backupSnapshotIntervalSeconds: backupSnapshotIntervalKey,
   backupMaxCountPerFile: backupMaxCountKey,
@@ -469,6 +473,7 @@ export async function exportProfileValues(
   // The store holds the device-local account id; the document carries the
   // logical one, or the choice never resolves on any other device.
   if (typeof values.defaultCalendar === "string") values.defaultCalendar = defaultCalendarForProfile(values.defaultCalendar, map);
+  if (typeof values.defaultMailAccount === "string") values.defaultMailAccount = defaultMailAccountForProfile(values.defaultMailAccount, map);
   // The shared helpers decide the SHAPE (deterministic order, no parked device
   // state) so both shells publish the same document for the same accounts —
   // that is what makes the export round-trip.
@@ -582,6 +587,7 @@ export async function applyProfileValues(
     window.dispatchEvent(new CustomEvent("plainva-backup-settings-changed"));
     window.dispatchEvent(new CustomEvent("plainva-mail-settings-changed"));
     window.dispatchEvent(new CustomEvent("plainva-default-calendar-changed"));
+    window.dispatchEvent(new CustomEvent("plainva-default-mail-account-changed", { detail: { vaultPath } }));
     window.dispatchEvent(new CustomEvent("plainva-cloud-accounts-changed", { detail: { vaultPath } }));
     window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
     window.dispatchEvent(new CustomEvent(BAR_LAYOUT_CHANGED_EVENT));
@@ -858,6 +864,8 @@ async function importAccountMetadata(
 
   const defaultCalendar = defaultCalendarFromProfile(values.defaultCalendar, idMap.pim);
   if (defaultCalendar !== undefined) await store.set(defaultCalendarKey(vaultPath), defaultCalendar);
+  const defaultMailAccount = defaultMailAccountFromProfile(values.defaultMailAccount, idMap.mail);
+  if (defaultMailAccount !== undefined) await store.set(defaultMailAccountKey(vaultPath), defaultMailAccount);
   return idMap;
 }
 

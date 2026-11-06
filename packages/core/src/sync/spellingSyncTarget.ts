@@ -127,6 +127,9 @@ export function withPathSpellings(target: ISyncTarget): ISyncTarget {
       // spelling before answering "absent".
       return target.probeExists!({ ...probe, path: await resolve(probe.path) });
     },
+    async lookupRemoteId(path: string) {
+      return target.lookupRemoteId!(await resolve(path));
+    },
     async createVaultFolder(path: string) {
       const stored = await resolve(path);
       await target.createVaultFolder!(stored);

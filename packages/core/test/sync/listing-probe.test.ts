@@ -380,6 +380,111 @@ describe("a listing is a claim, not a fact (finding 2026-09-20)", () => {
     expect(report).not.toHaveBeenCalled();
   });
 
+  describe("a changed file the listing does not carry and whose row has no id (D7)", () => {
+    const edited = known[39]!;
+    function setUp() {
+      build();
+      vault.readTextFile.mockImplementation(async (p: string) => (p === edited ? "changed here" : "same"));
+      listOnly(39);
+      states.get(edited).remote_id = null;
+      remoteAlive.delete(edited);
+    }
+
+    it("is asked for by the id of the one file its name finds; gone there means the normal re-upload", async () => {
+      setUp();
+      target.lookupRemoteId = vi.fn(async () => "found-id");
+      target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => {
+        probes.push(probe);
+        return probe.remoteId === "found-id" ? "absent" : "present";
+      });
+      const unverified = vi.fn();
+      worker.onUnverifiedFiles = unverified;
+
+      await worker.runCycle();
+
+      expect(stateRepo.updateRemoteId).toHaveBeenCalledWith(edited, "found-id");
+      expect(probes.find((p) => p.path === edited)?.remoteId).toBe("found-id");
+      expect(queue.queueWrite).toHaveBeenCalledWith(edited);
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(unverified).not.toHaveBeenCalled();
+      expect(worker.getUnverifiedFiles()).toEqual([]);
+    });
+
+    it("stays where it is when the object behind the found id is alive", async () => {
+      setUp();
+      target.lookupRemoteId = vi.fn(async () => "found-id");
+      target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => { probes.push(probe); return "present"; });
+
+      await worker.runCycle();
+
+      expect(stateRepo.updateRemoteId).toHaveBeenCalledWith(edited, "found-id");
+      expect(queue.queueWrite).not.toHaveBeenCalled();
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(states.has(edited)).toBe(true);
+      expect(worker.getUnverifiedFiles()).toEqual([]);
+    });
+
+    it("is named when the name search finds nothing: kept, not uploaded, not deleted, reported once", async () => {
+      setUp();
+      target.lookupRemoteId = vi.fn(async () => null);
+      target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => {
+        probes.push(probe);
+        return probe.path === edited ? "unknown" : "present";
+      });
+      const unverified = vi.fn();
+      worker.onUnverifiedFiles = unverified;
+
+      await worker.runCycle();
+      await worker.runCycle();
+
+      expect(stateRepo.updateRemoteId).not.toHaveBeenCalled();
+      expect(queue.queueWrite).not.toHaveBeenCalled();
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(states.has(edited)).toBe(true);
+      expect(unverified).toHaveBeenCalledTimes(1);
+      expect(unverified).toHaveBeenCalledWith([edited]);
+      expect(worker.getUnverifiedFiles()).toEqual([edited]);
+    });
+
+    it("\"Upload again\" queues exactly one new upload and takes the file off the list; nothing is deleted", async () => {
+      setUp();
+      target.lookupRemoteId = vi.fn(async () => null);
+      target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => {
+        probes.push(probe);
+        return probe.path === edited ? "unknown" : "present";
+      });
+      const unverified = vi.fn();
+      worker.onUnverifiedFiles = unverified;
+      await worker.runCycle();
+
+      const queued = await worker.uploadUnverifiedAgain([edited]);
+
+      expect(queued).toBe(1);
+      expect(queue.queueWrite).toHaveBeenCalledTimes(1);
+      expect(queue.queueWrite).toHaveBeenCalledWith(edited);
+      expect(states.has(edited)).toBe(false);
+      expect(vault.deleteItem).not.toHaveBeenCalled();
+      expect(unverified).toHaveBeenLastCalledWith([]);
+      // A second press finds nothing to do.
+      expect(await worker.uploadUnverifiedAgain([edited])).toBe(0);
+      expect(queue.queueWrite).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the list when the file is gone from this device", async () => {
+      setUp();
+      target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => {
+        probes.push(probe);
+        return probe.path === edited ? "unknown" : "present";
+      });
+      await worker.runCycle();
+      vault.exists.mockImplementation(async (p: string) => p !== edited);
+
+      expect(await worker.uploadUnverifiedAgain()).toBe(0);
+      expect(worker.getUnverifiedFiles()).toEqual([]);
+      expect(queue.queueWrite).not.toHaveBeenCalled();
+    });
+  });
+
   it("does not take a kept file for gone while the remote still holds it", async () => {
     // The listing lost a file that carries changes here, but the remote has it:
     // nothing is queued as new (that would put a second copy next to it), and

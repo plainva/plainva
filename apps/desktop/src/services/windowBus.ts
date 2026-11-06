@@ -31,6 +31,7 @@ import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
 import type { ComposeSnapshot } from "./mail/composeHandoff";
 import { currentWindowParams } from "./windowContext";
+import { SnapshotBeforeDeleteError, isSnapshotBeforeDeleteError } from "@plainva/core";
 import type { CommentOperation, CommentOperationInput, CommentOperationPhase, CommentPostInput } from "@plainva/core";
 
 /** Label of the window that owns the services. Tauri's own default label. */
@@ -173,7 +174,7 @@ export interface RpcMap {
   "conflict-read": { args: { path: string }; result: import("@plainva/core").ConflictEditSession | null };
   "conflict-list": { args: Record<string, never>; result: import("@plainva/core").ConflictEditSession[] };
   "conflict-diagnostics": { args: Record<string, never>; result: import("@plainva/core").ConflictDiagnostic[] };
-  "conflict-preserve": { args: { path: string; content: string; writer: import("@plainva/core").ConflictWriter }; result: import("@plainva/core").ConflictEditSession };
+  "conflict-preserve": { args: { path: string; content: string; writer: import("@plainva/core").PreservingConflictWriter }; result: import("@plainva/core").ConflictEditSession };
   "conflict-resolve": { args: { path: string; resolution: import("@plainva/core").ConflictResolution }; result: void };
   /** The way out of an open conflict whose file is no text any more: byte for byte (`resolveConflictBytes`). */
   "conflict-resolve-bytes": { args: { path: string; resolution: import("@plainva/core").ConflictBytesResolution }; result: void };
@@ -630,6 +631,12 @@ interface RpcReply {
   ok: boolean;
   value?: unknown;
   error?: string;
+  /**
+   * A deletion the owner did not carry out because it had no net (D1): what
+   * the question "Delete without a backup?" needs, so the window that asked
+   * for the deletion can put it — an error crosses the bus as its message only.
+   */
+  noNet?: { path: string; uncovered: string[]; total: number; net: SnapshotBeforeDeleteError["net"]; folder: boolean };
 }
 
 export interface WindowBus {
@@ -731,6 +738,7 @@ export function createWindowBus(
           return;
         }
         if (reply.ok) waiting.resolve(reply.value);
+        else if (reply.noNet) waiting.reject(new SnapshotBeforeDeleteError(reply.noNet.path, reply.noNet.uncovered, reply.noNet.total, reply.noNet.net, reply.noNet.folder));
         else waiting.reject(new Error(reply.error || "window RPC failed"));
       }),
       transport.listen(EV_RPC_ALIVE, (raw) => {
@@ -872,6 +880,7 @@ export function createWindowBus(
             // The caller gets the message, not a silent no-op: an aux window
             // whose write vanished must be able to say so.
             reply = { id: env.id, ok: false, error: e instanceof Error ? e.message : String(e) };
+            if (isSnapshotBeforeDeleteError(e)) reply.noNet = { path: e.path, uncovered: [...e.uncovered], total: e.total, net: e.net, folder: e.folder };
           } finally {
             if (beat !== null) clearInterval(beat);
           }

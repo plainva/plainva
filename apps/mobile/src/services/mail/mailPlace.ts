@@ -1,3 +1,4 @@
+import { pickDefaultMailAccount } from "@plainva/ui/mail";
 import { getMobileSettings, updateMobileSettings } from "../mobileSettings";
 
 /**
@@ -28,11 +29,12 @@ export function rememberedMailPlace(): MailPlace {
 
 /**
  * The account to show: keep the current/remembered one while it still exists,
- * otherwise the first available. Returns null when there is no account at all.
+ * otherwise the vault's default mailbox, otherwise the first available
+ * (finding 2026-11-06, M1; the shared rule `pickDefaultMailAccount`). Returns
+ * null when there is no account at all.
  */
-export function resolveMailAccount(current: string | null, accounts: readonly { id: string }[]): string | null {
-  if (current && accounts.some((a) => a.id === current)) return current;
-  return accounts[0]?.id ?? null;
+export function resolveMailAccount(current: string | null, accounts: readonly { id: string }[], defaultId?: string | null): string | null {
+  return pickDefaultMailAccount(accounts, defaultId, current)?.id ?? null;
 }
 
 /**

@@ -3,14 +3,15 @@ import { runStatementsAtomic } from "../src/db/batch.ts";
 import { IDatabaseAdapter, BatchStatement } from "../src/db/IDatabaseAdapter.ts";
 
 function baseAdapter(): IDatabaseAdapter {
-  return {
+  const db: IDatabaseAdapter = {
     initialize: async () => {},
     close: async () => {},
     execute: async () => {},
     query: async () => [],
     queryOne: async () => null,
-    transaction: async (fn) => fn(),
+    transaction: async (fn) => fn(db),
   };
+  return db;
 }
 
 const stmts: BatchStatement[] = [

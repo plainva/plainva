@@ -128,8 +128,8 @@ export async function executeMobileCascade(
   const deleted: string[] = [];
   for (const p of paths) {
     try {
-      await vaultOps.remove(v, p, { confirmed: true });
-      deleted.push(p);
+      // Kept where the person said "Cancel" to "Delete without a backup?" (D1).
+      if (await vaultOps.remove(v, p, { confirmed: true })) deleted.push(p);
     } catch (e) {
       console.error("mobile cascade delete failed", p, e);
       errors++;

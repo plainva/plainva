@@ -247,8 +247,8 @@ export async function assertComparisonUnchanged(adapter: TaskFileReader, origina
 
 export async function separateTaskConflict(adapter: TaskFileReader & {
   writeTextFile(path: string, content: string): Promise<void>;
-  deleteItem(path: string): Promise<void>;
-  resolveConflict?(path: string, resolution: { originalText: string | null; copyText: string; content: string; disposition?: "adopt" | "discard"; copyPath?: string }): Promise<void>;
+  deleteItem(path: string, recursive?: boolean, confirmation?: { withoutSnapshot?: true }): Promise<void>;
+  resolveConflict?(path: string, resolution: { originalText: string | null; copyText: string; content: string; disposition?: "adopt" | "discard"; copyPath?: string; withoutSnapshot?: true }): Promise<void>;
 }, originalPath: string, original: string, copyPath: string, copy: string, expectedPath?: string): Promise<string> {
   if (classifyTaskNotes(original, copy) !== "different") throw new Error("task_identity_unverified");
   await assertComparisonUnchanged(adapter, originalPath, original, copyPath, copy);
@@ -256,12 +256,13 @@ export async function separateTaskConflict(adapter: TaskFileReader & {
   // The copy goes only while both still are what was compared — checked and
   // deleted in one step under the chain's gate where there is one, so that a
   // change of the copy in between is not deleted with it (Sammelplan § 3.86
-  // no. 8; its text lies in `path` as it was compared).
+  // no. 8; its text lies in `path` as it was compared — so it goes without a
+  // snapshot of its own, D1).
   if (adapter.resolveConflict) {
-    await adapter.resolveConflict(originalPath, { originalText: original, copyText: copy, content: original, disposition: "discard", copyPath });
+    await adapter.resolveConflict(originalPath, { originalText: original, copyText: copy, content: original, disposition: "discard", copyPath, withoutSnapshot: true });
     return path;
   }
   await assertComparisonUnchanged(adapter, originalPath, original, copyPath, copy);
-  await adapter.deleteItem(copyPath);
+  await adapter.deleteItem(copyPath, false, { withoutSnapshot: true });
   return path;
 }

@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, SnapshotBeforeDeleteError, VaultListing, VaultFileInfo, VaultFileNotFoundError, type VaultWalkOptions } from "./IVaultAdapter.js";
 import {
   backupDirFor,
   isPlainvaInternalPath,
@@ -50,20 +50,13 @@ export interface BackupVaultAdapterOptions {
   /** Injectable clock for tests. */
   now?: () => number;
   /**
-   * Called when creating a snapshot fails (full disk, blocked backup dir, …).
-   * Snapshot failures never block the user-facing operation itself.
+   * Called when the snapshot before a WRITE fails (full disk, blocked backup
+   * dir, …). Such a failure never blocks the write: the new content is the
+   * valuable part, the snapshot is history. A deletion does not report here:
+   * where its snapshot fails and no trash takes the item, it is not carried
+   * out at all (`SnapshotBeforeDeleteError`), and the person is asked instead.
    */
   onBackupError?: (path: string, error: unknown) => void;
-  /**
-   * Snapshot every file inside a folder before deleting the folder (S4).
-   *
-   * Off by default, because the desktop deletes into the OS trash and says so
-   * in its confirmation — snapshotting a large folder there would cost time
-   * and disk for a net that already exists. A phone has no trash: without this
-   * a recursively deleted folder is gone, and for every note never edited on
-   * that device there is nothing to restore from.
-   */
-  snapshotRecursiveDeletes?: boolean;
   /**
    * Called the first time a file is too large for a full snapshot history
    * (C21). The shell says this once per vault: silently keeping one version
@@ -82,7 +75,6 @@ export class BackupVaultAdapter implements IVaultAdapter {
   private policy: BackupRetentionPolicy;
   private readonly now: () => number;
   private readonly onBackupError?: (path: string, error: unknown) => void;
-  private readonly snapshotRecursiveDeletes: boolean;
   private readonly onLargeFileTrimmed?: (path: string, size: number) => void;
   /** Timestamp of the most recent snapshot per path this session (WP5 5a): lets
    *  a save within the snapshot interval skip the (unbounded) directory listing. */
@@ -101,7 +93,6 @@ export class BackupVaultAdapter implements IVaultAdapter {
     };
     this.now = options.now ?? (() => Date.now());
     this.onBackupError = options.onBackupError;
-    this.snapshotRecursiveDeletes = options.snapshotRecursiveDeletes ?? false;
     this.onLargeFileTrimmed = options.onLargeFileTrimmed;
   }
 
@@ -357,29 +348,80 @@ export class BackupVaultAdapter implements IVaultAdapter {
     await this.inner.writeBinaryFile(path, content);
   }
 
+  /**
+   * A deletion happens only with a net (D1 of the data-safety plan of
+   * 2026-11-06). A net is the system's trash, or a snapshot of everything
+   * that goes, written before it goes. The rule lives here, once, for every
+   * way a file or folder is deleted in either shell; nothing above this
+   * adapter deletes past it (`deletionNetGuard.test.ts`).
+   *
+   * - A storage with a trash (`moveToTrash`, the desktop): a file is
+   *   snapshotted first all the same, so its version history goes on, and
+   *   the item goes to the trash. Where the trash refuses it — a network
+   *   share —, every file that would go is snapshotted, a folder's included,
+   *   and only then deleted for good.
+   * - A storage without one (the phone): every file that would go — the
+   *   file, or each file below the folder — is snapshotted first; "Deleted
+   *   files" brings it back from there.
+   *
+   * Where a snapshot cannot be written (a full disk is enough), the deletion
+   * stops before anything is deleted and throws `SnapshotBeforeDeleteError`
+   * with the files that would be gone for good — unless the caller says
+   * `withoutSnapshot`, after the person's "Delete anyway" or where what goes
+   * lies in another file. The deletion used to go on and say, on the phone,
+   * that the file "was still saved" (Sammelplan § 3.175 no. 6).
+   */
   async deleteItem(path: string, recursive?: boolean, confirmation?: DeletionConfirmation): Promise<void> {
+    if (isPlainvaInternalPath(path)) return this.inner.deleteItem(path, recursive, confirmation);
+    let info: VaultFileInfo | null;
     try {
-      const info = await this.inner.getFileInfo(path);
-      if (!info.isDirectory) {
-        // A deletion is the last chance to snapshot the content, so the
-        // snapshot interval never applies here. readBinaryFile works
-        // universally for byte-exact copies. The delete itself proceeds even
-        // if the snapshot fails (the OS trash is the remaining net, and the
-        // user explicitly confirmed) — but the failure is reported.
-        await this.safeBackup(path, true, true);
-      } else if (recursive && this.snapshotRecursiveDeletes) {
-        // S4: on a platform without a trash, the folder's children are the
-        // last chance too. Snapshot each FILE below it; failures are reported
-        // per file and never hold up the deletion the user confirmed. By the
-        // path it is deleted by: for the one of two folders whose names differ
-        // only in their Unicode form that keeps its own bytes, `info.path`
-        // names the other one (ADR 0016).
-        await this.snapshotFolderContents(path);
-      }
+      info = await this.inner.getFileInfo(path);
     } catch {
-      // Ignore if file doesn't exist
+      info = null; // Not there: the storage below says what deleting it means.
     }
+    // Nothing that goes has content of its own: a missing item, or a folder
+    // deleted without `recursive`, which only an empty one survives.
+    if (!info || (info.isDirectory && !recursive)) return this.inner.deleteItem(path, recursive, confirmation);
+    const folder = info.isDirectory;
+
+    if (this.inner.moveToTrash) {
+      // The snapshot of a file is taken before the trash is asked: the trash
+      // is the net here, the snapshot keeps the version history going.
+      const fileCovered = folder || (await this.snapshotForDelete(path));
+      if (await this.inner.moveToTrash(path)) return;
+      const cover = folder ? await this.snapshotFolderContents(path) : { uncovered: fileCovered ? [] : [path], total: 1 };
+      this.requireNet(path, folder, cover, "trash-unavailable", confirmation);
+      return this.inner.deleteItem(path, recursive, confirmation);
+    }
+
+    const cover = folder ? await this.snapshotFolderContents(path) : { uncovered: (await this.snapshotForDelete(path)) ? [] : [path], total: 1 };
+    this.requireNet(path, folder, cover, "no-trash", confirmation);
     return this.inner.deleteItem(path, recursive, confirmation);
+  }
+
+  /** Throws where something that goes has no copy and the caller did not say `withoutSnapshot`. */
+  private requireNet(path: string, folder: boolean, cover: { uncovered: string[]; total: number }, net: SnapshotBeforeDeleteError["net"], confirmation?: DeletionConfirmation): void {
+    if (cover.uncovered.length === 0) return;
+    if (confirmation?.withoutSnapshot) {
+      console.warn(`[BackupVaultAdapter] deleting ${path} without a snapshot of ${cover.uncovered.length} file(s), as asked`);
+      return;
+    }
+    throw new SnapshotBeforeDeleteError(path, cover.uncovered, cover.total, net, folder);
+  }
+
+  /**
+   * The snapshot of one file before it is deleted: whatever the interval
+   * says, and in full, byte for byte (`readBinaryFile` reads any file
+   * exactly). True where the file is covered: snapshotted, or nothing there.
+   */
+  private async snapshotForDelete(path: string): Promise<boolean> {
+    try {
+      await this.performBackup(path, true, true);
+      return true;
+    } catch (err) {
+      console.warn(`[BackupVaultAdapter] snapshot before deleting ${path} failed`, err);
+      return false;
+    }
   }
 
   /**
@@ -388,39 +430,34 @@ export class BackupVaultAdapter implements IVaultAdapter {
    * link, not its target —, dot-named files and folders included (`.git`,
    * `.obsidian`: the delete removes them, so the safety copy must hold them;
    * finding 2026-11-02). Only the app's own `.plainva` tree is left out.
+   *
+   * Answers what it could not cover and how many files go: a file whose
+   * snapshot failed, a folder below that could not be listed (issue 125) —
+   * or the folder itself, where it could not be listed at all. By the path
+   * it is deleted by: for the one of two folders whose names differ only in
+   * their Unicode form that keeps its own bytes, a listed `info.path` names
+   * the other one (ADR 0016).
    */
-  private async snapshotFolderContents(folder: string): Promise<void> {
+  private async snapshotFolderContents(folder: string): Promise<{ uncovered: string[]; total: number }> {
     let listing: VaultListing;
     try {
-      // The walk that says what it could not list (issue 125): a folder below
-      // that cannot be listed is no folder whose files were covered.
       listing = this.inner.listDirReport
         ? await this.inner.listDirReport(folder, true, { followLinks: false, dotEntries: true })
         : { files: await this.inner.listDir(folder, true), skipped: [] };
     } catch (error) {
-      // Cannot enumerate — report once against the folder rather than
-      // pretending the children were covered.
-      this.reportBackupError(folder, error);
-      return;
+      console.warn(`[BackupVaultAdapter] could not list ${folder} before deleting it`, error);
+      return { uncovered: [folder], total: 0 };
     }
-    // Said first, so that it is the notice the person sees; a report that
-    // fails costs no file its snapshot.
-    const uncovered = listing.skipped.filter((s) => s.reason === "unreadable");
-    if (uncovered.length > 0) this.reportBackupError(folder, new Error(`${uncovered.length} entr(ies) below could not be listed: ${uncovered.map((s) => s.path).join(", ")}`));
+    // A folder below that could not be listed holds files nobody copied; a cut loop leaves nothing out.
+    const uncovered = listing.skipped.filter((s) => s.reason === "unreadable").map((s) => s.path);
+    let total = uncovered.length;
     for (const entry of listing.files) {
       // The app's own tree, wherever it lies below the folder (an imported vault's).
       if (entry.isDirectory || isPlainvaInternalPath(entry.path) || entry.path.split("/").includes(".plainva")) continue;
-      await this.safeBackup(entry.path, true, true);
+      total++;
+      if (!(await this.snapshotForDelete(entry.path))) uncovered.push(entry.path);
     }
-  }
-
-  /** `onBackupError`, which must not break the operation it reports on. */
-  private reportBackupError(path: string, error: unknown): void {
-    try {
-      this.onBackupError?.(path, error);
-    } catch {
-      // error reporting must not break the delete either
-    }
+    return { uncovered, total };
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {

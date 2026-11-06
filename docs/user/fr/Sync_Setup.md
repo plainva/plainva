@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-11-03
+Dernière mise à jour : 2026-11-06
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -163,6 +163,8 @@ Un compte que vous supprimez reste supprimé : la suppression se propage via la 
 
 Si **Examiner les comptes en double** apparaît sous **Comptes cloud**, Plainva ne se fie volontairement pas au nom. Choisissez **Conserver ce compte** sur la bonne carte. La confirmation indique la cible, les sources et les services concernés, puis crée d’abord une sauvegarde sur cet appareil. **Annuler** ne modifie rien. La fusion supprime uniquement les comptes locaux, caches et identifiants orphelins — rien n’est supprimé chez le fournisseur.
 
+Si **Vérifier les boîtes en double** apparaît, la même boîte aux lettres est enregistrée sous plusieurs entrées. Chaque entrée peut porter sa propre connexion sur cet appareil ; Plainva demande donc d’abord. Choisissez **Conserver cette entrée** sur celle qui doit rester ; chaque entrée indique le compte qui l’utilise et si elle est connectée sur cet appareil. Les autres y sont fondues : leur nom, leurs signatures et leurs adresses d’expéditeur lui reviennent là où elle n’en a pas, et la messagerie du compte passe à elle. Rien n’est supprimé chez le fournisseur. Une boîte enregistrée plusieurs fois sous la même entrée est réunie automatiquement à l’ouverture du vault.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Voyage avec le vault | Reste sur cet appareil |
@@ -201,6 +203,10 @@ La nouvelle connexion ne couvre pas tous les services. Tes accès précédents s
 ## Google Drive : téléchargements incomplets
 
 Lorsque Google Drive limite temporairement les requêtes, Plainva réessaie le téléchargement après un délai. Un téléchargement échoué ne signifie ni fichier absent ni modification terminée. Le contenu local et le dernier état de synchronisation confirmé sont conservés ; le cycle suivant réessaie la modification en attente. Les autres fichiers téléchargés restent disponibles. Les autorisations manquantes et les refus permanents apparaissent comme des erreurs avec le chemin du fichier et la cause. Cela vaut sur ordinateur et sur mobile.
+
+## Google Drive : fichiers que Drive ne signale plus
+
+Il arrive que Google Drive ne liste plus un fichier que vous avez modifié sur cet appareil, et Plainva ne peut pas interroger Drive directement à son sujet, faute d’identifiant. Plainva cherche d’abord le fichier par son nom exact. S’il en trouve exactement un, il le retient et interroge Drive à son sujet ; si Drive répond qu’il n’existe plus, le fichier est téléversé à nouveau comme tout fichier modifié. Si la recherche par nom ne trouve rien, Plainva ne sait pas si le fichier a été supprimé dans Drive ou seulement omis de la liste, et ne supprime jamais un fichier parce que Drive n’a pas répondu. Le fichier reste sur cet appareil avec vos modifications, et la zone de synchronisation affiche **Google Drive ne signale plus N fichiers** : sur le bureau avec la liste des fichiers dans l’avis, sur le téléphone comme un avis qui ouvre la liste avec **Afficher**. **Téléverser à nouveau** envoie un fichier comme nouveau fichier, **Tout téléverser à nouveau** tous les fichiers ; si l’ancien fichier existe encore dans Drive, il y sera ensuite en double. **Masquer** met l’avis de côté jusqu’à ce que l’ensemble des fichiers change. Cela vaut sur le bureau et sur mobile.
 
 ## Transferts de fichiers interrompus
 

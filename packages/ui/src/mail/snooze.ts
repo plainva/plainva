@@ -39,6 +39,26 @@ export interface SnoozeEntry {
 export type SnoozeState = readonly SnoozeEntry[];
 
 /**
+ * The entries of folded mailboxes moved onto the mailbox that was kept
+ * (finding 2026-11-06, M2): the same server numbers its messages the same way
+ * under either entry, so a message put aside in a removed entry comes back in
+ * the kept one. Two entries that now name the same message become one, the
+ * later return winning. Returns the input itself when nothing moved. Pure.
+ */
+export function repointSnoozes(state: SnoozeState, keepId: string, dropIds: readonly string[]): SnoozeEntry[] {
+  const dropped = new Set(dropIds);
+  if (!state.some((entry) => dropped.has(entry.account))) return state as SnoozeEntry[];
+  const byKey = new Map<string, SnoozeEntry>();
+  for (const entry of state) {
+    const moved = dropped.has(entry.account) ? { ...entry, account: keepId } : entry;
+    const key = snoozeKey(moved.account, moved.folder, moved.id);
+    const earlier = byKey.get(key);
+    if (!earlier || moved.until > earlier.until) byKey.set(key, moved);
+  }
+  return [...byKey.values()];
+}
+
+/**
  * Identity of an entry: the message's ADDRESS — account, folder, number.
  *
  * It was the account and the number. An IMAP number is folder-local, so a

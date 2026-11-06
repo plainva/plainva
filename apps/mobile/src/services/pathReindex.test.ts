@@ -19,7 +19,7 @@ import {
 } from "@plainva/core";
 import { serializeBaseConfig } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
-import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import { beforeEveryWrite, realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { byteExactDav, type ByteExactDav } from "../../../../packages/core/test/helpers/byteExactDav";
 
 /**
@@ -534,13 +534,12 @@ describe("a file a pull removed leaves the index with the pull", () => {
     // The second note's row cannot be written (a full disk): the scan fails and
     // is rolled back. (A note the scan cannot READ no longer fails it — it is
     // left out and named, issue #125.)
-    const execute = here.db.execute.bind(here.db);
-    here.db.execute = async (sql, params) => {
-      if (Array.isArray(params) && params.includes("n2.md")) throw new Error("disk full");
-      return execute(sql, params);
-    };
+    // Every write: one sent to the adapter, and one through the scan's handle (D3).
+    const restore = beforeEveryWrite(here.db, (_sql, params) => {
+      if (params.includes("n2.md")) throw new Error("disk full");
+    });
     await expect(here.resume()).rejects.toThrow("disk full");
-    here.db.execute = execute;
+    restore();
     await told.index;
     await here.settle();
 

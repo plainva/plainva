@@ -1,6 +1,7 @@
 import { IDatabaseAdapter } from "./IDatabaseAdapter.js";
 import { migratePathIdentity } from "./pathIdentityMigration.js";
 import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
+import { mergeWorkspaceQueueCopies } from "./workspaceQueueCopies.js";
 import { markNotesForWikiLinkReading } from "./wikiLinkReadingMigration.js";
 import { runStatementsAtomic } from "./batch.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
@@ -664,6 +665,9 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   // Files an older version synced as text although their bytes are not UTF-8
   // are reconciled once more by the next full listing.
   await flagLossyTextBases(db);
+  // Entries of the encrypted workspace's queue an older version queued twice
+  // are one again (Datensicherheit D2).
+  await mergeWorkspaceQueueCopies(db);
 }
 
 /**

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, mkdir, readFile, readdir, writeFile, rename, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, writeFile, rename, rm, rmdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BundleCommentStore, createWorkspaceObjectId, prepareCommentOperation } from "@plainva/core";
@@ -10,11 +10,17 @@ import { desktopCommentOperations } from "./commentOperations";
 const bridge = vi.hoisted(() => ({ invoke: vi.fn(), mkdir: vi.fn(), directory: "", owner: true }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => bridge.invoke(...args) }));
 vi.mock("@tauri-apps/api/path", () => ({ appDataDir: async () => bridge.directory, join: async (...parts: string[]) => parts.join("/") }));
-vi.mock("@tauri-apps/plugin-fs", () => ({ mkdir: (...args: unknown[]) => bridge.mkdir(...args) }));
+vi.mock("@tauri-apps/plugin-fs", () => ({
+  mkdir: (...args: unknown[]) => bridge.mkdir(...args),
+  exists: async (path: string) => { try { await stat(path); return true; } catch { return false; } },
+  remove: async (path: string) => { if ((await stat(path)).isDirectory()) await rmdir(path); else await rm(path); },
+}));
 vi.mock("./windowContext", () => ({ isOwnerWindow: () => bridge.owner }));
 // The existing journal owns the vault directory naming, covered by its tests.
-vi.mock("./draftJournal", () => ({ legacyPathHash: (value: string) => Buffer.from(value).toString("hex") }));
+// Forced collision: the old hash maps every path to one folder, the new key stays distinct.
+vi.mock("./draftJournal", () => ({ legacyPathHash: () => "same-old-hash", draftPathKey: (value: string) => `key-${Buffer.from(value).toString("hex")}` }));
 import { desktopCommentOperationJournal } from "./commentOperationJournal";
+import { removeLegacyCommentOperations } from "./commentOperationLegacy";
 
 let root: string;
 beforeEach(async () => {
@@ -94,5 +100,42 @@ describe("desktop native comment journal", () => {
     bridge.owner = false;
     await expect(desktopCommentOperationJournal("vault-a").write(operation())).rejects.toThrow("vault owner");
     expect(await readdir(root)).toEqual([]);
+  });
+  describe("the queue moved from the lossy folder name to the SHA-256 key (D6)", () => {
+    const oldFolder = () => join(root, "drafts", "same-old-hash", "comment-operations");
+    const seedOld = async (op: ReturnType<typeof operation>, contextKey: string) => {
+      await mkdir(oldFolder(), { recursive: true });
+      await writeFile(join(oldFolder(), `${op.operationId}.json`), JSON.stringify({ ...op, contextKey }));
+    };
+    it("moves only this vault's entries, leaves the other vault's and keeps the old folder until it is empty", async () => {
+      const a = operation(), b = operation();
+      await seedOld(a, "vault-a"); await seedOld(b, "vault-b");
+      expect((await desktopCommentOperationJournal("vault-a").list()).map((op) => op.operationId)).toEqual([a.operationId]);
+      expect(await readdir(oldFolder())).toEqual([`${b.operationId}.json`]);
+      expect((await desktopCommentOperationJournal("vault-b").list()).map((op) => op.operationId)).toEqual([b.operationId]);
+      expect(await readdir(join(root, "drafts"))).toEqual(expect.not.arrayContaining(["same-old-hash"]));
+    });
+    it("an entry already in the new folder wins over a stale old copy", async () => {
+      const a = operation(); await seedOld(a, "vault-a");
+      const journal = desktopCommentOperationJournal("vault-a");
+      await journal.write({ ...a, contextKey: "vault-a", phase: "completed", postedIds: a.markers.map((m) => m.identity.commentId) });
+      await journal.list();
+      expect((await desktopCommentOperationJournal("vault-a").read(a.operationId))?.phase).toBe("completed");
+      await expect(readdir(oldFolder())).rejects.toThrow();
+    });
+    it("an entry that cannot be proven this vault's stays where it is", async () => {
+      await mkdir(oldFolder(), { recursive: true });
+      await writeFile(join(oldFolder(), "garbage.json"), "{ not json");
+      expect(await desktopCommentOperationJournal("vault-a").list()).toEqual([]);
+      expect(await readdir(oldFolder())).toEqual(["garbage.json"]);
+    });
+    it("forgetting vault A removes A's old entries and keeps vault B's", async () => {
+      const a = operation(), b = operation();
+      await seedOld(a, "vault-a"); await seedOld(b, "vault-b");
+      await removeLegacyCommentOperations("vault-a");
+      expect(await readdir(oldFolder())).toEqual([`${b.operationId}.json`]);
+      await removeLegacyCommentOperations("vault-b");
+      await expect(readdir(oldFolder())).rejects.toThrow();
+    });
   });
 });

@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-11-05
+Última revisão: 2026-11-06
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -90,7 +90,9 @@ Na página de e-mail da sua conta — **Contas na nuvem** → a conta → **E-ma
 - **Assinatura por endereço** — quando você tiver outros endereços de remetente, aparece o seletor **Assinatura para** acima do campo. “Padrão (todos os endereços)” é a assinatura da conta; escolha um endereço para escrever uma só para ele. Endereços sem assinatura própria continuam usando a padrão, e trocar de remetente ao redigir coloca a correta — inclusive entre dois endereços da mesma conta. Se esvaziar o campo de um endereço, ele volta para a padrão.
 - **Endereços de remetente adicionais** — um por linha, p. ex. `Nome <alias@example.org>`. O campo **De** passa a listar endereços em vez de contas: primeiro o da própria caixa, depois os apelidos. Se um endereço é de fato aceito, quem decide é o seu provedor — um servidor que recusa enviar com um apelido avisa, e o Plainva mostra esse erro em vez de enviar silenciosamente com outro nome.
 
-**De qual caixa postal sai uma mensagem.** Com mais de uma caixa postal, **De** abre na caixa de onde você está escrevendo, com a assinatura dela. **Responder**, **Responder a todos** e **Encaminhar** partem da caixa em que a mensagem está (em **Todas as caixas de entrada**: a caixa da linha que você abriu). **Nova mensagem** parte da caixa aberta na aba de e-mail. A mensagem que uma lista de e-mails pede em **Cancelar inscrição** parte da caixa para a qual a lista escreveu. O que começa fora da aba de e-mail — **Esta nota por e-mail** ou um convite a partir do calendário — parte da sua primeira caixa postal; uma nota criada com **Responder como nota** parte da caixa que ela indica (`mailbox:`). Você pode trocar **De** antes de enviar.
+**De qual caixa postal sai uma mensagem.** Com mais de uma caixa postal, **De** abre na caixa de onde você está escrevendo, com a assinatura dela. **Responder**, **Responder a todos** e **Encaminhar** partem da caixa em que a mensagem está (em **Todas as caixas de entrada**: a caixa da linha que você abriu). **Nova mensagem** parte da caixa aberta na aba de e-mail. A mensagem que uma lista de e-mails pede em **Cancelar inscrição** parte da caixa para a qual a lista escreveu. O que começa fora da aba de e-mail — **Esta nota por e-mail** ou um convite a partir do calendário — parte da sua caixa postal padrão; uma nota criada com **Responder como nota** parte da caixa que ela indica (`mailbox:`). Você pode trocar **De** antes de enviar.
+
+**Caixa postal padrão.** Com mais de uma caixa postal, uma delas leva **Padrão** em **E-mail** > **Caixas de e-mail**: o E-mail a mostra primeiro, e o que começa sem uma caixa própria parte dela. Para escolher outra, abra o menu da linha dela e escolha **Definir como padrão** (no telefone, pelo botão **…** da linha). Sem escolha, e quando a caixa padrão é removida ou o e-mail dela está desligado, vale a primeira caixa da lista. A escolha acompanha o vault nos seus outros dispositivos.
 
 ## Ações da caixa de correio
 

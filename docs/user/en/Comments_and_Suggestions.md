@@ -1,6 +1,6 @@
 # Comments & Suggestions
 
-Last reviewed: 2026-11-02
+Last reviewed: 2026-11-06
 
 Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet. If the name is missing, Plainva asks for it once at the first comment; without an answer the device signs with its own label (such as “Windows device 4f3a”). Your own remarks read **You**.
 
@@ -65,6 +65,8 @@ Before setting aside this device’s damaged file, Plainva reads the complete ba
 ## Incomplete operations and conflicting decisions
 
 Plainva records progress for each comment operation on this device. If the text is saved but the comment update is pending, a notice offers **Try again**. Retrying continues the unfinished steps without undoing the saved text or later typing. A partially sent suggestion round continues with the same proposals; further changes to your working copy remain unsent.
+
+A comment you are writing is not lost when you leave its note: closing its tab, opening another note in the same tab or stepping back asks **Discard comment?** first; **Keep writing** returns to it. Another pane is not asked.
 
 If the note changed before its text was confirmed, open **Compare text**. Compare the planned change with the current text and edit the note yourself if needed. Retrying checks again; different text is never replaced with the old version.
 

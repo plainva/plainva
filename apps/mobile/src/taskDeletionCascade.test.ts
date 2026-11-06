@@ -33,6 +33,7 @@ vi.mock("./services/vaultService", () => ({
       if (!files.has(path)) throw new Error(`already gone: ${path}`);
       files.delete(path);
       removed.push(path);
+      return true;
     },
   },
 }));

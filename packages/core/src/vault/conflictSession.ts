@@ -1,9 +1,17 @@
-import type { IVaultAdapter } from "./IVaultAdapter.js";
+import { isSnapshotBeforeDeleteError, type IVaultAdapter } from "./IVaultAdapter.js";
 import { withPathMutation } from "./pathMutation.js";
 import { mergeEditorText } from "../conflict-resolver.js";
 import { copyFileContent, fileSha256, isNotTextFileError, readExactText } from "./localText.js";
 
 export type ConflictWriter = "adapter" | "editor-save" | "editor-external" | "sync-pull";
+
+/**
+ * The writers that may ask to keep a conflict from outside the pipeline. The
+ * adapter's own writes open their conflicts inside it; a request from an
+ * editor or another window never names it, so an own file under `.plainva`
+ * cannot be given a session that is hidden from every list.
+ */
+export type PreservingConflictWriter = Exclude<ConflictWriter, "adapter">;
 
 /** Device-scoped state, excluded from Plainva sync and settings profiles. */
 export interface ConflictEditSession {
@@ -76,6 +84,14 @@ export interface ConflictResolution {
    * file's open conflict, as before.
    */
   copyPath?: string;
+  /**
+   * Delete the copy even where no snapshot of it can be written first — the
+   * person's "Delete anyway" to the question a `SnapshotBeforeDeleteError`
+   * puts (D1). Only an exit that lets the copy's text go needs it: where the
+   * copy takes the file's place or stays as a file of its own, its text is
+   * kept, and the copy goes without one.
+   */
+  withoutSnapshot?: true;
 }
 
 /**
@@ -98,6 +114,8 @@ export interface ConflictBytesResolution {
   keepCopyAs?: string;
   /** As in `ConflictResolution`: a copy beside the file that is no working copy is settled in the gate it is checked in. */
   copyPath?: string;
+  /** As in `ConflictResolution`. */
+  withoutSnapshot?: true;
 }
 
 export interface ConflictSessionGate {
@@ -254,7 +272,8 @@ export class ConflictSessions {
           const kept = `.plainva/conflict-revisions/${crypto.randomUUID()}-${name}`;
           await copyFileContent(this.files, session.workingCopyPath, kept);
           if (await fileSha256(this.files, kept) !== await fileSha256(this.files, session.workingCopyPath)) throw new Error("The working copy could not be kept");
-          await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+          // Kept, checked, under `kept`: the copy needs no snapshot of its own to go (D1).
+          await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true, withoutSnapshot: true });
           await this.store.removeConflictSession(session.originalPath);
           setAside.push(session.originalPath);
         });
@@ -423,7 +442,7 @@ export class ConflictSessions {
   async resolveLocked(gate: ConflictSessionGate, resolution: ConflictResolution): Promise<void> {
     const session = gate.session;
     if (!session) throw new Error("Conflict session no longer exists");
-    if (session.resolution) { await this.finishResolution(session); return; }
+    if (session.resolution) { await this.finishResolution(session, resolution.withoutSnapshot); return; }
     await this.recoverDraft(session);
     // Read by their bytes: a side another program saved in another encoding
     // is no text the comparison saw (§ 3.86 no. 6), and says so as such.
@@ -436,7 +455,7 @@ export class ConflictSessions {
     if (content === null) throw new Error("Cannot discard a conflict whose original is missing");
     session.resolution = { content, originalHash: seenOriginal === null ? null : await conflictHash(seenOriginal), copyHash: await conflictHash(seenCopy), ...(resolution.keepCopyAs ? { keepCopyAs: resolution.keepCopyAs } : {}) };
     await this.store.saveConflictSession(session);
-    await this.finishResolution(session);
+    await this.finishResolution(session, resolution.withoutSnapshot);
   }
 
   /**
@@ -471,16 +490,28 @@ export class ConflictSessions {
       // The local marker follows the write in the same gate, as in
       // `finishResolution`; the sync base stays the last confirmed remote one.
       await this.store.updateLocalHash(session.originalPath, copy);
-      await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+      // The copy's bytes are the file's now, checked above: it goes without a snapshot of its own (D1).
+      await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true, withoutSnapshot: true });
     } else if (resolution.keepCopyAs) {
       await this.files.renameItem(session.workingCopyPath, resolution.keepCopyAs);
     } else {
-      await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+      // Its bytes go: only with a net, or after the person's "Delete anyway" (D1).
+      await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true, ...(resolution.withoutSnapshot ? { withoutSnapshot: true as const } : {}) });
     }
     await this.store.removeConflictSession(session.originalPath);
   }
 
-  private async finishResolution(session: ConflictEditSession): Promise<void> {
+  /**
+   * Carries out a confirmed resolution. The working copy goes last, through
+   * the net rule of a deletion (D1): where its text is kept — it took the
+   * file's place, or stays as a file of its own — it goes without a snapshot;
+   * where it is let go, only with one, or with the person's `withoutSnapshot`.
+   * Where neither is there (`SnapshotBeforeDeleteError`) and nothing was
+   * written yet, the confirmation is taken back, so that the question can be
+   * answered and the comparison asked again; where the file was written, the
+   * resolution stays, and the next attempt only lets the copy go.
+   */
+  private async finishResolution(session: ConflictEditSession, withoutSnapshot?: true): Promise<void> {
     const resolution = session.resolution!;
     // By their bytes (§ 3.86 no. 6): a side saved in another encoding since
     // has a hash no text has, so the confirmation no longer holds — where it
@@ -503,12 +534,25 @@ export class ConflictSessions {
       if (kept === null && typeof copy === "string") await this.files.writeTextFile(resolution.keepCopyAs, copy);
       if (await sideHash(await this.readOrNull(resolution.keepCopyAs)) !== resolution.copyHash) throw new Error("comparisonChanged");
     }
-    if (originalHash !== desiredHash) await this.files.writeTextFile(session.originalPath, resolution.content);
+    const wrote = originalHash !== desiredHash;
+    if (wrote) await this.files.writeTextFile(session.originalPath, resolution.content);
     if (await this.files.readTextFile(session.originalPath) !== resolution.content) throw new Error("Conflict resolution could not be confirmed");
     // Keep the local marker in the same gate as the write, including recovery.
     // The sync base still belongs to the last confirmed remote revision.
     await this.store.updateLocalHash(session.originalPath, desiredHash);
-    if (copy !== null) await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true });
+    if (copy !== null) {
+      // Kept where it took the file's place or stays as a file of its own (both checked above).
+      const kept = Boolean(resolution.keepCopyAs) || desiredHash === resolution.copyHash;
+      try {
+        await this.files.deleteItem(session.workingCopyPath, false, { confirmed: true, ...(kept || withoutSnapshot ? { withoutSnapshot: true as const } : {}) });
+      } catch (error) {
+        if (isSnapshotBeforeDeleteError(error) && !wrote) {
+          session.resolution = null;
+          await this.store.saveConflictSession(session);
+        }
+        throw error;
+      }
+    }
     await this.store.removeConflictSession(session.originalPath);
   }
 

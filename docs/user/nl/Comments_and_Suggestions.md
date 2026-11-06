@@ -1,6 +1,6 @@
 # Opmerkingen en voorstellen
 
-Laatst bijgewerkt: 2026-11-02
+Laatst bijgewerkt: 2026-11-06
 
 Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad. Ontbreekt de naam, dan vraagt Plainva er bij de eerste opmerking één keer naar; zonder antwoord ondertekent het apparaat met zijn eigen label (bijvoorbeeld „Windows-apparaat 4f3a”). Je eigen opmerkingen staan er als **Jij**.
 
@@ -65,6 +65,8 @@ Voordat Plainva het beschadigde bestand van dit apparaat apart zet, leest het de
 ## Onvoltooide handelingen en tegenstrijdige beslissingen
 
 Plainva bewaart op dit apparaat de voortgang van elke reactiehandeling. Als de tekst is opgeslagen maar de reactie nog niet is bijgewerkt, biedt een melding **Opnieuw proberen**. Opnieuw proberen gaat verder met de resterende stappen zonder opgeslagen tekst of latere invoer ongedaan te maken. Een gedeeltelijk verzonden voorstelronde gaat verder met dezelfde voorstellen; latere wijzigingen in je werkkopie blijven onverzonden.
+
+Een opmerking die je aan het schrijven bent, gaat niet verloren als je haar notitie verlaat: het tabblad sluiten, een andere notitie in hetzelfde tabblad openen of teruggaan vraagt eerst **Opmerking verwerpen?**; **Verder schrijven** brengt je terug. Een ander paneel vraagt niets.
 
 Als de notitie vóór de tekstbevestiging is gewijzigd, open dan **Tekst vergelijken**. Vergelijk de geplande wijziging met de huidige tekst en bewerk de notitie zo nodig zelf. Opnieuw proberen controleert nogmaals; afwijkende tekst wordt nooit door de oude versie vervangen.
 

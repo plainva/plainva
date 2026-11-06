@@ -386,11 +386,11 @@ export async function restoreCachedMail(
 ): Promise<void> {
   if (!db || !(await ensure(db))) return;
   if (snapshot.version !== 1) throw new Error("unsupported-mail-cache-snapshot");
-  await db.transaction(async () => {
-    await db.execute(`DELETE FROM mail_envelopes WHERE account = ?`, [snapshot.account]);
-    await db.execute(`DELETE FROM mail_bodies WHERE account = ?`, [snapshot.account]);
+  await db.transaction(async (tx) => {
+    await tx.execute(`DELETE FROM mail_envelopes WHERE account = ?`, [snapshot.account]);
+    await tx.execute(`DELETE FROM mail_bodies WHERE account = ?`, [snapshot.account]);
     for (const row of snapshot.envelopes) {
-      await db.execute(
+      await tx.execute(
         `INSERT OR REPLACE INTO mail_envelopes
            (account, mailbox, id, subject, sender, date_ts, seen, flagged, preview,
             thread_id, message_id, in_reply_to, refs, cached_at)
@@ -403,7 +403,7 @@ export async function restoreCachedMail(
       );
     }
     for (const row of snapshot.bodies) {
-      await db.execute(
+      await tx.execute(
         `INSERT OR REPLACE INTO mail_bodies (account, mailbox, id, payload, cached_at)
          VALUES (?, ?, ?, ?, ?)`,
         [row.account, row.mailbox, row.id, row.payload, row.cached_at],

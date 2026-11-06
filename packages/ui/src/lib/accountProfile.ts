@@ -3,6 +3,7 @@ import { trimEndChars } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
 import type { CloudAccountRecord } from "./cloudAccounts.js";
 import type { MailAccountConfig } from "../mail/mailAccounts.js";
+import { mergeMailAccountRows } from "../mail/mailAccountRows.js";
 import { getPlatformServices } from "../platform/services.js";
 
 /** Provider-owned account key proven by a successful authenticated API call. */
@@ -711,6 +712,22 @@ export function defaultCalendarFromProfile(value: unknown, pimIdMap: ReadonlyMap
   return `${pimIdMap.get(logical) ?? logical}${value.slice(sep)}`;
 }
 
+/**
+ * The default mailbox travels as its LOGICAL id (finding 2026-11-06, M1), for
+ * the reason the default calendar's account does: the stored id is
+ * device-local. "" (no default) passes through.
+ */
+export function defaultMailAccountForProfile(value: unknown, map: ProfileAccountMap): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value ? map.mailLocalToLogical[value] ?? value : value;
+}
+
+/** Inverse of `defaultMailAccountForProfile`, with the logical → local map an import minted. */
+export function defaultMailAccountFromProfile(value: unknown, mailIdMap: ReadonlyMap<string, string>): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value ? mailIdMap.get(value) ?? value : value;
+}
+
 function nextLocalId(preferred: string, used: Set<string>, newId: () => string): string {
   if (preferred && !used.has(preferred)) return preferred;
   let id: string;
@@ -855,11 +872,21 @@ export async function importAccountMetadata(
       used.add(localId);
       mailMap.set(imported.id, localId);
       previousMap.secretLocalToLogical[ports.mailSecretSlot(localId)] = imported.id;
-      importedRows.push({
+      // `firstFetchAt` is only ever GAINED (like a verified identity above): a
+      // document older than this device's first fetch must not take it back.
+      const row: MailAccountConfig = {
         ...imported,
         id: localId,
         ...(same?.clientId ? { clientId: same.clientId } : {}),
-      });
+        ...(!imported.firstFetchAt && same?.firstFetchAt ? { firstFetchAt: same.firstFetchAt } : {}),
+      };
+      // Several document rows can name ONE local mailbox - by id, or by the
+      // same address under old ids. Each used to be appended, so a document
+      // with one mailbox seven times left seven rows with one id (finding
+      // 2026-11-06, M2). They fold into the first, keeping every set field.
+      const earlier = importedRows.findIndex((entry) => entry.id === localId);
+      if (earlier >= 0) importedRows[earlier] = mergeMailAccountRows(importedRows[earlier], row);
+      else importedRows.push(row);
     }
     const importedIds = new Set(importedRows.map((a) => a.id));
     const removedMailLocals = new Set(

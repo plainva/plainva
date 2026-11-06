@@ -64,20 +64,17 @@ describe("fixture sqlite bridge", () => {
 });
 
 describe("FixtureSqliteAdapter", () => {
-  it("runs a batch its caller sends from inside its own transaction without a second BEGIN", async () => {
+  it("runs a batch its caller sends through its transaction's handle without a second BEGIN", async () => {
     const seen = installBridge();
     const db = new FixtureSqliteAdapter("test");
 
     // Exactly the shape the indexer uses: a batch flushed from within its
-    // transaction, saying so. This is the call that broke the index.
-    await db.transaction(async () => {
-      await db.runBatch(
-        [
-          { sql: "INSERT INTO files VALUES (?)", params: ["a.md"] },
-          { sql: "INSERT INTO files VALUES (?)", params: ["b.md"] },
-        ],
-        { inOpenTransaction: true },
-      );
+    // transaction, on the body's handle. This is the call that broke the index.
+    await db.transaction(async (tx) => {
+      await tx.runBatch!([
+        { sql: "INSERT INTO files VALUES (?)", params: ["a.md"] },
+        { sql: "INSERT INTO files VALUES (?)", params: ["b.md"] },
+      ]);
     });
 
     expect(seen.map((s) => s.sql)).toEqual(["BEGIN", "INSERT INTO files VALUES (?)", "INSERT INTO files VALUES (?)", "COMMIT"]);
@@ -102,12 +99,12 @@ describe("FixtureSqliteAdapter", () => {
     // A save's entry in the sync queue, the index following a pulled file and
     // a calendar that is replaced: three flows that do not know of each other.
     await Promise.all([
-      db.transaction(async () => {
-        await db.execute("INSERT INTO offline_queue VALUES (?)", ["a.md"]);
-        await db.execute("UPDATE files SET sync_state = 'local_ahead'");
+      db.transaction(async (tx) => {
+        await tx.execute("INSERT INTO offline_queue VALUES (?)", ["a.md"]);
+        await tx.execute("UPDATE files SET sync_state = 'local_ahead'");
       }),
-      db.transaction(async () => {
-        await db.execute("INSERT INTO files VALUES (?)", ["b.md"]);
+      db.transaction(async (tx) => {
+        await tx.execute("INSERT INTO files VALUES (?)", ["b.md"]);
       }),
       db.runBatch([{ sql: "DELETE FROM pim_events" }]),
     ]);
@@ -125,12 +122,12 @@ describe("FixtureSqliteAdapter", () => {
     const seen = installBridge();
     const db = new FixtureSqliteAdapter("test");
 
-    const failed = db.transaction(async () => {
-      await db.execute("INSERT INTO t VALUES (?)", [1]);
+    const failed = db.transaction(async (tx) => {
+      await tx.execute("INSERT INTO t VALUES (?)", [1]);
       throw new Error("boom");
     });
-    const next = db.transaction(async () => {
-      await db.execute("INSERT INTO t VALUES (?)", [2]);
+    const next = db.transaction(async (tx) => {
+      await tx.execute("INSERT INTO t VALUES (?)", [2]);
     });
     await expect(failed).rejects.toThrow("boom");
     await next;
@@ -148,12 +145,31 @@ describe("FixtureSqliteAdapter", () => {
     await db.transaction(async () => {
       throw new Error("first");
     }).catch(() => {});
-    await db.runBatch([{ sql: "INSERT INTO t VALUES (?)", params: [1] }], { inOpenTransaction: true });
+    await db.runBatch([{ sql: "INSERT INTO t VALUES (?)", params: [1] }]);
 
     // A mark left behind by the failed transaction would send this batch into
     // "the transaction that is open" — there is none: the writes would land
-    // outside any transaction. The caller's word alone does not decide it.
+    // outside any transaction.
     expect(seen.map((s) => s.sql)).toEqual(["BEGIN", "ROLLBACK", "BEGIN", "INSERT INTO t VALUES (?)", "COMMIT"]);
+  });
+
+  it("a write sent to the adapter while a transaction is open waits for it, and is not rolled back with it (D3)", async () => {
+    const seen = installBridge();
+    const db = new FixtureSqliteAdapter("test");
+    let fail!: () => void;
+    const failing = db.transaction(async (tx) => {
+      await tx.execute("INSERT INTO t VALUES (?)", ["inside"]);
+      await new Promise<void>((resolve) => { fail = resolve; });
+      throw new Error("the scan could not read a file");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const outside = db.execute("DELETE FROM sync_state WHERE path = ?", ["a.md"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fail();
+    await expect(failing).rejects.toThrow("could not read");
+    await outside;
+    // It used to run between the two, inside the transaction, and go back with it.
+    expect(seen.map((s) => s.sql)).toEqual(["BEGIN", "INSERT INTO t VALUES (?)", "ROLLBACK", "DELETE FROM sync_state WHERE path = ?"]);
   });
 
   it("binds an absent value as null", async () => {
@@ -216,8 +232,8 @@ describe("FixtureSqliteAdapter", () => {
     const second = new FixtureSqliteAdapter("test");
     await second.initialize();
     expect(open).toBe(false);
-    await second.transaction(async () => {
-      await second.execute("INSERT INTO files VALUES (?)", ["a.md"]);
+    await second.transaction(async (tx) => {
+      await tx.execute("INSERT INTO files VALUES (?)", ["a.md"]);
     });
     expect(open).toBe(false);
   });

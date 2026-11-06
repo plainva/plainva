@@ -62,9 +62,9 @@ export async function migratePathIdentity(db: IDatabaseAdapter): Promise<PathIde
   if ((await readVersion(db)) >= PATH_IDENTITY_VERSION) return null;
   const report: PathIdentityReport = { rekeyed: 0, twinsKept: [], droppedDeletes: [], droppedIndexRows: 0 };
 
-  await db.transaction(async () => {
+  await db.transaction(async (tx) => {
     // --- the index ---------------------------------------------------------
-    const files = (await db.query<{ path: string }>(`SELECT path FROM files`)).map((r) => r.path);
+    const files = (await tx.query<{ path: string }>(`SELECT path FROM files`)).map((r) => r.path);
     const spellingsByIdentity = new Map<string, Set<string>>();
     for (const path of files) {
       const id = nfc(path);
@@ -77,30 +77,30 @@ export async function migratePathIdentity(db: IDatabaseAdapter): Promise<PathIde
       if (!isTwin(path)) continue;
       const id = nfc(path);
       if (taken.has(id)) {
-        await db.execute(`DELETE FROM files WHERE path = ?`, [path]);
+        await tx.execute(`DELETE FROM files WHERE path = ?`, [path]);
         report.droppedIndexRows++;
         continue;
       }
-      await db.execute(`UPDATE files SET path = ? WHERE path = ?`, [id, path]);
+      await tx.execute(`UPDATE files SET path = ? WHERE path = ?`, [id, path]);
       taken.add(id);
       report.rekeyed++;
     }
-    const fts = (await db.query<{ path: string }>(`SELECT DISTINCT path FROM fts_notes`)).map((r) => r.path);
+    const fts = (await tx.query<{ path: string }>(`SELECT DISTINCT path FROM fts_notes`)).map((r) => r.path);
     const ftsTaken = new Set(fts.filter((p) => !isTwin(p)));
     for (const path of fts) {
       if (!isTwin(path)) continue;
       const id = nfc(path);
       if (ftsTaken.has(id)) {
-        await db.execute(`DELETE FROM fts_notes WHERE path = ?`, [path]);
+        await tx.execute(`DELETE FROM fts_notes WHERE path = ?`, [path]);
         report.droppedIndexRows++;
         continue;
       }
-      await db.execute(`UPDATE fts_notes SET path = ? WHERE path = ?`, [id, path]);
+      await tx.execute(`UPDATE fts_notes SET path = ? WHERE path = ?`, [id, path]);
       ftsTaken.add(id);
     }
 
     // --- sync state: re-keyed, never merged ---------------------------------
-    const states = (await db.query<{ path: string }>(`SELECT path FROM sync_state`)).map((r) => r.path);
+    const states = (await tx.query<{ path: string }>(`SELECT path FROM sync_state`)).map((r) => r.path);
     const stateTaken = new Set(states.filter((p) => !isTwin(p)));
     for (const path of [...states].sort()) {
       if (!isTwin(path)) continue;
@@ -109,26 +109,26 @@ export async function migratePathIdentity(db: IDatabaseAdapter): Promise<PathIde
         report.twinsKept.push(path);
         continue;
       }
-      await db.execute(`UPDATE sync_state SET path = ? WHERE path = ?`, [id, path]);
+      await tx.execute(`UPDATE sync_state SET path = ? WHERE path = ?`, [id, path]);
       stateTaken.add(id);
       report.rekeyed++;
     }
 
     // --- the offline queue --------------------------------------------------
-    const ops = await db.query<{ id: number; operation: string; file_path: string; new_path: string | null }>(
+    const ops = await tx.query<{ id: number; operation: string; file_path: string; new_path: string | null }>(
       `SELECT id, operation, file_path, new_path FROM offline_queue ORDER BY id`
     );
     for (const op of ops) {
       if (op.operation === "delete") {
         const spellings = spellingsByIdentity.get(nfc(op.file_path));
         if (spellings && [...spellings].some((s) => s !== op.file_path)) {
-          await db.execute(`DELETE FROM offline_queue WHERE id = ?`, [op.id]);
+          await tx.execute(`DELETE FROM offline_queue WHERE id = ?`, [op.id]);
           report.droppedDeletes.push(op.file_path);
           continue;
         }
       }
       if (!isTwin(op.file_path) && !isTwin(op.new_path)) continue;
-      await db.execute(`UPDATE offline_queue SET file_path = ?, new_path = ? WHERE id = ?`, [
+      await tx.execute(`UPDATE offline_queue SET file_path = ?, new_path = ? WHERE id = ?`, [
         nfc(op.file_path),
         op.new_path == null ? null : nfc(op.new_path),
         op.id,
@@ -146,21 +146,21 @@ export async function migratePathIdentity(db: IDatabaseAdapter): Promise<PathIde
       { table: "workspace_local_fork", column: "original_path" },
       { table: "workspace_local_fork", column: "fork_path" },
     ]) {
-      const rows = await db.query<{ value: string | null }>(`SELECT DISTINCT ${column} AS value FROM ${table}`);
+      const rows = await tx.query<{ value: string | null }>(`SELECT DISTINCT ${column} AS value FROM ${table}`);
       for (const { value } of rows) {
         if (!isTwin(value)) continue;
-        await db.execute(`UPDATE ${table} SET ${column} = ? WHERE ${column} = ?`, [nfc(value!), value]);
+        await tx.execute(`UPDATE ${table} SET ${column} = ? WHERE ${column} = ?`, [nfc(value!), value]);
         report.rekeyed++;
       }
     }
     // A cache of local hashes: a row under an old spelling is simply re-read.
-    const probes = await db.query<{ path: string }>(`SELECT path FROM workspace_local_probe`);
+    const probes = await tx.query<{ path: string }>(`SELECT path FROM workspace_local_probe`);
     for (const { path } of probes) {
-      if (isTwin(path)) await db.execute(`DELETE FROM workspace_local_probe WHERE path = ?`, [path]);
+      if (isTwin(path)) await tx.execute(`DELETE FROM workspace_local_probe WHERE path = ?`, [path]);
     }
 
-    await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('path_identity_version', ?)`, [String(PATH_IDENTITY_VERSION)]);
-    await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('path_identity_report', ?)`, [JSON.stringify(report)]);
+    await tx.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('path_identity_version', ?)`, [String(PATH_IDENTITY_VERSION)]);
+    await tx.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('path_identity_report', ?)`, [JSON.stringify(report)]);
   });
 
   if (report.rekeyed > 0 || report.twinsKept.length > 0 || report.droppedDeletes.length > 0) {

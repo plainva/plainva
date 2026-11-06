@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PIM_RETRY_CAP_MS, PimWorker, pimRetryDelayMs, type PimCycleInfo } from "../src/pim/PimWorker.ts";
 import { PimCacheRepository } from "../src/pim/PimCacheRepository.ts";
-import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.ts";
+import type { IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.ts";
 import { initializeSchema } from "../src/db/Schema.ts";
 import type { IPimTarget, PimEvent } from "../src/pim/types.ts";
 import { classifySyncError, isLocalStoreBusy, isSignInFailure } from "../src/sync/errorKind.ts";
@@ -29,8 +29,8 @@ class NodeSqliteAdapter implements IDatabaseAdapter {
   async queryOne<T = unknown>(sql: string, params: unknown[] = []): Promise<T | null> {
     return ((this.db.prepare(sql).all(...(params as never[])) as T[])[0] ?? null) as T | null;
   }
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return fn();
+  async transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
+    return fn(this);
   }
   async initialize(): Promise<void> {}
   async close(): Promise<void> {

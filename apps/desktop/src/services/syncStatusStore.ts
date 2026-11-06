@@ -60,6 +60,12 @@ export interface SyncStatusSnapshot {
    */
   collisionCases: readonly NameCollisionCase[];
   /**
+   * Files with changes of this device that Google Drive no longer reports and
+   * that could not be asked about by an id (D7): kept, named in the sync area,
+   * with "Upload again". Empty once the set is settled.
+   */
+  unverifiedFiles: readonly string[];
+  /**
    * The remote listing contradicts itself (finding 2026-09-20): files it does
    * not carry were asked for one by one and exist. Facts, not a sentence — the
    * dialog says it in the user's language and offers "check again" instead of
@@ -68,7 +74,7 @@ export interface SyncStatusSnapshot {
   listingIncomplete?: ListingIncompleteInfo | null;
 }
 
-const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [], collisionCases: [], listingIncomplete: null };
+const IDLE: SyncStatusSnapshot = { status: "idle", message: null, provider: null, progress: null, reason: undefined, collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null };
 
 const listeners = new Set<() => void>();
 

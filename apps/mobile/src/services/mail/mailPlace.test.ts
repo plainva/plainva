@@ -18,6 +18,14 @@ describe("remembered mailbox resolution (B1)", () => {
     expect(resolveMailAccount(null, accounts)).toBe("work");
   });
 
+  it("falls to the default mailbox, not the first, where nothing is remembered (finding 2026-11-06, M1)", () => {
+    expect(resolveMailAccount(null, accounts, "private")).toBe("private");
+    expect(resolveMailAccount("removed", accounts, "private")).toBe("private");
+    // The remembered one still wins; a default that is gone falls to the first.
+    expect(resolveMailAccount("work", accounts, "private")).toBe("work");
+    expect(resolveMailAccount(null, accounts, "removed")).toBe("work");
+  });
+
   it("has no account to offer when none is connected", () => {
     expect(resolveMailAccount("work", [])).toBeNull();
   });

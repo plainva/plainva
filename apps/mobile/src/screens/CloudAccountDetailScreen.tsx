@@ -18,6 +18,7 @@ import {
   Banner,
   Button,
   cx,
+  accountDisplayName,
   familyLabel,
   filesCarrier,
   GroupCard,
@@ -304,7 +305,7 @@ export function CloudAccountDetailScreen({
       const sourceId = await mTargets({
         title: t("cloudAccounts.mergeManualPick"),
         message: t("cloudAccounts.mergeManualStep"),
-        options: mergeCandidates.map((record) => ({ value: record.id, label: record.label || familyLabel(record.family) })),
+        options: mergeCandidates.map((record) => ({ value: record.id, label: accountDisplayName(record) })),
       });
       if (!sourceId) return;
       setBusy(true);
@@ -312,8 +313,8 @@ export function CloudAccountDetailScreen({
         const result = await guideMobileAccountRepair(loginVaultId, { accountIds: [sourceId, target.id], targetId: target.id }, (plan) => mConfirm({
           title: t("cloudAccounts.repairConfirmTitle"),
           message: t("cloudAccounts.repairConfirmMessage", {
-            target: target.label || familyLabel(target.family),
-            sources: plan.merges[0].sourceIds.map((id) => mergeCandidates.find((record) => record.id === id)?.label || id).join(", "),
+            target: accountDisplayName(target),
+            sources: plan.merges[0].sourceIds.map((id) => { const record = mergeCandidates.find((entry) => entry.id === id); return record ? accountDisplayName(record) : id; }).join(", "),
             services: plan.merges[0].affectedServices.map(serviceLabel).join(" · "),
           }),
           confirmLabel: t("cloudAccounts.repairConfirmAction"),
@@ -338,7 +339,7 @@ export function CloudAccountDetailScreen({
       const ok = await mConfirm({
         title: t("cloudAccounts.removeConfirmTitle"),
         message: t("cloudAccounts.removeConfirmMsg", {
-          account: card.label || familyLabel(card.family),
+          account: accountDisplayName(card),
           goes: confirm.goes.map((key) => t(key)).join("; "),
           stays: confirm.stays.map((key) => t(key)).join("; "),
         }),
@@ -439,7 +440,7 @@ export function CloudAccountDetailScreen({
                     // What a sign-in said about a service stands only while the facts do not say it works:
                     // the line and the check read the same facts (device finding 2026-10-27).
                     subtitle={takenElsewhere && filesTakenBy
-                      ? t("cloudAccounts.filesTakenDetail", { account: filesTakenBy.label || familyLabel(filesTakenBy.family, filesTakenBy.flavor) })
+                      ? t("cloudAccounts.filesTakenDetail", { account: accountDisplayName(filesTakenBy) })
                       : (card.serviceStates?.[row.service] !== "active" ? loginStatus?.services[row.service] : undefined) ?? row.summary ?? t(row.stateKey)}
                     wrap
                     controls

@@ -99,6 +99,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   mailRemoteImages: false,
   syncIntervalSeconds: 15,
   defaultCalendar: "",
+  defaultMailAccount: "",
   weekStart: "",
   backupSnapshotIntervalSeconds: 120,
   backupMaxCountPerFile: 100,
@@ -271,6 +272,10 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   { logical: "mailSnoozed", scope: "member", kind: "json", area: "mail", desktop: "store", mobile: "own" },
   { logical: "syncIntervalSeconds", scope: "member", kind: "number", area: "sync", desktop: "store", mobile: "syncIntervalSeconds", min: 5 },
   { logical: "defaultCalendar", scope: "member", kind: "text", area: "calendar", desktop: "store", mobile: "defaultCalendar" },
+  // The mailbox Mail shows first and a new message starts from (finding
+  // 2026-11-06, M1; decision E1: it travels, like the default calendar). The
+  // store holds the device-local id, the document the logical one.
+  { logical: "defaultMailAccount", scope: "member", kind: "text", area: "mail", desktop: "store", mobile: "defaultMailAccount" },
 
   // Backup retention.
   { logical: "backupSnapshotIntervalSeconds", scope: "member", kind: "number", area: "backup", desktop: "store", mobile: "backupIntervalSeconds", min: 0 },

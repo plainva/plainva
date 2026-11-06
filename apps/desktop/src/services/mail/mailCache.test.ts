@@ -97,7 +97,7 @@ function fakeDb() {
       }
       return [] as never;
     },
-    transaction: async <T,>(fn: () => Promise<T>): Promise<T> => fn(),
+    transaction: async <T,>(fn: (tx: unknown) => Promise<T>): Promise<T> => fn(db),
   } as unknown as IDatabaseAdapter;
   return { db, statements, bodies };
 }

@@ -51,6 +51,8 @@ export type CloseQuestion = () => Promise<boolean>;
 const LET_GO_WAIT_MS = 1_000;
 
 const held = new Set<CloseQuestion>();
+/** The note a held question belongs to, where it names one (a comment being written). */
+const heldPaths = new Map<CloseQuestion, string>();
 /** Set once the window may go for good: its work was sent, filed or given up. */
 let released = false;
 let asking = false;
@@ -152,17 +154,43 @@ function ensureListener(label: string): void {
  * is unsaved and disarms it the moment it is not — so an untouched surface
  * never asks.
  */
-export function holdWindowClose(question: CloseQuestion): () => void {
+export function holdWindowClose(question: CloseQuestion, path?: string): () => void {
   // Only a window the central one created is asked back about its close (see
   // the head of this file); the central window keeps the question for the
   // steps it takes itself.
   const label = currentWindowParams().label;
   if (label) ensureListener(label);
   held.add(question);
+  if (path !== undefined) heldPaths.set(question, path);
   if (held.size === 1) void report();
   return () => {
+    heldPaths.delete(question);
     if (held.delete(question) && held.size === 0) void report();
   };
+}
+
+const questionsAt = (paths: readonly string[]): CloseQuestion[] =>
+  [...held].filter((question) => {
+    const at = heldPaths.get(question);
+    return at !== undefined && paths.includes(at);
+  });
+
+/** True while unsaved input belonging to one of these notes is held. */
+export function holdsWorkAt(paths: readonly string[]): boolean {
+  return !released && paths.length > 0 && questionsAt(paths).length > 0;
+}
+
+/**
+ * Puts the questions of these notes before a step that closes their pane or
+ * shows another note there. True = the work may go (nothing held for them, or
+ * the person discarded it); false = cancel, leave everything as it is.
+ */
+export async function askHeldWorkAt(paths: readonly string[]): Promise<boolean> {
+  for (const question of questionsAt(paths)) {
+    if (!held.has(question)) continue;
+    if (!(await question())) return false;
+  }
+  return true;
 }
 
 /** True while a surface of this window has declared work that would be lost. */
@@ -200,6 +228,7 @@ export function releaseWindowClose(): void {
 /** Test seam — the app never resets this. */
 export function resetWindowCloseGuardForTest(): void {
   held.clear();
+  heldPaths.clear();
   released = false;
   asking = false;
   round = null;

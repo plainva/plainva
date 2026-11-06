@@ -1,6 +1,6 @@
 # Sync einrichten
 
-Stand: 2026-11-03
+Stand: 2026-11-06
 
 Plainva synchronisiert jeden Vault optional mit einem Speicher Deiner Wahl — direkt aus der App, ohne Zusatzdienst von Plainva: Deine Daten laufen ausschließlich zwischen Deinem Rechner und Deinem eigenen Konto/Server. Diese Seite führt durch die Einrichtung je Anbieter.
 
@@ -163,6 +163,8 @@ Ein Konto, das Du entfernst, bleibt entfernt: die Löschung reist über die Eins
 
 Wenn unter **Cloud-Konten** der Abschnitt **Doppelte Konten prüfen** erscheint, entscheidet Plainva absichtlich nicht anhand des Namens. Wähle **Dieses Konto behalten** bei der richtigen Karte. Die Bestätigung nennt Ziel, Quellen und betroffene Dienste; vorher wird auf diesem Gerät eine Sicherung angelegt. **Abbrechen** verändert nichts. Beim Zusammenführen werden nur verwaiste lokale Konten, Caches und Zugangsdaten entfernt — beim Anbieter wird nichts gelöscht.
 
+Wenn **Doppelte Postfächer prüfen** erscheint, ist dasselbe Postfach unter mehreren Einträgen gespeichert. Jeder Eintrag kann auf diesem Gerät eine eigene Anmeldung tragen, deshalb fragt Plainva zuerst. Wähle **Diesen Eintrag behalten** bei dem, der bleiben soll; jeder Eintrag nennt das Konto, das ihn nutzt, und ob er auf diesem Gerät angemeldet ist. Die anderen gehen in ihm auf: ihr Name, ihre Signaturen und Absenderadressen gehen an ihn, wo er keine hat, und die E-Mail des Kontos wechselt zu ihm. Beim Anbieter wird nichts gelöscht. Ein Postfach, das mehrfach unter demselben Eintrag gespeichert ist, legt Plainva beim Öffnen des Vaults von selbst zusammen.
+
 <!-- plainva:profile-areas accounts content calendar mail backup sync layout -->
 
 | Reist mit dem Vault | Bleibt auf diesem Gerät |
@@ -201,6 +203,10 @@ Die neue Anmeldung deckt nicht alle Dienste ab. Deine bisherigen Zugänge bleibe
 ## Google Drive: offene Downloads
 
 Wenn Google Drive vorübergehend zu viele Anfragen meldet, versucht Plainva den Download mit Abstand erneut. Bleibt ein Download erfolglos, wird er nicht als fehlende Datei oder erledigte Änderung gewertet. Der vorhandene lokale Inhalt und der bestätigte Sync-Stand bleiben erhalten; der nächste Durchlauf versucht die offene Änderung erneut. Erfolgreich geladene Nachbardateien bleiben verfügbar. Fehlende Rechte oder andere dauerhafte Ablehnungen erscheinen mit Dateipfad und Ursache als Fehler. Das gilt auf Desktop und Mobilgeräten.
+
+## Google Drive: Dateien, die Drive nicht mehr meldet
+
+Manchmal führt Google Drive eine Datei nicht mehr auf, die Du auf diesem Gerät geändert hast, und Plainva kann Drive nicht direkt nach ihr fragen, weil es noch keine Kennung dafür hat. Plainva sucht die Datei dann zuerst über ihren genauen Namen. Findet es genau eine, merkt es sich diese Datei und fragt Drive nach ihr; meldet Drive sie als gelöscht, geht die Datei wie jede geänderte Datei wieder hoch. Findet die Namenssuche nichts, weiß Plainva nicht, ob die Datei in Drive gelöscht oder nur aus der Liste ausgelassen wurde, und löscht nie eine Datei, weil Drive keine Antwort gab. Die Datei bleibt mit Deinen Änderungen auf diesem Gerät, und der Sync-Bereich zeigt **N Dateien meldet Google Drive nicht mehr**: am Desktop mit der Liste der Dateien im Hinweis, am Telefon als Hinweis, der die Liste mit **Ansehen** öffnet. **Erneut hochladen** sendet eine Datei als neue Datei, **Alle erneut hochladen** alle; liegt die alte Datei doch noch in Drive, gibt es sie dort danach zweimal. **Ausblenden** stellt den Hinweis weg, bis sich die Menge der Dateien ändert. Das gilt auf Desktop und Mobil.
 
 ## Unterbrochene Dateiübertragungen
 

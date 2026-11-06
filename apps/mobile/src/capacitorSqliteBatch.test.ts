@@ -83,21 +83,18 @@ describe("CapacitorSqliteAdapter.runBatch", () => {
     expect(calls).toEqual([]);
   });
 
-  it("sent from inside its caller's own transaction, it runs the statements in it, one by one, as before", async () => {
-    // The indexer flushes its batches inside its `transaction()` and says so.
-    // SQLite has no nested transactions, and this path must stay exactly what
-    // it was. (Without the word, such a batch would wait for its own caller's
-    // turn: capacitorSqliteTurns.test.ts.)
+  it("sent from inside a transaction through its handle, it runs the statements in it, one by one, as before", async () => {
+    // The indexer flushes its batches inside its `transaction()`, on the
+    // body's handle. SQLite has no nested transactions, and this path must
+    // stay exactly what it was. (Sent to the adapter itself, such a batch
+    // would wait for its own caller's turn: capacitorSqliteTurns.test.ts.)
     const adapter = new CapacitorSqliteAdapter("idx");
     await adapter.initialize();
-    await adapter.transaction(async () => {
-      await adapter.runBatch(
-        [
-          { sql: "DELETE FROM files WHERE id = ?", params: ["f1"] },
-          { sql: "INSERT INTO files (id) VALUES (?)", params: ["f1"] },
-        ],
-        { inOpenTransaction: true },
-      );
+    await adapter.transaction(async (tx) => {
+      await tx.runBatch!([
+        { sql: "DELETE FROM files WHERE id = ?", params: ["f1"] },
+        { sql: "INSERT INTO files (id) VALUES (?)", params: ["f1"] },
+      ]);
     });
     expect(calls.map((c) => c.op)).toEqual(["begin", "run", "run", "commit"]);
 
@@ -129,10 +126,10 @@ describe("CapacitorSqliteAdapter.runBatch", () => {
     const adapter = new CapacitorSqliteAdapter("idx");
     await adapter.initialize();
     await expect(
-      adapter.transaction(async () => {
-        await adapter.execute("DELETE FROM files WHERE path = ?", ["gone.md"]);
+      adapter.transaction(async (tx) => {
+        await tx.execute("DELETE FROM files WHERE path = ?", ["gone.md"]);
         // From inside the body of its own transaction, as the full scan flushes.
-        await adapter.runBatch([{ sql: "INSERT INTO files (id, path) VALUES (?, ?)", params: ["1", "new.md"] }], { inOpenTransaction: true });
+        await tx.runBatch!([{ sql: "INSERT INTO files (id, path) VALUES (?, ?)", params: ["1", "new.md"] }]);
         throw new Error("a file vanished before its read");
       }),
     ).rejects.toThrow("a file vanished");

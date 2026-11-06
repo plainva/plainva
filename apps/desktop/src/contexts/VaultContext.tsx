@@ -103,6 +103,11 @@ export interface VaultSyncWorker {
    * Only the plain sync worker has them: the encrypted one stores no names.
    */
   resolveNameCollisions?: (action: NameCollisionAction) => Promise<NameTwinResolution>;
+  /**
+   * "Upload again" for the files Google Drive no longer reports and could not
+   * be asked about (D7); the number queued. Only the plain sync worker has it.
+   */
+  uploadUnverifiedAgain?: (paths?: readonly string[]) => Promise<number>;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
   /** One settings push outside a cycle, the last act before files go off for the vault (review of plan "Verbinden", finding 4). */
   pushSettingsNow?: () => Promise<void>;
@@ -889,7 +894,8 @@ export const VaultProvider: React.FC<{
         await workspaceStateStore.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
       }) : null;
       const queueingVaultAdapter = workspaceStateStore
-        ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore)
+        // The encrypted workspace's queue makes up for its entries the same way (D2).
+        ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) })
         : new QueueingVaultAdapter(backupVaultAdapter, syncQueue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
 
       const syncRepo = new SyncStateRepository(dbAdapter, backupVaultAdapter, await getDeviceId());
@@ -1645,6 +1651,10 @@ export const VaultProvider: React.FC<{
             // The same, as cases the card can tell apart and act on (finding 2026-11-03).
             syncWorker.onNameCollisionCases = (collisionCases) => {
               syncStatusStore.set(path, { collisionCases });
+            };
+            // Files Drive no longer reports and could not be asked about (D7); an empty list takes the notice down.
+            syncWorker.onUnverifiedFiles = (unverifiedFiles) => {
+              syncStatusStore.set(path, { unverifiedFiles });
             };
             syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires

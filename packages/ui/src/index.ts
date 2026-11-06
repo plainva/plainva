@@ -275,6 +275,7 @@ export * from "./lib/typography";
 export * from "./lib/useDebouncedValue";
 export * from "./lib/useStableHandler";
 export * from "./lib/discardQuestion";
+export * from "./lib/deletionNet";
 export * from "./lib/wordCount";
 
 // .base database layer (R4.1): the Obsidian-compatible (de)serialization,
@@ -456,6 +457,7 @@ export * from "./lib/taskDueColumn";
 export * from "./lib/taskDueWrite";
 export * from "./lib/dueQuickChoices";
 export * from "./lib/taskDuplicatesSeen";
+export * from "./lib/unverifiedFilesSeen";
 export * from "./pim/taskDuplicates";
 export * from "./components/TaskDuplicatesList";
 export * from "./lib/taskNameCleanupStore";
@@ -464,6 +466,7 @@ export * from "./pim/taskNameCleanup";
 export * from "./pim/taskSyncPause";
 export * from "./components/TaskNameCleanupNotice";
 export * from "./components/NameCollisionsNotice";
+export * from "./components/UnverifiedFilesNotice";
 export * from "./components/TemplateKeysNotice";
 export * from "./components/TaskPlannerList";
 export * from "./components/TasksQueryBlock";

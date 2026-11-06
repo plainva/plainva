@@ -138,6 +138,12 @@ interface SyncState {
    */
   collisionCases: readonly NameCollisionCase[];
   /**
+   * Files with changes of this device that Google Drive no longer reports and
+   * that could not be asked about by an id (D7): kept, named on the sync
+   * screen, with "Upload again". Empty once the set is settled.
+   */
+  unverifiedFiles: readonly string[];
+  /**
    * The remote listing contradicts itself (finding 2026-09-20): files it does
    * not carry were asked for one by one and exist. Facts for the sync screen —
    * nothing was deleted, and the way on is "check again". Null otherwise.
@@ -147,7 +153,7 @@ interface SyncState {
   rootMissing: boolean;
 }
 
-let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], listingIncomplete: null, rootMissing: false };
+let state: SyncState = { status: "off", message: null, lastSyncAt: null, progress: null, errorHistory: [], collisions: [], collisionCases: [], unverifiedFiles: [], listingIncomplete: null, rootMissing: false };
 const listeners = new Set<() => void>();
 type MobileSyncWorker = {
   start(): void;
@@ -212,6 +218,8 @@ function setState(next: {
     // succeeded or failed, and only the worker's next report clears it.
     collisions: state.collisions,
     collisionCases: state.collisionCases,
+    // Raised and lowered by the worker's own report; a stopped sync has none.
+    unverifiedFiles: next.status === "off" ? [] : state.unverifiedFiles,
     // Same rule: raised and lowered by the worker's own report, not by a status.
     listingIncomplete: next.status === "off" ? null : state.listingIncomplete,
     rootMissing: next.rootMissing ?? false,
@@ -240,6 +248,36 @@ function setCollisionCases(collisionCases: readonly NameCollisionCase[]): void {
   if (collisionCases.length === 0 && state.collisionCases.length === 0) return;
   state = { ...state, collisionCases };
   for (const fn of listeners) fn();
+}
+
+const NO_FILES: readonly string[] = [];
+
+function setUnverifiedFiles(unverifiedFiles: readonly string[]): void {
+  if (unverifiedFiles.length === 0 && state.unverifiedFiles.length === 0) return;
+  state = { ...state, unverifiedFiles: unverifiedFiles.length === 0 ? NO_FILES : unverifiedFiles };
+  for (const fn of listeners) fn();
+}
+
+let unverifiedUploader: ((paths?: readonly string[]) => Promise<number>) | null = null;
+
+/**
+ * "Upload again" for the files Google Drive no longer reports (D7): null while
+ * no plain file sync runs - the encrypted workspace worker has no such files.
+ */
+export function unverifiedFilesUploader(): ((paths?: readonly string[]) => Promise<number>) | null {
+  return unverifiedUploader;
+}
+
+// The phone's production test run has no Drive to say "I no longer know this
+// file": it hands the notice its facts through this seam, which exists in the
+// e2e build only (`vite build --mode e2e`) and is dead code in every other.
+if (import.meta.env.MODE === "e2e") {
+  (globalThis as Record<string, unknown>).__plainvaFixtureUnverified = {
+    set: (paths: readonly string[], upload?: (paths?: readonly string[]) => Promise<number>) => {
+      unverifiedUploader = upload ?? null;
+      setUnverifiedFiles(paths);
+    },
+  };
 }
 
 type NameTwinResolver = (action: NameCollisionAction) => Promise<NameTwinResolution>;
@@ -790,6 +828,7 @@ export function stopSync(): void {
   deletionJournal = null;
   journalChecker = null;
   nameTwinResolver = null;
+  unverifiedUploader = null;
 }
 
 /**
@@ -813,6 +852,7 @@ async function stopAndDrainNow(): Promise<void> {
   deletionJournal = null;
   journalChecker = null;
   nameTwinResolver = null;
+  unverifiedUploader = null;
   if (w) await w.stopAndDrain();
 }
 
@@ -1244,7 +1284,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   const journal = new DeletionJournal(v.backup ?? v.adapter, await mobileSyncDeviceId());
   if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   deletionJournal = journal;
-  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup ?? v.adapter, v.syncQueue!, syncIntervalMs(), {
+  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,
@@ -1268,6 +1308,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   };
   journalChecker = (onProgress) => w.verifyDeletionJournal(onProgress);
   nameTwinResolver = (action) => w.resolveNameCollisions(action);
+  unverifiedUploader = (paths) => w.uploadUnverifiedAgain(paths);
+  w.onUnverifiedFiles = setUnverifiedFiles;
   w.onNameCollisions = setCollisions;
   w.onNameCollisionCases = setCollisionCases;
   w.onProgress = (p) => {
