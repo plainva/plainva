@@ -314,7 +314,8 @@ export function MailListScreen({
   useEffect(() => {
     void listActiveMobileMailAccounts().then((rowsA) => {
       setAccounts(rowsA);
-      setAccountId((cur) => resolveMailAccount(cur, rowsA));
+      // The remembered mailbox stays; without one, the vault's default (finding 2026-11-06, M1).
+      setAccountId((cur) => resolveMailAccount(cur, rowsA, getMobileSettings().defaultMailAccount));
     });
   }, [bump]);
 

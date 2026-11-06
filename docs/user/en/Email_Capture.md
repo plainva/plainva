@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-11-05
+Last reviewed: 2026-11-06
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -90,7 +90,9 @@ On the mail page of its account — **Cloud accounts** → the account → **Ema
 - **Signature per address** — once you have additional sender addresses, a **Signature for** selector appears above the field. “Default (all addresses)” is the account signature; pick an address to write one just for it. Addresses without their own signature keep using the default, and switching sender while composing swaps in the right one — including between two addresses of the same account. Empty an address's field and it falls back to the default.
 - **Additional sender addresses** — one per line, e.g. `Name <alias@example.org>`. The compose window's **From** then lists addresses rather than accounts: the mailbox's own first, then its aliases. Whether an address is actually accepted is your provider's decision — a server that refuses to send as an alias says so, and Plainva shows that error rather than silently sending as someone else.
 
-**Which mailbox a message starts from.** With more than one mailbox, **From** opens on the mailbox you are writing from, with its signature. **Reply**, **Reply all** and **Forward** start from the mailbox the message is in (in **All inboxes**: the mailbox of the row you opened). **New message** starts from the mailbox that is open in the mail tab. The message a mailing list asks for when you choose **Unsubscribe** starts from the mailbox the list wrote to. What starts outside the mail tab — **Email this note** or an invitation from the calendar — starts from your first mailbox; a note made with **Reply as note** starts from the mailbox it names (`mailbox:`). You can change **From** before you send.
+**Which mailbox a message starts from.** With more than one mailbox, **From** opens on the mailbox you are writing from, with its signature. **Reply**, **Reply all** and **Forward** start from the mailbox the message is in (in **All inboxes**: the mailbox of the row you opened). **New message** starts from the mailbox that is open in the mail tab. The message a mailing list asks for when you choose **Unsubscribe** starts from the mailbox the list wrote to. What starts outside the mail tab — **Email this note** or an invitation from the calendar — starts from your default mailbox; a note made with **Reply as note** starts from the mailbox it names (`mailbox:`). You can change **From** before you send.
+
+**Default mailbox.** With more than one mailbox, one of them carries **Default** in **Email** > **Mailboxes**: Email shows it first, and what starts without a mailbox of its own starts from it. To choose another, open the menu of its row and pick **Set as default** (on the phone, the **…** button of the row). Without a choice, and when the default mailbox is removed or its mail is switched off, the first mailbox in the list applies. The choice travels with the vault to your other devices.
 
 ## Mailbox actions
 

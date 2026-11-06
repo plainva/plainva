@@ -31,7 +31,8 @@ import { activeDocument } from "../../services/activeDocument";
 import { MAIL_TAB_PATH } from "../graph/virtualPaths";
 import { applyIndexChanges } from "../../services/fileActions";
 import { Select } from "../Select";
-import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccountsChanged, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
+import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccountsChanged, pickDefaultMailAccount, releaseMailSessions, type MailAccountConfig } from "@plainva/ui/mail";
+import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
@@ -630,12 +631,15 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     void (async () => {
       if (!vaultPath) return;
       // A mailbox whose account has mail switched off for the vault is not read (E3).
-      const list = mailboxesSwitchedOn(await listMailAccounts(vaultPath), await loadCloudAccounts(vaultPath).catch(() => []));
+      const [stored, cards, defaultId] = await Promise.all([listMailAccounts(vaultPath), loadCloudAccounts(vaultPath).catch(() => []), loadDefaultMailAccount(vaultPath).catch(() => "")]);
+      const list = mailboxesSwitchedOn(stored, cards);
       if (!alive) return;
       // An unchanged mailbox stays the same object: everything that hangs on
       // `account` (the folders, the open message) would read anew otherwise.
       setAccounts((prev) => keepUnchangedAccounts(prev, list));
-      setAccountId((prev) => (list.some((a) => a.id === prev) ? prev : list[0]?.id ?? ""));
+      // The open mailbox stays; without one Mail opens on the default mailbox
+      // (finding 2026-11-06, M1), not on whichever was connected first.
+      setAccountId((prev) => pickDefaultMailAccount(list, defaultId, prev)?.id ?? "");
     })();
     return () => {
       alive = false;

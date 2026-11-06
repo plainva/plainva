@@ -72,6 +72,8 @@ describe("profile field catalog", () => {
       // entry into two different notes.
       "dayEndsAt",
       "defaultCalendar",
+      // Finding 2026-11-06, M1 (E1): the default mailbox travels like the default calendar.
+      "defaultMailAccount",
       "defaultNoteType",
       // Sammelplan § 3.169 Nr. 3: the phone has the .base switch, and it is a
       // vault convention like the anchors.

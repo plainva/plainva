@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-11-05
+Stand: 2026-11-06
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -90,7 +90,9 @@ Auf der E-Mail-Seite seines Kontos — **Cloud-Konten** → das Konto → **E-Ma
 - **Signatur je Adresse** — hast Du weitere Absender-Adressen hinterlegt, erscheint über dem Feld die Auswahl **Signatur für**. „Standard (alle Adressen)" ist die Signatur des Kontos; wählst Du eine Adresse, schreibst Du eine eigene nur für sie. Adressen ohne eigene Signatur nutzen weiter die Standard-Signatur, und ein Wechsel des Absenders im Verfassen-Fenster tauscht die richtige ein — auch zwischen zwei Adressen desselben Kontos. Leerst Du das Feld einer Adresse, fällt sie auf den Standard zurück.
 - **Weitere Absender-Adressen** — eine pro Zeile, z. B. `Name <alias@example.org>`. Das Feld **Von** im Verfassen-Fenster listet dann Adressen statt Konten: zuerst die eigene des Postfachs, danach die Aliasse. Ob eine Adresse tatsächlich akzeptiert wird, entscheidet Dein Anbieter — ein Server, der das Senden unter einem Alias verweigert, sagt das, und Plainva zeigt diesen Fehler, statt still unter anderem Namen zu senden.
 
-**Von welchem Postfach eine Nachricht ausgeht.** Bei mehr als einem Postfach steht in **Von** zuerst das Postfach, aus dem Du schreibst, mit dessen Signatur. **Antworten**, **Allen antworten** und **Weiterleiten** beginnen mit dem Postfach, in dem die Nachricht liegt (in **Alle Posteingänge**: mit dem Postfach der geöffneten Zeile). **Neue Nachricht** beginnt mit dem Postfach, das im Mail-Tab offen ist. Die Nachricht, die eine Mailingliste beim **Abmelden** verlangt, beginnt mit dem Postfach, an das die Liste geschrieben hat. Was außerhalb des Mail-Tabs beginnt — **Diese Notiz per Mail** oder eine Einladung aus dem Kalender —, beginnt mit Deinem ersten Postfach; eine Notiz aus **Antwort als Notiz** beginnt mit dem Postfach, das sie nennt (`mailbox:`). **Von** kannst Du vor dem Senden umstellen.
+**Von welchem Postfach eine Nachricht ausgeht.** Bei mehr als einem Postfach steht in **Von** zuerst das Postfach, aus dem Du schreibst, mit dessen Signatur. **Antworten**, **Allen antworten** und **Weiterleiten** beginnen mit dem Postfach, in dem die Nachricht liegt (in **Alle Posteingänge**: mit dem Postfach der geöffneten Zeile). **Neue Nachricht** beginnt mit dem Postfach, das im Mail-Tab offen ist. Die Nachricht, die eine Mailingliste beim **Abmelden** verlangt, beginnt mit dem Postfach, an das die Liste geschrieben hat. Was außerhalb des Mail-Tabs beginnt — **Diese Notiz per Mail** oder eine Einladung aus dem Kalender —, beginnt mit Deinem Standard-Postfach; eine Notiz aus **Antwort als Notiz** beginnt mit dem Postfach, das sie nennt (`mailbox:`). **Von** kannst Du vor dem Senden umstellen.
+
+**Standard-Postfach.** Bei mehr als einem Postfach trägt eines in **E-Mail** > **Postfächer** das Abzeichen **Standard**: E-Mail zeigt es zuerst, und was ohne eigenes Postfach beginnt, beginnt mit ihm. Ein anderes wählst Du im Menü seiner Zeile mit **Als Standard setzen** (am Telefon über den Knopf **…** der Zeile). Ohne Wahl, und wenn das Standard-Postfach entfernt oder seine E-Mail ausgeschaltet ist, gilt das erste Postfach der Liste. Die Wahl reist mit dem Vault auf Deine anderen Geräte.
 
 ## Postfachaktionen
 

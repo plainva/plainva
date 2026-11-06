@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-11-05
+Laatst bijgewerkt: 2026-11-06
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -90,7 +90,9 @@ Op de e-mailpagina van zijn account — **Cloudaccounts** → het account → **
 - **Handtekening per adres** — heb je meer afzenderadressen, dan verschijnt boven het veld de keuze **Handtekening voor**. “Standaard (alle adressen)” is de handtekening van het account; kies een adres om er een te schrijven die alleen voor dat adres geldt. Adressen zonder eigen handtekening blijven de standaard gebruiken, en van afzender wisselen tijdens het schrijven zet de juiste erin — ook tussen twee adressen van hetzelfde account. Maak je het veld van een adres leeg, dan valt het terug op de standaard.
 - **Extra afzenderadressen** — één per regel, bijv. `Naam <alias@example.org>`. Het veld **Van** toont dan adressen in plaats van accounts: eerst dat van de mailbox zelf, daarna de aliassen. Of een adres echt wordt geaccepteerd, bepaalt je provider — een server die weigeren te verzenden onder een alias zegt dat, en Plainva toont die fout in plaats van stilletjes onder een andere naam te verzenden.
 
-**Vanuit welke mailbox een bericht vertrekt.** Met meer dan één mailbox opent **Van** op de mailbox van waaruit je schrijft, met de bijbehorende handtekening. **Beantwoorden**, **Allen beantwoorden** en **Doorsturen** beginnen met de mailbox waarin het bericht staat (in **Alle postvakken IN**: de mailbox van de rij die je opende). **Nieuw bericht** begint met de mailbox die in het e-mailtabblad open is. Het bericht dat een mailinglijst vraagt bij **Afmelden** begint met de mailbox waarnaar de lijst schreef. Wat buiten het e-mailtabblad begint — **Deze notitie per e-mail** of een uitnodiging vanuit de agenda — begint met je eerste mailbox; een notitie die met **Beantwoorden als notitie** is gemaakt, begint met de mailbox die ze noemt (`mailbox:`). Je kunt **Van** vóór het verzenden wijzigen.
+**Vanuit welke mailbox een bericht vertrekt.** Met meer dan één mailbox opent **Van** op de mailbox van waaruit je schrijft, met de bijbehorende handtekening. **Beantwoorden**, **Allen beantwoorden** en **Doorsturen** beginnen met de mailbox waarin het bericht staat (in **Alle postvakken IN**: de mailbox van de rij die je opende). **Nieuw bericht** begint met de mailbox die in het e-mailtabblad open is. Het bericht dat een mailinglijst vraagt bij **Afmelden** begint met de mailbox waarnaar de lijst schreef. Wat buiten het e-mailtabblad begint — **Deze notitie per e-mail** of een uitnodiging vanuit de agenda — begint met je standaardmailbox; een notitie die met **Beantwoorden als notitie** is gemaakt, begint met de mailbox die ze noemt (`mailbox:`). Je kunt **Van** vóór het verzenden wijzigen.
+
+**Standaardmailbox.** Met meer dan één mailbox draagt er één **Standaard** in **E-mail** > **Mailboxen**: E-mail toont die als eerste, en wat zonder eigen mailbox begint, begint ermee. Kies een andere via het menu van de rij met **Als standaard instellen** (op de telefoon met de knop **…** van de rij). Zonder keuze, en als de standaardmailbox is verwijderd of de mail ervan is uitgeschakeld, geldt de eerste mailbox van de lijst. De keuze reist mee met de vault naar je andere apparaten.
 
 ## Mailboxacties
 

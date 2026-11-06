@@ -6,7 +6,7 @@ import { accountInputProps, Banner, Button, EmptyState, ICON, IconButton, TextIn
 import { applyTemplateInteractive } from "../services/templateInteractive";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
-import { UndoSendQueue, secondsLeft, mailErrorText, mailAccountCanSend } from "@plainva/ui/mail";
+import { UndoSendQueue, secondsLeft, mailErrorText, mailAccountCanSend, pickDefaultMailAccount } from "@plainva/ui/mail";
 import { App as CapApp } from "@capacitor/app";
 import i18n from "@plainva/ui/i18n";
 
@@ -315,7 +315,8 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
       // A draft that names its address (a reply note, E6) starts from the
       // mailbox that sends as it; a message that comes back from the one it was sent from.
       const named = resent ? null : senderForAddress(rows, draft.from);
-      const account = rows.find((a) => a.id === (named?.accountId ?? accountId)) ?? rows[0];
+      // Where nothing names a mailbox, the vault's default one (finding 2026-11-06, M1).
+      const account = pickDefaultMailAccount(rows, getMobileSettings().defaultMailAccount, named?.accountId ?? accountId);
       if (account?.id !== accountId) setAccountId(account?.id ?? "");
       const options = account ? senderOptions(account) : [];
       // A message that comes back keeps the address it was sent from, and its

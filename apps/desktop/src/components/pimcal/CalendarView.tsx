@@ -4,7 +4,8 @@ import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Users } from "lucide-react";
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
-import { listMailAccounts } from "@plainva/ui/mail";
+import { listMailAccounts, pickDefaultMailAccount } from "@plainva/ui/mail";
+import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
@@ -25,6 +26,8 @@ import {
   type ResolvedBlocker,
 } from "@plainva/ui";
 import { CalendarSyncNotice, syncProblemsFor, type EventChange, CALENDAR_COLORS_EVENT, calendarColor, type CalendarColorOverrides } from "@plainva/ui";
+import { mailboxesSwitchedOn } from "@plainva/ui";
+import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { loadCalendarColors } from "../../services/pim/calendarColors";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
@@ -1521,7 +1524,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           toast.info(t("mail.empty", { defaultValue: "Kein E-Mail-Konto verbunden" }));
           return;
         }
-        const ics = buildInviteIcs(e, { organizer: accounts[0].user, stampMs: Date.now(), descriptionHtml: e.description ? markdownToHtml(e.description) : undefined });
+        // The invitation leaves from the default mailbox (finding 2026-11-06,
+        // M1) - the composer it opens starts there, so the organizer is the same.
+        const sender = pickDefaultMailAccount(mailboxesSwitchedOn(accounts, await loadCloudAccounts(vaultPath).catch(() => [])), await loadDefaultMailAccount(vaultPath).catch(() => "")) ?? accounts[0];
+        const ics = buildInviteIcs(e, { organizer: sender.user, stampMs: Date.now(), descriptionHtml: e.description ? markdownToHtml(e.description) : undefined });
         const timeText = e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatTimeRange(e, i18n.language);
         const body = [e.title, timeText, e.location].filter(Boolean).join("\n");
         // Recipients = the event's invitees (the plain attendee list); the

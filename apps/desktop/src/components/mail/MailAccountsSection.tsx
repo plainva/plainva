@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Users } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
+import { MoreHorizontal, Users } from "lucide-react";
+import { Banner, Button, EmptyState, ICON, IconButton, MenuItem, MenuSurface, mailboxesSwitchedOn, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, Switch, familyOfMailAccount, refuseVaultPathSetting, serviceConnectionMessage, toast, type CloudServiceId, InfoTip } from "@plainva/ui";
 import { RulesSettings } from "./RulesSettings";
 import { VacationSettings } from "./VacationSettings";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
-import { CLOUD_ACCOUNTS_EVENT, refreshCloudAccounts } from "../../services/cloudAccounts";
+import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, refreshCloudAccounts } from "../../services/cloudAccounts";
+import { DEFAULT_MAIL_ACCOUNT_EVENT, loadDefaultMailAccount, saveDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { appConfirm } from "../../services/appDialogs";
-import { checkMailLogin, listMailAccounts, mailAccountKind, setMailPassword, orphanedMailServer, useOrphanedMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { checkMailLogin, listMailAccounts, mailAccountKind, pickDefaultMailAccount, setMailPassword, orphanedMailServer, useOrphanedMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { deviceSignInStates, type DeviceSignInState } from "../../services/deviceSignIn";
 import { AccountMark } from "../settings/cloudAccountsShared";
 import { Select } from "../Select";
@@ -29,10 +30,16 @@ function MailAccountRow({
   onSignedIn,
   onOpenCloudAccounts,
   signInRequest,
+  isDefault,
+  onSetDefault,
 }: {
   vaultPath: string;
   account: MailAccountConfig;
   signedIn: DeviceSignInState;
+  /** The mailbox Mail shows first and a new message starts from (finding 2026-11-06, M1); marked only beside another one. */
+  isDefault?: boolean;
+  /** Offered in the row menu on every other mailbox that can be the default. */
+  onSetDefault?: () => void;
   onSignedIn: () => void;
   onOpenCloudAccounts?: (accountRef?: string, service?: CloudServiceId) => void;
   /** Bumped by the incomplete-accounts notice: open this row's sign-in and show it. */
@@ -44,6 +51,7 @@ function MailAccountRow({
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const oauth = mailAccountKind(account) !== "imap";
   const needsSignIn = signedIn !== "active";
 
@@ -85,7 +93,10 @@ function MailAccountRow({
       <div className="pv-acct" data-testid="mail-account" ref={rowRef}>
         <AccountMark family={familyOfMailAccount({ kind: mailAccountKind(account), user: account.user, host: account.host })} small />
         <div className="pv-acct-who">
-          <div className="pv-acct-name">{account.label}</div>
+          <div className="pv-acct-name">
+            {account.label}
+            {isDefault && <>{" "}<span className="pv-badge pv-badge--accent pv-badge--text" data-testid="mail-account-default">{t("mail.defaultBadge")}</span></>}
+          </div>
           <div className="pv-acct-id">
             {account.kind === "gmail" ? "Gmail" : oauth ? "Microsoft" : `${account.host}:${account.port}`}
           </div>
@@ -108,7 +119,21 @@ function MailAccountRow({
             {t("cloudAccounts.manageAccount")}
           </Button>
         )}
+        {/* "Set as default" lives in the row menu, the mark beside the name
+            (the pattern of the default AI profile, plan KI-Oberflaechen E3). */}
+        {onSetDefault && (
+          <IconButton label={t("common.moreActions")} size="sm" onClick={(e) => setMenuAt({ x: e.clientX, y: e.clientY })} data-testid={`mail-account-more-${account.id}`}>
+            <MoreHorizontal size={ICON.ui} />
+          </IconButton>
+        )}
       </div>
+      {menuAt && onSetDefault && (
+        <MenuSurface open onClose={() => setMenuAt(null)} at={menuAt} ariaLabel={t("common.moreActions")}>
+          <MenuItem onSelect={() => { setMenuAt(null); onSetDefault(); }} data-testid="mail-account-set-default">
+            {t("mail.setDefault")}
+          </MenuItem>
+        </MenuSurface>
+      )}
       {/* The description is deliberately the SAME sentence the phone shows for
           the same situation — two surfaces explaining one fact in two wordings
           is how they drift apart. */}
@@ -274,10 +299,19 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
   // Bumped on every reload, so the orphan notice re-checks after a sign-in or
   // a removal instead of offering an entry that just changed.
   const [reloads, setReloads] = useState(0);
+  /** The vault's default mailbox (device-local id) and the mailboxes whose mail is on (E3). */
+  const [defaultId, setDefaultId] = useState("");
+  const [switchedOn, setSwitchedOn] = useState<ReadonlySet<string>>(new Set());
   const reload = useCallback(async () => {
     if (!vaultPath) return;
-    const list = await listMailAccounts(vaultPath);
+    const [list, cards, chosen] = await Promise.all([
+      listMailAccounts(vaultPath),
+      loadCloudAccounts(vaultPath).catch(() => []),
+      loadDefaultMailAccount(vaultPath).catch(() => ""),
+    ]);
     setAccounts(list);
+    setDefaultId(chosen);
+    setSwitchedOn(new Set(mailboxesSwitchedOn(list, cards).map((a) => a.id)));
     setReloads((n) => n + 1);
     await loadSignIn(list);
   }, [vaultPath, loadSignIn]);
@@ -286,18 +320,30 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
     void reload();
     const onChanged = () => void reload();
     window.addEventListener(CLOUD_ACCOUNTS_EVENT, onChanged);
-    return () => window.removeEventListener(CLOUD_ACCOUNTS_EVENT, onChanged);
+    window.addEventListener(DEFAULT_MAIL_ACCOUNT_EVENT, onChanged);
+    return () => {
+      window.removeEventListener(CLOUD_ACCOUNTS_EVENT, onChanged);
+      window.removeEventListener(DEFAULT_MAIL_ACCOUNT_EVENT, onChanged);
+    };
   }, [reload]);
 
-  // Keep the picker on a real account; a removed one falls back to the first.
+  // The mailbox the rest of the app falls to (`pickDefaultMailAccount`), among
+  // those whose mail is on; marked only where there is another one.
+  const effectiveDefault = accounts.length > 1 ? pickDefaultMailAccount(accounts.filter((a) => switchedOn.has(a.id)), defaultId)?.id : undefined;
+  const setDefault = useCallback(async (id: string) => {
+    if (!vaultPath) return;
+    await saveDefaultMailAccount(vaultPath, id);
+  }, [vaultPath]);
+
+  // Keep the picker on a real account; without one it starts on the default mailbox.
   useEffect(() => {
-    const current = accounts.find((a) => a.id === sendingId) ?? accounts[0];
+    const current = accounts.find((a) => a.id === sendingId) ?? pickDefaultMailAccount(accounts, defaultId);
     if (!current) {
       setSendingId("");
       return;
     }
     if (current.id !== sendingId) setSendingId(current.id);
-  }, [accounts, sendingId]);
+  }, [accounts, sendingId, defaultId]);
   const sendingAccount = useMemo(() => accounts.find((a) => a.id === sendingId) ?? null, [accounts, sendingId]);
 
   useEffect(() => {
@@ -355,7 +401,7 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
 
   return (
     <div data-testid="mail-accounts">
-      <SettingCard label={t("cloudAccounts.mailboxesGroup")}>
+      <SettingCard label={t("cloudAccounts.mailboxesGroup")} info={t("mail.defaultHint")}>
         <OrphanedMailNotice vaultPath={vaultPath} reloadToken={reloads} onRemoved={() => void reload()} onSignIn={signInHere} />
         {accounts.length === 0 && (
           <EmptyState title={t("mail.noAccounts", { defaultValue: "Noch kein E-Mail-Konto verbunden." })} icon={<Users size={ICON.empty} />}>
@@ -375,6 +421,8 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
             onSignedIn={() => void reload()}
             onOpenCloudAccounts={onOpenCloudAccounts}
             signInRequest={signInRequest?.id === account.id ? signInRequest.n : undefined}
+            isDefault={account.id === effectiveDefault}
+            onSetDefault={effectiveDefault !== undefined && account.id !== effectiveDefault && switchedOn.has(account.id) ? () => void setDefault(account.id) : undefined}
           />
         ))}
       </SettingCard>

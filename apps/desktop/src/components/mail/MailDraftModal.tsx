@@ -4,7 +4,8 @@ import { askDiscard, Banner, Button, ChipField, FloatingWindow, ICON, IconButton
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { AlertTriangle, Ban, FileText, Paperclip, RefreshCw, RotateCw, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
-import { keepUnchangedAccounts, listMailAccounts, mailSendRoute, onMailAccountsChanged, senderForAddress, type MailAccountConfig } from "@plainva/ui/mail";
+import { keepUnchangedAccounts, listMailAccounts, mailSendRoute, onMailAccountsChanged, pickDefaultMailAccount, senderForAddress, type MailAccountConfig } from "@plainva/ui/mail";
+import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { listMailboxesFor } from "@plainva/ui/mail";
 import { resolveDraftsMailbox, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
@@ -371,7 +372,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     void (async () => {
       if (!vaultPath) return;
       // A mailbox whose account has mail switched off for the vault sends nothing (E3).
-      const list = mailboxesSwitchedOn(await listMailAccounts(vaultPath), await loadCloudAccounts(vaultPath).catch(() => []));
+      const [stored, cards, defaultId] = await Promise.all([listMailAccounts(vaultPath), loadCloudAccounts(vaultPath).catch(() => []), loadDefaultMailAccount(vaultPath).catch(() => "")]);
+      const list = mailboxesSwitchedOn(stored, cards);
       if (!alive) return;
       setAccounts((prev) => keepUnchangedAccounts(prev, list));
       setAccountsLoaded(true);
@@ -396,7 +398,8 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       // A draft that names its address (a reply note, E6) starts from the
       // mailbox that sends as it, with that address.
       const named = senderForAddress(list, askedAddress.current);
-      const start = list.find((a) => a.id === (named?.accountId ?? askedAccount.current)) ?? list[0];
+      // Where nothing names a mailbox, the vault's default one (finding 2026-11-06, M1).
+      const start = pickDefaultMailAccount(list, defaultId, named?.accountId ?? askedAccount.current);
       setAccountId(start?.id ?? "");
       setFromAddress(named && named.accountId === start?.id ? named.address : start ? senderOptions(start)[0] ?? "" : "");
     })();

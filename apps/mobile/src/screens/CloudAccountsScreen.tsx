@@ -34,6 +34,7 @@ import {
   loadMobileAccountRepairNeeds,
 } from "../services/accountRepair";
 import { mConfirm } from "../services/mobileDialogs";
+import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { AppBar } from "../components/AppBar";
 import { ConnectRunSummary } from "../components/ConnectRunFrame";
 import { useConnectionRun } from "../hooks/useConnectionRun";
@@ -204,6 +205,10 @@ export function CloudAccountsScreen({
       await foldDuplicateMailboxes(vaultId, entry.account.id, {
         listCards: () => loadCloudAccounts(vaultId),
         replaceCards: (cards) => saveCloudAccounts(vaultId, cards),
+        defaultMailAccount: {
+          read: async () => getMobileSettings().defaultMailAccount,
+          write: async (id) => { await updateMobileSettings({ defaultMailAccount: id }); },
+        },
       });
       toast.success(t("cloudAccounts.repairMailboxDone"));
     } catch {

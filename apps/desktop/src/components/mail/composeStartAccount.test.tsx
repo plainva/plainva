@@ -47,6 +47,12 @@ vi.mock("@plainva/ui/mail", async () => {
   };
 });
 
+/** The vault's default mailbox (finding 2026-11-06, M1); "" = none chosen. */
+let defaultMailbox = "";
+vi.mock("../../services/mail/defaultMailAccount", () => ({
+  loadDefaultMailAccount: async () => defaultMailbox,
+}));
+
 const sent: Array<{ accountId: string; fromAddress?: string; body: string }> = [];
 vi.mock("../../services/mail/sendQueue", () => ({
   submitSend: async (req: { accountId: string; fromAddress?: string; body: string }) => {
@@ -68,6 +74,7 @@ let root: Root;
 
 beforeEach(() => {
   accounts = [work, home];
+  defaultMailbox = "";
   sent.length = 0;
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -143,6 +150,33 @@ describe("the mailbox a draft starts from", () => {
     expect(from()).toBe("me@example.org · Work");
     expect(body()).toContain("Signed at work");
     expect(body()).not.toContain("Signed at home");
+  });
+
+  it("is the default mailbox where nobody named one (finding 2026-11-06, M1)", async () => {
+    defaultMailbox = "home";
+    render(reply(undefined));
+    await settle();
+
+    expect(from()).toBe("me@example.net · Home");
+    expect(times(body(), "Signed at home")).toBe(1);
+    expect(body()).not.toContain("Signed at work");
+  });
+
+  it("is still the one it was asked for from when another is the default", async () => {
+    defaultMailbox = "home";
+    render(reply("work"));
+    await settle();
+
+    expect(from()).toBe("me@example.org · Work");
+    expect(body()).not.toContain("Signed at home");
+  });
+
+  it("is the first one stored when the default mailbox is gone", async () => {
+    defaultMailbox = "removed";
+    render(reply(undefined));
+    await settle();
+
+    expect(from()).toBe("me@example.org · Work");
   });
 
   it("is the first one stored when the named mailbox is gone", async () => {

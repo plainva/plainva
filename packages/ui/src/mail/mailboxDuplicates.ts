@@ -53,6 +53,8 @@ export function repointMailBindings(
 export interface MailboxFoldPorts {
   listCards(): Promise<CloudAccountRecord[]>;
   replaceCards(cards: CloudAccountRecord[]): Promise<void>;
+  /** The vault's default mailbox (device-local id): a default on a folded entry moves to the kept one. */
+  defaultMailAccount?: { read(): Promise<string>; write(id: string): Promise<void> };
 }
 
 /**
@@ -103,6 +105,7 @@ export async function foldDuplicateMailboxes(
   }
   const dropIds = others.map((row) => row.id);
   await ports.replaceCards(repointMailBindings(await ports.listCards(), keepId, dropIds));
+  if (ports.defaultMailAccount && dropIds.includes(await ports.defaultMailAccount.read())) await ports.defaultMailAccount.write(keepId);
   for (const id of dropIds) await removeMailAccount(vaultPath, id);
   return dropIds;
 }

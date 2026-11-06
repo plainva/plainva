@@ -712,6 +712,22 @@ export function defaultCalendarFromProfile(value: unknown, pimIdMap: ReadonlyMap
   return `${pimIdMap.get(logical) ?? logical}${value.slice(sep)}`;
 }
 
+/**
+ * The default mailbox travels as its LOGICAL id (finding 2026-11-06, M1), for
+ * the reason the default calendar's account does: the stored id is
+ * device-local. "" (no default) passes through.
+ */
+export function defaultMailAccountForProfile(value: unknown, map: ProfileAccountMap): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value ? map.mailLocalToLogical[value] ?? value : value;
+}
+
+/** Inverse of `defaultMailAccountForProfile`, with the logical → local map an import minted. */
+export function defaultMailAccountFromProfile(value: unknown, mailIdMap: ReadonlyMap<string, string>): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return value ? mailIdMap.get(value) ?? value : value;
+}
+
 function nextLocalId(preferred: string, used: Set<string>, newId: () => string): string {
   if (preferred && !used.has(preferred)) return preferred;
   let id: string;

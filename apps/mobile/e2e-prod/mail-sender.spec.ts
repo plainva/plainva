@@ -179,6 +179,41 @@ test("a reply, a forward and a new message start from the mailbox they are writt
   }
 });
 
+/*
+ * Finding 2026-11-06, M1, the phone's side of the desktop case in
+ * `apps/desktop/e2e/mail.spec.ts`: the default mailbox is chosen in the row's
+ * sheet on the Mail settings, Mail opens on it, and a new message starts from it.
+ */
+test("the default mailbox: chosen in the settings, Mail opens on it and a new message starts from it", async ({ page, context }, testInfo) => {
+  test.setTimeout(120_000);
+  const { sql } = await bootTwoMailboxes(context, page);
+  try {
+    await expect(page.locator(".m-mboxline-acct")).toHaveText("anna@example.org");
+    await back(page);
+    await page.getByTestId("nav-settings").click();
+    await page.getByTestId("settings-area-mail").click();
+    // Without a choice the first mailbox is the default, and says so.
+    await expect(page.getByTestId("mail-account-mail-fixture-1").getByTestId("mail-account-default")).toBeVisible();
+    await page.getByTestId(`mail-account-more-${SECOND}`).click();
+    await page.getByRole("button", { name: "Set as default" }).click();
+    await expect(page.getByTestId(`mail-account-${SECOND}`).getByTestId("mail-account-default")).toBeVisible();
+    await expect(page.getByTestId("mail-account-mail-fixture-1").getByTestId("mail-account-default")).toHaveCount(0);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("default-mailbox-settings.png"), fullPage: true });
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("CapacitorStorage.mobile-vault-local") ?? "{}").defaultMailAccount)).toBe(SECOND);
+
+    await back(page);
+    await back(page);
+    await page.getByTestId("tab-areas").click();
+    await page.getByTestId("areas-mail").click();
+    await expect(page.locator(".m-mboxline-acct")).toHaveText("privat@example.net", { timeout: 15000 });
+    await page.getByRole("button", { name: "New message" }).click();
+    await expectSecondMailbox(page);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("default-mailbox-compose.png") });
+  } finally {
+    await sql.close();
+  }
+});
+
 /**
  * "Reply as note" on the phone (Sammelplan § 3.171 Nr. 6: it was the desktop's
  * only), and the note names the mailbox the message is in (decision E6): sent

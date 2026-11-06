@@ -84,6 +84,7 @@ import {
   loadDesktopAccountRepairNeeds,
 } from "../../services/accountRepair";
 import { getSettingsStore } from "../../services/settingsStore";
+import { loadDefaultMailAccount, saveDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
@@ -707,6 +708,7 @@ export const CloudAccountsPage: React.FC<{
       await foldDuplicateMailboxes(selectedVault, entry.account.id, {
         listCards: () => loadCloudAccounts(selectedVault),
         replaceCards: (cards) => saveCloudAccounts(selectedVault, cards),
+        defaultMailAccount: { read: () => loadDefaultMailAccount(selectedVault), write: (id) => saveDefaultMailAccount(selectedVault, id) },
       });
       toast.success(t("cloudAccounts.repairMailboxDone"));
     } catch {
