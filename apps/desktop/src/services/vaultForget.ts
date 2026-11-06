@@ -192,6 +192,8 @@ export async function forgetVaultData(
   // app-data and must not survive "forget app data".
   await attempt("draft-journal", async () => {
     const { removeVaultDrafts } = await import("./draftJournal");
+    const { removeLegacyCommentOperations } = await import("./commentOperationLegacy");
+    await removeLegacyCommentOperations(vaultPath);
     await removeVaultDrafts(vaultPath);
   });
 
