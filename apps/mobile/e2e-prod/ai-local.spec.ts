@@ -115,7 +115,7 @@ test("AI fully local: the phone's settings say what holds; switched on they list
     await expect(now).toContainText("Now: Cloud — a provider answers");
     await expect(now).toContainText("New conversations start with Anthropic · m-1.");
     // What the section means stands behind its info button (settings plan of 2026-10-29): a sheet, read and closed.
-    await settings.getByRole("button", { name: "More about Mode" }).click();
+    await settings.getByRole("button", { name: "More about Privacy", exact: true }).click();
     await expect(page.locator(".pv-infotip-sheettext")).toContainText("Only “Fully local” is a switch, because only it promises something.");
     await page.locator(".m-sheet-backdrop").click({ position: { x: 5, y: 5 } });
     await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
@@ -133,7 +133,7 @@ test("AI fully local: the phone's settings say what holds; switched on they list
     await expect(settings).toContainText("While “Fully local” is on, this rests");
     await expect(settings.getByTestId("ai-mode-rest").filter({ hasText: "Anthropic" })).toContainText("Stays set up and receives nothing. This profile does not answer: Balanced.");
     // What the section means stands behind its info button (settings plan of 2026-10-29): a sheet, read and closed.
-    await settings.getByRole("button", { name: "More about Mode" }).click();
+    await settings.getByRole("button", { name: "More about Privacy", exact: true }).click();
     await expect(page.locator(".pv-infotip-sheettext")).toContainText("The switch is about the AI.");
     await page.locator(".m-sheet-backdrop").click({ position: { x: 5, y: 5 } });
     await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);

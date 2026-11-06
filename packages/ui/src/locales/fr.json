@@ -1230,7 +1230,7 @@
         "read-only": "Cet appareil ne peut écrire ni les instructions du vault ni sa mémoire ; rien n'est donc proposé pour elles."
       },
       "result": {
-        "lead": "{{model}} a relu la conversation — le même modèle que celui qui l'a menée ; elle n'a été envoyée nulle part ailleurs. Ce qu'il propose figure ci-dessous et sous « En attente ». Rien de tout cela n'a d'effet avant que vous l'acceptiez.",
+        "lead": "{{model}} a relu la conversation — le même modèle que celui qui l'a menée ; elle n'a été envoyée nulle part ailleurs. Ce qu'il propose figure ci-dessous et sous « À décider ». Rien de tout cela n'a d'effet avant que vous l'acceptiez.",
         "none": "Rien à retenir dans cette conversation",
         "noneHint": "C'est aussi une réponse : une conversation n'apprend pas toujours quelque chose.",
         "known_one": "{{count}} suggestion figure déjà dans la mémoire.",
@@ -1239,7 +1239,7 @@
         "dropped_one": "{{count}} suggestion a été écartée : sans preuve, trop longue ou d'un type que cette conversation ne peut pas proposer.",
         "dropped_many": "{{count}} suggestions ont été écartées : sans preuve, trop longues ou d'un type que cette conversation ne peut pas proposer.",
         "dropped_other": "{{count}} suggestions ont été écartées : sans preuve, trop longues ou d'un type que cette conversation ne peut pas proposer.",
-        "full": "La liste des brouillons est pleine : tout n'a pas pu être enregistré. Décidez de ce qui attend sous « En attente », puis relancez l'apprentissage.",
+        "full": "La liste des brouillons est pleine : tout n'a pas pu être enregistré. Décidez de ce qui attend sous « À décider », puis relancez l'apprentissage.",
         "usage": "~{{sent}} jetons envoyés · ~{{received}} reçus",
         "usageCost": "~{{sent}} jetons envoyés · ~{{received}} reçus · {{cost}}"
       },
@@ -1614,9 +1614,9 @@
       "searchNone": "Aucune entrée ne correspond.",
       "openFile": "Ouvrir le fichier",
       "files": "La mémoire, ce sont deux fichiers de ce vault : .agent/active_memory.md et .agent/MEMORY.md. Vous pouvez les lire et les modifier comme n'importe quelle note, et ils se synchronisent avec le vault.",
-      "waiting_one": "{{count}} suggestion de l'IA pour la mémoire attend sous « En attente ». Elle n'est pas dans la mémoire avant que vous l'acceptiez.",
-      "waiting_many": "{{count}} suggestions de l'IA pour la mémoire attendent sous « En attente ». Aucune n'est dans la mémoire avant que vous l'acceptiez.",
-      "waiting_other": "{{count}} suggestions de l'IA pour la mémoire attendent sous « En attente ». Aucune n'est dans la mémoire avant que vous l'acceptiez.",
+      "waiting_one": "{{count}} suggestion de l'IA pour la mémoire attend sous « À décider ». Elle n'est pas dans la mémoire avant que vous l'acceptiez.",
+      "waiting_many": "{{count}} suggestions de l'IA pour la mémoire attendent sous « À décider ». Aucune n'est dans la mémoire avant que vous l'acceptiez.",
+      "waiting_other": "{{count}} suggestions de l'IA pour la mémoire attendent sous « À décider ». Aucune n'est dans la mémoire avant que vous l'acceptiez.",
       "waitingShow": "Afficher",
       "deleteConfirm": "Supprimer cette entrée ?",
       "deleteBody": "Elle est retirée du fichier, et aucune nouvelle conversation ne la reçoit. Les conversations déjà commencées gardent ce qu'elles ont reçu.",

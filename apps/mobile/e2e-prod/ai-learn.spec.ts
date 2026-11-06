@@ -195,7 +195,7 @@ test("AI learning: the phone says what a review would send, and a skill's draft 
 
     // 3. What waits: two drafts for a skill. Each says on what it rests, and has no button that writes.
     await toHistory(page);
-    await expect(page.getByTestId("ai-history-waiting")).toHaveText("Open · 2");
+    await expect(page.getByTestId("ai-history-waiting")).toHaveText("To decide · 2");
     await page.getByTestId("ai-history-waiting").click();
     const open = page.getByTestId("ai-open");
     const changed = open.locator('[data-testid="ai-draft"][data-kind="skill"]').first();

@@ -1174,14 +1174,14 @@
         "read-only": "This device cannot write the vault's instructions or its memory, so nothing is suggested for them."
       },
       "result": {
-        "lead": "{{model}} read the conversation once more — the same model that led it; it went nowhere else. What it suggests is below and under “Open”. Nothing of it counts before you accept it.",
+        "lead": "{{model}} read the conversation once more — the same model that led it; it went nowhere else. What it suggests is below and under “To decide”. Nothing of it counts before you accept it.",
         "none": "Nothing worth keeping in this conversation",
         "noneHint": "That is an answer too: not every conversation teaches something.",
         "known_one": "{{count}} suggestion is in the memory already.",
         "known_other": "{{count}} suggestions are in the memory already.",
         "dropped_one": "{{count}} suggestion was left out: without evidence, too long, or of a kind this conversation may not suggest.",
         "dropped_other": "{{count}} suggestions were left out: without evidence, too long, or of a kind this conversation may not suggest.",
-        "full": "The list of drafts is full: not everything could be laid down. Decide about what waits under “Open”, then learn again.",
+        "full": "The list of drafts is full: not everything could be laid down. Decide about what waits under “To decide”, then learn again.",
         "usage": "~{{sent}} tokens sent · ~{{received}} received",
         "usageCost": "~{{sent}} tokens sent · ~{{received}} received · {{cost}}"
       },
@@ -1554,8 +1554,8 @@
       "searchNone": "No entry matches.",
       "openFile": "Open file",
       "files": "The memory is two files of this vault: .agent/active_memory.md and .agent/MEMORY.md. You can read and edit them like any note, and they sync with the vault.",
-      "waiting_one": "{{count}} suggestion of the AI for the memory is waiting under “Open”. It is not in the memory before you accept it.",
-      "waiting_other": "{{count}} suggestions of the AI for the memory are waiting under “Open”. None is in the memory before you accept it.",
+      "waiting_one": "{{count}} suggestion of the AI for the memory is waiting under “To decide”. It is not in the memory before you accept it.",
+      "waiting_other": "{{count}} suggestions of the AI for the memory are waiting under “To decide”. None is in the memory before you accept it.",
       "waitingShow": "Show",
       "deleteConfirm": "Delete this entry?",
       "deleteBody": "It is taken out of the file, and no new conversation gets it. Conversations that have already begun keep what they were given.",

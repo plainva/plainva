@@ -133,7 +133,7 @@ test("AI routines: the phone sets one up in two steps, confirmed for a run nobod
     // 3. What holds for a run nobody watches. Nothing was sent to put it together, and only this yes makes the routine.
     const confirm = page.getByTestId("ai-routine-confirm");
     await expect(confirm).toBeVisible();
-    await expect(confirm).toContainText("“Morning brief” runs without you — so this holds for it");
+    await expect(confirm).toContainText("How “Morning brief” runs without you");
     await expect(confirm.getByTestId("ai-routine-budget")).toHaveText("At most 8 steps, 12 tool calls and 6,000 tokens of output per run.");
     await expect(confirm.getByTestId("ai-routine-who")).toHaveText(`${SERVER} · ${MODEL} — a model on this device. Nothing leaves it.`);
     await expect(confirm.getByTestId("ai-routine-result")).toContainText("called “Morning brief – ");

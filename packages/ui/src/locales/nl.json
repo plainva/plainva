@@ -1174,14 +1174,14 @@
         "read-only": "Dit apparaat kan de instructies of het geheugen van de vault niet schrijven, dus daarvoor wordt niets voorgesteld."
       },
       "result": {
-        "lead": "{{model}} heeft het gesprek nog één keer gelezen — hetzelfde model dat het heeft gevoerd; het ging nergens anders heen. Wat het voorstelt, staat hieronder en onder “Open”. Niets daarvan geldt voordat je het overneemt.",
+        "lead": "{{model}} heeft het gesprek nog één keer gelezen — hetzelfde model dat het heeft gevoerd; het ging nergens anders heen. Wat het voorstelt, staat hieronder en onder “Te beslissen”. Niets daarvan geldt voordat je het overneemt.",
         "none": "Niets in dit gesprek dat het bewaren waard is",
         "noneHint": "Ook dat is een antwoord: uit niet elk gesprek valt iets te leren.",
         "known_one": "{{count}} voorstel staat al in het geheugen.",
         "known_other": "{{count}} voorstellen staan al in het geheugen.",
         "dropped_one": "{{count}} voorstel is weggelaten: zonder onderbouwing, te lang of van een soort die dit gesprek niet mag voorstellen.",
         "dropped_other": "{{count}} voorstellen zijn weggelaten: zonder onderbouwing, te lang of van een soort die dit gesprek niet mag voorstellen.",
-        "full": "De lijst met concepten is vol: niet alles kon worden klaargezet. Beslis over wat onder “Open” wacht en leer daarna opnieuw.",
+        "full": "De lijst met concepten is vol: niet alles kon worden klaargezet. Beslis over wat onder “Te beslissen” wacht en leer daarna opnieuw.",
         "usage": "~{{sent}} tokens verzonden · ~{{received}} ontvangen",
         "usageCost": "~{{sent}} tokens verzonden · ~{{received}} ontvangen · {{cost}}"
       },
@@ -1554,8 +1554,8 @@
       "searchNone": "Geen item komt overeen.",
       "openFile": "Bestand openen",
       "files": "Het geheugen bestaat uit twee bestanden van deze vault: .agent/active_memory.md en .agent/MEMORY.md. Je kunt ze lezen en bewerken zoals elke notitie, en ze synchroniseren mee met de vault.",
-      "waiting_one": "{{count}} voorstel van de AI voor het geheugen wacht onder “Open”. Het staat niet in het geheugen voordat je het aanvaardt.",
-      "waiting_other": "{{count}} voorstellen van de AI voor het geheugen wachten onder “Open”. Geen ervan staat in het geheugen voordat je het aanvaardt.",
+      "waiting_one": "{{count}} voorstel van de AI voor het geheugen wacht onder “Te beslissen”. Het staat niet in het geheugen voordat je het aanvaardt.",
+      "waiting_other": "{{count}} voorstellen van de AI voor het geheugen wachten onder “Te beslissen”. Geen ervan staat in het geheugen voordat je het aanvaardt.",
       "waitingShow": "Tonen",
       "deleteConfirm": "Dit item verwijderen?",
       "deleteBody": "Het wordt uit het bestand gehaald en geen nieuw gesprek krijgt het nog mee. Gesprekken die al begonnen zijn, houden wat ze gekregen hebben.",

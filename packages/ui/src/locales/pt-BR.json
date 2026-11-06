@@ -1230,7 +1230,7 @@
         "read-only": "Este dispositivo não consegue gravar as instruções nem a memória do vault; por isso, nada é sugerido para elas."
       },
       "result": {
-        "lead": "{{model}} leu a conversa mais uma vez — o mesmo modelo que a conduziu; ela não foi para nenhum outro lugar. O que ele sugere está abaixo e em “Pendentes”. Nada disso vale antes de você aceitar.",
+        "lead": "{{model}} leu a conversa mais uma vez — o mesmo modelo que a conduziu; ela não foi para nenhum outro lugar. O que ele sugere está abaixo e em “A decidir”. Nada disso vale antes de você aceitar.",
         "none": "Nada que valha a pena guardar nesta conversa",
         "noneHint": "Isso também é uma resposta: nem toda conversa ensina alguma coisa.",
         "known_one": "{{count}} sugestão já está na memória.",
@@ -1239,7 +1239,7 @@
         "dropped_one": "{{count}} sugestão ficou de fora: sem evidência, longa demais ou de um tipo que esta conversa não pode sugerir.",
         "dropped_many": "{{count}} sugestões ficaram de fora: sem evidência, longas demais ou de um tipo que esta conversa não pode sugerir.",
         "dropped_other": "{{count}} sugestões ficaram de fora: sem evidência, longas demais ou de um tipo que esta conversa não pode sugerir.",
-        "full": "A lista de rascunhos está cheia: nem tudo pôde ser guardado. Decida sobre o que aguarda em “Pendentes” e depois aprenda de novo.",
+        "full": "A lista de rascunhos está cheia: nem tudo pôde ser guardado. Decida sobre o que aguarda em “A decidir” e depois aprenda de novo.",
         "usage": "~{{sent}} tokens enviados · ~{{received}} recebidos",
         "usageCost": "~{{sent}} tokens enviados · ~{{received}} recebidos · {{cost}}"
       },
@@ -1614,9 +1614,9 @@
       "searchNone": "Nenhuma entrada corresponde.",
       "openFile": "Abrir arquivo",
       "files": "A memória são dois arquivos deste vault: .agent/active_memory.md e .agent/MEMORY.md. Você pode lê-los e editá-los como qualquer nota, e eles sincronizam com o vault.",
-      "waiting_one": "{{count}} sugestão da IA para a memória aguarda em “Pendentes”. Ela não está na memória antes de você aceitar.",
-      "waiting_many": "{{count}} sugestões da IA para a memória aguardam em “Pendentes”. Nenhuma está na memória antes de você aceitar.",
-      "waiting_other": "{{count}} sugestões da IA para a memória aguardam em “Pendentes”. Nenhuma está na memória antes de você aceitar.",
+      "waiting_one": "{{count}} sugestão da IA para a memória aguarda em “A decidir”. Ela não está na memória antes de você aceitar.",
+      "waiting_many": "{{count}} sugestões da IA para a memória aguardam em “A decidir”. Nenhuma está na memória antes de você aceitar.",
+      "waiting_other": "{{count}} sugestões da IA para a memória aguardam em “A decidir”. Nenhuma está na memória antes de você aceitar.",
       "waitingShow": "Mostrar",
       "deleteConfirm": "Excluir esta entrada?",
       "deleteBody": "Ela é retirada do arquivo, e nenhuma conversa nova a recebe. As conversas já iniciadas mantêm o que receberam.",

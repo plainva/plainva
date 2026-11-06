@@ -1286,7 +1286,7 @@
         "read-only": "To urządzenie nie może zapisywać instrukcji vaultu ani jego pamięci, więc nic się dla nich nie proponuje."
       },
       "result": {
-        "lead": "Model {{model}} przeczytał rozmowę jeszcze raz — ten sam, który ją prowadził; rozmowa nie trafiła nigdzie indziej. To, co proponuje, jest poniżej i w sekcji „Oczekujące”. Nic z tego nie obowiązuje, dopóki tego nie zaakceptujesz.",
+        "lead": "Model {{model}} przeczytał rozmowę jeszcze raz — ten sam, który ją prowadził; rozmowa nie trafiła nigdzie indziej. To, co proponuje, jest poniżej i w sekcji „Do decyzji”. Nic z tego nie obowiązuje, dopóki tego nie zaakceptujesz.",
         "none": "W tej rozmowie nie ma nic, co warto zachować",
         "noneHint": "To też odpowiedź: nie każda rozmowa czegoś uczy.",
         "known_one": "{{count}} propozycja jest już w pamięci.",
@@ -1297,7 +1297,7 @@
         "dropped_few": "{{count}} propozycje zostały pominięte: bez dowodu, zbyt długie lub rodzaju, którego ta rozmowa nie może proponować.",
         "dropped_many": "{{count}} propozycji zostało pominiętych: bez dowodu, zbyt długich lub rodzaju, którego ta rozmowa nie może proponować.",
         "dropped_other": "{{count}} propozycji zostało pominiętych: bez dowodu, zbyt długich lub rodzaju, którego ta rozmowa nie może proponować.",
-        "full": "Lista szkiców jest pełna: nie wszystko udało się na niej umieścić. Zdecyduj o tym, co czeka w sekcji „Oczekujące”, a potem naucz się ponownie.",
+        "full": "Lista szkiców jest pełna: nie wszystko udało się na niej umieścić. Zdecyduj o tym, co czeka w sekcji „Do decyzji”, a potem naucz się ponownie.",
         "usage": "Wysłano ~{{sent}} tokenów · odebrano ~{{received}}",
         "usageCost": "Wysłano ~{{sent}} tokenów · odebrano ~{{received}} · {{cost}}"
       },
@@ -1674,10 +1674,10 @@
       "searchNone": "Żaden wpis nie pasuje.",
       "openFile": "Otwórz plik",
       "files": "Pamięć to dwa pliki tego vaultu: .agent/active_memory.md i .agent/MEMORY.md. Możesz je czytać i edytować jak każdą notatkę; synchronizują się razem z vaultem.",
-      "waiting_one": "{{count}} propozycja AI dla pamięci czeka w „Oczekujące”. Nie ma jej w pamięci, dopóki jej nie przyjmiesz.",
-      "waiting_few": "{{count}} propozycje AI dla pamięci czekają w „Oczekujące”. Żadnej nie ma w pamięci, dopóki jej nie przyjmiesz.",
-      "waiting_many": "{{count}} propozycji AI dla pamięci czeka w „Oczekujące”. Żadnej nie ma w pamięci, dopóki jej nie przyjmiesz.",
-      "waiting_other": "{{count}} propozycji AI dla pamięci czeka w „Oczekujące”. Żadnej nie ma w pamięci, dopóki jej nie przyjmiesz.",
+      "waiting_one": "{{count}} propozycja AI dla pamięci czeka w „Do decyzji”. Nie ma jej w pamięci, dopóki jej nie przyjmiesz.",
+      "waiting_few": "{{count}} propozycje AI dla pamięci czekają w „Do decyzji”. Żadnej nie ma w pamięci, dopóki jej nie przyjmiesz.",
+      "waiting_many": "{{count}} propozycji AI dla pamięci czeka w „Do decyzji”. Żadnej nie ma w pamięci, dopóki jej nie przyjmiesz.",
+      "waiting_other": "{{count}} propozycji AI dla pamięci czeka w „Do decyzji”. Żadnej nie ma w pamięci, dopóki jej nie przyjmiesz.",
       "waitingShow": "Pokaż",
       "deleteConfirm": "Usunąć ten wpis?",
       "deleteBody": "Zostanie usunięty z pliku i żadna nowa rozmowa już go nie dostanie. Rozmowy już rozpoczęte zachowują to, co dostały.",

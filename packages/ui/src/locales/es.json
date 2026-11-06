@@ -1230,7 +1230,7 @@
         "read-only": "Este dispositivo no puede escribir las instrucciones del vault ni su memoria, así que no se sugiere nada para ellas."
       },
       "result": {
-        "lead": "{{model}} volvió a leer la conversación — el mismo modelo que la mantuvo; no se envió a ningún otro sitio. Lo que sugiere está abajo y en «Pendiente». Nada de ello tiene efecto hasta que lo aceptes.",
+        "lead": "{{model}} volvió a leer la conversación — el mismo modelo que la mantuvo; no se envió a ningún otro sitio. Lo que sugiere está abajo y en «Por decidir». Nada de ello tiene efecto hasta que lo aceptes.",
         "none": "Nada que valga la pena conservar en esta conversación",
         "noneHint": "Eso también es una respuesta: no todas las conversaciones dejan algo que aprender.",
         "known_one": "{{count}} sugerencia ya está en la memoria.",
@@ -1239,7 +1239,7 @@
         "dropped_one": "{{count}} sugerencia se omitió: sin evidencia, demasiado larga o de un tipo que esta conversación no puede sugerir.",
         "dropped_many": "{{count}} sugerencias se omitieron: sin evidencia, demasiado largas o de un tipo que esta conversación no puede sugerir.",
         "dropped_other": "{{count}} sugerencias se omitieron: sin evidencia, demasiado largas o de un tipo que esta conversación no puede sugerir.",
-        "full": "La lista de borradores está llena: no todo se pudo guardar. Decide sobre lo que espera en «Pendiente» y vuelve a aprender.",
+        "full": "La lista de borradores está llena: no todo se pudo guardar. Decide sobre lo que espera en «Por decidir» y vuelve a aprender.",
         "usage": "~{{sent}} tokens enviados · ~{{received}} recibidos",
         "usageCost": "~{{sent}} tokens enviados · ~{{received}} recibidos · {{cost}}"
       },
@@ -1614,9 +1614,9 @@
       "searchNone": "Ninguna entrada coincide.",
       "openFile": "Abrir archivo",
       "files": "La memoria son dos archivos de este vault: .agent/active_memory.md y .agent/MEMORY.md. Puedes leerlos y editarlos como cualquier nota, y se sincronizan con el vault.",
-      "waiting_one": "{{count}} sugerencia de la IA para la memoria espera en «Pendiente». No está en la memoria hasta que la aceptes.",
-      "waiting_many": "{{count}} sugerencias de la IA para la memoria esperan en «Pendiente». Ninguna está en la memoria hasta que la aceptes.",
-      "waiting_other": "{{count}} sugerencias de la IA para la memoria esperan en «Pendiente». Ninguna está en la memoria hasta que la aceptes.",
+      "waiting_one": "{{count}} sugerencia de la IA para la memoria espera en «Por decidir». No está en la memoria hasta que la aceptes.",
+      "waiting_many": "{{count}} sugerencias de la IA para la memoria esperan en «Por decidir». Ninguna está en la memoria hasta que la aceptes.",
+      "waiting_other": "{{count}} sugerencias de la IA para la memoria esperan en «Por decidir». Ninguna está en la memoria hasta que la aceptes.",
       "waitingShow": "Mostrar",
       "deleteConfirm": "¿Eliminar esta entrada?",
       "deleteBody": "Se quita del archivo y ninguna conversación nueva la recibe. Las conversaciones ya iniciadas conservan lo que recibieron.",

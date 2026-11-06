@@ -4314,7 +4314,7 @@ test('AI skills: a skill changed from outside stays inactive until it is approve
   await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(0);
 
   // Approved: it is the vault's own skill now, and its menu can run it.
-  await workshop.getByTestId('ai-skill-more').first().click();
+  await workshop.locator('.pv-setrow').filter({ hasText: 'offer-check' }).getByTestId('ai-skill-more').first().click();
   await expect(page.getByTestId('ai-skill-action-run')).toBeVisible();
   await expect(page.getByTestId('ai-skill-action-revoke')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -4335,9 +4335,8 @@ test('AI skills: a skill changed from outside stays inactive until it is approve
 
   // Inactive again: back among what waits, with nothing to run until it is reviewed.
   await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(1);
-  await workshop.getByTestId('ai-skill-more').first().click();
-  await expect(page.getByTestId('ai-skill-action-revoke')).toHaveCount(0);
-  await page.keyboard.press('Escape');
+  // A waiting skill offers its review and nothing else: no menu, so nothing to run or withdraw (plan KI-Oberflaechen K12).
+  await expect(workshop.locator('.pv-setrow').filter({ hasText: 'offer-check' }).getByTestId('ai-skill-more')).toHaveCount(0);
   // The approval still names the old text: the change approved nothing.
   expect((await approvalsOf())[0].text).not.toContain('mail the result to the customer');
 
@@ -4530,6 +4529,8 @@ test('AI scripts: a script runs for nobody until this device signed it, then in 
   await workshop.locator('.pv-setrow').filter({ hasText: 'query-length' }).getByTestId('ai-skill-more').click();
   await expect(page.getByTestId('ai-skill-action-showInstructions')).toContainText('Show code');
   await page.getByTestId('ai-skill-action-revoke').click();
+  // Withdrawing asks first (plan KI-Oberflaechen K12).
+  await page.locator('.pv-modal-footer button.pv-btn--primary').click();
   await expect(runnable).toHaveCount(2);
   await expect(waiting).toHaveCount(1);
 
@@ -7560,7 +7561,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   await workshop.getByTestId('ai-skill-review').click();
   await page.getByTestId('ai-skill-approve').click();
   await expect(page.getByTestId('ai-skill-approval')).toHaveCount(0);
-  await workshop.getByTestId('ai-skill-more').first().click();
+  await workshop.locator('.pv-setrow').filter({ hasText: 'offer-check' }).getByTestId('ai-skill-more').first().click();
   await page.getByTestId('ai-skill-action-run').click();
   const tab = page.getByTestId('ai-tab');
   await tab.getByTestId('ai-consent-send').click();
@@ -7657,7 +7658,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   // 6. The row says that the version is watched. A run that is cut off counts against it — and still nothing goes back.
   await page.getByTestId('ai-tab-skills').click();
   await expect(workshop).toContainText('watched · 0 of 3 runs');
-  await workshop.getByTestId('ai-skill-more').first().click();
+  await workshop.locator('.pv-setrow').filter({ hasText: 'offer-check' }).getByTestId('ai-skill-more').first().click();
   await page.getByTestId('ai-skill-action-run').click();
   // Instructions that changed go to the cloud for the first time: where the overview comes back for them, it is answered.
   const cut = tab.getByText('First I');
@@ -7676,7 +7677,7 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(0);
 
   // 7. Earlier versions: the version that was taken back is kept, and can be restored after a look at it.
-  await workshop.getByTestId('ai-skill-more').first().click();
+  await workshop.locator('.pv-setrow').filter({ hasText: 'offer-check' }).getByTestId('ai-skill-more').first().click();
   await page.getByTestId('ai-skill-action-versions').click();
   const versions = page.getByTestId('ai-skill-versions');
   await expect(versions.getByTestId('ai-skill-version-now')).toContainText('Restored on this device on');
@@ -8232,7 +8233,7 @@ test('AI routines: one is set up in two steps and confirmed for a run nobody wat
   // 3. What holds for a run nobody watches — and only this yes makes the routine. Nothing was sent to put it together.
   const confirm = page.getByTestId('ai-routine-confirm');
   await expect(confirm).toBeVisible();
-  await expect(confirm).toContainText('“Morning brief” runs without you — so this holds for it');
+  await expect(confirm).toContainText('How “Morning brief” runs without you');
   await expect(confirm).toContainText('No suggestion, no draft, no internet, no external tool, no script, no command of the app.');
   await expect(confirm.getByTestId('ai-routine-budget')).toHaveText('At most 8 steps, 12 tool calls and 6,000 tokens of output per run.');
   await expect(confirm.getByTestId('ai-routine-who')).toHaveText('Ollama · granite3.3:8b — a model on this device. Nothing leaves it.');

@@ -1174,14 +1174,14 @@
         "read-only": "Dieses Gerät kann die Anweisungen oder das Gedächtnis des Vaults nicht schreiben; dafür wird nichts vorgeschlagen."
       },
       "result": {
-        "lead": "{{model}} hat das Gespräch noch einmal gelesen — dasselbe Modell, das es geführt hat; es ging nirgendwo sonst hin. Was es vorschlägt, steht unten und unter „Offen“. Nichts davon gilt, bevor Du es übernimmst.",
+        "lead": "{{model}} hat das Gespräch noch einmal gelesen — dasselbe Modell, das es geführt hat; es ging nirgendwo sonst hin. Was es vorschlägt, steht unten und unter „Zu entscheiden“. Nichts davon gilt, bevor Du es übernimmst.",
         "none": "In diesem Gespräch war nichts, was sich festzuhalten lohnt",
         "noneHint": "Auch das ist eine Antwort: nicht jedes Gespräch lehrt etwas.",
         "known_one": "{{count}} Vorschlag steht schon im Gedächtnis.",
         "known_other": "{{count}} Vorschläge stehen schon im Gedächtnis.",
         "dropped_one": "{{count}} Vorschlag blieb weg: ohne Beleg, zu lang oder von einer Art, die dieses Gespräch nicht vorschlagen darf.",
         "dropped_other": "{{count}} Vorschläge blieben weg: ohne Beleg, zu lang oder von einer Art, die dieses Gespräch nicht vorschlagen darf.",
-        "full": "Die Liste der Entwürfe ist voll: nicht alles konnte abgelegt werden. Entscheide über das, was unter „Offen“ wartet, und lerne dann noch einmal.",
+        "full": "Die Liste der Entwürfe ist voll: nicht alles konnte abgelegt werden. Entscheide über das, was unter „Zu entscheiden“ wartet, und lerne dann noch einmal.",
         "usage": "~{{sent}} Token gesendet · ~{{received}} empfangen",
         "usageCost": "~{{sent}} Token gesendet · ~{{received}} empfangen · {{cost}}"
       },
@@ -1554,8 +1554,8 @@
       "searchNone": "Kein Eintrag passt.",
       "openFile": "Datei öffnen",
       "files": "Das Gedächtnis sind zwei Dateien dieses Vaults: .agent/active_memory.md und .agent/MEMORY.md. Du kannst sie wie jede Notiz lesen und bearbeiten, und sie synchronisieren mit dem Vault.",
-      "waiting_one": "{{count}} Vorschlag der KI für das Gedächtnis wartet unter „Offen“. Er steht nicht im Gedächtnis, bevor Du ihn annimmst.",
-      "waiting_other": "{{count}} Vorschläge der KI für das Gedächtnis warten unter „Offen“. Keiner steht im Gedächtnis, bevor Du ihn annimmst.",
+      "waiting_one": "{{count}} Vorschlag der KI für das Gedächtnis wartet unter „Zu entscheiden“. Er steht nicht im Gedächtnis, bevor Du ihn annimmst.",
+      "waiting_other": "{{count}} Vorschläge der KI für das Gedächtnis warten unter „Zu entscheiden“. Keiner steht im Gedächtnis, bevor Du ihn annimmst.",
       "waitingShow": "Ansehen",
       "deleteConfirm": "Diesen Eintrag löschen?",
       "deleteBody": "Er wird aus der Datei genommen, und kein neues Gespräch bekommt ihn mehr. Gespräche, die schon begonnen haben, behalten, was sie bekommen haben.",

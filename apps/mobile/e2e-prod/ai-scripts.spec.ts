@@ -224,6 +224,8 @@ test("a script runs for nobody until this phone signed it, then in its box — a
     await row("query-length").click();
     await expect(page.getByTestId("ai-skill-action-showInstructions")).toContainText("Show code");
     await page.getByTestId("ai-skill-action-revoke").click();
+    // Withdrawing asks first (plan KI-Oberflaechen K12).
+    await page.getByRole("button", { name: "Withdraw approval", exact: true }).last().click();
     await expect(row("query-length")).toHaveCount(0);
     await expect(waiting).toHaveCount(1);
 

@@ -176,7 +176,7 @@ test("AI writes: drafts wait on this phone until the reader creates or discards 
 
     // 1. Everything that waits is counted on the history's third segment.
     await toHistory(page);
-    await expect(page.getByTestId("ai-history-waiting")).toHaveText("Open · 3");
+    await expect(page.getByTestId("ai-history-waiting")).toHaveText("To decide · 3");
 
     // 2. The conversation: under its answer stand the note that carries the proposal, and a card per draft.
     await page.getByTestId("ai-history-row").first().click();
@@ -215,7 +215,7 @@ test("AI writes: drafts wait on this phone until the reader creates or discards 
 
     // 4. What still waits is listed under "Open", with who laid it down. A journal line is written through the journal.
     await toHistory(page);
-    await expect(page.getByTestId("ai-history-waiting")).toHaveText("Open · 2");
+    await expect(page.getByTestId("ai-history-waiting")).toHaveText("To decide · 2");
     await page.getByTestId("ai-history-waiting").click();
     const open = page.getByTestId("ai-open");
     await expect(open.getByTestId("ai-draft")).toHaveCount(2);

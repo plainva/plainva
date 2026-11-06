@@ -1230,7 +1230,7 @@
         "read-only": "Questo dispositivo non può scrivere né le istruzioni del vault né la sua memoria, quindi al riguardo non viene proposto nulla."
       },
       "result": {
-        "lead": "{{model}} ha riletto la conversazione — lo stesso modello con cui è stata condotta; non è stata inviata altrove. Ciò che propone è qui sotto e anche sotto «In attesa». Nulla di tutto questo vale finché non lo accetti.",
+        "lead": "{{model}} ha riletto la conversazione — lo stesso modello con cui è stata condotta; non è stata inviata altrove. Ciò che propone è qui sotto e anche sotto «Da decidere». Nulla di tutto questo vale finché non lo accetti.",
         "none": "In questa conversazione non c'è nulla che valga la pena di conservare",
         "noneHint": "Anche questa è una risposta: non da ogni conversazione si impara qualcosa.",
         "known_one": "{{count}} proposta è già nella memoria.",
@@ -1239,7 +1239,7 @@
         "dropped_one": "{{count}} proposta è stata esclusa: senza riscontro, troppo lunga o di un tipo che questa conversazione non può proporre.",
         "dropped_many": "{{count}} proposte sono state escluse: senza riscontro, troppo lunghe o di un tipo che questa conversazione non può proporre.",
         "dropped_other": "{{count}} proposte sono state escluse: senza riscontro, troppo lunghe o di un tipo che questa conversazione non può proporre.",
-        "full": "L'elenco delle bozze è pieno: non tutto ha trovato posto. Decidi su ciò che aspetta sotto «In attesa», poi impara di nuovo.",
+        "full": "L'elenco delle bozze è pieno: non tutto ha trovato posto. Decidi su ciò che aspetta sotto «Da decidere», poi impara di nuovo.",
         "usage": "~{{sent}} token inviati · ~{{received}} ricevuti",
         "usageCost": "~{{sent}} token inviati · ~{{received}} ricevuti · {{cost}}"
       },
@@ -1614,9 +1614,9 @@
       "searchNone": "Nessuna voce corrisponde.",
       "openFile": "Apri file",
       "files": "La memoria è fatta di due file di questo vault: .agent/active_memory.md e .agent/MEMORY.md. Puoi leggerli e modificarli come qualsiasi nota, e si sincronizzano con il vault.",
-      "waiting_one": "{{count}} proposta dell'IA per la memoria aspetta sotto «In attesa». Non è nella memoria finché non la accetti.",
-      "waiting_many": "{{count}} proposte dell'IA per la memoria aspettano sotto «In attesa». Nessuna è nella memoria finché non la accetti.",
-      "waiting_other": "{{count}} proposte dell'IA per la memoria aspettano sotto «In attesa». Nessuna è nella memoria finché non la accetti.",
+      "waiting_one": "{{count}} proposta dell'IA per la memoria aspetta sotto «Da decidere». Non è nella memoria finché non la accetti.",
+      "waiting_many": "{{count}} proposte dell'IA per la memoria aspettano sotto «Da decidere». Nessuna è nella memoria finché non la accetti.",
+      "waiting_other": "{{count}} proposte dell'IA per la memoria aspettano sotto «Da decidere». Nessuna è nella memoria finché non la accetti.",
       "waitingShow": "Mostra",
       "deleteConfirm": "Eliminare questa voce?",
       "deleteBody": "Viene tolta dal file e nessuna nuova conversazione la riceve. Le conversazioni già iniziate conservano ciò che hanno ricevuto.",

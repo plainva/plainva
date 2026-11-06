@@ -153,7 +153,8 @@ test("AI memory: the phone shows both places, writes an entry by hand, and makes
     await expect(page.getByTestId("ai-memory-action-delete")).toBeVisible();
     await page.getByTestId("ai-memory-action-toActive").click();
     await expect.poll(() => readFile(page, ACTIVE_FILE)).toContain("- Yard 7 owes me 4200. <!-- plainva: added=");
-    expect(await readFile(page, LONG_FILE)).not.toContain("owes me");
+    // The two files are written one after the other: the line leaves the long file a moment later.
+    await expect.poll(() => readFile(page, LONG_FILE)).not.toContain("owes me");
 
     // 5. Three drafts an assistant left: an entry, the removal of one, a rule. Nothing of them is in the vault.
     await page.evaluate(
@@ -163,9 +164,9 @@ test("AI memory: the phone shows both places, writes an entry by hand, and makes
       { vault, drafts: DRAFTS },
     );
     await toHistory(page);
-    await expect(page.getByTestId("ai-history-waiting")).toHaveText("Open · 3");
+    await expect(page.getByTestId("ai-history-waiting")).toHaveText("To decide · 3");
     await page.getByTestId("ai-history-memory").click();
-    await expect(page.getByTestId("ai-memory")).toContainText("3 suggestions of the AI for the memory are waiting under “Open”. None is in the memory before you accept it.");
+    await expect(page.getByTestId("ai-memory")).toContainText("3 suggestions of the AI for the memory are waiting under “To decide”. None is in the memory before you accept it.");
     await page.getByTestId("ai-memory-waiting").click();
     const open = page.getByTestId("ai-open");
     await expect(open.getByTestId("ai-draft")).toHaveCount(3);
