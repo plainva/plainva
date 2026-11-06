@@ -54,3 +54,20 @@ export function collapseMailAccountRows(rows: readonly MailAccountConfig[]): Mai
   }
   return [...byId.values()];
 }
+
+/** The id `id` stands for now: itself, or the mailbox it was folded into (chains followed, loops cut). Pure. */
+export function resolveMailAccountAlias(aliases: Readonly<Record<string, string>>, id: string): string {
+  let current = id;
+  const seen = new Set<string>();
+  while (aliases[current] && !seen.has(current)) {
+    seen.add(current);
+    current = aliases[current];
+  }
+  return current;
+}
+
+/** Whether a note's mailbox id names `accountId`, directly or as a folded entry. Pure. */
+export function sameMailAccount(aliases: Readonly<Record<string, string>>, recorded: unknown, accountId: string): boolean {
+  if (typeof recorded !== "string" || !recorded) return false;
+  return recorded === accountId || resolveMailAccountAlias(aliases, recorded) === accountId;
+}

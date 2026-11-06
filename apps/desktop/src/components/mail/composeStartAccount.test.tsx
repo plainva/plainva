@@ -37,12 +37,15 @@ vi.mock("./ComposeEditor", () => ({
 vi.mock("../TemplatePickerModal", () => ({ TemplatePickerModal: () => null }));
 
 let accounts: MailAccountConfig[] = [];
+/** Removed ids of folded mailboxes → the kept one (finding 2026-11-06, M2). */
+let aliases: Record<string, string> = {};
 
 vi.mock("@plainva/ui/mail", async () => {
   const actual = await vi.importActual<typeof import("@plainva/ui/mail")>("@plainva/ui/mail");
   return {
     ...actual,
     listMailAccounts: async () => accounts,
+    loadMailAccountAliases: async () => aliases,
     listMailboxesFor: async () => [{ name: "Drafts", role: "drafts" }],
   };
 });
@@ -75,6 +78,7 @@ let root: Root;
 beforeEach(() => {
   accounts = [work, home];
   defaultMailbox = "";
+  aliases = {};
   sent.length = 0;
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -169,6 +173,15 @@ describe("the mailbox a draft starts from", () => {
 
     expect(from()).toBe("me@example.org · Work");
     expect(body()).not.toContain("Signed at home");
+  });
+
+  it("is the kept one when the draft's mailbox was folded into it (finding 2026-11-06, M2)", async () => {
+    aliases = { "home-old": "home" };
+    render(reply("home-old"));
+    await settle();
+
+    expect(from()).toBe("me@example.net · Home");
+    expect(times(body(), "Signed at home")).toBe(1);
   });
 
   it("is the first one stored when the default mailbox is gone", async () => {

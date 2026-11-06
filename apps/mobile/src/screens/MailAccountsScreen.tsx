@@ -505,10 +505,17 @@ export function MailAccountsScreen({
                 <Row
                   controls
                   data-testid={`mail-account-${a.id}`}
-                  end={<>
-                    {a.id === effectiveDefault && <span className="pv-badge pv-badge--accent pv-badge--text" data-testid="mail-account-default">{t("mail.defaultBadge")}</span>}
+                  // The second line carries what the row says about the mailbox -
+                  // its kind, this device's sign-in, the default mark - so the
+                  // address keeps the width of the row at the narrowest phone
+                  // (finding 2026-11-06, M1: the kind was cut to "Micr…" beside
+                  // the badge and the menu button).
+                  subtitle={<>
+                    <span className="m-prop-val">{a.kind === "gmail" ? "Gmail" : imap ? "IMAP" : "Microsoft"}</span>{" "}
                     <DeviceSignInBadge state={state} />
-                    <span className="m-prop-val">{a.kind === "gmail" ? "Gmail" : imap ? "IMAP" : "Microsoft"}</span>
+                    {a.id === effectiveDefault && <>{" "}<span className="pv-badge pv-badge--accent pv-badge--text" data-testid="mail-account-default">{t("mail.defaultBadge")}</span></>}
+                  </>}
+                  end={<>
                     {effectiveDefault !== undefined && a.id !== effectiveDefault && switchedOn.has(a.id) && (
                       <IconButton label={t("common.moreActions")} onClick={() => void mailboxActions(a)} data-testid={`mail-account-more-${a.id}`}>
                         <MoreHorizontal size={ICON.ui} />

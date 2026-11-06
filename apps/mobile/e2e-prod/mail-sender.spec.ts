@@ -190,6 +190,8 @@ test("the default mailbox: chosen in the settings, Mail opens on it and a new me
   try {
     await expect(page.locator(".m-mboxline-acct")).toHaveText("anna@example.org");
     await back(page);
+    // The narrowest phone width the app is laid out for.
+    await page.setViewportSize({ width: 360, height: 780 });
     await page.getByTestId("nav-settings").click();
     await page.getByTestId("settings-area-mail").click();
     // Without a choice the first mailbox is the default, and says so.
@@ -198,6 +200,13 @@ test("the default mailbox: chosen in the settings, Mail opens on it and a new me
     await page.getByRole("button", { name: "Set as default" }).click();
     await expect(page.getByTestId(`mail-account-${SECOND}`).getByTestId("mail-account-default")).toBeVisible();
     await expect(page.getByTestId("mail-account-mail-fixture-1").getByTestId("mail-account-default")).toHaveCount(0);
+    // Address, kind, sign-in and the mark stay readable beside the menu button: nothing on either line is cut.
+    for (const id of ["mail-fixture-1", SECOND]) {
+      const cut = await page.getByTestId(`mail-account-${id}`).evaluate((row) =>
+        [...row.querySelectorAll(".pv-grouprow-title, .pv-grouprow-sub")].some((el) => el.scrollWidth > el.clientWidth + 1));
+      expect(cut, id).toBe(false);
+    }
+    await expect(page.getByTestId(`mail-account-${SECOND}`)).toContainText("Microsoft");
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("default-mailbox-settings.png"), fullPage: true });
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("CapacitorStorage.mobile-vault-local") ?? "{}").defaultMailAccount)).toBe(SECOND);
 

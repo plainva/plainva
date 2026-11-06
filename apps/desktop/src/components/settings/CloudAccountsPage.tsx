@@ -85,6 +85,7 @@ import {
 } from "../../services/accountRepair";
 import { getSettingsStore } from "../../services/settingsStore";
 import { loadDefaultMailAccount, saveDefaultMailAccount } from "../../services/mail/defaultMailAccount";
+import { mailSnoozedKey } from "../../services/settingsProfile";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { CloudAccountsWizard } from "./CloudAccountsWizard";
@@ -709,6 +710,15 @@ export const CloudAccountsPage: React.FC<{
         listCards: () => loadCloudAccounts(selectedVault),
         replaceCards: (cards) => saveCloudAccounts(selectedVault, cards),
         defaultMailAccount: { read: () => loadDefaultMailAccount(selectedVault), write: (id) => saveDefaultMailAccount(selectedVault, id) },
+        // A message put aside in a removed entry comes back in the kept one.
+        snoozes: {
+          read: async () => (await getSettingsStore()).get<unknown>(mailSnoozedKey(selectedVault)),
+          write: async (next) => {
+            const store = await getSettingsStore();
+            await store.set(mailSnoozedKey(selectedVault), next);
+            await store.save();
+          },
+        },
       });
       toast.success(t("cloudAccounts.repairMailboxDone"));
     } catch {

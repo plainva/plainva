@@ -20,12 +20,20 @@ import {
   mailboxDuplicateEntries,
   mailSecretKey,
   mergeMailAccountRows,
+  captureMailAsNote,
+  loadMailAccountAliases,
+  repointSnoozes,
+  resolveMailAccountAlias,
+  sameMailAccount,
   readStoredVacation,
   removeMailAccount,
   replaceMailAccounts,
   saveStoredVacation,
   updateMailAccount,
   type MailAccountConfig,
+  type MailCaptureAdapter,
+  type MailMessage,
+  type SnoozeEntry,
 } from "@plainva/ui/mail";
 
 /**
@@ -268,6 +276,72 @@ describe("rows of one address under different ids go before the person", () => {
     const ports = { listCards: async () => [], replaceCards: async () => { throw new Error("must not write"); } };
     await expect(foldDuplicateMailboxes(VAULT, "missing", ports)).rejects.toThrow("mailbox-fold-target-missing");
     expect(await foldDuplicateMailboxes(VAULT, outlook.id, ports)).toEqual([]);
+  });
+});
+
+describe("what still names a folded entry finds the kept one", () => {
+  const twins = () => [gmail({ id: "gmail-a" }), gmail({ id: "gmail-b" })];
+  const ports = (extra: Record<string, unknown> = {}) => ({ listCards: async () => [], replaceCards: async () => undefined, ...extra });
+
+  it("moves the messages put aside in a removed entry onto the kept one", async () => {
+    settings.set(mailAccountsKey(VAULT), twins());
+    let snoozes: unknown = [
+      { account: "gmail-b", folder: "INBOX", id: "7", until: 2000 },
+      { account: "gmail-a", folder: "INBOX", id: "7", until: 1000 },
+      { account: outlook.id, folder: "INBOX", id: "7", until: 1000 },
+    ];
+    let place = "gmail-b";
+    await foldDuplicateMailboxes(VAULT, "gmail-a", ports({
+      snoozes: { read: async () => snoozes, write: async (next: SnoozeEntry[]) => void (snoozes = next) },
+      rememberedMailbox: { read: async () => place, write: async (id: string) => void (place = id) },
+    }));
+    // The same message under both entries is one entry, the later return winning.
+    expect(snoozes).toEqual([
+      { account: "gmail-a", folder: "INBOX", id: "7", until: 2000 },
+      { account: outlook.id, folder: "INBOX", id: "7", until: 1000 },
+    ]);
+    expect(place).toBe("gmail-a");
+  });
+
+  it("leaves snoozes of other mailboxes as they are", () => {
+    const state: SnoozeEntry[] = [{ account: "work", folder: "INBOX", id: "1", until: 5 }];
+    expect(repointSnoozes(state, "gmail-a", ["gmail-b"])).toBe(state);
+  });
+
+  it("records the removed id as standing for the kept one, chains included", async () => {
+    settings.set(mailAccountsKey(VAULT), [gmail({ id: "gmail-a" }), gmail({ id: "gmail-b" }), gmail({ id: "gmail-c" })]);
+    await foldDuplicateMailboxes(VAULT, "gmail-b", ports());
+    expect(await loadMailAccountAliases(VAULT)).toEqual({ "gmail-a": "gmail-b", "gmail-c": "gmail-b" });
+    // An older alias that pointed at an id folded now follows on.
+    expect(resolveMailAccountAlias({ old: "gmail-a", "gmail-a": "gmail-b" }, "old")).toBe("gmail-b");
+    expect(resolveMailAccountAlias({ x: "y", y: "x" }, "x")).toBe("x");
+    expect(sameMailAccount({ "gmail-a": "gmail-b" }, "gmail-a", "gmail-b")).toBe(true);
+    expect(sameMailAccount({ "gmail-a": "gmail-b" }, "gmail-a", "gmail-a")).toBe(true);
+    expect(sameMailAccount({}, "gmail-a", "gmail-b")).toBe(false);
+    expect(sameMailAccount({}, undefined, "gmail-b")).toBe(false);
+  });
+
+  it("a note filed from a removed entry is found again, not filed a second time", async () => {
+    const files = new Map<string, string>();
+    const adapter: MailCaptureAdapter = {
+      readTextFile: async (path) => {
+        const content = files.get(path);
+        if (content === undefined) throw new Error("not found");
+        return content;
+      },
+      writeTextFile: async (path, content) => void files.set(path, content),
+      exists: async (path) => files.has(path),
+      createDir: async () => undefined,
+    };
+    const message: MailMessage = { id: "4711", subject: "Invoice", from: "a@example.org", to: "person@gmail.example", dateTs: Date.UTC(2026, 10, 6, 9), text: "Hello", html: null, attachments: [] };
+    const first = await captureMailAsNote({ adapter, message, accountId: "gmail-b", mailbox: "INBOX", folder: "Mail" });
+    // Folded: gmail-b is gone, gmail-a is kept.
+    const again = await captureMailAsNote({ adapter, message, accountId: "gmail-a", mailbox: "INBOX", folder: "Mail", accountAliases: { "gmail-b": "gmail-a" } });
+    expect(again).toEqual({ path: first.path, created: false, filled: false });
+    expect(files.size).toBe(1);
+    // Without the alias it would have been a second note.
+    const without = await captureMailAsNote({ adapter, message, accountId: "gmail-a", mailbox: "INBOX", folder: "Mail" });
+    expect(without.created).toBe(true);
   });
 });
 

@@ -52,6 +52,7 @@ import {
   threadRows,
 } from "@plainva/ui/mail";
 import { listActiveMobileMailAccounts, mailVaultId, MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
+import { mobileMailAccountAliases } from "../services/mail/mailAliases";
 import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../services/deviceSignIn";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
@@ -320,7 +321,11 @@ export function MailListScreen({
   }, [bump]);
 
   useEffect(() => {
-    const onChanged = () => void listActiveMobileMailAccounts().then(setAccounts);
+    const onChanged = () => {
+      void listActiveMobileMailAccounts().then(setAccounts);
+      // A fold of duplicate mailboxes moves messages put aside onto the kept one (finding 2026-11-06, M2).
+      setSnoozed(pruneSnoozes(parseSnoozeState(getMobileSettings().mailSnoozed), Date.now()));
+    };
     window.addEventListener(MAIL_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(MAIL_CHANGED_EVENT, onChanged);
   }, []);
@@ -448,6 +453,7 @@ export function MailListScreen({
           mailbox: box,
           folder: getMobileSettings().mailFolder || "Mail",
           generatedBy: await plainvaProducer("mail-capture"),
+          accountAliases: await mobileMailAccountAliases(),
         });
         // The index hears of the note now, not at the next full scan (finding 2026-10-12).
         void v.reindexPaths([filed.path]);

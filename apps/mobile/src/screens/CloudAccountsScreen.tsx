@@ -23,6 +23,7 @@ import {
   toast,
 } from "@plainva/ui";
 import { foldDuplicateMailboxes, mailboxDuplicateEntries, type MailboxDuplicateEntry } from "@plainva/ui/mail";
+import { notifyMailChanged } from "../services/mail/mailRuntime";
 import { accountMonogram, type CloudProviderFamily } from "@plainva/ui";
 import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts, saveCloudAccounts } from "../services/cloudAccountsStore";
@@ -209,7 +210,18 @@ export function CloudAccountsScreen({
           read: async () => getMobileSettings().defaultMailAccount,
           write: async (id) => { await updateMobileSettings({ defaultMailAccount: id }); },
         },
+        // A message put aside in a removed entry comes back in the kept one,
+        // and a list last open on a removed entry opens on the kept one.
+        snoozes: {
+          read: async () => getMobileSettings().mailSnoozed,
+          write: async (next) => { await updateMobileSettings({ mailSnoozed: next }); },
+        },
+        rememberedMailbox: {
+          read: async () => getMobileSettings().mailAccountId,
+          write: async (id) => { await updateMobileSettings({ mailAccountId: id }); },
+        },
       });
+      notifyMailChanged();
       toast.success(t("cloudAccounts.repairMailboxDone"));
     } catch {
       toast.error(t("cloudAccounts.repairMailboxFailed"));

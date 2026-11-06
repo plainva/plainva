@@ -5,7 +5,10 @@ import { readSlot } from "../lib/keychainSlots";
 import { withAccountCredentialLock } from "../lib/tokenRefreshCoordinator";
 import { legacyMailSecretKey, listMailAccounts, mailAccountsKey, mailSecretKey, removeMailAccount, updateMailAccount, type MailAccountConfig } from "./mailAccounts";
 import { mergeMailAccountRows } from "./mailAccountRows";
+
+export { resolveMailAccountAlias, sameMailAccount } from "./mailAccountRows";
 import { readStoredVacation, saveStoredVacation } from "./sieveSync";
+import { parseSnoozeState, repointSnoozes, type SnoozeEntry } from "./snooze";
 
 /**
  * One mailbox stored under several ids (finding 2026-11-06, M2; decision E2).
@@ -55,6 +58,35 @@ export interface MailboxFoldPorts {
   replaceCards(cards: CloudAccountRecord[]): Promise<void>;
   /** The vault's default mailbox (device-local id): a default on a folded entry moves to the kept one. */
   defaultMailAccount?: { read(): Promise<string>; write(id: string): Promise<void> };
+  /** Where this shell keeps the messages put aside (S22): their entries move to the kept one. */
+  snoozes?: { read(): Promise<unknown>; write(next: SnoozeEntry[]): Promise<void> };
+  /** The mailbox the phone's list last had open (device report B1): a folded one moves to the kept one. */
+  rememberedMailbox?: { read(): Promise<string>; write(id: string): Promise<void> };
+}
+
+/**
+ * Removed ids of folded mailboxes → the id they were folded into, per vault
+ * (finding 2026-11-06, M2). What still names a removed id after the fold - a
+ * note filed from it (`plainva.pim.account`), a message held for sending -
+ * resolves through this to the mailbox that is left. Device-local, like the
+ * ids it maps.
+ */
+export const mailAccountAliasesKey = (vaultPath: string) => `mailAccountAliases_${btoa(unescape(encodeURIComponent(vaultPath)))}`;
+
+export async function loadMailAccountAliases(vaultPath: string): Promise<Record<string, string>> {
+  const raw = await (await getPlatformServices().loadSettings()).get<Record<string, unknown>>(mailAccountAliasesKey(vaultPath));
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+}
+
+async function recordMailAccountAliases(vaultPath: string, keepId: string, dropIds: readonly string[]): Promise<void> {
+  const aliases = await loadMailAccountAliases(vaultPath);
+  for (const id of dropIds) aliases[id] = keepId;
+  // The kept id is a live mailbox: it stands for nothing else.
+  delete aliases[keepId];
+  const store = await getPlatformServices().loadSettings();
+  await store.set(mailAccountAliasesKey(vaultPath), aliases);
+  await store.save();
 }
 
 /**
@@ -106,6 +138,13 @@ export async function foldDuplicateMailboxes(
   const dropIds = others.map((row) => row.id);
   await ports.replaceCards(repointMailBindings(await ports.listCards(), keepId, dropIds));
   if (ports.defaultMailAccount && dropIds.includes(await ports.defaultMailAccount.read())) await ports.defaultMailAccount.write(keepId);
+  if (ports.rememberedMailbox && dropIds.includes(await ports.rememberedMailbox.read())) await ports.rememberedMailbox.write(keepId);
+  if (ports.snoozes) {
+    const before = parseSnoozeState(await ports.snoozes.read());
+    const after = repointSnoozes(before, keepId, dropIds);
+    if (after !== before) await ports.snoozes.write(after);
+  }
+  await recordMailAccountAliases(vaultPath, keepId, dropIds);
   for (const id of dropIds) await removeMailAccount(vaultPath, id);
   return dropIds;
 }
