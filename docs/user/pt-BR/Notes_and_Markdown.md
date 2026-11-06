@@ -77,6 +77,8 @@ A seção **Propriedades** na barra lateral direita mostra o frontmatter da nota
 
 Os tipos de escolha podem ter opções fixas com uma **Cor** e (para **Status**) um **Grupo**/etapa — essas listas de opções são gerenciadas nos bancos de dados (`.base`), veja [Bancos de Dados (.base)](Databases_Base.md).
 
+**Renomear:** o nome de uma propriedade é alterado na sua linha — só nesta nota. Valor, comentário e ordem permanecem, e um nome que a nota já tem (em qualquer combinação de maiúsculas) é recusado com uma mensagem. No celular, um toque na propriedade em **Detalhes da nota** → **Propriedades** abre a folha dela, com **Renomear** no rodapé (também com um toque longo). Já uma coluna de um banco de dados é renomeada em todas as suas notas, veja [Bancos de dados (.base)](Databases_Base.md).
+
 São protegidos os **campos de sistema do OKF** que o Plainva gerencia: `type` (o valor é selecionável em uma lista suspensa de tipos conhecidos, nome/tipo de campo/exclusão ficam travados) e — onde notas mais antigas ainda o carregam — `okf_version` (apenas exibição; desde o OKF 0.2 o campo pertence somente ao `index.md` raiz). Contexto: [OKF](OKF.md).
 
 ### Status, aviso de desatualização e marca de revisão (OKF 0.2)

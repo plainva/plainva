@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-11-03
+Laatst bijgewerkt: 2026-11-05
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -61,7 +61,7 @@ Op de telefoon opent **Configureren** dezelfde gebieden als een lijst; tikken op
 Een klik op een kolomkop opent de eigenschappeneditor (**Eigenschap: X**):
 
 - **Naam** — hernoemen werkt door op de notities: bij het opslaan wordt de eigenschap in de frontmatter van elke overeenkomende notitie hernoemd (met bevestiging en voortgangsindicator). Plainva vraagt het eerst aan elke notitie: kan er één de nieuwe naam niet krijgen — ze heeft al een eigenschap met die naam, of het blok bovenaan kan niet als eigenschappen worden gelezen —, dan wordt er niets hernoemd en noemt een melding die notities.
-- **Veldtype** — Tekst, Getal, Beoordeling, Selectievakje, Datum, Datum & tijd, Lijst, Tags, Selectie, Status, Multiselectie, URL, E-mail, Telefoon, Relatie (hetzelfde gegroepeerde typemenu als in het **Eigenschappen**-paneel van de notities). Een URL-, e-mail- of telefooneigenschap opent alleen web-, mail- en telefoonlinks ([Notities & Markdown](Notes_and_Markdown.md), „Links naar buiten”).
+- **Veldtype** — Tekst, Getal, Beoordeling, Selectievakje, Datum, Datum & tijd, Lijst, Tags, Selectie, Status, Multiselectie, URL, E-mail, Telefoon, Relatie (hetzelfde gegroepeerde typemenu als in het **Eigenschappen**-paneel van de notities). Een URL-, e-mail- of telefooneigenschap opent alleen web-, mail- en telefoonlinks ([Notities & Markdown](Notes_and_Markdown.md), „Links naar buiten”). Wisselt een kolom tussen **Datum** en **Datum & tijd**, dan schrijft Plainva de waarden in de notities om: een dag krijgt 12:00, en voordat tijden verdwijnen, vraagt Plainva het eerst — in de kolomeditor, in de **Formaat** van een kalender- of tijdlijnweergave en op de telefoon.
   Een **Beoordeling** is een getal dat als punten wordt getekend (vijf, tenzij de kolom iets anders zegt). Het bestand houdt `stemming: 4` — een gewoon getal dat Obsidian en elk rekenblad ook lezen; sorteren en filteren gaan als bij een getal. Je drukt op het punt dat moet tellen; op de huidige waarde drukken wist die weer.
 - **Dag uit de bestandsnaam** (`file.day`) — agenda's en tijdlijnen kunnen dagnotities op hun **bestandsnaam** plaatsen, zonder dat de datum ook in de frontmatter staat. Het veld verschijnt in de kiezer voor het datumveld zodra de kluis dagnotities een naam geeft (map en formaat onder **Instellingen → Je kluis → Dagnotities en journaal**); het wordt uit de naam berekend, staat in geen enkele notitie en is niet te bewerken — een kaart die zo geplaatst is, kun je dus ook niet naar een andere dag slepen (dat zou het bestand hernoemen). Obsidian kent dit veld niet: een weergave die het gebruikt blijft daar leeg.
 - **Opties** (bij Selectie/Status/Multiselectie) — vaste waarden met een **Kleur** en, bij **Status**, een **Groep**/fase (bijv. te doen → bezig → klaar); volgorde per sleep. Wanneer je de kolomeditor opent, is de optielijst al vooraf ingevuld met de waarden die in de database voorkomen — zo kun je elke optie een kleur geven zonder die opnieuw te typen.
@@ -69,7 +69,7 @@ Een klik op een kolomkop opent de eigenschappeneditor (**Eigenschap: X**):
 
 Gedragsopmerkingen:
 
-- Als een eigenschap in sommige notities ontbreekt, biedt Plainva aan om ze (leeg) **toe te voegen aan N bronbestanden**.
+- Als een eigenschap in sommige notities ontbreekt, biedt Plainva aan om ze (leeg) **toe te voegen aan N bronbestanden**. Op de telefoon biedt het blad van de eigenschap hetzelfde onder **Ontbrekende waarden**. Onder **Configureren** bieden het datumveld van een kalender of tijdlijn en de groepering van een bord **Nieuw veld aanmaken** aan: Plainva maakt de eigenschap aan en voegt haar (leeg) toe aan de getoonde notities.
 - Bij **Selectie**, **Status**, **Multiselectie**, **Lijst** en **Tags** scheidt een komma in een waarde meerdere items; in het type **Tekst** blijft een komma gewone tekst.
 - De OKF-systeemvelden `type` en `okf_version` zijn hier ook beschermd: naam, veldtype en verwijderen zijn vergrendeld, en `okf_version`-cellen zijn alleen-lezen (achtergrond: [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Relaties koppelen notities aan elkaar — zoals in Notion, maar opgeslagen als h
 
 - **Aanmaken**: voeg een eigenschap toe van veldtype **Relatie**. Optioneel kies je een **Doeldatabase (.base)** — de kiezer stelt dan alleen notities uit die database voor (leeg = **Elke notitie**; **Deze database** maakt zelf-relaties mogelijk). De **Kardinaliteit** beperkt tot **Precies 1** of laat **Geen limiet** toe.
 - **Waarden instellen**: de kiezer zoekt notities, sluit het huidige item uit en kan direct een doel aanmaken via **Nieuwe notitie aanmaken**. Een chip met "Gelinkte notitie bestaat niet" markeert een verweesde link (doel verwijderd/hernoemd buiten Plainva om).
-- **Omgekeerde relatie**: de optie **Tonen op "X"** maakt in de doeldatabase een berekende kolom aan die de koppelingen omgekeerd toont — die is direct bewerkbaar (bewerkingen schrijven in de linkende notities). Het verwijderen van de relatie verwijdert ook de omgekeerde kolom.
+- **Omgekeerde relatie**: de optie **Tonen op "X"** maakt in de doeldatabase een berekende kolom aan die de koppelingen omgekeerd toont — die is direct bewerkbaar (bewerkingen schrijven in de linkende notities). Het verwijderen van de relatie verwijdert ook de omgekeerde kolom. Op de telefoon opent een tik op zo'n cel de kiezer met de notities van de koppelende database; een keuze schrijft de koppeling in die notitie.
 - **Subitems**: bij zelf-relaties kun je **Subitems inschakelen** — items met een bovenliggende relatie verschijnen uitklapbaar onder hun bovenliggende item in de tabel (cycli worden opgevangen; uitgeschakeld blijft de lijst plat en de waarden blijven behouden).
 - **Bord op relatie**: borden kunnen groeperen op een relatie; kaarten tussen kolommen slepen herschrijft de link.
 - **Filteren op relaties**: bevat / bevat niet / is leeg / is niet leeg, met een notitiekiezer.

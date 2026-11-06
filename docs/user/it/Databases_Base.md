@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-11-03
+Ultimo aggiornamento: 2026-11-05
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -61,7 +61,7 @@ Sul telefono, **Configura** apre le stesse aree come un elenco; toccarne una apr
 Cliccare sull'intestazione di una colonna apre l'editor delle proprietà (**Proprietà: X**):
 
 - **Nome** — rinominare influisce sulle note: al salvataggio, la proprietà viene rinominata nel frontmatter di ogni nota corrispondente (con conferma e un indicatore di avanzamento). Plainva interroga prima ogni nota: se una non può ricevere il nuovo nome — ha già una proprietà con quel nome, oppure il blocco all'inizio non può essere letto come proprietà — non viene rinominato nulla e un messaggio indica quelle note.
-- **Tipo di campo** — Testo, Numero, Valutazione, Casella di controllo, Data, Data e ora, Elenco, Tag, Selezione, Stato, Selezione multipla, URL, Email, Telefono, Relazione (lo stesso menu di tipi raggruppato del pannello **Proprietà** delle note). Una proprietà URL, email o telefono apre solo link web, email e telefono ([Note e Markdown](Notes_and_Markdown.md), «Link verso l'esterno»).
+- **Tipo di campo** — Testo, Numero, Valutazione, Casella di controllo, Data, Data e ora, Elenco, Tag, Selezione, Stato, Selezione multipla, URL, Email, Telefono, Relazione (lo stesso menu di tipi raggruppato del pannello **Proprietà** delle note). Una proprietà URL, email o telefono apre solo link web, email e telefono ([Note e Markdown](Notes_and_Markdown.md), «Link verso l'esterno»). Se una colonna passa tra **Data** e **Data e ora**, Plainva riscrive i valori nelle note: un giorno riceve le 12:00 e, prima che gli orari vadano persi, Plainva chiede conferma — nell'editor della colonna, nel **Formato** di una vista calendario o timeline e sul telefono.
   Una **Valutazione** è un numero disegnato come punti (cinque, se la colonna non dice altro). Il file conserva `umore: 4`, un semplice numero che leggono anche Obsidian e qualsiasi foglio di calcolo; si ordina e si filtra come un numero. Premi il punto che deve contare; premere il valore attuale lo cancella.
 - **Giorno dal nome del file** (`file.day`) — calendari e linee del tempo possono collocare le note giornaliere in base al loro **nome di file**, senza che la data stia anche nel frontmatter. Il campo compare nel selettore del campo data non appena il vault dà un nome alle note giornaliere (cartella e formato sotto **Impostazioni → Il tuo vault → Note giornaliere e diario**); viene calcolato dal nome, non sta in nessuna nota e non si può modificare, quindi una scheda collocata così non si può nemmeno trascinare su un altro giorno (rinominerebbe il file). Obsidian non conosce questo campo: una vista che lo usa lì resta vuota.
 - **Opzioni** (per Selezione/Stato/Selezione multipla) — valori fissi con un **Colore** e, per **Stato**, un **Gruppo**/fase (ad es. da fare → in corso → completato); riordina trascinando. Quando apri l'editor della colonna, l'elenco delle opzioni è già precompilato con i valori usati nel database, così puoi assegnare un colore a ciascuno senza doverlo ridigitare.
@@ -69,7 +69,7 @@ Cliccare sull'intestazione di una colonna apre l'editor delle proprietà (**Prop
 
 Note comportamentali:
 
-- Se una proprietà manca in alcune note, Plainva propone di **aggiungerla (vuota) a N file sorgente**.
+- Se una proprietà manca in alcune note, Plainva propone di **aggiungerla (vuota) a N file sorgente**. Sul telefono il foglio della proprietà offre lo stesso in **Valori mancanti**. In **Configura**, il campo data di un calendario o di una timeline e il raggruppamento di una bacheca offrono **Crea nuovo campo**: Plainva crea la proprietà e la aggiunge (vuota) alle note mostrate.
 - Per **Selezione**, **Stato**, **Selezione multipla**, **Elenco** e **Tag**, una virgola in un valore separa più voci; nel tipo **Testo** una virgola resta testo semplice.
 - Anche qui sono protetti i campi di sistema OKF `type` e `okf_version`: nome, tipo di campo ed eliminazione sono bloccati, e le celle di `okf_version` sono in sola lettura (approfondimento: [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Le relazioni collegano le note tra loro — come in Notion, ma memorizzate come 
 
 - **Creazione**: aggiungi una proprietà di tipo di campo **Relazione**. Facoltativamente scegli un **Database di destinazione (.base)** — il selettore allora suggerisce solo note di quel database (vuoto = **Qualsiasi nota**; **Questo database** abilita le auto-relazioni). La **Cardinalità** limita a **Esattamente 1** o consente **Nessun limite**.
 - **Impostare i valori**: il selettore cerca le note, esclude la voce corrente e può creare una destinazione al volo tramite **Crea nuova nota**. Un'etichetta con "La nota collegata non esiste" segnala un link interrotto (destinazione eliminata/rinominata al di fuori di Plainva).
-- **Relazione inversa**: l'opzione **Mostra su "X"** crea una colonna calcolata nel database di destinazione che mostra i link in senso inverso — è direttamente modificabile (le modifiche vengono scritte nelle note che collegano). Eliminare la relazione rimuove anche la sua colonna inversa.
+- **Relazione inversa**: l'opzione **Mostra su "X"** crea una colonna calcolata nel database di destinazione che mostra i link in senso inverso — è direttamente modificabile (le modifiche vengono scritte nelle note che collegano). Eliminare la relazione rimuove anche la sua colonna inversa. Sul telefono un tocco su una cella di questo tipo apre il selettore con le note del database che crea il collegamento; una scelta scrive il collegamento in quella nota.
 - **Sottoelementi**: per le auto-relazioni puoi **Abilitare i sottoelementi** — le voci con una relazione genitore appaiono comprimibili sotto la loro voce genitore nella tabella (i cicli sono gestiti; disattivato, l'elenco resta piatto e i valori vengono mantenuti).
 - **Bacheca per relazione**: le bacheche possono raggruppare per una relazione; trascinare le schede tra le colonne riscrive il link.
 - **Filtrare sulle relazioni**: contiene / non contiene / è vuoto / non è vuoto, con un selettore di note.

@@ -4526,6 +4526,7 @@
     "fieldName": "Name",
     "renameHint": "Beim Speichern wird die Eigenschaft in allen passenden Notizen umbenannt.",
     "renameInvalid": "Name ist leer, vergeben oder reserviert (file./note./formula.).",
+    "renameInNoteHint": "Nur diese Notiz ändert sich: Die Eigenschaft behält ihren Wert unter dem neuen Namen.",
     "fieldType": "Feldtyp",
     "options": "Optionen",
     "optionValue": "Wert",

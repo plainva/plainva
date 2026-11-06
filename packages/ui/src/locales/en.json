@@ -4526,6 +4526,7 @@
     "fieldName": "Name",
     "renameHint": "Saving renames this property in every matching note.",
     "renameInvalid": "Name is empty, taken or reserved (file./note./formula.).",
+    "renameInNoteHint": "Only this note changes: the property keeps its value under the new name.",
     "fieldType": "Field type",
     "options": "Options",
     "optionValue": "Value",

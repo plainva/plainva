@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-11-03
+Last reviewed: 2026-11-05
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -61,7 +61,7 @@ On the phone, **Configure** opens the same areas as a list; tapping one enters t
 Clicking a column header opens the property editor (**Property: X**):
 
 - **Name** — renaming affects the notes: on save, the property is renamed in the frontmatter of every matching note (with confirmation and a progress indicator). Plainva asks every note first: if one cannot take the new name — it already has a property of that name, or the block at its top cannot be read as properties — nothing is renamed, and a message names those notes.
-- **Field type** — Text, Number, Rating, Checkbox, Date, Date & time, List, Tags, Select, Status, Multi-select, URL, Email, Phone, Relation (the same grouped type menu as in the notes' **Properties** panel). A URL, email or phone property opens only web, mail and phone links ([Notes & Markdown](Notes_and_Markdown.md), “Links out of the app”).
+- **Field type** — Text, Number, Rating, Checkbox, Date, Date & time, List, Tags, Select, Status, Multi-select, URL, Email, Phone, Relation (the same grouped type menu as in the notes' **Properties** panel). A URL, email or phone property opens only web, mail and phone links ([Notes & Markdown](Notes_and_Markdown.md), “Links out of the app”). Switching a column between **Date** and **Date & time** rewrites the values in the notes: a day gets 12:00, and before times are dropped, Plainva asks — in the column editor, in the **Format** of a calendar or timeline view, and on the phone.
   A **Rating** is a number drawn as dots (five unless the column says otherwise). The file holds `mood: 4` — a plain number that Obsidian and any spreadsheet read too; sorting and filtering work as they do for a number. You press the dot that should count; pressing the current value clears it again.
 - **Day from the file name** (`file.day`) — calendars and timelines can place daily notes by their **file name**, without the date also sitting in the frontmatter. The field appears in the date-field picker as soon as the vault names daily notes (folder and format under **Settings → Your vault → Daily notes & journal**); it is computed from the name, stands in no note, and cannot be edited — so a card placed this way cannot be dragged to another day either (that would rename the file). Obsidian does not know this field: a view that uses it stays empty there. That is the price of not keeping the date twice.
 - **Options** (for Select/Status/Multi-select) — fixed values with a **Color** and, for **Status**, a **Group**/stage (e.g. to-do → in progress → done); reorder by dragging. When you open the column editor, the option list is pre-filled with the values already used in the database, so you can give each one a colour without retyping it first.
@@ -69,7 +69,7 @@ Clicking a column header opens the property editor (**Property: X**):
 
 Behavioral notes:
 
-- If a property is missing in some notes, Plainva offers to **add it (empty) to N source files**.
+- If a property is missing in some notes, Plainva offers to **add it (empty) to N source files**. On the phone the property's sheet shows the same under **Missing values**. Under **Configure**, the date field of a calendar or timeline and the grouping of a board offer **Create new field**: Plainva creates the property and writes it (empty) into the shown notes.
 - For **Select**, **Status**, **Multi-select**, **List** and **Tags**, a comma in a value separates multiple entries; in the **Text** type a comma stays plain text.
 - The OKF system fields `type` and `okf_version` are protected here as well: name, field type and delete are locked, and `okf_version` cells are read-only (background: [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Relations link notes to each other — like in Notion, but stored as perfectly n
 
 - **Creating**: add a property of field type **Relation**. Optionally pick a **Target database (.base)** — the picker then only suggests notes from that database (empty = **Any note**; **This database** enables self-relations). The **Cardinality** limits to **Exactly 1** or allows **No limit**.
 - **Setting values**: the picker searches notes, excludes the current entry, and can create a target on the fly via **Create new note**. A chip saying "Linked note does not exist" marks a broken link (target deleted/renamed outside Plainva).
-- **Reverse relation**: the option **Show on "X"** creates a computed column in the target database showing the links in reverse — it is directly editable (edits write into the linking notes). Deleting the relation removes its reverse column too.
+- **Reverse relation**: the option **Show on "X"** creates a computed column in the target database showing the links in reverse — it is directly editable (edits write into the linking notes). Deleting the relation removes its reverse column too. On the phone a tap on such a cell opens the picker over the notes of the linking database; a pick writes the link into that note.
 - **Sub-items**: for self-relations you can **Enable sub-items** — entries with a parent relation appear collapsible under their parent entry in the table (cycles are handled; switched off, the list stays flat and the values are kept).
 - **Board by relation**: boards can group by a relation; dragging cards between columns rewrites the link.
 - **Filtering on relations**: contains / does not contain / is empty / is not empty, with a note picker.

@@ -503,42 +503,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-22",
   },
   {
-    id: "base-date-type-converts-values",
-    title: "Switching a date column between \"Date only\" and \"Date & time\" converts the stored values",
-    area: "database",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "On the desktop the view settings of a calendar or timeline carry a Format for the " +
-      "date field; switching it rewrites the value in every shown note — a day gets 12:00, " +
-      "a time is dropped after a question — so the notes and the column's type keep agreeing. " +
-      "The phone sets a column's type in its property sheet (Date, Date & time) and leaves " +
-      "the notes as they are, without a question: the values are then read by the new type. " +
-      "The loop is the shared rewriteNoteProperties, so nothing of the platform stands in the " +
-      "way. Read against the code on 2026-10-21 while the surgical property writers learned " +
-      "to say a failed write; put off that day, listed in the maintainer's open-items plan.",
-    verified: "2026-10-21",
-  },
-  {
-    id: "base-fill-missing-property",
-    title: "Writing a property (empty) into the notes of a database that lack it",
-    area: "database",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop's column editor offers to add a property to the shown notes that do " +
-      "not carry it, and a view that needs a column it has to create (a date for a " +
-      "calendar, a selection for a board) writes it into the notes the same way. The " +
-      "phone's property sheet has no such row and its view switch creates no column: a " +
-      "property reaches a note there when a cell is filled in. The loop is the shared " +
-      "rewriteNoteProperties. Read against the code on 2026-10-21 while the surgical " +
-      "property writers learned to say a failed write; put off that day, listed in the " +
-      "maintainer's open-items plan.",
-    verified: "2026-10-21",
-  },
-  {
     id: "base-peek-depth",
     title: "Peek preview of a database entry",
     area: "database",
@@ -551,24 +515,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "opens a bottom sheet with the row's fields and prev/next. Rendering a full " +
       "editor inside a sheet would nest two scroll surfaces on a small screen.",
     verified: "2026-08-19",
-  },
-  {
-    id: "base-reverse-relation-edit",
-    title: "Adding or removing a link in the cell of a reverse relation",
-    area: "database",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "Both shells show a computed reverse column — the notes whose relation points at " +
-      "this row. On the desktop its cell is an editor: adding a link writes the owning " +
-      "property of the other note, removing one takes it out there. On the phone a tap on " +
-      "such a cell opens the first linked note, and the relation is changed from the " +
-      "owning side only. The writers are the desktop's services/relations.ts and the " +
-      "shared relationCleanup; the phone's cell sheet has no editor that calls them. Read " +
-      "against the code on 2026-10-21 while the desktop's cell learned to say a note that " +
-      "refuses the link; put off that day, listed in the maintainer's open-items plan.",
-    verified: "2026-10-21",
   },
   {
     id: "base-template-assignment",
@@ -724,24 +670,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "(F9); the others stay in the note menu and the note details.",
     mobile: "yes",
     verified: "2026-10-29",
-  },
-  {
-    id: "note-property-rename",
-    title: "Rename a property of one note in its properties surface",
-    area: "editor",
-    kind: "gap",
-    desktop: "yes",
-    mobile: null,
-    mobileReason:
-      "The desktop's properties section renames a note's property in its name " +
-      "field (PropertiesSection.tsx: the entry is renamed where it stands, a name " +
-      "another property has — in any casing — is refused and said). The phone's " +
-      "note sheet edits a property's value and adds or removes one, but offers no " +
-      "rename of a single note's property (NoteContextSheet.tsx); renaming a " +
-      "column of a database renames it across its notes on both shells. Written " +
-      "down on 2026-11-02 while the desktop's rename learned the taken-name rule " +
-      "(open-items plan 3.144 no. 10); Sammelplan § 3.173.",
-    verified: "2026-11-02",
   },
   {
     id: "print-note",

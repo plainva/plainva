@@ -8,7 +8,11 @@ import {
   type TextUpdateFiles,
   type VaultQueryService,
 } from "@plainva/core";
-import { removeRelationLinksToNoteShared } from "@plainva/ui";
+import i18n from "i18next";
+import { errorText } from "../lib/errorText";
+import { parseBaseConfig } from "./baseFormat";
+import { parseWikiLinkValue } from "./propertyModel";
+import { removeRelationLinksToNoteShared } from "./relationCleanup";
 
 /**
  * Owning-side relation writes (Gesamtplan Base-Relationen, P6): add/remove a
@@ -136,4 +140,104 @@ export async function removeRelationLinksToNote(opts: {
     },
     { notePath, propertyKey, targetNotePath }
   );
+}
+
+/** The note a cell's value names: the target of a whole-value wiki link, or the value itself. */
+function cellLinkTarget(value: string): string {
+  return parseWikiLinkValue(value)?.target ?? value.replace(/^\[\[/, "").replace(/\]\]$/, "");
+}
+
+/** What an edit of a reverse relation's cell did (`editReverseRelation`). */
+export interface ReverseRelationOutcome {
+  /** The other notes that were written, each with what happened there. */
+  changed: Map<string, "added" | "removed">;
+  /** How many of the other notes could not be written. */
+  failures: number;
+  /** The reason of the first of them, for the message of a single one. */
+  firstFailure: unknown;
+  /** What the cell holds now: a link that could not be given is not in it, one that could not be taken out stays. */
+  shown: string[];
+  /** The owning side's cardinality, read from its database. */
+  owningLimit?: "one";
+}
+
+/**
+ * An edit of the cell of a reverse relation (Sammelplan § 3.71 no. 3): the
+ * links back to `rowPath` live in the OTHER notes' owning property, so a link
+ * added here is written there, and a link taken out is removed there — each
+ * other note a write of its own. One that fails is counted, and the cell goes
+ * on showing what that note holds. Both shells edit such a cell through this.
+ *
+ * Added links are found by their target; removals are found by what they
+ * resolve to (`removeRelationLinksToNote`). The row's own note is never linked
+ * to itself.
+ */
+export async function editReverseRelation(opts: {
+  adapter: RelationWriteAdapter;
+  queryService: VaultQueryService;
+  /** The note whose reverse cell is edited. */
+  rowPath: string;
+  /** Where the links live: the reverse column's `reverseOf`. */
+  owning: { base?: string; property: string };
+  /** What the cell showed, and what it is to hold. */
+  current: readonly string[];
+  next: readonly string[];
+}): Promise<ReverseRelationOutcome> {
+  const { adapter, queryService, rowPath, owning, current, next } = opts;
+  const keyOf = (value: string) => cellLinkTarget(value).toLowerCase();
+  const currentByKey = new Map(current.map((v) => [keyOf(v), v]));
+  const nextByKey = new Map(next.map((v) => [keyOf(v), v]));
+  const added = [...nextByKey.entries()].filter(([k]) => !currentByKey.has(k));
+  const removed = [...currentByKey.entries()].filter(([k]) => !nextByKey.has(k));
+  const outcome: ReverseRelationOutcome = { changed: new Map(), failures: 0, firstFailure: null, shown: [...next] };
+  if (added.length === 0 && removed.length === 0) return outcome;
+
+  // The owning side's cardinality comes from its database's schema.
+  try {
+    const cfg = owning.base ? parseBaseConfig(await adapter.readTextFile(owning.base)) : null;
+    if (cfg?.columns?.[owning.property]?.relationLimit === "one") outcome.owningLimit = "one";
+  } catch {
+    /* an unreadable database: no limit */
+  }
+
+  const notAdded = new Set<string>();
+  const notRemoved = new Set<string>();
+  const failed = (key: string, into: Set<string>, e: unknown) => {
+    into.add(key);
+    outcome.failures += 1;
+    if (outcome.firstFailure === null) outcome.firstFailure = e;
+  };
+  for (const [key, value] of added) {
+    try {
+      const notePath = await queryService.resolveNotePath(cellLinkTarget(value), rowPath);
+      if (!notePath || notePath === rowPath) continue;
+      await addRelationLink({ adapter, queryService, notePath, propertyKey: owning.property, targetNotePath: rowPath, limit: outcome.owningLimit });
+      outcome.changed.set(notePath, "added");
+    } catch (e) {
+      failed(key, notAdded, e);
+    }
+  }
+  for (const [key, value] of removed) {
+    try {
+      const notePath = await queryService.resolveNotePath(cellLinkTarget(value), rowPath);
+      if (!notePath) continue;
+      await removeRelationLinksToNote({ adapter, queryService, notePath, propertyKey: owning.property, targetNotePath: rowPath });
+      outcome.changed.set(notePath, "removed");
+    } catch (e) {
+      failed(key, notRemoved, e);
+    }
+  }
+  if (outcome.failures > 0) {
+    outcome.shown = [...next.filter((v) => !notAdded.has(keyOf(v))), ...current.filter((v) => notRemoved.has(keyOf(v)))];
+  }
+  return outcome;
+}
+
+/**
+ * What both shells say after such an edit: the reason of a single note that
+ * refused, or one count of the notes written and the notes that failed.
+ */
+export function sayReverseRelationOutcome(outcome: ReverseRelationOutcome, say: { error(message: string): void }): void {
+  if (outcome.failures === 1) say.error(i18n.t("mobile.propertyWriteFailed", { message: errorText(outcome.firstFailure) }));
+  else if (outcome.failures > 1) say.error(i18n.t("database.bulkSetPartial", { done: outcome.changed.size, failed: outcome.failures }));
 }

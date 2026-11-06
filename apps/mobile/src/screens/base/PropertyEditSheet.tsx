@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Pencil, Trash2, X, Sparkles } from "lucide-react";
-import { baseStemOf, sayRewriteOutcome, Button, Chip, chipPaletteIndex, type CuratedOption, errorText, ICON, IconButton, isValidNewPropertyName, isValidReverseColumnName, mergeObservedOptions, notesCarryingProperty, PALETTE_NAMES, parseBaseConfig, type PropertyType, renameRefusedText, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
+import { FilePlus2, Pencil, Trash2, X, Sparkles } from "lucide-react";
+import { baseStemOf, sayRewriteOutcome, Button, Chip, chipPaletteIndex, type CuratedOption, dateInputSwitch, dateSwitchLosesTime, errorText, ICON, IconButton, isPropertyColumn, isValidNewPropertyName, notesMissingProperty, isValidReverseColumnName, mergeObservedOptions, notesCarryingProperty, PALETTE_NAMES, parseBaseConfig, type PropertyType, renameRefusedText, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
 import { mActions, mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
-import { deleteBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
+import { convertBaseDateColumn, deleteBaseProperty, fillBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
 import { vaultOps } from "../../services/vaultService";
 import type { MobileVault } from "../../services/vaultService";
 
@@ -88,6 +88,59 @@ export function PropertyEditSheet({
         : [],
     [hasOptions, schema.options, rows, column],
   );
+
+  // The column's type. A switch between "Date only" and "Date & time"
+  // rewrites the values in the notes (Sammelplan § 3.71 no. 2, the desktop's
+  // view settings and column editor do the same): a day gets 12:00, a moment
+  // loses its time after a question. The notes are those of the database's
+  // sources that carry the property, as for a rename. A declined question
+  // changes nothing; a note that could not be written is counted, and the
+  // type is set anyway — as on the desktop, the others agree with it.
+  const setType = (type: string) => {
+    const writeType = () =>
+      onMutate((cfg) => {
+        if (!cfg.columns || Array.isArray(cfg.columns)) cfg.columns = {};
+        if (!cfg.columns[column]) cfg.columns[column] = {};
+        cfg.columns[column].input = type;
+      });
+    const to = dateInputSwitch(schema.input, type);
+    if (!to) {
+      writeType();
+      return;
+    }
+    void (async () => {
+      if (dateSwitchLosesTime(to) && !(await mConfirm({ title: t("common.confirm"), message: t("database.confirmDropTime") }))) return;
+      try {
+        const paths = await notesCarryingProperty(vault.queryService, config, column, rows);
+        sayRewriteOutcome(await convertBaseDateColumn(vault, paths, column, to), toast);
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return;
+      }
+      writeType();
+    })();
+  };
+
+  // Writes the property (empty) into the shown notes that lack it — the
+  // desktop column editor's "Missing values" (decision F1, Sammelplan § 3.71
+  // no. 1). Asked first, never implicit; what failed is counted.
+  const missing = !locked && isPropertyColumn(column, schema) && !schema.reverseOf ? notesMissingProperty(rows, column) : [];
+  const fillMissing = () => {
+    void (async () => {
+      const ok = await mConfirm({
+        title: t("common.confirm"),
+        message: t("database.confirmFillMissing", { column: columnLabel(column), count: missing.length }),
+      });
+      if (!ok) return;
+      try {
+        sayRewriteOutcome(await fillBaseProperty(vault, missing, column), toast);
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return;
+      }
+      onReload();
+    })();
+  };
 
   const writeOptions = (next: CuratedOption[]) =>
     onMutate((cfg) => {
@@ -301,6 +354,19 @@ export function PropertyEditSheet({
     })();
   };
 
+  // Shown for an owning relation as for any other stored column.
+  const fillMissingSection = missing.length > 0 && (
+    <>
+      <p className="m-sectionlabel m-sectionlabel--inset">{t("properties.fillMissingTitle")}</p>
+      <p className="m-hint">{t("properties.fillMissingHint", { count: missing.length })}</p>
+      <div className="m-config-actions">
+        <Button variant="ghost" size="sm" onClick={fillMissing} data-testid="base-property-fill-missing">
+          <FilePlus2 size={ICON.meta} /> {t("properties.fillMissing", { count: missing.length })}
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
@@ -369,6 +435,7 @@ export function PropertyEditSheet({
                 </p>
               </>
             )}
+            {fillMissingSection}
           </>
         )}
 
@@ -380,13 +447,7 @@ export function PropertyEditSheet({
                 <Chip
                   selected={currentType === type}
                   key={type}
-                  onClick={() =>
-                    onMutate((cfg) => {
-                      if (!cfg.columns || Array.isArray(cfg.columns)) cfg.columns = {};
-                      if (!cfg.columns[column]) cfg.columns[column] = {};
-                      cfg.columns[column].input = type;
-                    })
-                  }
+                  onClick={() => setType(type)}
                 >
                   {t(`properties.type_${type}`)}
                 </Chip>
@@ -422,6 +483,8 @@ export function PropertyEditSheet({
                 </div>
               </>
             )}
+
+            {fillMissingSection}
 
             {fill && (
               // The column's own door to the assistant (plan KI-Harness P5-4): the desktop carries it in the column's

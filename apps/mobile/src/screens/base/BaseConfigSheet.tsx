@@ -67,9 +67,18 @@ export function BaseConfigSheet({
   onMutate,
   onSelectView,
   onEditProperty,
+  onCreateColumn,
   onClose,
   ai,
 }: {
+  /**
+   * Creates a column a view needs — a date for a calendar or timeline, a
+   * selection for a board — and writes it (empty) into the shown notes, as
+   * the desktop's dialog for a missing field does (Sammelplan § 3.71 no. 1).
+   * Offered beside the columns there are: "Day from the file name" alone is
+   * no property of the notes. The screen asks for its name.
+   */
+  onCreateColumn?: (kind: "date" | "select") => void;
   /**
    * The assistant at this database (plan KI-Harness P5-4): a filter from a
    * sentence on top of the filter list. Absent while the AI is off on this
@@ -743,6 +752,11 @@ export function BaseConfigSheet({
                   {columnLabel(c)}
                 </Chip>
               ))}
+              {onCreateColumn && (
+                <Chip onClick={() => onCreateColumn("select")} testId="base-create-group-column">
+                  + {t("database.createNewField")}
+                </Chip>
+              )}
             </div>
             {/* Swimlanes (issue #83): the second axis, never the column property. */}
             <SectionLabel className="m-sectionlabel--inset">{t("database.laneBy")}</SectionLabel>
@@ -850,6 +864,11 @@ export function BaseConfigSheet({
                   {columnLabel(c)}
                 </Chip>
               ))}
+              {onCreateColumn && (
+                <Chip onClick={() => onCreateColumn("date")} testId="base-create-date-column">
+                  + {t("database.createNewField")}
+                </Chip>
+              )}
             </div>
             {view.type === "timeline" && (
               <>

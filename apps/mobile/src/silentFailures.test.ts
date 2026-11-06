@@ -203,6 +203,40 @@ describe("a write that fails is said for what it is", () => {
     expect(from(ops, "export async function deleteBaseProperty(", 700)).not.toMatch(/catch/);
   });
 
+  it("a property filled in, a date column switched and a reverse cell edited say what failed", () => {
+    // Sammelplan § 3.71 no. 1–3: each loop goes on past a note it cannot
+    // write, and the screen says the count — never a quiet rejection.
+    const sheet = strip(read("screens", "base", "PropertyEditSheet.tsx"));
+    const fill = from(sheet, "const fillMissing = () => {", 900);
+    expect(fill).toMatch(/sayRewriteOutcome\(await fillBaseProperty\(vault, missing, column\), toast\);/);
+    expect(fill).toMatch(/toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/);
+    const type = from(sheet, "const setType = (type: string) => {", 1300);
+    expect(type, "a time is dropped only after a question").toMatch(/dateSwitchLosesTime\(to\) && !\(await mConfirm\(/);
+    expect(type).toMatch(/sayRewriteOutcome\(await convertBaseDateColumn\(vault, paths, column, to\), toast\);/);
+    const screen = strip(read("screens", "base", "BaseScreen.tsx"));
+    const reverse = from(screen, "const commitReverseCell = async (", 900);
+    expect(reverse).toMatch(/if \(outcome\) sayReverseRelationOutcome\(outcome, toast\);/);
+    expect(reverse).toMatch(/toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/);
+    const create = from(screen, "const createViewColumn = (kind:", 1800);
+    expect(create).toMatch(/sayRewriteOutcome\(await fillBaseProperty\(vault, notesMissingProperty\(rows \?\? \[\], name\), name\), toast\);/);
+    // The service hands every count back; none of its loops catches.
+    const ops = strip(read("services", "baseOps.ts"));
+    for (const fn of ["fillBaseProperty", "convertBaseDateColumn", "editReverseCell"]) {
+      expect(from(ops, `export async function ${fn}(`, 600), fn).not.toMatch(/catch/);
+    }
+  });
+
+  it("a property of one note renamed in its sheet says a refusal and changes nothing then", () => {
+    // Sammelplan § 3.173 no. 2: a taken name, a block that is no map — said
+    // with the reason, and neither the type nor the sheet move on.
+    const sheet = strip(read("components", "NoteContextSheet.tsx"));
+    const rename = from(sheet, "const renameProp = (key: string) => {", 900);
+    expect(rename).toMatch(/await renameNoteProperty\(vault, path, key, name\);\s*\} catch \(e\) \{\s*toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);\s*return;\s*\}/);
+    const ops = strip(read("services", "baseOps.ts"));
+    expect(from(ops, "export async function renameNoteProperty(", 400)).not.toMatch(/catch/);
+    for (const lang of LANGS) expect(dict(lang).properties?.renameInNoteHint, `${lang} lacks properties.renameInNoteHint`).toBeTruthy();
+  });
+
   it("the sentences exist in every language", () => {
     for (const lang of LANGS) {
       const d = dict(lang);
@@ -252,6 +286,7 @@ function dict(lang: string): {
   mail?: Record<string, string>;
   database?: Record<string, string>;
   inputRejected?: Record<string, string>;
+  properties?: Record<string, string>;
   graph?: Record<string, string>;
   editor?: Record<string, string>;
 } {

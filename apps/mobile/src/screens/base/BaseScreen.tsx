@@ -34,7 +34,7 @@ import {
 import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
-import { sayRewriteOutcome, toast } from "@plainva/ui";
+import { isValidNewPropertyName, notesMissingProperty, sayReverseRelationOutcome, sayRewriteOutcome, toast } from "@plainva/ui";
 import { buildWikiTargetSet, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
@@ -45,6 +45,8 @@ import {
   commitBulkValue,
   commitCellValue,
   createBaseItem,
+  editReverseCell,
+  fillBaseProperty,
   loadBase,
   planMobilePinboardEntry,
   queryView,
@@ -556,6 +558,51 @@ export function BaseScreen({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [config, rows]);
 
+  /**
+   * A column a view needs (Sammelplan § 3.71 no. 1): a date for a calendar
+   * or timeline, a selection for a board — the desktop's dialog for a
+   * missing field, in the phone's questions. The new property is
+   * written (empty) into the shown notes first, then the view takes it, so
+   * the rows queried for the saved view already carry it. What failed is
+   * counted; the column is created either way.
+   */
+  const createViewColumn = (kind: "date" | "select") => {
+    void (async () => {
+      const { value, cancelled } = await mPrompt({ title: t("database.createNewField"), placeholder: t("database.newFieldName") });
+      const name = value.trim();
+      if (cancelled || !name) return;
+      if (!isValidNewPropertyName(name, columnsPool, "")) {
+        toast.error(t("properties.renameInvalid"));
+        return;
+      }
+      let input = "select";
+      if (kind === "date") {
+        const picked = await mSelect({
+          title: t("database.dateFieldFormatLabel"),
+          options: [
+            { value: "date", label: t("database.typeDateOnly") },
+            { value: "datetime", label: t("database.typeDateTime") },
+          ],
+          value: "date",
+        });
+        if (picked === null) return;
+        input = picked;
+      }
+      try {
+        sayRewriteOutcome(await fillBaseProperty(vault, notesMissingProperty(rows ?? [], name), name), toast);
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      }
+      mutateConfig((cfg) => {
+        if (!cfg.columns || Array.isArray(cfg.columns)) cfg.columns = {};
+        cfg.columns[name] = { ...cfg.columns[name], input };
+        if (!Array.isArray(cfg.views) || cfg.views.length === 0) cfg.views = [{ type: view.type }];
+        const i = Math.min(viewIndex, cfg.views.length - 1);
+        cfg.views[i] = { ...cfg.views[i], [kind === "date" ? "dateField" : "groupBy"]: name };
+      });
+    })();
+  };
+
   // What a board groups its cards by: the view's own choice, else the select
   // column called "status", else the first select column. Decided here, once,
   // for the board itself and for everything that has to name the same
@@ -786,16 +833,23 @@ export function BaseScreen({
 
   const openCellEditor = (r: Row, col: string) => {
     if (col.startsWith("file.")) return;
-    // Computed reverse columns live in the counterpart notes — tapping opens
-    // the first linked note instead of editing a derived value.
+    // A computed reverse column lives in the counterpart notes (Sammelplan
+    // § 3.71 no. 3): its cell is the relation's picker over the notes of the
+    // database the links come from, and a pick writes the OTHER note's owning
+    // property — the desktop's cell does the same. A tap used to open the
+    // first linked note; the entry's sheet and the note itself still lead there.
     if (isReverse(col)) {
-      const first = Array.isArray(r[col]) ? r[col][0] : r[col];
-      const target = first ? parseWikiLinkValue(String(first))?.target : null;
-      if (target) {
-        void vaultOps.resolveWikiTarget(vault, target, rowPath(r), "wiki").then((p) => {
-          if (p) onOpenNote(p);
-        });
-      }
+      const rev = config?.columns?.[col]?.reverseOf;
+      setCellEditCanComment(false);
+      setCellEditCanWrite(false);
+      setCellEdit({
+        notePath: rowPath(r),
+        col,
+        input: "relation",
+        value: r[col],
+        options: [],
+        relationBase: typeof rev?.base === "string" ? rev.base : undefined,
+      });
       return;
     }
     const input = columnInput(col, r[col]);
@@ -836,7 +890,27 @@ export function BaseScreen({
     const target = cellEdit;
     setCellEdit(null);
     if (!target) return;
+    if (isReverse(target.col)) {
+      void commitReverseCell(target, value);
+      return;
+    }
     void writeCell(target.notePath, target.col, value).then((written) => { if (written) requery(config, viewIndex); });
+  };
+
+  // Each counterpart note is a write of its own (`editReverseRelation`): one
+  // that fails is said, several are counted, and the rows are queried anew,
+  // so the cell shows what the notes hold.
+  const commitReverseCell = async (target: CellEditTarget, value: unknown) => {
+    const rev = config?.columns?.[target.col]?.reverseOf;
+    if (!rev || typeof rev.property !== "string") return;
+    const listOf = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v == null || v === "" ? [] : [String(v)]);
+    try {
+      const outcome = await editReverseCell(vault, target.notePath, { base: typeof rev.base === "string" ? rev.base : undefined, property: rev.property }, listOf(target.value), listOf(value));
+      if (outcome) sayReverseRelationOutcome(outcome, toast);
+    } catch (e) {
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+    }
+    requery(config, viewIndex);
   };
 
   // ── Proposed values (plan KI-Harness P5-4) ──────────────────────────────
@@ -2636,7 +2710,7 @@ export function BaseScreen({
             peek={peek}
             columnLabel={columnLabel}
             displayCell={displayCell}
-            isEditable={(col) => !col.startsWith("file.") && !isReverse(col)}
+            isEditable={(col) => !col.startsWith("file.")}
             onEdit={(col) => {
               const row = rows.find((r) => rowPath(r) === peek.path);
               if (row) openCellEditor(row, col);
@@ -2699,6 +2773,7 @@ export function BaseScreen({
           onClose={() => setShowConfig(false)}
           ai={baseAi}
           onEditProperty={setPropEdit}
+          onCreateColumn={createViewColumn}
           onMutate={mutateConfig}
           onSelectView={setViewIndex}
           vault={vault}

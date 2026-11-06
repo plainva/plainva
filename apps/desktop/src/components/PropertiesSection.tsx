@@ -26,7 +26,6 @@ import {
   parseMarkdownAst,
   extractFrontmatter,
   FrontmatterSurgicalError,
-  renameFrontmatterKey,
   updateFrontmatterString,
   ReadableFrontmatter,
   OKF_STATUS_VALUES,
@@ -44,7 +43,7 @@ import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/n
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
 import { resolveGoverningBase, clearGoverningBaseCache, governingBasesBelongTo, governingBaseMemory, type GoverningBase } from "../services/baseSchema";
 import { PropertyRow, AddPropertyPopover, type RelationCandidate } from "./PropertyValues";
-import { parseWikiLinkValue, pathsSharingNames, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
+import { parseWikiLinkValue, pathsSharingNames, propertyNameFixed, renamedNoteProperty, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
 import { useWikiResolver } from "../hooks/useWikiResolver";
 import {
   propertyCommentStore,
@@ -72,22 +71,6 @@ const OKF_SYSTEM_KEYS = new Set(["type", "okf_version"]);
 /** OKF 0.2 lifecycle keys (plan P3a): pinned rows with a fixed meta — the
  * value stays editable, and clearing it removes the key. */
 const OKF_LIFECYCLE_KEYS = new Set(["status", "stale_after"]);
-
-/**
- * A note's text with one entry renamed: its name changes and nothing else
- * (`renameFrontmatterKey`), as in a database's rename of a column. The panel
- * used to hand the writer a set with the new name, and the old key's READING
- * went under it — the reader reads `title: 2024` as the text "2024" (ADR 0009,
- * addendum 2026-10-22), and the note got `heading: "2024"`. A rename that
- * finds no entry of the name — a key that is an alias, which the reader names
- * after what it stands for — changes nothing: it is refused, as an entry the
- * writers cannot change where it stands, and the panel says so.
- */
-function renamedEntry(content: string, from: string, to: string): string {
-  const next = renameFrontmatterKey(content, from, to);
-  if (next === content) throw new FrontmatterSurgicalError(`Frontmatter is not a YAML map whose entry '${from}' can be renamed where it stands`);
-  return next;
-}
 
 // The OKF 0.2 provenance families (`generated`/`verified`/`sources`) render as
 // the read-only trust group, never as editable rows — the editor does not
@@ -268,12 +251,15 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // what the note says and a message names the reason. What a handler does
   // beside the note (the type registry, a notice of success) follows a true.
   //
-  // A rename hands its two names along (`renamedEntry`): handed over as a set,
-  // the old key's READING went under the new name.
+  // A rename hands its two names along (`renamedNoteProperty`, shared with
+  // the phone's note sheet): the name changes where it stands and nothing
+  // else. Handed over as a set, the old key's READING went under the new
+  // name — the reader reads `title: 2024` as the text "2024" (ADR 0009,
+  // addendum 2026-10-22), and the note got `heading: "2024"`.
   const commit = useCallback((next: ReadableFrontmatter, rename?: readonly [string, string]): boolean => {
     try {
       writableProperties(doc.content);
-      const newContent = rename ? renamedEntry(doc.content, rename[0], rename[1]) : updateFrontmatterString(doc.content, next);
+      const newContent = rename ? renamedNoteProperty(doc.content, rename[0], rename[1]) : updateFrontmatterString(doc.content, next);
       if (!channel.applyFrontmatter(newContent)) throw new Error(t("rightPanel.propertiesUnavailable"));
     } catch (e) {
       console.error("Failed to update properties", e);
@@ -332,7 +318,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   }, [commit, properties]);
 
   const onRenameProp = useCallback((oldKey: string, newKey: string) => {
-    if (OKF_SYSTEM_KEYS.has(oldKey) || OKF_LIFECYCLE_KEYS.has(oldKey)) return;
+    if (propertyNameFixed(oldKey)) return;
     if (oldKey === newKey || !newKey.trim()) return;
     // A name another property has — in any casing, the database's rule — is
     // said, and the row goes back to the name it has (open-items plan 3.144

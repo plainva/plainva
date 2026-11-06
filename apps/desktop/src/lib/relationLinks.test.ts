@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { addRelationLink, removeRelationLinksToNote, type RelationWriteAdapter } from "./relations";
+import i18n from "@plainva/ui/i18n";
+import { addRelationLink, editReverseRelation, removeRelationLinksToNote, sayReverseRelationOutcome, type RelationWriteAdapter } from "@plainva/ui";
 
 /** In-memory adapter + minimal query-service stub (renameNote.test.ts pattern). */
 function makeVault(files: Record<string, string>) {
@@ -248,5 +249,103 @@ describe("removeRelationLinksToNote", () => {
       })
     ).toEqual({ changed: false, removed: 0 });
     expect(store.get("Aufgaben/A1.md")).toBe(before);
+  });
+});
+
+
+/**
+ * The cell of a reverse relation (Sammelplan § 3.71 no. 3): both shells edit
+ * it through `editReverseRelation`, which writes the OTHER notes' owning
+ * property — one write per note, a failure counted and the cell left showing
+ * what that note holds.
+ */
+describe("editReverseRelation", () => {
+  function setup(files: Record<string, string>) {
+    const v = makeVault(files);
+    const failing = new Set<string>();
+    const write = v.adapter.writeTextFile;
+    v.adapter.writeTextFile = async (p, c) => {
+      if (failing.has(p)) throw new Error("disk full");
+      await write(p, c);
+    };
+    // The link rule, as the index answers it: a note by its file's name.
+    v.queryService.resolveNotePath = async (target: string) =>
+      Array.from(v.store.keys()).find((p) => p.split("/").pop()!.replace(/\.md$/, "").toLowerCase() === target.toLowerCase()) ?? null;
+    return { ...v, failing };
+  }
+  const projects = "properties:\n  note.kunde:\n    plainva:\n      input: relation\n      relationLimit: one\n";
+
+  it("adds the link in the other note's owning property, under its cardinality", async () => {
+    const { store, adapter, queryService } = setup({
+      "Cockpit.base": projects,
+      "Kunden/Globex.md": "# Globex\n",
+      "Projekte/Alpha.md": '---\nkunde: "[[ACME]]"\n---\n# Alpha\n',
+      "Kunden/ACME.md": "# ACME\n",
+    });
+    const outcome = await editReverseRelation({
+      adapter, queryService, rowPath: "Kunden/Globex.md", owning: { base: "Cockpit.base", property: "kunde" },
+      current: [], next: ["[[Alpha]]"],
+    });
+    expect(outcome.failures).toBe(0);
+    expect(outcome.owningLimit).toBe("one");
+    expect([...outcome.changed]).toEqual([["Projekte/Alpha.md", "added"]]);
+    expect(outcome.shown).toEqual(["[[Alpha]]"]);
+    // "One" replaces the link the note had; the row's own note is untouched.
+    expect(store.get("Projekte/Alpha.md")).toMatch(/^---\nkunde: "?\[\[Globex\]\]"?\n---\n# Alpha\n$/);
+    expect(store.get("Kunden/Globex.md")).toBe("# Globex\n");
+  });
+
+  it("takes the link out where it lives, and never links the row to itself", async () => {
+    const { store, adapter, queryService } = setup({
+      "Kunden/Globex.md": "---\nparent: x\n---\n# Globex\n",
+      "Projekte/Alpha.md": '---\nstatus: open\nkunde:\n  - "[[Globex]]"\n  - "[[ACME]]"\n---\n',
+      "Kunden/ACME.md": "# ACME\n",
+    });
+    const outcome = await editReverseRelation({
+      adapter, queryService, rowPath: "Kunden/Globex.md", owning: { property: "kunde" },
+      current: ["[[Alpha]]"], next: ["[[Globex]]"],
+    });
+    expect([...outcome.changed]).toEqual([["Projekte/Alpha.md", "removed"]]);
+    expect(store.get("Projekte/Alpha.md")).not.toContain("Globex");
+    expect(store.get("Projekte/Alpha.md")).toContain("ACME");
+    expect(store.get("Kunden/Globex.md")).toBe("---\nparent: x\n---\n# Globex\n");
+  });
+
+  it("goes on past a note that refuses, and the cell shows what the notes hold", async () => {
+    const { store, adapter, queryService, failing } = setup({
+      "Kunden/Globex.md": "# Globex\n",
+      "Projekte/Alpha.md": "# Alpha\n",
+      "Projekte/Beta.md": "# Beta\n",
+      "Projekte/Gamma.md": '---\nkunde: "[[Globex]]"\n---\n',
+    });
+    failing.add("Projekte/Alpha.md");
+    failing.add("Projekte/Gamma.md");
+    const outcome = await editReverseRelation({
+      adapter, queryService, rowPath: "Kunden/Globex.md", owning: { property: "kunde" },
+      current: ["[[Gamma]]"], next: ["[[Alpha]]", "[[Beta]]"],
+    });
+    expect(outcome.failures).toBe(2);
+    expect((outcome.firstFailure as Error).message).toBe("disk full");
+    expect([...outcome.changed]).toEqual([["Projekte/Beta.md", "added"]]);
+    // Alpha could not be given the link, Gamma could not be relieved of it.
+    expect(outcome.shown).toEqual(["[[Beta]]", "[[Gamma]]"]);
+    expect(store.get("Projekte/Beta.md")).toMatch(/kunde:/);
+
+    const said: string[] = [];
+    sayReverseRelationOutcome(outcome, { error: (m) => said.push(m) });
+    expect(said).toEqual([i18n.t("database.bulkSetPartial", { done: 1, failed: 2 })]);
+  });
+
+  it("changes nothing where the cell did not change", async () => {
+    const { store, adapter, queryService } = setup({ "Kunden/Globex.md": "# Globex\n", "Projekte/Alpha.md": "# Alpha\n" });
+    const outcome = await editReverseRelation({
+      adapter, queryService, rowPath: "Kunden/Globex.md", owning: { property: "kunde" },
+      current: ["[[Alpha]]"], next: ["[[alpha]]"],
+    });
+    expect(outcome.changed.size).toBe(0);
+    expect(store.get("Projekte/Alpha.md")).toBe("# Alpha\n");
+    const said: string[] = [];
+    sayReverseRelationOutcome(outcome, { error: (m) => said.push(m) });
+    expect(said).toEqual([]);
   });
 });

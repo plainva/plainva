@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-11-03
+Dernière mise à jour : 2026-11-05
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -61,7 +61,7 @@ Sur le téléphone, **Configurer** ouvre les mêmes zones sous forme de liste ; 
 Cliquer sur un en-tête de colonne ouvre l'éditeur de propriété (**Propriété : X**) :
 
 - **Nom** — le renommage affecte les notes : à l'enregistrement, la propriété est renommée dans le frontmatter de chaque note correspondante (avec confirmation et un indicateur de progression). Plainva interroge d'abord chaque note : si l'une d'elles ne peut pas prendre le nouveau nom — elle a déjà une propriété de ce nom, ou le bloc à son début ne peut pas être lu comme des propriétés —, rien n'est renommé et un message nomme ces notes.
-- **Type de champ** — Texte, Nombre, Évaluation, Case à cocher, Date, Date & heure, Liste, Tags, Sélection, Statut, Sélection multiple, URL, E-mail, Téléphone, Relation (le même menu de types groupés que dans le panneau **Propriétés** des notes). Une propriété URL, e-mail ou téléphone n'ouvre que des liens web, e-mail et téléphone ([Notes & Markdown](Notes_and_Markdown.md), « Liens vers l'extérieur »).
+- **Type de champ** — Texte, Nombre, Évaluation, Case à cocher, Date, Date & heure, Liste, Tags, Sélection, Statut, Sélection multiple, URL, E-mail, Téléphone, Relation (le même menu de types groupés que dans le panneau **Propriétés** des notes). Une propriété URL, e-mail ou téléphone n'ouvre que des liens web, e-mail et téléphone ([Notes & Markdown](Notes_and_Markdown.md), « Liens vers l'extérieur »). Lorsqu'une colonne passe de **Date** à **Date & heure** ou inversement, Plainva réécrit les valeurs dans les notes : un jour reçoit 12:00, et avant que les heures ne disparaissent, Plainva demande confirmation — dans l'éditeur de colonne, dans le **Format** d'une vue calendrier ou chronologie, et sur le téléphone.
   Une **Évaluation** est un nombre dessiné en points (cinq, sauf mention contraire de la colonne). Le fichier garde `humeur: 4` — un simple nombre que lisent aussi Obsidian et n'importe quel tableur ; le tri et le filtre sont ceux d'un nombre. Vous appuyez sur le point qui doit compter ; appuyer sur la valeur actuelle l'efface.
 - **Jour d'après le nom du fichier** (`file.day`) — les calendriers et les frises peuvent placer les notes quotidiennes d'après leur **nom de fichier**, sans que la date figure aussi dans le frontmatter. Le champ apparaît dans le sélecteur de champ de date dès que le vault nomme des notes quotidiennes (dossier et format sous **Paramètres → Vault → Notes quotidiennes et journal**) ; il est calculé à partir du nom, ne figure dans aucune note et ne peut pas être modifié — une carte placée ainsi ne peut donc pas être glissée vers un autre jour (cela renommerait le fichier). Obsidian ne connaît pas ce champ : une vue qui l'utilise y reste vide.
 - **Options** (pour Sélection/Statut/Sélection multiple) — des valeurs fixes avec une **Couleur** et, pour **Statut**, un **Groupe**/une étape (p. ex. à faire → en cours → terminé) ; réordonnez par glisser-déposer. À l'ouverture de l'éditeur de colonne, la liste des options est déjà préremplie avec les valeurs déjà présentes dans la base de données — vous pouvez ainsi donner une couleur à chacune sans avoir à la ressaisir.
@@ -69,7 +69,7 @@ Cliquer sur un en-tête de colonne ouvre l'éditeur de propriété (**Propriét�
 
 Notes sur le comportement :
 
-- Si une propriété manque dans certaines notes, Plainva propose de l'**ajouter (vide) à N fichiers sources**.
+- Si une propriété manque dans certaines notes, Plainva propose de l'**ajouter (vide) à N fichiers sources**. Sur le téléphone, la fiche de la propriété propose la même chose sous **Valeurs manquantes**. Dans **Configurer**, le champ de date d'un calendrier ou d'une chronologie et le regroupement d'un tableau proposent **Créer un champ** : Plainva crée la propriété et l'ajoute (vide) aux notes affichées.
 - Pour **Sélection**, **Statut**, **Sélection multiple**, **Liste** et **Tags**, une virgule dans une valeur sépare plusieurs entrées ; dans le type **Texte**, une virgule reste du texte brut.
 - Les champs système OKF `type` et `okf_version` sont protégés ici aussi : le nom, le type de champ et la suppression sont verrouillés, et les cellules `okf_version` sont en lecture seule (contexte : [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Les relations lient des notes entre elles — comme dans Notion, mais stockées 
 
 - **Créer** : ajoutez une propriété de type de champ **Relation**. Choisissez éventuellement une **Base de données cible (.base)** — le sélecteur ne suggère alors que des notes de cette base de données (vide = **N'importe quelle note** ; **Cette base de données** active les auto-relations). La **Cardinalité** limite à **Exactement 1** ou permet **Sans limite**.
 - **Définir des valeurs** : le sélecteur recherche des notes, exclut l'entrée actuelle, et peut créer une cible à la volée via **Créer une nouvelle note**. Un badge « La note liée n'existe pas » signale un lien rompu (cible supprimée/renommée en dehors de Plainva).
-- **Relation inverse** : l'option **Afficher sur « X »** crée une colonne calculée dans la base de données cible montrant les liens en sens inverse — elle est directement modifiable (les modifications s'écrivent dans les notes qui créent le lien). Supprimer la relation retire aussi sa colonne inverse.
+- **Relation inverse** : l'option **Afficher sur « X »** crée une colonne calculée dans la base de données cible montrant les liens en sens inverse — elle est directement modifiable (les modifications s'écrivent dans les notes qui créent le lien). Supprimer la relation retire aussi sa colonne inverse. Sur le téléphone, un appui sur une telle cellule ouvre le sélecteur des notes de la base de données qui crée le lien ; un choix écrit le lien dans cette note.
 - **Sous-éléments** : pour les auto-relations, vous pouvez **Activer les sous-éléments** — les entrées avec une relation parent apparaissent repliables sous leur entrée parente dans le tableau (les cycles sont gérés ; désactivé, la liste reste plate et les valeurs sont conservées).
 - **Kanban par relation** : les boards peuvent se regrouper par une relation ; glisser des cartes entre les colonnes réécrit le lien.
 - **Filtrer sur les relations** : contient / ne contient pas / est vide / n'est pas vide, avec un sélecteur de notes.

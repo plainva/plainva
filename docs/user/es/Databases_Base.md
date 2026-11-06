@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-11-03
+Última actualización: 2026-11-05
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -61,7 +61,7 @@ En el teléfono, **Configurar** abre las mismas áreas como una lista; tocar una
 Al hacer clic en el encabezado de una columna se abre el editor de propiedades (**Propiedad: X**):
 
 - **Nombre** — renombrar afecta a las notas: al guardar, la propiedad se renombra en el frontmatter de todas las notas coincidentes (con confirmación e indicador de progreso). Plainva pregunta antes a cada nota: si alguna no puede recibir el nuevo nombre —ya tiene una propiedad con ese nombre, o el bloque al principio no se puede leer como propiedades—, no se renombra nada y un mensaje nombra esas notas.
-- **Tipo de campo** — Texto, Número, Valoración, Casilla de verificación, Fecha, Fecha y hora, Lista, Etiquetas, Selección, Estado, Selección múltiple, URL, Correo electrónico, Teléfono, Relación (el mismo menú de tipos agrupado que en el panel de **Propiedades** de las notas). Una propiedad de URL, correo o teléfono solo abre enlaces web, de correo y de teléfono ([Notas y Markdown](Notes_and_Markdown.md), «Enlaces hacia fuera»).
+- **Tipo de campo** — Texto, Número, Valoración, Casilla de verificación, Fecha, Fecha y hora, Lista, Etiquetas, Selección, Estado, Selección múltiple, URL, Correo electrónico, Teléfono, Relación (el mismo menú de tipos agrupado que en el panel de **Propiedades** de las notas). Una propiedad de URL, correo o teléfono solo abre enlaces web, de correo y de teléfono ([Notas y Markdown](Notes_and_Markdown.md), «Enlaces hacia fuera»). Si una columna cambia entre **Fecha** y **Fecha y hora**, Plainva reescribe los valores en las notas: un día recibe las 12:00 y, antes de que se pierdan las horas, Plainva pregunta — en el editor de columna, en el **Formato** de una vista de calendario o de línea de tiempo y en el teléfono.
   Una **Valoración** es un número dibujado como puntos (cinco, salvo que la columna diga otra cosa). El archivo guarda `animo: 4`, un número simple que también leen Obsidian y cualquier hoja de cálculo; se ordena y se filtra como un número. Pulsas el punto que debe contar; pulsar el valor actual lo borra.
 - **Día del nombre del archivo** (`file.day`) — los calendarios y las líneas de tiempo pueden colocar las notas diarias por su **nombre de archivo**, sin que la fecha esté además en el frontmatter. El campo aparece en el selector de campo de fecha en cuanto la bóveda nombra notas diarias (carpeta y formato en **Ajustes → Tu bóveda → Notas diarias y diario**); se calcula a partir del nombre, no está en ninguna nota y no se puede editar, así que una tarjeta colocada de este modo tampoco se puede arrastrar a otro día (eso renombraría el archivo). Obsidian no conoce este campo: una vista que lo use queda vacía allí.
 - **Opciones** (para Selección/Estado/Selección múltiple) — valores fijos con un **Color** y, para **Estado**, un **Grupo**/etapa (p. ej. pendiente → en curso → hecho); reordenar arrastrando. Al abrir el editor de la columna, la lista de opciones ya viene rellenada con los valores que se usan en la base de datos, así que puedes asignarle un color a cada uno sin necesidad de volver a escribirlo.
@@ -69,7 +69,7 @@ Al hacer clic en el encabezado de una columna se abre el editor de propiedades (
 
 Notas sobre el comportamiento:
 
-- Si a una propiedad le falta en algunas notas, Plainva ofrece **añadirla (vacía) a N archivos de origen**.
+- Si a una propiedad le falta en algunas notas, Plainva ofrece **añadirla (vacía) a N archivos de origen**. En el teléfono, la hoja de la propiedad ofrece lo mismo en **Faltan valores**. En **Configurar**, el campo de fecha de un calendario o de una línea de tiempo y la agrupación de un tablero ofrecen **Crear campo nuevo**: Plainva crea la propiedad y la añade (vacía) a las notas mostradas.
 - Para **Selección**, **Estado**, **Selección múltiple**, **Lista** y **Etiquetas**, una coma en un valor separa varias entradas; en el tipo **Texto** la coma se queda como texto normal.
 - Los campos de sistema OKF `type` y `okf_version` también están protegidos aquí: nombre, tipo de campo y eliminar están bloqueados, y las celdas de `okf_version` son de solo lectura (contexto: [OKF](OKF.md)).
 
@@ -79,7 +79,7 @@ Las relaciones enlazan notas entre sí — como en Notion, pero guardadas como `
 
 - **Crearlas**: añade una propiedad de tipo de campo **Relación**. Opcionalmente elige una **Base de datos de destino (.base)** — entonces el selector solo sugiere notas de esa base de datos (vacío = **Cualquier nota**; **Esta base de datos** permite auto-relaciones). La **Cardinalidad** limita a **Exactamente 1** o permite **Sin límite**.
 - **Establecer valores**: el selector busca notas, excluye la entrada actual y puede crear un destino al vuelo mediante **Crear nueva nota**. Un chip que dice "La nota enlazada no existe" marca un enlace roto (destino eliminado o renombrado fuera de Plainva).
-- **Relación inversa**: la opción **Mostrar en "X"** crea una columna calculada en la base de datos de destino que muestra los enlaces en sentido inverso — es directamente editable (las ediciones se escriben en las notas que enlazan). Eliminar la relación también elimina su columna inversa.
+- **Relación inversa**: la opción **Mostrar en "X"** crea una columna calculada en la base de datos de destino que muestra los enlaces en sentido inverso — es directamente editable (las ediciones se escriben en las notas que enlazan). Eliminar la relación también elimina su columna inversa. En el teléfono, un toque en una celda así abre el selector con las notas de la base de datos que enlaza; elegir una escribe el enlace en esa nota.
 - **Subelementos**: para las auto-relaciones puedes **Activar subelementos** — las entradas con una relación padre aparecen plegables bajo su entrada padre en la tabla (los ciclos se gestionan; desactivado, la lista permanece plana y los valores se conservan).
 - **Tablero por relación**: los tableros pueden agruparse por una relación; arrastrar tarjetas entre columnas reescribe el enlace.
 - **Filtrar por relaciones**: contiene / no contiene / está vacío / no está vacío, con un selector de notas.

@@ -23,7 +23,7 @@ import { getTaskDatabasePath } from "./taskDatabase";
 import { loadAnchoredNotes, readProviderTaskAnchor, type ProviderTaskAnchor } from "@plainva/ui";
 import { requestTaskDeletion } from "./pim/taskDeletion";
 import { getTemplateFolder } from "./newItemFlow";
-import { removeRelationLinksToNote } from "./relations";
+import { removeRelationLinksToNote } from "@plainva/ui";
 import { requestSaveFlush } from "./saveFlush";
 import type { IndexerApi } from "./remoteIndexer";
 

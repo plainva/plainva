@@ -77,6 +77,8 @@ La section **Propriétés** dans la barre latérale droite montre le frontmatter
 
 Les types à choix peuvent porter des options fixes avec une **Couleur** et (pour **Statut**) un **Groupe**/une étape — ces listes d'options se gèrent dans les bases de données (`.base`), voir [Bases de données (.base)](Databases_Base.md).
 
+**Renommer :** le nom d'une propriété se modifie dans sa ligne — dans cette note seulement. La valeur, le commentaire et l'ordre restent, et un nom que la note porte déjà (quelle que soit la casse) est refusé avec un message. Sur le téléphone, un appui sur la propriété dans **Détails de la note** → **Propriétés** ouvre sa fiche, avec **Renommer** en bas (un appui long le propose aussi). Une colonne de base de données, en revanche, se renomme dans toutes ses notes, voir [Bases de données (.base)](Databases_Base.md).
+
 Sont protégés les **champs système OKF** gérés par Plainva : `type` (la valeur se choisit dans une liste déroulante de types connus, le nom/type de champ/la suppression sont verrouillés) et — là où d'anciennes notes le portent encore — `okf_version` (affichage seul ; depuis l'OKF 0.2, le champ n'a sa place que dans l'`index.md` racine). Contexte : [OKF](OKF.md).
 
 ### Statut, avis de péremption et marque de relecture (OKF 0.2)
