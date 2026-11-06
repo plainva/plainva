@@ -374,7 +374,7 @@ export async function pruneDrafts(vaultPath: string): Promise<void> {
  * Removes ALL drafts of a vault — wired into "forget app data". The current
  * folder goes whole. The folder of the old name can be shared with another
  * vault whose path hashed alike: there only this vault's entries go, and the
- * comment-operation journal that lives in it (as before).
+ * old comment-operation queue in it stays for `removeLegacyCommentOperations`.
  */
 export async function removeVaultDrafts(vaultPath: string): Promise<void> {
   try {
@@ -387,7 +387,9 @@ export async function removeVaultDrafts(vaultPath: string): Promise<void> {
     for (const e of await readDir(legacyDir)) {
       if (!e.name) continue;
       if (e.isDirectory) {
-        if (e.name === "comment-operations") await remove(await join(legacyDir, e.name), { recursive: true });
+        // The comment-operation queue is not ours to delete here: it can hold
+        // another vault's unsent operations. removeLegacyCommentOperations
+        // takes only this vault's entries out of it.
         continue;
       }
       const rel = `${legacyKey}/${e.name}`;

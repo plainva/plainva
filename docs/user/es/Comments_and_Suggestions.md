@@ -1,6 +1,6 @@
 # Comentarios y sugerencias
 
-Última actualización: 2026-11-02
+Última actualización: 2026-11-06
 
 Los comentarios y las sugerencias existen en **todo** vault — con o sin sincronización, con o sin cifrado. En un workspace cifrado son objetos firmados (ver [Seguridad y uso compartido](Security_and_Sharing.md)); en todos los demás llevan el nombre de **Tu nombre (anotaciones y revisiones)** en los ajustes. Una sugerencia es un comentario con un texto de reemplazo: ambos pasan por el mismo almacén, la misma columna, la misma hoja. Si falta el nombre, Plainva lo pregunta una vez en el primer comentario; sin respuesta, el dispositivo firma con su propia etiqueta (por ejemplo «Dispositivo Windows 4f3a»). Tus propias anotaciones aparecen como **Tú**.
 
@@ -65,6 +65,8 @@ Antes de apartar el archivo dañado de este dispositivo, Plainva lee la copia de
 ## Operaciones incompletas y decisiones contradictorias
 
 Plainva registra en este dispositivo el progreso de cada operación de comentarios. Si el texto está guardado pero falta actualizar el comentario, un aviso ofrece **Volver a intentar**. El reintento continúa los pasos pendientes sin deshacer el texto guardado ni lo escrito después. Una ronda de sugerencias enviada parcialmente continúa con las mismas propuestas; los cambios posteriores en tu copia de trabajo permanecen sin enviar.
+
+Un comentario que estás escribiendo no se pierde al salir de su nota: al cerrar su pestaña, abrir otra nota en la misma pestaña o retroceder, Plainva pregunta primero **¿Descartar el comentario?**; **Seguir escribiendo** vuelve a él. Otro panel no pregunta.
 
 Si la nota cambió antes de confirmar su texto, abre **Comparar texto**. Compara el cambio previsto con el texto actual y edita la nota si hace falta. El reintento vuelve a comprobarlo; un texto diferente nunca se sustituye por la versión anterior.
 

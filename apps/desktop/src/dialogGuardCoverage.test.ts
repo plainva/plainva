@@ -75,6 +75,24 @@ describe("dialog guard coverage", () => {
     expect(readFileSync(join(here, "../../mobile/src/screens/NoteScreen.tsx"), "utf8")).toMatch(/leaveGuarded\("comment-compose"/);
   });
 
+  it("a comment being written is held for its note, so the pane's own changes ask (data-safety D5); the phone asks through its sheet guard", () => {
+    const column = readFileSync(join(here, "components/workspace/WorkspaceCommentsColumn.tsx"), "utf8");
+    expect(column).toMatch(/useDiscardGuard\(.*path: notePath/);
+    expect(readFileSync(join(here, "components/Editor.tsx"), "utf8")).toMatch(/notePath=\{activePath/);
+    // The wrapper around the pane mutators is the one door; none of them sets the layout itself.
+    const layout = readFileSync(join(here, "hooks/usePaneLayout.ts"), "utf8");
+    expect(layout).toMatch(/askHeldWorkAt\(lost\)/);
+    const unasked = ["closeTabsByPrefix", "renameTabPrefix", "toggleTabPinned", "focusPane"];
+    for (const name of ["openTab", "openInFocusedPane", "openInOtherPane", "openPathInSplit", "navigateTab", "selectTab", "closeTab", "closeTabsBulk", "moveTabTo", "splitEditorWithTab"]) {
+      expect(unasked).not.toContain(name);
+      const body = layout.slice(layout.indexOf(`const ${name} = useCallback`)).split("  }, [")[0];
+      expect(body, `${name} must change the layout through change()`).toMatch(/change\(/);
+      expect(body, `${name} must not set the layout directly`).not.toMatch(/setLayout\(/);
+    }
+    // Phone: the comment sheet asks before it closes over a typed comment.
+    expect(readFileSync(join(here, "../../mobile/src/components/CommentsSheet.tsx"), "utf8")).toMatch(/useSheetGuard\("comment-compose", body\.trim\(\) !== ""/);
+  });
+
   it("a substitute token typed in the review of an external tool is reported to both shells' close guard", () => {
     expect(readFileSync(join(ui, "ai/AiExternalReview.tsx"), "utf8")).toMatch(/review\.reportSecretTyped\(/);
     expect(readFileSync(join(here, "components/settings/ExternalToolsDialogs.tsx"), "utf8")).toMatch(/review\.secretTyped/);

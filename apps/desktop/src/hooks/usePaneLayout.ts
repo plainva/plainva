@@ -3,6 +3,7 @@ import type { SplitDirection } from "../components/SplitButton";
 import { isVirtualPath } from "../components/graph/virtualPaths";
 import { opensExternally } from "@plainva/ui";
 import { markFirstHydrate, startsEmpty } from "../services/startView";
+import { askHeldWorkAt, holdsWorkAt } from "../services/windowCloseGuard";
 
 // --- Split editor: pane/tab model ---------------------------------------
 // A pane is one editor group with its own tab set; the layout holds 1..2 panes
@@ -46,6 +47,28 @@ export function adoptTabInLayout(layout: Layout, incoming: TabItem): Layout {
     const sorted = [...tabs.filter(tab => tab.pinned), ...tabs.filter(tab => !tab.pinned)];
     return { tabs: sorted, activeIndex: sorted.indexOf(selected) };
   }) };
+}
+
+/**
+ * The notes whose pane stops showing them when `before` becomes `after`.
+ *
+ * A pane shows the active tab's current note, and AppShell keys each pane by
+ * its index and the editor by its note: what is in a pane's editor (an unsent
+ * comment, say) is gone when the pane index shows another note, or none. So the
+ * test is the (pane, note) pair, exactly the identity that remounts.
+ */
+export function lostPaths(before: Layout, after: Layout): string[] {
+  const shown = (layout: Layout, index: number): string | null => {
+    const pane = layout.panes[index];
+    const tab = pane && pane.activeIndex >= 0 && pane.activeIndex < pane.tabs.length ? pane.tabs[pane.activeIndex] : null;
+    return tab ? tab.history[tab.historyIndex] ?? null : null;
+  };
+  const lost = new Set<string>();
+  before.panes.forEach((_, index) => {
+    const path = shown(before, index);
+    if (path !== null && shown(after, index) !== path) lost.add(path);
+  });
+  return [...lost];
 }
 
 export const SPLIT_RATIO_MIN = 0.15;
@@ -398,6 +421,22 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   const notifyOpen = (path: string) => { onOpenPathRef.current?.(path); };
 
   /**
+   * The one door every change of what a pane shows goes through (close a tab,
+   * open another note in it, step back or forward, switch or move a tab). If a
+   * surface of the window holds unsaved input for a note the change would take
+   * out of its pane - a comment being written - the person is asked first;
+   * "keep writing" cancels the change. With nothing held it runs at once, in
+   * the same turn. Deleting or renaming a note closes without asking
+   * (`closeTabsByPrefix`): the file is gone, there is nothing to stay with.
+   */
+  const change = useCallback((transform: (prev: Layout) => Layout, onCommit?: () => void) => {
+    const go = () => { onCommit?.(); setLayout(transform); };
+    const lost = lostPaths(layoutRef.current, transform(layoutRef.current));
+    if (!holdsWorkAt(lost)) { go(); return; }
+    void askHeldWorkAt(lost).then((leave) => { if (leave) go(); });
+  }, []);
+
+  /**
    * Attachments never become a tab: they go to the OS and the layout stays as it
    * is (issue #55). Returns true when the path was handled and the caller must
    * stop — every opener starts with this line. `notifyOpen` is deliberately NOT
@@ -460,31 +499,25 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // Open a path in a SPECIFIC pane (used by each pane's own editor/links) and focus it.
   const openTab = useCallback((paneIndex: number, path: string, newTab: boolean) => {
     if (handedToTheSystem(path)) return;
-    const here = () => {
-      notifyOpen(path);
-      setLayout((prev) => ({
-        ...prev,
-        activePaneIndex: paneIndex,
-        panes: prev.panes.map((p, i) => (i === paneIndex ? openInPane(p, path, newTab) : p)),
-      }));
-    };
+    const here = () => change((prev) => ({
+      ...prev,
+      activePaneIndex: paneIndex,
+      panes: prev.panes.map((p, i) => (i === paneIndex ? openInPane(p, path, newTab) : p)),
+    }), () => notifyOpen(path));
     if (routedToAnotherWindow(path, here)) return;
     here();
-  }, []);
+  }, [change]);
 
   // Open a path in the focused pane (used by sidebar, quick switcher, calendar, …).
   const openInFocusedPane = useCallback((path: string, newTab: boolean = false) => {
     if (handedToTheSystem(path)) return;
-    const here = () => {
-      notifyOpen(path);
-      setLayout((prev) => ({
-        ...prev,
-        panes: prev.panes.map((p, i) => (i === prev.activePaneIndex ? openInPane(p, path, newTab) : p)),
-      }));
-    };
+    const here = () => change((prev) => ({
+      ...prev,
+      panes: prev.panes.map((p, i) => (i === prev.activePaneIndex ? openInPane(p, path, newTab) : p)),
+    }), () => notifyOpen(path));
     if (routedToAnotherWindow(path, here)) return;
     here();
-  }, []);
+  }, [change]);
 
   // Open a VIRTUAL singleton path (graph/tasks/calendar/mail) without stacking
   // duplicates: if any pane already has a tab showing it, focus that tab;
@@ -495,87 +528,80 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
   // owner and then calls in here to focus or create the tab. Asking again would
   // be a second round trip for the same click.
   const adoptTransferredTab = useCallback((tab: TabItem) => {
-    notifyOpen(tab.history[tab.historyIndex]);
-    setLayout(previous => adoptTabInLayout(previous, tab));
-  }, []);
+    change(previous => adoptTabInLayout(previous, tab), () => notifyOpen(tab.history[tab.historyIndex]));
+  }, [change]);
 
   const focusOrOpenVirtual = useCallback((path: string) => {
-    notifyOpen(path);
-    setLayout((prev) => focusOrOpenVirtualInLayout(prev, path));
-  }, []);
+    change((prev) => focusOrOpenVirtualInLayout(prev, path), () => notifyOpen(path));
+  }, [change]);
 
   // Open a path in the pane NEXT TO `fromPane` (Base-UX2 P5: Ctrl+click on a
   // base element, the peek window's "open in split", the card drop zone).
   // Splits vertically first when there is only one pane; if the target pane
   // already shows the path in a tab, that tab is focused instead of duplicated.
   const openInOtherPane = useCallback((fromPane: number, path: string) => {
-    const here = () => {
-      notifyOpen(path);
-      setLayout((prev) => {
-        if (prev.panes.length >= 2) {
-          const other = fromPane === 0 ? 1 : 0;
-          const pane = prev.panes[other];
-          const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
-          const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
-          return { ...prev, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
-        }
-        return {
-          direction: "vertical",
-          activePaneIndex: prev.panes.length,
-          panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
-        };
-      });
-    };
+    const here = () => change((prev): Layout => {
+      if (prev.panes.length >= 2) {
+        const other = fromPane === 0 ? 1 : 0;
+        const pane = prev.panes[other];
+        const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
+        const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
+        return { ...prev, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
+      }
+      return {
+        direction: "vertical",
+        activePaneIndex: prev.panes.length,
+        panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
+      };
+    }, () => notifyOpen(path));
     if (routedToAnotherWindow(path, here)) return;
     here();
-  }, []);
+  }, [change]);
 
   // Open a path in a split with an explicit direction (file-tree context menu,
   // plan UI-UX-Paket P8). Not split yet → create the second pane in `direction`;
   // already split → re-orient and reuse the other pane like openInOtherPane.
   const openPathInSplit = useCallback((path: string, direction: SplitDirection) => {
     if (handedToTheSystem(path)) return;
-    const here = () => {
-      notifyOpen(path);
-      setLayout((prev) => {
-        if (prev.panes.length >= 2) {
-          const other = prev.activePaneIndex === 0 ? 1 : 0;
-          const pane = prev.panes[other];
-          const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
-          const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
-          return { ...prev, direction, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
-        }
-        return {
-          direction,
-          activePaneIndex: prev.panes.length,
-          panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
-        };
-      });
-    };
+    const here = () => change((prev): Layout => {
+      if (prev.panes.length >= 2) {
+        const other = prev.activePaneIndex === 0 ? 1 : 0;
+        const pane = prev.panes[other];
+        const existing = pane.tabs.findIndex((tb) => tb.history[tb.historyIndex] === path);
+        const nextPane = existing !== -1 ? { ...pane, activeIndex: existing } : openInPane(pane, path, true);
+        return { ...prev, direction, activePaneIndex: other, panes: prev.panes.map((p, i) => (i === other ? nextPane : p)) };
+      }
+      return {
+        direction,
+        activePaneIndex: prev.panes.length,
+        panes: [...prev.panes, openInPane({ tabs: [], activeIndex: -1 }, path, true)],
+      };
+    }, () => notifyOpen(path));
     if (routedToAnotherWindow(path, here)) return;
     here();
-  }, []);
+  }, [change]);
 
   const navigateTab = useCallback((paneIndex: number, direction: -1 | 1) => {
-    setLayout((prev) => ({ ...prev, panes: prev.panes.map((p, i) => (i === paneIndex ? navigateInPane(p, direction) : p)) }));
-  }, []);
+    change((prev) => ({ ...prev, panes: prev.panes.map((p, i) => (i === paneIndex ? navigateInPane(p, direction) : p)) }));
+  }, [change]);
 
   const selectTab = useCallback((paneIndex: number, index: number) => {
-    setLayout((prev) => ({ ...prev, activePaneIndex: paneIndex, panes: prev.panes.map((p, i) => (i === paneIndex ? { ...p, activeIndex: index } : p)) }));
-  }, []);
+    change((prev) => ({ ...prev, activePaneIndex: paneIndex, panes: prev.panes.map((p, i) => (i === paneIndex ? { ...p, activeIndex: index } : p)) }));
+  }, [change]);
 
   // Closing the last tab of a pane collapses the split back to a single pane.
   const closeTab = useCallback((paneIndex: number, index: number) => {
-    setLayout((prev) => normalizeLayout({ ...prev, panes: prev.panes.map((p, i) => (i === paneIndex ? closeTabInPane(p, index) : p)) }));
-  }, []);
+    change((prev) => normalizeLayout({ ...prev, panes: prev.panes.map((p, i) => (i === paneIndex ? closeTabInPane(p, index) : p)) }));
+  }, [change]);
 
   /**
    * The browser-style mass-close family (P2). All four route through the same
-   * pure helpers, so "pinned tabs survive" cannot drift between them; the host
-   * runs its dirty-buffer confirmation before calling in.
+   * pure helpers, so "pinned tabs survive" cannot drift between them. Notes
+   * save themselves, so no host asks before these close; `change` asks about
+   * input held for a note that goes (an unsent comment).
    */
   const closeTabsBulk = useCallback((paneIndex: number, index: number, mode: "others" | "left" | "right" | "all") => {
-    setLayout((prev) =>
+    change((prev) =>
       normalizeLayout({
         ...prev,
         panes: prev.panes.map((p, i) => {
@@ -587,7 +613,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
         }),
       })
     );
-  }, []);
+  }, [change]);
 
   const toggleTabPinned = useCallback((paneIndex: number, index: number) => {
     setLayout((prev) => ({ ...prev, panes: prev.panes.map((p, i) => (i === paneIndex ? togglePinInPane(p, index) : p)) }));
@@ -624,7 +650,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     const wasSplit = layoutRef.current.panes.length >= 2;
     const fromPane = layoutRef.current.panes[fromPaneIndex];
 
-    setLayout((prev) => {
+    change((prev) => {
       const pane = prev.panes[fromPaneIndex];
       if (!pane) return prev;
 
@@ -648,12 +674,12 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     if (!wasSplit && fromPane && fromPane.tabs.length <= 1) {
       onRequestPickRef.current?.();
     }
-  }, []);
+  }, [change]);
 
   // Drag a tab within/between panes (D5). Focuses the target pane.
   const moveTabTo = useCallback((fromPane: number, fromIndex: number, toPane: number, toIndex: number | null) => {
-    setLayout((prev) => moveTab(prev, fromPane, fromIndex, toPane, toIndex));
-  }, []);
+    change((prev) => moveTab(prev, fromPane, fromIndex, toPane, toIndex));
+  }, [change]);
 
   const setSplitRatio = useCallback((updater: number | ((r: number) => number)) => {
     setSplitRatioState((prev) => {

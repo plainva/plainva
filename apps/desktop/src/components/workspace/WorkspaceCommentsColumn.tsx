@@ -70,6 +70,12 @@ export interface WorkspaceCommentsColumnProps {
   onClose?(): void;
   /** Reports whether a remark or reply is typed and not sent: the editor asks before it takes the column away. */
   onDraftChange?(dirty: boolean): void;
+  /**
+   * The note this column belongs to. A comment being written is held for it:
+   * closing its tab or showing another note in its pane asks first, not only
+   * closing the window (data-safety D5).
+   */
+  notePath?: string;
   /** A `[[wiki link]]` in a remark - the reply "task created" carries one (K4). */
   onOpenNote?(target: string, kind?: "wiki" | "markdown"): void;
   onOpenUrl?(url: string): void;
@@ -147,7 +153,7 @@ export interface WorkspaceCommentsColumnProps {
  */
 export function WorkspaceCommentsColumn({
   comments, memberNames, selfMemberId, resolutions, propertyResolutions, suggestedProperties, canComment, canWrite, activeCommentId, selectionQuote,
-  operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onDraftChange, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
+  operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onDraftChange, notePath, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
   publicationComments = [], muted, onToggleMute, locked, legacyLocked, ai = null,
 }: WorkspaceCommentsColumnProps) {
   const { t, i18n } = useTranslation();
@@ -200,7 +206,9 @@ export function WorkspaceCommentsColumn({
   const dirty = draft.trim() !== "" || replyDraft.trim() !== "";
   // The window is told (closing it or switching the vault asks); the editor is
   // told too, and asks itself when the column is toggled away.
-  useDiscardGuard(dirty, () => {});
+  const noteName = (notePath ?? "").split("/").pop()?.replace(/\.md$/i, "") ?? "";
+  const wording = useMemo(() => ({ title: t("comments.commentDiscardTitle"), keepLabel: t("comments.commentDiscardKeep") }), [t]);
+  useDiscardGuard(dirty, () => {}, t("comments.commentDiscardMessage", { note: noteName }), { path: notePath, wording });
   useEffect(() => {
     onDraftChange?.(dirty);
     return () => onDraftChange?.(false);

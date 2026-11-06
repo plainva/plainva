@@ -15,18 +15,19 @@ import { appConfirm } from "./appDialogs";
  * on screen in the same turn, so an Escape right after it answers it.
  */
 export const desktopDiscardHost: DiscardQuestionHost = {
-  ask: (message) =>
+  ask: (message, wording) =>
     appConfirm({
-      title: i18n.t("mobile.leaveTitle"),
+      title: wording?.title ?? i18n.t("mobile.leaveTitle"),
       message,
       kind: "danger",
       confirmLabel: i18n.t("mobile.leaveDiscard"),
+      ...(wording?.keepLabel ? { cancelLabel: wording.keepLabel } : {}),
     }),
-  hold: (question) => {
+  hold: (question, scope) => {
     let release: (() => void) | null = null;
     let over = false;
     void import("./windowCloseGuard").then(({ holdWindowClose }) => {
-      if (!over) release = holdWindowClose(question);
+      if (!over) release = holdWindowClose(question, scope?.path);
     });
     return () => {
       over = true;
