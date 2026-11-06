@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PimCacheRepository } from "../src/pim/PimCacheRepository.ts";
-import type { BatchStatement, IDatabaseAdapter } from "../src/db/IDatabaseAdapter.ts";
+import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.ts";
 import { initializeSchema } from "../src/db/Schema.ts";
 import type { PimEvent } from "../src/pim/types.ts";
 
@@ -45,8 +45,8 @@ class FileSqliteAdapter implements IDatabaseAdapter {
     return ((this.db.prepare(sql).all(...(params as never[])) as T[])[0] ?? null) as T | null;
   }
   /** What the desktop adapter's `transaction()` is: a queue, no BEGIN. */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return fn();
+  async transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
+    return fn(this);
   }
   /** What `db_batch` is: BEGIN, every statement, COMMIT — ROLLBACK on error. */
   async runBatch(statements: BatchStatement[]): Promise<void> {

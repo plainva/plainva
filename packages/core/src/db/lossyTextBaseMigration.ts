@@ -66,12 +66,12 @@ async function readVersion(db: IDatabaseAdapter): Promise<number> {
 export async function flagLossyTextBases(db: IDatabaseAdapter): Promise<number | null> {
   if ((await readVersion(db)) >= LOSSY_TEXT_BASE_VERSION) return null;
   let flagged = 0;
-  await db.transaction(async () => {
+  await db.transaction(async (tx) => {
     const where = `remote_etag IS NOT NULL AND base_text IS NOT NULL AND instr(base_text, ?) > 0`;
-    const count = await db.queryOne<{ n?: number; N?: number }>(`SELECT COUNT(*) AS n FROM sync_state WHERE ${where}`, [REPLACEMENT_CHARACTER]);
+    const count = await tx.queryOne<{ n?: number; N?: number }>(`SELECT COUNT(*) AS n FROM sync_state WHERE ${where}`, [REPLACEMENT_CHARACTER]);
     flagged = Number(count?.n ?? count?.N ?? 0);
-    if (flagged > 0) await db.execute(`UPDATE sync_state SET recheck = 1 WHERE ${where}`, [REPLACEMENT_CHARACTER]);
-    await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('lossy_text_base_version', ?)`, [String(LOSSY_TEXT_BASE_VERSION)]);
+    if (flagged > 0) await tx.execute(`UPDATE sync_state SET recheck = 1 WHERE ${where}`, [REPLACEMENT_CHARACTER]);
+    await tx.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('lossy_text_base_version', ?)`, [String(LOSSY_TEXT_BASE_VERSION)]);
   });
   return flagged;
 }

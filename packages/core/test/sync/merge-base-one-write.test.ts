@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { realSqlite } from "../helpers/realSqlite.js";
+import { onEveryWrite, realSqlite } from "../helpers/realSqlite.js";
 import { byteExactDav, type ByteExactDav } from "../helpers/byteExactDav.js";
 import { LocalVaultAdapter } from "../../src/vault/LocalVaultAdapter.js";
 import { BackupVaultAdapter } from "../../src/vault/BackupVaultAdapter.js";
@@ -16,6 +16,7 @@ import { SyncWorker } from "../../src/sync/SyncWorker.js";
 import { WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
 import type { ISyncTarget, SyncContentRef, SyncOperation } from "../../src/sync/ISyncTarget.js";
 import type { IVaultAdapter } from "../../src/vault/IVaultAdapter.js";
+import type { IDatabaseAdapter, SqlStatements } from "../../src/db/IDatabaseAdapter.js";
 
 /**
  * The merge base of a file: the version this device and the remote last
@@ -60,9 +61,29 @@ const windows1252 = (text: string) => [...text].map((char) => char.charCodeAt(0)
 
 type Row = { local_sha256: string | null; base_sha256: string | null; base_etag: string | null; base_text: string | null; remote_etag: string | null };
 
-async function device(dav: ByteExactDav, options: { indexerFiles?: (raw: LocalVaultAdapter) => IVaultAdapter } = {}) {
+/**
+ * The desktop's manners (`TauriDatabaseAdapter`): a transaction is a turn
+ * without a rollback, its body's handle the adapter itself, and a statement
+ * from elsewhere lands while it runs.
+ */
+function desktopLike(inner: IDatabaseAdapter): IDatabaseAdapter {
+  let last: Promise<unknown> = Promise.resolve();
+  const db: IDatabaseAdapter = {
+    ...inner,
+    keepsWhatAFailedTransactionWrote: true,
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
+      const run = last.then(() => fn(db));
+      last = run.catch(() => undefined);
+      return run;
+    },
+  };
+  return db;
+}
+
+async function device(dav: ByteExactDav, options: { indexerFiles?: (raw: LocalVaultAdapter) => IVaultAdapter; desktop?: boolean } = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-base-"));
-  const db = await realSqlite();
+  const sqlite = await realSqlite();
+  const db = options.desktop ? desktopLike(sqlite) : sqlite;
   closers.push(async () => {
     await db.close();
     await fs.rm(root, { recursive: true, force: true });
@@ -70,14 +91,14 @@ async function device(dav: ByteExactDav, options: { indexerFiles?: (raw: LocalVa
   // The app ends right after the first statement that writes a merge base,
   // while armed: every statement after it fails, as nothing after it would
   // have run.
-  const execute = db.execute.bind(db);
   let armed = false;
   let ended = false;
-  db.execute = async (sql: string, params?: unknown[]) => {
+  // Every write: one sent to the adapter, and one through a transaction's handle (D3).
+  onEveryWrite(db, async (sql, _params, run) => {
     if (ended) throw new Error("the app ended here");
-    await execute(sql, params);
+    await run();
     if (armed && /sync_state/.test(sql) && /\bbase_(sha256|text)\b/.test(sql)) ended = true;
-  };
+  });
   const raw = new LocalVaultAdapter(root);
   await raw.initialize();
   const backup = new BackupVaultAdapter(raw);
@@ -236,8 +257,12 @@ describe("a full index pass and a first upload that ends while it runs (Sammelpl
     const w = world();
     let upload: (() => Promise<void>) | null = null;
     // The pass has taken its look at the sync rows; while it reads the file,
-    // the file's first upload ends — its base is the version it uploaded.
+    // the file's first upload ends — its base is the version it uploaded. On
+    // the desktop, whose transaction is a turn without a rollback, the
+    // upload's statement lands while the pass runs. (On the phone it waits
+    // for the pass and lands after it, Datensicherheit D3: the test below.)
     const a = await device(w.dav, {
+      desktop: true,
       indexerFiles: (raw) => new Proxy(raw, {
         get(target, key, receiver) {
           const value = Reflect.get(target, key, receiver);
@@ -268,6 +293,43 @@ describe("a full index pass and a first upload that ends while it runs (Sammelpl
     expect(row.base_sha256).toBe(await sha256(utf8(first)));
     expect(row.base_text).toBe(first);
     expect(await holdsOneVersion(row)).toBe(true);
+  });
+
+  it("on the phone the upload's base waits for the pass, and is not rolled back with it (Datensicherheit D3)", async () => {
+    const w = world();
+    let upload: (() => Promise<void>) | null = null;
+    let landed: Promise<void> | null = null;
+    const a = await device(w.dav, {
+      indexerFiles: (raw) => new Proxy(raw, {
+        get(target, key, receiver) {
+          const value = Reflect.get(target, key, receiver);
+          if (key !== "readBinaryFile" && key !== "readTextFile") return typeof value === "function" ? value.bind(target) : value;
+          return async (p: string) => {
+            if (p === "Note.md" && upload) {
+              // Sent while the pass reads, and not waited for: another flow.
+              landed = upload();
+              upload = null;
+            }
+            return (value as (p: string) => Promise<unknown>).call(target, p);
+          };
+        },
+      }),
+    });
+    const first = "first\n", later = "first\nchanged since\n";
+    await a.put("Note.md", utf8(later));
+    upload = async () => {
+      await a.db.execute(
+        `INSERT INTO sync_state (path, local_sha256, base_sha256, base_etag, remote_etag, base_text) VALUES (?, ?, ?, 'e1', 'e1', ?)
+         ON CONFLICT(path) DO UPDATE SET local_sha256 = excluded.local_sha256, base_sha256 = excluded.base_sha256,
+           base_etag = excluded.base_etag, remote_etag = excluded.remote_etag, base_text = excluded.base_text`,
+        ["Note.md", await sha256(utf8(first)), await sha256(utf8(first)), first]);
+    };
+    await a.index();
+    expect(landed).not.toBeNull();
+    await landed;
+    const row = (await a.row("Note.md"))!;
+    expect(row.base_sha256).toBe(await sha256(utf8(first)));
+    expect(row.base_text).toBe(first);
   });
 });
 

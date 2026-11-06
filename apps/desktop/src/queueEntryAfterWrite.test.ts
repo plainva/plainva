@@ -7,7 +7,7 @@ import { join } from "node:path";
 import ts from "typescript";
 import {
   BackupVaultAdapter, ConflictAwareVaultAdapter, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository,
-  formatQueueEntryReport, type IDatabaseAdapter, type QueueEntryReport,
+  formatQueueEntryReport, type IDatabaseAdapter, type SqlStatements, type QueueEntryReport,
 } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../packages/core/test/helpers/realSqlite";
@@ -65,8 +65,9 @@ function desktopDatabase(inner: IDatabaseAdapter) {
     },
     query: (sql, params) => inner.query(sql, params),
     queryOne: (sql, params) => inner.queryOne(sql, params),
-    transaction<T>(fn: () => Promise<T>): Promise<T> {
-      const turn = tail.then(fn);
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
+      // A turn, not a transaction, as on the desktop: the body's handle is this adapter.
+      const turn = tail.then(() => fn(database));
       tail = turn.catch(() => {});
       return turn;
     },

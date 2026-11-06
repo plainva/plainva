@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { realSqlite } from "./helpers/realSqlite.js";
+import { beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
 import { VaultError, VaultFileNotFoundError, type VaultFileInfo } from "../src/vault/IVaultAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
@@ -239,10 +239,9 @@ describe("a full scan that fails says so, once (issue #125)", () => {
     const scans: string[] = [];
     indexer = new VaultIndexer(vault, db, { scanSignal: closing.signal, onFullScan: (info) => void scans.push(info.trigger) });
     // Past its last look at the signal: the vault closes while the scan writes.
-    const execute = db.execute.bind(db);
-    db.execute = async (sql, params) => { closing.abort(); return execute(sql, params); };
+    const restore = beforeEveryWrite(db, () => { closing.abort(); });
     const report = await indexer.indexVaultFull("open, empty index");
-    db.execute = execute;
+    restore();
     expect(report.added).toBeGreaterThan(0);
     expect(scans).toEqual([]);
   });

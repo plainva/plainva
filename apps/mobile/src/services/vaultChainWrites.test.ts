@@ -619,7 +619,7 @@ async function phoneDatabase(platform: PhonePlatform): Promise<IDatabaseAdapter>
       onAsk?.();
       return inner.transaction(fn);
     },
-    runBatch: (statements, options) => inner.runBatch(statements, options),
+    runBatch: (statements) => inner.runBatch!(statements),
   };
 }
 

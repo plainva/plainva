@@ -43,13 +43,13 @@ export class SyncQueue {
    * that needs a person every cycle.
    */
   async queueWrite(path: string, options?: { force?: boolean; supersedeRefused?: boolean }): Promise<void> {
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (tx) => {
       // Coalesce: a newer write supersedes earlier still-pending writes of the same
       // file, so the queue does not grow unbounded with redundant full-content rows
       // during local editing. Skip coalescing when a structural op (rename/delete)
       // for the same file is already queued, since then the relative order of
       // operations must be preserved.
-      const structural = await this.db.queryOne<{ id: number }>(
+      const structural = await tx.queryOne<{ id: number }>(
         `SELECT id FROM offline_queue
          WHERE file_path = ? AND operation IN ('rename', 'delete')
          LIMIT 1`,
@@ -60,7 +60,7 @@ export class SyncQueue {
         // like any pending one: the newer write carries the newer content and
         // asks the remote afresh — the answer to a held deletion ("keep it
         // here"), the next edit. Left in place, it blocked them.
-        await this.db.execute(
+        await tx.execute(
           `DELETE FROM offline_queue
            WHERE file_path = ? AND operation = 'write'
              AND (COALESCE(requires_manual_intervention, 0) = 0 OR (? = 1 AND last_error LIKE ?))`,
@@ -69,13 +69,13 @@ export class SyncQueue {
       }
 
       // Add to offline_queue
-      await this.db.execute(
+      await tx.execute(
         `INSERT INTO offline_queue (file_path, operation, queued_at, force) VALUES (?, ?, ?, ?)`,
         [path, "write", Date.now(), options?.force ? 1 : 0]
       );
 
       // Update sync_state in files table
-      await this.db.execute(
+      await tx.execute(
         `UPDATE files SET sync_state = 'local_ahead' WHERE path = ?`,
         [path]
       );
@@ -94,26 +94,26 @@ export class SyncQueue {
   /** One successful recursive delete records its actual children atomically. */
   async queueDeletePaths(paths: ReadonlyArray<string>, confirmation?: DeletionConfirmation): Promise<void> {
     const at = Date.now();
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (tx) => {
       for (const path of new Set(paths)) {
         if (!confirmation?.confirmed) {
-          const existing = await this.db.queryOne<{ id: number }>(
+          const existing = await tx.queryOne<{ id: number }>(
             `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'delete' ORDER BY id DESC LIMIT 1`,
             [path]
           );
           if (existing) {
-            const later = await this.db.query<SyncOperation>(
+            const later = await tx.query<SyncOperation>(
               `SELECT * FROM offline_queue WHERE id > ? AND operation IN ('write', 'mkdir', 'rename')`,
               [existing.id]
             );
             if (!later.some((op) => endpoints(op).some((p) => overlaps(p, path)))) continue;
           }
         }
-        await this.db.execute(
+        await tx.execute(
           `INSERT INTO offline_queue (file_path, operation, queued_at, delete_confirmed_at) VALUES (?, ?, ?, ?)`,
           [path, "delete", at, confirmation?.confirmed ? at : null]
         );
-        await this.db.execute(
+        await tx.execute(
           `UPDATE files SET sync_state = 'local_ahead', is_deleted = 1 WHERE path = ?`,
           [path]
         );
@@ -126,27 +126,27 @@ export class SyncQueue {
   }
 
   async markDeletesJournaled(ids: ReadonlyArray<number>): Promise<void> {
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (tx) => {
       for (const id of ids) {
-        await this.db.execute(`UPDATE offline_queue SET delete_journaled = 1 WHERE id = ? AND operation = 'delete'`, [id]);
+        await tx.execute(`UPDATE offline_queue SET delete_journaled = 1 WHERE id = ? AND operation = 'delete'`, [id]);
       }
     });
   }
 
   /** Coalesce repeated creates only while no intervening delete/move starts a new generation. */
   async queueMkdir(path: string): Promise<void> {
-    await this.db.transaction(async () => {
-      const existing = await this.db.queryOne<{ id: number }>(
+    await this.db.transaction(async (tx) => {
+      const existing = await tx.queryOne<{ id: number }>(
         `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'mkdir' ORDER BY id DESC LIMIT 1`,
         [path]
       );
       if (existing) {
-        const later = await this.db.query<SyncOperation>(
+        const later = await tx.query<SyncOperation>(
           `SELECT * FROM offline_queue WHERE id > ? AND operation IN ('delete', 'rename')`, [existing.id]
         );
         if (!later.some((op) => endpoints(op).some((p) => overlaps(p, path)))) return;
       }
-      await this.db.execute(
+      await tx.execute(
         `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
         [path, "mkdir", Date.now()]
       );
@@ -154,7 +154,7 @@ export class SyncQueue {
   }
 
   async queueRename(oldPath: string, newPath: string): Promise<void> {
-    await this.db.transaction(async () => {
+    await this.db.transaction(async (tx) => {
       const oldPrefix = oldPath + "/";
       const newPrefix = newPath + "/";
       const oldLen = oldPath.length;
@@ -162,12 +162,12 @@ export class SyncQueue {
       // Structural operations describe remote history: never rewrite their
       // original source or destination. The MOVE must precede writes of the
       // local content now living at its destination.
-      await this.db.execute(
+      await tx.execute(
         `INSERT INTO offline_queue (file_path, operation, new_path, queued_at) VALUES (?, ?, ?, ?)`,
         [oldPath, "rename", newPath, Date.now()]
       );
 
-      const writes = await this.db.query<{ id: number; file_path: string }>(
+      const writes = await tx.query<{ id: number; file_path: string }>(
         `SELECT id, file_path FROM offline_queue WHERE operation = 'write' ORDER BY id`
       );
       for (const op of writes) {
@@ -176,7 +176,7 @@ export class SyncQueue {
         // New identity also protects against an upload already in flight: its
         // completion/retry refers to the retired ID, never this follow-up write.
         // Preserve age, forced encryption and unresolved failure information.
-        await this.db.execute(
+        await tx.execute(
           `INSERT INTO offline_queue
             (file_path, operation, content, queued_at, retry_count, next_retry_at,
              priority, last_error, requires_manual_intervention, force)
@@ -185,14 +185,14 @@ export class SyncQueue {
            FROM offline_queue WHERE id = ?`,
           [path, op.id]
         );
-        await this.db.execute(`DELETE FROM offline_queue WHERE id = ?`, [op.id]);
+        await tx.execute(`DELETE FROM offline_queue WHERE id = ?`, [op.id]);
       }
 
       // 3. Update files table: exact match AND all children (if it was a folder)
       // Setting mtime_local = 0 forces the indexer to re-read the file to update title/FTS properly.
       // Literal, case-sensitive prefix matching. SQL length counts characters
       // consistently with substr, including names containing non-BMP symbols.
-      const files = await this.db.query<{path: string}>(
+      const files = await tx.query<{path: string}>(
         `SELECT path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
         [oldPath, oldPrefix, oldPrefix]
       );
@@ -203,7 +203,7 @@ export class SyncQueue {
         if (p !== oldPath) {
           updatedPath = newPath + p.substring(oldLen);
         }
-        await this.db.execute(
+        await tx.execute(
           `UPDATE files SET path = ?, sync_state = 'local_ahead', mtime_local = 0 WHERE path = ?`,
           [updatedPath, p]
         );
@@ -216,7 +216,7 @@ export class SyncQueue {
       // local content with NO base. The next divergence then had no common
       // ancestor to merge against and was preserved as a .CONFLICT copy instead
       // (issue #48). Same literal prefix as step 3.
-      const states = await this.db.query<{path: string}>(
+      const states = await tx.query<{path: string}>(
         `SELECT path FROM sync_state WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
         [oldPath, oldPrefix, oldPrefix]
       );
@@ -227,8 +227,8 @@ export class SyncQueue {
         // A row can already sit at the target: a file deleted there earlier keeps
         // its state on purpose (the remote delete must still be pushed). The row
         // arriving with the rename is the one that describes this file, so it wins.
-        await this.db.execute(`DELETE FROM sync_state WHERE path = ?`, [updatedPath]);
-        await this.db.execute(`UPDATE sync_state SET path = ? WHERE path = ?`, [updatedPath, p]);
+        await tx.execute(`DELETE FROM sync_state WHERE path = ?`, [updatedPath]);
+        await tx.execute(`UPDATE sync_state SET path = ? WHERE path = ?`, [updatedPath, p]);
       }
     });
   }
@@ -237,20 +237,20 @@ export class SyncQueue {
    * Enqueues write operations for all local files that aren't already queued.
    */
   async enqueueAllLocalFiles(): Promise<void> {
-    await this.db.transaction(async () => {
-      const files = await this.db.query<{ path: string }>('SELECT path FROM files WHERE path NOT LIKE \'.plainva%\'');
+    await this.db.transaction(async (tx) => {
+      const files = await tx.query<{ path: string }>('SELECT path FROM files WHERE path NOT LIKE \'.plainva%\'');
       for (const row of files) {
         // Only enqueue if not already queued
-        const existing = await this.db.queryOne<{ id: number }>(
+        const existing = await tx.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? LIMIT 1`,
           [row.path]
         );
         if (!existing) {
-          await this.db.execute(
+          await tx.execute(
             `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
             [row.path, "write", Date.now()]
           );
-          await this.db.execute(
+          await tx.execute(
             `UPDATE files SET sync_state = 'local_ahead' WHERE path = ?`,
             [row.path]
           );
@@ -271,31 +271,31 @@ export class SyncQueue {
    */
   async enqueueAllForReencrypt(): Promise<number> {
     let n = 0;
-    await this.db.transaction(async () => {
-      const files = await this.db.query<{ path: string }>(
+    await this.db.transaction(async (tx) => {
+      const files = await tx.query<{ path: string }>(
         `SELECT path FROM files WHERE path NOT LIKE '.plainva%' AND path NOT LIKE '%.CONFLICT%'`
       );
       for (const row of files) {
-        const structural = await this.db.queryOne<{ id: number }>(
+        const structural = await tx.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? AND operation IN ('rename', 'delete') LIMIT 1`,
           [row.path]
         );
         if (structural) continue;
-        const pendingWrite = await this.db.queryOne<{ id: number }>(
+        const pendingWrite = await tx.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? AND operation = 'write' LIMIT 1`,
           [row.path]
         );
         if (pendingWrite) {
-          await this.db.execute(
+          await tx.execute(
             `UPDATE offline_queue SET force = 1 WHERE file_path = ? AND operation = 'write'`,
             [row.path]
           );
         } else {
-          await this.db.execute(
+          await tx.execute(
             `INSERT INTO offline_queue (file_path, operation, queued_at, force) VALUES (?, 'write', ?, 1)`,
             [row.path, Date.now()]
           );
-          await this.db.execute(
+          await tx.execute(
             `UPDATE files SET sync_state = 'local_ahead' WHERE path = ?`,
             [row.path]
           );
@@ -420,8 +420,8 @@ export class SyncQueue {
   async discardPendingDeletes(ids?: ReadonlySet<number>): Promise<string[]> {
     if (ids) {
       const rows = (await this.getPendingDeleteOperations()).filter((op) => ids.has(op.id));
-      await this.db.transaction(async () => {
-        for (const row of rows) await this.db.execute(`DELETE FROM offline_queue WHERE id = ? AND operation = 'delete'`, [row.id]);
+      await this.db.transaction(async (tx) => {
+        for (const row of rows) await tx.execute(`DELETE FROM offline_queue WHERE id = ? AND operation = 'delete'`, [row.id]);
       });
       return [...new Set(rows.map((row) => row.file_path))];
     }
@@ -451,8 +451,8 @@ export class SyncQueue {
    * files are pushed. `.plainva`/`.CONFLICT` are excluded (device-local).
    */
   async enqueueLocalOnlyFiles(): Promise<void> {
-    await this.db.transaction(async () => {
-      const files = await this.db.query<{ path: string }>(
+    await this.db.transaction(async (tx) => {
+      const files = await tx.query<{ path: string }>(
         `SELECT f.path FROM files f
          LEFT JOIN sync_state s ON s.path = f.path
          WHERE f.path NOT LIKE '.plainva%'
@@ -462,16 +462,16 @@ export class SyncQueue {
       for (const row of files) {
         // A twin spelling (ADR 0016) is reported by the sync, never uploaded.
         if (isTwinSpelling(row.path)) continue;
-        const existing = await this.db.queryOne<{ id: number }>(
+        const existing = await tx.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? LIMIT 1`,
           [row.path]
         );
         if (!existing) {
-          await this.db.execute(
+          await tx.execute(
             `INSERT INTO offline_queue (file_path, operation, queued_at) VALUES (?, ?, ?)`,
             [row.path, "write", Date.now()]
           );
-          await this.db.execute(
+          await tx.execute(
             `UPDATE files SET sync_state = 'local_ahead' WHERE path = ?`,
             [row.path]
           );
@@ -600,17 +600,17 @@ export class SyncQueue {
    * Removes an operation from the queue once successfully synced.
    */
   async markSynced(queueId: number, originalPath: string, syncedPath: string = originalPath): Promise<void> {
-    await this.db.transaction(async () => {
-      await this.db.execute(`DELETE FROM offline_queue WHERE id = ?`, [queueId]);
+    await this.db.transaction(async (tx) => {
+      await tx.execute(`DELETE FROM offline_queue WHERE id = ?`, [queueId]);
       
-      const pending = await this.db.queryOne(
+      const pending = await tx.queryOne(
         `SELECT id FROM offline_queue
          WHERE file_path = ? OR file_path = ? OR new_path = ?
          LIMIT 1`,
         [originalPath, syncedPath, syncedPath]
       );
       if (!pending) {
-        await this.db.execute(`UPDATE files SET sync_state = 'synced' WHERE path = ?`, [syncedPath]);
+        await tx.execute(`UPDATE files SET sync_state = 'synced' WHERE path = ?`, [syncedPath]);
       }
     });
   }

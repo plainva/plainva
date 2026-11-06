@@ -30,7 +30,7 @@ async function database() {
     async queryOne<T>(sql: string, params: unknown[] = []) { return (sqlite.prepare(sql).get(...params as never[]) ?? null) as T | null; },
     async transaction(fn) {
       sqlite.exec("BEGIN");
-      try { const result = await fn(); sqlite.exec("COMMIT"); return result; }
+      try { const result = await fn(db); sqlite.exec("COMMIT"); return result; }
       catch (error) { sqlite.exec("ROLLBACK"); throw error; }
     },
   };

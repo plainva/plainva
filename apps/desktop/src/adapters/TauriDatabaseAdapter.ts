@@ -1,4 +1,4 @@
-import { BatchStatement, IDatabaseAdapter } from "@plainva/core";
+import { BatchStatement, IDatabaseAdapter, SqlStatements } from "@plainva/core";
 import Database from "@tauri-apps/plugin-sql";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -123,7 +123,13 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
    */
   readonly keepsWhatAFailedTransactionWrote = true;
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  /**
+   * A turn, not a transaction (see `keepsWhatAFailedTransactionWrote`): the
+   * body's handle is the adapter itself. A statement sent to the adapter from
+   * elsewhere meanwhile is committed as it runs — nothing here is rolled back
+   * that it could go down with (Datensicherheit D3 concerns the phone).
+   */
+  async transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
     const unlock = await this.acquireLock();
     try {
       // tauri-plugin-sql uses an sqlx connection pool under the hood.
@@ -133,7 +139,7 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
       // Therefore, we rely purely on the JS Mutex to serialize operations and 
       // let SQLite handle auto-commit per statement. Performance is still good 
       // due to WAL mode.
-      return await fn();
+      return await fn(this);
     } finally {
       unlock();
     }

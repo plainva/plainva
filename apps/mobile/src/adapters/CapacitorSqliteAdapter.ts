@@ -1,7 +1,7 @@
 import type { SQLiteDBConnection } from "@capacitor-community/sqlite";
-import type { BatchOptions, BatchStatement, IDatabaseAdapter } from "@plainva/core";
+import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "@plainva/core";
 import { acquireDatabase, deleteDatabaseFile, releaseDatabase } from "./sqliteConnections";
-import { TransactionTurns } from "./transactionTurns";
+import { TransactionTurns, takeStatement, transactionLabel } from "./transactionTurns";
 
 /** How long `close()` waits for the transactions already asked for before it closes all the same. */
 const CLOSE_WAITS_MS = 10_000;
@@ -16,15 +16,17 @@ const CLOSE_WAITS_MS = 10_000;
  *
  * One connection means one transaction: the plugin refuses a second one while
  * one is open, so transactions — and batches, which are transactions of their
- * own — take turns here (transactionTurns.ts). The connection and its turns
- * come from `sqliteConnections.ts`, which every database of the phone opens
- * through: a second adapter on one name shares both.
+ * own — take turns here (transactionTurns.ts). So does a single write sent to
+ * the adapter itself (Datensicherheit D3): on this connection it used to run
+ * in whichever transaction was open, and was rolled back with it. A
+ * transaction's body runs its statements through the handle it is given. The
+ * connection and its turns come from `sqliteConnections.ts`, which every
+ * database of the phone opens through: a second adapter on one name shares
+ * both.
  */
 export class CapacitorSqliteAdapter implements IDatabaseAdapter {
   private db: SQLiteDBConnection | null = null;
   private turns = new TransactionTurns();
-  /** The body of a `transaction()` is running, between its BEGIN and its COMMIT or ROLLBACK. `runBatch` reads it. */
-  private inTransaction = false;
 
   constructor(private readonly dbName: string) {}
 
@@ -75,10 +77,14 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
     return this.db;
   }
 
+  /** A write of its own, in its turn: after the transaction that is open, never inside it. */
   async execute(query: string, params?: any[] | Record<string, any>): Promise<void> {
-    await this.conn().run(query, toPositional(params), false);
+    await takeStatement(this.turns, async () => {
+      await this.conn().run(query, toPositional(params), false);
+    });
   }
 
+  /** A read takes no turn: nothing of it can be rolled back, and a search must not wait for a full scan. */
   async query<T = any>(query: string, params?: any[] | Record<string, any>): Promise<T[]> {
     const res = await this.conn().query(query, toPositional(params));
     return (res.values ?? []) as T[];
@@ -91,19 +97,21 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
 
   /**
    * A real transaction, in its turn: it waits for the one that is open instead
-   * of being refused by the plugin. Its body must not open another one and
-   * wait for it — that one would wait for this turn (transactionTurns.ts).
+   * of being refused by the plugin. Its body runs its statements through `tx`,
+   * on the connection, inside this transaction; `tx` ends with the body. The
+   * body must not open another transaction and wait for it, nor send a write
+   * to the adapter itself — either would wait for this turn (transactionTurns.ts).
    */
-  transaction<T>(fn: () => Promise<T>): Promise<T> {
+  transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
     return this.turns.take(async () => {
       const db = this.conn();
       await db.beginTransaction();
-      this.inTransaction = true;
+      const handle = openHandle(db);
       let result: T;
       try {
-        result = await fn();
+        result = await fn(handle.tx);
       } catch (err) {
-        this.inTransaction = false;
+        handle.end();
         try {
           await db.rollbackTransaction();
         } catch {
@@ -111,7 +119,7 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
         }
         throw err;
       }
-      this.inTransaction = false;
+      handle.end();
       try {
         await db.commitTransaction();
       } catch (err) {
@@ -125,7 +133,7 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
         throw err;
       }
       return result;
-    });
+    }, transactionLabel());
   }
 
   /**
@@ -149,24 +157,47 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
    * transaction is open, which was the other flow's — that flow ran on
    * outside any transaction and failed at its COMMIT.
    *
-   * The one batch that is NOT a turn is the one its caller sends from inside
-   * the body of its own `transaction()` and says so (`inOpenTransaction`; the
-   * indexer's full scan flushes there). SQLite has no nested transactions:
-   * its statements run one by one in the transaction that is open and are
-   * committed or rolled back with it. Without that word such a batch would
-   * wait for the turn its own caller holds.
+   * A batch from inside a transaction's body goes through its handle (`tx`),
+   * which runs the statements one by one in that transaction (the indexer's
+   * full scan flushes there). SQLite has no nested transactions.
    */
-  async runBatch(statements: BatchStatement[], options?: BatchOptions): Promise<void> {
+  async runBatch(statements: BatchStatement[]): Promise<void> {
     if (statements.length === 0) return;
-    if (options?.inOpenTransaction && this.inTransaction) {
-      for (const s of statements) await this.execute(s.sql, s.params);
-      return;
-    }
     const set = statements.map((s) => ({ statement: s.sql, values: toPositional(s.params) }));
     await this.turns.take(async () => {
       await this.conn().executeSet(set, true);
     }, "batch");
   }
+}
+
+/**
+ * The handle a transaction's body runs its statements through: straight on the
+ * connection, inside the transaction that is open. Once the body has ended it
+ * throws — a statement sent through it later would run outside any turn, in
+ * whatever transaction is open then.
+ */
+function openHandle(db: SQLiteDBConnection): { tx: SqlStatements; end: () => void } {
+  let open = true;
+  const live = (): SQLiteDBConnection => {
+    if (!open) throw new Error("This transaction is over: its handle runs no more statements");
+    return db;
+  };
+  const query = async <T,>(sql: string, params?: any[] | Record<string, any>): Promise<T[]> =>
+    ((await live().query(sql, toPositional(params))).values ?? []) as T[];
+  const tx: SqlStatements = {
+    async execute(sql, params) {
+      await live().run(sql, toPositional(params), false);
+    },
+    query,
+    async queryOne<T>(sql: string, params?: any[] | Record<string, any>) {
+      const rows = await query<T>(sql, params);
+      return rows.length > 0 ? rows[0] : null;
+    },
+    async runBatch(statements) {
+      for (const s of statements) await live().run(s.sql, toPositional(s.params), false);
+    },
+  };
+  return { tx, end: () => { open = false; } };
 }
 
 function toPositional(params?: any[] | Record<string, any>): any[] {

@@ -30,7 +30,7 @@ import { performance } from "node:perf_hooks";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
-import { BatchStatement, IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
+import { BatchStatement, IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
 import { initializeSchema } from "../src/db/Schema.js";
 
 // ---- node:sqlite availability gate (Node >= 22.5) --------------------------
@@ -104,7 +104,7 @@ class NodeSqliteAdapter implements IDatabaseAdapter {
     const rows = this.db.prepare(sql).all(...(params as never[])) as T[];
     return rows[0] ?? null;
   }
-  async transaction<T>(callback: (tx: IDatabaseAdapter) => Promise<T>): Promise<T> {
+  async transaction<T>(callback: (tx: SqlStatements) => Promise<T>): Promise<T> {
     this.db.exec("BEGIN");
     try {
       const result = await callback(this);
