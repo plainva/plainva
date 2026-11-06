@@ -11,6 +11,8 @@ export interface AiDockProps {
   onOpenUrl: (url: string, composed?: boolean) => void;
   onOpenSettings: () => void;
   onPickNote?: () => void;
+  /** Opens the conversation where a waiting question has room (plan KI-Oberflächen E4b). */
+  onOpenRoomy?: () => void;
 }
 
 /**
@@ -20,10 +22,10 @@ export interface AiDockProps {
  * never the conversation. A 250-px column: the thread keeps a bounded height,
  * so the section scrolls inside and the sidebar around it stays put.
  */
-export function AiDockSection({ activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote }: AiDockProps) {
+export function AiDockSection({ activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, onOpenRoomy }: AiDockProps) {
   return (
     <div className="pv-ai-dock" data-testid="ai-dock">
-      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} onOpenRoomy={onOpenRoomy} />
     </div>
   );
 }

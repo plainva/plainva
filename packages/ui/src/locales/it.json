@@ -1,12 +1,40 @@
 {
   "ai": {
+    "start": {
+      "skillsAndMemory": "Competenze e memoria",
+      "allConversations": "Tutte le conversazioni",
+      "recent": "Recenti"
+    },
+    "waitingCount_other": "{{count}} da decidere",
+    "waitingCount_many": "{{count}} da decidere",
+    "waitingCount_one": "{{count}} da decidere",
+    "pending": {
+      "answerFirst": "Rispondi prima alla domanda qui sopra",
+      "short": "Una domanda aspetta la tua risposta.",
+      "open": "Apri nella finestra"
+    },
+    "sentShort_other": "A {{provider}} · {{count}} note",
+    "sentShort_many": "A {{provider}} · {{count}} di note",
+    "sentShort_one": "A {{provider}} · {{count}} nota",
+    "details": "Dettagli",
+    "copied": "Risposta copiata",
+    "copy": "Copia",
+    "placeholderNote": "Fai una domanda su «{{title}}» o sul tuo vault…",
+    "setup": {
+      "chooseModel": "Scegli modello",
+      "modelBody": "Scegli quale modello usa «{{profile}}» — il profilo con cui iniziano le nuove conversazioni.",
+      "modelTitle": "Ancora nessun modello per le nuove conversazioni",
+      "bodyPhone": "Scegli un provider e salva la sua chiave — oppure usa senza chiave il modello del tuo telefono.",
+      "bodyDesktop": "Scegli un provider e salva la sua chiave — oppure usa un modello su questo dispositivo (Ollama, LM Studio).",
+      "title": "Ancora nessun modello"
+    },
     "title": "IA",
     "ask": "Chiedi all'IA",
     "newConversation": "Nuova conversazione",
     "openAsTab": "Apri come scheda",
-    "companion": "Compagno IA",
+    "companion": "Finestra IA",
     "marking": "Le risposte sono scritte da un'IA — {{model}} tramite {{provider}}. Verificale con le fonti.",
-    "placeholder": "Fai una domanda su questa nota o sul tuo vault…",
+    "placeholder": "Fai una domanda sul tuo vault…",
     "send": "Invia",
     "stop": "Interrompi",
     "context": "Contesto",
@@ -63,6 +91,7 @@
       "delete_note": "Sta chiedendo di eliminare una nota"
     },
     "snapshot": {
+      "replayAction": "La stessa domanda a un altro modello…",
       "asked": "Domanda posta",
       "read": "Letto dagli strumenti",
       "readHit": "trovata da una ricerca",
@@ -112,6 +141,7 @@
       "open": "Apri l'originale"
     },
     "style": {
+      "chip": "Il mio stile",
       "title": "Stile di scrittura",
       "examples": "Esempi",
       "examplesHint": "Note scritte da te — fino a {{max}}.",
@@ -128,8 +158,6 @@
       "device": "Lo stile di scrittura resta su questo dispositivo, non nel vault. Non entra in nessuna conversazione finché non scegli lì «Il mio stile».",
       "toggleOn": "Il mio stile: attivo per questa conversazione",
       "toggleOff": "Il mio stile: scrivi questa conversazione nel tuo stile di scrittura",
-      "activeOn": "Il mio stile: questa conversazione porta il tuo stile di scrittura",
-      "activeOff": "Il mio stile: questa conversazione è iniziata senza",
       "fixed": "Che una conversazione porti il tuo stile di scrittura si decide quando inizia. Inizia una nuova conversazione per cambiarlo.",
       "marking_one": "Con il tuo stile di scrittura · {{count}} tratto",
       "marking_many": "Con il tuo stile di scrittura · {{count}} tratti",
@@ -213,28 +241,38 @@
     },
     "stopped": {
       "cancelled": "Interrotto.",
-      "limit": "Questa esecuzione ha raggiunto il suo limite e si è interrotta.",
+      "limit": "Questa esecuzione ha raggiunto il limite ed è stata fermata.",
       "loop": "Interrotto: la stessa ricerca continuava a ripetersi.",
       "circuit": "Interrotto: tre strumenti hanno fallito uno dopo l'altro.",
       "maxTokens": "La risposta è stata troncata al limite di lunghezza.",
-      "refusal": "Il modello ha rifiutato di rispondere."
+      "refusal": "Il modello ha rifiutato la richiesta."
     },
     "error": {
+      "sender": {
+        "plainva": "Plainva",
+        "provider": "Provider",
+        "network": "Rete",
+        "device": "Dispositivo"
+      },
+      "deviceOffline": "Questo dispositivo è offline. Appena torna in rete, invia di nuovo la domanda.",
+      "newKey": "Inserisci una nuova chiave",
+      "providerErrorShort": "{{provider}} segnala un errore.",
+      "refusedShort": "{{provider}} ha rifiutato la richiesta.",
       "noKey": "Nessuna chiave è salvata per {{provider}}.",
-      "invalidKey": "{{provider}} non ha accettato la chiave.",
+      "invalidKey": "{{provider}} non ha accettato la chiave. È scaduta o è sbagliata.",
       "rateLimited": "{{provider}} sta limitando le richieste in questo momento. Riprova tra poco oppure scegli un altro profilo.",
       "overloaded": "{{provider}} è sovraccarico in questo momento. Riprova tra poco.",
       "contextTooLong": "Questa conversazione è troppo lunga per il modello. Inizia una nuova conversazione.",
-      "notFound": "{{provider}} non conosce il modello «{{model}}».",
+      "notFound": "{{provider}} non conosce il modello «{{model}}». Scegli un altro modello.",
       "refused": "{{provider}} ha rifiutato la richiesta: {{message}}",
       "unknownEndpoint": "Questo server non è configurato su questo dispositivo. Aggiungilo di nuovo nelle impostazioni.",
       "offline": "Impossibile raggiungere {{provider}}.",
       "offlineHere": "{{provider}} non risponde su questo dispositivo. Il server è in esecuzione?",
-      "streamBroken": "La connessione si è interrotta a metà della risposta.",
+      "streamBroken": "La connessione si è interrotta a metà della risposta. Invia di nuovo la domanda.",
       "streamBrokenHere": "{{provider}} non risponde più. Forse il server si è fermato, oppure il modello è troppo grande per questo dispositivo.",
       "providerError": "{{provider}} ha segnalato un errore: {{message}}",
       "keptOnDevice": "Questa conversazione si è svolta con un modello su questo dispositivo. Ciò che ha letto non è mai stato controllato per un cloud, quindi resta qui. Inizia una nuova conversazione per {{provider}}.",
-      "localOnly": "«Completamente locale» è attivo e {{provider}} non è questo dispositivo. Non è stato inviato nulla.",
+      "localOnly": "«Completamente locale» è attivo e {{provider}} non gira su questo dispositivo. Non è stato inviato nulla. Scegli un modello su questo dispositivo, oppure disattiva «Completamente locale».",
       "windowTooSmall": "Per questa richiesta servono circa {{needed}} token; la finestra indicata per {{model}} è di {{window}}. Non è stato inviato nulla. Aumenta la finestra sul server e nel profilo, disattiva «Può chiamare strumenti» per questo modello oppure escludi alcune note.",
       "openSetup": "Apri le impostazioni",
       "platform": {
@@ -251,14 +289,16 @@
       }
     },
     "empty": {
+      "startBodyVault": "Su qualsiasi cosa nel tuo vault. L'IA non cambia nulla da sola: ciò che cambierebbe te lo presenta come proposta.",
+      "setupBodyPhone": "Scegli un provider e salva la sua chiave — oppure usa senza chiave il modello del tuo telefono.",
       "setupTitle": "Configura l'IA",
-      "setupBody": "Scegli un provider e salva una chiave — oppure usa un modello che funziona su questo computer.",
+      "setupBody": "Scegli un provider e salva la sua chiave — oppure usa un modello su questo dispositivo (Ollama, LM Studio).",
       "setupAction": "Configura",
       "offTitle": "Plainva IA è spenta su questo dispositivo",
       "offBody": "Attivala nelle impostazioni. Non viene inviato nulla finché non fai una domanda.",
       "offAction": "Apri le impostazioni",
       "startTitle": "Fai una domanda",
-      "startBody": "Sulla nota aperta o su qualsiasi cosa nel tuo vault. L'assistente non cambia nulla da solo: per un passaggio che selezioni, propone modifiche come proposte.",
+      "startBody": "Sulla nota aperta o su qualsiasi cosa nel tuo vault. L'IA non cambia nulla da sola: ciò che cambierebbe te lo presenta come proposta.",
       "mainWindowOnly": "L'IA funziona nella finestra principale.",
       "noVault": "Apri un vault per fare domande sulle tue note."
     },
@@ -275,13 +315,30 @@
       "clearSearch": "Cancella ricerca"
     },
     "settings": {
-      "sectionApp": "Vale per Plainva su questo dispositivo, in ogni vault: provider, chiavi, modelli.",
-      "sectionVault": "Per questo vault: le regole sulla privacy, che lo accompagnano, e ciò che l'IA può usare qui: Internet, strumenti esterni, competenze e memoria.",
+      "modelOwnId": "ID modello personale",
+      "modelNoList": "Il provider qui non fornisce un elenco. Inserisci sotto l'ID del modello.",
+      "modelSearch": "Cerca modelli",
+      "internetOff": "Internet disattivato",
+      "internetOn": "Internet attivo",
+      "vaultOff": "L'IA è disattivata su questo dispositivo. Quanto è indicato qui vale non appena la attivi in Impostazioni → IA.",
+      "nextToNote": "Accanto alla nota aperta",
+      "retry": "Riprova",
+      "historyUsage": "Cronologia e consumo",
+      "privacyVaultNote": "Se l'IA può andare su internet e quali cartelle possono andare a un provider si imposta per vault in «IA in questo vault».",
+      "privacy": "Privacy",
+      "changeModel": "Cambia modello",
+      "makeDefault": "Usa per le nuove conversazioni",
+      "defaultBadge": "Predefinito",
+      "moreModels": "Altri modelli: audio per le note vocali e il modello della ricerca per significato.",
+      "models": "Modelli",
+      "offNextPhone": "Una volta attivata, scegli un provider e un modello — sul telefono funziona anche senza chiave il modello del sistema. Non viene inviato nulla finché non fai una domanda.",
+      "offNextDesktop": "Una volta attivata, scegli un provider e un modello — oppure un modello su questo dispositivo (Ollama, LM Studio). Non viene inviato nulla finché non fai una domanda.",
+      "vaultTitle": "IA in questo vault",
+      "sectionApp": "Vale per Plainva su questo dispositivo, in ogni vault: provider, modelli e ciò che l'IA può fare qui.",
+      "sectionVault": "Per questo vault: se l'IA può andare su internet, cosa può lasciare il vault, strumenti esterni, routine, competenze e memoria.",
       "betaTitle": "Plainva IA (Beta)",
       "betaSwitch": "Usa l'IA su questo dispositivo",
-      "betaDesc": "Vale solo per questo dispositivo. Senza l'interruttore non ci sono il pulsante IA, la scheda o il compagno.",
-      "providers": "Provider",
-      "providersHint": "Ogni provider può essere scelto. Plainva indica le loro condizioni e i tempi di conservazione — non ne esclude nessuno.",
+      "betaDesc": "Vale solo per questo dispositivo. Finché è disattivata, non c'è alcun pulsante IA né area IA, e non viene inviato nulla.",
       "addProvider": "Aggiungi provider",
       "keyStored": "Chiave salvata su questo dispositivo",
       "noKey": "Nessuna chiave",
@@ -306,8 +363,7 @@
       "keysBody": "Nell'archivio sicuro di questo dispositivo, vincolate al loro scopo. La connessione IA nativa di Plainva le inserisce essa stessa in ogni richiesta — né l'IA né l'interfaccia le vedono mai.",
       "profiles": "Modelli e profili",
       "profilesHint": "I profili sono una tua assegnazione. Plainva non definisce nessun modello «il migliore»; puoi usare qualsiasi ID modello accettato dal provider.",
-      "profileEmpty": "non impostato",
-      "defaultProfile": "Predefinito per le nuove conversazioni",
+      "profileEmpty": "non configurato",
       "modelTitle": "Modello per «{{profile}}»",
       "provider": "Provider",
       "model": "Modello",
@@ -319,7 +375,6 @@
       "modelWindowInvalid": "Un numero intero tra {{min}} e {{max}}, oppure vuoto.",
       "modelTools": "Può chiamare strumenti",
       "modelToolsDesc": "Disattivato: il modello non riceve strumenti e risponde in base a ciò che viene inviato insieme alla richiesta — come il modello del sistema su un telefono.",
-      "modelToolsNo": "Non fornire strumenti",
       "modelFactsHint": "Entrambe le impostazioni valgono per questa scelta di modello su questo dispositivo. Per i provider cloud Plainva prende i valori dalla loro lista.",
       "profileWindow": "finestra {{tokens}}",
       "profileNoTools": "senza strumenti",
@@ -340,15 +395,14 @@
       "usageSaved": "Risparmiato con la scelta e l'accorciamento: ~{{tokens}} token",
       "change": "Cambia",
       "experimental": "Sperimentale: l'IA è ancora in fase di sviluppo e collaudo, e le risposte possono essere sbagliate. Verificale con le note che citano.",
-      "title": "IA e automazione",
-      "sending": "Invio",
+      "title": "IA",
       "confirmEvery": "Chiedi prima di ogni richiesta",
       "confirmEveryDesc": "Mostra cosa esce prima di ogni messaggio, non solo la prima volta e quando si amplia. Per un modello su questo dispositivo non chiede mai.",
       "audioHint": "Trascrive le note vocali. Serve un provider con una via audio: OpenAI, Gemini o un server compatibile.",
       "feedback": "Feedback sull'IA (beta)",
       "feedbackDesc": "Dicci cosa funziona e cosa no, nelle discussioni del progetto su GitHub.",
       "feedbackOpen": "Apri discussioni",
-      "embeddingHint": "Il modello con cui calcola la ricerca per significato quando scegli «Provider proprio» in Ricerca semantica. Funziona qualsiasi modello che il provider offre per gli embedding.",
+      "embeddingHint": "Il modello con cui calcola la ricerca per significato quando lì scegli «Provider personale». Funziona qualsiasi modello che il provider offra per la ricerca.",
       "onDevice": "Su questo dispositivo — senza chiave, nulla ne esce",
       "onDeviceReady": "Pronto su questo dispositivo · finestra di circa {{tokens}} token",
       "checkPlatform": "Verifica disponibilità",
@@ -370,7 +424,7 @@
       "customUrlHint": "https://…/v1 — http semplice solo per un server su questo dispositivo.",
       "invalidUrl": "Non è un indirizzo utilizzabile. Http semplice funziona solo per un server su questo dispositivo.",
       "confirmTitle": "Aggiungi un server IA",
-      "confirmMessage": "L'assistente di Plainva invierà le tue richieste e il contesto che approvi a questo indirizzo. Aggiungi solo server di cui ti fidi.",
+      "confirmMessage": "L'IA di Plainva invierà a questo indirizzo le tue richieste e il contesto che approvi. Aggiungi solo server di cui ti fidi.",
       "confirmAction": "Aggiungi",
       "declined": "Il server non è stato aggiunto.",
       "noKeyTitle": "Non ho ancora una chiave",
@@ -394,16 +448,18 @@
       "strong": "Potente",
       "local": "Locale",
       "audio": "Audio",
-      "embedding": "Embedding"
+      "embedding": "Modello di ricerca"
     },
     "policy": {
-      "title": "Regole sulla privacy (plainva.ai)",
+      "columns": "Cartella",
+      "webOff": "Internet disattivato",
+      "title": "Cosa può lasciare questo vault",
       "desc": "Una regola si trova nel frontmatter di una nota o, per un'intera cartella, in .agent/policy.yml. Una nota tenuta lontana dal cloud non contribuisce con nulla — né testo né titolo — e i link ad essa vengono trattenuti.",
       "vaultDefault": "Predefinito del vault",
-      "cloud": "Cloud",
-      "web": "Accesso web",
+      "cloud": "A un provider",
+      "web": "Su internet",
       "allow": "consentito",
-      "deny": "mai",
+      "deny": "non consentito",
       "localAllowed": "I modelli su questo dispositivo restano consentiti.",
       "addFolder": "Aggiungi regola per cartella",
       "folder": "Cartella",
@@ -411,7 +467,7 @@
       "encrypted": "I workspace cifrati tengono il cloud disattivato, a meno che tu non lo consenta lì.",
       "problems": "Plainva non capisce alcune righe di .agent/policy.yml; non hanno effetto: {{lines}}",
       "saved": "Regole sulla privacy salvate.",
-      "inherit": "come la cartella sopra",
+      "inherit": "come la cartella superiore",
       "addRule": "Aggiungi"
     },
     "shortcutNote": "Solo mentre Plainva IA (Beta) è attiva su questo dispositivo.",
@@ -424,6 +480,7 @@
     "toolDeclined": "{{tool}} — autorizzazione negata",
     "suggestionAuthor": "Plainva IA · {{model}}",
     "overview": {
+      "lessDetails": "Meno",
       "title": "Inviare a {{provider}}?",
       "sentTitle": "Inviato a {{provider}}",
       "why": {
@@ -532,6 +589,7 @@
       "evidenceImage": "immagine, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
+      "chip": "Cosa viene inviato?",
       "open": "Vedi contesto",
       "title": "Vedi contesto",
       "tagline": "Ciò che l'IA vede per la prossima richiesta, prima di vederlo.",
@@ -595,7 +653,7 @@
       "menu": "IA",
       "with": "Con la selezione",
       "asSuggestion": "Come proposta",
-      "inConversation": "Nel compagno",
+      "inConversation": "Chiedi nella conversazione",
       "translateTo": "Traduci in",
       "proposed_one": "L'IA propone {{count}} modifica: accettala o rifiutala in «Proposte».",
       "proposed_many": "L'IA propone {{count}} modifiche: accettale o rifiutale in «Proposte».",
@@ -659,10 +717,9 @@
       "title": "Non è arrivata nessuna risposta. Queste note corrispondono meglio alla tua domanda:"
     },
     "web": {
+      "chip": "Internet",
       "toggleOn": "Questa conversazione userà Internet",
       "toggleOff": "Lascia che questa conversazione usi Internet",
-      "activeOn": "Questa conversazione può usare Internet",
-      "activeOff": "Questa conversazione è iniziata senza Internet",
       "fixed": "Che una conversazione possa usare Internet si decide quando inizia. Inizia una nuova conversazione per cambiarlo.",
       "marking": "Questa conversazione può usare Internet. Finché le tue note sono nella conversazione, ogni richiesta chiede prima.",
       "sources": "Letto sul web",
@@ -687,8 +744,8 @@
         "fetch": "Leggi la pagina",
         "search": "Cerca",
         "always": "Sempre per {{host}}",
-        "denyFetch": "Non leggere",
-        "denySearch": "Non cercare"
+        "denyFetch": "Non consentire",
+        "denySearch": "Non consentire"
       },
       "settings": {
         "title": "Internet",
@@ -779,6 +836,7 @@
       "defused": "I nuovi indirizzi web sono stati disinnescati: leggibili, ma non sono link."
     },
     "skills": {
+      "all": "Tutte le competenze…",
       "title": "Competenze",
       "runOwn": "Esegui la competenza «{{title}}».",
       "daily": {
@@ -857,6 +915,11 @@
       }
     },
     "workshop": {
+      "revokeBody": "Finché non la approvi di nuovo, l'IA non la usa più su questo dispositivo.",
+      "revokeConfirm": "Ritirare l'approvazione di «{{title}}»?",
+      "vaultRow": "Istruzioni per questo vault",
+      "newMenu": "Nuovo…",
+      "explain": "Le competenze sono modi di lavorare già pronti per l'IA — per esempio una revisione settimanale. Un tocco ne avvia una nella conversazione.",
       "title": "Competenze",
       "segmentChats": "Conversazioni",
       "segmentSkills": "Competenze",
@@ -1072,14 +1135,14 @@
         "run": "Verifica con {{model}}",
         "open": "Verifica…",
         "start": "Avvia la verifica",
-        "never": "Non ancora verificato. Gli scenari di prova delle competenze girano con il modello scelto — a mano, con un tetto.",
+        "never": "Ancora nessuna verifica. Gli scenari di prova delle competenze girano con il modello scelto — a mano, con un limite.",
         "last": "Ultima verifica il {{when}} — superati: {{passed}} su {{total}}.",
         "modelChanged_one": "{{count}} competenza non è ancora stata verificata con il modello scelto ora ({{model}}).",
         "modelChanged_many": "{{count}} competenze non sono ancora state verificate con il modello scelto ora ({{model}}).",
         "modelChanged_other": "{{count}} competenze non sono ancora state verificate con il modello scelto ora ({{model}}).",
         "row": {
-          "current": "verificata: {{passed}} su {{total}}",
-          "model-changed": "verificata con {{model}}, non con il modello scelto",
+          "current": "verifica: {{passed}} su {{total}}",
+          "model-changed": "verifica con {{model}}, non con il modello scelto",
           "skill-changed": "modificata dopo la verifica"
         },
         "model": "Modello",
@@ -1128,7 +1191,7 @@
         },
         "cost": "≈ {{cost}} · {{tokens}} token",
         "tokens": "{{tokens}} token",
-        "conversation": "Prova · {{skill}} · {{scenario}}"
+        "conversation": "Verifica · {{skill}} · {{scenario}}"
       },
       "writeFailed":"Impossibile scrivere la competenza nel vault."
     },
@@ -1192,7 +1255,7 @@
         "busy": "L'IA è occupata in questo momento. Riprova quando ha finito.",
         "cancelled": "Interrotto. Non è stata creata nessuna bozza.",
         "invalid": "La risposta non era un elenco di proposte. Non è stata creata nessuna bozza.",
-        "failed": "L'operazione non è riuscita. Non è stata creata nessuna bozza."
+        "failed": "Plainva non è riuscito a eseguirlo. Non è stato salvato nulla; riprova."
       },
       "draft": {
         "why": "Riscontro",
@@ -1253,7 +1316,7 @@
         "changed": "La competenza non è più come è stata mostrata qui. Controllala di nuovo.",
         "invalid": "Questa versione non rispetta il formato di una competenza, quindi non viene riscritta.",
         "no-history": "Il vault non è riuscito a conservare prima la versione attuale, quindi non è stato sovrascritto nulla.",
-        "failed": "L'operazione non è riuscita. Non è stato modificato nulla."
+        "failed": "Plainva non è riuscito a ripristinare la versione precedente. Non è stato modificato nulla; riprova."
       },
       "versions": {
         "action": "Versioni precedenti…",
@@ -1396,6 +1459,7 @@
       "conversationRests": "Questa conversazione si è svolta con {{model}} tramite {{provider}}. Finché «Completamente locale» è attivo non può proseguire: nessuna conversazione cambia modello senza avvisare."
     },
     "routines": {
+      "toOverview": "Vai alla panoramica",
       "title": "Routine",
       "note": "Le routine vengono eseguite su questo dispositivo mentre Plainva è aperto. Se era chiuso al momento di un'esecuzione, una routine la recupera una volta alla prossima apertura oppure la salta — come hai impostato per quella routine.",
       "empty": "Ancora nessuna routine.",
@@ -1429,12 +1493,12 @@
       "paused": "Sospesa",
       "runningNow": "In esecuzione ora",
       "needs": {
-        "skill": "In pausa: la sua competenza è stata modificata, disattivata o rimossa da quando hai confermato questa routine. Controllala, poi viene eseguita di nuovo.",
-        "scope": "Serve il tuo intervento: ora invierebbe più di quanto hai confermato. Non è stato inviato nulla.",
+        "skill": "In pausa: la competenza di questa routine è stata modificata, disattivata o rimossa da quando l'hai confermata. Controllala, poi viene eseguita di nuovo.",
+        "scope": "Serve il tuo intervento: la routine ora invierebbe più di quanto hai confermato. Non è stato inviato nulla.",
         "confirm": "In pausa: questo dispositivo chiede prima di ogni richiesta e, quando una routine viene eseguita, non c'è nessuno che risponda.",
-        "model": "Serve il tuo intervento: il provider del suo modello non è più configurato su questo dispositivo.",
-        "local": "In pausa finché «Completamente locale» è attivo: il suo modello non è su questo dispositivo.",
-        "rules": "In pausa: le tue regole tengono questa cartella lontana dal suo modello. Per questa routine scegli un modello su questo dispositivo, oppure cambia le regole."
+        "model": "Serve il tuo intervento: il provider del modello di questa routine non è più configurato su questo dispositivo.",
+        "local": "In pausa finché «Completamente locale» è attivo: il modello di questa routine non è su questo dispositivo.",
+        "rules": "In pausa: le tue regole tengono questa cartella lontana dal modello di questa routine. Scegli per lei un modello su questo dispositivo, oppure cambia le regole."
       },
       "review": "Controlla",
       "active": "Esecuzione di {{name}}",
@@ -1469,7 +1533,7 @@
         "profile": "{{profile}} — {{provider}} · {{model}}"
       },
       "confirm": {
-        "title": "La routine «{{name}}» viene eseguita senza di te — perciò vale quanto segue",
+        "title": "Come «{{name}}» viene eseguita senza di te",
         "reads": "Si limita a leggere",
         "readsDesc": "Nessuna proposta, nessuna bozza, nessun accesso a Internet, nessuno strumento esterno, nessuno script, nessun comando dell'app. Ciò che legge lo decidono le tue regole, come in ogni conversazione.",
         "noMail": "Con questo modello non legge le e-mail: Plainva lo chiede di nuovo a ogni sessione e qui non c'è nessuno che risponda. Con un modello su questo dispositivo le legge.",
@@ -1839,7 +1903,7 @@
       "pairNone": "Scegli almeno una cartella da consentire."
     },
     "ext": {
-      "title": "Strumenti esterni (MCP)",
+      "title": "Strumenti esterni",
       "desc": "Strumenti di server che colleghi tu stesso, tramite il Model Context Protocol (MCP). Nulla di un server viene usato prima che tu abbia guardato che cosa offre. Vedi ogni chiamata prima che parta, e ciò che torna è trattato come il testo di uno sconosciuto.",
       "none": "Nessun server è collegato su questo dispositivo.",
       "device": "Server su questo dispositivo",
@@ -1885,7 +1949,7 @@
         "changes": "Questa chiamata può modificare qualcosa su {{server}}. Plainva non può annullarlo.",
         "destroys": "Questa chiamata può modificare, sovrascrivere o eliminare qualcosa su {{server}}. Plainva non può annullarlo.",
         "run": "Esegui",
-        "deny": "Non chiamare",
+        "deny": "Non consentire",
         "send": "Chiama"
       },
       "prompt": {
@@ -1896,15 +1960,15 @@
         "send": "Invia come mio messaggio",
         "start": "Continua",
         "blocked": "{{server}} ha risposto con un testo diverso da quello che hai approvato. Resta bloccato finché non lo controlli nelle impostazioni.",
-        "empty": "Il prompt non contiene testo.",
-        "unavailable": "Questo prompt non è disponibile in questo momento."
+        "empty": "Il modello di testo non contiene testo.",
+        "unavailable": "Questo modello di testo al momento non è disponibile."
       },
       "question": {
         "title": "{{server}} ha una domanda",
         "pageTitle": "{{server}} vorrebbe che aprissi una pagina",
         "refusedTitle": "Plainva ha bloccato una domanda di {{server}}",
         "during": "Per",
-        "prompt": "il prompt «{{name}}»",
+        "prompt": "il modello di testo «{{name}}»",
         "writes": "{{server}} scrive:",
         "optional": "facoltativo",
         "choose": "Scegli…",
@@ -1983,7 +2047,7 @@
         "skills_one": "Offre {{count}} competenza. Le approvi una per una, in IA → Competenze, «Dai server».",
         "skills_many": "Offre {{count}} competenze. Le approvi una per una, in IA → Competenze, «Dai server».",
         "skills_other": "Offre {{count}} competenze. Le approvi una per una, in IA → Competenze, «Dai server».",
-        "prompts": "Prompt del server",
+        "prompts": "Modelli di testo del server",
         "promptsHint": "Richieste già pronte che avvii tu stesso, sotto una conversazione vuota. La prima volta leggi in che cosa si trasforma una di esse prima che venga inviata.",
         "vault": "In questo vault",
         "folders": "Note che possono accompagnare una chiamata",
@@ -2432,7 +2496,7 @@
         "noRule": "Non modificare"
       },
       "open": {
-        "segment": "In attesa",
+        "segment": "Da decidere",
         "proposals": "Proposte sulle note",
         "empty": "Niente attende una tua decisione",
         "emptyHint": "Ciò che un'IA propone o prepara resta qui finché non hai deciso.",
@@ -2469,8 +2533,13 @@
       }
     },
     "semantic": {
-      "title": "Ricerca semantica",
-      "description": "Trova le note in base a ciò che significano, non solo alle loro parole — anche tra lingue diverse. Vale per questo dispositivo, e i vettori vi restano: un pacchetto li calcola qui, un provider proprio sul suo server.",
+      "providerHintPhone": "Un cloud solo dopo che hai approvato cosa ci va.",
+      "measureRowDesc": "Quanto è veloce questo dispositivo a calcolare — con un testo di esempio, mai con le tue note.",
+      "measureRow": "Misurazione",
+      "change": "Cambia…",
+      "now": "Calcola con",
+      "title": "Ricerca per significato",
+      "description": "Trova le note per ciò che significano, non solo per le loro parole — anche tra lingue diverse. Vale per questo dispositivo, e i dati di ricerca restano su di esso: un pacchetto li calcola qui, un provider personale sul suo server.",
       "off": "Disattivata — cerca solo per parole",
       "hintRecommended": "Consigliato. Nel test di Plainva con domande in dieci lingue, l'88 % ha trovato la propria nota tra le prime cinque insieme alle parole, contro il 62 % con le sole parole.",
       "hintPrecise": "Più preciso; impiega circa il triplo del tempo.",
@@ -2500,7 +2569,7 @@
       "progress": "{{done}} note su {{total}} elaborate",
       "pause": "Metti in pausa",
       "resume": "Riprendi",
-      "remove": "Rimuovi (con i suoi vettori)",
+      "remove": "Rimuovi (con i suoi dati di ricerca)",
       "removeConfirm": "Rimuovere {{model}} e i vettori che ha calcolato? La ricerca per significato resta disattivata finché non scarichi di nuovo un modello.",
       "provider": "Provider proprio",
       "providerUnset": "Scegli prima il modello del profilo Embedding.",
@@ -2509,7 +2578,7 @@
       "noRoute": "{{provider}} non offre embedding. Scegli un altro provider per il profilo Embedding.",
       "encrypted": "In un workspace cifrato nulla va in un cloud: il significato lo calcola solo un pacchetto o un server su questo computer.",
       "readyProvider": "Attiva — {{provider}} · {{model}}",
-      "withdraw": "Revoca l'approvazione",
+      "withdraw": "Ritira l'approvazione",
       "withdrawConfirm": "Note e domande di ricerca non vanno più a {{provider}}. La ricerca per significato attende finché non approvi di nuovo.",
       "unused": "Non in uso su questo dispositivo",
       "unusedRemove": "Rimuovi",
@@ -2561,7 +2630,7 @@
       "pending": "Lettura di questa nota in corso — i suggerimenti seguiranno.",
       "none": "Niente di abbastanza vicino.",
       "show": "Mostra note correlate",
-      "showDesc": "Al massimo tre suggerimenti per la nota aperta, dai vettori su questo dispositivo — non viene inviato nulla. Metti in pausa una singola nota nell'intestazione della sezione.",
+      "showDesc": "Al massimo tre suggerimenti per la nota aperta, dai dati di ricerca di questo dispositivo — non viene inviato nulla. Metti in pausa una singola nota nell'intestazione della sezione.",
       "vaultPausedRow": "In pausa in questo vault",
       "resume": "Riprendi",
       "restore": "Ripristina",
@@ -2588,7 +2657,7 @@
       "todoAct": "Come attività",
       "todoWhy": "La riga {{line}} inizia con «TODO» e non è ancora un'attività. «Come attività» la trasforma in «- [ ] {{text}}» dove si trova; poi compare tra le tue attività.",
       "todoGone": "La riga è cambiata nel frattempo — non è stato modificato nulla.",
-      "failed": "L'operazione non è riuscita.",
+      "failed": "Plainva non è riuscito a eseguirlo. Riprova.",
       "meeting": "Domani {{time}} {{title}}",
       "meetingLine": "ancora nessuna nota",
       "meetingAct": "Crea nota della riunione",
@@ -2628,12 +2697,12 @@
       "show": "Sintesi con il modello locale",
       "showDesc": "Brevi sintesi verificate per il contesto dell'IA — solo quando il profilo Locale indica un modello su questo dispositivo (Ollama o LM Studio su un computer, il modello del sistema su un telefono); mai un cloud in background. Numeri, date e scadenze devono restare parola per parola, altrimenti parte l'estratto originale.",
       "noModel": "Scegli prima un modello su questo dispositivo per il profilo Locale.",
-      "status": "{{covered}} di {{sections}} sezioni lunghe hanno una sintesi · {{model}}",
+      "status": "{{covered}} sezioni lunghe su {{sections}} hanno una sintesi · {{model}}",
       "working": "in scrittura",
       "paused": "in pausa",
       "failed": "Il modello su questo dispositivo non ha risposto: {{reason}}",
-      "clear": "Rimuovi sintesi",
-      "clearConfirm": "Rimuovere tutte le sintesi di questo vault? Finché le sintesi sono attive, vengono riscritte."
+      "clear": "Rimuovi le sintesi",
+      "clearConfirm": "Rimuovere tutte le sintesi di questo vault? Finché sono attive, vengono riscritte."
     }
   },
   "settingsSync": {

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square } from "lucide-react";
+import { ArrowLeftRight, Ban, Check, ChevronDown, CircleAlert, Copy, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, MoreHorizontal, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
@@ -24,7 +24,8 @@ import { AiSendOverview } from "./AiSendOverview";
 import { AiRunOverview } from "./AiRunOverview";
 import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
-import { aiFailureText, failureRecipient } from "./aiSettingsModel";
+import { aiFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
+import { requestAiSettingsIntent } from "./aiSetup";
 import type { AiDress } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
 import type { McpPromptReview } from "./mcpSession";
@@ -68,6 +69,18 @@ export interface AiConversationProps {
   onPickNote?: () => void;
   /** The editor's selection: while there is one, the selection actions are offered (plan P1.5). */
   selection?: SelectionReader;
+  /**
+   * What the dress shows under an empty conversation besides the invitation —
+   * the phone's AI screen lists what waits and the last conversations there
+   * (plan KI-Oberflächen K11).
+   */
+  start?: ReactNode;
+  /**
+   * The dock is a narrow column (plan KI-Oberflächen E4b): a question that
+   * waits is shown there in short, and this opens the conversation where it
+   * has room — the companion.
+   */
+  onOpenRoomy?: () => void;
 }
 
 const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
@@ -122,7 +135,7 @@ export function AiWorkingLine({ here }: { here: boolean }) {
   );
 }
 
-export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
+export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection, start, onOpenRoomy }: AiConversationProps) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
@@ -161,6 +174,13 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   /** A prompt of a foreign server the user chose (plan P4.5): its values are asked for, or its text waits to be read. */
   const [extPrompt, setExtPrompt] = useState<{ prompt: ExternalPrompt; review: McpPromptReview | null } | null>(null);
   const [extBusy, setExtBusy] = useState(false);
+  /** The run whose "…" menu is open under its answer (plan KI-Oberflächen K8). */
+  const [runMenu, setRunMenu] = useState<string | null>(null);
+  const runMenuAnchor = useRef<HTMLSpanElement>(null);
+  const [allSkillsOpen, setAllSkillsOpen] = useState(false);
+  const allSkillsAnchor = useRef<HTMLSpanElement>(null);
+  /** The notice whose provider's words are shown (plan K10): a new notice starts folded again. */
+  const [noticeDetailsFor, setNoticeDetailsFor] = useState<unknown>(null);
 
   const active = state?.active ?? null;
   const items = useMemo(() => (active ? transcriptOf(active) : []), [active]);
@@ -212,7 +232,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     return (
       <div className={cx("pv-ai", touch && "pv-ai--touch")}>
         <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.setupTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.setupAction")}</Button>}>
-          {t("ai.empty.setupBody")}
+          {/* The phone runs no server of its own (parity decision ai-local-servers): its way without a key is the system's model. */}
+          {touch ? t("ai.empty.setupBodyPhone") : t("ai.empty.setupBody")}
         </EmptyState>
       </div>
     );
@@ -260,7 +281,6 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   // its first message like the internet — the system prompt carries it.
   const styleFeatures = active ? (active.instructions?.style?.features ?? 0) : state.style.features.length;
   const withStyle = active ? styleFeatures > 0 : state.draftStyle && styleFeatures > 0;
-  const styleShown = withStyle || state.style.features.length > 0;
   const toggleStyle = () => {
     if (active) toast.info(t("ai.style.fixed"));
     else session.setDraftStyle(!state.draftStyle);
@@ -359,6 +379,25 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
     return parts.join(" · ");
   };
+  /** The quiet line under an answer (plan KI-Oberflächen K8): to whom, how many notes, what it cost — the rest is in the details. */
+  const shortRunLine = (run: RunMeta) => {
+    const parts = [t("ai.sentShort", { provider: providerLabel(run.providerId), count: run.sent.length })];
+    if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
+    return parts.join(" · ");
+  };
+  /** The answer of one run as text, for the clipboard. */
+  const copyAnswer = (text: string) => {
+    void navigator.clipboard
+      .writeText(text)
+      .then(() => toast.success(t("ai.copied")))
+      .catch(() => toast.error(t("connection.clipboardFailed")));
+  };
+  /** The profile a choice is, by name: the foot's button says it instead of the model, which the marking line names (plan K7). */
+  const profileOf = (model: { providerId: string; model: string }) =>
+    AI_PROFILE_IDS.find((id) => {
+      const profile = state.settings.profiles[id];
+      return profile?.providerId === model.providerId && profile.model === model.model;
+    });
   // A tool of a foreign server is named by the user's name for the server and the tool's own (plan P4.5); a script by its own name (plan P5.5).
   const toolLabel = (name: string) => externalToolLabel(t, name, state.mcp.servers) ?? scriptToolLabel(t, name) ?? t(`ai.tool.${name}`, { defaultValue: t("ai.tool.unknown") });
   /** How the questions of one call went (plan P9-4a): numbers, never what was asked or answered. */
@@ -473,7 +512,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
       }
       case "run": {
         const manifest = item.run.manifest;
-        const open = openRun === item.key && Boolean(manifest);
+        const open = openRun === item.key;
         const answer = answerBefore(index);
         // A picture is no note an answer could cite (plan P4-5): what counts is the text that went.
         const noteSources = manifest ? manifest.sources.filter((s) => !s.image) : [];
@@ -506,31 +545,57 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               </p>
             )}
             {uncited && <p className="pv-ai-nocite">{t("ai.noCitation")}</p>}
-            {manifest ? (
-              <Button size="sm" variant="ghost" className="pv-ai-runline" aria-expanded={open} onClick={() => setOpenRun(open ? null : item.key)}>
-                {runLine(item.run, coverage)}
-              </Button>
-            ) : (
-              <span className="pv-ai-runline">{runLine(item.run, coverage)}</span>
-            )}
             {/* What the run laid down for the user to decide (plan P5): the notes that carry its proposals, and its drafts. */}
             {item.run.writes && (
               <AiRunWrites writes={item.run.writes} state={state.drafts} canCreate={draftActions.canCreate} busy={draftActions.busy || running} onOpenNote={onOpenNote} onCreate={draftActions.create} onDiscard={draftActions.discard} taskList={draftActions.taskList} touch={touch} />
             )}
-            {/* The answer becomes a note of the vault, with what it rests on (plan P4-6): the user's own step, never the model's. */}
-            {canCapture && item.run.stop === "answered" && answer !== null && (
-              <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" disabled={capturing !== null || running} onClick={() => capture(item.run.userTurn)} data-testid="ai-capture">
-                <FilePlus2 size={ICON.meta} aria-hidden="true" />
-                {t("ai.capture.action")}
-              </Button>
+            {/* Under an answer, what can be done with it (plan KI-Oberflächen K8): copy it, keep it as a note, and the rest
+                in "…"; beside it the one quiet line of what went where, with the details on request. */}
+            <div className="pv-ai-actrow" data-testid="ai-run-actions">
+              {answer !== null && item.run.stop === "answered" && (
+                <Button size="sm" variant="ghost" icon={<Copy size={ICON.meta} />} onClick={() => copyAnswer(answer)} data-testid="ai-copy">
+                  {t("ai.copy")}
+                </Button>
+              )}
+              {/* The answer becomes a note of the vault, with what it rests on (plan P4-6): the user's own step, never the model's. */}
+              {canCapture && item.run.stop === "answered" && answer !== null && (
+                <Button size="sm" variant="ghost" icon={<FilePlus2 size={ICON.meta} />} disabled={capturing !== null || running} onClick={() => capture(item.run.userTurn)} data-testid="ai-capture">
+                  {t("ai.capture.action")}
+                </Button>
+              )}
+              {/* What this conversation can teach (plan P6-2), and the same question to another model (P9-2): in the run's menu. */}
+              {active && item.key === lastRunKey && item.run.stop === "answered" && (
+                <span ref={runMenu === item.key ? runMenuAnchor : undefined}>
+                  <IconButton size="sm" label={t("common.moreActions")} onClick={() => setRunMenu(item.key)} data-testid="ai-run-more">
+                    <MoreHorizontal size={ICON.meta} />
+                  </IconButton>
+                </span>
+              )}
+              {coverage?.level && coverage.level !== "high" && (
+                <span className="pv-ai-coverage-warn" data-testid="ai-coverage-warn">
+                  {`${t(`ai.coverage.${coverage.level}`)} · ${t("ai.coverage.detail", { cited: number.format(coverage.cited), total: number.format(coverage.statements) })}`}
+                </span>
+              )}
+              <span className="pv-ai-quiet">
+                {shortRunLine(item.run)}
+                <Button size="sm" variant="ghost" className="pv-ai-runline" aria-expanded={open} onClick={() => setOpenRun(open ? null : item.key)} data-testid="ai-run-details">
+                  {t("ai.details")}
+                </Button>
+              </span>
+            </div>
+            {runMenu === item.key && active && (
+              <MenuSurface open onClose={() => setRunMenu(null)} anchorRef={runMenuAnchor} ariaLabel={t("common.moreActions")}>
+                <MenuItem icon={<GraduationCap size={ICON.ui} />} disabled={running || state.learning !== null} onSelect={() => { setRunMenu(null); openLearnSurface({ kind: "learn", conversationId: active.id }); }} data-testid="ai-learn-open">
+                  {t("ai.learn.action")}
+                </MenuItem>
+                {manifest && (
+                  <MenuItem icon={<ArrowLeftRight size={ICON.ui} />} onSelect={() => { setRunMenu(null); setOpenRun(item.key); }} data-testid="ai-replay-menu">
+                    {t("ai.snapshot.replayAction")}
+                  </MenuItem>
+                )}
+              </MenuSurface>
             )}
-            {/* What this conversation can teach (plan P6-2): asked for by the user, and first shown — nothing is sent by this button. */}
-            {active && item.key === lastRunKey && item.run.stop === "answered" && (
-              <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" disabled={running || state.learning !== null} onClick={() => openLearnSurface({ kind: "learn", conversationId: active.id })} data-testid="ai-learn-open">
-                <GraduationCap size={ICON.meta} aria-hidden="true" />
-                {t("ai.learn.action")}
-              </Button>
-            )}
+            {open && <p className="pv-ai-runfull" data-testid="ai-run-full">{runLine(item.run, coverage)}</p>}
             {/* Opened, the line is the run's snapshot too (plan P9-2): versions, tools, result — and the same question to another model. */}
             {open && manifest && active && (
               <AiRunOverview
@@ -553,19 +618,47 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     }
   };
 
+  /** A question that waits for the user's answer: shown above the composer, the field says why it is closed (plan K9). */
+  const waiting = Boolean(consent || effect || question || (extPrompt && !consent && !effect && !question));
+  // The session's own questions show in every dress; the dock names them in short. A server's prompt is this view's own
+  // state (`extPrompt`): it stays where it was started, or nobody could answer or cancel it.
+  const sessionWaiting = Boolean(consent || effect || question);
+  const inputHint = consent || effect || question ? t("ai.pending.answerFirst") : activeNote ? t("ai.placeholderNote", { title: activeNote.title }) : t("ai.placeholder");
+  // Larger chips where a thumb taps them (plan K7): at least the touch target of the design language.
+  const chipSize = touch ? "md" : "sm";
+  const currentProfile = profileOf(choice);
+  // The quick start (plan K7): the featured skills as chips, every startable one in the "All skills" menu.
+  const allSkills = startableSkills(t, state.skills.entries);
+  const featuredSkills = allSkills.filter((skill) => skill.featured);
   const shownNotice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice : null;
   const notice = shownNotice?.stop ?? null;
   // No answer came back (plan §19.4): the notes that match the question best stand in for it.
   const related = notice?.kind === "failed" ? (shownNotice?.related ?? []) : [];
   // A provider that turns a request down says so in its own words; where the conversation carries a picture, a model that reads none is the usual reason.
   const pictureRefused = notice?.kind === "failed" && PICTURE_REFUSALS.has(notice.failure.kind) && Boolean(active && hasImages(active.conversation));
+  // A provider's own words stay behind "Details" (plan K10): the line says who refused, the words are there on request.
+  const providerWords = notice?.kind === "failed" && (notice.failure.kind === "refused_by_provider" || notice.failure.kind === "provider_error") ? notice.failure.message : "";
   const noticeText = notice
     ? notice.kind === "failed"
-      ? aiFailureText(t, notice.failure, failureRecipient(provider), choice.model)
+      ? providerWords
+        ? t(notice.failure.kind === "refused_by_provider" ? "ai.error.refusedShort" : "ai.error.providerErrorShort", { provider: provider.label })
+        : aiFailureText(t, notice.failure, failureRecipient(provider), choice.model)
       : STOP_KEYS[notice.kind]
         ? t(STOP_KEYS[notice.kind]!)
         : null
     : null;
+  const sender = notice?.kind === "failed" && !isRuleHeld(notice) ? failureSender(notice.failure, failureRecipient(provider)) : null;
+  const noticeDetails = shownNotice !== null && noticeDetailsFor === shownNotice;
+  /** The fix of a failure, where it is one dialog: the key of this provider, the model of this profile (plan K10). */
+  const fixAction = (failure: ModelFailure): { label: string; run: () => void } | null => {
+    if (failure.kind === "no_key" || failure.kind === "invalid_key") {
+      return { label: failure.kind === "no_key" ? t("ai.settings.enterKey") : t("ai.error.newKey"), run: () => { requestAiSettingsIntent({ kind: "key", providerId: provider.id }); onOpenSettings(); } };
+    }
+    if (failure.kind === "not_found") {
+      return { label: t("ai.settings.changeModel"), run: () => { requestAiSettingsIntent({ kind: "model", profile: currentProfile ?? state.settings.defaultProfile }); onOpenSettings(); } };
+    }
+    return null;
+  };
 
   return (
     <div ref={setRootEl} className={cx("pv-ai", touch && "pv-ai--touch", `pv-ai--${dress}`, side && "pv-ai--withside")} data-testid="ai-conversation">
@@ -625,34 +718,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         )}
         {items.length === 0 && !live && (
           <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.empty.startTitle")}>
-            {t("ai.empty.startBody")}
+            {activeNote ? t("ai.empty.startBody") : t("ai.empty.startBodyVault")}
           </EmptyState>
         )}
-        {items.length === 0 && !live && !consent && state.hasVault && (
-          <div className="pv-ai-skills" role="group" aria-label={t("ai.skills.title")} data-testid="ai-skills">
-            {startableSkills(t, state.skills.entries)
-              .filter((skill) => skill.featured)
-              .map((skill) => (
-                <Chip key={skill.id} size="sm" icon={<skill.icon size={ICON.meta} />} testId={skill.commandId} onClick={() => void session.runSkill(skill.id, skill.start)}>
-                  {skill.title}
-                </Chip>
-              ))}
-            {/* The prompts of foreign servers this vault uses (plan P4.5): started by the user, like a skill — never by the model. */}
-            {!extPrompt &&
-              !localOnly &&
-              externalPrompts(state.mcp.servers).map((prompt) => (
-                <Chip
-                  key={`${prompt.serverId}/${prompt.name}`}
-                  size="sm"
-                  icon={<Plug size={ICON.meta} />}
-                  testId="ai-ext-prompt-chip"
-                  onClick={() => (prompt.args.length ? setExtPrompt({ prompt, review: null }) : startExternalPrompt(prompt, {}))}
-                >
-                  {`${prompt.server} · ${prompt.title}`}
-                </Chip>
-              ))}
-          </div>
-        )}
+        {/* What the dress adds to an empty conversation (plan K11): the phone lists what waits and the last conversations. */}
+        {items.length === 0 && !live && start}
         {items.map((item, index) => renderItem(item, index))}
         {live && (
           <div className="pv-ai-live" aria-live="polite">
@@ -710,7 +780,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             kind={notice!.kind === "failed" && !isRuleHeld(notice!) ? "error" : "info"}
             rounded
             actions={
-              notice!.kind === "failed" && SETUP_FAILURES.has(notice!.failure.kind) ? (
+              notice!.kind === "failed" && fixAction(notice!.failure) ? (
+                <Button size="sm" variant="secondary" onClick={fixAction(notice!.failure)!.run} data-testid="ai-notice-fix">
+                  {fixAction(notice!.failure)!.label}
+                </Button>
+              ) : notice!.kind === "failed" && SETUP_FAILURES.has(notice!.failure.kind) ? (
                 <Button size="sm" variant="secondary" onClick={onOpenSettings}>
                   {t("ai.error.openSetup")}
                 </Button>
@@ -725,7 +799,17 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               ) : undefined
             }
           >
+            {sender && <span className="pv-ai-sender" data-testid="ai-notice-sender">{t(`ai.error.sender.${sender}`)}</span>}
             {noticeText}
+            {providerWords && (
+              <>
+                {" "}
+                <Button size="sm" variant="ghost" onClick={() => setNoticeDetailsFor(noticeDetails ? null : shownNotice)} aria-expanded={noticeDetails} data-testid="ai-notice-details">
+                  {t("ai.details")}
+                </Button>
+                {noticeDetails && <span className="pv-ai-overview-hint" data-testid="ai-notice-words">{providerWords}</span>}
+              </>
+            )}
             {/* The provider turned a message with a picture down (plan P4-5): often the model reads none. */}
             {pictureRefused && (
               <span className="pv-ai-overview-hint" data-testid="ai-picture-refused">
@@ -748,7 +832,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             </ul>
           </section>
         )}
-        {!state.hasVault && <p className="pv-ai-working">{t("ai.empty.noVault")}</p>}
+        {!state.hasVault && <p className="pv-ai-overview-hint">{t("ai.empty.noVault")}</p>}
         {/* A routine runs beside this conversation (plan P8, ADR 0033): it only reads and asks nothing — said here,
             with STOP, because a message typed now would wait for it. */}
         {routine && (
@@ -791,6 +875,19 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             <span data-testid="ai-routine-ready">{t("ai.routines.ready", { name: ready.name })}</span>
           </Banner>
         )}
+      </div>
+      )}
+
+      {/* A question that waits stands above the composer, never scrolled away (plan KI-Oberflächen K9). The dock is too
+          narrow for it: there it is named in short, with the way to the companion (E4b). */}
+      {sessionWaiting && dress === "dock" && onOpenRoomy ? (
+        <div className="pv-ai-pending">
+          <Banner kind="info" rounded actions={<Button size="sm" variant="secondary" onClick={onOpenRoomy} data-testid="ai-pending-open">{t("ai.pending.open")}</Button>}>
+            {t("ai.pending.short")}
+          </Banner>
+        </div>
+      ) : waiting ? (
+        <div className="pv-ai-pending" data-testid="ai-pending">
         {consent && (
           <AiSendOverview
             manifest={consent.manifest}
@@ -827,8 +924,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             touch={touch}
           />
         )}
-      </div>
-      )}
+        </div>
+      ) : null}
 
       {side && (
         <aside className="pv-ai-side" aria-label={t("ai.lens.title")}>
@@ -837,6 +934,45 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
       )}
 
       <div className="pv-ai-composer">
+        {/* The quick start, where the thumb is (plan KI-Oberflächen K7): the featured skills of an empty conversation. */}
+        {items.length === 0 && !live && !consent && state.hasVault && (
+          <div className="pv-ai-skills" role="group" aria-label={t("ai.skills.title")} data-testid="ai-skills">
+            {featuredSkills.map((skill) => (
+                <Chip key={skill.id} size={chipSize} icon={<skill.icon size={ICON.meta} />} testId={skill.commandId} onClick={() => void session.runSkill(skill.id, skill.start)}>
+                  {skill.title}
+                </Chip>
+              ))}
+            {/* The prompts of foreign servers this vault uses (plan P4.5): started by the user, like a skill — never by the model. */}
+            {!extPrompt &&
+              !localOnly &&
+              externalPrompts(state.mcp.servers).map((prompt) => (
+                <Chip
+                  key={`${prompt.serverId}/${prompt.name}`}
+                  size="sm"
+                  icon={<Plug size={ICON.meta} />}
+                  testId="ai-ext-prompt-chip"
+                  onClick={() => (prompt.args.length ? setExtPrompt({ prompt, review: null }) : startExternalPrompt(prompt, {}))}
+                >
+                  {`${prompt.server} · ${prompt.title}`}
+                </Chip>
+              ))}
+            {/* Every other skill one tap further (plan KI-Oberflächen K7): the AI tab's start list lives here now. */}
+            {allSkills.length > featuredSkills.length && (
+              <span ref={allSkillsAnchor}>
+                <Chip size={chipSize} tone="muted" icon={<Sparkles size={ICON.meta} />} onClick={() => setAllSkillsOpen(true)} testId="ai-skills-all">
+                  {t("ai.skills.all")}
+                </Chip>
+              </span>
+            )}
+            <MenuSurface open={allSkillsOpen} onClose={() => setAllSkillsOpen(false)} anchorRef={allSkillsAnchor} ariaLabel={t("ai.skills.title")}>
+              {allSkills.map((skill) => (
+                <MenuItem key={skill.id} icon={<skill.icon size={ICON.ui} />} onSelect={() => { setAllSkillsOpen(false); void session.runSkill(skill.id, skill.start); }} data-testid={skill.commandId.replace(/^ai-skill-/, "ai-skill-menu-")}>
+                  {skill.title}
+                </MenuItem>
+              ))}
+            </MenuSurface>
+          </div>
+        )}
         {selection && hasSelection && !running && !consent && (
           <div className="pv-ai-chips pv-ai-selchips" role="group" aria-label={t("ai.selection.with")} data-testid="ai-selection-actions">
             <span className="pv-ai-selchips-label">{t("ai.selection.with")}</span>
@@ -874,23 +1010,41 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         )}
         <div className="pv-ai-chips" aria-label={t("ai.context")}>
           {activeNote && showActive && !state.excludeActive && (
-            <Chip size="sm" icon={<FileText size={ICON.meta} />} onRemove={() => session.setExcludeActive(true)} removeLabel={t("ai.removeContext")}>
+            <Chip size={chipSize} icon={<FileText size={ICON.meta} />} onRemove={() => session.setExcludeActive(true)} removeLabel={t("ai.removeContext")}>
               {activeNote.title}
             </Chip>
           )}
           {activeNote && showActive && state.excludeActive && (
-            <Chip size="sm" tone="muted" icon={<Plus size={ICON.meta} />} onClick={() => session.setExcludeActive(false)}>
+            <Chip size={chipSize} tone="muted" icon={<Plus size={ICON.meta} />} onClick={() => session.setExcludeActive(false)}>
               {activeNote.title}
             </Chip>
           )}
           {pins.map((path) => (
-            <Chip key={path} size="sm" icon={<Pin size={ICON.meta} />} onRemove={() => void session.unpin(path)} removeLabel={t("ai.removeContext")}>
+            <Chip key={path} size={chipSize} icon={<Pin size={ICON.meta} />} onRemove={() => void session.unpin(path)} removeLabel={t("ai.removeContext")}>
               {path.replace(/^.*\//, "").replace(/\.md$/i, "")}
             </Chip>
           ))}
           {onPickNote && (
-            <Chip size="sm" tone="muted" icon={<Plus size={ICON.meta} />} onClick={onPickNote}>
+            <Chip size={chipSize} tone="muted" icon={<Plus size={ICON.meta} />} onClick={onPickNote}>
               {t("ai.pinNote")}
+            </Chip>
+          )}
+          {/* The conversation's options, named (plan KI-Oberflächen K7): before the first message they can be switched;
+              afterwards the marking line says what holds. Only where the vault allows the internet, only where this
+              device keeps a writing style. */}
+          {!active && webOffer && (
+            <Chip size={chipSize} icon={<Globe size={ICON.meta} />} selected={withWeb} onClick={toggleWeb} disabled={running} tip={withWeb ? t("ai.web.toggleOn") : t("ai.web.toggleOff")} testId="ai-web-toggle">
+              {t("ai.web.chip")}
+            </Chip>
+          )}
+          {!active && state.style.features.length > 0 && (
+            <Chip size={chipSize} icon={<Signature size={ICON.meta} />} selected={withStyle} onClick={toggleStyle} disabled={running} tip={withStyle ? t("ai.style.toggleOn") : t("ai.style.toggleOff")} testId="ai-style-toggle">
+              {t("ai.style.chip")}
+            </Chip>
+          )}
+          {!side && (
+            <Chip size={chipSize} icon={<Eye size={ICON.meta} />} selected={lensOpen} onClick={() => setLensOpen((open) => !open)} testId="ai-lens-open">
+              {t("ai.lens.chip")}
             </Chip>
           )}
         </div>
@@ -899,8 +1053,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             className="pv-ai-input"
             rows={touch ? 2 : 1}
             value={draft}
-            placeholder={t("ai.placeholder")}
-            aria-label={t("ai.placeholder")}
+            placeholder={inputHint}
+            aria-label={inputHint}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
             data-testid="ai-input"
@@ -916,41 +1070,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
           )}
         </div>
         <div className="pv-ai-foot">
-          {!side && (
-            <IconButton size="sm" label={t("ai.lens.open")} active={lensOpen} aria-pressed={lensOpen} onClick={() => setLensOpen((open) => !open)} data-testid="ai-lens-open">
-              <Eye size={touch ? ICON.ui : ICON.meta} />
-            </IconButton>
-          )}
-          {/* Only where the vault allows the internet: a vault nobody decided about shows nothing of it. */}
-          {(webOffer || withWeb) && (
-            <IconButton
-              size="sm"
-              label={active ? (withWeb ? t("ai.web.activeOn") : t("ai.web.activeOff")) : withWeb ? t("ai.web.toggleOn") : t("ai.web.toggleOff")}
-              active={withWeb}
-              aria-pressed={withWeb}
-              disabled={running}
-              onClick={toggleWeb}
-              data-testid="ai-web-toggle"
-            >
-              <Globe size={touch ? ICON.ui : ICON.meta} />
-            </IconButton>
-          )}
-          {/* Only where this device keeps a writing style with something in it: nobody who chose no examples sees it. */}
-          {styleShown && (
-            <IconButton
-              size="sm"
-              label={active ? (withStyle ? t("ai.style.activeOn") : t("ai.style.activeOff")) : withStyle ? t("ai.style.toggleOn") : t("ai.style.toggleOff")}
-              active={withStyle}
-              aria-pressed={withStyle}
-              disabled={running}
-              onClick={toggleStyle}
-              data-testid="ai-style-toggle"
-            >
-              <Signature size={touch ? ICON.ui : ICON.meta} />
-            </IconButton>
-          )}
-          <Button ref={modelButton} size="sm" variant="ghost" onClick={() => setMenuOpen(true)} aria-haspopup="menu" disabled={running}>
-            {provider.label} · {choice.model}
+          {/* The profile by name: the marking line names the model already (plan KI-Oberflächen K7). */}
+          <Button ref={modelButton} size="sm" variant="ghost" onClick={() => setMenuOpen(true)} aria-haspopup="menu" disabled={running} data-tip={`${provider.label} · ${choice.model}`} data-testid="ai-profile-button">
+            {currentProfile ? t(`ai.profile.${currentProfile}`) : choice.model}
+            <ChevronDown size={ICON.meta} aria-hidden="true" />
           </Button>
           <MenuSurface open={menuOpen} onClose={() => setMenuOpen(false)} anchorRef={modelButton} ariaLabel={t("ai.settings.profiles")}>
             {AI_PROFILE_IDS.map((id) => {

@@ -6,8 +6,8 @@ import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointI
 import {
   AI_FEEDBACK_URL,
   addableProviders,
+  aiSetupStep,
   configuredProviders,
-  describesItself,
   getPlatformServices,
   GroupCard,
   HISTORY_DAY_CHOICES,
@@ -15,14 +15,12 @@ import {
   modeFacts,
   profileFacts,
   providerStatus,
-  readStatedWindow,
   Row,
   RowList,
   savingsLine,
   SectionLabel,
-  statedChoice,
-  STATED_WINDOW_BOUNDS,
   Switch,
+  takeAiSettingsIntent,
   toast,
   usageRowLine,
   type AiSession,
@@ -32,6 +30,7 @@ import { MobileSemanticSection } from "../components/MobileSemanticSection";
 import { MobileNoteHintsSection } from "../components/MobileNoteHintsSection";
 import { MobileGistsSection } from "../components/MobileGistsSection";
 import { MobileSystemAssistantSection } from "../components/MobileSystemAssistantSection";
+import { AiModelSheet } from "../components/AiModelSheet";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { PlatformModel } from "../platform/platformModel";
 import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
@@ -57,6 +56,8 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const [usage, setUsage] = useState<Awaited<ReturnType<AiSession["usage"]>>>([]);
   const [saved, setSaved] = useState<Awaited<ReturnType<AiSession["savings"]>>>({ savedTokens: 0, runs: 0 });
+  // The model of one profile, in one sheet (plan KI-Oberflächen K4).
+  const [modelFor, setModelFor] = useState<AiProfileSlot | null>(null);
   const number = new Intl.NumberFormat(i18n.language);
   // As the desktop says it: the cost where the provider publishes prices (plan P9-6).
   const money = new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -82,6 +83,36 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
     }
   }, [session, state.loaded]);
 
+  /** After a key or a provider: where the profile new conversations start with is still empty, its model is next (plan K3, E6). */
+  const nextAfterProvider = () => {
+    const now = session.getState().settings;
+    if (!now.profiles[now.defaultProfile]) setModelFor(now.defaultProfile);
+  };
+  const enterKey = async (provider: ProviderInfo) => {
+    const res = await mPrompt({ title: t("ai.settings.keyTitle", { provider: provider.label }), message: t("ai.settings.keyHint"), placeholder: t("ai.settings.keyField"), secure: true });
+    if (res.cancelled || !res.value.trim()) return;
+    try {
+      await session.setKey(provider.id, res.value);
+      const test = await session.testProvider(provider.id);
+      if (test.state === "ok") nextAfterProvider();
+    } catch (error) {
+      // The secure store refused: say so. The message never holds the key.
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  // A notice in a conversation may send the user here for one fix (plan KI-Oberflächen K10): taken once, when the page shows.
+  useEffect(() => {
+    if (!state.loaded) return;
+    const intent = takeAiSettingsIntent();
+    if (intent?.kind === "model") setModelFor(intent.profile);
+    else if (intent?.kind === "key") {
+      const provider = providerById(intent.providerId, session.getState().settings.custom);
+      if (provider) void enterKey(provider);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- taken once, when the page has loaded
+  }, [state.loaded]);
+
   if (!state.loaded) return null;
   const settings = state.settings;
   const rows = configuredProviders(state);
@@ -90,17 +121,30 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
   const mode = modeFacts(t, state, i18n.language);
   /** A profile's line: its provider and model, and what the user said about a model on a server of this device. */
   const choiceLine = (choice: ModelChoice) => [`${labelOf(choice.providerId)} · ${choice.model}`, ...profileFacts(t, choice, (value) => number.format(value))].join(" · ");
-
-  const enterKey = async (provider: ProviderInfo) => {
-    const res = await mPrompt({ title: t("ai.settings.keyTitle", { provider: provider.label }), message: t("ai.settings.keyHint"), placeholder: t("ai.settings.keyField"), secure: true });
-    if (res.cancelled || !res.value.trim()) return;
-    try {
-      await session.setKey(provider.id, res.value);
-      await session.testProvider(provider.id);
-    } catch (error) {
-      // The secure store refused: say so. The message never holds the key.
-      toast.error(error instanceof Error ? error.message : String(error));
+  /** The profile new conversations start with carries the word, instead of a row of its own (plan E3). */
+  const profileLine = (id: AiProfileSlot) => {
+    const choice = settings.profiles[id];
+    const line = choice ? choiceLine(choice) : t("ai.settings.profileEmpty");
+    return id === settings.defaultProfile ? `${t("ai.settings.defaultBadge")} · ${line}` : line;
+  };
+  const step = aiSetupStep(state);
+  /** A profile row: its sheet straight away while it is empty; otherwise what can be done with it. */
+  const profileActions = async (id: AiProfileSlot) => {
+    if (!settings.profiles[id]) {
+      setModelFor(id);
+      return;
     }
+    const choice = await mActions({
+      title: t(`ai.profile.${id}`),
+      options: [
+        { value: "change", label: t("ai.settings.changeModel") },
+        ...(id !== settings.defaultProfile && (AI_PROFILE_IDS as readonly string[]).includes(id) ? [{ value: "default", label: t("ai.settings.makeDefault") }] : []),
+        { value: "clear", label: t("ai.settings.clearProfile"), danger: true },
+      ],
+    });
+    if (choice === "change") setModelFor(id);
+    else if (choice === "default") void session.updateSettings((s) => ({ ...s, defaultProfile: id as AiProfileId }));
+    else if (choice === "clear") void session.updateSettings((s) => ({ ...s, profiles: Object.fromEntries(Object.entries(s.profiles).filter(([key]) => key !== id)) }));
   };
 
   /** Asks the system to load its model (Android); the row says when it is there. */
@@ -161,80 +205,13 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
       }
       const id = customEndpointId(settings.custom.map((c) => c.id));
       const added = await session.addCustom(new URL(normalized.baseUrl).host, normalized.baseUrl, id, normalized.local);
-      if (added) void session.testProvider(id);
+      if (added) void session.testProvider(id).then((test) => test.state === "ok" && nextAfterProvider());
       return;
     }
     await session.addProvider(picked);
     const provider = providerById(picked, settings.custom);
-    if (provider?.kind === "platform-device") void session.testProvider(provider.id);
-    else if (provider?.endpoint.needsKey) void enterKey(provider);
-  };
-
-  const chooseModel = async (profile: AiProfileSlot) => {
-    const providerId = await mSelect({
-      title: t("ai.settings.modelTitle", { profile: t(`ai.profile.${profile}`) }),
-      message: t("ai.settings.provider"),
-      options: rows.map((r) => ({ value: r.provider.id, label: r.provider.label })),
-      value: settings.profiles[profile]?.providerId,
-    });
-    if (!providerId) return;
-    const test = state.tests[providerId]?.state === "ok" ? state.tests[providerId] : await session.testProvider(providerId);
-    // "Audio" lists what can transcribe, "Embeddings" what embeds, every other profile what can chat. Any id can still be typed.
-    const models = (test.models ?? []).filter((m) => (profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : profile === AI_EMBEDDING_PROFILE ? Boolean(m.embed) : m.chat));
-    let model: string | null = null;
-    if (models.length) {
-      model = await mSelect({
-        title: t("ai.settings.modelFromList"),
-        options: [...models.map((m) => ({ value: m.id, label: m.label ?? m.id, desc: m.label && m.label !== m.id ? m.id : undefined })), { value: "__typed", label: t("ai.settings.modelPlaceholder") }],
-        value: settings.profiles[profile]?.model,
-        search: t("ai.settings.model"),
-      });
-      if (!model) return;
-    }
-    if (!model || model === "__typed") {
-      const typed = await mPrompt({ title: t("ai.settings.model"), placeholder: t("ai.settings.modelPlaceholder"), initial: settings.profiles[profile]?.model });
-      if (typed.cancelled || !typed.value.trim()) return;
-      model = typed.value.trim();
-    }
-    if (!model) return;
-    const named = { providerId, model };
-    let choice: ModelChoice = named;
-    // What the user says about a model on a server of this device (plan KI-Harness P7): its window, and whether it
-    // takes tools. A provider's list and the system's own model say both themselves, and neither is asked of a
-    // model that transcribes or embeds.
-    const provider = providerById(providerId, settings.custom);
-    if (!describesItself(provider) && profile !== AI_AUDIO_PROFILE && profile !== AI_EMBEDDING_PROFILE) {
-      const before = settings.profiles[profile];
-      const same = before && before.providerId === providerId && before.model === model ? before : undefined;
-      let window: number | undefined;
-      for (;;) {
-        const typed = await mPrompt({
-          title: t("ai.settings.modelWindow"),
-          message: t("ai.settings.modelWindowDesc"),
-          placeholder: t("ai.settings.modelWindowPlaceholder"),
-          initial: same?.contextTokens ? String(same.contextTokens) : "",
-        });
-        if (typed.cancelled) return;
-        const read = readStatedWindow(typed.value);
-        if (read.ok) {
-          window = read.value;
-          break;
-        }
-        await mConfirm({ title: t("ai.settings.modelWindowInvalid", { min: number.format(STATED_WINDOW_BOUNDS.min), max: number.format(STATED_WINDOW_BOUNDS.max) }) });
-      }
-      const tools = await mSelect({
-        title: t("ai.settings.modelTools"),
-        message: t("ai.settings.modelToolsDesc"),
-        options: [
-          { value: "on", label: t("ai.settings.modelTools") },
-          { value: "off", label: t("ai.settings.modelToolsNo") },
-        ],
-        value: same?.tools === false ? "off" : "on",
-      });
-      if (!tools) return;
-      choice = statedChoice(provider, named, { window, tools: tools === "on" });
-    }
-    await session.updateSettings((s) => ({ ...s, profiles: { ...s.profiles, [profile]: choice } }));
+    if (provider?.endpoint.needsKey) void enterKey(provider);
+    else if (provider) void session.testProvider(provider.id).then((test) => test.state === "ok" && nextAfterProvider());
   };
 
   return (
@@ -245,11 +222,13 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
         <GroupCard>
           <RowList>
             <Row
+              wrap
               title={t("ai.settings.betaSwitch")}
               subtitle={t("ai.settings.betaDesc")}
               end={<Switch checked={settings.enabled} label={t("ai.settings.betaSwitch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, enabled: on }))} />}
             />
             <Row
+              wrap
               icon={<ExternalLink size={ICON.ui} />}
               title={t("ai.settings.feedback")}
               subtitle={t("ai.settings.feedbackDesc")}
@@ -258,22 +237,66 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
             />
           </RowList>
         </GroupCard>
+        {!settings.enabled && <p className="m-hint">{t("ai.settings.offNextPhone")}</p>}
         <p className="m-hint">{t("ai.settings.experimental")}</p>
 
-        {/* The mode this device is in, and the one switch that promises something (plan KI-Harness P7). */}
+        {/* Off, the page is the switch alone (plan KI-Oberflächen E7). On, the same groups in the same order as the desktop (K2). */}
         {settings.enabled && (
           <>
-            <SectionLabel info={mode.localOnly ? t("ai.mode.notThis") : t("ai.mode.note")}>{t("ai.mode.title")}</SectionLabel>
+            <SectionLabel info={t("ai.settings.keysBody")}>{t("ai.settings.models")}</SectionLabel>
             <GroupCard>
               <RowList>
-                <Row wrap title={mode.title} subtitle={mode.body} data-testid="ai-mode-now" />
-                {mode.empty && <Row icon={<Plus size={ICON.ui} />} title={t("ai.mode.setUp")} onClick={() => void addProvider()} data-testid="ai-mode-setup" />}
+                {/* One card with one way while a step is missing (plan K3); the mode line once a conversation can start. */}
+                {step === "provider" ? (
+                  <Row wrap title={t("ai.setup.title")} subtitle={t("ai.setup.bodyPhone")} data-testid="ai-mode-now" />
+                ) : step === "model" ? (
+                  <Row
+                    wrap
+                    title={t("ai.setup.modelTitle")}
+                    subtitle={t("ai.setup.modelBody", { profile: t(`ai.profile.${settings.defaultProfile}`) })}
+                    onClick={() => setModelFor(settings.defaultProfile)}
+                    data-testid="ai-setup-model"
+                  />
+                ) : (
+                  <Row wrap title={mode.title} subtitle={mode.body} data-testid="ai-mode-now" />
+                )}
+                {/* Fully local, and no profile names a model on this device: the way there (plan KI-Harness P7). */}
+                {step === null && mode.empty && <Row icon={<Plus size={ICON.ui} />} title={t("ai.mode.setUp")} onClick={() => void addProvider()} data-testid="ai-mode-setup" />}
+                {rows.map((row) => (
+                  <Row key={row.provider.id} wrap title={row.provider.label} subtitle={providerStatus(t, row)} onClick={() => void providerActions(row.provider)} />
+                ))}
+                <Row icon={<Plus size={ICON.ui} />} title={t("ai.settings.addProvider")} onClick={() => void addProvider()} data-testid="ai-add-provider-open" />
+                {AI_PROFILE_IDS.map((id) => (
+                  <Row key={id} wrap title={t(`ai.profile.${id}`)} subtitle={profileLine(id)} disabled={rows.length === 0} onClick={() => void profileActions(id)} data-testid={`ai-profile-${id}`} />
+                ))}
+              </RowList>
+            </GroupCard>
+            <p className="m-hint">{t("ai.settings.moreModels")}</p>
+            <GroupCard>
+              <RowList>
+                {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
+                <Row wrap title={t("ai.profile.audio")} subtitle={profileLine(AI_AUDIO_PROFILE)} info={t("ai.settings.audioHint")} disabled={rows.length === 0} onClick={() => void profileActions(AI_AUDIO_PROFILE)} data-testid="ai-profile-audio" />
+                {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
+                <Row wrap title={t("ai.profile.embedding")} subtitle={profileLine(AI_EMBEDDING_PROFILE)} info={t("ai.settings.embeddingHint")} disabled={rows.length === 0} onClick={() => void profileActions(AI_EMBEDDING_PROFILE)} data-testid="ai-profile-embedding" />
+              </RowList>
+            </GroupCard>
+
+            {/* What may leave this device, in one place (plan K2): the promise "Fully local", and the question before each request. */}
+            <SectionLabel info={mode.localOnly ? t("ai.mode.notThis") : t("ai.mode.note")}>{t("ai.settings.privacy")}</SectionLabel>
+            <GroupCard>
+              <RowList>
                 <Row
                   wrap
                   title={t("ai.mode.switch")}
                   info={t("ai.mode.switchDesc")}
                   end={<Switch checked={mode.localOnly} label={t("ai.mode.switch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, localOnly: on }))} />}
                   data-testid="ai-local-only"
+                />
+                <Row
+                  wrap
+                  title={t("ai.settings.confirmEvery")}
+                  info={t("ai.settings.confirmEveryDesc")}
+                  end={<Switch checked={settings.confirmEveryRequest} label={t("ai.settings.confirmEvery")} onChange={(on) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: on }))} />}
                 />
               </RowList>
             </GroupCard>
@@ -292,94 +315,21 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
                 )}
               </>
             )}
+            <p className="m-hint">{t("ai.settings.privacyVaultNote")}</p>
+
+            {/* What runs on this device without a model (plan K5). */}
+            <MobileSemanticSection session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />
+            <MobileNoteHintsSection session={session} />
+            <MobileGistsSection session={session} />
+            {/* The system's assistant — only the phone has it (parity entry ai-system-intents). */}
+            {settings.enabled && <MobileSystemAssistantSection session={session} />}
+
           </>
         )}
 
-        <SectionLabel info={t("ai.settings.keysBody")}>{t("ai.settings.providers")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            {rows.map((row) => (
-              <Row key={row.provider.id} wrap title={row.provider.label} subtitle={providerStatus(t, row)} onClick={() => void providerActions(row.provider)} />
-            ))}
-            <Row icon={<Plus size={ICON.ui} />} title={t("ai.settings.addProvider")} onClick={() => void addProvider()} data-testid="ai-add-provider-open" />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("ai.settings.providersHint")}</p>
-
-        <SectionLabel>{t("ai.settings.profiles")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            {AI_PROFILE_IDS.map((id) => {
-              const choice = settings.profiles[id];
-              return (
-                <Row
-                  key={id}
-                  title={t(`ai.profile.${id}`)}
-                  subtitle={choice ? choiceLine(choice) : t("ai.settings.profileEmpty")}
-                  disabled={rows.length === 0}
-                  onClick={() => void chooseModel(id)}
-                  data-testid={`ai-profile-${id}`}
-                />
-              );
-            })}
-            <Row
-              title={t("ai.settings.defaultProfile")}
-              subtitle={t(`ai.profile.${settings.defaultProfile}`)}
-              onClick={() => {
-                void mSelect({ title: t("ai.settings.defaultProfile"), options: AI_PROFILE_IDS.map((id) => ({ value: id, label: t(`ai.profile.${id}`) })), value: settings.defaultProfile }).then((id) => {
-                  if (id) void session.updateSettings((s) => ({ ...s, defaultProfile: id as AiProfileId }));
-                });
-              }}
-            />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("ai.settings.profilesHint")}</p>
-        <GroupCard>
-          <RowList>
-            {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
-            <Row
-              title={t("ai.profile.audio")}
-              subtitle={settings.profiles.audio ? `${labelOf(settings.profiles.audio.providerId)} · ${settings.profiles.audio.model}` : t("ai.settings.profileEmpty")}
-              disabled={rows.length === 0}
-              onClick={() => void chooseModel(AI_AUDIO_PROFILE)}
-              data-testid="ai-profile-audio"
-            />
-          </RowList>
-        </GroupCard>
-        <p className="m-hint">{t("ai.settings.audioHint")}</p>
-        <GroupCard>
-          <RowList>
-            {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
-            <Row
-              title={t("ai.profile.embedding")}
-              subtitle={settings.profiles.embedding ? `${labelOf(settings.profiles.embedding.providerId)} · ${settings.profiles.embedding.model}` : t("ai.settings.profileEmpty")}
-              disabled={rows.length === 0}
-              onClick={() => void chooseModel(AI_EMBEDDING_PROFILE)}
-              info={t("ai.settings.embeddingHint")}
-              data-testid="ai-profile-embedding"
-            />
-          </RowList>
-        </GroupCard>
-
-        {settings.enabled && <MobileSemanticSection session={session} onChooseModel={() => void chooseModel(AI_EMBEDDING_PROFILE)} />}
-        {/* Calm hints at the open note (plan KI-Harness P8-3): no model, beside the related notes as on the desktop. */}
-        {settings.enabled && <MobileNoteHintsSection session={session} />}
-        {settings.enabled && <MobileGistsSection session={session} />}
-        {settings.enabled && <MobileSystemAssistantSection session={session} />}
-
-        <SectionLabel>{t("ai.settings.sending")}</SectionLabel>
-        <GroupCard>
-          <RowList>
-            <Row
-              wrap
-              title={t("ai.settings.confirmEvery")}
-              info={t("ai.settings.confirmEveryDesc")}
-              end={<Switch checked={settings.confirmEveryRequest} label={t("ai.settings.confirmEvery")} onChange={(on) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: on }))} />}
-            />
-          </RowList>
-        </GroupCard>
-
-        <SectionLabel>{t("ai.settings.history")}</SectionLabel>
+        {/* History and usage stay when the AI is off (plan KI-Oberflächen § 7): deleting the stored conversations is a
+            privacy step nobody should have to switch the AI on for. */}
+        <SectionLabel>{t("ai.settings.historyUsage")}</SectionLabel>
         <GroupCard>
           <RowList>
             <Row
@@ -404,11 +354,11 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
                   if (ok) void session.removeAll();
                 });
               }}
+              data-testid="ai-history-clear"
             />
           </RowList>
         </GroupCard>
-
-        <SectionLabel>{t("ai.settings.usage")}</SectionLabel>
+        <p className="m-hint">{t("ai.settings.usage")}</p>
         <GroupCard>
           <RowList>
             {usage.length === 0 ? (
@@ -427,6 +377,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
           </p>
         )}
       </div>
+      {modelFor && <AiModelSheet session={session} state={state} rows={rows} profile={modelFor} onClose={() => setModelFor(null)} />}
     </div>
   );
 }

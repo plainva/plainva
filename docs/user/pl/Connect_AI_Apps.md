@@ -1,10 +1,10 @@
 # Łączenie aplikacji AI (beta)
 
-Stan na: 2026-10-26
+Stan na: 2026-11-06
 
 Aplikacje AI na Twoim komputerze — Claude Code, Claude Desktop, Cursor, VS Code i inne, które mówią protokołem Model Context Protocol (MCP) — mogą czytać Twój vault przez Plainva: przeszukiwać go, czytać notatki i ich sekcje, konspekty, linki zwrotne, bazy danych, zadania i ostatnie notatki oraz otwierać notatkę w Plainva. Same niczego nie zmieniają: aplikacja, której na to pozwolisz, może proponować zmiany, a te czekają, aż zdecydujesz (zob. niżej). To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
-Kierunek odwrotny — asystent Plainva korzystający z narzędzi samodzielnie podłączanych serwerów — opisano w sekcji **Narzędzia zewnętrzne (MCP)** na stronie [Asystent AI](AI_Assistant.md).
+Kierunek odwrotny — asystent Plainva korzystający z narzędzi samodzielnie podłączanych serwerów — opisano w sekcji **Narzędzia zewnętrzne** na stronie [Asystent AI](AI_Assistant.md).
 
 Trzecią drogę — Plainva uruchamia agenta AI innego producenta w folderze vaultu, z jego sesją na karcie AI — opisano na stronie [Agenci zewnętrzni](External_Agents.md).
 
@@ -14,8 +14,8 @@ Plainva instaluje obok aplikacji mały program pomocniczy, `plainva-mcp`. Aplika
 
 ## Włączanie
 
-1. Otwórz **Ustawienia → AI & automatyzacja** i włącz **Używaj AI na tym urządzeniu**.
-2. Włącz **Pozwól aplikacjom AI na tym komputerze czytać ten vault**.
+1. Otwórz **Ustawienia → AI** i włącz **Używaj AI na tym urządzeniu**.
+2. Na karcie **Aplikacje AI na tym komputerze** włącz **Pozwól aplikacjom AI na tym komputerze czytać ten vault**.
 3. Skonfiguruj aplikację (zob. niżej). Przy pierwszym połączeniu Plainva pyta, jaka to aplikacja, jaki program ją uruchomił i które foldery może czytać. Nic nie jest zaznaczone: wybierz foldery albo **Cały vault**, potem **Zezwól**. **Odmów** odprawia aplikację, a Plainva przez dziesięć minut nie pyta o nią ponownie. Pod folderami znajduje się **Może proponować zmiany** — wyłączone, dopóki tego nie zaznaczysz; na co pozwala, opisano niżej.
 
 Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery przyznaje się dla każdej aplikacji i każdego vaultu osobno: w innym vaulcie aplikacja pyta ponownie. Gdy otworzysz inny vault, aplikacje połączone z poprzednim zostają rozłączone; nowy odczytają dopiero po ponownym połączeniu.
@@ -41,7 +41,7 @@ Czytanie nigdy nie jest zgodą na pisanie. To, czy aplikacja może także propon
 Aplikacja, której na to pozwolono, dostaje sześć dodatkowych narzędzi i żadne z nich nie zmienia vaultu:
 
 - **Zmiana w notatce** — w jej tekście albo w jednej z właściwości — staje się propozycją na marginesie notatki, podpisaną nazwą aplikacji i „(aplikacja AI)”. Tam akceptujesz lub odrzucasz każdą zmianę osobno, jak przy każdej propozycji (zobacz [Komentarze i propozycje](Comments_and_Suggestions.md)).
-- **Nowa notatka** staje się szkicem w **Oczekujące** na karcie AI. Powstaje, gdy wybierzesz tam **Utwórz**.
+- **Nowa notatka** staje się szkicem w **Do decyzji** na karcie AI. Powstaje, gdy wybierzesz tam **Utwórz**.
 - **Zmiana nazwy, przeniesienie i usunięcie** najpierw pytają. Plainva pokazuje we własnym oknie, co by się stało — przy zmianie nazwy także notatki, których linki poszłyby za nią — a aplikacja pokazuje informację, że Plainva czeka. Dopiero po **Zezwól** w Plainva i gdy aplikacja będzie kontynuować, Plainva robi to tak, jak wtedy, gdy robisz to ręcznie; aplikacja dowiaduje się tylko, czy to nastąpiło. Przy usuwaniu Plainva otwiera wtedy własne okno usuwania i nic nie znika, zanim tam nie potwierdzisz. Aplikacji, która nie potrafi pokazać takiej informacji, te trzy narzędzia nie są oferowane.
 
 Adres internetowy, który wnosi aplikacja, jest zapisywany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`), tak jak u asystenta. Własnych zasad prywatności notatki (`plainva.ai`) nie ustawia żadna aplikacja, a w zaszyfrowanym workspace nic nie jest proponowane, szkicowane ani planowane. **Ostatnie zapytania** w ustawieniach mówi przy każdym zapytaniu, co się z nim stało — także to, że Plainva zapytała Ciebie, albo że odmówiono.

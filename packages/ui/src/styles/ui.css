@@ -1866,6 +1866,10 @@ button.pv-chip:hover { background: var(--state-hover); }
 .pv-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; width: 100%; }
 .pv-chip-input { flex: 1 1 60px; min-width: 56px; border: none; background: transparent; color: var(--text-main); font-size: var(--text-sm); padding: 3px 2px; }
 .pv-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+/* Something waits behind an icon button (plan KI-Oberflächen K11, Design Language "Waiting dot"): the pv-dot in the
+   accent colour on the button's corner. The button's label says the number; the dot only draws the eye. */
+.pv-iconbtn--dot { position: relative; }
+.pv-iconbtn-dot { position: absolute; top: var(--space-1); right: var(--space-1); width: 7px; height: 7px; border-radius: 50%; background: var(--accent-color); pointer-events: none; }
 .pv-chip-plain { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
 .pv-chip-tag { background: var(--chip-tag-bg); color: var(--chip-tag-fg); border-color: transparent; }
 .pv-tag-parent { color: var(--chip-tag-parent-fg); }
@@ -5178,7 +5182,8 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-overview-sensitive { display: flex; flex-basis: 100%; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--text-xs); color: var(--warning-text); }
 .pv-ai-overview-sensitive > svg { flex: none; }
 .pv-ai-overview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
-.pv-ai-overview-every { display: flex; align-items: center; gap: var(--space-2); margin-right: auto; font-size: var(--text-xs); color: var(--text-muted); }
+.pv-ai-overview-every { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+.pv-ai-overview-more { align-self: flex-start; }
 .pv-ai-overview-hint { display: block; font-size: var(--text-xs); color: var(--text-muted); }
 /* The pictures a request would carry (AI harness P4-5), in the overview that asks: small, and exactly what goes. */
 .pv-ai-overview-pictures { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
@@ -5262,11 +5267,22 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ext-secret { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
 .pv-ext-secret > .pv-field { flex: 1 1 12rem; min-width: 0; }
 /* The wide AI tab keeps "View context" as a column beside the thread. */
-.pv-ai--withside { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); grid-template-rows: auto minmax(0, 1fr) auto; }
+.pv-ai--withside { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); grid-template-rows: auto minmax(0, 1fr) auto auto; }
 .pv-ai--withside > .pv-ai-marking,
 .pv-ai--withside > .pv-ai-thread,
+.pv-ai--withside > .pv-ai-pending,
 .pv-ai--withside > .pv-ai-composer { grid-column: 1; }
-.pv-ai-side { grid-column: 2; grid-row: 1 / span 3; min-height: 0; padding: var(--space-3); overflow-y: auto; border-left: 1px solid var(--border-color-light); }
+.pv-ai-side { grid-column: 2; grid-row: 1 / span 4; min-height: 0; padding: var(--space-3); overflow-y: auto; border-left: 1px solid var(--border-color-light); }
+/* A question that waits (plan KI-Oberflächen K9): above the composer, never scrolled away with the thread; it scrolls
+   inside itself when it is long, so the field and the thread keep their room. */
+.pv-ai-pending { flex: none; display: flex; flex-direction: column; gap: var(--space-2); max-height: 60%; overflow-y: auto; padding: var(--space-2) var(--space-3) 0; }
+/* Under an answer (plan K8): what can be done with it, and the one quiet line of what went where. */
+.pv-ai-actrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.pv-ai-quiet { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-left: auto; color: var(--text-faint); }
+.pv-ai-coverage-warn { color: var(--warning-text); }
+.pv-ai-runfull { margin: var(--space-1) 0 0; color: var(--text-muted); overflow-wrap: anywhere; }
+/* Who a failure comes from (plan K10), ahead of the sentence. */
+.pv-ai-sender { display: inline-block; margin-inline-end: var(--space-2); font-weight: 600; }
 .pv-ai-live { display: flex; flex-direction: column; gap: var(--space-2); }
 .pv-ai-working { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 .pv-ai-spin { animation: pv-ai-spin 1s linear infinite; }
@@ -5285,8 +5301,11 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-selchips-label { font-size: var(--text-xs); color: var(--text-muted); }
 /* "Transcribe" at a voice note (plan P1.5): the last control of the player, never shrinking. */
 .pv-audio-transcribe { flex: none; }
-/* The core skills (plan P1.5) under the empty conversation's invitation. */
-.pv-ai-skills { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1); padding: 0 var(--space-3) var(--space-3); }
+/* The core skills (plan P1.5) as the quick start of an empty conversation, where the thumb is (plan KI-Oberflächen K7). */
+.pv-ai-skills { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pv-ai--touch .pv-ai-skills { flex-direction: column; align-items: stretch; }
+/* On a phone the buttons of a question stand one under the other, full width, the answer that goes on at the bottom (K9). */
+.pv-ai-overview--touch .pv-ai-overview-actions { flex-direction: column; align-items: stretch; }
 .pv-ai-inputrow { display: flex; align-items: flex-end; gap: var(--space-2); }
 .pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; resize: none; }
 .pv-ai-foot { display: flex; justify-content: flex-end; min-width: 0; }

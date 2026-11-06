@@ -19,9 +19,7 @@ import {
   RowActionList,
   RowList,
   SearchField,
-  SectionLabel,
   Segmented,
-  startableSkills,
   waitingCount,
   useAiSession,
   useAiState,
@@ -151,13 +149,14 @@ export function AiTabView({
           ariaLabel={t("ai.workshop.title")}
           value={view}
           onChange={setView}
+          // What waits for the user comes right after the conversations (plan KI-Oberflächen K11): it is the one place that asks something of them.
           options={[
             { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-tab-chats" },
+            { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-tab-waiting" },
             { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-tab-skills" },
             { value: "memory", label: t("ai.memory.segment"), testId: "ai-tab-memory" },
             // Only where this window hosts agents at all (the desktop's central window).
             ...(state.agents.available ? [{ value: "agent" as const, label: t("ai.agent.segment"), testId: "ai-tab-agent" }] : []),
-            { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-tab-waiting" },
           ]}
         />
         {/* A new conversation is the assistant's; an agent's session starts and ends in its own place. */}
@@ -168,6 +167,8 @@ export function AiTabView({
         )}
       </div>
       <div className="pv-ai-tabbody">
+        {/* The history belongs to the conversations (plan K11): beside the workshop, the memory or what waits it would be noise. */}
+        {view === "chats" && (
         <nav className="pv-ai-history" aria-label={t("ai.history.title")}>
           <SearchField value={query} onValueChange={setQuery} placeholder={t("ai.history.search")} aria-label={t("ai.history.search")} clearLabel={t("ai.history.clearSearch")} data-testid="ai-history-search" />
           {list.length === 0 ? (
@@ -198,21 +199,8 @@ export function AiTabView({
               ))}
             </RowList>
           )}
-          <SectionLabel>{t("ai.skills.title")}</SectionLabel>
-          <RowList className="pv-ai-historylist">
-            {startableSkills(t, state.skills.entries).map((skill) => (
-              <Row
-                key={skill.id}
-                icon={<skill.icon size={ICON.ui} />}
-                title={skill.title}
-                subtitle={skill.description}
-                disabled={Boolean(state.live)}
-                onClick={() => void session.runSkill(skill.id, skill.start)}
-                data-testid={skill.commandId.replace(/^ai-skill-/, "ai-tab-skill-")}
-              />
-            ))}
-          </RowList>
         </nav>
+        )}
         <section className="pv-ai-tabmain">
           {view === "skills" ? (
             <SkillsWorkshop onOpenFile={onOpenPath} onRun={() => setView("chats")} review={review} onReviewOpened={reviewOpened} />
@@ -222,11 +210,6 @@ export function AiTabView({
               {...(onPickStyleExample ? { onPickExample: onPickStyleExample } : {})}
               onRun={() => setView("chats")}
               onOpenWaiting={() => setView("open")}
-              onReviewRules={(id) => {
-                // The vault's instructions are reviewed where every instruction is: in the workshop.
-                setReview(id);
-                setView("skills");
-              }}
             />
           ) : view === "agent" ? (
             <AiAgentView activeNote={activeNote} onOpenNote={onOpenNote} onOpenPath={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} />

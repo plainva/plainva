@@ -65,7 +65,7 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
   { file: `${UI}/CustomThemeSync.tsx`, shell: "desktop", area: "appearance", sub: "customTheme" },
   // AI & automation, this device (plan KI-Harness §19.1): the page and the cards it draws.
   { file: `${D}/settings/AiSettingsPage.tsx`, shell: "desktop", area: "ai" },
-  { file: `${D}/settings/AiModeCard.tsx`, shell: "desktop", area: "ai" },
+  { file: `${D}/settings/AiModeParts.tsx`, shell: "desktop", area: "ai" },
   { file: `${D}/settings/SemanticSearchCard.tsx`, shell: "desktop", area: "ai" },
   { file: `${D}/settings/GistsCard.tsx`, shell: "desktop", area: "ai" },
   { file: `${D}/settings/NoteHintsCard.tsx`, shell: "desktop", area: "ai" },
@@ -139,6 +139,7 @@ export const SETTINGS_SOURCES: readonly SettingsSource[] = [
  * The guard fails for a file that draws rows and stands in neither list.
  */
 export const SETTINGS_SOURCE_EXEMPT: Readonly<Record<string, string>> = {
+  [`${M}/screens/AiScreen.tsx`]: "the AI screen's start page: what waits and the last conversations, not settings",
   [`${D}/OnlineVaultSetup.tsx`]: "the start screen's \"vault in the cloud\" form, not a settings page",
   [`${D}/settings/CloudAccountsWizard.tsx`]: "the connect assistant: steps of a run, not settings",
   [`${D}/settings/ConnectSignInStep.tsx`]: "the sign-in step of the connect assistant",

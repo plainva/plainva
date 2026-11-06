@@ -1,6 +1,6 @@
 # External agents (Beta)
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-11-06
 
 An external agent is an AI program of another maker — an agent you installed on your computer and signed in to yourself, with your own subscription or key. Plainva can start such an agent in the folder of a vault and show its session in the AI tab. This is part of the experimental AI features and works on the desktop only.
 
@@ -25,7 +25,7 @@ Start an agent only in a vault whose content may reach the agent's service.
 ## Adding an agent
 
 1. Install the agent yourself, the way its maker describes, and sign in to it in its own program.
-2. Open **Settings → AI & automation** (the App part). Under **External agents**, **Found on this computer** marks the agents Plainva knows by name and finds installed; **Add** adds one. For any other program that speaks the Agent Client Protocol, choose **Add agent…** under **Another agent** and enter a **Name**, the **Program** and its **Arguments, one per line**.
+2. Open **Settings → AI**. In the card **External agents**, **Found on this computer** marks the agents Plainva knows by name and finds installed; **Add** adds one. For any other program that speaks the Agent Client Protocol, choose **Add agent…** under **Another agent** and enter a **Name**, the **Program** and its **Arguments, one per line**.
 3. Your system shows the whole command once more before it is remembered.
 
 Plainva installs no agent and downloads none. It starts exactly the program you confirmed, directly and without a shell. The command is remembered on this device, never in the vault. **Remove** makes Plainva forget how to start an agent; the program itself and its sign-in stay as they are.

@@ -100,7 +100,7 @@ describe("the regression run's dialog", () => {
   it("says what would run and against which model, starts only on the button, and hands the ceiling over", async () => {
     const stub = stubSession();
     const dialog = await mount(stub.session, plan);
-    expect(dialog.textContent).toContain("Test with m-2");
+    expect(dialog.textContent).toContain("Test run with m-2");
     expect(dialog.textContent).toContain("Provider · m-2");
     expect(dialog.querySelector('[data-testid="ai-skill-test-scope"]')!.textContent).toBe("2 scenarios from 1 skill");
     expect(dialog.textContent).toContain("2 more scenarios were written for another vault and do not run here.");

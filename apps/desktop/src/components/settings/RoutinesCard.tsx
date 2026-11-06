@@ -244,7 +244,7 @@ function RoutineDialog({ session, routine, review, skills, folders, models, week
             {t("common.cancel")}
           </Button>
           <Button variant="primary" disabled={form.problems.length > 0 || form.busy} onClick={form.toConfirm} data-testid="ai-routine-next">
-            {t("common.next")}
+            {t("ai.routines.toOverview")}
           </Button>
         </>
       }

@@ -1,12 +1,12 @@
 # Skripte (Beta)
 
-Stand: 2026-11-04
+Stand: 2026-11-06
 
 Ein Skript ist ein kleines Programm für das, was ein Modell schlecht kann und ein Programm jedes Mal gleich macht: zählen, sortieren, vergleichen, zusammenrechnen. Du schreibst es in JavaScript. Es läuft in einem geschlossenen Kasten in Plainva: es kann keine Datei öffnen, nicht ins Netz und nicht auf später warten. Es ruft nur die Werkzeuge auf, die Du ihm angekreuzt hast: sie lesen Deinen Vault so, wie die Werkzeuge der KI es tun, oder hinterlassen einen Vorschlag, über den Du entscheidest. Von sich aus ändert ein Skript nichts.
 
 ## Ein Skript ausführen
 
-Deine Skripte stehen unter **Skills** im KI-Tab — am Telefon unter **Gespräche → Skills** — in der Gruppe **Skripte**. **Ausführen** öffnet das Skript: trag ein, wonach es fragt, und drück **Ausführen**. Während es läuft, siehst Du jedes Werkzeug, das es aufruft, und **Stopp** beendet es. Danach zeigt der Dialog die **Aufrufe**, das **Ergebnis** — das Du kopieren kannst — und das **Protokoll**, dazu, was der Lauf von seinen Grenzen verbraucht hat.
+Deine Skripte stehen unter **Skills** im KI-Tab — am Telefon auf dem KI-Bildschirm bei den Skills — in der Gruppe **Skripte**. **Ausführen** öffnet das Skript: trag ein, wonach es fragt, und drück **Ausführen**. Während es läuft, siehst Du jedes Werkzeug, das es aufruft, und **Stopp** beendet es. Danach zeigt der Dialog die **Aufrufe**, das **Ergebnis** — das Du kopieren kannst — und das **Protokoll**, dazu, was der Lauf von seinen Grenzen verbraucht hat.
 
 Ein Lauf, den Du hier startest, bleibt auf diesem Gerät: nichts davon geht an ein Modell, deshalb liest er auch Notizen, die Du von der Cloud fernhältst. **Probelauf** ruft die Werkzeuge auf, die lesen, und schreibt einen Aufruf, der in der App etwas zeigen oder einen Vorschlag hinterlassen würde, nur auf.
 

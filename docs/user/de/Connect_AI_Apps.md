@@ -1,10 +1,10 @@
 # KI-Apps verbinden (Beta)
 
-Stand: 2026-10-26
+Stand: 2026-11-06
 
 KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und andere, die das Model Context Protocol (MCP) sprechen — können Deinen Vault über Plainva lesen: ihn durchsuchen, Notizen und ihre Abschnitte lesen, Gliederungen, Backlinks, Datenbanken, Aufgaben und zuletzt benutzte Notizen, und eine Notiz in Plainva öffnen. Von sich aus ändern sie nichts: eine App, der Du es erlaubst, darf Änderungen vorschlagen, und die warten, bis Du entscheidest (siehe unten). Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
-Die Gegenrichtung — Plainvas Assistent nutzt Werkzeuge von Servern, die Du selbst anbindest — steht unter **Externe Werkzeuge (MCP)** im [KI-Assistenten](AI_Assistant.md).
+Die Gegenrichtung — Plainvas Assistent nutzt Werkzeuge von Servern, die Du selbst anbindest — steht unter **Externe Werkzeuge** im [KI-Assistenten](AI_Assistant.md).
 
 Ein dritter Weg — Plainva startet den KI-Agenten eines anderen Herstellers im Ordner des Vaults, mit seiner Sitzung im KI-Tab — steht unter [Externe Agenten](External_Agents.md).
 
@@ -14,7 +14,7 @@ Plainva bringt neben der App ein kleines Hilfsprogramm mit, `plainva-mcp`. Eine 
 
 ## Einschalten
 
-1. Öffne **Einstellungen → KI & Automatisierung** und schalte **KI auf diesem Gerät nutzen** ein.
+1. Öffne **Einstellungen → KI** und schalte **KI auf diesem Gerät nutzen** ein; die Karte **KI-Apps auf diesem Rechner** steht weiter unten auf der Seite.
 2. Schalte **KI-Apps auf diesem Rechner diesen Vault lesen lassen** ein.
 3. Richte die App ein (siehe unten). Beim ersten Verbinden fragt Plainva, welche App es ist, welches Programm sie gestartet hat und welche Ordner sie lesen darf. Nichts ist vorausgewählt: wähle Ordner oder **Der ganze Vault**, dann **Erlauben**. **Ablehnen** weist die App ab, und Plainva fragt zehn Minuten lang nicht erneut nach ihr. Unter den Ordnern steht **Darf Änderungen vorschlagen** — aus, solange Du den Haken nicht setzt; was er erlaubt, steht weiter unten.
 
@@ -41,7 +41,7 @@ Lesen ist nie eine Erlaubnis zu schreiben. Ob eine App auch Änderungen vorschla
 Eine App, der Du es erlaubt hast, bekommt sechs weitere Werkzeuge, und keines davon ändert den Vault:
 
 - **Eine Änderung an einer Notiz** — an ihrem Text oder an einer ihrer Eigenschaften — wird ein Vorschlag am Rand der Notiz, gezeichnet mit dem Namen der App und „(KI-App)“. Dort übernimmst Du jede Änderung einzeln oder lehnst sie ab, wie bei jedem Vorschlag (siehe [Kommentare & Vorschläge](Comments_and_Suggestions.md)).
-- **Eine neue Notiz** wird ein Entwurf unter **Offen** im KI-Tab. Es gibt sie, sobald Du dort **Anlegen** wählst.
+- **Eine neue Notiz** wird ein Entwurf unter **Zu entscheiden** im KI-Tab. Es gibt sie, sobald Du dort **Anlegen** wählst.
 - **Umbenennen, Verschieben und Löschen** fragen zuerst. Plainva zeigt im eigenen Fenster, was geschähe — beim Umbenennen auch die Notizen, deren Links folgen würden —, und die App zeigt einen Hinweis, dass Plainva wartet. Erst nach **Erlauben** in Plainva, und sobald die App fortfährt, führt Plainva es so aus, wie wenn Du es von Hand tust; die App erfährt nur, ob es geschehen ist. Beim Löschen öffnet Plainva dann den eigenen Löschdialog, und nichts verschwindet, bevor Du dort bestätigst. Einer App, die einen solchen Hinweis nicht zeigen kann, werden diese drei Werkzeuge nicht angeboten.
 
 Eine Webadresse, die eine App mitbringt, wird so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`), wie beim Assistenten. Die eigenen Datenschutzregeln einer Notiz (`plainva.ai`) setzt keine App, und in einem verschlüsselten Workspace wird nichts vorgeschlagen, entworfen oder geplant. **Letzte Anfragen** in den Einstellungen sagt zu jeder Anfrage, was aus ihr wurde — auch, dass Plainva bei Dir nachgefragt hat oder dass Du Nein gesagt hast.

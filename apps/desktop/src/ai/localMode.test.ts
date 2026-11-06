@@ -38,7 +38,7 @@ describe("the line that says what holds now", () => {
     expect(facts({ profiles: { balanced: CLOUD }, semanticModel: "granite-r2-97m" }).body).toBe("New conversations start with Anthropic · m-1. This device computes itself: search by meaning.");
     const all = facts({ profiles: { balanced: CLOUD, local: LOCAL }, semanticModel: "granite-r2-97m", gists: true });
     expect(all.title).toBe("Now: Hybrid — this device sorts, a provider answers");
-    expect(all.body).toBe("New conversations start with Anthropic · m-1. This device computes itself: search by meaning, reading e-mails and appointments (granite3.3:8b), and the gists.");
+    expect(all.body).toBe("New conversations start with Anthropic · m-1. This device computes itself: search by meaning, reading e-mails and appointments (granite3.3:8b), and the short summaries.");
   });
 
   it("says that a model on this device answers — and that nothing is promised by it", () => {
@@ -94,10 +94,10 @@ describe("what rests while the device is fully local", () => {
     expect(rests.map((rest) => `${rest.kind}: ${rest.label}`)).toEqual([
       "providers: OpenAI",
       "web: Internet",
-      "mcp: External tools (MCP)",
+      "mcp: External tools",
       "agents: External agents",
       "apps: AI apps on this computer",
-      "search: Semantic search",
+      "search: Search by meaning",
       "system: Siri & Shortcuts",
     ]);
     expect(rests.find((rest) => rest.kind === "search")!.desc).toBe("It computes with OpenAI, so search stays with the words. With a package on this device it goes on.");

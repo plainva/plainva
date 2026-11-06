@@ -8,6 +8,7 @@ import { getActiveVaultEntry, type VaultEntry } from "./services/vaultRegistry";
 import { getSyncStatus, subscribeSyncStatus } from "./services/syncService";
 import { syncStateLabel } from "./components/syncSubtitle";
 import { backupState } from "./services/vaultBackup";
+import { getMobileAiSession } from "./services/ai/mobileAi";
 import { AppBar } from "./components/AppBar";
 
 /**
@@ -53,6 +54,8 @@ export function SettingsScreen({
   const [vaultName, setVaultName] = useState("");
   const [vaultEntry, setVaultEntry] = useState<VaultEntry | null>(null);
   const syncStatus = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
+  const aiSession = getMobileAiSession();
+  const aiState = useSyncExternalStore(aiSession.subscribe, aiSession.getState);
   const [cards, setCards] = useState<AccountCard[] | null>(null);
   const [query, setQueryState] = useState(lastQuery);
   const setQuery = (next: string) => { rememberQuery(next); setQueryState(next); };
@@ -87,6 +90,9 @@ export function SettingsScreen({
   };
   const areaState = (id: string): string => {
     if (id === "bars") return t("mobile.navBarSummary", { n: barCount });
+    // The AI's two areas say their state like their neighbours (plan KI-Oberflächen K2).
+    if (id === "ai") return aiState.loaded ? (aiState.settings.enabled ? t("common.on") : t("common.off")) : "";
+    if (id === "aiVault") return aiState.loaded && aiState.settings.enabled ? (aiState.web.enabled ? t("ai.settings.internetOn") : t("ai.settings.internetOff")) : "";
     if (id === "cloudAccounts") return carriers();
     if (id === "pim") return carriers("calendar");
     if (id === "mail") return carriers("mail");

@@ -1,6 +1,6 @@
 # Mémoire (Bêta)
 
-Dernière mise à jour : 2026-10-25
+Dernière mise à jour : 2026-11-06
 
 La mémoire conserve ce que l'IA doit savoir sur vous et votre travail sans qu'on ait à le lui répéter : ce que vous faites, comment vous voulez qu'on vous réponde, qui sont vos clients. Elle se compose de deux fichiers dans votre vault. Rien n'y entre sans votre oui, et vous pouvez lire, modifier et supprimer chaque entrée.
 
@@ -12,7 +12,7 @@ La mémoire conserve ce que l'IA doit savoir sur vous et votre travail sans qu'o
 
 ## Ouvrir la mémoire
 
-Sur l'ordinateur, choisissez **Mémoire** dans l'onglet IA, à côté de **Compétences**. Sur le téléphone, c'est **Conversations → Mémoire**. **Paramètres → IA & automatisation** (la partie Vault) y mène aussi : **Ouvrir la mémoire** sous **Compétences et mémoire**.
+Sur l'ordinateur, choisissez **Mémoire** dans l'onglet IA, à côté de **Compétences**. Sur le téléphone, c'est **Mémoire** sur l'écran IA, ou **Compétences et mémoire** sur la page de départ de la rubrique IA. **Paramètres → IA dans ce vault** y mène aussi : **Ouvrir la mémoire** sous **Compétences et mémoire**. Les noms de fichiers de la mémoire se trouvent derrière le ⓘ de la carte **Toujours inclus** ; les règles du vault (`AGENTS.md`) se vérifient et s'approuvent là même, dans la vue de la mémoire.
 
 ## Ajouter une entrée soi-même
 
@@ -22,7 +22,7 @@ Le bouton ⋯ d'une entrée — sur le téléphone, un appui sur l'entrée — p
 
 ## Laisser l'IA retenir quelque chose
 
-Dites-le dans une conversation : « Retiens que je facture à la journée, pas à l'heure. » L'IA rédige un brouillon d'entrée ; elle n'écrit jamais d'entrée elle-même. Sous sa réponse, une carte **Brouillon · Entrée de la mémoire** montre le texte entier. Choisissez l'emplacement, puis **Retenir** — ou **Abandonner**. Un brouillon sur lequel vous n'avez pas encore tranché attend sous **En attente**, et la mémoire indique combien attendent.
+Dites-le dans une conversation : « Retiens que je facture à la journée, pas à l'heure. » L'IA rédige un brouillon d'entrée ; elle n'écrit jamais d'entrée elle-même. Sous sa réponse, une carte **Brouillon · Entrée de la mémoire** montre le texte entier. Choisissez l'emplacement, puis **Retenir** — ou **Abandonner**. Un brouillon sur lequel vous n'avez pas encore tranché attend sous **À décider**, et la mémoire indique combien attendent.
 
 « Oublie que … » fonctionne de la même façon : la carte indique **Brouillon · Retirer de la mémoire**, et **Retirer** enlève l'entrée. Quand vous dites à l'IA que quelque chose a changé, la carte montre sous **Remplace** l'entrée dont la nouvelle formulation prend la place.
 

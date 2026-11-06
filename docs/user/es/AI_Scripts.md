@@ -1,12 +1,12 @@
 # Scripts (Beta)
 
-Última actualización: 2026-11-04
+Última actualización: 2026-11-06
 
 Un script es un programa pequeño para lo que un modelo hace mal y un programa hace siempre igual: contar, ordenar, comparar, sumar. Lo escribes en JavaScript. Se ejecuta en un entorno aislado dentro de Plainva: no puede abrir un archivo, llegar a la red ni esperar hasta más tarde. Solo llama a las herramientas que marcaste para él: estas leen tu vault igual que las herramientas de la IA o dejan una sugerencia sobre la que decides tú. Un script no cambia nada por sí solo.
 
 ## Ejecutar un script
 
-Tus scripts están en **Habilidades**, en la pestaña de IA —en el teléfono, en **Conversaciones → Habilidades**—, dentro del grupo **Scripts**. **Ejecutar** abre el script: rellena lo que pide y pulsa **Ejecutar**. Mientras se ejecuta ves cada herramienta a la que llama, y con **Detener** lo terminas. Después, el diálogo muestra las **Llamadas**, el **Resultado** —que puedes copiar— y el **Registro**, y también cuánto de sus límites usó la ejecución.
+Tus scripts están en **Habilidades**, en la pestaña de IA —en el teléfono, en la pantalla de IA, en las habilidades—, dentro del grupo **Scripts**. **Ejecutar** abre el script: rellena lo que pide y pulsa **Ejecutar**. Mientras se ejecuta ves cada herramienta a la que llama, y con **Detener** lo terminas. Después, el diálogo muestra las **Llamadas**, el **Resultado** —que puedes copiar— y el **Registro**, y también cuánto de sus límites usó la ejecución.
 
 Una ejecución que inicias aquí se queda en este dispositivo: nada de ello va a un modelo, así que también lee las notas que mantienes fuera de la nube. **Ejecución de prueba** llama a las herramientas que leen y solo anota las llamadas que mostrarían algo en la app o dejarían una sugerencia.
 

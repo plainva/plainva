@@ -823,6 +823,7 @@ textarea {
 }
 
 .m-tab-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5111,6 +5112,10 @@ textarea {
 .m-ai-sheethead .m-sheet-title { flex: 1; min-width: 0; margin: 0; }
 .m-ai-sheet .pv-ai { flex: 1; min-height: 0; }
 .m-ai-page { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+/* The empty AI screen's start page (plan KI-Oberflächen K11): what waits, the last conversations, skills and memory. */
+.m-ai-start { display: flex; flex-direction: column; gap: var(--space-2); }
+/* Something of the AI waits for a decision (plan KI-Oberflächen K11): the desktop's waiting dot on the bar's pill. */
+.m-tab-dot { position: absolute; top: var(--space-1); right: var(--space-3); width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--accent-color); pointer-events: none; }
 .m-ai-page .pv-ai { flex: 1; min-height: 0; }
 /* The AI segment of the note's context: bounded, so its thread scrolls inside the sheet or the docked column. */
 .m-ai-segment { display: flex; flex-direction: column; height: 56vh; }

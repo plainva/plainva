@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Ultimo aggiornamento: 2026-10-25
+Ultimo aggiornamento: 2026-11-06
 
 La memoria contiene ciò che l'IA deve sapere su di te e sul tuo lavoro senza che tu glielo ripeta: che cosa fai, come preferisci ricevere le risposte, chi sono i tuoi clienti. Sono due file nel tuo vault. Nulla entra nella memoria senza il tuo sì, e puoi leggere, modificare ed eliminare ogni voce.
 
@@ -12,7 +12,7 @@ La memoria contiene ciò che l'IA deve sapere su di te e sul tuo lavoro senza ch
 
 ## Aprire la memoria
 
-Sul desktop scegli **Memoria** nella scheda IA, accanto a **Competenze**. Sul telefono è **Conversazioni → Memoria**. Anche **Impostazioni → IA e automazione** (la parte Vault) porta lì: **Apri la memoria** sotto **Competenze e memoria**.
+Sul desktop scegli **Memoria** nella scheda IA, accanto a **Competenze**. Sul telefono è il segmento **Memoria** dello schermo **IA** (o **Competenze e memoria** nella pagina iniziale). Anche **Impostazioni → IA in questo vault** porta lì: **Apri la memoria** sotto **Competenze e memoria**. I nomi dei file della memoria stanno dietro il ⓘ della scheda **Sempre incluso**; le regole del vault (`AGENTS.md`) le controlli e approvi qui, nella vista Memoria, non più tra le competenze.
 
 ## Aggiungere una voce a mano
 
@@ -22,7 +22,7 @@ Il pulsante ⋯ di una voce — sul telefono, un tocco sulla voce — offre **Mo
 
 ## Far ricordare qualcosa all'IA
 
-Dillo in una conversazione: «Ricorda che fatturo a giornata, non a ore». L'IA prepara la bozza di una voce; non scrive mai una voce da sola. Sotto la sua risposta, una scheda **Bozza · Voce della memoria** mostra il testo completo. Scegli il posto, poi **Ricorda** — oppure **Scarta**. Una bozza su cui non hai deciso resta sotto **In attesa**, e la memoria dice quante ce ne sono.
+Dillo in una conversazione: «Ricorda che fatturo a giornata, non a ore». L'IA prepara la bozza di una voce; non scrive mai una voce da sola. Sotto la sua risposta, una scheda **Bozza · Voce della memoria** mostra il testo completo. Scegli il posto, poi **Ricorda** — oppure **Scarta**. Una bozza su cui non hai deciso resta sotto **Da decidere**, e la memoria dice quante ce ne sono.
 
 «Dimentica che …» funziona allo stesso modo: la scheda riporta **Bozza · Togliere dalla memoria**, e **Togli** rimuove la voce. Quando dici all'IA che qualcosa è cambiato, la scheda mostra sotto **Sostituisce** quale voce viene rimpiazzata dalla nuova formulazione.
 

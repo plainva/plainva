@@ -17,7 +17,7 @@ import { mConfirm, mPrompt } from "../services/mobileDialogs";
  * loud action — both read the shared list (rename, delete), the same words as
  * the desktop's context menu.
  */
-export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: { onBack: () => void; onOpenNote: (path: string) => void; initialView?: "chats" | "skills" | "memory" }) {
+export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: { onBack: () => void; onOpenNote: (path: string) => void; initialView?: "chats" | "open" | "skills" | "memory" }) {
   const { t, i18n } = useTranslation();
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
@@ -28,7 +28,7 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
   // And everything that waits for the user is its third (plan P5): the drafts of this phone, the notes with a machine's open proposals.
   // And the vault's memory (plan P6): what an assistant is told about the user in every conversation, or can look up.
   const [view, setView] = useState<"chats" | "skills" | "memory" | "open">(initialView);
-  const [review, setReview] = useState(() => takeSkillReview());
+  const [review] = useState(() => takeSkillReview());
   const proposals = useOpenProposals(session);
   const waiting = openWritesCount(state.drafts, proposals);
 
@@ -72,16 +72,18 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
 
   return (
     <div className="m-page" data-testid="ai-history-screen">
-      <AppBar onBack={onBack} title={t("ai.history.title")} />
+      {/* The AI's second screen holds more than the history (plan KI-Oberflächen K11): named as the area, its segments in the
+          desktop tab's order — what waits right after the conversations. */}
+      <AppBar onBack={onBack} title={t("ai.title")} />
       <Segmented
-        ariaLabel={t("ai.workshop.title")}
+        ariaLabel={t("ai.title")}
         value={view}
         onChange={setView}
         options={[
           { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-history-chats" },
+          { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-history-waiting" },
           { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-history-skills" },
           { value: "memory", label: t("ai.memory.segment"), testId: "ai-history-memory" },
-          { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-history-waiting" },
         ]}
       />
       {view === "skills" ? (
@@ -92,11 +94,6 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
           onOpenNote={onOpenNote}
           onRun={onBack}
           onOpenWaiting={() => setView("open")}
-          onReviewRules={(id) => {
-            // The vault's instructions are reviewed where every instruction is: in the workshop.
-            setReview(id);
-            setView("skills");
-          }}
         />
       ) : view === "open" ? (
         <AiOpenPanel session={session} state={state.drafts} proposals={proposals} onOpenNote={onOpenNote} touch />

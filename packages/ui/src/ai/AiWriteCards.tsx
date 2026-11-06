@@ -460,7 +460,7 @@ const COMMENTS_CHANGED_EVENT = "plainva-workspace-comments-changed";
  * shows them and again whenever the vault's comments change; null until the
  * first answer.
  */
-export function useOpenProposals(session: Pick<AiSession, "openProposals"> | null): readonly OpenProposal[] | null {
+export function useOpenProposals(session: Pick<AiSession, "openProposals"> | null, reload?: unknown): readonly OpenProposal[] | null {
   const [proposals, setProposals] = useState<readonly OpenProposal[] | null>(null);
   useEffect(() => {
     if (!session) return;
@@ -476,7 +476,8 @@ export function useOpenProposals(session: Pick<AiSession, "openProposals"> | nul
       alive = false;
       window.removeEventListener(COMMENTS_CHANGED_EVENT, load);
     };
-  }, [session]);
+    // `reload`: a caller that lives longer than one vault reads the list again when its vault changes (plan KI-Oberflächen K11).
+  }, [session, reload]);
   return proposals;
 }
 

@@ -98,8 +98,10 @@ export function AiPolicyScreen({
     }
   };
   const word = (choice: PolicyChoice | undefined) => (choice === "deny" ? t("ai.policy.deny") : choice === "allow" ? t("ai.policy.allow") : t("ai.policy.inherit"));
+  // The two questions of a rule, named (plan KI-Oberflächen K6). The rules travel with the vault, the internet switch is
+  // this phone's: the answer stays, and it is said when the internet is off here.
   const line = (rule: FolderPolicyRule | undefined, inherit: boolean) =>
-    `${t("ai.policy.cloud")}: ${word(rule?.cloud ?? (inherit ? "inherit" : "allow"))} · ${t("ai.policy.web")}: ${word(rule?.web ?? (inherit ? "inherit" : "allow"))}`;
+    `${t("ai.policy.cloud")}: ${word(rule?.cloud ?? (inherit ? "inherit" : "allow"))} · ${t("ai.policy.web")}: ${word(rule?.web ?? (inherit ? "inherit" : "allow"))}${aiState.web.enabled ? "" : ` (${t("ai.policy.webOff")})`}`;
 
   const edit = async (folder: string, inherit: boolean) => {
     const rule = ruleOf(rules, folder);
@@ -140,11 +142,33 @@ export function AiPolicyScreen({
   const free = unruledFolders(rules, folders);
   return (
     <div className="m-page" data-testid="settings-ai-vault">
-      {/* The area's own name, as the settings list has it: the screen holds the privacy rules AND what the AI may use
-          in this vault — the internet, external tools, skills. The rules are its first section, named as on the desktop. */}
-      <AppBar onBack={onBack} title={t("ai.settings.title")} testId="appbar-area-aiVault" />
+      {/* The area's own name, as the settings list has it (plan KI-Oberflächen K2): what the AI may do in this vault. */}
+      <AppBar onBack={onBack} title={t("ai.settings.vaultTitle")} testId="appbar-area-aiVault" />
       <div className="m-settings">
         <p className="m-hint">{t("ai.settings.sectionVault")}</p>
+        {/* The rules here hold once the AI is on (plan KI-Oberflächen K6): said where it is off on this device. */}
+        {!aiState.settings.enabled && <Banner kind="info" rounded testId="settings-ai-vault-off">{t("ai.settings.vaultOff")}</Banner>}
+        {/* The internet for this vault (plan KI-Harness P4): off until the user decides, on this device — as on the desktop. */}
+        <SectionLabel info={web.enabled ? t("ai.web.settings.sitesDesc") : t("ai.web.settings.desc")}>{t("ai.web.settings.title")}</SectionLabel>
+        {/* Fully local (plan KI-Harness P7): no conversation reads a page or searches, whatever this vault allows. */}
+        {aiState.settings.localOnly && <p className="m-hint" data-testid="ai-rests-web">{t("ai.mode.restsHere")}</p>}
+        <GroupCard>
+          <RowList>
+            <Row
+              wrap
+              title={t("ai.web.settings.switch")}
+              subtitle={t("ai.web.settings.switchLine")}
+              info={t("ai.web.settings.switchDesc")}
+              end={<Switch checked={web.enabled} label={t("ai.web.settings.switch")} onChange={(enabled) => void session.setWebEnabled(enabled)} />}
+              data-testid="settings-ai-web"
+            />
+            {web.enabled &&
+              web.allow.map((host) => (
+                <Row key={host} icon={<Globe size={ICON.ui} />} title={host} onClick={() => void removeSite(host)} data-testid="settings-ai-web-site" />
+              ))}
+            {web.enabled && <Row icon={<Plus size={ICON.ui} />} title={t("ai.web.settings.addSite")} onClick={() => void addSite()} data-testid="settings-ai-web-add" />}
+          </RowList>
+        </GroupCard>
         <SectionLabel info={t("ai.policy.desc")}>{t("ai.policy.title")}</SectionLabel>
         {problems.length > 0 && <Banner kind="warning" rounded>{t("ai.policy.problems", { lines: problems.join("; ") })}</Banner>}
         <GroupCard>
@@ -170,27 +194,6 @@ export function AiPolicyScreen({
         </GroupCard>
         <p className="m-hint">{t("ai.policy.localAllowed")}</p>
         {vault.workspaceRuntime !== null && <p className="m-hint">{t("ai.policy.encrypted")}</p>}
-        {/* The internet for this vault (plan KI-Harness P4): off until the user decides, on this device — as on the desktop. */}
-        <SectionLabel info={web.enabled ? t("ai.web.settings.sitesDesc") : t("ai.web.settings.desc")}>{t("ai.web.settings.title")}</SectionLabel>
-        {/* Fully local (plan KI-Harness P7): no conversation reads a page or searches, whatever this vault allows. */}
-        {aiState.settings.localOnly && <p className="m-hint" data-testid="ai-rests-web">{t("ai.mode.restsHere")}</p>}
-        <GroupCard>
-          <RowList>
-            <Row
-              wrap
-              title={t("ai.web.settings.switch")}
-              subtitle={t("ai.web.settings.switchLine")}
-              info={t("ai.web.settings.switchDesc")}
-              end={<Switch checked={web.enabled} label={t("ai.web.settings.switch")} onChange={(enabled) => void session.setWebEnabled(enabled)} />}
-              data-testid="settings-ai-web"
-            />
-            {web.enabled &&
-              web.allow.map((host) => (
-                <Row key={host} icon={<Globe size={ICON.ui} />} title={host} onClick={() => void removeSite(host)} data-testid="settings-ai-web-site" />
-              ))}
-            {web.enabled && <Row icon={<Plus size={ICON.ui} />} title={t("ai.web.settings.addSite")} onClick={() => void addSite()} data-testid="settings-ai-web-add" />}
-          </RowList>
-        </GroupCard>
         {/* External tools (plan KI-Harness P4.5): the servers this phone knows, and whether this vault uses each — as on the desktop. */}
         {aiState.mcp.available && aiState.mcp.loaded && (
           <>
@@ -222,6 +225,8 @@ export function AiPolicyScreen({
             {aiState.mcp.servers.length === 0 && <p className="m-hint">{t("ai.ext.none")}</p>}
           </>
         )}
+        {/* Routines (plan KI-Harness P8): a skill at a time its user set, as on the desktop; or a folder's log (P8-2). */}
+        <MobileRoutinesSection onOpenNote={onOpenNote} folders={folders} />
         <SectionLabel info={t("ai.workshop.settingsDesc")}>{t("ai.workshop.settingsTitle")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -247,8 +252,6 @@ export function AiPolicyScreen({
             <Row wrap title={t("ai.memory.open")} subtitle={memorySummary(t, aiState.memory)} disabled={!aiState.memory.available} onClick={onOpenMemory} data-testid="settings-ai-memory-open" />
           </RowList>
         </GroupCard>
-        {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of, as on the desktop; or a folder's log (P8-2). */}
-        <MobileRoutinesSection onOpenNote={onOpenNote} folders={folders} />
       </div>
       {external === "add" && <ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} />}
       {external !== null && external !== "add" && <ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} />}

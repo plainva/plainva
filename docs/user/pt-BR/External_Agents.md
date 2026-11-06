@@ -1,6 +1,6 @@
 # Agentes externos (Beta)
 
-Última revisão: 2026-10-26
+Última revisão: 2026-11-06
 
 Um agente externo é um programa de IA de outro fabricante — um agente que você instalou no seu computador e no qual você mesmo fez login, com a sua própria assinatura ou chave. O Plainva pode iniciar um agente assim na pasta de um vault e mostrar a sessão dele na aba de IA. Isso faz parte das funções experimentais de IA e funciona só no desktop.
 
@@ -25,7 +25,7 @@ Inicie um agente só num vault cujo conteúdo possa chegar ao serviço do agente
 ## Adicionar um agente
 
 1. Instale o agente você mesmo, como o fabricante dele descreve, e faça login nele no programa dele.
-2. Abra **Configurações → IA e automação** (a parte do App). Em **Agentes externos**, **Encontrado neste computador** marca os agentes que o Plainva conhece pelo nome e encontra instalados; **Adicionar** adiciona um. Para qualquer outro programa que fale o Agent Client Protocol, escolha **Adicionar agente…** em **Outro agente** e preencha **Nome**, **Programa** e **Argumentos, um por linha**.
+2. Abra **Configurações → IA**. No cartão **Agentes externos**, **Encontrado neste computador** marca os agentes que o Plainva conhece pelo nome e encontra instalados; **Adicionar** adiciona um. Para qualquer outro programa que fale o Agent Client Protocol, escolha **Adicionar agente…** em **Outro agente** e preencha **Nome**, **Programa** e **Argumentos, um por linha**.
 3. Seu sistema mostra o comando inteiro mais uma vez antes de ele ser lembrado.
 
 O Plainva não instala nenhum agente e não baixa nenhum. Ele inicia exatamente o programa que você confirmou, diretamente e sem shell. O comando é lembrado neste dispositivo, nunca no vault. **Remover** faz o Plainva esquecer como iniciar um agente; o programa em si e o login dele ficam como estão.
@@ -52,7 +52,7 @@ Quando o agente quer a sua permissão para um passo, **⟨agente⟩ pergunta** m
 
 ## O que o agente escreve
 
-**Pelo Plainva.** Uma alteração que o agente entrega ao Plainva nunca é escrita na nota. Quando a resposta do agente termina, cada nota que ele alterou traz uma rodada de sugestões, assinada **⟨nome⟩ (agente externo)**: em **Sugestões** você aceita ou recusa cada alteração ou a rodada inteira, como na rodada de uma pessoa. Uma propriedade que o texto do agente altera aparece nessa rodada como valor proposto, como os que a IA do próprio Plainva propõe. Uma nota que ainda não existe espera como rascunho — um cartão **Rascunho · Nota** na sessão, e o mesmo cartão na lista **Pendentes** da aba de IA, onde continua depois que a sessão termina. **Criar** a escreve exatamente no lugar que o agente indicou — marcada com `generated`, com o agente como autor —, e **Descartar** a descarta. Os endereços da web que o agente trouxe são escritos de modo que nada os abra nem os carregue (`https[://]…`).
+**Pelo Plainva.** Uma alteração que o agente entrega ao Plainva nunca é escrita na nota. Quando a resposta do agente termina, cada nota que ele alterou traz uma rodada de sugestões, assinada **⟨nome⟩ (agente externo)**: em **Sugestões** você aceita ou recusa cada alteração ou a rodada inteira, como na rodada de uma pessoa. Uma propriedade que o texto do agente altera aparece nessa rodada como valor proposto, como os que a IA do próprio Plainva propõe. Uma nota que ainda não existe espera como rascunho — um cartão **Rascunho · Nota** na sessão, e o mesmo cartão na lista **A decidir** da aba de IA, onde continua depois que a sessão termina. **Criar** a escreve exatamente no lugar que o agente indicou — marcada com `generated`, com o agente como autor —, e **Descartar** a descarta. Os endereços da web que o agente trouxe são escritos de modo que nada os abra nem os carregue (`https[://]…`).
 
 O Plainva não aceita tudo: só notas Markdown; nem regras de IA, nem campos de confiança, nem propriedades próprias do Plainva; nenhum valor de propriedade que não seja texto, número, sim ou não, ou uma lista deles; nada que seja mantido fora da nuvem ou da internet; não mais de 150 alterações numa nota por vez; e nenhuma outra nota nova enquanto houver rascunhos demais esperando. O que ele não aceitou, a sessão diz, e o agente fica sabendo.
 

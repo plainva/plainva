@@ -29,6 +29,9 @@ function mount(node: React.ReactElement): HTMLElement {
   document.body.appendChild(host);
   root = createRoot(host);
   act(() => root!.render(node));
+  // These tests read the whole send overview: its details are opened, as a reader would (plan KI-Oberflächen K9).
+  const more = host.querySelector('[data-testid="ai-overview-more"]');
+  if (more) act(() => (more as HTMLElement).click());
   return host;
 }
 
@@ -47,7 +50,7 @@ describe("the question for one request to the internet", () => {
     expect(container.textContent).toContain("You named this address.");
     expect(container.textContent).toContain("The request goes from this device to example.org: this address and nothing else.");
     expect(container.querySelector('[data-testid="ai-effect-built"]')).toBeNull();
-    expect(buttons(container)).toEqual(["Don't read", "Always for example.org", "Read page"]);
+    expect(buttons(container)).toEqual(["Don't allow", "Always for example.org", "Read page"]);
     click(container.querySelector('[data-testid="ai-effect-once"]'));
     click(container.querySelector('[data-testid="ai-effect-always"]'));
     click(container.querySelector('[data-testid="ai-effect-deny"]'));
@@ -59,7 +62,7 @@ describe("the question for one request to the internet", () => {
     expect(container.querySelector('[data-testid="ai-effect-address"]')!.textContent).toBe(composedUrl);
     expect(container.querySelector('[data-testid="ai-effect-built"]')!.textContent).toContain("The model put this address together itself");
     expect(container.textContent).not.toContain("You named this address.");
-    expect(buttons(container)).toEqual(["Don't read", "Read page"]);
+    expect(buttons(container)).toEqual(["Don't allow", "Read page"]);
   });
 
   it("says where an address from a note or a result came from", () => {
@@ -75,7 +78,7 @@ describe("the question for one request to the internet", () => {
     expect(container.querySelector('[data-testid="ai-effect-query"]')!.textContent).toBe("day rates 2026 consulting");
     expect(container.textContent).toContain("These words go to Anthropic, which searches with them. Nothing else goes with this request.");
     // A search is asked for each time: there is no standing approval for one.
-    expect(buttons(container)).toEqual(["Don't search", "Search"]);
+    expect(buttons(container)).toEqual(["Don't allow", "Search"]);
     click(container.querySelector('[data-testid="ai-effect-once"]'));
     expect(onAnswer).toHaveBeenCalledWith("once");
   });

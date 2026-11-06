@@ -548,9 +548,9 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   journal: (_e, c) => <JournalScreen bump={c.bump} onBack={c.pop} onNewEntry={() => c.captureJournal()} onOpenNote={c.openNote} vault={c.vault} />,
   // Pushed when the KI screen sits outside the bar — its usual place (plan KI-Harness §19.1).
   ai: (_e, c) => (
-    <AiScreen onBack={c.pop} onHistory={() => c.push({ kind: "aihistory", path: "" })} onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)} onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })} />
+    <AiScreen onBack={c.pop} onHistory={(view) => c.push({ kind: "aihistory", path: view ?? "" })} onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)} onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })} />
   ),
-  aihistory: (e, c) => <AiHistoryScreen onBack={c.pop} onOpenNote={c.openNote} initialView={e.path === "skills" ? "skills" : e.path === "memory" ? "memory" : "chats"} />,
+  aihistory: (e, c) => <AiHistoryScreen onBack={c.pop} onOpenNote={c.openNote} initialView={e.path === "skills" || e.path === "memory" || e.path === "open" ? e.path : "chats"} />,
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   // The security wizards are a DESTINATION (S37), not a state inside the
   // security area and not a sheet: the bar is hidden here, and Back — which
@@ -683,7 +683,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
   ai: (c) => (
     <AiScreen
       onMenu={() => c.push({ kind: "settings", path: "" })}
-      onHistory={() => c.push({ kind: "aihistory", path: "" })}
+      onHistory={(view) => c.push({ kind: "aihistory", path: view ?? "" })}
       onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)}
       onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })}
     />

@@ -19,7 +19,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useAiWaitingCount, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -588,6 +588,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   });
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
+  // What waits for a decision in the AI (plan KI-Oberflächen K11): the ribbon's AI button carries it.
+  const aiWaiting = useAiWaitingCount(ai.session ?? null);
 
   /**
    * The communications window: mail beside the calendar (multi-window P4, E4).
@@ -1503,6 +1505,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onOpenComments={() => openView(COMMENTS_TAB_PATH)}
         onOpenJournal={() => openView(JOURNAL_TAB_PATH)}
         onOpenAi={ai.enabled ? ai.openCompanion : undefined}
+        aiWaiting={aiWaiting}
         onOpenViewInNewWindow={(p) => openInNewWindow(p)}
         onCommandPalette={() => setShowCommandPalette(true)}
         onShortcuts={() => setShowShortcuts(true)}
@@ -1831,7 +1834,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           activeNote={ai.activeNote}
                           onOpenNote={ai.openNoteTarget}
                           onOpenUrl={ai.openUrl}
-                          onOpenSettings={() => capabilities.openSettings()}
+                          onOpenSettings={() => capabilities.openSettings({ area: "ai" })}
                           onPickNote={() => { setAiPick("pin"); setShowQuickSwitcher(true); }}
                           onPickStyleExample={() => { setAiPick("style"); setShowQuickSwitcher(true); }}
                           onOpenPath={(p) => openTab(i, p, true)}
@@ -1973,7 +1976,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   onOpenNote: ai.openNoteTarget,
                   onOpenCreated: (path) => openInFocusedPane(path, true),
                   onOpenUrl: ai.openUrl,
-                  onOpenSettings: () => capabilities.openSettings(),
+                  onOpenSettings: () => capabilities.openSettings({ area: "ai" }),
+                  // The dock is narrow: a question that waits opens in the companion (plan KI-Oberflächen E4b).
+                  onOpenRoomy: ai.openCompanion,
                   onPickNote: () => {
                     setAiPick("pin");
                     setShowQuickSwitcher(true);
@@ -2044,7 +2049,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               onOpenNote={ai.openNoteTarget}
               onOpenCreated={(path) => openInFocusedPane(path, true)}
               onOpenUrl={ai.openUrl}
-              onOpenSettings={() => capabilities.openSettings()}
+              onOpenSettings={() => capabilities.openSettings({ area: "ai" })}
               onPickNote={() => { setAiPick("pin"); setShowQuickSwitcher(true); }}
             />
           </Suspense>

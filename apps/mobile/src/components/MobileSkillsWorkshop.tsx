@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, CodeXml, Download, FlaskConical, Link2, Plus, RefreshCw } from "lucide-react";
+import { ChevronRight, FlaskConical, Link2, Plus, RefreshCw } from "lucide-react";
 import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
 import {
   Button,
@@ -44,7 +44,7 @@ import { SkillImportSheet } from "./SkillImportSheet";
 import { SkillTestSheet } from "./SkillTestSheet";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { pickSkillArchive } from "../services/ai/skillImport";
-import { mConfirm } from "../services/mobileDialogs";
+import { mActions, mConfirm } from "../services/mobileDialogs";
 
 /**
  * The skills workshop on the phone (plan KI-Harness P3-5, mockup chapter 12):
@@ -93,10 +93,34 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       if (ok) void session.deleteInstruction(entry.source.id);
     });
   };
+  /** Withdrawing an approval switches the entry off on every device that syncs it: asked first (plan KI-Oberflächen K12). */
+  const revoke = (entry: InstructionEntry) => {
+    void mConfirm({ title: t("ai.workshop.revokeConfirm", { title: titleOf(entry) }), message: t("ai.workshop.revokeBody"), danger: true, confirmLabel: t("ai.workshop.revoke") }).then((ok) => {
+      if (ok) void session.revokeInstruction(entry.source.id);
+    });
+  };
+  /** "New …" (plan K12): a skill, a script or an import, behind one button — the phone's sheet of choices. */
+  const createNew = async () => {
+    const pick = await mActions({
+      title: t("ai.workshop.newMenu"),
+      options: [
+        { value: "skill", label: t("ai.workshop.newSkill") },
+        ...(state.scripts.available ? [{ value: "script", label: t("ai.scripts.new") }] : []),
+        { value: "import", label: t("ai.workshop.import") },
+      ],
+    });
+    if (pick === "skill") setCreating(true);
+    else if (pick === "script") setScriptForm({ id: null });
+    else if (pick === "import") {
+      void pickSkillArchive()
+        .then((picked) => picked && setImporting(picked))
+        .catch((error: unknown) => toast.error(t("ai.workshop.importDialog.failed", { message: error instanceof Error ? error.message : String(error) })));
+    }
+  };
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
     // A server's skill (plan P9-4b): looked at and approved here, never edited, copied or started — its words are its server's.
     if (entry.source.origin === "server") {
-      return { showInstructions: () => setOpen(entry.source.id), ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}) };
+      return { showInstructions: () => setOpen(entry.source.id), ...(entry.approval ? { revoke: () => revoke(entry) } : {}) };
     }
     if (entry.source.kind === "script") {
       const readable = Boolean(entry.source.script) && typeof entry.source.code === "string";
@@ -105,7 +129,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
         showInstructions: () => setOpen(entry.source.id),
         showLabel: t("ai.scripts.show"),
         ...(readable ? { edit: () => setScriptForm({ id: entry.source.id }) } : {}),
-        ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
+        ...(entry.approval ? { revoke: () => revoke(entry) } : {}),
         delete: () => remove(entry, "ai.scripts.deleteConfirm"),
       };
     }
@@ -137,7 +161,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
             },
           }
         : {}),
-      ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
+      ...(vault && entry.approval ? { revoke: () => revoke(entry) } : {}),
       ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
   };
@@ -171,12 +195,12 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       if (entry) onOpenNote(mainPath(entry));
     }
   };
-  const switchRow = (entry: InstructionEntry) => (
+  const switchRow = (entry: InstructionEntry, named?: { title: string; subtitle: string }) => (
     <Row
       key={entry.source.id}
       controls
-      title={titleOf(entry)}
-      subtitle={describe(entry)}
+      title={named?.title ?? titleOf(entry)}
+      subtitle={named?.subtitle ?? describe(entry)}
       onClick={() => setSheet({ title: titleOf(entry), caps: capsFor(entry) })}
       data-testid="ai-skill-row"
       end={<Switch checked={entry.status === "active"} label={t("ai.workshop.switchLabel", { title: titleOf(entry) })} onChange={(on) => void session.switchInstruction(entry.source.id, on)} />}
@@ -185,26 +209,11 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
 
   return (
     <div className="m-settings" data-testid="ai-skills-workshop">
-      <div className="m-skills-actions">
-        <Button
-          variant="secondary"
-          icon={<Download size={ICON.ui} />}
-          onClick={() => {
-            void pickSkillArchive()
-              .then((picked) => picked && setImporting(picked))
-              .catch((error: unknown) => toast.error(t("ai.workshop.importDialog.failed", { message: error instanceof Error ? error.message : String(error) })));
-          }}
-          data-testid="ai-skills-import"
-        >
-          {t("ai.workshop.import")}
-        </Button>
-        <Button variant="secondary" icon={<CodeXml size={ICON.ui} />} disabled={!state.scripts.available} onClick={() => setScriptForm({ id: null })} data-testid="ai-scripts-new">
-          {t("ai.scripts.new")}
-        </Button>
-        <Button variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => setCreating(true)} data-testid="ai-skills-new">
-          {t("ai.workshop.newSkill")}
-        </Button>
-      </div>
+      {/* What a skill is, said once (plan KI-Oberflächen K12, E2), and one way to make something new. */}
+      <p className="m-hint">{t("ai.workshop.explain")}</p>
+      <Button variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => void createNew()} data-testid="ai-skills-new-menu">
+        {t("ai.workshop.newMenu")}
+      </Button>
       {failures.length > 0 && (
         <>
           <SectionLabel>{t("ai.learn.watch.title")}</SectionLabel>
@@ -237,13 +246,17 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
         </>
       )}
       <MobileUpkeepGroup rows={upkeep} onStep={takeStep} onDismiss={(key) => void session.dismissUpkeepHint(key)} />
+      <SectionLabel>{t("ai.workshop.app")}</SectionLabel>
+      <GroupCard>
+        <RowList>{sections.app.map((entry) => switchRow(entry))}</RowList>
+      </GroupCard>
       {/* A group with nothing in it is a sentence on the page's edge, not a card: a card's edge belongs to its rows. */}
       <SectionLabel>{t("ai.workshop.own")}</SectionLabel>
       {sections.own.length === 0 ? (
         <p className="m-hint">{t("ai.workshop.noOwn")}</p>
       ) : (
         <GroupCard>
-          <RowList>{sections.own.map(switchRow)}</RowList>
+          <RowList>{sections.own.map((entry) => switchRow(entry))}</RowList>
         </GroupCard>
       )}
       <SectionLabel>{t("ai.scripts.group")}</SectionLabel>
@@ -252,16 +265,8 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
         <p className="m-hint">{t("ai.scripts.none")}</p>
       ) : (
         <GroupCard>
-          <RowList>{sections.scripts.map(switchRow)}</RowList>
+          <RowList>{sections.scripts.map((entry) => switchRow(entry))}</RowList>
         </GroupCard>
-      )}
-      {sections.agents && (
-        <>
-          <SectionLabel>{t("ai.workshop.vault")}</SectionLabel>
-          <GroupCard>
-            <RowList>{switchRow(sections.agents)}</RowList>
-          </GroupCard>
-        </>
       )}
       {state.skills.servers.length > 0 && (
         <>
@@ -294,10 +299,15 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           <p className="m-hint">{t("ai.workshop.server.note")}</p>
         </>
       )}
-      <SectionLabel>{t("ai.workshop.app")}</SectionLabel>
-      <GroupCard>
-        <RowList>{sections.app.map(switchRow)}</RowList>
-      </GroupCard>
+      {sections.agents && (
+        <>
+          <SectionLabel>{t("ai.workshop.vault")}</SectionLabel>
+          <GroupCard>
+            {/* The file's name as the second line, never as the title (plan K12). */}
+            <RowList>{switchRow(sections.agents, { title: t("ai.workshop.vaultRow"), subtitle: `AGENTS.md · ${describe(sections.agents)}` })}</RowList>
+          </GroupCard>
+        </>
+      )}
       <SectionLabel>{t("ai.workshop.test.title")}</SectionLabel>
       <GroupCard>
         <RowList>

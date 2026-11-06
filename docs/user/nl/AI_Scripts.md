@@ -1,12 +1,12 @@
 # Scripts (Beta)
 
-Laatst bijgewerkt: 2026-11-04
+Laatst bijgewerkt: 2026-11-06
 
 Een script is een klein programma voor wat een model slecht kan en een programma elke keer op dezelfde manier doet: tellen, sorteren, vergelijken, optellen. Je schrijft het in JavaScript. Het draait in een afgesloten ruimte binnen Plainva: het kan geen bestand openen, niet het netwerk op en niet wachten tot later. Het roept alleen de hulpmiddelen aan die je ervoor hebt aangevinkt: ze lezen je vault zoals de hulpmiddelen van de AI dat doen, of leggen een voorstel neer waarover jij beslist. Een script verandert zelf niets.
 
 ## Een script uitvoeren
 
-Je scripts staan onder **Vaardigheden** in het AI-tabblad — op de telefoon onder **Gesprekken → Vaardigheden** — in de groep **Scripts**. **Uitvoeren** opent het script: vul in wat het vraagt en druk op **Uitvoeren**. Zolang het draait, zie je elk hulpmiddel dat het aanroept, en **Stoppen** beëindigt het. Daarna toont het dialoogvenster de **Aanroepen**, het **Resultaat** — dat je kunt kopiëren — en het **Logboek**, en wat de uitvoering van zijn grenzen heeft verbruikt.
+Je scripts staan onder **Vaardigheden** in het AI-tabblad — op de telefoon in het segment **Vaardigheden** van het scherm **AI** — in de groep **Scripts**. **Uitvoeren** opent het script: vul in wat het vraagt en druk op **Uitvoeren**. Zolang het draait, zie je elk hulpmiddel dat het aanroept, en **Stoppen** beëindigt het. Daarna toont het dialoogvenster de **Aanroepen**, het **Resultaat** — dat je kunt kopiëren — en het **Logboek**, en wat de uitvoering van zijn grenzen heeft verbruikt.
 
 Een uitvoering die je hier start, blijft op dit apparaat: niets ervan gaat naar een model, dus het script leest ook notities die je van de cloud weghoudt. **Proefrun** roept de hulpmiddelen aan die lezen, en noteert alleen een aanroep die in de app iets zou tonen of een voorstel zou neerleggen.
 

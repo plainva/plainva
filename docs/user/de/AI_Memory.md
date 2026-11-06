@@ -1,6 +1,6 @@
 # Gedächtnis (Beta)
 
-Stand: 2026-10-25
+Stand: 2026-11-06
 
 Das Gedächtnis hält fest, was die KI über Dich und Deine Arbeit wissen soll, ohne dass Du es wieder sagst: was Du machst, wie Du Antworten magst, wer Deine Kunden sind. Es sind zwei Dateien in Deinem Vault. Nichts kommt ohne Dein Ja hinein, und Du kannst jeden Eintrag lesen, ändern und löschen.
 
@@ -12,7 +12,7 @@ Das Gedächtnis hält fest, was die KI über Dich und Deine Arbeit wissen soll, 
 
 ## Das Gedächtnis öffnen
 
-Am Desktop wählst Du im KI-Tab **Gedächtnis**, neben **Skills**. Am Telefon ist es **Gespräche → Gedächtnis**. Auch **Einstellungen → KI & Automatisierung** (Teil Vault) führt dorthin: **Gedächtnis öffnen** unter **Skills und Gedächtnis**.
+Am Desktop wählst Du im KI-Tab **Gedächtnis**, neben **Skills**. Am Telefon ist es **Gedächtnis** auf dem KI-Bildschirm oder **Skills und Gedächtnis** auf der Startseite des KI-Bereichs. Auch **Einstellungen → KI in diesem Vault** führt dorthin: **Gedächtnis öffnen** unter **Skills und Gedächtnis**. Die Dateinamen des Gedächtnisses stehen hinter dem ⓘ der Karte **Immer dabei**; die Regeln des Vaults (`AGENTS.md`) prüfst und gibst Du genau hier in der Gedächtnisansicht frei.
 
 ## Selbst einen Eintrag anlegen
 
@@ -22,7 +22,7 @@ Der Knopf ⋯ an einem Eintrag — am Telefon ein Tipp auf den Eintrag — biete
 
 ## Die KI etwas merken lassen
 
-Sag es im Gespräch: „Merk Dir, dass ich nach Tagen abrechne, nicht nach Stunden.“ Die KI entwirft einen Eintrag; sie schreibt nie selbst einen. Unter ihrer Antwort zeigt eine Karte **Entwurf · Gedächtnis-Eintrag** den ganzen Text. Wähle den Ort, dann **Merken** — oder **Verwerfen**. Ein Entwurf, über den Du noch nicht entschieden hast, wartet unter **Offen**, und das Gedächtnis sagt, wie viele warten.
+Sag es im Gespräch: „Merk Dir, dass ich nach Tagen abrechne, nicht nach Stunden.“ Die KI entwirft einen Eintrag; sie schreibt nie selbst einen. Unter ihrer Antwort zeigt eine Karte **Entwurf · Gedächtnis-Eintrag** den ganzen Text. Wähle den Ort, dann **Merken** — oder **Verwerfen**. Ein Entwurf, über den Du noch nicht entschieden hast, wartet unter **Zu entscheiden**, und das Gedächtnis sagt, wie viele warten.
 
 „Vergiss, dass …“ geht genauso: Die Karte heißt **Entwurf · Aus dem Gedächtnis entfernen**, und **Entfernen** nimmt den Eintrag heraus. Sagst Du der KI, dass sich etwas geändert hat, zeigt die Karte unter **Ersetzt**, an wessen Stelle der neue Wortlaut tritt.
 

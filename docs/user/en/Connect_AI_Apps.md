@@ -1,10 +1,10 @@
 # Connecting AI apps (Beta)
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-11-06
 
 AI apps on your computer — Claude Code, Claude Desktop, Cursor, VS Code and others that speak the Model Context Protocol (MCP) — can read your vault through Plainva: search it, read notes and their sections, outlines, backlinks, databases, tasks and recent notes, and open a note in Plainva. They change nothing by themselves: where you allow it, an app may propose changes, and those wait until you decide (see below). This is part of the experimental AI features and works on the desktop only.
 
-The other direction — Plainva's assistant using tools of servers you connect yourself — is described under **External tools (MCP)** in [AI Assistant](AI_Assistant.md).
+The other direction — Plainva's assistant using tools of servers you connect yourself — is described under **External tools** in [AI Assistant](AI_Assistant.md).
 
 A third way — Plainva starting an AI agent of another maker in the vault's folder, with its session in the AI tab — is described in [External agents](External_Agents.md).
 
@@ -14,7 +14,7 @@ Plainva ships a small helper program, `plainva-mcp`, next to the app. An AI app 
 
 ## Switching it on
 
-1. Open **Settings → AI & automation** and switch on **Use AI on this device**.
+1. Open **Settings → AI** and switch on **Use AI on this device**; the card **AI apps on this computer** is further down the page.
 2. Switch on **Let AI apps on this computer read this vault**.
 3. Set the app up (see below). The first time it connects, Plainva asks which app it is, which program started it and which folders it may read. Nothing is ticked: choose folders or **The whole vault**, then **Allow**. **Deny** turns the app away, and Plainva does not ask about it again for ten minutes. Below the folders stands **May suggest changes** — off unless you tick it; what it allows is described further down.
 
@@ -41,7 +41,7 @@ Reading is never a leave to write. Whether an app may also propose changes is an
 An app you allowed gets six more tools, and none of them changes the vault:
 
 - **A change to a note** — to its text or to one of its properties — becomes a suggestion in the note's margin, signed with the app's name and “(AI app)”. You accept or decline each change there, as with every suggestion (see [Comments & Suggestions](Comments_and_Suggestions.md)).
-- **A new note** becomes a draft under **Open** in the AI tab. It exists once you choose **Create** there.
+- **A new note** becomes a draft under **To decide** in the AI tab. It exists once you choose **Create** there.
 - **Renaming, moving and deleting** ask first. Plainva shows in its own window what would happen — for a rename also the notes whose links would follow —, and the app shows a note that Plainva is waiting. Only after **Allow** in Plainva, and once the app continues, Plainva does it the way it does when you do it by hand; the app only learns whether it happened. For a deletion Plainva then opens its own delete dialog, and nothing is gone before you confirm there. An app that cannot show such a note is not offered these three tools.
 
 A web address an app brings is written so that nothing opens or loads it (`https[://]…`), as with the assistant. A note's own privacy rules (`plainva.ai`) are not an app's to set, and inside an encrypted workspace nothing is proposed, drafted or planned. **Recent requests** in the settings says for every request what became of it — also that Plainva asked you, or that you said no.

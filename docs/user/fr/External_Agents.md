@@ -1,6 +1,6 @@
 # Agents externes (Bêta)
 
-Dernière mise à jour : 2026-10-26
+Dernière mise à jour : 2026-11-06
 
 Un agent externe est un programme d'IA d'un autre éditeur — un agent que vous avez installé sur votre ordinateur et auquel vous vous êtes connecté vous-même, avec votre propre abonnement ou votre propre clé. Plainva peut démarrer un tel agent dans le dossier d'un vault et afficher sa session dans l'onglet IA. Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
 
@@ -25,7 +25,7 @@ Ne démarrez un agent que dans un vault dont le contenu peut atteindre le servic
 ## Ajouter un agent
 
 1. Installez l'agent vous-même, comme son éditeur le décrit, et connectez-vous à lui dans son propre programme.
-2. Ouvrez **Paramètres → IA & automatisation** (la partie Application). Sous **Agents externes**, **Trouvé sur cet ordinateur** signale les agents que Plainva connaît par leur nom et trouve installés ; **Ajouter** en ajoute un. Pour tout autre programme qui parle l'Agent Client Protocol, choisissez **Ajouter un agent…** sous **Autre agent** et remplissez **Nom**, **Programme** et **Arguments, un par ligne**.
+2. Ouvrez **Paramètres → IA**. Dans la carte **Agents externes**, **Trouvé sur cet ordinateur** signale les agents que Plainva connaît par leur nom et trouve installés ; **Ajouter** en ajoute un. Pour tout autre programme qui parle l'Agent Client Protocol, choisissez **Ajouter un agent…** sous **Autre agent** et remplissez **Nom**, **Programme** et **Arguments, un par ligne**.
 3. Votre système affiche la commande entière une fois de plus avant qu'elle ne soit mémorisée.
 
 Plainva n'installe aucun agent et n'en télécharge aucun. Il démarre exactement le programme que vous avez confirmé, directement et sans shell. La commande est mémorisée sur cet appareil, jamais dans le vault. **Retirer** fait oublier à Plainva comment démarrer un agent ; le programme lui-même et sa connexion restent tels quels.
@@ -52,7 +52,7 @@ Quand l'agent veut votre accord pour une étape, **⟨agent⟩ demande** l'affic
 
 ## Ce que l'agent écrit
 
-**Par Plainva.** Une modification que l'agent remet à Plainva n'est jamais écrite dans la note. Quand la réponse de l'agent est terminée, chaque note qu'il a modifiée porte une série de propositions, signée **⟨nom⟩ (agent externe)** : sous **Propositions**, vous acceptez ou refusez chaque modification ou toute la série, comme pour la série d'une personne. Une propriété que le texte de l'agent modifie figure dans cette série comme valeur proposée, comme celles que propose l'IA de Plainva. Une note qui n'existe pas encore attend comme brouillon — une carte **Brouillon · Note** dans la session, et la même carte dans la liste **En attente** de l'onglet IA, où elle reste une fois la session terminée. **Créer** l'écrit exactement à l'endroit que l'agent a nommé — marquée `generated`, avec l'agent comme auteur —, et **Abandonner** la laisse tomber. Les adresses web que l'agent a apportées sont écrites de façon que rien ne les ouvre ni ne les charge (`https[://]…`).
+**Par Plainva.** Une modification que l'agent remet à Plainva n'est jamais écrite dans la note. Quand la réponse de l'agent est terminée, chaque note qu'il a modifiée porte une série de propositions, signée **⟨nom⟩ (agent externe)** : sous **Propositions**, vous acceptez ou refusez chaque modification ou toute la série, comme pour la série d'une personne. Une propriété que le texte de l'agent modifie figure dans cette série comme valeur proposée, comme celles que propose l'IA de Plainva. Une note qui n'existe pas encore attend comme brouillon — une carte **Brouillon · Note** dans la session, et la même carte dans la liste **À décider** de l'onglet IA, où elle reste une fois la session terminée. **Créer** l'écrit exactement à l'endroit que l'agent a nommé — marquée `generated`, avec l'agent comme auteur —, et **Abandonner** la laisse tomber. Les adresses web que l'agent a apportées sont écrites de façon que rien ne les ouvre ni ne les charge (`https[://]…`).
 
 Plainva n'accepte pas tout : uniquement des notes Markdown ; ni règles d'IA, ni champs de confiance, ni propriétés propres à Plainva ; aucune valeur de propriété qui ne soit ni du texte, ni un nombre, ni oui ou non, ni une liste de ceux-ci ; rien de ce qui est tenu à l'écart du cloud ou d'internet ; pas plus de 150 modifications d'une note à la fois ; et aucune autre nouvelle note tant que trop de brouillons attendent. Ce qu'il n'a pas accepté, la session le dit, et l'agent en est informé.
 

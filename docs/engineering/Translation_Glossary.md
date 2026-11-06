@@ -102,18 +102,18 @@ The assistant's words, fixed so that locales, the user guide and the suggestion 
 The skill titles are UI strings (`ai.skills.*`); the MCP prompt names (`daily-orientation`,
 `weekly-review`, `project-status`) are identifiers and never translated.
 
-| Language | AI | Companion | Skills | Suggestion author |
+| Language | AI | AI window | Skills | Suggestion author |
 |---|---|---|---|---|
-| en | AI | companion | Skills | Plainva AI · ⟨model⟩ |
-| de | KI | Begleiter | Skills | Plainva KI · ⟨Modell⟩ |
-| fr | IA | compagnon | Compétences | Plainva IA · ⟨modèle⟩ |
-| es | IA | compañero | Habilidades | Plainva IA · ⟨modelo⟩ |
-| pt-BR | IA | assistente | Habilidades | Plainva IA · ⟨modelo⟩ |
-| it | IA | compagno | Competenze | Plainva IA · ⟨modello⟩ |
-| nl | AI | begeleider | Vaardigheden | Plainva AI · ⟨model⟩ |
-| pl | AI | asystent | Umiejętności | Plainva AI · ⟨model⟩ |
-| zh-CN | AI | 悬浮窗 | 技能 | Plainva AI · ⟨模型⟩ |
-| ja | AI | コンパニオン | スキル | Plainva AI · ⟨モデル⟩ |
+| en | AI | AI window | Skills | Plainva AI · ⟨model⟩ |
+| de | KI | KI-Fenster | Skills | Plainva KI · ⟨Modell⟩ |
+| fr | IA | fenêtre IA | Compétences | Plainva IA · ⟨modèle⟩ |
+| es | IA | ventana de IA | Habilidades | Plainva IA · ⟨modelo⟩ |
+| pt-BR | IA | janela de IA | Habilidades | Plainva IA · ⟨modelo⟩ |
+| it | IA | finestra IA | Competenze | Plainva IA · ⟨modello⟩ |
+| nl | AI | AI-venster | Vaardigheden | Plainva AI · ⟨model⟩ |
+| pl | AI | okno AI | Umiejętności | Plainva AI · ⟨model⟩ |
+| zh-CN | AI | AI窗口 | 技能 | Plainva AI · ⟨模型⟩ |
+| ja | AI | AIウィンドウ | スキル | Plainva AI · ⟨モデル⟩ |
 
 **External tools (MCP)** (`ai.ext.*`): tools of MCP servers the user connected. An
 entry is a **server** — never a "service", which the app uses for the services of an
@@ -324,10 +324,10 @@ Capture without a network (`ai.transcribe.summary*`, `ai.image.note*`, AI harnes
 it uses both (it "riassunto" beside "sintesi", pl "podsumowanie" beside "streszczenie"); where it has one, the summary takes it and the gist keeps its own. The label in the note — "Summary:" — is that word with the language's own colon.
 **Make a note of it** names what the reader gets, in the words of "Keep as a note": the same noun for the note, another verb — never "scan", "OCR" or "extract", which name a technique.
 
-| Language | Summarise transcripts on this device | Summary: | Gists | Make a note of it |
+| Language | Summarise transcripts on this device | Summary: | Gists (short summaries) | Make a note of it |
 |---|---|---|---|---|
-| en | Summarise transcripts on this device | Summary: | Gists | Make a note of it |
-| de | Transkripte auf diesem Gerät zusammenfassen | Zusammenfassung: | Gists | Notiz daraus machen |
+| en | Summarise transcripts on this device | Summary: | Short summaries | Make a note of it |
+| de | Transkripte auf diesem Gerät zusammenfassen | Zusammenfassung: | Kurzfassungen | Notiz daraus machen |
 | fr | Résumer les transcriptions sur cet appareil | Résumé : | Résumés | En faire une note |
 | es | Resumir las transcripciones en este dispositivo | Resumen: | Resúmenes | Convertir en nota |
 | pt-BR | Resumir transcrições neste dispositivo | Resumo: | Resumos | Transformar em nota |
@@ -366,6 +366,29 @@ A folder's **log** (`ai.routines.log.*`, AI harness P8-2) is the `log.md` of the
 | pl | Co robi | Uruchamia umiejętność | Prowadzi log folderu | Cały vault | Nowa | Zmieniona |
 | zh-CN | 它做什么 | 运行技能 | 维护文件夹的更改记录 | 整个仓库 | 新增 | 更新 |
 | ja | 何をするか | スキルを実行する | フォルダーのログをつける | 保管庫全体 | 新規 | 更新 |
+
+**The AI's surfaces** (plan KI-Oberflächen, 2026-11-06): one name per thing, in the user's words. The floating
+conversation is the **AI window** (never "companion"); the two settings areas are **AI** (this device) and **AI in this
+vault**; a model's text that the assistant reads instead of a long section is a **short summary** (never "gist"); the
+feature is **search by meaning** everywhere (never "semantic search", "embeddings" or "vectors" — its data is **search
+data**, its profile the **search model**); a server's ready-made request is a **text template** (never "prompt"); a run of
+a skill's test scenarios is a **test run** (never the verb of "review and approve"); what waits for the user is **to
+decide** (never "open"); a privacy rule says **what may leave this vault**, with its two questions **to a provider** and
+**onto the internet**, answered **allowed** / **not allowed**. A runtime question is answered with the verb of its action
+or **Don't allow**; only skills, scripts and servers are **approved** and have their **approval withdrawn**.
+
+| Language | AI in this vault | To decide | Search by meaning | Search model | Text template | Test run | What may leave this vault | To a provider | Onto the internet | not allowed | Don't allow |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| en | AI in this vault | To decide | Search by meaning | Search model | Text template | Test run | What may leave this vault | To a provider | Onto the internet | not allowed | Don't allow |
+| de | KI in diesem Vault | Zu entscheiden | Suche nach Bedeutung | Modell für die Suche | Textvorlage | Testlauf | Was diesen Vault verlassen darf | An einen Anbieter | Ins Internet | nicht erlaubt | Nicht erlauben |
+| fr | IA dans ce vault | À décider | Recherche par sens | Modèle de recherche | modèle de texte | Essai | Ce qui peut quitter ce vault | Vers un fournisseur | Vers Internet | interdit | Ne pas autoriser |
+| es | IA en este vault | Por decidir | Búsqueda por significado | Modelo de búsqueda | plantilla de texto | Prueba | Lo que puede salir de este vault | A un proveedor | A internet | no permitido | No permitir |
+| pt-BR | IA neste vault | A decidir | Pesquisa por significado | Modelo de pesquisa | modelo de texto | Teste | O que pode sair deste vault | Para um provedor | Para a internet | não permitido | Não permitir |
+| it | IA in questo vault | Da decidere | Ricerca per significato | Modello di ricerca | modello di testo | Verifica | Cosa può lasciare questo vault | A un provider | Su internet | non consentito | Non consentire |
+| nl | AI in deze vault | Te beslissen | Zoeken op betekenis | Zoekmodel | tekstsjabloon | Testrun | Wat deze vault mag verlaten | Naar een provider | Naar het internet | niet toegestaan | Niet toestaan |
+| pl | AI w tym vaulcie | Do decyzji | Wyszukiwanie według znaczenia | Model wyszukiwania | szablon tekstu | Test | Co może opuścić ten vault | Do dostawcy | Do internetu | niedozwolone | Nie zezwalaj |
+| zh-CN | 此仓库中的AI | 待决定 | 按含义搜索 | 搜索模型 | 文本模板 | 测试运行 | 哪些内容可以离开此仓库 | 发送给服务商 | 发送到互联网 | 不允许 | 不允许 |
+| ja | この保管庫のAI | 要判断 | 意味による検索 | 検索モデル | テキストテンプレート | テスト実行 | この保管庫から出てよいもの | プロバイダーへ | インターネットへ | 不可 | 許可しない |
 
 ## Daily note and journal (zh-CN)
 

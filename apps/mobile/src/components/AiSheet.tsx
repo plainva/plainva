@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Maximize2, SquarePen } from "lucide-react";
 import { AiConversation, AiSessionContext, ICON, IconButton, noteDisplayName } from "@plainva/ui";
@@ -25,6 +26,7 @@ export function AiSheet({
 }) {
   const { t } = useTranslation();
   const session = getMobileAiSession();
+  const running = Boolean(useSyncExternalStore(session.subscribe, session.getState).live);
   return (
     <AiSessionContext.Provider value={session}>
       <div className="m-sheet-backdrop" onClick={onClose}>
@@ -32,7 +34,8 @@ export function AiSheet({
           <SheetGrip onClose={onClose} />
           <div className="m-ai-sheethead">
             <p className="m-sheet-title">{t("ai.title")}</p>
-            <IconButton label={t("ai.newConversation")} onClick={() => session.newConversation()}>
+            {/* Not while an answer streams, as the desktop's companion and tab (plan KI-Oberflächen K11). */}
+            <IconButton label={t("ai.newConversation")} disabled={running} onClick={() => session.newConversation()}>
               <SquarePen size={ICON.head} />
             </IconButton>
             <IconButton label={t("ai.openFullScreen")} onClick={onOpenScreen}>

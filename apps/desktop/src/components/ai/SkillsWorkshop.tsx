@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type MouseEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CodeXml, Download, FlaskConical, Link2, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
@@ -69,6 +69,9 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
   const state = useAiState();
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // "New …" (plan KI-Oberflächen K12): a skill, a script or an import, behind one button.
+  const [newOpen, setNewOpen] = useState(false);
+  const newAnchor = useRef<HTMLSpanElement>(null);
   /** The script form: a new one (`id` null) or an existing one to change. */
   const [scriptForm, setScriptForm] = useState<{ id: string | null } | null>(null);
   /** The script whose run dialog is open. */
@@ -108,10 +111,16 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       if (ok) void session.deleteInstruction(entry.source.id);
     });
   };
+  /** Withdrawing an approval switches the entry off on every device that syncs it: asked first (plan KI-Oberflächen K12). */
+  const revoke = (entry: InstructionEntry) => {
+    void appConfirm({ title: t("ai.workshop.revokeConfirm", { title: titleOf(entry) }), message: t("ai.workshop.revokeBody"), confirmLabel: t("ai.workshop.revoke") }).then((ok) => {
+      if (ok) void session.revokeInstruction(entry.source.id);
+    });
+  };
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
     // A server's skill (plan P9-4b): looked at and approved here, never edited, copied or started — its words are its server's.
     if (entry.source.origin === "server") {
-      return { showInstructions: () => setOpen(entry.source.id), ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}) };
+      return { showInstructions: () => setOpen(entry.source.id), ...(entry.approval ? { revoke: () => revoke(entry) } : {}) };
     }
     if (entry.source.kind === "script") {
       const readable = Boolean(entry.source.script) && typeof entry.source.code === "string";
@@ -120,7 +129,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
         showInstructions: () => setOpen(entry.source.id),
         showLabel: t("ai.scripts.show"),
         ...(readable ? { edit: () => setScriptForm({ id: entry.source.id }) } : {}),
-        ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
+        ...(entry.approval ? { revoke: () => revoke(entry) } : {}),
         delete: () => remove(entry, "ai.scripts.deleteConfirm"),
       };
     }
@@ -151,7 +160,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
             },
           }
         : {}),
-      ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
+      ...(vault && entry.approval ? { revoke: () => revoke(entry) } : {}),
       ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
   };
@@ -206,26 +215,34 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
 
   return (
     <div className="pv-skills" data-testid="ai-skills-workshop">
+      {/* What a skill is, said once (plan KI-Oberflächen K12, E2), and one way to make something new. */}
+      <p className="pv-ai-tilehint">{t("ai.workshop.explain")}</p>
       <div className="pv-skills-actions">
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={<Download size={ICON.ui} />}
-          onClick={() => {
-            void pickSkillArchive()
-              .then((picked) => picked && setImporting(picked))
-              .catch((error: unknown) => toast.error(t("ai.workshop.importDialog.failed", { message: error instanceof Error ? error.message : String(error) })));
-          }}
-          data-testid="ai-skills-import"
-        >
-          {t("ai.workshop.import")}
-        </Button>
-        <Button size="sm" variant="secondary" icon={<CodeXml size={ICON.ui} />} disabled={!state.scripts.available} onClick={() => setScriptForm({ id: null })} data-testid="ai-scripts-new">
-          {t("ai.scripts.new")}
-        </Button>
-        <Button size="sm" variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => setCreating(true)} data-testid="ai-skills-new">
-          {t("ai.workshop.newSkill")}
-        </Button>
+        <span ref={newAnchor}>
+          <Button size="sm" variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => setNewOpen(true)} aria-haspopup="menu" data-testid="ai-skills-new-menu">
+            {t("ai.workshop.newMenu")}
+          </Button>
+        </span>
+        <MenuSurface open={newOpen} onClose={() => setNewOpen(false)} anchorRef={newAnchor} ariaLabel={t("ai.workshop.newMenu")}>
+          <MenuItem icon={<Plus size={ICON.ui} />} onSelect={() => { setNewOpen(false); setCreating(true); }} data-testid="ai-skills-new">
+            {t("ai.workshop.newSkill")}
+          </MenuItem>
+          <MenuItem icon={<CodeXml size={ICON.ui} />} disabled={!state.scripts.available} onSelect={() => { setNewOpen(false); setScriptForm({ id: null }); }} data-testid="ai-scripts-new">
+            {t("ai.scripts.new")}
+          </MenuItem>
+          <MenuItem
+            icon={<Download size={ICON.ui} />}
+            onSelect={() => {
+              setNewOpen(false);
+              void pickSkillArchive()
+                .then((picked) => picked && setImporting(picked))
+                .catch((error: unknown) => toast.error(t("ai.workshop.importDialog.failed", { message: error instanceof Error ? error.message : String(error) })));
+            }}
+            data-testid="ai-skills-import"
+          >
+            {t("ai.workshop.import")}
+          </MenuItem>
+        </MenuSurface>
       </div>
       {failures.length > 0 && (
         <SettingCard label={t("ai.learn.watch.title")}>
@@ -255,6 +272,13 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
         </SettingCard>
       )}
       <UpkeepCard rows={upkeep} onStep={takeStep} onDismiss={(key) => void session.dismissUpkeepHint(key)} testId="ai-upkeep-skills" />
+      <SettingCard label={t("ai.workshop.app")}>
+        {sections.app.map((entry) => (
+          <SettingRow key={entry.source.id} label={titleOf(entry)} desc={describe(entry)}>
+            {switchable(entry)}
+          </SettingRow>
+        ))}
+      </SettingCard>
       <SettingCard label={t("ai.workshop.own")}>
         {sections.own.length === 0 ? (
           <SettingCardNote>{t("ai.workshop.noOwn")}</SettingCardNote>
@@ -278,13 +302,6 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           ))
         )}
       </SettingCard>
-      {sections.agents && (
-        <SettingCard label={t("ai.workshop.vault")}>
-          <SettingRow label="AGENTS.md" desc={describe(sections.agents)}>
-            {switchable(sections.agents)}
-          </SettingRow>
-        </SettingCard>
-      )}
       {state.skills.servers.length > 0 && (
         <SettingCard label={t("ai.workshop.server.group")}>
           {state.skills.servers.map((group) => (
@@ -315,13 +332,14 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           <SettingCardNote>{t("ai.workshop.server.note")}</SettingCardNote>
         </SettingCard>
       )}
-      <SettingCard label={t("ai.workshop.app")}>
-        {sections.app.map((entry) => (
-          <SettingRow key={entry.source.id} label={titleOf(entry)} desc={describe(entry)}>
-            {switchable(entry)}
+      {sections.agents && (
+        <SettingCard label={t("ai.workshop.vault")}>
+          {/* The file's name as the second line, never as the title (plan K12). */}
+          <SettingRow label={t("ai.workshop.vaultRow")} desc={`AGENTS.md · ${describe(sections.agents)}`}>
+            {switchable(sections.agents)}
           </SettingRow>
-        ))}
-      </SettingCard>
+        </SettingCard>
+      )}
       <SettingCard label={t("ai.workshop.test.title")}>
         <SettingRow label={plan ? t("ai.workshop.test.run", { model: plan.choice.model }) : t("ai.workshop.test.title")} desc={overview.summary}>
           <Button size="sm" variant="tonal" icon={<FlaskConical size={ICON.ui} />} disabled={!plan || plan.total === 0} onClick={() => setTesting({ ids: null })} data-testid="ai-skills-test">

@@ -133,6 +133,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
   const { t, i18n } = useTranslation();
   const replayButton = useRef<HTMLButtonElement>(null);
   const [replayOpen, setReplayOpen] = useState(false);
+  const [details, setDetails] = useState(false);
   /** A version and how it reads now, as a source's row shows it beside its form. */
   const versionChip = (state: SnapshotState | undefined) =>
     state ? (
@@ -283,6 +284,11 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         ? t("ai.overview.title", { provider: manifest.providerLabel })
         : t("ai.overview.sentTitle", { provider: manifest.providerLabel });
 
+  // Before sending, what carries the decision stands open — to whom, which notes, what else goes along (the memory and the
+  // writing style included), what was kept back, the folders of a standing approval, the internet, the size —
+  // and the rest folds behind "Details" (plan KI-Oberflächen K9, E5). Afterwards the overview is the details.
+  const full = !asking || details;
+  const hasMore = instructionLines.length > 0 || shownTools.length > 0 || furtherLines.length > 0;
   return (
     <section className={cx("pv-ai-overview", asking && "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid={preview ? "ai-routine-overview" : asking ? "ai-consent" : "ai-overview"}>
       <h4 className="pv-ai-overview-head">
@@ -420,7 +426,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             <dd>{kept.join(" · ")}</dd>
           </>
         )}
-        {instructionLines.length > 0 && (
+        {full && instructionLines.length > 0 && (
           <>
             <dt>{t("ai.overview.instructions")}</dt>
             <dd data-testid="ai-overview-instructions">
@@ -446,7 +452,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             </dd>
           </>
         )}
-        {shownTools.length > 0 && (
+        {full && shownTools.length > 0 && (
           <>
             <dt>{t("ai.overview.tools")}</dt>
             <dd>{shownTools.map(toolWord).join(" · ")}</dd>
@@ -460,7 +466,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           </>
         )}
         {/* What the tool search reaches (ADR 0019): in the conversation's reach, but not approved here — each kind asks first. */}
-        {furtherLines.length > 0 && (
+        {full && furtherLines.length > 0 && (
           <>
             <dt>{t("ai.overview.further")}</dt>
             <dd data-testid="ai-overview-further">{furtherLines.join(" · ")}</dd>
@@ -586,14 +592,20 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           )}
         </div>
       )}
+      {asking && hasMore && (
+        <Button size="sm" variant="ghost" className="pv-ai-overview-more" aria-expanded={details} onClick={() => setDetails((open) => !open)} data-testid="ai-overview-more">
+          {details ? t("ai.overview.lessDetails") : t("ai.details")}
+        </Button>
+      )}
+      {/* A setting, not an answer: its own line above the buttons (plan K9). */}
+      {asking && everyRequest && (
+        <span className="pv-ai-overview-every">
+          <Switch checked={everyRequest.value} onChange={everyRequest.onChange} label={t("ai.overview.everyRequest")} />
+          <span aria-hidden="true">{t("ai.overview.everyRequest")}</span>
+        </span>
+      )}
       {asking && (
         <div className="pv-ai-overview-actions">
-          {everyRequest && (
-            <span className="pv-ai-overview-every">
-              <Switch checked={everyRequest.value} onChange={everyRequest.onChange} label={t("ai.overview.everyRequest")} />
-              <span aria-hidden="true">{t("ai.overview.everyRequest")}</span>
-            </span>
-          )}
           <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel")}
           </Button>

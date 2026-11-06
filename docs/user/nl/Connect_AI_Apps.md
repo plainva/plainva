@@ -1,10 +1,10 @@
 # AI-apps koppelen (bèta)
 
-Laatst bijgewerkt: 2026-10-26
+Laatst bijgewerkt: 2026-11-06
 
 AI-apps op je computer — Claude Code, Claude Desktop, Cursor, VS Code en andere die het Model Context Protocol (MCP) spreken — kunnen je vault via Plainva lezen: erin zoeken, notities en hun secties lezen, structuren, backlinks, databases, taken en recente notities, en een notitie in Plainva openen. Uit zichzelf wijzigen ze niets: een app die je dat toestaat mag wijzigingen voorstellen, en die wachten tot je beslist (zie hieronder). Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
-De omgekeerde richting — de assistent van Plainva die hulpmiddelen gebruikt van servers die je zelf koppelt — staat beschreven onder **Externe hulpmiddelen (MCP)** in [AI-assistent](AI_Assistant.md).
+De omgekeerde richting — de assistent van Plainva die hulpmiddelen gebruikt van servers die je zelf koppelt — staat beschreven onder **Externe hulpmiddelen** in [AI-assistent](AI_Assistant.md).
 
 Een derde weg — Plainva start een AI-agent van een andere maker in de map van de vault, met zijn sessie in het AI-tabblad — staat beschreven in [Externe agents](External_Agents.md).
 
@@ -14,8 +14,8 @@ Plainva levert naast de app een klein hulpprogramma mee, `plainva-mcp`. Een AI-a
 
 ## Inschakelen
 
-1. Open **Instellingen → AI & automatisering** en zet **AI op dit apparaat gebruiken** aan.
-2. Zet **AI-apps op deze computer deze vault laten lezen** aan.
+1. Open **Instellingen → AI** en zet **AI op dit apparaat gebruiken** aan.
+2. Zet op de kaart **AI-apps op deze computer** de schakelaar **AI-apps op deze computer deze vault laten lezen** aan.
 3. Stel de app in (zie hieronder). Bij de eerste verbinding vraagt Plainva welke app het is, welk programma haar startte en welke mappen ze mag lezen. Er is niets aangevinkt: kies mappen of **De hele vault**, dan **Toestaan**. **Weigeren** wijst de app af, en Plainva vraagt tien minuten lang niet opnieuw naar haar. Onder de mappen staat **Mag wijzigingen voorstellen** — uit zolang je het niet aanvinkt; wat het toestaat, staat verderop.
 
 De app bewaart voor de volgende keer een geheim in de sleutelhanger van het systeem. Mappen gelden per app en per vault: in een andere vault vraagt de app opnieuw. Open je een andere vault, dan worden de apps die met de vorige verbonden waren losgekoppeld; de nieuwe lezen ze pas als ze opnieuw verbinden.

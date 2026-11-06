@@ -1,12 +1,36 @@
 {
   "ai": {
+    "start": {
+      "skillsAndMemory": "技能与记忆",
+      "allConversations": "所有对话",
+      "recent": "最近"
+    },
+    "waitingCount_other": "{{count}} 项待决定",
+    "pending": {
+      "answerFirst": "请先回答上面的问题",
+      "short": "有一个问题在等你回答。",
+      "open": "在窗口中打开"
+    },
+    "sentShort_other": "发送给 {{provider}} · {{count}} 篇笔记",
+    "details": "详情",
+    "copied": "回答已复制",
+    "copy": "复制",
+    "placeholderNote": "询问“{{title}}”或你的仓库…",
+    "setup": {
+      "chooseModel": "选择模型",
+      "modelBody": "选择“{{profile}}”使用哪个模型——新对话从这个配置开始。",
+      "modelTitle": "新对话还没有模型",
+      "bodyPhone": "选择一个服务商并保存它的密钥，或无需密钥直接使用手机自带的模型。",
+      "bodyDesktop": "选择一个服务商并保存它的密钥，或使用此设备上的模型（Ollama、LM Studio）。",
+      "title": "还没有模型"
+    },
     "title": "AI",
     "ask": "问AI",
     "newConversation": "新对话",
     "openAsTab": "在标签页中打开",
-    "companion": "AI悬浮窗",
+    "companion": "AI窗口",
     "marking": "回答由AI撰写——{{model}}（通过{{provider}}）。请对照信息来源核实。",
-    "placeholder": "问问这篇笔记或你的仓库…",
+    "placeholder": "询问你的仓库…",
     "send": "发送",
     "stop": "停止",
     "context": "上下文",
@@ -59,6 +83,7 @@
       "delete_note": "正在请求删除笔记"
     },
     "snapshot": {
+      "replayAction": "用另一个模型再问一次…",
       "asked": "提问时间",
       "read": "工具读取的内容",
       "readHit": "通过搜索找到",
@@ -96,6 +121,7 @@
       "open": "打开原对话"
     },
     "style": {
+      "chip": "我的风格",
       "title": "写作风格",
       "examples": "示例",
       "examplesHint": "你自己写的笔记——最多 {{max}} 篇。",
@@ -112,8 +138,6 @@
       "device": "写作风格保存在此设备上，不在仓库中。在对话中选择“我的风格”之前，它不会进入任何对话。",
       "toggleOn": "我的风格：此对话已开启",
       "toggleOff": "我的风格：用你的写作风格来写此对话",
-      "activeOn": "我的风格：此对话使用你的写作风格",
-      "activeOff": "我的风格：此对话开始时未使用",
       "fixed": "对话是否使用你的写作风格，在它开始时就已决定。要更改，请开始新对话。",
       "marking_other": "使用你的写作风格 · {{count}} 项特点",
       "sentLine_other": "写作风格（{{count}} 项特点）",
@@ -173,28 +197,38 @@
     },
     "stopped": {
       "cancelled": "已停止。",
-      "limit": "本次运行已达到上限并停止。",
+      "limit": "这次运行已达到上限，已停止。",
       "loop": "已停止：同一项查询不断重复。",
       "circuit": "已停止：连续三个工具调用失败。",
       "maxTokens": "回答因达到长度上限被截断。",
-      "refusal": "模型拒绝回答。"
+      "refusal": "模型拒绝了这个请求。"
     },
     "error": {
+      "sender": {
+        "plainva": "Plainva",
+        "provider": "服务商",
+        "network": "网络",
+        "device": "设备"
+      },
+      "deviceOffline": "此设备处于离线状态。恢复网络后，请重新发送问题。",
+      "newKey": "输入新密钥",
+      "providerErrorShort": "{{provider}} 报告了错误。",
+      "refusedShort": "{{provider}} 拒绝了这个请求。",
       "noKey": "尚未存储{{provider}}的密钥。",
-      "invalidKey": "{{provider}}未接受该密钥。",
+      "invalidKey": "{{provider}} 没有接受这个密钥。它已过期或不正确。",
       "rateLimited": "{{provider}}目前正在限制请求速率。请稍后再试，或换用其他配置。",
       "overloaded": "{{provider}}目前负载过高。请稍后再试。",
       "contextTooLong": "此对话对该模型而言过长。请开始新对话。",
-      "notFound": "{{provider}}不认识模型“{{model}}”。",
+      "notFound": "{{provider}} 不认识模型“{{model}}”。请选择其他模型。",
       "refused": "{{provider}}拒绝了此请求：{{message}}",
       "unknownEndpoint": "此服务器未在此设备上设置。请在设置中重新添加。",
       "offline": "无法连接到{{provider}}。",
       "offlineHere": "{{provider}}在此设备上没有响应。服务器在运行吗？",
-      "streamBroken": "连接在回答过程中中断了。",
+      "streamBroken": "连接在回答中途断开了。请重新发送问题。",
       "streamBrokenHere": "{{provider}}不再响应。可能是服务器已停止，或者模型对此设备来说太大。",
       "providerError": "{{provider}}报告了一个错误：{{message}}",
       "keptOnDevice": "此对话是与此设备上的模型进行的。它读取的内容从未针对云端检查过，因此留在此设备上。请为 {{provider}} 开始新对话。",
-      "localOnly": "“完全本地”已开启，而 {{provider}} 不在此设备上。没有发送任何内容。",
+      "localOnly": "“完全本地”已开启，而 {{provider}} 不在此设备上运行。没有发送任何内容。请选择此设备上的模型，或关闭“完全本地”。",
       "windowTooSmall": "此请求大约需要 {{needed}} 个 Token；为 {{model}} 标明的窗口是 {{window}}。没有发送任何内容。请在服务器端和配置中调大窗口，为此模型关闭“可调用工具”，或者少附带一些笔记。",
       "openSetup": "打开设置",
       "platform": {
@@ -211,14 +245,16 @@
       }
     },
     "empty": {
+      "startBodyVault": "可以问仓库里的任何内容。AI不会自行更改任何内容：它想做的更改，会以建议的形式交给你。",
+      "setupBodyPhone": "选择一个服务商并保存它的密钥，或无需密钥直接使用手机自带的模型。",
       "setupTitle": "设置AI",
-      "setupBody": "选择一个服务商并存储密钥——或使用可在此电脑上运行的模型。",
+      "setupBody": "选择一个服务商并保存它的密钥，或使用此设备上的模型（Ollama、LM Studio）。",
       "setupAction": "设置",
       "offTitle": "此设备上的Plainva AI已关闭",
       "offBody": "在设置中开启它。在你提出问题之前，不会发送任何内容。",
       "offAction": "打开设置",
       "startTitle": "问些什么",
-      "startBody": "关于当前打开的笔记，或你仓库中的任何内容。助手不会自行更改任何内容——对于你选中的段落，它会以建议的形式提出修改。",
+      "startBody": "可以问当前打开的笔记，或仓库里的任何内容。AI不会自行更改任何内容：它想做的更改，会以建议的形式交给你。",
       "mainWindowOnly": "AI仅在主窗口中运行。",
       "noVault": "打开一个仓库来询问你的笔记。"
     },
@@ -235,13 +271,30 @@
       "clearSearch": "清除搜索"
     },
     "settings": {
-      "sectionApp": "适用于此设备上的Plainva，在每个仓库中生效：服务商、密钥、模型。",
-      "sectionVault": "针对此仓库：随仓库一起迁移的隐私规则，以及AI在这里可以使用的内容——互联网、外部工具、技能与记忆。",
+      "modelOwnId": "自定义模型ID",
+      "modelNoList": "服务商没有在这里提供列表。请在下方输入模型ID。",
+      "modelSearch": "搜索模型",
+      "internetOff": "互联网已关闭",
+      "internetOn": "互联网已开启",
+      "vaultOff": "此设备上的AI已关闭。你在 设置 → AI 中开启后，这里的设置才会生效。",
+      "nextToNote": "在打开的笔记旁边",
+      "retry": "重试",
+      "historyUsage": "历史与用量",
+      "privacyVaultNote": "AI能否访问互联网、哪些文件夹可以发送给服务商，按仓库在“此仓库中的AI”中设置。",
+      "privacy": "隐私",
+      "changeModel": "更换模型",
+      "makeDefault": "用于新对话",
+      "defaultBadge": "默认",
+      "moreModels": "更多模型：用于语音笔记的音频模型，以及按含义搜索所用的模型。",
+      "models": "模型",
+      "offNextPhone": "开启后，你可以选择服务商和模型；在手机上，系统自带的模型无需密钥即可使用。在你提问之前不会发送任何内容。",
+      "offNextDesktop": "开启后，你可以选择服务商和模型，或使用此设备上的模型（Ollama、LM Studio）。在你提问之前不会发送任何内容。",
+      "vaultTitle": "此仓库中的AI",
+      "sectionApp": "适用于此设备上的Plainva，在每个仓库中生效：服务商、模型，以及AI在这里可以做什么。",
+      "sectionVault": "针对此仓库：AI能否访问互联网、哪些内容可以离开仓库、外部工具、例程、技能和记忆。",
       "betaTitle": "Plainva AI（测试版）",
       "betaSwitch": "在此设备上使用AI",
-      "betaDesc": "仅适用于此设备。不开启它，就没有AI按钮、标签页或悬浮窗。",
-      "providers": "服务商",
-      "providersHint": "每个服务商都可以选择。Plainva会说明它们的条款和数据保留规则——不排除任何一个。",
+      "betaDesc": "仅适用于此设备。关闭时没有AI按钮和AI区域，也不会发送任何内容。",
       "addProvider": "添加服务商",
       "keyStored": "密钥已存储在此设备",
       "noKey": "无密钥",
@@ -265,11 +318,10 @@
       "profiles": "模型与配置",
       "profilesHint": "配置由你来指定。Plainva不会把任何模型称为“最好”；服务商接受的任何模型ID都可以使用。",
       "profileEmpty": "未设置",
-      "defaultProfile": "新对话的默认配置",
       "modelTitle": "“{{profile}}”的模型",
       "provider": "服务商",
       "model": "模型",
-      "modelPlaceholder": "模型ID，按服务商的命名方式填写",
+      "modelPlaceholder": "模型ID，与服务商的叫法一致",
       "modelFromList": "来自服务商列表",
       "modelWindow": "上下文窗口",
       "modelWindowDesc": "模型一次最多能读取多少个 Token。此设备上的服务器不会把这个数字告诉 Plainva——留空表示未知。窗口较小时，Plainva 会随请求附带更少、更短的笔记，并在发出放不下的请求之前先停下，而不是让服务器静默截断。",
@@ -277,7 +329,6 @@
       "modelWindowInvalid": "{{min}} 到 {{max}} 之间的整数，或留空。",
       "modelTools": "可调用工具",
       "modelToolsDesc": "关闭时，模型得不到任何工具，只根据随请求附带的内容回答——就像手机上系统自带的模型。",
-      "modelToolsNo": "不提供工具",
       "modelFactsHint": "这两项设置只对此设备上的这一模型选择有效。对于云端的服务商，Plainva 取用它们列表中的值。",
       "profileWindow": "窗口 {{tokens}}",
       "profileNoTools": "无工具",
@@ -296,15 +347,14 @@
       "usageSaved": "通过筛选和精简节省：约 {{tokens}} 个Token",
       "change": "更改",
       "experimental": "实验性：AI仍在开发和测试中，回答可能有误。请对照它引用的笔记进行核实。",
-      "title": "AI与自动化",
-      "sending": "发送",
+      "title": "AI",
       "confirmEvery": "每次请求前询问",
       "confirmEveryDesc": "每条消息发送前都显示将要发出的内容，而不仅是第一次或范围扩大时。此设备上的模型从不询问。",
       "audioHint": "将语音笔记转写为文字。需要支持音频的服务商：OpenAI、Gemini或兼容的服务器。",
       "feedback": "AI（测试版）反馈",
       "feedbackDesc": "在GitHub上的项目讨论区告诉我们哪些好用、哪些不好用。",
       "feedbackOpen": "打开讨论区",
-      "embeddingHint": "在“语义搜索”中选择“自有服务商”时，含义搜索所用的模型。服务商提供的任何嵌入模型都可以使用。",
+      "embeddingHint": "当你在按含义搜索中选择“自有服务商”时，搜索所用的模型。服务商提供的任何搜索模型都可以使用。",
       "onDevice": "在此设备上——无需密钥，任何内容都不会离开",
       "onDeviceReady": "已在此设备上就绪 · 窗口约 {{tokens}} 个 Token",
       "checkPlatform": "检查可用性",
@@ -326,7 +376,7 @@
       "customUrlHint": "https://…/v1——未加密的http仅适用于此设备上的服务器。",
       "invalidUrl": "不是可用的地址。未加密的http仅适用于此设备上的服务器。",
       "confirmTitle": "添加AI服务器",
-      "confirmMessage": "Plainva的助手会把你的请求和你批准的上下文发送到这个地址。只添加你信任的服务器。",
+      "confirmMessage": "Plainva AI 会把你的请求和你批准的上下文发送到这个地址。请只添加你信任的服务器。",
       "confirmAction": "添加",
       "declined": "服务器未被添加。",
       "noKeyTitle": "我还没有密钥",
@@ -350,16 +400,18 @@
       "strong": "强大",
       "local": "本地",
       "audio": "音频",
-      "embedding": "嵌入"
+      "embedding": "搜索模型"
     },
     "policy": {
-      "title": "隐私规则（plainva.ai）",
+      "columns": "文件夹",
+      "webOff": "互联网已关闭",
+      "title": "哪些内容可以离开此仓库",
       "desc": "规则可以写在笔记的frontmatter中，或者对整个文件夹写在.agent/policy.yml中。被排除在云端之外的笔记不会贡献任何内容——不论是正文还是标题——指向它的链接也会被隐去。",
       "vaultDefault": "仓库默认",
-      "cloud": "云端",
-      "web": "网络访问",
+      "cloud": "发送给服务商",
+      "web": "发送到互联网",
       "allow": "允许",
-      "deny": "从不",
+      "deny": "不允许",
       "localAllowed": "此设备上的模型始终允许使用。",
       "addFolder": "添加文件夹规则",
       "folder": "文件夹",
@@ -367,7 +419,7 @@
       "encrypted": "加密工作区默认关闭云端，除非你在那里允许它。",
       "problems": "Plainva无法理解.agent/policy.yml中的部分行，它们不会生效：{{lines}}",
       "saved": "隐私规则已保存。",
-      "inherit": "与上层文件夹相同",
+      "inherit": "与上级文件夹相同",
       "addRule": "添加"
     },
     "shortcutNote": "仅当此设备已开启Plainva AI（测试版）时可用。",
@@ -380,6 +432,7 @@
     "toolDeclined": "{{tool}}——未获允许",
     "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
+      "lessDetails": "收起",
       "title": "发送到{{provider}}？",
       "sentTitle": "已发送至{{provider}}",
       "why": {
@@ -451,7 +504,7 @@
       "approveStanding": "长期批准",
       "folders": "文件夹",
       "standingNotes_other": "你的规则允许的全部 {{count}} 篇笔记——现在发送，之后每次修改时再次发送",
-      "gist": "标题和已核对的要点",
+      "gist": "标题和一条经过核对的要点",
       "web": "互联网",
       "webOn": "可以读取网页并搜索网络——每次请求都会先询问",
       "webHosts": "无需询问，适用于你或某个来源提到过的地址：{{hosts}}",
@@ -464,6 +517,7 @@
       "evidenceImage": "图片，{{width}} × {{height}} px，{{size}}"
     },
     "lens": {
+      "chip": "会发送什么？",
       "open": "查看上下文",
       "title": "查看上下文",
       "tagline": "AI 在下一次请求中会看到什么，在它看到之前。",
@@ -523,7 +577,7 @@
       "menu": "AI",
       "with": "对所选内容",
       "asSuggestion": "作为建议",
-      "inConversation": "在悬浮窗中",
+      "inConversation": "在对话中提问",
       "translateTo": "翻译为",
       "proposed_other": "AI提出了{{count}}处修改——请在“建议”中接受或拒绝。",
       "unchanged": "AI没有发现需要修改的地方。",
@@ -583,10 +637,9 @@
       "title": "没有收到回答。以下笔记与你的问题最匹配："
     },
     "web": {
+      "chip": "互联网",
       "toggleOn": "此对话将使用互联网",
       "toggleOff": "让此对话使用互联网",
-      "activeOn": "此对话可以使用互联网",
-      "activeOff": "此对话开始时未使用互联网",
       "fixed": "对话能否使用互联网，在它开始时就已决定。要更改，请开始新对话。",
       "marking": "此对话可以使用互联网。只要对话中有你的笔记，每次请求都会先询问。",
       "sources": "在网络上读取",
@@ -607,8 +660,8 @@
         "fetch": "读取网页",
         "search": "搜索",
         "always": "始终允许{{host}}",
-        "denyFetch": "不读取",
-        "denySearch": "不搜索"
+        "denyFetch": "不允许",
+        "denySearch": "不允许"
       },
       "settings": {
         "title": "互联网",
@@ -691,6 +744,7 @@
       "defused": "新出现的网址已被处理为无效：可以阅读，但不是链接。"
     },
     "skills": {
+      "all": "全部技能…",
       "title": "技能",
       "runOwn": "运行技能“{{title}}”。",
       "daily": {
@@ -769,6 +823,11 @@
       }
     },
     "workshop": {
+      "revokeBody": "在你再次批准之前，AI 不会在此设备上使用它。",
+      "revokeConfirm": "撤回对“{{title}}”的批准？",
+      "vaultRow": "此仓库的指令",
+      "newMenu": "新建…",
+      "explain": "技能是为AI准备好的工作方式，比如每周回顾。点一下即可在对话中启动一个。",
       "title": "技能",
       "segmentChats": "对话",
       "segmentSkills": "技能",
@@ -974,17 +1033,17 @@
         "plainva-value": "无法读取某个Plainva字段，已省略：{{detail}}"
       },
       "test": {
-        "title": "测试",
-        "run": "用{{model}}测试",
-        "open": "测试…",
+        "title": "测试运行",
+        "run": "用 {{model}} 测试运行",
+        "open": "测试运行…",
         "start": "开始测试",
-        "never": "尚未测试。技能的测试场景会用所选模型运行——由你手动启动，并设有上限。",
-        "last": "上次测试：{{when}}——通过 {{passed}}/{{total}}。",
-        "modelChanged_other": "有{{count}}个技能尚未用当前所选模型（{{model}}）测试。",
+        "never": "还没有测试运行。技能的测试场景会用所选模型运行——手动开始，并设有上限。",
+        "last": "上次测试运行于 {{when}}——通过：{{passed}}/{{total}}。",
+        "modelChanged_other": "有 {{count}} 个技能尚未用当前所选模型（{{model}}）做过测试运行。",
         "row": {
-          "current": "已测试：{{passed}}/{{total}}",
-          "model-changed": "已用{{model}}测试，而非当前所选模型",
-          "skill-changed": "测试后已更改"
+          "current": "测试运行：{{passed}}/{{total}}",
+          "model-changed": "用 {{model}} 测试运行，不是所选模型",
+          "skill-changed": "自测试运行后已更改"
         },
         "model": "模型",
         "what": "范围",
@@ -1024,7 +1083,7 @@
         },
         "cost": "约{{cost}} · {{tokens}}个Token",
         "tokens": "{{tokens}}个Token",
-        "conversation": "测试 · {{skill}} · {{scenario}}"
+        "conversation": "测试运行 · {{skill}} · {{scenario}}"
       },
       "writeFailed":"无法将技能写入仓库。"
     },
@@ -1080,7 +1139,7 @@
         "busy": "AI目前正忙。它完成后请重试。",
         "cancelled": "已停止。未保存任何内容。",
         "invalid": "回答不是建议列表。未保存任何内容。",
-        "failed": "操作未成功。未保存任何内容。"
+        "failed": "Plainva 无法执行。没有保存任何内容；请重试。"
       },
       "draft": {
         "why": "依据",
@@ -1141,7 +1200,7 @@
         "changed": "该技能已和这里显示的不同。请重新查看。",
         "invalid": "按格式的定义，这一版本不是技能，因此不会写回。",
         "no-history": "仓库无法先保留当前版本，因此没有覆盖它。",
-        "failed": "操作未成功。未更改任何内容。"
+        "failed": "Plainva 无法恢复之前的版本。没有更改任何内容；请重试。"
       },
       "versions": {
         "action": "较早的版本…",
@@ -1280,6 +1339,7 @@
       "conversationRests": "此对话是用 {{model}}（通过 {{provider}}）进行的。“完全本地”开启期间，它暂不继续：没有任何对话会静默更换自己的模型。"
     },
     "routines": {
+      "toOverview": "前往概览",
       "title": "例程",
       "note": "Plainva 打开期间，例程在此设备上运行。如果某次运行的时间点上 Plainva 已关闭，例程会在下次打开时补运行一次，或跳过这次运行——按你为该例程设置的方式。",
       "empty": "还没有例程。",
@@ -1314,11 +1374,11 @@
       "runningNow": "正在运行",
       "needs": {
         "skill": "暂不使用：自你确认这个例程以来，它的技能已被更改、关闭或移除。请查看这个例程，之后它会再次运行。",
-        "scope": "需要你：它现在发送的内容会超出你确认的范围。没有发送任何内容。",
+        "scope": "需要你处理：这个例程现在会发送比你确认时更多的内容。没有发送任何内容。",
         "confirm": "暂不使用：此设备会在每次请求前询问，而例程运行时没有人来回答。",
-        "model": "需要你：它所用模型的服务商在此设备上已不再设置。",
-        "local": "“完全本地”开启期间暂不使用：它的模型不在此设备上。",
-        "rules": "暂不使用：你的规则把这个文件夹排除在例程所用的模型之外。请为这个例程选择此设备上的模型，或更改规则。"
+        "model": "需要你处理：这个例程所用模型的服务商在此设备上已不再设置。",
+        "local": "“完全本地”开启期间暂不使用：这个例程的模型不在此设备上。",
+        "rules": "暂不使用：你的规则让这个文件夹无法交给这个例程的模型。请为它选择此设备上的模型，或修改规则。"
       },
       "review": "查看",
       "active": "{{name}} 运行",
@@ -1353,7 +1413,7 @@
         "profile": "{{profile}} — {{provider}} · {{model}}"
       },
       "confirm": {
-        "title": "“{{name}}”在没有你的情况下运行——所以对它适用以下几点",
+        "title": "“{{name}}”在没有你的情况下如何运行",
         "reads": "它只读取",
         "readsDesc": "不提出建议，不留下草稿，不使用互联网，不使用外部工具，不运行脚本，不执行应用的命令。它能读取什么，由你的规则决定，与每次对话一样。",
         "noMail": "使用这个模型时，它不会读取邮件：Plainva 会在每次会话中重新询问这件事，而这里没有人来回答。使用此设备上的模型时，它会读取邮件。",
@@ -1717,7 +1777,7 @@
       "pairNone": "请至少选择一个文件夹以允许。"
     },
     "ext": {
-      "title": "外部工具（MCP）",
+      "title": "外部工具",
       "desc": "由你自己连接的服务器提供的工具，通过Model Context Protocol（MCP）使用。在你查看过服务器提供的内容之前，不会使用它的任何东西。每次调用在发出之前都会给你看，返回的内容则被当作陌生人的文字对待。",
       "none": "此设备上没有连接任何服务器。",
       "device": "此设备上的服务器",
@@ -1755,7 +1815,7 @@
         "changes": "此调用可能会在{{server}}中更改内容。Plainva无法撤销。",
         "destroys": "此调用可能会在{{server}}中更改、覆盖或删除内容。Plainva无法撤销。",
         "run": "执行",
-        "deny": "不调用",
+        "deny": "不允许",
         "send": "调用"
       },
       "prompt": {
@@ -1766,15 +1826,15 @@
         "send": "作为我的消息发送",
         "start": "继续",
         "blocked": "{{server}}返回的文字与你批准的不同。在你到设置中检查之前，它会一直被阻止。",
-        "empty": "这个提示词不含任何文字。",
-        "unavailable": "这个提示词目前不可用。"
+        "empty": "这个文本模板不含任何文字。",
+        "unavailable": "这个文本模板目前不可用。"
       },
       "question": {
         "title": "{{server}}有一个问题",
         "pageTitle": "{{server}}请你打开一个页面",
         "refusedTitle": "Plainva拦截了来自{{server}}的一个问题",
         "during": "用于",
-        "prompt": "提示词“{{name}}”",
+        "prompt": "文本模板“{{name}}”",
         "writes": "{{server}}写道：",
         "optional": "可选",
         "choose": "选择…",
@@ -1851,7 +1911,7 @@
         "likeOther": "另一个服务器有一个名称看起来相同的工具。",
         "clipped": "服务器列出的内容超出了Plainva读取的数量。其余部分不会提供。",
         "skills_other": "它提供{{count}}个技能。你在AI → 技能的“来自服务器”中逐个批准。",
-        "prompts": "服务器的提示词",
+        "prompts": "服务器的文本模板",
         "promptsHint": "由你自己在空对话下方启动的现成请求。第一次使用时，你会在发送前先看到它展开后的文字。",
         "vault": "在此仓库中",
         "folders": "可随调用一同发送的笔记",
@@ -2286,7 +2346,7 @@
         "noRule": "不更改"
       },
       "open": {
-        "segment": "待处理",
+        "segment": "待决定",
         "proposals": "笔记上的建议",
         "empty": "没有等待你决定的内容",
         "emptyHint": "AI提出的建议或起草的内容会保留在这里，直到你做出决定。",
@@ -2321,8 +2381,13 @@
       }
     },
     "semantic": {
-      "title": "语义搜索",
-      "description": "不仅按字词，也按含义查找笔记——包括跨语言。仅适用于此设备，向量也留在此设备上：模型包在这里计算，自有服务商在其服务器上计算。",
+      "providerHintPhone": "只有在你批准哪些内容可以发送到云端之后，才会使用云端。",
+      "measureRowDesc": "此设备的计算速度——使用示例文字，绝不使用你的笔记。",
+      "measureRow": "测速",
+      "change": "更改…",
+      "now": "当前使用",
+      "title": "按含义搜索",
+      "description": "按含义查找笔记，而不只是按字词——跨语言也可以。仅适用于此设备，搜索数据也保留在设备上：由软件包在本地计算，自有服务商则在它的服务器上计算。",
       "off": "关闭——仅按字词搜索",
       "hintRecommended": "推荐。在 Plainva 自己用十种语言问题做的测试中，结合字词时 88% 的问题在前五个结果中找到了对应笔记，仅用字词时为 62%。",
       "hintPrecise": "更精确；耗时约为三倍。",
@@ -2352,7 +2417,7 @@
       "progress": "已处理 {{total}} 篇笔记中的 {{done}} 篇",
       "pause": "暂停",
       "resume": "继续",
-      "remove": "移除（连同向量）",
+      "remove": "移除（连同搜索数据）",
       "removeConfirm": "移除 {{model}} 及其计算的向量？在你再次下载模型之前，按含义搜索将保持关闭。",
       "provider": "自有服务商",
       "providerUnset": "请先为“嵌入”配置选择模型。",
@@ -2409,7 +2474,7 @@
       "pending": "正在读取此笔记——提示稍后显示。",
       "none": "没有足够接近的笔记。",
       "show": "显示相关笔记",
-      "showDesc": "为打开的笔记最多显示三条提示，来自此设备上的向量——不会发送任何内容。可在该区块的标题处暂停单篇笔记。",
+      "showDesc": "针对打开的笔记最多给出三条提示，来自此设备上的搜索数据——不会发送任何内容。单篇笔记可以在该区域的标题栏中暂停。",
       "vaultPausedRow": "已在此仓库中暂停",
       "resume": "继续",
       "restore": "恢复",
@@ -2430,7 +2495,7 @@
       "todoAct": "作为任务",
       "todoWhy": "第 {{line}} 行以“TODO”开头，但还不是任务。“作为任务”会在原处把它改成“- [ ] {{text}}”，之后它就会出现在你的任务中。",
       "todoGone": "这一行的内容在此期间发生了变化——未更改任何内容。",
-      "failed": "操作未成功。",
+      "failed": "Plainva 无法执行。请重试。",
       "meeting": "明天 {{time}} {{title}}",
       "meetingLine": "尚无笔记",
       "meetingAct": "创建会议笔记",
@@ -2470,8 +2535,8 @@
       "working": "生成中",
       "paused": "已暂停",
       "failed": "此设备上的模型没有响应：{{reason}}",
-      "clear": "删除要点",
-      "clearConfirm": "要删除此仓库的所有要点吗？只要要点处于开启状态，就会重新生成。"
+      "clear": "移除要点",
+      "clearConfirm": "移除此仓库的所有要点？只要要点保持开启，它们就会被重新写出。"
     }
   },
   "settingsSync": {

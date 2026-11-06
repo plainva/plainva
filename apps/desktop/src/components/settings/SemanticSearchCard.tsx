@@ -25,7 +25,6 @@ import {
   SettingCardBlock,
   SettingCardNote,
   SettingRow,
-  Switch,
   toast,
   useAiState,
   useLocalEmbeddings,
@@ -54,6 +53,8 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
   const [asking, setAsking] = useState<EmbeddingModelSpec | null>(null);
   const [unused, setUnused] = useState<UnusedEmbeddings | null>(null);
   const [approval, setApproval] = useState<StandingApproval | null>(null);
+  // The choice of model folds away behind one line (plan KI-Oberflächen K5): what it computes with, and "Change".
+  const [choosing, setChoosing] = useState(false);
   const chosen = settings?.semanticModel ?? null;
   // Stable between renders: the effects below follow it.
   const source = useMemo(() => (settings ? semanticSourceOf(settings) : null), [settings]);
@@ -121,6 +122,14 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
   };
 
   const hasUnused = Boolean(unused && (unused.packages.length || unused.spaces.length));
+  const chosenRow = rows.find((row) => row.spec.id === chosen);
+  const currentLine = !chosen
+    ? t("ai.semantic.off")
+    : chosen === SEMANTIC_BY_PROVIDER
+      ? `${t("ai.semantic.provider")} — ${target ? `${target.provider.label} · ${target.model}` : t("ai.semantic.providerUnset")}`
+      : chosenRow
+        ? `${chosenRow.spec.name} — ${chosenRow.line}`
+        : chosen;
   const readyPackage = engine?.kind === "ready" && engine.source.kind === "package" ? engine.source.spec : null;
 
   return (
@@ -128,6 +137,12 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
     <SettingCard label={t("ai.semantic.title")} info={t("ai.semantic.description")}>
       {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
       {settings && searchRests(settings) && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
+      <SettingRow label={t("ai.semantic.now")} desc={currentLine}>
+        <Button size="sm" variant="secondary" onClick={() => setChoosing((open) => !open)} aria-expanded={choosing} data-testid="semantic-change">
+          {choosing ? t("common.done") : t("ai.semantic.change")}
+        </Button>
+      </SettingRow>
+      {choosing && (
       <SettingCardBlock>
       <div className="pv-semantic-choices" role="radiogroup" aria-label={t("ai.semantic.title")}>
         <Radio name="semantic-model" checked={!chosen} disabled={Boolean(download)} onChange={() => void choose(null)} label={<strong>{t("ai.semantic.off")}</strong>} />
@@ -166,6 +181,7 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
         />
       </div>
       </SettingCardBlock>
+      )}
       {download && (
         <SettingCardNote>
           <div role="status">
@@ -223,12 +239,17 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
               {t("ai.semantic.withdraw")}
             </Button>
           )}
+        </SettingRow>
+      )}
+      {/* Measuring this device is a detail of the choice (plan K5): shown while the choice is open. */}
+      {choosing && engine?.kind === "ready" && (
+        <SettingRow label={t("ai.semantic.measureRow")} desc={t("ai.semantic.measureRowDesc")}>
           <Button variant="ghost" size="sm" disabled={state?.measuring} onClick={() => void controller?.measure("desktop")} data-testid="semantic-measure">
             {state?.measuring ? t("ai.semantic.measuring") : t("ai.semantic.measure")}
           </Button>
         </SettingRow>
       )}
-      {engine?.kind === "ready" && state?.measurement && (
+      {choosing && engine?.kind === "ready" && state?.measurement && (
         <SettingCardNote>
           <div>{t("ai.semantic.measuredDesktop")}</div>
           <dl className="pv-security-details" data-testid="semantic-measurement">
@@ -255,34 +276,6 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
         <SettingCardBlock>
           <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
         </SettingCardBlock>
-      )}
-      {engine?.kind === "ready" && settings && (
-        <>
-          <SettingRow label={t("ai.related.show")} info={t("ai.related.showDesc")}>
-            <Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} testId="related-show" />
-          </SettingRow>
-          {state?.related.vaultPaused && (
-            <SettingRow label={t("ai.related.vaultPausedRow")}>
-              <Button variant="ghost" size="sm" onClick={() => void controller?.setRelatedVaultPaused(false)} data-testid="related-resume-vault">
-                {t("ai.related.resume")}
-              </Button>
-            </SettingRow>
-          )}
-          {Boolean(state?.related.paused.length) && (
-            <SettingRow label={t("ai.related.pausedNotes", { count: state?.related.paused.length ?? 0 })}>
-              <Button variant="ghost" size="sm" onClick={() => void controller?.resumeRelated()} data-testid="related-resume-all">
-                {t("ai.related.resumeAll")}
-              </Button>
-            </SettingRow>
-          )}
-          {Boolean(state?.related.dismissed) && (
-            <SettingRow label={t("ai.related.hidden", { count: state?.related.dismissed ?? 0 })}>
-              <Button variant="ghost" size="sm" onClick={() => void controller?.restoreRelated()} data-testid="related-restore">
-                {t("ai.related.restore")}
-              </Button>
-            </SettingRow>
-          )}
-        </>
       )}
       {hasUnused && unused && (
         <SettingRow label={t("ai.semantic.unused")} desc={semanticUnusedLine(t, unused, i18n.language)}>

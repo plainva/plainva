@@ -73,6 +73,8 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
     case "unknown_endpoint":
       return t("ai.error.unknownEndpoint");
     case "offline":
+      // The device knows when it has no network at all: then that is said, not the provider blamed (plan KI-Oberflächen K10).
+      if (!here && deviceOffline()) return t("ai.error.deviceOffline");
       return here ? t("ai.error.offlineHere", { provider }) : t("ai.error.offline", { provider });
     case "stream_broken":
       return here ? t("ai.error.streamBrokenHere", { provider }) : t("ai.error.streamBroken");
@@ -86,6 +88,38 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
       return t("ai.error.localOnly", { provider });
     case "window_too_small":
       return t("ai.error.windowTooSmall", { needed: failure.needed, window: failure.window, model });
+  }
+}
+
+/** Whether this device has no network at all, as far as the browser knows. */
+function deviceOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+/** Who a failure comes from, as the notice names it (plan KI-Oberflächen K10): this device, the network, the provider, or Plainva. */
+export type FailureSender = "device" | "network" | "provider" | "plainva";
+
+export function failureSender(failure: ModelFailure, recipient: FailureRecipient): FailureSender {
+  switch (failure.kind) {
+    case "no_key":
+    case "unknown_endpoint":
+    case "platform_unavailable":
+      return "device";
+    case "offline":
+      if (recipient.here) return "device";
+      return deviceOffline() ? "network" : "provider";
+    case "stream_broken":
+      return recipient.here ? "device" : "network";
+    case "invalid_key":
+    case "rate_limited":
+    case "overloaded":
+    case "context_too_long":
+    case "not_found":
+    case "refused_by_provider":
+    case "provider_error":
+      return recipient.here ? "device" : "provider";
+    default:
+      return "plainva";
   }
 }
 

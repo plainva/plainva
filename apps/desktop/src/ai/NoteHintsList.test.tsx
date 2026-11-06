@@ -115,7 +115,7 @@ describe("NoteHintsList", () => {
     // A step that failed says so.
     m = mount(ALL, fakeSession({ kind: "failed" }));
     await press(rows(m.el)[0]!.querySelector('[data-testid="hints-act"]'));
-    expect(toastStore.get().map((item) => [item.kind, item.message])).toEqual([["error", "That didn't work."]]);
+    expect(toastStore.get().map((item) => [item.kind, item.message])).toEqual([["error", "Plainva could not carry that out. Try again."]]);
   });
 
   it("says why behind the info button, goes to the line, and hides exactly this hint", async () => {

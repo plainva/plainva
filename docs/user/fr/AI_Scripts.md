@@ -1,12 +1,12 @@
 # Scripts (Bêta)
 
-Dernière mise à jour : 2026-11-04
+Dernière mise à jour : 2026-11-06
 
 Un script est un petit programme pour ce qu'un modèle fait mal et qu'un programme exécute chaque fois de la même façon : compter, trier, comparer, additionner. Vous l'écrivez en JavaScript. Il s'exécute dans une boîte fermée à l'intérieur de Plainva : il ne peut ni ouvrir un fichier, ni accéder au réseau, ni remettre quoi que ce soit à plus tard. Il n'appelle que les outils que vous avez cochés pour lui : ils lisent votre vault comme le font les outils de l'IA, ou laissent une proposition dont vous décidez. Un script ne modifie rien de lui-même.
 
 ## Exécuter un script
 
-Vos scripts se trouvent sous **Compétences** dans l'onglet IA — sur le téléphone sous **Conversations → Compétences** — dans le groupe **Scripts**. Avec **Exécuter**, vous ouvrez le script : renseignez ce qu'il demande, puis appuyez sur **Exécuter**. Pendant l'exécution, vous voyez chaque outil qu'il appelle, et le bouton **Arrêter** y met fin. Ensuite, la boîte de dialogue affiche les **Appels**, le **Résultat** — que vous pouvez copier — et le **Journal**, ainsi que ce que l'exécution a consommé de ses limites.
+Vos scripts se trouvent sous **Compétences** dans l'onglet IA — sur le téléphone sur l'écran IA dans les compétences — dans le groupe **Scripts**. Avec **Exécuter**, vous ouvrez le script : renseignez ce qu'il demande, puis appuyez sur **Exécuter**. Pendant l'exécution, vous voyez chaque outil qu'il appelle, et le bouton **Arrêter** y met fin. Ensuite, la boîte de dialogue affiche les **Appels**, le **Résultat** — que vous pouvez copier — et le **Journal**, ainsi que ce que l'exécution a consommé de ses limites.
 
 Une exécution que vous lancez ici reste sur cet appareil : rien n'en part vers un modèle, elle lit donc aussi les notes que vous tenez à l'écart du cloud. Avec **Essai à blanc**, le script appelle les outils qui lisent et se contente de noter un appel qui afficherait quelque chose dans l'app ou laisserait une proposition.
 

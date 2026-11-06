@@ -190,6 +190,7 @@ test("a server is added, reviewed and granted on the phone; a call asks first an
     const conversation = page.getByTestId("ai-conversation");
     await conversation.getByTestId("ai-input").fill("Which issues mention the login?");
     await conversation.getByTestId("ai-send").click();
+    await conversation.getByTestId("ai-overview-more").click();
     await expect(conversation.getByTestId("ai-overview-further")).toContainText("tools of Tracker (1)");
     await conversation.getByTestId("ai-consent-send").click();
     const question = conversation.getByTestId("ai-effect");

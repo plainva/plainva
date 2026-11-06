@@ -138,7 +138,7 @@ describe("a form a server asks the user to fill in", () => {
 
   it("names a prompt where the question comes before one", () => {
     const { container } = card(request(params, { during: { kind: "prompt", name: "standup" } }));
-    expect(container.querySelector('[data-testid="ai-question-during"]')!.textContent).toBe("the prompt “standup”");
+    expect(container.querySelector('[data-testid="ai-question-during"]')!.textContent).toBe("the text template “standup”");
   });
 });
 

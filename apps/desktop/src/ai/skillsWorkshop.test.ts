@@ -257,15 +257,15 @@ describe("the regression run in the workshop", () => {
     const entry = entries.find((candidate) => candidate.source.id === DAILY)!;
     const about = "What matters today: due tasks, appointments and what you worked on lately.";
     expect(skillRowDescription(t, entry, [], plan())).toBe(about);
-    expect(skillRowDescription(t, entry, [daily()], plan())).toBe(`tested: 1 of 2 · ${about}`);
-    expect(skillRowDescription(t, { ...entry, status: "off" }, [daily()], plan())).toBe(`${t("ai.workshop.status.off")} · tested: 1 of 2 · ${about}`);
+    expect(skillRowDescription(t, entry, [daily()], plan())).toBe(`test run: 1 of 2 · ${about}`);
+    expect(skillRowDescription(t, { ...entry, status: "off" }, [daily()], plan())).toBe(`${t("ai.workshop.status.off")} · test run: 1 of 2 · ${about}`);
   });
 
   it("says on a skill's row what its last run still says: how it went, or why that no longer counts", async () => {
     await i18n.changeLanguage("en");
-    expect(skillTestNote(t, daily(), plan())).toBe("tested: 1 of 2");
-    expect(skillTestNote(t, daily({ model: "m-1" }), plan())).toBe("tested with m-1, not with the chosen model");
-    expect(skillTestNote(t, daily({ version: "v0" }), plan())).toBe("changed since it was tested");
+    expect(skillTestNote(t, daily(), plan())).toBe("test run: 1 of 2");
+    expect(skillTestNote(t, daily({ model: "m-1" }), plan())).toBe("test run with m-1, not with the chosen model");
+    expect(skillTestNote(t, daily({ version: "v0" }), plan())).toBe("changed since its test run");
     // Never tested here, or the plan is not read yet: the row says nothing rather than something stale.
     expect(skillTestNote(t, undefined, plan())).toBeNull();
     expect(skillTestNote(t, daily(), null)).toBeNull();
@@ -273,11 +273,11 @@ describe("the regression run in the workshop", () => {
 
   it("sums the runs up for the workshop and hints once another model is chosen", async () => {
     await i18n.changeLanguage("en");
-    expect(skillTestOverview(t, [], plan(), "en")).toEqual({ summary: "Not tested yet. The skills' test scenarios run against the chosen model — by hand, with a ceiling.", hint: null });
+    expect(skillTestOverview(t, [], plan(), "en")).toEqual({ summary: "No test run yet. The skills' test scenarios run against the chosen model — by hand, with a ceiling.", hint: null });
     const current = skillTestOverview(t, [daily()], plan(), "en");
-    expect(current.summary).toMatch(/^Last tested on .+ — passed: 1 of 2\.$/);
+    expect(current.summary).toMatch(/^Last test run on .+ — passed: 1 of 2\.$/);
     expect(current.hint).toBeNull();
-    expect(skillTestOverview(t, [daily({ model: "m-1" })], plan(), "en").hint).toBe("1 skill has not been tested with the model chosen now (m-2).");
+    expect(skillTestOverview(t, [daily({ model: "m-1" })], plan(), "en").hint).toBe("1 skill has had no test run with the model chosen now (m-2).");
   });
 
   it("lists each scenario's verdict in words, without repeating what must never appear", async () => {

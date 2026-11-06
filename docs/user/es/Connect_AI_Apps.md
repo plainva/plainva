@@ -1,10 +1,10 @@
 # Conectar apps de IA (Beta)
 
-Última actualización: 2026-10-26
+Última actualización: 2026-11-06
 
 Las apps de IA de tu ordenador —Claude Code, Claude Desktop, Cursor, VS Code y otras que hablan el Model Context Protocol (MCP)— pueden leer tu vault a través de Plainva: buscar en ella, leer notas y sus secciones, esquemas, retroenlaces, bases de datos, tareas y notas recientes, y abrir una nota en Plainva. Por sí solas no cambian nada: una app a la que se lo permitas puede sugerir cambios, y esos esperan hasta que decidas (ver más abajo). Forma parte de las funciones experimentales de IA y solo funciona en el escritorio.
 
-El sentido contrario — el asistente de Plainva usando herramientas de servidores que conectas tú mismo — se describe bajo **Herramientas externas (MCP)** en [Asistente de IA](AI_Assistant.md).
+El sentido contrario — el asistente de Plainva usando herramientas de servidores que conectas tú mismo — se describe bajo **Herramientas externas** en [Asistente de IA](AI_Assistant.md).
 
 Una tercera vía — Plainva inicia un agente de IA de otro fabricante en la carpeta del vault, con su sesión en la pestaña de IA — se describe en [Agentes externos](External_Agents.md).
 
@@ -14,7 +14,7 @@ Plainva incluye junto a la app un pequeño programa auxiliar, `plainva-mcp`. Una
 
 ## Activarlo
 
-1. Abre **Configuración → IA y automatización** y activa **Usar la IA en este dispositivo**.
+1. Abre **Configuración → IA** y activa **Usar la IA en este dispositivo**; la tarjeta **Apps de IA en este ordenador** está más abajo en la página.
 2. Activa **Permitir que las apps de IA de este ordenador lean este vault**.
 3. Configura la app (ver más abajo). La primera vez que se conecta, Plainva pregunta qué app es, qué programa la inició y qué carpetas puede leer. No hay nada marcado: elige carpetas o **Todo el vault** y luego **Permitir**. **Rechazar** aparta la app, y Plainva no vuelve a preguntar por ella durante diez minutos. Debajo de las carpetas está **Puede sugerir cambios**, desactivado mientras no lo marques; lo que permite se describe más abajo.
 
@@ -41,7 +41,7 @@ Leer nunca es un permiso para escribir. Que una app pueda además sugerir cambio
 Una app a la que se lo permitiste recibe seis herramientas más, y ninguna cambia el vault:
 
 - **Un cambio en una nota** —en su texto o en una de sus propiedades— se convierte en una sugerencia en el margen de la nota, firmada con el nombre de la app y «(app de IA)». Allí aceptas o rechazas cada cambio, como con cualquier sugerencia (consulta [Comentarios y sugerencias](Comments_and_Suggestions.md)).
-- **Una nota nueva** se convierte en un borrador en **Pendiente**, en la pestaña de IA. Existe cuando eliges allí **Crear**.
+- **Una nota nueva** se convierte en un borrador en **Por decidir**, en la pestaña de IA. Existe cuando eliges allí **Crear**.
 - **Renombrar, mover y eliminar** preguntan primero. Plainva muestra en su propia ventana qué pasaría —al renombrar, también las notas cuyos enlaces seguirían el cambio— y la app muestra un aviso de que Plainva está esperando. Solo después de **Permitir** en Plainva, y cuando la app continúa, Plainva lo hace como cuando lo haces a mano; la app solo sabe si se hizo. Para eliminar, Plainva abre entonces su propio diálogo de eliminación, y nada desaparece antes de que confirmes allí. A una app que no puede mostrar ese aviso no se le ofrecen estas tres herramientas.
 
 Una dirección web que traiga una app se escribe de modo que nada la abra ni la cargue (`https[://]…`), igual que con el asistente. Las reglas de privacidad propias de una nota (`plainva.ai`) no las establece ninguna app, y dentro de un espacio de trabajo cifrado no se sugiere, redacta ni planifica nada. **Solicitudes recientes** en la configuración dice de cada solicitud qué fue de ella, también que Plainva te preguntó o que dijiste que no.

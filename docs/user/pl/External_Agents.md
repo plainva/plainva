@@ -1,6 +1,6 @@
 # Agenci zewnętrzni (Beta)
 
-Stan na: 2026-10-26
+Stan na: 2026-11-06
 
 Agent zewnętrzny to program AI innego producenta — agent zainstalowany samodzielnie na komputerze, do którego logujesz się samodzielnie, z własną subskrypcją lub kluczem. Plainva może uruchomić takiego agenta w folderze vaultu i pokazać jego sesję na karcie AI. To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -25,7 +25,7 @@ Uruchamiaj agenta tylko w vaulcie, którego zawartość może trafić do usługi
 ## Dodawanie agenta
 
 1. Zainstaluj agenta samodzielnie, tak jak opisuje to jego producent, i zaloguj się do niego w jego własnym programie.
-2. Otwórz **Ustawienia → AI & automatyzacja** (część aplikacji). W sekcji **Agenci zewnętrzni** napis **Znaleziono na tym komputerze** oznacza agentów, których Plainva zna z nazwy i znajduje zainstalowanych; **Dodaj** dodaje jednego z nich. Dla każdego innego programu, który mówi protokołem Agent Client Protocol, wybierz **Dodaj agenta…** w sekcji **Inny agent** i wypełnij pola **Nazwa**, **Program** oraz **Argumenty, po jednym w wierszu**.
+2. Otwórz **Ustawienia → AI**. Na karcie **Agenci zewnętrzni** napis **Znaleziono na tym komputerze** oznacza agentów, których Plainva zna z nazwy i znajduje zainstalowanych; **Dodaj** dodaje jednego z nich. Dla każdego innego programu, który mówi protokołem Agent Client Protocol, wybierz **Dodaj agenta…** w sekcji **Inny agent** i wypełnij pola **Nazwa**, **Program** oraz **Argumenty, po jednym w wierszu**.
 3. System pokazuje całe polecenie jeszcze raz, zanim zostanie zapamiętane.
 
 Plainva nie instaluje żadnego agenta i żadnego nie pobiera. Uruchamia dokładnie ten program, który został potwierdzony, bezpośrednio i bez powłoki. Polecenie jest zapamiętywane na tym urządzeniu, nigdy w vaulcie. **Usuń** sprawia, że Plainva zapomina, jak uruchomić agenta; sam program i jego logowanie zostają bez zmian.
@@ -52,7 +52,7 @@ Gdy agent chce Twojej zgody na jakiś krok, pokazuje to **⟨agent⟩ pyta**. S�
 
 ## Co zapisuje agent
 
-**Przez Plainva.** Zmiana, którą agent przekazuje Plainva, nigdy nie jest zapisywana w notatce. Gdy odpowiedź agenta jest gotowa, każda notatka, którą zmienił, ma jedną rundę propozycji, podpisaną **⟨nazwa⟩ (agent zewnętrzny)**: w sekcji **Propozycje** akceptujesz lub odrzucasz każdą zmianę albo całą rundę, tak jak przy rundzie od człowieka. Właściwość, którą zmienia tekst agenta, stoi w tej rundzie jako proponowana wartość, tak jak wartość proponowana przez własną AI Plainva. Notatka, której jeszcze nie ma, czeka jako szkic — jako karta **Szkic · Notatka** w sesji i ta sama karta na liście **Oczekujące** karty AI, gdzie pozostaje także po zakończeniu sesji. **Utwórz** zapisuje ją dokładnie w miejscu wskazanym przez agenta — oznaczoną `generated`, z agentem jako autorem — a **Odrzuć** ją porzuca. Adresy internetowe przyniesione przez agenta są zapisywane tak, aby nic ich nie otwierało ani nie ładowało (`https[://]…`).
+**Przez Plainva.** Zmiana, którą agent przekazuje Plainva, nigdy nie jest zapisywana w notatce. Gdy odpowiedź agenta jest gotowa, każda notatka, którą zmienił, ma jedną rundę propozycji, podpisaną **⟨nazwa⟩ (agent zewnętrzny)**: w sekcji **Propozycje** akceptujesz lub odrzucasz każdą zmianę albo całą rundę, tak jak przy rundzie od człowieka. Właściwość, którą zmienia tekst agenta, stoi w tej rundzie jako proponowana wartość, tak jak wartość proponowana przez własną AI Plainva. Notatka, której jeszcze nie ma, czeka jako szkic — jako karta **Szkic · Notatka** w sesji i ta sama karta na liście **Do decyzji** karty AI, gdzie pozostaje także po zakończeniu sesji. **Utwórz** zapisuje ją dokładnie w miejscu wskazanym przez agenta — oznaczoną `generated`, z agentem jako autorem — a **Odrzuć** ją porzuca. Adresy internetowe przyniesione przez agenta są zapisywane tak, aby nic ich nie otwierało ani nie ładowało (`https[://]…`).
 
 Plainva nie przyjmuje wszystkiego: tylko notatki Markdown; żadnych reguł AI, pól zaufania ani własnych właściwości Plainva; żadnej wartości właściwości, która nie jest tekstem, liczbą, tak lub nie ani ich listą; niczego, co jest trzymane z dala od chmury lub internetu; nie więcej niż 150 zmian w jednej notatce naraz; i żadnej kolejnej nowej notatki, dopóki czeka zbyt wiele szkiców. O tym, czego nie przyjęła, mówi sesja, a agent się o tym dowiaduje.
 

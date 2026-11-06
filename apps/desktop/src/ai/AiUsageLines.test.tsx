@@ -114,7 +114,8 @@ describe("what a request cost, under its answer", () => {
     const { session, container } = await mounted([answer("It is in the offer.", { input_tokens: 300, cache_read_input_tokens: 700, cache_creation_input_tokens: 0 })]);
     await act(async () => void (await session.send("Where is the offer?")));
     await settle();
-    const line = container.querySelector(".pv-ai-runline")!.textContent ?? "";
+    act(() => (container.querySelector('[data-testid="ai-run-details"]') as HTMLElement).click());
+    const line = container.querySelector('[data-testid="ai-run-full"]')!.textContent ?? "";
     expect(line).toContain("~1,030 tokens");
     expect(line).toContain("70% of the input from the cache");
   });
@@ -123,7 +124,8 @@ describe("what a request cost, under its answer", () => {
     const { session, container } = await mounted([answer("It is in the offer.", { input_tokens: 1000 })]);
     await act(async () => void (await session.send("Where is the offer?")));
     await settle();
-    const line = container.querySelector(".pv-ai-runline")!.textContent ?? "";
+    act(() => (container.querySelector('[data-testid="ai-run-details"]') as HTMLElement).click());
+    const line = container.querySelector('[data-testid="ai-run-full"]')!.textContent ?? "";
     expect(line).toContain("~1,030 tokens");
     expect(line).not.toContain("cache");
   });

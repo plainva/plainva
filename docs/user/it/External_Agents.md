@@ -1,6 +1,6 @@
 # Agenti esterni (Beta)
 
-Ultimo aggiornamento: 2026-10-26
+Ultimo aggiornamento: 2026-11-06
 
 Un agente esterno è un programma di IA di un altro produttore — un agente che hai installato sul tuo computer e a cui hai effettuato l'accesso tu stesso, con il tuo abbonamento o la tua chiave. Plainva può avviare un agente del genere nella cartella di un vault e mostrare la sua sessione nella scheda IA. Fa parte delle funzioni di IA sperimentali e funziona solo sul desktop.
 
@@ -25,7 +25,7 @@ Avvia un agente solo in un vault il cui contenuto può arrivare al servizio dell
 ## Aggiungere un agente
 
 1. Installa l'agente tu stesso, come descrive il suo produttore, ed effettua l'accesso nel suo programma.
-2. Apri **Impostazioni → IA e automazione** (la parte App). In **Agenti esterni**, **Trovato su questo computer** segnala gli agenti che Plainva conosce per nome e trova installati; **Aggiungi** ne aggiunge uno. Per qualsiasi altro programma che parla l'Agent Client Protocol, scegli **Aggiungi agente…** sotto **Un altro agente** e compila **Nome**, **Programma** e **Argomenti, uno per riga**.
+2. Apri **Impostazioni → IA**. Nella scheda **Agenti esterni**, **Trovato su questo computer** segnala gli agenti che Plainva conosce per nome e trova installati; **Aggiungi** ne aggiunge uno. Per qualsiasi altro programma che parla l'Agent Client Protocol, scegli **Aggiungi agente…** sotto **Un altro agente** e compila **Nome**, **Programma** e **Argomenti, uno per riga**.
 3. Il tuo sistema mostra l'intero comando ancora una volta prima che venga ricordato.
 
 Plainva non installa nessun agente e non ne scarica nessuno. Avvia esattamente il programma che hai confermato, direttamente e senza shell. Il comando viene ricordato su questo dispositivo, mai nel vault. **Rimuovi** fa dimenticare a Plainva come avviare un agente; il programma stesso e il suo accesso restano come sono.
@@ -52,7 +52,7 @@ Quando l'agente vuole il tuo permesso per un passo, **⟨agente⟩ chiede** lo m
 
 ## Che cosa scrive l'agente
 
-**Tramite Plainva.** Una modifica che l'agente consegna a Plainva non viene mai scritta nella nota. Quando la risposta dell'agente è finita, ogni nota che ha modificato porta un giro di proposte, firmato **⟨nome⟩ (agente esterno)**: in **Proposte** accetti o rifiuti ogni modifica o l'intero giro, come con il giro di una persona. Una proprietà che il testo dell'agente modifica compare in quel giro come valore proposto, come quelli che propone l'IA di Plainva. Una nota che non esiste ancora aspetta come bozza — una scheda **Bozza · Nota** nella sessione, e la stessa scheda nell'elenco **In attesa** della scheda IA, dove resta anche a sessione finita. **Crea** la scrive esattamente nel posto indicato dall'agente — contrassegnata con `generated`, con l'agente come autore —, e **Scarta** la lascia cadere. Gli indirizzi web che l'agente ha portato vengono scritti in modo che niente li apra o li carichi (`https[://]…`).
+**Tramite Plainva.** Una modifica che l'agente consegna a Plainva non viene mai scritta nella nota. Quando la risposta dell'agente è finita, ogni nota che ha modificato porta un giro di proposte, firmato **⟨nome⟩ (agente esterno)**: in **Proposte** accetti o rifiuti ogni modifica o l'intero giro, come con il giro di una persona. Una proprietà che il testo dell'agente modifica compare in quel giro come valore proposto, come quelli che propone l'IA di Plainva. Una nota che non esiste ancora aspetta come bozza — una scheda **Bozza · Nota** nella sessione, e la stessa scheda nell'elenco **Da decidere** della scheda IA, dove resta anche a sessione finita. **Crea** la scrive esattamente nel posto indicato dall'agente — contrassegnata con `generated`, con l'agente come autore —, e **Scarta** la lascia cadere. Gli indirizzi web che l'agente ha portato vengono scritti in modo che niente li apra o li carichi (`https[://]…`).
 
 Plainva non accetta tutto: solo note Markdown; né regole di IA, né campi di fiducia, né proprietà proprie di Plainva; nessun valore di proprietà che non sia testo, un numero, sì o no, o un elenco di questi; niente di ciò che è tenuto lontano dal cloud o da internet; non più di 150 modifiche a una nota per volta; e nessun'altra nota nuova finché troppe bozze sono in attesa. Ciò che non ha accettato lo dice la sessione, e l'agente ne viene informato.
 

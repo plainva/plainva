@@ -134,7 +134,8 @@ describe("explain image, in the conversation", () => {
     expect(container.textContent).toContain("A whiteboard with three columns.");
 
     // The line under the answer counts the picture. No note went, so nothing could have been cited: no such notice, no coverage.
-    const line = container.querySelector(".pv-ai-runline")!.textContent ?? "";
+    act(() => (container.querySelector('[data-testid="ai-run-details"]') as HTMLElement).click());
+    const line = container.querySelector('[data-testid="ai-run-full"]')!.textContent ?? "";
     expect(line).toContain("1 image");
     expect(line).not.toMatch(/coverage/);
     expect(container.querySelector(".pv-ai-nocite")).toBeNull();
@@ -149,6 +150,9 @@ describe("explain image, in the conversation", () => {
       await session.explainImage({ path: "Assets/Whiteboard.jpg", load: async () => PICTURE });
     });
     await settle();
+    // The provider's own words stand behind "Details" (plan KI-Oberflächen K10); the line names who refused.
+    expect(container.textContent).toContain("Anthropic refused the request.");
+    act(() => (container.querySelector('[data-testid="ai-notice-details"]') as HTMLElement).click());
     expect(container.textContent).toContain("This model does not support image input.");
     expect(container.querySelector('[data-testid="ai-picture-refused"]')!.textContent).toBe("This model may not be able to read images. Choose another one below and ask again.");
     // The question and the picture stay in the conversation.
@@ -164,6 +168,9 @@ describe("explain image, in the conversation", () => {
       await session.send("Hello");
     });
     await settle();
+    // The provider's own words stand behind "Details" (plan KI-Oberflächen K10); the line names who refused.
+    expect(container.textContent).toContain("Anthropic refused the request.");
+    act(() => (container.querySelector('[data-testid="ai-notice-details"]') as HTMLElement).click());
     expect(container.textContent).toContain("This model does not support image input.");
     expect(container.querySelector('[data-testid="ai-picture-refused"]')).toBeNull();
   });

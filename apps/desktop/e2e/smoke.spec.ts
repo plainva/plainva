@@ -4495,7 +4495,8 @@ test('AI scripts: a script runs for nobody until this device signed it, then in 
   await page.keyboard.press('Escape');
 
   // 6. A script written here: code the engine does not read is not written; what is written is approved as it is.
-  await workshop.getByTestId('ai-scripts-new').click();
+  await workshop.getByTestId('ai-skills-new-menu').click();
+  await page.getByTestId('ai-scripts-new').click();
   const form = page.getByTestId('ai-script-form');
   await form.getByTestId('ai-script-name').fill('query-length');
   await form.getByTestId('ai-script-description').fill('Says how long the query is.');
@@ -4535,7 +4536,8 @@ test('AI scripts: a script runs for nobody until this device signed it, then in 
   // 8. The second stage: a script that suggests. Written with a writing tool ticked; what it lays down is a suggestion
   //    in the note's margin under the script's name — the note itself is as it was.
   const REPORT = '# Report\n\nOne two three four five.\n';
-  await workshop.getByTestId('ai-scripts-new').click();
+  await workshop.getByTestId('ai-skills-new-menu').click();
+  await page.getByTestId('ai-scripts-new').click();
   await form.getByTestId('ai-script-name').fill('add-line');
   await form.getByTestId('ai-script-description').fill('Suggests a line at the end of a note.');
   await form.getByTestId('ai-script-tool-search_vault').uncheck();
@@ -4661,7 +4663,7 @@ test('AI internet: a fresh vault has none; switched on, a page is read only afte
   // 2. The vault's switch, in its settings: off until now, kept in the app's data and not in the vault.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   const allow = dialog.getByRole('switch', { name: /The AI may use the internet in this vault|Die KI darf in diesem Vault ins Internet/ });
   await expect(allow).toHaveAttribute('aria-checked', 'false');
   await allow.click();
@@ -4673,8 +4675,10 @@ test('AI internet: a fresh vault has none; switched on, a page is read only afte
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 
-  // 3. Allowed for the vault is not chosen for a conversation: the open one keeps what it started with.
-  await expect(companion.getByTestId('ai-web-toggle')).toHaveAttribute('aria-pressed', 'false');
+  // 3. Allowed for the vault is not chosen for a conversation: the open one keeps what it started with — no switch,
+  //    and its marking line says nothing of the internet (plan KI-Oberflächen K7).
+  await expect(companion.getByTestId('ai-web-toggle')).toHaveCount(0);
+  await expect(companion.getByTestId('ai-web-marking')).toHaveCount(0);
   await companion.getByTestId('ai-companion-new').click();
   await companion.getByTestId('ai-web-toggle').click();
   await expect(companion.getByTestId('ai-web-toggle')).toHaveAttribute('aria-pressed', 'true');
@@ -4764,6 +4768,7 @@ test('AI app commands: the assistant opens a view through the palette, and canno
   await companion.getByTestId('ai-input').fill('Show me my journal, and make a new note.');
   await companion.getByTestId('ai-send').click();
   // The overview names the tool search with the tools, and mail as within reach — not as approved.
+  await companion.getByTestId('ai-overview-more').click();
   await expect(companion.getByTestId('ai-overview-further')).toBeVisible();
   await companion.getByTestId('ai-consent-send').click();
   await expect(companion.getByText('The journal is open. I cannot create notes.')).toBeVisible();
@@ -5668,7 +5673,7 @@ test('AI usage this month: the cache share and the cost per model, and what choo
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  await dialog.getByRole('button', { name: /^(AI|KI)$/ }).click();
   // Below the models: what the month saved — in tokens, and in dollars because every one of those runs had a price
   // (the one on this computer at none).
   const saved = dialog.getByTestId('ai-usage-saved');
@@ -5876,7 +5881,7 @@ test('AI apps on this computer: an app the user allowed proposes and drafts unde
   //    of a request without a path or a text.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  await dialog.getByRole('button', { name: /^(AI|KI)$/ }).click();
   const mayPropose = dialog.getByTestId('mcp-writes-switch');
   await expect(mayPropose).toHaveAttribute('aria-checked', 'true');
   await expect(mayPropose).toHaveAttribute('aria-label', /^Claude Code (may suggest changes|darf Änderungen vorschlagen)$/);
@@ -6044,7 +6049,8 @@ test('AI research and keep as a note: the skill reaches the internet only where 
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
   await page.getByTestId('ai-tab-chats').click();
   const tab = page.getByTestId('ai-tab');
-  await tab.getByTestId('ai-tab-skill-research').click();
+  await tab.getByTestId('ai-skills-all').click();
+  await page.getByTestId('ai-skill-menu-research').click();
   await tab.getByTestId('ai-consent-send').click();
   await expect(tab.getByText('I could not look anything up on the web here.')).toBeVisible();
   const first = (await requests())[0];
@@ -6055,7 +6061,7 @@ test('AI research and keep as a note: the skill reaches the internet only where 
   // 2. The vault's switch, in its settings.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   const allow = dialog.getByRole('switch', { name: /The AI may use the internet in this vault|Die KI darf in diesem Vault ins Internet/ });
   await allow.click();
   await expect(allow).toHaveAttribute('aria-checked', 'true');
@@ -6063,7 +6069,10 @@ test('AI research and keep as a note: the skill reaches the internet only where 
   await expect(dialog).toHaveCount(0);
 
   // 3. Started again, the skill brings the two tools of the web — nobody pressed the globe — and the overview says so.
-  await tab.getByTestId('ai-tab-skill-research').click();
+  //    The quick start belongs to an empty conversation (plan KI-Oberflächen K7): a new one first.
+  await tab.getByTestId('ai-tab-new').click();
+  await tab.getByTestId('ai-skills-all').click();
+  await page.getByTestId('ai-skill-menu-research').click();
   await expect(tab.getByTestId('ai-overview-web')).toBeVisible();
   await tab.getByTestId('ai-consent-send').click();
   // The page still waits for its own answer.
@@ -6276,7 +6285,7 @@ test('AI external tools: a server is added, reviewed and granted; a call asks fi
   const openVaultAi = async () => {
     await page.keyboard.press('Control+,');
     const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-    await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+    await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
     return dialog;
   };
 
@@ -6323,6 +6332,7 @@ test('AI external tools: a server is added, reviewed and granted; a call asks fi
   const companion = page.getByTestId('ai-companion');
   await companion.getByTestId('ai-input').fill('Which issues mention the login?');
   await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-overview-more').click();
   await expect(companion.getByTestId('ai-overview-further')).toContainText(/tools of Tracker \(1\)|Werkzeuge von Tracker \(1\)/);
   await companion.getByTestId('ai-consent-send').click();
 
@@ -6452,7 +6462,7 @@ test('AI external tools: a tool that changes something at its service is ticked 
   const sentCalls = () => page.evaluate(() => (window as any).__mcp.calls as Array<{ name: string; arguments: unknown }>);
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   await dialog.getByTestId('settings-ai-ext-add').click();
   const add = page.getByTestId('ai-ext-add');
   await add.getByTestId('ai-ext-add-name').fill('Tracker');
@@ -6600,7 +6610,7 @@ test('AI external tools: a server the vault lets ask asks through Plainva\'s car
   // 1. The review: questions to the user are off until the vault says otherwise, for this server alone.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   await dialog.getByTestId('settings-ai-ext-add').click();
   const add = page.getByTestId('ai-ext-add');
   await add.getByTestId('ai-ext-add-name').fill('Tracker');
@@ -6778,7 +6788,7 @@ test('AI external tools: a server\'s skill waits under "From servers", is approv
   // 1. The review counts the skills the server serves; each is approved on its own, in the workshop. Nothing of them is read.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   await dialog.getByTestId('settings-ai-ext-add').click();
   const add = page.getByTestId('ai-ext-add');
   await add.getByTestId('ai-ext-add-name').fill('Tracker');
@@ -6916,7 +6926,7 @@ test('AI external tools: a server that wants a sign-in is signed in to in the br
   // 1. A server is added. Its review cannot show what it lists: the server wants a sign-in, and the review says so.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   await dialog.getByTestId('settings-ai-ext-add').click();
   const add = page.getByTestId('ai-ext-add');
   await add.getByTestId('ai-ext-add-name').fill('Tracker');
@@ -7037,7 +7047,7 @@ test('AI external agents: an agent is added and started after the surface said w
   // 1. The settings find the installed agent and add it — through the dialog of the system, which is the stand-in's yes.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  await dialog.getByRole('button', { name: /^(AI|KI)$/ }).click();
   const found = dialog.getByTestId('settings-ai-agent-add-found');
   await found.scrollIntoViewIfNeeded();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-settings-desktop.png'), animations: 'disabled' });
@@ -7385,6 +7395,7 @@ test('AI memory: a conversation is started with what a cloud may have; the reade
   const companion = page.getByTestId('ai-companion');
   await companion.getByTestId('ai-input').fill('Remember that I prefer short offers.');
   await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-overview-more').click();
   await expect(companion.getByTestId('ai-overview-memory')).toHaveText('1 entry from “Always included” · “On demand” can be looked up');
   await expect(companion.getByTestId('ai-consent')).toContainText('1 memory entry your rules block');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-memory-overview-desktop.png'), animations: 'disabled' });
@@ -7559,7 +7570,8 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   // for it and comes back when it is closed.
   await page.keyboard.press('Control+j');
   const companion = page.getByTestId('ai-companion');
-  await companion.getByTestId('ai-learn-open').click();
+  await companion.getByTestId('ai-run-more').last().click();
+  await page.getByTestId('ai-learn-open').click();
   await expect(page.getByTestId('ai-learn')).toBeVisible();
   await expect(page.getByTestId('ai-companion')).toHaveCount(0);
   await page.getByTestId('ai-learn').getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -7569,7 +7581,8 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   expect(await requests()).toHaveLength(1);
 
   // 2. "Learn from this conversation" stands under its last answer. The dialog says what would go where; nothing has gone.
-  await tab.getByTestId('ai-learn-open').click();
+  await tab.getByTestId('ai-run-more').last().click();
+  await page.getByTestId('ai-learn-open').click();
   const learn = page.getByTestId('ai-learn');
   await expect(learn.getByTestId('ai-learn-recipient')).toContainText('m-1');
   await expect(learn.getByTestId('ai-learn-kinds')).toHaveText('Entries for the memory · Rules · A skill, or other instructions for one');
@@ -7920,7 +7933,7 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   const openAppAi = async () => {
     await page.keyboard.press('Control+,');
     const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-    await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+    await dialog.getByRole('button', { name: /^(AI|KI)$/ }).click();
     await expect(dialog.getByTestId('settings-ai')).toBeVisible();
     return dialog;
   };
@@ -7948,9 +7961,9 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   await expect(app).toContainText('New conversations start with Anthropic · m-1.');
   await expect(app).toContainText('reading e-mails and appointments (granite3.3:8b)');
   // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
-  await app.getByRole('button', { name: 'More about Mode' }).click();
+  await app.getByRole('button', { name: 'More about Privacy' }).click();
   await expect(page.locator('.pv-infotip-panel')).toContainText('Only “Fully local” is a switch, because only it promises something.');
-  await app.getByRole('button', { name: 'More about Mode' }).click();
+  await app.getByRole('button', { name: 'More about Privacy' }).click();
   await expect(app.getByTestId('ai-local-only')).toHaveAttribute('aria-checked', 'false');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-state-desktop.png'), animations: 'disabled' });
 
@@ -7977,9 +7990,9 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   await expect(app).toContainText('While “Fully local” is on, this rests');
   await expect(app).toContainText('Stays set up and receives nothing. This profile does not answer: Balanced.');
   // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
-  await app.getByRole('button', { name: 'More about Mode' }).click();
+  await app.getByRole('button', { name: 'More about Privacy' }).click();
   await expect(page.locator('.pv-infotip-panel')).toContainText('The switch is about the AI.');
-  await app.getByRole('button', { name: 'More about Mode' }).click();
+  await app.getByRole('button', { name: 'More about Privacy' }).click();
   await expect(app).toContainText('Anthropic · m-1');
   await expect.poll(async () => (await told()).at(-1)).toBe(true);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-on-desktop.png'), animations: 'disabled' });
@@ -8110,7 +8123,7 @@ test('AI capture: a picture becomes a note the reader keeps — named by the ans
   await expect(companion).toHaveCount(0);
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  await dialog.getByRole('button', { name: /^(AI|KI)$/ }).click();
   const summary = dialog.getByTestId('transcript-summary');
   await summary.scrollIntoViewIfNeeded();
   await expect(summary).toHaveAttribute('aria-checked', 'false');
@@ -8190,7 +8203,7 @@ test('AI routines: one is set up in two steps and confirmed for a run nobody wat
   // 1. The vault's AI settings hold the routines: none yet, and a word about when they run.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   const settings = dialog.getByTestId('settings-ai-vault');
   // What the card means stands behind its info button (settings plan of 2026-10-29): opened, read, closed.
   await settings.getByRole('button', { name: 'More about Routines' }).click();
@@ -8326,7 +8339,7 @@ test('AI routines: a log of the whole vault — set up without a skill, run now:
 
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByRole('button', { name: /^(AI in this vault|KI in diesem Vault)$/ }).click();
   const settings = dialog.getByTestId('settings-ai-vault');
   const add = settings.getByTestId('settings-ai-routine-add');
   await add.scrollIntoViewIfNeeded();
@@ -8453,7 +8466,7 @@ test('AI hints: beside the open note a link that leads nowhere and two TODO line
   // 5. The settings: the hidden hint is counted there, and comes back.
   await page.keyboard.press('Control+,');
   const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  await dialog.getByRole('button', { name: /^(AI|KI)$/ }).click();
   const show = dialog.getByTestId('hints-show');
   await show.scrollIntoViewIfNeeded();
   await expect(show).toHaveAttribute('aria-checked', 'true');
@@ -8476,7 +8489,7 @@ test('AI hints: beside the open note a link that leads nowhere and two TODO line
 
   // 7. Switched off on this device: the section is gone.
   await page.keyboard.press('Control+,');
-  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  await dialog.getByRole('button', { name: /^(AI|KI)$/ }).click();
   await dialog.getByTestId('hints-show').scrollIntoViewIfNeeded();
   await dialog.getByTestId('hints-show').click();
   await expect(dialog.getByTestId('hints-show')).toHaveAttribute('aria-checked', 'false');
@@ -8559,7 +8572,8 @@ test('AI history analysis: a look back lists what changed from the index — a n
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
   await page.getByTestId('ai-tab-chats').click();
   const tab = page.getByTestId('ai-tab');
-  await tab.getByTestId('ai-tab-skill-history').click();
+  await tab.getByTestId('ai-skills-all').click();
+  await page.getByTestId('ai-skill-menu-history').click();
   await tab.getByTestId('ai-consent-send').click();
   await expect(tab.getByText(/the kick-off for Monday was planned/)).toBeVisible();
   const [first, second] = await requests();
@@ -8640,7 +8654,7 @@ test('AI snapshot: an answer keeps the version of what it read and says what cha
   await expect(companion.getByText('The offer names a day rate of 1,800 euros.')).toBeVisible();
 
   // 2. Its line, opened: the version of what the tool read, unchanged; the tool it used; what it left.
-  const line = companion.getByRole('button', { name: /^sent to Anthropic/ }).first();
+  const line = companion.getByTestId('ai-run-details').first();
   await line.click();
   const read = companion.getByTestId('ai-snapshot-read');
   await expect(read).toContainText('Offer');
@@ -8771,6 +8785,7 @@ test('AI writing style: measured from notes the user chose, carried only where "
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await companion.getByTestId('ai-input').fill('Draft a short agenda for the kickoff.');
   await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-overview-more').click();
   await expect(companion.getByTestId('ai-overview-style')).toContainText('2 examples');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-style-overview-desktop.png'), animations: 'disabled' });
   await companion.getByTestId('ai-consent-send').click();
@@ -8782,10 +8797,9 @@ test('AI writing style: measured from notes the user chose, carried only where "
   for (const word of ['Studio', 'Verleih', 'Kamera', 'Hafen']) expect(sent).not.toContain(word);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-style-conversation-desktop.png'), animations: 'disabled' });
 
-  // 5. Fixed from the first message: the open conversation keeps it, whatever is tapped.
-  await toggle.click();
-  await expect(page.getByText('Whether a conversation carries your writing style is decided when it starts.', { exact: false })).toBeVisible();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // 5. Fixed from the first message: the open conversation keeps it — the chip is gone, the marking line says it (plan K7).
+  await expect(toggle).toHaveCount(0);
+  await expect(companion.getByTestId('ai-style-marking')).toBeVisible();
 });
 
 /**

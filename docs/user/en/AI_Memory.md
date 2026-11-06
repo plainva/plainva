@@ -1,6 +1,6 @@
 # Memory (Beta)
 
-Last reviewed: 2026-10-25
+Last reviewed: 2026-11-06
 
 The memory holds what the AI should know about you and your work without being told again: what you do, how you like your answers, who your clients are. It is two files in your vault. Nothing gets into it without your yes, and you can read, change and delete every entry.
 
@@ -12,7 +12,7 @@ The memory holds what the AI should know about you and your work without being t
 
 ## Opening the memory
 
-On the desktop, choose **Memory** in the AI tab, next to **Skills**. On the phone it is **Conversations → Memory**. **Settings → AI & automation** (the Vault part) leads there as well: **Open memory** under **Skills and memory**.
+On the desktop, choose **Memory** in the AI tab, next to **Skills**. On the phone it is **Memory** on the AI screen, or **Skills and memory** on the start page of the AI area. **Settings → AI in this vault** leads there as well: **Open memory** under **Skills and memory**. The file names of the memory stand behind the ⓘ of the card **Always included**; the rules of the vault (`AGENTS.md`) are reviewed and approved right there in the memory view.
 
 ## Adding an entry yourself
 
@@ -22,7 +22,7 @@ The ⋯ button of an entry — on the phone, a tap on the entry — offers **Edi
 
 ## Letting the AI remember something
 
-Say it in a conversation: "Remember that I bill per day, not per hour." The AI drafts an entry; it never writes one itself. Under its answer a card **Draft · Memory entry** shows the whole text. Choose the place, then **Remember** — or **Discard**. A draft you have not decided on waits under **Open**, and the memory says how many are waiting.
+Say it in a conversation: "Remember that I bill per day, not per hour." The AI drafts an entry; it never writes one itself. Under its answer a card **Draft · Memory entry** shows the whole text. Choose the place, then **Remember** — or **Discard**. A draft you have not decided on waits under **To decide**, and the memory says how many are waiting.
 
 "Forget that …" works the same way: the card reads **Draft · Remove from the memory**, and **Remove** takes the entry out. When you tell the AI that something has changed, the card shows under **Replaces** which entry the new wording takes the place of.
 

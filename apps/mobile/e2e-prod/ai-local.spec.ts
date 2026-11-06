@@ -167,22 +167,21 @@ test("AI fully local: the phone's settings say what holds; switched on they list
 
     // 5. Its model for the profile "Local" — and what the user says about it, because the server tells neither: the
     //    window, which has to be a number, and that it takes no tools.
+    //    One sheet since plan KI-Oberflächen K4: the provider, its list, and for a server of this network both facts.
     await settings.getByTestId("ai-profile-local").click();
-    await sheet("Model for “Local”").getByText(SERVER, { exact: true }).click();
-    await sheet("From the provider's list").getByText(MODEL, { exact: true }).click();
-    const windowSheet = sheet("Context window");
-    await expect(windowSheet).toContainText("A server on this device does not tell Plainva");
-    await windowSheet.locator("input").fill("a lot");
-    await windowSheet.locator("input").press("Enter");
-    await expect(page.locator(".m-sheet-title", { hasText: "A whole number between 1,024 and 2,000,000, or empty." })).toBeVisible();
-    await page.getByTestId("confirm-act").click();
-    await sheet("Context window").locator("input").fill("8 192");
+    const modelSheet = page.getByTestId("ai-model-sheet");
+    await modelSheet.getByRole("radio", { name: SERVER }).click();
+    await modelSheet.getByTestId("ai-model-option").filter({ hasText: MODEL }).click();
+    await expect(modelSheet).toContainText("A server on this device does not tell Plainva");
+    await modelSheet.getByTestId("ai-model-window").fill("a lot");
+    await expect(modelSheet).toContainText("A whole number between 1,024 and 2,000,000, or empty.");
+    await expect(modelSheet.getByTestId("ai-model-save")).toBeDisabled();
+    await modelSheet.getByTestId("ai-model-window").fill("8 192");
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-local-window-mobile.png") });
-    await sheet("Context window").locator("input").press("Enter");
-    const tools = sheet("Can call tools");
-    await expect(tools).toContainText("Off: the model gets no tools and answers from what goes along");
+    await expect(modelSheet).toContainText("Off: the model gets no tools and answers from what goes along");
+    await modelSheet.getByTestId("ai-model-tools").click();
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-local-tools-mobile.png") });
-    await tools.getByText("Give it no tools", { exact: true }).click();
+    await modelSheet.getByTestId("ai-model-save").click();
     await expect(settings.getByTestId("ai-profile-local")).toContainText(`${SERVER} · ${MODEL} · window 8,192 · no tools`);
 
     // 6. Now the line names the model that answers. The provider still rests; nothing was removed.

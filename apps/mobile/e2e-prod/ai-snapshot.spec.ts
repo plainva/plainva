@@ -104,7 +104,8 @@ test("AI snapshot: the phone keeps the version of what an answer read, says what
     await expect(conversation.getByText("The note names 1,800 euros a day.")).toBeVisible({ timeout: 20_000 });
 
     // 2. Its line, opened in the conversation: the version of what the tool read, unchanged.
-    const line = conversation.getByRole("button", { name: /^answered on this device|^sent to/ }).first();
+    // "Details" under the answer opens it (plan KI-Oberflächen K8).
+    const line = conversation.getByTestId("ai-run-details").first();
     await line.click();
     const read = conversation.getByTestId("ai-snapshot-read");
     await expect(read).toContainText("Example");

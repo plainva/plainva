@@ -1,6 +1,6 @@
 # Geheugen (Beta)
 
-Laatst bijgewerkt: 2026-10-25
+Laatst bijgewerkt: 2026-11-06
 
 Het geheugen bewaart wat de AI over jou en je werk moet weten zonder dat je het opnieuw hoeft te vertellen: wat je doet, hoe je je antwoorden het liefst wilt hebben, wie je klanten zijn. Het zijn twee bestanden in je vault. Er komt niets in zonder jouw ja, en je kunt elk item lezen, wijzigen en verwijderen.
 
@@ -12,7 +12,7 @@ Het geheugen bewaart wat de AI over jou en je werk moet weten zonder dat je het 
 
 ## Het geheugen openen
 
-Kies op de desktop **Geheugen** in het AI-tabblad, naast **Vaardigheden**. Op de telefoon is dat **Gesprekken → Geheugen**. Ook **Instellingen → AI & automatisering** (het Vault-deel) leidt erheen: **Geheugen openen** onder **Vaardigheden en geheugen**.
+Kies op de desktop **Geheugen** in het AI-tabblad, naast **Vaardigheden**. Op de telefoon is dat het segment **Geheugen** van het scherm **AI** (of **Vaardigheden en geheugen** op de startpagina). Ook **Instellingen → AI in deze vault** leidt erheen: **Geheugen openen** onder **Vaardigheden en geheugen**. De bestandsnamen van het geheugen staan achter het ⓘ van de kaart **Altijd erbij**; de regels van de vault (`AGENTS.md`) controleer en keur je hier goed, in de geheugenweergave, niet meer bij de vaardigheden.
 
 ## Zelf een item toevoegen
 
@@ -22,7 +22,7 @@ De ⋯-knop van een item — op de telefoon een tik op het item — biedt **Bewe
 
 ## De AI iets laten onthouden
 
-Zeg het in een gesprek: “Onthoud dat ik per dag factureer, niet per uur.” De AI maakt een concept van een item en schrijft er nooit zelf een. Onder het antwoord toont een kaart **Concept · Geheugenitem** de volledige tekst. Kies de plek en daarna **Onthouden** — of **Verwerpen**. Een concept waarover je nog niet hebt beslist, wacht onder **Open**, en het geheugen laat zien hoeveel er wachten.
+Zeg het in een gesprek: “Onthoud dat ik per dag factureer, niet per uur.” De AI maakt een concept van een item en schrijft er nooit zelf een. Onder het antwoord toont een kaart **Concept · Geheugenitem** de volledige tekst. Kies de plek en daarna **Onthouden** — of **Verwerpen**. Een concept waarover je nog niet hebt beslist, wacht onder **Te beslissen**, en het geheugen laat zien hoeveel er wachten.
 
 “Vergeet dat …” werkt op dezelfde manier: op de kaart staat **Concept · Uit het geheugen verwijderen**, en **Verwijderen** haalt het item eruit. Als je de AI vertelt dat er iets is veranderd, toont de kaart onder **Vervangt** welk item de nieuwe formulering vervangt.
 

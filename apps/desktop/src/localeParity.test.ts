@@ -320,6 +320,10 @@ describe("locale parity", () => {
 const VERBATIM_THRESHOLD = 6;
 
 const VERBATIM_ALLOWED = new Set<string>([
+  // Who an AI notice comes from (plan KI-Oberflächen K10): "Plainva" is the product's name in every language.
+  "ai.error.sender.plainva",
+  // The internet chip of a conversation (plan KI-Oberflächen K7): "Internet" is the word in most languages.
+  "ai.web.chip",
   // The AI profile that transcribes (plan KI-Harness P1.5): "Audio" is the word in de, es, fr, it, nl and pl too.
   "ai.profile.audio",
   // A product name (the MCP settings row of plan KI-Harness §17.3): the same in every language.

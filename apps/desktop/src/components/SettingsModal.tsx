@@ -107,13 +107,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // What each vault is called in Plainva: its own name, else its folder's.
   const vaultLabelOf = useVaultLabels(vaults);
 
-  const [section, setSection] = useState<string>(vaultPath || GENERAL);
+  // An area of the app world asked for by name (the AI's notices, plan KI-Oberflächen K10) opens the app world on it.
+  const appAreaAsked = Boolean(initialArea && settingsArea(initialArea)?.world === "app");
+  const [section, setSection] = useState<string>(appAreaAsked ? GENERAL : vaultPath || GENERAL);
   // Which vault the VAULT areas show (two-worlds nav); the identity card's
   // "switch" link changes it via the vault picker (redesign P2 — no dropdown).
   const [selectedVault, setSelectedVault] = useState<string>(vaultPath || vaults[0] || "");
   // One PAGE per settings area (redesign P2): clicking a rail entry renders
   // exactly that area — the scroll-spy over one long document is gone.
-  const [appPage, setAppPage] = useState<string>(firstSettingsArea("app").id);
+  const [appPage, setAppPage] = useState<string>(appAreaAsked ? initialArea! : firstSettingsArea("app").id);
   const [vaultPage, setVaultPage] = useState<string>(() =>
     initialArea && settingsArea(initialArea)?.world === "vault"
       ? initialArea

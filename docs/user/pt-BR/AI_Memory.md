@@ -1,6 +1,6 @@
 # Memória (Beta)
 
-Última revisão: 2026-10-25
+Última revisão: 2026-11-06
 
 A memória guarda o que a IA deve saber sobre você e o seu trabalho sem que você precise repetir: o que você faz, como prefere as respostas, quem são seus clientes. São dois arquivos no seu vault. Nada entra nela sem o seu sim, e você pode ler, alterar e excluir cada entrada.
 
@@ -12,7 +12,7 @@ A memória guarda o que a IA deve saber sobre você e o seu trabalho sem que voc
 
 ## Abrir a memória
 
-No desktop, escolha **Memória** na aba de IA, ao lado de **Habilidades**. No celular, é **Conversas → Memória**. **Configurações → IA e automação** (a parte do vault) também leva até lá: **Abrir a memória**, em **Habilidades e memória**.
+No desktop, escolha **Memória** na aba de IA, ao lado de **Habilidades**. No celular, é **Memória** na tela de IA, ou **Habilidades e memória** na página inicial da área de IA. **Configurações → IA neste vault** também leva até lá: **Abrir a memória**, em **Habilidades e memória**. Os nomes de arquivo da memória ficam atrás do ⓘ do cartão **Sempre incluído**; as regras do vault (`AGENTS.md`) são revisadas e aprovadas ali mesmo, na visão da memória.
 
 ## Adicionar uma entrada você mesmo
 
@@ -22,7 +22,7 @@ O botão ⋯ de uma entrada — no celular, um toque na entrada — oferece **Ed
 
 ## Deixar a IA lembrar de algo
 
-Diga isso em uma conversa: “Lembre-se de que eu cobro por dia, não por hora.” A IA rascunha uma entrada; ela mesma nunca escreve uma. Abaixo da resposta dela, um cartão **Rascunho · Entrada da memória** mostra o texto inteiro. Escolha o lugar e depois **Lembrar** — ou **Descartar**. Um rascunho sobre o qual você ainda não decidiu fica em **Pendentes**, e a memória informa quantos estão esperando.
+Diga isso em uma conversa: “Lembre-se de que eu cobro por dia, não por hora.” A IA rascunha uma entrada; ela mesma nunca escreve uma. Abaixo da resposta dela, um cartão **Rascunho · Entrada da memória** mostra o texto inteiro. Escolha o lugar e depois **Lembrar** — ou **Descartar**. Um rascunho sobre o qual você ainda não decidiu fica em **A decidir**, e a memória informa quantos estão esperando.
 
 “Esqueça que …” funciona do mesmo jeito: o cartão diz **Rascunho · Remover da memória**, e **Remover** retira a entrada. Quando você diz à IA que algo mudou, o cartão mostra, em **Substitui**, de qual entrada a nova formulação toma o lugar.
 

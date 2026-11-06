@@ -193,7 +193,9 @@ test("a script runs for nobody until this phone signed it, then in its box — a
     await run.getByRole("button", { name: "Close", exact: true }).click();
 
     // 6. A script written here: code the engine does not read is not written; what is written is approved as it is.
-    await workshop.getByTestId("ai-scripts-new").click();
+    // "New …" holds the script, the skill and the import (plan KI-Oberflächen K12).
+    await workshop.getByTestId("ai-skills-new-menu").click();
+    await page.getByText("New script", { exact: true }).click();
     const form = page.getByTestId("ai-script-form");
     await form.getByTestId("ai-script-name").fill("query-length");
     await form.getByTestId("ai-script-description").fill("Says how long the query is.");
@@ -228,7 +230,9 @@ test("a script runs for nobody until this phone signed it, then in its box — a
     // 8. The second stage: a script that suggests. Written with a writing tool ticked; what it lays down is a
     //    suggestion on the note — the note itself is as it was.
     const REPORT = "# Report\n\nOne two three four five.\n";
-    await workshop.getByTestId("ai-scripts-new").click();
+    // "New …" holds the script, the skill and the import (plan KI-Oberflächen K12).
+    await workshop.getByTestId("ai-skills-new-menu").click();
+    await page.getByText("New script", { exact: true }).click();
     await form.getByTestId("ai-script-name").fill("add-line");
     await form.getByTestId("ai-script-description").fill("Suggests a line at the end of a note.");
     await form.getByTestId("ai-script-tool-search_vault").uncheck();

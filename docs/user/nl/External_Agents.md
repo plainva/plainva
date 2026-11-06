@@ -1,6 +1,6 @@
 # Externe agents (Beta)
 
-Laatst bijgewerkt: 2026-10-26
+Laatst bijgewerkt: 2026-11-06
 
 Een externe agent is een AI-programma van een andere maker — een agent die je op je computer hebt geïnstalleerd en waarbij je je zelf hebt aangemeld, met je eigen abonnement of sleutel. Plainva kan zo'n agent in de map van een vault starten en zijn sessie in het AI-tabblad tonen. Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
 
@@ -25,7 +25,7 @@ Start een agent alleen in een vault waarvan de inhoud de dienst van de agent mag
 ## Een agent toevoegen
 
 1. Installeer de agent zelf, zoals zijn maker het beschrijft, en meld je in zijn eigen programma bij hem aan.
-2. Open **Instellingen → AI & automatisering** (het App-deel). Onder **Externe agents** markeert **Gevonden op deze computer** de agents die Plainva bij naam kent en geïnstalleerd vindt; **Toevoegen** voegt er een toe. Kies voor elk ander programma dat het Agent Client Protocol spreekt onder **Een andere agent** voor **Agent toevoegen…** en vul **Naam**, **Programma** en **Argumenten, één per regel** in.
+2. Open **Instellingen → AI**. Op de kaart **Externe agents** markeert **Gevonden op deze computer** de agents die Plainva bij naam kent en geïnstalleerd vindt; **Toevoegen** voegt er een toe. Kies voor elk ander programma dat het Agent Client Protocol spreekt onder **Een andere agent** voor **Agent toevoegen…** en vul **Naam**, **Programma** en **Argumenten, één per regel** in.
 3. Je systeem toont de hele opdracht nog een keer voordat ze wordt onthouden.
 
 Plainva installeert geen agent en downloadt er geen. Het start precies het programma dat je hebt bevestigd, rechtstreeks en zonder shell. De opdracht wordt op dit apparaat onthouden, nooit in de vault. **Verwijderen** laat Plainva vergeten hoe een agent wordt gestart; het programma zelf en zijn aanmelding blijven zoals ze zijn.
@@ -52,7 +52,7 @@ Als de agent je toestemming voor een stap wil, toont **⟨agent⟩ vraagt** die.
 
 ## Wat de agent schrijft
 
-**Via Plainva.** Een wijziging die de agent aan Plainva geeft, wordt nooit in de notitie geschreven. Als het antwoord van de agent klaar is, draagt elke notitie die hij heeft gewijzigd één ronde voorstellen, ondertekend met **⟨naam⟩ (externe agent)**: onder **Voorstellen** accepteer of wijs je elke wijziging of de hele ronde af, net als bij de ronde van een persoon. Een eigenschap die de tekst van de agent wijzigt, staat in die ronde als voorgestelde waarde, zoals een waarde die de eigen AI van Plainva voorstelt. Een notitie die nog niet bestaat, wacht als concept — als kaart **Concept · Notitie** in de sessie, en als dezelfde kaart in de lijst **Open** van het AI-tabblad, waar ze ook na het einde van de sessie blijft staan. **Aanmaken** schrijft haar op precies de plek die de agent noemde — gemarkeerd met `generated`, met de agent als auteur —, en **Verwerpen** laat haar vallen. Webadressen die de agent heeft meegebracht, worden zo geschreven dat niets ze opent of laadt (`https[://]…`).
+**Via Plainva.** Een wijziging die de agent aan Plainva geeft, wordt nooit in de notitie geschreven. Als het antwoord van de agent klaar is, draagt elke notitie die hij heeft gewijzigd één ronde voorstellen, ondertekend met **⟨naam⟩ (externe agent)**: onder **Voorstellen** accepteer of wijs je elke wijziging of de hele ronde af, net als bij de ronde van een persoon. Een eigenschap die de tekst van de agent wijzigt, staat in die ronde als voorgestelde waarde, zoals een waarde die de eigen AI van Plainva voorstelt. Een notitie die nog niet bestaat, wacht als concept — als kaart **Concept · Notitie** in de sessie, en als dezelfde kaart in de lijst **Te beslissen** van het AI-tabblad, waar ze ook na het einde van de sessie blijft staan. **Aanmaken** schrijft haar op precies de plek die de agent noemde — gemarkeerd met `generated`, met de agent als auteur —, en **Verwerpen** laat haar vallen. Webadressen die de agent heeft meegebracht, worden zo geschreven dat niets ze opent of laadt (`https[://]…`).
 
 Plainva neemt niet alles aan: alleen Markdown-notities; geen AI-regels, geen vertrouwensvelden en geen eigen eigenschappen van Plainva; geen eigenschapswaarde die geen tekst, getal, ja of nee, of lijst daarvan is; niets wat van de cloud of van internet wordt weggehouden; niet meer dan 150 wijzigingen in één notitie tegelijk; en geen verdere nieuwe notitie zolang er te veel concepten wachten. Wat het niet heeft aangenomen, zegt de sessie, en de agent krijgt het te horen.
 

@@ -153,6 +153,8 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
     onClose?.();
   };
   const { vaultAdapter, queryService, workspaceSecurityStatus } = useVault();
+  const session = getDesktopAiSession();
+  const aiState = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
   const [rules, setRules] = useState<FolderPolicyRule[] | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
@@ -207,21 +209,25 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
     { value: "deny" as const, label: t("ai.policy.deny") },
   ];
   const vaultRule = ruleOf(rules, "");
+  const webOn = Boolean(aiState?.web.enabled);
   const folderRules = rules.filter((r) => r.folder !== "");
   const free = unruledFolders(rules, folders);
 
+  // The two questions of a rule as named columns (plan KI-Oberflächen K6): to a provider, onto the internet. The rules
+  // travel with the vault, the internet switch is this device's: the column stays editable, and its head says when
+  // the internet is off here.
   const controls = (folder: string, rule: FolderPolicyRule | undefined, withInherit: boolean) => (
     <div className="pv-ai-rowactions">
       <Select<PolicyChoice>
         ariaLabel={`${t("ai.policy.cloud")} · ${folder || t("ai.policy.vaultDefault")}`}
         value={rule?.cloud ?? (withInherit ? "inherit" : "allow")}
-        options={options(withInherit).map((o) => ({ ...o, label: `${t("ai.policy.cloud")}: ${o.label}` }))}
+        options={options(withInherit)}
         onChange={(choice) => void save((current) => withRuleValue(current, folder, "cloud", choice))}
       />
       <Select<PolicyChoice>
         ariaLabel={`${t("ai.policy.web")} · ${folder || t("ai.policy.vaultDefault")}`}
         value={rule?.web ?? (withInherit ? "inherit" : "allow")}
-        options={options(withInherit).map((o) => ({ ...o, label: `${t("ai.policy.web")}: ${o.label}` }))}
+        options={options(withInherit)}
         onChange={(choice) => void save((current) => withRuleValue(current, folder, "web", choice))}
       />
     </div>
@@ -230,12 +236,22 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
   return (
     <div className="pv-setpage" data-testid="settings-ai-vault">
       <AreaHead areaId="aiVault" />
+      {/* The rules here hold once the AI is on (plan KI-Oberflächen K6): said where it is off on this device. */}
+      {aiState && !aiState.settings.enabled && (
+        <SettingCard>
+          <SettingCardNote>
+            <span data-testid="settings-ai-vault-off">{t("ai.settings.vaultOff")}</span>
+          </SettingCardNote>
+        </SettingCard>
+      )}
+      <InternetCard />
       <SettingCard label={t("ai.policy.title")} info={t("ai.policy.desc")}>
         {problems.length > 0 && (
           <SettingCardNote>
             <Banner kind="warning" rounded>{t("ai.policy.problems", { lines: problems.join("; ") })}</Banner>
           </SettingCardNote>
         )}
+        <SettingRow label={t("ai.policy.columns")} desc={`${t("ai.policy.cloud")} · ${t("ai.policy.web")}${webOn ? "" : ` (${t("ai.policy.webOff")})`}`} />
         <SettingRow label={t("ai.policy.vaultDefault")}>{controls("", vaultRule, false)}</SettingRow>
         {folderRules.map((rule) => (
           <SettingRow key={rule.folder} label={rule.folder}>
@@ -266,11 +282,10 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
         <SettingCardNote>{t("ai.policy.localAllowed")}</SettingCardNote>
         {workspaceSecurityStatus !== null && <SettingCardNote>{t("ai.policy.encrypted")}</SettingCardNote>}
       </SettingCard>
-      <InternetCard />
       <ExternalToolsCard />
-      <SkillsCard onOpenSkills={openSkills} onOpenMemory={openMemory} />
-      {/* Routines (plan KI-Harness P8): a skill at a time its user set — below the skills they are made of; or a folder's log (P8-2). */}
+      {/* Routines (plan KI-Harness P8): a skill at a time its user set; or a folder's log (P8-2). */}
       <RoutinesCard folders={folders} />
+      <SkillsCard onOpenSkills={openSkills} onOpenMemory={openMemory} />
     </div>
   );
 }

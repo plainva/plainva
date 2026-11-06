@@ -1,12 +1,38 @@
 {
   "ai": {
+    "start": {
+      "skillsAndMemory": "Vaardigheden en geheugen",
+      "allConversations": "Alle gesprekken",
+      "recent": "Recent"
+    },
+    "waitingCount_other": "{{count}} te beslissen",
+    "waitingCount_one": "{{count}} te beslissen",
+    "pending": {
+      "answerFirst": "Beantwoord eerst de vraag hierboven",
+      "short": "Een vraag wacht op je antwoord.",
+      "open": "Openen in het venster"
+    },
+    "sentShort_other": "Naar {{provider}} · {{count}} notities",
+    "sentShort_one": "Naar {{provider}} · {{count}} notitie",
+    "details": "Details",
+    "copied": "Antwoord gekopieerd",
+    "copy": "Kopiëren",
+    "placeholderNote": "Vraag iets over ‘{{title}}’ of je vault…",
+    "setup": {
+      "chooseModel": "Model kiezen",
+      "modelBody": "Kies welk model ‘{{profile}}’ gebruikt — het profiel waarmee nieuwe gesprekken beginnen.",
+      "modelTitle": "Nog geen model voor nieuwe gesprekken",
+      "bodyPhone": "Kies een provider en bewaar zijn sleutel — of gebruik zonder sleutel het model van je telefoon.",
+      "bodyDesktop": "Kies een provider en bewaar zijn sleutel — of gebruik een model op dit apparaat (Ollama, LM Studio).",
+      "title": "Nog geen model"
+    },
     "title": "AI",
     "ask": "AI vragen",
     "newConversation": "Nieuw gesprek",
     "openAsTab": "Als tabblad openen",
-    "companion": "AI-begeleider",
+    "companion": "AI-venster",
     "marking": "Antwoorden worden geschreven door een AI — {{model}} via {{provider}}. Controleer ze aan de hand van de bronnen.",
-    "placeholder": "Vraag iets over deze notitie of je vault…",
+    "placeholder": "Vraag iets over je vault…",
     "send": "Verzenden",
     "stop": "Stoppen",
     "context": "Context",
@@ -61,6 +87,7 @@
       "delete_note": "Vraagt om een notitie te verwijderen"
     },
     "snapshot": {
+      "replayAction": "Dezelfde vraag aan een ander model…",
       "asked": "Gevraagd",
       "read": "Gelezen door de hulpmiddelen",
       "readHit": "gevonden door een zoekopdracht",
@@ -104,6 +131,7 @@
       "open": "Origineel openen"
     },
     "style": {
+      "chip": "Mijn stijl",
       "title": "Schrijfstijl",
       "examples": "Voorbeelden",
       "examplesHint": "Notities die je zelf hebt geschreven — tot {{max}}.",
@@ -120,8 +148,6 @@
       "device": "De schrijfstijl staat op dit apparaat, niet in de vault. Hij gaat in geen enkel gesprek mee voordat je daar ‘Mijn stijl’ kiest.",
       "toggleOn": "Mijn stijl: aan voor dit gesprek",
       "toggleOff": "Mijn stijl: dit gesprek in jouw schrijfstijl laten schrijven",
-      "activeOn": "Mijn stijl: dit gesprek draagt je schrijfstijl",
-      "activeOff": "Mijn stijl: dit gesprek is zonder begonnen",
       "fixed": "Of een gesprek je schrijfstijl draagt, wordt bepaald wanneer het begint. Begin een nieuw gesprek om het te wijzigen.",
       "marking_one": "Met je schrijfstijl · {{count}} kenmerk",
       "marking_other": "Met je schrijfstijl · {{count}} kenmerken",
@@ -193,28 +219,38 @@
     },
     "stopped": {
       "cancelled": "Gestopt.",
-      "limit": "Deze uitvoering heeft zijn limiet bereikt en is gestopt.",
+      "limit": "Deze run heeft zijn limiet bereikt en is gestopt.",
       "loop": "Gestopt: dezelfde opzoekactie herhaalde zich steeds.",
       "circuit": "Gestopt: drie hulpmiddelen mislukten achter elkaar.",
       "maxTokens": "Het antwoord is afgebroken bij de lengtelimiet.",
-      "refusal": "Het model heeft geweigerd te antwoorden."
+      "refusal": "Het model heeft het verzoek geweigerd."
     },
     "error": {
+      "sender": {
+        "plainva": "Plainva",
+        "provider": "Provider",
+        "network": "Netwerk",
+        "device": "Apparaat"
+      },
+      "deviceOffline": "Dit apparaat is offline. Zodra het weer netwerk heeft, stuur je de vraag opnieuw.",
+      "newKey": "Nieuwe sleutel invoeren",
+      "providerErrorShort": "{{provider}} meldt een fout.",
+      "refusedShort": "{{provider}} heeft het verzoek geweigerd.",
       "noKey": "Voor {{provider}} is geen sleutel opgeslagen.",
-      "invalidKey": "{{provider}} heeft de sleutel niet geaccepteerd.",
+      "invalidKey": "{{provider}} heeft de sleutel niet geaccepteerd. Hij is verlopen of onjuist.",
       "rateLimited": "{{provider}} beperkt op dit moment het aantal aanvragen. Probeer het straks opnieuw, of kies een ander profiel.",
       "overloaded": "{{provider}} is op dit moment overbelast. Probeer het straks opnieuw.",
       "contextTooLong": "Dit gesprek is te lang voor het model. Begin een nieuw gesprek.",
-      "notFound": "{{provider}} kent het model “{{model}}” niet.",
+      "notFound": "{{provider}} kent het model ‘{{model}}’ niet. Kies een ander model.",
       "refused": "{{provider}} heeft het verzoek geweigerd: {{message}}",
       "unknownEndpoint": "Deze server is niet ingesteld op dit apparaat. Voeg hem opnieuw toe in de instellingen.",
       "offline": "Kon {{provider}} niet bereiken.",
       "offlineHere": "{{provider}} antwoordt niet op dit apparaat. Draait de server?",
-      "streamBroken": "De verbinding brak midden in het antwoord af.",
+      "streamBroken": "De verbinding viel weg midden in het antwoord. Stuur de vraag opnieuw.",
       "streamBrokenHere": "{{provider}} antwoordt niet meer. Misschien is de server gestopt, of het model is te groot voor dit apparaat.",
       "providerError": "{{provider}} meldde een fout: {{message}}",
       "keptOnDevice": "Dit gesprek liep met een model op dit apparaat. Wat het daarbij las, is nooit voor een cloud gecontroleerd; daarom blijft het hier. Begin een nieuw gesprek voor {{provider}}.",
-      "localOnly": "“Volledig lokaal” staat aan, en {{provider}} draait niet op dit apparaat. Er is niets verzonden.",
+      "localOnly": "‘Volledig lokaal’ staat aan, en {{provider}} draait niet op dit apparaat. Er is niets verzonden. Kies een model op dit apparaat, of zet ‘Volledig lokaal’ uit.",
       "windowTooSmall": "Dit verzoek heeft ongeveer {{needed}} tokens nodig; voor {{model}} is een venster van {{window}} opgegeven. Er is niets verzonden. Vergroot het venster bij de server en in het profiel, zet “Kan hulpmiddelen aanroepen” voor dit model uit, of laat notities weg.",
       "openSetup": "Instellingen openen",
       "platform": {
@@ -231,14 +267,16 @@
       }
     },
     "empty": {
+      "startBodyVault": "Over alles in je vault. De AI verandert zelf niets: wat ze zou veranderen, legt ze je voor als voorstel.",
+      "setupBodyPhone": "Kies een provider en bewaar zijn sleutel — of gebruik zonder sleutel het model van je telefoon.",
       "setupTitle": "AI instellen",
-      "setupBody": "Kies een provider en sla een sleutel op — of gebruik een model dat op deze computer draait.",
+      "setupBody": "Kies een provider en bewaar zijn sleutel — of gebruik een model op dit apparaat (Ollama, LM Studio).",
       "setupAction": "Instellen",
       "offTitle": "Plainva AI staat uit op dit apparaat",
       "offBody": "Zet hem aan in de instellingen. Er wordt pas iets verzonden zodra je iets vraagt.",
       "offAction": "Instellingen openen",
       "startTitle": "Vraag iets",
-      "startBody": "Over de geopende notitie, of over alles in je vault. De assistent verandert zelf niets — voor een passage die je selecteert, stelt hij wijzigingen voor als voorstellen.",
+      "startBody": "Over de open notitie of over alles in je vault. De AI verandert zelf niets: wat ze zou veranderen, legt ze je voor als voorstel.",
       "mainWindowOnly": "De AI werkt in het hoofdvenster.",
       "noVault": "Open een vault om vragen te stellen over je notities."
     },
@@ -255,13 +293,30 @@
       "clearSearch": "Zoeken wissen"
     },
     "settings": {
-      "sectionApp": "Geldt voor Plainva op dit apparaat, in elke vault: providers, sleutels, modellen.",
-      "sectionVault": "Voor deze vault: de privacyregels, die ermee meereizen, en wat de AI hier mag gebruiken — internet, externe hulpmiddelen, vaardigheden en geheugen.",
+      "modelOwnId": "Eigen model-id",
+      "modelNoList": "De provider geeft hier geen lijst. Vul hieronder de model-id in.",
+      "modelSearch": "Modellen zoeken",
+      "internetOff": "Internet uit",
+      "internetOn": "Internet aan",
+      "vaultOff": "De AI staat uit op dit apparaat. Wat hier staat, geldt zodra je haar aanzet onder Instellingen → AI.",
+      "nextToNote": "Naast de open notitie",
+      "retry": "Opnieuw proberen",
+      "historyUsage": "Geschiedenis en verbruik",
+      "privacyVaultNote": "Of de AI het internet op mag en welke mappen naar een provider mogen, stel je per vault in onder ‘AI in deze vault’.",
+      "privacy": "Privacy",
+      "changeModel": "Model wijzigen",
+      "makeDefault": "Gebruiken voor nieuwe gesprekken",
+      "defaultBadge": "Standaard",
+      "moreModels": "Meer modellen: audio voor spraaknotities en het model van zoeken op betekenis.",
+      "models": "Modellen",
+      "offNextPhone": "Als het aan staat, kies je een provider en een model — op een telefoon werkt ook het model van het systeem zonder sleutel. Er wordt pas iets verzonden als je iets vraagt.",
+      "offNextDesktop": "Als het aan staat, kies je een provider en een model — of een model op dit apparaat (Ollama, LM Studio). Er wordt pas iets verzonden als je iets vraagt.",
+      "vaultTitle": "AI in deze vault",
+      "sectionApp": "Geldt voor Plainva op dit apparaat, in elke vault: providers, modellen en wat de AI hier mag.",
+      "sectionVault": "Voor deze vault: of de AI het internet op mag, wat de vault mag verlaten, externe hulpmiddelen, routines, vaardigheden en geheugen.",
       "betaTitle": "Plainva AI (Beta)",
       "betaSwitch": "AI op dit apparaat gebruiken",
-      "betaDesc": "Geldt alleen voor dit apparaat. Zonder de schakelaar is er geen AI-knop, tabblad of begeleider.",
-      "providers": "Providers",
-      "providersHint": "Elke provider is te kiezen. Plainva noemt hun voorwaarden en bewaartermijn — het sluit er geen enkele uit.",
+      "betaDesc": "Geldt alleen voor dit apparaat. Zolang het uit staat, is er geen AI-knop en geen AI-gedeelte, en wordt er niets verzonden.",
       "addProvider": "Provider toevoegen",
       "keyStored": "Sleutel opgeslagen op dit apparaat",
       "noKey": "Geen sleutel",
@@ -286,11 +341,10 @@
       "profiles": "Modellen en profielen",
       "profilesHint": "Profielen zijn jouw toewijzing. Plainva noemt geen enkel model “het beste”; elke model-ID die de provider accepteert, is bruikbaar.",
       "profileEmpty": "niet ingesteld",
-      "defaultProfile": "Standaard voor nieuwe gesprekken",
       "modelTitle": "Model voor “{{profile}}”",
       "provider": "Provider",
       "model": "Model",
-      "modelPlaceholder": "Model-ID, zoals de provider die noemt",
+      "modelPlaceholder": "Model-id, zoals de provider het noemt",
       "modelFromList": "Uit de lijst van de provider",
       "modelWindow": "Contextvenster",
       "modelWindowDesc": "Hoeveel tokens het model in één keer kan lezen. Een server op dit apparaat meldt dat niet aan Plainva — leeg betekent onbekend. Bij een klein venster stuurt Plainva minder en kortere notities mee, en het stopt vóór een verzoek dat niet zou passen, in plaats van dat de server het stilzwijgend afkapt.",
@@ -298,7 +352,6 @@
       "modelWindowInvalid": "Een geheel getal tussen {{min}} en {{max}}, of leeg.",
       "modelTools": "Kan hulpmiddelen aanroepen",
       "modelToolsDesc": "Uit: het model krijgt geen hulpmiddelen en antwoordt aan de hand van wat er meegaat — zoals het model van het systeem op een telefoon.",
-      "modelToolsNo": "Geen hulpmiddelen geven",
       "modelFactsHint": "Beide gelden voor deze modelkeuze op dit apparaat. Voor providers in de cloud neemt Plainva de waarden uit de lijst van de provider.",
       "profileWindow": "venster {{tokens}}",
       "profileNoTools": "zonder hulpmiddelen",
@@ -318,15 +371,14 @@
       "usageSaved": "Bespaard door kiezen en inkorten: ~{{tokens}} tokens",
       "change": "Wijzigen",
       "experimental": "Experimenteel: de AI wordt nog gebouwd en getest, en antwoorden kunnen fout zijn. Controleer ze aan de hand van de notities die ze noemen.",
-      "title": "AI & automatisering",
-      "sending": "Verzenden",
+      "title": "AI",
       "confirmEvery": "Vragen vóór elk verzoek",
       "confirmEveryDesc": "Toont vóór elk bericht wat er naar buiten gaat, niet alleen de eerste keer en wanneer het groeit. Voor een model op dit apparaat wordt nooit gevraagd.",
       "audioHint": "Zet spraaknotities om in tekst. Vereist een provider met een audioroute: OpenAI, Gemini of een compatibele server.",
       "feedback": "Feedback over de AI (bèta)",
       "feedbackDesc": "Vertel ons wat werkt en wat niet — in de discussies van het project op GitHub.",
       "feedbackOpen": "Discussies openen",
-      "embeddingHint": "Het model waarmee zoeken op betekenis rekent als je onder Semantisch zoeken „Eigen provider” kiest. Elk model dat de provider voor embeddings aanbiedt, werkt.",
+      "embeddingHint": "Het model waarmee zoeken op betekenis rekent als je daar ‘Eigen provider’ kiest. Elk model dat de provider voor zoeken aanbiedt, werkt.",
       "onDevice": "Op dit apparaat — zonder sleutel, er gaat niets naar buiten",
       "onDeviceReady": "Klaar op dit apparaat · venster van ongeveer {{tokens}} tokens",
       "checkPlatform": "Beschikbaarheid controleren",
@@ -348,7 +400,7 @@
       "customUrlHint": "https://…/v1 — onversleuteld http alleen voor een server op dit apparaat.",
       "invalidUrl": "Geen bruikbaar adres. Onversleuteld http werkt alleen voor een server op dit apparaat.",
       "confirmTitle": "AI-server toevoegen",
-      "confirmMessage": "Plainva's assistent stuurt je vragen en de context die je goedkeurt naar dit adres. Voeg alleen servers toe die je vertrouwt.",
+      "confirmMessage": "Plainva AI stuurt je verzoeken en de context die je goedkeurt naar dit adres. Voeg alleen servers toe die je vertrouwt.",
       "confirmAction": "Toevoegen",
       "declined": "De server is niet toegevoegd.",
       "noKeyTitle": "Ik heb nog geen sleutel",
@@ -372,16 +424,18 @@
       "strong": "Sterk",
       "local": "Lokaal",
       "audio": "Audio",
-      "embedding": "Embeddings"
+      "embedding": "Zoekmodel"
     },
     "policy": {
-      "title": "Privacyregels (plainva.ai)",
+      "columns": "Map",
+      "webOff": "Internet uit",
+      "title": "Wat deze vault mag verlaten",
       "desc": "Een regel staat in de frontmatter van een notitie of, voor een hele map, in .agent/policy.yml. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe worden achtergehouden.",
       "vaultDefault": "Vault-standaard",
-      "cloud": "Cloud",
-      "web": "Webtoegang",
+      "cloud": "Naar een provider",
+      "web": "Naar het internet",
       "allow": "toegestaan",
-      "deny": "nooit",
+      "deny": "niet toegestaan",
       "localAllowed": "Modellen op dit apparaat blijven toegestaan.",
       "addFolder": "Mapregel toevoegen",
       "folder": "Map",
@@ -402,6 +456,7 @@
     "toolDeclined": "{{tool}} — niet toegestaan",
     "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
+      "lessDetails": "Minder",
       "title": "Verzenden naar {{provider}}?",
       "sentTitle": "Verzonden naar {{provider}}",
       "why": {
@@ -498,6 +553,7 @@
       "evidenceImage": "afbeelding, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
+      "chip": "Wat gaat er mee?",
       "open": "Context bekijken",
       "title": "Context bekijken",
       "tagline": "Wat de AI voor het volgende verzoek ziet, voordat ze het ziet.",
@@ -559,7 +615,7 @@
       "menu": "AI",
       "with": "Met de selectie",
       "asSuggestion": "Als voorstel",
-      "inConversation": "In de begeleider",
+      "inConversation": "Vragen in het gesprek",
       "translateTo": "Vertalen naar",
       "proposed_one": "De AI stelt {{count}} wijziging voor — accepteer die of wijs die af onder “Voorstellen”.",
       "proposed_other": "De AI stelt {{count}} wijzigingen voor — accepteer ze of wijs ze af onder “Voorstellen”.",
@@ -621,10 +677,9 @@
       "title": "Er kwam geen antwoord terug. Deze notities passen het best bij je vraag:"
     },
     "web": {
+      "chip": "Internet",
       "toggleOn": "Dit gesprek gebruikt internet",
       "toggleOff": "Laat dit gesprek internet gebruiken",
-      "activeOn": "Dit gesprek mag internet gebruiken",
-      "activeOff": "Dit gesprek is zonder internet begonnen",
       "fixed": "Of een gesprek internet mag gebruiken, wordt bepaald wanneer het begint. Begin een nieuw gesprek om het te wijzigen.",
       "marking": "Dit gesprek mag internet gebruiken. Zolang je notities erin zitten, vraagt elk verzoek eerst.",
       "sources": "Gelezen op het web",
@@ -647,8 +702,8 @@
         "fetch": "Pagina lezen",
         "search": "Zoeken",
         "always": "Altijd voor {{host}}",
-        "denyFetch": "Niet lezen",
-        "denySearch": "Niet zoeken"
+        "denyFetch": "Niet toestaan",
+        "denySearch": "Niet toestaan"
       },
       "settings": {
         "title": "Internet",
@@ -735,6 +790,7 @@
       "defused": "Nieuwe webadressen zijn onschadelijk gemaakt: leesbaar, maar geen link."
     },
     "skills": {
+      "all": "Alle vaardigheden…",
       "title": "Vaardigheden",
       "runOwn": "Voer de vaardigheid ‘{{title}}’ uit.",
       "daily": {
@@ -813,6 +869,11 @@
       }
     },
     "workshop": {
+      "revokeBody": "Totdat je het opnieuw goedkeurt, gebruikt de AI het niet meer op dit apparaat.",
+      "revokeConfirm": "De goedkeuring van ‘{{title}}’ intrekken?",
+      "vaultRow": "Instructies voor deze vault",
+      "newMenu": "Nieuw…",
+      "explain": "Vaardigheden zijn kant-en-klare werkwijzen voor de AI — bijvoorbeeld een weekoverzicht. Een tik start er een in het gesprek.",
       "title": "Vaardigheden",
       "segmentChats": "Gesprekken",
       "segmentSkills": "Vaardigheden",
@@ -1021,18 +1082,18 @@
         "plainva-value": "Een Plainva-veld kon niet worden gelezen en blijft weg: {{detail}}"
       },
       "test": {
-        "title": "Testen",
-        "run": "Testen met {{model}}",
-        "open": "Testen…",
+        "title": "Testrun",
+        "run": "Testrun met {{model}}",
+        "open": "Testrun…",
         "start": "Test starten",
-        "never": "Nog niet getest. De testscenario's van de vaardigheden draaien tegen het gekozen model — met de hand, met een plafond.",
-        "last": "Laatst getest op {{when}} — geslaagd: {{passed}} van {{total}}.",
-        "modelChanged_one": "{{count}} vaardigheid is nog niet getest met het nu gekozen model ({{model}}).",
-        "modelChanged_other": "{{count}} vaardigheden zijn nog niet getest met het nu gekozen model ({{model}}).",
+        "never": "Nog geen testrun. De testscenario’s van de vaardigheden draaien met het gekozen model — met de hand, met een bovengrens.",
+        "last": "Laatste testrun op {{when}} — geslaagd: {{passed}} van {{total}}.",
+        "modelChanged_one": "{{count}} vaardigheid heeft nog geen testrun gehad met het nu gekozen model ({{model}}).",
+        "modelChanged_other": "{{count}} vaardigheden hebben nog geen testrun gehad met het nu gekozen model ({{model}}).",
         "row": {
-          "current": "getest: {{passed}} van {{total}}",
-          "model-changed": "getest met {{model}}, niet met het gekozen model",
-          "skill-changed": "gewijzigd sinds de test"
+          "current": "testrun: {{passed}} van {{total}}",
+          "model-changed": "testrun met {{model}}, niet met het gekozen model",
+          "skill-changed": "gewijzigd sinds de testrun"
         },
         "model": "Model",
         "what": "Omvang",
@@ -1076,7 +1137,7 @@
         },
         "cost": "≈ {{cost}} · {{tokens}} tokens",
         "tokens": "{{tokens}} tokens",
-        "conversation": "Controle · {{skill}} · {{scenario}}"
+        "conversation": "Testrun · {{skill}} · {{scenario}}"
       },
       "writeFailed":"De vaardigheid kon niet in de vault worden geschreven."
     },
@@ -1136,7 +1197,7 @@
         "busy": "De AI is op dit moment bezig. Probeer het opnieuw als hij klaar is.",
         "cancelled": "Gestopt. Er is niets klaargezet.",
         "invalid": "Het antwoord was geen lijst met voorstellen. Er is niets klaargezet.",
-        "failed": "Dat is niet gelukt. Er is niets klaargezet."
+        "failed": "Plainva kon dat niet uitvoeren. Er is niets opgeslagen; probeer het opnieuw."
       },
       "draft": {
         "why": "Onderbouwing",
@@ -1197,7 +1258,7 @@
         "changed": "De vaardigheid is niet meer zoals ze hier werd getoond. Bekijk haar opnieuw.",
         "invalid": "Deze versie is geen vaardigheid zoals het formaat die voorschrijft, dus ze wordt niet teruggeschreven.",
         "no-history": "De vault kon de huidige versie niet eerst bewaren, dus er is niets overschreven.",
-        "failed": "Dat is niet gelukt. Er is niets gewijzigd."
+        "failed": "Plainva kon de eerdere versie niet terughalen. Er is niets gewijzigd; probeer het opnieuw."
       },
       "versions": {
         "action": "Eerdere versies…",
@@ -1338,6 +1399,7 @@
       "conversationRests": "Dit gesprek liep met {{model}} via {{provider}}. Zolang “Volledig lokaal” aan staat, gaat het niet verder: geen enkel gesprek wisselt stilzwijgend van model."
     },
     "routines": {
+      "toOverview": "Door naar het overzicht",
       "title": "Routines",
       "note": "Routines draaien op dit apparaat zolang Plainva open is. Was Plainva op het moment van een uitvoering gesloten, dan haalt een routine de uitvoering bij het volgende openen één keer in of slaat ze die over — zoals je dat voor die routine hebt ingesteld.",
       "empty": "Nog geen routine.",
@@ -1371,12 +1433,12 @@
       "paused": "Gepauzeerd",
       "runningNow": "Draait nu",
       "needs": {
-        "skill": "Ligt stil: haar vaardigheid is gewijzigd, uitgezet of verwijderd sinds je deze routine hebt bevestigd. Bekijk de routine, dan draait ze weer.",
-        "scope": "Heeft je nodig: ze zou nu meer verzenden dan je hebt bevestigd. Er is niets verzonden.",
+        "skill": "Ligt stil: de vaardigheid van deze routine is gewijzigd, uitgezet of verwijderd sinds je de routine hebt bevestigd. Bekijk haar, dan draait ze weer.",
+        "scope": "Heeft je nodig: de routine zou nu meer meesturen dan je hebt bevestigd. Er is niets verzonden.",
         "confirm": "Ligt stil: dit apparaat vraagt vóór elk verzoek, en als een routine draait, is er niemand die antwoordt.",
-        "model": "Heeft je nodig: de provider van haar model is op dit apparaat niet meer ingesteld.",
-        "local": "Ligt stil zolang “Volledig lokaal” aan staat: haar model staat niet op dit apparaat.",
-        "rules": "Ligt stil: je regels houden deze map weg van haar model. Kies daarvoor een model op dit apparaat, of wijzig de regels."
+        "model": "Heeft je nodig: de provider van het model van deze routine is op dit apparaat niet meer ingesteld.",
+        "local": "Ligt stil zolang ‘Volledig lokaal’ aan staat: het model van deze routine staat niet op dit apparaat.",
+        "rules": "Ligt stil: je regels houden deze map weg bij het model van deze routine. Kies hiervoor een model op dit apparaat, of wijzig de regels."
       },
       "review": "Bekijken",
       "active": "{{name}} draait",
@@ -1411,7 +1473,7 @@
         "profile": "{{profile}} — {{provider}} · {{model}}"
       },
       "confirm": {
-        "title": "“{{name}}” draait zonder jou — daarom geldt voor haar het volgende",
+        "title": "Hoe ‘{{name}}’ zonder jou draait",
         "reads": "Ze leest alleen",
         "readsDesc": "Geen voorstel, geen concept, geen internet, geen extern hulpmiddel, geen script, geen opdracht van de app. Wat ze leest, bepalen je regels, zoals in elk gesprek.",
         "noMail": "Met dit model leest ze geen e-mails: daar vraagt Plainva in elke sessie opnieuw naar, en er is niemand die antwoordt. Met een model op dit apparaat leest ze die wel.",
@@ -1778,7 +1840,7 @@
       "pairNone": "Kies minstens één map om toe te staan."
     },
     "ext": {
-      "title": "Externe hulpmiddelen (MCP)",
+      "title": "Externe hulpmiddelen",
       "desc": "Hulpmiddelen van servers die je zelf koppelt, via het Model Context Protocol (MCP). Van een server wordt niets gebruikt voordat je hebt bekeken wat hij aanbiedt. Je ziet elke aanroep voordat hij vertrekt, en wat terugkomt wordt behandeld als de tekst van een vreemde.",
       "none": "Op dit apparaat is geen server gekoppeld.",
       "device": "Servers op dit apparaat",
@@ -1820,7 +1882,7 @@
         "changes": "Deze aanroep kan bij {{server}} iets wijzigen. Plainva kan dat niet ongedaan maken.",
         "destroys": "Deze aanroep kan bij {{server}} iets wijzigen, overschrijven of verwijderen. Plainva kan dat niet ongedaan maken.",
         "run": "Uitvoeren",
-        "deny": "Niet aanroepen",
+        "deny": "Niet toestaan",
         "send": "Aanroepen"
       },
       "prompt": {
@@ -1831,15 +1893,15 @@
         "send": "Als mijn bericht versturen",
         "start": "Verder",
         "blocked": "{{server}} antwoordde met een andere tekst dan die je hebt goedgekeurd. Hij is geblokkeerd totdat je hem in de instellingen controleert.",
-        "empty": "De prompt bevat geen tekst.",
-        "unavailable": "Deze prompt is nu niet beschikbaar."
+        "empty": "Het tekstsjabloon bevat geen tekst.",
+        "unavailable": "Dit tekstsjabloon is nu niet beschikbaar."
       },
       "question": {
         "title": "{{server}} heeft een vraag",
         "pageTitle": "{{server}} wil dat je een pagina opent",
         "refusedTitle": "Plainva heeft een vraag van {{server}} geblokkeerd",
         "during": "Voor",
-        "prompt": "de prompt “{{name}}”",
+        "prompt": "het tekstsjabloon ‘{{name}}’",
         "writes": "{{server}} schrijft:",
         "optional": "optioneel",
         "choose": "Kiezen…",
@@ -1917,7 +1979,7 @@
         "clipped": "De server somt meer op dan Plainva leest. De rest wordt niet aangeboden.",
         "skills_one": "Hij biedt {{count}} vaardigheid aan. Je keurt elke afzonderlijk goed, onder AI → Vaardigheden, ‘Van servers’.",
         "skills_other": "Hij biedt {{count}} vaardigheden aan. Je keurt elke afzonderlijk goed, onder AI → Vaardigheden, ‘Van servers’.",
-        "prompts": "Prompts van de server",
+        "prompts": "Tekstsjablonen van de server",
         "promptsHint": "Kant-en-klare verzoeken die je zelf start, onder een leeg gesprek. De eerste keer lees je waartoe er een uitgroeit voordat hij wordt verstuurd.",
         "vault": "In deze vault",
         "folders": "Notities die met een aanroep mee mogen",
@@ -2359,7 +2421,7 @@
         "noRule": "Niet wijzigen"
       },
       "open": {
-        "segment": "Open",
+        "segment": "Te beslissen",
         "proposals": "Voorstellen bij notities",
         "empty": "Er wacht niets op je",
         "emptyHint": "Wat een AI voorstelt of opstelt, blijft hier staan tot je hebt beslist.",
@@ -2395,8 +2457,13 @@
       }
     },
     "semantic": {
-      "title": "Semantisch zoeken",
-      "description": "Vindt notities op wat ze betekenen, niet alleen op hun woorden — ook over talen heen. Geldt voor dit apparaat, en de vectoren blijven erop: een pakket berekent ze hier, een eigen provider op zijn server.",
+      "providerHintPhone": "Een cloud pas nadat je hebt goedgekeurd wat daarheen gaat.",
+      "measureRowDesc": "Hoe snel dit apparaat rekent — met voorbeeldtekst, nooit met je notities.",
+      "measureRow": "Meting",
+      "change": "Wijzigen…",
+      "now": "Rekent met",
+      "title": "Zoeken op betekenis",
+      "description": "Vindt notities op wat ze betekenen, niet alleen op hun woorden — ook over talen heen. Geldt voor dit apparaat, en de zoekgegevens blijven erop: een pakket berekent ze hier, een eigen provider op zijn server.",
       "off": "Uit — alleen op woorden zoeken",
       "hintRecommended": "Aanbevolen. In de eigen test van Plainva met vragen in tien talen vond 88 % samen met de woorden de notitie bij de eerste vijf, tegen 62 % met alleen woorden.",
       "hintPrecise": "Preciezer; duurt ongeveer drie keer zo lang.",
@@ -2426,7 +2493,7 @@
       "progress": "{{done}} van {{total}} notities verwerkt",
       "pause": "Pauzeren",
       "resume": "Hervatten",
-      "remove": "Verwijderen (met de vectoren)",
+      "remove": "Verwijderen (met de zoekgegevens)",
       "removeConfirm": "{{model}} en de vectoren die het berekende verwijderen? Zoeken op betekenis blijft uit tot je weer een model downloadt.",
       "provider": "Eigen provider",
       "providerUnset": "Kies eerst het model van het profiel Embeddings.",
@@ -2485,7 +2552,7 @@
       "pending": "Deze notitie wordt gelezen — hints volgen.",
       "none": "Niets verwant genoeg.",
       "show": "Verwante notities tonen",
-      "showDesc": "Hooguit drie hints bij de open notitie, uit de vectoren op dit apparaat — er wordt niets verstuurd. Een losse notitie pauzeer je in de kop van de sectie.",
+      "showDesc": "Hooguit drie hints bij de open notitie, uit de zoekgegevens op dit apparaat — er wordt niets verzonden. Een enkele notitie pauzeer je in de kop van de sectie.",
       "vaultPausedRow": "Gepauzeerd in deze vault",
       "resume": "Hervatten",
       "restore": "Terughalen",
@@ -2509,7 +2576,7 @@
       "todoAct": "Als taak",
       "todoWhy": "Regel {{line}} begint met ‘TODO’ en is nog geen taak. ‘Als taak’ maakt er op dezelfde plek ‘- [ ] {{text}}’ van; daarna staat de regel tussen je taken.",
       "todoGone": "De regel is intussen veranderd — er is niets gewijzigd.",
-      "failed": "Dat is niet gelukt.",
+      "failed": "Plainva kon dat niet uitvoeren. Probeer het opnieuw.",
       "meeting": "Morgen {{time}} {{title}}",
       "meetingLine": "nog geen notitie",
       "meetingAct": "Vergadernotitie maken",
@@ -2552,7 +2619,7 @@
       "paused": "gepauzeerd",
       "failed": "Het model op dit apparaat gaf geen antwoord: {{reason}}",
       "clear": "Samenvattingen verwijderen",
-      "clearConfirm": "Alle samenvattingen van deze vault verwijderen? Zolang samenvattingen aan staan, worden ze opnieuw geschreven."
+      "clearConfirm": "Alle samenvattingen van deze vault verwijderen? Zolang ze aan staan, worden ze opnieuw geschreven."
     }
   },
   "settingsSync": {

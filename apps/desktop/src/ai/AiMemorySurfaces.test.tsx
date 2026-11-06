@@ -33,6 +33,9 @@ function show(node: ReactNode): HTMLElement {
   document.body.appendChild(host);
   root = createRoot(host);
   act(() => root!.render(node));
+  // These tests read the whole send overview: its details are opened, as a reader would (plan KI-Oberflächen K9).
+  const more = host.querySelector('[data-testid="ai-overview-more"]');
+  if (more) act(() => (more as HTMLElement).click());
   return host;
 }
 

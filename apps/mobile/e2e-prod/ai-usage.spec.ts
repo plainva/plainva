@@ -103,7 +103,9 @@ test("AI usage on the phone: the cache share under the answer and in the month, 
     await conversation.getByTestId("ai-input").fill("Where do you run?");
     await conversation.getByTestId("ai-send").click();
     await expect(conversation.getByText(ANSWER)).toBeVisible({ timeout: 20_000 });
-    const line = conversation.locator(".pv-ai-run .pv-ai-runline").first();
+    // The full line stands in the details under the answer (plan KI-Oberflächen K8).
+    await conversation.getByTestId("ai-run-details").first().click();
+    const line = conversation.getByTestId("ai-run-full").first();
     await expect(line).toContainText("~1,040 tokens");
     await expect(line).toContainText("70% of the input from the cache");
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-usage-answer-mobile.png") });

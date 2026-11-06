@@ -29,6 +29,9 @@ function mount(node: React.ReactElement): HTMLElement {
   document.body.appendChild(host);
   root = createRoot(host);
   act(() => root!.render(node));
+  // These tests read the whole send overview: its details are opened, as a reader would (plan KI-Oberflächen K9).
+  const more = host.querySelector('[data-testid="ai-overview-more"]');
+  if (more) act(() => (more as HTMLElement).click());
   return host;
 }
 
@@ -58,7 +61,7 @@ describe("the question before a call to a foreign server", () => {
     expect(container.querySelector('[data-testid="ai-effect-tool"]')!.textContent).toBe("Search issues (search_issues)");
     expect(container.querySelector('[data-testid="ai-effect-args"]')!.textContent).toBe('{\n  "query": "login"\n}');
     expect(container.textContent).toContain("Exactly this goes to Tracker.");
-    expect(buttons(container)).toEqual(["Don't call", "Call"]);
+    expect(buttons(container)).toEqual(["Don't allow", "Call"]);
     click(container.querySelector('[data-testid="ai-effect-once"]'));
     click(container.querySelector('[data-testid="ai-effect-deny"]'));
     expect(onAnswer.mock.calls.map((call) => call[0])).toEqual(["once", "deny"]);
@@ -75,7 +78,7 @@ describe("the question before a call to a foreign server", () => {
     // What goes out is shown in full, as for every call — and there is still no always.
     expect(container.querySelector('[data-testid="ai-effect-args"]')!.textContent).toBe(change.args);
     expect(container.textContent).toContain("Exactly this goes to Tracker.");
-    expect(buttons(container)).toEqual(["Don't call", "Run it"]);
+    expect(buttons(container)).toEqual(["Don't allow", "Run it"]);
     expect(container.querySelector('[data-testid="ai-effect-once"]')!.className).not.toContain("primary");
     expect(container.querySelector('[data-testid="ai-effect-always"]')).toBeNull();
     click(container.querySelector('[data-testid="ai-effect-once"]'));

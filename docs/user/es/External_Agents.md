@@ -1,6 +1,6 @@
 # Agentes externos (Beta)
 
-Última actualización: 2026-10-26
+Última actualización: 2026-11-06
 
 Un agente externo es un programa de IA de otro fabricante: un agente que instalaste en tu ordenador y en el que iniciaste sesión tú mismo, con tu propia suscripción o clave. Plainva puede iniciar un agente así en la carpeta de un vault y mostrar su sesión en la pestaña de IA. Forma parte de las funciones experimentales de IA y solo funciona en el escritorio.
 
@@ -25,7 +25,7 @@ Inicia un agente solo en un vault cuyo contenido pueda llegar al servicio del ag
 ## Añadir un agente
 
 1. Instala el agente tú mismo, como describe su fabricante, e inicia sesión en él en su propio programa.
-2. Abre **Configuración → IA y automatización** (la parte de la aplicación). En **Agentes externos**, **Encontrado en este ordenador** señala los agentes que Plainva conoce por su nombre y encuentra instalados; **Añadir** añade uno. Para cualquier otro programa que hable el Agent Client Protocol, elige **Añadir agente…** en **Otro agente** y rellena **Nombre**, **Programa** y **Argumentos, uno por línea**.
+2. Abre **Configuración → IA**. En la tarjeta **Agentes externos**, **Encontrado en este ordenador** señala los agentes que Plainva conoce por su nombre y encuentra instalados; **Añadir** añade uno. Para cualquier otro programa que hable el Agent Client Protocol, elige **Añadir agente…** en **Otro agente** y rellena **Nombre**, **Programa** y **Argumentos, uno por línea**.
 3. Tu sistema muestra el comando completo una vez más antes de recordarlo.
 
 Plainva no instala ningún agente ni descarga ninguno. Inicia exactamente el programa que confirmaste, directamente y sin shell. El comando se recuerda en este dispositivo, nunca en el vault. **Quitar** hace que Plainva olvide cómo iniciar un agente; el programa en sí y su inicio de sesión quedan como están.
@@ -52,7 +52,7 @@ Cuando el agente quiere tu permiso para un paso, **⟨agente⟩ pregunta** lo mu
 
 ## Lo que escribe el agente
 
-**A través de Plainva.** Un cambio que el agente entrega a Plainva nunca se escribe en la nota. Cuando la respuesta del agente termina, cada nota que cambió lleva una ronda de sugerencias, firmada **⟨nombre⟩ (agente externo)**: en **Sugerencias** aceptas o rechazas cada cambio o la ronda entera, igual que con la ronda de una persona. Una propiedad que el texto del agente cambia figura en esa ronda como valor propuesto, igual que uno que propone la IA propia de Plainva. Una nota que aún no existe espera como borrador — una tarjeta **Borrador · Nota** en la sesión, y la misma tarjeta en la lista **Pendiente** de la pestaña de IA, donde sigue cuando la sesión ha terminado. **Crear** la escribe exactamente en el lugar que nombró el agente — marcada con `generated`, con el agente como autor —, y **Descartar** la desecha. Las direcciones web que el agente trajo se escriben de modo que nada las abra ni las cargue (`https[://]…`).
+**A través de Plainva.** Un cambio que el agente entrega a Plainva nunca se escribe en la nota. Cuando la respuesta del agente termina, cada nota que cambió lleva una ronda de sugerencias, firmada **⟨nombre⟩ (agente externo)**: en **Sugerencias** aceptas o rechazas cada cambio o la ronda entera, igual que con la ronda de una persona. Una propiedad que el texto del agente cambia figura en esa ronda como valor propuesto, igual que uno que propone la IA propia de Plainva. Una nota que aún no existe espera como borrador — una tarjeta **Borrador · Nota** en la sesión, y la misma tarjeta en la lista **Por decidir** de la pestaña de IA, donde sigue cuando la sesión ha terminado. **Crear** la escribe exactamente en el lugar que nombró el agente — marcada con `generated`, con el agente como autor —, y **Descartar** la desecha. Las direcciones web que el agente trajo se escriben de modo que nada las abra ni las cargue (`https[://]…`).
 
 Plainva no lo acepta todo: solo notas Markdown; ni reglas de IA, ni campos de confianza, ni propiedades propias de Plainva; ningún valor de propiedad que no sea texto, un número, sí o no, o una lista de ellos; nada que se mantenga fuera de la nube o de internet; no más de 150 cambios en una nota a la vez; y ninguna nota nueva más mientras haya demasiados borradores en espera. Lo que no aceptó lo dice la sesión, y el agente se entera.
 

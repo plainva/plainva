@@ -223,7 +223,7 @@ export function RoutineSheet({
         <p className="m-hint">{t("ai.routines.form.modelDesc")}</p>
         {refusal}
         <Button variant="primary" disabled={form.problems.length > 0 || form.busy} onClick={form.toConfirm} data-testid="ai-routine-next">
-          {t("common.next")}
+          {t("ai.routines.toOverview")}
         </Button>
         <Button variant="ghost" onClick={close}>
           {t("common.cancel")}

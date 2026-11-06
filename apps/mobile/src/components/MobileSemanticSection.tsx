@@ -19,7 +19,6 @@ import {
   semanticReadyLine,
   semanticRunFailureText,
   semanticUnusedLine,
-  Switch,
   toast,
   useLocalEmbeddings,
   type AiSession,
@@ -46,6 +45,8 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
   const [asking, setAsking] = useState<EmbeddingModelSpec | null>(null);
   const [unused, setUnused] = useState<UnusedEmbeddings | null>(null);
   const [approval, setApproval] = useState<StandingApproval | null>(null);
+  // The choice folds away behind one row (plan KI-Oberflächen K5), as on the desktop.
+  const [choosing, setChoosing] = useState(false);
   const chosen = settings.semanticModel;
   // Stable between renders: the effect below follows it.
   const source = useMemo(() => semanticSourceOf(settings), [settings]);
@@ -112,12 +113,33 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
   const megabytes = (bytes: number) => new Intl.NumberFormat(i18n.language).format(Math.round(bytes / 1e6));
   const readyPackage = engine?.kind === "ready" && engine.source.kind === "package" ? engine.source.spec : null;
   const hasUnused = Boolean(unused && (unused.packages.length || unused.spaces.length));
+  const chosenRow = rows.find((row) => row.spec.id === chosen);
+  const currentLine = !chosen
+    ? t("ai.semantic.off")
+    : chosen === SEMANTIC_BY_PROVIDER
+      ? `${t("ai.semantic.provider")} — ${target ? `${target.provider.label} · ${target.model}` : t("ai.semantic.providerUnset")}`
+      : chosenRow
+        ? `${chosenRow.spec.name} — ${chosenRow.line}`
+        : chosen;
 
   return (
     <>
       <SectionLabel info={t("ai.semantic.description")}>{t("ai.semantic.title")}</SectionLabel>
       {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
       {searchRests(settings) && <p className="m-hint" data-testid="ai-rests-search">{t("ai.mode.restsHere")}</p>}
+      <GroupCard>
+        <RowList>
+          <Row
+            wrap
+            title={t("ai.semantic.now")}
+            subtitle={currentLine}
+            end={<span className="m-row-note">{choosing ? t("common.done") : t("ai.semantic.change")}</span>}
+            onClick={() => setChoosing((open) => !open)}
+            data-testid="semantic-change"
+          />
+        </RowList>
+      </GroupCard>
+      {choosing && (
       <GroupCard>
         <RowList>
           <Row title={t("ai.semantic.off")} end={<ChoiceMark on={!chosen} />} onClick={() => void choose(null)} disabled={Boolean(download)} />
@@ -136,7 +158,7 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
           <Row
             wrap
             title={t("ai.semantic.provider")}
-            subtitle={`${target ? `${target.provider.label} · ${target.model}` : t("ai.semantic.providerUnset")} — ${t("ai.semantic.providerHint")}`}
+            subtitle={`${target ? `${target.provider.label} · ${target.model}` : t("ai.semantic.providerUnset")} — ${t("ai.semantic.providerHintPhone")}`}
             end={<ChoiceMark on={chosen === SEMANTIC_BY_PROVIDER} />}
             onClick={() => void chooseProvider()}
             disabled={Boolean(download)}
@@ -144,6 +166,7 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
           />
         </RowList>
       </GroupCard>
+      )}
       {download && (
         <>
           <p className="m-hint" role="status">
@@ -178,8 +201,17 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
             />
             {readyPackage && <Row title={t("ai.semantic.remove")} onClick={() => void remove(readyPackage)} />}
             {engine.source.kind === "provider" && approval && <Row title={t("ai.semantic.withdraw")} onClick={() => void withdraw()} data-testid="semantic-withdraw" />}
+          </RowList>
+        </GroupCard>
+      )}
+      {/* Measuring this device is a detail of the choice (plan K5): shown while the choice is open. */}
+      {choosing && engine?.kind === "ready" && (
+        <GroupCard>
+          <RowList>
             <Row
+              wrap
               title={state?.measuring ? t("ai.semantic.measuring") : t("ai.semantic.measure")}
+              subtitle={t("ai.semantic.measureRowDesc")}
               disabled={state?.measuring}
               onClick={() => void controller?.measure("phone")}
               data-testid="semantic-measure"
@@ -187,7 +219,7 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
           </RowList>
         </GroupCard>
       )}
-      {engine?.kind === "ready" && state?.measurement && (
+      {choosing && engine?.kind === "ready" && state?.measurement && (
         <>
           <p className="m-hint">{t("ai.semantic.measuredPhone")}</p>
           <GroupCard>
@@ -203,24 +235,6 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
       {state?.measureError && <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>}
       {engine?.kind === "ready" && progress?.state === "failed" && (
         <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
-      )}
-      {engine?.kind === "ready" && (
-        <GroupCard>
-          <RowList>
-            <Row
-              wrap
-              title={t("ai.related.show")}
-              info={t("ai.related.showDesc")}
-              end={<Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} />}
-            />
-            {state?.related.vaultPaused && <Row title={t("ai.related.vaultPausedRow")} />}
-            {state?.related.vaultPaused && <Row title={t("ai.related.resume")} onClick={() => void controller?.setRelatedVaultPaused(false)} data-testid="related-resume-vault" />}
-            {Boolean(state?.related.paused.length) && <Row title={t("ai.related.pausedNotes", { count: state?.related.paused.length ?? 0 })} />}
-            {Boolean(state?.related.paused.length) && <Row title={t("ai.related.resumeAll")} onClick={() => void controller?.resumeRelated()} data-testid="related-resume-all" />}
-            {Boolean(state?.related.dismissed) && <Row title={t("ai.related.hidden", { count: state?.related.dismissed ?? 0 })} />}
-            {Boolean(state?.related.dismissed) && <Row title={t("ai.related.restore")} onClick={() => void controller?.restoreRelated()} data-testid="related-restore" />}
-          </RowList>
-        </GroupCard>
       )}
       {hasUnused && unused && (
         <GroupCard>

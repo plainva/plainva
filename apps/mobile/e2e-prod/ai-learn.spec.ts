@@ -175,6 +175,8 @@ test("AI learning: the phone says what a review would send, and a skill's draft 
     //    back — the skill's instructions go along, so that a better version can be suggested.
     await toHistory(page);
     await page.getByTestId("ai-history-row").first().click();
+    // In the run's "…" menu since plan KI-Oberflächen K8.
+    await page.getByTestId("ai-run-more").last().click();
     await page.getByTestId("ai-learn-open").click();
     const learn = page.getByTestId("ai-learn");
     await expect(learn.getByTestId("ai-learn-recipient")).toContainText("m-1");

@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -339,6 +339,6 @@ On an iPhone or iPad, Siri and the Shortcuts app can use Plainva through four ac
 
 **Journal entries and tasks.** What you say is kept together with the minute you said it. Nothing of Plainva runs while the app is closed, so Plainva writes it down the next time you open it, and tells you what it wrote. A journal entry lands in the daily note of that day, at that time. A task goes into your task database, read like a line in the capture sheet: in `Send offer tomorrow`, “tomorrow” counts from the day you said it. Without a task database it becomes a line with a checkbox in the journal. Where the vault cannot take it at that moment — an encrypted workspace that is still locked — it waits and is written later. None of this needs a setting: it tells the system nothing about your vault.
 
-**Opening and searching.** **Search Notes** opens Plainva's search with your words. For **Open Note**, the system has to know which notes there are, and that is off until you choose it. Under **Settings → AI & automation** (the App part), once **Use AI on this device** is on, the section **Siri & Shortcuts** has the switch **Let Siri and Shortcuts find notes of the open vault**. Plainva then keeps a list the system can read: the title of a note and the name of its folder, for up to 2,000 notes, the ones changed last — never a note's text, never its path. The row below the switch says how many titles the system can read right now, or why there are none.
+**Opening and searching.** **Search Notes** opens Plainva's search with your words. For **Open Note**, the system has to know which notes there are, and that is off until you choose it. Under **Settings → AI**, once **Use AI on this device** is on, the card **Siri & Shortcuts** has the switch **Let Siri and Shortcuts find notes of the open vault**. Plainva then keeps a list the system can read: the title of a note and the name of its folder, for up to 2,000 notes, the ones changed last — never a note's text, never its path. The row below the switch says how many titles the system can read right now, or why there are none.
 
 **What is never on the list.** A note your privacy rules keep from the cloud or from web access (see [AI Assistant](AI_Assistant.md)); anything of an encrypted workspace, locked or open; and no title at all while `.agent/policy.yml` has a line Plainva does not understand. Opening another vault, locking a workspace or switching the setting off empties the list at once. What the system does with a title it was given — on the device, in Apple's cloud, in another assistant Siri hands over to — is not Plainva's to control; that is why the list exists only where you switched it on. A note you marked as private a moment ago can still be on it until Plainva has written the list again: a moment after every save, and whenever the app goes to the background.

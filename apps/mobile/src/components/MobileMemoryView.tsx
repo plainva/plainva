@@ -27,6 +27,7 @@ import {
   type MemoryRowCaps,
   type UpkeepRow,
 } from "@plainva/ui";
+import { SkillApprovalSheet } from "./SkillApprovalSheet";
 import { MemoryEntrySheet } from "./MemoryEntrySheet";
 import { MemoryRuleSheet } from "./MemoryRuleSheet";
 import { MobileUpkeepGroup } from "./MobileUpkeepGroup";
@@ -47,12 +48,10 @@ const MEMORY_CARE = "plainva:memory-care";
 export function MobileMemoryView({
   onOpenNote,
   onOpenWaiting,
-  onReviewRules,
   onRun,
 }: {
   onOpenNote: (path: string) => void;
   onOpenWaiting: () => void;
-  onReviewRules: (id: string) => void;
   /** A skill was started from here: the shell shows its conversation. */
   onRun: () => void;
 }) {
@@ -62,6 +61,7 @@ export function MobileMemoryView({
   /** The entry form: a new one (`id` null) or an existing one to reword. */
   const [form, setForm] = useState<{ id: string | null } | null>(null);
   const [rule, setRule] = useState(false);
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sheet, setSheet] = useState<{ title: string; caps: MemoryRowCaps } | null>(null);
   /** The two entries a hint asked to see side by side. */
@@ -185,7 +185,7 @@ export function MobileMemoryView({
           )}
         </MobileUpkeepGroup>
       )}
-      <SectionLabel>{counted(t("ai.memory.active"), groups.active.length)}</SectionLabel>
+      <SectionLabel info={t("ai.memory.files")}>{counted(t("ai.memory.active"), groups.active.length)}</SectionLabel>
       <div className="m-hint">
         <MemoryMeter fill={groups.fill} label={groups.budget} />
       </div>
@@ -279,7 +279,7 @@ export function MobileMemoryView({
       <GroupCard>
         <RowList>
           {agents && (agents.status === "new" || agents.status === "changed") && (
-            <Row title={t("ai.workshop.vault")} subtitle={t(`ai.workshop.status.${agents.status}`)} onClick={() => onReviewRules(agents.source.id)} end={<ChevronRight size={ICON.ui} />} data-testid="ai-memory-rules-review" />
+            <Row title={t("ai.workshop.vault")} subtitle={t(`ai.workshop.status.${agents.status}`)} onClick={() => setReviewing(agents.source.id)} end={<ChevronRight size={ICON.ui} />} data-testid="ai-memory-rules-review" />
           )}
           <Row title={t("ai.memory.rules.add")} subtitle={t("ai.memory.rules.desc")} wrap disabled={!memory.writable} onClick={() => setRule(true)} end={<Plus size={ICON.ui} />} data-testid="ai-memory-rule-new" />
           {/* With the file's standing on this phone: a rule in a file that waits is not in effect. */}
@@ -294,7 +294,6 @@ export function MobileMemoryView({
           )}
         </RowList>
       </GroupCard>
-      <p className="m-hint">{t("ai.memory.files")}</p>
       {/* The memory is the user's files: each one that is there opens in the editor. */}
       {memory.files.length > 0 && (
         <GroupCard>
@@ -348,6 +347,8 @@ export function MobileMemoryView({
           onClose={() => setSheet(null)}
         />
       )}
+      {/* The vault's instructions are approved here, not one segment further (plan KI-Oberflächen K12). */}
+      {reviewing && <SkillApprovalSheet id={reviewing} onClose={() => setReviewing(null)} />}
     </div>
   );
 }

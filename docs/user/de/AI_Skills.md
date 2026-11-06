@@ -1,12 +1,12 @@
 # Skills (Beta)
 
-Stand: 2026-10-26
+Stand: 2026-11-06
 
 Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt vierzehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
 ## Einen Skill benutzen
 
-Starte einen Skill mit einem Klick: als Chip in einem leeren Gespräch (die drei meistgenutzten), unter **Skills** im KI-Tab, am Telefon unter **Gespräche → Skills** oder aus der Befehlspalette. Das Gespräch läuft dann mit dem Skill: seine Anweisungen gehen mit, und er benutzt nur die Werkzeuge und Ordner, die er nennt.
+Starte einen Skill mit einem Klick: als einer der hervorgehobenen Skills direkt über dem Eingabefeld (**Alle Skills …** zeigt jeden anderen), unter **Skills** im KI-Tab, am Telefon auf dem KI-Bildschirm bei den Skills oder aus der Befehlspalette. Das Gespräch läuft dann mit dem Skill: seine Anweisungen gehen mit, und er benutzt nur die Werkzeuge und Ordner, die er nennt.
 
 Du kannst auch einfach fragen. In jedem Gespräch kennt die KI Namen und Beschreibungen Deiner aktiven Skills und lädt einen, wenn Deine Frage passt — „Bereite mein nächstes Meeting vor“ genügt.
 
@@ -47,27 +47,27 @@ Ein eigener Skill schlägt Änderungen nur vor, wenn seine Zeile `allowed-tools`
 
 ## Eigene Skills
 
-**Neuer Skill** fragt nach einem Namen, einer Beschreibung — daran wählt die KI den Skill — und den Anweisungen. Plainva schreibt sie als `.agent/skills/<name>/SKILL.md` in Deinen Vault, wo sie wie jede Notiz mitreisen. **Bearbeiten** öffnet die Datei wie eine Notiz.
+Der Knopf **Neu …** bietet Skill, Skript und Import an. **Neuer Skill** fragt nach einem Namen, einer Beschreibung — daran wählt die KI den Skill — und den Anweisungen. Plainva schreibt sie als `.agent/skills/<name>/SKILL.md` in Deinen Vault, wo sie wie jede Notiz mitreisen. **Bearbeiten** öffnet die Datei wie eine Notiz.
 
-**Importieren …** nimmt einen Skill als `.zip`- oder `.skill`-Datei. Bevor etwas geschrieben wird, prüft Plainva ihn: genau ein Skill im Format, kein Pfad außerhalb seines Ordners, die Größengrenzen. Es nennt die Lizenz, Skripte, die es nicht ausführt, und Werkzeuge, die es nicht hat. Versteckte Dateien — Namen, die mit einem Punkt beginnen — gehören nicht zu einem Skill und bleiben außen vor.
+**Importieren …** (im selben Menü) nimmt einen Skill als `.zip`- oder `.skill`-Datei. Bevor etwas geschrieben wird, prüft Plainva ihn: genau ein Skill im Format, kein Pfad außerhalb seines Ordners, die Größengrenzen. Es nennt die Lizenz, Skripte, die es nicht ausführt, und Werkzeuge, die es nicht hat. Versteckte Dateien — Namen, die mit einem Punkt beginnen — gehören nicht zu einem Skill und bleiben außen vor.
 
 ## Nichts läuft, bevor Du es freigibst
 
-Ein Skill in Deinem Vault, der neu ist oder sich geändert hat — per Sync, durch einen Import oder eine Bearbeitung auf diesem oder einem anderen Gerät —, läuft erst, wenn Du ihn **auf diesem Gerät** freigibst. Solche Skills warten oben unter **Skills** bei **Warten auf Deine Freigabe** und in **Einstellungen → KI & Automatisierung** (Teil Vault). **Prüfen und freigeben** zeigt, was der Skill darf, was sich seit Deiner letzten Freigabe geändert hat, seine Anweisungen, Dateien und wo er liegt. Die Freigabe gilt genau dieser Fassung; jede Änderung hebt sie wieder auf. Freigaben liegen auf diesem Gerät, nie im Vault.
+Ein Skill in Deinem Vault, der neu ist oder sich geändert hat — per Sync, durch einen Import oder eine Bearbeitung auf diesem oder einem anderen Gerät —, läuft erst, wenn Du ihn **auf diesem Gerät** freigibst. Solche Skills warten oben unter **Skills** bei **Warten auf Deine Freigabe** und in **Einstellungen → KI in diesem Vault**. Ein Satz oben in der Ansicht erklärt, was Skills sind; die Reihenfolge ist: warten auf Freigabe, **Mitgeliefert**, **Eigene**, Skripte, von Servern, die Zeile **Anweisungen für diesen Vault** (mit `AGENTS.md` als zweiter Zeile), Testläufe und was gelernt wurde. Eine Freigabe zurückzunehmen fragt vorher nach. **Prüfen und freigeben** zeigt, was der Skill darf, was sich seit Deiner letzten Freigabe geändert hat, seine Anweisungen, Dateien und wo er liegt. Die Freigabe gilt genau dieser Fassung; jede Änderung hebt sie wieder auf. Freigaben liegen auf diesem Gerät, nie im Vault.
 
 Dasselbe gilt für eine `AGENTS.md` oben in Deinem Vault: freigegeben, gehen ihre stehenden Anweisungen in jedes neue Gespräch. Weder ein Skill noch die `AGENTS.md` kann Deine Datenschutzregeln aufheben, und ein Skill bekommt nie mehr, als ein Gespräch hat — er kann es nur enger machen. Eine Regel, die Du im Gedächtnis hinzufügst oder von der KI annimmst, ist eine weitere Zeile dieser Datei; siehe [Gedächtnis](AI_Memory.md).
 
 ## Skills Deiner Server
 
-Ein Server, den Du unter **Externe Werkzeuge (MCP)** verbindest, kann eigene Skills mitbringen: Anleitungen für seine Werkzeuge, geschrieben von dem, der ihn betreibt. Sie stehen unter **Skills** in der Gruppe **Von Servern**, jeder mit dem Namen seines Servers — nie bei Deinen eigenen und nie an Stelle eines davon: Die KI lädt einen solchen Skill unter einem eigenen Namen, etwa `mcp_tracker/code-review`. Skills eines Servers gibt es nur in einem Vault, der den Server nutzt.
+Ein Server, den Du unter **Externe Werkzeuge** verbindest, kann eigene Skills mitbringen: Anleitungen für seine Werkzeuge, geschrieben von dem, der ihn betreibt. Sie stehen unter **Skills** in der Gruppe **Von Servern**, jeder mit dem Namen seines Servers — nie bei Deinen eigenen und nie an Stelle eines davon: Die KI lädt einen solchen Skill unter einem eigenen Namen, etwa `mcp_tracker/code-review`. Skills eines Servers gibt es nur in einem Vault, der den Server nutzt.
 
 **Prüfen und freigeben** zeigt den Server und wo er erreicht wird, den Namen des Skills, was der Server über ihn schreibt — als sein Zitat —, jede Datei mit ihrer Größe und dem Anfang ihrer Prüfsumme und was der Skill nutzen darf. Dafür liest Plainva keine seiner Dateien; **Anweisungen ansehen** liest erst jetzt seine `SKILL.md` und jede Datei, die die KI von ihm lesen darf, und prüft jede zuvor. Die Freigabe gilt auf diesem Gerät genau für diese Dateien und diese Beschreibung: Ändert der Server eine davon, wartet der Skill wieder, und seine Prüfung zeigt, was sich geändert hat — und vergleicht, wenn Du seine Anweisungen vor der Freigabe gelesen hast, die neuen Zeile für Zeile mit ihnen.
 
 Ein Skill eines Servers darf Plainvas Werkzeuge nutzen, die nur lesen oder zeigen, und die Werkzeuge seines eigenen Servers, die der Vault erlaubt — jeder Aufruf wird wie immer gefragt. Welche Werkzeuge er auch nennt: Er bekommt keines von Plainvas Werkzeugen, die etwas ändern, keinen Befehl der App, kein Internet, kein Skript und nie die Werkzeuge eines anderen Servers. Sobald ein solcher Skill — seine Anweisungen oder eine seiner Dateien — Teil eines Gesprächs ist, hält sich der Rest dieses Gesprächs an diese Grenzen, welcher Skill auch danach geladen wird. Die KI lädt ihn in einem Gespräch, das Du selbst beginnst, wenn Deine Frage passt; ein Gespräch, das ein Skill gestartet hat, eine Routine und ein Testlauf bieten ihn nicht an, und ein Gerät, das voll-lokal ist, auch nicht. Jede Datei wird erst gelesen, wenn sie gebraucht wird, von ihrem Server, und gegen das geprüft, was Du freigegeben hast; eine Datei, die abweicht, wird nicht verwendet, und die Dateien neben seiner `SKILL.md` erreichen die KI als Daten des Servers, nie als Anweisungen.
 
-**Neu lesen** fragt den Server jetzt nach seiner Liste. **Über Adresse hinzufügen …** nimmt einen Skill, den der Server anbietet, ohne ihn aufzulisten, über die Adresse seiner `SKILL.md`; danach wartet er wie jeder andere auf Deine Freigabe. **Server entfernen** unter **Externe Werkzeuge (MCP)** nimmt die Freigaben seiner Skills in diesem Vault mit.
+**Neu lesen** fragt den Server jetzt nach seiner Liste. **Über Adresse hinzufügen …** nimmt einen Skill, den der Server anbietet, ohne ihn aufzulisten, über die Adresse seiner `SKILL.md`; danach wartet er wie jeder andere auf Deine Freigabe. **Server entfernen** unter **Externe Werkzeuge** nimmt die Freigaben seiner Skills in diesem Vault mit.
 
-## Skills mit einem Modell prüfen
+## Testläufe von Skills
 
 Ein Skill kann Testszenarien mitbringen: eine Nachricht, die ihn startet, und was ein guter Lauf tut. Die mitgelieferten Skills haben welche; für eigene schreibst Du sie in `tests/scenarios.json` im Ordner des Skills:
 
@@ -88,7 +88,7 @@ Ein Skill kann Testszenarien mitbringen: eine Nachricht, die ihn startet, und wa
 
 `tools` nennt die Werkzeuge, die ein guter Lauf benutzt, und die, die er nicht anrühren darf; `cites` die Notizen, die seine Antwort nennt; `never` Text, der darin nicht erscheinen darf. Ein Skill hat höchstens acht Szenarien.
 
-**Mit ⟨Modell⟩ prüfen** — unten in **Skills** oder im Menü eines Skills — lässt die Szenarien gegen das Modell laufen, das ein neues Gespräch benutzen würde. Nichts startet von selbst: der Dialog sagt zuerst, wie viele Szenarien gegen welches Modell laufen würden, und Du setzt eine **Obergrenze** in US-Dollar; der Lauf endet zwischen zwei Szenarien, sobald sie erreicht ist. Ist für das Modell kein Preis bekannt, endet der Lauf stattdessen nach einer festen Zahl von Token; ein Modell auf diesem Gerät braucht keine Obergrenze.
+**Testlauf mit ⟨Modell⟩** — unten in **Skills** (**Testlauf …**) oder im Menü eines Skills — lässt die Szenarien gegen das Modell laufen, das ein neues Gespräch benutzen würde. Nichts startet von selbst: der Dialog sagt zuerst, wie viele Szenarien gegen welches Modell laufen würden, und Du setzt eine **Obergrenze** in US-Dollar; der Lauf endet zwischen zwei Szenarien, sobald sie erreicht ist. Ist für das Modell kein Preis bekannt, endet der Lauf stattdessen nach einer festen Zahl von Token; ein Modell auf diesem Gerät braucht keine Obergrenze.
 
 Jedes Szenario ist ein gewöhnlicher Lauf seines Skills: es liest Deinen Vault wie ein Lauf von Hand, geht durch dieselbe Übersicht vor dem Senden, zählt zu Deinem Verbrauch und hinterlässt sein Gespräch im Verlauf, wo sein nächster Lauf es ersetzt — außer es ist gerade offen, oder Du hast darin weitergemacht; dann bleibt es. Danach zeigt jedes Szenario sein Ergebnis in Worten, und die Zeile des Skills sagt, wie sein letzter Lauf ausging. Ein Ergebnis gilt für ein Modell und eine Fassung des Skills: wählst Du ein anderes Modell oder änderst den Skill, sagt die Zeile das, statt ein Ergebnis zu zeigen, das nicht mehr zählt. Einige der mitgelieferten Szenarien fragen nach Notizen aus Plainvas eigenem Test-Vault; in Deinem Vault gelten sie nicht, und der Dialog zählt sie gesondert, statt sie als nicht bestanden zu werten.
 

@@ -1,12 +1,12 @@
 # Skrypty (Beta)
 
-Stan na: 2026-11-04
+Stan na: 2026-11-06
 
 Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone: czytają one Twój vault tak samo jak narzędzia AI albo zostawiają propozycję, o której decydujesz Ty. Skrypt sam niczego nie zmienia.
 
 ## Uruchamianie skryptu
 
-Twoje skrypty znajdują się w sekcji **Umiejętności** na karcie AI — na telefonie w **Rozmowy → Umiejętności** — w grupie **Skrypty**. Wybranie **Uruchom** otwiera okno skryptu: wpisz to, o co skrypt pyta, i naciśnij **Uruchom**. Gdy skrypt działa, widać każde narzędzie, które wywołuje, a przycisk **Zatrzymaj** kończy jego pracę. Potem okno pokazuje **Wywołania**, **Wynik** — który można skopiować — i **Dziennik**, a także to, ile przebieg zużył ze swoich limitów.
+Twoje skrypty znajdują się w sekcji **Umiejętności** na karcie AI — na telefonie w segmencie **Umiejętności** ekranu **AI** — w grupie **Skrypty**. Wybranie **Uruchom** otwiera okno skryptu: wpisz to, o co skrypt pyta, i naciśnij **Uruchom**. Gdy skrypt działa, widać każde narzędzie, które wywołuje, a przycisk **Zatrzymaj** kończy jego pracę. Potem okno pokazuje **Wywołania**, **Wynik** — który można skopiować — i **Dziennik**, a także to, ile przebieg zużył ze swoich limitów.
 
 Przebieg uruchomiony tutaj zostaje na tym urządzeniu: nic z niego nie trafia do modelu, dlatego czyta też notatki, które trzymasz z dala od chmury. **Przebieg próbny** wywołuje narzędzia, które czytają, a wywołanie, które coś by pokazało w aplikacji albo zostawiło propozycję, tylko zapisuje.
 

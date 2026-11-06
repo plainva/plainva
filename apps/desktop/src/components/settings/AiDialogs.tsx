@@ -121,25 +121,30 @@ export function AiAddProviderDialog({ session, state, onClose, onAdded }: { sess
 }
 
 /** Store a key: it goes into the keychain through the native egress and never comes back. */
-export function AiKeyDialog({ session, provider, onClose }: { session: AiSession; provider: ProviderInfo; onClose: () => void }) {
+export function AiKeyDialog({ session, provider, onClose }: { session: AiSession; provider: ProviderInfo; onClose: (stored?: boolean) => void }) {
   const { t } = useTranslation();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   // A typed key is asked about (finding 2026-10-22).
-  const cancel = useDiscardGuard(key.trim() !== "", onClose);
+  const cancel = useDiscardGuard(key.trim() !== "", () => onClose(false));
   const save = () => {
     if (!key.trim()) return;
     setBusy(true);
+    let stored = false;
     void session
       .setKey(provider.id, key)
       .then(() => session.testProvider(provider.id))
+      // Accepted by the provider: the settings page may lead on to the model (plan KI-Oberflächen K3).
+      .then((test) => {
+        stored = test.state === "ok";
+      })
       // The secure store refused (locked keychain, no space): say so rather
       // than close as if the key were stored. The message never holds the key.
       .catch((error: unknown) => toast.error(error instanceof Error ? error.message : String(error)))
       .finally(() => {
         setKey("");
         setBusy(false);
-        onClose();
+        onClose(stored);
       });
   };
   return (

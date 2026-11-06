@@ -1,12 +1,12 @@
 # Skills (Beta)
 
-Last reviewed: 2026-10-26
+Last reviewed: 2026-11-06
 
 A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with fourteen of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
 ## Using a skill
 
-Start a skill with one click: as a chip in an empty conversation (the three used most), under **Skills** in the AI tab, on the phone under **Conversations → Skills**, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names.
+Start a skill with one click: as one of the featured skills right above the input field (**All skills…** lists every other one), under **Skills** in the AI tab, on the phone on the AI screen under skills, or from the command palette. The conversation then runs with the skill: its instructions go along, and it uses only the tools and folders the skill names.
 
 You can also simply ask. In every conversation the AI knows the names and descriptions of your active skills and loads one when your question matches — "prepare my next meeting" is enough.
 
@@ -47,27 +47,27 @@ A skill of your own proposes changes only when its `allowed-tools` line names th
 
 ## Your own skills
 
-**New skill** asks for a name, a description — the AI chooses a skill by it — and the instructions. Plainva writes them as `.agent/skills/<name>/SKILL.md` into your vault, where they travel with it like any note. **Edit** opens the file like a note.
+The button **New…** offers a skill, a script and an import. **New skill** asks for a name, a description — the AI chooses a skill by it — and the instructions. Plainva writes them as `.agent/skills/<name>/SKILL.md` into your vault, where they travel with it like any note. **Edit** opens the file like a note.
 
-**Import…** takes a skill as a `.zip` or `.skill` file. Before anything is written, Plainva checks it: exactly one skill in the format, no path outside its folder, the size limits. It names the licence, scripts it will not run and tools it does not have. Hidden files — names that begin with a dot — are not part of a skill and are left out.
+**Import…** (in the same menu) takes a skill as a `.zip` or `.skill` file. Before anything is written, Plainva checks it: exactly one skill in the format, no path outside its folder, the size limits. It names the licence, scripts it will not run and tools it does not have. Hidden files — names that begin with a dot — are not part of a skill and are left out.
 
 ## Nothing runs before you approve it
 
-A skill in your vault that is new or changed — through sync, an import, or an edit on this or another device — does not run until you approve it **on this device**. Such skills wait at the top of **Skills** under **Waiting for your approval**, and in **Settings → AI & automation** (the Vault part). **Review and approve** shows what the skill may do, what changed since your last approval, its instructions, files and where it lies. The approval holds for exactly this version; any change lifts it again. Approvals are stored on this device, never in the vault.
+A skill in your vault that is new or changed — through sync, an import, or an edit on this or another device — does not run until you approve it **on this device**. Such skills wait at the top of **Skills** under **Waiting for your approval**, and in **Settings → AI in this vault**. A sentence at the top of the view explains what skills are; the order is waiting for approval, **Comes with Plainva**, **Your own**, scripts, from servers, the row **Instructions for this vault** (with `AGENTS.md` as its second line), test runs and what was learned. Withdrawing an approval asks first. **Review and approve** shows what the skill may do, what changed since your last approval, its instructions, files and where it lies. The approval holds for exactly this version; any change lifts it again. Approvals are stored on this device, never in the vault.
 
 The same holds for an `AGENTS.md` at the top of your vault: once approved, its standing instructions go into every new conversation. Neither a skill nor `AGENTS.md` can lift your privacy rules, and a skill never gets more than a conversation has — it can only narrow it. A rule you add in the memory, or accept from the AI, is one more line of this file; see [Memory](AI_Memory.md).
 
 ## Skills of your servers
 
-A server you connect under **External tools (MCP)** can bring skills of its own: guides for its tools, written by whoever runs it. They stand under **Skills** in the group **From servers**, each with the name of its server — never among your own and never in place of one: the AI loads such a skill under a name of its own, such as `mcp_tracker/code-review`. A server's skills are offered only in a vault that uses the server.
+A server you connect under **External tools** can bring skills of its own: guides for its tools, written by whoever runs it. They stand under **Skills** in the group **From servers**, each with the name of its server — never among your own and never in place of one: the AI loads such a skill under a name of its own, such as `mcp_tracker/code-review`. A server's skills are offered only in a vault that uses the server.
 
 **Review and approve** shows the server and where it is reached, the skill's name, what the server writes about it — as its quote —, every file with its size and the start of its checksum, and what the skill may use. Plainva reads none of its files to show you this; **Show instructions** reads its `SKILL.md` now, and each file the AI may read of it, and checks every one first. The approval holds on this device for exactly these files and this description: if the server changes one of them, the skill waits again, and its review lists what changed — and, if you read its instructions before you approved it, compares the new ones with them line by line.
 
 A server's skill may use Plainva's tools that only read or show, and the tools of its own server that the vault allows — every call is asked as always. Whatever tools it names, it gets none of Plainva's tools that change anything and none of the app's commands, no internet, no script, and never the tools of another server. Once such a skill — its instructions or one of its files — is part of a conversation, the rest of that conversation keeps to these limits, whichever skill is loaded after it. The AI loads it in a conversation you start yourself, when your question matches; a conversation a skill started, a routine and a test run do not offer it, and neither does a device that is fully local. Each file is read from its server only when it is needed and checked against what you approved; a file that differs is not used, and the files beside its `SKILL.md` reach the AI as the server's data, never as instructions.
 
-**Read again** asks the server for its list now. **Add by address…** takes a skill the server offers without listing it, by the address of its `SKILL.md`; it then waits for your approval like any other. **Remove server** under **External tools (MCP)** takes the approvals of its skills in this vault along.
+**Read again** asks the server for its list now. **Add by address…** takes a skill the server offers without listing it, by the address of its `SKILL.md`; it then waits for your approval like any other. **Remove server** under **External tools** takes the approvals of its skills in this vault along.
 
-## Testing skills with a model
+## Test runs of skills
 
 A skill can bring test scenarios: a message that starts it, and what a good run does. The skills that come with Plainva have them; for your own, write them into `tests/scenarios.json` in the skill's folder:
 
@@ -88,7 +88,7 @@ A skill can bring test scenarios: a message that starts it, and what a good run 
 
 `tools` names the tools a good run uses and those it must leave alone, `cites` the notes its answer names, `never` text that must not appear in it. A skill has at most eight scenarios.
 
-**Test with ⟨model⟩** — at the bottom of **Skills**, or in a skill's menu — runs the scenarios against the model a new conversation would use. Nothing starts by itself: the dialog first says how many scenarios would run and against which model, and you set a **Ceiling** in US dollars; the run ends between two scenarios once it is reached. Where no price is known for the model, the run ends after a fixed number of tokens instead; a model on this device needs no ceiling.
+**Test run with ⟨model⟩** — at the bottom of **Skills** (**Test run…**), or in a skill's menu — runs the scenarios against the model a new conversation would use. Nothing starts by itself: the dialog first says how many scenarios would run and against which model, and you set a **Ceiling** in US dollars; the run ends between two scenarios once it is reached. Where no price is known for the model, the run ends after a fixed number of tokens instead; a model on this device needs no ceiling.
 
 Each scenario is an ordinary run of its skill: it reads your vault like a run by hand, passes the same overview before sending, counts towards your usage and leaves its conversation in the history, where its next run replaces it — unless it is open on screen or you went on with it; then it stays. Afterwards every scenario shows its verdict in words, and the skill's row says how its last run went. A result is about one model and one version of the skill: once you choose another model or change the skill, the row says so instead of showing a result that no longer counts. Some scenarios that come with Plainva ask about notes of Plainva's own test vault; in your vault they do not apply, and the dialog counts them apart instead of failing them.
 

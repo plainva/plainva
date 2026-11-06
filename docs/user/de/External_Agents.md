@@ -1,6 +1,6 @@
 # Externe Agenten (Beta)
 
-Stand: 2026-10-26
+Stand: 2026-11-06
 
 Ein externer Agent ist ein KI-Programm eines anderen Herstellers — ein Agent, den Du auf Deinem Rechner installiert und bei dem Du Dich selbst angemeldet hast, mit Deinem eigenen Abo oder Schlüssel. Plainva kann so einen Agenten im Ordner eines Vaults starten und seine Sitzung im KI-Tab zeigen. Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -25,7 +25,7 @@ Starte einen Agenten nur in einem Vault, dessen Inhalt den Dienst des Agenten er
 ## Einen Agenten hinzufügen
 
 1. Installiere den Agenten selbst, so wie sein Hersteller es beschreibt, und melde Dich in seinem eigenen Programm bei ihm an.
-2. Öffne **Einstellungen → KI & Automatisierung** (den App-Teil). Unter **Externe Agenten** kennzeichnet **Auf diesem Rechner gefunden** die Agenten, die Plainva dem Namen nach kennt und installiert findet; **Hinzufügen** nimmt einen auf. Für jedes andere Programm, das das Agent Client Protocol spricht, wähle unter **Anderer Agent** den Punkt **Agent hinzufügen …** und fülle **Name**, **Programm** und **Argumente, eines je Zeile** aus.
+2. Öffne **Einstellungen → KI**. In der Karte **Externe Agenten** kennzeichnet **Auf diesem Rechner gefunden** die Agenten, die Plainva dem Namen nach kennt und installiert findet; **Hinzufügen** nimmt einen auf. Für jedes andere Programm, das das Agent Client Protocol spricht, wähle unter **Anderer Agent** den Punkt **Agent hinzufügen …** und fülle **Name**, **Programm** und **Argumente, eines je Zeile** aus.
 3. Dein System zeigt den ganzen Befehl noch einmal, bevor er gemerkt wird.
 
 Plainva installiert keinen Agenten und lädt keinen herunter. Es startet genau das Programm, das Du bestätigt hast, direkt und ohne Shell. Der Befehl wird auf diesem Gerät gemerkt, nie im Vault. **Entfernen** lässt Plainva vergessen, wie ein Agent gestartet wird; das Programm selbst und seine Anmeldung bleiben, wie sie sind.

@@ -1,12 +1,12 @@
 # Scripts (Beta)
 
-Last reviewed: 2026-11-04
+Last reviewed: 2026-11-06
 
 A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it: they read your vault the way the AI's tools do, or leave a suggestion that you decide about. A script changes nothing by itself.
 
 ## Running a script
 
-Your scripts stand under **Skills** in the AI tab — on the phone under **Conversations → Skills** — in the group **Scripts**. **Run** opens the script: fill in what it asks for and press **Run**. While it runs you see each tool it calls, and **Stop** ends it. Afterwards the dialog shows the **Calls**, the **Result** — which you can copy — and the **Log**, and what the run used of its limits.
+Your scripts stand under **Skills** in the AI tab — on the phone on the AI screen under skills — in the group **Scripts**. **Run** opens the script: fill in what it asks for and press **Run**. While it runs you see each tool it calls, and **Stop** ends it. Afterwards the dialog shows the **Calls**, the **Result** — which you can copy — and the **Log**, and what the run used of its limits.
 
 A run you start here stays on this device: nothing of it goes to a model, so it also reads notes you keep from the cloud. **Dry run** calls the tools that read, and only writes down a call that would show something in the app or leave a suggestion.
 

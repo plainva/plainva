@@ -6,7 +6,7 @@ import { AI_AUDIO_PROFILE, type AiProfileSlot } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { AiConversation, AiSessionContext, useAiState, type AiSession } from "@plainva/ui";
 import { AiModelDialog } from "../components/settings/AiDialogs";
-import { AiModeCard } from "../components/settings/AiModeCard";
+import { AiModeRow, AiPrivacyCard } from "../components/settings/AiModeParts";
 import { CLOUD, LOCAL, chat, mcpSession, turn } from "./mcpSessionHarness";
 
 /**
@@ -72,9 +72,15 @@ const infoText = async (root: Element | null | undefined, label: string) => {
 };
 const fullyLocal = (session: AiSession) => act(async () => void (await session.updateSettings((settings) => ({ ...settings, localOnly: true }))));
 
+/** The mode line and the privacy card, as Settings → AI shows them (plan KI-Oberflächen K2). */
 function Card({ session, onSetUp }: { session: AiSession; onSetUp: () => void }) {
   const state = useAiState();
-  return state ? <AiModeCard session={session} state={state} onSetUp={onSetUp} /> : null;
+  return state ? (
+    <>
+      <AiModeRow state={state} onSetUp={onSetUp} />
+      <AiPrivacyCard session={session} state={state} />
+    </>
+  ) : null;
 }
 function Dialog({ session, profile, onClose }: { session: AiSession; profile: AiProfileSlot; onClose: () => void }) {
   const state = useAiState();
@@ -82,14 +88,14 @@ function Dialog({ session, profile, onClose }: { session: AiSession; profile: Ai
 }
 const conversation = <AiConversation dress="window" activeNote={null} onOpenNote={() => undefined} onOpenUrl={() => undefined} onOpenSettings={() => undefined} />;
 
-describe("the mode card", () => {
+describe("the mode line and the privacy card", () => {
   it("says what holds now, and that only the switch promises something", async () => {
     const { s } = await mcpSession([], { profiles: { balanced: CLOUD } });
     const card = await show(s, <Card session={s} onSetUp={() => undefined} />);
     expect(text(card)).toContain("Now: Cloud — a provider answers");
     expect(text(card)).toContain("New conversations start with Anthropic · m-1.");
     expect(q("ai-local-only")!.getAttribute("aria-checked")).toBe("false");
-    expect(await infoText(card, "Mode")).toContain("Only “Fully local” is a switch, because only it promises something.");
+    expect(await infoText(card, "Privacy")).toContain("Only “Fully local” is a switch, because only it promises something.");
     expect(text(card)).not.toContain("this rests");
   });
 
@@ -105,7 +111,7 @@ describe("the mode card", () => {
     // Every provider of the cloud that is set up, in one row; under it the profiles that will not answer.
     expect(text(card)).toContain("Anthropic, OpenAI, Google Gemini, and OpenRouter");
     expect(text(card)).toContain("Stay set up and receive nothing. This profile does not answer: Balanced.");
-    expect(await infoText(card, "Mode")).toContain("The switch is about the AI.");
+    expect(await infoText(card, "Privacy")).toContain("The switch is about the AI.");
     expect(q("ai-mode-setup")).toBeNull();
     // Off again: the card is as it was.
     await click(q("ai-local-only"));

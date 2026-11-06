@@ -39,6 +39,7 @@ const ROWS_WRAPPER = "pv-setcard-rows";
 /** Components that render a card row of their own, with the reason. */
 const ROW_COMPONENTS: Record<string, string> = {
   DayTimeRow: "renders a SettingRow",
+  AiModeRow: "renders a SettingRow (AI → Models, the mode line)",
   FontSlotRow: "renders a SettingRow",
   AutostartRow: "renders a SettingRow (Startup & behavior)",
   WindowRestoreRow: "renders a SettingRow (Startup & behavior)",

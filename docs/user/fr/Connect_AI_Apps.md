@@ -1,10 +1,10 @@
 # Connecter des apps d'IA (bêta)
 
-Dernière mise à jour : 2026-10-26
+Dernière mise à jour : 2026-11-06
 
 Les apps d'IA de votre ordinateur — Claude Code, Claude Desktop, Cursor, VS Code et d'autres qui parlent le Model Context Protocol (MCP) — peuvent lire votre vault à travers Plainva : y chercher, lire des notes et leurs sections, des plans, des backlinks, des bases de données, des tâches et les notes récentes, et ouvrir une note dans Plainva. D'elles-mêmes, elles ne modifient rien : une app que vous y autorisez peut proposer des modifications, et celles-ci attendent votre décision (voir plus bas). Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
 
-Le sens inverse — l'assistant de Plainva utilisant les outils de serveurs que vous connectez vous-même — est décrit sous **Outils externes (MCP)** dans [Assistant IA](AI_Assistant.md).
+Le sens inverse — l'assistant de Plainva utilisant les outils de serveurs que vous connectez vous-même — est décrit sous **Outils externes** dans [Assistant IA](AI_Assistant.md).
 
 Une troisième voie — Plainva démarre un agent d'IA d'un autre éditeur dans le dossier du vault, avec sa session dans l'onglet IA — est décrite dans [Agents externes](External_Agents.md).
 
@@ -14,7 +14,7 @@ Plainva installe à côté de l'app un petit programme d'assistance, `plainva-mc
 
 ## L'activer
 
-1. Ouvrez **Paramètres → IA & automatisation** et activez **Utiliser l'IA sur cet appareil**.
+1. Ouvrez **Paramètres → IA** et activez **Utiliser l'IA sur cet appareil** ; la carte **Apps d'IA sur cet ordinateur** se trouve plus bas sur la page.
 2. Activez **Laisser les apps d'IA de cet ordinateur lire ce vault**.
 3. Configurez l'app (voir plus bas). À sa première connexion, Plainva demande de quelle app il s'agit, quel programme l'a lancée et quels dossiers elle peut lire. Rien n'est coché : choisissez des dossiers ou **Tout le vault**, puis **Autoriser**. **Refuser** écarte l'app, et Plainva ne redemande pas pour elle pendant dix minutes. Sous les dossiers se trouve **Peut proposer des modifications** — désactivé tant que vous ne le cochez pas ; ce qu'il permet est décrit plus bas.
 
@@ -41,7 +41,7 @@ Lire n'est jamais une autorisation d'écrire. Qu'une app puisse aussi proposer d
 Une app que vous y avez autorisée reçoit six outils de plus, et aucun ne modifie le vault :
 
 - **Une modification d'une note** — de son texte ou de l'une de ses propriétés — devient une proposition dans la marge de la note, signée du nom de l'app et de « (app d'IA) ». Vous y acceptez ou refusez chaque modification, comme pour toute proposition (voir [Commentaires et suggestions](Comments_and_Suggestions.md)).
-- **Une nouvelle note** devient un brouillon sous **En attente**, dans l'onglet IA. Elle existe dès que vous y choisissez **Créer**.
+- **Une nouvelle note** devient un brouillon sous **À décider**, dans l'onglet IA. Elle existe dès que vous y choisissez **Créer**.
 - **Renommer, déplacer et supprimer** demandent d'abord. Plainva montre dans sa propre fenêtre ce qui se passerait — pour un renommage, aussi les notes dont les liens suivraient —, et l'app affiche un message indiquant que Plainva attend. Ce n'est qu'après **Autoriser** dans Plainva, et une fois que l'app continue, que Plainva le fait comme lorsque vous le faites à la main ; l'app apprend seulement si cela a été fait. Pour une suppression, Plainva ouvre alors sa propre boîte de dialogue de suppression, et rien ne disparaît avant que vous n'y confirmiez. Une app qui ne peut pas afficher un tel message ne se voit pas proposer ces trois outils.
 
 Une adresse web qu'une app apporte est écrite de façon que rien ne l'ouvre ni ne la charge (`https[://]…`), comme pour l'assistant. Les règles de confidentialité propres à une note (`plainva.ai`) ne sont définies par aucune app, et dans un espace de travail chiffré rien n'est proposé, rédigé ni planifié. **Demandes récentes** dans les paramètres indique pour chaque requête ce qu'elle est devenue — y compris que Plainva vous a posé la question, ou que vous avez dit non.

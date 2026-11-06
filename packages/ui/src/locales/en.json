@@ -1,12 +1,38 @@
 {
   "ai": {
+    "start": {
+      "skillsAndMemory": "Skills and memory",
+      "allConversations": "All conversations",
+      "recent": "Recent"
+    },
+    "waitingCount_other": "{{count}} to decide",
+    "waitingCount_one": "{{count}} to decide",
+    "pending": {
+      "answerFirst": "Answer the question above first",
+      "short": "A question waits for your answer.",
+      "open": "Open in the window"
+    },
+    "sentShort_other": "To {{provider}} · {{count}} notes",
+    "sentShort_one": "To {{provider}} · {{count}} note",
+    "details": "Details",
+    "copied": "Answer copied",
+    "copy": "Copy",
+    "placeholderNote": "Ask about “{{title}}” or your vault…",
+    "setup": {
+      "chooseModel": "Choose model",
+      "modelBody": "Choose which model “{{profile}}” uses — the profile new conversations start with.",
+      "modelTitle": "No model for new conversations yet",
+      "bodyPhone": "Choose a provider and store its key — or use your phone's own model without a key.",
+      "bodyDesktop": "Choose a provider and store its key — or use a model on this device (Ollama, LM Studio).",
+      "title": "No model yet"
+    },
     "title": "AI",
     "ask": "Ask AI",
     "newConversation": "New conversation",
     "openAsTab": "Open as tab",
-    "companion": "AI companion",
+    "companion": "AI window",
     "marking": "Answers are written by an AI — {{model}} via {{provider}}. Check them against the sources.",
-    "placeholder": "Ask about this note or your vault…",
+    "placeholder": "Ask about your vault…",
     "send": "Send",
     "stop": "Stop",
     "context": "Context",
@@ -61,6 +87,7 @@
       "delete_note": "Asking to delete a note"
     },
     "snapshot": {
+      "replayAction": "Same question to another model…",
       "asked": "Asked",
       "read": "Read by the tools",
       "readHit": "found by a search",
@@ -104,6 +131,7 @@
       "open": "Open the original"
     },
     "style": {
+      "chip": "My style",
       "title": "Writing style",
       "examples": "Examples",
       "examplesHint": "Notes you wrote yourself — up to {{max}}.",
@@ -120,8 +148,6 @@
       "device": "The writing style is kept on this device, not in the vault. It goes into no conversation before you choose “My style” there.",
       "toggleOn": "My style: on for this conversation",
       "toggleOff": "My style: write this conversation in your writing style",
-      "activeOn": "My style: this conversation carries your writing style",
-      "activeOff": "My style: this conversation started without it",
       "fixed": "Whether a conversation carries your writing style is decided when it starts. Start a new conversation to change it.",
       "marking_one": "With your writing style · {{count}} feature",
       "marking_other": "With your writing style · {{count}} features",
@@ -193,28 +219,38 @@
     },
     "stopped": {
       "cancelled": "Stopped.",
-      "limit": "This run reached its limit and stopped.",
+      "limit": "This run reached its limit and was stopped.",
       "loop": "Stopped: the same lookup kept repeating.",
       "circuit": "Stopped: three tools failed in a row.",
       "maxTokens": "The answer was cut off at its length limit.",
-      "refusal": "The model declined to answer."
+      "refusal": "The model declined the request."
     },
     "error": {
+      "sender": {
+        "plainva": "Plainva",
+        "provider": "Provider",
+        "network": "Network",
+        "device": "Device"
+      },
+      "deviceOffline": "This device is offline. Once it has a network again, send the question again.",
+      "newKey": "Enter a new key",
+      "providerErrorShort": "{{provider}} reported an error.",
+      "refusedShort": "{{provider}} refused the request.",
       "noKey": "No key is stored for {{provider}}.",
-      "invalidKey": "{{provider}} did not accept the key.",
+      "invalidKey": "{{provider}} did not accept the key. It has expired or is wrong.",
       "rateLimited": "{{provider}} is limiting requests right now. Try again in a moment, or pick another profile.",
       "overloaded": "{{provider}} is overloaded right now. Try again in a moment.",
       "contextTooLong": "This conversation is too long for the model. Start a new conversation.",
-      "notFound": "{{provider}} does not know the model “{{model}}”.",
+      "notFound": "{{provider}} does not know the model “{{model}}”. Choose another model.",
       "refused": "{{provider}} refused the request: {{message}}",
       "unknownEndpoint": "This server is not set up on this device. Add it again in the settings.",
       "offline": "Could not reach {{provider}}.",
       "offlineHere": "{{provider}} does not answer on this device. Is the server running?",
-      "streamBroken": "The connection broke off in the middle of the answer.",
+      "streamBroken": "The connection broke off in the middle of the answer. Send the question again.",
       "streamBrokenHere": "{{provider}} stopped answering. The server may have stopped, or the model is too large for this device.",
       "providerError": "{{provider}} reported an error: {{message}}",
       "keptOnDevice": "This conversation ran with a model on this device. What it read there was never checked for a cloud, so it stays here. Start a new conversation for {{provider}}.",
-      "localOnly": "“Fully local” is on, and {{provider}} is not this device. Nothing was sent.",
+      "localOnly": "“Fully local” is on, and {{provider}} does not run on this device. Nothing was sent. Choose a model on this device, or switch “Fully local” off.",
       "windowTooSmall": "This request needs about {{needed}} tokens; the window stated for {{model}} is {{window}}. Nothing was sent. Raise the window at the server and in the profile, switch “Can call tools” off for this model, or leave notes out.",
       "openSetup": "Open settings",
       "platform": {
@@ -231,14 +267,16 @@
       }
     },
     "empty": {
+      "startBodyVault": "About anything in your vault. The AI changes nothing itself: what it would change, it lays before you as a suggestion.",
+      "setupBodyPhone": "Choose a provider and store its key — or use your phone's own model without a key.",
       "setupTitle": "Set up the AI",
-      "setupBody": "Choose a provider and store a key — or use a model that runs on this computer.",
+      "setupBody": "Choose a provider and store its key — or use a model on this device (Ollama, LM Studio).",
       "setupAction": "Set up",
       "offTitle": "Plainva AI is off on this device",
       "offBody": "Switch it on in the settings. Nothing is sent anywhere until you ask something.",
       "offAction": "Open settings",
       "startTitle": "Ask something",
-      "startBody": "About the open note, or about anything in your vault. The assistant changes nothing itself — for a passage you select, it proposes changes as suggestions.",
+      "startBody": "About the open note, or about anything in your vault. The AI changes nothing itself: what it would change, it lays before you as a suggestion.",
       "mainWindowOnly": "The AI runs in the main window.",
       "noVault": "Open a vault to ask about your notes."
     },
@@ -255,13 +293,30 @@
       "clearSearch": "Clear search"
     },
     "settings": {
-      "sectionApp": "Applies to Plainva on this device, in every vault: providers, keys, models.",
-      "sectionVault": "For this vault: the privacy rules, which travel with it, and what the AI may use here — the internet, external tools, skills and memory.",
+      "modelOwnId": "Own model ID",
+      "modelNoList": "The provider lists no models here. Enter the model ID below.",
+      "modelSearch": "Search models",
+      "internetOff": "Internet off",
+      "internetOn": "Internet on",
+      "vaultOff": "The AI is off on this device. What stands here holds once you switch it on under Settings → AI.",
+      "nextToNote": "Next to the open note",
+      "retry": "Try again",
+      "historyUsage": "History and usage",
+      "privacyVaultNote": "Whether the AI may go onto the internet, and which folders may go to a provider, is set per vault under “AI in this vault”.",
+      "privacy": "Privacy",
+      "changeModel": "Change model",
+      "makeDefault": "Use for new conversations",
+      "defaultBadge": "Default",
+      "moreModels": "More models: audio for voice notes, and the model of search by meaning.",
+      "models": "Models",
+      "offNextPhone": "Once it is on, you choose a provider and a model — on a phone, the system's own model works without a key. Nothing is sent until you ask.",
+      "offNextDesktop": "Once it is on, you choose a provider and a model — or a model on this device (Ollama, LM Studio). Nothing is sent until you ask.",
+      "vaultTitle": "AI in this vault",
+      "sectionApp": "Holds for Plainva on this device, in every vault: providers, models and what the AI may do here.",
+      "sectionVault": "For this vault: whether the AI may go onto the internet, what may leave the vault, external tools, routines, skills and memory.",
       "betaTitle": "Plainva AI (Beta)",
       "betaSwitch": "Use AI on this device",
-      "betaDesc": "Applies to this device only. Without it there is no AI button, tab or companion.",
-      "providers": "Providers",
-      "providersHint": "Every provider can be chosen. Plainva names their terms and retention — it excludes none.",
+      "betaDesc": "Applies to this device only. While it is off there is no AI button and no AI area, and nothing is sent.",
       "addProvider": "Add provider",
       "keyStored": "Key stored on this device",
       "noKey": "No key",
@@ -285,12 +340,11 @@
       "keysBody": "In this device's secure store, bound to their purpose. Plainva's native AI connection puts them into each request itself — neither the AI nor the interface ever sees them.",
       "profiles": "Models and profiles",
       "profilesHint": "Profiles are your assignment. Plainva names no model “the best”; any model id the provider accepts can be used.",
-      "profileEmpty": "not set",
-      "defaultProfile": "Default for new conversations",
+      "profileEmpty": "not set up",
       "modelTitle": "Model for “{{profile}}”",
       "provider": "Provider",
       "model": "Model",
-      "modelPlaceholder": "Model id, as the provider names it",
+      "modelPlaceholder": "Model ID, as the provider names it",
       "modelFromList": "From the provider's list",
       "modelWindow": "Context window",
       "modelWindowDesc": "How many tokens the model can read at once. A server on this device does not tell Plainva — empty means unknown. With a small window Plainva sends along fewer and shorter notes, and it stops before a request that would not fit instead of letting the server cut it silently.",
@@ -298,7 +352,6 @@
       "modelWindowInvalid": "A whole number between {{min}} and {{max}}, or empty.",
       "modelTools": "Can call tools",
       "modelToolsDesc": "Off: the model gets no tools and answers from what goes along — like the system's own model on a phone.",
-      "modelToolsNo": "Give it no tools",
       "modelFactsHint": "Both apply to this choice of model on this device. For providers in the cloud Plainva takes the values from their list.",
       "profileWindow": "window {{tokens}}",
       "profileNoTools": "no tools",
@@ -318,15 +371,14 @@
       "usageSaved": "Saved by choosing and shortening: ~{{tokens}} tokens",
       "change": "Change",
       "experimental": "Experimental: the AI is still being built and tested, and answers can be wrong. Check them against the notes they cite.",
-      "title": "AI & automation",
-      "sending": "Sending",
+      "title": "AI",
       "confirmEvery": "Ask before every request",
       "confirmEveryDesc": "Shows what goes out before every message, not only the first time and when it grows. Nothing is asked for a model on this device.",
       "audioHint": "Transcribes voice notes. It needs a provider with an audio route — OpenAI, Gemini or a compatible server.",
       "feedback": "Feedback on the AI (Beta)",
       "feedbackDesc": "Tell us what works and what does not — in the project's discussions on GitHub.",
       "feedbackOpen": "Open discussions",
-      "embeddingHint": "The model search by meaning computes with when you choose “Own provider” under Semantic search. Any model the provider offers for embeddings works.",
+      "embeddingHint": "The model search by meaning computes with when you choose “Own provider” there. Any model the provider offers for search works.",
       "onDevice": "On this device — no key, nothing leaves it",
       "onDeviceReady": "Ready on this device · window of about {{tokens}} tokens",
       "checkPlatform": "Check availability",
@@ -348,7 +400,7 @@
       "customUrlHint": "https://…/v1 — plain http only for a server on this device.",
       "invalidUrl": "Not a usable address. Plain http works only for a server on this device.",
       "confirmTitle": "Add an AI server",
-      "confirmMessage": "Plainva's assistant will send your requests and the context you approve to this address. Only add servers you trust.",
+      "confirmMessage": "Plainva AI will send your requests and the context you approve to this address. Only add servers you trust.",
       "confirmAction": "Add",
       "declined": "The server was not added.",
       "noKeyTitle": "I don't have a key yet",
@@ -372,16 +424,18 @@
       "strong": "Strong",
       "local": "Local",
       "audio": "Audio",
-      "embedding": "Embeddings"
+      "embedding": "Search model"
     },
     "policy": {
-      "title": "Privacy rules (plainva.ai)",
+      "columns": "Folder",
+      "webOff": "Internet off",
+      "title": "What may leave this vault",
       "desc": "A rule sits in a note's frontmatter or, for a whole folder, in .agent/policy.yml. A note kept from the cloud contributes nothing — neither text nor title — and links to it are withheld.",
       "vaultDefault": "Vault default",
-      "cloud": "Cloud",
-      "web": "Web access",
+      "cloud": "To a provider",
+      "web": "Onto the internet",
       "allow": "allowed",
-      "deny": "never",
+      "deny": "not allowed",
       "localAllowed": "Models on this device stay allowed.",
       "addFolder": "Add folder rule",
       "folder": "Folder",
@@ -402,6 +456,7 @@
     "toolDeclined": "{{tool}} — not allowed",
     "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
+      "lessDetails": "Less",
       "title": "Send to {{provider}}?",
       "sentTitle": "Sent to {{provider}}",
       "why": {
@@ -485,7 +540,7 @@
       "folders": "Folders",
       "standingNotes_one": "The {{count}} note your rules let go — now, and again whenever it changes",
       "standingNotes_other": "All {{count}} notes your rules let go — now, and each again whenever it changes",
-      "gist": "title and a checked gist",
+      "gist": "title and a checked short summary",
       "web": "Internet",
       "webOn": "may read pages and search the web — every request asks first",
       "webHosts": "without asking, for addresses you or a source named: {{hosts}}",
@@ -498,6 +553,7 @@
       "evidenceImage": "image, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
+      "chip": "What goes along?",
       "open": "View context",
       "title": "View context",
       "tagline": "What the AI sees for the next request — before it sees it.",
@@ -539,7 +595,7 @@
       "naive": "without the selection it would have been ~{{tokens}} tokens",
       "trail": "Show as a trail in the graph",
       "useOriginal": "Original",
-      "useGist": "Gist",
+      "useGist": "Short summary",
       "sensitive": "Possibly sensitive: {{kinds}}",
       "sensitiveKind": {
         "credential": "password or key",
@@ -559,7 +615,7 @@
       "menu": "AI",
       "with": "With the selection",
       "asSuggestion": "As a suggestion",
-      "inConversation": "In the companion",
+      "inConversation": "Ask in the conversation",
       "translateTo": "Translate into",
       "proposed_one": "The AI suggests {{count}} change — accept or decline it under “Suggestions”.",
       "proposed_other": "The AI suggests {{count}} changes — accept or decline them under “Suggestions”.",
@@ -621,10 +677,9 @@
       "title": "No answer came back. These notes match your question best:"
     },
     "web": {
+      "chip": "Internet",
       "toggleOn": "This conversation will use the internet",
       "toggleOff": "Let this conversation use the internet",
-      "activeOn": "This conversation may use the internet",
-      "activeOff": "This conversation started without the internet",
       "fixed": "Whether a conversation may use the internet is decided when it starts. Start a new conversation to change it.",
       "marking": "This conversation may use the internet. While your notes are in it, every request asks first.",
       "sources": "Read on the web",
@@ -647,8 +702,8 @@
         "fetch": "Read page",
         "search": "Search",
         "always": "Always for {{host}}",
-        "denyFetch": "Don't read",
-        "denySearch": "Don't search"
+        "denyFetch": "Don't allow",
+        "denySearch": "Don't allow"
       },
       "settings": {
         "title": "Internet",
@@ -735,6 +790,7 @@
       "defused": "New web addresses were defused: readable, but not links."
     },
     "skills": {
+      "all": "All skills…",
       "title": "Skills",
       "runOwn": "Run the skill “{{title}}”.",
       "daily": {
@@ -813,6 +869,11 @@
       }
     },
     "workshop": {
+      "revokeBody": "Until you approve it again, the AI no longer uses it on this device.",
+      "revokeConfirm": "Withdraw the approval of “{{title}}”?",
+      "vaultRow": "Instructions for this vault",
+      "newMenu": "New…",
+      "explain": "Skills are ready-made ways of working for the AI — a weekly review, say. A tap starts one in the conversation.",
       "title": "Skills",
       "segmentChats": "Conversations",
       "segmentSkills": "Skills",
@@ -1021,18 +1082,18 @@
         "plainva-value": "A Plainva field could not be read and is left out: {{detail}}"
       },
       "test": {
-        "title": "Testing",
-        "run": "Test with {{model}}",
-        "open": "Test…",
+        "title": "Test run",
+        "run": "Test run with {{model}}",
+        "open": "Test run…",
         "start": "Start the run",
-        "never": "Not tested yet. The skills' test scenarios run against the chosen model — by hand, with a ceiling.",
-        "last": "Last tested on {{when}} — passed: {{passed}} of {{total}}.",
-        "modelChanged_one": "{{count}} skill has not been tested with the model chosen now ({{model}}).",
-        "modelChanged_other": "{{count}} skills have not been tested with the model chosen now ({{model}}).",
+        "never": "No test run yet. The skills' test scenarios run against the chosen model — by hand, with a ceiling.",
+        "last": "Last test run on {{when}} — passed: {{passed}} of {{total}}.",
+        "modelChanged_one": "{{count}} skill has had no test run with the model chosen now ({{model}}).",
+        "modelChanged_other": "{{count}} skills have had no test run with the model chosen now ({{model}}).",
         "row": {
-          "current": "tested: {{passed}} of {{total}}",
-          "model-changed": "tested with {{model}}, not with the chosen model",
-          "skill-changed": "changed since it was tested"
+          "current": "test run: {{passed}} of {{total}}",
+          "model-changed": "test run with {{model}}, not with the chosen model",
+          "skill-changed": "changed since its test run"
         },
         "model": "Model",
         "what": "Scope",
@@ -1076,7 +1137,7 @@
         },
         "cost": "≈ {{cost}} · {{tokens}} tokens",
         "tokens": "{{tokens}} tokens",
-        "conversation": "Test · {{skill}} · {{scenario}}"
+        "conversation": "Test run · {{skill}} · {{scenario}}"
       },
       "writeFailed":"The skill could not be written into the vault."
     },
@@ -1136,7 +1197,7 @@
         "busy": "The AI is busy right now. Try again when it is done.",
         "cancelled": "Stopped. Nothing was laid down.",
         "invalid": "The answer was no list of suggestions. Nothing was laid down.",
-        "failed": "That did not work. Nothing was laid down."
+        "failed": "Plainva could not carry that out. Nothing was laid down; try again."
       },
       "draft": {
         "why": "Evidence",
@@ -1197,7 +1258,7 @@
         "changed": "The skill is not as it was shown here any more. Look at it again.",
         "invalid": "This version is no skill as the format defines it, so it is not written back.",
         "no-history": "The vault could not keep the current version first, so nothing was written over it.",
-        "failed": "That did not work. Nothing was changed."
+        "failed": "Plainva could not bring back the earlier version. Nothing was changed; try again."
       },
       "versions": {
         "action": "Earlier versions…",
@@ -1312,7 +1373,7 @@
       "helper": {
         "search": "search by meaning",
         "reader": "reading e-mails and appointments ({{model}})",
-        "gists": "the gists"
+        "gists": "the short summaries"
       },
       "setUp": "Set up a model on this device",
       "note": "Cloud and Hybrid are not a choice but a state: “Hybrid” appears once this device computes something itself. Only “Fully local” is a switch, because only it promises something.",
@@ -1338,6 +1399,7 @@
       "conversationRests": "This conversation ran with {{model}} via {{provider}}. While “Fully local” is on it does not go on: no conversation changes its model silently."
     },
     "routines": {
+      "toOverview": "On to the overview",
       "title": "Routines",
       "note": "Routines run on this device while Plainva is open. If it was closed at the time of a run, a routine catches up once at the next opening or skips the run — as you set it for that routine.",
       "empty": "No routine yet.",
@@ -1371,12 +1433,12 @@
       "paused": "Paused",
       "runningNow": "Running now",
       "needs": {
-        "skill": "Rests: its skill was changed, switched off or removed since you confirmed this routine. Look at the routine, then it runs again.",
-        "scope": "Needs you: it would now send more than you confirmed. Nothing was sent.",
+        "skill": "Rests: the skill of this routine was changed, switched off or removed since you confirmed the routine. Look at it, then it runs again.",
+        "scope": "Needs you: the routine would now send more than you confirmed. Nothing was sent.",
         "confirm": "Rests: this device asks before every request, and nobody is there to answer when a routine runs.",
-        "model": "Needs you: the provider of its model is no longer set up on this device.",
-        "local": "Rests while “Fully local” is on: its model is not on this device.",
-        "rules": "Rests: your rules keep this folder from its model. Choose a model on this device for it, or change the rules."
+        "model": "Needs you: the provider of this routine's model is no longer set up on this device.",
+        "local": "Rests while “Fully local” is on: this routine's model is not on this device.",
+        "rules": "Rests: your rules keep this folder from this routine's model. Choose a model on this device for it, or change the rules."
       },
       "review": "Look at it",
       "active": "{{name}} runs",
@@ -1411,7 +1473,7 @@
         "profile": "{{profile}} — {{provider}} · {{model}}"
       },
       "confirm": {
-        "title": "“{{name}}” runs without you — so this holds for it",
+        "title": "How “{{name}}” runs without you",
         "reads": "It only reads",
         "readsDesc": "No suggestion, no draft, no internet, no external tool, no script, no command of the app. What it reads is decided by your rules, as in every conversation.",
         "noMail": "It does not read e-mails with this model: Plainva asks about that anew in every session, and nobody is there to answer. With a model on this device it reads them.",
@@ -1778,7 +1840,7 @@
       "pairNone": "Choose at least one folder to allow."
     },
     "ext": {
-      "title": "External tools (MCP)",
+      "title": "External tools",
       "desc": "Tools of servers you connect yourself, over the Model Context Protocol (MCP). Nothing of a server is used before you have looked at what it offers. You see every call before it goes out, and what comes back is treated as a stranger's text.",
       "none": "No server is connected on this device.",
       "device": "Servers on this device",
@@ -1820,7 +1882,7 @@
         "changes": "This call can change something at {{server}}. Plainva cannot undo it.",
         "destroys": "This call can change, overwrite or delete something at {{server}}. Plainva cannot undo it.",
         "run": "Run it",
-        "deny": "Don't call",
+        "deny": "Don't allow",
         "send": "Call"
       },
       "prompt": {
@@ -1831,15 +1893,15 @@
         "send": "Send as my message",
         "start": "Continue",
         "blocked": "{{server}} answered with another text than the one you approved. It is blocked until you review it in the settings.",
-        "empty": "The prompt contains no text.",
-        "unavailable": "This prompt is not available right now."
+        "empty": "The text template contains no text.",
+        "unavailable": "This text template is not available right now."
       },
       "question": {
         "title": "{{server}} has a question",
         "pageTitle": "{{server}} would like you to open a page",
         "refusedTitle": "Plainva blocked a question from {{server}}",
         "during": "For",
-        "prompt": "the prompt “{{name}}”",
+        "prompt": "the text template “{{name}}”",
         "writes": "{{server}} writes:",
         "optional": "optional",
         "choose": "Choose…",
@@ -1917,7 +1979,7 @@
         "clipped": "The server lists more than Plainva reads. The rest is not offered.",
         "skills_one": "It serves {{count}} skill. You approve each one under AI → Skills, “From servers”.",
         "skills_other": "It serves {{count}} skills. You approve each one under AI → Skills, “From servers”.",
-        "prompts": "Prompts of the server",
+        "prompts": "Text templates of the server",
         "promptsHint": "Ready-made requests you start yourself, under an empty conversation. The first time, you read what one expands to before it is sent.",
         "vault": "In this vault",
         "folders": "Notes that may go with a call",
@@ -2359,7 +2421,7 @@
         "noRule": "Don't change"
       },
       "open": {
-        "segment": "Open",
+        "segment": "To decide",
         "proposals": "Suggestions on notes",
         "empty": "Nothing is waiting for you",
         "emptyHint": "What an AI suggests or drafts stays here until you have decided.",
@@ -2395,8 +2457,13 @@
       }
     },
     "semantic": {
-      "title": "Semantic search",
-      "description": "Finds notes by what they mean, not only by their words — across languages too. Applies to this device, and the vectors stay on it: a package computes them here, an own provider on its server.",
+      "providerHintPhone": "A cloud only after you approve what goes there.",
+      "measureRowDesc": "How fast this device computes — with sample text, never with your notes.",
+      "measureRow": "Measurement",
+      "change": "Change…",
+      "now": "Computes with",
+      "title": "Search by meaning",
+      "description": "Finds notes by what they mean, not only by their words — across languages too. Applies to this device, and the search data stays on it: a package computes it here, an own provider on its server.",
       "off": "Off — search by words only",
       "hintRecommended": "Recommended. In Plainva's own test with questions in ten languages, 88 % found their note among the first five together with the words, against 62 % with words alone.",
       "hintPrecise": "More precise; takes about three times as long.",
@@ -2426,7 +2493,7 @@
       "progress": "{{done}} of {{total}} notes embedded",
       "pause": "Pause",
       "resume": "Resume",
-      "remove": "Remove (with its vectors)",
+      "remove": "Remove (with its search data)",
       "removeConfirm": "Remove {{model}} and the vectors it computed? Search by meaning stays off until you load a model again.",
       "provider": "Own provider",
       "providerUnset": "Choose the model of the profile Embeddings first.",
@@ -2485,7 +2552,7 @@
       "pending": "Reading this note — hints follow.",
       "none": "Nothing close enough.",
       "show": "Show related notes",
-      "showDesc": "At most three hints to the open note, from the vectors on this device — nothing is sent. Pause a single note in the head of the section.",
+      "showDesc": "At most three hints to the open note, from the search data on this device — nothing is sent. Pause a single note in the head of the section.",
       "vaultPausedRow": "Paused in this vault",
       "resume": "Resume",
       "restore": "Bring back",
@@ -2509,7 +2576,7 @@
       "todoAct": "As a task",
       "todoWhy": "Line {{line}} begins with “TODO” and is no task yet. “As a task” turns it into “- [ ] {{text}}” where it stands; then it is among your tasks.",
       "todoGone": "The line changed meanwhile — nothing was changed.",
-      "failed": "That didn't work.",
+      "failed": "Plainva could not carry that out. Try again.",
       "meeting": "Tomorrow {{time}} {{title}}",
       "meetingLine": "no note yet",
       "meetingAct": "Create meeting note",
@@ -2543,16 +2610,16 @@
       "detail": "statements with a source: {{cited}} of {{total}}"
     },
     "gists": {
-      "title": "Gists",
-      "show": "Gists with the local model",
+      "title": "Short summaries",
+      "show": "Short summaries with the local model",
       "showDesc": "Short, checked summaries for the AI's context — only when the profile Local names a model on this device (Ollama or LM Studio on a computer, the system's own model on a phone); never a cloud in the background. Numbers, dates and deadlines must stand word for word, otherwise the original excerpt goes.",
       "noModel": "Choose a model on this device for the profile Local first.",
-      "status": "{{covered}} of {{sections}} long sections have a gist · {{model}}",
+      "status": "{{covered}} of {{sections}} long sections have a short summary · {{model}}",
       "working": "writing",
       "paused": "paused",
       "failed": "The model on this device did not answer: {{reason}}",
-      "clear": "Remove gists",
-      "clearConfirm": "Remove every gist of this vault? While gists are on, they are written again."
+      "clear": "Remove short summaries",
+      "clearConfirm": "Remove every short summary of this vault? While they are on, they are written again."
     }
   },
   "settingsSync": {

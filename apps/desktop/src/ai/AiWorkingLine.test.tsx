@@ -90,7 +90,7 @@ describe("a failure of a model on this device", () => {
 
   it("names the two things that make a server on this device fall silent", () => {
     expect(aiFailureText(t, broken, failureRecipient(provider("ollama")))).toBe("Ollama stopped answering. The server may have stopped, or the model is too large for this device.");
-    expect(aiFailureText(t, broken, failureRecipient(provider("openai")))).toBe("The connection broke off in the middle of the answer.");
+    expect(aiFailureText(t, broken, failureRecipient(provider("openai")))).toBe("The connection broke off in the middle of the answer. Send the question again.");
   });
 
   it("is said the same way in the settings' row of that server", () => {

@@ -1,6 +1,6 @@
 # Memoria (Beta)
 
-Última actualización: 2026-10-25
+Última actualización: 2026-11-06
 
 La memoria guarda lo que la IA debe saber sobre ti y tu trabajo sin que tengas que repetírselo: a qué te dedicas, cómo quieres las respuestas, quiénes son tus clientes. Son dos archivos en tu vault. Nada entra en la memoria sin tu sí, y puedes leer, cambiar y eliminar cada entrada.
 
@@ -12,7 +12,7 @@ Lo que está en **Para consultar** no se envía. Cuando una pregunta puede depen
 
 ## Abrir la memoria
 
-En el escritorio, elige **Memoria** en la pestaña de IA, junto a **Habilidades**. En el teléfono es **Conversaciones → Memoria**. **Configuración → IA y automatización** (la parte del vault) también lleva allí: **Abrir la memoria** bajo **Habilidades y memoria**.
+En el escritorio, elige **Memoria** en la pestaña de IA, junto a **Habilidades**. En el teléfono es **Memoria** en la pantalla de IA, o **Habilidades y memoria** en la página de inicio del área de IA. **Configuración → IA en este vault** también lleva allí: **Abrir la memoria** bajo **Habilidades y memoria**. Los nombres de archivo de la memoria están tras el ⓘ de la tarjeta **Siempre incluido**; las reglas del vault (`AGENTS.md`) se revisan y se aprueban allí mismo, en la vista de la memoria.
 
 ## Añadir una entrada por tu cuenta
 
@@ -22,7 +22,7 @@ El botón ⋯ de una entrada —en el teléfono, un toque en la entrada— ofrec
 
 ## Dejar que la IA recuerde algo
 
-Dilo en una conversación: «Recuerda que facturo por día, no por hora». La IA redacta una entrada; nunca escribe una por sí misma. Bajo su respuesta, una tarjeta **Borrador · Entrada de la memoria** muestra el texto completo. Elige el lugar y luego **Recordar**, o **Descartar**. Un borrador sobre el que aún no has decidido espera en **Pendiente**, y la memoria indica cuántos esperan.
+Dilo en una conversación: «Recuerda que facturo por día, no por hora». La IA redacta una entrada; nunca escribe una por sí misma. Bajo su respuesta, una tarjeta **Borrador · Entrada de la memoria** muestra el texto completo. Elige el lugar y luego **Recordar**, o **Descartar**. Un borrador sobre el que aún no has decidido espera en **Por decidir**, y la memoria indica cuántos esperan.
 
 «Olvida que …» funciona igual: la tarjeta dice **Borrador · Quitar de la memoria**, y **Quitar** retira la entrada. Cuando le dices a la IA que algo ha cambiado, la tarjeta muestra, bajo **Sustituye a**, qué entrada reemplaza la nueva redacción.
 

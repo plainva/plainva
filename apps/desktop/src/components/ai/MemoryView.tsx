@@ -35,6 +35,7 @@ import {
   type MemoryRowCaps,
   type UpkeepRow,
 } from "@plainva/ui";
+import { SkillApprovalModal } from "./SkillApprovalModal";
 import { appConfirm } from "../../services/appDialogs";
 import { MemoryEntryModal } from "./MemoryEntryModal";
 import { MemoryRuleModal } from "./MemoryRuleModal";
@@ -57,13 +58,11 @@ const MEMORY_CARE = "plainva:memory-care";
 export function MemoryView({
   onOpenFile,
   onOpenWaiting,
-  onReviewRules,
   onRun,
   onPickExample,
 }: {
   onOpenFile: (path: string) => void;
   onOpenWaiting: () => void;
-  onReviewRules: (id: string) => void;
   /** A skill was started from here: the shell shows its conversation. */
   onRun: () => void;
   /** Picks a note as an example of the writing style (plan P9-3): the shell's note picker, as for pinning one. */
@@ -75,6 +74,7 @@ export function MemoryView({
   /** The entry form: a new one (`id` null) or an existing one to reword. */
   const [form, setForm] = useState<{ id: string | null } | null>(null);
   const [rule, setRule] = useState(false);
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: MemoryRowCaps } | null>(null);
   /** The two entries a hint asked to see side by side. */
@@ -235,7 +235,7 @@ export function MemoryView({
           )}
         </UpkeepCard>
       )}
-      <SettingCard label={counted(t("ai.memory.active"), groups.active.length)}>
+      <SettingCard label={counted(t("ai.memory.active"), groups.active.length)} info={t("ai.memory.files")}>
         <SettingCardNote>
           <MemoryMeter fill={groups.fill} label={groups.budget} />
         </SettingCardNote>
@@ -327,7 +327,7 @@ export function MemoryView({
         <SettingRow label={t("ai.workshop.vault")} desc={agents ? `AGENTS.md · ${t(`ai.workshop.status.${agents.status}`)} · ${t("ai.memory.rules.desc")}` : t("ai.memory.rules.desc")}>
           <div className="pv-ai-rowactions">
             {agents && (agents.status === "new" || agents.status === "changed") && (
-              <Button size="sm" variant="tonal" onClick={() => onReviewRules(agents.source.id)} data-testid="ai-memory-rules-review">
+              <Button size="sm" variant="tonal" onClick={() => setReviewing(agents.source.id)} data-testid="ai-memory-rules-review">
                 {t("ai.workshop.review")}
               </Button>
             )}
@@ -342,7 +342,6 @@ export function MemoryView({
           </div>
         </SettingRow>
       </SettingCard>
-      <p className="pv-memory-foot">{t("ai.memory.files")}</p>
       {/* Under the entry's form and the row menus: both open from its rows. */}
       {pair && pairRows.length === 2 && (
         <Modal
@@ -374,6 +373,8 @@ export function MemoryView({
           </RowActionList>
         </MenuSurface>
       )}
+      {/* The vault's instructions are approved here, not one tab further (plan KI-Oberflächen K12). */}
+      {reviewing && <SkillApprovalModal id={reviewing} onClose={() => setReviewing(null)} />}
     </div>
   );
 }
