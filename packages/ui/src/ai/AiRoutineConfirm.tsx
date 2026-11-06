@@ -83,7 +83,7 @@ export function AiRoutineConfirm({ draft, preview, weekStart = 1, touch, onOpenN
         </Banner>
       )}
       {!preview.here && (
-        <AiSendOverview manifest={preview.manifest} growth={preview.growth} preview={{ title: t("ai.routines.confirm.overview", { provider: preview.provider }) }} touch={touch} {...(onOpenNote ? { onOpenNote } : {})} />
+        <AiSendOverview manifest={preview.manifest} growth={preview.growth} preview={{ title: t("ai.routines.confirm.overview", { provider: preview.provider }) }} touch={touch} {...(onOpenNote ? { onOpenNote } : {})} {...(preview.direct ? { direct: "folders" as const } : {})} />
       )}
     </>
   );

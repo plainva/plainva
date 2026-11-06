@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarClock, Eye, MoreHorizontal, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { ROUTINE_NAME_MAX, ROUTINES_MAX, routineDraftOf, sameStoredValue, type Routine, type RoutineDraft } from "@plainva/core";
 import {
+  AiAppliedList,
   AiRoutineConfirm,
   Banner,
   Button,
@@ -37,6 +38,7 @@ import {
   useTodayKey,
   useRoutineForm,
   useWeekStartDay,
+  useDirectFolders,
   type AiSession,
   type RoutineKind,
   type RoutineModelOption,
@@ -72,12 +74,22 @@ export function RoutinesCard({ onOpenNote, folders = [] }: { onOpenNote?: (path:
     void session?.refreshSkills();
   }, [session]);
   const now = useMemo(() => routineNow(day, clock), [day, clock]);
+  // Folders that let changes go without asking (plan "KI direkt schreiben", W4): a skill that changes notes can run then.
+  const direct = useDirectFolders(session ?? null, state?.routines.list);
   if (!session || !state || !state.settings.enabled || !state.routines.available) return null;
 
   const { list, running } = state.routines;
   const entries = state.skills.entries;
-  const rows = routineRows(t, { list, running, entries, settings: state.settings, keys: state.keys }, now, i18n.language, weekStart);
-  const skills = routineSkillOptions(t, entries);
+  const rows = routineRows(t, { list, running, entries, settings: state.settings, keys: state.keys, direct }, now, i18n.language, weekStart);
+  const skills = routineSkillOptions(t, entries, direct);
+  /** Takes back what a routine's last run changed directly, and says what became of each note. */
+  const undo = async (routine: Routine, path?: string) => {
+    const report = await session.undoRoutineDirect(routine.id, path);
+    if (report.undone.length) toast.success(t("ai.direct.undoneToast", { count: report.undone.length }));
+    const name = (note: string) => note.slice(note.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+    for (const note of report.changed) toast.info(t("ai.direct.changedSince", { name: name(note) }), { label: t("ai.direct.compare"), run: () => session.showVersions(note) });
+    for (const note of report.failed) toast.error(t("ai.direct.undoFailed", { name: name(note) }));
+  };
   const full = list.length >= ROUTINES_MAX;
   const picked = menu ? list.find((routine) => routine.id === menu.id) : undefined;
 
@@ -105,6 +117,12 @@ export function RoutinesCard({ onOpenNote, folders = [] }: { onOpenNote?: (path:
                 <div className="pv-setrow-desc" data-testid="settings-ai-routine-status">
                   {row.status}
                 </div>
+                {/* What its last run changed directly, in folders that let it (plan W4): each note with "Undo". */}
+                {routine.last?.applied && routine.last.applied.length > 0 && (
+                  <div className="pv-setrow-desc" data-testid="settings-ai-routine-changed">
+                    <AiAppliedList applied={routine.last.applied} busy={row.running} onOpenNote={(path) => onOpenNote?.(path)} onUndo={(path) => void undo(routine, path)} />
+                  </div>
+                )}
               </div>
               <div className="pv-setrow-ctrl">
                 <div className="pv-ai-rowactions">

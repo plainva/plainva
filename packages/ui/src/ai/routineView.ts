@@ -112,9 +112,10 @@ export interface RoutineSkillOption {
   request: string;
 }
 
-export function routineSkillOptions(t: Translate, entries: readonly InstructionEntry[]): RoutineSkillOption[] {
+/** `direct`: a folder of the vault lets changes go without asking (plan "KI direkt schreiben", W4) — a skill that changes notes fits then too. */
+export function routineSkillOptions(t: Translate, entries: readonly InstructionEntry[], direct = false): RoutineSkillOption[] {
   return entries
-    .filter((entry) => entry.status === "active" && entry.source.kind === "skill" && entry.source.skill && routineSkillFits(entry.source.skill))
+    .filter((entry) => entry.status === "active" && entry.source.kind === "skill" && entry.source.skill && routineSkillFits(entry.source.skill, { direct }))
     .map((entry) => {
       const view = skillView(t, entry);
       return { id: view.id, title: view.title, request: view.start };
@@ -196,10 +197,11 @@ export function routineNeed(
   entries: readonly InstructionEntry[],
   settings: Pick<AiAppSettings, "custom" | "localOnly" | "confirmEveryRequest">,
   keys: Readonly<Record<string, boolean>> | null = null,
+  direct = false,
 ): RoutineNeed | null {
   if (!routine.log) {
     const entry = entries.find((candidate) => candidate.source.id === routine.skill);
-    if (!entry || entry.status !== "active" || !entry.source.skill || !routineSkillFits(entry.source.skill) || routineSkillHash(entry.source) !== routine.skillHash) return "skill";
+    if (!entry || entry.status !== "active" || !entry.source.skill || !routineSkillFits(entry.source.skill, { direct }) || routineSkillHash(entry.source) !== routine.skillHash) return "skill";
   }
   const provider = providerById(routine.choice.providerId, settings.custom);
   if (!provider || (keys !== null && provider.endpoint.needsKey && !keys[provider.id])) return "model";
@@ -238,6 +240,8 @@ export function routineRows(
     settings: Pick<AiAppSettings, "custom" | "localOnly" | "confirmEveryRequest">;
     /** Which providers have a key on this device; absent, a missing key shows only when a run found it. */
     keys?: Readonly<Record<string, boolean>>;
+    /** A folder of the vault lets changes go without asking (plan "KI direkt schreiben", W4). */
+    direct?: boolean;
   },
   now: Date,
   locale: string,
@@ -248,7 +252,7 @@ export function routineRows(
     // What it does: its skill — or, for a folder's log, the file it keeps.
     const skill = routine.log ? folderLogPath(routine.log.folder) : entry ? skillView(t, entry).title : t("ai.routines.skillGone");
     const provider = providerById(routine.choice.providerId, input.settings.custom)?.label ?? routine.choice.providerId;
-    const need = routineNeed(routine, input.entries, input.settings, input.keys ?? null);
+    const need = routineNeed(routine, input.entries, input.settings, input.keys ?? null, input.direct === true);
     const running = input.running?.id === routine.id;
     // A moment that has come is not named by its day — "yesterday 07:00" is no next run —: it runs now.
     const due = !routine.paused && dueMoment(routine, now) !== null;

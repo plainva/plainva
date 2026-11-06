@@ -5,7 +5,8 @@ import type { RunLimits, RunStop } from "./orchestrator.js";
 import type { ModelChoice } from "./registry.js";
 import type { InstructionSource } from "./skills/sources.js";
 import type { SkillDefinition } from "./skills/skillFile.js";
-import { toolByName } from "./tools.js";
+import { DIRECT_TOOL_NAMES, toolByName } from "./tools.js";
+import { readAppliedWrites, type AppliedWrite } from "./history.js";
 
 /**
  * Routines (plan KI-Harness P8, §20; ADR 0033): a skill the app starts at a
@@ -13,6 +14,14 @@ import { toolByName } from "./tools.js";
  * run a person starts — it only reads, it has a smaller budget, and where it
  * would need a yes that nobody is there to give, it stops and says so. What
  * it leaves is a note.
+ *
+ * One exception, and the user makes it (plan "KI direkt schreiben", E3): in a
+ * folder whose rule says "change without asking", a routine may change and
+ * create notes — written at once, each with a version before it and an
+ * "Undo" in the routine's row. The rule is the yes nobody is there to give,
+ * so a routine carries those writing tools only while the vault has such a
+ * folder, and they refuse every place outside one. It never renames, moves
+ * or deletes, and it lays down no suggestion and no draft for nobody.
  *
  * This module is the part without IO: what a routine is, what it may carry,
  * when one is due, and how the list of them is read back. A routine belongs
@@ -83,6 +92,8 @@ export interface RoutineRun {
   /** The note it wrote, by its path in the vault, and under which name. */
   note?: string;
   noteTitle?: string;
+  /** What it changed or made directly in folders that let it (plan "KI direkt schreiben", W4), one line per note. */
+  applied?: AppliedWrite[];
 }
 
 export interface Routine {
@@ -148,10 +159,13 @@ const ROUTINE_NEVER: ReadonlySet<string> = new Set(["find_tools", "call_tool", "
  * run and nobody to ask, the third thing — an effect — is never there (the
  * Rule of Two, ADR 0019).
  */
-export function routineTools(names: readonly string[]): string[] {
+export function routineTools(names: readonly string[], options: { direct?: boolean } = {}): string[] {
   return names.filter((name) => {
     const tool = toolByName(name);
-    return tool !== undefined && tool.risk === "read" && tool.outward !== true && !ROUTINE_NEVER.has(name);
+    if (tool === undefined || ROUTINE_NEVER.has(name)) return false;
+    // Where a folder lets changes go without asking (E3): the writing tools that change and create, and only those.
+    if (options.direct && DIRECT_TOOL_NAMES.includes(name)) return true;
+    return tool.risk === "read" && tool.outward !== true;
   });
 }
 
@@ -161,11 +175,11 @@ export function routineTools(names: readonly string[]): string[] {
  * that names no tools uses whatever a run has; as a routine, what a routine
  * has. A name Plainva does not know is no tool here either way.
  */
-export function routineSkillFits(skill: Pick<SkillDefinition, "allowedTools">): boolean {
+export function routineSkillFits(skill: Pick<SkillDefinition, "allowedTools">, options: { direct?: boolean } = {}): boolean {
   const listed = skill.allowedTools;
   if (listed === null) return true;
   const known = listed.filter((name) => toolByName(name) !== undefined);
-  return routineTools(known).length === known.length;
+  return routineTools(known, options).length === known.length;
 }
 
 /**
@@ -336,6 +350,10 @@ function readRun(value: unknown): RoutineRun | undefined {
     ...(FAILURES.includes(run.failure as RoutineFailure) ? { failure: run.failure as RoutineFailure } : {}),
     ...(typeof run.note === "string" && run.note.length <= 500 ? { note: run.note } : {}),
     ...(typeof run.noteTitle === "string" && run.noteTitle.length <= 200 ? { noteTitle: run.noteTitle } : {}),
+    ...(() => {
+      const applied = readAppliedWrites(run.applied);
+      return applied.length ? { applied } : {};
+    })(),
   };
 }
 

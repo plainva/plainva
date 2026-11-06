@@ -421,7 +421,7 @@ export interface AiRunWritesProps {
  * What a run changed directly (plan "KI direkt schreiben", W2), under its answer: "Changed: 3 notes, 1 new", each
  * note with "View" and "Undo", and "Undo all" while more than one can still be taken back.
  */
-function AiAppliedList({ applied, busy, onOpenNote, onUndo }: { applied: readonly AppliedWrite[]; busy: boolean; onOpenNote(path: string): void; onUndo?(path?: string): void }) {
+export function AiAppliedList({ applied, busy, onOpenNote, onUndo }: { applied: readonly AppliedWrite[]; busy: boolean; onOpenNote(path: string): void; onUndo?(path?: string): void }) {
   const { t } = useTranslation();
   const changed = applied.filter((entry) => !entry.created).length;
   const made = applied.length - changed;
@@ -525,6 +525,25 @@ export function AiRunWrites({ writes, state, canCreate, busy, onOpenNote, onCrea
       })}
     </>
   );
+}
+
+/**
+ * Whether a folder of the open vault lets changes go without asking (plan "KI direkt schreiben", W4): what the routines'
+ * lists offer and say. Asked again when the vault or its routines change; false while it is asked.
+ */
+export function useDirectFolders(session: Pick<AiSession, "hasDirectFolders"> | null, reload?: unknown): boolean {
+  const [direct, setDirect] = useState(false);
+  useEffect(() => {
+    if (!session) return;
+    let alive = true;
+    void session.hasDirectFolders().then((found) => {
+      if (alive) setDirect(found);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session, reload]);
+  return direct;
 }
 
 /** Posting, accepting or declining a suggestion anywhere changes what waits. */

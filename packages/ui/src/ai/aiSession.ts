@@ -107,6 +107,8 @@ import {
   type DirectWriteFiles,
   type FolderPolicyRule,
   directFolderOf,
+  hasDirectFolder,
+  DIRECT_TOOL_NAMES,
   undoDirectChange,
   calledToolName,
   dispatchedArgs,
@@ -1398,6 +1400,8 @@ export interface RoutinePreview {
   noMail: boolean;
   /** A folder's log instead of a skill (plan P8-2): the folder, its file, how many notes today's entry would name, and how many one entry names at most. */
   log?: { folder: string; file: string; notes: number; max: number };
+  /** It may change and create notes in the folders whose rule lets it (plan "KI direkt schreiben", W4): the confirmation says so. */
+  direct?: true;
 }
 
 /**
@@ -4676,9 +4680,37 @@ export class AiSession {
   }
 
   /** The skill a routine names, when it can be one right now: active on this device, and one that only reads. */
-  private routineSkill(entries: readonly InstructionEntry[], id: string): InstructionEntry | null {
+  private routineSkill(entries: readonly InstructionEntry[], id: string, direct = false): InstructionEntry | null {
     const entry = entries.find((candidate) => candidate.source.id === id);
-    return entry && entry.status === "active" && entry.source.kind === "skill" && entry.source.skill && routineSkillFits(entry.source.skill) ? entry : null;
+    return entry && entry.status === "active" && entry.source.kind === "skill" && entry.source.skill && routineSkillFits(entry.source.skill, { direct }) ? entry : null;
+  }
+
+  /** Whether a folder of the vault lets changes go without asking — and this shell can write directly (plan W4). */
+  private async directFolders(vault: AiVaultHost): Promise<boolean> {
+    if (!vault.direct || !vault.folderRules || vault.encrypted?.()) return false;
+    return hasDirectFolder(await vault.folderRules().catch(() => [] as readonly FolderPolicyRule[]));
+  }
+
+  /** The same, for the open vault: what the routines' lists offer (plan W4). */
+  async hasDirectFolders(): Promise<boolean> {
+    return this.vault ? this.directFolders(this.vault) : false;
+  }
+
+  /**
+   * "Undo" in a routine's row (plan "KI direkt schreiben", W4): takes back what its last run changed directly — the
+   * note at `path`, or all of them —, as "Undo" under an answer does.
+   */
+  async undoRoutineDirect(id: string, path?: string): Promise<DirectUndoReport> {
+    const report: DirectUndoReport = { undone: [], changed: [], failed: [] };
+    const vault = this.vault;
+    const applied = this.routines.state.list.find((routine) => routine.id === id)?.last?.applied;
+    if (!vault?.direct || !applied || this.routines.state.running?.id === id) return report;
+    await this.undoEntries(vault.direct, applied.filter((entry) => !entry.undone && (path === undefined || entry.path === path)), report);
+    if (report.undone.length)
+      await this.routines
+        .patch(id, (stored) => (stored.last?.applied ? { ...stored, last: { ...stored.last, applied: withUndone(stored.last.applied, report.undone) } } : stored))
+        .catch(() => null);
+    return report;
   }
 
   /**
@@ -4702,7 +4734,8 @@ export class AiSession {
     if (!capture) return refused("off");
     try {
       const { entries } = await this.instructionEntries(vault);
-      const entry = this.routineSkill(entries, draft.skill);
+      const direct = await this.directFolders(vault);
+      const entry = this.routineSkill(entries, draft.skill, direct);
       if (!entry) return refused("skill");
       const outcome = await this.runMessage(this.routineRequest(draft.request, entry), vault, choice, {
         skills: { entries, bind: draft.skill },
@@ -4728,6 +4761,7 @@ export class AiSession {
           shared: Boolean(vault.encrypted?.()),
           everyRequest: this.state.settings.confirmEveryRequest && !manifest.local,
           noMail: !manifest.local && manifest.tools.some((name) => MAIL_TOOL_NAMES.includes(name)),
+          ...(direct && manifest.tools.some((name) => DIRECT_TOOL_NAMES.includes(name)) ? { direct: true as const } : {}),
         },
       };
     } catch {
@@ -4879,7 +4913,7 @@ export class AiSession {
     if (settings.localOnly && !runsOnDevice(provider)) return needs("local");
     if (routine.log) return this.logRun(vault, routine, provider, since);
     const { entries } = await this.instructionEntries(vault);
-    const entry = this.routineSkill(entries, routine.skill);
+    const entry = this.routineSkill(entries, routine.skill, await this.directFolders(vault));
     // Confirmed for the skill as it was: one that changed since rests its routine until somebody looked.
     if (!entry || routineSkillHash(entry.source) !== routine.skillHash) return needs("skill");
     // "Only when something changed": asked of the index on this device. Where it cannot say, the run goes ahead.
@@ -4897,7 +4931,9 @@ export class AiSession {
     if (!outcome) return { outcome: "stopped" };
     if (outcome.need) return needs(outcome.need);
     const record = outcome.record;
-    const left = record ? { conversationId: record.id } : {};
+    // What the run changed directly (plan W4) goes with how it ended, whatever that was: it happened.
+    const applied = record?.runs[record.runs.length - 1]?.writes?.applied;
+    const left = { ...(record ? { conversationId: record.id } : {}), ...(applied?.length ? { applied } : {}) };
     await this.dropPrevious(vault, routine, record, title);
     const stop = outcome.stop;
     if (stop.kind === "cancelled") return { outcome: "stopped", ...left };
@@ -6926,10 +6962,15 @@ export class AiSession {
       // tool. A routine carries the tools that read, and nothing else (ADR 0033): no call of it is an effect.
       const all = this.offeredTools(vault, provider, recipient, withWeb);
       // A folder's log carries no tool at all (plan P8-2): what it is shown, the app found for it.
-      const served = routine ? (routine.log ? [] : routineTools(all)) : all.filter((name) => !door || name !== "run_command");
+      const reachable = door || routine?.log ? [] : await this.furtherTools(vault, provider, recipient, !detached && !routine && !skills?.bind, entries);
+      // A routine in a vault with a folder that lets changes go without asking (plan "KI direkt schreiben", W4, E3) also
+      // carries the writing tools that change and create — in its own list, since it finds nothing. They refuse every
+      // place outside such a folder.
+      const routineDirect = Boolean(routine && !routine.log && (await this.directFolders(vault)));
+      const routineWrites = routineDirect ? routineTools(reachable, { direct: true }).filter((name) => DIRECT_TOOL_NAMES.includes(name)) : [];
+      const served = routine ? (routine.log ? [] : [...routineTools(all), ...routineWrites]) : all.filter((name) => !door || name !== "run_command");
       // The tool that looks into the long-term memory is carried where there is something in it for this recipient — and tools at all.
       const offered = memory?.lookup && served.length ? [...served, MEMORY_SEARCH_TOOL] : served;
-      const reachable = door || routine?.log ? [] : await this.furtherTools(vault, provider, recipient, !detached && !routine && !skills?.bind, entries);
       const further = routine ? routineTools(reachable) : reachable;
       // A server's skills (plan P9-4b) only where its tools could be: a conversation the user began, not bound to a skill — never a door, a routine or a regression run.
       const fromServers = !door && !detached && !routine && !skills?.bind ? readyServerSkills(await this.serverSkills(vault)) : [];
@@ -7042,8 +7083,8 @@ export class AiSession {
     const writesLog: RunWrites = { rounds: [], drafts: [], plans: [] };
     const writer = { id: assistantAuthorId(choice.model), displayName: this.host.label?.("ai.suggestionAuthor", { model: choice.model }) ?? choice.model };
     const inherited = () => this.inheritedBy(vault, record, sending.sources, reads, restricted);
-    const writing: WriteRun | undefined =
-      !apart && [...toolNames, ...moreNames].some(isWriteToolName)
+    const writable: WriteRun | undefined =
+      (!apart || Boolean(routine && !routine.log)) && [...toolNames, ...moreNames].some(isWriteToolName)
         ? {
             author: writer,
             userTexts: () => [message, ...userTextsOf(record.conversation)],
@@ -7086,6 +7127,18 @@ export class AiSession {
               : {}),
           }
         : undefined;
+    // A routine (plan W4, E3): nobody is there to decide about a draft or to answer a plan; it writes directly in the
+    // folders whose rule lets it, and refuses everything else.
+    const writing: WriteRun | undefined =
+      writable && routine
+        ? {
+            ...writable,
+            draft: async () => ({ ok: false as const, problem: "invalid" as const }),
+            ask: async () => "nobody" as const,
+            directOnly: true,
+            ...(vault.direct ? { direct: async (target: DirectTarget) => ((await this.directFolderOfTarget(vault, target)) ? ("folder" as const) : null) } : {}),
+          }
+        : writable;
     const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillRunTools(skillState), () => foreign, writing, () => scriptTools) : null;
     // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
     const reading = newRunReading();

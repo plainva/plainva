@@ -1,5 +1,5 @@
-import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings, type AiEgress, type EgressChunk, type HttpRequestSpec, type InstructionIO, type ModelChoice, type RoutineDraft } from "@plainva/core";
-import { AI_POLICY_FILE, AiSession, createAiVaultHost, createVaultPolicy, folderLogHost, writeCapturedNote } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings, type AiEgress, type DirectWriteFiles, type EgressChunk, type HttpRequestSpec, type InstructionIO, type ModelChoice, type RoutineDraft } from "@plainva/core";
+import { AI_POLICY_FILE, AiSession, captureVocabularyOf, createAiVaultHost, createVaultPolicy, folderLogHost, writeCapturedNote, type VaultWriteDeps } from "@plainva/ui";
 import { CLOUD, LOCAL } from "./mcpSessionHarness";
 import { memoryFiles } from "./mcpTestHost";
 
@@ -19,6 +19,8 @@ export interface RoutineVaultOptions {
   shared?: boolean;
   /** The shell cannot write notes. */
   noCapture?: boolean;
+  /** The shell can write a change directly (plan "KI direkt schreiben", W4): the writing tools, a version store, a way to make a note. */
+  direct?: boolean;
 }
 
 const title = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
@@ -85,6 +87,66 @@ export function routineVault(files: Record<string, string> = {}, options: Routin
     now: () => clock(),
   });
   const appData = memoryFiles();
+  // Writing directly (plan "KI direkt schreiben"): the disk as the files, a version per snapshot, a note made in its folder.
+  const backups = new Map<string, string>();
+  let backupCount = 0;
+  const directFiles: DirectWriteFiles = {
+    files: {
+      exists: async (path) => disk.has(path),
+      readTextFile: async (path) => {
+        const text = disk.get(path);
+        if (text === undefined) throw Object.assign(new Error(`not found: ${path}`), { code: "FILE_NOT_FOUND" });
+        return text;
+      },
+      writeTextFile: async (path, text) => {
+        disk.set(path, text);
+        changed.set(path, clock());
+      },
+      // The chain's one entry for a change, as the shells hand it on: the change gets the file as it lies there.
+      updateTextFile: async (path, change) => {
+        const before = disk.get(path);
+        if (before === undefined) throw Object.assign(new Error(`not found: ${path}`), { code: "FILE_NOT_FOUND" });
+        const next = change(before);
+        if (next === null || next === before) return { before, text: before, changed: false, conflict: null };
+        disk.set(path, next);
+        changed.set(path, clock());
+        return { before, text: next, changed: true, conflict: null };
+      },
+    },
+    snapshot: async (path) => {
+      const text = disk.get(path);
+      if (text === undefined) return null;
+      const id = `.plainva/backups/${path}.${++backupCount}.bak`;
+      backups.set(id, text);
+      return id;
+    },
+    unsaved: () => false,
+    changed: async () => {},
+    readVersion: async (id) => {
+      const text = backups.get(id);
+      if (text === undefined) throw new Error(`no version ${id}`);
+      return text;
+    },
+    discard: async (path) => disk.delete(path),
+  };
+  const writes: VaultWriteDeps = {
+    sealed: () => false,
+    current: read,
+    propose: async () => {
+      throw new Error("this vault keeps no comments");
+    },
+    folderExists: async () => true,
+    taskVocabulary: () => captureVocabularyOf((key) => key, "en"),
+    draftPlace: async (kind, day) => (kind === "task" ? null : `Journal/${day}.md`),
+    renamePlan: async () => "same-place",
+    rename: async () => null,
+    movePlan: async () => "same-place",
+    move: async () => null,
+    requestDelete: async () => false,
+    setRule: async () => false,
+    entryPlace: async () => null,
+    direct: directFiles,
+  };
   const host = createAiVaultHost({
     files: appData,
     vaultKey: "vault-routines",
@@ -125,7 +187,26 @@ export function routineVault(files: Record<string, string> = {}, options: Routin
         },
         message: async () => null,
       },
+      ...(options.direct ? { writes } : {}),
     },
+    ...(options.direct
+      ? {
+          creates: {
+            note: async ({ folder, stem, content }: { folder: string | null; stem: string; content: string }) => {
+              const path = `${folder ?? "Inbox"}/${stem}.md`;
+              disk.set(path, content);
+              return path;
+            },
+            task: async () => {
+              throw new Error("no tasks here");
+            },
+            journal: async () => {
+              throw new Error("no journal here");
+            },
+            inbox: async () => "Inbox",
+          },
+        }
+      : {}),
     encrypted: () => options.shared === true,
     ...(options.noCapture
       ? {}

@@ -73,6 +73,15 @@ describe("what a run without its user may carry (the gate: unattended means read
     }
   });
 
+  it("carries the writing tools that change and create only where a folder lets changes go without asking (plan KI direkt schreiben, E3)", () => {
+    const all = TOOL_MANIFESTS.map((tool) => tool.name);
+    const direct = routineTools(all, { direct: true });
+    expect(direct.filter((name) => !routineTools(all).includes(name)).sort()).toEqual(["add_journal_entry", "create_entry", "create_note", "create_task", "propose_edit", "set_property"]);
+    for (const never of ["rename_note", "move_note", "delete_note", "remember", "forget", "draft_mail", "draft_event", "fetch_url", "find_tools", "call_tool"]) expect(direct, never).not.toContain(never);
+    expect(routineSkillFits({ allowedTools: ["read_note", "propose_edit"] }, { direct: true })).toBe(true);
+    expect(routineSkillFits({ allowedTools: ["read_note", "delete_note"] }, { direct: true })).toBe(false);
+  });
+
   it("drops a name that is no tool of the app", () => {
     expect(routineTools(["read_note", "Bash(git:*)", "mcp__files__read"])).toEqual(["read_note"]);
   });
