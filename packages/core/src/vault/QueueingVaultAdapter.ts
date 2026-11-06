@@ -1,7 +1,7 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
 import { SyncQueue } from "../sync/SyncQueue.js";
 import { isSystemJunkPath } from "./systemJunk.js";
-import { OwedQueueEntries, type OwedQueueEntriesOptions, type QueueEntryKind } from "./owedQueueEntries.js";
+import { OwedQueueEntries, type OwedQueueEntriesOptions, type OwedStructure, type QueueEntryKind } from "./owedQueueEntries.js";
 
 export { formatQueueEntryReport, type QueueEntryKind, type QueueEntryReport } from "./owedQueueEntries.js";
 
@@ -31,10 +31,14 @@ export type QueueingVaultAdapterOptions = OwedQueueEntriesOptions;
 /**
  * Feeds the sync queue with the changes made through it, after they are on
  * disk. An entry that fails is made up for while the write waits, and only one
- * given up fails the write (`OwedQueueEntries`, finding 2026-10-12).
+ * given up fails the write (`OwedQueueEntries`, finding 2026-10-12). While an
+ * entry is owed, the sync queue answers for it (`SyncQueue.consultOwedEntries`,
+ * Datensicherheit D4): a deletion or rename that waits here keeps the pull from
+ * bringing the file back.
  */
 export class QueueingVaultAdapter implements IVaultAdapter {
   private readonly owed: OwedQueueEntries;
+  private readonly detach: () => void;
 
   constructor(
     private readonly inner: IVaultAdapter,
@@ -42,6 +46,14 @@ export class QueueingVaultAdapter implements IVaultAdapter {
     options: QueueingVaultAdapterOptions = {}
   ) {
     this.owed = new OwedQueueEntries(options);
+    // Every shell builds the chain on the queue its sync worker reads: told
+    // here, the worker knows what is owed without a shell having to say so.
+    this.detach = syncQueue.consultOwedEntries?.(this.owed) ?? (() => {});
+  }
+
+  /** What is owed to the sync queue for changes on disk (D4). */
+  get owedEntries(): OwedStructure {
+    return this.owed;
   }
 
   async initialize(): Promise<void> {
@@ -50,6 +62,7 @@ export class QueueingVaultAdapter implements IVaultAdapter {
 
   async dispose(): Promise<void> {
     await this.flush();
+    this.detach();
     return this.inner.dispose();
   }
 

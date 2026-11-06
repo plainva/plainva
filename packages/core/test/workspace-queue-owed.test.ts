@@ -39,6 +39,14 @@ const workspace = (options: ConstructorParameters<typeof WorkspaceQueueingVaultA
   made.push(adapter);
   return adapter;
 };
+/** Waits until `done` holds — never a fixed time: a loaded machine is slow. */
+const until = async (done: () => boolean, what: string, ms = 10_000) => {
+  const end = Date.now() + ms;
+  while (!done()) {
+    if (Date.now() > end) throw new Error(`waited in vain for ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+};
 const queued = async () => (await state.listQueue()).map((entry) => `${entry.operation} ${entry.path}${entry.newPath ? ` -> ${entry.newPath}` : ""}`);
 
 beforeEach(async () => {
@@ -126,7 +134,7 @@ describe("an entry of the encrypted workspace's queue that fails after the chang
     await adapter.writeTextFile("Gone.md", "gone");
     refusals = 1;
     const deleting = adapter.deleteItem("Gone.md");
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await until(() => refused === 1, "the entry's first attempt");
     // Not in the queue yet — its next attempt is a minute away.
     expect(await queued()).toEqual(["write Gone.md"]);
     expect(await state.hasPendingForPath("Gone.md")).toBe(true);
@@ -140,7 +148,7 @@ describe("an entry of the encrypted workspace's queue that fails after the chang
     const adapter = workspace({ retryAtMs: [60_000] });
     refusals = 1;
     const write = adapter.writeTextFile("Note.md", "the text");
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await until(() => refused === 1, "the entry's first attempt");
     await adapter.dispose();
     await write;
     expect(await queued()).toEqual(["write Note.md"]);

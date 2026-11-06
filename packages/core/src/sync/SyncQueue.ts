@@ -4,6 +4,7 @@ import { SyncOperation } from "./ISyncTarget.js";
 import { isTwinSpelling } from "./pathIdentity.js";
 import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 import { EDITED_AT_SQL } from "../vault/editedAt.js";
+import type { OwedStructure } from "../vault/owedQueueEntries.js";
 
 function containsPath(parent: string, path: string): boolean {
   return path === parent || path.startsWith(parent + "/");
@@ -28,9 +29,26 @@ function endpoints(op: SyncOperation): string[] {
 export const REMOTE_REFUSAL = "Refused by the remote:";
 
 export class SyncQueue {
+  /** Entries owed to this queue for changes already on disk (`QueueingVaultAdapter`, D4). */
+  private readonly owed = new Set<OwedStructure>();
+
   constructor(
     private readonly db: IDatabaseAdapter
   ) {}
+
+  /**
+   * Lets the queue answer for entries owed to it (Datensicherheit D4): a
+   * deletion or rename whose entry failed after the change was on disk waits
+   * in the chain for its next attempt, in no table yet — and a pull that did
+   * not know of it brought the file back from the remote. The structural
+   * questions below count it (`hasPendingStructuralOp`,
+   * `getPendingStructuralPaths`). `QueueingVaultAdapter` tells the queue it
+   * feeds when it is made. Returns what detaches it.
+   */
+  consultOwedEntries(owed: OwedStructure): () => void {
+    this.owed.add(owed);
+    return () => { this.owed.delete(owed); };
+  }
 
   /**
    * Queues a write operation.
@@ -361,6 +379,8 @@ export class SyncQueue {
    * queued local push (data loss). See SyncWorker.runCycle.
    */
   async hasPendingStructuralOp(path: string): Promise<boolean> {
+    // One still owed by the chain counts: it is on its way here (D4).
+    for (const owed of this.owed) if (owed.hasOwedStructuralOp(path)) return true;
     const row = await this.db.queryOne<{ id: number }>(
       `SELECT id FROM offline_queue
        WHERE (file_path = ? OR new_path = ?
@@ -390,7 +410,11 @@ export class SyncQueue {
     const rows = await this.db.query<{ file_path: string; new_path: string | null }>(
       `SELECT file_path, new_path FROM offline_queue WHERE operation IN ('delete', 'rename')`
     );
-    return rows.flatMap((r) => r.new_path ? [r.file_path, r.new_path] : [r.file_path]);
+    return [
+      ...rows.flatMap((r) => r.new_path ? [r.file_path, r.new_path] : [r.file_path]),
+      // And the ones still owed by the chain (D4).
+      ...[...this.owed].flatMap((owed) => owed.owedStructuralPaths()),
+    ];
   }
 
   /**
