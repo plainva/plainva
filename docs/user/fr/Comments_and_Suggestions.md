@@ -1,6 +1,6 @@
 # Commentaires et suggestions
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-06
 
 Les commentaires et les suggestions existent dans **chaque** vault — avec ou sans synchronisation, avec ou sans chiffrement. Dans un espace chiffré ce sont des objets signés (voir [Sécurité et partage](Security_and_Sharing.md)) ; partout ailleurs ils portent le nom saisi sous **Votre nom (annotations et relectures)** dans les réglages. Une suggestion est un commentaire avec un texte de remplacement : les deux passent par le même stockage, la même colonne, la même feuille. Si le nom manque, Plainva le demande une fois au premier commentaire ; sans réponse, l’appareil signe avec sa propre étiquette (par exemple « Appareil Windows 4f3a »). Vos propres annotations s’affichent comme **Vous**.
 
@@ -65,6 +65,8 @@ Avant de mettre de côté le fichier endommagé de cet appareil, Plainva relit t
 ## Opérations inachevées et décisions contradictoires
 
 Plainva conserve sur cet appareil la progression de chaque opération sur les commentaires. Si le texte est enregistré mais que le commentaire reste à mettre à jour, un avis propose **Réessayer**. Réessayer poursuit les étapes en attente sans annuler le texte enregistré ni les saisies ultérieures. Une série de suggestions partiellement envoyée reprend avec les mêmes propositions ; les modifications ultérieures de votre copie de travail restent non envoyées.
+
+Un commentaire en cours d’écriture n’est pas perdu quand tu quittes sa note : fermer son onglet, ouvrir une autre note dans le même onglet ou revenir en arrière demande d’abord **Abandonner le commentaire ?** ; **Continuer à écrire** y ramène. Un autre volet ne pose pas la question.
 
 Si la note a changé avant la confirmation du texte, ouvrez **Comparer les textes**. Comparez la modification prévue au texte actuel et modifiez vous-même la note si nécessaire. Réessayer vérifie à nouveau ; un texte différent ne remplace jamais la version actuelle par une ancienne.
 

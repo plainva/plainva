@@ -1,6 +1,6 @@
 # Commenti e suggerimenti
 
-Ultimo aggiornamento: 2026-10-29
+Ultimo aggiornamento: 2026-11-06
 
 Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio. Se il nome manca, Plainva lo chiede una volta al primo commento; senza risposta il dispositivo firma con la propria etichetta (ad esempio «Dispositivo Windows 4f3a»). Le tue annotazioni compaiono come **Tu**.
 
@@ -65,6 +65,8 @@ Prima di mettere da parte il file danneggiato di questo dispositivo, Plainva leg
 ## Operazioni incomplete e decisioni contrastanti
 
 Plainva registra su questo dispositivo l’avanzamento di ogni operazione sui commenti. Se il testo è salvato ma il commento deve ancora essere aggiornato, un avviso offre **Riprova**. Il nuovo tentativo continua i passaggi in sospeso senza annullare il testo salvato o le modifiche successive. Un gruppo di suggerimenti inviato parzialmente prosegue con le stesse proposte; le modifiche successive alla copia di lavoro restano non inviate.
+
+Un commento che stai scrivendo non va perso quando lasci la sua nota: chiudere la scheda, aprire un’altra nota nella stessa scheda o tornare indietro chiede prima **Scartare il commento?**; **Continua a scrivere** ti riporta lì. Un altro pannello non chiede nulla.
 
 Se la nota è cambiata prima della conferma del testo, apri **Confronta il testo**. Confronta la modifica prevista con il testo attuale e modifica la nota se necessario. Il nuovo tentativo verifica di nuovo; un testo diverso non viene sostituito con la vecchia versione.
 

@@ -1,6 +1,6 @@
 # Kommentare & Vorschläge
 
-Stand: 2026-10-29
+Stand: 2026-11-06
 
 Kommentare und Vorschläge gibt es in **jedem** Vault — mit oder ohne Sync, mit oder ohne Verschlüsselung. In einem verschlüsselten Workspace sind sie signierte Objekte (siehe [Sicherheit & Freigaben](Security_and_Sharing.md)); überall sonst tragen sie den Namen aus **Dein Name (Anmerkungen und Prüfungen)** in den Einstellungen. Ein Vorschlag ist ein Kommentar mit Ersatztext: Beide laufen durch denselben Speicher, dieselbe Spalte, dasselbe Blatt. Fehlt der Name, fragt Plainva beim ersten Kommentar einmal danach; ohne Antwort zeichnet das Gerät mit seiner eigenen Bezeichnung (etwa „Windows-Gerät 4f3a“). Deine eigenen Anmerkungen stehen als **Du** da.
 
@@ -65,6 +65,8 @@ Vor dem Beiseitelegen einer beschädigten eigenen Datei wird die Sicherung volls
 ## Unvollständige Vorgänge und widersprüchliche Entscheidungen
 
 Plainva hält den Abschluss eines Kommentarvorgangs auf diesem Gerät fest. Ist der Text schon gespeichert, aber die Anmerkung noch nicht, erscheint ein Hinweis mit **Erneut versuchen**. Die Wiederholung setzt die ausstehenden Schritte fort und nimmt weder den gespeicherten Text noch spätere Eingaben zurück. Bei einer nur teilweise gesendeten Korrekturrunde werden dieselben Vorschläge weitergesendet; weitere Änderungen Deiner Arbeitskopie bleiben ungesendet erhalten.
+
+Ein Kommentar, den Du gerade schreibst, geht nicht verloren, wenn Du seine Notiz verlässt: Beim Schließen des Tabs, beim Öffnen einer anderen Notiz im selben Tab oder beim Zurückgehen fragt Plainva zuerst **Kommentar verwerfen?**; **Weiter schreiben** bringt Dich zurück. Ein anderer Bereich fragt nicht.
 
 Hat sich die Notiz vor der Textbestätigung geändert, öffne **Text vergleichen**. Vergleiche die geplante Änderung mit dem aktuellen Text und bearbeite die Notiz bei Bedarf selbst. Eine Wiederholung prüft erneut; abweichender Text wird nicht durch die alte Fassung ersetzt.
 

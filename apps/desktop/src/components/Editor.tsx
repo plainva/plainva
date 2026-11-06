@@ -3931,6 +3931,7 @@ export const Editor: React.FC<{
           operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={content} />}
           onClose={toggleCommentColumn}
           onDraftChange={onCommentDraftChange}
+          notePath={activePath ?? undefined}
           onOpenNote={openNoteFromComment}
           onOpenUrl={(url) => { void openExternalUrl(url); }}
           comments={workspaceComments}

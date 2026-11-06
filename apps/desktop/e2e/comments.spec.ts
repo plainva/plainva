@@ -695,3 +695,35 @@ test('a partially sent round retries the original blocks and preserves further c
   const bundle = await page.evaluate((path) => JSON.parse((window as any).mockFs[path]), await ownFile(page));
   expect((Object.values(bundle.comments) as any[]).filter((r) => r.suggestion)).toHaveLength(2);
 });
+
+test('a comment being written asks before another note takes its pane, and before its tab closes (data-safety D5)', async ({ page }, testInfo) => {
+  await page.addInitScript(() => { (window as any).mockFs['/test-vault/Other.md'] = '# Other\nA second note.'; });
+  await openWelcome(page);
+  const column = await openColumn(page);
+  await column.locator('.pv-comment-compose--new textarea').fill('Budget has to be settled with Anna first');
+
+  // Another note from the file tree replaces the tab: the question comes first.
+  await page.getByText('Other', { exact: true }).first().click();
+  const dialog = page.getByRole('dialog').filter({ hasText: /Discard comment|Kommentar verwerfen/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText(/Welcome/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('comment-discard-question.png') });
+
+  // "Keep writing": still the first note, the draft untouched.
+  await dialog.getByRole('button', { name: /Keep writing|Weiter schreiben/ }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+  await expect(column.locator('.pv-comment-compose--new textarea')).toHaveValue('Budget has to be settled with Anna first');
+
+  // Closing the tab asks the same question.
+  await page.keyboard.press('Control+w');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /Keep writing|Weiter schreiben/ }).click();
+  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+
+  // "Discard": the other note opens.
+  await page.getByText('Other', { exact: true }).first().click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /^(Discard|Verwerfen)$/ }).click();
+  await expect(page.getByText('A second note.')).toBeVisible();
+});

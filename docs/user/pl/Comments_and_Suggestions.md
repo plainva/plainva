@@ -1,6 +1,6 @@
 # Komentarze i propozycje
 
-Stan na: 2026-11-02
+Stan na: 2026-11-06
 
 Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub bez, z szyfrowaniem lub bez. W szyfrowanym workspace są podpisanymi obiektami (zob. [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md)); wszędzie indziej noszą imię z pola **Twoje imię (uwagi i przeglądy)** w ustawieniach. Propozycja to komentarz z tekstem zastępczym: oba przechodzą przez ten sam magazyn, tę samą kolumnę, ten sam arkusz. Jeśli imienia brakuje, Plainva pyta o nie raz przy pierwszym komentarzu; bez odpowiedzi urządzenie podpisuje własną etykietą (np. „Urządzenie Windows 4f3a”). Twoje własne uwagi widnieją jako **Ty**.
 
@@ -65,6 +65,8 @@ Przed odłożeniem uszkodzonego pliku tego urządzenia Plainva odczytuje całą 
 ## Nieukończone operacje i sprzeczne decyzje
 
 Plainva zapisuje na tym urządzeniu postęp każdej operacji dotyczącej komentarzy. Jeśli tekst jest zapisany, ale komentarz nadal wymaga aktualizacji, komunikat oferuje **Spróbuj ponownie**. Ponowienie kontynuuje oczekujące kroki bez cofania zapisanego tekstu ani późniejszych zmian. Częściowo wysłana runda sugestii jest kontynuowana z tymi samymi propozycjami; późniejsze zmiany w kopii roboczej pozostają niewysłane.
+
+Komentarz, który właśnie piszesz, nie przepada po opuszczeniu jego notatki: zamknięcie karty, otwarcie innej notatki w tej samej karcie lub cofnięcie najpierw pyta **Odrzucić komentarz?**; **Pisz dalej** wraca do niego. Inny panel nie pyta.
 
 Jeśli notatka zmieniła się przed potwierdzeniem tekstu, otwórz **Porównaj tekst**. Porównaj planowaną zmianę z aktualnym tekstem i w razie potrzeby samodzielnie edytuj notatkę. Ponowienie sprawdza ponownie; inny tekst nigdy nie jest zastępowany starą wersją.
 

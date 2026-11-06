@@ -18,11 +18,29 @@ import i18n from "../i18n";
  * code must not hang a dialog on a shell that never answers.
  */
 
+/** Words for a question that names what is lost, instead of the general "Discard your input?". */
+export interface DiscardWording {
+  title?: string;
+  /** The button that goes back to the input. */
+  keepLabel?: string;
+}
+
+/** Where a held question belongs: asked also before the note it names is left. */
+export interface DiscardScope {
+  /** Path of the note the unsaved input belongs to. */
+  path?: string;
+  wording?: DiscardWording;
+}
+
 export interface DiscardQuestionHost {
   /** Shows the question; true = discard. */
-  ask(message: string): Promise<boolean>;
-  /** Declares unsaved work to the window around it until the returned function runs. */
-  hold?(question: () => Promise<boolean>): () => void;
+  ask(message: string, wording?: DiscardWording): Promise<boolean>;
+  /**
+   * Declares unsaved work to the window around it until the returned function
+   * runs. With a `path`, the work also stands in the way of whatever replaces
+   * or closes that note's pane.
+   */
+  hold?(question: () => Promise<boolean>, scope?: { path?: string }): () => void;
 }
 
 let host: DiscardQuestionHost | null = null;
@@ -37,10 +55,10 @@ export function registerDiscardQuestion(next: DiscardQuestionHost | null): void 
  * question at a time: a second way out taken while it stands (Escape, then the
  * X) joins the question already open.
  */
-export function askDiscard(message?: string): Promise<boolean> {
+export function askDiscard(message?: string, wording?: DiscardWording): Promise<boolean> {
   if (!host) return Promise.resolve(true);
   const current = host;
-  asking ??= current.ask(message ?? i18n.t("mobile.leaveSheet")).finally(() => {
+  asking ??= current.ask(message ?? i18n.t("mobile.leaveSheet"), wording).finally(() => {
     asking = null;
   });
   return asking;
@@ -52,22 +70,26 @@ export function askDiscard(message?: string): Promise<boolean> {
  * own exit after saving does not come here — it calls `onClose` itself.
  *
  * While dirty, the work is also declared to the window (`hold`), so closing
- * the window or switching its vault asks the same question.
+ * the window or switching its vault asks the same question. With a note `path`
+ * it is asked before that note's pane is closed or shows another note too.
  */
-export function useDiscardGuard(dirty: boolean, onClose: () => void, message?: string): () => void {
+export function useDiscardGuard(dirty: boolean, onClose: () => void, message?: string, scope?: DiscardScope): () => void {
+  const path = scope?.path;
+  const title = scope?.wording?.title;
+  const keepLabel = scope?.wording?.keepLabel;
   useEffect(() => {
     if (!dirty || !host?.hold) return;
-    return host.hold(() => askDiscard(message));
-  }, [dirty, message]);
+    return host.hold(() => askDiscard(message, title || keepLabel ? { title, keepLabel } : undefined), { path });
+  }, [dirty, message, path, title, keepLabel]);
   return useCallback(() => {
     if (!dirty) {
       onClose();
       return;
     }
-    void askDiscard(message).then((discard) => {
+    void askDiscard(message, title || keepLabel ? { title, keepLabel } : undefined).then((discard) => {
       if (discard) onClose();
     });
-  }, [dirty, onClose, message]);
+  }, [dirty, onClose, message, title, keepLabel]);
 }
 
 /** Test seam. */
