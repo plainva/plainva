@@ -2211,8 +2211,10 @@ textarea {
   opacity: 0.6;
 }
 
+/* Its end clears the floating bar through the reservation of the calendar's scrolling regions (`.m-page--pimcal .m-scroll`),
+   no longer through a number of its own. */
 .m-cal-grid--month {
-  padding: 0 12px 96px;
+  padding: 0 12px;
 }
 /* The appointment count behind a database's calendar day (S18b): quiet, and
    never a row of that database. */
@@ -3280,6 +3282,14 @@ textarea {
   flex-direction: column;
   overflow: hidden;
   padding-bottom: 0;
+}
+/* The calendar's scrolling regions (time grid, agenda, month) run to the screen's edge, under the floating bar and
+   the "+" — so their own end reserves that strip, as a page's end does. Without it the last hours of the day could
+   never scroll up past the bar: an event in the evening lay under it, and a tap on it reached the bar (seen
+   2026-11-07 when the blocker smoke ran at 22:30 — on main as on every branch). From medium the bar stands beside
+   the work and `--m-page-bottom` is short, so the reservation shrinks with it. */
+.m-page--pimcal .m-scroll {
+  padding-bottom: calc(var(--m-page-bottom, var(--m-bar-space)) + env(safe-area-inset-bottom));
 }
 /* Calendar toolbar (period between its arrows, today, new event). NOT an .m-appbar: on the
    Calendar TAB the shell's .m-appbar already sits above, and a second bar would
