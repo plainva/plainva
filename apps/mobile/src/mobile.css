@@ -1809,11 +1809,25 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A row's value: one line, cut with "…" (review 2026-11-10). The ellipsis used
+   to stand without `nowrap`, so it never applied: in a setting row the row
+   happened to hold the line, in the note's properties a long value broke into
+   a cut first line and a stray rest ("https://dav.examp… / calendar/"). */
 .m-prop-val {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
   text-align: right;
+}
+/* A note's own data (its properties, who generated or verified it) is read in
+   full: it wraps, anywhere if it has to, and nothing is cut. */
+.m-prop-val--wrap {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 /* Tags in the properties are chips (finding 2026-09-19), lined up where the
    row's text value would end. */

@@ -782,7 +782,12 @@ export function markdownDecorationPlugin(isLive: boolean) {
                 if (name === "FencedCode" || name === "CodeBlock") {
                   const startLine = state.doc.lineAt(node.from).number;
                   const endLine = state.doc.lineAt(Math.min(node.to, state.doc.length)).number;
-                  for (let i = startLine; i <= endLine; i++) codeLineClass.set(i, codeBlockLineClass(i, startLine, endLine));
+                  // Only the lines of this visible range get their class: a code
+                  // block of thousands of lines costs what is on screen, like the
+                  // rest of this pass. The first and last line are still known.
+                  const fromLine = Math.max(startLine, state.doc.lineAt(from).number);
+                  const toLine = Math.min(endLine, state.doc.lineAt(Math.min(to, state.doc.length)).number);
+                  for (let i = fromLine; i <= toLine; i++) codeLineClass.set(i, codeBlockLineClass(i, startLine, endLine));
                   return;
                 }
                 if (name === "CodeInfo") {

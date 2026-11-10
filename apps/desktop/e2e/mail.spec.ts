@@ -4346,6 +4346,37 @@ test('remote images outside the junk folder keep the plain hint', async ({ page 
   await expect(page.getByTestId('mail-show-images')).toHaveText('Show images');
 });
 
+// Finding X4 (review 2026-11-10): the mail list said "01:39 PM" beside a
+// reader head that said "1:39 PM" — two spellings of one clock time on one
+// screen. Both go through the one formatter now.
+for (const [locale, twelve] of [['en-US', true], ['de-DE', false]] as const) {
+  test.describe(`mail on a ${twelve ? '12' : '24'}-hour device (${locale})`, () => {
+    test.use({ locale });
+    // The interface stays English on both devices: the hour cycle is the
+    // device's (the browser's locale), never the language's. An English
+    // interface on a 24-hour device is where "02:00 PM" stood beside "14:00".
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript(() => Object.defineProperty(navigator, 'language', { get: () => 'en-US' }));
+    });
+    test('the list and the reader write a clock time the same way', async ({ page }, testInfo) => {
+      await openVault(page);
+      await page.getByTestId('ribbon-mail').click();
+      const row = page.getByTestId('mail-envelope').first();
+      await expect(row).toBeVisible();
+      await row.click();
+      const head = page.locator('.pv-mail-rdate');
+      await expect(head).toBeVisible();
+      const clock = /\d{1,2}:\d{2}(\s?[AP]M)?/;
+      const inList = clock.exec((await row.textContent()) ?? '')?.[0];
+      const inHead = clock.exec((await head.textContent()) ?? '')?.[0];
+      expect(inList, 'the list shows the time of a message of today').toBeTruthy();
+      expect(inList).toBe(inHead);
+      expect(/[AP]M/.test(inList!)).toBe(twelve);
+      if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`mail-clock-${locale}.png`) });
+    });
+  });
+}
+
 // Finding X3 (review 2026-11-10): in the dark design every HTML mail was a
 // white sheet, also one that sets no colours of its own — which reads in the
 // theme's colours like a plain-text mail. A mail with its own colours keeps the

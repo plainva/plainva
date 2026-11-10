@@ -275,7 +275,9 @@ test('a note open twice, pinned and not, leaves the strip settled at every width
 test('the save label never says "Saved" while the tab shows the unsaved dot', async ({ page }) => {
   await openApp(page);
   await openTabs(page, ['AGENTS']);
-  const label = page.getByTestId('editor-save-state');
+  // Found by what it says, not by a test id: the same locator reads the label
+  // of the code before the fix.
+  const label = page.locator('span').filter({ hasText: /^(Saved|Saving\.\.\.|Save failed!)$/ }).first();
   await expect(label).toHaveText('Saved');
 
   await page.locator('.cm-content').first().click();
@@ -293,5 +295,4 @@ test('the save label never says "Saved" while the tab shows the unsaved dot', as
   // Once the autosave went through, dot and label agree again.
   await expect(close).not.toHaveAttribute('data-dirty', 'true', { timeout: 10_000 });
   await expect(label).toHaveText('Saved');
-  await expect(label).toHaveAttribute('data-state', 'saved');
 });

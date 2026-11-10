@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { deviceHourCycle, formatClockTime, formatHourMark, formatMinuteOfDay, formatMinuteRange } from "@plainva/ui";
+import { deviceHourCycle, formatClockTime, formatDateAndTime, formatHourMark, formatMinuteOfDay, formatMinuteRange } from "@plainva/ui";
 
 // Finding X4 (review 2026-11-10): the calendar's axis said "14:00" while its
 // events said "02:00 PM" in an English UI. Both now come from one function that
@@ -31,6 +31,16 @@ describe("timeFormat", () => {
       const twelve = (s: string) => /AM|PM/.test(s);
       expect(twelve(axis)).toBe(twelve(event));
     }
+  });
+
+  it("writes the clock of a date and time like every other clock time (mail list and reader head)", () => {
+    const at = new Date(2026, 10, 10, 13, 39, 27);
+    for (const hourCycle of ["h12", "h23"] as const) {
+      const both = formatDateAndTime(at, { language: "en", hourCycle });
+      expect(both.endsWith(`, ${formatClockTime(at, { language: "en", hourCycle })}`)).toBe(true);
+      expect(both).not.toContain(":27");
+    }
+    expect(formatDateAndTime(at, { language: "en", hourCycle: "h12" })).toMatch(/, 1:39\s?PM$/);
   });
 
   it("formats a range of one day", () => {

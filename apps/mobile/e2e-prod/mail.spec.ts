@@ -636,7 +636,29 @@ test("+ .eml gives a note filed before its raw copy, once", async ({ page, conte
 // mail was a white sheet, also one that sets no colours of its own and reads
 // in the theme's colours like a plain-text mail. X9: Mail, opened from
 // "Areas", left "Home" lit in the bar.
-test("mail in the dark design: a mail without colours of its own reads on the dark canvas; the bar lights Areas", async ({ page, context }, testInfo) => {
+test("X9: Mail opened from Areas lights Areas in the bar, not Home", async ({ page, context }) => {
+  const { sql } = await bootMail(context, page);
+  try {
+    await expect(page.getByTestId("tab-areas")).toHaveClass(/is-active/);
+    await expect(page.locator(".m-tabbar .m-tab.is-active")).toHaveCount(1);
+  } finally {
+    sql.close();
+  }
+});
+
+test("X4: the reader's head writes its clock time in the device's cycle, without seconds", async ({ page, context }) => {
+  const { sql } = await bootMail(context, page);
+  try {
+    await openFolder(page, "Archiv");
+    await page.locator("button.m-mailrow", { hasText: "Ihre Rechnung" }).click();
+    // en-US here: it said "9/13/2026, 11:00:00 AM".
+    await expect(page.locator(".m-mailmeta-date")).toHaveText(/^\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2}\s?[AP]M$/);
+  } finally {
+    sql.close();
+  }
+});
+
+test("X3: in the dark design a mail without colours of its own reads on the dark canvas", async ({ page, context }, testInfo) => {
   const { sql } = await bootMail(context, page);
   try {
     // The dark design chosen in the app's settings: the app sets the theme on
@@ -648,10 +670,6 @@ test("mail in the dark design: a mail without colours of its own reads on the da
     await page.reload();
     await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
     await openMailArea(page);
-    // X9: the screen is Mail, an area outside the bar — "Areas" is lit, "Home" is not.
-    await expect(page.getByTestId("tab-areas")).toHaveClass(/is-active/);
-    await expect(page.locator(".m-tabbar .m-tab.is-active")).toHaveCount(1);
-
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await openFolder(page, "Archiv");
     await page.locator("button.m-mailrow", { hasText: "Ihre Rechnung" }).click();

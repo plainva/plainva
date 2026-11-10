@@ -1833,6 +1833,38 @@
     </div>
   </section>
 
+  <section id="code-block-card">
+    <h2>A code block is one card, in the live preview as in the reading view</h2>
+    <p class="sec-sub">Review 2026-11-10, X6. Built from lines like a callout: <code>.cm-md-codeblock</code> on every line (monospace, the code tint, <code>--space-3</code> inline padding), <code>--first</code> and <code>--last</code> carry the corners (<code>--radius-md</code>) and a little air. On a line without the caret the fence's backticks are hidden and its language is a small <code>--text-muted</code> label (<code>.cm-md-codeinfo</code>); the caret on a fence shows it whole. Inline code inside the card has no box of its own (<code>.cm-md-mono</code>). Only the lines of the visible range are decorated.</p>
+    <div class="card" style="max-width: 640px">
+      <p style="margin: 0 0 var(--space-2)">Before the block.</p>
+      <div style="background: color-mix(in srgb, var(--accent-color) 7%, var(--bg-secondary)); border-radius: var(--radius-md); padding: var(--space-1) var(--space-3); font-family: var(--font-mono); font-size: 0.9em; line-height: 1.6">
+        <div style="font-family: var(--font-ui, system-ui); font-size: var(--text-xs); color: var(--text-muted)">js</div>
+        <div><span style="color: var(--accent-color)">const</span> hero = "Your notes, plain Markdown.";</div>
+        <div>console.log(hero);</div>
+        <div>&nbsp;</div>
+      </div>
+      <p style="margin: var(--space-2) 0 0">After the block.</p>
+    </div>
+  </section>
+
+  <section id="focus-frame">
+    <h2>The frame of a keyboard surface wears no focus ring; its controls do</h2>
+    <p class="sec-sub">Review 2026-11-10, X7. A dialog (<code>.pv-modal</code>), the file tree, the mail reader and a popover panel take the focus by code (<code>tabIndex={-1}</code>) as the frame the keyboard works in. They carry <code>.pv-focus-frame</code> (or are <code>.pv-modal</code>); the rule takes the global ring off them with <code>!important</code>, because the ring itself carries one. Without it every dialog that took the focus wore a teal frame that read like an error state. A button inside keeps its ring. The phone's sheets take no focus of their own.</p>
+    <div style="display: flex; gap: var(--space-4); flex-wrap: wrap">
+      <div class="card" style="width: 280px">
+        <p style="margin: 0 0 var(--space-2); font-weight: 600">Welcome to Plainva</p>
+        <p style="margin: 0 0 var(--space-3); color: var(--text-muted); font-size: var(--text-sm)">The dialog has the focus: no ring around the frame.</p>
+        <span class="pvbtn">Open Vault</span>
+      </div>
+      <div class="card" style="width: 280px">
+        <p style="margin: 0 0 var(--space-2); font-weight: 600">Welcome to Plainva</p>
+        <p style="margin: 0 0 var(--space-3); color: var(--text-muted); font-size: var(--text-sm)">Tab moved to a control: the control shows the ring.</p>
+        <span class="pvbtn" style="outline: 2px solid var(--accent-color); outline-offset: 1px">Open Vault</span>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= FRAGEN ================= -->
   <section id="fragen">
     <h2><span class="no">13</span>Entscheidungen</h2>

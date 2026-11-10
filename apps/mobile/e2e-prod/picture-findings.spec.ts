@@ -15,6 +15,15 @@ import { waitForIndexSchema, waitForVaultDirectory, type MobileTestGlobals } fro
  *    not link.
  */
 
+/** The calendar's views, by their names (the test ids came with the fix). */
+const view = (page: Page, name: string) => page.getByRole("radio", { name }).or(page.getByRole("button", { name, exact: true })).first();
+
+/** The hour labels of the time grid's axis, by what they say: an hour of 24 or of 12. */
+const hourLabels = (page: Page) => page.evaluate(() => [...document.querySelectorAll('[data-testid="pim-timegrid"] div')]
+  .filter((el) => el.children.length === 0)
+  .map((el) => (el.textContent ?? "").trim())
+  .filter((text) => /^(\d{1,2}:00|\d{1,2}\s?(AM|PM))$/.test(text)));
+
 const evidence = async (page: Page, name: string) => {
   if (!process.env.PLAINVA_EVIDENCE) return;
   for (const mode of ["light", "dark"]) {
@@ -25,10 +34,15 @@ const evidence = async (page: Page, name: string) => {
   await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
 };
 
-/** A Thursday afternoon, in the browser's own clock. */
-const NOW = new Date(2026, 9, 29, 15, 20);
+/**
+ * A Thursday morning, in the browser's own clock: the grid opens on the hour
+ * before, with the rest of the day still below it - the scroll the review
+ * photographed. (In the afternoon the grid hits its end and no hour lands on
+ * the head's edge, which hid the cut label.)
+ */
+const NOW = new Date(2026, 9, 29, 9, 20);
 
-async function bootCalendar(page: Page, context: BrowserContext, language = "en") {
+async function bootCalendar(page: Page, context: BrowserContext, language = "en", busyWeeks = false) {
   await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
   await context.route(/googleapis\.com|accounts\.google\.com/, (route) => route.abort());
   await page.clock.setFixedTime(NOW);
@@ -50,6 +64,10 @@ async function bootCalendar(page: Page, context: BrowserContext, language = "en"
   sql.run("plainva-index", insert, ["pim-fixture-1", "primary", "pic-allday", "Container grammar walked through with the maintainer", midnight, midnight + 86_400_000, key(NOW), key(new Date(midnight + 26 * 3_600_000)), 1, null, null]);
   sql.run("plainva-index", insert, ["pim-fixture-1", "primary", "pic-review", "Weekly review", midnight + 9 * 3_600_000, midnight + 10 * 3_600_000, null, null, 0, null, null]);
   sql.run("plainva-index", insert, ["pim-fixture-1", "primary", "pic-plan", "Weekly planning", midnight + 14 * 3_600_000, midnight + 15 * 3_600_000, null, null, 0, null, null]);
+  // An agenda longer than the screen: one appointment on each of the next 20 days.
+  if (busyWeeks) for (let d = 1; d <= 20; d++) {
+    sql.run("plainva-index", insert, ["pim-fixture-1", "primary", `pic-busy-${d}`, `Appointment ${d}`, midnight + d * 86_400_000 + 10 * 3_600_000, midnight + d * 86_400_000 + 11 * 3_600_000, null, null, 0, null, null]);
+  }
   await page.reload();
   await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
   const tab = page.locator(".m-tabbar .m-tab", { hasText: language === "de" ? /^Kalender$/ : /^Calendar$/ });
@@ -63,66 +81,85 @@ async function bootCalendar(page: Page, context: BrowserContext, language = "en"
   return sql;
 }
 
-test("X2: the now line stays under the pinned head, and the first hour label is never cut", async ({ page, context }) => {
+test("X2: the now line is drawn below the pinned head and all-day strip", async ({ page, context }) => {
   test.setTimeout(120_000);
   const sql = await bootCalendar(page, context);
   try {
-    const grid = page.getByTestId("pim-timegrid");
-    const head = page.getByTestId("pim-timegrid-head");
-    const line = page.getByTestId("pim-now-line");
-    await expect(line).toHaveCount(1);
-    const z = (el: typeof line) => el.evaluate((n) => Number(getComputedStyle(n).zIndex) || 0);
-    expect(await z(line), "the now line is drawn below the pinned head and all-day strip").toBeLessThan(await z(head));
-
-    // Every hour label lies wholly below the head or wholly behind it.
-    const cut = await page.evaluate(() => {
-      const headBox = document.querySelector('[data-testid="pim-timegrid-head"]')!.getBoundingClientRect();
-      const labels = [...document.querySelectorAll('[data-testid="pim-timegrid"] [data-testid="pim-hour-label"]')];
-      return labels.map((l) => l.getBoundingClientRect()).filter((r) => r.height > 0 && r.top < headBox.bottom && r.bottom > headBox.bottom).length;
+    // The "now" line: the absolutely placed 2px rule in today's column.
+    const z = await page.evaluate(() => {
+      const line = [...document.querySelectorAll<HTMLElement>('[data-testid="pim-timegrid"] div[aria-hidden]')]
+        .find((el) => getComputedStyle(el).borderTopWidth === "2px" && getComputedStyle(el).position === "absolute");
+      const top = document.querySelector<HTMLElement>('[data-testid="pim-timegrid-head"]')!;
+      return { line: line ? Number(getComputedStyle(line).zIndex) || 0 : null, head: Number(getComputedStyle(top).zIndex) || 0 };
     });
-    expect(cut, "an hour label half under the head").toBe(0);
-
-    // Scrolled so that "now" sits under the head: the head still covers it.
-    await grid.evaluate((el) => { el.scrollTop += 9999; });
-    const nowY = (await line.boundingBox())!.y;
-    const headBox = (await head.boundingBox())!;
-    await grid.evaluate((el, dy) => { el.scrollTop += dy; }, Math.round(nowY - (headBox.y + headBox.height / 2)));
+    expect(z.line, "today has a now line").not.toBeNull();
+    expect(z.line!, "the now line is drawn below the pinned head and all-day strip").toBeLessThan(z.head);
     await evidence(page, "calendar-now-under-head");
   } finally {
     sql.close();
   }
 });
 
-test("X1 + X4: the agenda opens at its top, its dot stays a dot, and axis and events speak one clock", async ({ page, context }) => {
+test("X2: the hour label at the top of the opened grid is not cut by the head", async ({ page, context }) => {
   test.setTimeout(120_000);
   const sql = await bootCalendar(page, context);
   try {
-    // X4 in the time grid: the axis and the device clock agree (this browser
-    // is en-US, a 12-hour region).
-    const axis = (await page.getByTestId("pim-hour-label").allTextContents()).filter(Boolean);
-    expect(axis.every((label) => /AM|PM/.test(label)), `axis ${axis.slice(0, 3).join(", ")}`).toBe(true);
+    // Every hour label lies wholly below the head or wholly behind it.
+    const cut = await page.evaluate(() => {
+      const headBox = document.querySelector('[data-testid="pim-timegrid-head"]')!.getBoundingClientRect();
+      const labels = [...document.querySelectorAll('[data-testid="pim-timegrid"] div')]
+        .filter((el) => el.children.length === 0 && /^(\d{1,2}:00|\d{1,2}\s?(AM|PM))$/.test((el.textContent ?? "").trim()));
+      return labels.map((l) => l.getBoundingClientRect()).filter((r) => r.height > 0 && r.top < headBox.bottom && r.bottom > headBox.bottom).length;
+    });
+    expect(cut, "an hour label half under the head").toBe(0);
+  } finally {
+    sql.close();
+  }
+});
 
+test("X4: on a 12-hour device the axis and the events speak one clock", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const sql = await bootCalendar(page, context);
+  try {
+    // This browser is en-US, a 12-hour region.
+    const axis = await hourLabels(page);
+    expect(axis.length).toBeGreaterThan(10);
+    expect(axis.every((label) => /AM|PM/.test(label)), `axis ${axis.slice(0, 3).join(", ")}`).toBe(true);
+    await view(page, "Agenda").click();
+    const row = page.getByTestId("pim-event").filter({ hasText: "Weekly planning" }).first();
+    await expect(row).toContainText(/(^|\D)2:00\s?PM/);
+  } finally {
+    sql.close();
+  }
+});
+
+test("X1: the agenda opens at its top, its first row below its day head, its dot a dot", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const sql = await bootCalendar(page, context, "en", true);
+  try {
     // Day view first: its grid is scrolled to the afternoon. The agenda must
     // not inherit that scroll position.
-    await page.getByTestId("pim-view-agenda").click();
-    const agenda = page.getByTestId("pim-agenda");
-    await expect(agenda).toBeVisible();
-    expect(await agenda.evaluate((el) => el.scrollTop)).toBe(0);
-    const firstHead = page.getByTestId("pim-agenda-day").first();
-    const firstRow = agenda.getByTestId("pim-event").first();
-    await expect(firstRow).toBeVisible();
-    expect((await firstRow.boundingBox())!.y, "the first row starts below its day head").toBeGreaterThanOrEqual((await firstHead.boundingBox())!.y + (await firstHead.boundingBox())!.height - 1);
-
-    // X1: the colour mark is a dot, and the title has the row.
-    const mark = agenda.getByTestId("pim-event-mark").first();
-    const box = (await mark.boundingBox())!;
-    expect(box.width, "the colour mark is a dot, not a bar").toBeLessThanOrEqual(8);
+    await view(page, "Agenda").click();
+    const firstHead = page.getByText("Thu, October 29", { exact: true });
+    await expect(firstHead).toBeVisible();
+    const agenda = page.locator(".m-scroll", { has: firstHead });
+    const mark = agenda.locator(".m-evt-mark").first();
     const row = agenda.getByTestId("pim-event").filter({ hasText: "Weekly planning" });
-    const title = (await row.locator(".m-evt-title").boundingBox())!;
-    expect(title.width).toBeGreaterThan(150);
-
-    // X4: the event's time speaks the same clock as the axis.
-    await expect(row).toContainText(/2:00\s?PM/);
+    await expect(row).toBeVisible();
+    // Measured together, then judged: each of the three is the finding.
+    const firstRow = agenda.getByTestId("pim-event").first();
+    const headBox = (await firstHead.boundingBox())!;
+    const facts = {
+      scrollTop: await agenda.evaluate((el) => el.scrollTop),
+      rowBelowHead: (await firstRow.boundingBox())!.y >= headBox.y + headBox.height - 1,
+      markWidth: Math.round((await mark.boundingBox())!.width),
+      titleWidth: Math.round((await row.locator(".m-evt-title").boundingBox())!.width),
+    };
+    expect(facts, "agenda at its top, first row below its head, dot a dot, title with room").toEqual({
+      scrollTop: 0, rowBelowHead: true, markWidth: expect.any(Number), titleWidth: expect.any(Number),
+    });
+    expect(facts.markWidth, "the colour mark is a dot, not a bar").toBeLessThanOrEqual(8);
+    expect(facts.titleWidth).toBeGreaterThan(150);
     await evidence(page, "calendar-agenda");
   } finally {
     sql.close();
@@ -135,11 +172,11 @@ test.describe("on a 24-hour device", () => {
     test.setTimeout(120_000);
     const sql = await bootCalendar(page, context, "en");
     try {
-      const axis = (await page.getByTestId("pim-hour-label").allTextContents()).filter(Boolean);
+      const axis = await hourLabels(page);
       expect(axis.some((label) => /^\d{2}:00$/.test(label))).toBe(true);
       expect(axis.some((label) => /AM|PM/.test(label))).toBe(false);
-      await page.getByTestId("pim-view-agenda").click();
-      const row = page.getByTestId("pim-agenda").getByTestId("pim-event").filter({ hasText: "Weekly planning" });
+      await view(page, "Agenda").click();
+      const row = page.getByTestId("pim-event").filter({ hasText: "Weekly planning" }).first();
       await expect(row).toContainText("14:00");
       await expect(row).not.toContainText(/AM|PM/);
     } finally {
@@ -179,7 +216,7 @@ test("X10: \"What's new\" links the release notes it points to", async ({ page, 
   }
 });
 
-test("X10 + X8: a folder of two files says so, and the settings sit behind the gear", async ({ page, context }) => {
+test("X10: a folder of two files says so, not \"0 notes\"", async ({ page, context }) => {
   test.setTimeout(90_000);
   await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
   const sql = await bootHome(page, context);
@@ -194,15 +231,23 @@ test("X10 + X8: a folder of two files says so, and the settings sit behind the g
     const row = page.locator(".pv-grouprow", { hasText: "Pictures" }).first();
     await expect(row).toBeVisible({ timeout: 20_000 });
     await expect(row.locator(".pv-grouprow-sub")).toHaveText("2 files", { timeout: 20_000 });
+    await evidence(page, "home-folder-files");
+  } finally {
+    sql.close();
+  }
+});
 
-    // X8: the app bar's way into the settings is a gear, not ☰.
+test("X8: the settings sit behind the gear, and on a tablet only in the rail", async ({ page, context }) => {
+  await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+  const sql = await bootHome(page, context);
+  try {
+    await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
+    // The app bar's way into the settings is a gear, not ☰.
     const settings = page.getByTestId("nav-settings").first();
     await expect(settings).toBeVisible();
-    await expect(settings.locator("svg.lucide-settings")).toHaveCount(1);
     await expect(settings.locator("svg.lucide-menu")).toHaveCount(0);
-    await evidence(page, "home-folder-files");
-
-    // On a tablet the rail carries Settings: no second gear in the app bar.
+    await expect(settings.locator("svg.lucide-settings")).toHaveCount(1);
+    // On a tablet the rail carries Settings: no second way beside it in the app bar.
     await page.setViewportSize({ width: 820, height: 1180 });
     await expect(page.getByTestId("rail-settings")).toBeVisible();
     await expect(page.getByTestId("nav-settings")).toBeHidden();

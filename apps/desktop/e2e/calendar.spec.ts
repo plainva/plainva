@@ -2100,11 +2100,22 @@ test('AI drafts an e-mail and an appointment: both wait as drafts, open in the c
 for (const [locale, twelve] of [['en-US', true], ['de-DE', false]] as const) {
   test.describe(`a ${twelve ? '12' : '24'}-hour device (${locale})`, () => {
     test.use({ locale });
+    // The interface stays English on both devices: the hour cycle is the
+    // device's (the browser's locale), never the language's. An English
+    // interface on a 24-hour device is where "02:00 PM" stood beside "14:00".
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript(() => Object.defineProperty(navigator, 'language', { get: () => 'en-US' }));
+    });
     test('the calendar writes its axis and its events in one clock', async ({ page }, testInfo) => {
       await openVault(page);
       await page.getByTestId('ribbon-calendar').click();
       await page.getByTestId('calendar-mode-day').click();
-      const labels = (await page.getByTestId('calendar-hour-label').allTextContents()).filter(Boolean);
+      // The hour labels of the axis, by what they say: an hour of 24 or of 12.
+      await expect(page.getByTestId('calendar-timegrid').first()).toBeVisible();
+      const labels = await page.evaluate(() => [...document.querySelectorAll('[data-testid="calendar-timegrid"] div')]
+        .filter((el) => el.children.length === 0)
+        .map((el) => (el.textContent ?? '').trim())
+        .filter((text) => /^(\d{1,2}:00|\d{1,2}\s?(AM|PM))$/.test(text)));
       expect(labels.length).toBeGreaterThan(20);
       expect(labels.every((l) => /AM|PM/.test(l) === twelve), labels.slice(0, 4).join(', ')).toBe(true);
       if (!twelve) expect(labels).toContain('14:00');

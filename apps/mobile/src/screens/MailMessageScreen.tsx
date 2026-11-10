@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
-import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
+import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, formatDateAndTime, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
 import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import {
@@ -675,8 +675,9 @@ export function MailMessageScreen({
           <div className="m-mailmeta">
             <p className="m-mailmeta-from">{message.from}</p>
             <p className="m-mailmeta-to">{message.to}</p>
-            <p className="m-mailmeta-date">
-              {message.dateTs ? new Date(message.dateTs).toLocaleString(i18n.language) : ""}
+            {/* The day as before, the clock through the one formatter (finding X4): no seconds, one spelling. */}
+            <p className="m-mailmeta-date" data-testid="mail-reader-date">
+              {message.dateTs ? formatDateAndTime(message.dateTs, { language: i18n.language, date: { year: "numeric", month: "numeric", day: "numeric" } }) : ""}
             </p>
           </div>
 

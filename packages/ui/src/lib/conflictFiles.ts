@@ -4,7 +4,7 @@
  * resolving needs the reverse mapping back to the original path.
  */
 import { isNotTextFileError, updateVaultText, type IVaultAdapter, type TextUpdateFiles } from "@plainva/core";
-import { formatClockTime, type HourCycle } from "./timeFormat";
+import { formatDateAndTime, type HourCycle } from "./timeFormat";
 
 export function isConflictCopyPath(path: string): boolean {
   return conflictOriginalPath(path) !== null;
@@ -47,8 +47,7 @@ export function conflictCopyLabel(conflictPath: string, language: string, hourCy
   const name = (original.split(/[\\/]/).pop() ?? original).replace(/\.md$/i, "");
   const at = conflictCopyTime(conflictPath);
   if (!at) return name;
-  const day = new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(at);
-  return `${name} · ${day}, ${formatClockTime(at, { language, hourCycle })}`;
+  return `${name} · ${formatDateAndTime(at, { language, hourCycle })}`;
 }
 
 /**

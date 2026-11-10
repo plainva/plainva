@@ -438,7 +438,7 @@ export function NoteContextSheet({
                   <div className="m-row m-row--static" key={k} {...press}>
                     <Lock className="m-chevron" size={ICON.meta} />
                     <span className="m-prop-key">{k === "okf_version" ? t("trust.okfVersion") : k}</span>
-                    <span className="m-prop-val">{valueText(v)}</span>
+                    <span className="m-prop-val m-prop-val--wrap">{valueText(v)}</span>
                     {badge}
                   </div>
                 ) : (
@@ -449,7 +449,7 @@ export function NoteContextSheet({
                     {...press}
                   >
                     <span className="m-prop-key">{k}</span>
-                    <span className="m-prop-val">{valueNode(k, v)}</span>
+                    <span className="m-prop-val m-prop-val--wrap">{valueNode(k, v)}</span>
                     {badge}
                   </button>
                 );
@@ -465,7 +465,7 @@ export function NoteContextSheet({
               {generatedAt && (
                 <div className="m-row m-row--static">
                   <span className="m-prop-key">{t("trust.generated")}</span>
-                  <span className="m-prop-val">
+                  <span className="m-prop-val m-prop-val--wrap">
                     {trust.generated ? `${formatActor(trust.generated.by, actorWords)} · ` : ""}
                     {formatStampDate(generatedAt, locale)}
                   </span>
@@ -474,7 +474,7 @@ export function NoteContextSheet({
               {trust.verified.map((v, i) => (
                 <div className="m-row m-row--static" key={`${v.by}-${v.at}-${i}`}>
                   <span className="m-prop-key">{i === 0 ? t("trust.verified") : ""}</span>
-                  <span className="m-prop-val">
+                  <span className="m-prop-val m-prop-val--wrap">
                     {formatActor(v.by, actorWords)} · {formatStampDate(v.at, locale)}
                   </span>
                 </div>

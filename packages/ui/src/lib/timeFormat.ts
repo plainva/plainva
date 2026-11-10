@@ -88,6 +88,18 @@ export function formatMinuteRange(startMinute: number, endMinute: number, option
 }
 
 /**
+ * A day and its time of day: the day as `date` asks (the app language's
+ * medium date by default — dates are not this module's business yet, package
+ * O2 brings them), the clock through `formatClockTime`, so the time reads the
+ * same as every other clock time on the screen (finding X4: the mail list
+ * said "01:39 PM", the reader's head "1:39 PM").
+ */
+export function formatDateAndTime(at: Date | number, options: TimeFormatOptions & { date?: Intl.DateTimeFormatOptions }): string {
+  const day = typeof at === "number" ? new Date(at) : at;
+  return `${new Intl.DateTimeFormat(options.language, options.date ?? { dateStyle: "medium" }).format(day)}, ${formatClockTime(day, options)}`;
+}
+
+/**
  * The label of an hour line on a time axis: "14:00" on a 24-hour device, the
  * hour alone with its day period ("2 PM") on a 12-hour one — the minutes of an
  * hour line are always zero, and the narrow gutter has no room for them.
