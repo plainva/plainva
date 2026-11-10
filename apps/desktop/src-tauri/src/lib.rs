@@ -559,6 +559,7 @@ pub fn run() {
             app_identity::app_updates_managed_by,
             note_links::note_links_take,
             note_links::note_link_forward,
+            note_links::note_link_bring_forward,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
             checked_fs::checked_path_exists,

@@ -1,4 +1,4 @@
-import { trimChars, contentReadPath } from "@plainva/core";
+import { trimChars, checkedContentPath } from "@plainva/core";
 import {
   upsertFrontmatterKeys,
   readFrontmatterPath,
@@ -66,6 +66,8 @@ export interface MeetingNoteAdapter {
   writeTextFile(path: string, content: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   createDir(path: string): Promise<void>;
+  /** One folder of the vault, for the check of a template name of an unusual shape (`checkedContentPath`). */
+  listDir?(path: string, recursive?: boolean): Promise<readonly { name: string }[]>;
 }
 
 /** File-name stem for a meeting note: `YYYY-MM-DD Title`, sanitized and capped. */
@@ -282,7 +284,7 @@ async function newMeetingNoteContent(opts: ResolveMeetingNoteOptions, folder: st
   try {
     // A template that has since been renamed or deleted must not stop the note.
     if (!(await adapter.exists(templatePath))) return builtIn();
-    raw = await adapter.readTextFile(contentReadPath(templatePath));
+    raw = await adapter.readTextFile(await checkedContentPath(templatePath, adapter.listDir ? (f) => adapter.listDir!(f, false) : null));
   } catch {
     return builtIn();
   }

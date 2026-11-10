@@ -160,11 +160,15 @@ export function isShortNameAlias(segment: string): boolean {
 
 /**
  * Why a path that CONTENT names — a link, an embed, an archive entry, a
- * template setting — must not be followed to the disk, or `null`. The one
- * question every such reader asks before it probes or reads a file: an
- * internal folder in any spelling the file system takes for it, a device
- * name, an alternate data stream (`note.md:hidden`) or an 8.3 alias. What the
- * index knows is not asked: it only ever holds real, visible spellings.
+ * template setting — needs a second look before it is followed to the disk,
+ * or `null`. `internal` is final: the app's own folders in any spelling are
+ * never a link target. The other three are SHAPES — a device name, an
+ * alternate data stream (`note.md:hidden`), an 8.3 alias — that are real,
+ * ordinary names on macOS, Linux, Android and iOS (`Meeting 10:30.png`,
+ * `aux.png`, `IMG~1.JPG`), and on Windows reach a device, a hidden stream
+ * or another folder. Such a path is followed only when the vault itself holds
+ * that exact spelling: the index, or the listing of its folder
+ * (`contentPathIsReal`). F2 review, 2026-11-10.
  */
 export function contentPathRefusal(path: string): "internal" | "device" | "stream" | "alias" | null {
   const segments = path.replace(/\\/g, "/").split("/");
@@ -175,14 +179,51 @@ export function contentPathRefusal(path: string): "internal" | "device" | "strea
   return null;
 }
 
+/** Whether one segment has one of the three shapes `contentPathRefusal` asks about. */
+function hasSuspiciousShape(segment: string): boolean {
+  return isWindowsDeviceSegment(segment) || segment.includes(":") || isShortNameAlias(segment);
+}
+
 /**
- * A path content asks the app to READ — a template a database or a setting
- * names, an embed — returned as it is, or an error when `contentPathRefusal`
- * names an internal folder, a device or a stream. A `.base` file is synced
- * content: its `template:` must not paste the sync key file into a new note.
+ * Whether a path content names may be followed to the disk: never into an
+ * internal folder; a segment with a suspicious shape only where the listing
+ * of its folder holds exactly that name — a real file, not another spelling
+ * the file system resolves (a device, a stream, an 8.3 alias are never
+ * listed). Every other path: yes, as before. `list` is the vault's own
+ * listing of one folder (`""` is the vault's root).
  */
-export function contentReadPath(path: string): string {
-  const refused = contentPathRefusal(path);
-  if (refused === "internal" || refused === "device" || refused === "stream") throw new Error(`refused path (${refused})`);
+export async function contentPathIsReal(
+  path: string,
+  list: (folder: string) => Promise<readonly { name: string }[]>,
+): Promise<boolean> {
+  const segments = path.replace(/\\/g, "/").split("/");
+  if (segments.some(isInternalSegment)) return false;
+  for (let i = 0; i < segments.length; i += 1) {
+    if (!hasSuspiciousShape(segments[i])) continue;
+    const wanted = segments[i].normalize("NFC");
+    let names: readonly { name: string }[];
+    try {
+      names = await list(segments.slice(0, i).join("/"));
+    } catch {
+      return false;
+    }
+    if (!names.some((entry) => entry.name.normalize("NFC") === wanted)) return false;
+  }
+  return true;
+}
+
+/**
+ * `contentPathIsReal` as a gate in front of a read: the path, or an error.
+ * A `.base` file is synced content — its `template:` must not paste the sync
+ * key file into a new note — and a template named `Meeting: weekly.md` on a
+ * Mac is a real template.
+ */
+export async function checkedContentPath(
+  path: string,
+  list: ((folder: string) => Promise<readonly { name: string }[]>) | null | undefined,
+): Promise<string> {
+  if (contentPathRefusal(path) === "internal") throw new Error("refused path (internal)");
+  if (contentPathRefusal(path) === null) return path;
+  if (!list || !(await contentPathIsReal(path, list))) throw new Error("refused path (not a file of this vault)");
   return path;
 }

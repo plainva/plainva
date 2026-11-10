@@ -503,7 +503,12 @@ export function planBlockLink(raw: string, offset: number, random: () => number 
   if (structured && chain[0] !== structured) return { kind: "refused", reason: "unsupported" };
   const listItem = !structured && leaf.type === "paragraph" ? [...chain].reverse().find((node) => node.type === "listItem") : undefined;
   const addressed = range(structured ?? listItem ?? leaf);
-  const existing = blocks.find((block) => block.from === addressed.from && block.to === addressed.to);
+  // An id the block already carries, in either place: on a line of its own
+  // behind it, or — as Obsidian also writes it for a quote — at the end of
+  // the paragraph the line belongs to.
+  const existing =
+    blocks.find((block) => block.from === addressed.from && block.to === addressed.to) ??
+    (structured && leaf.type === "paragraph" ? blocks.find((block) => block.markerFrom >= leafRange.from && block.markerFrom <= leafRange.to) : undefined);
   if (existing) return { kind: "block", id: existing.id, insert: null };
   const id = newBlockId(blocks.map((block) => block.id), random);
   const eol = /\r\n/.test(raw) ? "\r\n" : /\r/.test(raw) && !/\n/.test(raw) ? "\r" : "\n";

@@ -70,12 +70,9 @@ describe("the note address (ADR 0037)", () => {
     for (const path of refused) expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent(path)}`), path).toEqual({ ok: false, reason: "path" });
   });
 
-  it("refuses Windows device names in any segment, with or without an extension, in any case, and data streams", () => {
-    for (const path of ["NUL.md", "nul", "COM1.md", "com9.txt", "LPT3", "aux.txt", "con", "Con.md", "prn.base", "Folder/AUX/x.md", "NUL .md", "CONIN$", "a.md:hidden", "Folder:x/a.md"]) {
-      expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent(path)}`), path).toEqual({ ok: false, reason: "path" });
-    }
-    for (const path of ["Console.md", "nullable.md", "COM10.md", "Auxiliary/a.md", "LPT.md", "context.md"]) {
-      expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent(path)}`).ok, path).toBe(true);
+  it("leaves a name of an unusual shape to the index: a device name or a colon is an ordinary note on most systems", () => {
+    for (const path of ["NUL.md", "aux.txt", "Con.md", "Aux/x.md", "Meeting 10:30.md", "Re: offer.md", "Plan~1.md", "COM1.md"]) {
+      expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent(path)}`), path).toEqual({ ok: true, target: { vault: null, path } });
     }
   });
 

@@ -126,6 +126,10 @@ export interface ImportLabels {
   statusSkipped: string;
   statusDegraded: string;
   renamedToAvoidOverwrite: string;
+  /** A name this system cannot hold (a Windows device name, a colon) was respelled. Optional for existing label sets. */
+  renamedForSystem?: string;
+  /** An entry that would have gone into the app's own folders (`.plainva`, `.git`, …). Optional for existing label sets. */
+  refusedInternalPath?: string;
   noAvailableName: string;
   reservedPathOccupied: string;
   /** Names of the views generated for an imported database — these land in the user's `.base` file. */
@@ -195,6 +199,8 @@ export const DEFAULT_IMPORT_LABELS: ImportLabels = {
   statusSkipped: 'SKIPPED',
   statusDegraded: 'INCOMPLETE',
   renamedToAvoidOverwrite: 'renamed so an existing note was not overwritten',
+  renamedForSystem: 'renamed: this system cannot hold the original name',
+  refusedInternalPath: "not imported: it would have gone into Plainva's or another app's own folder",
   noAvailableName: 'no free filename among 1000 variants; existing files were preserved',
   reservedPathOccupied: 'the reserved filename is now occupied; the existing file was preserved',
   viewTable: 'Table',
@@ -259,6 +265,11 @@ export interface ImportOptions {
   generatedBy?: string;
   /** Whether to preserve file modified timestamps (mtime) */
   preserveTimestamps?: boolean;
+  /**
+   * Whether this system cannot hold a Windows device name or a colon in a
+   * file name. Detected (Windows) when omitted; tests set it.
+   */
+  reservesWindowsNames?: boolean;
   /**
    * Whether notes the source keeps in its trash come across too.
    *

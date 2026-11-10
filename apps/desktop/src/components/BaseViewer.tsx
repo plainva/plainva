@@ -1,4 +1,4 @@
-import { trimEndChars, trimChars, contentReadPath } from "@plainva/core";
+import { trimEndChars, trimChars, checkedContentPath } from "@plainva/core";
 import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
@@ -1253,7 +1253,7 @@ export function BaseViewer({
       let templateText: string | null = null;
       if (template) {
         try {
-          templateText = await vaultAdapter.readTextFile(contentReadPath(template));
+          templateText = await vaultAdapter.readTextFile(await checkedContentPath(template, (f) => vaultAdapter.listDir(f, false)));
         } catch (e) {
           console.warn("[BaseViewer] reading the template failed — creating without it", template, e);
         }
@@ -1377,7 +1377,7 @@ export function BaseViewer({
           ? async ({ title, folder }) => {
               let raw: string;
               try {
-                raw = await vaultAdapter.readTextFile(contentReadPath(template));
+                raw = await vaultAdapter.readTextFile(await checkedContentPath(template, (f) => vaultAdapter.listDir(f, false)));
               } catch (e) {
                 console.warn("[BaseViewer] reading the template failed — the entry starts empty", template, e);
                 return undefined;

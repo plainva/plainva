@@ -1,4 +1,4 @@
-import { contentReadPath } from "@plainva/core";
+import { checkedContentPath } from "@plainva/core";
 import type { IVaultAdapter } from "@plainva/core";
 import {
   buildNewNoteContent,
@@ -118,7 +118,7 @@ export async function buildNewNoteFromTemplate(req: NewNoteRequest): Promise<New
     return { content: buildNewNoteContent(type, title), caret: null, templatePath: null };
   }
 
-  const raw = await adapter.readTextFile(contentReadPath(templatePath));
+  const raw = await adapter.readTextFile(await checkedContentPath(templatePath, (f) => adapter.listDir(f, false)));
   const answered = await applyTemplateInteractive(
     raw,
     { title, now: new Date(), folder, vaultPath },

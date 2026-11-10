@@ -1,4 +1,4 @@
-import { wikiTargetForPath, type LinkVault } from "@plainva/core";
+import { contentPathRefusal, wikiTargetForPath, type LinkVault } from "@plainva/core";
 import { copyLineLink, copyNoteLink, openNoteLink, requestAnchorJump, setNoteLinkHandler, type LineLinkMode } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { vaultOps, switchVault, type MobileVault } from "./vaultService";
@@ -40,11 +40,11 @@ async function confirmSwitch(name: string): Promise<boolean> {
   return answer.value;
 }
 
-async function confirmOpenHere(vault: string, note: string): Promise<boolean> {
+async function confirmOpenHere(vault: string, note: string, ambiguous: boolean): Promise<boolean> {
   const { Dialog } = await import("@capacitor/dialog");
   const answer = await Dialog.confirm({
     title: i18n.t("noteLink.openHereTitle"),
-    message: i18n.t("noteLink.openHereMessage", { vault, note }),
+    message: i18n.t(ambiguous ? "noteLink.openHereAmbiguousMessage" : "noteLink.openHereMessage", { vault, note }),
     okButtonTitle: i18n.t("noteLink.openHereConfirm"),
     cancelButtonTitle: i18n.t("common.cancel"),
   });
@@ -57,7 +57,7 @@ export function phoneNoteLinkHandler(
   shown: LinkVault<string>,
   onOpenNote: (path: string) => void,
   ask: (name: string) => Promise<boolean> = confirmSwitch,
-  askOpenHere: (vault: string, note: string) => Promise<boolean> = confirmOpenHere,
+  askOpenHere: (vault: string, note: string, ambiguous: boolean) => Promise<boolean> = confirmOpenHere,
 ): (url: string, switched: boolean) => void {
   return (url, switched) => {
     void openNoteLink<string>(
@@ -70,8 +70,13 @@ export function phoneNoteLinkHandler(
         // The person said yes to this vault; what is unsaved on screen gets its own question first.
         switchVault: (id) =>
           new Promise<boolean>((resolve) => leaveThen(() => void switchVault(id).then(() => resolve(true), () => resolve(false)), () => resolve(false))),
-        // The index, never the disk: it holds real, visible spellings only.
-        exists: async (path) => (vault.queryService ? (await vault.queryService.fileRecords([path])).has(path) : false),
+        // The index first: it holds real, visible spellings only. A note it has
+        // not taken in yet is asked of the disk — never for an internal folder
+        // or a name of an unusual shape (F2 review).
+        exists: async (path) => {
+          if (vault.queryService && (await vault.queryService.fileRecords([path])).has(path)) return true;
+          return contentPathRefusal(path) === null && (await vault.files.exists(path).catch(() => false));
+        },
         resolveName: (name) => vaultOps.resolveWikiTarget(vault, name, "", "wiki"),
         openNote: (path, anchor) => {
           // Parked under the path: the note screen that mounts for it takes it.

@@ -49,8 +49,10 @@ export function resolveVaultRelative(target: string): string | null {
   }
   if (stack.length === 0) return null;
   const rel = stack.join("/");
-  // Content names it, so it is not followed into the app's own folders in
-  // any spelling the file system takes for them (`.Plainva/…`, `PLAINV~1`),
-  // to a device name or an alternate data stream (F2 review, 2026-11-10).
-  return contentPathRefusal(rel) === null ? rel : null;
+  // Content names it, so it is never followed into the app's own folders,
+  // in any spelling the file system takes for them (`.Plainva/…`). A name of
+  // an unusual shape (`aux.png`, `Meeting 10:30.png`, `IMG~1.JPG`) is an
+  // ordinary file on most systems: the read checks it against the vault's
+  // listing (`loadImageBlob`, `readContentBinary`), F2 review 2026-11-10.
+  return contentPathRefusal(rel) === "internal" ? null : rel;
 }

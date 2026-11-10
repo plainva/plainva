@@ -28,6 +28,7 @@ function fakeVault(indexed: string[]) {
     asked,
     vault: {
       vaultId: "local",
+      files: { exists: async () => false },
       queryService: {
         fileRecords: async (paths: readonly string[]) => {
           asked.push([...paths]);
@@ -49,7 +50,7 @@ describe("a note link on the phone", () => {
     handler("plainva://open?path=Projects%2FPlan.md&heading=Goals", false);
     await vi.waitFor(() => expect(opened).toEqual(["Projects/Plan.md"]));
     expect(requestAnchorJump).toHaveBeenCalledWith("Projects/Plan.md", "Goals");
-    for (const path of [".Plainva/sync/keyfile.json", ".plainva /sync/keyfile.json", ".pvws/operations/1.json", "com1.md"]) {
+    for (const path of [".Plainva/sync/keyfile.json", ".plainva /sync/keyfile.json", ".pvws/operations/1.json"]) {
       expect(await openNoteLink(`plainva://open?path=${encodeURIComponent(path)}`, { ...shellOf(vault) }), path).toBe("invalid");
     }
     expect(asked.flat()).not.toContain(".Plainva/sync/keyfile.json");
@@ -63,7 +64,7 @@ describe("a note link on the phone", () => {
     const handler = phoneNoteLinkHandler(vault, { key: "local", name: "On this device" }, (path) => opened.push(path), async () => true, async (v, n) => { asked.push([v, n]); return true; });
     handler("plainva://open?vault=Work&path=Projects%2FPlan.md", false);
     await vi.waitFor(() => expect(opened).toEqual(["Projects/Plan.md"]));
-    expect(asked).toEqual([["Work", "Plan"]]);
+    expect(asked).toEqual([["Work", "Projects/Plan.md"]]);
   });
 });
 

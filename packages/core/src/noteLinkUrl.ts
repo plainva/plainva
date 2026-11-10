@@ -112,9 +112,10 @@ function decodeValue(value: string): string | null {
  * refuses the app's own folders in every spelling (`.plainva`, `.Plainva`,
  * `.plainva.`), the assistant's policy and skills (`.agent`), the encrypted
  * workspace's records (`.pvws`) and every hidden file, which no surface lists
- * (decision E8). Also refused: a Windows device name (`NUL`, `com1.md`), a
- * colon (an alternate data stream, `a.md:x`) and, through
- * `contentPathRefusal`, an internal folder in any spelling.
+ * (decision E8), and through `contentPathRefusal` an internal folder in any
+ * spelling. A name of an unusual shape (`aux.md`, `Meeting 10:30.md`) is an
+ * ordinary note on most systems: the shell opens it only where its index (or,
+ * for a name of no unusual shape, its disk) holds exactly that spelling.
  */
 export function noteLinkPath(value: string): string | null {
   const path = value.normalize("NFC");
@@ -124,7 +125,7 @@ export function noteLinkPath(value: string): string | null {
   if (segments.some((segment) => segment === "" || segment === "." || segment === ".." || segment.trim() === "")) return null;
   if (isHiddenPath(path) || segments.some((segment) => segment.startsWith("."))) return null;
   const refused = contentPathRefusal(path);
-  if (refused === "internal" || refused === "device" || refused === "stream") return null;
+  if (refused === "internal") return null;
   return path;
 }
 

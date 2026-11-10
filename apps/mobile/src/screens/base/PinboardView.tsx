@@ -1,3 +1,4 @@
+import { readContentBinary } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
@@ -47,7 +48,7 @@ function CardAudio({ vault, target, alt, notePath }: { vault: MobileVault; targe
       if (!alive) return;
       for (const rel of candidates) {
         try {
-          const bin = await vault.adapter.readBinaryFile(rel);
+          const bin = await readContentBinary(vault.adapter, rel);
           if (!alive) return;
           objectUrl = URL.createObjectURL(new Blob([bin as BlobPart], { type: mimeTypeForPath(rel) }));
           setUrl(objectUrl);
@@ -88,7 +89,7 @@ function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; targe
       if (!alive) return;
       for (const rel of candidates) {
         try {
-          const bin = await vault.adapter.readBinaryFile(rel);
+          const bin = await readContentBinary(vault.adapter, rel);
           if (!alive) return;
           objectUrl = URL.createObjectURL(new Blob([bin as BlobPart]));
           setUrl(objectUrl);

@@ -1,3 +1,4 @@
+import { readContentBinary } from "@plainva/ui";
 import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll, scrolledToEnd } from "./services/chromeScroll";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
@@ -473,8 +474,9 @@ export function EditorHost({
         });
         return true;
       },
+      // A name a note embeds: checked against the vault's listing where its shape is unusual (F2 review).
       readBinaryFile: (absolutePath) =>
-        vault.adapter.readBinaryFile(absolutePath.replace(/^\/+/, "")),
+        readContentBinary(vault.adapter, absolutePath.replace(/^\/+/, "")),
       // Where an embed may point (P3, Build-91 feedback): beside the note, in
       // the attachment folder, or — as Obsidian writes it — by bare basename
       // anywhere in the vault; the wiki resolver already knows attachments.

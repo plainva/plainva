@@ -1,4 +1,14 @@
-import { contentReadPath } from "@plainva/core";
+import { contentPathRefusal } from "@plainva/core";
+
+/**
+ * A template path from settings or a database (synced content) never reads
+ * the app's own folders (F2 review). The phone never runs on Windows, so the
+ * other shapes `contentPathRefusal` knows are ordinary names here.
+ */
+function notInternal(path: string): string {
+  if (contentPathRefusal(path) === "internal") throw new Error("refused path (internal)");
+  return path;
+}
 import {
   resolveTemplateForNewNote,
   runTemplateInteractive,
@@ -144,7 +154,7 @@ export async function buildNewNoteFromTemplate(opts: {
   const path = name ? templatePathOf(name) : "";
   if (path && (await opts.exists(path).catch(() => false))) {
     return buildNewNoteFromTemplateText({
-      raw: await opts.read(contentReadPath(path)),
+      raw: await opts.read(notInternal(path)),
       vaultName: opts.vaultName,
       folder: opts.folder,
       title: opts.title,
@@ -170,7 +180,7 @@ export async function answerTemplateFile(opts: {
 }): Promise<InteractiveTemplateResult | null | undefined> {
   const path = templatePathOf(opts.template);
   if (!path || !(await opts.exists(path).catch(() => false))) return undefined;
-  return applyTemplateInteractive(await opts.read(contentReadPath(path)), {
+  return applyTemplateInteractive(await opts.read(notInternal(path)), {
     title: opts.title,
     now: new Date(),
     folder: opts.folder,

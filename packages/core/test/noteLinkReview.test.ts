@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   contentPathRefusal,
-  contentReadPath,
+  checkedContentPath,
+  contentPathIsReal,
   foldSegment,
   isInternalPath,
   isInternalSegment,
   isShortNameAlias,
   isWindowsDeviceSegment,
 } from "../src/vault/internalPath.js";
-import { planBlockLink, selectNoteFragment, type BlockLinkPlan } from "../src/noteSource.js";
+import { planBlockLink, prepareReaderSource, selectNoteFragment, type BlockLinkPlan } from "../src/noteSource.js";
+import { setTasksField, setTasksPriority } from "../src/vault/taskMetadata.js";
 import { readTasksMetadata, tasksDescription, withoutBlockId } from "../src/vault/taskMetadata.js";
 import { scanTasks } from "../src/vault/taskScan.js";
 import { setChecklistTaskDone } from "../src/vault/taskMutation.js";
@@ -44,23 +46,68 @@ describe("the app's own folders, in every spelling the file system takes for the
     expect(contentPathRefusal("Notes/a.md:secret")).toBe("stream");
     expect(contentPathRefusal("Notes/.drafts/a.md")).toBeNull();
     expect(contentPathRefusal("Projects/Plan.md")).toBeNull();
-    expect(() => contentReadPath(".Obsidian/templates/x.md")).toThrow();
-    expect(contentReadPath("Templates/Meeting.md")).toBe("Templates/Meeting.md");
   });
 
-  it("an import never writes into them", async () => {
-    const files = new Map<string, string>();
-    const vaultAdapter = {
-      async exists(path: string) { return files.has(path); },
-      async writeTextFile(path: string, content: string) { files.set(path, content); },
-      async createDir() { /* implicit */ },
+  it("follows a name of an unusual shape where the vault holds exactly that spelling, and never into an internal folder", async () => {
+    // A Mac vault: these are ordinary files.
+    const mac: Record<string, string[]> = {
+      "": ["Aux", "Templates", "scans", "IMG~1.JPG", "aux.png", "con.jpg", "nul.png", "COM1.png", "con.tagion.png", "Meeting 10:30.png", "Re: offer.pdf", "Plan~1.png", "draft~3"],
+      Aux: ["x.png"],
+      Templates: ["Meeting: weekly.md"],
+      scans: ["scan~2.pdf"],
     };
-    const writer = new ImportWriter({ targetVaultPath: "/v", vaultAdapter } as never, DEFAULT_IMPORT_LABELS);
-    for (const path of [".plainva/sync/settings.md", ".Plainva/x.md", ".git/hooks/x.md", "NUL.md"]) {
-      await expect(writer.writeNote(path, "x"), path).rejects.toThrow(/refused import path/);
+    const listMac = async (folder: string) => (mac[folder] ?? []).map((name) => ({ name }));
+    for (const path of ["IMG~1.JPG", "scans/scan~2.pdf", "Plan~1.png", "draft~3", "Meeting 10:30.png", "Re: offer.pdf", "aux.png", "con.jpg", "nul.png", "COM1.png", "con.tagion.png", "Aux/x.png", "Templates/Meeting: weekly.md", "Projects/Plan.md"]) {
+      expect(await contentPathIsReal(path, listMac), path).toBe(true);
+      expect(await checkedContentPath(path, listMac)).toBe(path);
     }
-    await writer.writeNote("Notes/fine.md", "ok");
-    expect([...files.keys()]).toEqual(["Notes/fine.md"]);
+    // Windows: none of these spellings is in a listing; `PLAINV~1` is `.plainva`.
+    const win: Record<string, string[]> = { "": [".plainva", "Attachments", "Templates"], Templates: ["Meeting.md"] };
+    const listWin = async (folder: string) => (win[folder] ?? []).map((name) => ({ name }));
+    for (const path of ["PLAINV~1/sync/keyfile.json", "aux.png", "Aux/x.png", "img.png:stream", "Templates/Meeting: weekly.md"]) {
+      expect(await contentPathIsReal(path, listWin), path).toBe(false);
+      await expect(checkedContentPath(path, listWin), path).rejects.toThrow();
+    }
+    expect(await checkedContentPath("Templates/Meeting.md", listWin)).toBe("Templates/Meeting.md");
+    // Internal folders never, whatever the listing says; without a listing an unusual shape is not followed.
+    expect(await contentPathIsReal(".Obsidian/templates/x.md", listMac)).toBe(false);
+    await expect(checkedContentPath(".Obsidian/templates/x.md", null)).rejects.toThrow();
+    await expect(checkedContentPath("aux.png", null)).rejects.toThrow();
+    expect(await checkedContentPath("Templates/Meeting.md", null)).toBe("Templates/Meeting.md");
+  });
+
+  it("an import never writes into them, says why in words, and keeps or respells a name only where the system needs it", async () => {
+    const vault = () => {
+      const files = new Map<string, string>();
+      return {
+        files,
+        adapter: {
+          async exists(path: string) { return files.has(path); },
+          async writeTextFile(path: string, content: string) { files.set(path, content); },
+          async writeBinaryFile(path: string) { files.set(path, "<bytes>"); },
+          async createDir() { /* implicit */ },
+        },
+      };
+    };
+    const mac = vault();
+    const onMac = new ImportWriter({ targetVaultPath: "/v", vaultAdapter: mac.adapter, stampOkfMetadata: false, reservesWindowsNames: false } as never, DEFAULT_IMPORT_LABELS);
+    for (const path of [".plainva/sync/settings.md", ".Plainva/x.md", ".git/hooks/x.md"]) {
+      await expect(onMac.writeNote(path, "x"), path).rejects.toThrow(DEFAULT_IMPORT_LABELS.refusedInternalPath!);
+    }
+    for (const path of ["Con.md", "Aux/a.md", "Meeting 10:30.md", "Notes/fine.md"]) await onMac.writeNote(path, "ok");
+    expect([...mac.files.keys()]).toEqual(["Con.md", "Aux/a.md", "Meeting 10:30.md", "Notes/fine.md"]);
+
+    const win = vault();
+    const onWindows = new ImportWriter({ targetVaultPath: "C:/v", vaultAdapter: win.adapter, stampOkfMetadata: false, reservesWindowsNames: true } as never, DEFAULT_IMPORT_LABELS);
+    expect(await onWindows.writeNote("Con.md", "ok")).toBe("Con_.md");
+    expect(await onWindows.writeNote("Aux/a.md", "ok")).toBe("Aux_/a.md");
+    expect(await onWindows.writeNote("Meeting 10:30.md", "ok")).toBe("Meeting 10-30.md");
+    expect(await onWindows.reserve("nul")).toBe("nul_");
+    expect(await onWindows.writeNote("Notes/fine.md", "ok")).toBe("Notes/fine.md");
+    // The report names the respelling, not "renamed to avoid overwriting".
+    const report = (onWindows as unknown as { items: Array<{ path: string; details?: string }> }).items;
+    expect(report.find((i) => i.path === "Con_.md")?.details).toBe(DEFAULT_IMPORT_LABELS.renamedForSystem);
+    expect(report.find((i) => i.path === "Notes/fine.md")?.details).toBeUndefined();
   });
 });
 
@@ -97,6 +144,22 @@ describe("where a block id goes (F2 review, point 6)", () => {
     const c = apply(cont, planBlockLink(cont, cont.indexOf("continued"), zeros));
     expect(c).toBe("- item\n  continued here ^aaaaaa\n- next\n");
     expect(selectNoteFragment(c, "^aaaaaa")).toMatchObject({ status: "found", text: "- item\n  continued here ^aaaaaa" });
+  });
+
+  it("reuses an id Obsidian wrote at the end of a quote's paragraph instead of adding a second one", () => {
+    const quote = "> a quote\n> two lines ^abc\n\nAfter";
+    expect(planBlockLink(quote, 0, zeros)).toEqual({ kind: "block", id: "abc", insert: null });
+  });
+
+  it("the reading view leaves out an id on a line of its own, and the anchor lands on the block", () => {
+    const text = "> [!note] Title\n> Body text\n\n^aaaaaa\n\nAfter\n";
+    const reader = prepareReaderSource(text, { formatDate: () => "" });
+    expect(reader.text).not.toContain("^aaaaaa");
+    expect(reader.text).toContain("Body text");
+    expect(selectNoteFragment(text, "^aaaaaa")).toMatchObject({ status: "found", range: { line: 1 } });
+    const table = "| A |\n| - |\n| B |\n\n^tab001\n";
+    expect(prepareReaderSource(table, { formatDate: () => "" }).text).not.toContain("^tab001");
+    expect(selectNoteFragment(table, "^tab001")).toMatchObject({ status: "found", range: { line: 1 } });
   });
 
   it("keeps the last line without a line end, CRLF, and reuses what already looks like an id", () => {
@@ -137,8 +200,18 @@ describe("a block id on a task line breaks nothing (F2 review, point 5)", () => 
     expect(scanTasks(plain.content)).toHaveLength(2);
   });
 
-  it("a ^word inside the text is still not trusted", () => {
+  it("a ^word inside the text, or one at the end that is no block id, is still not trusted", () => {
     expect(readTasksMetadata("Note ^tag here 🔁 every week 📅 2026-12-01").repeatRule).toBeNull();
+    // `_` is no block-id character: `^my_id` stays distrusted, as before F2, and is never treated as the id.
+    expect(readTasksMetadata("x 🔁 every day ^my_id").repeatRule).toBeNull();
+    expect(withoutBlockId("x 🔁 every day ^my_id")).toBe("x 🔁 every day ^my_id");
+    expect(scanTasks("- [ ] x 🔁 every day 📅 2026-12-01 ^my_id")[0].recurrenceSupported).toBe(false);
+  });
+
+  it("every task writer puts a field in front of THE block id, and only that one", () => {
+    expect(setTasksField("Pay 📅 2026-12-01 ^k3x9qa", "completed", "2026-11-10")).toBe("Pay 📅 2026-12-01 ✅ 2026-11-10 ^k3x9qa");
+    expect(setTasksField("Pay ^my_id", "completed", "2026-11-10")).toBe("Pay ^my_id ✅ 2026-11-10");
+    expect(setTasksPriority("Pay ^k3x9qa", 1)).toBe("Pay ⏫ ^k3x9qa");
   });
 });
 

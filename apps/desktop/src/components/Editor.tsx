@@ -35,7 +35,7 @@ import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from 
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -2704,7 +2704,13 @@ export const Editor: React.FC<{
       onPickIcon: setIconPicker,
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
-      readBinaryFile: (absolutePath) => readFile(absolutePath),
+      // A name a note embeds: checked against the vault's listing where its shape is unusual (F2 review).
+      readBinaryFile: async (absolutePath) => {
+        const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/";
+        const normalized = absolutePath.replace(/\\/g, "/");
+        if (vaultAdapter && normalized.startsWith(root)) await checkedContentPath(normalized.slice(root.length), (folder) => vaultAdapter.listDir(folder, false));
+        return readFile(absolutePath);
+      },
       // The `[[Note#` completion lists that note's headings (issue #92).
       readNote: (p) => (vaultAdapter ? vaultAdapter.readTextFile(p).catch(() => null) : Promise.resolve(null)),
       // Where an embed may point (P3, Build-91 feedback): beside the note or,

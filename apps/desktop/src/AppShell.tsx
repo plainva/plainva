@@ -1266,7 +1266,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   useQuickCaptureSink();
   // Note links (F2, ADR 0037): from the system and clicked anywhere in the app.
   const { recentVaults, openVault } = useVault();
-  useDesktopNoteLinks({ vaultPath, recentVaults, openVault, queryService, openNote: (path) => openInFocusedPane(path, false) });
+  useDesktopNoteLinks({ vaultPath, recentVaults, openVault, queryService, vaultAdapter, openNote: (path) => openInFocusedPane(path, false) });
   // This vault's day boundary, published once for every way into the journal (X2).
   useDayBoundary();
   useEffect(() => {

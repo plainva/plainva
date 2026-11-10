@@ -79,16 +79,20 @@ else.** So a path with any segment that starts with a dot is refused: the
 app's own folders in every spelling (`.plainva`, `.Plainva`, `.plainva.`),
 the assistant's policy and skills (`.agent`), the encrypted workspace's
 records (`.pvws`) and every hidden file, which no surface lists (decision
-E8). Also refused: a Windows device name in any segment, with or without an
-extension and in any case (`NUL`, `com1.md`, `aux.txt`), on every platform
-— a link is written on one system and opened on another —, and a colon (an
-alternate data stream, `a.md:x`).
+E8). A name of an unusual shape — a Windows device name (`NUL`, `com1.md`,
+`aux.txt`), a colon (`Meeting 10:30.md`), an 8.3 short name — is an ordinary
+note on macOS, Linux, Android and iOS, and is opened only where the index
+holds exactly that spelling (the disk is never asked for it); on Windows no
+such file can exist, so the same link opens nothing there.
 
-The file is looked up in the open vault's **index**, never on the disk: the
-index holds real, visible spellings only, so a spelling the file system
-would take for another file (`.Plainva`, `PLAINV~1`, `NUL`) never matches.
-The path that is finally opened, after the link rule led there, is checked
-once more by the same rules.
+The file is looked up in the open vault's **index** first: the index holds
+real, visible spellings only, so a spelling the file system would take for
+another file (`.Plainva`, `PLAINV~1`, `NUL`) never matches. A note the index
+has not taken in yet (a first scan of a large vault, a note just synced) is
+asked of the disk — only for a path that is not internal and has no unusual
+shape. The path that is finally opened, after the link rule led there, is
+checked once more: nothing hidden, nothing internal, nothing the system
+would run.
 
 ### What it does
 
@@ -143,8 +147,11 @@ is not created.
 
 An address waits in one inbox until a vault is open (a cold start). It waits
 one minute at most, counted only while the app could take it — not while a
-vault loads —, and is then dropped without a word. Only one question about a
-link is ever open: a link that arrives while one is open is dropped, and an
+vault loads —, and is then dropped without a word; a link the person agreed
+to switch vaults for waits for that switch, however long the vault takes to
+open (at most a quarter of an hour). Only one question about a link is ever
+open: a link that arrives while one is open is dropped — the first such one
+with a word that the open question comes first, a flood after it silently —, and an
 address that is already waiting is not kept twice (in the inbox and on the
 Rust side). The central window comes forward only when a link opens a note
 or asks about one, never for a link it drops. A link clicked in any other
@@ -194,6 +201,24 @@ in the one open path every way shares, not in the link.
 - Links copied on one device open on another as long as the vault has the
   same name there — or, when it does not, after one question, if the note is
   in the vault that is shown. Renaming a vault breaks the links that name it.
+- Internal folders are now matched in every spelling (letter case, trailing
+  dots and spaces), in the app and in the native walk alike. A hidden user
+  folder that only differs in case from an internal one — `.Trash`, `.Cache`,
+  `.Idea`, `.Venv`, `Node_Modules`, `__PyCache__` — was indexed and synced
+  before and is internal now: the index forgets it silently (no deletion is
+  sent), the copies on the remote stay, changes from the remote still land
+  on the disk, local edits there are no longer pushed, and the phone's backup
+  walk leaves it out.
+- Names of an unusual shape — a Windows device name (`aux.png`), a colon
+  (`Meeting 10:30.png`), an 8.3 short name (`IMG~1.JPG`) — are ordinary files
+  on macOS, Linux, Android and iOS. Wherever content names a path (links,
+  embeds, covers, card images, templates, the assistant's reads), such a
+  name is followed only where the vault holds exactly that spelling (the
+  index, or the listing of its folder); on Windows the same spelling never
+  reaches a device, a hidden stream or another folder. An import keeps such
+  a name, and only on Windows spells it so the system can hold it (`Con_`,
+  `-` for `:`), and says so in its report; an entry that would land in an
+  internal folder is not imported, also said in the report.
 - A vault name is visible in every copied link. It is the name the person
   gave or the folder's name, never a path.
 - The format is a contract: it is documented in the user guide, and a change

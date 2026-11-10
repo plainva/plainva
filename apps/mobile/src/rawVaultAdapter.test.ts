@@ -82,6 +82,10 @@ const SITES: Record<string, Site[]> = {
     ["handed to scaffoldVaultTemplate as adapter", 1, FIRST_VAULT],
   ],
   "BookmarksScreen.tsx": [["handed to useBookmarkTargets", 1, READS_ONLY]],
+  // A file a note names (an embed, a card picture): read, after the check of its name (F2 review).
+  "EditorHost.tsx": [["handed to readContentBinary", 1, READS_ONLY]],
+  "screens/base/BaseScreen.tsx": [["handed to readContentBinary", 1, READS_ONLY]],
+  "screens/base/PinboardView.tsx": [["handed to readContentBinary", 2, READS_ONLY]],
   // A conflict copy of a file that is no text takes the file's place byte for
   // byte; what it replaces is kept as a version first, whatever the interval says.
   "components/ConflictCompareSheet.tsx": [["calls forceBackup", 1, VERSIONS_LAYER]],

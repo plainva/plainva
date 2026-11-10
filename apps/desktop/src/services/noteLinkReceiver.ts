@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { VaultQueryService } from "@plainva/core";
+import { contentPathRefusal, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { copyNoteLink, deliverNoteLink, openNoteLink, requestAnchorJump, resolveOpenAction, setNoteLinkHandler, useStableHandler, type NoteLinkShell } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { appConfirm } from "./appDialogs";
@@ -58,11 +58,11 @@ export function listenForSystemNoteLinks(): void {
  */
 async function bringForward(): Promise<void> {
   try {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const win = getCurrentWindow();
-    await win.unminimize();
-    await win.show();
-    await win.setFocus();
+    // The same means the second launch of the app uses (the single-instance
+    // callback in src-tauri/src/lib.rs): the Rust side unminimizes, shows and
+    // focuses the central window in one call.
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("note_link_bring_forward");
   } catch {
     // The browser of the E2E suite: there is no window to bring.
   }
@@ -87,6 +87,7 @@ export interface DesktopNoteLinkDeps {
   recentVaults: readonly string[];
   openVault: (path: string) => Promise<boolean>;
   queryService: Pick<VaultQueryService, "resolveNotePath" | "fileRecords"> | null | undefined;
+  vaultAdapter?: Pick<IVaultAdapter, "exists"> | null;
   openNote: (path: string) => void;
 }
 
@@ -99,6 +100,8 @@ export function desktopNoteLinkShell(deps: {
   vaultPath: string;
   recentVaults: readonly string[];
   queryService: Pick<VaultQueryService, "resolveNotePath" | "fileRecords">;
+  /** The disk, asked only for a path the index does not hold yet and whose name has no unusual shape. */
+  vaultAdapter?: Pick<IVaultAdapter, "exists"> | null;
   openVault: (path: string) => Promise<boolean>;
   openNote: (path: string) => void;
   confirm?: typeof appConfirm;
@@ -119,18 +122,23 @@ export function desktopNoteLinkShell(deps: {
         confirmLabel: i18n.t("noteLink.switchConfirm"),
       });
     },
-    confirmOpenHere: async (vault, note) => {
+    confirmOpenHere: async (vault, note, ambiguous) => {
       await forward();
       return confirm({
         title: i18n.t("noteLink.openHereTitle"),
-        message: i18n.t("noteLink.openHereMessage", { vault, note }),
+        message: i18n.t(ambiguous ? "noteLink.openHereAmbiguousMessage" : "noteLink.openHereMessage", { vault, note }),
         kind: "info",
         confirmLabel: i18n.t("noteLink.openHereConfirm"),
       });
     },
     switchVault: (path) => deps.openVault(path).catch(() => false),
-    // The index, never the disk: it holds real, visible spellings only.
-    exists: (path) => queryService.fileRecords([path]).then((found) => found.has(path)),
+    // The index first: it holds real, visible spellings only. A note it has not
+    // taken in yet (a first scan, a note just synced) is asked of the disk —
+    // never for an internal folder or a name of an unusual shape (F2 review).
+    exists: async (path) => {
+      if ((await queryService.fileRecords([path])).has(path)) return true;
+      return !!deps.vaultAdapter && contentPathRefusal(path) === null && (await deps.vaultAdapter.exists(path).catch(() => false));
+    },
     resolveName: (name) => queryService.resolveNotePath(name),
     openNote: (path, anchor) => {
       void forward();
@@ -145,15 +153,15 @@ export function desktopNoteLinkShell(deps: {
 export function useDesktopNoteLinks(deps: DesktopNoteLinkDeps): void {
   const openNote = useStableHandler(deps.openNote);
   const openVault = useStableHandler(deps.openVault);
-  const { vaultPath, recentVaults, queryService } = deps;
+  const { vaultPath, recentVaults, queryService, vaultAdapter } = deps;
   useEffect(() => {
     listenForSystemNoteLinks();
   }, []);
   useEffect(() => {
     if (!vaultPath || !queryService) return;
-    const shell = desktopNoteLinkShell({ vaultPath, recentVaults, queryService, openVault, openNote });
+    const shell = desktopNoteLinkShell({ vaultPath, recentVaults, queryService, vaultAdapter, openVault, openNote });
     return setNoteLinkHandler((url, switched) => void openNoteLink<string>(url, shell, switched));
-  }, [vaultPath, recentVaults, queryService, openNote, openVault]);
+  }, [vaultPath, recentVaults, queryService, vaultAdapter, openNote, openVault]);
 }
 
 /** "Copy link" of a note, a database or another file Plainva shows itself — the file's address, its place in it optional. */

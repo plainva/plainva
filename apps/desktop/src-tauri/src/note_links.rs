@@ -99,6 +99,18 @@ fn keep(waiting: &mut Vec<String>, urls: Vec<String>) -> bool {
     added
 }
 
+/// Brings the central window forward — out of the tray and the taskbar —
+/// when a note link opens a note or asks about one: the same calls the
+/// single-instance callback makes for a second launch (src/lib.rs).
+#[tauri::command]
+pub fn note_link_bring_forward<R: Runtime>(app: AppHandle<R>) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
 /// The addresses that arrived since the last call, oldest first.
 #[tauri::command]
 pub fn note_links_take(state: tauri::State<'_, NoteLinks>) -> Vec<String> {

@@ -1,4 +1,4 @@
-import { contentPathRefusal, explicitLinkPath, isNoteLinkAddress, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
+import { contentPathIsReal, contentPathRefusal, explicitLinkPath, isNoteLinkAddress, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
 import { externalUrlToOpen } from "./externalUrl";
 import { splitLinkAnchor } from "./linkAnchor";
 import { wikiTargetToPath } from "./wikiResolver";
@@ -145,9 +145,12 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
     // The index follows a save by one pass: a note that is there is opened, not created twice.
     // The disk is asked only for a path content may lead to (F2 review): never
     // the app's own folders in any spelling, a device name or a data stream.
-    // Neither opened nor created there: a link does not reach into them.
-    if (contentPathRefusal(path) !== null) return { action: "notFound", target: split.target };
+    // Never opened or created in the app's own folders (F2 review). A name
+    // of an unusual shape opens where the disk holds exactly it (the probe
+    // checks the listing) and is created only where the system can hold it.
+    if (contentPathRefusal(path) === "internal") return { action: "notFound", target: split.target };
     if (await fileThere(path)) return { action: "open", path, anchor };
+    if (!creatableHere(path)) return { action: "notFound", target: split.target };
     return { action: "create", target: split.target, path, title };
   }
 
@@ -168,7 +171,7 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
   // same: the places the target names as paths are asked of the disk, in the
   // rule's order. The app's own folders are no link targets.
   for (const place of markdownLinkPlaces(link.sourcePath ?? "", target)) {
-    if (place.path !== "" && contentPathRefusal(place.path) !== null) continue;
+    if (place.path !== "" && contentPathRefusal(place.path) === "internal") continue;
     if (place.kind === "file") {
       if (await fileThere(place.path)) return { action: "open", path: place.path, anchor };
     } else if (place.path === "" || (await folderThere(place.path))) {
@@ -179,14 +182,36 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
 
   if (isBareNoteName(target)) {
     const place = markdownLinkNotePlace(link.sourcePath ?? "", target);
-    if (place && contentPathRefusal(place.path) === null) return { action: "create", target, ...place };
+    if (place && contentPathRefusal(place.path) !== "internal" && creatableHere(place.path)) return { action: "create", target, ...place };
   }
   return { action: "notFound", target };
 }
 
-/** What `planLinkOpen` asks of the disk, over a vault adapter: `exists` alone cannot tell a file from a folder. */
-export function linkDiskProbe(adapter: { exists(path: string): Promise<boolean>; getFileInfo(path: string): Promise<{ isDirectory: boolean }> }): Pick<LinkOpenDeps, "fileExists" | "folderExists"> {
-  const isFolder = async (path: string): Promise<boolean | null> => ((await adapter.exists(path)) ? (await adapter.getFileInfo(path)).isDirectory : null);
+/**
+ * Whether a link may create a note at `path` on this system: a Windows device
+ * name or a colon is an ordinary name everywhere but on Windows, where the
+ * file cannot exist (F2 review). The phone never runs on Windows.
+ */
+function creatableHere(path: string): boolean {
+  const refused = contentPathRefusal(path);
+  if (refused !== "device" && refused !== "stream") return true;
+  return !(typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent ?? ""));
+}
+
+/**
+ * What `planLinkOpen` asks of the disk, over a vault adapter: `exists` alone
+ * cannot tell a file from a folder. A name of an unusual shape (a device name,
+ * a colon, an 8.3 alias) counts only where the vault's listing holds exactly
+ * it — on Windows `aux.md` or `PLAINV~1` is never a file of the vault.
+ */
+export function linkDiskProbe(adapter: { exists(path: string): Promise<boolean>; getFileInfo(path: string): Promise<{ isDirectory: boolean }>; listDir?(path?: string, recursive?: boolean): Promise<readonly { name: string }[]> }): Pick<LinkOpenDeps, "fileExists" | "folderExists"> {
+  const real = async (path: string): Promise<boolean> => {
+    const refused = contentPathRefusal(path);
+    if (refused === null) return true;
+    if (refused === "internal" || !adapter.listDir) return false;
+    return contentPathIsReal(path, (folder) => adapter.listDir!(folder, false));
+  };
+  const isFolder = async (path: string): Promise<boolean | null> => ((await real(path)) && (await adapter.exists(path)) ? (await adapter.getFileInfo(path)).isDirectory : null);
   return {
     fileExists: async (path) => (await isFolder(path)) === false,
     folderExists: async (path) => (await isFolder(path)) === true,

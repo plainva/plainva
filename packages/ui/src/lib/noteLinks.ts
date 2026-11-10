@@ -47,7 +47,16 @@ interface Waiting {
   switched: boolean;
   /** Milliseconds it waited while a vault could have taken it. */
   waited: number;
+  /** When it was parked — a link waiting for a switch the person agreed to runs on this clock alone. */
+  parkedAt: number;
 }
+
+/**
+ * A link the person just agreed to switch vaults for does not expire while
+ * that switch runs, however long a large vault takes to open — only a switch
+ * that never came lets it go, after this long.
+ */
+const SWITCH_LIFETIME_MS = 15 * 60_000;
 
 let waiting: Waiting[] = [];
 let handler: ((url: string, switched: boolean) => void) | null = null;
@@ -55,6 +64,8 @@ let handler: ((url: string, switched: boolean) => void) | null = null;
 let vaultLoading = true;
 let clock: () => number = () => Date.now();
 let clockMark = clock();
+/** Whether the person was already told, for the question that is open, that a link waits for its answer. */
+let toldToAnswer = false;
 /** A question (switch, open here) is open: further links are dropped, not queued behind it. */
 let asking = false;
 /** Addresses being opened right now: the same one again is the same click, not a second one. */
@@ -63,17 +74,17 @@ const inFlight = new Set<string>();
 /** Advances the waiting clocks and lets go of what waited too long — silently. */
 function tick(): void {
   const at = clock();
-  if (!vaultLoading) for (const entry of waiting) entry.waited += at - clockMark;
+  if (!vaultLoading) for (const entry of waiting) if (!entry.switched) entry.waited += at - clockMark;
   clockMark = at;
   const before = waiting.length;
-  waiting = waiting.filter((entry) => entry.waited <= NOTE_LINK_LIFETIME_MS);
+  waiting = waiting.filter((entry) => (entry.switched ? at - entry.parkedAt <= SWITCH_LIFETIME_MS : entry.waited <= NOTE_LINK_LIFETIME_MS));
   if (waiting.length < before) logDiagnostic("note-link", `dropped ${before - waiting.length} address(es) nobody took in time`);
 }
 
 function park(url: string, switched: boolean): void {
   tick();
   if (waiting.some((entry) => entry.url === url)) return;
-  waiting = [...waiting, { url, switched, waited: 0 }].slice(-MAX_WAITING);
+  waiting = [...waiting, { url, switched, waited: 0, parkedAt: clock() }].slice(-MAX_WAITING);
 }
 
 /**
@@ -116,6 +127,7 @@ export function resetNoteLinkInbox(now?: () => number): void {
   waiting = [];
   handler = null;
   asking = false;
+  toldToAnswer = false;
   inFlight.clear();
   clock = now ?? (() => Date.now());
   clockMark = clock();
@@ -134,7 +146,7 @@ export interface NoteLinkShell<K> {
    * Asks whether to open the note in the vault that is shown, when the vault
    * the address names is not on this device (or not by that name).
    */
-  confirmOpenHere: (vaultName: string, noteName: string) => Promise<boolean>;
+  confirmOpenHere: (vaultName: string, notePath: string, ambiguous: boolean) => Promise<boolean>;
   /**
    * Switches. The link waits and is opened by the handler of the new vault;
    * `false` says the switch did not happen (the person kept unsaved work),
@@ -168,6 +180,7 @@ export type NoteLinkOutcome =
 async function askOnce(question: () => Promise<boolean>): Promise<boolean | null> {
   if (asking) return null;
   asking = true;
+  toldToAnswer = false;
   try {
     return await question();
   } finally {
@@ -178,8 +191,8 @@ async function askOnce(question: () => Promise<boolean>): Promise<boolean | null
 /** Whether a path the shell found may be opened by a link: what Plainva shows itself, nothing hidden, nothing the system runs. */
 function openableByLink(path: string): boolean {
   if (isHiddenPath(path)) return false;
-  const refused = contentPathRefusal(path);
-  if (refused === "internal" || refused === "device" || refused === "stream") return false;
+  // The path came from the index or the link rule: a real spelling of this vault.
+  if (contentPathRefusal(path) === "internal") return false;
   return resolveOpenAction(path) !== "external";
 }
 
@@ -193,6 +206,11 @@ export async function openNoteLink<K>(url: string, shell: NoteLinkShell<K>, swit
   // A burst of the same address (a double click, a flood from outside) opens once.
   if (inFlight.has(url) || asking) {
     logDiagnostic("note-link", asking ? "dropped an address while a question was open" : "dropped a repeated address");
+    // Once per open question: a second click is told why nothing happens; a flood after it is not.
+    if (asking && !inFlight.has(url) && !toldToAnswer) {
+      toldToAnswer = true;
+      toast.info(i18n.t("noteLink.answerFirst"));
+    }
     return "busy";
   }
   inFlight.add(url);
@@ -219,7 +237,8 @@ async function openNoteLinkOnce<K>(url: string, shell: NoteLinkShell<K>, switche
     if (target.vault && shell.shownVault) {
       const here = await resolveNoteLinkTarget(target, shell);
       if (here && openableByLink(here)) {
-        const yes = await askOnce(() => shell.confirmOpenHere(target.vault!, noteNameOf(here)));
+        // The path of the note that will open: the link rule may lead to another folder than the address named.
+        const yes = await askOnce(() => shell.confirmOpenHere(target.vault!, here, choice.kind === "ambiguous"));
         if (yes === null) return "busy";
         if (!yes) return "declined";
         shell.openNote(here, noteLinkAnchor(target));
