@@ -1,0 +1,30 @@
+{
+  "tolerance": 1.25,
+  "count": 10000,
+  "environments": {
+    "win32-x64-amd-ryzen-ai-9-hx-370-w-radeon-890m": {
+      "recorded": "2026-11-10",
+      "node": "v24.17.0",
+      "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
+      "calibrationMs": 932.42,
+      "ratios": {
+        "coldIndexMs": 60.37573,
+        "warmIndexMs": 0.75963,
+        "saveP50Ms": 0.00659,
+        "saveP95Ms": 0.00824,
+        "searchMs": 0.07956,
+        "listTasksMs": 0.69654
+      },
+      "ms": {
+        "coldIndexMs": 56295.54,
+        "warmIndexMs": 708.29,
+        "saveP50Ms": 6.14,
+        "saveP95Ms": 7.68,
+        "searchMs": 74.18,
+        "listTasksMs": 649.47
+      },
+      "dbBytes": 105345024,
+      "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94"
+    }
+  }
+}

@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "test:e2e:prod": "playwright test --config playwright.prod.config.ts",
     "smoke:prod": "pnpm build && pnpm test:e2e:prod",
+    "perf:browser": "vite build && playwright test --config playwright.perf.config.ts",
     "scan:engine-floor": "node scripts/scan-engine-floor.mjs",
     "test:native": "wdio run ./wdio.conf.ts"
   },

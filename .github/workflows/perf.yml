@@ -1,0 +1,90 @@
+name: Performance
+
+# The performance budgets of the performance plan (package L0, decision E4):
+# the core measurement on the 10 000-note fixture and the start bundles of
+# both shells, each against a baseline in the repository. How the baselines
+# work and how to record one: docs/engineering/Performance_Notes.md,
+# "Performance gates". The browser measurement is a report and runs by hand
+# (`pnpm perf:browser`), not here.
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Performance budget (core)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # The baseline this job is held against (core-baseline.json). A runner
+      # image change can move the ratios: record anew when it does.
+      PERF_ENV: github-ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Core measurement against the baseline
+        run: pnpm perf:core --json "$RUNNER_TEMP/perf-core.json"
+
+      - name: Keep the measurement
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-core
+          path: ${{ runner.temp }}/perf-core.json
+          if-no-files-found: ignore
+
+  bundle:
+    name: Bundle budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start bundles against the baseline
+        run: pnpm perf:bundle --json "$RUNNER_TEMP/perf-bundle.json"
+
+      - name: Keep the measurement
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-bundle
+          path: ${{ runner.temp }}/perf-bundle.json
+          if-no-files-found: ignore

@@ -1,0 +1,51 @@
+{
+  "growth": 0.02,
+  "budgets": {
+    "desktop": {
+      "startBytes": 3500000
+    },
+    "mobile": {
+      "startBytes": 3500000,
+      "entryBytes": 400000
+    }
+  },
+  "mustNotStart": [
+    {
+      "family": "packages/core/src/ai/",
+      "expected": {
+        "desktop": "fail",
+        "mobile": "fail"
+      },
+      "until": "package L5"
+    },
+    {
+      "family": "packages/ui/src/ai/",
+      "expected": {
+        "desktop": "fail",
+        "mobile": "fail"
+      },
+      "until": "package L5"
+    },
+    {
+      "family": "packages/core/src/import/adapters/",
+      "expected": {
+        "desktop": "fail",
+        "mobile": "fail"
+      },
+      "until": "package L5"
+    }
+  ],
+  "shells": {
+    "desktop": {
+      "startBytes": 7365725,
+      "startGzipBytes": 2270641,
+      "entryBytes": 87621
+    },
+    "mobile": {
+      "startBytes": 8400204,
+      "startGzipBytes": 2513859,
+      "entryBytes": 1078751
+    }
+  },
+  "recorded": "2026-11-10"
+}

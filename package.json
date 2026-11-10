@@ -15,6 +15,9 @@
     "test": "turbo run test",
     "test:all": "turbo run test && pnpm --filter desktop test:e2e && pnpm --filter desktop smoke:prod && pnpm --filter mobile smoke:prod",
     "typecheck": "turbo run typecheck",
+    "perf:core": "pnpm --filter @plainva/core perf:gate",
+    "perf:bundle": "node scripts/perf/bundle-gate.mjs",
+    "perf:browser": "pnpm --filter desktop perf:browser",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node", "vitest"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/perf/**/*.ts", "scripts/benchmark-large-vault.ts"]
 }

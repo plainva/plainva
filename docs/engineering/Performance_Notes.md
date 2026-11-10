@@ -1,6 +1,6 @@
 # Performance Notes (Measurement Guide)
 
-Last reviewed: 2026-09-14
+Last reviewed: 2026-11-10
 
 This document records measurement budgets, fixture methods and structural changes.
 The [September large-vault report](Performance_Large_Vault_2026-09-14.md) adds native
@@ -42,7 +42,207 @@ node scripts/gen-test-vault.mjs C:/tmp/plainva-vault-5k 5000
 node scripts/gen-test-vault.mjs C:/tmp/plainva-vault-20k 20000
 ```
 
-Deterministically seeded (comparable runs): ~sqrt(n) folders, OKF frontmatter, ~5 wiki links per note, tags, date property, a few `.base` files.
+Since 2026-11-10 this writes the fixture vault of the performance gates (see "Performance gates" below): deterministic, named by a digest, with realistic note sizes, properties, tasks, links of every kind, attachments and `.base` files. Vaults from the earlier version of the script (one note size, ~5 wiki links each) are not comparable with it.
+
+## Performance gates (performance plan L0, 2026-11-10)
+
+Three commands from the repository root. Two are gates in CI (`.github/workflows/perf.yml`,
+jobs "Performance budget (core)" and "Bundle budget"), one is a report (decision E4 of the plan:
+browser timings on a shared runner move too much for a verdict).
+
+```
+pnpm perf:core               # core measurement, 10 000 notes, against core-baseline.json
+pnpm perf:core --update      # record this run as this environment's baseline
+pnpm perf:bundle             # build both shells, start bytes against bundle-baseline.json
+pnpm perf:bundle --update    # record the builds as the baseline
+pnpm perf:browser            # build the desktop bundle, measure in Chromium, write a report
+```
+
+**The fixture vault** (`packages/core/scripts/perf/fixtureVault.ts`) is the one every
+measurement uses, also `scripts/gen-test-vault.mjs` and `benchmark-large-vault.ts`. It is
+deterministic and named by a digest over all paths and bytes; `perf-fixture-vault.test.ts`
+pins the digest of the 1 000-note vault, so changing the generator is a decision that voids
+every baseline. Shape: one note with 80 tables over about 19 600 lines, 6 % daily notes, the
+rest in a PARA-like tree; 60 % short notes (0.3–1.5 KB), 30 % medium, 9 % long, 1 % very long
+with tables; 65 % with properties, about 40 % with tasks (dates on half of them), wiki links
+with aliases and headings, Markdown links, embeds, callouts, code, 2 % CJK or Thai text;
+`count / 40` attachments (images and PDFs), `count / 2000` `.base` files (at least 3).
+10 000 notes are 34.7 MB on disk. The core measurement leaves the long table note out
+(`longTableNote: false`, 33.1 MB): the Markdown parser needs minutes for that one note (see
+"Many tables in one note" below), and it would be the whole cold index instead of one note
+in 10 000. The browser report keeps it, it is the editor's case.
+
+**Core gate.** `core-gate.ts` runs `coreBenchmark.ts` on 10 000 notes (disk and `node:sqlite`,
+WAL on) and gates six times and one size: cold index, a pass without changes (median of 3),
+re-reading one saved note (median and 95th percentile of 40), search with 50 hits (median of
+36), `listTasks` (median of 5), and the index size in bytes. A metric fails when it is more
+than 25 % worse than the baseline.
+
+Why the baseline is not a number in milliseconds: a GitHub runner is slower and noisier than a
+developer's laptop, and a baseline measured on one is wrong on the other. Two measures make the
+gate trustworthy on the runner:
+
+1. *Ratios against a calibration loop of the same run.* `calibrate()` runs a fixed piece of the
+   same kind of work — Markdown parsing in JavaScript, FTS5 inserts, searches and deletes on a
+   SQLite file in the same temp folder — before, between and after the workload; the median of
+   the three is the run's calibration. Every time is stored and compared as `time /
+   calibration`. A machine twice as slow doubles both, and the ratio stays; a code change moves
+   only the time. Sampling three times absorbs a neighbour process that slows the machine for a
+   while.
+2. *A baseline per environment.* A ratio still drifts between machines (disk, cache sizes, CPU
+   generation, Windows against Linux), so `core-baseline.json` keeps one entry per environment —
+   `PERF_ENV` (`github-ubuntu-latest` in the workflow), or the platform and CPU model when it is
+   not set — and a run is only judged against its own. An environment without an entry gets the
+   measurement and a warning, never a verdict: a baseline borrowed from another machine would
+   pass or fail at random. To arm the gate on the runner: run the workflow once, take the
+   `asBaseline` object from the `perf-core` artifact into `environments["github-ubuntu-latest"]`,
+   commit. Record anew when the runner image changes.
+
+Small times move by more than 25 % for nothing, so a metric fails only when it is also worse
+by its floor in absolute terms (2 s cold index, 50 ms warm pass, 2 ms / 3 ms save p50 / p95,
+3 ms search, 30 ms `listTasks`). The index size is compared as it is (SQLite writes the same
+bytes for the same rows). A changed fixture digest fails the gate with "record the baselines
+again". Self-test: the code before L1, measured against the baseline recorded after L1 on the
+same machine, fails on the cold index and the save (see the L1 section below).
+
+**Bundle gate.** `scripts/perf/bundle-gate.mjs` builds both shells with source maps into a temp
+folder (never their own `dist/`) and reads from each built `index.html` what loads before the
+first picture: the entry module, every `modulepreload`, the style sheets. It gates start bytes and
+the entry file against `bundle-baseline.json` (growth up to 2 %, which absorbs a dependency's
+patch release; a smaller build passes and asks for `--update`, so the next growth is measured
+from there), prints the plan's budgets (3.5 MB start, 400 KB phone entry) as notes, and checks
+the `mustNotStart` rules: module families that must not be in the start files, read from the
+source maps (`packages/core/src/ai/`, `packages/ui/src/ai/`, `packages/core/src/import/adapters/`).
+Today all three are in the start files of both shells, so each rule carries `"expected": "fail"`
+per shell — reported as a known failure until package L5. The day a family leaves the start
+files, the rule fails the gate until its `expected` is flipped to `"pass"`, so a fixed rule is
+armed, never silently left loose. The locale file the start waits for is loaded dynamically and
+not counted (B2 of the plan names it; L5 splits it). Recorded 2026-11-10: desktop 7.37 MB in 98
+start files (entry 88 KB), phone 8.40 MB in 60 (entry 1 079 KB) — more than the review's 7.3 MB,
+because this count takes every `modulepreload` and style sheet. Source characters of the
+forbidden families in the start files: `packages/ui/src/ai/` about 1.5 MB, `packages/core/src/ai/`
+about 1.3 MB, `packages/core/src/import/adapters/` 165 KB, in both shells.
+
+**Browser report.** `apps/desktop/e2e-perf/browser-perf.spec.ts` (config
+`playwright.perf.config.ts`, port 1462 or `PERF_PORT`) runs the production bundle in Chromium
+with a stand-in for the Tauri side: the 1 000-note fixture in memory (`PERF_BROWSER_COUNT` for
+another size) and every SQL statement on a real `node:sqlite` in the test process, so the
+index, the search and the editor run their own code on real data. It writes
+`apps/desktop/test-results/perf/browser-perf.json`: time from navigation to an editable note on
+an empty and on a warm index, typing latency (key event to the frame after it, p50/p95/max of
+about 60 keys) in the long table note, cut to its first 8 tables (about 2 000 lines,
+`PERF_LONG_SECTIONS` for more), and the time from typing a term into the sidebar search
+to its first hit. It fails only when the app cannot do one of these. No IPC, no Rust, no
+WebView2/WKWebView: a lower bound, comparable between runs on one machine.
+
+## Full-text rows by row number (performance plan L1, index format 9, 2026-11-10)
+
+`fts_notes.path` is `UNINDEXED`: FTS5 keeps no index on it, so every statement that named a row
+by its path read the whole search table and the text in it. Every save, every note of a first
+index run, every move and every deletion paid that once or twice. Measured in the review at
+10 000 rows: 7.17 ms for one such delete against 0.011 ms by the row number, 64 of the 96 seconds
+of a cold index.
+
+Since index format 9 a note's full-text row carries the **negated** row number of its row in
+`files` (`fts_notes.rowid = -files.rowid`, `packages/core/src/db/fullTextRows.ts`), and every write
+reaches it through that number: the delete before the file's row goes, the insert after it is
+written (`INSERT OR REPLACE`, so a row left at that number gives way instead of failing the
+batch), a move keeps the number on both sides and only updates the path, the rebuild drops every
+row whose number and path do not match a file. Reads still name rows by path where they did; the
+readers of the whole table read `ORDER BY rowid DESC`, which is the order they had before.
+
+Negative, because an older app still writes on a newer index after a downgrade (its statements
+are valid on the same columns) and leaves the number to SQLite, which counts on from the largest
+one — always 0 or above. The two kinds never meet, and `SELECT rowid FROM fts_notes WHERE rowid >= 0
+LIMIT 1` (microseconds) tells at every start whether there is anything to number.
+
+The conversion (`keyFullTextRowsByFile` in `Schema.ts`) reads no note: like format 5 it copies the
+table into `fts_notes_next` under the new numbers, drops the old one and renames the copy, in one
+batch. Rows that already carry their file's number are copied as they are, the others get the
+number of the file at their path (the later of two rows of one path wins); a row whose path no
+file has is left behind. It runs at every start that finds a row at 0 or above, so the same code is
+the format-9 migration and the repair after a downgrade. An interrupted run leaves the table as it
+was (atomic batch); where an adapter replays statement by statement and stopped between drop and
+rename, the empty table `initializeSchema` recreated gives way to the copy, as in format 5. The two
+earlier migrations that page through the table by `rowid > ?` start below every negative number.
+
+SQL used: rowid equality and `rowid IN (SELECT -rowid FROM files WHERE …)` (FTS5 answers both from
+its rowid index), `INSERT OR REPLACE` with an explicit rowid, a rowid range, `CROSS JOIN` to keep
+the search table outside in the copy. All of it is plain SQLite with FTS5 since 3.9 and runs on
+the desktop's SQL plugin and `db_batch` (sqlx, bundled SQLite), the phone's
+`@capacitor-community/sqlite`, the phone's web/E2E fixture adapter (`node:sqlite`) and the tests
+(`node:sqlite`). Tested on node:sqlite only: neither native side was built or run here.
+
+Tests: `packages/core/test/fts-rows-by-file.test.ts` — the rule through indexing, saving, moving
+in the app and by the sync queue, deleting and rebuilding; a format-8 index converted without a
+note read and every reader of `fts_notes` answering as before (searches of both shells, the
+occurrence list, the AI's candidates, tasks, find in vault, tags, cards, card search, mentions,
+"notes containing"); the listing order kept; orphans and duplicates; a conversion stopped at the
+drop and at the rename; an older app's writes after a downgrade, and a search that answers
+exactly as a freshly built index of the same vault.
+
+Measured with `pnpm perf:core` on the 10 000-note fixture (Windows 11, Ryzen AI 9 HX 370,
+Node 24.17, `node:sqlite`, WAL), before = app `c192eb2ba`, after = this change, both in one
+session against the same baseline:
+
+| | Before (format 8) | After (format 9) | |
+|---|---|---|---|
+| Cold index, 10 000 notes | 224.6 s | 56.3 s / 56.4 s | ×4.0 faster |
+| Re-reading one saved note, median | 42.2 ms | 6.1 ms / 5.5 ms | −36 ms per save |
+| … 95th percentile | 48.7 ms | 7.7 ms / 8.8 ms | |
+| Pass without changes | 757 ms | 708 ms / 692 ms | unchanged |
+| Search, 50 hits, median | 68.8 ms | 74.2 ms / 77.4 ms | unchanged (noise) |
+| `listTasks` | 639 ms | 649 ms / 638 ms | unchanged |
+| Index database | 101.3 MB | 105.3 MB | +4 % |
+
+The two "after" values are two runs; the gate's ratios stayed within −14 % and +9 % of each
+other. Before L1 this fixture costs 22 ms per note in a cold index and 36 ms of every save in the
+path delete alone; the review's 96 s on its smaller fixture (1.2 KB notes) has the same cause. The
+index grows by 4 %: SQLite stores a negative integer key in 9 bytes, a small positive one in 2–3,
+and FTS5 keeps the rowid as the key of its content and docsize tables and at the head of every doclist. The plan expected
+"from 96 s to about 30 s"; on this fixture the cold index went from 225 s to 56 s, which is
+above the budget of 40 s — what is left is reading, parsing and writing, packages L2 and L3.
+
+## Budgets of the performance plan (§ 4), measured 2026-11-10
+
+Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers
+from `pnpm perf:bundle`; the browser row from `pnpm perf:browser` (1 000-note fixture, Chromium,
+Tauri stand-in — a lower bound).
+
+| Metric | Budget | Measured | Source |
+|---|---|---|---|
+| Cold index, 10 000 notes (core) | ≤ 40 s | 56.3 s (224.6 s before L1) | core gate |
+| Pass without changes | ≤ 500 ms | 708 ms | core gate |
+| Re-reading after a save, p95 | ≤ 15 ms | 7.7 ms (48.7 ms before L1) | core gate |
+| Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 74 ms | core gate |
+| List every task | ≤ 100 ms (after L8) | 649 ms (32 046 tasks) | core gate |
+| Start bytes per shell | ≤ 3.5 MB | desktop 7.37 MB (2.27 MB gzip, 98 files), phone 8.40 MB (2.51 MB gzip, 60 files) | bundle gate |
+| Phone entry file | ≤ 400 KB | 1 079 KB (desktop entry 88 KB) | bundle gate |
+| Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 930.6 ms, p50 56.8 ms, max 1128.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
+| Search in the sidebar, typing to first hit (browser) | — | `project` 503 ms, `review meeting` 65 ms, `Müller` 48 ms, `garden` 171 ms | browser report |
+| Navigation to an editable note, warm index | ≤ 1.5 s | 1.47 s (tree 0.81 s); first start 6.04 s | browser report |
+
+The plan's "today" column (96 s, 397 ms, 13.7 ms, 21 ms, 469 ms) was measured on the review's
+smaller fixture (1.2 KB notes, three tasks each, one search term); this fixture is about twice as
+large per note and searches six terms, two of them a prefix and a CJK word. Over budget after L1:
+the cold index (L2, L3), the pass without changes and search (both new against the plan — the
+search median is carried by `garden*` and the CJK term, worth a look in L2/L11), `listTasks`
+(L8).
+
+### Many tables in one note (new finding, 2026-11-10)
+
+The fixture's long note (80 tables of 200 rows, 19 600 lines, 1.7 MB) took most of a
+462-second cold index of the 1 000-note fixture. The time is in the Markdown parser's GFM tables
+(`micromark-extension-gfm-table` 2.1.1 under `parseMarkdownAst` and `parseMarkdownTree`), and it
+grows with the square of the number of tables, not with the text: 20 tables of 50 rows parse in
+0.3 s, 40 in 1.2–4.4 s, 80 in 39 s (single runs on a loaded machine); one table of 4 000 rows in 0.2 s; the same text as CommonMark
+in 20 ms. The indexer, the reading view and every other reader of the tree pay it. Not part of
+L0/L1; the core gate leaves that note out until it is fixed (`longTableNote: false`). Even
+without many tables it is not linear: 20 tables of 20 rows among 2 100 lines parse in 0.45 s, 40
+tables in 2 600 lines in 1.1 s, and 10 tables of 1 800 rows took longer than 170 s. In the app it
+is felt directly: in the browser report the full 19 600-line note did not answer a single key
+for ten minutes, because each save re-reads the note on the main thread. This belongs before
+0.9.0 next to L6 (live-preview tables), which cannot help while the index parse blocks.
 
 ## Measurement points
 
