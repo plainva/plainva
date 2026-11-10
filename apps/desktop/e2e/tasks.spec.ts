@@ -653,7 +653,10 @@ test('a repeating task spawns its next occurrence when checked off (issue #34, w
   const day = (offset: number) => {
     const d = testNow();
     d.setDate(d.getDate() + offset);
-    return d.toISOString().slice(0, 10);
+    // The local date, as the app writes it: toISOString() is the UTC date, a
+    // day off whenever the local and the UTC day differ (seen on the day
+    // summer time begins, stability plan R9).
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
   const due = day(0);
   const nextDue = day(7);
