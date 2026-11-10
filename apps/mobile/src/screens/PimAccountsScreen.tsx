@@ -674,7 +674,11 @@ export function PimAccountsScreen({
                       data-testid={`pim-account-${a.id}`}
                       title={a.label}
                       subtitle={pimProviderName(a.provider, t)}
-                      end={<DeviceSignInBadge state={state} />}
+                      // No "active" pill above a failure (finding X10, review
+                      // 2026-11-10): the sign-in is fine, the account is not
+                      // reachable, and the note right below says so - the pill
+                      // answered a question nobody asked and contradicted it.
+                      end={state === "active" && failure ? undefined : <DeviceSignInBadge state={state} />}
                     />
                     {calendarRun ? null : (
                       <Row

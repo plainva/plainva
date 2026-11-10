@@ -430,7 +430,7 @@
     },
     "policy": {
       "columns": "Folder",
-      "webOff": "Internet off",
+      "webOff": "not in effect – the internet is off on this device",
       "title": "What may leave this vault",
       "desc": "A rule sits in a note's frontmatter or, for a whole folder, in .agent/policy.yml. A note kept from the cloud contributes nothing — neither text nor title — and links to it are withheld.",
       "vaultDefault": "Vault default",
@@ -5397,6 +5397,8 @@
     "folderCount_other": "{{count}} notes",
     "baseCount_one": "1 database",
     "baseCount_other": "{{count}} databases",
+    "attachmentCount_one": "1 file",
+    "attachmentCount_other": "{{count}} files",
     "aboutTip": "Tip: the logo likes attention. Five times.",
     "syncResume": "Resume sync",
     "reconnected": "Account reconnected.",
@@ -7443,6 +7445,7 @@
     "highlight5Title": "Improvements and fixes",
     "highlight5": "Accounts connect through an assistant, the settings are newly ordered, writing on the phone is easier with one hand, and sync, mail and the editor got many fixes. The release notes list the details.",
     "readBlog": "Read the blog post",
+    "readReleaseNotes": "Read the release notes",
     "understand": "Got it"
   },
   "firstRun": {

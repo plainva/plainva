@@ -454,7 +454,7 @@
     },
     "policy": {
       "columns": "Pasta",
-      "webOff": "Internet desligada",
+      "webOff": "sem efeito: a internet está desligada neste dispositivo",
       "title": "O que pode sair deste vault",
       "desc": "Uma regra fica no frontmatter de uma nota ou, para uma pasta inteira, em .agent/policy.yml. Uma nota mantida fora da nuvem não contribui com nada — nem texto, nem título — e os links para ela são retidos.",
       "vaultDefault": "Padrão do vault",
@@ -5510,6 +5510,9 @@
     "baseCount_one": "1 banco de dados",
     "baseCount_many": "{{count}} bancos de dados",
     "baseCount_other": "{{count}} bancos de dados",
+    "attachmentCount_one": "1 arquivo",
+    "attachmentCount_many": "{{count}} arquivos",
+    "attachmentCount_other": "{{count}} arquivos",
     "aboutTip": "Dica: o logotipo gosta de atenção. Cinco vezes.",
     "syncResume": "Retomar a sincronização",
     "reconnected": "Conta reconectada.",
@@ -7597,6 +7600,7 @@
     "highlight5Title": "Melhorias e correções",
     "highlight5": "As contas se conectam por um assistente, as configurações foram reordenadas, no celular fica mais fácil escrever com uma mão, e sync, e-mail e editor receberam muitas correções. Os detalhes estão nas notas da versão.",
     "readBlog": "Ler a publicação do blog",
+    "readReleaseNotes": "Ler as notas da versão",
     "understand": "Entendido"
   },
   "firstRun": {

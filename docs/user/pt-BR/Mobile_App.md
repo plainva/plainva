@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-11-06
+Última atualização: 2026-11-10
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -139,7 +139,7 @@ Tocar em um lembrete de evento abre o próprio evento — a visão do dia na dat
 
 **O que não está atualizado e o que não cabe.** Quando uma conta ou um calendário não é sincronizado, o telefone também avisa em uma linha acima do calendário — qual, desde quando e por quê — com **Tentar novamente**; os compromissos abaixo ficam como último estado conhecido. Na visualização **Mês**, um dia mostra no máximo três pontos; um número depois deles (por exemplo **+3**) diz quantas entradas a mais ele tem. Local de trabalho, tempo de foco e ausência aparecem na grade de horários como uma faixa discreta na faixa de dia inteiro, não como um compromisso. A área **Tarefas** tem a mesma linha para as listas de tarefas, e atualizar ali consulta os provedores na hora, como no desktop.
 
-Gerencie as contas em ☰ → **Configurações** → **Calendário**: **Adicionar conta…** abre o mesmo assistente de **Contas na nuvem**, com **Calendário e tarefas** já marcado (o antigo formulário próprio não existe mais). Provedores **CalDAV** (p. ex. Fastmail, Nextcloud, iCloud) você conecta direto no dispositivo, com um formulário para todos os serviços escolhidos e o segredo que o provedor indica — em geral uma **senha de app**; Google e Microsoft seguem via login pelo navegador. Por conta, você pode mostrar ou ocultar calendários individuais.
+Gerencie as contas em ⚙ → **Configurações** → **Calendário**: **Adicionar conta…** abre o mesmo assistente de **Contas na nuvem**, com **Calendário e tarefas** já marcado (o antigo formulário próprio não existe mais). Provedores **CalDAV** (p. ex. Fastmail, Nextcloud, iCloud) você conecta direto no dispositivo, com um formulário para todos os serviços escolhidos e o segredo que o provedor indica — em geral uma **senha de app**; Google e Microsoft seguem via login pelo navegador. Por conta, você pode mostrar ou ocultar calendários individuais.
 
 A partir de um evento, **Nota de reunião** cria a nota correspondente a ele — a mesma nota que o desktop também encontra: ela permanece vinculada ao evento, então chamá-la de novo a reabre em vez de criar uma segunda, e ela vai parar na **Pasta de reuniões**. Você escolhe essa pasta em **Configurações** → **Calendário**, no grupo **Notas de reunião**, com um **navegador de pastas** em vez de digitar o caminho; o grupo **Eventos** guarda o **Calendário padrão** (aquele em que um novo evento começa); ambos pertencem ao vault e viajam com a sincronização de configurações. O mesmo lugar permite escolher, por conta, quais **Listas de tarefas** são espelhadas no seu banco de tarefas. Ali você também escolhe o **Modelo para notas de reunião**; ele viaja como a pasta, e os detalhes estão em [Calendário & tarefas externas](Calendar_and_Tasks.md).
 

@@ -9325,3 +9325,43 @@ test('AI apply directly: a note open with unsaved keystrokes gets a suggestion i
   await expect(companion.getByTestId('ai-proposed')).toContainText('Offer');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-direct-fallback-desktop.png') });
 });
+
+// Finding X6 (review 2026-11-10): in the live preview a fenced code block was a
+// bare line "js" above the code as running text — only its backticks were
+// hidden; the reading view showed a block. The live preview now draws the block
+// as one card on the code tint, the language as its small label.
+test('Code block in the live preview: one card in monospace, the language as a label', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Snippets.md'] = '# Snippets\n\nBefore the block.\n\n```js\nconst hero = "Your notes, plain Markdown.";\nconsole.log(hero);\n```\n\nAfter the block.\n';
+  });
+  await page.goto('/');
+  await page.getByText('Snippets', { exact: true }).click();
+  const after = page.locator('.cm-line', { hasText: 'After the block.' }).first();
+  await after.click();
+  const block = page.locator('.cm-line.cm-md-codeblock');
+  await expect(block).toHaveCount(4);
+  await expect(block.first()).toHaveClass(/cm-md-codeblock--first/);
+  await expect(block.last()).toHaveClass(/cm-md-codeblock--last/);
+  // The fence's backticks are hidden, its language is a label.
+  await expect(block.first().locator('.cm-md-codeinfo')).toHaveText('js');
+  await expect(block.first()).not.toContainText('```');
+  const code = block.nth(1);
+  const look = await code.evaluate((el) => {
+    const css = getComputedStyle(el);
+    return { bg: css.backgroundColor, font: css.fontFamily, codeBg: getComputedStyle(document.documentElement).getPropertyValue('--code-bg').trim() };
+  });
+  expect(look.bg).not.toBe('rgba(0, 0, 0, 0)');
+  expect(look.font.toLowerCase()).toMatch(/mono|consolas|menlo/);
+  // The paragraphs around it stay text.
+  await expect(after).not.toHaveClass(/cm-md-codeblock/);
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.screenshot({ path: testInfo.outputPath('codeblock-live-light.png') });
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: testInfo.outputPath('codeblock-live-dark.png') });
+  }
+  // The caret on the fence reveals it, and the card stays.
+  await block.first().click();
+  await expect(block.first()).toContainText('```js');
+  await expect(page.locator('.cm-line.cm-md-codeblock')).toHaveCount(4);
+});

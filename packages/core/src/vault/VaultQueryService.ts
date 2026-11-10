@@ -627,6 +627,27 @@ export class VaultQueryService {
     return out;
   }
 
+  /**
+   * How many attachments (every file that is neither a note nor a database)
+   * live under each subfolder of `folder`, recursively — the companion of
+   * `countNotesPerSubfolder` (finding X10, review 2026-11-10): a folder of
+   * images said "0 notes" and nothing else, as if it were empty.
+   */
+  async countAttachmentsPerSubfolder(folder: string): Promise<Map<string, number>> {
+    const prefix = folder ? `${trimEndChars(folder, "/")}/` : "";
+    const rows = await this.db.query<{ folder: string; n: number }>(
+      `SELECT substr(rest, 1, instr(rest, '/') - 1) AS folder, COUNT(*) AS n
+       FROM (SELECT substr(path, ?) AS rest FROM files
+             WHERE mode = 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\' AND ${visiblePathSql("path")})
+       WHERE instr(rest, '/') > 0
+       GROUP BY folder`,
+      [prefix.length + 1, `${escapeLikePrefix(prefix)}%`],
+    );
+    const out = new Map<string, number>();
+    for (const r of rows) if (r.folder) out.set(String(r.folder), Number(r.n));
+    return out;
+  }
+
   async getVaultStats(): Promise<{ notes: number; attachments: number }> {
     const rows = await this.db.query<{ mode: string; n: number }>(
       `SELECT mode, COUNT(*) AS n FROM files GROUP BY mode`,

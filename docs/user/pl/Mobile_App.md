@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-11-06
+Stan na: 2026-11-10
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -139,7 +139,7 @@ Dotknięcie przypomnienia o wydarzeniu otwiera samo wydarzenie — widok dnia w 
 
 **Co nie jest aktualne i co się nie mieści.** Gdy konto lub kalendarz nie jest synchronizowane, telefon także mówi to w wierszu nad kalendarzem — które, od kiedy i dlaczego — z przyciskiem **Spróbuj ponownie**; spotkania poniżej zostają jako ostatni znany stan. W widoku **Miesiąc** dzień pokazuje najwyżej trzy kropki; liczba za nimi (na przykład **+3**) mówi, ile wpisów ma ponad to. Miejsce pracy, czas skupienia i nieobecność widnieją w siatce godzin jako spokojny pasek w wierszu całodniowym, a nie jako spotkanie. Obszar **Zadania** ma ten sam wiersz dla list zadań, a jego odświeżanie od razu pyta dostawców, jak na komputerze.
 
-Kontami zarządzasz w ☰ → **Ustawienia** → **Kalendarz**: **Dodaj konto…** otwiera tego samego asystenta co **Konta w chmurze**, z już zaznaczonym **Kalendarz i zadania** (dawnego osobnego formularza już nie ma). Dostawców **CalDAV** (np. Fastmail, Nextcloud, iCloud) łączysz bezpośrednio na urządzeniu jednym formularzem dla wszystkich wybranych usług i tym, co podaje dostawca — najczęściej **Hasło aplikacji**; Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
+Kontami zarządzasz w ⚙ → **Ustawienia** → **Kalendarz**: **Dodaj konto…** otwiera tego samego asystenta co **Konta w chmurze**, z już zaznaczonym **Kalendarz i zadania** (dawnego osobnego formularza już nie ma). Dostawców **CalDAV** (np. Fastmail, Nextcloud, iCloud) łączysz bezpośrednio na urządzeniu jednym formularzem dla wszystkich wybranych usług i tym, co podaje dostawca — najczęściej **Hasło aplikacji**; Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
 
 Z poziomu wydarzenia opcja **Notatka ze spotkania** tworzy przypisaną do niego notatkę — tę samą, którą znajduje też komputer: pozostaje powiązana z wydarzeniem, więc ponowne jej wywołanie otwiera ją ponownie zamiast tworzyć drugą, a trafia do **Folderu spotkań**. Ten folder wybierasz w **Ustawieniach** → **Kalendarz** w grupie **Notatki ze spotkań** za pomocą **przeglądarki folderów** zamiast wpisywać jego ścieżkę; grupa **Wydarzenia** zawiera **Domyślny kalendarz** (ten, w którym zaczyna się nowe wydarzenie); oba należą do sejfu i podróżują wraz z synchronizacją ustawień. W tym samym miejscu wybierasz, dla każdego konta osobno, które **Listy zadań** są odzwierciedlane w Twojej bazie zadań. Tam wybierasz też ustawienie **Szablon notatek ze spotkań**; podróżuje tak jak folder, a szczegóły znajdziesz w [Kalendarz i zewnętrzne zadania](Calendar_and_Tasks.md).
 

@@ -80,6 +80,39 @@ describe("countNotesPerSubfolder", () => {
     }
   });
 
+  it("counts the attachments below a subfolder beside its notes (finding X10)", async () => {
+    // A folder of pictures said "0 notes" and nothing else, as if it were empty.
+    const { DatabaseSync } = (await import("node:sqlite")) as any;
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-count-att-"));
+    const vault = new LocalVaultAdapter(tmpDir);
+    await vault.initialize();
+    const db = new NodeSqliteAdapter(new DatabaseSync(":memory:"));
+    await initializeSchema(db);
+    const indexer = new VaultIndexer(vault, db);
+    const query = new VaultQueryService(db as never);
+    try {
+      await vault.writeBinaryFile?.("Anhaenge/Skizze.png", new Uint8Array([1, 2, 3]));
+      await vault.writeBinaryFile?.("Anhaenge/Tief/scan.pdf", new Uint8Array([4, 5]));
+      await vault.writeTextFile("Projekte/Plan.md", note("Plan"));
+      await vault.writeTextFile("Projekte/Tabelle.base", "views: []\n");
+      await vault.writeBinaryFile?.("Projekte/bild.png", new Uint8Array([6]));
+      await vault.writeBinaryFile?.(".hidden/geheim.png", new Uint8Array([7]));
+      await indexer.indexVaultFull();
+
+      const files = await query.countAttachmentsPerSubfolder("");
+      expect(files.get("Anhaenge")).toBe(2);
+      // A database is not an attachment, a note is not either.
+      expect(files.get("Projekte")).toBe(1);
+      expect(files.get(".hidden")).toBeUndefined();
+      const notes = await query.countNotesPerSubfolder("");
+      expect(notes.get("Anhaenge")).toBeUndefined();
+      expect(notes.get("Projekte")).toBe(1);
+    } finally {
+      await db.close();
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("does not let one folder's name leak into another's count", async () => {
     // "Projekt" is a prefix of "Projekte": a LIKE without the trailing slash
     // would fold the two together, and the segment split would then cut at the

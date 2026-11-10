@@ -58,7 +58,7 @@ export function BulkSetPopover({
           preview did not reach it. */}
       <ClickCatch onPress={onClose} popover={popRef} />
       <div
-        className="pv-popover pv-popover--fixed pv-bulkset"
+        className="pv-popover pv-popover--fixed pv-bulkset pv-focus-frame"
         ref={popRef}
         data-testid="base-bulkset"
         // The panel takes the focus a press on its own blank parts would

@@ -88,6 +88,7 @@ export * from "./lib/docsLinks";
 export { WhatsNewIcon } from "./components/WhatsNewIcon";
 export * from "./lib/providerCatalog";
 export * from "./lib/timeGrid";
+export * from "./lib/timeFormat";
 export * from "./pim/eventColors";
 export * from "./pim/calendarColors";
 export * from "./pim/blockCalendars";

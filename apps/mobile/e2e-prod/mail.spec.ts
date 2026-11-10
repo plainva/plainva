@@ -631,3 +631,53 @@ test("+ .eml gives a note filed before its raw copy, once", async ({ page, conte
     await sql.close();
   }
 });
+
+// Findings X3 and X9 (review 2026-11-10). X3: in the dark design every HTML
+// mail was a white sheet, also one that sets no colours of its own and reads
+// in the theme's colours like a plain-text mail. X9: Mail, opened from
+// "Areas", left "Home" lit in the bar.
+test("mail in the dark design: a mail without colours of its own reads on the dark canvas; the bar lights Areas", async ({ page, context }, testInfo) => {
+  const { sql } = await bootMail(context, page);
+  try {
+    // The dark design chosen in the app's settings: the app sets the theme on
+    // its own, and a test that only flips the attribute is overruled by it.
+    await page.evaluate(() => {
+      const key = "CapacitorStorage.mobile-settings";
+      localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) ?? "{}"), themeMode: "dark", themeName: "petrol" }));
+    });
+    await page.reload();
+    await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
+    await openMailArea(page);
+    // X9: the screen is Mail, an area outside the bar — "Areas" is lit, "Home" is not.
+    await expect(page.getByTestId("tab-areas")).toHaveClass(/is-active/);
+    await expect(page.locator(".m-tabbar .m-tab.is-active")).toHaveCount(1);
+
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await openFolder(page, "Archiv");
+    await page.locator("button.m-mailrow", { hasText: "Ihre Rechnung" }).click();
+    const frame = page.locator("iframe.m-mailframe");
+    await expect(frame).toBeVisible();
+    const colours = () => frame.evaluate((el: HTMLIFrameElement) => {
+      const body = el.contentDocument?.body;
+      const root = getComputedStyle(document.documentElement);
+      return {
+        body: body ? getComputedStyle(body).backgroundColor : "",
+        text: body ? getComputedStyle(body).color : "",
+        theme: root.getPropertyValue("--bg-primary").trim(),
+      };
+    });
+    // The frame's body takes the theme's background: not white.
+    await expect.poll(async () => (await colours()).body).not.toBe("rgb(255, 255, 255)");
+    const dark = await colours();
+    const luminance = (rgb: string) => {
+      const [r, g, b] = (rgb.match(/\d+/g) ?? ["255", "255", "255"]).map(Number);
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    expect(luminance(dark.body), "a dark canvas").toBeLessThan(80);
+    expect(luminance(dark.text), "light text on it").toBeGreaterThan(150);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-dark-canvas.png") });
+
+  } finally {
+    sql.close();
+  }
+});

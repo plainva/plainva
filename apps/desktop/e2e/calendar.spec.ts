@@ -2093,3 +2093,28 @@ test('AI drafts an e-mail and an appointment: both wait as drafts, open in the c
   // No model was asked for any of it.
   expect(await requests()).toHaveLength(2);
 });
+
+// Finding X4 (review 2026-11-10): the axis said "14:00" while the events said
+// "02:00 PM" — the axis was written by hand in 24 hours, the events in the app
+// language's default. Both now follow the device's hour cycle.
+for (const [locale, twelve] of [['en-US', true], ['de-DE', false]] as const) {
+  test.describe(`a ${twelve ? '12' : '24'}-hour device (${locale})`, () => {
+    test.use({ locale });
+    test('the calendar writes its axis and its events in one clock', async ({ page }, testInfo) => {
+      await openVault(page);
+      await page.getByTestId('ribbon-calendar').click();
+      await page.getByTestId('calendar-mode-day').click();
+      const labels = (await page.getByTestId('calendar-hour-label').allTextContents()).filter(Boolean);
+      expect(labels.length).toBeGreaterThan(20);
+      expect(labels.every((l) => /AM|PM/.test(l) === twelve), labels.slice(0, 4).join(', ')).toBe(true);
+      if (!twelve) expect(labels).toContain('14:00');
+      if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`calendar-day-${locale}.png`) });
+      await page.getByTestId('calendar-mode-agenda').click();
+      const standup = page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' });
+      await expect(standup).toBeVisible();
+      const text = (await standup.textContent()) ?? '';
+      expect(/AM|PM/.test(text), text).toBe(twelve);
+      if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`calendar-agenda-${locale}.png`) });
+    });
+  });
+}

@@ -45,6 +45,7 @@ export function NavBar({
   tabs,
   activeTab,
   areasOpen,
+  areasActive = false,
   navCollapsed,
   onPick,
   onOpenAreas,
@@ -56,6 +57,8 @@ export function NavBar({
   /** The lit tab, or null while an overlay covers the tabs. */
   activeTab: TabScreenId | null;
   areasOpen: boolean;
+  /** The screen shows an area that is not in the bar (finding X9): "Areas" is where it lives. */
+  areasActive?: boolean;
   /** True while the navigator column is folded away. Only read in a rail. */
   navCollapsed: boolean;
   onPick: (id: TabScreenId) => void;
@@ -167,7 +170,7 @@ export function NavBar({
         </>
       ) : (
         <button
-          className={`m-tab${areasOpen ? " is-active" : ""}`}
+          className={`m-tab${areasOpen || areasActive ? " is-active" : ""}`}
           data-testid="tab-areas"
           onClick={() => { haptics.light(); onOpenAreas(); }}
           type="button"

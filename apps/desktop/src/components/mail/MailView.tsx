@@ -35,7 +35,7 @@ import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccount
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
-import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
+import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, useMailCanvas } from "@plainva/ui/mail";
 import { attachMailLinks, LinkTargetText, MailPlainText, mailtoDraft, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
 import { addEmlToMailNote, captureMailAsNote, loadMailAccountAliases, mailCaptureNotice, mailDayKey, writeReplyNote } from "@plainva/ui/mail";
 import { fetchAttachment, formatAttachmentSize, forwardSource, saveMailAttachment, type ForwardSource, type MailAttachmentInfo } from "@plainva/ui/mail";
@@ -1034,6 +1034,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [remoteOptIn, showRemoteOnce, openOrigin, boxesAccount, boxes]
   );
   const allowRemote = remoteImages.allow;
+  // The theme's canvas for a mail that sets no colours of its own (finding X3).
+  const mailCanvas = useMailCanvas();
   const sanitized = useMemo(
     () => (message?.html ? sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote }) : null),
     [message, allowRemote]
@@ -2614,7 +2616,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       />
 
       {/* Column 3 — reader */}
-      <div className="pv-mail-read" ref={readerRef} tabIndex={-1}>
+      <div className="pv-mail-read pv-focus-frame" ref={readerRef} tabIndex={-1}>
         {!message ? (
           <div className="pv-mail-empty">
             {loadingMessage ? t("pim.syncing", { defaultValue: "Aktualisiere…" }) : t("mail.pickMessage", { defaultValue: "Nachricht auswählen." })}
@@ -2772,7 +2774,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   // the system browser (handleFrameLoad).
                   sandbox="allow-same-origin"
                   onLoad={handleFrameLoad}
-                  srcDoc={buildMailFrameDoc(sanitized.html, { allowRemoteImages: allowRemote })}
+                  srcDoc={buildMailFrameDoc(sanitized.html, { allowRemoteImages: allowRemote, canvas: mailCanvas })}
                   data-testid="mail-frame"
                   className="pv-mail-frame"
                 />

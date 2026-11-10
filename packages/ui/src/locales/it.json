@@ -454,7 +454,7 @@
     },
     "policy": {
       "columns": "Cartella",
-      "webOff": "Internet disattivato",
+      "webOff": "senza effetto: internet è disattivato su questo dispositivo",
       "title": "Cosa può lasciare questo vault",
       "desc": "Una regola si trova nel frontmatter di una nota o, per un'intera cartella, in .agent/policy.yml. Una nota tenuta lontana dal cloud non contribuisce con nulla — né testo né titolo — e i link ad essa vengono trattenuti.",
       "vaultDefault": "Predefinito del vault",
@@ -5510,6 +5510,9 @@
     "baseCount_one": "1 database",
     "baseCount_many": "{{count}} database",
     "baseCount_other": "{{count}} database",
+    "attachmentCount_one": "1 file",
+    "attachmentCount_many": "{{count}} file",
+    "attachmentCount_other": "{{count}} file",
     "aboutTip": "Suggerimento: al logo piace l’attenzione. Cinque volte.",
     "syncResume": "Riprendi la sincronizzazione",
     "reconnected": "Account riconnesso.",
@@ -7597,6 +7600,7 @@
     "highlight5Title": "Miglioramenti e correzioni",
     "highlight5": "Gli account si collegano con un assistente, le impostazioni sono riordinate, sul telefono si scrive più facilmente con una mano, e sync, posta ed editor hanno ricevuto molte correzioni. I dettagli sono nelle note di rilascio.",
     "readBlog": "Leggi l'articolo del blog",
+    "readReleaseNotes": "Leggi le note di rilascio",
     "understand": "Ho capito"
   },
   "firstRun": {

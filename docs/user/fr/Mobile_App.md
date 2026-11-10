@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-10
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre vault reste identique dans les deux mondes.
 
@@ -139,7 +139,7 @@ Toucher un rappel d’événement ouvre l’événement lui-même — la vue du 
 
 **Ce qui n'est pas à jour et ce qui ne tient pas.** Quand un compte ou un calendrier n'est plus synchronisé, le téléphone le dit lui aussi dans une ligne au-dessus du calendrier — lequel, depuis quand et pourquoi — avec **Réessayer** ; les rendez-vous en dessous restent comme dernier état connu. Dans la vue **Mois**, un jour affiche au plus trois points ; un nombre derrière eux (par exemple **+3**) indique combien d'entrées il contient en plus. Le lieu de travail, le temps de concentration et l'absence figurent dans la grille horaire sous forme de bande discrète dans la bande « journée entière », non comme un rendez-vous. La zone **Tâches** a la même ligne pour les listes de tâches, et son actualisation interroge aussitôt les fournisseurs, comme sur ordinateur.
 
-Gérez les comptes sous ☰ → **Paramètres** → **Calendrier** : **Ajouter un compte…** ouvre le même assistant que **Comptes cloud**, avec **Calendrier et tâches** déjà coché (l'ancien formulaire propre n'existe plus). Les fournisseurs **CalDAV** (p. ex. Fastmail, Nextcloud, iCloud) se connectent directement sur l'appareil, avec un formulaire pour tous les services choisis et le secret que le fournisseur demande — le plus souvent un **Mot de passe d’application** ; Google et Microsoft suivent via une connexion par navigateur. Par compte, vous pouvez afficher ou masquer certains calendriers.
+Gérez les comptes sous ⚙ → **Paramètres** → **Calendrier** : **Ajouter un compte…** ouvre le même assistant que **Comptes cloud**, avec **Calendrier et tâches** déjà coché (l'ancien formulaire propre n'existe plus). Les fournisseurs **CalDAV** (p. ex. Fastmail, Nextcloud, iCloud) se connectent directement sur l'appareil, avec un formulaire pour tous les services choisis et le secret que le fournisseur demande — le plus souvent un **Mot de passe d’application** ; Google et Microsoft suivent via une connexion par navigateur. Par compte, vous pouvez afficher ou masquer certains calendriers.
 
 Depuis un événement, **Note de réunion** crée la note qui lui correspond — la même note que retrouve aussi le bureau : elle reste reliée à l'événement, de sorte que l'appeler de nouveau la rouvre au lieu d'en créer une seconde, et elle atterrit dans le **Dossier des réunions**. Vous choisissez ce dossier sous **Paramètres** → **Calendrier**, dans le groupe **Notes de réunion**, à l'aide d'un **explorateur de dossiers** plutôt qu'en tapant son chemin ; le groupe **Événements** contient l'**Agenda par défaut** (celui où démarre un nouvel événement) ; les deux appartiennent au vault et voyagent avec la synchronisation des paramètres. Le même endroit vous permet de choisir, par compte, quelles **Listes de tâches** se reflètent dans votre base de tâches. Vous y choisissez aussi le **Modèle pour les notes de réunion** ; il voyage comme le dossier, et les détails figurent dans [Calendrier & tâches externes](Calendar_and_Tasks.md).
 

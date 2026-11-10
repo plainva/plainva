@@ -4345,3 +4345,32 @@ test('remote images outside the junk folder keep the plain hint', async ({ page 
   await expect(hint).toContainText('Remote content blocked (1)');
   await expect(page.getByTestId('mail-show-images')).toHaveText('Show images');
 });
+
+// Finding X3 (review 2026-11-10): in the dark design every HTML mail was a
+// white sheet, also one that sets no colours of its own — which reads in the
+// theme's colours like a plain-text mail. A mail with its own colours keeps the
+// white sheet (unit test mailCanvas.test.ts).
+test('a mail without colours of its own reads on the dark canvas in the dark design', async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await openVault(page);
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  const frame = page.getByTestId('mail-frame');
+  await expect(frame).toBeVisible();
+  const look = () => frame.evaluate((el: HTMLIFrameElement) => {
+    const body = el.contentDocument?.body;
+    return body ? { bg: getComputedStyle(body).backgroundColor, fg: getComputedStyle(body).color } : { bg: '', fg: '' };
+  });
+  const lum = (rgb: string) => {
+    const [r, g, b] = (rgb.match(/\d+/g) ?? ['255', '255', '255']).map(Number);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  await expect.poll(async () => lum((await look()).bg)).toBeLessThan(80);
+  expect(lum((await look()).fg)).toBeGreaterThan(150);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-dark-canvas.png') });
+  // The theme switched back: the frame follows.
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  await expect.poll(async () => lum((await look()).bg)).toBeGreaterThan(200);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('mail-light-canvas.png') });
+});

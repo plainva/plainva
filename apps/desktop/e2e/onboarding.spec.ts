@@ -155,3 +155,36 @@ test('after an update the highlights appear once, weighted, and never with the w
   await dialog.getByRole('button', { name: /Verstanden|Got it/ }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+// Finding X7 (review 2026-11-10): a dialog that took the focus wore the global
+// teal focus ring around its whole frame — it read like an error state. The
+// frame keeps no ring; its controls keep theirs.
+test('a dialog that takes the focus wears no ring, its buttons still do', async ({ page }) => {
+  await firstRunShell(page);
+  await page.goto('/');
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible({ timeout: 20000 });
+  // A keyboard user: the last input was a key, so a focus set by code counts
+  // as :focus-visible — the case in which the ring appeared.
+  await page.keyboard.press('Shift');
+  await dialog.evaluate((el) => (el as HTMLElement).focus());
+  const frame = await dialog.evaluate((el) => ({
+    focused: document.activeElement === el,
+    visible: el.matches(':focus-visible'),
+    outline: getComputedStyle(el).outlineStyle,
+  }));
+  expect(frame.focused).toBe(true);
+  expect(frame.visible).toBe(true);
+  expect(frame.outline, 'the dialog frame carries a focus ring').toBe('none');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('dialog-focus-frame.png') });
+
+  // Positive control: Tab moves to a control, and that one shows its ring.
+  await page.keyboard.press('Tab');
+  const control = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    return { inDialog: !!el?.closest('[role="dialog"]'), outline: el ? getComputedStyle(el).outlineStyle : '' };
+  });
+  expect(control.inDialog).toBe(true);
+  expect(control.outline).toBe('solid');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('dialog-focus-control.png') });
+});

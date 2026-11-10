@@ -73,6 +73,7 @@ import {
   reservesFabStrip, showsCaptureFab,
   tapTab,
   SCREEN_ENTRY,
+  barMark,
   type NavState,
 } from "./navigation";
 import { PendingIntentRunner } from "./PendingIntentRunner";
@@ -672,7 +673,8 @@ export default function App() {
 
       {!barHidden && (
         <NavBar
-          activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
+          activeTab={barMark(nav, slots).tab}
+          areasActive={barMark(nav, slots).areas}
           areasOpen={areasOpen}
           navCollapsed={navCollapsed}
           onOpenAreas={() => setAreasOpen(true)}

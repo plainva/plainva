@@ -23,7 +23,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor } from "@plainva/ui";
 import { openLink } from "../services/openLink";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
@@ -49,7 +49,7 @@ import { activeDocument, type DocChannel } from "../services/activeDocument";
 import { setEditorRangeReader, setEditorSelectionReader } from "../services/editorSelection";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
-import { dirtyStore } from "../services/dirtyStore";
+import { dirtyStore, saveLabelFor, useDirtyPaths } from "../services/dirtyStore";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openExternalUrl as openUrl } from "../services/openExternal";
 import { readFile } from "@tauri-apps/plugin-fs";
@@ -165,6 +165,8 @@ export const Editor: React.FC<{
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // The tab strip's dirty dot reads this store; the save label reads it too.
+  const dirtyPaths = useDirtyPaths();
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
   const [workspaceComments, setWorkspaceComments] = useState<Awaited<ReturnType<typeof listWorkspaceComments>>>([]);
   const [publicationComments, setPublicationComments] = useState<Awaited<ReturnType<typeof listPublicationComments>>>([]);
@@ -978,7 +980,7 @@ export const Editor: React.FC<{
           }
           triggerFileTreeUpdate([kept.copy]);
           // Said wherever the editor went meanwhile — once per copy.
-          if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+          if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: conflictCopyLabel(kept.copy, i18n.language) }));
           if (current()) {
             setSaveError(null);
             setConflictInfo({ conflictPath: kept.copy });
@@ -999,7 +1001,7 @@ export const Editor: React.FC<{
           setSaveError(e.message || String(error));
           if (e.name === "ConflictError") {
             setConflictInfo({ conflictPath: e.conflictPath ?? "" });
-            toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ?? ".CONFLICT" }));
+            toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ? conflictCopyLabel(e.conflictPath, i18n.language) : ".CONFLICT" }));
           }
         }
         throw error;
@@ -2180,7 +2182,7 @@ export const Editor: React.FC<{
               const kept = await keepTextBeside(files, path, editorTextOf(draft.text));
               await clearDraft(vault, path, draft.revision, draft.sessionId);
               triggerFileTreeUpdate([kept.copy]);
-              toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+              toast.warning(t("dialogs.conflictSavedMsg", { path: conflictCopyLabel(kept.copy, i18n.language) }));
             } catch (error) {
               // Not kept: handed out again at the next look, this one and those after it.
               releaseLeftoverDrafts(vault, path, leftovers.slice(at));
@@ -3451,9 +3453,14 @@ export const Editor: React.FC<{
           </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <span style={{ fontSize: "var(--text-ui)", color: saveError ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""}>
-            {isSaving ? t("editor.saving") : saveError ? t("editor.saveFailed") : t("editor.saved")}
-          </span>
+          {(() => {
+            const label = saveLabelFor({ writing: isSaving, failed: !isSaving && !!saveError, dirty: !!activePath && dirtyPaths.has(activePath) });
+            return (
+              <span style={{ fontSize: "var(--text-ui)", color: label === "failed" ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""} data-testid="editor-save-state" data-state={label}>
+                {label === "saving" ? t("editor.saving") : label === "failed" ? t("editor.saveFailed") : t("editor.saved")}
+              </span>
+            );
+          })()}
           {!isPlainText && <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "2px" }}>
             <button
               onClick={() => { setViewMode('read'); rememberSessionViewMode(activePath, 'read'); }}
@@ -3701,7 +3708,7 @@ export const Editor: React.FC<{
           }
         >
           {conflictInfo.working ? t("conflict.workingCopy") : conflictInfo.conflictPath
-            ? t("editor.conflictBanner", { path: conflictInfo.conflictPath })
+            ? t("editor.conflictBanner", { path: conflictCopyLabel(conflictInfo.conflictPath, i18n.language) })
             : t("editor.conflictBannerNoPath")}
           {conflictInfo.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
         </Banner>

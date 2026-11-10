@@ -12,6 +12,7 @@ import {
   messageJunkState,
   remoteImagesDecision,
   buildMailFrameDoc,
+  useMailCanvas,
   buildReplyBody,
   buildForwardBody,
   replyAllRecipients,
@@ -190,15 +191,17 @@ export function MailMessageScreen({
       }),
     [alwaysRemote, showRemote, accountId, mailbox, boxes]
   );
+  const mailCanvas = useMailCanvas();
   const frame = useMemo(() => {
     if (!message) return null;
     if (message.html) {
       const allowRemote = remoteImages.allow;
       const clean = sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote });
-      return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote }), blocked: clean.blockedRemote };
+      // The theme's canvas for a mail that sets no colours of its own (finding X3).
+      return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote, canvas: mailCanvas }), blocked: clean.blockedRemote };
     }
     return null;
-  }, [message, remoteImages.allow]);
+  }, [message, remoteImages.allow, mailCanvas]);
 
   /**
    * Fit the message into the width it was given (P5). Mail is written for a

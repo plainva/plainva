@@ -1,5 +1,5 @@
 import type { PimEventRow } from "@plainva/core";
-import { localIsoKey } from "@plainva/ui";
+import { formatClockTime, localIsoKey } from "@plainva/ui";
 
 /**
  * Pure view-model of the calendar tab (PIM stage 2c): bucketing cached event
@@ -41,8 +41,8 @@ export function eventStartDayKey(e: PimEventRow): string {
 /** "10:00–10:30" for timed events, empty for all-day. */
 export function formatTimeRange(e: PimEventRow, locale: string): string {
   if (e.allDay) return "";
-  const fmt = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
-  return `${fmt.format(new Date(e.start.ts))}–${fmt.format(new Date(e.end.ts))}`;
+  // The device's hour cycle, the app language's words (finding X4).
+  return `${formatClockTime(e.start.ts, { language: locale })}–${formatClockTime(e.end.ts, { language: locale })}`;
 }
 
 // `eventDayKeys` and `shiftDayKey` moved to @plainva/ui (S5): the phone needs
