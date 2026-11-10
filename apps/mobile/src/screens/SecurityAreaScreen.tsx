@@ -398,7 +398,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       <p className="m-hint">{self ? t("workspaceSecurity.addDeviceDesc") : t("workspaceSecurity.inviteArtifactShort")}<InfoTip label={self ? t("workspaceSecurity.addDevice") : t("workspaceSecurity.inviteCode")} info={self ? t("workspaceSecurity.addDeviceHint") : t("workspaceSecurity.inviteArtifactHint")} /></p>
       <div className="m-pairing-qr">
         <QrImage value={code} size={QR_EDGE} label={t("workspaceSecurity.inviteCode")} />
-        <p className="m-onramp-sub">{t("workspaceSecurity.inviteQrCaption")}</p>
+        {/* "your other device": true of your own, not of a person's (evidence photo, R8). */}
+        {self && <p className="m-onramp-sub">{t("workspaceSecurity.inviteQrCaption")}</p>}
       </div>
       <div className="m-codefield">
         <span className="m-codefield-label">{t("workspaceSecurity.inviteCode")}</span>

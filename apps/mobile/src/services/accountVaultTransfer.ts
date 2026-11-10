@@ -1,6 +1,6 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, getPlatformServices, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { assertConnectionIdentity, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -247,6 +247,9 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     if (!sameStoredValue(await loadCloudAccounts(id), [...combined.values()])) throw new Error("storageFailed");
     await secrets.writeSecret(syncProviderSlot(id), p);
     if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
+    // Known from here on: the vault sits on a workspace it has not joined, and
+    // no failed probe later lets the plain sync start against it.
+    if (encrypted) await markEncryptedRemote(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), id));
     await bindRunTokenToAccount(id, run.family, runServices(run));
   } finally { await db.close(); }
   // Everything is written: from here on the vault is the person's, even if the

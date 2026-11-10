@@ -161,7 +161,13 @@ export function isLocalOnlyPath(path: string): boolean {
   // Operating-system bookkeeping (`.DS_Store`, `Thumbs.db`, …; issue #110,
   // E10) is neither downloaded nor mirrored as a deletion. A copy an older
   // version uploaded stays in the cloud: excluding a name deletes nothing.
-  return path.startsWith(".plainva") || path.includes(".CONFLICT") || isSystemJunkPath(path);
+  //
+  // `.pvws/` is an encrypted workspace's object store (R8 follow-up). Its own
+  // worker reads and writes it through the object store; the plain file sync
+  // has nothing to do with it - pulling it put ciphertext objects into a plain
+  // vault (a vault that lifted the encryption keeps syncing that folder, and
+  // the objects stay there until the person removes them).
+  return path.startsWith(".plainva") || path === ".pvws" || path.startsWith(".pvws/") || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
 /**

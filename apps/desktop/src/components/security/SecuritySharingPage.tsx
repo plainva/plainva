@@ -995,7 +995,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           <div className="pv-security-wizard">
             <Banner kind="info" rounded>{inviteFor.self ? t("workspaceSecurity.addDeviceHint") : t("workspaceSecurity.inviteArtifactHint", { defaultValue: "Send this code to the invited person through a secure channel. On their device they open Security & Sharing, paste it and request to join; approving their device here hands over the key." })}</Banner>
             <div className="pv-security-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><code className="pv-security-code">{inviteCode}</code></div>
-            <div className="pv-security-field"><span>{t("workspaceSecurity.inviteQrCaption", { defaultValue: "Or scan this code with the Plainva app on your other device" })}</span><QrImage value={inviteCode} label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })} /></div>
+            <div className="pv-security-field">{inviteFor.self && <span>{t("workspaceSecurity.inviteQrCaption", { defaultValue: "Or scan this code with the Plainva app on your other device" })}</span>}<QrImage value={inviteCode} label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })} /></div>
             {!inviteFor.self && <div className="pv-security-field"><span>{t("workspaceSecurity.memberIdFull", { defaultValue: "Member ID" })}</span><code className="pv-security-code">{inviteFor.memberId}</code></div>}
             <div className="pv-security-actions">
               <Button variant="ghost" onClick={() => setInviteFor(null)}>{t("common.close", { defaultValue: "Close" })}</Button>

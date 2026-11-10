@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, filesRunState, holdBackStartersAtFirstListing, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, clearEncryptedRemote, decideEncryptedRemote, ENCRYPTED_REMOTE_RETRY_MS, encryptedRemoteSettingsPorts, filesRunState, holdBackStartersAtFirstListing, markEncryptedRemoteReleased, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -657,6 +657,8 @@ export const VaultProvider: React.FC<{
   // a module-level tracker would let the second vault's load abort the first.
   // It still does what it always did — swallow React Strict Mode's double call.
   const activeLoadPathRef = useRef<string | null>(null);
+  /** The next try of a vault held back by an encrypted workspace it could not confirm (R8 follow-up). */
+  const encryptedRemoteRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
   // Recents, the last-vault memory, auto-open and the three lifecycle entry
   // points live one level up (contexts/AppContext.tsx) — they outlive any
@@ -735,6 +737,7 @@ export const VaultProvider: React.FC<{
     // it — loud rather than silent, because a second set of services shows up
     // as duplicate reminders and a token refresh race, not as an error.
     if (isClient) throw new Error(ownerOnly("loadVault"));
+    if (encryptedRemoteRetryRef.current) { clearTimeout(encryptedRemoteRetryRef.current); encryptedRemoteRetryRef.current = null; }
 
     // If we're already loading this exact path, ignore the duplicate call
     if (activeLoadPathRef.current === path) {
@@ -1314,6 +1317,8 @@ export const VaultProvider: React.FC<{
       }
 
       let syncWorker: SyncWorker | EncryptedWorkspaceWorker | null = null;
+      /** Why the plain sync did not start: an encrypted workspace not joined here (R8 follow-up). */
+      let encryptedRemoteHold: "pair-required" | "unconfirmed" | null = null;
       let syncProvider: SyncProviderId | null = null;
       try {
         // Target selection per vault: the settings UI enforces one provider per vault
@@ -1482,6 +1487,9 @@ export const VaultProvider: React.FC<{
               if (runtime.workspaceId !== workspaceSecurityStatus.workspaceId) {
                 throw new Error("The stored workspace key bundle does not match this vault.");
               }
+              // Joined: the encrypted worker runs, and what the plain start was
+              // held back by has served (R8 follow-up).
+              await clearEncryptedRemote(encryptedRemoteSettingsPorts(await getSettingsStore(), path)).catch(() => undefined);
               const objectStore = createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target);
               const activeSecurityStatus = workspaceSecurityStatus;
               // The open-time reconcile sweep (A1 mtime-skip) is O(changed files),
@@ -1592,6 +1600,30 @@ export const VaultProvider: React.FC<{
             // its own (a new vault, a new folder chosen in the wizard), and the
             // 2026-09-20 protection for a known vault holds (fourth review, 1c).
             await bindVaultSyncState(path, binding, { queue: syncQueue, records: syncRepo });
+            // The plain sync never starts against a folder that holds an
+            // encrypted workspace this device has not joined (R8 follow-up;
+            // the phone has probed since F2, the desktop never did). It would
+            // upload every note as plain text next to the encrypted objects and
+            // pull those objects into this folder. A vault known to sit on one
+            // waits through a failed probe as well, and tries again.
+            const remoteGate = await decideEncryptedRemote({
+              ports: encryptedRemoteSettingsPorts(await getSettingsStore(), path),
+              binding,
+              readGenesis: () => createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target!).get(".pvws/genesis.pvgen"),
+            });
+            if (remoteGate.kind === "plain" && remoteGate.probeError) console.warn("[VaultContext] workspace genesis probe failed; starting the plain sync", remoteGate.probeError);
+            if (remoteGate.kind !== "plain") {
+              encryptedRemoteHold = remoteGate.kind;
+              if (remoteGate.kind === "unconfirmed") {
+                console.warn("[VaultContext] encrypted workspace could not be confirmed; the plain sync stays off", remoteGate.probeError);
+                const retryPath = path;
+                if (encryptedRemoteRetryRef.current) clearTimeout(encryptedRemoteRetryRef.current);
+                encryptedRemoteRetryRef.current = setTimeout(() => {
+                  encryptedRemoteRetryRef.current = null;
+                  void loadVault(retryPath);
+                }, ENCRYPTED_REMOTE_RETRY_MS);
+              }
+            } else {
             // Large writes stream from disk instead of travelling through the
             // IPC boundary as a number array (issue #48). The resolver only
             // answers for files past the threshold, and only targets that can
@@ -1773,6 +1805,7 @@ export const VaultProvider: React.FC<{
               }
             };
             loadStarts.start(fileWorker, () => fileWorker.start());
+            }
           }
         }
       } catch (e) {
@@ -1801,6 +1834,8 @@ export const VaultProvider: React.FC<{
             authRecoverable: true,
             signInAccountId,
           });
+        } else if (!syncWorker && encryptedRemoteHold) {
+          syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), provider: syncProvider });
         } else if (!syncWorker && filesConfiguredWithoutAccess) {
           // Saying nothing here is what made the failure invisible: the card
           // still read "connected", the status bar stayed idle, and only the
@@ -2408,6 +2443,7 @@ export const VaultProvider: React.FC<{
    * event from here, so there is only one teardown path to keep correct.
    */
   const teardownVault = async () => {
+    if (encryptedRemoteRetryRef.current) { clearTimeout(encryptedRemoteRetryRef.current); encryptedRemoteRetryRef.current = null; }
     const path = state.vaultPath;
     const worker = state.syncWorker;
     // Stop the CLOCK synchronously, before anything below awaits: the drain at
@@ -3633,6 +3669,8 @@ export const VaultProvider: React.FC<{
     // sync or local). The remote `.pvws/` objects stay (immutable store); the
     // user deletes the cloud folder afterwards — the handbook documents the order.
     await tearDownWorkspace(path);
+    // Left on purpose: the plain sync of the reopened vault is what was asked for (R8 follow-up).
+    await markEncryptedRemoteReleased(encryptedRemoteSettingsPorts(await getSettingsStore(), path));
     await loadVault(path);
   };
 
@@ -3646,6 +3684,7 @@ export const VaultProvider: React.FC<{
     // immutable and stay; the user deletes the cloud folder afterwards. This is
     // additive: local files are untouched and no upload deletes anything.
     await tearDownWorkspace(path);
+    await markEncryptedRemoteReleased(encryptedRemoteSettingsPorts(await getSettingsStore(), path));
     await loadVault(path, true);
   };
 

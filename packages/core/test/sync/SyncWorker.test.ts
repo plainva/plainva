@@ -914,6 +914,10 @@ describe("SyncWorker", () => {
     expect(isLocalOnlyPath("notes/a.CONFLICT-2026-07-08T00-00-00-000Z.md")).toBe(true);
     expect(isLocalOnlyPath("notes/index.md")).toBe(false);
     expect(isLocalOnlyPath("Projects.base")).toBe(false);
+    // An encrypted workspace's object store is never the plain sync's (R8 follow-up).
+    expect(isLocalOnlyPath(".pvws/genesis.pvgen")).toBe(true);
+    expect(isLocalOnlyPath(".pvws")).toBe(true);
+    expect(isLocalOnlyPath(".pvwsnotes.md")).toBe(false);
   });
 
   it("does a full listing first, then pulls incrementally with the seeded cursor (1a)", async () => {

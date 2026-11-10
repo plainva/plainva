@@ -66,7 +66,7 @@ import {
   type WorkspaceRole,
   type WorkspaceStateStore,
 } from "@plainva/core";
-import { createLimiter } from "@plainva/ui";
+import { createLimiter, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteReleased } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
 import { WorkspaceQuarantineService, type QuarantineRetryOutcome, type QuarantineSync } from "@plainva/core";
 import type { MobileVault } from "./vaultService";
@@ -1168,6 +1168,18 @@ export async function decommissionMobileWorkspace(input: {
   await secureCredentialStore.removeSecret(pendingKey(vaultId));
   await clearMobilePublicationRuntimes(vaultId, publicationIds);
   await state?.clearWorkspaceState();
+  // This device left the workspace on purpose: the plain sync the reopened
+  // vault starts is what was asked for, although the folder keeps its `.pvws/`
+  // objects (R8 follow-up, `decideEncryptedRemote`). Without it the next start
+  // found the genesis and stood at "pair required" - lifting never uploaded.
+  // Without the mark the next start stays at "pair required" (fail closed):
+  // the workspace is gone from this device either way, so a settings store
+  // that cannot be reached does not undo the decommission.
+  try {
+    await markEncryptedRemoteReleased(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), vaultId));
+  } catch (error) {
+    console.warn("[mobileWorkspaceSecurity] could not record the released workspace", error);
+  }
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
 }
 

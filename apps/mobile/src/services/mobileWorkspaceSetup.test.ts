@@ -207,6 +207,22 @@ describe("mobile encrypted-workspace decommission", () => {
     expect(await state.loadMeta()).toBeNull();
   });
 
+  it("records that this device left on purpose, so the plain sync it asked for may run (R8 follow-up)", async () => {
+    const state = await joined();
+    const settings = new Map<string, unknown>();
+    const { getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({ ...previous, loadSettings: async () => ({
+      keys: async () => [...settings.keys()], get: async (key: string) => settings.get(key) ?? null,
+      set: async (key: string, value: unknown) => { settings.set(key, value); }, delete: async (key: string) => settings.delete(key), save: async () => {},
+    }) } as Parameters<typeof setPlatformServices>[0]);
+    try {
+      await decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {} });
+      expect(settings.get("encryptedRemote_v1")).toEqual({ v: 1, state: "released" });
+    } finally { if (previous) setPlatformServices(previous); }
+  });
+
   it("refuses on a locked keystore and leaves everything in place", async () => {
     const state = await joined();
     keystoreError = new Error("keystore locked");

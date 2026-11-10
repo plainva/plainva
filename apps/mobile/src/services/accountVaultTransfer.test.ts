@@ -177,6 +177,8 @@ describe("the account-to-files transfer before vault activation", () => {
     expect(state.disks.get("source")!.get("Note.md")).toBe("local notes");
     // Bound to the folder: its sync is what reports "pair required" from here on.
     expect(state.secrets.get(`sync_provider_mobile_${target}`)).toEqual(provider);
+    // Known before its first start: no failed probe lets the plain sync run against it.
+    expect(state.settings.get(`encryptedRemote_${target}`)).toEqual({ v: 1, state: "encrypted" });
     expect((await loadConnectQueue())?.outcomes.files).toMatchObject({ state: "connected", bindingId: target });
   });
   it("does not ask at all when the vault holds only its starter notes", async () => {
