@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page, testNow } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, type MobileTestGlobals, waitForIndexSchema } from "./exampleVault";
 
@@ -171,7 +171,7 @@ test("the calendar's Show tasks puts a checkbox from a note on its day, without 
     localStorage.setItem("CapacitorStorage.secret_pim_local_pim-fixture-1", JSON.stringify({ kind: "google", clientId: "fixture-client", refreshToken: "fixture" }));
     localStorage.setItem("plainva-calendar-view", "day");
   });
-  const now = new Date();
+  const now = testNow();
   const pad = (n: number) => String(n).padStart(2, "0");
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const note = `# Haushalt\n\n- [ ] Drucker einrichten 📅 ${today}\n`;

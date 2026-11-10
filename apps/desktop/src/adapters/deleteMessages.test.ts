@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { loadAllLanguages } from "@plainva/ui/i18n";
+import { describe, it, expect, beforeAll } from "vitest";
+import i18n, { loadAllLanguages } from "@plainva/ui/i18n";
+import { APP_LANGUAGES } from "../../../../packages/ui/src/services/languages";
 
 /**
  * The two outcomes of a failed delete say the OPPOSITE of each other, and they
@@ -14,7 +15,20 @@ import { loadAllLanguages } from "@plainva/ui/i18n";
  * translation drift is exactly how two messages quietly become one again.
  */
 describe("delete outcome messages", () => {
-  const langs = loadAllLanguages();
+  // `loadAllLanguages()` resolves to nothing; the bundles live in i18next. Until
+  // 2026-11-10 this read its (un-awaited) promise as the bundle map, and both
+  // loops below ran over an empty object - the guard checked nothing.
+  const langs: Record<string, unknown> = {};
+  beforeAll(async () => {
+    await loadAllLanguages();
+    for (const { code } of APP_LANGUAGES) langs[code] = i18n.getResourceBundle(code, "translation");
+  });
+
+  it("reads every app language (a guard that loops over nothing checks nothing)", () => {
+    expect(Object.keys(langs).sort()).toEqual(APP_LANGUAGES.map((l) => l.code).sort());
+    expect(APP_LANGUAGES.length).toBeGreaterThanOrEqual(10);
+    for (const [lang, bundle] of Object.entries(langs)) expect(bundle, lang).toBeTruthy();
+  });
 
   it("both outcomes exist in every language and name the item", () => {
     for (const [lang, bundle] of Object.entries(langs)) {

@@ -8,11 +8,51 @@ on:
   pull_request:
     branches: [main]
 
-jobs:
-  checks:
-    name: Checks
-    runs-on: ubuntu-latest
+# The run is split into parallel jobs (stability plan R10): until 2026-11 it was
+# one job of about 110 minutes, 67 of them the E2E suite with one worker
+# against the dev server. Branch protection requires four check names; three
+# come from this file and keep their meaning:
+#   - "Checks" is the gate at the end: green only when every job it needs
+#     succeeded (see the job for why that is written out);
+#   - "WebKit editor regression" and "Rust checks" are jobs of their own, as before.
+# Each job's steps are what the one job did, in the same order.
+#
+# Room for the performance budgets: they come as a workflow of their own
+# (.github/workflows/perf.yml), not as jobs here.
 
+permissions:
+  contents: read
+
+jobs:
+  # Decision E3: `main` takes only fast-forwards of commits whose required
+  # checks are already green, and check runs belong to the commit. A run on
+  # `main` for such a commit skips everything below; any other commit — and
+  # every branch, pull request and rerun that finds the checks not green —
+  # runs in full (apps/desktop/scripts/ci-verified.mjs).
+  verified:
+    name: Already verified
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      verified: ${{ steps.ask.outputs.verified }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Are the required checks already green on this commit?
+        id: ask
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node apps/desktop/scripts/ci-verified.mjs
+
+  static:
+    name: Lint, typecheck and scans
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -71,17 +111,55 @@ jobs:
             python3 -c 'from skills_ref.cli import main; main()' validate "$skill"
           done
 
-      - name: Core tests
-        run: pnpm --filter @plainva/core test
+  unit:
+    name: Unit tests (${{ matrix.name }})
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: core
+            run: pnpm --filter @plainva/core test
+          # The desktop suite is the longest (16 minutes alone): two halves.
+          - name: desktop 1/2
+            run: pnpm --filter desktop exec vitest run --shard=1/2
+          - name: desktop 2/2
+            run: pnpm --filter desktop exec vitest run --shard=2/2
+          # The mobile vitest suite (navigation reducer, save coordinator, dialogs,
+          # pull-to-refresh, structure ratchet) previously ran only in the local
+          # pre-push hook — a push without hooks had no mobile test coverage.
+          - name: mobile
+            run: pnpm --filter mobile test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Tests
+        run: ${{ matrix.run }}
 
-      - name: Desktop tests
-        run: pnpm --filter desktop test
-
-      # The mobile vitest suite (navigation reducer, save coordinator, dialogs,
-      # pull-to-refresh, structure ratchet) previously ran only in the local
-      # pre-push hook — a push without hooks had no mobile test coverage.
-      - name: Mobile tests
-        run: pnpm --filter mobile test
+  build:
+    name: Build and production smokes
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
       - name: Desktop web build
         run: pnpm --filter desktop build
@@ -100,54 +178,156 @@ jobs:
       - name: Core package consumer smoke
         run: npm --prefix packages/core run smoke:package
 
-      - name: E2E tests
-        run: xvfb-run pnpm --filter desktop run test:e2e
-
-      # Production-build smoke (v0.3.0 white-screen guard): the E2E suite above
-      # runs ONLY against the Vite dev server, so production-only startup
-      # failures — module init order, minification, code-splitting, CSP — are
-      # structurally invisible to it (that class of bug shipped in v0.3.0). This
-      # serves the bundle produced by "Desktop web build" via `vite preview` and
-      # asserts the app boots and renders its first screen with no uncaught error.
+      # Production-build smoke (v0.3.0 white-screen guard): the bundle produced
+      # by "Desktop web build", exactly as it ships, served by `vite preview`;
+      # asserts the app boots and renders its first screen with no uncaught
+      # error. The E2E jobs below run against the e2e bundle, which is this
+      # build plus the test fixtures (apps/desktop/scripts/e2e-bundle.mjs).
       - name: Production build smoke
         run: xvfb-run pnpm --filter desktop run test:e2e:prod
 
-      # The same guard for the PHONE, which had none. A dependency bump split
-      # React's CommonJS shim away from react-i18next's interop call, and the
-      # mobile app stopped mounting from a production build entirely while dev,
-      # unit tests and this whole workflow stayed green (rework round 2). This
-      # builds the mobile bundle and asserts it boots.
-      - name: Mobile production build smoke
-        run: xvfb-run pnpm --filter mobile run smoke:prod
-
-      # A test that failed once and passed on its retry used to leave nothing
-      # behind but a line in the log (E27, Befunde 2026-09-24). Every Playwright
-      # config above traces the FIRST run of each test in CI and keeps the
-      # trace when that run fails (`trace: "retain-on-first-failure"`; until
-      # 2026-10-06 it was the retry that was traced, i.e. the attempt that
-      # passed). Each run writes into its own folder under test-results/, so a
-      # trace exists exactly when a first attempt failed — and then the
-      # results of all three runs go up as one artifact,
-      # kept for a week. Open a trace with `npx playwright show-trace <trace.zip>`.
-      # A green run without a retry uploads nothing.
+      # See "Upload Playwright traces" in the E2E job.
       - name: Look for Playwright traces
         id: traces
         if: always()
         run: |
-          if find apps/desktop/test-results apps/mobile/test-results -name trace.zip 2>/dev/null | grep -q .; then
+          if find apps/desktop/test-results -name trace.zip 2>/dev/null | grep -q .; then
             echo "found=true" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Upload Playwright traces
         if: failure() || steps.traces.outputs.found == 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-checks-${{ github.run_attempt }}
-          path: |
-            apps/desktop/test-results/
-            apps/mobile/test-results/
+          name: playwright-build-${{ github.run_attempt }}
+          path: apps/desktop/test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  e2e:
+    name: E2E (${{ matrix.shard }}/4)
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright Browsers
+        run: pnpm --filter desktop exec playwright install --with-deps chromium
+      # The suite runs against the built bundle, not the dev server (R10): what
+      # ships, plus the fixtures a few tests import (scripts/e2e-bundle.mjs).
+      - name: Build the e2e bundle
+        run: pnpm --filter desktop run build:e2e
+      - name: E2E tests
+        env:
+          E2E_BUNDLE: "1"
+        run: xvfb-run pnpm --filter desktop exec playwright test --shard=${{ matrix.shard }}/4
+
+      # A test that failed once and passed on its retry used to leave nothing
+      # behind but a line in the log (E27, Befunde 2026-09-24). Every Playwright
+      # config traces the FIRST run of each test in CI and keeps the trace when
+      # that run fails (`trace: "retain-on-first-failure"`; until 2026-10-06 it
+      # was the retry that was traced, i.e. the attempt that passed). A trace
+      # exists exactly when a first attempt failed — and then the results go up
+      # as an artifact, kept for a week. Open a trace with
+      # `npx playwright show-trace <trace.zip>`. A green run without a retry
+      # uploads nothing.
+      - name: Look for Playwright traces
+        id: traces
+        if: always()
+        run: |
+          if find apps/desktop/test-results -name trace.zip 2>/dev/null | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload Playwright traces
+        if: failure() || steps.traces.outputs.found == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-e2e-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: apps/desktop/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The guard for the PHONE's production build. A dependency bump split React's
+  # CommonJS shim away from react-i18next's interop call, and the mobile app
+  # stopped mounting from a production build entirely while dev, unit tests and
+  # the rest of CI stayed green (rework round 2). Builds the mobile bundle and
+  # runs the phone's production suite against it, in two halves.
+  mobile-smoke:
+    name: Mobile production smoke (${{ matrix.shard }}/2)
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright Browsers
+        run: pnpm --filter mobile exec playwright install --with-deps chromium
+      # smoke:prod builds the e2e bundle and runs the suite; the shard goes to Playwright.
+      - name: Mobile production build smoke
+        run: xvfb-run pnpm --filter mobile run smoke:prod --shard=${{ matrix.shard }}/2
+      - name: Look for Playwright traces
+        id: traces
+        if: always()
+        run: |
+          if find apps/mobile/test-results -name trace.zip 2>/dev/null | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload Playwright traces
+        if: failure() || steps.traces.outputs.found == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-mobile-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: apps/mobile/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The required check "Checks": green only when every job above succeeded.
+  #
+  # Written out because GitHub's own rule would let a gap through: a job whose
+  # `needs` failed is SKIPPED by default, and a skipped required check counts
+  # as passed for branch protection. So this job runs always() — also when a
+  # needed job failed, was cancelled or was skipped — and itself fails unless
+  # every one of them reports `success`. The one honest skip is the E3 case:
+  # the commit's required checks are already green, then this job is skipped
+  # as well and the green "Checks" from the branch run stands.
+  checks:
+    name: Checks
+    needs: [verified, static, unit, build, e2e, mobile-smoke]
+    if: always() && needs.verified.outputs.verified != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job of the run succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const needs = JSON.parse(process.env.NEEDS);
+            const bad = Object.entries(needs).filter(([, job]) => job.result !== "success");
+            for (const [name, job] of Object.entries(needs)) console.log(`${name}: ${job.result}`);
+            if (bad.length) { console.error(`Not green: ${bad.map(([n, j]) => `${n} (${j.result})`).join(", ")}`); process.exit(1); }
+          '
 
   # The core is the part that touches a real file system, and macOS answers
   # differently from Linux there: APFS folds the composed and the decomposed
@@ -157,6 +337,8 @@ jobs:
   # while — a red macOS runner must not hold `main` on its first week.
   core-macos:
     name: Core tests (macOS)
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -172,9 +354,12 @@ jobs:
 
   # The desktop's Rust has code of its own for macOS (issue #135: spell
   # checking in WKWebView) that the Linux job never compiles; until 2026-10 it
-  # was first compiled by a release. Not a required check, like core-macos.
+  # was first compiled by a release. Not a required check yet (decision E4:
+  # it becomes one once branch protection names it).
   rust-macos:
     name: Rust check (macOS)
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -190,6 +375,8 @@ jobs:
 
   webkit:
     name: WebKit editor regression
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -203,7 +390,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter desktop exec playwright install --with-deps webkit
       - run: pnpm --filter desktop exec playwright test --config playwright.webkit.config.ts
-      # The same rule as in the Checks job (E27). This config keeps the trace of
+      # The same rule as in the E2E jobs (E27). This config keeps the trace of
       # every failed attempt, so a trace exists exactly when a test failed or
       # needed its retry.
       - name: Look for Playwright traces
@@ -224,6 +411,8 @@ jobs:
 
   rust:
     name: Rust checks
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -279,5 +468,16 @@ jobs:
       #     The fix is on 0.8; 0.7 is unsupported. The lockfile chain is optional
       #     SQLx -> rust_decimal -> rkyv, absent from the active graph. Re-evaluate
       #     when that chain updates or archive/Decimal support is enabled.
+      #   RUSTSEC-2026-0459 (reviewed 2026-11-10): the SQLite that libsqlite3-sys
+      #     0.30 bundles (< 3.54) can return uninitialised page-cache memory when
+      #     it opens a database together with a crafted `-wal` file of another
+      #     page size. The fix is libsqlite3-sys 0.39, which needs sqlx 0.9;
+      #     tauri-plugin-sql 2.x pins sqlx 0.8 and one binary cannot link two
+      #     SQLites. The app opens its own index databases in its app-data
+      #     folder; the one path that opens a database a third party could have
+      #     written is the one-time migration of a legacy in-vault
+      #     `.plainva/vault.db` (VaultContext.tsx, resolveIndexDbUrl). Local
+      #     vector, user interaction needed, information disclosure into query
+      #     results. Lift the exception when tauri-plugin-sql moves to sqlx 0.9.
       - name: cargo audit
-        run: cargo audit --file apps/desktop/src-tauri/Cargo.lock --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2026-0235
+        run: cargo audit --file apps/desktop/src-tauri/Cargo.lock --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2026-0235 --ignore RUSTSEC-2026-0459

@@ -1,15 +1,25 @@
 import { defineConfig, devices } from '@playwright/test';
+import { TEST_TIME_ZONE, pinTestTimeZone } from '../../scripts/test-clock.mjs';
 
-// Default: dev server on 1420. Set E2E_BASE_URL (e.g. http://localhost:4173 with
-// `vite preview`) to run the suite against a production build instead.
-const baseURL = process.env.E2E_BASE_URL || 'http://localhost:1420';
+// One zone for the runner and the page (R9, scripts/test-clock.mjs); the shared
+// `test` of e2e/fixtures/clockedTest.ts starts each page clock at TEST_NOW.
+pinTestTimeZone();
+
+// Default: dev server on 1420. E2E_BASE_URL points the suite at a server that
+// already runs (a dev server on its own port, a preview). E2E_BUNDLE=1 builds
+// nothing but serves the e2e bundle (`pnpm build:e2e` first) with `vite preview`
+// on 4175 — what CI runs (stability plan R10, scripts/e2e-bundle.mjs).
+const bundle = !process.env.E2E_BASE_URL && !!process.env.E2E_BUNDLE;
+const baseURL = process.env.E2E_BASE_URL || (bundle ? 'http://localhost:4175' : 'http://localhost:1420');
 
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // CI: four shards of two workers each against static files (R10); one worker
+  // against the dev server was 67 minutes.
+  workers: process.env.CI ? 2 : undefined,
   reporter: 'html',
   // Measured 2026-09-04 (Sammelplan § 2.27, third look): two full runs of
   // 275 tests with the default worker count (12 on 24 cores) against the
@@ -21,7 +31,7 @@ export default defineConfig({
   // both lazy-loading) are the same class. So the assertion budget follows
   // the measurement instead of the 5 s default; the production config is
   // untouched, its files are static.
-  expect: { timeout: process.env.E2E_BASE_URL ? 5_000 : 10_000 },
+  expect: { timeout: process.env.E2E_BASE_URL || bundle ? 5_000 : 10_000 },
   // Each config writes into its own folder: Playwright empties its output
   // folder when a run starts, and in CI the production smoke runs right after
   // this suite — sharing `test-results/` erased the traces of every test that
@@ -29,6 +39,7 @@ export default defineConfig({
   outputDir: 'test-results/e2e',
   use: {
     baseURL,
+    timezoneId: TEST_TIME_ZONE,
     // Every first run is traced in CI and the trace is kept when that run
     // fails (`retain-on-first-failure`). `on-first-retry` kept the trace of the
     // RETRY, which is the attempt that passed: of three flaky tests examined on
@@ -42,7 +53,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     }
   ],
-  ...(process.env.E2E_BASE_URL ? {} : {
+  ...(process.env.E2E_BASE_URL ? {} : bundle ? {
+    webServer: {
+      command: 'pnpm preview:e2e',
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+    },
+  } : {
     webServer: {
       command: 'pnpm dev',
       url: baseURL,

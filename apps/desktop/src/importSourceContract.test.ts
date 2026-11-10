@@ -25,6 +25,7 @@ describe('what an import source declares about its input', () => {
   const sources = defaultImportRegistry.list();
 
   it('every source says how it is fed', () => {
+    expect(sources.length, "the import registry lists sources").toBeGreaterThan(0);
     for (const source of sources) {
       const kind = source.inputKind ?? 'files';
       expect(['files', 'api'], `${source.id} declares an unknown inputKind`).toContain(kind);
@@ -32,6 +33,7 @@ describe('what an import source declares about its input', () => {
   });
 
   it('a file source offers at least one dialog, and only real ones', () => {
+    expect(sources.filter((s) => (s.inputKind ?? 'files') === 'files').length, "there are file sources to check").toBeGreaterThan(0);
     for (const source of sources.filter((s) => (s.inputKind ?? 'files') === 'files')) {
       const modes = source.pickModes ?? ['files'];
       expect(modes.length, `${source.id} offers no way to pick anything`).toBeGreaterThan(0);
@@ -47,6 +49,7 @@ describe('what an import source declares about its input', () => {
     // allowlist, and an unregistered host is simply refused — which on screen
     // looks exactly like a bad token. The guide URL is where the CREDENTIAL
     // comes from and is usually a different host than the API.
+    expect(sources.filter((s) => s.inputKind === 'api').length, "there are API sources to check").toBeGreaterThan(0);
     for (const source of sources.filter((s) => s.inputKind === 'api')) {
       const origin = source.credentials?.apiOrigin;
       expect(origin, `${source.id} does not say which host it calls`).toBeDefined();
@@ -58,6 +61,7 @@ describe('what an import source declares about its input', () => {
   });
 
   it('an API source brings its own credential wording and link', () => {
+    expect(sources.filter((s) => s.inputKind === 'api').length, "there are API sources to check").toBeGreaterThan(0);
     for (const source of sources.filter((s) => s.inputKind === 'api')) {
       expect(source.credentials, `${source.id} is an API source without credentials`).toBeDefined();
       expect(source.credentials!.url).toMatch(/^https:\/\//);
@@ -67,6 +71,7 @@ describe('what an import source declares about its input', () => {
       const guideKey = source.credentials!.guideKey;
       expect(guideKey).toMatch(/^import\./);
       const [, blockKey] = guideKey.split('.');
+      expect(everyLocale().length, "locale bundles are loaded").toBeGreaterThan(0);
       for (const [lang, bundle] of everyLocale()) {
         const block = bundle.import?.[blockKey];
         expect(block, `${lang} has no ${guideKey} block for ${source.id}`).toBeDefined();

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 
 /**
  * The phone's boot guard (public/boot-guard.js) shows "Plainva didn't start"

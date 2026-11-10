@@ -59,6 +59,7 @@ describe("quick-capture window", () => {
   });
 
   it("leaves the system-wide shortcut to the central window", () => {
+    expect(capabilities().size, "capability files are read").toBeGreaterThan(0);
     for (const file of capabilities().keys()) {
       const cap = read(file);
       if (!ids(cap).some((id) => id.startsWith("global-shortcut:"))) continue;

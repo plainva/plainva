@@ -1,5 +1,5 @@
 import { seedExampleNote } from "./exampleVault";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 
 /**
  * A page that decides its own bottom edge must keep it.

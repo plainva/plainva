@@ -157,18 +157,23 @@ describe("a row with an action can be swiped", () => {
     expect(seen, "the swipe rows were not found").toBeGreaterThanOrEqual(12);
   });
 
-  it("keeps the destructive action last and within three slots", () => {
+  it("keeps the destructive action last and within three slots", async () => {
     // The slot metric is 66px; four of them leave nothing of the row to read.
-    for (const file of ["screens/MailListScreen.tsx", "screens/BrowseScreen.tsx"]) {
-      const src = read(file);
-      for (const m of src.matchAll(/<SwipeRow[\s\S]*?actions=\{\[([\s\S]*?)\]\}/g)) {
-        const actions = m[1].split(/\{\s*icon:/).slice(1);
-        expect(actions.length, `${file}: more than three swipe slots`).toBeLessThanOrEqual(3);
-        const dangerAt = actions.findIndex((a) => /danger:\s*true/.test(a));
-        if (dangerAt >= 0) {
-          expect(dangerAt, `${file}: the destructive action is not last`).toBe(actions.length - 1);
-        }
-      }
+    // Until 2026-11-10 this read `actions={[ … ]}` literals out of two screens;
+    // both had long since moved to the row-action catalog (`swipeFor`), the
+    // pattern matched nothing, and the test asserted nothing. The rule is the
+    // catalog's, so it is checked there: every builder, with every capability
+    // present (the most a swipe can ever be handed).
+    const catalog = await import("../../../packages/ui/src/lib/rowActions");
+    const t = (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key;
+    const everything = new Proxy({}, { get: (_target, key) => (key === "then" ? undefined : () => undefined) });
+    const builders = Object.entries(catalog).filter(([name, value]) => /RowActions$/.test(name) && name !== "pickRowActions" && typeof value === "function") as Array<[string, (t: unknown, c: unknown) => Array<{ id: string; swipe?: boolean; danger?: boolean }>]>;
+    expect(builders.map(([name]) => name).sort()).toEqual(expect.arrayContaining(["fileRowActions", "journalRowActions", "mailRowActions", "taskRowActions"]));
+    for (const [name, build] of builders) {
+      const swipe = build(t, everything).filter((a) => a.swipe);
+      expect(swipe.length, `${name}: more than three swipe slots`).toBeLessThanOrEqual(3);
+      const dangerAt = swipe.findIndex((a) => a.danger);
+      expect(dangerAt === -1 || dangerAt === swipe.length - 1, `${name}: the destructive action is not last (${swipe.map((a) => a.id).join(", ")})`).toBe(true);
     }
   });
 });

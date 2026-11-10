@@ -65,6 +65,7 @@ describe('every offered option is one the importer reads', () => {
   });
 
   it('lets every source keep the source dates, on by default', () => {
+    expect(defaultImportRegistry.list().length, "the import registry lists sources").toBeGreaterThan(0);
     for (const source of defaultImportRegistry.list()) {
       const dates = (source.options ?? []).find((o) => o.key === 'preserveTimestamps');
       expect(dates, `${source.id} should offer the date switch`).toBeDefined();

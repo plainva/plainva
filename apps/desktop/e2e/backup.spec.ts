@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 // E2E for the backups & versioning plan (Gesamtplan Backups & Versionierung
 // 2026-07-05): version-history modal roundtrip (list -> diff -> restore, incl.

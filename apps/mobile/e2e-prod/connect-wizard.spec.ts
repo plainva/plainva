@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 
 /**
  * Picking a service in the connect wizard has to OPEN something.

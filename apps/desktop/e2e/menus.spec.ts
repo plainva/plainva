@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from './fixtures/clockedTest';
 import { installMenuVault } from './fixtures/menuVault';
 import { openProbePage } from './fixtures/openProbePage';
 import type { OutsidePressProbeWindow } from './fixtures/outsidePressProbe';

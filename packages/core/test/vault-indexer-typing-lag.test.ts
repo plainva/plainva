@@ -301,7 +301,9 @@ describe("the internal-path rules are data, shared with the native walk", () => 
   });
 
   it("reaches the verdicts the fixture names", () => {
+    expect(fixture.internal.length, "the fixture names internal segments").toBeGreaterThan(0);
     for (const name of fixture.internal) expect(isInternalSegment(name), JSON.stringify(name)).toBe(true);
+    expect(fixture.user.length, "the fixture names user segments").toBeGreaterThan(0);
     for (const name of fixture.user) expect(isInternalSegment(name), JSON.stringify(name)).toBe(false);
   });
 });

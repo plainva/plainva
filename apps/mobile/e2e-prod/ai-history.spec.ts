@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page, testNow } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { seedExampleNote, waitForVaultDirectory } from "./exampleVault";
 
@@ -34,7 +34,7 @@ const calls = (name: string, args: unknown) =>
 
 /** A local day `offset` days from today, as the tools take it. */
 const dayKey = (offset: number) => {
-  const d = new Date();
+  const d = testNow();
   d.setDate(d.getDate() + offset);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };

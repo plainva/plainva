@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 
 /**
  * The refresh indicator hangs BELOW the app bar.

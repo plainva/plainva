@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 // Sammelplan § 3.135 Nr. 6, decision E10: a link that names an overview only as
 // `index` leads to whichever `index.md` the link rule finds first. Adopting a

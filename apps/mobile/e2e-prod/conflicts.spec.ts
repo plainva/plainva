@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./clockedTest";
 import { readVaultFile, seedExampleNote, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
 
 async function read(page: Page, path: string) {

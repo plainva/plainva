@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 import { FakeOAuthProvider, type FakeConsentChoice } from '../../../packages/ui/src/testing/fakeOAuthProvider';
 
 /**

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./clockedTest";
 import { waitForVaultDirectory, type MobileTestGlobals, folderEntries } from "./exampleVault";
 
 /**

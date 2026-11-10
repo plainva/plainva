@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, testNow } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
@@ -37,7 +37,7 @@ test("an account that is not synced says so above the calendar, the events stay;
 
     // Today, in the phone's own clock: four appointments and a working
     // location — five entries, two more than a month cell has dots for.
-    const now = new Date();
+    const now = testNow();
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const pad = (n: number) => String(n).padStart(2, "0");
     const key = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

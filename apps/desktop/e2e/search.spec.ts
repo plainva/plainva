@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/clockedTest';
 
 // Sidebar full-text search (Gesamtplan Suche 2026-07-05): search-as-you-type
 // with prefix matching, X button, snippet <mark>s, name/content grouping,

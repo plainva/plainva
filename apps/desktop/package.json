@@ -19,6 +19,8 @@
     "test:e2e": "playwright test",
     "test:e2e:prod": "playwright test --config playwright.prod.config.ts",
     "smoke:prod": "pnpm build && pnpm test:e2e:prod",
+    "build:e2e": "vite build --mode e2e",
+    "preview:e2e": "vite preview --mode e2e --port 4175 --strictPort",
     "scan:engine-floor": "node scripts/scan-engine-floor.mjs",
     "test:native": "wdio run ./wdio.conf.ts"
   },

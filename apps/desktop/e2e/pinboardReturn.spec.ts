@@ -1,6 +1,6 @@
 import type { PinboardProbeWindow } from "./fixtures/pinboardProbe";
 import { openProbePage } from "./fixtures/openProbePage";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures/clockedTest";
 
 export async function loadPinboardProbe(page: Page) {
   await page.route("**/__pinboard_probe", route => route.fulfill({ contentType: "text/html", body: `<!doctype html><html><head>

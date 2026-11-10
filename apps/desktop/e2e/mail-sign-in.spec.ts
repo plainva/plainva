@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/clockedTest';
 
 /**
  * Two Microsoft mailboxes, each with the sign-in of its own account (finding
@@ -340,6 +340,7 @@ test('each of two Microsoft mailboxes lists, opens and sends with the sign-in of
 
   // And back: the first mailbox is still the first account's.
   const second = await settledCalls(page);
+  expect(second.length, "calls were made after the switch").toBeGreaterThan(first.length);
   for (const call of second.slice(first.length)) {
     expect(call.authorization, `${call.method} ${path(call)}`).toBe('Bearer access-for:sign-in-b');
   }

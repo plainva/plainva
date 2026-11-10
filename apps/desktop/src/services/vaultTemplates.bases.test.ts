@@ -59,6 +59,7 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
       const templates = getVaultTemplates(lang);
 
       it("ships databases exactly where expected", () => {
+        expect(templates.filter((d) => (d.bases ?? []).length > 0).length, "some templates ship databases").toBeGreaterThan(0);
         for (const def of templates) {
           const count = (def.bases ?? []).length;
           if (def.id in EXPECTED_BASES) expect(count, def.id).toBe(EXPECTED_BASES[def.id]);
@@ -121,6 +122,8 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
           });
 
           it("relation and reverse columns are wired bidirectionally to real bases", () => {
+            // A template may have no relation at all; it still has bases to look at.
+            expect(bases.length).toBeGreaterThan(0);
             for (const b of bases) {
               const cols: Record<string, any> = parsedByPath.get(b.path).columns;
               for (const [key, col] of Object.entries(cols)) {
@@ -166,6 +169,7 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
           });
 
           it("relation values in example notes link to notes that exist", () => {
+            expect(def.notes.length).toBeGreaterThan(0);
             for (const note of def.notes) {
               if (!note.properties) continue;
               for (const value of Object.values(note.properties)) {
@@ -181,6 +185,7 @@ describe("vault template databases (Gesamtplan DB-Vorlagen 2026-07-04)", () => {
           });
 
           it("newItemTemplate points at a shipped, description-free template note", () => {
+            expect(bases.length).toBeGreaterThan(0);
             for (const b of bases) {
               const tplPath = (b.config as any).newItemTemplate;
               if (!tplPath) continue;

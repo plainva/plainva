@@ -69,6 +69,15 @@ describe("the release gate", () => {
     expect(judgeChecks(REQUIRED_CHECKS.map((n) => run(n, "cancelled", "2026-10-30T10:00:00Z"))).failed).toHaveLength(4);
   });
 
+  it("lets a skipped run decide nothing: the green run on the branch stands, a check only ever skipped never ran (E3)", () => {
+    const skippedOnMain = REQUIRED_CHECKS.map((n) => run(n, "skipped", "2026-10-30T12:00:00Z", 20));
+    expect(judgeChecks([...allGreen, ...skippedOnMain]).green).toEqual(REQUIRED_CHECKS);
+    expect(judgeChecks(skippedOnMain).missing).toEqual(REQUIRED_CHECKS);
+    // A red run is not hidden behind a later skip either.
+    const red = allGreen.map((r) => (r.name === "Checks" ? { ...r, conclusion: "failure" } : r));
+    expect(judgeChecks([...red, ...skippedOnMain]).failed).toEqual(["Checks (failure)"]);
+  });
+
   it("lets the release through when the commit is on main and all four are green", async () => {
     const api = fakeApi();
     await expect(releaseGate({ api, ref: "v0.8.7", expectedSha: sha, ...quiet })).resolves.toBe(sha);

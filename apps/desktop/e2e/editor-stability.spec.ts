@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 // E2E for the editor-stability plan (Gesamtplan Editor-Stabilitaet 2026-07-05):
 // the editor must stay visually still — table widgets and list indents survive

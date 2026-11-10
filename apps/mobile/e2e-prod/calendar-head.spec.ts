@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./clockedTest";
 
 /**
  * The calendar's head on the phone (feedback 2026-10-29): the same app bar as

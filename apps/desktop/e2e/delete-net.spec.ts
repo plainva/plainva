@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 // D1 of the data-safety plan of 2026-11-06, on the desktop: a vault on a
 // share without a trash. A deletion snapshots every file that goes before it

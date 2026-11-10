@@ -35,6 +35,7 @@ describe("graphLayout", () => {
     const edges = Array.from({ length: 15 }, (_, i) => ({ source: `n${i}`, target: `n${(i + 3) % 20}` }));
     const one = computeForceLayout(nodes, edges, { seed: "same" });
     const two = computeForceLayout(nodes, edges, { seed: "same" });
+    expect(one.positions.size, "the layout positions every node").toBeGreaterThan(0);
     for (const [id, p] of one.positions) {
       const q = two.positions.get(id)!;
       expect(q.x).toBe(p.x);

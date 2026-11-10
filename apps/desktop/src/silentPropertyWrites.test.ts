@@ -972,6 +972,7 @@ describe("a property write through the surgical helpers is never silent", () => 
     for (const said of s.says ?? []) expect(stretch, `nothing in the stretch says ${said}`).toMatch(said);
     for (const quiet of s.never ?? []) expect(stretch, `${quiet} stands in the stretch`).not.toMatch(quiet);
     if (s.ahead) {
+      expect(watchedCalls().filter((c) => c.stretch === s).length, `${s.file}: the calls inside the stretch are found`).toBeGreaterThan(0);
       for (const call of watchedCalls().filter((c) => c.stretch === s)) {
         expect(text.slice(Math.max(0, call.index - 120), call.index), `${call.name}( in ${s.file} is not handed to its way of saying so`).toMatch(s.ahead);
       }

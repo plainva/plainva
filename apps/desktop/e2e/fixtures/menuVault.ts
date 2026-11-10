@@ -168,6 +168,7 @@ export function installMenuVault(): void {
       if (cmd === 'plugin:fs|stat') {
         const file = fs[clean(args.path)];
         if (!file) throw new Error('File not found');
+        // eslint-disable-next-line plainva/no-real-clock-in-tests -- runs in the page (installMenuVault is handed to addInitScript), on the page clock
         return { isDir: !!file.isDir, isFile: !file.isDir, mtime: Date.now(), size: typeof file === 'string' ? file.length : 0 };
       }
       if (cmd === 'plugin:fs|read_dir') {

@@ -163,6 +163,7 @@ describe("the desktop offers every command (S15 drift guard)", () => {
   it("gives every command a group, an icon and an id of its own", () => {
     const ids = inventory.commands.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.length, "the registry lists commands").toBeGreaterThan(0);
     for (const c of inventory.commands) {
       expect(COMMAND_GROUPS, `${c.id} has an unknown group`).toContain(c.group);
       expect(typeof c.icon, `${c.id} has no icon`).not.toBe("undefined");

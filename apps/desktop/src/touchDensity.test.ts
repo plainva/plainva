@@ -34,6 +34,7 @@ describe("touch density", () => {
   it("only overrides tokens the default already defines", () => {
     // A token introduced by the touch block alone would leave the pointer
     // shells with an undefined variable wherever a primitive consumes it.
+    expect(touch.size, "the touch density block defines tokens").toBeGreaterThan(0);
     for (const name of touch.keys()) {
       expect(root.has(name), `${name} has no default in :root`).toBe(true);
     }
