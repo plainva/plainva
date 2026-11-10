@@ -197,6 +197,57 @@ describe("pending calendar writes (issue 119)", () => {
     expect(applyPendingEventWrites([], store.snapshot())).toEqual([]);
   });
 
+  it("a deleted series leaves the screen with every occurrence, whatever the provider (R7)", () => {
+    // CalDAV occurrences (`uid#...`), Google/Microsoft ids, the device's own ids:
+    // all of them name the series as `seriesMaster`.
+    const shown = [
+      row("s1#1", { seriesMaster: "s1" }),
+      row("g1_20261110", { seriesMaster: "g1" }),
+      row("e1@1700000000000", { seriesMaster: "e1" }),
+      row("s1#1-other-calendar", { seriesMaster: "s1", calendarId: "c2" }),
+      row("single"),
+    ];
+    const writes = ["s1", "g1", "e1"].map((uid, i) => ({ kind: "delete" as const, ref: ref(uid), id: i + 1, state: "settled" as const, settledAt: 0 }));
+    expect(applyPendingEventWrites(shown, writes).map((e) => e.uid)).toEqual(["s1#1-other-calendar", "single"]);
+    // Kept while a pull still lists an occurrence, gone when none does.
+    expect(unsettledEventWrites(shown, writes, 1).map((w) => (w.kind === "delete" ? w.ref.uid : null))).toEqual(["s1", "g1", "e1"]);
+    expect(unsettledEventWrites([row("single")], writes, 1)).toEqual([]);
+    // Deleting ONE occurrence still takes only that one.
+    const one = [{ kind: "delete" as const, ref: ref("s1#1"), id: 9, state: "settled" as const, settledAt: 0 }];
+    expect(applyPendingEventWrites([row("s1#1", { seriesMaster: "s1" }), row("s1#2", { seriesMaster: "s1" })], one).map((e) => e.uid)).toEqual(["s1#2"]);
+  });
+
+  it("a changed series shows its new title on every occurrence at once, but no occurrence moves before the provider says where (R7)", async () => {
+    const store = new PendingEventWrites();
+    const occurrences = [row("s1#1", { seriesMaster: "s1", start: { ts: 100 } }), row("s1#2", { seriesMaster: "s1", start: { ts: 200 } })];
+    let answer!: () => void;
+    const provider = new Promise<void>((resolve) => (answer = resolve));
+    const change = { kind: "update" as const, ref: ref("s1"), patch: { title: "Daily", start: { ts: 999 } as any, end: { ts: 1999 } as any } };
+    const writing = writeEventOptimistically(store, change, () => provider);
+    const during = applyPendingEventWrites(occurrences, store.snapshot());
+    expect(during.map((e) => [e.uid, e.title, e.start.ts, e.pending])).toEqual([
+      ["s1#1", "Daily", 100, true],
+      ["s1#2", "Daily", 200, true],
+    ]);
+    answer();
+    await writing;
+    // A pull that started before the write: still the old title, the overlay stays.
+    store.reconcile(occurrences, Date.now());
+    expect(applyPendingEventWrites(occurrences, store.snapshot()).map((e) => e.title)).toEqual(["Daily", "Daily"]);
+    // The pull that brought the change: the overlay leaves.
+    store.reconcile(occurrences.map((o) => ({ ...o, title: "Daily" })), Date.now());
+    expect(store.snapshot()).toEqual([]);
+  });
+
+  it("a deleted series that was just created leaves with its create overlay (R7)", async () => {
+    const store = new PendingEventWrites();
+    const created = row("s9", { recurrence: "RRULE:FREQ=DAILY" });
+    showWrittenEvents(store, [{ kind: "create", row: created }]);
+    await writeEventOptimistically(store, { kind: "delete", ref: ref("s9") }, async () => undefined, () => [{ kind: "delete", ref: ref("s9") }]);
+    const stale = [row("s9#1", { seriesMaster: "s9" })];
+    expect(applyPendingEventWrites(stale, store.snapshot())).toEqual([]);
+  });
+
   it("tells its listeners about every change and keeps a stable snapshot in between", () => {
     const store = new PendingEventWrites();
     const listener = vi.fn();

@@ -92,6 +92,38 @@ export const SETTLED_EVENT_WRITE_TTL_MS = 3 * 60_000;
 const sameRef = (row: PendingEventRef, ref: PendingEventRef): boolean =>
   row.accountId === ref.accountId && row.calendarId === ref.calendarId && row.uid === ref.uid;
 
+/**
+ * Whether a row is an occurrence of the series `ref` names (issue 119, R7).
+ *
+ * "Delete all events" and "change all events" are written against the SERIES -
+ * its own row, or its id where the cache lacks that row (`seriesDeleteSubject`).
+ * The views never show that row: they show occurrences (`uid#...` on CalDAV,
+ * the provider's own ids elsewhere), each carrying the series as
+ * `seriesMaster`. Matched by uid alone, a deleted series stood on screen until
+ * a pull removed it - and where the first pull after the delete still listed
+ * it (a server slow to show its own writes), until the one after. The person
+ * saw nothing happen, deleted again, and the second delete "worked".
+ */
+const occurrenceOf = (row: PimEventRow, ref: PendingEventRef): boolean =>
+  !!row.seriesMaster && row.seriesMaster === ref.uid && row.accountId === ref.accountId && row.calendarId === ref.calendarId;
+
+/** A delete or an update reaches the event itself and, for a series, every occurrence of it. */
+const reaches = (row: PimEventRow, ref: PendingEventRef): boolean => sameRef(row, ref) || occurrenceOf(row, ref);
+
+/**
+ * What a change to a whole series says about each of its occurrences. Not its
+ * time: an occurrence keeps its own date, and a new start or rule is known per
+ * occurrence only after the provider has expanded the series again - until then
+ * the occurrences stay where they were, marked as on their way.
+ */
+const SERIES_WIDE_FIELDS = ["title", "location", "description", "color", "attendees"] as const satisfies ReadonlyArray<keyof PimEventRow>;
+
+function seriesWidePatch(patch: Partial<PimEventRow>): Partial<PimEventRow> {
+  const out: Partial<PimEventRow> = {};
+  for (const key of SERIES_WIDE_FIELDS) if (key in patch) (out as Record<string, unknown>)[key] = patch[key];
+  return out;
+}
+
 /** Whether a stamp speaks about this row: the same object (or event), still at the etag the write replaced. */
 const stamps = (row: PimEventRow, stamp: EtagStamp): boolean =>
   (stamp.href
@@ -127,11 +159,15 @@ export function applyPendingEventWrites(rows: readonly PimEventRow[], writes: re
   for (const write of writes) {
     const sending = write.state === "sending";
     if (write.kind === "delete") {
-      shown = shown.filter((row) => !sameRef(row, write.ref));
+      shown = shown.filter((row) => !reaches(row, write.ref));
     } else if (write.kind === "stamp") {
       shown = shown.map((row) => (stamps(row, write) ? { ...row, etag: write.etag } : row));
     } else if (write.kind === "update") {
-      shown = shown.map((row) => (sameRef(row, write.ref) ? { ...row, ...write.patch, ...(sending ? { pending: true as const } : {}) } : row));
+      const mark = sending ? { pending: true as const } : {};
+      const wide = seriesWidePatch(write.patch);
+      shown = shown.map((row) =>
+        sameRef(row, write.ref) ? { ...row, ...write.patch, ...mark } : occurrenceOf(row, write.ref) ? { ...row, ...wide, ...mark } : row,
+      );
     } else if (!listsCreated(shown, write.row)) {
       // A settled create carries its real uid: once the cache lists that
       // event, the cached row is the one shown and this one steps aside.
@@ -148,10 +184,17 @@ export function unsettledEventWrites(rows: readonly PimEventRow[], writes: reado
     if (now - (write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS) return false;
     if (write.kind === "create") return !listsCreated(rows, write.row);
     if (write.kind === "stamp") return rows.some((row) => stamps(row, write));
+    // A deleted series waits until none of its occurrences is listed (R7).
+    if (write.kind === "delete") return rows.some((row) => reaches(row, write.ref));
     const cached = rows.find((row) => sameRef(row, write.ref));
-    if (write.kind === "delete") return cached !== undefined;
-    // An event that left the cache has nothing to patch any more.
-    return cached !== undefined && !patchApplied(cached, write.patch);
+    if (cached) return !patchApplied(cached, write.patch);
+    // A changed series whose own row is not among `rows` (the views never hold
+    // it): settled once an occurrence carries what the change said about all
+    // of them - the pull that brought it brought the whole series.
+    const occurrences = rows.filter((row) => occurrenceOf(row, write.ref));
+    if (occurrences.length === 0) return false; // An event that left the cache has nothing to patch any more.
+    const wide = seriesWidePatch(write.patch);
+    return !occurrences.some((row) => patchApplied(row, wide));
   });
 }
 
@@ -258,7 +301,7 @@ function foldIntoCreates(writes: readonly PendingEventWrite[], settled: readonly
       write.kind === "create" && write.state === "settled" && write.id !== change.id;
     if (change.kind === "delete") {
       // Gone: nothing of it is to be shown any more.
-      out = out.filter((write) => !(created(write) && sameRef(write.row, change.ref)));
+      out = out.filter((write) => !(created(write) && reaches(write.row, change.ref)));
     } else if (change.kind === "update") {
       if (!out.some((write) => created(write) && sameRef(write.row, change.ref))) continue;
       out = out
