@@ -22,9 +22,9 @@ import { fixtureFiles, summarizeFixture } from '../../../packages/core/scripts/p
  *   the frame after it, 95th percentile of about 60 keys. The note is the
  *   fixture's note of 80 tables cut to its first `PERF_LONG_SECTIONS`
  *   sections (default 8, about 2 000 lines): at its full 19 600 lines the
- *   page did not answer a key for ten minutes, because every save re-reads
- *   the note and the Markdown parser takes minutes for many tables
- *   (Performance_Notes.md, "Many tables in one note");
+ *   page did not answer a key for ten minutes (Performance_Notes.md, "Many
+ *   tables in one note"). Saves go to the stand-in, so the time includes the
+ *   app's own save and re-index of the note;
  * - search: from typing a term into the sidebar search to the first hit.
  *
  * Not measured: Tauri IPC and the Rust side (the stand-in answers at once),
@@ -147,10 +147,21 @@ async function install(page: Page, files: Record<string, string>, sql: ReturnTyp
         if (content === undefined || content.isDir) throw new Error('File not found');
         return Array.from(new TextEncoder().encode(content));
       }
+      // Saves land in the stand-in's files, so typing measures the app's own
+      // save and re-index of the note as well (the same forms the E2E suite uses).
+      if (cmd === 'write_file_atomic') {
+        const base = String(args.rootId).replace(/^mock-root:/, '');
+        const rel = String(args.relPath).replace(/^\/+/, '');
+        fs[base ? `${base}/${rel}` : rel] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
+        return null;
+      }
       if (cmd === 'plugin:fs|write_text_file' || cmd === 'plugin:fs|write_file') {
         const raw = options?.headers?.path ? decodeURIComponent(options.headers.path) : args?.path || '';
-        const body = args instanceof Uint8Array ? args : args?.data ?? args?.contents;
-        fs[clean(raw)] = typeof body === 'string' ? body : new TextDecoder().decode(new Uint8Array(body ?? []));
+        fs[clean(raw)] = new TextDecoder().decode(new Uint8Array(cmd === 'plugin:fs|write_text_file' ? args : args.data || args));
+        return null;
+      }
+      if (cmd === 'plugin:fs|mkdir') {
+        fs[clean(args.path)] = { isDir: true };
         return null;
       }
       if (cmd === 'plugin:fs|watch') return 1;
@@ -235,6 +246,8 @@ test('browser measurement at the built bundle (report)', async ({ page }, testIn
     searches[term] = Date.now() - started;
   }
   report.searchMs = searches;
+  // A save the stand-in refused would leave the typing above without its save and re-index.
+  report.saveFailedShown = await page.getByText(/Save failed|Speichern fehlgeschlagen/).count();
   report.pageErrors = errors;
 
   save();

@@ -218,9 +218,9 @@ Tauri stand-in — a lower bound).
 | List every task | ≤ 100 ms (after L8) | 649 ms (32 046 tasks) | core gate |
 | Start bytes per shell | ≤ 3.5 MB | desktop 7.37 MB (2.27 MB gzip, 98 files), phone 8.40 MB (2.51 MB gzip, 60 files) | bundle gate |
 | Phone entry file | ≤ 400 KB | 1 079 KB (desktop entry 88 KB) | bundle gate |
-| Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 930.6 ms, p50 56.8 ms, max 1128.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
-| Search in the sidebar, typing to first hit (browser) | — | `project` 503 ms, `review meeting` 65 ms, `Müller` 48 ms, `garden` 171 ms | browser report |
-| Navigation to an editable note, warm index | ≤ 1.5 s | 1.47 s (tree 0.81 s); first start 6.04 s | browser report |
+| Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 966.2 ms, p50 57.3 ms, max 1275.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
+| Search in the sidebar, typing to first hit (browser) | — | `project` 479 ms, `review meeting` 88 ms, `Müller` 102 ms, `garden` 38 ms | browser report |
+| Navigation to an editable note, warm index | ≤ 1.5 s | 2.35 s (tree 1.52 s); first start 6.87 s | browser report |
 
 The plan's "today" column (96 s, 397 ms, 13.7 ms, 21 ms, 469 ms) was measured on the review's
 smaller fixture (1.2 KB notes, three tasks each, one search term); this fixture is about twice as
@@ -239,10 +239,10 @@ grows with the square of the number of tables, not with the text: 20 tables of 5
 in 20 ms. The indexer, the reading view and every other reader of the tree pay it. Not part of
 L0/L1; the core gate leaves that note out until it is fixed (`longTableNote: false`). Even
 without many tables it is not linear: 20 tables of 20 rows among 2 100 lines parse in 0.45 s, 40
-tables in 2 600 lines in 1.1 s, and 10 tables of 1 800 rows took longer than 170 s. In the app it
-is felt directly: in the browser report the full 19 600-line note did not answer a single key
-for ten minutes, because each save re-reads the note on the main thread. This belongs before
-0.9.0 next to L6 (live-preview tables), which cannot help while the index parse blocks.
+tables in 2 600 lines in 1.1 s, and 10 tables of 1 800 rows took longer than 170 s. In the browser report the full 19 600-line note did not answer a single key for ten minutes;
+whether the editor's table decorations (B7, package L6) or the re-index after the save (this
+parser) held the page is not separated yet — a save re-reads the note on the main thread, so
+this parser alone is minutes per save for such a note. Worth settling before 0.9.0, next to L6.
 
 ## Measurement points
 
