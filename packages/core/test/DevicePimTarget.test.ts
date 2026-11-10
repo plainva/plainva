@@ -11,6 +11,7 @@ import type { DeviceCollection, DeviceEventDraft, DeviceEventHandle, DeviceEvent
  */
 class FakePort implements DevicePimPort {
   readonly supportsReminders: boolean;
+  allDayAt?: "utc" | "local";
   collections: DeviceCollection[] = [
     { id: "cal-1", title: "Privat", color: "#4a8f8b", source: "iCloud", writable: true, kind: "event" },
     { id: "cal-ro", title: "Feiertage", source: "iCloud", writable: false, kind: "event" },
@@ -127,12 +128,19 @@ describe("DevicePimTarget", () => {
     expect(deviceHandleOf("cal-1:single")).toEqual({ id: "cal-1:single" });
   });
 
-  it("all-day events carry civil dates", async () => {
-    const port = new FakePort();
-    port.eventRows = [{ id: "cal-1:ad", title: "Urlaub", startTs: Date.UTC(2026, 8, 10), endTs: Date.UTC(2026, 8, 11), allDay: true, version: "m1" }];
-    const { events } = await target(port).pullEvents("cal-1", 0, Date.UTC(2027, 0, 1));
-    expect(events[0].allDay).toBe(true);
-    expect(events[0].start.date).toMatch(/^2026-09-\d\d$/);
+  it("all-day events carry civil dates, read in the platform's anchor", async () => {
+    // Android: UTC midnight. The date is exact in every zone (it used to be
+    // checked against a pattern only, which hid a day too early west of UTC).
+    const android = new FakePort();
+    android.allDayAt = "utc";
+    android.eventRows = [{ id: "cal-1:ad", title: "Urlaub", startTs: Date.UTC(2026, 8, 10), endTs: Date.UTC(2026, 8, 11), allDay: true, version: "m1" }];
+    const a = (await target(android).pullEvents("cal-1", 0, Date.UTC(2027, 0, 1))).events[0];
+    expect([a.allDay, a.start.date, a.end.date]).toEqual([true, "2026-09-10", "2026-09-11"]);
+    // EventKit: local midnight.
+    const ios = new FakePort();
+    ios.eventRows = [{ id: "cal-1:ad", title: "Urlaub", startTs: new Date(2026, 8, 10).getTime(), endTs: new Date(2026, 8, 11).getTime(), allDay: true, version: "m1" }];
+    const i = (await target(ios).pullEvents("cal-1", 0, Date.UTC(2027, 0, 1))).events[0];
+    expect([i.start.date, i.end.date]).toEqual(["2026-09-10", "2026-09-11"]);
   });
 
   it("keeps the etag promise: a moved version refuses the write, a matching one goes through", async () => {
@@ -305,10 +313,15 @@ describe("a series-wide save moves the series by what the person changed (iPhone
     const f = { startTs: utc(2) };
     const orig = { startTs: utc(23), date: "2026-11-23" };
     const allDay = (day: number): DeviceEventDraft => ({ title: "x", allDay: true, startTs: utc(day), endTs: utc(day + 1) });
-    expect(anchorSeriesDraft(f, allDay(23), orig)).toMatchObject({ startTs: utc(2), endTs: utc(3) });
-    expect(anchorSeriesDraft(f, allDay(24), orig)).toMatchObject({ startTs: utc(3), endTs: utc(4) });
+    // Android's rows and drafts: UTC midnight.
+    expect(anchorSeriesDraft({ ...f, allDay: true }, allDay(23), orig, "utc")).toMatchObject({ startTs: utc(2), endTs: utc(3) });
+    expect(anchorSeriesDraft({ ...f, allDay: true }, allDay(24), orig, "utc")).toMatchObject({ startTs: utc(3), endTs: utc(4) });
+    // EventKit's: local midnight.
+    const local = (day: number) => new Date(2026, 10, day).getTime();
+    const localDraft = (day: number): DeviceEventDraft => ({ title: "x", allDay: true, startTs: local(day), endTs: local(day + 1) });
+    expect(anchorSeriesDraft({ startTs: local(2), allDay: true }, localDraft(24), { startTs: local(23), date: "2026-11-23" }, "local")).toMatchObject({ startTs: local(3), endTs: local(4) });
     // From a timed event to all-day (no row date): the original day is its local date.
-    const timed = anchorSeriesDraft({ startTs: at(2, 9) }, allDay(23), { startTs: at(23, 9) });
+    const timed = anchorSeriesDraft({ startTs: at(2, 9), allDay: false }, allDay(23), { startTs: at(23, 9) }, "utc");
     expect(timed.allDay).toBe(true);
     expect(timed.startTs).toBe(utc(2));
   });
