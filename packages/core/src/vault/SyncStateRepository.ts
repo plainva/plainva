@@ -187,6 +187,21 @@ export class SyncStateRepository {
   }
 
   /**
+   * The same snapshot for some paths only - what one transaction of the
+   * index's full scan needs (performance plan L4). `sql` as in `getSyncState`.
+   */
+  async getStatesFor(paths: readonly string[], sql: SqlStatements = this.db): Promise<Map<string, SyncState>> {
+    const map = new Map<string, SyncState>();
+    if (paths.length === 0) return map;
+    const rows = await sql.query<SyncState>(
+      `SELECT path, local_sha256, remote_etag, base_sha256, base_etag, remote_id, last_sync_ts, pending_push_sha, recheck FROM sync_state WHERE path IN (${paths.map(() => "?").join(", ")})`,
+      [...paths],
+    );
+    for (const row of rows) map.set(row.path, { ...row, base_text: null });
+    return map;
+  }
+
+  /**
    * Returns the remote provider id (e.g. Google Drive file id) recorded for a path,
    * or null if none. Used by the cursor/id-based pull path to map a known path to
    * its remote object before downloading.
