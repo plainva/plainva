@@ -57,6 +57,12 @@ test("an edit of a note with \\r\\n and a mark changes the edited line, and noth
 
   // A second line: the line end the editor adds is the note's own.
   await page.keyboard.press("Enter");
+  // The phone emulation sends Enter as a key event, which CodeMirror's Android
+  // path holds until the next frame and then drops if text arrived in that
+  // frame. A person does not type within one frame of Enter; Playwright does,
+  // and on a loaded runner the frame came late (2 of 3 runs with two workers,
+  // 2026-11-10). So the line has to be there before the next word is typed.
+  await expect(page.locator(".cm-line").last()).toHaveText("");
   await page.keyboard.type("And another.");
   await expect.poll(() => readVaultFile(page, "From Windows.md"), { timeout: 15_000 }).toContain("And another.");
   expect(await readVaultFile(page, "From Windows.md")).toBe(`${NOTE}One more line.\r\nAnd another.`);

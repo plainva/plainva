@@ -1,5 +1,6 @@
 // First setup file of every vitest config (core, desktop, mobile): what every
 // unit test inherits without doing anything (stability plan R9).
+import { atob as nodeAtob, btoa as nodeBtoa } from "node:buffer";
 import { beforeEach, expect } from "vitest";
 import { TEST_NOW_MS, TEST_TIME_ZONE, installShiftedDate } from "./test-clock.mjs";
 
@@ -21,3 +22,16 @@ installShiftedDate(TEST_NOW_MS);
 beforeEach(() => {
   expect.hasAssertions();
 });
+
+// 3. Base64 at the speed the app has it. jsdom brings its own `btoa`/`atob`,
+// written in JavaScript: a 2.8 MB attachment took 6.9 s to encode in a test
+// (composeForwardFiles, 2026-11-10) where the WebView's native one takes
+// milliseconds, and under a loaded commit hook it crossed the 20 s limit.
+// Node's are native and follow the same rules (a character above 0xFF is an
+// InvalidCharacterError, so a test still catches a caller that passes text).
+if (typeof window !== "undefined") {
+  window.btoa = nodeBtoa;
+  window.atob = nodeAtob;
+  globalThis.btoa = nodeBtoa;
+  globalThis.atob = nodeAtob;
+}
