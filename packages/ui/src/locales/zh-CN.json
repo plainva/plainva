@@ -4920,7 +4920,11 @@
   },
   "errors": {
     "somethingWentWrong": "出了点问题。",
-    "reload": "重新加载"
+    "reload": "重新加载",
+    "areaTitle": "无法显示此区域",
+    "areaBody": "一个错误使其停止。Plainva 的其余部分继续运行，错误已记录在“{{place}}”中。",
+    "areaAgain": "重新加载后再次失败。如果持续失败，请重新启动 Plainva；错误已记录在“{{place}}”中。",
+    "areaReload": "重新加载此区域"
   },
   "palette": {
     "title": "命令",

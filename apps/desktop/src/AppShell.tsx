@@ -19,7 +19,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -40,7 +40,7 @@ const McpPlanDialog = lazy(() => import('./components/ai/McpPlanDialog').then(m 
 const LearnDialogs = lazy(() => import('./components/ai/LearnDialogs').then(m => ({ default: m.LearnDialogs })));
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
-import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
+import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath, tabAreaName } from "./components/graph/virtualPaths";
 import { AiSelectionMenu } from "./components/ai/AiSelectionButton";
 import { AiCommandSourceLink, useDesktopAi } from "./components/ai/useDesktopAi";
 import { useDesktopEmbeddings } from "./components/ai/useDesktopEmbeddings";
@@ -1482,6 +1482,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     <AiSessionContext.Provider value={ai.session}>
     <LocalModelsProvider embeddings={embeddings} gists={gists}>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+      <AreaBoundary area="shell:titlebar" size="strip">
       <TitleBar
         tabs={isSplit ? [] : activePane.tabs.map((tb) => tb.history[tb.historyIndex])}
         pinnedTabs={isSplit ? [] : activePane.tabs.map((tb) => tb.pinned === true)}
@@ -1499,7 +1500,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onToggleLeftSidebar={() => setLeftCollapsed((c) => !c)}
         onToggleRightSidebar={toggleRightSidebar}
       />
+      </AreaBoundary>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <AreaBoundary area="shell:ribbon" size="icon">
       <AppRibbon
         onNewNote={() => requestNewItem("file")}
         onNewFolder={() => requestNewItem("folder")}
@@ -1519,6 +1522,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onShortcuts={() => setShowShortcuts(true)}
         onSettings={() => capabilities.openSettings()}
       />
+      </AreaBoundary>
       {!leftCollapsed && (
       <aside
         ref={leftAsideRef}
@@ -1547,6 +1551,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             clearLabel={t('sidebar.clearSearch')}
             style={{ width: '100%', minWidth: 0 }}
           />
+          <AreaBoundary area="menu:recentSearches" size="quiet">
           <RecentSearchesPopover
             vaultPath={vaultPath ?? ''}
             anchorRef={leftSearchWrapRef}
@@ -1555,6 +1560,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             onPick={(q) => { setLeftQuery(q); leftSearchRef.current?.focus(); }}
             onClose={() => setLeftSearchFocused(false)}
           />
+          </AreaBoundary>
           </div>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
@@ -1570,6 +1576,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             >
               <ArrowUpDown size={ICON.ui} />
             </button>
+            <AreaBoundary area="menu:sort" size="dialog" resetKey={showSortMenu ? "open" : "closed"} exit={{ label: t("common.close"), onExit: () => setShowSortMenu(false) }}>{() => (
             <DropdownMenu
               open={showSortMenu}
               anchorRef={sortBtnRef}
@@ -1591,6 +1598,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                     onSelect: () => chooseTreeSort(key),
                   }))}
             />
+            )}</AreaBoundary>
           </div>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <div style={{ display: 'flex' }}>
@@ -1608,6 +1616,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                 <Plus size={ICON.ui} />
               </button>
             </div>
+            <AreaBoundary area="menu:new" size="dialog" resetKey={showNewMenu ? "open" : "closed"} exit={{ label: t("common.close"), onExit: () => setShowNewMenu(false) }}>{() => (
             <DropdownMenu
               open={showNewMenu}
               anchorRef={newBtnRef}
@@ -1627,6 +1636,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                 })),
               ])}
             />
+            )}</AreaBoundary>
           </div>
         </div>
         {/* "Recently opened" and Bookmarks sit ABOVE the view switch, so they
@@ -1641,6 +1651,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             into. They come back unchanged when the field is emptied — the
             user's own open/closed state is never touched. */}
         {vaultPath && !searching && (
+          <AreaBoundary area="sidebar:pinned" size="section">
           <LeftPinnedSections
             vaultPath={vaultPath}
             recentPaths={recentPaths}
@@ -1658,6 +1669,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               if (vaultAdapter) void recentsModule().then((m) => m.forgetRecent(vaultAdapter, p)).catch(() => undefined);
             }}
           />
+          </AreaBoundary>
         )}
         {/* View switch (Files / Tags / Databases), directly above the tree it
             switches. There is no separate Bookmarks tab — bookmarks are one of
@@ -1673,7 +1685,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             </IconButton>
           </div>
         ) : (
-          <LeftSidebarTabs vaultPath={vaultPath} active={leftSidebarTab} onSelect={setLeftSidebarTab} />
+          <AreaBoundary area="sidebar:tabs" size="strip"><LeftSidebarTabs vaultPath={vaultPath} active={leftSidebarTab} onSelect={setLeftSidebarTab} /></AreaBoundary>
         )}
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {leftSidebarTab === "files" ? (
@@ -1706,6 +1718,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                 </button>
               </div>
               <div data-testid="file-tree" style={{ flex: 1, minHeight: 0 }}>
+                <AreaBoundary area="sidebar:files" size="section">
                 <FileTree
                   activePath={activePath}
                   onSelect={openInFocusedPane}
@@ -1719,23 +1732,29 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   isBookmarked={(p, type = "file") => bookmarks.some((b) => b.type === type && b.path === p)}
                   onToggleBookmarkPath={toggleBookmark}
                 />
+                </AreaBoundary>
               </div>
             </div>
           ) : leftSidebarTab === "tags" ? (
+            <AreaBoundary area="sidebar:tags" size="section">
             <TagTree onSelectPath={openInFocusedPane} filter={leftQueryDebounced} focusTag={focusTag} />
+            </AreaBoundary>
           ) : (
             <div className="custom-scrollbar" style={{ overflowY: 'auto', height: '100%', padding: '0.5rem' }}>
+              <AreaBoundary area="sidebar:databases" size="section">
               <DatabasesList
                 query={leftQueryDebounced}
                 activePath={activePath}
                 onOpen={openInFocusedPane}
                 onCreate={() => requestNewItem('base')}
               />
+              </AreaBoundary>
             </div>
           )}
         </div>
         <div style={{ padding: '0.5rem', borderTop: '1px solid var(--border-color-light)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {/* The one sidebar surface that differs between windows (C6). */}
+          <AreaBoundary area="sidebar:vaultSwitcher" size="strip">
           <VaultSwitcher
             vaultPath={vaultPath}
             syncWorker={syncWorker}
@@ -1747,6 +1766,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             open={showVaultMenu}
             onOpenChange={setShowVaultMenu}
           />
+          </AreaBoundary>
         </div>
       </aside>
       )}
@@ -1793,6 +1813,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                 }}
               >
                 {isSplit && (
+                  <AreaBoundary area="pane:tabStrip" size="strip">
                   <PaneTabStrip
                     paneIndex={i}
                     tabs={pane.tabs.map((tb) => tb.history[tb.historyIndex])}
@@ -1804,9 +1825,14 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                     onMoveTab={moveTabTo}
                     onSplitWithTab={splitEditorWithTab}
                   />
+                  </AreaBoundary>
                 )}
                 <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                   {path ? (
+                    // One boundary per tab (stability plan R3): a view that
+                    // fails takes its tab, never the window, and the way out
+                    // is the tab's own close.
+                    <AreaBoundary area={tabAreaName(path)} resetKey={path} exit={{ label: t("tabMenu.close"), onExit: () => trackClose(i, pane.activeIndex) }}>{() => (
                     path === GRAPH_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
                         <VaultGraphView
@@ -1907,6 +1933,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                         />
                       </Suspense>
                     )
+                    )}</AreaBoundary>
                   ) : (
                     // Empty pane (plan Designsprache P6/L7, finding
                     // 2026-09-22): the app's own empty state, with ONE action —
@@ -1962,6 +1989,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       )}
       {!rightCollapsed && (
       <aside aria-label="Right Sidebar" style={{ width: `${rightSidebarWidth}px`, flexShrink: 0, borderLeft: '1px solid var(--border-color-light)', background: 'var(--bg-secondary)' }}>
+        <AreaBoundary area="sidebar:right" size="section">
         <RightSidebar
           activePath={activePath}
           onOpenPath={openInFocusedPane}
@@ -1995,6 +2023,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               : null
           }
         />
+        </AreaBoundary>
       </aside>
       )}
       </div>
@@ -2005,12 +2034,16 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           reminder scheduler therefore lives in the runtime (VaultContext), one
           per open vault, where neither a second window nor a window looking
           elsewhere can double it or drop it. */}
-      <StatusBar />
+      <AreaBoundary area="shell:statusbar" size="strip"><StatusBar /></AreaBoundary>
 
       {/* Lazy modal chunks (P2.9): mounted conditionally, so the Suspense
           fallback is never visible longer than the chunk download. */}
       <Suspense fallback={null}>
+        {/* Every dialog and overlay of the shell is an area of its own
+            (stability plan R3): one that fails is replaced by a dialog that
+            says so, and the shell behind it stays. */}
         {compareTarget && (
+          <AreaBoundary area="dialog:compare" size="dialog" exit={{ label: t("common.close"), onExit: () => setCompareTarget(null) }}>
           <CompareModal
             subject={compareTarget}
             onClose={() => setCompareTarget(null)}
@@ -2029,29 +2062,33 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               })();
             }}
           />
+          </AreaBoundary>
         )}
-        {showDeletedFiles && <DeletedFilesModal onClose={() => setShowDeletedFiles(false)} />}
+        {showDeletedFiles && <AreaBoundary area="dialog:deletedFiles" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowDeletedFiles(false) }}><DeletedFilesModal onClose={() => setShowDeletedFiles(false)} /></AreaBoundary>}
       </Suspense>
       <AiCommandSourceLink sourceRef={ai.commandSourceRef} build={paletteCommands} />
       {showCommandPalette && (
+        <AreaBoundary area="dialog:commandPalette" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowCommandPalette(false) }}>{() => (
         <CommandPalette
           onClose={() => setShowCommandPalette(false)}
           commands={buildPaletteCommands()}
         />
+        )}</AreaBoundary>
       )}
       <Suspense fallback={null}>
-        {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+        {showShortcuts && <AreaBoundary area="dialog:shortcuts" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowShortcuts(false) }}><ShortcutsModal onClose={() => setShowShortcuts(false)} /></AreaBoundary>}
         {ai.enabled && (
           <Suspense fallback={null}>
-            <McpPairing />
-            <McpPlanDialog />
-            <LearnDialogs onOpenPath={(path) => openInFocusedPane(path, true)} />
+            <AreaBoundary area="dialog:mcpPairing" size="dialog"><McpPairing /></AreaBoundary>
+            <AreaBoundary area="dialog:mcpPlan" size="dialog"><McpPlanDialog /></AreaBoundary>
+            <AreaBoundary area="dialog:learn" size="dialog"><LearnDialogs onOpenPath={(path) => openInFocusedPane(path, true)} /></AreaBoundary>
           </Suspense>
         )}
         {/* The menu of the selection toolbar's AI button, once for every editor: beside the toolbar, which goes when the menu takes the focus (Befunde 06.11., B9). */}
-        {ai.enabled && <AiSelectionMenu />}
+        {ai.enabled && <AreaBoundary area="menu:aiSelection" size="quiet"><AiSelectionMenu /></AreaBoundary>}
         {ai.companionOpen && (
           <Suspense fallback={null}>
+            <AreaBoundary area="window:aiCompanion" size="dialog" exit={{ label: t("common.close"), onExit: ai.closeCompanion }}>
             <AiCompanion
               activeNote={ai.activeNote}
               onClose={ai.closeCompanion}
@@ -2062,32 +2099,39 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               onOpenSettings={() => capabilities.openSettings({ area: "ai" })}
               onPickNote={() => { setAiPick("pin"); setShowQuickSwitcher(true); }}
             />
+            </AreaBoundary>
           </Suspense>
         )}
         {showFindReplace && (
           <Suspense fallback={null}>
+            <AreaBoundary area="dialog:findReplace" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowFindReplace(false) }}>
             <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />
+            </AreaBoundary>
           </Suspense>
         )}
         {journalCapture && (
           <Suspense fallback={null}>
+            <AreaBoundary area="dialog:journalCapture" size="dialog" exit={{ label: t("common.close"), onExit: () => setJournalCapture(null) }}>
             <JournalCaptureDialog
               initialText={journalCapture.text}
               date={journalCapture.date}
               onClose={() => setJournalCapture(null)}
               onHandoverTask={(text) => { setJournalCapture(null); handoverToTasks(text); }}
             />
+            </AreaBoundary>
           </Suspense>
         )}
       </Suspense>
-      <CascadeDeleteHost onDeleted={handleCascadeDeleted} />
+      <AreaBoundary area="dialog:cascadeDelete" size="dialog"><CascadeDeleteHost onDeleted={handleCascadeDeleted} /></AreaBoundary>
+      <AreaBoundary area="dialog:quickSwitcher" size="dialog" resetKey={showQuickSwitcher ? "open" : "closed"} exit={showQuickSwitcher ? { label: t("common.close"), onExit: () => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); setAiPick(null); } } : null}>
       <QuickSwitcher
         isOpen={showQuickSwitcher}
         onClose={() => { setShowQuickSwitcher(false); setQuickSwitcherNewTab(false); setAiPick(null); normalizeNow(); }}
         onOpenPath={(p) => { if (aiPick === "pin") void ai.session?.pin(p); else if (aiPick === "style") pickStyleExample(p); else openInFocusedPane(p, quickSwitcherNewTab); }}
         recentPaths={recentPaths}
       />
-      {tabMenu && (() => {
+      </AreaBoundary>
+      {tabMenu && <AreaBoundary area="menu:tab" size="dialog" exit={{ label: t("common.close"), onExit: () => setTabMenu(null) }}>{() => {
         // Everything the tab menu needs about the RIGHT-CLICKED tab (not the
         // active one — they differ whenever you right-click a background tab).
         const pane = layout.panes[tabMenu.paneIndex];
@@ -2133,10 +2177,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             onReturnToMain={windowLabel && tabPath ? () => { void tabTransfer.start(tabMenu.paneIndex, tabMenu.tabIndex); } : undefined}
           />
         );
-      })()}
+      }}</AreaBoundary>}
+      <AreaBoundary area="dialog:templatePicker" size="dialog" resetKey={showTemplatePicker ? "open" : "closed"} exit={showTemplatePicker ? { label: t("common.close"), onExit: () => setShowTemplatePicker(false) } : null}>
       <TemplatePickerModal isOpen={showTemplatePicker} onClose={() => setShowTemplatePicker(false)} />
+      </AreaBoundary>
       {children}
-      {tabTransfer.modal}
+      <AreaBoundary area="dialog:tabTransfer" size="dialog">{tabTransfer.modal}</AreaBoundary>
     </div>
     </LocalModelsProvider>
     </AiSessionContext.Provider>

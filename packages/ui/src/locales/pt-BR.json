@@ -5134,7 +5134,11 @@
   },
   "errors": {
     "somethingWentWrong": "Algo deu errado.",
-    "reload": "Recarregar"
+    "reload": "Recarregar",
+    "areaTitle": "Não foi possível mostrar esta área",
+    "areaBody": "Um erro a interrompeu. O resto do Plainva continua funcionando, e o erro fica registrado em {{place}}.",
+    "areaAgain": "Falhou de novo depois de recarregar. Se continuar falhando, reinicie o Plainva; o erro fica registrado em {{place}}.",
+    "areaReload": "Recarregar esta área"
   },
   "palette": {
     "title": "Comandos",

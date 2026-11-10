@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Database, FileText, Folder } from "lucide-react";
-import { bookmarkKey, fileRowActions, ICON, isLargeDeletion, pickRowActions, toast, type RowActionSpec } from "@plainva/ui";
+import { AreaBoundary, bookmarkKey, fileRowActions, ICON, isLargeDeletion, pickRowActions, toast, type RowActionSpec } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { VersionsPanel } from "../components/VersionsPanel";
@@ -349,6 +349,7 @@ export function useFileRowSheet({
       )}
 
       {movePick && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setMovePick(null) }}>
         <FolderPickerSheet
           vault={vault}
           title={t("mobile.moveNoteTo", { name: movePick.title })}
@@ -362,6 +363,7 @@ export function useFileRowSheet({
           }}
           onClose={() => setMovePick(null)}
         />
+        </AreaBoundary>
       )}
     </>
   );

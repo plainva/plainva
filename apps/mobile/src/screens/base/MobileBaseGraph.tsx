@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, Maximize2, Minus, PinOff, Plus } from "lucide-react";
 import type { IVaultAdapter, VaultGraph } from "@plainva/core";
-import {
+import { AreaBoundary,
   buildBaseGraphScene,
   createGraphScene,
   getGraphState,
@@ -206,11 +206,13 @@ export function MobileBaseGraph({
         </em>
       </div>
       {nodeSheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setNodeSheet(null) }}>
         <RowActionSheet
           actions={nodeActions(nodeSheet)}
           onClose={() => setNodeSheet(null)}
           title={nodeSheet.split("/").pop()?.replace(/\.md$/i, "") ?? nodeSheet}
         />
+        </AreaBoundary>
       )}
     </div>
   );

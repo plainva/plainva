@@ -5241,7 +5241,11 @@
   },
   "errors": {
     "somethingWentWrong": "Coś poszło nie tak.",
-    "reload": "Załaduj ponownie"
+    "reload": "Załaduj ponownie",
+    "areaTitle": "Nie można wyświetlić tego obszaru",
+    "areaBody": "Zatrzymał go błąd. Reszta Plainva działa dalej, a błąd jest zapisany w {{place}}.",
+    "areaAgain": "Po ponownym załadowaniu znów się nie udało. Jeśli tak zostanie, uruchom Plainva ponownie; błąd jest zapisany w {{place}}.",
+    "areaReload": "Załaduj ten obszar ponownie"
   },
   "palette": {
     "title": "Polecenia",

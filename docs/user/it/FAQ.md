@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-11-02
+Ultimo aggiornamento: 2026-11-10
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -139,6 +139,10 @@ Finché non ci sono ancora release pubbliche, la ricerca di aggiornamenti riport
 ### Ci sono funzioni nascoste?
 
 La Flotta Stellare non commenta le voci di corridoio. Ma si dice che il logo nella barra del titolo risponda a colpi persistenti — e chi poi conosce le parole giuste vedrà Plainva sotto una luce del tutto nuova. Alcuni dicono: in quattro.
+
+### Una parte della finestra dice «Impossibile mostrare quest’area»
+
+Un’area non è stata disegnata: una scheda, una sezione della barra laterale, una vista di database, un’email, una pagina delle impostazioni, una finestra di dialogo o, sul telefono, una schermata o un foglio. Viene sostituita solo quell’area; tutto il resto continua a funzionare e una nota aperta conserva il suo testo. **Ricarica quest’area** ridisegna l’area. Se non riesce una seconda volta, il messaggio lo dice e resta: chiudi la scheda (**Chiudi scheda**) oppure, sul telefono, tocca **Indietro**, e riavvia Plainva se succede ancora. L’errore è registrato in **Informazioni e diagnostica**; l’esportazione diagnostica lì non contiene il contenuto delle note e aiuta in una segnalazione di bug.
 
 ## Vedi anche
 

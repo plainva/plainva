@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore, type PointerEvent
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { resolveTaskOrdinal, setChecklistTaskDone, setChecklistTaskDue } from "@plainva/core";
-import {
+import { AreaBoundary,
   calendarDay,
   errorText,
   isOpenState,
@@ -158,6 +158,7 @@ export function PhoneTasksQuery({ vault, source, notePath, onOpenNote, onEditQue
         <>
           {actions.element}
           {dueRow && (
+            <AreaBoundary area="sheet:taskDue" size="dialog" exit={{ label: t("common.close"), onExit: () => setDueRow(null) }}>
             <TaskDueSheet
               value={dueRow.due}
               time={dueTimeOf(dueRow.dueMinutes)}
@@ -171,6 +172,7 @@ export function PhoneTasksQuery({ vault, source, notePath, onOpenNote, onEditQue
                 if (ref && (pick.day !== row.due || pick.time !== dueTimeOf(row.dueMinutes))) void mutateCheckbox(ref, (text, ordinal) => setChecklistTaskDue(text, ordinal, pick.day, pick.day === null ? undefined : pick.time), (r) => r);
               }}
             />
+            </AreaBoundary>
           )}
         </>,
         document.body,

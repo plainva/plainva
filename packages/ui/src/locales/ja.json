@@ -4920,7 +4920,11 @@
   },
   "errors": {
     "somethingWentWrong": "問題が発生しました。",
-    "reload": "再読み込み"
+    "reload": "再読み込み",
+    "areaTitle": "この領域を表示できません",
+    "areaBody": "エラーにより停止しました。Plainva のほかの部分はそのまま動作し、エラーは「{{place}}」に記録されています。",
+    "areaAgain": "再読み込み後も失敗しました。続く場合は Plainva を再起動してください。エラーは「{{place}}」に記録されています。",
+    "areaReload": "この領域を再読み込み"
   },
   "palette": {
     "title": "コマンド",

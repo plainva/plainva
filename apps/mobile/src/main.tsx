@@ -11,7 +11,7 @@ import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import "./mobile.css";
-import { installCompositionEnterGuard, logDiagnostic, removeRetiredStorage, setPlatformServices, ToastHost } from "@plainva/ui";
+import { describeAreaError, installCompositionEnterGuard, logDiagnostic, removeRetiredStorage, setPlatformServices, ToastHost } from "@plainva/ui";
 import { initMobileSettings } from "./services/mobileSettings";
 import { initWindowClass } from "./services/windowClass";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
@@ -77,7 +77,9 @@ class FatalBoundary extends React.Component<{ children: React.ReactNode }, { fai
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  componentDidCatch(err: unknown) {
+  componentDidCatch(err: unknown, info: React.ErrorInfo) {
+    // The last net, behind the boundary of every screen and sheet (stability plan R3).
+    logDiagnostic("area:app", describeAreaError(err, info.componentStack));
     showFatalError("render", err);
   }
   render() {

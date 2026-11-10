@@ -5027,7 +5027,11 @@
   },
   "errors": {
     "somethingWentWrong": "Er is iets misgegaan.",
-    "reload": "Opnieuw laden"
+    "reload": "Opnieuw laden",
+    "areaTitle": "Dit gedeelte kan niet worden weergegeven",
+    "areaBody": "Een fout heeft het gestopt. De rest van Plainva blijft werken, en de fout staat onder {{place}}.",
+    "areaAgain": "Het mislukte opnieuw na het herladen. Blijft het mislukken, herstart Plainva dan; de fout staat onder {{place}}.",
+    "areaReload": "Dit gedeelte opnieuw laden"
   },
   "palette": {
     "title": "Opdrachten",

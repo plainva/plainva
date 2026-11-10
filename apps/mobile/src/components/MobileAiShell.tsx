@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { AreaBoundary } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { STYLE_EXAMPLES_MAX } from "@plainva/core";
 import { AiSheet } from "./AiSheet";
@@ -121,6 +122,7 @@ export function MobileAiShell({
     <>
       <MobileAiNavigation navRef={ai.navRef} nav={nav} />
       {ai.sheet && (
+        <AreaBoundary area="sheet:ai" size="dialog" exit={{ label: t("common.close"), onExit: ai.closeSheet }}>
         <AiSheet
           notePath={ai.sheet.path}
           onClose={ai.closeSheet}
@@ -128,9 +130,11 @@ export function MobileAiShell({
           onOpenScreen={leaving(onOpenScreen)}
           onOpenSettings={leaving(() => nav.openSettings?.())}
         />
+        </AreaBoundary>
       )}
       {/* The note the AI asked for (plan P9-3): to pin it, or as an example of the writing style — over whatever shows. */}
       {ai.notePick && (
+        <AreaBoundary area="sheet:notePick" size="dialog" exit={{ label: t("common.close"), onExit: ai.closePick }}>
         <NotePickSheet
           vault={ai.notePick.vault}
           title={ai.notePick.purpose === "pin" ? t("ai.pinNote") : t("ai.style.pick")}
@@ -138,6 +142,7 @@ export function MobileAiShell({
           onPick={(path) => pickedForAi(ai.notePick!.purpose, path)}
           onClose={ai.closePick}
         />
+        </AreaBoundary>
       )}
       {/* Learning's sheets (plan P6-2): opened from a conversation, a draft or a skill, wherever those are shown. */}
       <LearnSheets onOpenNote={(target) => leaving(() => onOpenNote(target))()} />

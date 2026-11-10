@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-11-02
+Última revisão: 2026-11-10
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -139,6 +139,10 @@ Enquanto ainda não houver versões públicas (releases), a verificação de atu
 ### Existem recursos ocultos?
 
 A Frota Estelar não comenta rumores. Mas dizem que o logotipo na barra de título reage a batidas persistentes — e quem então souber as palavras certas verá o Plainva sob uma luz totalmente nova depois disso. Alguns dizem: em quatro delas.
+
+### Uma parte da janela diz “Não foi possível mostrar esta área”
+
+Uma área não pôde ser desenhada: uma aba, uma seção da barra lateral, uma visualização de banco de dados, um e-mail, uma página de configurações, uma caixa de diálogo ou, no celular, uma tela ou uma folha. Só essa área é substituída; todo o resto continua funcionando, e uma nota aberta mantém seu texto. **Recarregar esta área** desenha a área de novo. Se falhar uma segunda vez, a mensagem diz isso e fica: feche a aba (**Fechar aba**) ou, no celular, toque em **Voltar**, e reinicie o Plainva se acontecer de novo. O erro fica registrado em **Sobre e diagnóstico**; a exportação de diagnóstico de lá não contém o conteúdo das notas e ajuda num relato de bug.
 
 ## Veja também
 

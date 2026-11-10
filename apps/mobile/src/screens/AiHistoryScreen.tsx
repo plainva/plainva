@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare } from "lucide-react";
-import { AiOpenPanel, startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, openLearnSurface, openWritesCount, Row, RowList, SearchField, SectionLabel, Segmented, startAiSkill, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
+import { AreaBoundary, AiOpenPanel, startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, openLearnSurface, openWritesCount, Row, RowList, SearchField, SectionLabel, Segmented, startAiSkill, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
@@ -145,7 +145,7 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
       </GroupCard>
         </>
       )}
-      {sheet && <RowActionSheet title={sheet.title} actions={rowActions(sheet.caps)} onClose={() => setSheet(null)} />}
+      {sheet && <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}><RowActionSheet title={sheet.title} actions={rowActions(sheet.caps)} onClose={() => setSheet(null)} /></AreaBoundary>}
     </div>
   );
 }

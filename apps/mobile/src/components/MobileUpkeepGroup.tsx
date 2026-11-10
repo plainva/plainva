@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import { GroupCard, ICON, Row, RowList, SectionLabel, upkeepRowActions, upkeepTitle, type UpkeepRow } from "@plainva/ui";
+import { AreaBoundary, GroupCard, ICON, Row, RowList, SectionLabel, upkeepRowActions, upkeepTitle, type UpkeepRow } from "@plainva/ui";
 import { RowActionSheet } from "./RowActionSheet";
 
 /**
@@ -41,6 +41,7 @@ export function MobileUpkeepGroup({ rows, onStep, onDismiss, children }: { rows:
         </GroupCard>
       )}
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={sheet.label}
           // The sheet closes with the choice: what a step opens — a comparison, a form, a review — must not lie under it.
@@ -55,6 +56,7 @@ export function MobileUpkeepGroup({ rows, onStep, onDismiss, children }: { rows:
           }))}
           onClose={() => setSheet(null)}
         />
+        </AreaBoundary>
       )}
     </>
   );

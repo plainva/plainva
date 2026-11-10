@@ -18,7 +18,7 @@ import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
 import { parkEditorSuggestion, clearEditorSuggestion } from "../services/editorSuggestionPark";
-import { askDiscard, readSourceSelection } from "@plainva/ui";
+import { AreaBoundary, askDiscard, readSourceSelection } from "@plainva/ui";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
@@ -3621,7 +3621,7 @@ export const Editor: React.FC<{
       )}
 
       {showTemplateTargets && activePath && (
-        <TemplateTargetsModal templatePath={activePath} onClose={() => setShowTemplateTargets(false)} />
+        <AreaBoundary area="dialog:templateTargets" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowTemplateTargets(false) }}><TemplateTargetsModal templatePath={activePath} onClose={() => setShowTemplateTargets(false)} /></AreaBoundary>
       )}
 
       {staleSince && (
@@ -3796,12 +3796,12 @@ export const Editor: React.FC<{
               </div>
             )}
             <DocumentHeaderRead meta={docMeta} fullWidth={editorWidth === 'full'} badge={trustBadge} badgeTexts={badgeTexts} />
-            {!newEntry && <NoteDatabaseBar
+            {!newEntry && <AreaBoundary area="editor:databaseBar" size="strip"><NoteDatabaseBar
               context={dbContext}
               title={activePath ? noteDisplayName(activePath) : ""}
               fullWidth={editorWidth === 'full'}
               onOpenPath={(p) => onOpenPath?.(p, false)}
-            />}
+            /></AreaBoundary>}
             <div className={managedIndex ? "pv-index-doc" : undefined}>
               <MarkdownReader
                 content={content}
@@ -3908,12 +3908,12 @@ export const Editor: React.FC<{
           // The database context line sits ABOVE it as a plain React sibling —
           // the editor container itself must stay untouched by React.
           <>
-            {!newEntry && <NoteDatabaseBar
+            {!newEntry && <AreaBoundary area="editor:databaseBar" size="strip"><NoteDatabaseBar
               context={dbContext}
               title={activePath ? noteDisplayName(activePath) : ""}
               fullWidth={editorWidth === 'full'}
               onOpenPath={(p) => onOpenPath?.(p, false)}
-            />}
+            /></AreaBoundary>}
           <div
             ref={editorContainerRef}
             // Readable line length (#1): center the text column when narrow.
@@ -3926,7 +3926,11 @@ export const Editor: React.FC<{
           </>
         )}
       </div>
+      {/* Beside the text, an area of its own (stability plan R3): the comments
+          column, the database line and every popup of the editor can fail
+          without taking the editor and its unsaved text along. */}
       {commentColumnOpen && (
+        <AreaBoundary area="editor:comments" size="section" exit={{ label: t("common.close"), onExit: toggleCommentColumn }}>
         <WorkspaceCommentsColumn
           operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={content} />}
           onClose={toggleCommentColumn}
@@ -3966,19 +3970,23 @@ export const Editor: React.FC<{
           muted={commentMute.muted ?? false}
           onToggleMute={commentMute.toggle}
         />
+        </AreaBoundary>
       )}
       </div>
 
       {tablePicker && (
+        <AreaBoundary area="editor:tablePicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setTablePicker(null) }}>
         <TableSizePicker
           x={tablePicker.x}
           y={tablePicker.y}
           onSelect={handleTableSelect}
           onClose={() => setTablePicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {iconPicker && (
+        <AreaBoundary area="editor:iconPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setIconPicker(null) }}>
         <EmojiPicker
           x={iconPicker.x}
           y={iconPicker.y}
@@ -3989,9 +3997,11 @@ export const Editor: React.FC<{
           onRemove={() => { applyNoteProperties((text) => withNoteIcon(text, null, null)); setIconPicker(null); }}
           onClose={() => setIconPicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {emojiTextPicker && (
+        <AreaBoundary area="editor:emojiPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setEmojiTextPicker(null) }}>
         <EmojiPicker
           x={emojiTextPicker.x}
           y={emojiTextPicker.y}
@@ -4013,9 +4023,11 @@ export const Editor: React.FC<{
           onSelectIcon={() => setEmojiTextPicker(null)}
           onClose={() => setEmojiTextPicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {colorPicker && (
+        <AreaBoundary area="editor:colorPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setColorPicker(null) }}>
         <ColorPopover
           x={colorPicker.x}
           y={colorPicker.y}
@@ -4024,9 +4036,11 @@ export const Editor: React.FC<{
           onRemove={() => { applyNoteProperties((text) => withNoteColor(text, null)); setColorPicker(null); }}
           onClose={() => setColorPicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {dateMention && (
+        <AreaBoundary area="editor:datePicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setDateMention(null) }}>
         <div
           className="pv-popover--fixed"
           style={{ left: dateMention.x, top: dateMention.y, minWidth: "180px", visibility: "visible" }}
@@ -4038,25 +4052,33 @@ export const Editor: React.FC<{
             onClose={() => setDateMention(null)}
           />
         </div>
+        </AreaBoundary>
       )}
 
       {basePicker && (
+        <AreaBoundary area="editor:basePicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setBasePicker(null) }}>
         <BasePicker
           onPick={(path) => { embedBaseAtPos(path, basePicker.pos); setBasePicker(null); }}
           onCreate={() => { const pos = basePicker.pos; setBasePicker(null); createAndEmbedBase(pos); }}
           onClose={() => setBasePicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {viewMode !== 'read' && selToolbar && (
+        <AreaBoundary area="editor:selectionToolbar" size="quiet">
         <SelectionToolbar {...selToolbar} onAction={applyFormat} extra={<AiSelectionButton />} />
+        </AreaBoundary>
       )}
 
       {blockMenu && (
+        <AreaBoundary area="editor:blockMenu" size="dialog" exit={{ label: t("common.close"), onExit: () => setBlockMenu(null) }}>
         <BlockMenu x={blockMenu.x} y={blockMenu.y} onAction={handleBlockAction} onClose={() => setBlockMenu(null)} />
+        </AreaBoundary>
       )}
 
       {tableMenu && (
+        <AreaBoundary area="editor:tableMenu" size="dialog" exit={{ label: t("common.close"), onExit: () => setTableMenu(null) }}>
         <TableContextMenu
           x={tableMenu.x}
           y={tableMenu.y}
@@ -4072,6 +4094,7 @@ export const Editor: React.FC<{
           onAction={handleTableMenuAction}
           onClose={() => setTableMenu(null)}
         />
+        </AreaBoundary>
       )}
     </div>
   );

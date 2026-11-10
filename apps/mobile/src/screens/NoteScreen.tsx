@@ -50,7 +50,7 @@ import { configuredNoteType } from "../services/newNote";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { adoptDraft, clearDraft, clearDraftIf, offerDraft, releaseLeftoverDrafts, takeLeftoverDrafts, type NoteDraft } from "../services/draftJournal";
-import { forgetFreshNote, isFreshNote, keepTextBeside, newestConflictCopy } from "@plainva/ui";
+import { AreaBoundary, forgetFreshNote, isFreshNote, keepTextBeside, newestConflictCopy } from "@plainva/ui";
 import { NoteConflictCard } from "../components/NoteConflictCard";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
 import { NoteContextSheet, type ContextTab } from "../components/NoteContextSheet";
@@ -1577,6 +1577,7 @@ export function NoteScreen({
         <NoteConflictCard conflict={readerConflict} path={path} vault={vault} onOpenCopy={() => onOpenNote(readerConflict.copyPath)} onShowDiff={() => setNotTextCompare(true)} />
       )}
       {doc === null && notText && readerConflict && notTextCompare && (
+        <AreaBoundary area="sheet:conflictCompare" size="dialog" exit={{ label: t("common.close"), onExit: () => setNotTextCompare(false) }}>
         <ConflictCompareSheet
           vault={vault}
           conflictPath={readerConflict.copyPath}
@@ -1588,6 +1589,7 @@ export function NoteScreen({
             setLoadAgain((n) => n + 1);
           }}
         />
+        </AreaBoundary>
       )}
       {doc === null && notText && (
         /* C15 (S13): the extension promised text, the bytes did not keep the
@@ -1627,6 +1629,7 @@ export function NoteScreen({
       )}
 
       {commentsOpen && (
+        <AreaBoundary area="sheet:comments" size="dialog" exit={{ label: t("common.close"), onExit: () => { setCommentsOpen(false); setPendingPropertyAnchor(null); setPendingRange(null); } }}>
         <CommentsSheet
           publicationComments={publicationComments}
           operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={doc ?? ""} />}
@@ -1667,8 +1670,10 @@ export function NoteScreen({
           }}
           onOpenUrl={(url) => { void getPlatformServices().openExternal(url); }}
         />
+        </AreaBoundary>
       )}
       {menu && (
+        <AreaBoundary area="sheet:rowActions" size="dialog" exit={{ label: t("common.close"), onExit: () => setMenu(false) }}>
         <RowActionSheet
           title={title}
           onClose={() => setMenu(false)}
@@ -1873,9 +1878,11 @@ export function NoteScreen({
             },
           ]}
         />
+        </AreaBoundary>
       )}
 
       {moving && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setMoving(false) }}>
         <FolderPickerSheet
           onClose={() => setMoving(false)}
           onPick={(folder) => {
@@ -1886,9 +1893,11 @@ export function NoteScreen({
           title={t("mobile.moveTitle")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
 
       {info && !docked && (
+        <AreaBoundary area="sheet:noteContext" size="dialog" exit={{ label: t("common.close"), onExit: () => setInfo(null) }}>
         <NoteContextSheet
           canComment={canComment}
           canWrite={workspaceCanWrite}
@@ -1906,6 +1915,7 @@ export function NoteScreen({
           path={path}
           vault={vault}
         />
+        </AreaBoundary>
       )}
     </div>
   );
@@ -1917,6 +1927,7 @@ export function NoteScreen({
   return (
     <div className="m-worksplit">
       {page}
+      <AreaBoundary area="pane:noteContext" size="section" exit={{ label: t("common.close"), onExit: () => setInfo(null) }}>
       <NoteContextSheet
         canComment={canComment}
         canWrite={workspaceCanWrite}
@@ -1936,6 +1947,7 @@ export function NoteScreen({
         path={path}
         vault={vault}
       />
+      </AreaBoundary>
     </div>
   );
 }

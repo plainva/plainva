@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-11-02
+Laatst bijgewerkt: 2026-11-10
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -139,6 +139,10 @@ Zolang er nog geen openbare releases zijn, meldt de update-check: "Er zijn nog g
 ### Zijn er verborgen functies?
 
 Starfleet becommentarieert geruchten in principe niet. Maar het schijnt dat het logo in de titelbalk reageert op aanhoudend kloppen — en wie vervolgens de juiste woorden kent, ziet Plainva daarna in een heel nieuw licht. Sommigen zeggen: in vieren.
+
+### Een deel van het venster zegt ‘Dit gedeelte kan niet worden weergegeven’
+
+Een gedeelte kon niet worden getekend: een tabblad, een sectie van de zijbalk, een databaseweergave, een e-mail, een instellingenpagina, een dialoogvenster of op de telefoon een scherm of een blad. Alleen dat gedeelte wordt vervangen; al het andere blijft werken, en een open notitie houdt haar tekst. **Dit gedeelte opnieuw laden** tekent het gedeelte opnieuw. Mislukt het een tweede keer, dan zegt de melding dat en blijft ze staan: sluit het tabblad (**Tabblad sluiten**) of tik op de telefoon op **Terug**, en herstart Plainva als het opnieuw gebeurt. De fout staat onder **Over & diagnose**; de diagnose-export daar bevat geen notitie-inhoud en helpt bij een foutmelding.
 
 ## Zie ook
 

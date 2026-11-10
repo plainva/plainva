@@ -1068,6 +1068,23 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-empty svg { color: var(--text-faint); }
 .pv-empty-msg { max-width: 420px; line-height: 1.5; }
 
+/* An area that could not be shown (stability plan R3, `AreaBoundary`): the
+   empty state with its alert glyph, centred in what it replaces; the section
+   form stays as small as the section it stands in for. Layout only. */
+.pv-areafail { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; }
+.pv-areafail--pane { flex: 1; min-height: 0; overflow: auto; }
+.pv-areafail--section .pv-empty { padding: var(--space-3); }
+.pv-areafail--section .pv-empty-title { font-size: var(--text-ui); }
+.pv-areafail--strip { flex-direction: row; flex-wrap: nowrap; justify-content: flex-start; gap: var(--space-1); max-width: 100%; overflow: hidden; padding: 0 var(--space-2); color: var(--text-muted); font-size: var(--text-ui); }
+.pv-areafail--strip svg, .pv-areafail--icon svg { color: var(--text-faint); flex-shrink: 0; }
+.pv-areafail--strip > button { flex-shrink: 0; }
+.pv-areafail-line { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-areafail--icon { flex: 0 0 auto; justify-content: flex-start; gap: var(--space-1); padding: var(--space-1); background: var(--bg-secondary); border-radius: var(--radius-lg); }
+/* Two classes: a shell class that places the fallback (the phone's capsule
+   bar) must not also decide how its one line is laid out. */
+.pv-areafail.pv-areafail--strip { align-items: center; justify-content: flex-start; }
+.pv-areafail-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
+
 /* ------------------------------------------------------------ dialog body */
 .pv-dialog-body { display: flex; gap: var(--space-3); align-items: flex-start; }
 .pv-dialog-ic { flex-shrink: 0; margin-top: 1px; color: var(--info-text); }

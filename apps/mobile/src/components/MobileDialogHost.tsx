@@ -2,7 +2,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { ChoiceMark, useChoiceBeat } from "./ChoiceMark";
 import { useTranslation } from "react-i18next";
-import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, Switch, TextInput, ScrollEdge} from "@plainva/ui";
+import { AreaBoundary, Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, Switch, TextInput, ScrollEdge} from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
@@ -27,10 +27,20 @@ function filterOptions(options: MobileSelectOption[], filter: string): MobileSel
  * (backdrop --dialog), backdrop taps cancel.
  */
 export function MobileDialogHost() {
+  const { t } = useTranslation();
   const dialog = useSyncExternalStore(subscribeMobileDialogs, currentMobileDialog);
   if (!dialog) return null;
-  // Remount per request so input state never leaks between dialogs.
-  return <DialogSheet dialog={dialog} key={dialog.id} />;
+  // Remount per request so input state never leaks between dialogs. A sheet
+  // that failed answers its question as cancelled, so the caller goes on.
+  return <AreaBoundary area="sheet:dialog" size="dialog" resetKey={dialog.id} exit={{ label: t("common.close"), onExit: () => cancelDialog(dialog) }}><DialogSheet dialog={dialog} key={dialog.id} /></AreaBoundary>;
+}
+
+/** Answers a request as the person's Cancel does, and takes it down. */
+function cancelDialog(dialog: MobileDialog): void {
+  if (dialog.kind === "prompt") dialog.resolve({ value: "", cancelled: true, checked: false });
+  else if (dialog.kind === "confirm") dialog.resolve(false);
+  else dialog.resolve(null);
+  dismissMobileDialog(dialog);
 }
 
 function DialogSheet({ dialog }: { dialog: MobileDialog }) {
@@ -47,27 +57,22 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
     dismissMobileDialog(dialog);
   });
 
-  const cancel = () => {
-    if (dialog.kind === "prompt") dialog.resolve({ value: "", cancelled: true, checked: false });
-    else if (dialog.kind === "confirm") dialog.resolve(false);
-    else dialog.resolve(null);
-    dismissMobileDialog(dialog);
-  };
+  const cancel = () => cancelDialog(dialog);
 
   if (dialog.kind === "cascade") {
-    return <CascadeSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:cascade" size="dialog" exit={{ label: t("common.close"), onExit: cancel }}><CascadeSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   if (dialog.kind === "answers") {
-    return <AnswersSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:answers" size="dialog" exit={{ label: t("common.close"), onExit: cancel }}><AnswersSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   if (dialog.kind === "multiSelect") {
-    return <MultiSelectSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:multiSelect" size="dialog" exit={{ label: t("common.close"), onExit: cancel }}><MultiSelectSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   if (dialog.kind === "dayTime") {
-    return <DayTimeSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:dayTime" size="dialog" exit={{ label: t("common.close"), onExit: cancel }}><DayTimeSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   const submitPrompt = () => {
