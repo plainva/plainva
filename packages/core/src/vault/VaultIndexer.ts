@@ -500,6 +500,18 @@ export class VaultIndexer {
     return lookups;
   }
 
+  /**
+   * The paths of `paths` a rename queued for the remote moves away - the path
+   * itself or a folder it lies in (`SyncQueue.queueRename` keeps the old path
+   * of a moved folder, not one row per file).
+   */
+  private async renamedAway(paths: readonly string[], tx: SqlStatements): Promise<string[]> {
+    const renames = await tx.query<{ file_path: string }>(`SELECT file_path FROM offline_queue WHERE operation = 'rename'`);
+    if (renames.length === 0) return [];
+    const from = renames.map((r) => r.file_path);
+    return paths.filter((path) => from.some((old) => path === old || path.startsWith(`${old}/`)));
+  }
+
   /** Where every row of the index sits, by SQLite's rowid (`movedAway`). */
   private async rowLocations(tx: SqlStatements): Promise<Map<number, string>> {
     const rows = await tx.query<{ rowid?: number | null; path: string }>(`SELECT rowid, path FROM files`);
@@ -554,13 +566,27 @@ export class VaultIndexer {
     knownToIndex: boolean,
     pass: IndexPass,
     markerNamesThisFile = false,
-  ): { isNewLocalFile: boolean; keepsSyncedBase: boolean } {
+  ): { isNewLocalFile: boolean; keepsSyncedBase: boolean; externallyModified: boolean } {
     const orphaned = !!oldSyncState && !knownToIndex;
     const differs = !!oldSyncState?.local_sha256 && oldSyncState.local_sha256 !== sha256;
-    if (differs && !orphaned && !markerNamesThisFile && !this.options?.isOwnWrite?.(path, sha256)) {
+    const externallyModified = differs && !orphaned && !markerNamesThisFile && !this.options?.isOwnWrite?.(path, sha256);
+    if (externallyModified) {
       pass.externalMods.push({ path, oldHash: oldSyncState!.local_sha256!, newHash: sha256 });
     }
-    return { isNewLocalFile: !oldSyncState || orphaned, keepsSyncedBase: orphaned && !!oldSyncState?.base_sha256 };
+    return { isNewLocalFile: !oldSyncState || orphaned, keepsSyncedBase: orphaned && !!oldSyncState?.base_sha256, externallyModified };
+  }
+
+  /**
+   * The `sync_state` a file's row is written with. A foreign change is written
+   * as `local_ahead` in the very transaction that writes its new hash
+   * (performance plan L4): the host hears of it only after that transaction,
+   * and an app ended in between - killed by the system, swiped away - would
+   * otherwise leave a row that matches the disk (the next scan skips it) and a
+   * sync state that never learns of the change. `SyncQueue.enqueueLocalOnlyFiles`
+   * queues every `local_ahead` row that has nothing queued.
+   */
+  private rowSyncState(indexed: string, externallyModified: boolean): string {
+    return externallyModified ? "local_ahead" : indexed;
   }
 
   /**
@@ -690,7 +716,8 @@ export class VaultIndexer {
       : await this.syncRepo.getSyncState(fileInfo.path, tx);
     const knownToIndex = existingFileState !== null;
     const markerNamesThisFile = read.exact && await isMarkerTakenWithoutMark({ text: read.text, sha256 }, oldSyncState);
-    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const { isNewLocalFile, keepsSyncedBase, externallyModified } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const rowSyncState = this.rowSyncState(indexedSyncState, externallyModified);
     // A row is written for the path: a pass that read the index earlier leaves it alone (stillMine).
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
@@ -813,7 +840,7 @@ export class VaultIndexer {
       await writer.execute(
         `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-        [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, indexedSyncState]
+        [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, rowSyncState]
       );
 
       // Insert into fts_notes — with the character-pair form of text written
@@ -875,7 +902,7 @@ export class VaultIndexer {
       await writer.execute(
         `INSERT OR REPLACE INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?)`,
-        [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, indexedSyncState]
+        [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, rowSyncState]
       );
       if (!oldSyncState) {
         await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
@@ -966,7 +993,8 @@ export class VaultIndexer {
       : await this.syncRepo.getSyncState(fileInfo.path, tx);
     const knownToIndex = existingFileState !== null;
     const markerNamesThisFile = textContent !== null && await isMarkerTakenWithoutMark({ text: textContent, sha256 }, oldSyncState);
-    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const { isNewLocalFile, keepsSyncedBase, externallyModified } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const rowSyncState = this.rowSyncState(indexedSyncState, externallyModified);
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
     const fileId = await this.rowIdFor(fileInfo.path, tx, lookups);
@@ -981,7 +1009,7 @@ export class VaultIndexer {
     await writer.execute(
       `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-      [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, "attachment", indexedSyncState]
+      [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, "attachment", rowSyncState]
     );
 
     if (isNewLocalFile) {
@@ -2064,12 +2092,22 @@ export class VaultIndexer {
             // The rows this scan removes, asked right before it removes them: a
             // path another pass indexed or reported since this scan read the index
             // — while it read every changed file — is not this scan's to remove
-            // (stillMine); nor is a path whose row the app has moved away meanwhile
-            // a file that vanished (movedAway): asked of where the rows sat before
-            // the scan wrote, and of where they sit now, between two of its
-            // transactions the app may have moved one.
+            // (stillMine); nor is a path the app has moved away meanwhile a file
+            // that vanished. Two questions, because neither answers alone:
+            //  - where the rows sat before the scan wrote, and where they sit
+            //    now (movedAway). A row the app moved between two of the scan's
+            //    transactions is found by the second - unless the scan has
+            //    read the file at the new path since: reading a file again
+            //    deletes its row and inserts it under a new rowid, and the
+            //    moved row is then gone from both readings;
+            //  - so also whether a rename AWAY from the path, or from a folder
+            //    it lies in, waits in the queue (`renamedAway`). The queue
+            //    keeps it until the move went to the remote; a remote deletion
+            //    queued behind it would remove the moved file (finding
+            //    2026-10-12). Once the move went up, the next scan decides.
             const moved = this.movedAway(filesToDelete, dbFileMap, { pathByRow: rowsBefore });
             if (!first) for (const path of this.movedAway(filesToDelete, dbFileMap, { pathByRow: await this.rowLocations(tx) })) moved.add(path);
+            if (filesToDelete.length > moved.size) for (const path of await this.renamedAway(filesToDelete, tx)) moved.add(path);
             removedRows = new Set(this.stillMine(filesToDelete.filter((path) => !moved.has(path)), pass));
             if (removedRows.size > 0) await this.deleteIndexRows([...removedRows], sink);
 

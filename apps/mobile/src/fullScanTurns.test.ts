@@ -19,7 +19,7 @@ vi.mock("@capacitor-community/sqlite", async () => (await import("../../../packa
 
 const { CapacitorSqliteAdapter } = await import("./adapters/CapacitorSqliteAdapter");
 const { resetDatabasesForTests } = await import("./adapters/sqliteConnections");
-const { initializeSchema, VaultIndexer } = await import("@plainva/core");
+const { initializeSchema, SyncQueue, VaultIndexer } = await import("@plainva/core");
 
 const PLATFORMS: PhonePlatform[] = ["android", "ios"];
 
@@ -56,5 +56,45 @@ describe("the full scan and the phone's one connection", () => {
     expect(phoneSqlite.counts.refused).toBe(0);
     expect(phoneSqlite.counts.committed).toBeGreaterThan(10);
     await db.close();
+  });
+
+  it.each(PLATFORMS)("a foreign change a committed transaction found reaches the sync after the app was ended mid-scan (%s)", async (platform) => {
+    phoneSqlite.reset(platform);
+    const db = new CapacitorSqliteAdapter("plainva-ended");
+    await db.initialize();
+    await initializeSchema(db);
+    const vault = new MemoryVaultAdapter(1_700_000_000_000);
+    const notes = Array.from({ length: 20 }, (_, i) => `n${String(i).padStart(2, "0")}.md`);
+    for (const name of notes) await vault.writeTextFile(name, `# ${name}\n`);
+    await new VaultIndexer(vault, db).indexVaultFull();
+    // Synced once: the remote confirmed every file.
+    await db.execute(`UPDATE sync_state SET remote_etag = 'etag-1', base_sha256 = local_sha256`);
+    await db.execute(`UPDATE files SET sync_state = 'synced'`);
+    for (const name of notes) await vault.writeTextFile(name, `# ${name}\nchanged in another app\n`);
+
+    // The app is ended after four transactions of the scan: no catch, no flush.
+    const own = db.transaction.bind(db);
+    let transactions = 0;
+    let ended!: () => void;
+    const endedNow = new Promise<void>((resolve) => { ended = resolve; });
+    db.transaction = <T,>(fn: Parameters<typeof own>[0]) => {
+      if (++transactions > 4) {
+        ended();
+        return new Promise<T>(() => {});
+      }
+      return own(fn) as Promise<T>;
+    };
+    const foreign: string[] = [];
+    void new VaultIndexer(vault, db, { scanTransactionMs: 0, onExternalModification: (p) => foreign.push(p) }).indexVaultFull();
+    await endedNow;
+    expect(foreign).toEqual([]);
+
+    // The next start, on the same database.
+    const next = new CapacitorSqliteAdapter("plainva-ended");
+    await next.initialize();
+    await new VaultIndexer(vault, next, { scanTransactionMs: 0 }).indexVaultFull();
+    await new SyncQueue(next).enqueueLocalOnlyFiles();
+    const queued = (await next.query<{ file_path: string }>(`SELECT file_path FROM offline_queue WHERE operation = 'write' ORDER BY file_path`)).map((r) => r.file_path);
+    expect(queued).toEqual(notes);
   });
 });

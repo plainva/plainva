@@ -119,9 +119,29 @@ export function releaseDatabase(name: string): Promise<void> {
  *  - An app killed in the middle of a write comes back with every committed
  *    transaction and nothing of the one that was open: SQLite reads the log
  *    on the next open and drops what was never committed (`walRecovery.test.ts`
- *    shows it on a real file). `synchronous = NORMAL` can lose the last
- *    transactions only when the device itself loses power, and even then
- *    never corrupts the file - the index is rebuilt, the notes are files.
+ *    shows it on a real file). That is the common case on a phone - the
+ *    system ends apps - and `NORMAL` loses nothing there: a commit is in the
+ *    log as soon as the app hands it over.
+ *  - What `synchronous = NORMAL` gives up is the last transactions before the
+ *    DEVICE loses power (an empty battery, a forced restart), never the
+ *    file's integrity. This database is more than the index: it holds the
+ *    sync queue, the sync states (merge bases, ETags), the deletion journal,
+ *    the comment and workspace queues and the calendar caches. Losing their
+ *    last transactions means doing something again, not doing something
+ *    wrong - the same trade the desktop has always made:
+ *     - a queued write or deletion that is lost: the file on disk still
+ *       differs from its sync state (the index marks it `local_ahead` and
+ *       the sweep after the first pull queues it), or the deletion stays
+ *       unpropagated until the next scan;
+ *     - a done upload whose record is lost: the upload runs again; the
+ *       remote then has the same bytes (`pending_push_sha` and the identical-
+ *       content check take it as no change, never as a conflict);
+ *     - a done remote deletion whose record is lost: it is sent again and
+ *       finds nothing to delete;
+ *     - a pull whose record is lost: the file on disk is the remote's, its
+ *       sync state the older one; the next cycle finds the same content on
+ *       both sides.
+ *    The calendar caches are read again from the provider.
  *  - The journal mode is kept in the file; `synchronous` is not, so both are
  *    set at every open. Android's SQLite opens a database in its own default
  *    mode and so folds the log back first; that is a checkpoint, no loss.
