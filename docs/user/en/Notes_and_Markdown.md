@@ -79,10 +79,10 @@ Every note has an address that opens it from anywhere — a calendar event, a ta
 What a link can do, and what it cannot:
 
 - It only **opens**. It never creates a note, writes, runs anything or changes a setting; parameters Plainva does not know are ignored.
-- `vault` is the vault's **name** as Plainva shows it — never its folder on disk. On another device the link works when the vault has the same name there. If the name belongs to another vault on this device, Plainva asks before it switches; if no vault — or more than one — on this device has that name, it says so. Renaming a vault breaks the links that name it.
+- `vault` is the vault's **name** as Plainva shows it — never its folder on disk. On another device the link works when the vault has the same name there. If the name belongs to another vault on this device, Plainva asks before it switches; if no vault — or more than one — on this device has that name, it says so. Renaming a vault breaks the links that name it. If the vault is not on this device but the note is in the vault that is open, Plainva asks whether to open it there.
 - `path` is the note's path in the vault. If the note has moved, or was renamed while its old name is still the `title` in its properties, Plainva finds it by the rule of the wiki links. Otherwise it says the note is not there.
 - `heading=` or `block=` (one of the two) jumps to a heading or a block.
-- A link opens notes, databases, images and text files — never a program or another file the system would open.
+- A link opens notes, databases, images and text files — never a program or another file the system would open. Files and folders whose name starts with a dot — hidden files, Plainva's own folders — are never opened by a link. A link that waited for a vault is dropped after a minute.
 - Links always start with `plainva://`. The development and Labs builds answer `plainva-dev://` and `plainva-labs://`, so they never take the installed app's links.
 - The system learns the address when Plainva is installed (Windows installer, macOS app, deb or rpm package, Android, iOS). An AppImage without desktop integration is not registered; links clicked inside Plainva work there all the same.
 

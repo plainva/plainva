@@ -495,19 +495,24 @@ export function planBlockLink(raw: string, offset: number, random: () => number 
     const named = blocks.find((block) => block.markerFrom >= leafRange.from && block.markerFrom < leafRange.to);
     return named ? { kind: "block", id: named.id, insert: null } : { kind: "refused", reason: "unsupported" };
   }
-  const listItem = leaf.type === "paragraph" ? [...chain].reverse().find((node) => node.type === "listItem") : undefined;
-  const addressed = range(listItem ?? leaf);
+  // A table, a quote and a callout are one block each: their id stands on a
+  // line of its own behind them (Obsidian's rule for structured blocks). In
+  // the title line of a callout it would be shown as part of the title.
+  const quote = chain.find((node) => node.type === "blockquote");
+  const structured = quote ?? (leaf.type === "table" ? leaf : undefined);
+  if (structured && chain[0] !== structured) return { kind: "refused", reason: "unsupported" };
+  const listItem = !structured && leaf.type === "paragraph" ? [...chain].reverse().find((node) => node.type === "listItem") : undefined;
+  const addressed = range(structured ?? listItem ?? leaf);
   const existing = blocks.find((block) => block.from === addressed.from && block.to === addressed.to);
   if (existing) return { kind: "block", id: existing.id, insert: null };
   const id = newBlockId(blocks.map((block) => block.id), random);
   const eol = /\r\n/.test(raw) ? "\r\n" : /\r/.test(raw) && !/\n/.test(raw) ? "\r" : "\n";
   let insert: { at: number; text: string };
-  if (leaf.type === "table") {
-    if (chain.length > 1) return { kind: "refused", reason: "unsupported" };
-    const after = raw.slice(leafRange.to);
+  if (structured) {
+    const after = raw.slice(addressed.to);
     const nextLine = /^(?:\r\n|\r|\n)([^\r\n]*)/.exec(after);
     const trailing = nextLine && nextLine[1].trim() !== "" ? eol : "";
-    insert = { at: leafRange.to, text: `${eol}${eol}^${id}${trailing}` };
+    insert = { at: addressed.to, text: `${eol}${eol}^${id}${trailing}` };
   } else {
     insert = { at: leafRange.to, text: ` ^${id}` };
   }

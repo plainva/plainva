@@ -25,7 +25,7 @@ import { virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { PRESET_CONTENT } from "./services/windowManager";
-import { copyDesktopNoteLink, forwardNoteLinksToCentralWindow, hasNoteLink } from "./services/noteLinkReceiver";
+import { copyDesktopNoteLink, hasNoteLink } from "./services/noteLinkReceiver";
 
 /** Sections an auxiliary window may show (E5): everything note-bound, no calendar. */
 const AUX_SECTIONS: readonly SectionId[] = ["outline", "graph", "databases", "backlinks", "properties"];
@@ -135,8 +135,6 @@ export function AuxApp() {
   // chrome fix) had no way out at all. With several tabs the key closes the
   // active one, as it does in the central window; the last tab, or a window
   // that has none (the composer), takes the window with it.
-  // A note link clicked here (F2) opens in the central window, which knows the vaults and the tabs.
-  useEffect(() => forwardNoteLinksToCentralWindow(), []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "w") return;

@@ -1,4 +1,4 @@
-import { explicitLinkPath, isInternalPath, isNoteLinkAddress, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
+import { contentPathRefusal, explicitLinkPath, isNoteLinkAddress, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
 import { externalUrlToOpen } from "./externalUrl";
 import { splitLinkAnchor } from "./linkAnchor";
 import { wikiTargetToPath } from "./wikiResolver";
@@ -143,6 +143,10 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
     const { path, title } = wikiTargetToPath(split.target, link.sourcePath);
     if (!title) return { action: "notFound", target: split.target };
     // The index follows a save by one pass: a note that is there is opened, not created twice.
+    // The disk is asked only for a path content may lead to (F2 review): never
+    // the app's own folders in any spelling, a device name or a data stream.
+    // Neither opened nor created there: a link does not reach into them.
+    if (contentPathRefusal(path) !== null) return { action: "notFound", target: split.target };
     if (await fileThere(path)) return { action: "open", path, anchor };
     return { action: "create", target: split.target, path, title };
   }
@@ -164,7 +168,7 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
   // same: the places the target names as paths are asked of the disk, in the
   // rule's order. The app's own folders are no link targets.
   for (const place of markdownLinkPlaces(link.sourcePath ?? "", target)) {
-    if (place.path !== "" && isInternalPath(place.path)) continue;
+    if (place.path !== "" && contentPathRefusal(place.path) !== null) continue;
     if (place.kind === "file") {
       if (await fileThere(place.path)) return { action: "open", path: place.path, anchor };
     } else if (place.path === "" || (await folderThere(place.path))) {
@@ -175,7 +179,7 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
 
   if (isBareNoteName(target)) {
     const place = markdownLinkNotePlace(link.sourcePath ?? "", target);
-    if (place) return { action: "create", target, ...place };
+    if (place && contentPathRefusal(place.path) === null) return { action: "create", target, ...place };
   }
   return { action: "notFound", target };
 }

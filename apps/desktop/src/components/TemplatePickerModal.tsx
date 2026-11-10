@@ -3,7 +3,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON, templateInsertInEditor, useFocusTrap } from "@plainva/ui";
-import { noteBodyOf } from "@plainva/core";
+import { noteBodyOf, contentReadPath } from "@plainva/core";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
 import { applyTemplateInteractive } from "../services/templateInteractive";
@@ -74,7 +74,7 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
     }
     if (!vaultAdapter) return;
     try {
-      const raw = await vaultAdapter.readTextFile(templatePath);
+      const raw = await vaultAdapter.readTextFile(contentReadPath(templatePath));
       // Inserting INTO a note: strip the template's frontmatter (inert
       // mid-document), interpolate against the HOSTING note's name and folder,
       // then ask every question at once and resolve the {{cursor}} caret.

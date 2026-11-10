@@ -74,10 +74,10 @@ describe("Copy block link at a line", () => {
     expect(apply(blank, planBlockLink(blank, 0, zeros))).toBe("| A |\n| - |\n\n^aaaaaa\n\nAfter");
   });
 
-  it("links a quote and a callout by their paragraph", () => {
+  it("links a quote and a callout as one block, the id on a line of its own", () => {
     const text = "> [!note] Title\n> Body text\n";
     const written = apply(text, planBlockLink(text, offsetOf(text, "> Body"), zeros));
-    expect(written).toBe("> [!note] Title\n> Body text ^aaaaaa\n");
+    expect(written).toBe("> [!note] Title\n> Body text\n\n^aaaaaa\n");
     expect(selectNoteFragment(written, "^aaaaaa").status).toBe("found");
   });
 

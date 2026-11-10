@@ -44,12 +44,19 @@ plainva://open?vault=<name>&path=<path>[&heading=<text> | &block=<id>]
 - Values are percent-decoded strictly (a broken escape refuses the address);
   `+` reads as a space. A parameter given twice refuses the address; a
   parameter this version does not know is ignored and does nothing.
-- Copied links always use `plainva`. The isolated development build and the
-  Labs build register `plainva-dev` and `plainva-labs` (desktop
-  `tauri.dev.conf.json` / `tauri.labs.conf.json`, Android build type `labs`),
-  so they never take the release app's links; Plainva reads all three. The
-  Android TLS test build registers `plainva-tlstest`, which Plainva does not
-  read at all.
+- Copied links always use `plainva`. Every other build answers its own
+  scheme, so none takes the release app's links: the isolated development
+  build `plainva-dev` (desktop `tauri.dev.conf.json`, an iOS Debug build from
+  Xcode), the Labs build `plainva-labs` (desktop `tauri.labs.conf.json`,
+  Android build type `labs`, the iOS Labs workflow), the Android TLS test
+  build `plainva-tlstest`. Plainva reads all four, so none falls into the
+  sign-in handlers of the phone's URL router.
+- Any app on a device can register a custom scheme, `plainva` included. A
+  link clicked while such an app holds the scheme reveals the vault name, the
+  note's path and the heading or block id to that app. Copying a link shares
+  exactly that much with whoever receives it, too.
+- An extra parameter (a later stable vault `id=`, say) does not break this
+  reader; a stable vault id is not part of this version.
 
 The address is read and written in ONE place, `packages/core/src/noteLinkUrl.ts`
 (`parseNoteLinkUrl`, `buildNoteLinkUrl`); `buildNoteLinkUrl` refuses to write
@@ -60,11 +67,28 @@ an address `parseNoteLinkUrl` would refuse.
 The reader refuses, with one sentence to the person and a diagnostics entry
 that names only the reason: another scheme or action; an address longer than
 4096 characters; a path that is absolute (`/x`, `C:/x`, `\\server`), leaves
-the vault (`..`), has an empty or `.` segment or a backslash, or lies in an
-internal folder (`.plainva`, `.obsidian`, `.git`, …); C0/C1 control
-characters, line and paragraph separators, a byte order mark or bidirectional
-controls in any value; a vault name over 255, a path over 1024, a heading
-over 512 characters.
+the vault (`..`), has an empty or `.` segment or a backslash; a vault name
+over 255, a path over 1024, a heading over 512 characters; in any value C0/C1
+control characters, line and paragraph separators, a byte order mark, the
+bidirectional controls (U+061C, U+200E/F, U+202A–E, U+2066–9), the invisible
+characters that make two names look alike (U+200B–D, U+2060–4, U+206A–F)
+and the tag block (U+E0000–E007F).
+
+**A note link opens notes and the files Plainva shows in its tree — nothing
+else.** So a path with any segment that starts with a dot is refused: the
+app's own folders in every spelling (`.plainva`, `.Plainva`, `.plainva.`),
+the assistant's policy and skills (`.agent`), the encrypted workspace's
+records (`.pvws`) and every hidden file, which no surface lists (decision
+E8). Also refused: a Windows device name in any segment, with or without an
+extension and in any case (`NUL`, `com1.md`, `aux.txt`), on every platform
+— a link is written on one system and opened on another —, and a colon (an
+alternate data stream, `a.md:x`).
+
+The file is looked up in the open vault's **index**, never on the disk: the
+index holds real, visible spellings only, so a spelling the file system
+would take for another file (`.Plainva`, `PLAINV~1`, `NUL`) never matches.
+The path that is finally opened, after the link rule led there, is checked
+once more by the same rules.
 
 ### What it does
 
@@ -74,7 +98,11 @@ Only navigation (`packages/ui/src/lib/noteLinks.ts`, `openNoteLink`):
    NFC/NFD do not matter) or when the address names none. Another vault of
    this device by that name: Plainva **asks** whether to switch and switches
    only on yes; the link opens once that vault is shown. Several vaults by
-   that name, or none: said as such, nothing switches.
+   that name, or none: when the note is in the vault that is shown (path
+   first, then the link rule), Plainva **asks** whether to open it there —
+   the same vault often has another name on the other device, and the
+   phone's built-in vault is named by its language. Otherwise it says so,
+   and nothing switches.
 2. **Which file.** The path as written; if it is not there, the link rule of
    ADR 0027 is asked for the path without `.md` and then for the file name —
    so a note moved to another folder, or renamed while its old name is still
@@ -113,7 +141,15 @@ is not created.
   description, a task, a database cell, in both shells. It never reaches the
   system, which would hand it back or give it to another installation.
 
-An address waits in one inbox until a vault is open (a cold start).
+An address waits in one inbox until a vault is open (a cold start). It waits
+one minute at most, counted only while the app could take it — not while a
+vault loads —, and is then dropped without a word. Only one question about a
+link is ever open: a link that arrives while one is open is dropped, and an
+address that is already waiting is not kept twice (in the inbox and on the
+Rust side). The central window comes forward only when a link opens a note
+or asks about one, never for a link it drops. A link clicked in any other
+window — auxiliary, compose, quick capture — is forwarded to the central
+window.
 
 ### Making links
 
@@ -128,10 +164,16 @@ An address waits in one inbox until a vault is open (a cold start).
   in the note, typed into the editor as an ordinary edit (undo, save and the
   write chain of ADR 0031 see it like a keystroke). Where it goes
   (`planBlockLink` in `packages/core/src/noteSource.ts`): at the end of the
-  paragraph or list item; behind a table on a line of its own with a blank
-  line around it. Not in frontmatter, code, `$$` formulas, `%%` comments,
-  HTML blocks, on an empty line, or for a table inside a list or quote. Every
-  new id is checked to lead to that block before it is written.
+  paragraph or list item; behind a table, a quote or a callout on a line of
+  its own with a blank line around it (in a callout's title line it would be
+  shown as title text). Not in frontmatter, code, `$` formulas, `%%`
+  comments, HTML blocks, on an empty line, or for a table or quote inside a
+  list. Every new id is checked to lead to that block before it is written.
+- A block id at the end of a task line is an address, not task text: the
+  task readers leave it out of the task's name, a recurring task keeps
+  recurring, and the next occurrence is written without it, so the id stays
+  with the line links point to (as the Tasks plugin does). A journal entry
+  keeps its id when its text is edited.
 - `[[Note#^` suggests the ids the note already has.
 - **Link a note** in the event editor of both shells adds
   `[Title](plainva://open?…)` to the description; the event preview shows
@@ -150,8 +192,8 @@ in the one open path every way shares, not in the link.
 ## Consequences
 
 - Links copied on one device open on another as long as the vault has the
-  same name there. Renaming a vault breaks the links that name it; the
-  person is told that the vault is not on this device.
+  same name there — or, when it does not, after one question, if the note is
+  in the vault that is shown. Renaming a vault breaks the links that name it.
 - A vault name is visible in every copied link. It is the name the person
   gave or the folder's name, never a path.
 - The format is a contract: it is documented in the user guide, and a change

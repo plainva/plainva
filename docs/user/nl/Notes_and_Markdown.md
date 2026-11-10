@@ -79,10 +79,10 @@ Elke notitie heeft een adres dat haar overal vandaan opent: een afspraak in de a
 Wat een link kan, en wat niet:
 
 - Hij **opent** alleen. Hij maakt nooit een notitie, schrijft niets, voert niets uit en wijzigt geen instelling; parameters die Plainva niet kent, worden genegeerd.
-- `vault` is de **naam** van de vault zoals Plainva die toont — nooit de map op de schijf. Op een ander apparaat werkt de link als de vault daar dezelfde naam heeft. Hoort de naam bij een andere vault op dit apparaat, dan vraagt Plainva eerst of het moet wisselen; heeft geen vault — of meer dan één — op dit apparaat die naam, dan zegt Plainva dat. Wie een vault hernoemt, breekt de links met de oude naam.
+- `vault` is de **naam** van de vault zoals Plainva die toont — nooit de map op de schijf. Op een ander apparaat werkt de link als de vault daar dezelfde naam heeft. Hoort de naam bij een andere vault op dit apparaat, dan vraagt Plainva eerst of het moet wisselen; heeft geen vault — of meer dan één — op dit apparaat die naam, dan zegt Plainva dat. Wie een vault hernoemt, breekt de links met de oude naam. Staat de vault niet op dit apparaat, maar staat de notitie in de geopende vault, dan vraagt Plainva of hij haar daar moet openen.
 - `path` is het pad van de notitie in de vault. Is de notitie verplaatst, of hernoemd terwijl haar oude naam nog als `title` in haar eigenschappen staat, dan vindt Plainva haar volgens de regel van de wikilinks. Anders zegt het dat de notitie er niet is.
 - `heading=` of `block=` (een van beide) springt naar een kop of een blok.
-- Een link opent notities, databases, afbeeldingen en tekstbestanden — nooit een programma of een ander bestand dat het systeem zou openen.
+- Een link opent notities, databases, afbeeldingen en tekstbestanden — nooit een programma of een ander bestand dat het systeem zou openen. Bestanden en mappen waarvan de naam met een punt begint — verborgen bestanden, de eigen mappen van Plainva — worden nooit door een link geopend. Een link die op een vault wachtte, vervalt na een minuut.
 - Links beginnen altijd met `plainva://`. De ontwikkel- en Labs-versies reageren op `plainva-dev://` en `plainva-labs://`, zodat ze de geïnstalleerde app nooit haar links afnemen.
 - Het systeem leert het adres bij de installatie van Plainva (Windows-installer, macOS-app, deb- of rpm-pakket, Android, iOS). Een AppImage zonder desktopintegratie is niet aangemeld; links die je in Plainva aanklikt werken daar toch.
 

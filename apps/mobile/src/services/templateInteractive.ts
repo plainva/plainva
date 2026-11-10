@@ -1,3 +1,4 @@
+import { contentReadPath } from "@plainva/core";
 import {
   resolveTemplateForNewNote,
   runTemplateInteractive,
@@ -143,7 +144,7 @@ export async function buildNewNoteFromTemplate(opts: {
   const path = name ? templatePathOf(name) : "";
   if (path && (await opts.exists(path).catch(() => false))) {
     return buildNewNoteFromTemplateText({
-      raw: await opts.read(path),
+      raw: await opts.read(contentReadPath(path)),
       vaultName: opts.vaultName,
       folder: opts.folder,
       title: opts.title,
@@ -169,7 +170,7 @@ export async function answerTemplateFile(opts: {
 }): Promise<InteractiveTemplateResult | null | undefined> {
   const path = templatePathOf(opts.template);
   if (!path || !(await opts.exists(path).catch(() => false))) return undefined;
-  return applyTemplateInteractive(await opts.read(path), {
+  return applyTemplateInteractive(await opts.read(contentReadPath(path)), {
     title: opts.title,
     now: new Date(),
     folder: opts.folder,

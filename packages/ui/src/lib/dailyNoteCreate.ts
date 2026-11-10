@@ -21,7 +21,7 @@
  * daily note had no `{{daily±N}}` at all, and a capture's counted
  * `{{weekday:…}}` from Monday on both shells.
  */
-import { trimEndChars } from "@plainva/core";
+import { trimEndChars, contentReadPath } from "@plainva/core";
 import { applyTemplatePlaceholders } from "../base/templateFiles";
 import type { TemplateContext } from "../base/templateEngine";
 import { buildDailyNotePath } from "./dailyNotePath";
@@ -116,7 +116,7 @@ export async function ensureDailyNote(
   const templatePath = dailyTemplatePath(config);
   // A template that is named but missing falls back to the blank note below.
   if (templatePath && (await files.exists(templatePath))) {
-    const raw = await files.readTextFile(templatePath);
+    const raw = await files.readTextFile(contentReadPath(templatePath));
     const stamp = noteStamp(date, options.now);
     const ctx: TemplateContext = {
       folder,

@@ -65,24 +65,38 @@ fn is_note_link(arg: &str) -> bool {
     SCHEMES.iter().any(|known| scheme.eq_ignore_ascii_case(known))
 }
 
-/// Keeps the addresses and tells the central window. Brings the window
-/// forward: a link is a request to look at something.
+/// Keeps the addresses and tells the central window. An address that is
+/// already waiting is not kept twice, and when nothing new was kept nobody is
+/// told: a flood of one link is one link. The window is NOT brought forward
+/// here — the central window does that itself when it opens a note or asks
+/// a question for one, so a link it drops (a question is already open, the
+/// address is refused) never takes the focus (F2 review).
 pub fn arrive<R: Runtime>(app: &AppHandle<R>, urls: Vec<String>) {
     if urls.is_empty() {
         return;
     }
+    let mut added = false;
     if let Some(state) = app.try_state::<NoteLinks>() {
         let mut waiting = state.waiting.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        waiting.extend(urls);
-        let excess = waiting.len().saturating_sub(MAX_WAITING);
-        waiting.drain(..excess);
+        added = keep(&mut waiting, urls);
     }
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.unminimize();
-        let _ = win.show();
-        let _ = win.set_focus();
+    if added {
+        let _ = app.emit_to("main", ARRIVED_EVENT, ());
     }
-    let _ = app.emit_to("main", ARRIVED_EVENT, ());
+}
+
+/// Adds what is not waiting yet, keeps the newest `MAX_WAITING`; true when something was added.
+fn keep(waiting: &mut Vec<String>, urls: Vec<String>) -> bool {
+    let mut added = false;
+    for url in urls {
+        if !waiting.contains(&url) {
+            waiting.push(url);
+            added = true;
+        }
+    }
+    let excess = waiting.len().saturating_sub(MAX_WAITING);
+    waiting.drain(..excess);
+    added
 }
 
 /// The addresses that arrived since the last call, oldest first.
@@ -133,6 +147,19 @@ mod tests {
             "",
         ]);
         assert!(note_link_args(args).is_empty());
+    }
+
+    #[test]
+    fn keeps_one_of_each_and_only_the_newest() {
+        let mut waiting = Vec::new();
+        let burst: Vec<String> = (0..20).map(|_| "plainva://open?path=a.md".to_string()).collect();
+        assert!(keep(&mut waiting, burst));
+        assert_eq!(waiting, strings(&["plainva://open?path=a.md"]));
+        assert!(!keep(&mut waiting, strings(&["plainva://open?path=a.md"])), "nothing new, nobody told");
+        let many: Vec<String> = (0..20).map(|i| format!("plainva://open?path={i}.md")).collect();
+        assert!(keep(&mut waiting, many));
+        assert_eq!(waiting.len(), MAX_WAITING);
+        assert_eq!(waiting.last().unwrap(), "plainva://open?path=19.md");
     }
 
     #[test]

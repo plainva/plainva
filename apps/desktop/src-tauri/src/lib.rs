@@ -385,12 +385,17 @@ pub fn run() {
     // second process for arrives here as that process's arguments, and goes
     // to the window that is already open (src/note_links.rs).
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-        if let Some(win) = app.get_webview_window("main") {
-            let _ = win.unminimize();
-            let _ = win.show();
-            let _ = win.set_focus();
+        let links = note_links::note_link_args(args);
+        // A launch for a note link leaves the focus to the window, which takes
+        // it only when it opens the note or asks about it (src/note_links.rs).
+        if links.is_empty() {
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.unminimize();
+                let _ = win.show();
+                let _ = win.set_focus();
+            }
         }
-        note_links::arrive(app, note_links::note_link_args(args));
+        note_links::arrive(app, links);
     }));
 
     // The global quick capture. The plugin only provides the mechanism: no

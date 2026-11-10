@@ -1,4 +1,4 @@
-import { isInternalPath } from "./vault/internalPath.js";
+import { contentPathRefusal, isHiddenPath } from "./vault/internalPath.js";
 
 /**
  * The address of a note from outside Plainva: `plainva://open?vault=…&path=…`
@@ -24,10 +24,11 @@ export const NOTE_LINK_SCHEME = "plainva";
 /**
  * Schemes an incoming address may carry. The installed app registers
  * `plainva`; the isolated development build and the Labs build register their
- * own (`plainva-dev`, `plainva-labs`) so they never take the release app's
- * links away from it. A copied link always says `plainva`.
+ * own (`plainva-dev`, `plainva-labs`; the Android TLS-test build
+ * `plainva-tlstest`) so they never take the release app's links away from
+ * it. A copied link always says `plainva`.
  */
-export const NOTE_LINK_SCHEMES: readonly string[] = ["plainva", "plainva-dev", "plainva-labs"];
+export const NOTE_LINK_SCHEMES: readonly string[] = ["plainva", "plainva-dev", "plainva-labs", "plainva-tlstest"];
 
 /** The one action an address can name. */
 const OPEN_ACTION = "open";
@@ -55,15 +56,21 @@ export type NoteLinkParse = { ok: true; target: NoteLinkTarget } | { ok: false; 
 
 /**
  * Characters no value of an address may hold: C0 and C1 controls, DEL, line
- * and paragraph separators, the byte order mark, and the bidirectional
- * controls that make a name read differently from what it is.
+ * and paragraph separators, the byte order mark, the bidirectional controls
+ * that make a name read differently from what it is (U+061C, U+200E/F,
+ * U+202A-E, U+2066-9), the invisible ones that make two names look alike
+ * (U+200B-D, U+2060-4, U+206A-F) and the tag block (U+E0000-E007F). A vault
+ * name or a path from an address is shown to the person — in a question, a
+ * message, a chip — and must read as what it is.
  */
-function hasForbiddenCharacter(value: string): boolean {
-  for (let i = 0; i < value.length; i += 1) {
-    const c = value.charCodeAt(i);
+export function hasForbiddenCharacter(value: string): boolean {
+  for (const char of value) {
+    const c = char.codePointAt(0)!;
     if (c <= 0x1f || (c >= 0x7f && c <= 0x9f)) return true;
-    if (c === 0x2028 || c === 0x2029 || c === 0xfeff || c === 0x200e || c === 0x200f) return true;
-    if ((c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069)) return true;
+    if (c === 0x061c || c === 0x2028 || c === 0x2029 || c === 0xfeff) return true;
+    if ((c >= 0x200b && c <= 0x200f) || (c >= 0x202a && c <= 0x202e)) return true;
+    if ((c >= 0x2060 && c <= 0x2064) || (c >= 0x2066 && c <= 0x206f)) return true;
+    if (c >= 0xe0000 && c <= 0xe007f) return true;
   }
   return false;
 }
@@ -97,8 +104,17 @@ function decodeValue(value: string): string | null {
 /**
  * A vault-relative path as an address may name it — or `null`. It is
  * normalised to NFC (a Mac writes names decomposed), never absolute (`/x`,
- * `C:/x`, `\\server`), never leaves the vault (`..`), has no empty or `.`
- * segment, no backslash and no internal folder (`.plainva`, `.git`, …).
+ * `C:/x`, `\server`), never leaves the vault (`..`), has no empty or `.`
+ * segment and no backslash.
+ *
+ * A note link opens notes and the files Plainva shows in its tree — nothing
+ * else (F2 review, 2026-11-10). So no segment may start with a dot: that
+ * refuses the app's own folders in every spelling (`.plainva`, `.Plainva`,
+ * `.plainva.`), the assistant's policy and skills (`.agent`), the encrypted
+ * workspace's records (`.pvws`) and every hidden file, which no surface lists
+ * (decision E8). Also refused: a Windows device name (`NUL`, `com1.md`), a
+ * colon (an alternate data stream, `a.md:x`) and, through
+ * `contentPathRefusal`, an internal folder in any spelling.
  */
 export function noteLinkPath(value: string): string | null {
   const path = value.normalize("NFC");
@@ -106,7 +122,9 @@ export function noteLinkPath(value: string): string | null {
   if (path.includes("\\") || path.startsWith("/") || /^[A-Za-z]:/.test(path)) return null;
   const segments = path.split("/");
   if (segments.some((segment) => segment === "" || segment === "." || segment === ".." || segment.trim() === "")) return null;
-  if (isInternalPath(path)) return null;
+  if (isHiddenPath(path) || segments.some((segment) => segment.startsWith("."))) return null;
+  const refused = contentPathRefusal(path);
+  if (refused === "internal" || refused === "device" || refused === "stream") return null;
   return path;
 }
 

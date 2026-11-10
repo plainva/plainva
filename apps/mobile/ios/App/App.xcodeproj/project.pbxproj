@@ -613,7 +613,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
 				PLAINVA_APP_GROUP = group.com.plainva.app;
 				PLAINVA_BUNDLE_BASE = com.plainva.app;
-				PLAINVA_NOTE_LINK_SCHEME = plainva;
+				PLAINVA_NOTE_LINK_SCHEME = "plainva-dev";
 				PLAINVA_DISPLAY_NAME = Plainva;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;

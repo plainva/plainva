@@ -79,10 +79,10 @@ Ogni nota ha un indirizzo che la apre da ovunque: un evento del calendario, un'a
 Cosa può fare un link, e cosa no:
 
 - Si limita ad **aprire**. Non crea mai una nota, non scrive, non esegue nulla e non cambia impostazioni; i parametri che Plainva non conosce vengono ignorati.
-- `vault` è il **nome** del vault come lo mostra Plainva — mai la sua cartella sul disco. Su un altro dispositivo il link funziona se lì il vault ha lo stesso nome. Se il nome appartiene a un altro vault di questo dispositivo, Plainva chiede prima di cambiare; se nessun vault — o più di uno — di questo dispositivo ha quel nome, lo dice. Rinominare un vault interrompe i link con il vecchio nome.
+- `vault` è il **nome** del vault come lo mostra Plainva — mai la sua cartella sul disco. Su un altro dispositivo il link funziona se lì il vault ha lo stesso nome. Se il nome appartiene a un altro vault di questo dispositivo, Plainva chiede prima di cambiare; se nessun vault — o più di uno — di questo dispositivo ha quel nome, lo dice. Rinominare un vault interrompe i link con il vecchio nome. Se il vault non è su questo dispositivo ma la nota è nel vault aperto, Plainva chiede se aprirla lì.
 - `path` è il percorso della nota nel vault. Se la nota è stata spostata, o rinominata mentre il vecchio nome è ancora il `title` delle sue proprietà, Plainva la trova con la regola dei link wiki. Altrimenti dice che la nota non c'è.
 - `heading=` o `block=` (uno dei due) salta a un titolo o a un blocco.
-- Un link apre note, database, immagini e file di testo — mai un programma o un altro file che il sistema aprirebbe.
+- Un link apre note, database, immagini e file di testo — mai un programma o un altro file che il sistema aprirebbe. File e cartelle il cui nome inizia con un punto — file nascosti, le cartelle di Plainva — non vengono mai aperti da un link. Un link che attendeva un vault viene scartato dopo un minuto.
 - I link iniziano sempre con `plainva://`. Le versioni di sviluppo e Labs rispondono a `plainva-dev://` e `plainva-labs://`, quindi non tolgono mai i link all'app installata.
 - Il sistema impara l'indirizzo quando Plainva viene installato (programma di installazione Windows, app macOS, pacchetto deb o rpm, Android, iOS). Un AppImage senza integrazione col desktop non è registrato; i link cliccati dentro Plainva funzionano comunque.
 

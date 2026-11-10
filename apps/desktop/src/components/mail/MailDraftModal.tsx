@@ -1,3 +1,4 @@
+import { contentReadPath } from "@plainva/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { askDiscard, Banner, Button, ChipField, FloatingWindow, ICON, IconButton, mailboxesSwitchedOn, Select, TextInput, templateBodyOf, toast } from "@plainva/ui";
@@ -458,7 +459,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       setTemplatePicker(false);
       if (!vaultAdapter) return;
       try {
-        const raw = await vaultAdapter.readTextFile(templatePath);
+        const raw = await vaultAdapter.readTextFile(contentReadPath(templatePath));
         const title = subject || (templatePath.split(/[/\\]/).pop() ?? "").replace(/\.md$/i, "");
         const out = await applyTemplateInteractive(
           templateBodyOf(raw),

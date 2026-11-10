@@ -1,4 +1,4 @@
-import { trimChars } from "@plainva/core";
+import { trimChars, contentReadPath } from "@plainva/core";
 import {
   upsertFrontmatterKeys,
   readFrontmatterPath,
@@ -282,7 +282,7 @@ async function newMeetingNoteContent(opts: ResolveMeetingNoteOptions, folder: st
   try {
     // A template that has since been renamed or deleted must not stop the note.
     if (!(await adapter.exists(templatePath))) return builtIn();
-    raw = await adapter.readTextFile(templatePath);
+    raw = await adapter.readTextFile(contentReadPath(templatePath));
   } catch {
     return builtIn();
   }

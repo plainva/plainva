@@ -40,12 +40,24 @@ async function confirmSwitch(name: string): Promise<boolean> {
   return answer.value;
 }
 
+async function confirmOpenHere(vault: string, note: string): Promise<boolean> {
+  const { Dialog } = await import("@capacitor/dialog");
+  const answer = await Dialog.confirm({
+    title: i18n.t("noteLink.openHereTitle"),
+    message: i18n.t("noteLink.openHereMessage", { vault, note }),
+    okButtonTitle: i18n.t("noteLink.openHereConfirm"),
+    cancelButtonTitle: i18n.t("common.cancel"),
+  });
+  return answer.value;
+}
+
 /** How this vault opens a note link — the shell side of `openNoteLink`. */
 export function phoneNoteLinkHandler(
   vault: MobileVault,
   shown: LinkVault<string>,
   onOpenNote: (path: string) => void,
   ask: (name: string) => Promise<boolean> = confirmSwitch,
+  askOpenHere: (vault: string, note: string) => Promise<boolean> = confirmOpenHere,
 ): (url: string, switched: boolean) => void {
   return (url, switched) => {
     void openNoteLink<string>(
@@ -54,10 +66,12 @@ export function phoneNoteLinkHandler(
         shownVault: shown,
         knownVaults: async () => (await listVaults()).map((entry) => ({ key: entry.id, name: phoneVaultName(entry) })),
         confirmSwitch: ask,
+        confirmOpenHere: askOpenHere,
         // The person said yes to this vault; what is unsaved on screen gets its own question first.
         switchVault: (id) =>
           new Promise<boolean>((resolve) => leaveThen(() => void switchVault(id).then(() => resolve(true), () => resolve(false)), () => resolve(false))),
-        exists: (path) => vault.files.exists(path),
+        // The index, never the disk: it holds real, visible spellings only.
+        exists: async (path) => (vault.queryService ? (await vault.queryService.fileRecords([path])).has(path) : false),
         resolveName: (name) => vaultOps.resolveWikiTarget(vault, name, "", "wiki"),
         openNote: (path, anchor) => {
           // Parked under the path: the note screen that mounts for it takes it.

@@ -1,3 +1,5 @@
+import { contentPathRefusal } from "@plainva/core";
+
 /**
  * Pure decision for the vault path-traversal guard: is `normalizedPath` inside
  * (or equal to) `normalizedRoot`?
@@ -46,5 +48,9 @@ export function resolveVaultRelative(target: string): string | null {
     stack.push(segment);
   }
   if (stack.length === 0) return null;
-  return stack.join("/");
+  const rel = stack.join("/");
+  // Content names it, so it is not followed into the app's own folders in
+  // any spelling the file system takes for them (`.Plainva/…`, `PLAINV~1`),
+  // to a device name or an alternate data stream (F2 review, 2026-11-10).
+  return contentPathRefusal(rel) === null ? rel : null;
 }

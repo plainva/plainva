@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
-import { copyNoteLink, deliverNoteLink, openNoteLink, requestAnchorJump, resolveOpenAction, setNoteLinkHandler, useStableHandler } from "@plainva/ui";
+import type { VaultQueryService } from "@plainva/core";
+import { copyNoteLink, deliverNoteLink, openNoteLink, requestAnchorJump, resolveOpenAction, setNoteLinkHandler, useStableHandler, type NoteLinkShell } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { appConfirm } from "./appDialogs";
 import { isOwnerWindow } from "./windowContext";
@@ -51,7 +51,24 @@ export function listenForSystemNoteLinks(): void {
   })();
 }
 
-/** In an auxiliary window: a clicked note link opens in the central window. */
+/**
+ * The central window comes forward — out of the tray, too — when a link
+ * opens a note or asks about one; never for a link it drops (F2 review). The
+ * Rust side no longer does this on arrival.
+ */
+async function bringForward(): Promise<void> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const win = getCurrentWindow();
+    await win.unminimize();
+    await win.show();
+    await win.setFocus();
+  } catch {
+    // The browser of the E2E suite: there is no window to bring.
+  }
+}
+
+/** In an auxiliary, compose or capture window: a clicked note link opens in the central window. */
 export function forwardNoteLinksToCentralWindow(): () => void {
   return setNoteLinkHandler((url) => {
     void import("@tauri-apps/api/core")
@@ -69,47 +86,74 @@ export interface DesktopNoteLinkDeps {
   vaultPath: string | null;
   recentVaults: readonly string[];
   openVault: (path: string) => Promise<boolean>;
-  queryService: Pick<VaultQueryService, "resolveNotePath"> | null | undefined;
-  vaultAdapter: Pick<IVaultAdapter, "exists"> | null | undefined;
+  queryService: Pick<VaultQueryService, "resolveNotePath" | "fileRecords"> | null | undefined;
   openNote: (path: string) => void;
+}
+
+/**
+ * How the shown vault opens a note link — the desktop side of `openNoteLink`.
+ * Its own function so a test can run the whole way with the desktop's rules
+ * (the index, never the disk; the window comes forward only to show or ask).
+ */
+export function desktopNoteLinkShell(deps: {
+  vaultPath: string;
+  recentVaults: readonly string[];
+  queryService: Pick<VaultQueryService, "resolveNotePath" | "fileRecords">;
+  openVault: (path: string) => Promise<boolean>;
+  openNote: (path: string) => void;
+  confirm?: typeof appConfirm;
+  bringForward?: () => Promise<void>;
+}): NoteLinkShell<string> {
+  const { vaultPath, recentVaults, queryService } = deps;
+  const confirm = deps.confirm ?? appConfirm;
+  const forward = deps.bringForward ?? bringForward;
+  return {
+    shownVault: { key: vaultPath, name: vaultLabel(vaultPath) },
+    knownVaults: async () => [...new Set([vaultPath, ...recentVaults])].map((path) => ({ key: path, name: vaultLabel(path) })),
+    confirmSwitch: async (name) => {
+      await forward();
+      return confirm({
+        title: i18n.t("noteLink.switchTitle"),
+        message: i18n.t("noteLink.switchMessage", { name }),
+        kind: "info",
+        confirmLabel: i18n.t("noteLink.switchConfirm"),
+      });
+    },
+    confirmOpenHere: async (vault, note) => {
+      await forward();
+      return confirm({
+        title: i18n.t("noteLink.openHereTitle"),
+        message: i18n.t("noteLink.openHereMessage", { vault, note }),
+        kind: "info",
+        confirmLabel: i18n.t("noteLink.openHereConfirm"),
+      });
+    },
+    switchVault: (path) => deps.openVault(path).catch(() => false),
+    // The index, never the disk: it holds real, visible spellings only.
+    exists: (path) => queryService.fileRecords([path]).then((found) => found.has(path)),
+    resolveName: (name) => queryService.resolveNotePath(name),
+    openNote: (path, anchor) => {
+      void forward();
+      deps.openNote(path);
+      // Parked under the path: the pane that shows the note takes it once its text is in.
+      if (anchor) requestAnchorJump(path, anchor);
+    },
+  };
 }
 
 /** Registers the shown vault's way of opening a note link while it is shown. */
 export function useDesktopNoteLinks(deps: DesktopNoteLinkDeps): void {
   const openNote = useStableHandler(deps.openNote);
   const openVault = useStableHandler(deps.openVault);
-  const { vaultPath, recentVaults, queryService, vaultAdapter } = deps;
+  const { vaultPath, recentVaults, queryService } = deps;
   useEffect(() => {
     listenForSystemNoteLinks();
   }, []);
   useEffect(() => {
-    if (!vaultPath || !queryService || !vaultAdapter) return;
-    return setNoteLinkHandler((url, switched) => {
-      void openNoteLink<string>(
-        url,
-        {
-          shownVault: { key: vaultPath, name: vaultLabel(vaultPath) },
-          knownVaults: async () => [...new Set([vaultPath, ...recentVaults])].map((path) => ({ key: path, name: vaultLabel(path) })),
-          confirmSwitch: (name) =>
-            appConfirm({
-              title: i18n.t("noteLink.switchTitle"),
-              message: i18n.t("noteLink.switchMessage", { name }),
-              kind: "info",
-              confirmLabel: i18n.t("noteLink.switchConfirm"),
-            }),
-          switchVault: (path) => openVault(path).catch(() => false),
-          exists: (path) => vaultAdapter.exists(path),
-          resolveName: (name) => queryService.resolveNotePath(name),
-          openNote: (path, anchor) => {
-            openNote(path);
-            // Parked under the path: the pane that shows the note takes it once its text is in.
-            if (anchor) requestAnchorJump(path, anchor);
-          },
-        },
-        switched,
-      );
-    });
-  }, [vaultPath, recentVaults, queryService, vaultAdapter, openNote, openVault]);
+    if (!vaultPath || !queryService) return;
+    const shell = desktopNoteLinkShell({ vaultPath, recentVaults, queryService, openVault, openNote });
+    return setNoteLinkHandler((url, switched) => void openNoteLink<string>(url, shell, switched));
+  }, [vaultPath, recentVaults, queryService, openNote, openVault]);
 }
 
 /** "Copy link" of a note, a database or another file Plainva shows itself — the file's address, its place in it optional. */

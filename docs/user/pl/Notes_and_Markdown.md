@@ -79,10 +79,10 @@ Każda notatka ma adres, który otwiera ją z dowolnego miejsca: z wydarzenia w 
 Co link może, a czego nie:
 
 - Tylko **otwiera**. Nigdy nie tworzy notatki, niczego nie zapisuje, niczego nie uruchamia i nie zmienia ustawień; parametry, których Plainva nie zna, są pomijane.
-- `vault` to **nazwa** vaulta, tak jak pokazuje ją Plainva — nigdy jego folder na dysku. Na innym urządzeniu link działa, jeśli vault nazywa się tam tak samo. Jeśli nazwa należy do innego vaulta na tym urządzeniu, Plainva pyta, zanim przełączy; jeśli żaden vault — albo więcej niż jeden — na tym urządzeniu nie ma tej nazwy, mówi o tym. Zmiana nazwy vaulta psuje linki ze starą nazwą.
+- `vault` to **nazwa** vaulta, tak jak pokazuje ją Plainva — nigdy jego folder na dysku. Na innym urządzeniu link działa, jeśli vault nazywa się tam tak samo. Jeśli nazwa należy do innego vaulta na tym urządzeniu, Plainva pyta, zanim przełączy; jeśli żaden vault — albo więcej niż jeden — na tym urządzeniu nie ma tej nazwy, mówi o tym. Zmiana nazwy vaulta psuje linki ze starą nazwą. Jeśli vaulta nie ma na tym urządzeniu, ale notatka jest w otwartym vaulcie, Plainva pyta, czy otworzyć ją tam.
 - `path` to ścieżka notatki w vaulcie. Jeśli notatkę przeniesiono albo przemianowano, a jej stara nazwa nadal jest `title` w jej właściwościach, Plainva znajdzie ją według reguły linków wiki. W przeciwnym razie powie, że notatki nie ma.
 - `heading=` albo `block=` (jedno z dwóch) przenosi do nagłówka lub bloku.
-- Link otwiera notatki, bazy danych, obrazy i pliki tekstowe — nigdy program ani inny plik, który otworzyłby system.
+- Link otwiera notatki, bazy danych, obrazy i pliki tekstowe — nigdy program ani inny plik, który otworzyłby system. Pliki i foldery, których nazwa zaczyna się od kropki — pliki ukryte, własne foldery Plainva — nigdy nie są otwierane przez link. Link, który czekał na vault, przepada po minucie.
 - Linki zawsze zaczynają się od `plainva://`. Wersje deweloperska i Labs odpowiadają na `plainva-dev://` i `plainva-labs://`, więc nigdy nie zabierają linków zainstalowanej aplikacji.
 - System poznaje adres przy instalacji Plainva (instalator Windows, aplikacja macOS, pakiet deb lub rpm, Android, iOS). AppImage bez integracji z pulpitem nie jest zarejestrowany; linki klikane w Plainva działają tam mimo to.
 

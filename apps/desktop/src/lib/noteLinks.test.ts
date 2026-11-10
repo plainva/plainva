@@ -16,6 +16,7 @@ import {
   planLinkOpen,
   resetNoteLinkInbox,
   setNoteLinkHandler,
+  setNoteLinksVaultLoading,
   toast,
   toastStore,
   type NoteLinkShell,
@@ -38,6 +39,7 @@ function shell(over: Partial<NoteLinkShell<string>> = {}) {
     shownVault: { key: "/work", name: "Work" },
     knownVaults: async () => [{ key: "/work", name: "Work" }, { key: "/home", name: "Home" }, { key: "/a", name: "Twin" }, { key: "/b", name: "twin" }],
     confirmSwitch: async () => true,
+    confirmOpenHere: async () => true,
     switchVault: (key) => { switched.push(key); },
     exists: async (path) => files.has(path),
     resolveName: async (name) => (name === "Moved" ? "Archive/Moved.md" : null),
@@ -117,7 +119,7 @@ describe("opening what an address names", () => {
     expect(opened).toEqual([{ path: "Archive/Moved.md", anchor: null }]);
     expect(await openNoteLink("plainva://open?vault=Work&path=Gone.md", s)).toBe("not-found");
     const notices = toastStore.get();
-    expect(notices[notices.length - 1]?.message).toContain("Gone.md");
+    expect(notices[notices.length - 1]?.message).toContain("Gone");
   });
 
   it("never opens a file the system would run", async () => {
@@ -270,5 +272,110 @@ describe("`[[Note#^` suggests the blocks the note has", () => {
     const narrowed = await at("See [[Plan#^pa");
     expect(narrowed?.options.map((o) => o.label)).toEqual(["^para02"]);
     expect(await at("See [[Plan#^zz")).toBeNull();
+  });
+});
+
+describe("F2 review: what a link may reach, how long it waits, how often it asks", () => {
+  it("asks to open the note in the shown vault when the named vault is not here — never silently", async () => {
+    const asked: Array<[string, string]> = [];
+    const yes = shell({ confirmOpenHere: async (vault, note) => { asked.push([vault, note]); return true; } });
+    expect(await openNoteLink("plainva://open?vault=Phone%20vault&path=Projects%2FPlan.md&heading=Goals", yes.s)).toBe("opened");
+    expect(asked).toEqual([["Phone vault", "Plan"]]);
+    expect(yes.opened).toEqual([{ path: "Projects/Plan.md", anchor: "Goals" }]);
+    const no = shell({ confirmOpenHere: async () => false });
+    expect(await openNoteLink("plainva://open?vault=Twin&path=Old%2FMoved.md", no.s)).toBe("declined");
+    expect(no.opened).toEqual([]);
+    // Without a match in the shown vault the message stays as it was.
+    const none = shell({ confirmOpenHere: async () => { throw new Error("must not ask"); } });
+    expect(await openNoteLink("plainva://open?vault=Elsewhere&path=Gone.md", none.s)).toBe("vault-unknown");
+  });
+
+  it("checks the path that is finally opened: the link rule leading to a hidden or internal file opens nothing", async () => {
+    for (const found of [".drafts/Plan.md", ".Plainva/sync/keyfile.json", "NUL.md"]) {
+      const { s, opened } = shell({ exists: async () => false, resolveName: async () => found });
+      expect(await openNoteLink("plainva://open?vault=Work&path=Plan.md", s), found).toBe("not-openable");
+      expect(opened).toEqual([]);
+    }
+  });
+
+  it("drops an address nobody took within a minute of the app being able to take it — silently", () => {
+    let now = 0;
+    resetNoteLinkInbox(() => now);
+    deliverNoteLink("plainva://open?path=a.md");
+    now = 10 * 60_000; // a vault took ten minutes to load: the clock stood still
+    setNoteLinksVaultLoading(false);
+    now += 30_000;
+    const seen: string[] = [];
+    let off = setNoteLinkHandler((url) => seen.push(url));
+    expect(seen).toEqual(["plainva://open?path=a.md"]);
+    off();
+    deliverNoteLink("plainva://open?path=b.md");
+    now += 61_000;
+    off = setNoteLinkHandler((url) => seen.push(url));
+    expect(seen).toEqual(["plainva://open?path=a.md"]);
+    expect(toastStore.get()).toEqual([]);
+    off();
+  });
+
+  it("asks one question at a time: a burst of 20 links leaves one question and steals nothing", async () => {
+    let answer: (yes: boolean) => void = () => undefined;
+    let questions = 0;
+    const { s, switched } = shell({ confirmSwitch: () => { questions += 1; return new Promise<boolean>((resolve) => { answer = resolve; }); } });
+    const burst = Array.from({ length: 20 }, (_, i) => openNoteLink(i % 2 ? "plainva://open?vault=Home&path=a.md" : `plainva://open?vault=Home&path=${i}.md`, s));
+    await vi.waitFor(() => expect(questions).toBe(1));
+    const extra = await openNoteLink("plainva://open?vault=Home&path=late.md", s);
+    expect(extra).toBe("busy");
+    answer(true);
+    const outcomes = await Promise.all(burst);
+    expect(questions).toBe(1);
+    expect(switched).toEqual(["/home"]);
+    expect(outcomes.filter((o) => o === "switching")).toHaveLength(1);
+    expect(outcomes.filter((o) => o === "busy")).toHaveLength(19);
+  });
+
+  it("the desktop's shell looks a path up in the index, never on the disk, and refuses other spellings of internal folders", async () => {
+    const { desktopNoteLinkShell } = await import("../services/noteLinkReceiver");
+    const asked: string[][] = [];
+    const opened: string[] = [];
+    const desk = desktopNoteLinkShell({
+      vaultPath: "C:/Vaults/Work",
+      recentVaults: [],
+      queryService: {
+        fileRecords: async (paths: readonly string[]) => { asked.push([...paths]); return new Map(paths.filter((p) => p === "Projects/Plan.md").map((p) => [p, {} as never])); },
+        resolveNotePath: async () => null,
+      },
+      openVault: async () => true,
+      openNote: (path) => opened.push(path),
+      confirm: async () => true,
+      bringForward: async () => undefined,
+    });
+    expect(await openNoteLink("plainva://open?vault=Work&path=Projects%2FPlan.md", desk)).toBe("opened");
+    for (const path of [".Plainva/sync/keyfile.json", ".plainva./sync/keyfile.json", ".agent/policy.yml", "NUL.md"]) {
+      expect(await openNoteLink(`plainva://open?vault=Work&path=${encodeURIComponent(path)}`, desk), path).toBe("invalid");
+    }
+    // An 8.3 alias is a name like any other there: the index does not know it.
+    expect(await openNoteLink("plainva://open?vault=Work&path=PLAINV~1%2Fsync%2Fkeyfile.json", desk)).toBe("not-found");
+    expect(opened).toEqual(["Projects/Plan.md"]);
+    expect(asked).toContainEqual(["PLAINV~1/sync/keyfile.json"]);
+  });
+
+  it("links and embeds from content do not reach the app's folders in any spelling", async () => {
+    const { resolveVaultRelative, safeRelPath } = await import("@plainva/ui");
+    const probed: string[] = [];
+    const deps = {
+      resolveWiki: async () => null,
+      resolveMarkdown: async () => null,
+      fileExists: async (path: string) => { probed.push(path); return true; },
+      folderExists: async () => false,
+    };
+    expect(await planLinkOpen({ text: ".Plainva/sync/keyfile", kind: "wiki" }, deps)).toEqual({ action: "notFound", target: ".Plainva/sync/keyfile" });
+    expect(await planLinkOpen({ text: "CON", kind: "wiki" }, deps)).toMatchObject({ action: "notFound" });
+    expect(await planLinkOpen({ text: ".Plainva/sync/keyfile.json", kind: "markdown", parsed: true }, deps)).toMatchObject({ action: "notFound" });
+    expect(await planLinkOpen({ text: "PLAINV~1/sync/keyfile.json", kind: "markdown", parsed: true }, deps)).toMatchObject({ action: "notFound" });
+    expect(probed).toEqual([]);
+    for (const target of [".Plainva/sync/keyfile.json", ".plainva./x", "PLAINV~1/x.png", "img.png:stream", "AUX.png"]) expect(resolveVaultRelative(target), target).toBeNull();
+    expect(resolveVaultRelative("Attachments/img.png")).toBe("Attachments/img.png");
+    expect(safeRelPath("PLAINV~1/sync/keyfile.json")).toBeNull();
+    expect(safeRelPath("Projects/Plan.md")).toBe("Projects/Plan.md");
   });
 });

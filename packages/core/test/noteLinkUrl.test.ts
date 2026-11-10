@@ -32,6 +32,7 @@ describe("the note address (ADR 0037)", () => {
   it("accepts the schemes of the development and Labs builds, and copies always with `plainva`", () => {
     expect(parseNoteLinkUrl("plainva-dev://open?path=a.md").ok).toBe(true);
     expect(parseNoteLinkUrl("plainva-labs://open?path=a.md").ok).toBe(true);
+    expect(parseNoteLinkUrl("plainva-tlstest://open?path=a.md").ok).toBe(true);
     expect(buildNoteLinkUrl({ vault: null, path: "a.md" }).startsWith("plainva://")).toBe(true);
   });
 
@@ -60,8 +61,36 @@ describe("the note address (ADR 0037)", () => {
     expect(parseNoteLinkUrl("plainva://open?vault=a")).toEqual({ ok: false, reason: "path" });
   });
 
-  it("keeps a hidden dot file reachable: a link that names it still leads to it", () => {
-    expect(parseNoteLinkUrl("plainva://open?path=.notes%2Fa.md")).toMatchObject({ ok: true });
+  it("opens only what the tree shows: no segment that starts with a dot, in any spelling (F2 review)", () => {
+    const refused = [
+      ".notes/a.md", ".Plainva/sync/keyfile.json", ".PLAINVA/sync/settings.json", ".plainva./sync/keyfile.json", ".plainva /sync/keyfile.json",
+      ".Obsidian/app.json", ".Git/hooks/pre-commit.sh", ".agent/policy.yml", ".agent/skills/x/SKILL.md", ".pvws/operations/1.json",
+      "Projects/.drafts/plan.md", ".hidden.md",
+    ];
+    for (const path of refused) expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent(path)}`), path).toEqual({ ok: false, reason: "path" });
+  });
+
+  it("refuses Windows device names in any segment, with or without an extension, in any case, and data streams", () => {
+    for (const path of ["NUL.md", "nul", "COM1.md", "com9.txt", "LPT3", "aux.txt", "con", "Con.md", "prn.base", "Folder/AUX/x.md", "NUL .md", "CONIN$", "a.md:hidden", "Folder:x/a.md"]) {
+      expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent(path)}`), path).toEqual({ ok: false, reason: "path" });
+    }
+    for (const path of ["Console.md", "nullable.md", "COM10.md", "Auxiliary/a.md", "LPT.md", "context.md"]) {
+      expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent(path)}`).ok, path).toBe(true);
+    }
+  });
+
+  it("refuses invisible and look-alike characters (U+061C, U+200B-D, U+2060-4, U+206A-F, the tag block)", () => {
+    for (const code of [0x061c, 0x200b, 0x200c, 0x200d, 0x2060, 0x2063, 0x2064, 0x206a, 0x206f, 0xe0000, 0xe0041, 0xe007f]) {
+      const bad = encodeURIComponent("a" + String.fromCodePoint(code) + "b");
+      expect(parseNoteLinkUrl(`plainva://open?path=${bad}.md`).ok, `path ${code.toString(16)}`).toBe(false);
+      expect(parseNoteLinkUrl(`plainva://open?vault=${bad}&path=a.md`).ok, `vault ${code.toString(16)}`).toBe(false);
+      expect(parseNoteLinkUrl(`plainva://open?path=a.md&heading=${bad}`).ok, `heading ${code.toString(16)}`).toBe(false);
+    }
+    expect(parseNoteLinkUrl(`plainva://open?path=${encodeURIComponent("Caf" + String.fromCodePoint(0xe9) + " " + String.fromCodePoint(0x1f600) + ".md")}`).ok).toBe(true);
+  });
+
+  it("keeps working when a later version adds a stable vault id (an unknown parameter does nothing)", () => {
+    expect(parseNoteLinkUrl("plainva://open?id=6f1c2e&vault=Work&path=a.md")).toEqual({ ok: true, target: { vault: "Work", path: "a.md" } });
   });
 
   it("refuses control, separator and bidirectional characters in any value", () => {

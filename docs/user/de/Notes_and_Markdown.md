@@ -79,10 +79,10 @@ Jede Notiz hat eine Adresse, die sie von überall öffnet – aus einem Termin, 
 Was ein Link kann und was nicht:
 
 - Er **öffnet** nur. Er legt nie eine Notiz an, schreibt nichts, führt nichts aus und ändert keine Einstellung; Parameter, die Plainva nicht kennt, werden übergangen.
-- `vault` ist der **Name** des Vaults, wie Plainva ihn zeigt – nie sein Ordner auf dem Datenträger. Auf einem anderen Gerät funktioniert der Link, wenn der Vault dort genauso heißt. Gehört der Name zu einem anderen Vault auf diesem Gerät, fragt Plainva, bevor es wechselt; hat kein Vault – oder mehr als einer – auf diesem Gerät den Namen, sagt Plainva das. Benennst Du einen Vault um, führen Links mit dem alten Namen nicht mehr hin.
+- `vault` ist der **Name** des Vaults, wie Plainva ihn zeigt – nie sein Ordner auf dem Datenträger. Auf einem anderen Gerät funktioniert der Link, wenn der Vault dort genauso heißt. Gehört der Name zu einem anderen Vault auf diesem Gerät, fragt Plainva, bevor es wechselt; hat kein Vault – oder mehr als einer – auf diesem Gerät den Namen, sagt Plainva das. Benennst Du einen Vault um, führen Links mit dem alten Namen nicht mehr hin. Gibt es den Vault auf diesem Gerät nicht, steht die Notiz aber im geöffneten Vault, fragt Plainva, ob sie dort geöffnet werden soll.
 - `path` ist der Pfad der Notiz im Vault. Wurde die Notiz verschoben oder umbenannt, während ihr alter Name noch als `title` in ihren Eigenschaften steht, findet Plainva sie nach der Regel der Wiki-Links. Sonst sagt es, dass die Notiz nicht da ist.
 - `heading=` oder `block=` (eines von beiden) springt zu einer Überschrift oder einem Block.
-- Ein Link öffnet Notizen, Datenbanken, Bilder und Textdateien – nie ein Programm oder eine andere Datei, die das System öffnen würde.
+- Ein Link öffnet Notizen, Datenbanken, Bilder und Textdateien – nie ein Programm oder eine andere Datei, die das System öffnen würde. Dateien und Ordner, deren Name mit einem Punkt beginnt – versteckte Dateien, Plainvas eigene Ordner –, öffnet ein Link nie. Ein Link, der auf einen Vault gewartet hat, verfällt nach einer Minute.
 - Links beginnen immer mit `plainva://`. Die Entwicklungs- und die Labs-Version antworten auf `plainva-dev://` und `plainva-labs://` und nehmen der installierten App so nie ihre Links weg.
 - Das System lernt die Adresse bei der Installation von Plainva (Windows-Installer, macOS-App, deb- oder rpm-Paket, Android, iOS). Ein AppImage ohne Desktop-Integration ist nicht angemeldet; in Plainva angeklickte Links funktionieren dort trotzdem.
 

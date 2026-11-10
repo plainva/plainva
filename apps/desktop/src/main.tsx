@@ -140,6 +140,15 @@ void i18nReady.then(async () => {
   removeRetiredStorage();
   const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
+  // A note link clicked in any window but the central one opens in the central
+  // window, which knows the vaults and the tabs (F2): the capture window, an
+  // auxiliary or compose window. A full window shows a vault of its own and
+  // registers its own handler over this one (AppShell).
+  if (!isOwnerWindow) {
+    const { forwardNoteLinksToCentralWindow } = await import("./services/noteLinkReceiver");
+    forwardNoteLinksToCentralWindow();
+  }
+
   if (windowParams.role === "capture") {
     // The quick-capture window of the global shortcut (plan Journal, J7): one
     // field, no vault, no providers — it opens while the user is somewhere else

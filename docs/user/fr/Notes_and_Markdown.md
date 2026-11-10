@@ -79,10 +79,10 @@ Chaque note a une adresse qui l'ouvre depuis n'importe où : un événement du c
 Ce qu'un lien peut faire, et ce qu'il ne peut pas :
 
 - Il ne fait qu'**ouvrir**. Il ne crée jamais de note, n'écrit rien, n'exécute rien et ne change aucun réglage ; les paramètres que Plainva ne connaît pas sont ignorés.
-- `vault` est le **nom** du vault tel que Plainva l'affiche — jamais son dossier sur le disque. Sur un autre appareil, le lien fonctionne si le vault y porte le même nom. Si le nom appartient à un autre vault de cet appareil, Plainva demande avant de changer ; si aucun vault — ou plusieurs — de cet appareil ne porte ce nom, il le dit. Renommer un vault casse les liens qui portent l'ancien nom.
+- `vault` est le **nom** du vault tel que Plainva l'affiche — jamais son dossier sur le disque. Sur un autre appareil, le lien fonctionne si le vault y porte le même nom. Si le nom appartient à un autre vault de cet appareil, Plainva demande avant de changer ; si aucun vault — ou plusieurs — de cet appareil ne porte ce nom, il le dit. Renommer un vault casse les liens qui portent l'ancien nom. Si le vault n'est pas sur cet appareil mais que la note se trouve dans le vault ouvert, Plainva demande s'il faut l'y ouvrir.
 - `path` est le chemin de la note dans le vault. Si la note a été déplacée, ou renommée alors que son ancien nom reste le `title` de ses propriétés, Plainva la retrouve selon la règle des liens wiki. Sinon, il dit que la note n'est pas là.
 - `heading=` ou `block=` (l'un des deux) saute à un titre ou à un bloc.
-- Un lien ouvre des notes, des bases de données, des images et des fichiers texte — jamais un programme ni un autre fichier que le système ouvrirait.
+- Un lien ouvre des notes, des bases de données, des images et des fichiers texte — jamais un programme ni un autre fichier que le système ouvrirait. Les fichiers et dossiers dont le nom commence par un point — fichiers cachés, dossiers propres à Plainva — ne sont jamais ouverts par un lien. Un lien qui attendait un vault est abandonné au bout d'une minute.
 - Les liens commencent toujours par `plainva://`. Les versions de développement et Labs répondent à `plainva-dev://` et `plainva-labs://`, elles ne prennent donc jamais les liens de l'app installée.
 - Le système apprend l'adresse lors de l'installation de Plainva (installateur Windows, app macOS, paquet deb ou rpm, Android, iOS). Un AppImage sans intégration au bureau n'est pas enregistré ; les liens cliqués dans Plainva y fonctionnent quand même.
 

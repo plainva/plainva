@@ -39,6 +39,7 @@ import {
   payload,
   redactSensitive,
   sectionOf,
+  contentPathRefusal,
   sensitiveFindings,
   SITUATION_SOURCE,
   toolByName,
@@ -300,6 +301,9 @@ export function safeRelPath(path: string): string | null {
   if (parts.some((part) => part === "" || part === "." || part === "..")) return null;
   // Plainva's own state, the policy files and the skills are never tool results (ADR 0020, ADR 0022).
   if (isAiHiddenPath(p)) return null;
+  // Another spelling of a folder the rule above refuses (an 8.3 short name such as
+  // `PLAINV~1`), a device name or a data stream (F2 review, 2026-11-10).
+  if (contentPathRefusal(p) !== null) return null;
   return p;
 }
 

@@ -5,6 +5,7 @@ import {
 } from '../frontmatter-surgical.js';
 import { okfInstant, type OkfSource } from '../okf-trust.js';
 import type { IVaultAdapter } from '../vault/IVaultAdapter.js';
+import { contentPathRefusal } from '../vault/internalPath.js';
 import {
   ImportLabels,
   ImportOptions,
@@ -20,6 +21,20 @@ import {
  * A distinct type because stopping is a decision, not a fault: the report says
  * so in its own words instead of surfacing a technical abort message.
  */
+
+/**
+ * An archive entry or an exported name decides where an import writes. It
+ * never writes into the app's own folders (`.plainva`, `.git`, … in any
+ * spelling the file system takes for them), onto a Windows device name or
+ * into an alternate data stream (F2 review, 2026-11-10): such an entry fails
+ * like any other unwritable one.
+ */
+function refuseInternal(path: string): string {
+  const refused = contentPathRefusal(path);
+  if (refused === "internal" || refused === "device" || refused === "stream") throw new Error(`refused import path (${refused}): ${path}`);
+  return path;
+}
+
 export class ImportAbortedError extends Error {
   constructor() {
     super('import cancelled');
@@ -118,7 +133,7 @@ export class ImportWriter {
   /** Preserve an explicitly exported empty notebook as well as its notes. */
   async writeFolder(relativePath: string): Promise<void> {
     this.abortIfRequested();
-    const full = `${this.prefix}${relativePath}`;
+    const full = refuseInternal(`${this.prefix}${relativePath}`);
     if (this.adapter) await this.adapter.createDir(full);
     this.ensuredFolders.add(full);
   }
@@ -131,7 +146,7 @@ export class ImportWriter {
    */
   private async claimPath(relativePath: string): Promise<{ path: string; renamed: boolean }> {
     return this.withAllocation(async () => {
-      const full = `${this.prefix}${relativePath}`;
+      const full = refuseInternal(`${this.prefix}${relativePath}`);
 
       // A reserved name was already decided (and already counted as taken) in an
       // earlier pass, so the write must use exactly that one — re-claiming would
@@ -179,7 +194,7 @@ export class ImportWriter {
    */
   async reserve(relativePath: string): Promise<string> {
     return this.withAllocation(async () => {
-      const full = `${this.prefix}${relativePath}`;
+      const full = refuseInternal(`${this.prefix}${relativePath}`);
       // Deliberately NOT memoized by intended path: two source notes may want the
       // same name, and each has to learn its own.
       const { path } = await this.allocatePath(full);

@@ -35,8 +35,19 @@ describe("the scheme the system knows", () => {
     const note = plist.indexOf("<string>$(PLAINVA_NOTE_LINK_SCHEME)</string>");
     expect(own).toBeGreaterThan(0);
     expect(note).toBeGreaterThan(own);
+    // Release (TestFlight, App Store) answers `plainva`; a Debug build from Xcode its own.
     const project = read("ios", "App", "App.xcodeproj", "project.pbxproj");
-    expect(project.match(/PLAINVA_NOTE_LINK_SCHEME = plainva;/g)).toHaveLength(2);
+    expect(project.match(/PLAINVA_NOTE_LINK_SCHEME = plainva;/g)).toHaveLength(1);
+    expect(project.match(/PLAINVA_NOTE_LINK_SCHEME = "plainva-dev";/g)).toHaveLength(1);
+    // The Labs build overrides it like its bundle id, so a Labs install never takes the store app's links.
+    const labs = readFileSync(join(MOBILE, "..", "..", ".github", "workflows", "labs-mobile.yml"), "utf8");
+    expect(labs).toContain("PLAINVA_NOTE_LINK_SCHEME: plainva-labs");
+    expect(labs).toContain('PLAINVA_NOTE_LINK_SCHEME="$PLAINVA_NOTE_LINK_SCHEME" \\');
+  });
+
+  it("every scheme a native project registers is one the router takes, so none falls into a sign-in handler", async () => {
+    const { NOTE_LINK_SCHEMES } = await import("@plainva/core");
+    for (const scheme of ["plainva", "plainva-labs", "plainva-tlstest", "plainva-dev"]) expect(NOTE_LINK_SCHEMES).toContain(scheme);
   });
 });
 
@@ -49,11 +60,12 @@ describe("the router", () => {
     setNoteLinkHandler((url) => seen.push(url));
     await routeAppUrl("plainva://open?vault=Work&path=Plan.md");
     await routeAppUrl("plainva-labs://open?path=Plan.md");
-    expect(seen).toEqual(["plainva://open?vault=Work&path=Plan.md", "plainva-labs://open?path=Plan.md"]);
+    await routeAppUrl("plainva-tlstest://open?path=Plan.md");
+    expect(seen).toEqual(["plainva://open?vault=Work&path=Plan.md", "plainva-labs://open?path=Plan.md", "plainva-tlstest://open?path=Plan.md"]);
     expect(handleOAuthRedirect).not.toHaveBeenCalled();
     expect(handlePimOAuthRedirect).not.toHaveBeenCalled();
     await routeAppUrl("com.plainva.app://oauth?code=x");
     expect(handleOAuthRedirect).toHaveBeenCalledTimes(1);
-    expect(seen).toHaveLength(2);
+    expect(seen).toHaveLength(3);
   });
 });

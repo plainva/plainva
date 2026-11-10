@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault': { isDir: true },
       '/test-vault/.plainva': { isDir: true },
       '/test-vault/Plan.md': '# Plan\n\nFiller line 1.\n\nFiller line 2.\n\nFiller line 3.\n\nFiller line 4.\n\nFiller line 5.\n\nFiller line 6.\n\nFiller line 7.\n\nFiller line 8.\n\nFiller line 9.\n\nFiller line 10.\n\nFiller line 11.\n\nFiller line 12.\n\nFiller line 13.\n\nFiller line 14.\n\nFiller line 15.\n\nFiller line 16.\n\nFiller line 17.\n\nFiller line 18.\n\nFiller line 19.\n\nFiller line 20.\n\nFiller line 21.\n\nFiller line 22.\n\nFiller line 23.\n\nFiller line 24.\n\nFiller line 25.\n\nFiller line 26.\n\nFiller line 27.\n\nFiller line 28.\n\nFiller line 29.\n\nFiller line 30.\n\nFiller line 31.\n\nFiller line 32.\n\nFiller line 33.\n\nFiller line 34.\n\nFiller line 35.\n\nFiller line 36.\n\nFiller line 37.\n\nFiller line 38.\n\nFiller line 39.\n\nFiller line 40.\n\nFiller line 41.\n\nFiller line 42.\n\nFiller line 43.\n\nFiller line 44.\n\nFiller line 45.\n\nFiller line 46.\n\nFiller line 47.\n\nFiller line 48.\n\nFiller line 49.\n\nFiller line 50.\n\nFiller line 51.\n\nFiller line 52.\n\nFiller line 53.\n\nFiller line 54.\n\nFiller line 55.\n\nFiller line 56.\n\nFiller line 57.\n\nFiller line 58.\n\nFiller line 59.\n\nFiller line 60.\n\n## Goals\n\nShip the links.\n\nKeep notes plain ^keep01\n',
-      '/test-vault/Hub.md': '# Hub\n\nGo to [the goals](plainva://open?vault=test-vault&path=Plan.md&heading=Goals) or [elsewhere](plainva://open?vault=Elsewhere&path=Plan.md).\n\nFirst point to link\n\n| A |\n| - |\n| B |\n',
+      '/test-vault/Hub.md': '# Hub\n\nGo to [the goals](plainva://open?vault=test-vault&path=Plan.md&heading=Goals) or [elsewhere](plainva://open?vault=Elsewhere&path=Plan.md) or [nowhere](plainva://open?vault=Elsewhere&path=Gone.md).\n\nFirst point to link\n\n| A |\n| - |\n| B |\n',
     };
     // The addresses the Rust side holds for the window (src-tauri/src/note_links.rs)
     // are `__noteLinksOnStart`: what a cold start through a note link handed over.
@@ -66,6 +66,11 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|execute') return [0, 0];
         if (cmd === 'plugin:sql|select') {
           const q = String(args.query);
+          // The index lookup a note link opens by (`fileRecords`): never the disk.
+          if (q.includes('FROM files WHERE path IN')) {
+            const asked: string[] = (args.values ?? []).map(String);
+            return noteRows().filter((r) => asked.includes(r.path)).map((r) => ({ id: 1, path: r.path, title: r.title, mtime_local: 1000, size_bytes: 1 }));
+          }
           if (q.includes('FROM files WHERE is_deleted = 0')) return noteRows();
           if (q.includes('path, title, mode FROM files') || q.includes('FROM files WHERE mode')) {
             return noteRows().map((r) => ({ path: r.path, title: r.title, mode: 'note' }));
@@ -122,6 +127,14 @@ test.beforeEach(async ({ page }) => {
           if (content === undefined || content.isDir) throw new Error('File not found');
           return Array.from(new TextEncoder().encode(content));
         }
+        // Saves: the editor writes through the atomic command; the fixture keeps
+        // what it wrote, so a test can read the note as it was saved.
+        if (cmd === 'write_file_atomic') {
+          const root = String(args.rootId).replace(/^mock-root:/, '').replace(/\/$/, '');
+          fs[`${root}/${String(args.relPath).replace(/^\/+/, '')}`] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
+          return null;
+        }
+        if (cmd === 'set_file_times') return null;
         if (cmd === 'plugin:fs|watch') return 1;
         if (cmd === 'plugin:fs|unwatch') return null;
         return null;
@@ -153,8 +166,19 @@ test('a note link clicked in a note opens inside Plainva; one to an unknown vaul
   await page.locator('.cm-line', { hasText: 'Go to' }).locator('text=the goals').first().click();
   await expect(cmLine(page, 'Ship the links')).toBeInViewport({ timeout: 20000 });
 
+  // A vault this device does not know, but the note is in the open one: asked, never opened silently.
   await openNote(page, 'Hub', 'First point');
   await page.locator('.cm-line', { hasText: 'Go to' }).locator('text=elsewhere').first().click();
+  const question = page.getByRole('dialog').filter({ hasText: /Elsewhere/ });
+  await expect(question).toBeVisible({ timeout: 10000 });
+  await expect(question).toContainText('Plan');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('open-here-question.png') });
+  await question.getByRole('button', { name: /^(Öffnen|Open)$/ }).click();
+  await expect(cmLine(page, 'Ship the links')).toBeVisible({ timeout: 20000 });
+
+  // Neither vault nor note: said as such.
+  await openNote(page, 'Hub', 'First point');
+  await page.locator('.cm-line', { hasText: 'Go to' }).locator('text=nowhere').first().click();
   await expect(page.locator('.pv-toast').filter({ hasText: /Elsewhere/ }).first()).toBeVisible({ timeout: 10000 });
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('unknown-vault.png') });
 });
@@ -180,6 +204,9 @@ test('Copy block link from the right-click menu writes an id and copies [[Hub#^i
   await page.getByTestId('context-copy-link').click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(`plainva://open?vault=test-vault&path=Hub.md&block=${id}`);
   await expect(page.locator('.cm-line', { hasText: '^' })).toHaveCount(1);
+  // Saved as an ordinary edit: the file holds the id, and the editor says so.
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Hub.md'] as string), { timeout: 15000 }).toContain(`First point to link ^${id}\n`);
+  await expect(page.getByText(/Save failed|Speichern fehlgeschlagen/)).toHaveCount(0);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('block-id-written.png') });
 });
 
@@ -199,6 +226,8 @@ test('the block menu links a table on a line of its own, and the note menu copie
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/^\[\[Hub#\^[a-z0-9]{6}\]\]$/);
   const id = /\^([a-z0-9]{6})/.exec(await page.evaluate(() => navigator.clipboard.readText()))![1];
   await expect(page.locator('.cm-content')).toContainText(`^${id}`);
+  // On a line of its own behind the table, a blank line before it.
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Hub.md'] as string), { timeout: 15000 }).toContain(`| B |\n\n^${id}`);
 
   await page.getByTestId('editor-menu-btn').first().click();
   await page.getByTestId('editor-menu-copy-link').click();
