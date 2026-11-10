@@ -244,7 +244,7 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
           </RowList>
         </GroupCard>
       )}
-      {asking && <AreaBoundary area="sheet:semanticLoad" size="dialog"><SemanticLoadSheet spec={asking} onCancel={() => setAsking(null)} onLoad={() => void load(asking)} /></AreaBoundary>}
+      {asking && <AreaBoundary area="sheet:semanticLoad" size="dialog" exit={{ label: t("common.close"), onExit: () => setAsking(null) }}><SemanticLoadSheet spec={asking} onCancel={() => setAsking(null)} onLoad={() => void load(asking)} /></AreaBoundary>}
     </>
   );
 }

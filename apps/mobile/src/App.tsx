@@ -637,8 +637,8 @@ export default function App() {
     <ShellProviders index={vault.queryService ?? null} embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
-      <AreaBoundary area="shell:shareInbox" size="strip"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
-      <AreaBoundary area="shell:indexNotice" size="strip"><IndexBuildNotice vaultId={vault.vaultId} /></AreaBoundary>
+      <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} /></AreaBoundary>
       {!onboarded && (
         <div className="m-onboarding">
           <h1>{t("mobile.onboardingTitle")}</h1>
@@ -660,7 +660,7 @@ export default function App() {
 
       {/* Capture floats above the bar on tab roots and folder screens only. */}
       {hasFab && (
-        <AreaBoundary area="shell:fab" size="strip"><FabMenu
+        <AreaBoundary area="shell:fab" placeClassName="m-fab-float m-fab-float--above-tabs" size="icon"><FabMenu
           icon={<Plus size={ICON.touch} />}
           items={newEntries(t, newHandlers).flatMap((g) =>
             g.items.map((it) => ({ icon: <it.icon size={ICON.head} />, label: it.label, group: g.id, onClick: it.run })),
@@ -672,7 +672,7 @@ export default function App() {
       )}
 
       {!barHidden && (
-        <AreaBoundary area="shell:navbar" size="strip"><NavBar
+        <AreaBoundary area="shell:navbar" placeClassName="m-tabbar" size="strip"><NavBar
           activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
           areasOpen={areasOpen}
           navCollapsed={navCollapsed}

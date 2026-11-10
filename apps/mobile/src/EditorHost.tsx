@@ -1461,7 +1461,7 @@ export function EditorHost({
         canEdit: !!onEditAt,
         hasAi: !!onAskAi,
       }).length > 0 && (
-        <SelectionToolbarSurface
+        <AreaBoundary area="editor:readSelectionBar" size="quiet"><SelectionToolbarSurface
           role="toolbar"
           aria-label={t("contextMenu.label")}
           data-testid="read-selection-bar"
@@ -1576,10 +1576,10 @@ export function EditorHost({
               <span>{t("ai.selection.menu")}</span>
             </button>
           )}
-        </SelectionToolbarSurface>
+        </SelectionToolbarSurface></AreaBoundary>
       )}
       {editable && selectionAt && (
-        <SelectionToolbar
+        <AreaBoundary area="editor:selectionToolbar" size="quiet"><SelectionToolbar
           above={selectionAt.above}
           getAnchor={selectionAt.getAnchor}
           onAction={(action) => {
@@ -1603,7 +1603,7 @@ export function EditorHost({
           }
           x={selectionAt.x}
           y={selectionAt.y}
-        />
+        /></AreaBoundary>
       )}
       {/* What is selected, where the editor reports it (S17). The desktop says
           this in the status bar; the phone has no status bar, and the toolbar

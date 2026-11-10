@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { OkfRecoveryGate } from "./OkfRecoveryGate";
 import { AreaBoundary } from "@plainva/ui";
 import { WhatsNewSheet } from "./WhatsNewSheet";
@@ -31,11 +32,12 @@ export function StartupSheets({
   showRelease: boolean;
   vault: MobileVault | null;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {vault && <OkfRecoveryGate onOpen={onOpenOkf} vault={vault} />}
       {showRelease && releaseDialog !== "none" && (
-        <AreaBoundary area="sheet:whatsNew" size="dialog">
+        <AreaBoundary area="sheet:whatsNew" size="dialog" exit={{ label: t("common.close"), onExit: () => { onReleaseSeen(); void markReleaseDialogSeen(); } }}>
         <WhatsNewSheet
           onClose={() => {
             onReleaseSeen();

@@ -1502,7 +1502,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       />
       </AreaBoundary>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-      <AreaBoundary area="shell:ribbon" size="strip">
+      <AreaBoundary area="shell:ribbon" size="icon">
       <AppRibbon
         onNewNote={() => requestNewItem("file")}
         onNewFolder={() => requestNewItem("folder")}
@@ -1551,7 +1551,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             clearLabel={t('sidebar.clearSearch')}
             style={{ width: '100%', minWidth: 0 }}
           />
-          <AreaBoundary area="menu:recentSearches" size="dialog" resetKey={leftSearchFocused ? "open" : "closed"} exit={{ label: t("common.close"), onExit: () => setLeftSearchFocused(false) }}>
+          <AreaBoundary area="menu:recentSearches" size="quiet">
           <RecentSearchesPopover
             vaultPath={vaultPath ?? ''}
             anchorRef={leftSearchWrapRef}
@@ -2085,7 +2085,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           </Suspense>
         )}
         {/* The menu of the selection toolbar's AI button, once for every editor: beside the toolbar, which goes when the menu takes the focus (Befunde 06.11., B9). */}
-        {ai.enabled && <AreaBoundary area="menu:aiSelection" size="dialog"><AiSelectionMenu /></AreaBoundary>}
+        {ai.enabled && <AreaBoundary area="menu:aiSelection" size="quiet"><AiSelectionMenu /></AreaBoundary>}
         {ai.companionOpen && (
           <Suspense fallback={null}>
             <AreaBoundary area="window:aiCompanion" size="dialog" exit={{ label: t("common.close"), onExit: ai.closeCompanion }}>

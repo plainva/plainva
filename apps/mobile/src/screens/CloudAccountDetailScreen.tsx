@@ -615,7 +615,7 @@ export function CloudAccountDetailScreen({
     </div>
 
       {needClient && (
-        <AreaBoundary area="sheet:accountAccess" size="dialog">
+        <AreaBoundary area="sheet:accountAccess" size="dialog" exit={{ label: t("common.close"), onExit: () => setNeedClient(null) }}>
         <AccountAccessSheet
           family={needClient}
           onCancel={() => setNeedClient(null)}

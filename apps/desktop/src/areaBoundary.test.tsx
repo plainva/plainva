@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import { AreaBoundary, areaCrashSeam, clearDiagnosticsForTests, describeAreaError, FloatingWindow, getDiagnostics, Modal } from "@plainva/ui";
+import { AreaBoundary, areaCrashSeam, clearDiagnosticsForTests, describeAreaError, FloatingWindow, getDiagnostics, Modal, toast, toastStore } from "@plainva/ui";
 
 /**
  * The one error boundary of both shells (stability plan 2026-11-10, R3).
@@ -161,6 +161,44 @@ describe("AreaBoundary", () => {
     expect(q("area-fallback-reload")?.getAttribute("aria-label")).toBe("Reload this area");
     await click("area-fallback-reload");
     expect(q("area-fallback")?.textContent).toContain("It failed again after reloading");
+  });
+
+  it("a surface that appears on its own fails quietly: nothing drawn, one diagnostics line, one toast however often it mounts", async () => {
+    for (const t of toastStore.get()) toast.dismiss(t.id);
+    const before = toastStore.get().length;
+    for (let i = 0; i < 3; i++) {
+      // A selection toolbar mounts with every selection and goes with it.
+      await render(<p data-testid="editor">text</p>);
+      await render(<><p data-testid="editor">text</p><AreaBoundary area="test:quietToolbar" size="quiet"><Fragile /></AreaBoundary></>);
+      expect(q("editor")).not.toBeNull();
+      expect(q("area-fallback")).toBeNull();
+      expect(q("area-fallback-dialog")).toBeNull();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+      // Each failing mount writes its line once (a repeat right after the last collapses into it).
+      const lines = getDiagnostics().filter((e) => e.source === "area:test:quietToolbar");
+      if (i === 0) expect(lines).toHaveLength(1);
+      expect(lines.length).toBeLessThanOrEqual(i + 1);
+    }
+    const toasts = toastStore.get().slice(before).filter((t) => t.message === "This area could not be shown");
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].kind).toBe("warning");
+  });
+
+  it("a vertical or icon-sized place fails as the glyph and the reload, without a line of text", async () => {
+    await render(<AreaBoundary area="shell:ribbon" placeClassName="m-fab-float" size="icon"><Fragile /></AreaBoundary>);
+    const fallback = q("area-fallback") as HTMLElement;
+    expect(fallback.className).toContain("pv-areafail--icon");
+    expect(fallback.className).toContain("m-fab-float");
+    expect(fallback.textContent).toBe("");
+    expect(fallback.getAttribute("aria-label")).toBe("This area could not be shown");
+    expect(fallback.dataset.tip).toBe("This area could not be shown");
+    expect(fallback.querySelector(".pv-areafail-line")).toBeNull();
+    expect(q("area-fallback-reload")?.getAttribute("aria-label")).toBe("Reload this area");
+  });
+
+  it("a strip places itself with the shell's class", async () => {
+    await render(<AreaBoundary area="shell:navbar" placeClassName="m-tabbar" size="strip"><Fragile /></AreaBoundary>);
+    expect((q("area-fallback") as HTMLElement).className).toBe("pv-areafail pv-areafail--strip m-tabbar");
   });
 
   it("the test seam makes exactly the named area fail", async () => {

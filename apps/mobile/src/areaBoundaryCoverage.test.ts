@@ -119,6 +119,24 @@ describe("every surface of the phone is an area of its own", () => {
     expect(count).toBeGreaterThan(90);
   });
 
+  it("only a surface that appears on its own fails quietly, and every such surface does", () => {
+    const QUIET: Record<string, string> = {
+      "editor:selectionToolbar": "appears with every text selection while editing",
+      "editor:readSelectionBar": "appears with every text selection while reading",
+      "shell:shareInbox": "a banner that appears when something is shared to the app",
+      "shell:indexNotice": "a banner that appears while the first index is built",
+    };
+    const found = new Set<string>();
+    for (const file of sources(SRC)) {
+      for (const m of read(file).matchAll(/<AreaBoundary area="([^"]+)"[^>]*size="quiet"/g)) found.add(m[1]);
+    }
+    expect([...found].sort()).toEqual(Object.keys(QUIET).sort());
+    const host = read(`${SRC}/EditorHost.tsx`);
+    for (const tag of ["SelectionToolbar", "SelectionToolbarSurface"]) {
+      expect(host).toMatch(new RegExp(`size="quiet"><${tag}\\b`));
+    }
+  });
+
   it("every segment of the context sheet is drawn inside the segment's boundary", () => {
     const src = read(`${SRC}/components/NoteContextSheet.tsx`);
     const tabs = [...src.match(/export type ContextTab = ([^;]+);/)![1].matchAll(/"(\w+)"/g)].map((m) => m[1]);

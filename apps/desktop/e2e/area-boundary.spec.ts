@@ -136,3 +136,45 @@ test('a settings page fails: the settings and their other pages stay', async ({ 
   await shown.getByTestId('area-fallback-reload').click();
   await expect(dialog.locator('.pv-setpage[data-active="true"] [data-testid="area-fallback"]')).toHaveCount(0);
 });
+
+test('the bars of the shell fail in their own size: the ribbon stays a narrow column, nothing widens the window', async ({ page }, testInfo) => {
+  await openWelcome(page);
+  const sidebar = page.getByRole('complementary', { name: 'Left Sidebar' });
+  const before = await sidebar.boundingBox();
+  for (const area of ['shell:ribbon', 'shell:titlebar', 'shell:statusbar', 'sidebar:tabs', 'sidebar:vaultSwitcher', 'editor:databaseBar']) await crash(page, area);
+
+  const ribbon = page.locator('[data-area="shell:ribbon"]');
+  await expect(ribbon).toBeVisible();
+  const box = (await ribbon.boundingBox())!;
+  expect(box.width).toBeLessThanOrEqual(42);
+  await expect(ribbon).toHaveAttribute('aria-label', 'This area could not be shown');
+  expect(await ribbon.textContent()).toBe('');
+  // The sidebar did not move: the fallback took no more than the ribbon's width.
+  expect(Math.abs((await sidebar.boundingBox())!.x - before!.x)).toBeLessThanOrEqual(42 - box.width + 1);
+  for (const area of ['shell:titlebar', 'shell:statusbar', 'sidebar:tabs', 'sidebar:vaultSwitcher', 'editor:databaseBar']) {
+    await expect(page.locator(`[data-area="${area}"]`)).toBeVisible();
+    expect((await page.locator(`[data-area="${area}"]`).boundingBox())!.height).toBeLessThanOrEqual(40);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.waitForTimeout(150);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`bars-fallback-${scheme}.png`) });
+  }
+});
+
+test('the selection toolbar fails quietly: selecting text keeps the editor, one toast, no dialog', async ({ page }) => {
+  await openWelcome(page);
+  await crash(page, 'editor:selectionToolbar');
+  const content = page.locator('.cm-content');
+  for (let i = 0; i < 3; i++) {
+    await content.getByText('Hello.').dblclick();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(await page.evaluate(() => !!document.activeElement?.closest('.cm-content'))).toBe(true);
+    await page.keyboard.press('End');
+  }
+  await expect(page.locator('.pv-toast', { hasText: 'This area could not be shown' })).toHaveCount(1);
+  // Typing goes on where the selection was.
+  await page.keyboard.insertText(' Still here.');
+  await expect(content).toContainText('Still here.');
+});

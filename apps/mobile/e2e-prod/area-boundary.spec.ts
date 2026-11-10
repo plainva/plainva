@@ -98,3 +98,28 @@ test("a sheet beside the note fails: the note stays, with its text", async ({ pa
   await expect(page.locator('.cm-content[data-probe="same-editor"]')).toContainText("Saved.");
   await evidence(page, info, "sheet-fallback");
 });
+
+test("the bar and the floating button fail in their own place and size", async ({ page }, info) => {
+  await vaultWithNote(page);
+  await expect(page.locator('[data-testid="nav-settings"]').first()).toBeVisible({ timeout: 20_000 });
+  await crash(page, "shell:navbar");
+  await crash(page, "shell:fab");
+  const bar = page.locator('[data-area="shell:navbar"]');
+  const fab = page.locator('[data-area="shell:fab"]');
+  await expect(bar).toBeVisible();
+  await expect(fab).toBeVisible();
+  const viewport = page.viewportSize()!;
+  const barBox = (await bar.boundingBox())!;
+  expect(barBox.width).toBeLessThanOrEqual(viewport.width);
+  expect(barBox.y + barBox.height).toBeLessThanOrEqual(viewport.height);
+  const fabBox = (await fab.boundingBox())!;
+  // A failed button is button-sized, not a sentence over the content.
+  expect(fabBox.width).toBeLessThanOrEqual(72);
+  expect(fabBox.height).toBeLessThanOrEqual(80);
+  expect(await fab.textContent()).toBe("");
+  expect(fabBox.x + fabBox.width).toBeLessThanOrEqual(viewport.width);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // The list itself still opens notes.
+  await expect(page.getByText("Note", { exact: true }).first()).toBeVisible();
+  await evidence(page, info, "bar-and-fab-fallback");
+});

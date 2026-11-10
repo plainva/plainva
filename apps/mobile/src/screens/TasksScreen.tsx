@@ -1143,7 +1143,7 @@ export function TasksScreen({
 
       {dueTarget && <AreaBoundary area="sheet:taskDue" size="dialog" exit={{ label: t("common.close"), onExit: () => setDueTarget(null) }}><TaskDueSheet value={dueTarget.value} time={dueTarget.time} checkboxReminders={dueTarget.checkbox ? checkboxReminders : undefined} onPick={pickDue} onClose={() => setDueTarget(null)} /></AreaBoundary>}
 
-      <AreaBoundary area="sheet:taskDuplicates" size="dialog">
+      <AreaBoundary area="sheet:taskDuplicates" size="dialog" resetKey={dupes.groups ? "open" : "closed"} exit={dupes.groups ? { label: t("common.close"), onExit: () => dupes.close() } : null}>
       <TaskDuplicatesSheet
         dupes={dupes}
         onOpenNote={onOpenNote}

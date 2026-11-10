@@ -4066,7 +4066,7 @@ export const Editor: React.FC<{
       )}
 
       {viewMode !== 'read' && selToolbar && (
-        <AreaBoundary area="editor:selectionToolbar" size="dialog" exit={{ label: t("common.close"), onExit: () => setSelToolbar(null) }}>
+        <AreaBoundary area="editor:selectionToolbar" size="quiet">
         <SelectionToolbar {...selToolbar} onAction={applyFormat} extra={<AiSelectionButton />} />
         </AreaBoundary>
       )}

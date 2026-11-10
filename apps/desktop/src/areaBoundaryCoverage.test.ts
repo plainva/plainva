@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -170,6 +170,28 @@ describe("every surface of the desktop shell is an area of its own", () => {
     const neighbours = [...body.matchAll(/(?<![\w.$])<([A-Z]\w*(?:Picker|Popover|Column|DatabaseBar|ContextMenu|BlockMenu|SelectionToolbar|Modal|SizePicker))\b/g)];
     expect(neighbours.length).toBeGreaterThanOrEqual(10);
     for (const m of neighbours) expect(inside(spans, m.index!), `${m[1]} beside the editor without a boundary`).toBe(true);
+  });
+
+  it("only a surface that appears on its own fails quietly, and every such surface does", () => {
+    // A dialog that opened on every selection would take the editor away; a
+    // menu or picker the person opened keeps the dialog form ("I clicked and
+    // nothing happened" is worse).
+    const QUIET: Record<string, string> = {
+      "editor:selectionToolbar": "appears with every text selection",
+      "menu:aiSelection": "the AI menu of that toolbar, mounted whenever the assistant is on",
+      "menu:recentSearches": "opens by itself when the empty search field takes the focus",
+    };
+    const found = new Set<string>();
+    const walk = (dir: string): string[] => readdirSync(dir).flatMap((name) => {
+      const full = join(dir, name);
+      return statSync(full).isDirectory() ? walk(full) : /\.tsx$/.test(name) && !/\.test\./.test(name) ? [full] : [];
+    });
+    for (const file of walk(SRC)) {
+      for (const m of read(file).matchAll(/<AreaBoundary area="([^"]+)"[^>]*size="quiet"/g)) found.add(m[1]);
+    }
+    expect([...found].sort()).toEqual(Object.keys(QUIET).sort());
+    const editor = read(`${SRC}/components/Editor.tsx`);
+    expect(editor).toMatch(/<AreaBoundary area="editor:selectionToolbar" size="quiet">\s*<SelectionToolbar\b/);
   });
 
   it("the dialog and the floating window carry a boundary around their content", () => {

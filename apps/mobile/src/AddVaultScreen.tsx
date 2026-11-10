@@ -356,7 +356,7 @@ export function AddVaultScreen({
         </AreaBoundary>
       )}
       {accessSheet && (
-        <AreaBoundary area="sheet:accountAccess" size="dialog">
+        <AreaBoundary area="sheet:accountAccess" size="dialog" exit={{ label: t("common.close"), onExit: () => setAccessSheet(null) }}>
         <AccountAccessSheet
           family={accessSheet}
           onCancel={() => setAccessSheet(null)}

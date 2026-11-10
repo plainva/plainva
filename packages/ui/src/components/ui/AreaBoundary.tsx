@@ -9,6 +9,8 @@ import { cx } from "./cx";
 import { ICON } from "../../lib/iconSizes";
 import { logDiagnostic } from "../../services/diagnosticsLog";
 import { getPlatformServices, hasPlatformServices } from "../../platform/services";
+import { toast } from "../../services/toastStore";
+import i18n from "../../i18n";
 
 /**
  * A way out of a failed area that does not depend on the area itself: close
@@ -23,11 +25,16 @@ export interface AreaExit {
  * How much room the fallback takes. `pane` fills a tab, a screen or a column;
  * `section` is the compact form for a sidebar section, a popover or a sheet's
  * body, where a centred empty state of a whole pane would push everything else
- * out of sight; `strip` is one line for a bar of the shell (title bar, status
- * bar, tab strip, the database line), whose height must not change;
- * `dialog` stands in for a dialog on the overlay layer.
+ * out of sight; `strip` is one line for a horizontal bar of the shell (title
+ * bar, status bar, tab strip, the database line), whose height must not
+ * change and which it never widens; `icon` is the glyph and the reload as an
+ * icon button, stacked, for a vertical or icon-sized place (the ribbon, the
+ * phone's floating button); `dialog` stands in for a dialog the person opened,
+ * on the overlay layer; `quiet` is for a surface that appears ON ITS OWN (the
+ * selection toolbar, a banner): it draws nothing and says so once in a toast,
+ * because a dialog that opened on every selection would take the editor away.
  */
-export type AreaBoundarySize = "pane" | "section" | "strip" | "dialog";
+export type AreaBoundarySize = "pane" | "section" | "strip" | "icon" | "dialog" | "quiet";
 
 export interface AreaBoundaryProps {
   /**
@@ -45,6 +52,12 @@ export interface AreaBoundaryProps {
   resetKey?: string | number | null;
   exit?: AreaExit | null;
   size?: AreaBoundarySize;
+  /**
+   * A class of the shell that PLACES the fallback where the area stood — the
+   * phone's floating button and its bar are fixed to the screen, and a
+   * fallback in the flow would stand somewhere else. Placement only.
+   */
+  placeClassName?: string;
   /**
    * The area itself. Pass a function when the area is a piece of JSX of a
    * larger component (a column of the mail view, the body of a sidebar
@@ -110,6 +123,7 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
   componentDidCatch(error: unknown, info: ErrorInfo) {
     logDiagnostic(`area:${this.props.area}`, describeAreaError(error, info.componentStack));
     console.error(`[area ${this.props.area}] could not be shown`, error);
+    if (this.props.size === "quiet") toastQuietFailure(this.props.area);
   }
 
   private reload = () => {
@@ -129,9 +143,9 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
   };
 
   render() {
-    const { area, children, exit, size = "pane", testId } = this.props;
+    const { area, children, exit, placeClassName, size = "pane", testId } = this.props;
     if (this.state.error) {
-      if (this.state.dismissed) return null;
+      if (this.state.dismissed || size === "quiet") return null;
       return (
         <AreaFallback
           area={area}
@@ -139,6 +153,7 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
           failedAgain={this.state.reloads > 0}
           onDismiss={this.dismiss}
           onReload={this.reload}
+          placeClassName={placeClassName}
           size={size}
           testId={testId}
         />
@@ -157,23 +172,59 @@ function RenderArea({ build }: { build: () => ReactNode }) {
   return <>{build()}</>;
 }
 
-function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, size, testId }: {
+/**
+ * A surface that appears on its own and failed says so ONCE per area and run:
+ * it would otherwise toast again with every selection that mounts it anew.
+ * The diagnostics line is written every time, as for every area.
+ */
+const toastedQuietAreas = new Set<string>();
+function toastQuietFailure(area: string): void {
+  if (toastedQuietAreas.has(area)) return;
+  toastedQuietAreas.add(area);
+  toast.warning(i18n.t("errors.areaTitle"));
+}
+
+function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, placeClassName, size, testId }: {
   area: string;
   exit: AreaExit | null;
   failedAgain: boolean;
   onDismiss: () => void;
   onReload: () => void;
+  placeClassName?: string;
   size: AreaBoundarySize;
   testId?: string;
 }) {
   const { t } = useTranslation();
   const place = t("settings.about");
   const small = size === "section";
-  if (size === "strip") {
-    // One line, so the bar it stands in keeps its height.
+  if (size === "icon") {
+    // The glyph and the reload, stacked in the width of what it stands in for;
+    // the sentence is the reload's tooltip and the alert's name.
+    const title = failedAgain ? t("errors.areaAgain", { place }) : t("errors.areaTitle");
     return (
       <div
-        className="pv-areafail pv-areafail--strip"
+        aria-label={title}
+        className={cx("pv-areafail", "pv-areafail--icon", placeClassName)}
+        data-area={area}
+        data-failed-again={failedAgain ? "true" : undefined}
+        data-testid={testId ?? "area-fallback"}
+        data-tip={title}
+        role="alert"
+      >
+        <AlertCircle aria-hidden size={ICON.ui} />
+        {!failedAgain && (
+          <IconButton data-testid="area-fallback-reload" label={t("errors.areaReload")} onClick={onReload} size="sm">
+            <RotateCw size={ICON.ui} />
+          </IconButton>
+        )}
+      </div>
+    );
+  }
+  if (size === "strip") {
+    // One line, so the bar it stands in keeps its height; it never widens it.
+    return (
+      <div
+        className={cx("pv-areafail", "pv-areafail--strip", placeClassName)}
         data-area={area}
         data-failed-again={failedAgain ? "true" : undefined}
         data-testid={testId ?? "area-fallback"}
@@ -210,7 +261,7 @@ function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, size, test
   );
   const body = (
     <div
-      className={cx("pv-areafail", `pv-areafail--${size}`)}
+      className={cx("pv-areafail", `pv-areafail--${size}`, size === "dialog" ? undefined : placeClassName)}
       data-area={area}
       data-failed-again={failedAgain ? "true" : undefined}
       data-testid={testId ?? "area-fallback"}

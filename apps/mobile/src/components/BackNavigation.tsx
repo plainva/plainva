@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AreaBoundary } from "@plainva/ui";
 import { askBeforeLeaving } from "../services/leaveQuestion";
 import { BACK_HISTORY_EVENT } from "../services/backHistory";
@@ -26,6 +27,7 @@ export function BackNavigation({ nav, ctx }: { nav: NavState; ctx: RouteContext 
   useEdgeSwipeBack({ enabled: !backStep(nav).minimize, target: workColumn, onBack: pop });
 
   const [stops, setStops] = useState<BackStop[] | null>(null);
+  const { t } = useTranslation();
   useEffect(() => {
     const open = () => {
       const found = backStops(navRef.current);
@@ -37,7 +39,7 @@ export function BackNavigation({ nav, ctx }: { nav: NavState; ctx: RouteContext 
 
   if (!stops) return null;
   return (
-    <AreaBoundary area="sheet:backHistory" size="dialog">
+    <AreaBoundary area="sheet:backHistory" size="dialog" exit={{ label: t("common.close"), onExit: () => setStops(null) }}>
     <BackHistorySheet
       activeTab={nav.activeTab}
       stops={stops}

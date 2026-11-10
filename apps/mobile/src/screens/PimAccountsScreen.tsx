@@ -1028,7 +1028,7 @@ export function PimAccountsScreen({
         </AreaBoundary>
       )}
       {accessFor && (
-        <AreaBoundary area="sheet:accountAccess" size="dialog">
+        <AreaBoundary area="sheet:accountAccess" size="dialog" exit={{ label: t("common.close"), onExit: () => setAccessFor(null) }}>
         <AccountAccessSheet
           family={accessFor}
           onCancel={() => setAccessFor(null)}
