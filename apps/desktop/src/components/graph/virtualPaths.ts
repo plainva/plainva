@@ -11,6 +11,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { CalendarRange, ListChecks, Mail, MessageSquare, NotebookText, Sparkles, Waypoints } from "lucide-react";
+import { isImagePath } from "@plainva/ui";
 import { COMPARISON_PREFIX } from "../../services/comparisonWindow";
 
 export const GRAPH_TAB_PATH = "plainva://graph";
@@ -51,4 +52,17 @@ export function virtualTabMeta(path: string | null | undefined): VirtualTabMeta 
   if (!path) return null;
   if (path.startsWith(COMPARISON_PREFIX)) return { labelKey: "compare.title", defaultLabel: "Compare versions", icon: Waypoints };
   return VIRTUAL_TAB_META[path] ?? null;
+}
+
+/**
+ * The diagnostics name of what a tab shows (stability plan R3): the KIND of
+ * view, never the note it holds — `tab:graph`, `tab:compare`, `tab:base`,
+ * `tab:image`, `tab:note`. The error boundary around each tab writes it.
+ */
+export function tabAreaName(path: string): string {
+  if (path.startsWith(COMPARISON_PREFIX)) return "tab:compare";
+  if (isVirtualPath(path)) return `tab:${path.slice("plainva://".length).split(/[/?#]/, 1)[0] || "view"}`;
+  if (path.endsWith(".base")) return "tab:base";
+  if (isImagePath(path)) return "tab:image";
+  return "tab:note";
 }

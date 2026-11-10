@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, FlaskConical, Link2, Plus, RefreshCw } from "lucide-react";
 import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
-import {
+import { AreaBoundary,
   Button,
   GroupCard,
   ICON,
@@ -333,15 +333,16 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           </GroupCard>
         </>
       )}
-      {testing && <SkillTestSheet ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
-      {open && <SkillApprovalSheet id={open} onClose={() => setOpen(null)} />}
-      {comparing && <SkillCompareSheet a={comparing.a} b={comparing.b} onClose={() => setComparing(null)} />}
-      {creating && <NewSkillSheet onClose={() => setCreating(false)} />}
-      {adding && <ServerSkillAddSheet serverId={adding.serverId} label={adding.label} onClose={() => setAdding(null)} />}
-      {scriptForm && <ScriptFormSheet id={scriptForm.id} onClose={() => setScriptForm(null)} />}
-      {running && <ScriptRunSheet id={running} onClose={() => setRunning(null)} onOpenNote={onOpenNote} />}
-      {importing && <SkillImportSheet label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}
+      {testing && <AreaBoundary area="sheet:skillTest" size="dialog" exit={{ label: t("common.close"), onExit: () => setTesting(null) }}><SkillTestSheet ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} /></AreaBoundary>}
+      {open && <AreaBoundary area="sheet:skillApproval" size="dialog" exit={{ label: t("common.close"), onExit: () => setOpen(null) }}><SkillApprovalSheet id={open} onClose={() => setOpen(null)} /></AreaBoundary>}
+      {comparing && <AreaBoundary area="sheet:skillCompare" size="dialog" exit={{ label: t("common.close"), onExit: () => setComparing(null) }}><SkillCompareSheet a={comparing.a} b={comparing.b} onClose={() => setComparing(null)} /></AreaBoundary>}
+      {creating && <AreaBoundary area="sheet:newSkill" size="dialog" exit={{ label: t("common.close"), onExit: () => setCreating(false) }}><NewSkillSheet onClose={() => setCreating(false)} /></AreaBoundary>}
+      {adding && <AreaBoundary area="sheet:serverSkillAdd" size="dialog" exit={{ label: t("common.close"), onExit: () => setAdding(null) }}><ServerSkillAddSheet serverId={adding.serverId} label={adding.label} onClose={() => setAdding(null)} /></AreaBoundary>}
+      {scriptForm && <AreaBoundary area="sheet:scriptForm" size="dialog" exit={{ label: t("common.close"), onExit: () => setScriptForm(null) }}><ScriptFormSheet id={scriptForm.id} onClose={() => setScriptForm(null)} /></AreaBoundary>}
+      {running && <AreaBoundary area="sheet:scriptRun" size="dialog" exit={{ label: t("common.close"), onExit: () => setRunning(null) }}><ScriptRunSheet id={running} onClose={() => setRunning(null)} onOpenNote={onOpenNote} /></AreaBoundary>}
+      {importing && <AreaBoundary area="sheet:skillImport" size="dialog" exit={{ label: t("common.close"), onExit: () => setImporting(null) }}><SkillImportSheet label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} /></AreaBoundary>}
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={sheet.title}
           // The sheet closes with the choice: what an action opens — a run, a review, a form — must not lie under it.
@@ -357,6 +358,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           }))}
           onClose={() => setSheet(null)}
         />
+        </AreaBoundary>
       )}
     </div>
   );

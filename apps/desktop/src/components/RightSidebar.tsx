@@ -42,6 +42,7 @@ import {
   frontmatterBlockOf,
   type AreaOrder,
   type NoteDatabaseContext,
+  AreaBoundary,
 } from "@plainva/ui";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
@@ -455,7 +456,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                   button inside a button is invalid and stops working. */}
               {m.action}
             </div>
-            {isOpen && <div className={m.pad ? "pv-side-section-body" : "pv-side-section-body pv-side-section-body--flush"}>{renderBody(id)}</div>}
+            {/* One boundary per section (stability plan R3): a section that
+                fails stays a section; the editor beside it is not touched. */}
+            {isOpen && <div className={m.pad ? "pv-side-section-body" : "pv-side-section-body pv-side-section-body--flush"}><AreaBoundary area={`section:${id}`} resetKey={activePath ?? ""} size="section">{() => renderBody(id)}</AreaBoundary></div>}
           </section>
         );
       })}

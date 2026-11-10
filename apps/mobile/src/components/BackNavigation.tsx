@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AreaBoundary } from "@plainva/ui";
 import { askBeforeLeaving } from "../services/leaveQuestion";
 import { BACK_HISTORY_EVENT } from "../services/backHistory";
 import { useEdgeSwipeBack } from "../lib/useEdgeSwipeBack";
@@ -36,6 +37,7 @@ export function BackNavigation({ nav, ctx }: { nav: NavState; ctx: RouteContext 
 
   if (!stops) return null;
   return (
+    <AreaBoundary area="sheet:backHistory" size="dialog">
     <BackHistorySheet
       activeTab={nav.activeTab}
       stops={stops}
@@ -47,5 +49,6 @@ export function BackNavigation({ nav, ctx }: { nav: NavState; ctx: RouteContext 
         });
       }}
     />
+    </AreaBoundary>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import {
+import { AreaBoundary,
   Button,
   CommittedTextInput,
   GroupCard,
@@ -164,6 +164,7 @@ export function TemplateRules({
       </GroupCard>
 
       {pickFolderFor !== null && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickFolderFor(null) }}>
         <FolderPickerSheet
           onClose={() => setPickFolderFor(null)}
           onPick={(path) => {
@@ -177,6 +178,7 @@ export function TemplateRules({
           title={t("settings.browseFolders")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
     </>
   );

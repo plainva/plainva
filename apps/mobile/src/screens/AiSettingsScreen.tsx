@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Plus } from "lucide-react";
 import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ModelChoice, type ProviderInfo } from "@plainva/core";
-import {
+import { AreaBoundary,
   AI_FEEDBACK_URL,
   addableProviders,
   aiSetupStep,
@@ -377,7 +377,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
           </p>
         )}
       </div>
-      {modelFor && <AiModelSheet session={session} state={state} rows={rows} profile={modelFor} onClose={() => setModelFor(null)} />}
+      {modelFor && <AreaBoundary area="sheet:aiModel" size="dialog" exit={{ label: t("common.close"), onExit: () => setModelFor(null) }}><AiModelSheet session={session} state={state} rows={rows} profile={modelFor} onClose={() => setModelFor(null)} /></AreaBoundary>}
     </div>
   );
 }

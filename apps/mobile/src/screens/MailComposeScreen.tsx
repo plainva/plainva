@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { AlertTriangle, Ban, FileText, Mail, Paperclip, RefreshCw, RotateCw, Send, X } from "lucide-react";
-import { accountInputProps, Banner, Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, templateBodyOf } from "@plainva/ui";
+import { AreaBoundary, accountInputProps, Banner, Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, templateBodyOf } from "@plainva/ui";
 import { applyTemplateInteractive } from "../services/templateInteractive";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
@@ -485,7 +485,7 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
           <Send size={ICON.head} />
         </IconButton></>} />
 
-      {picking && <AttachPickSheet onClose={() => setPicking(false)} onPick={(p) => void attachFromVault(p)} vault={vault} />}
+      {picking && <AreaBoundary area="sheet:attachPick" size="dialog" exit={{ label: t("common.close"), onExit: () => setPicking(false) }}><AttachPickSheet onClose={() => setPicking(false)} onPick={(p) => void attachFromVault(p)} vault={vault} /></AreaBoundary>}
 
       <div className="m-settings">
         {fromOptions.length > 1 && (

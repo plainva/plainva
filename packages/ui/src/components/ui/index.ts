@@ -23,6 +23,7 @@ export { ClickCatch } from "./ClickCatch";
 export { Modal, type ModalProps, type ModalSize } from "./Modal";
 export { FloatingWindow, type FloatingWindowProps, type FloatingRect } from "./FloatingWindow";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+export { AreaBoundary, areaCrashSeam, describeAreaError, type AreaBoundaryProps, type AreaBoundarySize, type AreaExit } from "./AreaBoundary";
 export { SelectionBar, type SelectionBarProps } from "./SelectionBar";
 export { RowActionList } from "./RowActionList";
 export { QrImage, type QrImageProps } from "./QrImage";

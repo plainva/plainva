@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Database, Plus, Trash2 } from "lucide-react";
-import { Button, EmptyState, GroupCard, ICON, noteDisplayName, Row, RowList, SectionLabel } from "@plainva/ui";
+import { AreaBoundary, Button, EmptyState, GroupCard, ICON, noteDisplayName, Row, RowList, SectionLabel } from "@plainva/ui";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -122,6 +122,7 @@ export function DatabasesScreen({
         </GroupCard>
       )}
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={sheet.title}
           onClose={() => setSheet(null)}
@@ -130,6 +131,7 @@ export function DatabasesScreen({
             { icon: <Trash2 size={ICON.head} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
           ]}
         />
+        </AreaBoundary>
       )}
     </>
   );

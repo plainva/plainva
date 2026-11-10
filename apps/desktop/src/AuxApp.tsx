@@ -3,7 +3,7 @@ import { useTabTransferSource } from "./hooks/useTabTransfer";
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyState, ICON, IconButton, setPendingSearchJump, toast } from "@plainva/ui";
+import { AreaBoundary, EmptyState, ICON, IconButton, setPendingSearchJump, toast } from "@plainva/ui";
 import { ArrowLeftToLine, PanelRight } from "lucide-react";
 import { RightSidebar, type SectionId } from "./components/RightSidebar";
 import { windowStateKey } from "./services/windowContext";
@@ -353,10 +353,12 @@ export function AuxApp() {
   if (params.role === "compose") {
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)" }}>
+        <AreaBoundary area="shell:titlebar" size="strip">
         <AuxTitleBar title={t("mail.composeTitle")} label={label} />
+        </AreaBoundary>
         <main style={{ flex: 1, minHeight: 0, overflow: "hidden" }} data-testid="aux-content">
           <Suspense fallback={<EmptyState>{t("common.loading")}</EmptyState>}>
-            <ComposeWindow label={label} />
+            <AreaBoundary area="window:compose"><ComposeWindow label={label} /></AreaBoundary>
           </Suspense>
         </main>
       </div>
@@ -391,6 +393,7 @@ export function AuxApp() {
   const titleBarTabs =
     !isSplit && single && single.tabs.length > 1 ? (
       <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+        <AreaBoundary area="pane:tabStrip" size="strip">
         <PaneTabStrip
           paneIndex={0}
           tabs={single.tabs.map((tb) => tb.history[tb.historyIndex])}
@@ -401,14 +404,17 @@ export function AuxApp() {
           onContextMenu={(idx, x, y) => setTabMenu({ paneIndex: 0, tabIndex: idx, x, y })}
           onMoveTab={moveTabTo}
         />
+        </AreaBoundary>
       </div>
     ) : undefined;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)" }}>
+      <AreaBoundary area="shell:titlebar" size="strip">
       <AuxTitleBar title={title} tabs={titleBarTabs} label={label}
         onTitleContextMenu={activePath ? event => { event.preventDefault(); setTabMenu({ paneIndex: layout.activePaneIndex, tabIndex: layout.panes[layout.activePaneIndex].activeIndex, x: event.clientX, y: event.clientY }); } : undefined}
         actions={<>{activePath && <IconButton label={t("window.returnToMain")} data-testid="aux-return-main" size="sm" onClick={() => { void tabTransfer.start(layout.activePaneIndex, layout.panes[layout.activePaneIndex].activeIndex); }}><ArrowLeftToLine size={ICON.ui} /></IconButton>}{rightSidebarToggle}</>} />
+      </AreaBoundary>
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "row", overflow: "hidden" }}>
       <main
         style={{
@@ -462,6 +468,7 @@ export function AuxApp() {
                   }}
                 >
                   {isSplit && (
+                    <AreaBoundary area="pane:tabStrip" size="strip">
                     <PaneTabStrip
                       paneIndex={i}
                       tabs={pane.tabs.map((tb) => tb.history[tb.historyIndex])}
@@ -473,6 +480,7 @@ export function AuxApp() {
                       onMoveTab={moveTabTo}
                       onSplitWithTab={splitEditorWithTab}
                     />
+                    </AreaBoundary>
                   )}
                   <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
                     <AuxPane
@@ -501,6 +509,7 @@ export function AuxApp() {
           data-testid="aux-right-sidebar"
           style={{ width: `${AUX_RIGHT_WIDTH}px`, flexShrink: 0, borderLeft: "1px solid var(--border-color-light)", background: "var(--bg-secondary)" }}
         >
+          <AreaBoundary area="sidebar:right" size="section">
           <RightSidebar
             sections={AUX_SECTIONS}
             activePath={activePath}
@@ -510,6 +519,7 @@ export function AuxApp() {
             loadMarkedDates={async () => new Set<string>()}
             refreshToken={fileTreeVersion}
           />
+          </AreaBoundary>
         </aside>
       )}
       </div>
@@ -520,7 +530,9 @@ export function AuxApp() {
           a resolved conflict writes through the client adapter, so the owner
           indexes it; this window only re-reads its own views. */}
       <Suspense fallback={null}>
+        {/* Each dialog an area of its own, as in the central window (R3). */}
         {bridge.compareTarget && (
+          <AreaBoundary area="dialog:compare" size="dialog" exit={{ label: t("common.close"), onExit: bridge.closeCompare }}>
           <CompareModal
             subject={bridge.compareTarget}
             onClose={bridge.closeCompare}
@@ -532,8 +544,10 @@ export function AuxApp() {
               triggerFileTreeUpdate(outcome.touched);
             }}
           />
+          </AreaBoundary>
         )}
         {bridge.mailDraft && vaultPath && (
+          <AreaBoundary area="dialog:mailDraft" size="dialog" exit={{ label: t("common.close"), onExit: bridge.closeMailDraft }}>
           <MailDraftModal
             key={bridge.mailDraftKey}
             subject={bridge.mailDraft.subject}
@@ -546,10 +560,14 @@ export function AuxApp() {
             onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
             onClose={bridge.closeMailDraft}
           />
+          </AreaBoundary>
         )}
       </Suspense>
+      <AreaBoundary area="dialog:templatePicker" size="dialog" resetKey={bridge.templatePickerOpen ? "open" : "closed"} exit={bridge.templatePickerOpen ? { label: t("common.close"), onExit: bridge.closeTemplatePicker } : null}>
       <TemplatePickerModal isOpen={bridge.templatePickerOpen} onClose={bridge.closeTemplatePicker} />
+      </AreaBoundary>
       {tabMenu && (
+        <AreaBoundary area="menu:tab" size="dialog" exit={{ label: t("common.close"), onExit: () => setTabMenu(null) }}>
         <TabContextMenu
           x={tabMenu.x}
           y={tabMenu.y}
@@ -577,8 +595,9 @@ export function AuxApp() {
           onShowVersionHistory={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path: menuTabPath } })) : undefined}
           onReturnToMain={menuTabPath ? () => { void tabTransfer.start(tabMenu.paneIndex, tabMenu.tabIndex); } : undefined}
         />
+        </AreaBoundary>
       )}
-      {tabTransfer.modal}
+      <AreaBoundary area="dialog:tabTransfer" size="dialog">{tabTransfer.modal}</AreaBoundary>
     </div>
   );
 }

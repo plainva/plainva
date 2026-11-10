@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { GripVertical } from "lucide-react";
+import { AreaBoundary } from "./AreaBoundary";
 import { cx } from "./cx";
 import { isModalOpen } from "./Modal";
 
@@ -395,7 +396,9 @@ export function FloatingWindow({
         <GripVertical size={14} className="pv-peek-grip" aria-hidden />
         {head}
       </div>
-      {children}
+      {/* The window's content is an area of its own (stability plan R3): the
+          head with its close button stays when what it shows fails. */}
+      <AreaBoundary area={`window:${testId ?? persistKey}`} resetKey={subject}>{children}</AreaBoundary>
       <div
         className="pv-peek-resize"
         aria-hidden="true"

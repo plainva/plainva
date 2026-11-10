@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, FileText, Hash, Pencil } from "lucide-react";
 import { isValidTagName, renameTagInText } from "@plainva/core";
-import { DocIcon, EmptyState, GroupCard, ICON, IconButton, normalizeRenameTarget, renameTagAcrossVault, Row, RowList, tagColorIndex, toast } from "@plainva/ui";
+import { AreaBoundary, DocIcon, EmptyState, GroupCard, ICON, IconButton, normalizeRenameTarget, renameTagAcrossVault, Row, RowList, tagColorIndex, toast } from "@plainva/ui";
 import { usePullToRefresh } from "./lib/usePullToRefresh";
 import { useLongPress } from "./lib/useLongPress";
 import { mPrompt } from "./services/mobileDialogs";
@@ -205,6 +205,7 @@ export function TagsScreen({
         ))}</RowList></GroupCard>
       )}
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={`#${sheet}`}
           onClose={() => setSheet(null)}
@@ -216,6 +217,7 @@ export function TagsScreen({
             },
           ]}
         />
+        </AreaBoundary>
       )}
     </>
   );

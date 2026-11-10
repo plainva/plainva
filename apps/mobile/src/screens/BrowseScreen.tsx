@@ -14,7 +14,7 @@ import {
   X,
   ArrowUpDown,
 } from "lucide-react";
-import { Button, conflictOriginalPath, DocIcon, EmptyState, errorText, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
+import { AreaBoundary, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, resolveOpenAction, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
@@ -477,6 +477,7 @@ export function BrowseScreen({
       {/* The one sort sheet of the app (finding 2026-09-19): search hits and
           backlinks open the same component. */}
       {sortSheet && (
+        <AreaBoundary area="sheet:sort" size="dialog" exit={{ label: t("common.close"), onExit: () => setSortSheet(false) }}>
         <SortSheet
           testId="browse-sort-sheet"
           title={t("browse.sortBy")}
@@ -490,9 +491,11 @@ export function BrowseScreen({
           onChoose={chooseSort}
           onClose={() => setSortSheet(false)}
         />
+        </AreaBoundary>
       )}
 
       {conflictSheet && (
+        <AreaBoundary area="sheet:conflictCompare" size="dialog" exit={{ label: t("common.close"), onExit: () => setConflictSheet(null) }}>
         <ConflictCompareSheet
           vault={vault}
           conflictPath={conflictSheet.path}
@@ -503,6 +506,7 @@ export function BrowseScreen({
             setConflicts((c) => c.filter((p) => !touched.includes(p)));
           }}
         />
+        </AreaBoundary>
       )}
 
     </>

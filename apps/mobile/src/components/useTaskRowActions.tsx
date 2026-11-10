@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
-import {
+import { AreaBoundary,
   calendarDay,
   canRepeat,
   createTaskTimeBlock,
@@ -423,6 +423,7 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
   const element: ReactNode = (
     <>
       {taskSheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setTaskSheet(null) }}>
         <RowActionSheet
           actions={[
             { icon: <FileText size={ICON.head} />, label: t("mobile.sheetOpen"), onClick: () => { const x = taskSheet; setTaskSheet(null); x.open(); } },
@@ -437,9 +438,11 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
           onClose={() => setTaskSheet(null)}
           title={taskSheet.title}
         />
+        </AreaBoundary>
       )}
 
       {repeatTarget && (
+        <AreaBoundary area="sheet:repeatTask" size="dialog" exit={{ label: t("common.close"), onExit: () => setRepeatTarget(null) }}>
         <RepeatTaskSheet
           currentDue={repeatTarget.due}
           initial={repeatTarget.rule}
@@ -454,9 +457,11 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
           }}
           taskTitle={repeatTarget.title}
         />
+        </AreaBoundary>
       )}
 
       {blockTarget && (
+        <AreaBoundary area="sheet:timeBlock" size="dialog" exit={{ label: t("common.close"), onExit: () => setBlockTarget(null) }}>
         <TimeBlockSheet
           calendarOptions={calendarOptions}
           initialCalendarKey={resolveDefaultCalendarKey(calendarOptions, "")}
@@ -467,6 +472,7 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
           onSubmit={submitBlock}
           taskTitle={blockTarget.title}
         />
+        </AreaBoundary>
       )}
     </>
   );

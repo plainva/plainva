@@ -2,7 +2,7 @@ import { isHiddenPath, trimChars } from "@plainva/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Clock, FilePlus, Search } from "lucide-react";
-import {
+import { AreaBoundary,
   useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, commandTitle, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
   rememberSearch, SearchField,
   setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge,
@@ -251,6 +251,7 @@ export function SearchScreen({
         }
       />
       {sortSheet && (
+        <AreaBoundary area="sheet:sort" size="dialog" exit={{ label: t("common.close"), onExit: () => setSortSheet(false) }}>
         <SortSheet
           testId="search-sort-sheet"
           title={t("browse.sortBy")}
@@ -261,6 +262,7 @@ export function SearchScreen({
           onChoose={chooseSort}
           onClose={() => setSortSheet(false)}
         />
+        </AreaBoundary>
       )}
       {parsed.mode === "idle" ? (
         <>

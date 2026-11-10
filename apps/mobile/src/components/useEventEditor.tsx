@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
+import { AreaBoundary, applyEventChanges, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
 import { parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -480,6 +480,7 @@ export function useEventEditor({
   const element = (
     <>
       {peek ? (
+        <AreaBoundary area="sheet:eventPeek" size="dialog" exit={{ label: t("common.close"), onExit: () => setPeek(null) }}>
         <EventPeekSheet
           event={peek}
           rows={rows}
@@ -497,8 +498,10 @@ export function useEventEditor({
           onBlock={blockTargetsFor(peek).length > 0 ? () => void blockFromPeek(peek) : undefined}
           onOpenUrl={(url) => void getPlatformServices().openExternal(url)}
         />
+        </AreaBoundary>
       ) : null}
       {sheet ? (
+        <AreaBoundary area="sheet:eventEdit" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <EventEditSheet
           calendars={calendars}
           event={sheet.event}
@@ -507,6 +510,7 @@ export function useEventEditor({
           onDelete={sheet.event ? () => void remove() : undefined}
           onSave={save}
         />
+        </AreaBoundary>
       ) : null}
     </>
   );

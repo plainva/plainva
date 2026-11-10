@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff, FolderOpen } from "lucide-react";
-import { Banner, Button, EmptyState, GroupCard, RowList, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, unionScope, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, EmptyState, GroupCard, RowList, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, unionScope, type CloudProviderFamily, type OAuthFamily } from "@plainva/ui";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
   connectProvider,
@@ -345,6 +345,7 @@ export function AddVaultScreen({
   const sheets = (
     <>
       {pickFor && (
+        <AreaBoundary area="sheet:cloudFolderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickFor(null) }}>
         <CloudFolderPickerSheet
           listFolders={(path) => listProviderFolders(pickFor, path)}
           createFolder={(path) => createProviderFolder(pickFor, path)}
@@ -352,13 +353,16 @@ export function AddVaultScreen({
           onPick={(folder) => connectAt(pickFor, folder)}
           title={t("settings.browseFolders")}
         />
+        </AreaBoundary>
       )}
       {accessSheet && (
+        <AreaBoundary area="sheet:accountAccess" size="dialog">
         <AccountAccessSheet
           family={accessSheet}
           onCancel={() => setAccessSheet(null)}
           onSaved={() => { setAccessSheet(null); connect(); }}
         />
+        </AreaBoundary>
       )}
     </>
   );

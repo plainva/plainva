@@ -1833,6 +1833,23 @@
     </div>
   </section>
 
+  <section id="area-fallback">
+    <h2>An area that could not be shown</h2>
+    <p class="sec-sub">When a tab, a sidebar section, a column, a screen, a sheet or a dialog fails to draw, only that area is replaced (<code>AreaBoundary</code>, stability plan R3). The fallback is the empty state with the alert glyph: one sentence, <b>Reload this area</b> as the tonal button, the area's own way out as a ghost button. After a reload that fails again the sentence says so and the reload button is gone. The section form has no glyph, a small title and small buttons; the strip form is one line (glyph, title, reload as an icon button) for a bar of the shell, whose height must not change; a dialog that fails is replaced by a dialog (a sheet on the phone) with the same body.</p>
+    <div class="grid g2">
+      <div class="card" style="padding: var(--space-6); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; color: var(--text-muted)">
+        <span aria-hidden="true" style="font-size: var(--text-headline); color: var(--text-faint)">⊘</span>
+        <div style="font-size: var(--text-headline); font-weight: 700; color: var(--text-main)">This area could not be shown</div>
+        <div style="max-width: 420px; line-height: 1.5">An error stopped it. The rest of Plainva keeps working, and the error is recorded under About &amp; diagnostics.</div>
+        <div style="display: flex; gap: var(--space-2)"><span class="pvbtn tonal">Reload this area</span><span class="pvbtn ghost">Close tab</span></div>
+      </div>
+      <div class="card" style="padding: var(--space-3); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; color: var(--text-muted)">
+        <div style="font-size: var(--text-headline); font-weight: 700; color: var(--text-main)">This area could not be shown</div>
+        <div style="max-width: 420px; line-height: 1.5">It failed again after reloading. If it keeps failing, restart Plainva; the error is recorded under About &amp; diagnostics.</div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= FRAGEN ================= -->
   <section id="fragen">
     <h2><span class="no">13</span>Entscheidungen</h2>

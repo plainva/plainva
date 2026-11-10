@@ -3,7 +3,7 @@ import { isDevicePimSupported } from "../platform/devicePim";
 import { hasDevicePimAccount } from "../services/pim/pimService";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, CalendarDays, Check, ChevronDown, ChevronRight, Clock, Folder, Mail } from "lucide-react";
-import {
+import { AreaBoundary,
   accountMonogram,
   accessProblemKey,
   accessSummary,
@@ -504,6 +504,7 @@ export function CloudConnectScreen({
         )}
       </div>
       {otherOpen && oauthKind && accessFamily && (
+        <AreaBoundary area="sheet:accountAccess" size="dialog">
         <AccountAccessSheet
           family={accessFamily}
           title={t("cloudAccounts.otherSignIn")}
@@ -524,13 +525,16 @@ export function CloudConnectScreen({
             </GroupCard>
           ) : undefined}
         />
+        </AreaBoundary>
       )}
       {accessFor && (
+        <AreaBoundary area="sheet:accountAccess" size="dialog">
         <AccountAccessSheet
           family={accessFor}
           onCancel={() => setAccessFor(null)}
           onSaved={() => { setAccessFor(null); void start(); }}
         />
+        </AreaBoundary>
       )}
     </div>
   );

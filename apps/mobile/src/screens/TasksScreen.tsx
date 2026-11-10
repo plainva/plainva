@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { consumePendingNew, getPlatformServices } from "@plainva/ui";
+import { AreaBoundary, consumePendingNew, getPlatformServices } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { Banner, CalendarSyncNotice, errorText, syncProblemsFor, useTaskDuplicates } from "@plainva/ui";
 import type { PimSyncProblem } from "@plainva/core";
@@ -1126,6 +1126,7 @@ export function TasksScreen({
       )}
 
       {capture && (
+        <AreaBoundary area="sheet:taskCapture" size="dialog" exit={{ label: t("common.close"), onExit: () => setCapture(null) }}>
         <TaskCaptureSheet
           todayKey={todayKey}
           providerList={capture.providerList}
@@ -1135,17 +1136,20 @@ export function TasksScreen({
           onSwitchToJournal={onCaptureJournal ? (text) => { setCapture(null); onCaptureJournal(text); } : undefined}
           daily={taskDb ? undefined : { onCreateDatabase: () => void createDatabaseFromCapture() }}
         />
+        </AreaBoundary>
       )}
 
       {rowKit.element}
 
-      {dueTarget && <TaskDueSheet value={dueTarget.value} time={dueTarget.time} checkboxReminders={dueTarget.checkbox ? checkboxReminders : undefined} onPick={pickDue} onClose={() => setDueTarget(null)} />}
+      {dueTarget && <AreaBoundary area="sheet:taskDue" size="dialog" exit={{ label: t("common.close"), onExit: () => setDueTarget(null) }}><TaskDueSheet value={dueTarget.value} time={dueTarget.time} checkboxReminders={dueTarget.checkbox ? checkboxReminders : undefined} onPick={pickDue} onClose={() => setDueTarget(null)} /></AreaBoundary>}
 
+      <AreaBoundary area="sheet:taskDuplicates" size="dialog">
       <TaskDuplicatesSheet
         dupes={dupes}
         onOpenNote={onOpenNote}
         onRemoved={(count) => toast.info(t("tasks.duplicatesRemoved", { count }))}
       />
+      </AreaBoundary>
     </div>
   );
 }

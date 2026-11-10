@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "react-i18next";
 import { Ban, CheckSquare, ChevronDown, Clock, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
-import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
 import { addSnooze, filterSnoozedRows, onlySnoozedRows, parseSnoozeState, pruneSnoozes, removeSnooze, SNOOZE_PRESETS, snoozeEntryFor, snoozeUntil, undoSnoozes, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
@@ -1948,7 +1948,7 @@ export function MailListScreen({
             },
           })),
         ];
-        return <RowActionSheet actions={actions} onClose={() => setRowSheet(null)} title={m.subject || t("mail.noSubject")} />;
+        return <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setRowSheet(null) }}><RowActionSheet actions={actions} onClose={() => setRowSheet(null)} title={m.subject || t("mail.noSubject")} /></AreaBoundary>;
       })()}
 
       {sheet && (

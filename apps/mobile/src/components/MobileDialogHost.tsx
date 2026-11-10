@@ -2,7 +2,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
 import { ChoiceMark, useChoiceBeat } from "./ChoiceMark";
 import { useTranslation } from "react-i18next";
-import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, Switch, TextInput, ScrollEdge} from "@plainva/ui";
+import { AreaBoundary, Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, Switch, TextInput, ScrollEdge} from "@plainva/ui";
 import {
   currentMobileDialog,
   dismissMobileDialog,
@@ -30,7 +30,7 @@ export function MobileDialogHost() {
   const dialog = useSyncExternalStore(subscribeMobileDialogs, currentMobileDialog);
   if (!dialog) return null;
   // Remount per request so input state never leaks between dialogs.
-  return <DialogSheet dialog={dialog} key={dialog.id} />;
+  return <AreaBoundary area="sheet:dialog" size="dialog" resetKey={dialog.id}><DialogSheet dialog={dialog} key={dialog.id} /></AreaBoundary>;
 }
 
 function DialogSheet({ dialog }: { dialog: MobileDialog }) {
@@ -55,19 +55,19 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
   };
 
   if (dialog.kind === "cascade") {
-    return <CascadeSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:cascade" size="dialog"><CascadeSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   if (dialog.kind === "answers") {
-    return <AnswersSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:answers" size="dialog"><AnswersSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   if (dialog.kind === "multiSelect") {
-    return <MultiSelectSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:multiSelect" size="dialog"><MultiSelectSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   if (dialog.kind === "dayTime") {
-    return <DayTimeSheet dialog={dialog} onCancel={cancel} />;
+    return <AreaBoundary area="sheet:dayTime" size="dialog"><DayTimeSheet dialog={dialog} onCancel={cancel} /></AreaBoundary>;
   }
 
   const submitPrompt = () => {

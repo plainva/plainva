@@ -5134,7 +5134,11 @@
   },
   "errors": {
     "somethingWentWrong": "Une erreur est survenue.",
-    "reload": "Recharger"
+    "reload": "Recharger",
+    "areaTitle": "Cette zone ne peut pas être affichée",
+    "areaBody": "Une erreur l’a arrêtée. Le reste de Plainva continue de fonctionner, et l’erreur est consignée dans {{place}}.",
+    "areaAgain": "Elle a de nouveau échoué après le rechargement. Si cela persiste, redémarrez Plainva ; l’erreur est consignée dans {{place}}.",
+    "areaReload": "Recharger cette zone"
   },
   "palette": {
     "title": "Commandes",

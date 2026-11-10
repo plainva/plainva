@@ -1,4 +1,4 @@
-import { baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
+import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { usePageSwipe } from "../../lib/usePageSwipe";
@@ -2524,7 +2524,10 @@ export function BaseScreen({
       {baseAi?.fill && <FillProgressBanner fill={baseAi.fill} onStop={baseAi.stopFill} />}
 
       <div ref={rowsRef} className="m-baserows">
-      {rows === null ? null : !vault.queryService ? (
+      {/* The view is an area of its own (stability plan R3): the bar with its
+          views stays, and another view can be picked. */}
+      <AreaBoundary area={`base:${effectiveRender}`} resetKey={`${viewIndex}:${effectiveRender}`}>{() => (
+      rows === null ? null : !vault.queryService ? (
         /* NOT "coming in a later step": databases are shipped, this vault's
            search index simply is not there yet — a `.base` is a QUERY, and the
            query service is what the failed index build takes with it (N7). */
@@ -2598,7 +2601,8 @@ export function BaseScreen({
         renderTimeline()
       ) : (
         renderTable()
-      )}
+      )
+      )}</AreaBoundary>
       </div>
 
       {calJumpOpen && (
@@ -2672,6 +2676,7 @@ export function BaseScreen({
       )}
 
       {rowMenu && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setRowMenu(null) }}>
         <RowActionSheet
           title={rowMenu.title}
           onClose={() => setRowMenu(null)}
@@ -2698,6 +2703,7 @@ export function BaseScreen({
             { icon: <Trash2 size={ICON.head} />, label: t("database.entryDelete"), danger: true, onClick: () => { const m = rowMenu; setRowMenu(null); void deleteEntry(m.path, m.title); } },
           ]}
         />
+        </AreaBoundary>
       )}
 
       {peekPath && rows && (() => {
@@ -2706,6 +2712,7 @@ export function BaseScreen({
         // there is nothing honest left to show.
         if (!peek) return null;
         return (
+          <AreaBoundary area="sheet:entryPeek" size="dialog" exit={{ label: t("common.close"), onExit: () => setPeekPath(null) }}>
           <EntryPeekSheet
             peek={peek}
             columnLabel={columnLabel}
@@ -2719,6 +2726,7 @@ export function BaseScreen({
             onOpen={() => { setPeekPath(null); onOpenNote(peek.path); }}
             onClose={() => setPeekPath(null)}
           />
+          </AreaBoundary>
         );
       })()}
 
@@ -2731,6 +2739,7 @@ export function BaseScreen({
         };
         const fillable = fillColumnFor(cellEdit.col);
         return (
+          <AreaBoundary area="sheet:cellEdit" size="dialog" resetKey={`${vault.vaultId}:${cellEdit.notePath}:${cellEdit.col}`} exit={{ label: t("common.close"), onExit: () => setCellEdit(null) }}>
           <CellEditSheet key={`${vault.vaultId}:${cellEdit.notePath}:${cellEdit.col}`}
             fill={fillable ? { label: fillable.label, onStart: () => { const c = cellEdit; setCellEdit(null); void askFill(c.col); } } : undefined}
             onClose={() => setCellEdit(null)}
@@ -2755,6 +2764,7 @@ export function BaseScreen({
             target={cellEdit}
             vault={vault}
           />
+          </AreaBoundary>
         );
       })()}
 
@@ -2765,6 +2775,7 @@ export function BaseScreen({
           return true;
         }} onClose={() => setShowExport(false)} />}
       {showConfig && config && (
+        <AreaBoundary area="sheet:baseConfig" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowConfig(false) }}>
         <BaseConfigSheet
           basePath={path}
           columnLabel={columnLabel}
@@ -2779,9 +2790,11 @@ export function BaseScreen({
           vault={vault}
           viewIndex={viewIndex}
         />
+        </AreaBoundary>
       )}
 
       {propEdit && config && (
+        <AreaBoundary area="sheet:propertyEdit" size="dialog" exit={{ label: t("common.close"), onExit: () => setPropEdit(null) }}>
         <PropertyEditSheet
           basePath={path}
           column={propEdit}
@@ -2800,6 +2813,7 @@ export function BaseScreen({
           rows={rows ?? []}
           vault={vault}
         />
+        </AreaBoundary>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-11-02
+Dernière mise à jour : 2026-11-10
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -139,6 +139,10 @@ Tant qu'il n'y a pas encore de releases publiques, la vérification des mises à
 ### Y a-t-il des fonctionnalités cachées ?
 
 Starfleet ne commente jamais les rumeurs. Mais il paraît que le logo dans la barre de titre réagit à des coups persistants — et que quiconque connaît ensuite les mots justes verra Plainva sous un tout autre jour. Certains disent : au nombre de quatre.
+
+### Une partie de la fenêtre indique « Cette zone ne peut pas être affichée »
+
+Une zone n’a pas pu être affichée : un onglet, une section de la barre latérale, une vue de base de données, un e-mail, une page de paramètres, une boîte de dialogue ou, sur le téléphone, un écran ou une feuille. Seule cette zone est remplacée ; tout le reste continue de fonctionner, et une note ouverte garde son texte. **Recharger cette zone** affiche la zone à nouveau. Si elle échoue une deuxième fois, le message le dit et reste affiché : fermez l’onglet (**Fermer l'onglet**) ou, sur le téléphone, touchez **Retour**, et redémarrez Plainva si cela se reproduit. L’erreur est consignée dans **À propos et diagnostic** ; l’export de diagnostic qui s’y trouve ne contient aucun contenu de note et aide à signaler un bug.
 
 ## Voir aussi
 

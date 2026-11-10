@@ -8,7 +8,7 @@ import { getMobileSettings } from "../../services/mobileSettings";
 import { useSettingsState } from "../../hooks/useSettingsState";
 import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
-import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
+import { AreaBoundary, ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
 import { addFilterRules, FilterInWords, filterSchemaOf, inferColumnType, type BaseAi } from "@plainva/ui";
@@ -1376,6 +1376,7 @@ export function BaseConfigSheet({
       </div>
 
       {pickSourceFolder && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickSourceFolder(null) }}>
         <FolderPickerSheet
           onClose={() => setPickSourceFolder(null)}
           onPick={(path) => {
@@ -1385,8 +1386,10 @@ export function BaseConfigSheet({
           title={t("database.folder")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
       {pickItemFolder && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickItemFolder(false) }}>
         <FolderPickerSheet
           onClose={() => setPickItemFolder(false)}
           onPick={(path) => {
@@ -1399,6 +1402,7 @@ export function BaseConfigSheet({
           title={t("database.newItemFolderTitle")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
     </div>
   );
