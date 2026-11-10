@@ -101,7 +101,7 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|load') return args.db;
         if (cmd === 'plugin:sql|execute') {
           const q = String(args.query || '');
-          if (q.includes('INSERT INTO fts_notes')) {
+          if (/INSERT (OR REPLACE )?INTO fts_notes/.test(q)) {
             const [content, _title, path] = args.values || [];
             fs.__fts[String(path)] = String(content);
             fs.__taskIndexWrites++;

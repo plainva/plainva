@@ -1,5 +1,6 @@
 import type { IDatabaseAdapter } from "./IDatabaseAdapter.js";
 import { runStatementsAtomic } from "./batch.js";
+import { FIRST_ROWID_BEFORE } from "./fullTextRows.js";
 
 /**
  * Index format 6: the notes whose wiki links are read differently now are read
@@ -146,7 +147,8 @@ const rowValue = (row: unknown, key: string): unknown =>
  */
 export async function markNotesForWikiLinkReading(db: IDatabaseAdapter): Promise<number> {
   let marked = 0;
-  let after = 0;
+  // From the smallest row number: rows numbered by index format 9 are negative.
+  let after = FIRST_ROWID_BEFORE;
   for (;;) {
     const rows = await db.query(
       `SELECT rowid AS id, path, content FROM fts_notes

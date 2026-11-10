@@ -113,7 +113,7 @@ describe("properties read field by field, through the real index", () => {
 
     await initializeSchema(db);
 
-    expect((await db.queryOne<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))?.value).toBe("8");
+    expect((await db.queryOne<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))?.value).toBe("9");
     for (const path of REFUSED) expect((await file(path))!.mtime_local, path).toBe(0);
     // A note without a block has no property either, and nothing to read again.
     expect((await file("Notes/Plain.md"))!.mtime_local).toBe(plain);

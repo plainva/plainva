@@ -658,8 +658,11 @@ export class VaultQueryService {
    * document-order ordinal that toggleTaskAtIndex needs to flip it back.
    */
   async listTasks(): Promise<TaskRecord[]> {
+    // `rowid DESC`: in the order the notes came into the index, as before
+    // index format 9 numbered the rows after their files (`-files.rowid`).
+    // The other readers of the whole table below keep the same order.
     const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
-      `SELECT path, title, content FROM fts_notes`,
+      `SELECT path, title, content FROM fts_notes ORDER BY rowid DESC`,
       [],
     );
     const out: TaskRecord[] = [];
@@ -698,7 +701,7 @@ export class VaultQueryService {
    */
   async listTemplateKeyNotes(): Promise<Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }>> {
     const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
-      `SELECT path, title, content FROM fts_notes WHERE content LIKE '%templateFor%' OR content LIKE '%tasks%'`,
+      `SELECT path, title, content FROM fts_notes WHERE content LIKE '%templateFor%' OR content LIKE '%tasks%' ORDER BY rowid DESC`,
       [],
     );
     const out: Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }> = [];
@@ -762,7 +765,7 @@ export class VaultQueryService {
       if (signal?.aborted) throw new DOMException("Search cancelled", "AbortError");
       const chunk = unique.slice(i, i + 200);
       const rows = await this.db.query<{ path: string; content: string | null }>(
-        `SELECT path, content FROM fts_notes WHERE path IN (${chunk.map(() => "?").join(",")})`, chunk,
+        `SELECT path, content FROM fts_notes WHERE path IN (${chunk.map(() => "?").join(",")}) ORDER BY rowid DESC`, chunk,
       );
       for (const row of rows) {
         const body = (row.content ?? "").replace(/^\uFEFF?---[ \t]*\r?\n(?:[\s\S]*?\r?\n)??(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/, "");
@@ -816,7 +819,7 @@ export class VaultQueryService {
   async findInVault(query: string, opts: FindReplaceOptions = {}, limitPerNote = 100): Promise<VaultFindResult[]> {
     if (!query) return [];
     const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
-      `SELECT path, title, content FROM fts_notes`,
+      `SELECT path, title, content FROM fts_notes ORDER BY rowid DESC`,
       [],
     );
     const out: VaultFindResult[] = [];
@@ -842,7 +845,7 @@ export class VaultQueryService {
    */
   async findNotesWithTag(tag: string): Promise<string[]> {
     const rows = await this.db.query<{ path: string; content: string | null }>(
-      `SELECT path, content FROM fts_notes`,
+      `SELECT path, content FROM fts_notes ORDER BY rowid DESC`,
       [],
     );
     const out: string[] = [];

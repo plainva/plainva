@@ -4,6 +4,7 @@ import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
 import { mergeWorkspaceQueueCopies } from "./workspaceQueueCopies.js";
 import { markNotesForWikiLinkReading } from "./wikiLinkReadingMigration.js";
 import { runStatementsAtomic } from "./batch.js";
+import { FIRST_ROWID_BEFORE } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 
 /**
@@ -11,7 +12,8 @@ import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
  * (tasks overview, graph); `seg_content`/`seg_title` hold the character-pair
  * form of text written without spaces (vault/spacelessText.ts, format 5).
  * `content`, `title` and `path` stay in front — inserts that name only those
- * keep working, and so does an older app on a newer index.
+ * keep working, and so does an older app on a newer index. Since format 9 a
+ * row's number is the negated number of its file's row (db/fullTextRows.ts).
  */
 const FTS_NOTES_COLUMNS = `content,
       title,
@@ -710,7 +712,16 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 // row cannot tell such a note from one whose block holds nothing, so every
 // note that begins with a block and that the index holds no property for is
 // re-parsed, and no other.
-const INDEX_FORMAT_VERSION = 8;
+//
+// Version 9 numbers every full-text row after its file (Gesamtplan Leistung
+// L1, db/fullTextRows.ts): `fts_notes.rowid = -files.rowid`, so a note's row
+// is deleted and replaced by its number instead of by a search over the whole
+// table. Nothing is re-parsed: the table is copied under the new numbers
+// (`keyFullTextRowsByFile`), as version 5 copied it into its new shape. The
+// same copy runs at every start that finds a row an older app wrote (a row at
+// 0 or above, see fullTextRows.ts), so a downgrade and back costs one copy
+// and no lost search row.
+const INDEX_FORMAT_VERSION = 9;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   let stored: number;
@@ -723,7 +734,11 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   } catch {
     stored = 0;
   }
-  if (stored >= INDEX_FORMAT_VERSION) return;
+  if (stored >= INDEX_FORMAT_VERSION) {
+    // Only what an older app may have left on this index since (version 9).
+    await keyFullTextRowsByFile(db);
+    return;
+  }
 
   if (stored < 5) await upgradeFullTextTable(db);
   if (stored >= 4) {
@@ -742,18 +757,23 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
     // mark too) and that the index holds no property for — those whose block
     // the reader refused, among the ones whose block holds nothing. Their text
     // is in `fts_notes`, read once for all of them.
-    await db.execute(
-      `UPDATE files SET mtime_local = 0
-       WHERE path LIKE '%.md'
-         AND NOT EXISTS (SELECT 1 FROM properties WHERE properties.file_id = files.id)
-         AND path IN (SELECT path FROM fts_notes WHERE substr(content, 1, 3) = '---' OR substr(content, 1, 4) = char(65279) || '---')`
-    );
+    if (stored < 8) {
+      await db.execute(
+        `UPDATE files SET mtime_local = 0
+         WHERE path LIKE '%.md'
+           AND NOT EXISTS (SELECT 1 FROM properties WHERE properties.file_id = files.id)
+           AND path IN (SELECT path FROM fts_notes WHERE substr(content, 1, 3) = '---' OR substr(content, 1, 4) = char(65279) || '---')`
+      );
+    }
   } else {
     // Below 4 every note is re-parsed, which fills the new columns as well.
     // Backfill BEFORE the mtime reset — ctime derives from mtime_local.
     await db.execute(`UPDATE files SET ctime = mtime_local WHERE ctime IS NULL`);
     await db.execute(`UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'`);
   }
+  // Version 9: the full-text rows under the numbers of their files. Last, so
+  // the steps above read the table as they always did.
+  await keyFullTextRowsByFile(db);
   await db.execute(
     `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`,
     [String(INDEX_FORMAT_VERSION)]
@@ -801,7 +821,8 @@ async function upgradeFullTextTable(db: IDatabaseAdapter): Promise<void> {
  * read from disk or re-parsed.
  */
 async function fillSegmentedColumns(db: IDatabaseAdapter): Promise<void> {
-  let after = 0;
+  // From the smallest number there is: rows numbered by format 9 are negative.
+  let after = FIRST_ROWID_BEFORE;
   for (;;) {
     const rows = await db.query(
       `SELECT rowid AS id, content, title FROM fts_notes
@@ -821,4 +842,62 @@ async function fillSegmentedColumns(db: IDatabaseAdapter): Promise<void> {
     await runStatementsAtomic(db, updates);
     after = Number(rowValue(rows[rows.length - 1], "id"));
   }
+}
+
+const COPY_COLUMNS = "content, title, path, seg_content, seg_title";
+
+/**
+ * Index format 9 (db/fullTextRows.ts): gives every full-text row the negated
+ * number of its file's row, by a copy — no note is read again. Runs at every
+ * start and costs one look-up when there is nothing to do: rows at 0 or
+ * above are the ones to number, written by an app before format 9 (all rows
+ * of an index that comes from one, or the rows an older app wrote after a
+ * downgrade).
+ *
+ * - The copy takes the rows that already carry their file's number, then
+ *   numbers the others by their path; a later row of one path replaces an
+ *   earlier one (the older app deleted by path before it wrote, so the later
+ *   row is the current text). A row whose path no file has is left behind:
+ *   it belonged to nothing, search never showed it.
+ * - Copy, drop and rename run as one batch: an interrupted run leaves the
+ *   table as it was, and the next start copies again. Where an adapter has no
+ *   batch and the run stopped between drop and rename, initializeSchema has
+ *   recreated an empty table meanwhile and the copy takes its place, as in
+ *   version 5 (`upgradeFullTextTable`).
+ * - An older app on the new index keeps working: the columns are the same,
+ *   it reads and deletes by path, and its writes are numbered here next time.
+ */
+async function keyFullTextRowsByFile(db: IDatabaseAdapter): Promise<void> {
+  const copy = await db.queryOne(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fts_notes_next'`);
+  if (copy) {
+    const count = Number(rowValue(await db.queryOne(`SELECT count(*) AS n FROM fts_notes`), "n") ?? 0);
+    await runStatementsAtomic(
+      db,
+      count === 0
+        ? [{ sql: `DROP TABLE fts_notes` }, { sql: `ALTER TABLE fts_notes_next RENAME TO fts_notes` }]
+        : [{ sql: `DROP TABLE fts_notes_next` }]
+    );
+  }
+  if (!(await db.queryOne(`SELECT rowid FROM fts_notes WHERE rowid >= 0 LIMIT 1`))) return;
+  await runStatementsAtomic(db, [
+    { sql: `DROP TABLE IF EXISTS fts_notes_next` },
+    { sql: `CREATE VIRTUAL TABLE fts_notes_next USING fts5(${FTS_NOTES_COLUMNS})` },
+    // CROSS JOIN keeps the search table outside: one pass over it, a look-up
+    // in `files` by its path index for each row.
+    {
+      sql: `INSERT OR REPLACE INTO fts_notes_next (rowid, ${COPY_COLUMNS})
+        SELECT n.rowid, n.content, n.title, n.path, n.seg_content, n.seg_title
+        FROM fts_notes n CROSS JOIN files f ON f.path = n.path
+        WHERE n.rowid < 0 AND f.rowid = -n.rowid`,
+    },
+    {
+      sql: `INSERT OR REPLACE INTO fts_notes_next (rowid, ${COPY_COLUMNS})
+        SELECT -f.rowid, n.content, n.title, n.path, n.seg_content, n.seg_title
+        FROM fts_notes n CROSS JOIN files f ON f.path = n.path
+        WHERE n.rowid >= 0
+        ORDER BY n.rowid`,
+    },
+    { sql: `DROP TABLE fts_notes` },
+    { sql: `ALTER TABLE fts_notes_next RENAME TO fts_notes` },
+  ]);
 }

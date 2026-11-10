@@ -256,7 +256,7 @@ describe("VaultIndexer", () => {
     expect(insert).toBeDefined();
     expect((insert!.params as any[]).includes("attachment")).toBe(true);
     // Attachments get no FTS row.
-    expect(db.queries.some((q) => q.query.includes("INSERT INTO fts_notes") && (q.params as any[]).includes("assets/pic.png"))).toBe(false);
+    expect(db.queries.some((q) => /INSERT (OR REPLACE )?INTO fts_notes/.test(q.query) && (q.params as any[]).includes("assets/pic.png"))).toBe(false);
   });
 
   it("excludes internal paths by segment but tracks attachments incl. conflict copies and lookalikes", async () => {

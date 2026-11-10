@@ -224,7 +224,7 @@ describe("index format 6 on an index of format 5", () => {
 
     await initializeSchema(db);
 
-    expect((await db.queryOne<{ value: string }>(`SELECT value FROM meta WHERE key = 'index_format_version'`))?.value).toBe("8");
+    expect((await db.queryOne<{ value: string }>(`SELECT value FROM meta WHERE key = 'index_format_version'`))?.value).toBe("9");
     const after = await mtimes();
     const reread = [...after].filter(([path, mtime]) => mtime === 0 && before.get(path) !== 0).map(([path]) => path).sort();
     expect(reread).toEqual(["Private.md", "Reference.md"]);

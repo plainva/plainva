@@ -234,7 +234,7 @@ describe("index format 7", () => {
     const stale = (await vault.db.query<{ path: string }>("SELECT path FROM files WHERE mtime_local = 0 ORDER BY path")).map((row) => row.path);
     // A wiki link with an anchor is not what the step is about.
     expect(stale).toEqual(["Mit.md", "Start.md"]);
-    expect((await vault.db.query<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))[0].value).toBe("8");
+    expect((await vault.db.query<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))[0].value).toBe("9");
 
     await vault.indexer.indexVaultFull();
     expect(await targetsOf("Start.md")).toEqual(["Draft #1.md"]);

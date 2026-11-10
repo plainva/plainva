@@ -15,6 +15,7 @@ import { isMarkerTakenWithoutMark, readLocalText, type LocalText } from "./local
 import { encodeIndexedProperty } from "./indexedProperty.js";
 import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
+import { deleteFullTextRowsOfFiles, INSERT_FULL_TEXT_ROW } from "../db/fullTextRows.js";
 
 /** U+0000, built here so that no source line has to carry the character. */
 const NUL = String.fromCharCode(0);
@@ -753,8 +754,11 @@ export class VaultIndexer {
       // Without this clause the DELETE misses that row and the INSERT below
       // collides on the UNIQUE path, which rolls back the whole atomic batch and
       // leaves the index permanently poisoned (issue #34).
+      // The search rows of exactly the rows deleted next, by their row number
+      // (index format 9, db/fullTextRows.ts) — first, while those rows still
+      // carry it. Named by path, this delete read the whole search table.
+      await writer.execute(deleteFullTextRowsOfFiles(`id = ? OR path = ?`), [fileId, fileInfo.path]);
       await writer.execute(`DELETE FROM files WHERE id = ? OR path = ?`, [fileId, fileInfo.path]);
-      await writer.execute(`DELETE FROM fts_notes WHERE path = ?`, [fileInfo.path]);
 
       // Insert into files
       await writer.execute(
@@ -765,9 +769,10 @@ export class VaultIndexer {
 
       // Insert into fts_notes — with the character-pair form of text written
       // without spaces (empty for other scripts), see spacelessText.ts.
+      // Under the number of the row just inserted (db/fullTextRows.ts).
       await writer.execute(
-        `INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES (?, ?, ?, ?, ?)`,
-        [content, title, fileInfo.path, segmentedIndexText(content), segmentedIndexText(String(title ?? ""))]
+        INSERT_FULL_TEXT_ROW,
+        [content, title, fileInfo.path, segmentedIndexText(content), segmentedIndexText(String(title ?? "")), fileInfo.path]
       );
 
       // Update sync state ONLY if this is a newly discovered file (an orphaned
@@ -819,10 +824,18 @@ export class VaultIndexer {
       }
     } catch (e) {
       console.warn(`Failed to parse and index ${fileInfo.path}:`, e);
+      // REPLACE deletes the rows it collides with (by id, by path) and gives
+      // the new one a new number: their search rows go first, and the note's
+      // text is searchable under the new number — not a stale reading of it.
+      await writer.execute(deleteFullTextRowsOfFiles(`id = ? OR path = ?`), [fileId, fileInfo.path]);
       await writer.execute(
         `INSERT OR REPLACE INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?)`,
         [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, indexedSyncState]
+      );
+      await writer.execute(
+        INSERT_FULL_TEXT_ROW,
+        [content, fileInfo.name.replace(/\.md$/, ""), fileInfo.path, segmentedIndexText(content), segmentedIndexText(fileInfo.name.replace(/\.md$/, "")), fileInfo.path]
       );
       if (!oldSyncState) {
         await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
@@ -923,7 +936,9 @@ export class VaultIndexer {
 
     // `OR path = ?` for the same reason as in _indexFileInternal: a renamed row
     // keeps its old id, so deleting by id alone would leave it and the INSERT
-    // would collide on the UNIQUE path (issue #34).
+    // would collide on the UNIQUE path (issue #34). A row of that id may be a
+    // note an in-app rename moved to another name: its search row goes with it.
+    await writer.execute(deleteFullTextRowsOfFiles(`id = ? OR path = ?`), [fileId, fileInfo.path]);
     await writer.execute(`DELETE FROM files WHERE id = ? OR path = ?`, [fileId, fileInfo.path]);
     await writer.execute(
       `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
@@ -1249,24 +1264,23 @@ export class VaultIndexer {
       for (const { path } of rows) {
         await tx.execute(`UPDATE files SET path = ?, mtime_local = 0 WHERE path = ?`, [move(path), path]);
       }
+      // Every row now at the destination — moved here just now, or by a
+      // queued rename before. A move keeps a row's number, and its search row
+      // sits at the same number (index format 9, db/fullTextRows.ts): it
+      // takes the path its file's row has, wherever it was named before.
+      const arrived = await tx.query<{ rowid: number; path: string }>(
+        `SELECT rowid, path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
+        [to, toPrefix, toPrefix]
+      );
+      for (const { rowid, path } of arrived) {
+        await tx.execute(`UPDATE fts_notes SET path = ? WHERE rowid = ? AND path IS NOT ?`, [path, -Number(rowid), path]);
+      }
       // Asked only while a pass is under way: nobody else holds an older reading.
       if (this.openPasses > 0) {
-        const arrived = await tx.query<{ path: string }>(
-          `SELECT path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
-          [to, toPrefix, toPrefix]
-        );
         for (const { path } of arrived) {
           this.touch(back(path));
           this.touch(path);
         }
-      }
-      const ftsRows = await tx.query<{ path: string }>(
-        `SELECT path FROM fts_notes WHERE path = ? OR substr(path, 1, length(?)) = ?`,
-        [from, fromPrefix, fromPrefix]
-      );
-      for (const { path } of ftsRows) {
-        await tx.execute(`DELETE FROM fts_notes WHERE path = ?`, [move(path)]);
-        await tx.execute(`UPDATE fts_notes SET path = ? WHERE path = ?`, [move(path), path]);
       }
     });
   }
@@ -1281,9 +1295,11 @@ export class VaultIndexer {
     for (let k = 0; k < paths.length; k += CHUNK) {
       const slice = paths.slice(k, k + CHUNK);
       const marks = slice.map(() => "?").join(", ");
+      // The search rows by the number of their file's row, before that row
+      // goes (index format 9, db/fullTextRows.ts).
+      await writer.execute(deleteFullTextRowsOfFiles(`path IN (${marks})`), slice);
       // Cascades to links, tags, properties.
       await writer.execute(`DELETE FROM files WHERE path IN (${marks})`, slice);
-      await writer.execute(`DELETE FROM fts_notes WHERE path IN (${marks})`, slice);
     }
   }
 
@@ -1678,7 +1694,11 @@ export class VaultIndexer {
     await this.whenIdle();
     await this.dbAdapter.transaction(async (tx) => {
       await tx.execute(`UPDATE files SET mtime_local = 0`);
-      await tx.execute(`DELETE FROM fts_notes WHERE path NOT IN (SELECT path FROM files)`);
+      // A search row belongs to the file's row of its number and its path
+      // (index format 9); any other is left over.
+      await tx.execute(
+        `DELETE FROM fts_notes WHERE NOT EXISTS (SELECT 1 FROM files WHERE files.rowid = -fts_notes.rowid AND files.path = fts_notes.path)`
+      );
       await tx.execute(`DELETE FROM links WHERE source_id IS NULL OR source_id NOT IN (SELECT id FROM files)`);
       await tx.execute(`DELETE FROM tags WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);
       await tx.execute(`DELETE FROM properties WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);

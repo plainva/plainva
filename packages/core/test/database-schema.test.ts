@@ -67,18 +67,18 @@ describe("Database Schema", () => {
     expect(reset).toContain(`LIKE '%.md'`);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta"));
     expect(stamp).toBeDefined();
-    expect(stamp!.params).toEqual(["8"]);
+    expect(stamp!.params).toEqual(["9"]);
   });
 
   it("skips the reindex when the stored index format is current", async () => {
-    db.mockedOneResults.push({ value: "8" });
+    db.mockedOneResults.push({ value: "9" });
     await initializeSchema(db);
 
     const queries = db.queries.map(q => q.query);
     expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0"))).toBe(false);
     // Only the index-format stamp; the path-identity migration keeps its own.
     expect(queries.some(q => q.includes("INSERT OR REPLACE INTO meta") && q.includes("index_format_version"))).toBe(false);
-    expect(queries.some(q => q.includes("fts_notes_next"))).toBe(false);
+    expect(queries.some(q => q.includes("CREATE VIRTUAL TABLE fts_notes_next"))).toBe(false);
   });
 
   // Version 5 (Gesamtplan Volltextsuche CJK): the full-text table gains its
@@ -96,7 +96,7 @@ describe("Database Schema", () => {
     // is their own, and it is not "every note".
     expect(queries.some(q => /UPDATE files SET mtime_local = 0 WHERE path LIKE '%\.md'\s*$/.test(q))).toBe(false);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
-    expect(stamp!.params).toEqual(["8"]);
+    expect(stamp!.params).toEqual(["9"]);
   });
 
   // Version 7 (finding 2026-10-11): a Markdown link without an anchor of its
@@ -115,9 +115,9 @@ describe("Database Schema", () => {
     // Of those, the notes that begin with a block — after a byte order mark too.
     expect(resets[1]).toContain("substr(content, 1, 3) = '---' OR substr(content, 1, 4) = char(65279) || '---'");
     // The full-text table has its shape since version 5: it is not copied again.
-    expect(queries.some(q => q.includes("fts_notes_next"))).toBe(false);
+    expect(queries.some(q => q.includes("CREATE VIRTUAL TABLE fts_notes_next"))).toBe(false);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
-    expect(stamp!.params).toEqual(["8"]);
+    expect(stamp!.params).toEqual(["9"]);
   });
 
   it("can execute insert and select on sync_state", async () => {

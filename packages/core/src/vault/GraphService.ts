@@ -697,7 +697,8 @@ export class GraphService {
         const expression = ftsExactTerm(term);
         if (!expression) continue;
         const rows = await this.db.query<{ path: string }>(
-          `SELECT path FROM fts_notes WHERE fts_notes MATCH ?`,
+          // In the order the notes came into the index (see listTasks).
+          `SELECT path FROM fts_notes WHERE fts_notes MATCH ? ORDER BY rowid DESC`,
           [expression]
         );
         for (const r of rows) {
@@ -744,7 +745,7 @@ export class GraphService {
       const expression = ftsExactTerm(term);
       if (!expression) continue;
       const rows = await this.db.query<{ path: string }>(
-        `SELECT path FROM fts_notes WHERE fts_notes MATCH ?`,
+        `SELECT path FROM fts_notes WHERE fts_notes MATCH ? ORDER BY rowid DESC`,
         [expression]
       );
       for (const r of rows) {

@@ -1,4 +1,5 @@
 import type { IDatabaseAdapter } from "./IDatabaseAdapter.js";
+import { deleteFullTextRowsOfFiles } from "./fullTextRows.js";
 
 /**
  * Path identity version 1 (ADR 0016): every path Plainva keeps in its database
@@ -77,6 +78,8 @@ export async function migratePathIdentity(db: IDatabaseAdapter): Promise<PathIde
       if (!isTwin(path)) continue;
       const id = nfc(path);
       if (taken.has(id)) {
+        // Its search row by number, while the row still has it (index format 9).
+        await tx.execute(deleteFullTextRowsOfFiles(`path = ?`), [path]);
         await tx.execute(`DELETE FROM files WHERE path = ?`, [path]);
         report.droppedIndexRows++;
         continue;
