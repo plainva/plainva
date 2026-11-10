@@ -420,6 +420,23 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     }, form.publicationMode === "private" ? t("workspaceSecurity.sliceCreated", { defaultValue: "Slice created" }) : t("workspaceSecurity.publicationCreated", { defaultValue: "Encrypted publication configured" }));
     if (dialog === "rotate") return rotateRecovery();
     if (dialog === "owner") return transferOwner();
+    return restoreAfterAsking();
+  };
+
+  /**
+   * Restoring makes this device the only one (`revokeOtherDevices`): right when
+   * every device is lost, wrong for a second device next to one that still
+   * works, which joins through "Add another device" (R8). Asked first, on both
+   * shells.
+   */
+  const restoreAfterAsking = async (): Promise<void> => {
+    const ok = await appConfirm({
+      title: t("workspaceSecurity.restoreRevokesTitle"),
+      message: t("workspaceSecurity.restoreRevokesBody"),
+      kind: "danger",
+      confirmLabel: t("workspaceSecurity.restore", { defaultValue: "Restore access" }),
+    });
+    if (!ok) return;
     return runGovernance(async () => {
       if (!form.recoveryFile) throw new Error("Select a recovery file");
       await restoreWorkspaceRecovery({ bytes: await readFile(form.recoveryFile), recoveryCode: form.recoveryCode, deviceDisplayName: form.deviceName, fallbackPassphrase: form.fallbackPassphrase || undefined, revokeOtherDevices: true });

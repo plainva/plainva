@@ -9,7 +9,7 @@ import { QuarantineList } from "../components/QuarantineList";
 import type { WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
 import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup } from "@plainva/ui";
-import { decodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
+import { decodeWorkspaceInvite, encodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import type { MobileVault } from "../services/vaultService";
@@ -60,6 +60,13 @@ type ConnectionState =
   | { kind: "encrypted"; workspaceId: string; fingerprint: string }
   /** Probe failed (offline / expired sign-in) — stay honest, offer a recheck. */
   | { kind: "unknown" };
+
+/**
+ * A QR code is DATA, not an icon: the rendered pixel edge of a square a camera
+ * has to resolve, and 232 fills the phone's sheet. Named once, so the pairing
+ * request and the invitation (R8) draw the same square.
+ */
+const QR_EDGE = 232;
 
 export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorkspace, initialArea }: {
   vault: MobileVault;
@@ -117,6 +124,14 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
      because that is what the operation needs — the desktop's wider dialogs
      exist for slice kinds this screen deliberately does not offer. */
   const [memberName, setMemberName] = useState("");
+  /**
+   * The invitation on screen (R8, TestFlight 2026-11-08): for another device of
+   * your own (`self`), or for a member just invited. The phone had neither -
+   * inviting a member only said "member created", and "Add another device" was
+   * the desktop's - so a second phone could only come in by restoring, which
+   * removes every other device. The code is the desktop's (`encodeWorkspaceInvite`).
+   */
+  const [inviteFor, setInviteFor] = useState<{ memberId: string; displayName: string; role?: string; self: boolean } | null>(null);
   const [memberRole, setMemberRole] = useState<WorkspaceRole>("Reader");
   const [groupName, setGroupName] = useState("");
   const [sliceName, setSliceName] = useState("");
@@ -269,6 +284,16 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   const recover = async () => {
     if (!recoveryBytes) return;
+    // Restoring makes this device the only one (`revokeOtherDevices`), which is
+    // right when every device is lost and wrong for a second phone next to a
+    // first one that still works (R8). Said before, not found out after.
+    const ok = await mConfirm({
+      title: t("workspaceSecurity.restoreRevokesTitle"),
+      message: t("workspaceSecurity.restoreRevokesBody"),
+      confirmLabel: t("workspaceSecurity.restore", { defaultValue: "Restore access" }),
+      danger: true,
+    });
+    if (!ok) return;
     setBusyAction("recover");
     try {
       await recoverMobileWorkspace({ vaultId: vault.vaultId, store: await getMobileWorkspaceObjectStore(vault.vaultId), bytes: recoveryBytes, code: recoveryCode, deviceName });
@@ -355,9 +380,36 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     } finally { setBusyAction(null); }
   };
 
-  const inviteMember = () => void runGovernance("invite", (store, rt) =>
-    inviteMobileWorkspaceMember({ vaultId: vault.vaultId, store, runtime: rt, displayName: memberName.trim(), role: memberRole })
-      .then(() => setMemberName("")), t("workspaceSecurity.memberInvited"));
+  const inviteMember = () => {
+    const displayName = memberName.trim();
+    const role = memberRole;
+    void runGovernance("invite", (store, rt) =>
+      inviteMobileWorkspaceMember({ vaultId: vault.vaultId, store, runtime: rt, displayName, role })
+        // The person needs the code to join; it is shown at once (R8).
+        .then((memberId) => { setMemberName(""); setInviteFor({ memberId, displayName, role, self: false }); }), t("workspaceSecurity.memberInvited"));
+  };
+
+  /** The invitation panel: code, QR and copy, as the desktop's dialog has them. */
+  const invitePanel = (self: boolean) => {
+    if (!inviteFor || inviteFor.self !== self || !status) return null;
+    const code = encodeWorkspaceInvite({ memberId: inviteFor.memberId, workspaceId: status.workspaceId, fingerprint: status.fingerprint, role: inviteFor.role });
+    return <div className="m-pairing" data-testid="workspace-invite-panel">
+      <SectionLabel>{self ? t("workspaceSecurity.addDevice") : t("workspaceSecurity.inviteArtifactTitle", { name: inviteFor.displayName })}</SectionLabel>
+      <p className="m-hint">{self ? t("workspaceSecurity.addDeviceDesc") : t("workspaceSecurity.inviteArtifactShort")}<InfoTip label={self ? t("workspaceSecurity.addDevice") : t("workspaceSecurity.inviteCode")} info={self ? t("workspaceSecurity.addDeviceHint") : t("workspaceSecurity.inviteArtifactHint")} /></p>
+      <div className="m-pairing-qr">
+        <QrImage value={code} size={QR_EDGE} label={t("workspaceSecurity.inviteCode")} />
+        <p className="m-onramp-sub">{t("workspaceSecurity.inviteQrCaption")}</p>
+      </div>
+      <div className="m-codefield">
+        <span className="m-codefield-label">{t("workspaceSecurity.inviteCode")}</span>
+        <div className="m-codefield-row">
+          <code className="m-code" data-testid="workspace-invite-code">{code}</code>
+          <IconButton label={t("workspaceSecurity.copyInvite")} onClick={() => void navigator.clipboard.writeText(code).then(() => toast.info(t("workspaceSecurity.copied")))}><Copy size={ICON.head} /></IconButton>
+        </div>
+      </div>
+      <Button variant="ghost" onClick={() => setInviteFor(null)}>{t("common.close")}</Button>
+    </div>;
+  };
 
   const addGroup = () => void runGovernance("group", (store, rt) =>
     createMobileWorkspaceGroup({ vaultId: vault.vaultId, store, runtime: rt, name: groupName.trim(), memberIds: [], role: "Reader" })
@@ -821,12 +873,25 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             />)}
             <Row
               disabled={busy}
+              icon={<Smartphone className="m-accent" size={ICON.ui} />}
+              onClick={() => {
+                const own = runtime.policy.payload.members.find((member) => member.memberId === runtime.memberId);
+                const role = runtime.policy.payload.assignments.find((a) => a.subjectKind === "member" && a.subjectId === runtime.memberId)?.role;
+                setInviteFor({ memberId: runtime.memberId, displayName: own?.displayName ?? t("workspaceSecurity.thisDevice"), role, self: true });
+              }}
+              subtitle={t("workspaceSecurity.addDeviceDesc")}
+              data-testid="workspace-add-device"
+              title={t("workspaceSecurity.addDevice")}
+            />
+            <Row
+              disabled={busy}
               icon={<QrCode className="m-accent" size={ICON.ui} />}
               onClick={() => setScan("approve")}
               title={t("workspaceSecurity.scanQr", { defaultValue: "Scan and approve a device" })}
             />
           </RowList>
         </GroupCard>
+        {invitePanel(true)}
         {pairPreview && <div className="m-security-approval">
           <GroupCard><RowList><Row subtitle={`${pairPreview.platform} · ${pairPreview.memberId}`} title={<strong>{pairPreview.deviceName}</strong>} /></RowList></GroupCard>
           <div className="m-codefield"><span className="m-codefield-label">{t("workspaceSecurity.pairingVerifyLabel", { defaultValue: "Confirm this matches the other device's screen" })}</span><code className="m-code">{pairPreview.fingerprint}</code></div>
@@ -851,6 +916,12 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
               // over; the recovery fields below decide whether the action is
               // reachable at all, and the row says so rather than failing later.
               end={member.state === "active" && member.memberId !== runtime.ownerMemberId ? <span className="m-revoke">
+                {member.memberId !== runtime.memberId && <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => setInviteFor({ memberId: member.memberId, displayName: member.displayName, role: runtime.policy.payload.assignments.find((a) => a.subjectKind === "member" && a.subjectId === member.memberId)?.role, self: false })}
+                >{t("workspaceSecurity.showInvite")}</Button>}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -865,6 +936,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             />)}
           </RowList>
         </GroupCard>
+        {invitePanel(false)}
         {area === "sharing" && <>
           {/* Inviting creates the member and its personal key group; the DEVICE
               is paired afterwards, which is what the toast says. */}
@@ -1051,12 +1123,12 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           </div>
           <ol className="m-onramp-steps">
             <li className="done"><span className="m-step-num"><Check size={ICON.meta} /></span><div><p>{t("workspaceSecurity.onRampStep1", { defaultValue: "Cloud connected" })}</p></div></li>
-            <li className="now"><span className="m-step-num">2</span><div><p>{t("workspaceSecurity.onRampStep2", { defaultValue: "Join this workspace" })}</p><p className="m-step-sub">{t("workspaceSecurity.onRampStep2Body", { defaultValue: "Pair with a device that is already in, or restore from your recovery file." })}</p></div></li>
+            <li className="now"><span className="m-step-num">2</span><div><p>{t("workspaceSecurity.onRampStep2", { defaultValue: "Join this workspace" })}</p><p className="m-step-sub">{t("workspaceSecurity.onRampStep2Body")}</p></div></li>
           </ol>
         </div>
 
         <SectionLabel>{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</SectionLabel>
-        <p className="m-hint">{t("workspaceSecurity.joinHelp", { defaultValue: "On the inviting device open Security & Sharing, go to the team's members, choose \"Show invitation\" and copy the code. Paste it here." })}</p>
+        <p className="m-hint">{t("workspaceSecurity.joinHelp")}</p>
         {/* Opening a publication is the same door (Stufe B, S7).
 
             A publication is a workspace of its own - own genesis, own keys, own
@@ -1093,7 +1165,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
         {request && <div className="m-pairing">
           <div className="m-pairing-qr">
-            <QrImage value={request.token} size={232} label={t("workspaceSecurity.pairingQrCaption", { defaultValue: "Pairing request code" })} />
+            <QrImage value={request.token} size={QR_EDGE} label={t("workspaceSecurity.pairingQrCaption", { defaultValue: "Pairing request code" })} />
             <p className="m-onramp-sub">{t("workspaceSecurity.pairingScanCaption", { defaultValue: "On a device that is already in, open Security & Sharing and scan this to approve." })}</p>
           </div>
           <div className="m-codefield">

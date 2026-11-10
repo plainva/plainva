@@ -1198,7 +1198,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       console.warn("[sync] workspace genesis probe failed; starting the regular worker", probe.probeError);
     }
     if (probe.encryptedGenesisFound) {
-      setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired", { defaultValue: "This remote is an encrypted workspace. Pair or recover this device in Security settings." }), errorKind: "pair-required" });
+      setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
       return;
     }
   }

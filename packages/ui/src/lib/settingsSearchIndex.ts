@@ -413,6 +413,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsIndexEntry[] = [
   {"shell":"mobile","area":"security","kind":"row","card":"workspaceSecurity.currentStatus","label":"workspaceSecurity.resumeSetup","desc":["workspaceSecurity.resumeSetupDesc"]},
   {"shell":"mobile","area":"security","kind":"row","card":"workspaceSecurity.currentStatus","label":"workspaceSecurity.rekey"},
   {"shell":"mobile","area":"security","sub":"access","kind":"card","card":"workspaceSecurity.devicesCard"},
+  {"shell":"mobile","area":"security","sub":"access","kind":"row","card":"workspaceSecurity.devicesCard","label":"workspaceSecurity.addDevice","desc":["workspaceSecurity.addDeviceDesc"]},
   {"shell":"mobile","area":"security","sub":"access","kind":"row","card":"workspaceSecurity.devicesCard","label":"workspaceSecurity.scanQr"},
   {"shell":"mobile","area":"security","sub":"access","kind":"row","card":"workspaceSecurity.devicesCard","label":"workspaceSecurity.approve"},
   {"shell":"mobile","area":"security","sub":"sharing","kind":"card","card":"workspaceSecurity.teamsCard"},
