@@ -224,8 +224,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install Playwright Browsers
         run: pnpm --filter desktop exec playwright install --with-deps chromium
-      # The suite runs against the built bundle, not the dev server (R10): what
-      # ships, plus the fixtures a few tests import (scripts/e2e-bundle.mjs).
+      # The suite runs against the built bundle, not the dev server (R10): the
+      # production build, chunk for chunk (scripts/e2e-bundle.mjs).
       - name: Build the e2e bundle
         run: pnpm --filter desktop run build:e2e
       - name: E2E tests
@@ -254,6 +254,47 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: playwright-e2e-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: apps/desktop/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The probe pages (apps/desktop/scripts/e2e-bundle.mjs, PROBE_SPECS): a bare
+  # page around one fixture module, which only the dev server can serve. They
+  # test components, not the bundle, so they run here against the dev server
+  # and the bundle shards above leave them out.
+  e2e-probes:
+    name: E2E probes (dev server)
+    needs: verified
+    if: needs.verified.outputs.verified != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright Browsers
+        run: pnpm --filter desktop exec playwright install --with-deps chromium
+      - name: E2E probe pages
+        env:
+          E2E_PROBES: "1"
+        run: xvfb-run pnpm --filter desktop exec playwright test
+      - name: Look for Playwright traces
+        id: traces
+        if: always()
+        run: |
+          if find apps/desktop/test-results -name trace.zip 2>/dev/null | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload Playwright traces
+        if: failure() || steps.traces.outputs.found == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-probes-${{ github.run_attempt }}
           path: apps/desktop/test-results/
           if-no-files-found: ignore
           retention-days: 7
@@ -314,7 +355,7 @@ jobs:
   # as well and the green "Checks" from the branch run stands.
   checks:
     name: Checks
-    needs: [verified, static, unit, build, e2e, mobile-smoke]
+    needs: [verified, static, unit, build, e2e, e2e-probes, mobile-smoke]
     if: always() && needs.verified.outputs.verified != 'true'
     runs-on: ubuntu-latest
     steps:

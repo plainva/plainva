@@ -21,8 +21,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // CI: two shards of two workers each (stability plan R10); one worker locally.
-  workers: process.env.CI ? 2 : 1,
+  // One worker, in CI split into two shards (stability plan R10). Two workers
+  // per shard lost a typed Enter right after a save (note-line-ends, 2 of 3
+  // runs, 2026-11-10): a race to look into, not to run into on every push.
+  workers: 1,
   reporter: "list",
   // In CI the first run of every test is traced and the trace kept when it
   // fails: `on-first-retry` kept the retry, which is the attempt that passed.

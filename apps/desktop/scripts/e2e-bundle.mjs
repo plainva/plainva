@@ -1,29 +1,33 @@
 /**
  * The bundle the desktop end-to-end suite runs against in CI (stability plan
- * R10): `vite build --mode e2e`, served by `vite preview`.
+ * R10): `vite build --mode e2e` into dist-e2e, served by `vite preview`.
  *
  * Until 2026-11 the suite ran against the Vite dev server only: one transform
  * pipeline behind every test, one worker, 67 minutes, and a bundle the suite
  * never saw (the production smokes look at the first screen and nothing more).
- * The e2e bundle is the shipped build plus what a handful of tests reach into
- * on purpose, and nothing else:
  *
- * - the probe pages' fixture modules (`e2e/fixtures/*Probe.ts(x)`): a probe
- *   page imports one of them by its source path, as it does from the dev server;
- * - three app modules a test drives directly (`TEST_HOOK_MODULES`). Each is an
- *   entry of its own, so the app and the test share ONE instance of it.
+ * The e2e bundle is the production build, chunk for chunk. The first version
+ * added the test fixtures and three app modules as extra entries; that moved
+ * modules between chunks, changed the order they load in, and the app in it
+ * failed where the shipped one does not (a slot builder read before its module
+ * had run). So nothing is added to the module graph:
  *
- * `vite preview` answers the source paths with a redirect to the built file
- * (from the build manifest), so a spec reads the same in both modes. The dev
- * server stays the local default (`pnpm test:e2e`, or `E2E_BASE_URL` for a dev
- * server on another port); `E2E_BUNDLE=1` runs against this bundle instead.
+ * - A few tests drive an app module directly (`TEST_HOOK_MODULES`, imported by
+ *   its source path as from the dev server). In the e2e mode those modules get
+ *   one line appended that registers their exports on `globalThis` when they
+ *   load; `vite preview` answers the source path with a module that waits for
+ *   that registration and re-exports it. Same instance as the app's, no new
+ *   chunk, no new import.
+ * - The probe pages (`PROBE_SPECS`, a bare page around one fixture module) do
+ *   not use the app at all: they run against the dev server in a job of their
+ *   own (`E2E_PROBES=1`), and the bundle run leaves them out.
  *
  * A release build is built in its own mode and gets none of it:
  * `e2eBundleBuild()` and `e2eBundlePlugins()` give nothing for any other mode,
- * and `e2eBundleIsolation.test.ts` holds the release workflows to that.
+ * and ciWorkflow.test.ts holds the release workflows to that.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 export const E2E_BUNDLE_MODE = "e2e";
 export const E2E_BUNDLE_OUT_DIR = "dist-e2e";
@@ -31,70 +35,73 @@ export const E2E_BUNDLE_OUT_DIR = "dist-e2e";
 /** App modules a test imports by path to drive the app (relative to apps/desktop). */
 export const TEST_HOOK_MODULES = ["src/services/syncStatusStore.ts", "src/services/dirtyStore.ts", "src/services/personalDesign.ts"];
 
-/** What a probe page cannot do without in a bundle: the dev server's React refresh preamble, as a no-op. */
-const REACT_REFRESH_STUB = "export default { injectIntoGlobalHook() {} };\n";
+/** Specs built on probe pages: a bare page that imports one fixture module from the dev server. */
+export const PROBE_SPECS = [
+  "floatingLayer.spec.ts",
+  "listGeometry.spec.ts",
+  "menus.spec.ts",
+  "pinboardReturn.spec.ts",
+  "pressBeside.spec.ts",
+  "propertySuggestions.spec.ts",
+  "rtlEditor.spec.ts",
+  "security-rendering.spec.ts",
+  "tableCell.spec.ts",
+];
 
-function probeModules(root) {
-  const dir = join(root, "e2e", "fixtures");
-  return readdirSync(dir).filter((name) => /Probe\.tsx?$/.test(name)).map((name) => `e2e/fixtures/${name}`);
+const REGISTRY = "__plainvaTestModules";
+
+/** The names a module exports, read from its source (`export const|function|class|let`, `export { … }`). */
+export function exportedNames(source) {
+  const names = new Set();
+  for (const m of source.matchAll(/^export\s+(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/gm)) names.add(m[1]);
+  for (const m of source.matchAll(/^export\s*\{([^}]*)\}/gm)) {
+    for (const part of m[1].split(",")) {
+      const name = part.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop()?.trim();
+      if (name && !part.trim().startsWith("type ")) names.add(name);
+    }
+  }
+  return [...names];
 }
 
-/** Every extra entry of the e2e bundle, by its path relative to apps/desktop. */
-export function e2eBundleEntries(root) {
-  return [...probeModules(root), ...TEST_HOOK_MODULES];
+/** The `build` options the e2e mode adds; empty for every other mode. */
+export function e2eBundleBuild(mode) {
+  if (mode !== E2E_BUNDLE_MODE) return {};
+  return { outDir: E2E_BUNDLE_OUT_DIR };
 }
 
-/**
- * What the e2e mode adds to `build` (`build`) and to `build.rollupOptions`
- * (`rollup`); both empty for every other mode.
- */
-export function e2eBundleBuild(mode, root) {
-  if (mode !== E2E_BUNDLE_MODE) return { build: {}, rollup: {} };
-  const input = { index: resolve(root, "index.html") };
-  for (const rel of e2eBundleEntries(root)) input[`e2e-entry/${rel.replace(/\.[^.]+$/, "").replace(/[/\\]/g, "_")}`] = resolve(root, rel);
-  return {
-    build: { outDir: E2E_BUNDLE_OUT_DIR, manifest: true },
-    // An entry keeps its exports: the test imports them.
-    rollup: { input, preserveEntrySignatures: "exports-only" },
-  };
-}
-
-/** Serves a source path a test imports as the built file it became. */
+/** The registration line and the source-path answers; nothing for every other mode. */
 export function e2eBundlePlugins(mode, root) {
   if (mode !== E2E_BUNDLE_MODE) return [];
+  const hookKey = (id) => {
+    const rel = id.replace(/\\/g, "/").split("?")[0];
+    return TEST_HOOK_MODULES.find((m) => rel.endsWith(`/apps/desktop/${m}`));
+  };
   return [{
-    name: "plainva-e2e-bundle-paths",
+    name: "plainva-e2e-bundle",
+    transform(code, id) {
+      const key = hookKey(id);
+      if (!key) return null;
+      const names = exportedNames(code);
+      return { code: `${code}\n;(globalThis.${REGISTRY} ??= {})[${JSON.stringify(key)}] = { ${names.join(", ")} };\n`, map: null };
+    },
     configurePreviewServer(server) {
-      const manifestPath = join(root, E2E_BUNDLE_OUT_DIR, ".vite", "manifest.json");
-      let built = null;
-      const lookup = () => {
-        if (built) return built;
-        if (!existsSync(manifestPath)) throw new Error(`e2e bundle: ${manifestPath} is missing; build with --mode e2e first`);
-        built = new Map();
-        const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-        for (const [src, chunk] of Object.entries(manifest)) if (chunk.isEntry) built.set(`/${src}`, `/${chunk.file}`);
-        return built;
-      };
       server.middlewares.use((req, res, next) => {
         const path = (req.url || "").split("?")[0];
-        if (path === "/@react-refresh") {
-          res.setHeader("Content-Type", "text/javascript");
-          res.end(REACT_REFRESH_STUB);
-          return;
-        }
-        if (!path.startsWith("/src/") && !path.startsWith("/e2e/")) return next();
-        const target = lookup().get(path);
-        if (!target) {
-          // A test imported a module the bundle has no entry for: say which,
-          // rather than letting the import fail on an HTML 404 page.
-          res.statusCode = 404;
-          res.setHeader("Content-Type", "text/plain");
-          res.end(`e2e bundle: ${path} is not an entry of the e2e bundle (apps/desktop/scripts/e2e-bundle.mjs)`);
-          return;
-        }
-        res.statusCode = 302;
-        res.setHeader("Location", target);
-        res.end();
+        const key = TEST_HOOK_MODULES.find((m) => path === `/${m}`);
+        if (!key) return next();
+        const names = exportedNames(readFileSync(join(root, key), "utf8"));
+        // The module registers itself when the app loads it; a test asks after the app is up.
+        const body = [
+          `const key = ${JSON.stringify(key)};`,
+          `let mod = globalThis.${REGISTRY}?.[key];`,
+          `for (let waited = 0; !mod && waited < 15000; waited += 50) { await new Promise((r) => setTimeout(r, 50)); mod = globalThis.${REGISTRY}?.[key]; }`,
+          `if (!mod) throw new Error("e2e bundle: " + key + " was never loaded by the app");`,
+          ...names.map((n) => `export const ${n} = mod.${n};`),
+          "",
+        ].join("\n");
+        res.setHeader("Content-Type", "text/javascript");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(body);
       });
     },
   }];

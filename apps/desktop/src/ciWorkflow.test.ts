@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -50,13 +50,14 @@ describe("the CI workflow", () => {
     }
   });
 
-  it("runs the desktop E2E suite against the built bundle, in four shards", () => {
+  it("runs the desktop E2E suite against the built bundle, in four shards, and the probe pages against the dev server", () => {
     const e2e = jobs.e2e;
     expect(JSON.stringify(e2e.strategy)).toContain("[1,2,3,4]");
     const steps = JSON.stringify(e2e.steps);
     expect(steps).toContain("build:e2e");
     expect(steps).toContain('"E2E_BUNDLE":"1"');
     expect(steps).toContain("--shard=${{ matrix.shard }}/4");
+    expect(JSON.stringify(jobs["e2e-probes"].steps)).toContain('"E2E_PROBES":"1"');
   });
 });
 
@@ -88,19 +89,26 @@ describe("the e2e bundle stays a test build", () => {
   const root = fileURLToPath(new URL("..", import.meta.url));
 
   it("adds entries, a manifest and the source-path redirects in the e2e mode only", async () => {
-    const { e2eBundleBuild, e2eBundlePlugins, e2eBundleEntries, E2E_BUNDLE_OUT_DIR } = await import("../scripts/e2e-bundle.mjs");
+    const { e2eBundleBuild, e2eBundlePlugins, exportedNames, TEST_HOOK_MODULES, E2E_BUNDLE_OUT_DIR } = await import("../scripts/e2e-bundle.mjs");
     for (const mode of ["production", "development", "test", "labs"]) {
-      expect(e2eBundleBuild(mode, root)).toEqual({ build: {}, rollup: {} });
+      expect(e2eBundleBuild(mode)).toEqual({});
       expect(e2eBundlePlugins(mode, root)).toEqual([]);
     }
-    const e2e = e2eBundleBuild("e2e", root);
-    expect(e2e.build).toEqual({ outDir: E2E_BUNDLE_OUT_DIR, manifest: true });
-    // Every probe page's fixture and every module a test imports is an entry;
-    // a list that came back empty would leave the probe tests nothing to load.
-    const entries = e2eBundleEntries(root);
-    expect(entries.filter((e: string) => e.startsWith("e2e/fixtures/")).length).toBeGreaterThanOrEqual(5);
-    expect(entries).toEqual(expect.arrayContaining(["src/services/syncStatusStore.ts", "src/services/dirtyStore.ts", "src/services/personalDesign.ts"]));
-    expect(Object.keys((e2e.rollup as { input: Record<string, string> }).input)).toHaveLength(entries.length + 1);
+    // The e2e build is the production build in its own folder: no entry, no chunk of its own.
+    expect(e2eBundleBuild("e2e")).toEqual({ outDir: E2E_BUNDLE_OUT_DIR });
+    // Each module a test drives has the exports the test reads.
+    expect(TEST_HOOK_MODULES.length).toBeGreaterThan(0);
+    for (const rel of TEST_HOOK_MODULES) expect(exportedNames(readFileSync(new URL(`../${rel}`, import.meta.url), "utf8")).length, rel).toBeGreaterThan(0);
+    expect(exportedNames("export const a = 1;\nexport function b() {}\nexport { c, d as e, type F };\nconst x = 2;")).toEqual(["a", "b", "c", "e"]);
+  });
+
+  it("names every spec built on a probe page, so the bundle run leaves exactly those out", async () => {
+    const { PROBE_SPECS } = await import("../scripts/e2e-bundle.mjs");
+    const dir = new URL("../e2e/", import.meta.url);
+    const specs = readdirSync(dir).filter((f) => f.endsWith(".spec.ts"));
+    const probing = specs.filter((f) => /import\(['"]\/e2e\/fixtures\//.test(readFileSync(new URL(f, dir), "utf8")));
+    expect(probing.length).toBeGreaterThan(0);
+    expect([...PROBE_SPECS].sort()).toEqual(probing.sort());
   });
 
   it("is built by CI's E2E jobs alone, never by a release or the app's own build", () => {

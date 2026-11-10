@@ -18,7 +18,6 @@ export default defineConfig(async ({ mode }) => {
   if (mode === "test") pinTestTimeZone();
   // The bundle the E2E suite runs against in CI (`--mode e2e`, R10); nothing for any other mode.
   const root = fileURLToPath(new URL(".", import.meta.url));
-  const e2e = e2eBundleBuild(mode, root);
   return {
   plugins: [react(), ...e2eBundlePlugins(mode, root)],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
@@ -85,7 +84,7 @@ export default defineConfig(async ({ mode }) => {
     },
   },
   build: {
-    ...e2e.build,
+    ...e2eBundleBuild(mode),
     // The supported engine floor is a PRODUCT decision, not a Vite default.
     // Until this line existed the floor came from `baseline-widely-available`,
     // which Vite bumps on every major — silently, and without anyone deciding
@@ -102,7 +101,6 @@ export default defineConfig(async ({ mode }) => {
     // Raising it is allowed; doing so by accident is not.
     target: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
     rollupOptions: {
-      ...e2e.rollup,
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;

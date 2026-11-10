@@ -444,13 +444,20 @@ test("Scotty's line to the mouse unlocks Windows 95 as the LAST picker card", as
   await expect(page.getByTestId('hailing-feedback')).toContainText(/How quaint|Wie rückständig/);
   await expect(page.locator('html')).toHaveAttribute('data-theme-name', 'win95');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  const accent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim());
-  expect(accent.toLowerCase()).toBe('#000080');
+  // A token as the browser resolves it: the production stylesheet is minified
+  // and may spell #000080 as `navy`, which is the same colour.
+  const resolved = (token: string) => page.evaluate((name) => {
+    const probe = document.createElement('span');
+    probe.style.color = `var(${name})`;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  }, token);
+  expect(await resolved('--accent-color')).toBe('rgb(0, 0, 128)');
   // The authentic-rework tokens are live: teal desktop + navy title bar.
-  const canvas = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim());
-  expect(canvas.toLowerCase()).toBe('#008080');
-  const titlebar = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--titlebar-bg').trim());
-  expect(titlebar.toLowerCase()).toBe('#000080');
+  expect(await resolved('--canvas-bg')).toBe('rgb(0, 128, 128)');
+  expect(await resolved('--titlebar-bg')).toBe('rgb(0, 0, 128)');
 
   // A theme unlock is a bonus find — it does NOT join the 13-variant
   // LCARS collection (no progress line appears).

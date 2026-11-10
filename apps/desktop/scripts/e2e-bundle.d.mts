@@ -2,6 +2,7 @@
 export declare const E2E_BUNDLE_MODE: string;
 export declare const E2E_BUNDLE_OUT_DIR: string;
 export declare const TEST_HOOK_MODULES: string[];
-export declare function e2eBundleEntries(root: string): string[];
-export declare function e2eBundleBuild(mode: string, root: string): { build: Record<string, unknown>; rollup: Record<string, unknown> };
+export declare const PROBE_SPECS: string[];
+export declare function exportedNames(source: string): string[];
+export declare function e2eBundleBuild(mode: string): Record<string, unknown>;
 export declare function e2eBundlePlugins(mode: string, root: string): unknown[];

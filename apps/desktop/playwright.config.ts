@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { TEST_TIME_ZONE, pinTestTimeZone } from '../../scripts/test-clock.mjs';
+import { PROBE_SPECS } from './scripts/e2e-bundle.mjs';
 
 // One zone for the runner and the page (R9, scripts/test-clock.mjs); the shared
 // `test` of e2e/fixtures/clockedTest.ts starts each page clock at TEST_NOW.
@@ -10,10 +11,16 @@ pinTestTimeZone();
 // nothing but serves the e2e bundle (`pnpm build:e2e` first) with `vite preview`
 // on 4175 — what CI runs (stability plan R10, scripts/e2e-bundle.mjs).
 const bundle = !process.env.E2E_BASE_URL && !!process.env.E2E_BUNDLE;
+// The probe pages import a fixture module from the dev server and use nothing
+// of the app's bundle: in CI they run on their own against the dev server
+// (E2E_PROBES=1), and a run against the bundle leaves them out.
+const probes = !!process.env.E2E_PROBES;
+const againstBundle = bundle || !!process.env.E2E_AGAINST_BUNDLE;
 const baseURL = process.env.E2E_BASE_URL || (bundle ? 'http://localhost:4175' : 'http://localhost:1420');
 
 export default defineConfig({
   testDir: './e2e',
+  ...(probes ? { testMatch: PROBE_SPECS } : againstBundle ? { testIgnore: PROBE_SPECS } : {}),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

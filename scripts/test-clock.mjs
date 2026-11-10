@@ -9,9 +9,9 @@
 //   first, which starts the clock of each test file at TEST_NOW (it keeps
 //   running from there: timers and elapsed-time code behave as before);
 // - every Playwright config pins the zone of the runner (TZ) and of the page
-//   (`timezoneId`), and the shared `test` of each app's E2E folder installs the
-//   page clock at TEST_NOW before each test (`page.clock.install`), so the
-//   page and `testNow()` on the runner side agree.
+//   (`timezoneId`), and the shared `test` of each app's E2E folder starts the
+//   page's Date at TEST_NOW before each test (`installPageDate`), so the page
+//   and `testNow()` on the runner side agree.
 //
 // Both are defaults: a test that is about a particular moment sets it
 // (`vi.setSystemTime`, `page.clock.setFixedTime`), and the very few that are
@@ -108,4 +108,42 @@ export function installShiftedDate(startMs, realStartMs = REAL_DATE.now()) {
   Object.defineProperty(TestDate, "name", { value: "Date" });
   globalThis.Date = TestDate;
   return () => { globalThis.Date = Real; };
+}
+
+/**
+ * The page side of the E2E clock, handed to `addInitScript` by the shared
+ * `test` of each app's E2E folder (it must stand alone: no closures). The page's
+ * Date starts at `testMs` and runs on with the real clock, anchored to the same
+ * real instant (`realMs`) as `testNow()` on the runner side, so a reload does
+ * not turn the clock back. Only Date moves: timers, requestAnimationFrame,
+ * `performance` and event time stamps stay real, so the editor's input handling
+ * is what it is outside the tests. A test that calls `page.clock` gets
+ * Playwright's own clock instead, on the real Date (`releasePageDate`).
+ */
+export function installPageDate({ testMs, realMs }) {
+  if (globalThis.__plainvaRealDate) return;
+  const Real = Date;
+  const offset = testMs - realMs;
+  const now = () => Real.now() + offset;
+  function TestDate(...args) {
+    if (!new.target) return new Real(now()).toString();
+    return Reflect.construct(Real, args.length ? args : [now()], new.target);
+  }
+  Object.setPrototypeOf(TestDate, Real);
+  TestDate.prototype = Real.prototype;
+  TestDate.now = now;
+  TestDate.parse = Real.parse;
+  TestDate.UTC = Real.UTC;
+  TestDate.toString = () => Real.toString();
+  Object.defineProperty(TestDate, "name", { value: "Date" });
+  Object.defineProperty(globalThis, "__plainvaRealDate", { value: Real, configurable: true });
+  globalThis.Date = TestDate;
+}
+
+/** Puts the page's real Date back, before Playwright's clock takes over. */
+export function releasePageDate() {
+  const Real = globalThis.__plainvaRealDate;
+  if (!Real) return;
+  globalThis.Date = Real;
+  delete globalThis.__plainvaRealDate;
 }

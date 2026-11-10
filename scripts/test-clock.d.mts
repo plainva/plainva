@@ -7,3 +7,5 @@ export declare function wallTimeToEpochMs(wall: string, zone?: string): number;
 export declare function realDateNow(): number;
 export declare function installShiftedDate(startMs: number, realStartMs?: number): () => void;
 export declare function useRealDate(): void;
+export declare function installPageDate(anchor: { testMs: number; realMs: number }): void;
+export declare function releasePageDate(): void;
