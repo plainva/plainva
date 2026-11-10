@@ -73,6 +73,15 @@ export default defineConfig(({ mode }) => {
     target: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
     rollupOptions: {
       output: {
+        // Modules run in the order their imports say, whichever chunk they
+        // land in. Rolldown does not promise that by default: across chunks
+        // that import each other, a module could run before one it imports
+        // and read its exports as undefined. In the desktop bundle the
+        // keychain slot builders were undefined that way and every mail
+        // sign-in check threw; a probe of the shared UI read a list of AI
+        // tools as "not iterable" (stability plan R10, 2026-11-10). This
+        // closes the class for every module instead of rewriting each read.
+        strictExecutionOrder: true,
         /**
          * React and everything that reaches for it go in ONE chunk.
          *
