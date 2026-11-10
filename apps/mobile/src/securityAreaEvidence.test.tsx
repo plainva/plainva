@@ -25,6 +25,8 @@ vi.mock("./services/syncService", () => ({
   getMobileRemoteWorkspaceInfo: vi.fn(async () => ({ workspaceId: "ws-1", fingerprint: "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90" })),
   quarantineSync: vi.fn(),
   stopSyncAndDrain: vi.fn(async () => undefined),
+  restartSyncIfActive: vi.fn(async () => undefined),
+  mobileEncryptedRemotePorts: vi.fn(async () => ({ load: async () => null, save: async () => undefined, clear: async () => undefined })),
 }));
 vi.mock("./services/vaultService", () => ({ reloadActiveMobileVault: vi.fn(async () => undefined) }));
 vi.mock("./services/vaultRegistry", () => ({ getActiveVaultEntry: vi.fn(async () => ({ id: "v", name: "Notes" })) }));

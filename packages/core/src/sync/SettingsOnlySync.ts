@@ -1,6 +1,6 @@
 import type { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import type { ISyncTarget } from "./ISyncTarget.js";
-import type { SettingsSyncRunner } from "./SyncWorker.js";
+import type { PlainRemoteGuard, SettingsSyncRunner } from "./SyncWorker.js";
 
 /**
  * The sync of a vault whose FILES are switched off (plan "Verbinden", E3;
@@ -30,6 +30,8 @@ export class SettingsOnlySync {
     private readonly vault: IVaultAdapter,
     private readonly intervalMs: number,
     private readonly onError: (error: unknown) => void = (error) => console.error("[SettingsOnlySync] settings sync failed:", error),
+    /** Asked before every run (R8): the profile is plain text, and never goes next to an encrypted workspace this device has not joined. */
+    private readonly remoteGuard?: PlainRemoteGuard,
   ) {}
 
   /** Starts the interval with a run right away (the device may have missed "on"). */
@@ -59,6 +61,7 @@ export class SettingsOnlySync {
   private runSerially(): Promise<void> {
     const run = this.chain.then(async () => {
       try {
+        if (this.remoteGuard) await this.remoteGuard(this.target);
         if (this.runner.guardBeforeCycle) await this.runner.guardBeforeCycle(this.target, this.vault);
         await this.runner.run(this.target, this.vault);
       } catch (error) {

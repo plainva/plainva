@@ -25,7 +25,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, clearEncryptedRemote, decideEncryptedRemote, ENCRYPTED_REMOTE_RETRY_MS, encryptedRemoteSettingsPorts, markEncryptedRemote, type EncryptedRemotePorts } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideEncryptedRemote, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, markEncryptedRemote, markEncryptedRemoteJoined, plainRemoteGuard, workspaceDeparture, syncStateBindingDecision, type EncryptedRemotePorts } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -47,7 +47,7 @@ import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "./fileMoved";
-import { loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
+import { getMobileWorkspaceStatus, loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
 import {
   addVault,
   getActiveVaultEntry,
@@ -430,9 +430,13 @@ async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generati
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
   const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  // The profile is plain text: it never goes next to a workspace this device
+  // has not joined (R8) - the same gate as the file worker's, before the
+  // target is used for anything.
+  if (await holdForEncryptedRemote(v, p, rawTarget, generation)) return;
   const { target, runner } = await prepareMobileSettingsSync(v, p, rawTarget);
   if (worker || settingsOnlySync || generation !== startGeneration) return;
-  settingsOnlySync = new SettingsOnlySync(runner, target, v.backup ?? v.adapter, syncIntervalMs());
+  settingsOnlySync = new SettingsOnlySync(runner, target, v.backup ?? v.adapter, syncIntervalMs(), undefined, v.workspaceRuntime ? undefined : await mobilePlainRemoteGuard(v, p));
   settingsOnlySync.start();
   setState({ status: "off", message: null });
 }
@@ -529,12 +533,13 @@ export async function connectProvider(
     return;
   }
   const id = newVaultId();
+  // The folder holds a workspace: known before the vault's credentials exist,
+  // as the connect wizard knows it (R8). A probe that fails here learns
+  // nothing - and the first start of a vault that never synced plainly waits
+  // for a probe that answers.
+  if ((await probeConnectedFolder(p)).encryptedGenesisFound) await markEncryptedRemote(await mobileEncryptedRemotePorts(id));
   await getPlatformServices().credentials.writeSecret(credKeyFor(id), p);
   await adoptOrForget(id, adopt);
-  // The folder holds a workspace: known before the vault's first start, as the
-  // connect wizard knows it (R8 follow-up). A probe that fails here learns
-  // nothing; the first start asks again.
-  if ((await probeConnectedFolder(p)).encryptedGenesisFound) await markEncryptedRemote(await mobileEncryptedRemotePorts(id));
   await addVault({ id, name: providerVaultName(p), provider: p.provider });
   // Offered instead of taken while something else's unsaved input is on screen
   // (`flowVault.ts`): the vault is connected either way.
@@ -730,6 +735,87 @@ async function mobileSyncBinding(v: MobileVault, p: MobileSyncProvider): Promise
  */
 export async function mobileEncryptedRemotePorts(vaultId: string): Promise<EncryptedRemotePorts> {
   return encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), vaultId);
+}
+
+/** The workspace's genesis in a folder, read through the vault's own target. */
+function readGenesisVia(p: MobileSyncProvider, target: ISyncTarget): Promise<Uint8Array | null> {
+  return createProviderWorkspaceObjectStore(workspaceProvider(p.provider), target).get(".pvws/genesis.pvgen");
+}
+
+/** Asked by the plain sync before it writes anything, every cycle (R8). */
+async function mobilePlainRemoteGuard(v: MobileVault, p: MobileSyncProvider) {
+  return plainRemoteGuard({ ports: await mobileEncryptedRemotePorts(v.vaultId), binding: await mobileSyncBinding(v, p), readGenesis: (target) => readGenesisVia(p, target) });
+}
+
+/**
+ * Whether the vault synced plainly against THIS folder before - its records
+ * confirm remote files and were made with this folder. Read without binding
+ * anything: the settings-only start does not bind.
+ */
+async function syncedPlainlyHere(v: MobileVault, binding: SyncStateBinding): Promise<boolean> {
+  const stored = await (await getPlatformServices().loadSettings()).get<SyncStateBinding>(`syncStateBinding_${v.vaultId}`);
+  if (syncStateBindingDecision(stored, binding) !== "keep") return false;
+  return (await v.syncRepo?.hasConfirmedRemoteFiles()) ?? false;
+}
+
+/** Attempts in a row held back for an unconfirmed folder: the retry backs off with them. */
+let encryptedRemoteAttempt = 0;
+
+/**
+ * The gate before the plain sync touches the folder (R8): the file worker and
+ * the settings-only sync both ask it, before the target is used for anything.
+ * True when the start is held - the status then says why, and an unconfirmed
+ * folder is asked again later.
+ */
+async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, rawTarget: ISyncTarget, generation: number): Promise<boolean> {
+  const ports = await mobileEncryptedRemotePorts(v.vaultId);
+  if (v.workspaceRuntime) {
+    // A member with its keys: the encrypted worker runs. The knowledge stays.
+    await markEncryptedRemoteJoined(ports, workspaceDeparture(v.workspaceRuntime).workspace).catch(() => undefined);
+    encryptedRemoteAttempt = 0;
+    return false;
+  }
+  // A member without its keys - locked, or the key went with a reinstall: the
+  // desktop's locked and key-missing branch. Never the plain sync.
+  const status = await getMobileWorkspaceStatus(v.vaultId).catch(() => null);
+  if (status) {
+    await markEncryptedRemoteJoined(ports).catch(() => undefined);
+    setState({ status: "error", message: i18n.t(status.phase === "locked" ? "workspaceSecurity.lockedMessage" : "workspaceSecurity.keyBundleMissingMessage"), errorKind: "pair-required" });
+    return true;
+  }
+  const binding = await mobileSyncBinding(v, p);
+  const gate = await decideEncryptedRemote({
+    ports,
+    binding,
+    readGenesis: () => readGenesisVia(p, rawTarget),
+    syncedPlainlyBefore: () => syncedPlainlyHere(v, binding),
+  });
+  if (gate.kind === "plain") {
+    if (gate.probeError) console.warn("[sync] workspace genesis probe failed; this folder synced plainly before, so the sync starts", gate.probeError);
+    encryptedRemoteAttempt = 0;
+    return false;
+  }
+  if (gate.kind === "pair-required") {
+    setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
+    return true;
+  }
+  if (gate.kind === "left") {
+    setState({ status: "error", message: i18n.t("workspaceSecurity.leftWorkspaceFolder") });
+    return true;
+  }
+  console.warn("[sync] the folder could not be confirmed; the plain sync stays off", gate.probeError);
+  const delay = encryptedRemoteRetryDelay(encryptedRemoteAttempt++);
+  setState({
+    status: "retrying",
+    message: i18n.t(gate.why === "first" ? "workspaceSecurity.folderUnconfirmed" : gate.mayDismiss ? "workspaceSecurity.workspaceNotFound" : "workspaceSecurity.mobilePairRequired"),
+    errorKind: "pair-required",
+    retryAt: Date.now() + delay,
+  });
+  encryptedRemoteRetry = setTimeout(() => {
+    encryptedRemoteRetry = null;
+    if (generation === startGeneration) void restartSyncIfActive(v.vaultId);
+  }, delay);
+  return true;
 }
 
 let encryptedRemoteRetry: ReturnType<typeof setTimeout> | null = null;
@@ -1208,49 +1294,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   if (rawTarget instanceof DriveSyncTarget && !(await readDriveDestination(v.vaultId, p)).id) {
     rawTarget.onRootFolderResolved = (info) => { resolvedDriveRoot = { id: info.id, path: info.path }; };
   }
-  if (!v.workspaceRuntime) {
-    // Probe for an encrypted-workspace genesis so a plaintext local vault is
-    // never synced blindly against a workspace remote. A transport/auth failure
-    // here (e.g. an expired Google Drive token -> HTTP 400) must NOT abort
-    // startWorker: that rejection used to escape to the boot handler and cover
-    // the ENTIRE app with a fatal "startup error", locking the user out (they
-    // couldn't even reach Reconnect).
-    //
-    // What the probe answers is weighed against what the vault is known to be
-    // (R8 follow-up, `decideEncryptedRemote`). For a vault nobody knows to sit
-    // on a workspace, a failed probe still falls through to the regular
-    // worker, whose cycle reports the error. For one that IS known to - the
-    // connect wizard bound it to such a folder, or an earlier probe found the
-    // genesis - it does not: the regular worker would upload every local note
-    // as plain text next to the encrypted objects (its sealed-blob guard only
-    // looks at what it downloads). That vault waits and tries again.
-    const objectStore = createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
-    const gate = await decideEncryptedRemote({
-      ports: await mobileEncryptedRemotePorts(v.vaultId),
-      binding: await mobileSyncBinding(v, p),
-      readGenesis: () => objectStore.get(".pvws/genesis.pvgen"),
-    });
-    if (gate.kind === "plain" && gate.probeError) {
-      console.warn("[sync] workspace genesis probe failed; starting the regular worker", gate.probeError);
-    }
-    if (gate.kind === "pair-required") {
-      setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
-      return;
-    }
-    if (gate.kind === "unconfirmed") {
-      console.warn("[sync] encrypted workspace could not be confirmed; the plain sync stays off", gate.probeError);
-      const retryAt = Date.now() + ENCRYPTED_REMOTE_RETRY_MS;
-      setState({ status: "retrying", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required", retryAt });
-      encryptedRemoteRetry = setTimeout(() => {
-        encryptedRemoteRetry = null;
-        if (generation === startGeneration) void restartSyncIfActive(v.vaultId);
-      }, ENCRYPTED_REMOTE_RETRY_MS);
-      return;
-    }
-  } else {
-    // Joined: the encrypted worker runs, and the fact has served.
-    await clearEncryptedRemote(await mobileEncryptedRemotePorts(v.vaultId)).catch(() => undefined);
-  }
+  if (await holdForEncryptedRemote(v, p, rawTarget, generation)) return;
   const { target, runner: settingsSync } = await prepareMobileSettingsSync(v, p, rawTarget);
   if (v.workspaceRuntime && v.workspaceState) {
     const objectStore = createProviderWorkspaceObjectStore(workspaceProvider(p.provider), rawTarget);
@@ -1339,8 +1383,15 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     settingsSync,
     deletionJournal: journal,
     ownDeletions: v.ownDeletions,
+    remoteGuard: await mobilePlainRemoteGuard(v, p),
   });
   w.onStatusChange = (status, errorMsg, reason, retryAt) => {
+    // The folder became (or was) a workspace this phone has not joined: the
+    // worker stops, and the start's gate says what to do (R8).
+    if (reason === "encrypted-workspace") {
+      void restartSyncIfActive(v.vaultId);
+      return;
+    }
     setState({ status, message: errorMsg ?? null, retryAt, rootMissing: reason === "root-missing" });
   };
   // The listing contradicts itself: facts for the sync screen, null once a

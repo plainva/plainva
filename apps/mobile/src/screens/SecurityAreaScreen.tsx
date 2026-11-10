@@ -8,13 +8,13 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { QuarantineList } from "../components/QuarantineList";
 import type { WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
-import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup } from "@plainva/ui";
+import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, workspaceDeparture, dismissEncryptedRemote, encryptedRemoteDismissable, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup } from "@plainva/ui";
 import { decodeWorkspaceInvite, encodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
-import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, quarantineSync, stopSyncAndDrain } from "../services/syncService";
+import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, mobileEncryptedRemotePorts, quarantineSync, restartSyncIfActive, stopSyncAndDrain } from "../services/syncService";
 import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core";
@@ -220,6 +220,26 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     const timer = setTimeout(() => setRequestExpired(true), remaining);
     return () => clearTimeout(timer);
   }, [request]);
+
+  /**
+   * The way out when the folder was known to hold a workspace and has answered
+   * "not found" several times in a row (R8): the person's own word that it is a
+   * normal folder now. The guard in every sync cycle stays behind it.
+   */
+  const [plainFolderOffered, setPlainFolderOffered] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void mobileEncryptedRemotePorts(vault.vaultId).then((ports) => encryptedRemoteDismissable(ports)).then((offer) => { if (alive) setPlainFolderOffered(offer); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [vault.vaultId, connection]);
+  const syncAsPlainFolder = async () => {
+    const ok = await mConfirm({ title: t("workspaceSecurity.plainFolderAction"), message: t("workspaceSecurity.plainFolderConfirm"), confirmLabel: t("workspaceSecurity.plainFolderAction"), danger: true });
+    if (!ok) return;
+    if (await dismissEncryptedRemote(await mobileEncryptedRemotePorts(vault.vaultId))) {
+      setPlainFolderOffered(false);
+      await restartSyncIfActive(vault.vaultId);
+    }
+  };
 
   /** One remote probe decides what this screen may claim. */
   const probeConnection = useCallback(async () => {
@@ -716,6 +736,13 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
    * and the status row below counts down what is still to upload.
    */
   const liftEncryption = async () => {
+    // Lifting puts plain text into the folder. While other devices still use
+    // the workspace there, that would sit next to their encrypted notes (R8):
+    // the folder stays theirs, and this vault needs another one.
+    if (!workspaceDeparture(vault.workspaceRuntime ?? null).sole) {
+      toast.error(t("workspaceSecurity.liftNotSole"));
+      return;
+    }
     const ok = await mConfirm({
       title: t("workspaceSecurity.liftEncryption"),
       message: t("workspaceSecurity.liftEncryptionConfirm"),
@@ -725,7 +752,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     if (!ok) return;
     setBusyAction("lift");
     try {
-      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain });
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain, runtime: vault.workspaceRuntime });
       // The queue table lives in the vault's own database, which is still open
       // here — the reload below boots a plain vault whose worker drains it.
       await vault.syncQueue?.enqueueAllLocalFiles();
@@ -755,7 +782,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     }
     setBusyAction("decommission");
     try {
-      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain });
+      await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: stopSyncAndDrain, runtime: vault.workspaceRuntime });
       toast.info(t("workspaceSecurity.decommissionDone"));
       await reloadActiveMobileVault("security-area");
     } catch (error) {
@@ -804,13 +831,26 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           plain/local vault — only the joined and joinable cases add this row.
           Unlocking belongs to the status, not to an area, so it sits with it and
           above the area switch (N3.2). */}
+      {area === "overview" && !status && plainFolderOffered && (
+        <GroupCard><RowList><Row
+          data-testid="workspace-plain-folder"
+          disabled={busy}
+          icon={<ShieldOff size={ICON.ui} />}
+          onClick={() => void syncAsPlainFolder()}
+          subtitle={t("workspaceSecurity.workspaceNotFound")}
+          title={t("workspaceSecurity.plainFolderAction")}
+        /></RowList></GroupCard>
+      )}
       {area === "overview" && (status || connection.kind === "encrypted") && <>
         <SectionLabel>{t("workspaceSecurity.currentStatus")}</SectionLabel>
         <GroupCard>
           <RowList>
             {(status || connection.kind === "encrypted") && <Row
               icon={status ? <ShieldCheck className="m-accent" size={ICON.ui} /> : <ConnectionIcon size={ICON.ui} />}
-              title={status ? `${t(`workspaceSecurity.phase.${status.phase}`)} · ${status.deviceName}` : t("workspaceSecurity.notConfigured")}
+              // Not "not configured yet" (R8, photo of the join screen): the folder
+              // holds a workspace, and this device has not joined it.
+              subtitle={status ? undefined : t("workspaceSecurity.notJoinedSubtitle")}
+              title={status ? `${t(`workspaceSecurity.phase.${status.phase}`)} · ${status.deviceName}` : t("workspaceSecurity.notJoinedTitle")}
             />}
             {status?.phase === "locked" && <Row
               disabled={busy}

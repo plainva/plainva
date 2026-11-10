@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { InfoTip, Banner, Button, ICON, Modal, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
+import { InfoTip, Banner, Button, ICON, Modal, dismissEncryptedRemote, encryptedRemoteDismissable, encryptedRemoteSettingsPorts, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedProjectionPreview, type PublishedSliceMode, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core";
 import { appConfirm } from "../../services/appDialogs";
+import { getSettingsStore } from "../../services/settingsStore";
 import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
 import { parseSliceForm, roleName, type Diagnostics, type Governance, type GovernanceForm, type WorkspaceRole } from "./securityForms";
@@ -77,7 +78,27 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     exportWorkspaceQuarantine,
     detectJoinableWorkspace,
     openVault,
+    reloadVault,
   } = useVault();
+  /**
+   * The way out when the folder was known to hold a workspace and answered
+   * "not found" several times in a row (R8): the person's own word that it is a
+   * normal folder now. The guard in every sync cycle stays behind it.
+   */
+  const [plainFolderOffered, setPlainFolderOffered] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void getSettingsStore().then((store) => encryptedRemoteDismissable(encryptedRemoteSettingsPorts(store, selectedVault))).then((offer) => { if (alive) setPlainFolderOffered(offer); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [selectedVault]);
+  const syncAsPlainFolder = async () => {
+    const ok = await appConfirm({ title: t("workspaceSecurity.plainFolderAction"), message: t("workspaceSecurity.plainFolderConfirm"), kind: "danger", confirmLabel: t("workspaceSecurity.plainFolderAction") });
+    if (!ok) return;
+    if (await dismissEncryptedRemote(encryptedRemoteSettingsPorts(await getSettingsStore(), selectedVault))) {
+      setPlainFolderOffered(false);
+      if (isActiveVault) await reloadVault();
+    }
+  };
   const status = isActiveVault ? workspaceSecurityStatus : null;
   const [joinable, setJoinable] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -522,8 +543,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       <section className="pv-security-hero" aria-label={t("workspaceSecurity.currentStatus")}>
         <div className="pv-security-hero-icon"><ShieldCheck size={ICON.empty} /></div>
         <div className="pv-security-hero-copy">
-          <strong>{status ? t("workspaceSecurity.workspaceProtected") : t("workspaceSecurity.notConfigured")}</strong>
-          <span>{status ? `${phaseLabel(t, status.phase)} · ${status.deviceName}` : selectedVault}</span>
+          {/* Not "not configured yet" where the folder holds a workspace this device has not joined (R8). */}
+          <strong>{status ? t("workspaceSecurity.workspaceProtected") : joinable ? t("workspaceSecurity.notJoinedTitle") : t("workspaceSecurity.notConfigured")}</strong>
+          <span>{status ? `${phaseLabel(t, status.phase)} · ${status.deviceName}` : joinable ? t("workspaceSecurity.notJoinedSubtitle") : selectedVault}</span>
         </div>
         {status
           ? <Button variant="secondary" onClick={() => { setShowDetails((value) => !value); void refreshDiagnostics(); }}>{showDetails ? t("workspaceSecurity.hideDetails") : t("workspaceSecurity.showDetails")}</Button>
@@ -531,6 +553,13 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             ? <Button variant="primary" disabled={busy} onClick={() => setShowJoin(true)} data-testid="workspace-security-join">{t("workspaceSecurity.joinCta", { defaultValue: "Join" })}</Button>
             : <Button variant="primary" disabled={busy} onClick={() => void requireWorkspace(() => setShowSetup(true), true)} data-testid="workspace-security-hero-setup">{t("workspaceSecurity.setup")}</Button>}
       </section>
+      {!status && plainFolderOffered && (
+        <SettingCard label={t("workspaceSecurity.currentStatus")}>
+          <SettingRow label={t("workspaceSecurity.plainFolderAction")} desc={t("workspaceSecurity.workspaceNotFound")}>
+            <Button variant="secondary" onClick={() => void syncAsPlainFolder()} data-testid="workspace-plain-folder">{t("workspaceSecurity.plainFolderAction")}</Button>
+          </SettingRow>
+        </SettingCard>
+      )}
       {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinDetectedShort")}<InfoTip label={t("workspaceSecurity.joinCta", { defaultValue: "Join" })} info={t("workspaceSecurity.joinDetected")} /></Banner>}
 
       {/* Two named entry cards (IA v2, P2) open the second level: "your access"

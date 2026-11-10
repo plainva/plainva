@@ -22,6 +22,7 @@ import {
 } from "./nameTwins.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
+import { isWorkspaceGenesisPath, isWorkspaceNamespacePath } from "../workspace/path.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, UnsyncableFileError, type SyncErrorKind } from "./errorKind.js";
 import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js";
 import { localNameRefusal } from "./localNameRefusal.js";
@@ -167,7 +168,7 @@ export function isLocalOnlyPath(path: string): boolean {
   // has nothing to do with it - pulling it put ciphertext objects into a plain
   // vault (a vault that lifted the encryption keeps syncing that folder, and
   // the objects stay there until the person removes them).
-  return path.startsWith(".plainva") || path === ".pvws" || path.startsWith(".pvws/") || path.includes(".CONFLICT") || isSystemJunkPath(path);
+  return path.startsWith(".plainva") || isWorkspaceNamespacePath(path) || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
 /**
@@ -378,7 +379,18 @@ export interface SyncWorkerOptions {
    * a file the WORKER removed must not come back as a queued remote delete.
    */
   ownDeletions?: OwnDeletionRegister;
+  /**
+   * Asked before the plain sync writes anything to the remote, every cycle and
+   * before every settings run (R8): throws `FatalSyncProtocolError`
+   * ("encrypted-workspace") when the folder holds an encrypted workspace this
+   * device may not sync next to; any other error skips the step. A listing that
+   * carries a genesis asks it again. Without it, a listed genesis stops the cycle.
+   */
+  remoteGuard?: PlainRemoteGuard;
 }
+
+/** See `SyncWorkerOptions.remoteGuard`. */
+export type PlainRemoteGuard = (rawTarget: ISyncTarget) => Promise<void>;
 
 /**
  * What became of one remote deletion the worker tried to mirror locally.
@@ -756,7 +768,10 @@ export class SyncWorker {
   private runSettingsSerially(): Promise<void> {
     const runner = this.settingsSyncRunner;
     if (!runner) return Promise.resolve();
-    const run = this.settingsChain.then(() => runner.run(this.rawTarget, this.vault));
+    const run = this.settingsChain.then(async () => {
+      if (this.options.remoteGuard) await this.options.remoteGuard(this.rawTarget);
+      await runner.run(this.rawTarget, this.vault);
+    });
     this.settingsChain = run.catch(() => undefined);
     return run;
   }
@@ -2257,6 +2272,10 @@ export class SyncWorker {
       if (this.settingsSyncRunner?.guardBeforeCycle && alive()) {
         await this.settingsSyncRunner.guardBeforeCycle(this.rawTarget, this.vault);
       }
+      // 0a. The folder is no encrypted workspace this device may not sync next
+      // to (R8) - asked before the journal below writes, and every cycle: a
+      // folder can become a workspace while this worker runs.
+      if (this.options.remoteGuard && alive()) await this.options.remoteGuard(this.rawTarget);
 
       // 0b. Deletion journal (P1): merge the remote journal BEFORE the pull, so
       // the reconcile below already knows which absences a human confirmed.
@@ -2297,6 +2316,13 @@ export class SyncWorker {
       const pullResult = doFullListing
         ? await this.target.pull()
         : await this.target.pull(this.cursor);
+      // A listing that carries a genesis: the folder is (or just became) a
+      // workspace. `.pvws/` is local-only and drops out below, so this is the
+      // one place it shows (R8).
+      if ([...pullResult.etagMap.keys()].some((path) => isWorkspaceGenesisPath(path))) {
+        if (this.options.remoteGuard) await this.options.remoteGuard(this.rawTarget);
+        else throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace");
+      }
       const now = Date.now();
       const pullMs = now - pullStartedAt;
       const remotePaths = new Set(pullResult.etagMap.keys());

@@ -28,6 +28,20 @@ describe("the settings-only sync of a vault whose files are off", () => {
     expect(runner.run).toHaveBeenCalledTimes(2);
   });
 
+  it("sends no profile into a folder its guard refuses (R8)", async () => {
+    const errors: unknown[] = [];
+    const runner = { run: vi.fn().mockResolvedValue(undefined) };
+    const guard = vi.fn(async () => { throw new Error("encrypted workspace"); });
+    const sync = new SettingsOnlySync(runner, target, vault, 1000, (error) => errors.push(error), guard);
+    sync.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await sync.pushSettingsNow();
+    expect(guard).toHaveBeenCalledTimes(2);
+    expect(runner.run).not.toHaveBeenCalled();
+    expect(errors).toHaveLength(2);
+    await sync.stopAndDrain();
+  });
+
   it("goes on after a failed run - the next tick delivers what did not get through", async () => {
     const errors: unknown[] = [];
     const runner = { run: vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined) };

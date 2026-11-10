@@ -5,6 +5,20 @@ import { protocolAssert } from "./errors.js";
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const RESERVED_CHARS = /[<>:"|?*\\]/;
 
+/**
+ * Whether a path lies in an encrypted workspace's own namespace (`.pvws/`, any
+ * case). One rule for the workspace's reservation below and for the plain
+ * sync, which never touches it (R8).
+ */
+export function isWorkspaceNamespacePath(path: string): boolean {
+  return path.split("/")[0].toLowerCase() === ".pvws";
+}
+
+/** Whether a path is a workspace's genesis, the file that makes a folder a workspace (any case). */
+export function isWorkspaceGenesisPath(path: string): boolean {
+  return path.toLowerCase() === ".pvws/genesis.pvgen";
+}
+
 /** Normalises a user path for creation and rejects cross-platform ambiguities. */
 export function normalizeVaultPath(input: string): string {
   protocolAssert(typeof input === "string" && input.length > 0, "format", "vault path is empty");
@@ -14,7 +28,7 @@ export function normalizeVaultPath(input: string): string {
   protocolAssert(!RESERVED_CHARS.test(path) && !hasControlCharacters(path), "format", "vault path contains a reserved character");
   protocolAssert(utf8Encode(path).length <= MAX_VAULT_PATH_BYTES, "bounds", "vault path is too long");
   const segments = path.split("/");
-  protocolAssert(segments[0].toLowerCase() !== ".pvws", "format", "vault path uses the reserved workspace namespace");
+  protocolAssert(!isWorkspaceNamespacePath(path), "format", "vault path uses the reserved workspace namespace");
   for (const segment of segments) {
     protocolAssert(segment.length > 0 && segment !== "." && segment !== "..", "format", "vault path contains an invalid segment");
     protocolAssert(!segment.endsWith(" ") && !segment.endsWith("."), "format", "vault path segment has an unsafe suffix");

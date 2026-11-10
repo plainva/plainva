@@ -15,7 +15,9 @@ export class FatalSyncProtocolError extends Error {
       | "plaintext-in-strict"
       | "key-mismatch"
       | "manifest-invalid"
-      | "guard-too-old",
+      | "guard-too-old"
+      /** The folder holds an encrypted workspace this device may not sync plainly into (R8). */
+      | "encrypted-workspace",
     message: string
   ) {
     super(message);

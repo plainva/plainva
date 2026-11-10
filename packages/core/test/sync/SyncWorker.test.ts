@@ -174,6 +174,41 @@ describe("SyncWorker", () => {
     expect([...files.values()]).toContain(content("done"));
   });
 
+  it("stops before writing anything when the guard finds a workspace this device may not sync next to (R8)", async () => {
+    const seen: Array<string | undefined> = [];
+    const journal = { sync: vi.fn().mockResolvedValue(undefined), load: vi.fn(), activePathEntries: () => [], recordPathEntries: vi.fn(), explainsPath: () => null };
+    const remoteGuard = vi.fn(async () => { throw new FatalSyncProtocolError("encrypted-workspace", "workspace"); });
+    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { remoteGuard, deletionJournal: journal as never });
+    worker["isRunning"] = true;
+    worker.onStatusChange = (_status, _message, reason) => seen.push(reason);
+    await worker.runCycle();
+    expect(remoteGuard).toHaveBeenCalledTimes(1);
+    expect(journal.sync).not.toHaveBeenCalled();
+    expect(target.pull).not.toHaveBeenCalled();
+    expect(engine.processQueue).not.toHaveBeenCalled();
+    expect(seen).toContain("encrypted-workspace");
+  });
+
+  it("a listing that carries a genesis (any case) stops the cycle before the push, with no guard to ask (R8)", async () => {
+    const seen: Array<string | undefined> = [];
+    target.pull.mockResolvedValue({ etagMap: new Map([[".PVWS/Genesis.pvgen", "e1"], ["note.md", "e2"]]) });
+    worker.onStatusChange = (_status, _message, reason) => seen.push(reason);
+    await worker.runCycle();
+    expect(engine.processQueue).not.toHaveBeenCalled();
+    expect(target.download).not.toHaveBeenCalled();
+    expect(seen).toContain("encrypted-workspace");
+  });
+
+  it("a listing that carries a genesis asks the guard again, and a guard that allows it lets the cycle on (R8)", async () => {
+    const remoteGuard = vi.fn(async () => undefined);
+    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { remoteGuard });
+    worker["isRunning"] = true;
+    target.pull.mockResolvedValue({ etagMap: new Map([[".pvws/genesis.pvgen", "e1"]]) });
+    await worker.runCycle();
+    expect(remoteGuard).toHaveBeenCalledTimes(2);
+    expect(target.download).not.toHaveBeenCalledWith(".pvws/genesis.pvgen", expect.anything());
+  });
+
   it("reports a temporary failure as retrying with the time of the next attempt, not as an error", async () => {
     // The reported symptom, exactly: one dropped Drive request produced a red
     // "error" with the raw provider string, and syncing again cleared it.
@@ -917,6 +952,7 @@ describe("SyncWorker", () => {
     // An encrypted workspace's object store is never the plain sync's (R8 follow-up).
     expect(isLocalOnlyPath(".pvws/genesis.pvgen")).toBe(true);
     expect(isLocalOnlyPath(".pvws")).toBe(true);
+    expect(isLocalOnlyPath(".PVWS/objects/x")).toBe(true);
     expect(isLocalOnlyPath(".pvwsnotes.md")).toBe(false);
   });
 

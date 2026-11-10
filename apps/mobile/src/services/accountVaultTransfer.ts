@@ -245,11 +245,11 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     if (!existing) await copyProfilePreferences(v, id, target);
     await saveCloudAccounts(id, [...combined.values()]);
     if (!sameStoredValue(await loadCloudAccounts(id), [...combined.values()])) throw new Error("storageFailed");
+    // Known before the vault is bound: a kill between the two must not leave a
+    // bound vault that does not know it sits on a workspace (R8).
+    if (encrypted) await markEncryptedRemote(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), id));
     await secrets.writeSecret(syncProviderSlot(id), p);
     if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
-    // Known from here on: the vault sits on a workspace it has not joined, and
-    // no failed probe later lets the plain sync start against it.
-    if (encrypted) await markEncryptedRemote(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), id));
     await bindRunTokenToAccount(id, run.family, runServices(run));
   } finally { await db.close(); }
   // Everything is written: from here on the vault is the person's, even if the
