@@ -5,6 +5,7 @@ import {
   Button,
   Chip,
   emptyEventForm,
+  localDayDistance,
   type EventFormValues,
   eventFormFromEvent,
   eventFormToDraft,
@@ -83,7 +84,7 @@ export function EventEditSheet({
     if (event) return eventFormFromEvent(event);
     if (initial.form) return { ...initial.form, calendarKey: initial.form.calendarKey || initial.calendarKey };
     const base = emptyEventForm(localIsoKey(new Date(initial.startTs)), initial.calendarKey);
-    return { ...base, startTime: hhmm(initial.startTs), endTime: hhmm(initial.endTs) };
+    return { ...base, startTime: hhmm(initial.startTs), endTime: hhmm(initial.endTs), endDayOffset: localDayDistance(initial.startTs, initial.endTs) };
   });
   const [form, setForm] = useState<EventFormValues>(opened);
   // Whatever differs from what the sheet opened with is unsaved (finding 2026-10-22).
@@ -164,7 +165,8 @@ export function EventEditSheet({
             />
             <TextInput
               aria-label={t("pim.eventTo")}
-              onChange={(e) => set({ endTime: e.target.value })}
+              // An end time typed here is on the start's day (`endDayOffset`).
+              onChange={(e) => set({ endTime: e.target.value, endDayOffset: undefined })}
               type="time"
               value={form.endTime}
             />
