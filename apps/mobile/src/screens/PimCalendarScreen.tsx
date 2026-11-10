@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, ListChecks, RefreshCw, CalendarPlus } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
-import { AreaBoundary, chunkWeeks, dayRangeLabel, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
+import { AreaBoundary, chunkWeeks, dayRangeLabel, formatClockTime, formatHourMark, formatMinuteOfDay, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "@plainva/ui";
 import type { PimEventRow, PimSyncProblem } from "@plainva/core";
 import { isoOf } from "../lib/dates";
@@ -581,7 +581,10 @@ export function PimCalendarScreen({
     const el = scrollRef.current;
     if (!el || view === "agenda") return;
     const focusHour = days.some((d) => isoOf(d) === todayIso) ? Math.max(0, new Date().getHours() - 1) : 7;
-    el.scrollTop = focusHour * PX_PER_HOUR;
+    // Half an hour of air above the focus hour: its label is centred ON the
+    // hour line, and landing exactly on the line put the upper half of the
+    // label under the pinned head (finding X2).
+    el.scrollTop = Math.max(0, (focusHour - 0.5) * PX_PER_HOUR);
   }, [view, rangeStart, days, todayIso]);
 
   // What the all-day row of a time grid holds per day, in the order it draws
@@ -687,11 +690,11 @@ export function PimCalendarScreen({
       <Segmented
         ariaLabel={t("pim.viewSwitch", { defaultValue: "Ansicht" })}
         options={[
-          { value: "day", label: t("pim.viewDay", { defaultValue: "Tag" }) },
-          { value: "3day", label: t("pim.view3Day", { defaultValue: "3 Tage" }) },
-          { value: "week", label: t("pim.viewWeek") },
+          { value: "day", label: t("pim.viewDay", { defaultValue: "Tag" }), testId: "pim-view-day" },
+          { value: "3day", label: t("pim.view3Day", { defaultValue: "3 Tage" }), testId: "pim-view-3day" },
+          { value: "week", label: t("pim.viewWeek"), testId: "pim-view-week" },
           { value: "month", label: t("pim.viewMonth"), testId: "pim-view-month" },
-          { value: "agenda", label: t("pim.viewAgenda", { defaultValue: "Agenda" }) },
+          { value: "agenda", label: t("pim.viewAgenda", { defaultValue: "Agenda" }), testId: "pim-view-agenda" },
         ]}
         value={view}
         onChange={(v) => setView(v as PimView)}
@@ -770,7 +773,7 @@ export function PimCalendarScreen({
         // The month is a grid of days with dots, not a squeezed time grid: at
         // 375 px a full month of positioned blocks is unreadable, and what one
         // wants from a month is "which days are busy" plus a way in.
-        <div ref={ptrRef} className="m-scroll">
+        <div key="month" ref={ptrRef} className="m-scroll">
           {ptrIndicator}
           <div className={`m-cal-grid m-cal-grid--month${monthWeeks ? " m-cal-grid--weeks" : ""}`}>
             {monthWeeks && <div className="m-cal-wd m-cal-week" style={{ gridRow: 1, gridColumn: 1 }}>{t("calendar.weekShort")}</div>}
@@ -866,7 +869,11 @@ export function PimCalendarScreen({
           </div>
         </div>
       ) : view === "agenda" ? (
-        <div ref={ptrRef} className="m-scroll">
+        // Each view keeps its OWN scroller (finding X1, review 2026-11-10):
+        // the views are siblings of one conditional, and without a key React
+        // handed the time grid's scroller - scrolled to the morning - to the
+        // agenda, which opened part-way down, its first row under the day head.
+        <div key="agenda" ref={ptrRef} className="m-scroll" data-testid="pim-agenda">
           {ptrIndicator}
           {days.filter((d) => (byDay.get(isoOf(d)) ?? []).length > 0 || notesOf(isoOf(d)).length > 0).map((d) => {
             const key = isoOf(d);
@@ -877,7 +884,7 @@ export function PimCalendarScreen({
             const list = split.appointments.sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.ts - b.start.ts);
             return (
               <div key={key}>
-                <div style={{ position: "sticky", top: 0, background: "var(--bg-secondary)", padding: "4px 12px", fontSize: "var(--text-xs)", fontWeight: 600, color: key === todayIso ? "var(--accent-color)" : "var(--text-muted)" }}>
+                <div className="m-agenda-day" data-testid="pim-agenda-day" style={{ color: key === todayIso ? "var(--accent-color)" : "var(--text-muted)" }}>
                   {new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "long" }).format(d)}
                 </div>
                 {split.status.map((e) => (
@@ -893,13 +900,13 @@ export function PimCalendarScreen({
                 ))}
                 {list.map((e) => (
                   <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-testid="pim-event" data-state={eventVisualState(e)} onClick={() => void editor.openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
-                    <span className={`m-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `m-evt-mark--${eventVisualState(e)}`}`} style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }} />
+                    <span aria-hidden className={`m-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `m-evt-mark--${eventVisualState(e)}`}`} data-testid="pim-event-mark" />
                     <span className={`m-evt-title ${eventVisualState(e) === "cancelled" ? "m-evt--cancelled" : ""}`} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
                     {/* The chain mark of a blocker and of an event that has blockers (K3). */}
                     {e.blockOf || e.blockedIn?.length ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock")} data-testid="pim-event-linked" style={{ flexShrink: 0, verticalAlign: "text-bottom", marginRight: "var(--space-1)" }} /> : null}
                     {stateLabel(e) ? <span className="m-evt-state">{stateLabel(e)}</span> : null}
                     <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>
-                      {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts))}
+                      {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : formatClockTime(e.start.ts, { language: i18n.language })}
                     </span>
                   </button>
                 ))}
@@ -926,7 +933,7 @@ export function PimCalendarScreen({
                       {row.title}
                     </button>
                     <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>
-                      {row.dueMinutes !== null ? minutesToHHMM(row.dueMinutes) : t("pim.allDay", { defaultValue: "Ganztägig" })}
+                      {row.dueMinutes !== null ? formatMinuteOfDay(row.dueMinutes, { language: i18n.language }) : t("pim.allDay", { defaultValue: "Ganztägig" })}
                     </span>
                   </div>
                 ))}
@@ -935,7 +942,7 @@ export function PimCalendarScreen({
           })}
         </div>
       ) : (
-        <div ref={scrollRef} className="m-scroll" style={{ position: "relative" }} data-testid="pim-timegrid">
+        <div key="grid" ref={scrollRef} className="m-scroll" style={{ position: "relative" }} data-testid="pim-timegrid">
           {/* The column says WHICH day, same as the desktop. Without it the
               grid answered "at what time" and left "on what date" to the
               period label above it — fine for one day, unreadable for three
@@ -1062,8 +1069,8 @@ export function PimCalendarScreen({
           <div style={{ display: "flex", position: "relative", height: 24 * PX_PER_HOUR }}>
             <div style={{ width: GUTTER_PX, flexShrink: 0, position: "relative" }}>
               {hours.map((h) => (
-                <div key={h} style={{ position: "absolute", top: h * PX_PER_HOUR, right: 5, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
-                  {h > 0 ? minutesToHHMM(h * 60) : ""}
+                <div key={h} data-testid="pim-hour-label" style={{ position: "absolute", top: h * PX_PER_HOUR, right: 5, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                  {h > 0 ? formatHourMark(h, { language: i18n.language }) : ""}
                 </div>
               ))}
             </div>
@@ -1152,7 +1159,10 @@ export function PimCalendarScreen({
                     </div>
                   ))}
                   {isToday && (
-                    <div aria-hidden style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, PX_PER_HOUR), borderTop: "2px solid var(--error-text)", zIndex: "var(--z-m-bar)", pointerEvents: "none" }} />
+                    // Above the events, BELOW the pinned head and all-day strip
+                    // (finding X2): it shared their layer and, coming later,
+                    // was drawn across the strip whenever "now" scrolled under it.
+                    <div aria-hidden data-testid="pim-now-line" style={{ position: "absolute", left: 0, right: 0, top: minutesToPx(nowMin, PX_PER_HOUR), borderTop: "2px solid var(--error-text)", zIndex: "var(--z-m-grid-now)", pointerEvents: "none" }} />
                   )}
                 </div>
               );

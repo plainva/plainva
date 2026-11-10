@@ -287,7 +287,6 @@
   outline: 2px solid var(--accent-color);
   outline-offset: -2px;
 }
-.pv-mail-read:focus { outline: none; }
 .pv-mail-env.on {
   background: var(--accent-container);
   color: var(--on-accent-container);

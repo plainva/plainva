@@ -430,7 +430,7 @@
     },
     "policy": {
       "columns": "Ordner",
-      "webOff": "Internet aus",
+      "webOff": "gilt nicht – auf diesem Gerät ist das Internet aus",
       "title": "Was diesen Vault verlassen darf",
       "desc": "Eine Regel steht im Frontmatter einer Notiz oder, für einen ganzen Ordner, in .agent/policy.yml. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie werden zurückgehalten.",
       "vaultDefault": "Vault-Standard",
@@ -5401,6 +5401,8 @@
     "folderCount_other": "{{count}} Notizen",
     "baseCount_one": "1 Datenbank",
     "baseCount_other": "{{count}} Datenbanken",
+    "attachmentCount_one": "1 Datei",
+    "attachmentCount_other": "{{count}} Dateien",
     "aboutTip": "Tipp: Das Logo mag Aufmerksamkeit. Fünfmal.",
     "syncResume": "Abgleich fortsetzen",
     "reconnected": "Konto neu verbunden.",
@@ -7447,6 +7449,7 @@
     "highlight5Title": "Verbesserungen und Fehlerbehebungen",
     "highlight5": "Konten verbinden sich über einen Assistenten, die Einstellungen sind neu geordnet, am Telefon schreibt es sich leichter mit einer Hand, und Sync, Mail und Editor haben viele Korrekturen bekommen. Die Einzelheiten stehen in den Release-Notizen.",
     "readBlog": "Blogpost lesen",
+    "readReleaseNotes": "Release-Notizen lesen",
     "understand": "Verstanden"
   },
   "firstRun": {

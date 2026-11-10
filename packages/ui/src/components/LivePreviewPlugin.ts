@@ -22,6 +22,16 @@ import { frontmatterLines, frontmatterLinesOf } from "./editorFrontmatter";
 import { blockDecorationsFromScratch, incrementalBlockField, nodeScopedDiscovery, selectionTouches, walkSubtree, type BlockEntry, type BlockFieldConfig, type BlockKind } from "./incrementalBlocks";
 
 const HIDE = Decoration.replace({});
+/** The info string of a fenced code block ("js"), shown as the block's label. */
+const CODE_INFO = Decoration.mark({ class: "cm-md-codeinfo" });
+
+/** The line class of line `ln` of a code block running from `first` to `last`. */
+export function codeBlockLineClass(ln: number, first: number, last: number): string {
+  let cls = "cm-md-codeblock";
+  if (ln === first) cls += " cm-md-codeblock--first";
+  if (ln === last) cls += " cm-md-codeblock--last";
+  return cls;
+}
 
 /** Link handlers for rendered table-cell content (wiki links, external URLs).
  *  Provided by the editor; widgets read them via `view.state.facet(...)`. */
@@ -711,6 +721,7 @@ export function markdownDecorationPlugin(isLive: boolean) {
             revealRaw && state.selection.ranges.some((r) => r.from <= to && r.to >= from);
 
           const quoteLineClass = new Map<number, string>();
+          const codeLineClass = new Map<number, string>();
           const hrLines = new Set<number>();
           // Ranges of tables rendered as widgets (by tableField); we must not add
           // any inline decoration inside them or it would overlap the block widget.
@@ -787,6 +798,29 @@ export function markdownDecorationPlugin(isLive: boolean) {
                 }
 
                 if (!isLive) return;
+
+                // A code block is a block (finding X6, review 2026-11-10): its
+                // lines carry one card - monospace on the note's code tint, the
+                // corners on the first and last line - and the info string is a
+                // small label rather than a bare line "js". Until then only the
+                // backticks were hidden, which left exactly that bare line and
+                // the code as running text. Descends: the marks below still hide
+                // the fences on lines without the caret.
+                if (name === "FencedCode" || name === "CodeBlock") {
+                  const startLine = state.doc.lineAt(node.from).number;
+                  const endLine = state.doc.lineAt(Math.min(node.to, state.doc.length)).number;
+                  // Only the lines of this visible range get their class: a code
+                  // block of thousands of lines costs what is on screen, like the
+                  // rest of this pass. The first and last line are still known.
+                  const fromLine = Math.max(startLine, state.doc.lineAt(from).number);
+                  const toLine = Math.min(endLine, state.doc.lineAt(Math.min(to, state.doc.length)).number);
+                  for (let i = fromLine; i <= toLine; i++) codeLineClass.set(i, codeBlockLineClass(i, startLine, endLine));
+                  return;
+                }
+                if (name === "CodeInfo") {
+                  if (!activeLines.has(state.doc.lineAt(node.from).number)) decos.push(CODE_INFO.range(node.from, node.to));
+                  return;
+                }
 
                 // Tables: when inactive they are replaced by a block widget
                 // (tableField), so skip their children here to avoid overlap.
@@ -915,6 +949,10 @@ export function markdownDecorationPlugin(isLive: boolean) {
 
           // Line decorations for blockquotes / callouts / horizontal rules.
           for (const [ln, cls] of quoteLineClass) {
+            const line = state.doc.line(ln);
+            decos.push(Decoration.line({ class: cls }).range(line.from));
+          }
+          for (const [ln, cls] of codeLineClass) {
             const line = state.doc.line(ln);
             decos.push(Decoration.line({ class: cls }).range(line.from));
           }

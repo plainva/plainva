@@ -486,6 +486,25 @@ export function currentArea(state: NavState): TabScreenId {
   return state.activeTab;
 }
 
+/**
+ * What the navigation bar lights (finding X9, review 2026-11-10).
+ *
+ * The bar lit `activeTab`, and an area opened from the areas sheet is pushed
+ * onto that tab — so Mail, the graph, the journal, the AI and the databases
+ * all stood under a lit "Home". The bar now answers with the same place the
+ * areas sheet marks: the area on screen. In the bar it is that tab; outside
+ * it the bar's last entry, "Areas", is the way back there and is lit instead.
+ * An overlay that is no area (the settings) lights nothing, as before.
+ */
+export function barMark(state: NavState, shown: readonly TabScreenId[]): { tab: TabScreenId | null; areas: boolean } {
+  const kinds = new Set(Object.values(SCREEN_ENTRY).map((entry) => entry.kind));
+  if (state.overlay.length > 0 && !state.overlay.some((entry) => !entry.path && kinds.has(entry.kind))) {
+    return { tab: null, areas: false };
+  }
+  const area = currentArea(state);
+  return shown.includes(area) ? { tab: area, areas: false } : { tab: null, areas: true };
+}
+
 /** A place the long press on Back can jump to (F6): what it shows, and the state after the jump. */
 export interface BackStop {
   /** The entry the jump lands on; null for the root of the active tab. */

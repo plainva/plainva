@@ -454,7 +454,7 @@
     },
     "policy": {
       "columns": "Dossier",
-      "webOff": "Internet désactivé",
+      "webOff": "sans effet : internet est désactivé sur cet appareil",
       "title": "Ce qui peut quitter ce vault",
       "desc": "Une règle se trouve dans le frontmatter d'une note ou, pour un dossier entier, dans .agent/policy.yml. Une note tenue à l'écart du cloud n'apporte rien — ni texte, ni titre —, et les liens vers elle sont retenus.",
       "vaultDefault": "Vault par défaut",
@@ -5514,6 +5514,9 @@
     "baseCount_one": "1 base de données",
     "baseCount_many": "{{count}} bases de données",
     "baseCount_other": "{{count}} bases de données",
+    "attachmentCount_one": "1 fichier",
+    "attachmentCount_many": "{{count}} fichiers",
+    "attachmentCount_other": "{{count}} fichiers",
     "aboutTip": "Astuce : le logo aime l’attention. Cinq fois.",
     "syncResume": "Reprendre la synchronisation",
     "reconnected": "Compte reconnecté.",
@@ -7601,6 +7604,7 @@
     "highlight5Title": "Améliorations et corrections",
     "highlight5": "Les comptes se connectent via un assistant, les réglages sont réorganisés, sur le téléphone on écrit plus facilement d’une main, et le sync, le courrier et l’éditeur ont reçu de nombreuses corrections. Les détails figurent dans les notes de version.",
     "readBlog": "Lire l'article de blog",
+    "readReleaseNotes": "Lire les notes de version",
     "understand": "Compris"
   },
   "firstRun": {

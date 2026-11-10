@@ -430,7 +430,7 @@
     },
     "policy": {
       "columns": "Map",
-      "webOff": "Internet uit",
+      "webOff": "geldt niet: internet staat uit op dit apparaat",
       "title": "Wat deze vault mag verlaten",
       "desc": "Een regel staat in de frontmatter van een notitie of, voor een hele map, in .agent/policy.yml. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe worden achtergehouden.",
       "vaultDefault": "Vault-standaard",
@@ -5401,6 +5401,8 @@
     "folderCount_other": "{{count}} notities",
     "baseCount_one": "1 database",
     "baseCount_other": "{{count}} databases",
+    "attachmentCount_one": "1 bestand",
+    "attachmentCount_other": "{{count}} bestanden",
     "aboutTip": "Tip: het logo houdt van aandacht. Vijf keer.",
     "syncResume": "Synchronisatie hervatten",
     "reconnected": "Account opnieuw verbonden.",
@@ -7447,6 +7449,7 @@
     "highlight5Title": "Verbeteringen en oplossingen",
     "highlight5": "Accounts verbinden via een assistent, de instellingen zijn opnieuw geordend, op de telefoon schrijf je makkelijker met één hand, en sync, mail en editor kregen veel correcties. De details staan in de release-opmerkingen.",
     "readBlog": "Lees het blogbericht",
+    "readReleaseNotes": "Lees de release-opmerkingen",
     "understand": "Begrepen"
   },
   "firstRun": {

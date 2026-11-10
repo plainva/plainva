@@ -923,10 +923,18 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   box-shadow: var(--shadow-3);
 }
 /* The panel itself takes the initial focus (tabIndex -1, so the X button
-   doesn't open pre-lit) — a dialog frame needs no focus ring of its own. */
+   doesn't open pre-lit) — a dialog frame needs no focus ring of its own.
+   `!important`, because the global `:focus-visible` ring above carries one:
+   without it the exception lost, and every dialog that took the focus wore a
+   teal frame that read like an error state (finding X7, review 2026-11-10).
+   `.pv-focus-frame` is the same exception for every other element that is
+   focused only by code as the frame of a keyboard surface (the file tree,
+   the mail reader, a popover panel): its CONTROLS keep their ring. */
 .pv-modal:focus,
-.pv-modal:focus-visible {
-  outline: none;
+.pv-modal:focus-visible,
+.pv-focus-frame:focus,
+.pv-focus-frame:focus-visible {
+  outline: none !important;
 }
 .pv-modal--sm { width: 440px; }
 .pv-modal--md { width: 640px; }

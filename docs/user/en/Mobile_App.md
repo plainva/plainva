@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-11-06
+Last updated: 2026-11-10
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -139,7 +139,7 @@ Tapping an event reminder opens the event itself — the day view on its day, th
 
 **What is not up to date, and what does not fit.** When an account or a calendar is not being synced, the phone says so in a line above the calendar too — which one, since when and why — with **Try again**; the events below stay as the last known state. In the **Month** view a day shows at most three dots; a number behind them (such as **+3**) says how many more entries it holds. Working location, focus time and out of office sit in the time grid as a quiet band in the all-day strip, not as an appointment. The **Tasks** area has the same line for task lists, and its refresh asks the providers right away, as on the desktop.
 
-Manage accounts under ☰ → **Settings** → **Calendar**: **Add account…** opens the same assistant as **Cloud accounts**, with **Calendar & tasks** already ticked (the former separate form no longer exists). You connect **CalDAV** providers (e.g. Fastmail, Nextcloud, iCloud) directly on the device with one form for all chosen services and the secret the provider names — usually an **app password**; Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
+Manage accounts under ⚙ → **Settings** → **Calendar**: **Add account…** opens the same assistant as **Cloud accounts**, with **Calendar & tasks** already ticked (the former separate form no longer exists). You connect **CalDAV** providers (e.g. Fastmail, Nextcloud, iCloud) directly on the device with one form for all chosen services and the secret the provider names — usually an **app password**; Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
 
 From an event, **Meeting note** creates the note that belongs to it — the same note the desktop finds: it carries an anchor to the event, so calling it again reopens it instead of creating a second one, and it lands in the **meetings folder**. You pick that folder under **Settings** → **Calendar** in the **Meeting notes** group with a **folder browser** rather than typing its path; the **Events** group holds the **default calendar for events** (the one a new event starts in); both belong to the vault and travel with the settings sync. The same place lets you pick, per account, which **task lists** mirror into your task database. The **Meeting note template** is picked there as well; it travels like the folder, and [Calendar & external tasks](Calendar_and_Tasks.md) has the details.
 

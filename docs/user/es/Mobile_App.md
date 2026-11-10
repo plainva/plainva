@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-11-06
+Última actualización: 2026-11-10
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -139,7 +139,7 @@ Tocar un recordatorio de evento abre el propio evento: la vista de día en su fe
 
 **Lo que no está al día y lo que no cabe.** Cuando una cuenta o un calendario no se sincroniza, el teléfono también lo dice en una línea sobre el calendario —cuál, desde cuándo y por qué— con **Reintentar**; las citas de debajo se quedan como último estado conocido. En la vista **Mes** un día muestra como máximo tres puntos; un número detrás (por ejemplo **+3**) dice cuántas entradas más tiene. El lugar de trabajo, el tiempo de concentración y la ausencia aparecen en la cuadrícula horaria como una banda discreta en la franja de todo el día, no como una cita. El área **Tareas** tiene la misma línea para las listas de tareas, y su botón de actualizar consulta enseguida a los proveedores, como en el escritorio.
 
-Gestiona las cuentas en ☰ → **Ajustes** → **Calendario**: **Añadir cuenta…** abre el mismo asistente que **Cuentas en la nube**, con **Calendario y tareas** ya marcado (el antiguo formulario propio ya no existe). Los proveedores **CalDAV** (p. ej. Fastmail, Nextcloud, iCloud) los conectas directamente en el dispositivo con un formulario para todos los servicios elegidos y el secreto que indica el proveedor — normalmente una **Contraseña de aplicación**; Google y Microsoft se conectan mediante inicio de sesión en el navegador. Por cuenta puedes mostrar u ocultar calendarios individuales.
+Gestiona las cuentas en ⚙ → **Ajustes** → **Calendario**: **Añadir cuenta…** abre el mismo asistente que **Cuentas en la nube**, con **Calendario y tareas** ya marcado (el antiguo formulario propio ya no existe). Los proveedores **CalDAV** (p. ej. Fastmail, Nextcloud, iCloud) los conectas directamente en el dispositivo con un formulario para todos los servicios elegidos y el secreto que indica el proveedor — normalmente una **Contraseña de aplicación**; Google y Microsoft se conectan mediante inicio de sesión en el navegador. Por cuenta puedes mostrar u ocultar calendarios individuales.
 
 Desde un evento, **Nota de reunión** crea la nota que le corresponde — la misma nota que también encuentra el escritorio: queda vinculada al evento, así que volver a invocarla la reabre en lugar de crear una segunda, y termina en la **Carpeta de reuniones**. Eliges esa carpeta en **Ajustes** → **Calendario**, en el grupo **Notas de reunión**, con un **explorador de carpetas** en lugar de escribir su ruta; el grupo **Eventos** contiene el **Calendario predeterminado** (aquel en el que empieza un evento nuevo); ambos pertenecen a la bóveda y viajan con la sincronización de ajustes. El mismo lugar te permite elegir, por cuenta, qué **Listas de tareas** se reflejan en tu base de datos de tareas. Ahí mismo eliges la **Plantilla para notas de reunión**; viaja igual que la carpeta, y los detalles están en [Calendario y tareas externas](Calendar_and_Tasks.md).
 

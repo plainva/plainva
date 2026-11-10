@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-11-06
+Laatst bijgewerkt: 2026-11-10
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -139,7 +139,7 @@ Tik op een afspraakherinnering en de afspraak zelf opent — de dagweergave op d
 
 **Wat niet actueel is en wat niet past.** Wordt een account of een agenda niet gesynchroniseerd, dan staat dat ook op de telefoon in een regel boven de agenda — welke, sinds wanneer en waarom — met **Opnieuw proberen**; de afspraken eronder blijven staan als laatst bekende stand. In de weergave **Maand** toont een dag hooguit drie stippen; een getal erachter (bijvoorbeeld **+3**) zegt hoeveel vermeldingen hij daarnaast heeft. Werklocatie, focustijd en afwezigheid staan in het tijdraster als een rustige band in de strook voor hele dagen, niet als afspraak. Het gebied **Taken** heeft dezelfde regel voor takenlijsten, en verversen daar vraagt de aanbieders meteen, zoals op de desktop.
 
-Beheer accounts onder ☰ → **Instellingen** → **Agenda**: **Account toevoegen…** opent dezelfde assistent als **Cloudaccounts**, met **Agenda en taken** al aangevinkt (het vroegere eigen formulier bestaat niet meer). **CalDAV**-providers (bijv. Fastmail, Nextcloud, iCloud) verbind je op het apparaat met één formulier voor alle gekozen diensten en het geheim dat de provider noemt — meestal een **App-wachtwoord**; Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
+Beheer accounts onder ⚙ → **Instellingen** → **Agenda**: **Account toevoegen…** opent dezelfde assistent als **Cloudaccounts**, met **Agenda en taken** al aangevinkt (het vroegere eigen formulier bestaat niet meer). **CalDAV**-providers (bijv. Fastmail, Nextcloud, iCloud) verbind je op het apparaat met één formulier voor alle gekozen diensten en het geheim dat de provider noemt — meestal een **App-wachtwoord**; Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
 
 Vanuit een afspraak maakt **Vergadernotitie** de bijbehorende notitie aan — dezelfde notitie die ook de desktop vindt: ze blijft aan de afspraak gekoppeld, dus opnieuw aanroepen opent haar weer in plaats van een tweede aan te maken, en ze belandt in de **Vergadermap**. Die map kies je onder **Instellingen** → **Agenda** in de groep **Vergadernotities**, met een **mappenbrowser** in plaats van het pad te typen; de groep **Afspraken** bevat de **Standaardagenda** (degene waarin een nieuwe afspraak start); beide horen bij de kluis en reizen mee met de instellingensynchronisatie. Op dezelfde plek kies je, per account, welke **Takenlijsten** worden gespiegeld naar je takendatabase. Daar kies je ook het **Sjabloon voor vergadernotities**; het reist mee zoals de map, de details staan in [Agenda & externe taken](Calendar_and_Tasks.md).
 

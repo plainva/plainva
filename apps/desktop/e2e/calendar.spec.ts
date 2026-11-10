@@ -2093,3 +2093,39 @@ test('AI drafts an e-mail and an appointment: both wait as drafts, open in the c
   // No model was asked for any of it.
   expect(await requests()).toHaveLength(2);
 });
+
+// Finding X4 (review 2026-11-10): the axis said "14:00" while the events said
+// "02:00 PM" — the axis was written by hand in 24 hours, the events in the app
+// language's default. Both now follow the device's hour cycle.
+for (const [locale, twelve] of [['en-US', true], ['de-DE', false]] as const) {
+  test.describe(`a ${twelve ? '12' : '24'}-hour device (${locale})`, () => {
+    test.use({ locale });
+    // The interface stays English on both devices: the hour cycle is the
+    // device's (the browser's locale), never the language's. An English
+    // interface on a 24-hour device is where "02:00 PM" stood beside "14:00".
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript(() => Object.defineProperty(navigator, 'language', { get: () => 'en-US' }));
+    });
+    test('the calendar writes its axis and its events in one clock', async ({ page }, testInfo) => {
+      await openVault(page);
+      await page.getByTestId('ribbon-calendar').click();
+      await page.getByTestId('calendar-mode-day').click();
+      // The hour labels of the axis, by what they say: an hour of 24 or of 12.
+      await expect(page.getByTestId('calendar-timegrid').first()).toBeVisible();
+      const labels = await page.evaluate(() => [...document.querySelectorAll('[data-testid="calendar-timegrid"] div')]
+        .filter((el) => el.children.length === 0)
+        .map((el) => (el.textContent ?? '').trim())
+        .filter((text) => /^(\d{1,2}:00|\d{1,2}\s?(AM|PM))$/.test(text)));
+      expect(labels.length).toBeGreaterThan(20);
+      expect(labels.every((l) => /AM|PM/.test(l) === twelve), labels.slice(0, 4).join(', ')).toBe(true);
+      if (!twelve) expect(labels).toContain('14:00');
+      if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`calendar-day-${locale}.png`) });
+      await page.getByTestId('calendar-mode-agenda').click();
+      const standup = page.getByTestId('calendar-agenda').getByTestId('calendar-event').filter({ hasText: 'Standup' });
+      await expect(standup).toBeVisible();
+      const text = (await standup.textContent()) ?? '';
+      expect(/AM|PM/.test(text), text).toBe(twelve);
+      if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`calendar-agenda-${locale}.png`) });
+    });
+  });
+}

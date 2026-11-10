@@ -46,3 +46,22 @@ export const dirtyStore = {
 export function useDirtyPaths(): ReadonlySet<string> {
   return useSyncExternalStore(dirtyStore.subscribe, dirtyStore.get);
 }
+
+/**
+ * What the editor's save label says (finding X5, review 2026-11-10).
+ *
+ * The tab's dot and the label used to answer from two sources: the dot from
+ * this store, the label from "is a write running right now". During the
+ * one-second autosave delay — and after a write that finished while newer
+ * typing waited — the tab said "unsaved" while the label said "Saved". Both
+ * now answer from the same fact: a file this store holds as dirty is not
+ * saved yet, and its autosave is on the way, so the label says "Saving…".
+ * A failed write wins, because the dot stays until the user acts on it.
+ */
+export type SaveLabel = "saved" | "saving" | "failed";
+
+export function saveLabelFor(state: { writing: boolean; failed: boolean; dirty: boolean }): SaveLabel {
+  if (state.failed) return "failed";
+  if (state.writing || state.dirty) return "saving";
+  return "saved";
+}

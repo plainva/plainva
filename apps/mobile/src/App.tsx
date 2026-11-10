@@ -3,7 +3,8 @@ import { newEntries, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
-import { Cloud, FileText, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { OnboardingChoice } from "./components/OnboardingChoice";
 import {
   AreaBoundary,
   BAR_LAYOUT_CHANGED_EVENT,
@@ -74,6 +75,7 @@ import {
   reservesFabStrip, showsCaptureFab,
   tapTab,
   SCREEN_ENTRY,
+  barMark,
   type NavState,
 } from "./navigation";
 import { PendingIntentRunner } from "./PendingIntentRunner";
@@ -639,22 +641,7 @@ export default function App() {
       {runPendingIntents}
       <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
       <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} /></AreaBoundary>
-      {!onboarded && (
-        <div className="m-onboarding">
-          <h1>{t("mobile.onboardingTitle")}</h1>
-          <p className="m-hint">{t("mobile.onboardingBody")}</p>
-          <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(false)}>
-            <FileText className="m-accent" size={ICON.touch} />
-            <span className="m-onboarding-label">{t("mobile.onboardingLocal")}</span>
-            <span className="m-onboarding-desc">{t("mobile.onboardingLocalDesc")}</span>
-          </button>
-          <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(true)}>
-            <Cloud className="m-accent" size={ICON.touch} />
-            <span className="m-onboarding-label">{t("mobile.onboardingCloud")}</span>
-            <span className="m-onboarding-desc">{t("mobile.onboardingCloudDesc")}</span>
-          </button>
-        </div>
-      )}
+      {!onboarded && <AreaBoundary area="shell:onboarding" placeClassName="m-onboarding"><OnboardingChoice onChoose={finishOnboarding} /></AreaBoundary>}
 
       <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />
 
@@ -673,7 +660,8 @@ export default function App() {
 
       {!barHidden && (
         <AreaBoundary area="shell:navbar" placeClassName="m-tabbar" size="strip"><NavBar
-          activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
+          activeTab={barMark(nav, slots).tab}
+          areasActive={barMark(nav, slots).areas}
           areasOpen={areasOpen}
           navCollapsed={navCollapsed}
           onOpenAreas={() => setAreasOpen(true)}

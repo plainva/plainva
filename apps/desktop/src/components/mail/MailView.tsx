@@ -35,7 +35,8 @@ import { keepUnchangedAccounts, listMailAccounts, mailAccountKind, onMailAccount
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
-import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
+import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, useMailCanvas } from "@plainva/ui/mail";
+import { formatClockTime, formatDateAndTime } from "@plainva/ui";
 import { attachMailLinks, LinkTargetText, MailPlainText, mailtoDraft, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
 import { addEmlToMailNote, captureMailAsNote, loadMailAccountAliases, mailCaptureNotice, mailDayKey, writeReplyNote } from "@plainva/ui/mail";
 import { fetchAttachment, formatAttachmentSize, forwardSource, saveMailAttachment, type ForwardSource, type MailAttachmentInfo } from "@plainva/ui/mail";
@@ -510,7 +511,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       await persistSnoozes(next);
       toast.info(
         t("mail.snoozedUntil", {
-          when: new Date(until).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
+          when: formatDateAndTime(until, { language: i18n.language, date: { dateStyle: "short" } }),
         }),
         { label: t("common.undo"), run: () => undoSnooze(before, added) }
       );
@@ -1034,6 +1035,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [remoteOptIn, showRemoteOnce, openOrigin, boxesAccount, boxes]
   );
   const allowRemote = remoteImages.allow;
+  // The theme's canvas for a mail that sets no colours of its own (finding X3).
+  const mailCanvas = useMailCanvas();
   const sanitized = useMemo(
     () => (message?.html ? sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote }) : null),
     [message, allowRemote]
@@ -2083,10 +2086,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     });
   }, [message, messageAccountId, accounts, replySubject, replyAttribution]);
 
-  const dateFmt = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
+  // Every clock time of the mail view goes through the one formatter (finding
+  // X4): the list said "01:39 PM" beside a head that said "1:39 PM".
+  const dateFmt = useMemo(() => ({ format: (d: Date) => formatDateAndTime(d, { language: i18n.language }) }), [i18n.language]);
   // Compact list time (mockup: "14:32" today, "Di" this week, "9. Jul" older).
   const envTime = useMemo(() => {
-    const timeFmt = new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" });
+    const timeFmt = { format: (d: Date) => formatClockTime(d, { language: i18n.language }) };
     const dowFmt = new Intl.DateTimeFormat(i18n.language, { weekday: "short" });
     const shortFmt = new Intl.DateTimeFormat(i18n.language, { day: "numeric", month: "short" });
     return (ts: number): string => {
@@ -2619,7 +2624,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       />
 
       {/* Column 3 — reader */}
-      <div className="pv-mail-read" ref={readerRef} tabIndex={-1}>
+      <div className="pv-mail-read pv-focus-frame" ref={readerRef} tabIndex={-1}>
         <AreaBoundary area="mail:reader" resetKey={selectedId ?? ""}>{() => (
         !message ? (
           <div className="pv-mail-empty">
@@ -2778,7 +2783,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   // the system browser (handleFrameLoad).
                   sandbox="allow-same-origin"
                   onLoad={handleFrameLoad}
-                  srcDoc={buildMailFrameDoc(sanitized.html, { allowRemoteImages: allowRemote })}
+                  srcDoc={buildMailFrameDoc(sanitized.html, { allowRemoteImages: allowRemote, canvas: mailCanvas })}
                   data-testid="mail-frame"
                   className="pv-mail-frame"
                 />

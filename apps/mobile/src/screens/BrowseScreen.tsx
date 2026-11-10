@@ -17,6 +17,7 @@ import {
 import { AreaBoundary, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, resolveOpenAction, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countVaultFiles } from "../lib/folderDeletion";
+import { folderContents } from "../lib/folderContents";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useFileRowSheet } from "../lib/useFileRowSheet";
@@ -272,6 +273,7 @@ export function BrowseScreen({
     : [
       t("mobile.folderCount", { count: listing.notes.length }),
       ...(listing.bases.length > 0 ? [t("mobile.baseCount", { count: listing.bases.length })] : []),
+      ...(listing.attachments.length > 0 ? [t("mobile.attachmentCount", { count: listing.attachments.length })] : []),
     ].join(" · ");
 
   const body = (
@@ -320,7 +322,7 @@ export function BrowseScreen({
       {shown.folders.length > 0 && <SectionLabel>{t("mobile.folders")}</SectionLabel>}
       <GroupCard>
       <RowList>
-      {shown.folders.map(({ name, count }) => {
+      {shown.folders.map(({ name, count, files }) => {
         const full = folder ? `${folder}/${name}` : name;
         const target = { path: full, title: name };
         return (
@@ -341,7 +343,7 @@ export function BrowseScreen({
               onPointerUp={folderPress.clear}
               end={<ChevronRight className="m-chevron" size={ICON.ui} />}
               icon={<Folder className="m-accent" size={ICON.ui} />}
-              subtitle={t("mobile.folderCount", { count })}
+              subtitle={folderContents(t, count, files)}
               title={name}
             />
           </SwipeRow>
