@@ -24,6 +24,7 @@ mod mail_pool;
 mod mail_smtp;
 mod mail_sieve;
 mod model_store;
+mod note_links;
 mod sync_upload;
 mod tray;
 mod unzip;
@@ -379,12 +380,17 @@ pub fn run() {
     // Instead the running window comes forward — including out of the tray,
     // where the close button only hides it (see src/tray.rs).
     #[cfg(desktop)]
-    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+    //
+    // A note link (`plainva://open?…`, F2) that Windows or Linux start a
+    // second process for arrives here as that process's arguments, and goes
+    // to the window that is already open (src/note_links.rs).
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
         if let Some(win) = app.get_webview_window("main") {
             let _ = win.unminimize();
             let _ = win.show();
             let _ = win.set_focus();
         }
+        note_links::arrive(app, note_links::note_link_args(args));
     }));
 
     // The global quick capture. The plugin only provides the mechanism: no
@@ -432,6 +438,7 @@ pub fn run() {
         .manage(embedding::Embeddings::default())
         .manage(model_store::ModelDownloads::default())
         .manage(window_state::WindowStateStore::default())
+        .manage(note_links::NoteLinks::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
             // com.plainva.desktop.dev) and the Labs build of a feature branch
@@ -447,6 +454,9 @@ pub fn run() {
             // and only then on the screen: it is created hidden.
             window_state::restore(app.handle());
             window_state::show_main(app.handle());
+            // Started by a note link (Windows, Linux): it waits until the
+            // window takes it (src/note_links.rs).
+            note_links::arrive(app.handle(), note_links::note_link_args(std::env::args().skip(1)));
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -542,6 +552,8 @@ pub fn run() {
             tray::tray_set_next,
             session::desktop_session_kind,
             app_identity::app_updates_managed_by,
+            note_links::note_links_take,
+            note_links::note_link_forward,
             atomic_write::register_write_root,
             atomic_write::write_file_atomic,
             checked_fs::checked_path_exists,
@@ -587,6 +599,12 @@ pub fn run() {
             // no close request writes the window's place: it is written here.
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 window_state::flush(app);
+            }
+            // macOS hands a note link to the running process — also the one
+            // the link started (src/note_links.rs).
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = &event {
+                note_links::arrive(app, note_links::note_link_args(urls.iter().map(|url| url.to_string())));
             }
         });
 }

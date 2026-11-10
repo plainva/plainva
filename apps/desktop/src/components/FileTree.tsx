@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { appConfirm, appConfirmOption, dialogStore } from "../services/appDialogs";
+import { copyDesktopNoteLink } from "../services/noteLinkReceiver";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ActiveSemanticCoverage, EmptyState, FoundChip, ICON, meaningActive, toast, errorText, useLocalEmbeddings, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
@@ -1512,6 +1513,7 @@ export const FileTree: React.FC<{
           onToggleBookmark={onToggleBookmarkPath}
           onVersionHistory={(path: string) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path } }))}
           onCopyPath={copyContextPath}
+          onCopyLink={(p) => { copyDesktopNoteLink(vaultPath, p); setContextMenu(null); }}
           onDelete={handleDelete}
           onResolveConflict={(path: string) => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path } }))}
           onNewItem={createNewItem}

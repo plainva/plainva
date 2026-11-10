@@ -47,6 +47,13 @@ const FETCHING_ATTRS = new Set(["src", "srcset", "poster", "background", "xlink:
 const DATA_IMAGE = /^\s*data:image\//i;
 const HTTPS_URL = /^\s*https:\/\//i;
 
+/**
+ * DOMPurify's own list of schemes a link may keep (3.x, `IS_ALLOWED_URI`),
+ * plus Plainva's note links (`plainva://open?…`, ADR 0037): a mail may point
+ * at a note, and the reader opens it in the app — never through the system.
+ */
+const MAIL_ALLOWED_URI = /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|plainva(?:-dev|-labs)?):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
+
 export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): SanitizedEmail {
   let blockedRemote = 0;
   const allowRemoteImages = options?.allowRemoteImages === true;
@@ -92,6 +99,7 @@ export function sanitizeEmailHtml(raw: string, options?: SanitizeEmailOptions): 
       // a read-only viewer.
       FORBID_TAGS: ["style", "link", "form", "input", "button", "select", "textarea", "meta", "base"],
       USE_PROFILES: { html: true },
+      ALLOWED_URI_REGEXP: MAIL_ALLOWED_URI,
     });
   } finally {
     dp.removeHook("uponSanitizeAttribute");

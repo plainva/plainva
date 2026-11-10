@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-05
+Última actualización: 2026-11-10
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -63,6 +63,28 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 - **Retroenlaces**: La sección **Retroenlaces** de la barra lateral derecha muestra qué notas enlazan a la activa — agrupadas por archivo de origen, con un contador para varias apariciones. Debajo de cada archivo aparece cada aparición con los encabezados y elementos de lista que la preceden y la propia línea; un clic salta justo ahí. En el teléfono, la hoja de contexto de la nota muestra los mismos lugares. Las filas se ordenan por **Título**; el botón de ordenar situado encima cambia a **Última modificación** o **Número de enlaces**, elegir la misma clave otra vez invierte el sentido, y la elección se recuerda en este dispositivo.
 - **Renombrar con cuidado de los enlaces**: Cuando renombras un archivo en el árbol de archivos, Plainva actualiza cada enlace hacia él en todo el vault (los anclajes como `#Sección` se conservan) e informa: "N enlace(s) en M archivo(s) se actualizaron al nuevo nombre". Un enlace que llega a la nota mediante el `title` de sus propiedades se queda como está — ese título no cambia con el nombre del archivo.
 - **Etiquetas**: `#proyecto` — o anidada, `#proyecto/web` — en cualquier lugar del texto es una etiqueta. Se dibuja como una pequeña píldora al escribir y al leer, y un clic en ella abre las notas que la llevan (en el teléfono: un toque en modo lectura). Qué cuenta como etiqueta y cómo reciben color: [Buscar](Search.md).
+
+## Enlaces a una nota desde fuera
+
+Cada nota tiene una dirección que la abre desde cualquier sitio: un evento del calendario, una tarea en la lista de tu proveedor, un correo, un marcador, un chat u otra app:
+
+`plainva://open?vault=Work&path=Projects%2FPlan.md`
+
+- **Copiar enlace** pone esa dirección en el portapapeles: en el escritorio, en el menú ⋮ de la nota, en el menú de la pestaña y en el menú contextual del árbol de archivos; en el teléfono, en el menú de la nota y en la hoja de un archivo.
+- **En un encabezado o una línea**: el menú de bloque (el asa a la izquierda de un bloque; en el teléfono, la hoja del bloque) y, en el escritorio, el menú del clic derecho del editor ofrecen **Copiar enlace** —la dirección de exactamente ese encabezado o bloque— y **Copiar enlace de bloque** —un enlace para tus notas como `[[Plan#Objetivos]]` o `[[Plan#^k3x9qa]]`—. Un bloque sin ID recibe uno: Plainva escribe ` ^k3x9qa` (seis letras y cifras) al final del párrafo o del elemento de lista; en una tabla, en una línea propia debajo. Es como si lo hubieras escrito tú, así que deshacer lo quita. El frontmatter, los bloques de código, las fórmulas y las líneas vacías no reciben ID.
+- **Sugerencias**: al escribir `[[Nota#^` aparecen los ID de bloque que la nota ya tiene, con el comienzo de su texto.
+- **En un evento**: **Enlazar una nota** en el editor de eventos añade `[Título](plainva://open?…)` a la descripción. La vista previa del evento lo muestra como un chip con el nombre de la nota; un clic la abre.
+- **Pulsado en Plainva**: un enlace `plainva://` en una nota, un correo, un evento o una tarea abre la nota en Plainva, en el escritorio y en el teléfono. Nunca se entrega al sistema.
+
+Lo que un enlace puede hacer y lo que no:
+
+- Solo **abre**. Nunca crea una nota, no escribe, no ejecuta nada ni cambia ajustes; los parámetros que Plainva no conoce se ignoran.
+- `vault` es el **nombre** del vault tal como lo muestra Plainva, nunca su carpeta en el disco. En otro dispositivo el enlace funciona si el vault se llama igual allí. Si el nombre pertenece a otro vault de este dispositivo, Plainva pregunta antes de cambiar; si ningún vault —o más de uno— de este dispositivo tiene ese nombre, lo dice. Si renombras un vault, los enlaces con el nombre antiguo dejan de llevar a él.
+- `path` es la ruta de la nota en el vault. Si la nota se movió, o se renombró mientras su nombre anterior sigue siendo el `title` de sus propiedades, Plainva la encuentra con la regla de los enlaces wiki. Si no, dice que la nota no está.
+- `heading=` o `block=` (uno de los dos) salta a un encabezado o a un bloque.
+- Un enlace abre notas, bases de datos, imágenes y archivos de texto; nunca un programa ni otro archivo que abriría el sistema.
+- Los enlaces siempre empiezan por `plainva://`. Las versiones de desarrollo y Labs responden a `plainva-dev://` y `plainva-labs://`, así que nunca le quitan los enlaces a la app instalada.
+- El sistema aprende la dirección al instalar Plainva (instalador de Windows, app de macOS, paquete deb o rpm, Android, iOS). Un AppImage sin integración de escritorio no queda registrado; los enlaces pulsados dentro de Plainva funcionan igualmente.
 
 ## Propiedades (frontmatter)
 

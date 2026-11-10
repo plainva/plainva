@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { MenuItem, MenuLabel, MenuSeparator, MenuSurface, type BlockAction, type BlockTarget } from "@plainva/ui";
+import { Link2 } from "lucide-react";
+import { ICON, MenuItem, MenuLabel, MenuSeparator, MenuSurface, type BlockAction, type BlockTarget, type LineLinkMode } from "@plainva/ui";
 
 export type { BlockAction } from "@plainva/ui";
 
@@ -8,6 +9,8 @@ interface Props {
   x: number;
   y: number;
   onAction: (action: BlockAction) => void;
+  /** "Copy link" / "Copy block link" for this block (F2); absent where the note has no address. */
+  onCopyLink?: (mode: LineLinkMode) => void;
   onClose: () => void;
 }
 
@@ -21,7 +24,7 @@ interface Props {
  * `MenuSurface` does all of that for every other menu, and the grammar guard
  * (`interactionGrammar.test.ts`) now refuses a hand-built `role="menu"`.
  */
-export const BlockMenu: React.FC<Props> = ({ x, y, onAction, onClose }) => {
+export const BlockMenu: React.FC<Props> = ({ x, y, onAction, onCopyLink, onClose }) => {
   const { t } = useTranslation();
   const turn = (target: BlockTarget, label: string) => (
     <MenuItem key={target} onSelect={() => onAction({ kind: "turn", target })}>
@@ -44,6 +47,13 @@ export const BlockMenu: React.FC<Props> = ({ x, y, onAction, onClose }) => {
       <MenuItem onSelect={() => onAction({ kind: "duplicate" })}>{t("block.duplicate", { defaultValue: "Duplizieren" })}</MenuItem>
       <MenuItem onSelect={() => onAction({ kind: "move-up" })}>{t("block.moveUp", { defaultValue: "Nach oben" })}</MenuItem>
       <MenuItem onSelect={() => onAction({ kind: "move-down" })}>{t("block.moveDown", { defaultValue: "Nach unten" })}</MenuItem>
+      {onCopyLink && (
+        <>
+          <MenuSeparator />
+          <MenuItem icon={<Link2 size={ICON.ui} />} data-testid="block-copy-link" onSelect={() => onCopyLink("url")}>{t("noteLink.copy")}</MenuItem>
+          <MenuItem icon={<Link2 size={ICON.ui} />} data-testid="block-copy-block-link" onSelect={() => onCopyLink("wiki")}>{t("noteLink.copyBlock")}</MenuItem>
+        </>
+      )}
       <MenuSeparator />
       <MenuItem danger onSelect={() => onAction({ kind: "delete" })}>{t("block.delete", { defaultValue: "Block löschen" })}</MenuItem>
     </MenuSurface>

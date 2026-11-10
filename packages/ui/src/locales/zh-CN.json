@@ -2699,6 +2699,26 @@
     "mobileProbeFailed": "无法在云端检查是否已存在口令。请在有网络时重试。",
     "mobileCreated": "同步口令已设置，本设备已解锁。"
   },
+  "noteLink": {
+    "copy": "复制链接",
+    "copyBlock": "复制块链接",
+    "copied": "链接已复制。",
+    "invalid": "Plainva 无法打开此链接。",
+    "noVault": "请先打开一个仓库，然后再次打开链接。",
+    "vaultUnknown": "此设备上没有仓库“{{name}}”。",
+    "vaultAmbiguous": "此设备上有多个名为“{{name}}”的仓库。请先打开你要的那个，然后再次打开链接。",
+    "switchTitle": "切换仓库？",
+    "switchMessage": "此链接指向仓库“{{name}}”中的一篇笔记。要切换过去吗？",
+    "switchConfirm": "切换",
+    "notFound": "此仓库中没有笔记“{{name}}”。",
+    "notOpenable": "链接只能打开笔记以及 Plainva 自己显示的文件，不能打开此文件。",
+    "blockNotHere": "无法在此行设置块链接。",
+    "lineEmpty": "此行为空，没有可链接的内容。",
+    "readOnly": "此笔记为只读，其块无法获得 ID。",
+    "insert": "链接笔记",
+    "pickHint": "日程会获得一个在 Plainva 中打开该笔记的链接。",
+    "openNote": "打开笔记 {{name}}"
+  },
   "contextMenu": {
     "cut": "剪切",
     "copy": "复制",
@@ -3318,6 +3338,7 @@
   },
   "editor": {
     "completionHeadings": "标题",
+    "completionBlocks": "块",
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
     "loading": "加载中…",
     "menu": "菜单",

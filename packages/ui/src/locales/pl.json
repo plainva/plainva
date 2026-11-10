@@ -2963,6 +2963,26 @@
     "mobileProbeFailed": "Nie udało się sprawdzić w chmurze, czy hasło już istnieje. Spróbuj ponownie z połączeniem.",
     "mobileCreated": "Hasło synchronizacji ustawione. To urządzenie jest odblokowane."
   },
+  "noteLink": {
+    "copy": "Kopiuj link",
+    "copyBlock": "Kopiuj link do bloku",
+    "copied": "Skopiowano link.",
+    "invalid": "Plainva nie może otworzyć tego linku.",
+    "noVault": "Najpierw otwórz vault, a potem ponownie link.",
+    "vaultUnknown": "Vaulta „{{name}}” nie ma na tym urządzeniu.",
+    "vaultAmbiguous": "Na tym urządzeniu jest kilka vaultów o nazwie „{{name}}”. Otwórz ten właściwy, a potem ponownie link.",
+    "switchTitle": "Przełączyć vault?",
+    "switchMessage": "Ten link prowadzi do notatki w vaulcie „{{name}}”. Przełączyć?",
+    "switchConfirm": "Przełącz",
+    "notFound": "Notatki „{{name}}” nie ma w tym vaulcie.",
+    "notOpenable": "Link otwiera notatki i pliki, które Plainva wyświetla sama — nie ten plik.",
+    "blockNotHere": "W tym wierszu nie można ustawić linku do bloku.",
+    "lineEmpty": "Ten wiersz jest pusty — nie ma tu czego linkować.",
+    "readOnly": "Ta notatka jest tylko do odczytu, więc jej blok nie może dostać identyfikatora.",
+    "insert": "Połącz notatkę",
+    "pickHint": "Wydarzenie dostanie link, który otwiera notatkę w Plainva.",
+    "openNote": "Otwórz notatkę {{name}}"
+  },
   "contextMenu": {
     "cut": "Wytnij",
     "copy": "Kopiuj",
@@ -3582,6 +3602,7 @@
   },
   "editor": {
     "completionHeadings": "Nagłówki",
+    "completionBlocks": "Bloki",
     "unresolvedLinkTip": "Notatka jeszcze nie istnieje – kliknij, aby utworzyć",
     "loading": "Ładowanie...",
     "menu": "Menu",

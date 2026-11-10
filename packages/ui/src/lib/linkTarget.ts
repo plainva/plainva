@@ -21,6 +21,8 @@
  * quantifiers.
  */
 
+import { parseNoteLinkUrl } from "@plainva/core";
+
 /** Hosts of Microsoft's Safe Links rewriter (commercial and US government clouds). */
 const SAFE_LINK_SUFFIXES = [".safelinks.protection.outlook.com", ".safelinks.protection.office365.us"];
 
@@ -29,7 +31,8 @@ const MAX_TIP = 96;
 const MAX_SHOWN = 2000;
 const MAX_USERINFO = 24;
 
-export type LinkTargetKind = "web" | "mailto" | "tel";
+/** `note`: a Plainva note link (`plainva://open?…`, ADR 0037) — it opens the note in Plainva. */
+export type LinkTargetKind = "web" | "mailto" | "tel" | "note";
 
 export interface LinkTarget {
   /** What opens — ALWAYS the address as written, a Safe Link included. */
@@ -227,6 +230,14 @@ export function describeLink(href: string, visibleText?: string | null): LinkTar
       viaSafeLinks: false,
       textHost: named && host && registrableHost(named) !== registrableHost(host) ? named : null,
     };
+  }
+
+  // A note link shows the note it opens; the vault and the path are its "where".
+  if (lower.startsWith("plainva")) {
+    const note = parseNoteLinkUrl(clean);
+    if (!note.ok) return null;
+    const name = (note.target.path.split("/").pop() ?? note.target.path).replace(/\.md$/i, "");
+    return { href: clean, kind: "note", before: "plainva://", host: cut(name), after: "", viaSafeLinks: false, textHost: null };
   }
 
   if (lower.startsWith("tel:")) {

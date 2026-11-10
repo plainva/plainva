@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight, Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, EyeOff, Flag, FlaskConical, FolderInput, GitMerge, GraduationCap, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
+  ExternalLink, Eye, EyeOff, Flag, Link2, FlaskConical, FolderInput, GitMerge, GraduationCap, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -315,6 +315,8 @@ export interface FileRowCaps {
   resolveConflict?: () => void;
   reveal?: () => void;
   copyPath?: () => void;
+  /** A note or a database: its `plainva://open?…` address (F2, ADR 0037). */
+  copyLink?: () => void;
   removeFromList?: () => void;
   delete?: () => void;
 }
@@ -350,6 +352,7 @@ export function fileRowActions(t: RowActionT, c: FileRowCaps): RowActionSpec[] {
     c.resolveConflict ? { id: "resolveConflict", label: t("conflict.resolveAction", { defaultValue: "Konflikt lösen…" }), icon: GitMerge, run: c.resolveConflict } : null,
     c.reveal ? { id: "reveal", label: t("editor.revealInTree", { defaultValue: "Im Dateibaum anzeigen" }), icon: Eye, run: c.reveal } : null,
     c.copyPath ? { id: "copyPath", label: t("fileTree.copyPath", { defaultValue: "Pfad kopieren" }), icon: ClipboardCopy, run: c.copyPath } : null,
+    c.copyLink ? { id: "copyLink", label: t("noteLink.copy", { defaultValue: "Link kopieren" }), icon: Link2, run: c.copyLink } : null,
     c.removeFromList ? { id: "removeFromList", label: t("fileTree.removeFromList", { defaultValue: "Aus der Liste entfernen" }), icon: XCircle, run: c.removeFromList } : null,
     c.delete
       ? { id: "delete", label: t("common.delete", { defaultValue: "Löschen" }), icon: Trash2, danger: true, run: c.delete, bulk: true, swipe: true, shortcut: "Delete" }
@@ -368,6 +371,6 @@ export const ROW_ACTION_IDS = {
   journal: ["toggle", "edit", "copy", "toTask", "toEntry", "showInNote", "delete"],
   file: [
     "openNewTab", "openSplitRight", "openSplitDown", "rename", "duplicate", "move", "overview", "bookmark", "versionHistory",
-    "resolveConflict", "reveal", "copyPath", "removeFromList", "delete",
+    "resolveConflict", "reveal", "copyPath", "copyLink", "removeFromList", "delete",
   ],
 } as const;

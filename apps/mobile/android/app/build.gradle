@@ -34,6 +34,8 @@ android {
         versionCode resolvedVersionCode
         versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // The scheme of note links (F2, ADR 0037); the Labs and TLS-test builds answer on their own.
+        manifestPlaceholders = [noteLinkScheme: "plainva"]
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -54,6 +56,7 @@ android {
             initWith release
             applicationIdSuffix '.labs'
             versionNameSuffix '-labs'
+            manifestPlaceholders += [noteLinkScheme: "plainva-labs"]
             matchingFallbacks = ['release']
         }
         // Isolated native TLS fixture: production network config and a
@@ -61,6 +64,7 @@ android {
         tlsTest {
             initWith release
             applicationIdSuffix '.tlstest'
+            manifestPlaceholders += [noteLinkScheme: "plainva-tlstest"]
             signingConfig signingConfigs.debug
             matchingFallbacks = ['release']
         }

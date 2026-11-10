@@ -37,6 +37,7 @@ import {
   Keyboard,
   KeyboardOff,
 } from "lucide-react";
+import { copyPhoneLineLink } from "./services/noteLinkRoute";
 import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
@@ -1237,6 +1238,13 @@ export function EditorHost({
     if (view && from !== null) applyBlockAction(view, from, action);
   };
 
+  const runLineLink = (mode: "url" | "wiki") => {
+    const view = sessionRef.current?.view;
+    const from = blockMenuFrom;
+    setBlockMenuFrom(null);
+    if (view && from !== null) void copyPhoneLineLink(view, from, mode, vault, path);
+  };
+
   const run = (fn: (v: NonNullable<EditorSession["view"]>) => unknown) => {
     const view = sessionRef.current?.view;
     if (view) fn(view);
@@ -1873,6 +1881,15 @@ export function EditorHost({
             <button className="m-row" onClick={() => runBlockAction({ kind: "duplicate" })}>
               <Copy size={ICON.ui} />
               <span>{t("block.duplicate")}</span>
+            </button>
+            {/* Links to this block (F2): the address for other apps, the wiki link for other notes. */}
+            <button className="m-row" data-testid="block-copy-link" onClick={() => runLineLink("url")}>
+              <Link2 size={ICON.ui} />
+              <span>{t("noteLink.copy")}</span>
+            </button>
+            <button className="m-row" data-testid="block-copy-block-link" onClick={() => runLineLink("wiki")}>
+              <Link2 size={ICON.ui} />
+              <span>{t("noteLink.copyBlock")}</span>
             </button>
             {/* The app's own "select all" (P5, Build-91 feedback) — the whole
                 note, not the lines the platform's callout could reach. */}

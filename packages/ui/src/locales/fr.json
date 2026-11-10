@@ -2875,6 +2875,26 @@
     "mobileProbeFailed": "Impossible de vérifier dans le cloud s'il existe déjà une phrase secrète. Réessayez avec une connexion.",
     "mobileCreated": "Phrase secrète de synchronisation définie. Cet appareil est déverrouillé."
   },
+  "noteLink": {
+    "copy": "Copier le lien",
+    "copyBlock": "Copier le lien du bloc",
+    "copied": "Lien copié.",
+    "invalid": "Plainva ne peut pas ouvrir ce lien.",
+    "noVault": "Ouvre d'abord un vault, puis à nouveau le lien.",
+    "vaultUnknown": "Le vault « {{name}} » n'est pas sur cet appareil.",
+    "vaultAmbiguous": "Cet appareil a plusieurs vaults nommés « {{name}} ». Ouvre celui que tu veux, puis à nouveau le lien.",
+    "switchTitle": "Changer de vault ?",
+    "switchMessage": "Ce lien mène à une note du vault « {{name}} ». Y passer ?",
+    "switchConfirm": "Changer",
+    "notFound": "La note « {{name}} » n'est pas dans ce vault.",
+    "notOpenable": "Un lien ouvre les notes et les fichiers que Plainva affiche lui-même, pas ce fichier.",
+    "blockNotHere": "Impossible de placer un lien de bloc sur cette ligne.",
+    "lineEmpty": "Cette ligne est vide : il n'y a rien à lier.",
+    "readOnly": "Cette note est en lecture seule, son bloc ne peut pas recevoir d'identifiant.",
+    "insert": "Lier une note",
+    "pickHint": "L'événement reçoit un lien qui ouvre la note dans Plainva.",
+    "openNote": "Ouvrir la note {{name}}"
+  },
   "contextMenu": {
     "cut": "Couper",
     "copy": "Copier",
@@ -3494,6 +3514,7 @@
   },
   "editor": {
     "completionHeadings": "Titres",
+    "completionBlocks": "Blocs",
     "unresolvedLinkTip": "La note n'existe pas encore – cliquez pour la créer",
     "loading": "Chargement...",
     "menu": "Menu",

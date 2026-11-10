@@ -2787,6 +2787,26 @@
     "mobileProbeFailed": "De cloud kon niet worden gecontroleerd op een bestaande wachtwoordzin. Probeer het opnieuw met een verbinding.",
     "mobileCreated": "Synchronisatie-wachtwoordzin ingesteld. Dit apparaat is ontgrendeld."
   },
+  "noteLink": {
+    "copy": "Link kopiëren",
+    "copyBlock": "Bloklink kopiëren",
+    "copied": "Link gekopieerd.",
+    "invalid": "Plainva kan deze link niet openen.",
+    "noVault": "Open eerst een vault en daarna de link opnieuw.",
+    "vaultUnknown": "De vault ‘{{name}}’ staat niet op dit apparaat.",
+    "vaultAmbiguous": "Dit apparaat heeft meerdere vaults met de naam ‘{{name}}’. Open de bedoelde en daarna de link opnieuw.",
+    "switchTitle": "Van vault wisselen?",
+    "switchMessage": "Deze link leidt naar een notitie in de vault ‘{{name}}’. Daarheen wisselen?",
+    "switchConfirm": "Wisselen",
+    "notFound": "De notitie ‘{{name}}’ staat niet in deze vault.",
+    "notOpenable": "Een link opent notities en bestanden die Plainva zelf toont, niet dit bestand.",
+    "blockNotHere": "Op deze regel kan geen bloklink worden gezet.",
+    "lineEmpty": "Deze regel is leeg; er is niets om naar te linken.",
+    "readOnly": "Deze notitie is alleen-lezen, dus het blok kan geen ID krijgen.",
+    "insert": "Notitie koppelen",
+    "pickHint": "De afspraak krijgt een link die de notitie in Plainva opent.",
+    "openNote": "Notitie {{name}} openen"
+  },
   "contextMenu": {
     "cut": "Knippen",
     "copy": "Kopiëren",
@@ -3406,6 +3426,7 @@
   },
   "editor": {
     "completionHeadings": "Koppen",
+    "completionBlocks": "Blokken",
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
     "loading": "Laden...",
     "menu": "Menu",

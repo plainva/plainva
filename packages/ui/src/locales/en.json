@@ -2787,6 +2787,26 @@
     "mobileProbeFailed": "The cloud could not be checked for an existing passphrase. Try again with a connection.",
     "mobileCreated": "Sync passphrase set. This device is unlocked."
   },
+  "noteLink": {
+    "copy": "Copy link",
+    "copyBlock": "Copy block link",
+    "copied": "Link copied.",
+    "invalid": "Plainva can't open this link.",
+    "noVault": "Open a vault first, then the link again.",
+    "vaultUnknown": "The vault “{{name}}” is not on this device.",
+    "vaultAmbiguous": "This device has several vaults named “{{name}}”. Open the one you mean, then the link again.",
+    "switchTitle": "Switch vault?",
+    "switchMessage": "This link leads to a note in the vault “{{name}}”. Switch to it?",
+    "switchConfirm": "Switch",
+    "notFound": "The note “{{name}}” is not in this vault.",
+    "notOpenable": "A link opens notes and the files Plainva shows itself — not this file.",
+    "blockNotHere": "A block link can't be placed on this line.",
+    "lineEmpty": "This line is empty — there is nothing to link to.",
+    "readOnly": "This note is read-only, so its block can't get an id.",
+    "insert": "Link a note",
+    "pickHint": "The event gets a link that opens the note in Plainva.",
+    "openNote": "Open note {{name}}"
+  },
   "contextMenu": {
     "cut": "Cut",
     "copy": "Copy",
@@ -3406,6 +3426,7 @@
   },
   "editor": {
     "completionHeadings": "Headings",
+    "completionBlocks": "Blocks",
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
     "loading": "Loading...",
     "menu": "Menu",

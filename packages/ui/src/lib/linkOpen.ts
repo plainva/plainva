@@ -1,4 +1,4 @@
-import { explicitLinkPath, isInternalPath, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
+import { explicitLinkPath, isInternalPath, isNoteLinkAddress, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
 import { externalUrlToOpen } from "./externalUrl";
 import { splitLinkAnchor } from "./linkAnchor";
 import { wikiTargetToPath } from "./wikiResolver";
@@ -148,7 +148,9 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
   }
 
   const url = link.parsed ? link.text : markdownDestinationUrl(link.text);
-  if (SCHEME.test(url)) return opensOutside(url) ? { action: "external", url } : { action: "notFound", target: url };
+  // A note link (`plainva://open?…`, ADR 0037) takes the way out, too: the
+  // opener's guard hands it back into the app instead of to the system.
+  if (SCHEME.test(url)) return opensOutside(url) || isNoteLinkAddress(url) ? { action: "external", url } : { action: "notFound", target: url };
   const { target, anchor } = markdownLinkTarget(url);
   if (!target) return anchor ? { action: "anchor", anchor } : { action: "notFound", target: url };
 

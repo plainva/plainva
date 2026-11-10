@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2 } from "lucide-react";
+import { Link2, Trash2 } from "lucide-react";
 import {
+  appendLine,
   Button,
   Chip,
   emptyEventForm,
@@ -10,6 +11,8 @@ import {
   eventFormToDraft,
   ICON,
   localIsoKey,
+  noteLinkMarkdown,
+  noteLinkUrlFor,
   type RepeatEnd,
   Switch,
   TextArea,
@@ -21,6 +24,9 @@ import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { mSelect } from "../services/mobileDialogs";
 import { MobileSwatchGrid } from "./MobileSwatchGrid";
+import { NotePickSheet } from "./NotePickSheet";
+import { getMobileVault, type MobileVault } from "../services/vaultService";
+import { activeVaultLinkName } from "../services/noteLinkRoute";
 
 /**
  * Creating and editing a calendar event on the phone (S24).
@@ -90,6 +96,13 @@ export function EventEditSheet({
   const close = useSheetGuard("event-edit", !sameStoredValue(form, opened), onClose);
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<EventFormValues>) => setForm((prev) => ({ ...prev, ...patch }));
+  // "Link a note" (F2): the picker lists the open vault's notes; a pick adds a
+  // link to the description that opens the note in Plainva.
+  const [pickVault, setPickVault] = useState<MobileVault | null>(null);
+  const linkNote = async (path: string, title: string) => {
+    const line = noteLinkMarkdown(title, noteLinkUrlFor(await activeVaultLinkName(), path));
+    setForm((prev) => ({ ...prev, description: appendLine(prev.description, line), descriptionTouched: true }));
+  };
   const setRepeat = (patch: Partial<EventFormValues>) => set({ ...patch, repeatTouched: true });
 
   const calendarLabel = useMemo(
@@ -206,6 +219,19 @@ export function EventEditSheet({
           rows={3}
           value={form.description}
         />
+        <Button variant="ghost" size="sm" data-testid="event-note-link" onClick={() => void getMobileVault().then(setPickVault).catch(() => undefined)}>
+          <Link2 size={ICON.ui} />
+          {t("noteLink.insert")}
+        </Button>
+        {pickVault && (
+          <NotePickSheet
+            vault={pickVault}
+            title={t("noteLink.insert")}
+            hint={t("noteLink.pickHint")}
+            onClose={() => setPickVault(null)}
+            onPick={(picked, title) => void linkNote(picked, title || picked)}
+          />
+        )}
 
         {/* Repeat (S25). Touching ANY control here marks the rule as edited —
             an untouched event keeps whatever the provider has, including the

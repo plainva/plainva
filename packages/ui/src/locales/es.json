@@ -2875,6 +2875,26 @@
     "mobileProbeFailed": "No se pudo comprobar en la nube si ya existe una frase de contraseña. Inténtalo de nuevo con conexión.",
     "mobileCreated": "Frase de contraseña de sincronización establecida. Este dispositivo está desbloqueado."
   },
+  "noteLink": {
+    "copy": "Copiar enlace",
+    "copyBlock": "Copiar enlace de bloque",
+    "copied": "Enlace copiado.",
+    "invalid": "Plainva no puede abrir este enlace.",
+    "noVault": "Abre primero un vault y luego el enlace de nuevo.",
+    "vaultUnknown": "El vault «{{name}}» no está en este dispositivo.",
+    "vaultAmbiguous": "Este dispositivo tiene varios vaults llamados «{{name}}». Abre el que quieres y luego el enlace de nuevo.",
+    "switchTitle": "¿Cambiar de vault?",
+    "switchMessage": "Este enlace lleva a una nota del vault «{{name}}». ¿Cambiar a él?",
+    "switchConfirm": "Cambiar",
+    "notFound": "La nota «{{name}}» no está en este vault.",
+    "notOpenable": "Un enlace abre notas y los archivos que Plainva muestra por sí mismo, no este archivo.",
+    "blockNotHere": "No se puede poner un enlace de bloque en esta línea.",
+    "lineEmpty": "Esta línea está vacía: no hay nada que enlazar.",
+    "readOnly": "Esta nota es de solo lectura, así que su bloque no puede recibir un identificador.",
+    "insert": "Enlazar una nota",
+    "pickHint": "El evento recibe un enlace que abre la nota en Plainva.",
+    "openNote": "Abrir la nota {{name}}"
+  },
   "contextMenu": {
     "cut": "Cortar",
     "copy": "Copiar",
@@ -3494,6 +3514,7 @@
   },
   "editor": {
     "completionHeadings": "Encabezados",
+    "completionBlocks": "Bloques",
     "unresolvedLinkTip": "La nota aún no existe — haz clic para crearla",
     "loading": "Cargando...",
     "menu": "Menú",

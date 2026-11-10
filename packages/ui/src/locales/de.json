@@ -2787,6 +2787,26 @@
     "mobileProbeFailed": "Die Cloud konnte nicht auf eine vorhandene Passphrase geprüft werden. Versuch es mit Verbindung noch einmal.",
     "mobileCreated": "Sync-Passphrase gesetzt. Dieses Gerät ist entsperrt."
   },
+  "noteLink": {
+    "copy": "Link kopieren",
+    "copyBlock": "Block-Link kopieren",
+    "copied": "Link kopiert.",
+    "invalid": "Diesen Link kann Plainva nicht öffnen.",
+    "noVault": "Öffne zuerst einen Vault, dann den Link noch einmal.",
+    "vaultUnknown": "Den Vault „{{name}}“ gibt es auf diesem Gerät nicht.",
+    "vaultAmbiguous": "Auf diesem Gerät gibt es mehrere Vaults mit dem Namen „{{name}}“. Öffne den gemeinten, dann den Link noch einmal.",
+    "switchTitle": "Vault wechseln?",
+    "switchMessage": "Dieser Link führt zu einer Notiz im Vault „{{name}}“. Dorthin wechseln?",
+    "switchConfirm": "Wechseln",
+    "notFound": "Die Notiz „{{name}}“ gibt es in diesem Vault nicht.",
+    "notOpenable": "Ein Link öffnet Notizen und Dateien, die Plainva selbst zeigt – diese Datei nicht.",
+    "blockNotHere": "In dieser Zeile lässt sich kein Block-Link setzen.",
+    "lineEmpty": "Diese Zeile ist leer – hier gibt es nichts zu verlinken.",
+    "readOnly": "Diese Notiz ist schreibgeschützt, ihr Block kann keine Kennung bekommen.",
+    "insert": "Notiz verlinken",
+    "pickHint": "Der Termin bekommt einen Link, der die Notiz in Plainva öffnet.",
+    "openNote": "Notiz {{name}} öffnen"
+  },
   "contextMenu": {
     "cut": "Ausschneiden",
     "copy": "Kopieren",
@@ -3406,6 +3426,7 @@
   },
   "editor": {
     "completionHeadings": "Überschriften",
+    "completionBlocks": "Blöcke",
     "unresolvedLinkTip": "Notiz existiert noch nicht – klicken zum Anlegen",
     "loading": "Laden...",
     "menu": "Menü",

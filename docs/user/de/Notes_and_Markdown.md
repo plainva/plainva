@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-05
+Stand: 2026-11-10
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -63,6 +63,28 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 - **Backlinks**: Der Abschnitt **Backlinks** in der rechten Seitenleiste zeigt, welche Notizen auf die aktive verlinken — pro Quelldatei zusammengefasst, mit Zähler bei mehreren Vorkommen. Unter jeder Datei steht jede Fundstelle mit den Überschriften und Listenpunkten darüber und der Zeile selbst; ein Klick springt genau dorthin. Am Telefon zeigt das Kontext-Blatt der Notiz dieselben Fundstellen. Die Zeilen sind nach **Titel** geordnet; der Sortierknopf darüber wechselt zu **Zuletzt geändert** oder **Anzahl der Verweise**, dieselbe Wahl noch einmal kehrt die Richtung um, und dieses Gerät merkt sich die Wahl.
 - **Umbenennen mit Link-Pflege**: Benennst Du eine Datei im Dateibaum um, aktualisiert Plainva alle Links darauf im ganzen Vault (Anker wie `#Abschnitt` bleiben erhalten) und meldet: „N Link(s) in M Datei(en) wurden auf den neuen Namen aktualisiert." Ein Link, der die Notiz über den `title` ihrer Eigenschaften erreicht, bleibt, wie er ist — dieser Titel ändert sich nicht mit dem Dateinamen.
 - **Tags**: `#projekt` — oder verschachtelt `#projekt/website` — irgendwo im Text ist ein Tag. Es steht als kleine Pille da, beim Schreiben wie beim Lesen, und ein Klick darauf öffnet die Notizen, die es tragen (am Telefon: ein Tipp im Lesemodus). Was als Tag zählt und wie Tags Farbe bekommen: [Suche](Search.md).
+
+## Links auf eine Notiz von außen
+
+Jede Notiz hat eine Adresse, die sie von überall öffnet – aus einem Termin, einer Aufgabe in der Liste Deines Anbieters, einer Mail, einem Lesezeichen, einem Chat oder einer anderen App:
+
+`plainva://open?vault=Work&path=Projects%2FPlan.md`
+
+- **Link kopieren** legt diese Adresse in die Zwischenablage: am Desktop im ⋮-Menü der Notiz, im Tab-Menü und im Kontextmenü des Dateibaums, am Telefon im Menü der Notiz und im Blatt einer Datei.
+- **An einer Überschrift oder Zeile**: Das Blockmenü (der Griff links neben einem Block, am Telefon das Block-Blatt) und am Desktop das Rechtsklick-Menü im Editor bieten **Link kopieren** – die Adresse genau dieser Überschrift oder dieses Blocks – und **Block-Link kopieren** – einen Link für Deine Notizen wie `[[Plan#Ziele]]` oder `[[Plan#^k3x9qa]]`. Ein Block ohne Kennung bekommt eine: Plainva schreibt ` ^k3x9qa` (sechs Buchstaben und Ziffern) ans Ende des Absatzes oder Listenpunkts, bei einer Tabelle in eine eigene Zeile darunter – als hättest Du es getippt, Rückgängig nimmt es zurück. Frontmatter, Codeblöcke, Formeln und leere Zeilen bekommen keine Kennung.
+- **Vorschläge**: Wenn Du `[[Notiz#^` tippst, erscheinen die Block-Kennungen, die die Notiz schon hat, mit dem Anfang ihres Texts.
+- **In einem Termin**: **Notiz verlinken** im Termin-Editor fügt `[Titel](plainva://open?…)` in die Beschreibung ein. Die Termin-Vorschau zeigt den Link als Chip mit dem Namen der Notiz; ein Klick öffnet sie.
+- **In Plainva angeklickt**: Ein `plainva://`-Link in einer Notiz, einer Mail, einem Termin oder einer Aufgabe öffnet die Notiz in Plainva, am Desktop und am Telefon. Er geht nie ans System.
+
+Was ein Link kann und was nicht:
+
+- Er **öffnet** nur. Er legt nie eine Notiz an, schreibt nichts, führt nichts aus und ändert keine Einstellung; Parameter, die Plainva nicht kennt, werden übergangen.
+- `vault` ist der **Name** des Vaults, wie Plainva ihn zeigt – nie sein Ordner auf dem Datenträger. Auf einem anderen Gerät funktioniert der Link, wenn der Vault dort genauso heißt. Gehört der Name zu einem anderen Vault auf diesem Gerät, fragt Plainva, bevor es wechselt; hat kein Vault – oder mehr als einer – auf diesem Gerät den Namen, sagt Plainva das. Benennst Du einen Vault um, führen Links mit dem alten Namen nicht mehr hin.
+- `path` ist der Pfad der Notiz im Vault. Wurde die Notiz verschoben oder umbenannt, während ihr alter Name noch als `title` in ihren Eigenschaften steht, findet Plainva sie nach der Regel der Wiki-Links. Sonst sagt es, dass die Notiz nicht da ist.
+- `heading=` oder `block=` (eines von beiden) springt zu einer Überschrift oder einem Block.
+- Ein Link öffnet Notizen, Datenbanken, Bilder und Textdateien – nie ein Programm oder eine andere Datei, die das System öffnen würde.
+- Links beginnen immer mit `plainva://`. Die Entwicklungs- und die Labs-Version antworten auf `plainva-dev://` und `plainva-labs://` und nehmen der installierten App so nie ihre Links weg.
+- Das System lernt die Adresse bei der Installation von Plainva (Windows-Installer, macOS-App, deb- oder rpm-Paket, Android, iOS). Ein AppImage ohne Desktop-Integration ist nicht angemeldet; in Plainva angeklickte Links funktionieren dort trotzdem.
 
 ## Eigenschaften (Frontmatter)
 
