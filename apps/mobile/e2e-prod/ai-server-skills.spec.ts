@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * Skills a connected server serves, on the phone (AI harness P9-4b, MCP
@@ -124,7 +124,7 @@ test("a server's skill on the phone waits under From servers, is approved for ex
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
 
     // 1. The review counts the skills the server serves; nothing of them is read.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByTestId("settings-ai-ext-add").click();
     const add = page.getByTestId("ai-ext-add");

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * The APP settings pages on the phone after the settings plan of 2026-10-29
@@ -39,7 +39,7 @@ test("the APP pages carry the desktop's groups, with the explanations behind the
     await close.click();
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     // The APP section says once that its settings stay on this device.
     await page.getByRole("button", { name: "More about App" }).click();
     await expect(page.getByTestId("grouplabel-info-sheet")).toContainText("do not travel to your other devices");

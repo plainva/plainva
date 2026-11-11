@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * A foreign server's questions to the user on the phone (AI harness P9-4a):
@@ -139,7 +139,7 @@ test("a server the vault lets ask asks on the phone through Plainva's card — a
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
 
     // 1. The review: questions to the user are off until the vault says otherwise, for this server alone.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByTestId("settings-ai-ext-add").click();
     const add = page.getByTestId("ai-ext-add");

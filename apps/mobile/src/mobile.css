@@ -5251,3 +5251,11 @@ textarea {
   box-shadow: var(--shadow-2);
   transition: transform var(--dur-2) var(--ease-effects);
 }
+
+/* The file name of a conflict copy under its readable label (finding X10):
+   secondary, so the label reads first; the name wraps rather than runs off. */
+.m-conflict-copyname {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

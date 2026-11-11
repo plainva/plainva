@@ -25,7 +25,7 @@ A failed surface leaves `<surface>.FAIL.png` — the picture of what was on scre
 
 ## Desktop: `apps/desktop/e2e-screenshots/walk.spec.ts`
 
-Walks the desktop shell scene by scene in Chromium against the Tauri double of the E2E suite, in light and dark (`playwright.screenshots.config.ts`). The doubles are read from the specs themselves at run time (`specMocks.ts`: the first `page.addInitScript` of a spec's `beforeEach`, or of a named helper), so the walk always photographs the double the suite tests against. The main scene adds a richer vault (`reviewVault.ts`).
+Walks the desktop shell scene by scene in Chromium against the Tauri double of the E2E suite, in light and dark (`playwright.screenshots.config.ts`). The doubles are read from the specs themselves at run time (`specMocks.ts`: the first `page.addInitScript` of a spec's `beforeEach`, or of a named helper), so the walk always photographs the double the suite tests against. The main scene adds a richer vault (`reviewVault.ts`). The walk runs on the suite's fixed test clock (`e2e/fixtures/clockedTest.ts`), so two walks of one commit photograph the same day.
 
 ```sh
 cd apps/desktop

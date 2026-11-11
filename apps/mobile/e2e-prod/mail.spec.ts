@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { installMailFixture } from "../scripts/screenshot-services.mjs";
-import { leaveApp, readVaultFile, returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { leaveApp, readVaultFile, returnToApp, waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Mail on the phone, against the locally routed Graph fixture (plan Befunde
@@ -310,7 +310,7 @@ test("remote images: the phone has the switch, and it does not reach into the ju
 
     // The switch — it was missing on the phone; the value could only arrive
     // through the settings sync.
-    await page.getByTestId("nav-settings").click();
+    await openSettings(page);
     await page.getByTestId("settings-area-mail").click();
     const row = page.getByTestId("mail-remote-images");
     await expect(row).toContainText("Always load remote images");

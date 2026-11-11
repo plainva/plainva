@@ -3731,7 +3731,9 @@ export const Editor: React.FC<{
           }
         >
           {conflictInfo.working ? t("conflict.workingCopy") : conflictInfo.conflictPath
-            ? t("editor.conflictBanner", { path: conflictCopyLabel(conflictInfo.conflictPath, i18n.language) })
+            // The copy as a person reads it; its file name - what the file
+            // tree shows - is the tooltip (finding X10, review 2026-11-10).
+            ? <span data-testid="editor-conflict-copy" data-tip={conflictInfo.conflictPath.split("/").pop()}>{t("editor.conflictBanner", { path: conflictCopyLabel(conflictInfo.conflictPath, i18n.language) })}</span>
             : t("editor.conflictBannerNoPath")}
           {conflictInfo.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
         </Banner>

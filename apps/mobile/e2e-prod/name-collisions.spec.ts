@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page, type TestInfo } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 import { byteExactDav, type ByteExactDav } from "../../../packages/core/test/helpers/byteExactDav";
 
 /**
@@ -98,7 +98,7 @@ test("the card tells the two copies apart, removes the identical one and keeps t
   page.on("console", (message) => { if (message.type() !== "log" || /nameTwins|SyncWorker|SyncEngine/.test(message.text())) logs.push(`${message.type()}: ${message.text()}`); });
   page.on("pageerror", (error) => logs.push(`pageerror: ${error.message}`));
   const dav = await boot(context, page);
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-sync"]').click();
 
   const card = page.getByTestId("sync-collisions");

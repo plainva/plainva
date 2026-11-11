@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Calm hints at the open note on the phone (plan KI-Harness P8-3, mockup
@@ -109,7 +109,7 @@ test("AI hints: the note's sheet names a link that leads nowhere and the TODO li
 
     // 6. The phone's AI settings: the switch, and the hidden hint counted — brought back there.
     await backToNavigation(page);
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-ai").click();
     const show = page.getByTestId("hints-show");
     await show.scrollIntoViewIfNeeded();

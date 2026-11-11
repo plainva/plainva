@@ -12,16 +12,23 @@ describe("conflictCopyLabel", () => {
   });
 
   it("names the note and the moment, never the raw stamp", () => {
-    const label = conflictCopyLabel("Inbox/Notiz 1.CONFLICT-2026-08-02T09-05-12-345Z.md", "en", "h23");
+    const label = conflictCopyLabel("Inbox/Notiz 1.CONFLICT-2026-08-02T09-05-12-345Z.md", "en", { hourCycle: "h23" });
     expect(label.startsWith("Notiz 1 · ")).toBe(true);
     expect(label).toContain("2026");
     expect(label).not.toContain("CONFLICT");
     expect(label).not.toContain(".md");
-    expect(label).toMatch(/\d{2}:\d{2}$/);
+    expect(label).toMatch(/\d{2}:\d{2}:\d{2}$/);
+  });
+
+  it("tells two copies of one note in the same minute apart", () => {
+    const a = conflictCopyLabel("Start.CONFLICT-2026-11-11T09-30-02-825Z-e759cc6e.md", "en", { hourCycle: "h23", timeZone: "UTC" });
+    const b = conflictCopyLabel("Start.CONFLICT-2026-11-11T09-30-41-696Z-7b7457a8.md", "en", { hourCycle: "h23", timeZone: "UTC" });
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/09:30:02$/);
   });
 
   it("keeps a database's extension, which says what the copy is", () => {
-    expect(conflictCopyLabel("Tasks.CONFLICT-2026-07-05T12-30-00-000Z.base", "de", "h23")).toMatch(/^Tasks\.base · /);
+    expect(conflictCopyLabel("Tasks.CONFLICT-2026-07-05T12-30-00-000Z.base", "de", { hourCycle: "h23" })).toMatch(/^Tasks\.base · /);
   });
 
   it("leaves a path alone that is no conflict copy", () => {

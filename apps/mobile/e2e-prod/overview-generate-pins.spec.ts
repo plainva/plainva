@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * P21 (maintainer, 03.11.): a link that names an overview only as `index`
@@ -33,7 +33,7 @@ async function openVault(page: Page) {
 }
 
 async function openOverviews(page: Page) {
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.getByTestId("settings-area-maintenance").click();
   await page.getByTestId("open-overviews").click();
   await expect(page.getByTestId("overview-row-Projekte")).toContainText("Projekte", { timeout: 15_000 });

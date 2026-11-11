@@ -168,7 +168,9 @@ const BASE_SETTINGS = {
 // next to the title), and settings sit at the foot of the navigator (S11 — a ⋮
 // carries object actions, never the app settings).
 const AREAS_SWITCH = '[data-testid="tab-areas"]';
-const SETTINGS_BTN = '[data-testid="nav-settings"]';
+// The app bar's gear on a phone; on a tablet (rail) the rail's Settings - the
+// gear gives way there (finding X8, review 2026-11-10).
+const SETTINGS_BTN = '[data-testid="nav-settings"]:visible, [data-testid="rail-settings"]:visible';
 
 /**
  * Floor the fixture has to clear before ANY surface of a run counts as

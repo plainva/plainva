@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { EXAMPLE_NOTE, readVaultFile, seedExampleNote, waitForVaultDirectory } from "./exampleVault";
+import { EXAMPLE_NOTE, readVaultFile, seedExampleNote, waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * "Apply directly" on the phone (plan "KI direkt schreiben", W5), in the
@@ -126,7 +126,7 @@ test("AI apply directly on the phone: “Change without asking” is a third que
       const fs = (globalThis as unknown as { Capacitor: { Plugins: { Filesystem: { writeFile(options: object): Promise<unknown> } } } }).Capacitor.Plugins.Filesystem;
       await fs.writeFile({ path: "vault/.agent/policy.yml", data: 'folders:\n  "Journal/":\n    write: direct\n', directory: "DATA", encoding: "utf8", recursive: true });
     });
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     const row = page.getByText("Journal/", { exact: true });
     await expect(row).toBeVisible();

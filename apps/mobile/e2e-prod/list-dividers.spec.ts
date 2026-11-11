@@ -1,4 +1,5 @@
 import { test, expect } from "./clockedTest";
+import { openSettings } from "./exampleVault";
 
 /**
  * The hairline between two rows of a list (TestFlight 2026-10-28, build 149:
@@ -24,7 +25,7 @@ test("rows of a plain list are divided by a visible hairline", async ({ page }) 
   await expect(page.locator(".m-sheet-backdrop")).toHaveCount(0);
 
   // The settings page is a list of plain rows on every vault.
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   const second = page.locator(".pv-grouprows > .pv-grouprow + .pv-grouprow").first();
   await expect(second).toBeVisible({ timeout: 20000 });
 

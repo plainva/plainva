@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Tags as pills on the phone (finding 2026-09-19, plan Rueckmeldungen P7).
@@ -84,7 +84,7 @@ test("a tag is a pill, a tap opens its notes, and the switch colours it by its r
     // The switch lives under Appearance; it is a device setting.
     await back();
     await back();
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.locator('[data-testid="settings-area-appearance"]').click();
     await page.getByRole("switch", { name: "Colour tags" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-tag-colors", "on");

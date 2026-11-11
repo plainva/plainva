@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { seedExampleNote, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { seedExampleNote, waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * What the phone's AI costs (AI harness P9-6), in the production bundle: the
@@ -137,7 +137,7 @@ test("AI usage on the phone: the cache share under the answer and in the month, 
     // 3. The settings: per model what it went with, from the cache where it says so, the cost where there is a price —
     //    and below, what the month saved.
     await page.getByRole("button", { name: /^Back$/ }).first().click();
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-ai").click();
     const settings = page.getByTestId("settings-ai");
     await expect(settings).toBeVisible();

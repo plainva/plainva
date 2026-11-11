@@ -59,7 +59,11 @@ export function NoteConflictCard({ conflict, path, vault, onOpenCopy, onShowDiff
       {t(conflict.working ? "conflict.workingCopy" : "mobile.conflictBody")}
       {conflict.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
       <br />
+      {/* The copy as a person reads it, and under it its file name - what the
+          file list shows, and what tells two copies apart (finding X10). */}
       <span data-testid="note-conflict-copy">{conflictCopyLabel(conflict.copyPath, i18n.language)}</span>
+      <br />
+      <code className="m-conflict-copyname" data-testid="note-conflict-copy-name">{conflict.copyPath.split("/").pop()}</code>
     </Banner>
   );
 }

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 import { installSystemAssistant } from "./systemAssistant";
 
 /**
@@ -81,7 +81,7 @@ test("the system's assistant: no title until the switch is on, never one a rule 
     expect(system.raw()).toBeNull();
 
     // 2. The switch, in the AI settings of this device. On: the titles the rules let go, and nothing else.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-ai").click();
     const row = page.getByTestId("ai-system-find");
     await row.scrollIntoViewIfNeeded();

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema, openSettings } from "./exampleVault";
 
 const LOCALES = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "ui", "src", "locales");
 const de = JSON.parse(readFileSync(join(LOCALES, "de.json"), "utf8"));
@@ -39,7 +39,7 @@ test("a calendar account is one card, and its failure a note that says who faile
     await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
   };
   const openAccounts = async () => {
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-pim").click();
     await expect(page.getByTestId("pim-account-pim-fixture-1")).toBeVisible({ timeout: 20_000 });
   };

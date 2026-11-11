@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { seedExampleNote, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { seedExampleNote, waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Routines on the phone (AI harness P8-1), in the production bundle: the
@@ -97,7 +97,7 @@ test("AI routines: the phone sets one up in two steps, confirmed for a run nobod
     const sheet = (title: string) => page.locator(".m-sheet").filter({ has: page.locator(".m-sheet-title", { hasText: title }) });
 
     // 1. The vault's AI settings hold the routines: none yet, and a word about when they run.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     const settings = page.getByTestId("settings-ai-vault");
     // What the section means stands behind its info button (settings plan of 2026-10-29): a sheet, read and closed.
@@ -209,7 +209,7 @@ test("AI routines: a log of the whole vault on the phone — set up without a sk
     // A note made now: the index knows it as changed since the log's first look, a day before it was set up.
     await seedExampleNote(page);
 
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     const settings = page.getByTestId("settings-ai-vault");
     const add = settings.getByTestId("settings-ai-routine-add");

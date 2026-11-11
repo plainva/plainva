@@ -22,6 +22,10 @@ export interface TimeFormatOptions {
   language: string;
   /** Overrides the device's hour cycle — tests, and later a user setting. */
   hourCycle?: HourCycle;
+  /** With seconds — where two times of one minute must stay apart (conflict copies). */
+  seconds?: boolean;
+  /** Another time zone than the runtime's (IANA name) — a test that reads what a browser wrote. */
+  timeZone?: string;
 }
 
 /**
@@ -48,13 +52,15 @@ function cycleOf(options: TimeFormatOptions): HourCycle {
 }
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
-function formatter(language: string, cycle: HourCycle, withMinutes: boolean): Intl.DateTimeFormat {
-  const key = `${language}|${cycle}|${withMinutes ? "m" : "h"}`;
+function formatter(language: string, cycle: HourCycle, withMinutes: boolean, extra: { seconds?: boolean; timeZone?: string } = {}): Intl.DateTimeFormat {
+  const key = `${language}|${cycle}|${withMinutes ? "m" : "h"}|${extra.seconds ? "s" : ""}|${extra.timeZone ?? ""}`;
   let made = formatters.get(key);
   if (!made) {
     made = new Intl.DateTimeFormat(language, {
       hour: cycle === "h23" ? "2-digit" : "numeric",
       ...(withMinutes ? { minute: "2-digit" } : {}),
+      ...(withMinutes && extra.seconds ? { second: "2-digit" } : {}),
+      ...(extra.timeZone ? { timeZone: extra.timeZone } : {}),
       hourCycle: cycle,
     });
     formatters.set(key, made);
@@ -74,7 +80,9 @@ function atMinute(minuteOfDay: number): Date {
  */
 export function formatClockTime(at: Date | number, options: TimeFormatOptions & { minuteOfDay?: boolean }): string {
   const date = typeof at === "number" ? (options.minuteOfDay ? atMinute(at) : new Date(at)) : at;
-  return formatter(options.language, cycleOf(options), true).format(date);
+  // A minute of the day is a clock reading, not an instant: no zone applies.
+  const zone = options.minuteOfDay ? undefined : options.timeZone;
+  return formatter(options.language, cycleOf(options), true, { seconds: options.seconds, timeZone: zone }).format(date);
 }
 
 /** A time of day given as minutes after midnight (the calendar grids' unit). */
@@ -96,7 +104,8 @@ export function formatMinuteRange(startMinute: number, endMinute: number, option
  */
 export function formatDateAndTime(at: Date | number, options: TimeFormatOptions & { date?: Intl.DateTimeFormatOptions }): string {
   const day = typeof at === "number" ? new Date(at) : at;
-  return `${new Intl.DateTimeFormat(options.language, options.date ?? { dateStyle: "medium" }).format(day)}, ${formatClockTime(day, options)}`;
+  const dayOptions = { ...(options.date ?? { dateStyle: "medium" as const }), ...(options.timeZone ? { timeZone: options.timeZone } : {}) };
+  return `${new Intl.DateTimeFormat(options.language, dayOptions).format(day)}, ${formatClockTime(day, options)}`;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * "My theme" on the phone: the mood being edited is the mood the app wears
@@ -41,7 +41,7 @@ test("the whole app wears the mood being edited, there and back, and leaving res
     await expect(html).toHaveAttribute("data-theme", "dark");
     expect(await ground()).toBe(DARK.background);
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.locator('[data-testid="settings-area-appearance"]').click();
     // One adopted mood pins Mode: the choice shows it, takes no tap, and says why.
     const modes = page.getByRole("radiogroup", { name: "Mode" });

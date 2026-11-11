@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * No folder setting on the phone points under `.plainva` or out of the vault
@@ -20,7 +20,7 @@ test("a folder setting under .plainva is refused and said; one inside the vault 
     const close = page.getByTestId("whats-new-close");
     await expect(close).toBeVisible({ timeout: 15000 });
     await close.click();
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-content").click();
 
     const field = page.getByRole("textbox", { name: "Template folder", exact: true });
