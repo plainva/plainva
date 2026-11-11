@@ -26,6 +26,12 @@ on:
       - 'apps/desktop/wdio.conf.ts'
       - 'apps/desktop/wdio.updater.conf.ts'
       - 'apps/desktop/scripts/updater-signature-fixtures.mjs'
+      - 'apps/desktop/scripts/updater-manifest-check.mjs'
+      - 'apps/desktop/src/services/appUpdate.ts'
+      - 'apps/desktop/src/components/SettingsModal.tsx'
+      - 'apps/desktop/src/components/settings/AppPages.tsx'
+      - 'packages/ui/src/locales/**'
+      - '.github/workflows/updater-manifest.yml'
       - 'apps/desktop/scripts/check-webdriver-server.sh'
       - '.github/workflows/native-smoke.yml'
   workflow_call:

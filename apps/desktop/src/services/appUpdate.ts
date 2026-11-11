@@ -83,31 +83,41 @@ export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
  * and so does a missing connection to the update server. Anything else keeps
  * the plugin's own words behind the existing line.
  */
-export type UpdateFailureKind = "refused" | "network" | "other";
+export type UpdateFailureKind = "refused" | "network" | "server" | "other";
 
+/*
+ * The words below are the plugin's own (tauri-plugin-updater 2.13 `Error`,
+ * minisign-verify 0.2 `Error`, base64 0.22 `DecodeError`, reqwest 0.13
+ * `Error` — whose Display names its kind and url but not its source chain).
+ * The IPC hands them over as `Error::to_string()`. `updaterTrust.test.ts`
+ * pins the plugin version they were read from.
+ */
 const REFUSED = [
-  "signature verification failed",
-  "signature was created with a different key",
-  "signed for version",
-  "does not specify the version it was signed for",
+  // minisign-verify: a changed file, another file's signature, a foreign key, a broken signature
+  "the signature verification failed",
+  "the signature was created with a different key",
   "invalid encoding in minisign data",
   "unexpected signature algorithm",
   "signature algorithm is not supported",
+  // the plugin: the signed version (`requireSignedVersion`) and an undecodable signature
+  "the update was signed for version",
+  "does not specify the version it was signed for",
+  "could not be decoded, please check if it is a valid base64 string",
+  // base64: the signature field is no base64 at all
+  "invalid symbol",
+  "invalid last symbol",
+  "invalid padding",
+  "invalid input length",
 ];
-const NETWORK = [
-  "error sending request",
-  "connection refused",
-  "dns error",
-  "failed to lookup address",
-  "timed out",
-  "network is unreachable",
-  "download request failed with status",
-  "error decoding response body",
-];
+/** No answer, or the answer broke off: reqwest's request and body errors (connect, DNS, TLS, timeout, reset). */
+const NETWORK = ["error sending request", "request or response body error", "operation timed out"];
+/** The server answered the download with an error status (a removed file, a rate limit): `Error::Network`. */
+const SERVER_STATUS = /download request failed with status: ([^`]+)/i;
 
 export function classifyUpdateFailure(error: unknown): UpdateFailureKind {
   const text = String(error).toLowerCase();
   if (REFUSED.some((words) => text.includes(words))) return "refused";
+  if (SERVER_STATUS.test(text)) return "server";
   if (NETWORK.some((words) => text.includes(words))) return "network";
   return "other";
 }
@@ -123,6 +133,8 @@ export function describeUpdateFailure(error: unknown, step: "check" | "install",
       return t("settings.updateRefused");
     case "network":
       return t("settings.updateNoConnection");
+    case "server":
+      return t("settings.updateServerStatus", { status: (SERVER_STATUS.exec(raw)?.[1] ?? "").trim() });
     default:
       return step === "check" ? t("settings.updateCheckError", { error: raw }) : t("settings.updateInstallError", { error: raw });
   }

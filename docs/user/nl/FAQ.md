@@ -136,7 +136,7 @@ Plainva respecteert de systeeminstelling "beweging verminderen". Als overgangen 
 
 Zolang er nog geen openbare releases zijn, meldt de update-check: "Er zijn nog geen openbare updates (releases) beschikbaar." Dat is geen fout.
 
-### "Plainva heeft deze update geweigerd"
+### "Plainva heeft de update geweigerd"
 
 Voordat er iets wordt geïnstalleerd, controleert Plainva of de download is ondertekend met de sleutel van het Plainva-project, en wel voor precies de aangeboden versie. Mislukt die controle, dan wordt de update geweigerd: er wordt niets geïnstalleerd en je versie blijft gewoon draaien. Komt de weigering steeds terug, dan is de download onderweg veranderd; meld dat als issue.
 

@@ -136,7 +136,7 @@ O Plainva respeita a configuração "reduzir movimento" do seu sistema. Se as tr
 
 Enquanto ainda não houver versões públicas (releases), a verificação de atualização informa: "Ainda não há atualizações públicas (releases) disponíveis." Isso não é um erro.
 
-### "O Plainva recusou esta atualização"
+### "O Plainva recusou a atualização"
 
 Antes de instalar qualquer coisa, o Plainva verifica se o download está assinado com a chave do projeto Plainva e exatamente para a versão oferecida. Se a verificação falhar, a atualização é recusada: nada é instalado e sua versão continua funcionando como está. Se a recusa se repetir, o download foi alterado no caminho; informe isso em uma issue.
 

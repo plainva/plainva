@@ -136,7 +136,7 @@ Plainva respektuje ustawienie systemowe „ogranicz ruch”. Jeśli brakuje prze
 
 Dopóki nie ma jeszcze publicznych wydań, sprawdzanie aktualizacji zgłasza: „Nie ma jeszcze publicznych aktualizacji (wydań).” To nie jest błąd.
 
-### „Plainva odrzuciła tę aktualizację”
+### „Plainva odrzuciła aktualizację”
 
 Zanim cokolwiek zostanie zainstalowane, Plainva sprawdza, czy pobrany plik jest podpisany kluczem projektu Plainva i to dokładnie dla oferowanej wersji. Jeśli sprawdzenie się nie powiedzie, aktualizacja zostaje odrzucona: nic nie jest instalowane, a Twoja wersja działa dalej bez zmian. Jeśli odrzucenie się powtarza, plik został zmieniony po drodze; zgłoś to jako issue.
 

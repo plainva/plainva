@@ -218,10 +218,13 @@ record, but it does not stop the release. It is not a required check for
 
 ## Updater signature test (since 2026-11-11)
 
-Does the built app refuse an update that is not what the Plainva project
-signed? Open since v0.1.0 (stability plan R11, finding S12), now a job of
-`native-smoke.yml` (`updater-signature`, Linux and Windows), so every release
-runs it. Spec `apps/desktop/wdio/updater-signature.e2e.ts`, launcher
+Does the app refuse an update that is not what the Plainva project signed?
+Open since v0.1.0 (stability plan R11, finding S12), now a job of
+`native-smoke.yml` (`updater-signature`, Linux and Windows) against a
+**debug build** of the commit. `release.yml` calls the workflow for every
+release (not for a `rebuild_windows_tag` run), but nothing waits for it: the
+draft is published by hand and `updater-manifest.yml` runs on that, so the
+release checklist asks to look at both jobs before publishing. Spec `apps/desktop/wdio/updater-signature.e2e.ts`, launcher
 `apps/desktop/wdio.updater.conf.ts`, fixtures
 `apps/desktop/scripts/updater-signature-fixtures.mjs`.
 
@@ -233,8 +236,15 @@ the trusted public key and ONE endpoint, `http://127.0.0.1:1479/latest.json`.
 The job builds the debug binary with that overlay; the launcher serves the
 address before the app starts, and the spec picks the manifest per case. The
 overlay carries no `dangerous…` flag: a debug build accepts a plain-http
-endpoint with a warning, a release build refuses it at start, and the release
-configuration is held to https by `apps/desktop/src/updaterTrust.test.ts`.
+endpoint with a warning; a release build refuses one when it reads its
+configuration (tauri-plugin-updater `validate_endpoints`, read from its source,
+not run here). The release configuration, and every configuration a workflow,
+script or package script hands a build, is held to the project's key,
+`requireSignedVersion`, https and no `dangerous…` switch by
+`apps/desktop/src/updaterTrust.test.ts`. The fixture script empties only a
+folder it made itself (a marker file), and the launcher refuses to run outside
+CI on a machine where Plainva's settings exist: the test app carries the
+release identifier, and the smoke's preparation writes those settings.
 
 | Case | Offered | Expected |
 |---|---|---|
@@ -246,11 +256,11 @@ configuration is held to https by `apps/desktop/src/updaterTrust.test.ts`.
 | U6 | 0.0.1, and the running version | not offered |
 | U7 | 9.9.9 announced, file signed for 9.9.8 | refused: signed version mismatch |
 | U8 | a signature that names no version | refused (`requireSignedVersion`) |
-| U9 | U3–U5, U7, U8 through Settings → About & diagnostics → Updates | refused with **updateRefused**, install button gone; 0.0.1 shows "You are up to date." |
+| U9 | U3–U5, U7, U8 through Settings → About & diagnostics → Updates | refused after the download with **updateRefused**, install button gone; 0.0.1 shows "You are up to date." |
 
-A refusal counts only for the plugin's own reason (the spec checks its
-words) and only after the app downloaded the file (the launcher records
-every request). U2–U8 call the plugin's commands `check` and `download` in
+A refusal counts only after the app downloaded the file (the launcher
+records every request), and in U3–U8 only for the plugin's own reason (the
+spec checks its words); U1 and U9 check the sentence the person reads. U2–U8 call the plugin's commands `check` and `download` in
 the app's window: `download_and_install`, which the app runs, is `download`
 (where the signature is verified) followed by `install`. U2 stops before
 `install`, because on the bare debug binary an install would write the
@@ -262,11 +272,12 @@ What holds per system: the check is the same code everywhere —
 `Update::download` verifies the bytes against the configured key and the
 signed version before any installer runs, and the installer formats (NSIS
 `.exe`/`.msi` on Windows, `.app.tar.gz` on macOS, AppImage/`.deb`/`.rpm` on
-Linux) only differ after it. The job runs on Linux and Windows; macOS is not
-run (its driver needs the smoke feature build, and the check before the
-installer is the same code), and no installer is ever reached.
+Linux) only differ after it. Proven is the download and its verification in
+a debug build on Linux and Windows; not run are macOS (its driver needs the
+smoke feature build), the release build and the install step itself.
 
-Run it locally (Windows adds the smoke overlay):
+Run it locally (Windows adds the smoke overlay; the launcher refuses where
+Plainva is set up):
 
 ```bash
 node apps/desktop/scripts/updater-signature-fixtures.mjs /tmp/updater-test

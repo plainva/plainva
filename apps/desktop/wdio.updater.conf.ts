@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { config as smoke } from "./wdio.conf";
+import { appDataDir, config as smoke, STORE_FILE } from "./wdio.conf";
 
 /**
  * The updater signature test (stability plan R11, finding S12; see
@@ -77,6 +77,14 @@ export const config: WebdriverIO.Config = {
   async onPrepare(...args) {
     if (!process.env.PLAINVA_UPDATER_TEST_DIR || !existsSync(join(fixtures, "fixture.json"))) {
       throw new Error("PLAINVA_UPDATER_TEST_DIR names no fixture folder (scripts/updater-signature-fixtures.mjs)");
+    }
+    // The test app carries the release identifier (the update check only runs
+    // there), so the smoke's preparation below writes the settings of THE
+    // installed Plainva on this machine. On a CI runner there is none; on any
+    // other machine the run stops before it would overwrite one.
+    const settings = join(appDataDir(), STORE_FILE);
+    if (process.env.GITHUB_ACTIONS !== "true" && existsSync(settings)) {
+      throw new Error(`refusing to run: ${settings} exists, and this run would overwrite the settings of the Plainva installed here. Run it in CI, or on a machine where Plainva is not set up.`);
     }
     const { port } = JSON.parse(readFileSync(join(fixtures, "fixture.json"), "utf8")) as { port: number };
     await startServer(port);

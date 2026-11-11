@@ -272,9 +272,11 @@ describe("Updater signature test", () => {
       await waitForStatus(available(fixture.next), `${r.id}: the settings never offered ${fixture.next}`, 20_000);
       await (await updatesButton(en.settings.installUpdate)).click();
       await waitForStatus(en.settings.updateRefused, `${r.id}: no refusal in the settings`, 30_000);
+      const fetchedHere = await served();
+      if (!fetchedHere.some((path) => path.startsWith("/files/"))) throw new Error(`${r.id}: the settings refused without downloading anything: ${fetchedHere.join(", ")}`);
       if (await (await updatesButton(en.settings.installUpdate)).isExisting()) throw new Error(`${r.id}: the refused update is still offered`);
       if (r.id === "U3") await evidence("u9-settings-refused");
-      report(`U9 settings, ${r.name}`, "REFUSED (status line: updateRefused, install button gone)");
+      report(`U9 settings, ${r.name}`, "REFUSED after the download (status line: updateRefused, install button gone)");
     }
 
     await useCase("e-downgrade");

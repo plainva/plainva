@@ -136,7 +136,7 @@ Plainva respektiert die System-Einstellung „Animationen reduzieren". Wenn Übe
 
 Solange es noch keine öffentlichen Releases gibt, meldet die Update-Suche: „Aktuell sind noch keine öffentlichen Updates (Releases) verfügbar." Das ist kein Fehler.
 
-### „Plainva hat dieses Update abgelehnt“
+### „Plainva hat das Update abgelehnt“
 
 Bevor etwas installiert wird, prüft Plainva, dass der Download mit dem Schlüssel des Plainva-Projekts signiert ist, und zwar für genau die angebotene Version. Schlägt die Prüfung fehl, wird das Update abgelehnt: Es wird nichts installiert, und Deine Version läuft unverändert weiter. Kommt die Ablehnung immer wieder, wurde der Download auf dem Weg zu Dir verändert; melde das bitte als Issue.
 

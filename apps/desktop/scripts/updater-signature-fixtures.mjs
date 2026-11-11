@@ -25,7 +25,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,9 +42,20 @@ const port = Number(process.env.PLAINVA_UPDATER_TEST_PORT || 1479);
 const current = JSON.parse(readFileSync(join(desktop, "src-tauri", "tauri.conf.json"), "utf8")).version;
 const NEXT = "9.9.9";
 
-rmSync(out, { recursive: true, force: true });
+// The folder is emptied before it is filled — only one this script made
+// (it carries the marker) or an empty one, never a path that holds anything else.
+const MARKER = ".plainva-updater-fixtures";
+if (existsSync(out)) {
+  const entries = readdirSync(out);
+  if (entries.length && !entries.includes(MARKER)) {
+    console.error(`refusing to empty ${out}: it is not empty and was not made by this script (no ${MARKER})`);
+    process.exit(2);
+  }
+  rmSync(out, { recursive: true, force: true });
+}
 mkdirSync(join(out, "files"), { recursive: true });
 mkdirSync(join(out, "manifests"), { recursive: true });
+writeFileSync(join(out, MARKER), "updater signature test fixtures; this folder is emptied on the next run\n");
 
 const tauriCli = join(desktop, "node_modules", "@tauri-apps", "cli", "tauri.js");
 /** The environment without any signing key a shell may carry: the test signs only with its own keys. */
