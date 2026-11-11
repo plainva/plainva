@@ -1,4 +1,5 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { settingNotSaved } from "../services/settingNotSaved";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, Command, HelpCircle, SlidersHorizontal, ListChecks, Mail, MessageSquare, NotebookText, Search, Settings, Sparkles, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon, SquareArrowOutUpRight } from "lucide-react";
 import {
@@ -132,7 +133,7 @@ export function AppRibbon(props: AppRibbonProps) {
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("ribbon", vaultPath, next, source);
+      void saveBarLayout("ribbon", vaultPath, next, source).catch(settingNotSaved("settings:bar-layout"));
     },
     [vaultPath, source],
   );

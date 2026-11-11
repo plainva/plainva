@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { reportingTo } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { RotateCcw, History } from "lucide-react";
 import { VersionHistoryService, type OrphanedBackupGroup } from "@plainva/core";
@@ -63,7 +64,7 @@ export const DeletedFilesModal: React.FC<{ onClose: () => void }> = ({ onClose }
         isDirectory: false,
         mtime: Date.now(),
         size: newest.size,
-      }).catch(() => {});
+      }).catch(reportingTo("index:restore-deleted"));
       triggerFileTreeUpdate();
       setGroups((prev) => (prev ?? []).filter((g) => g.originalPath !== group.originalPath));
     } catch (e) {

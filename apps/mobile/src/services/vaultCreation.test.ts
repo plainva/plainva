@@ -5,7 +5,7 @@ vi.mock("@capacitor/preferences", () => ({ Preferences: {
   get: async ({ key }: { key: string }) => ({ value: stored.get(key) ?? null }),
   set: async ({ key, value }: { key: string; value: string }) => { stored.set(key, value); },
 } }));
-vi.mock("@plainva/ui", () => ({ getPlatformServices: () => ({ credentials: { removeSecret: async () => {} } }) }));
+vi.mock("@plainva/ui", () => ({ getPlatformServices: () => ({ credentials: { removeSecret: async () => {} } }), reportingTo: () => () => {}, reportBackground: () => {} }));
 
 beforeEach(() => { stored.clear(); vi.resetModules(); });
 describe("vault creation intent survives no reopen path", () => {

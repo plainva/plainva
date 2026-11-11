@@ -119,7 +119,7 @@ function App() {
     if (!vaultPath || isLoading || !vaultAdapter || !queryService) return;
     if (okfPromptCheckedRef.current === vaultPath) return;
     okfPromptCheckedRef.current = vaultPath;
-    (async () => {
+    void (async () => {
       try {
         // An interrupted conversion comes first — and instead of the offer,
         // never on top of it. It leaves a vault where some notes carry the OKF
@@ -263,7 +263,7 @@ function App() {
   const dismissReleaseDialog = useStableHandler(async () => {
     setShowWhatsNew(false);
     setShowFirstRun(false);
-    markWhatsNewSeen(await getAppVersion());
+    void markWhatsNewSeen(await getAppVersion());
   });
 
   // Quiet startup update check (P3.8): one toast if a release is available;

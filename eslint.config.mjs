@@ -289,4 +289,27 @@ export default tseslint.config(
       "regexp/no-super-linear-move": "error",
     },
   },
+  {
+    // A promise nobody awaits, catches or marks (stability plan R4): its
+    // failure was nobody's — a save, a deletion or an index step that went
+    // wrong without a word. Every floating promise in shipped code is either
+    // handled, or marked `void` on purpose: a marked one that rejects still
+    // reaches the diagnostics through each shell's `unhandledrejection`
+    // listener. Typed linting (the project service reads each package's own
+    // tsconfig); measured 2026-11-11 at 17-81 s per package, about the time
+    // of the untyped lint of the same package.
+    files: [
+      "packages/core/src/**/*.ts",
+      "packages/ui/src/**/*.{ts,tsx}",
+      "apps/desktop/src/**/*.{ts,tsx}",
+      "apps/mobile/src/**/*.{ts,tsx}",
+    ],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+    },
+  },
 );

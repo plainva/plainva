@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { reportBackground } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useVault } from "../contexts/VaultContext";
 import { retargetDesktopBookmarks } from "../services/bookmarks";
@@ -178,7 +179,8 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
       await indexer?.indexVaultFull("index.md generation");
       triggerFileTreeUpdate();
     } catch (e) {
-      console.warn("[IndexMdModal] re-index failed", e);
+      // The overviews are written (the lines say so); the index catches up on its next pass.
+      reportBackground("index:overview", e);
     }
     setResults(lines);
     setRunning(false);

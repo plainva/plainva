@@ -4952,7 +4952,13 @@
     "areaTitle": "この領域を表示できません",
     "areaBody": "エラーにより停止しました。Plainva のほかの部分はそのまま動作し、エラーは「{{place}}」に記録されています。",
     "areaAgain": "再読み込み後も失敗しました。続く場合は Plainva を再起動してください。エラーは「{{place}}」に記録されています。",
-    "areaReload": "この領域を再読み込み"
+    "areaReload": "この領域を再読み込み",
+    "background": {
+      "aiKeyNotRemoved": "{{provider}} のキーをこの端末から削除できなかったため、{{provider}} は一覧に残ります: {{reason}}",
+      "accountSignInKept": "アカウントは削除されましたが、そのサインインをこの端末から削除できませんでした: {{reason}}",
+      "taskNoteNotRestored": "「{{name}}」を元に戻せませんでした: {{reason}}",
+      "ledgerKept": "検索インデックスが閉じていた間の変更を、まだ同期に渡せませんでした: {{reason}}。変更はこの端末に残り、次回の起動時に再試行します。"
+    }
   },
   "palette": {
     "title": "コマンド",

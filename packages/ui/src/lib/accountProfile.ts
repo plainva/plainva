@@ -1,3 +1,4 @@
+import { reportingTo } from "../services/backgroundErrors.js";
 import { sameStoredValue } from "@plainva/core";
 import { trimEndChars } from "@plainva/core";
 import type { PimAccountRow } from "@plainva/core";
@@ -503,9 +504,10 @@ export async function adoptAccountInto(
 ): Promise<void> {
   const rotated = (await ports.getCredentials(opts.vault, opts.freshId)) ?? opts.validatedCreds;
   await ports.saveCredentials(opts.vault, opts.targetId, rotated);
-  await ports.clearCredentials(opts.vault, opts.freshId).catch(() => undefined);
+  // A throwaway slot left behind is overwritten by the next connect (see above).
+  await ports.clearCredentials(opts.vault, opts.freshId).catch(reportingTo("account:adopt"));
   await ports.reassignRows(opts.freshId, opts.targetId);
-  await ports.deleteAccount(opts.freshId).catch(() => undefined);
+  await ports.deleteAccount(opts.freshId).catch(reportingTo("account:adopt"));
 }
 
 export interface VerifiedProviderProfile {
@@ -771,7 +773,8 @@ export async function importAccountMetadata(
     for (const [logical] of Object.entries(previousMap.removedLogical)) {
       const local = localOfLogical.get(logical) ?? logical;
       if ((await ports.listPimAccounts()).some((a) => a.id === local)) {
-        await ports.deletePimAccount(local).catch(() => {});
+        // The tombstone stays in the document: the next application tries again.
+        await ports.deletePimAccount(local).catch(reportingTo("account:profile-removal"));
       }
     }
   }

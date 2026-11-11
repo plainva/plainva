@@ -441,6 +441,7 @@ export * from "./lib/noteEmbed";
 export * from "./lib/useSearchPages";
 export * from "./components/tableModel";
 export * from "./services/diagnosticsLog";
+export * from "./services/backgroundErrors";
 export * from "./lib/buildInfo";
 export * from "./services/retiredStorage";
 export * from "./services/listingReport";

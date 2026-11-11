@@ -54,6 +54,7 @@ import {
   GRAPH_TRAIL_EVENT,
 } from "@plainva/ui";
 import { atomicWriteText } from "../../platform/atomicFile";
+import { removeDataFile, removeDataFolder } from "../../platform/dataFiles";
 import { mConfirm } from "../mobileDialogs";
 import { createMobileAiEgress, setMobileLocalOnly } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
@@ -93,19 +94,14 @@ export const mobileAiFiles: AiFileStore = {
   async write(relPath, text) {
     await atomicWriteText(`${ROOT}/${relPath}`, text);
   },
+  // Absent is fine; anything else that leaves the file there fails, as on the
+  // desktop (desktopAi.ts): a conversation or a vault's AI data the person
+  // removed must not come back with nobody told (stability plan R4).
   async remove(relPath) {
-    try {
-      await Filesystem.deleteFile({ path: `${ROOT}/${relPath}`, directory: Directory.Data });
-    } catch {
-      // absent is fine
-    }
+    await removeDataFile(`${ROOT}/${relPath}`);
   },
   async removeDir(relPath) {
-    try {
-      await Filesystem.rmdir({ path: `${ROOT}/${relPath}`, directory: Directory.Data, recursive: true });
-    } catch {
-      // absent is fine
-    }
+    await removeDataFolder(`${ROOT}/${relPath}`);
   },
 };
 

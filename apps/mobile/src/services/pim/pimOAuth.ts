@@ -441,7 +441,7 @@ function watchBrowserClosed(provider: PimOAuthProvider, state: string): void {
   let listener: { remove: () => Promise<void> } | undefined;
   try {
     void Promise.resolve(Browser.addListener("browserFinished", () => {
-      void listener?.remove().catch(() => {});
+      void listener?.remove().catch(() => { /* silent: the listener of a browser that is gone */ });
       setTimeout(() => {
         void loadPending().then((flow) => {
           if (flow?.state === state) logDiagnostic("sign-in", `${provider}: browser closed without an answer from the provider`);

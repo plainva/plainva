@@ -1,4 +1,5 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { settingNotSaved } from "../services/settingNotSaved";
 import { ChevronDown, Database, CalendarDays, Lightbulb, Link as LinkIcon, NotebookPen, Pen, Search, SlidersHorizontal, List, Sparkles, SquarePen, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
@@ -214,7 +215,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("rightSections", vaultPath, next, source);
+      void saveBarLayout("rightSections", vaultPath, next, source).catch(settingNotSaved("settings:bar-layout"));
     },
     [vaultPath, source],
   );

@@ -1,4 +1,7 @@
 import { withoutReadCursor, type ToolScope } from "./vaultTools";
+import i18n from "../i18n";
+import { errorText } from "../lib/errorText";
+import { reportBackground, reportingTo, reportVisible } from "../services/backgroundErrors";
 import { APP_SKILL_SOURCES, appSkillOf, appSkillScenarios } from "./appSkills";
 import type { InstructionApprovalStore, SkillTestStore, UpkeepPrefStore, WebSettingsStore } from "./aiStores";
 import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
@@ -1864,7 +1867,16 @@ export class AiSession {
       await this.removeCustom(id);
       return;
     }
-    if (provider?.endpoint.needsKey) await this.deleteKey(id).catch(() => undefined);
+    if (provider?.endpoint.needsKey) {
+      try {
+        await this.deleteKey(id);
+      } catch (error) {
+        // The key would stay on the device with no row left to delete it from:
+        // the provider stays listed, and the person is told why (stability plan R4).
+        reportVisible("ai:provider-key", error, i18n.t("errors.background.aiKeyNotRemoved", { provider: provider.label, reason: errorText(error) }));
+        return;
+      }
+    }
     await this.updateSettings((s) => ({
       ...s,
       providers: s.providers.filter((p) => p !== id),
@@ -2012,7 +2024,7 @@ export class AiSession {
       // run), none on screen now, and none written since — a run that began since is on screen until its end writes it.
       for (const id of expiredConversations(listed, this.state.settings.historyDays, this.host.now())) {
         const inUse = used.has(id) || this.state.active?.id === id;
-        if (!inUse && (this.changes.get(id) ?? 0) === (writes.get(id) ?? 0)) await this.deleteStored(vault, id).catch(() => undefined);
+        if (!inUse && (this.changes.get(id) ?? 0) === (writes.get(id) ?? 0)) await this.deleteStored(vault, id).catch(reportingTo("ai:history-expiry"));
       }
       if (this.vault !== vault) return;
       if (this.clearsOf(vault) === clears) break;
@@ -2812,7 +2824,7 @@ export class AiSession {
     const runs = now.runs.map((meta, index) => (index === runIndex && meta.writes ? { ...meta, writes: { ...meta.writes, applied: withUndone(meta.writes.applied ?? [], report.undone) } } : meta));
     const next = { ...now, runs };
     this.set({ active: next });
-    await this.write(vault, next).catch(() => undefined);
+    await this.write(vault, next).catch(reportingTo("ai:undo-record"));
     return report;
   }
 
@@ -3779,7 +3791,8 @@ export class AiSession {
     const vault = this.vault;
     if (!vault?.upkeep) return;
     const prefs = await vault.upkeep.load().catch(() => EMPTY_UPKEEP_PREFS);
-    await vault.upkeep.save(dismissUpkeep(prefs, key)).catch(() => undefined);
+    // The refresh below reads what was kept: a hint that could not be hidden shows again.
+    await vault.upkeep.save(dismissUpkeep(prefs, key)).catch(reportingTo("ai:upkeep-prefs"));
     if (this.vault === vault) await this.refreshUpkeep();
   }
 
@@ -3823,7 +3836,8 @@ export class AiSession {
   async switchMemory(on: boolean): Promise<void> {
     const host = this.vault?.memory;
     if (!host) return;
-    await host.prefs.save({ on }).catch(() => undefined);
+    // The refresh reads the switch back: one that could not be kept shows as it stands.
+    await host.prefs.save({ on }).catch(reportingTo("ai:memory-switch"));
     await this.refreshMemory();
   }
 
@@ -4614,7 +4628,7 @@ export class AiSession {
         if (this.vault === vault && results.some((r) => r.checks.length > 0)) {
           const record: SkillTestRecord = { id: target.id, version: target.version, providerId: choice.providerId, model: choice.model, at: this.host.now().toISOString(), scenarios: results };
           tests = recordSkillTest(tests, record);
-          await vault.skillTests?.save(tests).catch(() => undefined);
+          await vault.skillTests?.save(tests).catch(reportingTo("ai:skill-tests"));
           this.set({ skillTests: { ...this.state.skillTests, records: tests.records } });
         }
       }
@@ -4622,7 +4636,7 @@ export class AiSession {
       if (this.vault === vault && vault.skillTests && ids === null && !stopped) {
         const pruned = pruneSkillTests(tests, new Set(entries.map((e) => e.source.id)));
         if (pruned !== tests) {
-          await vault.skillTests.save(pruned).catch(() => undefined);
+          await vault.skillTests.save(pruned).catch(reportingTo("ai:skill-tests"));
           this.set({ skillTests: { ...this.state.skillTests, records: pruned.records } });
         }
       }
@@ -4652,7 +4666,7 @@ export class AiSession {
    * for `deleteStored`.
    */
   private async dropOwn(vault: AiVaultHost, id: string, ownOnly?: (stored: ConversationRecord | null) => boolean): Promise<void> {
-    await this.deleteStored(vault, id, ownOnly).catch(() => undefined);
+    await this.deleteStored(vault, id, ownOnly).catch(reportingTo("ai:own-conversation"));
   }
 
   /**
@@ -4811,19 +4825,28 @@ export class AiSession {
       ...(existing?.last && existing.last.outcome !== "needs-you" ? { last: existing.last } : {}),
       ...(folder !== null ? { log: { folder } } : {}),
     };
-    const list = await this.routines.put(routine).catch(() => null);
+    let list: Routine[] | null;
+    try {
+      list = await this.routines.put(routine);
+    } catch (error) {
+      // A store that did not take it is a failure, never "the list is full".
+      reportBackground("ai:routine-save", error);
+      return "failed";
+    }
     return list ? "saved" : existing ? "failed" : "full";
   }
 
   /** Pauses a routine, or lets it run again — from now on: what was paused is not caught up. */
   async pauseRoutine(id: string, paused: boolean): Promise<void> {
     const now = this.host.now().toISOString();
-    await this.routines.patch(id, (routine) => ({ ...routine, paused, ...(paused ? {} : { resumedAt: now }) })).catch(() => null);
+    // The list changes only once the store took it: a switch that failed shows as it stands.
+    await this.routines.patch(id, (routine) => ({ ...routine, paused, ...(paused ? {} : { resumedAt: now }) })).catch(reportingTo("ai:routine-pause"));
   }
 
   /** Removes a routine. The notes it wrote stay; so does the conversation of its last run, until the history lets it go. */
   async removeRoutine(id: string): Promise<void> {
-    await this.routines.remove(id).catch(() => null);
+    // The list changes only once the store took it: a routine that could not be removed stays listed.
+    await this.routines.remove(id).catch(reportingTo("ai:routine-remove"));
     if (this.routines.state.ready?.id === id) this.routines.setReady(null);
   }
 
@@ -5104,7 +5127,7 @@ export class AiSession {
     const store = vault?.hintPrefs;
     if (!vault || !store) return;
     const prefs = change(await store.load().catch(() => this.state.hints.prefs));
-    await store.save(prefs).catch(() => undefined);
+    await store.save(prefs).catch(reportingTo("ai:hint-prefs"));
     if (this.vault === vault) this.set({ hints: { ...this.state.hints, prefs, version: this.state.hints.version + 1 } });
   }
 
@@ -7817,8 +7840,9 @@ export class AiSession {
             ...(saved ? { context: saved, ...(savedUsd !== undefined ? { savedUsd } : {}) } : {}),
           }),
         );
-      } catch {
-        // The answer stays on screen even when app data cannot be written.
+      } catch (error) {
+        // The answer stays on screen even when app data cannot be written; the history then lacks it.
+        reportBackground("ai:conversation-write", error);
       }
       // A version of a skill that came from a proposal is watched (plan P6-2): a run of the user's own that used it
       // is counted — a door's run and a regression run are no use of it.

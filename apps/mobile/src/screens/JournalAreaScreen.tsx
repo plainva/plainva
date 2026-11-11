@@ -67,7 +67,7 @@ export function JournalAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         ],
         value: settings.dailyTemplate,
       });
-      if (picked !== null) update({ dailyTemplate: picked });
+      if (picked !== null) void update({ dailyTemplate: picked });
     })();
   };
 
@@ -151,7 +151,7 @@ export function JournalAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         <FolderPickerSheet
           onClose={() => setPickFolder(false)}
           onPick={(path) => {
-            if (path) update({ dailyFolder: path });
+            if (path) void update({ dailyFolder: path });
           }}
           title={t("settings.browseFolders")}
           vault={vault}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { reportingTo } from "@plainva/ui";
 import type { IVaultAdapter } from "@plainva/core";
 import type { RenameReindexer } from "./fileActions";
 import { sweepDesktopPinboardDrafts } from "./pinboardDrafts";
@@ -35,6 +36,7 @@ export function usePinboardDraftSweep(opts: {
       .then((swept) => {
         if (swept.removed.length > 0) onRemoved.current?.(swept.removed);
       })
-      .catch((e) => console.warn("[pinboard] finishing drafts failed", e));
+      // The drafts stay where they are; the next open tries again.
+      .catch(reportingTo("pinboard:draft-sweep"));
   }, [owner, ready, vaultPath, adapter, indexer]);
 }

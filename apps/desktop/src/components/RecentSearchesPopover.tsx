@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
+import { reportingTo } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { Clock, X } from "lucide-react";
 import {
@@ -85,7 +86,7 @@ export function RecentSearchesPopover({
         type="button"
         className="pv-popover-row"
         onClick={() => {
-          void clearRecentSearches(vaultPath).catch(() => {});
+          void clearRecentSearches(vaultPath).catch(reportingTo("search:clear-recent"));
           setItems([]);
           onClose();
         }}

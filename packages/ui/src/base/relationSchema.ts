@@ -1,3 +1,4 @@
+import { reportBackground } from "../services/backgroundErrors";
 import {
   addReverseColumnToConfig,
   findReverseColumn,
@@ -78,7 +79,9 @@ export async function applyRelationWrite(
   await saveOwn(null);
   try {
     return await writeReverseColumnChange(adapter, relationBase, mutate);
-  } catch {
+  } catch (error) {
+    // `false` goes back to the shell, which decides what the person sees; the reason goes into the diagnostics.
+    reportBackground("base:reverse-column", error);
     return false;
   }
 }

@@ -1,3 +1,4 @@
+import { reportingTo } from "../services/backgroundErrors";
 import { firstAngleValue, sameStoredValue, trimEndChars, trimChars } from "@plainva/core";
 import { getPlatformServices } from "../platform/services";
 import { readSlot, removeSlot, shellSlotName } from "../lib/keychainSlots";
@@ -457,12 +458,12 @@ export async function removeMailAccount(vaultPath: string, accountId: string): P
   // next profile import from another device put the mailbox straight back
   // (review of plan "Verbinden", finding 1). A mailbox that was never shared
   // leaves a tombstone nobody matches.
-  await getPlatformServices().noteAccountRemoved?.(vaultPath, "mail", accountId).catch(() => undefined);
+  await getPlatformServices().noteAccountRemoved?.(vaultPath, "mail", accountId).catch(reportingTo("mail:account-tombstone"));
   await removeSlot(
     getPlatformServices().credentials,
     mailSecretKey(vaultPath, accountId),
     legacyMailSecretKey(vaultPath, accountId),
-  ).catch(() => undefined);
+  ).catch(reportingTo("mail:account-secret"));
 }
 
 /**

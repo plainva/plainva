@@ -4952,7 +4952,13 @@
     "areaTitle": "无法显示此区域",
     "areaBody": "一个错误使其停止。Plainva 的其余部分继续运行，错误已记录在“{{place}}”中。",
     "areaAgain": "重新加载后再次失败。如果持续失败，请重新启动 Plainva；错误已记录在“{{place}}”中。",
-    "areaReload": "重新加载此区域"
+    "areaReload": "重新加载此区域",
+    "background": {
+      "aiKeyNotRemoved": "无法从此设备移除 {{provider}} 的密钥，因此 {{provider}} 仍保留在列表中：{{reason}}",
+      "accountSignInKept": "账户已移除，但其登录信息无法从此设备删除：{{reason}}",
+      "taskNoteNotRestored": "无法恢复“{{name}}”：{{reason}}",
+      "ledgerKept": "搜索索引关闭期间所做的更改尚未能交给同步：{{reason}}。这些更改保留在此设备上，下次启动时会再次尝试。"
+    }
   },
   "palette": {
     "title": "命令",

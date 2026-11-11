@@ -3,6 +3,7 @@ import {
   chooseGoogleSignInFlow, GoogleAuthorizationError, googleAuthorizationDiagnostic, googleOrphanResultDiagnostic, googleServicesOfScope, logDiagnostic,
   oauthScopesCover, parseGoogleUserInfo, plainvaGoogleClient, readGoogleAuthorizationFailure, verifiedProviderIdentityKey, withAccountCredentialLock,
   type GoogleAuthorizationFailure, type StoredAccountToken,
+  reportingTo,
 } from "@plainva/ui";
 import { webdavFetch } from "../adapters/webdavHttp";
 
@@ -56,7 +57,7 @@ export async function clearNativeGoogleTokens(): Promise<void> {
   if (!hasGooglePlayServices()) { rejected.clear(); return; }
   await withAccountCredentialLock("native-google-authorization", async () => {
     for (const token of [...rejected]) {
-      await native.clearToken({ token }).catch(() => undefined);
+      await native.clearToken({ token }).catch(reportingTo("google-signin:clear-token"));
       rejected.delete(token);
     }
   });

@@ -33,7 +33,10 @@ export const CodeBlock: React.FC<{ code: string; lang?: string }> = ({ code, lan
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
-    }).catch((e) => { console.warn("[CodeBlock] copy to clipboard failed", e); });
+    }).catch((e) => {
+      // silent: the "copied" mark stays off, which is what the person sees; nothing was changed.
+      console.warn("[CodeBlock] copy to clipboard failed", e);
+    });
   };
   return (
     <div style={{ border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", margin: "0.6em 0", overflow: "hidden", background: "var(--code-bg)" }}>

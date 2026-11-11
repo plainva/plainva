@@ -16,6 +16,7 @@ import {
   type ReminderRule,
   type ReminderRunState,
   type ReminderSubject,
+  reportingTo,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getMobileSettings } from "./mobileSettings";
@@ -311,7 +312,8 @@ async function runOnce(): Promise<void> {
   // appointment reminders: switching appointments off switched tasks off too,
   // and nothing anywhere said so. Either one on is reason enough to plan.
   if (!settings.remindEvents && !settings.remindTasks && !settings.remindCheckboxes) {
-    await clearPending().catch(() => {});
+    // Reminders that stay planned although both switches are off: worth a trace.
+    await clearPending().catch(reportingTo("reminders:clear"));
     setState({ ...EMPTY, reason: "off" });
     return;
   }

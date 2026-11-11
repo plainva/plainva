@@ -1,4 +1,4 @@
-import { readContentBinary } from "@plainva/ui";
+import { readContentBinary, reportingTo } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
@@ -336,7 +336,7 @@ export function PinboardView({
         // The line is gone or reads otherwise: nothing was ticked. Say so and
         // draw the card from the note as it is.
         toast.info(t("tasks.promoteStale"));
-        await vault.reindexPaths([path]).catch(() => {});
+        await vault.reindexPaths([path]).catch(reportingTo("index:paths"));
         onMutated();
       }
     } catch (e) {

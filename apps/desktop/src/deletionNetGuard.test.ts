@@ -153,7 +153,9 @@ describe("every deletion goes through its net (D1)", () => {
     expect((phone.match(/backup = new BackupVaultAdapter\(adapter,/g) ?? []).length).toBe(2);
     expect(phone).toMatch(/new PermissionedVaultAdapter\(backup,/);
     expect(phone).toMatch(/new QueueingVaultAdapter\(backup,/);
-    expect(phone).toMatch(/new ConflictAwareVaultAdapter\(backup,/);
+    // Without its database the phone's chain queues into a ledger (stability plan R5), still above the backup.
+    expect(phone).toMatch(/new QueueingVaultAdapter\(backup, new QueueLedger\(/);
+    expect(phone).toMatch(/new ConflictAwareVaultAdapter\(ledgered,/);
     expect(phone).toMatch(/^\s*backup: BackupVaultAdapter;$/m);
     expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new SyncWorker\(engine, target, v\.syncRepo!, v\.backup,/);
     // Nothing on the phone deletes on the raw storage.

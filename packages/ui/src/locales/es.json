@@ -5166,7 +5166,13 @@
     "areaTitle": "No se puede mostrar esta área",
     "areaBody": "Un error la detuvo. El resto de Plainva sigue funcionando y el error queda registrado en {{place}}.",
     "areaAgain": "Volvió a fallar después de recargarla. Si sigue fallando, reinicia Plainva; el error queda registrado en {{place}}.",
-    "areaReload": "Recargar esta área"
+    "areaReload": "Recargar esta área",
+    "background": {
+      "aiKeyNotRemoved": "No se pudo quitar la clave de {{provider}} de este dispositivo, así que {{provider}} sigue en la lista: {{reason}}",
+      "accountSignInKept": "La cuenta se quitó, pero su inicio de sesión no se pudo borrar de este dispositivo: {{reason}}",
+      "taskNoteNotRestored": "No se pudo recuperar «{{name}}»: {{reason}}",
+      "ledgerKept": "Los cambios hechos mientras el índice de búsqueda estaba cerrado aún no se pudieron entregar a la sincronización: {{reason}}. Se quedan en este dispositivo y el próximo inicio lo vuelve a intentar."
+    }
   },
   "palette": {
     "title": "Comandos",

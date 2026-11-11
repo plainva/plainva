@@ -61,7 +61,7 @@ export async function readParkedSuggestion(db: IDatabaseAdapter, path: string): 
       // A row from before the rule existed. Tidied on the way out; a reader
       // that may not write (an auxiliary window) simply leaves it, and the
       // owner's next read removes it.
-      await clearParkedSuggestion(db, path).catch(() => {});
+      await clearParkedSuggestion(db, path).catch(() => { /* silent: an empty row, tidied by the next reader that may write */ });
       return null;
     }
     return record;

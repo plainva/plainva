@@ -64,6 +64,7 @@ export { buildPropertyPredicate, parseDatabaseSourceFilter, unappliedFilterCondi
 
 // Sync exports
 export * from "./sync/SyncQueue.js";
+export * from "./sync/queueLedger.js";
 // The retry rules for HTTP (429 with Retry-After, jittered backoff), shared by
 // the sync targets and the AI harness's model calls.
 export * from "./sync/httpRetry.js";

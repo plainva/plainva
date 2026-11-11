@@ -122,7 +122,7 @@ export function CascadeDeleteHost({ onDeleted }: { onDeleted: (paths: string[]) 
   useEffect(() => {
     if (!request) return;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const d = depsRef.current;
       if (!d.vaultAdapter || !d.queryService || request.paths.length === 0) {
         finish(false);

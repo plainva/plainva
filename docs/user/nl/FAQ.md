@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-11-10
+Laatst bijgewerkt: 2026-11-11
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -110,7 +110,7 @@ Daarnaast gelijkt Plainva automatisch af zodra je vanuit een ander programma ter
 
 Bij het inlezen volgt Plainva links zoals het systeem dat doet: een link naar een map wordt gelezen als die map, een link naar een bestand als dat bestand — op de desktop en in een map die je op de iPhone hebt gekozen. Wat het niet kan lezen, laat het weg en noemt het: een link naar een plek die op dit apparaat niet bestaat (bijvoorbeeld een map die alleen op een andere computer staat en hier als link is aangekomen) of een map zonder toegang. Een melding noemt ze één keer — **ontbreekt in de zoekindex** — en de rest van de vault wordt zoals gewoonlijk geïndexeerd. Niets onder zo'n item geldt als verwijderd, niet voor de index en niet voor de synchronisatie van een versleutelde workspace.
 
-Kan de index helemaal niet worden bijgewerkt, dan zegt de melding waarom (**De zoekindex kon niet worden bijgewerkt: …**); de vault blijft open met wat de index al bevat, en bij het volgende inlezen probeert Plainva het opnieuw. Op de telefoon wordt ook een zoekindex genoemd die niet kan worden geopend: zoeken, tags, databases, de synchronisatie en de kalender blijven dan uit tot Plainva hem kan openen.
+Kan de index helemaal niet worden bijgewerkt, dan zegt de melding waarom (**De zoekindex kon niet worden bijgewerkt: …**); de vault blijft open met wat de index al bevat, en bij het volgende inlezen probeert Plainva het opnieuw. Op de telefoon wordt ook een zoekindex genoemd die niet kan worden geopend: zoeken, tags, databases, de synchronisatie en de kalender blijven dan uit tot Plainva hem kan openen. Wat je in de tussentijd wijzigt — een notitie geschreven, verwijderd of hernoemd — blijft op de telefoon en gaat naar de synchronisatie zodra Plainva de index weer opent.
 
 Verwijder of herstel het item dat de melding noemt en kies daarna **Vault opnieuw inlezen** (op de telefoon: trek een lijst omlaag).
 

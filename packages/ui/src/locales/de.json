@@ -5059,7 +5059,13 @@
     "areaTitle": "Dieser Bereich kann nicht angezeigt werden",
     "areaBody": "Ein Fehler hat ihn angehalten. Der Rest von Plainva arbeitet weiter, und der Fehler steht unter {{place}}.",
     "areaAgain": "Auch nach dem Neuladen ging es nicht. Wenn es so bleibt, starte Plainva neu; der Fehler steht unter {{place}}.",
-    "areaReload": "Diesen Bereich neu laden"
+    "areaReload": "Diesen Bereich neu laden",
+    "background": {
+      "aiKeyNotRemoved": "Der Schlüssel für {{provider}} ließ sich nicht von diesem Gerät entfernen, deshalb bleibt {{provider}} in der Liste: {{reason}}",
+      "accountSignInKept": "Das Konto ist entfernt, aber seine Anmeldung ließ sich nicht von diesem Gerät löschen: {{reason}}",
+      "taskNoteNotRestored": "„{{name}}“ ließ sich nicht wiederherstellen: {{reason}}",
+      "ledgerKept": "Änderungen, die Du gemacht hast, während der Suchindex geschlossen war, ließen sich noch nicht an die Synchronisation übergeben: {{reason}}. Sie bleiben auf diesem Gerät, und der nächste Start versucht es erneut."
+    }
   },
   "palette": {
     "title": "Befehle",

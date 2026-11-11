@@ -21,8 +21,7 @@ import {
   serializeBaseConfig,
   TextInput,
   toast,
-  getPlatformServices,
-} from "@plainva/ui";
+  getPlatformServices, reportingTo } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -217,7 +216,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
       if (!into) {
         // The vault gained files the index has never seen. A new vault indexes
         // itself when it is opened, so there is nothing to do for it here.
-        await vault.indexer?.indexVaultFull("import").catch(() => {});
+        await vault.indexer?.indexVaultFull("import").catch(reportingTo("index:full"));
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
       }
     } catch (error) {

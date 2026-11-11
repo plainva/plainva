@@ -5273,7 +5273,13 @@
     "areaTitle": "Nie można wyświetlić tego obszaru",
     "areaBody": "Zatrzymał go błąd. Reszta Plainva działa dalej, a błąd jest zapisany w {{place}}.",
     "areaAgain": "Po ponownym załadowaniu znów się nie udało. Jeśli tak zostanie, uruchom Plainva ponownie; błąd jest zapisany w {{place}}.",
-    "areaReload": "Załaduj ten obszar ponownie"
+    "areaReload": "Załaduj ten obszar ponownie",
+    "background": {
+      "aiKeyNotRemoved": "Nie udało się usunąć klucza {{provider}} z tego urządzenia, więc {{provider}} pozostaje na liście: {{reason}}",
+      "accountSignInKept": "Konto zostało usunięte, ale jego logowania nie udało się usunąć z tego urządzenia: {{reason}}",
+      "taskNoteNotRestored": "Nie udało się przywrócić „{{name}}”: {{reason}}",
+      "ledgerKept": "Zmian wprowadzonych, gdy indeks wyszukiwania był zamknięty, nie udało się jeszcze przekazać do synchronizacji: {{reason}}. Pozostają na tym urządzeniu, a następne uruchomienie spróbuje ponownie."
+    }
   },
   "palette": {
     "title": "Polecenia",

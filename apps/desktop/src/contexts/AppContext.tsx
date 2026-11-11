@@ -243,7 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const store = await getSettingsStore();
         const savedPath = await store.get<string>("lastVaultPath");
@@ -259,7 +259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const savedLanguage = await store.get<string>("appLanguage");
         if (savedLanguage) {
           // Loads the bundle on demand first — locales are lazy chunks (P2.8).
-          import("@plainva/ui/i18n").then(({ changeAppLanguage }) => {
+          void import("@plainva/ui/i18n").then(({ changeAppLanguage }) => {
             changeAppLanguage(savedLanguage).catch(console.error);
           });
         }

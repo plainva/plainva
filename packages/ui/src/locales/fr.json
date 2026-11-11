@@ -5166,7 +5166,13 @@
     "areaTitle": "Cette zone ne peut pas être affichée",
     "areaBody": "Une erreur l’a arrêtée. Le reste de Plainva continue de fonctionner, et l’erreur est consignée dans {{place}}.",
     "areaAgain": "Elle a de nouveau échoué après le rechargement. Si cela persiste, redémarrez Plainva ; l’erreur est consignée dans {{place}}.",
-    "areaReload": "Recharger cette zone"
+    "areaReload": "Recharger cette zone",
+    "background": {
+      "aiKeyNotRemoved": "La clé de {{provider}} n'a pas pu être retirée de cet appareil, {{provider}} reste donc dans la liste : {{reason}}",
+      "accountSignInKept": "Le compte a été retiré, mais sa connexion n'a pas pu être supprimée de cet appareil : {{reason}}",
+      "taskNoteNotRestored": "« {{name}} » n'a pas pu être restaurée : {{reason}}",
+      "ledgerKept": "Les modifications faites pendant que l'index de recherche était fermé n'ont pas encore pu être remises à la synchronisation : {{reason}}. Elles restent sur cet appareil, et le prochain démarrage réessaie."
+    }
   },
   "palette": {
     "title": "Commandes",

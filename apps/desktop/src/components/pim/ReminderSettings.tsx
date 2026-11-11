@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { settingNotSaved } from "../../services/settingNotSaved";
 import { useTranslation } from "react-i18next";
 import {
   travelsWithVault,
@@ -152,9 +153,15 @@ export function ReminderSettings() {
     async (next: Settings, key: string, value: unknown) => {
       setSettings(next);
       if (!vaultPath) return;
-      const store = await getSettingsStore();
-      await store.set(key, value);
-      await store.save();
+      try {
+        const store = await getSettingsStore();
+        await store.set(key, value);
+        await store.save();
+      } catch (error) {
+        // The switch shows the new value; the store keeps the old one.
+        settingNotSaved("settings:reminders")(error);
+        return;
+      }
       // Let the running scheduler re-plan without a restart.
       window.dispatchEvent(new CustomEvent("plainva-reminders-changed"));
     },

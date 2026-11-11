@@ -5059,7 +5059,13 @@
     "areaTitle": "Dit gedeelte kan niet worden weergegeven",
     "areaBody": "Een fout heeft het gestopt. De rest van Plainva blijft werken, en de fout staat onder {{place}}.",
     "areaAgain": "Het mislukte opnieuw na het herladen. Blijft het mislukken, herstart Plainva dan; de fout staat onder {{place}}.",
-    "areaReload": "Dit gedeelte opnieuw laden"
+    "areaReload": "Dit gedeelte opnieuw laden",
+    "background": {
+      "aiKeyNotRemoved": "De sleutel voor {{provider}} kon niet van dit apparaat worden verwijderd, dus {{provider}} blijft in de lijst: {{reason}}",
+      "accountSignInKept": "Het account is verwijderd, maar de aanmelding ervan kon niet van dit apparaat worden gewist: {{reason}}",
+      "taskNoteNotRestored": "‘{{name}}’ kon niet worden teruggezet: {{reason}}",
+      "ledgerKept": "Wijzigingen die zijn gemaakt terwijl de zoekindex gesloten was, konden nog niet aan de synchronisatie worden doorgegeven: {{reason}}. Ze blijven op dit apparaat, en de volgende start probeert het opnieuw."
+    }
   },
   "palette": {
     "title": "Opdrachten",

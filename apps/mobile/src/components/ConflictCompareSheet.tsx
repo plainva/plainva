@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, ConflictHistory, FileComparisonDetails, comparesAsText, conflictCopyStamp, settleWithNet, toast, versionCopyPath } from "@plainva/ui";
+import { Banner, Button, ConflictHistory, FileComparisonDetails, comparesAsText, conflictCopyStamp, settleWithNet, toast, versionCopyPath, reportBackground } from "@plainva/ui";
 import { assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, isNotTextFileError, seeConflictCopy, separateTaskConflict, settleConflictCopy, settleConflictText, type ConflictCopySight } from "@plainva/core";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { CompareVersions } from "./CompareVersions";
@@ -125,8 +125,9 @@ export function ConflictCompareSheet({
     clearConflict(originalPath);
     try {
       await vault.reindexPaths(touched);
-    } catch {
-      /* next full pass repairs it */
+    } catch (error) {
+      // The next full pass repairs it; the trace stays in the diagnostics.
+      reportBackground("index:paths", error);
     }
     syncSoon();
     window.dispatchEvent(new CustomEvent("m-vault-changed"));

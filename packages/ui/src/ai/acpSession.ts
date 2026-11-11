@@ -1,3 +1,4 @@
+import { reportingTo } from "../services/backgroundErrors";
 import {
   ACP_KNOWN_AGENTS,
   ACP_START_DECLINED,
@@ -444,11 +445,12 @@ export class AiAcp {
       await this.end();
       this.dismiss();
     }
-    await host.native.remove(id).catch(() => undefined);
+    // The list is read again below: an agent the device could not forget stays listed.
+    await host.native.remove(id).catch(reportingTo("ai:agent-remove"));
     const records = await host.store.load().catch(() => ({}) as Record<string, never>);
     if (id in records) {
       const { [id]: _gone, ...rest } = records as Record<string, { label: string; addedAt: string; target: string }>;
-      await host.store.save(rest).catch(() => undefined);
+      await host.store.save(rest).catch(reportingTo("ai:agent-remove"));
     }
     await this.refresh();
   }
@@ -1108,7 +1110,7 @@ export class AiAcp {
       // Which way an agent's changes take is the one thing about it nobody can promise: the list shows what happened here.
       const records = await this.host.store.load().catch(() => null);
       const record = records?.[live.agent.id];
-      if (records && record) await this.host.store.save({ ...records, [live.agent.id]: { ...record, seen: { at, proposed: through, direct: counts.direct } } }).catch(() => undefined);
+      if (records && record) await this.host.store.save({ ...records, [live.agent.id]: { ...record, seen: { at, proposed: through, direct: counts.direct } } }).catch(reportingTo("ai:agent-seen"));
     }
     if (this.live === live) this.show();
     void this.refresh();

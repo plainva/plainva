@@ -21,7 +21,8 @@ describe("the delete path knows only containers (external vault folder, P6)", ()
     const fn = src.slice(src.indexOf("export async function deleteVault("));
     const body = fn.slice(0, fn.indexOf("\n}\n"));
     const guard = body.indexOf("if (isExternalVault(entry))");
-    const rmdir = body.indexOf("Filesystem.rmdir({ path: `vaults/${id}`");
+    // `removeDataFolder` is the rmdir that may find nothing (stability plan R4).
+    const rmdir = body.indexOf("removeDataFolder(`vaults/${id}`");
     expect(guard, "the guard exists").toBeGreaterThan(-1);
     expect(rmdir, "the container rmdir exists").toBeGreaterThan(-1);
     expect(guard, "the guard comes BEFORE the rmdir").toBeLessThan(rmdir);
@@ -29,6 +30,7 @@ describe("the delete path knows only containers (external vault folder, P6)", ()
     const externalBranch = body.slice(guard, body.indexOf("} else {", guard));
     expect(externalBranch).toContain("release({ handle: entry.external.handle })");
     expect(externalBranch).not.toContain("rmdir");
+    expect(externalBranch).not.toContain("removeDataFolder");
   });
 
   it("recognises an external vault by its handle alone", () => {

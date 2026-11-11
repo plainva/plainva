@@ -1,3 +1,4 @@
+import { reportBackground } from "../services/backgroundErrors";
 import {
   frontmatterSpan,
   hasOkfVersionKey,
@@ -148,7 +149,8 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
           deps.onWritten?.(written);
         }
       } catch (e) {
-        console.warn("[indexMdAutoUpdate] refresh failed for", folder, e);
+        // The overview stays as it was; the next change in the folder writes it again.
+        reportBackground("index-md:auto-update", e);
       }
     }
     return { updated };

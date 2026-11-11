@@ -76,7 +76,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
       ],
       value: settings.language,
     }).then((v) => {
-      if (v !== null) update({ language: v });
+      if (v !== null) void update({ language: v });
     });
   };
 
@@ -126,7 +126,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
                   className="m-themecard-edit"
                   label={t("settings.customThemeEdit")}
                   data-testid="theme-card-custom-edit"
-                  onClick={() => { if (!active) update({ themeName: CUSTOM_THEME_ID }); onEditCustomTheme(); }}
+                  onClick={() => { if (!active) void update({ themeName: CUSTOM_THEME_ID }); onEditCustomTheme(); }}
                 >
                   <Pencil size={ICON.meta} aria-hidden="true" />
                 </IconButton>
@@ -282,7 +282,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
                   message: t("settings.noteLinkStyleDesc"),
                   options: NOTE_LINK_STYLES.map((style) => ({ value: style, label: t(LINK_STYLE_LABEL[style]) })),
                   value: readNoteLinkStyle(settings.noteLinkStyle),
-                }).then((v) => { if (v !== null) update({ noteLinkStyle: readNoteLinkStyle(v) }); });
+                }).then((v) => { if (v !== null) void update({ noteLinkStyle: readNoteLinkStyle(v) }); });
               }}
               data-testid="note-link-style"
             />
@@ -294,7 +294,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
                   title: t("settings.webLinkStyle"),
                   options: WEB_LINK_STYLES.map((style) => ({ value: style, label: t(LINK_STYLE_LABEL[style]) })),
                   value: readWebLinkStyle(settings.webLinkStyle),
-                }).then((v) => { if (v !== null) update({ webLinkStyle: readWebLinkStyle(v) }); });
+                }).then((v) => { if (v !== null) void update({ webLinkStyle: readWebLinkStyle(v) }); });
               }}
               data-testid="web-link-style"
             />
@@ -323,7 +323,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
           value={{ family: settings[FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![2]], customName: settings[FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![3]] }}
           onPick={(choice) => {
             const row = FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)!;
-            update({ [row[2]]: choice.family, [row[3]]: choice.customName });
+            void update({ [row[2]]: choice.family, [row[3]]: choice.customName });
             setFontSheet(null);
           }}
           onClose={() => setFontSheet(null)}

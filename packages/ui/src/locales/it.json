@@ -5166,7 +5166,13 @@
     "areaTitle": "Impossibile mostrare quest’area",
     "areaBody": "Un errore l’ha interrotta. Il resto di Plainva continua a funzionare e l’errore è registrato in {{place}}.",
     "areaAgain": "Non è riuscita di nuovo dopo il ricaricamento. Se continua, riavvia Plainva; l’errore è registrato in {{place}}.",
-    "areaReload": "Ricarica quest’area"
+    "areaReload": "Ricarica quest’area",
+    "background": {
+      "aiKeyNotRemoved": "Impossibile rimuovere la chiave di {{provider}} da questo dispositivo, quindi {{provider}} resta nell'elenco: {{reason}}",
+      "accountSignInKept": "L'account è stato rimosso, ma il suo accesso non è stato eliminato da questo dispositivo: {{reason}}",
+      "taskNoteNotRestored": "Impossibile recuperare “{{name}}”: {{reason}}",
+      "ledgerKept": "Le modifiche fatte mentre l'indice di ricerca era chiuso non sono ancora state passate alla sincronizzazione: {{reason}}. Restano su questo dispositivo e il prossimo avvio riprova."
+    }
   },
   "palette": {
     "title": "Comandi",

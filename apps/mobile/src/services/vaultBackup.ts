@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { Directory, Filesystem } from "@capacitor/filesystem";
-import { availableZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZip, toast } from "@plainva/ui";
+import { availableZipFileName, sanitizeFileName, selectZipsToDelete, shouldRunZip, toast, reportingTo } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { isMissingFile } from "../adapters/fileErrors";
 import { getMobileSettings } from "./mobileSettings";
@@ -117,7 +117,8 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
       if (await present(destination)) throw new Error("Backup destination already exists");
       await Filesystem.rename({ from: partial, to: destination, directory: DIR, toDirectory: DIR });
     } catch (error) {
-      await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(() => {});
+      // A partial archive left behind takes room until the next run; the failure itself is thrown.
+      await Filesystem.deleteFile({ path: partial, directory: DIR }).catch(reportingTo("backup:partial"));
       throw error;
     }
 
@@ -127,7 +128,8 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
       const listing = await Filesystem.readdir({ path: folder, directory: DIR });
       const names = listing.files.map((f) => (typeof f === "string" ? f : f.name));
       for (const stale of selectZipsToDelete(names, name, getMobileSettings().backupZipKeep)) {
-        await Filesystem.deleteFile({ path: `${folder}/${stale}`, directory: DIR }).catch(() => {});
+        // One archive more than asked for until the next run.
+        await Filesystem.deleteFile({ path: `${folder}/${stale}`, directory: DIR }).catch(reportingTo("backup:prune"));
       }
     } catch {
       /* an unreadable folder costs the pruning, not the archive */

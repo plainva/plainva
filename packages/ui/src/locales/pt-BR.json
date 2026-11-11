@@ -5166,7 +5166,13 @@
     "areaTitle": "Não foi possível mostrar esta área",
     "areaBody": "Um erro a interrompeu. O resto do Plainva continua funcionando, e o erro fica registrado em {{place}}.",
     "areaAgain": "Falhou de novo depois de recarregar. Se continuar falhando, reinicie o Plainva; o erro fica registrado em {{place}}.",
-    "areaReload": "Recarregar esta área"
+    "areaReload": "Recarregar esta área",
+    "background": {
+      "aiKeyNotRemoved": "Não foi possível remover a chave de {{provider}} deste dispositivo, por isso {{provider}} continua na lista: {{reason}}",
+      "accountSignInKept": "A conta foi removida, mas o login dela não pôde ser apagado deste dispositivo: {{reason}}",
+      "taskNoteNotRestored": "Não foi possível recuperar “{{name}}”: {{reason}}",
+      "ledgerKept": "As alterações feitas enquanto o índice de busca estava fechado ainda não puderam ser entregues à sincronização: {{reason}}. Elas ficam neste dispositivo, e a próxima inicialização tenta de novo."
+    }
   },
   "palette": {
     "title": "Comandos",

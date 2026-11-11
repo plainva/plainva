@@ -117,7 +117,7 @@ export async function restoreSession(
   }
   if (stored) {
     const visible: TabScreenId[] = shownBarTabs(await loadMobileBar(vault.vaultId), isRailClass(getWindowClass()));
-    const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => null);
+    const next = await restoreNavState(stored, { exists: (p) => vault.files.exists(p), visible }).catch(() => /* silent: a reading; the start screen is the default below */ null);
     if (next) {
       setNav(next);
       return;

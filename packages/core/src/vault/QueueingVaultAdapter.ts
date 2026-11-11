@@ -1,5 +1,5 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
-import { SyncQueue } from "../sync/SyncQueue.js";
+import type { SyncQueueEntries } from "../sync/queueLedger.js";
 import { isSystemJunkPath } from "./systemJunk.js";
 import { isWorkspaceNamespacePath } from "../workspace/path.js";
 import { OwedQueueEntries, type OwedQueueEntriesOptions, type OwedStructure, type QueueEntryKind } from "./owedQueueEntries.js";
@@ -47,7 +47,7 @@ export class QueueingVaultAdapter implements IVaultAdapter {
 
   constructor(
     private readonly inner: IVaultAdapter,
-    private readonly syncQueue: SyncQueue,
+    private readonly syncQueue: SyncQueueEntries,
     options: QueueingVaultAdapterOptions = {}
   ) {
     this.owed = new OwedQueueEntries(options);

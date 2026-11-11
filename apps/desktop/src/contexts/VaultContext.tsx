@@ -1,4 +1,5 @@
 import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
+import { reportingTo } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -998,7 +999,8 @@ export const VaultProvider: React.FC<{
           : syncQueue.queueWrite(changedPath);
         queued
           .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-          .catch((e) => console.error("[VaultContext] failed to enqueue local change", e));
+          // The index row says `local_ahead`, so the next first sync cycle queues it after all.
+          .catch(reportingTo("sync:queue-change"));
       };
 
       // Only the initial full index below reports progress into React state (P3).
@@ -1059,7 +1061,7 @@ export const VaultProvider: React.FC<{
               void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
                 if (!allowed) return;
                 return workspaceStateStore!.enqueue("delete", path).then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")));
-              }).catch((e) => console.error("[VaultContext] failed to authorize local delete", e));
+              }).catch(reportingTo("sync:queue-delete"));
               return;
             }
             // Propagate the deletion to the remote; sync_state is cleaned after the push.
@@ -1068,10 +1070,12 @@ export const VaultProvider: React.FC<{
               : syncQueue.queueDelete(path);
             queued
               .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-              .catch((e) => console.error("[VaultContext] failed to enqueue local delete", e));
+              // A deletion the index found and could not queue stays on the remote.
+              .catch(reportingTo("sync:queue-delete"));
           } else {
             // No sync target: just drop the stale state row.
-            syncRepo.deleteSyncState(path).catch(() => {});
+            // A row left behind gives the next note of that name an old base.
+            syncRepo.deleteSyncState(path).catch(reportingTo("sync:drop-state"));
           }
         },
         // One line per full scan (issue 122): what set it off, how much it
@@ -1089,7 +1093,7 @@ export const VaultProvider: React.FC<{
             if (localOnlySwept) {
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-                .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+                .catch(reportingTo("sync:queue-local-only"));
             }
           }
           logDiagnostic("index", formatFullScan(info));
@@ -1612,7 +1616,7 @@ export const VaultProvider: React.FC<{
                     console.error("[VaultContext] background encrypted workspace start failed", e);
                     const message = e instanceof Error ? e.message : String(e);
                     const errored = { ...activeSecurityStatus, phase: "error" as const, lastError: message.slice(0, 1000) };
-                    await saveWorkspaceSecurityStatus(path, errored).catch(() => undefined);
+                    await saveWorkspaceSecurityStatus(path, errored).catch(reportingTo("workspace:status"));
                     syncStatusStore.set(path, { status: "error", message, provider: syncProvider });
                     setState((s) => (s.vaultPath === path ? { ...s, workspaceSecurityStatus: errored } : s));
                   });
@@ -1674,7 +1678,8 @@ export const VaultProvider: React.FC<{
               if (!root) return;
               resolvedDriveRoot = null;
               writeSyncRootFolder(path, "drive", root.path, root.id)
-                .catch((e) => console.error("[VaultContext] could not store the Drive folder id", e));
+                // The folder stays addressed by name until the next listing that holds.
+                .catch(reportingTo("sync:drive-folder-id"));
             };
             // Reported every cycle, empty included, so a renamed pair takes the
             // card down again by itself. Not on the encrypted worker: that one
@@ -1722,7 +1727,7 @@ export const VaultProvider: React.FC<{
               // without the fresh-index mass-overwrite risk.
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-                .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+                .catch(reportingTo("sync:queue-local-only"));
               localOnlySwept = true;
               // Never silently: the copies kept where both sides differed (review 2026-10-27).
               sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
@@ -1852,7 +1857,7 @@ export const VaultProvider: React.FC<{
         if (workspaceSecurityStatus) {
           const message = e instanceof Error ? e.message : String(e);
           resolvedWorkspaceSecurityStatus = { ...workspaceSecurityStatus, phase: "error", lastError: message.slice(0, 1000) };
-          await saveWorkspaceSecurityStatus(path, resolvedWorkspaceSecurityStatus).catch(() => undefined);
+          await saveWorkspaceSecurityStatus(path, resolvedWorkspaceSecurityStatus).catch(reportingTo("workspace:status"));
           syncStatusStore.set(path, { status: "error", message, provider: syncProvider });
         }
       }
@@ -2292,7 +2297,7 @@ export const VaultProvider: React.FC<{
       }
     };
 
-    startWatching();
+    void startWatching();
 
     return () => {
       clearTimeout(debounceTimer);
@@ -2387,7 +2392,7 @@ export const VaultProvider: React.FC<{
         }
         const customEvent = e as CustomEvent;
         const isNew = customEvent.detail?.isNewConnection;
-        loadVault(state.vaultPath, isNew);
+        void loadVault(state.vaultPath, isNew);
       }
     };
 
@@ -2416,7 +2421,7 @@ export const VaultProvider: React.FC<{
       if (!state.vaultPath || !state.syncWorker) return;
       const worker = state.syncWorker;
       if (!(worker instanceof SyncWorker)) {
-        loadVault(state.vaultPath);
+        void loadVault(state.vaultPath);
         return;
       }
       buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.backupAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
@@ -2435,7 +2440,7 @@ export const VaultProvider: React.FC<{
       // this event, to avoid a double reload).
       if (!state.vaultPath) return;
       if (state.syncWorker) state.syncWorker.stop();
-      loadVault(state.vaultPath);
+      void loadVault(state.vaultPath);
     };
 
     const handleWorkspaceSecurityChanged = () => {
@@ -3698,7 +3703,7 @@ export const VaultProvider: React.FC<{
       ?.listPublications()
       .then((records) => records.map((record) => record.publicationId))
       .catch(() => [] as string[]);
-    await workspaceStateRef.current?.clearWorkspaceState().catch(() => undefined);
+    await workspaceStateRef.current?.clearWorkspaceState().catch(reportingTo("workspace:teardown"));
     lockWorkspaceRuntime(path);
     await clearPublicationRuntimes(path, publicationIds ?? []);
     await clearWorkspaceRuntime(path);

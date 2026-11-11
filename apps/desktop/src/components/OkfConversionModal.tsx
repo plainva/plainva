@@ -5,7 +5,7 @@ import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { TextInput } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
-import { announceOkfRollback, OkfRunOpenError, toast, type OkfRunRecipe } from "@plainva/ui";
+import { announceOkfRollback, OkfRunOpenError, reportingTo, toast, type OkfRunRecipe } from "@plainva/ui";
 import {
   scanVaultOkf,
   runOkfConversion,
@@ -133,14 +133,12 @@ export const OkfConversionModal: React.FC<{
       // edited since is left and named (§ 3.87 Nr. 15).
       const result = await undoOkfConversion(vaultPath, vaultAdapter, dir, recipe);
       announceOkfRollback(result, dir, t);
-      try {
-        await indexer?.indexVaultFull("OKF conversion");
-        triggerFileTreeUpdate();
-        for (const path of result.restored) {
-          window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
-        }
-      } catch (e) {
-        console.warn("[OkfConversion] re-index after undo failed", e);
+      // The index catches up on its next pass; the open editors must hear of the
+      // changed files whatever the index did, or their next save writes the old text back.
+      await indexer?.indexVaultFull("OKF conversion").catch(reportingTo("index:okf:conversion-undo"));
+      triggerFileTreeUpdate();
+      for (const path of result.restored) {
+        window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
       }
       onConverted?.();
     } catch (e) {
@@ -198,14 +196,12 @@ export const OkfConversionModal: React.FC<{
     }
     setReport(result);
     // Refresh index + open editors so the new frontmatter is visible everywhere.
-    try {
-      await indexer?.indexVaultFull("OKF conversion");
-      triggerFileTreeUpdate();
-      for (const path of result.changed) {
-        window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
-      }
-    } catch (e) {
-      console.warn("[OkfConversion] re-index after conversion failed", e);
+    // The index catches up on its next pass; the open editors must hear of the
+    // changed files whatever the index did, or their next save writes the old text back.
+    await indexer?.indexVaultFull("OKF conversion").catch(reportingTo("index:okf:conversion-run"));
+    triggerFileTreeUpdate();
+    for (const path of result.changed) {
+      window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
     }
     setStep("report");
     onConverted?.();

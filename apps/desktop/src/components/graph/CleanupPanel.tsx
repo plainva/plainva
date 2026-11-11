@@ -40,7 +40,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
   useEffect(() => {
     let alive = true;
     if (!graphService) return;
-    (async () => {
+    void (async () => {
       try {
         const graph = await graphService.loadGraph({ includeAttachments: true });
         const [o, b] = await Promise.all([graphService.getOrphans(graph), graphService.getBrokenLinks(graph)]);

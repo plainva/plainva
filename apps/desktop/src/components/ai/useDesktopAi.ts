@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { reportingTo } from "@plainva/ui";
 import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
@@ -190,7 +191,7 @@ export function useDesktopAi(input: DesktopAiInput) {
         const result = await renameToName({ adapter, queryService: query, oldPath: path, newName: title, isFolder: false });
         if (!result.ok) return null;
         renameTabPrefix?.(path, result.newPath);
-        if (indexer) await reindexAfterRename(indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths }).catch(() => undefined);
+        if (indexer) await reindexAfterRename(indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths }).catch(reportingTo("index:ai-rename"));
         triggerFileTreeUpdate();
         notifyFileOps([{ type: "move", from: path, to: result.newPath, isFolder: false }]);
         return result.newPath;

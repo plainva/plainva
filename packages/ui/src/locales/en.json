@@ -5059,7 +5059,13 @@
     "areaTitle": "This area could not be shown",
     "areaBody": "An error stopped it. The rest of Plainva keeps working, and the error is recorded under {{place}}.",
     "areaAgain": "It failed again after reloading. If it keeps failing, restart Plainva; the error is recorded under {{place}}.",
-    "areaReload": "Reload this area"
+    "areaReload": "Reload this area",
+    "background": {
+      "aiKeyNotRemoved": "The key for {{provider}} could not be removed from this device, so {{provider}} stays on the list: {{reason}}",
+      "accountSignInKept": "The account was removed, but its sign-in could not be deleted from this device: {{reason}}",
+      "taskNoteNotRestored": "“{{name}}” could not be brought back: {{reason}}",
+      "ledgerKept": "Changes made while the search index was closed could not be handed to the sync yet: {{reason}}. They stay on this device, and the next start tries again."
+    }
   },
   "palette": {
     "title": "Commands",

@@ -1,5 +1,6 @@
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { atomicWriteText } from "../platform/atomicFile";
+import { removeDataFile } from "../platform/dataFiles";
 
 /**
  * The marker that says an OKF conversion is open (P8).
@@ -60,10 +61,13 @@ export async function writeOkfJournal(vaultId: string, journal: OkfJournal): Pro
   await atomicWriteText(okfJournalPath(vaultId), JSON.stringify(journal));
 }
 
+/**
+ * Already gone, or never written — both mean there is nothing pending. A
+ * journal that stays in place throws (stability plan R4): it would ask the
+ * next start about a run that went through.
+ */
 export async function clearOkfJournal(vaultId: string): Promise<void> {
-  await Filesystem.deleteFile({ path: okfJournalPath(vaultId), directory: Directory.Data }).catch(() => {
-    // Already gone, or never written — both mean there is nothing pending.
-  });
+  await removeDataFile(okfJournalPath(vaultId));
 }
 
 export async function readOkfJournal(vaultId: string): Promise<OkfJournal | null> {

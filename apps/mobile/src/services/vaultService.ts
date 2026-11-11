@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver, logDiagnostic, logIndexDiagnostics, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -9,6 +9,7 @@ import {
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
   QueueingVaultAdapter,
+  QueueLedger,
   WorkspaceQueueingVaultAdapter,
   PermissionedVaultAdapter,
   SqlWorkspaceStateStore,
@@ -43,7 +44,6 @@ import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, pickVaultFolder, type VaultFolderAccess } from "../platform/vaultFolder";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
 import { FixtureSqliteAdapter, isFixtureSqliteAvailable } from "../adapters/FixtureSqliteAdapter";
-import { Directory, Filesystem } from "@capacitor/filesystem";
 import {
   addVault,
   consumeNewLocalVault,
@@ -60,6 +60,9 @@ import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
+import { removeDataFolder } from "../platform/dataFiles";
+import { queueLedgerStore } from "./queueLedgerStore";
+import { plainLedgerTarget, replayVaultLedger, workspaceLedgerTarget } from "./queueLedgerReplay";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
@@ -237,8 +240,10 @@ export async function discardPreparedContainer(vaultId: string, sourceVaultId?: 
         mail: await listMailAccounts(sourceVaultId).then((rows) => rows.map((r) => r.id)).catch(() => [] as string[]),
       }
     : {};
+  // Nobody watches a discarded destination: what stays of it is written into the diagnostics (forgetVaultData).
   await forgetVaultData(vaultId, [...new Set([...prepared, ...sourcePim])], [], { ...also, keepSyncState: true });
-  await Filesystem.rmdir({ path: `vaults/${vaultId}`, directory: Directory.Data, recursive: true }).catch(() => {});
+  // A destination never written has no container (fine); one that stays is written down.
+  await removeDataFolder(`vaults/${vaultId}`).catch(reportingTo("vault:discard:container"));
 }
 
 /** Open an inactive connection's index while preparing its service bindings. */
@@ -504,7 +509,19 @@ async function readPublicationIds(vaultId: string, open: IDatabaseAdapter | null
  * turned down - a retry after a partial copy had written copies of real
  * credentials under that id (second review 2026-10-28).
  */
-async function forgetVaultData(id: string, pimIds: string[], publicationIds: string[], also: { cloud?: string[]; mail?: string[]; keepSyncState?: boolean } = {}): Promise<void> {
+async function forgetVaultData(id: string, pimIds: string[], publicationIds: string[], also: { cloud?: string[]; mail?: string[]; keepSyncState?: boolean } = {}): Promise<string[]> {
+  // Each step goes on whatever the one before did; what did not go is named,
+  // in the desktop's words for the same parts (its `forgetVaultData`), and
+  // written into the diagnostics (stability plan R4).
+  const errors: string[] = [];
+  const attempt = async (what: string, step: () => Promise<unknown>) => {
+    try {
+      await step();
+    } catch (error) {
+      reportBackground(`vault:forget:${what}`, error);
+      errors.push(what);
+    }
+  };
   // The per-service slots are named after account ids, so they have to be
   // collected while the registries that hold those ids still exist (finding
   // 2026-08-19): an account that is already gone cannot have its slot removed.
@@ -515,37 +532,37 @@ async function forgetVaultData(id: string, pimIds: string[], publicationIds: str
     publications: publicationIds,
   }).catch(() => [] as string[]);
 
-  await CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`).catch(() => {});
+  await attempt("index-db", () => CapacitorSqliteAdapter.deleteDatabase(`plainva-${id}`));
   // Drop the connection E2E pin + vault-scoped settings-sync state BEFORE the
   // provider secret is purged (the connection id is derived from it), so
   // re-connecting the same cloud folder never reanimates the fail-closed guard.
   // Not for a destination that never synced: its connection's state is keyed
   // by provider and folder, and may be another vault's (fourth review 2026-10-28).
   if (!also.keepSyncState) {
-    await getStoredProvider(id)
-      .then((provider) => clearMobileSyncState(id, provider))
-      .catch(() => {});
+    await attempt("sync-state", () => getStoredProvider(id).then((provider) => clearMobileSyncState(id, provider)));
   }
   // The cloud-account registry is vault-scoped too; leaving it behind would
   // resurrect stale accounts if the same vault id were ever reused.
-  await clearCloudAccounts(id).catch(() => {});
-  await purgeCredentials(id).catch(() => {});
+  await attempt("cloud-accounts", () => clearCloudAccounts(id));
+  await attempt("credentials", () => purgeCredentials(id));
   // Everything the old delete left on the device: the per-service secrets, the
   // drafts, the repair/import journals, the settings record, the bar layout.
   await forgetVaultSecrets(secretKeys);
-  await forgetVaultFiles(id).catch(() => {});
+  await attempt("draft-journal", () => forgetVaultFiles(id));
   // AI conversations and the usage ledger live in app data per vault (plan
   // KI-Harness P1a); loaded late because the AI module imports this one.
-  await import("./ai/mobileAi").then((ai) => ai.forgetAiVaultData(id)).catch(() => {});
-  await forgetVaultStoreKeys(id).catch(() => {});
+  await attempt("ai-data", () => import("./ai/mobileAi").then((ai) => ai.forgetAiVaultData(id)));
+  await attempt("settings", () => forgetVaultStoreKeys(id));
   forgetVaultMemories(id);
+  return errors;
 }
 
 /**
  * Deletes a connection vault: device-local container, index database,
  * credential slot and registry entry. The cloud storage is never touched.
  */
-export async function deleteVault(id: string): Promise<void> {
+/** Answers the parts of the vault's app data that could not be removed (empty when all went). */
+export async function deleteVault(id: string): Promise<string[]> {
   if (id === LOCAL_VAULT_ID) throw new Error("the local vault cannot be deleted");
   await noteSaver.flushAll();
   const current = bootPromise ? await bootPromise.catch(() => null) : null;
@@ -574,17 +591,17 @@ export async function deleteVault(id: string): Promise<void> {
   // knows only containers. For a picked folder the connection goes and the
   // files stay — the same rmdir pointed at that folder would be the deletion
   // of the user's real notes. Guarded here, pinned by externalVaultGuard.test.
+  let containerLeft = false;
   if (isExternalVault(entry)) {
+    // silent: a grant the system no longer holds is released already; the folder and its files stay either way.
     await getVaultFolderPlugin().release({ handle: entry.external.handle }).catch(() => {});
   } else {
-    try {
-      await Filesystem.rmdir({ path: `vaults/${id}`, directory: Directory.Data, recursive: true });
-    } catch {
-      /* container may not exist (never synced) */
-    }
+    // A container that was never synced may not exist; one that stays holds the notes and is named.
+    containerLeft = await removeDataFolder(`vaults/${id}`).then(() => false, (error: unknown) => { reportBackground("vault:forget:container", error); return true; });
   }
-  await forgetVaultData(id, pimIds, publicationIds);
+  const errors = await forgetVaultData(id, pimIds, publicationIds);
   await removeVault(id);
+  return containerLeft ? ["container", ...errors] : errors;
 }
 
 /**
@@ -907,6 +924,10 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       : new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
     ownQueue = queueing;
     syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
+    // What was changed while this database did not open waits in a ledger
+    // (stability plan R5): queued now, before the index pass reads the queue
+    // and before the sync starts.
+    await replayVaultLedger(queueLedgerStore(entry.id), workspaceState ? workspaceLedgerTarget(permissioned!, workspaceState, adapter) : plainLedgerTarget(queue, db, adapter));
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
     }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
@@ -994,7 +1015,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
             indexPassSettled = true;
             window.dispatchEvent(new CustomEvent("m-vault-changed"));
           })
-          .catch(() => {});
+          .catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed: the notice and the diagnostics line) */ });
       });
     } else if (isExternalVault(entry)) {
       // A folder another app keeps is read through the platform's storage
@@ -1011,7 +1032,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
           if (indexAbort.signal.aborted) return;
           window.dispatchEvent(new CustomEvent("m-vault-changed"));
         })
-        .catch(() => {})
+        .catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed: the notice and the diagnostics line) */ })
         .finally(() => endIndexBuild(entry.id));
     } else {
       // A scan that fails leaves the index as far as it got (issue 125). It
@@ -1026,7 +1047,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       // system, not a provider, and is empty or small the first time (a new
       // vault, or one the first pull fills). The boot surface counts it.
       beginIndexBuild(entry.id);
-      await indexer.indexVaultFull("open, empty index").catch(() => {}).finally(() => endIndexBuild(entry.id));
+      await indexer.indexVaultFull("open, empty index").catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed: the notice and the diagnostics line) */ }).finally(() => endIndexBuild(entry.id));
     }
     searchAvailable = true;
   } catch (err) {
@@ -1040,7 +1061,13 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     backup = new BackupVaultAdapter(adapter, { policy: { ...DEFAULT_BACKUP_RETENTION,
       minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
       onBackupError: reportSnapshotFailure });
-    files = new ConflictAwareVaultAdapter(backup, new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
+    // The sync queue lives in the database: what the person changes now is
+    // kept in a ledger beside the vault and queued at the next start that
+    // opens it (stability plan R5). Without it a deletion or a rename made now
+    // never reached the other devices.
+    const ledgered = new QueueingVaultAdapter(backup, new QueueLedger(queueLedgerStore(entry.id)), { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
+    ownQueue = ledgered;
+    files = new ConflictAwareVaultAdapter(ledgered, new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
       isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
       (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
     queue = null;
@@ -1351,7 +1378,7 @@ export const vaultOps = {
     if (v.indexer) {
       // The index follows the rename (issue 113): reporting the old name as
       // deleted queued a remote DELETE next to the queued MOVE.
-      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
+      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(reportingTo("index:relocate"));
       await v.reindexPaths([newPath, ...changedPaths]);
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
@@ -1377,7 +1404,7 @@ export const vaultOps = {
     if (v.indexer) {
       // The index follows the rename (issue 113): reporting the old name as
       // deleted queued a remote DELETE next to the queued MOVE.
-      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
+      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(reportingTo("index:relocate"));
       await v.reindexPaths([newPath, ...changedPaths]);
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
@@ -1404,13 +1431,13 @@ export const vaultOps = {
     } else {
       await v.files.deleteItem(path, undefined, confirmation);
     }
-    if (v.indexer) await v.indexer.removePathFromIndex(path).catch(() => {});
+    if (v.indexer) await v.indexer.removePathFromIndex(path).catch(reportingTo("index:remove"));
     // Without a sync target nobody ever cleans the sync_state row — the sync
     // layer owns it and does not exist here — and a new note reusing the name
     // inherited the deleted note's baseline: a `.CONFLICT` copy on the first
     // save (TestFlight feedback Build 91, P1). The desktop drops the row in
     // the same case (VaultContext.onLocalFileDeleted).
-    if (!v.syncQueue && !v.workspaceState && v.syncRepo) await v.syncRepo.deleteSyncState(path).catch(() => {});
+    if (!v.syncQueue && !v.workspaceState && v.syncRepo) await v.syncRepo.deleteSyncState(path).catch(reportingTo("sync:state-delete"));
     // Keep the bookmark visible as missing; deletion is not an unstar action.
     notifyFileOps([{ type: "delete", path }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -1444,7 +1471,7 @@ export const vaultOps = {
     const followUpError = await moveStep(v, oldPath, newPath, () => v.files.renameItem(oldPath, newPath));
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
-    await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(() => {});
+    await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(reportingTo("pinboard:sweep"));
     // The databases in the folder take their template assignments along
     // (3.71 no. 4); before, the phone carried none, and a qualified entry
     // named a file that was no longer there. The full pass below indexes them.
@@ -1452,8 +1479,8 @@ export const vaultOps = {
     if (v.indexer) {
       // Rows follow first, so the full pass finds every note at its new place
       // and reports nothing as vanished (issue 113).
-      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
-      await v.indexer.indexVaultFull("folder moved in the app").catch(() => {});
+      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(reportingTo("index:relocate"));
+      await v.indexer.indexVaultFull("folder moved in the app").catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed: the notice and the diagnostics line) */ });
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
@@ -1472,7 +1499,7 @@ export const vaultOps = {
     } else {
       await v.files.deleteItem(path, true, confirmation);
     }
-    if (v.indexer) await v.indexer.indexVaultFull("folder deleted in the app").catch(() => {});
+    if (v.indexer) await v.indexer.indexVaultFull("folder deleted in the app").catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed: the notice and the diagnostics line) */ });
     notifyFileOps([{ type: "delete", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return true;
@@ -1488,14 +1515,14 @@ export const vaultOps = {
     await awaitWholeIndex(v);
     const followUpError = await moveStep(v, path, newPath, () => v.files.renameItem(path, newPath));
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
-    const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
+    const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch((error: unknown) => { reportBackground("pinboard:sweep", error); return [] as string[]; });
     // A database that moved takes its template assignments along (3.71 no. 4).
     sweptBases.push(...(await carryTemplatesAfterMove(v, [{ from: path, to: newPath }])));
     if (v.indexer) {
       // Follows the move as a rename, never as a deletion (issue 113). The
       // databases whose pinboard places were rewritten are files like any
       // other: the index hears of them here, not at the next start.
-      await v.indexer.relocatePathInIndex(path, newPath).catch(() => {});
+      await v.indexer.relocatePathInIndex(path, newPath).catch(reportingTo("index:relocate"));
       await v.reindexPaths([newPath, ...sweptBases]);
     }
     await renameBookmarksOnDisk(v.adapter, path, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
@@ -1592,8 +1619,8 @@ export const vaultOps = {
     // checks its timestamp against the index, so search, links and graph do
     // not describe a note somebody else has since rewritten.
     if (v.external && v.indexer) {
-      const outcome = await v.indexer.indexPath(path).catch(() => "unchanged" as const);
-      if (outcome === "needs-full-scan") await v.indexer.indexVaultFull("note opened in an external folder").catch(() => {});
+      const outcome = await v.indexer.indexPath(path).catch((error: unknown) => { reportBackground("index:path", error); return "unchanged" as const; });
+      if (outcome === "needs-full-scan") await v.indexer.indexVaultFull("note opened in an external folder").catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed: the notice and the diagnostics line) */ });
     }
     // Desktop parity (P1): the content the editor just loaded IS what the app
     // knows about — record its hash so a stale row cannot turn the first save
@@ -2044,7 +2071,7 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
       // brings all of the typing into it.
       lastPersistedText.set(key, text);
       noteConflict(path, kept.copy, vault.vaultId);
-      try { await vault.reindexPaths([kept.copy]); } catch { /* a later index pass repairs the derived data */ }
+      try { await vault.reindexPaths([kept.copy]); } catch (error) { reportBackground("index:paths", error); /* a later index pass repairs the derived data */ }
       if (kept.copy !== earlier?.copy) toast.warning(i18n.t("dialogs.conflictSavedMsg", { path: kept.copy }));
       window.dispatchEvent(new CustomEvent("m-note-not-text", { detail: { vaultId: vault.vaultId, path, kept: kept.copy } }));
     };
@@ -2062,7 +2089,7 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
       lastPersistedText.set(key, stored);
       // The file took this text: a copy kept beside it before holds another.
       keptTexts.delete(key);
-      try { await vault.reindexPaths([result.session?.workingCopyPath ?? path]); } catch { /* a later index pass repairs the derived data */ }
+      try { await vault.reindexPaths([result.session?.workingCopyPath ?? path]); } catch (error) { reportBackground("index:paths", error); /* a later index pass repairs the derived data */ }
       window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
       return;
     }

@@ -1,3 +1,4 @@
+import { reportBackground } from "../services/backgroundErrors";
 import { FatalSyncProtocolError, parseWorkspaceDocument, SyncRootMissingError, workspaceDocumentHash, type ISyncTarget, type PersonalWorkspaceRuntime } from "@plainva/core";
 import { sameSyncTarget, type SyncStateBinding } from "./syncStateBinding";
 
@@ -75,10 +76,11 @@ async function safeLoad(ports: EncryptedRemotePorts): Promise<EncryptedRemoteFac
   try { return readFact(await ports.load()); } catch { return null; }
 }
 async function safeSave(ports: EncryptedRemotePorts, fact: EncryptedRemoteFact): Promise<void> {
-  try { await ports.save(fact); } catch (error) { console.warn("[encryptedRemote] could not record the folder's state", error); }
+  // Not recorded means "nothing known" next time: the listing decides again, as for a first look.
+  try { await ports.save(fact); } catch (error) { reportBackground("sync:encrypted-remote-fact", error); }
 }
 async function safeClear(ports: EncryptedRemotePorts): Promise<void> {
-  try { await ports.clear(); } catch (error) { console.warn("[encryptedRemote] could not clear the folder's state", error); }
+  try { await ports.clear(); } catch (error) { reportBackground("sync:encrypted-remote-fact", error); }
 }
 
 /**

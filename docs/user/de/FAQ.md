@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-11-10
+Stand: 2026-11-11
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -110,7 +110,7 @@ Zusätzlich gleicht Plainva automatisch ab, sobald Du aus einem anderen Programm
 
 Beim Einlesen folgt Plainva Links so, wie das System es tut: Ein Link auf einen Ordner wird als dieser Ordner gelesen, ein Link auf eine Datei als diese Datei — am Desktop und in einem Ordner, den Du am iPhone ausgewählt hast. Was sich nicht lesen lässt, lässt Plainva aus und nennt es: einen Link auf einen Ort, den es auf diesem Gerät nicht gibt (etwa einen Ordner, der nur auf einem anderen Rechner liegt und hier als Link angekommen ist) oder einen Ordner ohne Zugriff. Ein Hinweis nennt sie einmal — **ließ sich nicht lesen und fehlt im Suchindex** —, der Rest des Vaults wird wie gewohnt erfasst. Nichts unter einem solchen Eintrag gilt als gelöscht, weder für den Index noch für den Sync eines verschlüsselten Workspace.
 
-Lässt sich der Index gar nicht aktualisieren, sagt der Hinweis, warum (**Der Suchindex konnte nicht aktualisiert werden: …**); der Vault bleibt mit dem offen, was der Index schon enthält, und beim nächsten Einlesen versucht Plainva es erneut. Am Telefon wird auch ein Suchindex genannt, der sich nicht öffnen lässt: Suche, Tags, Datenbanken, die Synchronisation und der Kalender bleiben dann aus, bis Plainva ihn öffnen kann.
+Lässt sich der Index gar nicht aktualisieren, sagt der Hinweis, warum (**Der Suchindex konnte nicht aktualisiert werden: …**); der Vault bleibt mit dem offen, was der Index schon enthält, und beim nächsten Einlesen versucht Plainva es erneut. Am Telefon wird auch ein Suchindex genannt, der sich nicht öffnen lässt: Suche, Tags, Datenbanken, die Synchronisation und der Kalender bleiben dann aus, bis Plainva ihn öffnen kann. Was Du in dieser Zeit änderst — eine Notiz geschrieben, gelöscht oder umbenannt —, bleibt auf dem Telefon und geht an die Synchronisation, sobald Plainva den Index wieder öffnet.
 
 Entferne oder repariere den Eintrag, den der Hinweis nennt, und wähle dann **Vault neu einlesen** (am Telefon: eine Liste nach unten ziehen).
 

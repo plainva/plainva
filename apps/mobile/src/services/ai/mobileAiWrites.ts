@@ -22,6 +22,8 @@ import {
   type OpenProposal,
   type VaultPolicyHost,
   type VaultWriteDeps,
+  reportBackground,
+  reportingTo,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { confirmDeleteFile } from "../../lib/deleteFile";
@@ -87,7 +89,9 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
     async rename(path, title) {
       try {
         return await vaultOps.rename(vault, path, title);
-      } catch {
+      } catch (error) {
+        // Null is the contract's "failed" (the assistant says so); why goes into the diagnostics.
+        reportBackground("ai:rename", error);
         return null;
       }
     },
@@ -129,7 +133,7 @@ export function mobileDirectWrites(vault: MobileVault): DirectWriteFiles {
     snapshot: (path, origin) => vault.backup.ensureSnapshot(path, origin ? { origin } : {}),
     unsaved: (path) => noteSaver.hasPending(path, vault),
     async changed(path) {
-      await vault.reindexPaths([path]).catch(() => undefined);
+      await vault.reindexPaths([path]).catch(reportingTo("index:paths"));
       window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
     },
     readVersion: (backupPath) => versions.readVersionText(backupPath),

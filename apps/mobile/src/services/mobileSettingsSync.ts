@@ -1,4 +1,4 @@
-import { isVaultPathSetting, setForeignLegacyComments } from "@plainva/ui";
+import { isVaultPathSetting, setForeignLegacyComments, reportingTo } from "@plainva/ui";
 import {
   ENCRYPTION_MANIFEST_PATH,
   EncryptingSyncTarget,
@@ -517,7 +517,7 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
     },
     deletePimAccount: async (accountId) => {
       if (cache) await cache.deleteAccount(accountId);
-      await clearPimCredentials(vaultId, accountId).catch(() => {});
+      await clearPimCredentials(vaultId, accountId).catch(reportingTo("credentials:pim-clear"));
     },
     listCalendars: async (accountId) => (cache ? cache.listCalendars(accountId) : []),
     setCalendarSelected: async (accountId, id, selected) => {

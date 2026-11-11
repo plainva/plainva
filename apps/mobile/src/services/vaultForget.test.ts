@@ -21,6 +21,7 @@ import { mailAccountsKey, mailSecretKey } from "@plainva/ui/mail";
 import { accountSecretKey } from "./accountBroker";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { mobileWorkspaceSecretKeys } from "./mobileWorkspaceSecurity";
+import { queueLedgerPath } from "./queueLedgerStore";
 import { profileJournalPath } from "./profileImportJournal";
 import {
   collectVaultSecretKeys,
@@ -175,9 +176,12 @@ describe("what a forgotten vault leaves behind (finding 2026-08-19)", () => {
 
   it("takes the drafts and the import journal, which live outside the container", async () => {
     files.set(profileJournalPath(VAULT), "{}");
+    files.set(queueLedgerPath(VAULT), "{}");
     await forgetVaultFiles(VAULT);
     expect(removedDirs).toContain(`drafts/${VAULT}`);
     expect(files.has(profileJournalPath(VAULT))).toBe(false);
+    // And the sync entries kept while the index database was closed (R5).
+    expect(files.has(queueLedgerPath(VAULT))).toBe(false);
   });
 
   it("survives a vault that never wrote drafts or a journal", async () => {

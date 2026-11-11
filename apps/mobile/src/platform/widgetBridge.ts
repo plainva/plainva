@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { reportBackground } from "@plainva/ui";
 
 /**
  * The home-screen widgets, as far as JavaScript can reach them
@@ -46,7 +47,8 @@ export async function writeWidgetSnapshot(json: string): Promise<void> {
   if (!widgetsAvailable()) return;
   try {
     await WidgetBridge.writeSnapshot({ json });
-  } catch {
+  } catch (error) {
+    reportBackground("widget:snapshot", error);
     // A widget that keeps yesterday's picture costs a stale home screen.
     // Letting the failure through would cost the caller — a foreground sync,
     // a ticked checkbox — and none of those is about widgets.
@@ -74,8 +76,9 @@ export async function clearWidgetSnapshot(): Promise<void> {
   if (!widgetsAvailable()) return;
   try {
     await WidgetBridge.clearSnapshot();
-  } catch {
-    /* see above */
+  } catch (error) {
+    // See above; and a widget that kept a locked vault's picture is worth a trace.
+    reportBackground("widget:snapshot", error);
   }
 }
 

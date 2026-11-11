@@ -115,7 +115,7 @@ export function createSocketMailTransport(): MailTransport {
         await c.select(args.mailbox);
         const [add, remove] = args.junk ? ["$Junk", "$NotJunk"] : ["$NotJunk", "$Junk"];
         await c.store(args.uid, add, true);
-        await c.store(args.uid, remove, false).catch(() => {});
+        await c.store(args.uid, remove, false).catch(() => { /* silent: best-effort, see above; the mark that counts is set */ });
       }),
 
     createMailbox: (creds, args) => withConn(creds, (c) => c.create(args.name)),

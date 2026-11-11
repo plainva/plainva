@@ -827,7 +827,7 @@ export class SyncWorker {
     this.engine.resetRefusals?.();
     this.queue.resetStuckOperations()
       .catch((e) => console.error("[SyncWorker] resetStuckOperations failed:", e))
-      .finally(() => { if (this.isRunning) this.executeCycle(); });
+      .finally(() => { if (this.isRunning) void this.executeCycle(); });
   }
 
   /**
@@ -998,7 +998,7 @@ export class SyncWorker {
       clearTimeout(this.timeoutId);
       this.timeoutId = undefined;
     }
-    this.executeCycle();
+    void this.executeCycle();
   }
 
   /** The wait before the next cycle. Named because the failure path has to
@@ -1020,7 +1020,7 @@ export class SyncWorker {
       console.log(`[SyncWorker] backoff: next cycle in ${Math.round(delay / 1000)}s after ${this.consecutiveFailures} failure(s)`);
     }
     this.timeoutId = setTimeout(() => {
-      this.executeCycle();
+      void this.executeCycle();
     }, delay);
   }
 
@@ -2245,6 +2245,7 @@ export class SyncWorker {
       try {
         known.set(path, await this.stateRepo.markUnsyncable(path, reason, etag, now));
       } catch (e) {
+        // silent: kept in memory above, so this cycle's status names it; the next cycle records it again.
         console.warn(`[SyncWorker] could not record ${path} as unsyncable`, e);
       }
     };
@@ -2253,6 +2254,7 @@ export class SyncWorker {
       try {
         await this.stateRepo.clearUnsyncable(path);
       } catch (e) {
+        // silent: the mark in memory is gone for this cycle; the stored one is asked again and cleared by the next pull that gets through.
         console.warn(`[SyncWorker] could not clear the unsyncable mark of ${path}`, e);
       }
     };

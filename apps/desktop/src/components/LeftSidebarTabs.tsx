@@ -1,4 +1,5 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { settingNotSaved } from "../services/settingNotSaved";
 import { useTranslation } from "react-i18next";
 import { Folder, Hash, Database, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import {
@@ -147,7 +148,7 @@ export function LeftSidebarTabs({ vaultPath, active, onSelect }: Props) {
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("leftTabs", vaultPath, next, source);
+      void saveBarLayout("leftTabs", vaultPath, next, source).catch(settingNotSaved("settings:bar-layout"));
     },
     [vaultPath, source],
   );

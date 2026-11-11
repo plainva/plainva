@@ -53,6 +53,33 @@ export async function logIndexDiagnostics(db: IDatabaseAdapter): Promise<void> {
   }
 }
 
+/** The line of each repeated report, by what it reports: the count goes on the line, not a new line. */
+const counted = new WeakMap<DiagEntry, { base: string; count: number }>();
+
+/**
+ * Like `logDiagnostic`, but a report that repeats anywhere in the buffer —
+ * the same source and message, with other lines in between — counts on its
+ * first line ("… (3×)") instead of taking a line each: an index pass that
+ * fails the same way for a thousand files leaves one line.
+ */
+export function logDiagnosticCounted(source: string, message: string): void {
+  const safe = redactDiagnosticText(message);
+  const base = safe.length > 500 ? `${safe.slice(0, 500)}…` : safe;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]!;
+    const seen = counted.get(entry);
+    if (entry.source !== source || !seen || seen.base !== base) continue;
+    seen.count += 1;
+    entry.ts = Date.now();
+    entry.message = `${base} (${seen.count}×)`;
+    return;
+  }
+  const entry: DiagEntry = { ts: Date.now(), source, message: base };
+  counted.set(entry, { base, count: 1 });
+  entries.push(entry);
+  if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
+}
+
 export function getDiagnostics(): readonly DiagEntry[] {
   return entries;
 }
