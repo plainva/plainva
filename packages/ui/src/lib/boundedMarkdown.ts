@@ -7,8 +7,8 @@ import { boundMarkdownForParse, exceedsInlineParseBudget, restoreBoundedTree, ty
  * the editor's (Lezer). Core's own parses — the index, the note source behind
  * outline, journal and embedded sections — bound themselves.
  *
- * A paragraph, table row or table whose inline syntax would cost a parser
- * more than the budget is read as written, the same stretch in all three:
+ * A paragraph or table row whose inline syntax would cost a parser more
+ * than the budget is read as written, the same stretch in all three:
  * open-items plan 3.133 no. 4 (a line of 100 000 `]` held the reading view
  * for minutes).
  */

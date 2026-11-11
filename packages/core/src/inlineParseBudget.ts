@@ -30,8 +30,11 @@
  * markers are read past). Two kinds of lines inside such a run are no
  * paragraph text and are measured on their own or not at all: the lines of
  * fenced code (no inline syntax is read in them) and the rows of a table
- * (each cell is read for itself). A table as a whole has a budget of its own
- * (`TABLE_PARSE_BUDGET`): the table parser's work grows with its rows. Each of
+ * (each cell is read for itself). A table as a whole has no budget of its
+ * own: the table parser reads it in time linear in its cells since GFM tables
+ * 2.1.2 (Gesamtplan Leistung L13; before, its work grew with the square of a
+ * note's cells, and a table of more than about 2 500 rows was read as written
+ * — its links missing from the index). Each of
  * these is recognised only where every Markdown reader agrees it is what it
  * looks like; anything less certain is measured with the lines around it — a
  * mistake there can only make a stretch be read as written, never let one
@@ -366,22 +369,9 @@ function delimiterRowCells(line: string): number | null {
 }
 
 /**
- * What reading a table of `rows` rows over `length` characters can cost a
- * parser. The table parser (micromark's GFM tables) does not read a table in
- * linear time either: its work grows with the number of rows times the
- * table's length — 12 000 short rows took it half a minute.
- */
-export function tableParseCost(rows: number, length: number): number {
-  return rows * length;
-}
-
-/** The most `tableParseCost` a table may have and still be read as a table; at the budget the desktop's parser takes about two seconds. */
-export const TABLE_PARSE_BUDGET = 500_000_000;
-
-/**
  * The stretches of `text` a parser would spend more than the budget on:
  * paragraphs (runs of lines without a blank line, fenced code and table rows
- * left out), single table rows, and whole tables. In text order, never
+ * left out) and single table rows. In text order, never
  * overlapping; empty for every note a person writes.
  */
 export function overBudgetInlineRanges(text: string): BoundedRange[] {
@@ -394,17 +384,15 @@ export function overBudgetInlineRanges(text: string): BoundedRange[] {
     if (run && exceedsInlineParseBudget(text, run.from, run.to)) ranges.push({ ...run });
     run = null;
   };
-  // The table being read: where it starts and ends, its rows, the rows over the budget.
-  let table: { from: number; to: number; rows: number; costly: BoundedRange[] } | null = null;
+  // The table being read: where it starts and ends, the rows over the budget.
+  let table: { from: number; to: number; costly: BoundedRange[] } | null = null;
   const endTable = () => {
     if (!table) return;
-    if (tableParseCost(table.rows, table.to - table.from) > TABLE_PARSE_BUDGET) ranges.push({ from: table.from, to: table.to });
-    else ranges.push(...table.costly);
+    ranges.push(...table.costly);
     table = null;
   };
   const addRow = (line: Line) => {
     if (!table) return;
-    table.rows++;
     table.to = line.to;
     if (exceedsInlineParseBudget(text, line.from, line.to)) table.costly.push({ from: line.from, to: line.to });
   };
@@ -464,7 +452,7 @@ export function overBudgetInlineRanges(text: string): BoundedRange[] {
       const header = tableCells(line.text);
       const delimiter = delimiterRowCells(lines[index + 1].text);
       if (header !== null && delimiter !== null && header === delimiter) {
-        table = { from: line.from, to: line.to, rows: 0, costly: [] };
+        table = { from: line.from, to: line.to, costly: [] };
         list = null;
         addRow(line);
         // The delimiter row holds nothing but `|`, `-`, `:` and blanks.

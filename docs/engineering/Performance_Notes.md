@@ -392,6 +392,25 @@ gives the 80 × 50 note a budget of 3 s on the reference core through `within()`
 unit test rather than a gate metric because it runs on every commit in the required checks, and
 the scaled budget holds on a slow runner without a baseline per machine.
 
+The parse budget's table rule went with it. Since 2026-11-01 (`inlineParseBudget.ts`) a table
+whose rows times length went over 5 × 10⁸ was read as written, because the table parser's work
+was taken to grow that way — so from about 2 500 short rows on a table was no table in the index,
+the note source or the reading view, and none of its links reached the index. That cost was the
+quadratic `EditMap` above; read as a table now, a table costs less than read as written
+(through `parseMarkdownTree`, this machine, fastest of three):
+
+| Table | read as written (old rule) | read as a table |
+|---|---|---|
+| 5 000 short rows, 120 KB | 92 ms | 268 ms |
+| 8 000 short rows, 193 KB | 262 ms | 565 ms |
+| 24 000 short rows, 611 KB | 8 961 ms | 1 912 ms |
+| 6 400 rows of four columns, 500 KB | 2 228 ms | 1 002 ms |
+| 12 800 rows of four columns, 1 MB | 6 203 ms | 2 305 ms |
+
+So a table has no budget of its own any more; a single row over the inline budget is still read
+as written, as every paragraph is. `inline-parse-budget.test.ts` reads a table of 8 000 rows as a
+table with all 8 000 links, within 3 s on the reference core.
+
 The core gate still leaves the long note out (`longTableNote: false`): taking it in would void
 every recorded baseline, and the unit test above already holds its cost. Whether the editor
 still holds a 19 600-line note in the browser report is the editor's question (L6), not this

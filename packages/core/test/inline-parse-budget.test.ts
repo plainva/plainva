@@ -18,8 +18,9 @@ import { analyzeNoteOutline, analyzeNoteSource } from "../src/noteSource.ts";
  * The parse budget (open-items plan 3.133 no. 4): a line of 100 000 `]` held
  * the reading view and the note source for minutes, because the Markdown
  * parser looks back over a whole paragraph at each `]`, `*`, `_` and `~`. The
- * same work came from short lines without a blank line between them, and from
- * a table of many rows. A stretch over the budget is read as written; every
+ * same work came from short lines without a blank line between them (a table
+ * of many rows did too, until GFM tables 2.1.2 read one in linear time — L13).
+ * A stretch over the budget is read as written; every
  * other part of the note, and every note a person writes, is read as before.
  *
  * The time limits are generous on purpose: each input below took the parser
@@ -81,14 +82,22 @@ describe("the inline parse budget", () => {
     expect(source.blocks.map((b) => b.id)).toEqual(["block"]);
   }, 240 * SECONDS);
 
-  it("bounds a table of many rows: it is read as text, every other block as before", () => {
+  it("reads a table of many rows as a table, in time linear in its cells, with the links of every cell", () => {
+    // Until GFM tables 2.1.2 the table parser's work grew with the square of
+    // the cells, and a table this long was read as written (L13): no table,
+    // and none of its 8 000 links reached the index. Linear, it takes about
+    // half a second; reading it as written took no less.
     const rows = Array.from({ length: 8_000 }, (_, i) => `| row ${i} | [[n${i}]] |`);
     const table = ["| a | b |", "|---|---|", ...rows].join("\n");
     const note = `# Data\n\n${table}\n\nbelow [[Link]]\n`;
-    const tree = within(10 * SECONDS, () => parseMarkdownTree(note));
-    expect(tree.children!.map((node) => node.type)).toEqual(["heading", "paragraph", "paragraph"]);
-    expect(textsOf(tree.children![1]).join("")).toBe(table);
+    expect(overBudgetInlineRanges(note)).toEqual([]);
+    const tree = within(3 * SECONDS, () => parseMarkdownTree(note));
+    expect(tree.children!.map((node) => node.type)).toEqual(["heading", "table", "paragraph"]);
+    expect(tree.children![1].children).toHaveLength(8_001);
+    expect(typesOf(tree.children![1]).filter((type) => type === "wikiLink")).toHaveLength(8_000);
     expect(typesOf(tree.children![2])).toContain("wikiLink");
+    const ast = within(3 * SECONDS, () => parseMarkdownAst(note, { preserveObsidianSyntax: true }));
+    expect(extractLinksAndTags(ast).links.map((link) => link.target)).toEqual([...rows.map((_, i) => `n${i}`), "Link"]);
   }, 240 * SECONDS);
 
   it("leaves the links of a stretch read as written out of the index's reading", () => {
