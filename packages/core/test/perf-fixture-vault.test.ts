@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixtureFiles, summarizeFixture } from "../scripts/perf/fixtureVault.js";
-import { judge, toBaseline } from "../scripts/perf/core-gate.js";
+import { environmentName, judge, lookupBaseline, toBaseline } from "../scripts/perf/core-gate.js";
 import type { CoreResult } from "../scripts/perf/coreBenchmark.js";
 
 /**
@@ -85,5 +85,44 @@ describe("the core gate's verdict", () => {
 
   it("fails an index that grew by more than 25 %", () => {
     expect(judge(baseline, run(1000, { dbBytes: 80_000_000 })).filter((v) => v.over).map((v) => v.metric)).toEqual(["dbBytes"]);
+  });
+});
+
+describe("the core gate's environments", () => {
+  const entry = (cpu: string) => ({
+    recorded: "2026-11-11", node: "v22", cpu, calibrationMs: 1000, fsWalkMs: 300,
+    ratios: { coldIndexMs: 40, warmIndexMs: 1.2, saveP50Ms: 0.004, saveP95Ms: 0.008, searchMs: 0.05, listTasksMs: 0.7 },
+    ms: {}, dbBytes: 1, fixtureDigest: "d",
+  });
+  const environments = {
+    "github-ubuntu-latest-amd-epyc-9v45-96-core-processor": entry("AMD EPYC 9V45 96-Core Processor"),
+    "github-ubuntu-latest-amd-epyc-9v74-80-core-processor": entry("AMD EPYC 9V74 80-Core Processor"),
+  };
+
+  it("names a runner by its label and its CPU model", () => {
+    const before = process.env.PERF_ENV;
+    process.env.PERF_ENV = "github-ubuntu-latest";
+    try {
+      expect(environmentName()).toMatch(/^github-ubuntu-latest-[a-z0-9-]+$/);
+      expect(environmentName()).not.toBe("github-ubuntu-latest");
+    } finally {
+      if (before === undefined) delete process.env.PERF_ENV;
+      else process.env.PERF_ENV = before;
+    }
+  });
+
+  it("compares a run only with the baseline of its own CPU model", () => {
+    const found = lookupBaseline(environments, "github-ubuntu-latest-amd-epyc-9v74-80-core-processor");
+    expect("baseline" in found && found.baseline.cpu).toBe("AMD EPYC 9V74 80-Core Processor");
+  });
+
+  it("gives a CPU model without a baseline a warning naming the models that have one, and no verdict", () => {
+    const found = lookupBaseline(environments, "github-ubuntu-latest-intel-xeon-platinum-8370c");
+    expect("baseline" in found).toBe(false);
+    const warning = "warning" in found ? found.warning : "";
+    expect(warning).toContain('"github-ubuntu-latest-intel-xeon-platinum-8370c"');
+    expect(warning).toContain("no verdict (exit 0)");
+    expect(warning).toContain("github-ubuntu-latest-amd-epyc-9v45-96-core-processor, github-ubuntu-latest-amd-epyc-9v74-80-core-processor");
+    expect(lookupBaseline({}, "x")).toEqual({ warning: expect.stringContaining("Environments with a baseline: none.") });
   });
 });

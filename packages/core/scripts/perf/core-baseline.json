@@ -6,23 +6,23 @@
       "recorded": "2026-11-11",
       "node": "v24.17.0",
       "cpu": "AMD Ryzen AI 9 HX 370 w/ Radeon 890M",
-      "calibrationMs": 771.15,
-      "fsWalkMs": 841.46,
+      "calibrationMs": 1082.8,
+      "fsWalkMs": 936.29,
       "ratios": {
-        "coldIndexMs": 87.87084,
-        "warmIndexMs": 1.14311,
-        "saveP50Ms": 0.01022,
-        "saveP95Ms": 0.01443,
-        "searchMs": 0.09625,
-        "listTasksMs": 0.87028
+        "coldIndexMs": 73.46079,
+        "warmIndexMs": 1.18039,
+        "saveP50Ms": 0.00706,
+        "saveP95Ms": 0.01235,
+        "searchMs": 0.07224,
+        "listTasksMs": 0.59426
       },
       "ms": {
-        "coldIndexMs": 67761.6,
-        "warmIndexMs": 961.88,
-        "saveP50Ms": 7.88,
-        "saveP95Ms": 11.13,
-        "searchMs": 74.22,
-        "listTasksMs": 671.12
+        "coldIndexMs": 79543.34,
+        "warmIndexMs": 1105.19,
+        "saveP50Ms": 7.64,
+        "saveP95Ms": 13.37,
+        "searchMs": 78.22,
+        "listTasksMs": 643.46
       },
       "dbBytes": 105361408,
       "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94"

@@ -104,6 +104,24 @@ export function toBaseline(result: CoreResult, commit?: string): EnvironmentBase
   };
 }
 
+/**
+ * The baseline of one environment, or the warning a run gets when its
+ * environment has none: the keys that do have one are named, so a runner on a
+ * CPU model not seen yet says which models it could have been compared with.
+ * Never a verdict without a baseline: a borrowed one would fail or pass at random.
+ */
+export function lookupBaseline(
+  environments: Record<string, EnvironmentBaseline>,
+  env: string,
+): { baseline: EnvironmentBaseline } | { warning: string } {
+  const baseline = environments[env];
+  if (baseline) return { baseline };
+  const known = Object.keys(environments).sort();
+  return {
+    warning: `No baseline for the environment "${env}": nothing to compare against, so no verdict (exit 0). Environments with a baseline: ${known.length > 0 ? known.join(", ") : "none"}. Record one with "pnpm perf:core -- --update" on that environment, or take "asBaseline" from the run's perf-core artifact, and commit core-baseline.json.`,
+  };
+}
+
 export interface Verdict { metric: string; baseline: number; now: number; ratio: number; worseMs: number; over: boolean }
 
 /** Compares a run with a baseline of the same environment. */
@@ -141,19 +159,19 @@ async function main() {
   }
   if (jsonAt) await fs.writeFile(jsonAt, JSON.stringify({ environment: env, result, asBaseline: toBaseline(result) }, null, 2) + "\n");
 
-  const baseline = file.environments[env];
+  const found = lookupBaseline(file.environments, env);
   if (update) {
     file.environments[env] = toBaseline(result, process.env.GITHUB_SHA ?? process.env.PERF_COMMIT);
     await fs.writeFile(BASELINE, JSON.stringify(file, null, 2) + "\n");
     console.log(`Baseline for "${env}" written to ${path.relative(process.cwd(), BASELINE)}.`);
     return;
   }
-  if (!baseline) {
-    const message = `No baseline for the environment "${env}": nothing to compare against, so no verdict. Record one with \`pnpm perf:core -- --update\` on that environment and commit core-baseline.json.`;
-    console.log(process.env.GITHUB_ACTIONS ? `::warning title=Performance budget (core)::${message}` : `WARNING: ${message}`);
+  if ("warning" in found) {
+    console.log(process.env.GITHUB_ACTIONS ? `::warning title=Performance budget (core)::${found.warning}` : `WARNING: ${found.warning}`);
     console.log(JSON.stringify({ [env]: toBaseline(result) }, null, 2));
     return;
   }
+  const { baseline } = found;
   if (baseline.fixtureDigest !== result.fixture.digest) {
     console.error(`The fixture vault changed (digest ${result.fixture.digest.slice(0, 12)}, the baseline was measured on ${baseline.fixtureDigest.slice(0, 12)}): record the baselines again.`);
     process.exit(1);

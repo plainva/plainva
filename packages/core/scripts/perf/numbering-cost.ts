@@ -86,6 +86,25 @@ try {
   out.numberAfterDowngradeMs = ms(t);
   out.downgradedNotes = paths.length;
 
+  // The sweep for notes without a search row, alone, on a reopened index (as at a start):
+  // by number and path (what the numbering runs), and by number alone (enough for a note
+  // whose search row was never written: a kill between its two statements).
+  await db.close();
+  for (const [key, condition] of [
+    ["sweepByNumberAndPathMs", "n.rowid = (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) AND n.path = f.path"],
+    ["sweepByNumberMs", "n.rowid = (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END)"],
+  ] as const) {
+    db = open(dbPath);
+    t = performance.now();
+    await db.query(
+      `SELECT count(*) AS n FROM files f WHERE f.path LIKE '%.md' AND (f.mode IS NULL OR f.mode <> 'attachment') AND f.mtime_local <> 0
+         AND NOT EXISTS (SELECT 1 FROM fts_notes n WHERE ${condition})`,
+    );
+    out[key] = ms(t);
+    await db.close();
+  }
+  db = open(dbPath);
+
   // Point reads: 500 cards by number (now) and by path (before).
   const query = new VaultQueryService(db);
   const cards = (await db.query<{ path: string }>(`SELECT path FROM files WHERE path LIKE '%.md' ORDER BY path LIMIT 500`)).map((r) => r.path);

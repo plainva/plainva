@@ -74,8 +74,11 @@ in 10 000. The browser report keeps it, it is the editor's case.
 
 **Core gate.** `core-gate.ts` runs `coreBenchmark.ts` on 10 000 notes (disk and `node:sqlite`,
 WAL on) and gates six times and one size: cold index, a pass without changes (median of 3),
-re-reading one saved note (median and 95th percentile of 40), search with 50 hits (median of
-36), `listTasks` (median of 5), and the index size in bytes. A metric fails when it is more
+re-reading one saved note (median and 95th percentile of 40), search with 50 hits (each of six
+queries' fastest of 8 rounds after a warm-up round, then the median of the six), `listTasks` (the
+fastest of 9 after a warm-up call), and the index size in bytes. The two short SQL-bound metrics
+take the fastest repetition because the slower ones carry the neighbours of a shared runner; the
+tolerance is the same 25 % for every metric, nothing was widened. A metric fails when it is more
 than 25 % worse than the baseline.
 
 Why the baseline is not a number in milliseconds: a GitHub runner is slower and noisier than a
@@ -99,7 +102,15 @@ gate trustworthy on the runner:
    The runner label is not one machine: the first two runs got an EPYC 9V45 and an EPYC 9V74,
    and for the same code their ratios for search and `listTasks` stood 26 % and 29 % apart —
    over the tolerance, so the CPU model is part of the name and each model gets its own entry
-   (a model not seen yet gets a warning, no verdict). Record anew when the runner image changes.
+   (a model not seen yet gets a `::warning::` annotation naming the models that have a baseline,
+   exit 0 — never a failure, never a silent pass). Record anew when the runner image changes.
+   Where the two entries come from: the 9V45 entry is the run of `6b3e348fc` (index format 9
+   already), and the 9V74 entry is the failed run of `7483afe3f` itself — so the 9V74 numbers are
+   a recording, not a comparison. Index format 9 was compared only on the 9V45 run, against the
+   numbers of the same machine class before it. Both entries were measured with the median for
+   search and `listTasks`, before those took the fastest repetition: the fastest is never above the
+   median, so they judge more leniently until they are recorded anew from a run of the current
+   code on that CPU.
 
 The pass without changes is almost all file system (two SQL statements, ten thousand
 `stat`s), which the loop does not see: on this machine it moved between 0.5 and 6.7 s for the same
@@ -202,13 +213,34 @@ path, passes through an insert into `files` without the column, and that raises 
 check at a start is one `meta` read. The numbering (`numberFullTextRows`) reads number and path of
 every row once — which walks every row's text, since `path` is stored after `content` in the row's
 record (about 30 MB at 10 000 notes, 108–140 ms here) — tokenizes nothing but the rows it moves,
-keeps per path the row the file names, else the highest
-number (an older build deletes a path's rows before it writes, and its insert is numbered above
-all others, so the highest is the newest text), records numbers of rows at 0 or above, moves the
-few rows an older build numbered below 0 to `-files.rowid` (only those are tokenized again), drops
-rows of paths no file has, and clears the flag — one batch. If it fails at any step the vault
+keeps per path the row the file names and never guesses: a path whose file names none of its
+rows keeps none, and the note goes to the next full pass, which writes its current text ("the
+highest number is the newest text" is false — this build's rows are negative and get more
+negative, an older build's are positive, and the delete trigger leaves a row on purpose when its
+path now belongs to another file, so a row under a path can be another note's text at any
+number). The one exception is the first start of format 9: a format-8 index names no row, and it
+kept one row per path, so a path with exactly one row adopts it (where that row is another note's,
+a queued rename set the note's `mtime_local` to 0 and the next pass replaces the row by number); a
+path with two rows adopts none. A file an older build wrote names nothing, so after a flagged
+start exactly the notes it wrote are read again. The numbering records numbers of rows at 0 or
+above, moves the few rows of the first start an older build numbered at or below 0 to
+`-files.rowid` (only those are tokenized again), drops rows of paths no file has, and clears the
+flag — one batch. If it fails at any step the vault
 still opens: the full-text table is dropped and made anew, every note is handed to the next full
 pass, and the failure is recorded in `meta` under `index-diagnostic:fts-numbering` as a count and a date; both shells put it into the diagnostics export ("About & diagnostics") when the vault opens (`readIndexDiagnostics`, `logIndexDiagnostics`), with no path and no text.
+
+Not covered, as in v0.8.7: on the desktop `transaction()` is a turn, not a transaction, so a
+kill between a note's `INSERT INTO files` and its search row leaves a note with a current
+`mtime_local` and no row, unsearchable until it is edited; the sweep that hands such notes to the
+next pass runs only on a flagged start. Run at every start it would cost 60 ms (by number) to
+80 ms (by number and path) at 10 000 notes on a reopened index here
+(`scripts/perf/numbering-cost.ts`, `sweepByNumberMs`, `sweepByNumberAndPathMs`) — too much for
+every start; real transactions on the desktop close it at the cause (R1).
+
+Orphan rows — a row the delete trigger kept because its path belongs to another file now — are
+harmless to readers, which all join on number and path, and only `rebuildIndex` (or a flagged
+start, which drops every row a file does not name) removes them; "no row outlives its file" holds
+for rows under their own path, by the trigger's path condition.
 
 **Readers** join by path and number: search and the AI's candidates (`files` by path, then the
 number), the `-term` operator (by number), the readers of the whole table (tasks, find in vault,
@@ -231,8 +263,11 @@ Tests: `packages/core/test/fts-rows-by-file.test.ts` — on an index with realis
 three times, smallest `files.rowid` above 10): the rule through indexing, saving, moving, a queued
 rename, deleting and rebuilding; a format-8 index numbered without a row written into the search
 table and every reader answering as before; v0.8.7's statements word for word after a downgrade
-(note saved, new note, parse-error REPLACE, move, delete) — flagged, numbered at the next start with
-the newest text, then exactly what a fresh index of the vault answers; which writes raise the flag
+(note saved, new note, parse-error REPLACE, move, delete) — flagged, at the next start the notes
+it wrote handed to the next pass, then exactly what a fresh index of the vault answers; the third
+review's sequence (a positive-numbered row, two queued renames, an orphan left by the trigger, then
+v0.8.7's parse-error `INSERT OR REPLACE`) and a lone orphan with and without a flag — each note
+searchable with its own text after the next pass, no stray rows, no path twice; which writes raise the flag
 and which do not; readers that show each note once while stray rows are still there; reads after a
 save, a move and a failed reading on a converted index; a numbering stopped at each of its twelve
 statements; the write order inside the scan's units (pinned for the batched scan of `feature/w1-app`:

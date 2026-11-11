@@ -760,7 +760,7 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   if (stored >= INDEX_FORMAT_VERSION) {
     // Only what an older build may have left on this index since (version 9).
     const flagged = await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [UNNUMBERED_FLAG]);
-    if (flagged) await numberFullTextRowsOrRebuild(db);
+    if (flagged) await numberFullTextRowsOrRebuild(db, { adoptUnnamed: false });
     return;
   }
 
@@ -797,7 +797,7 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   }
   // Version 9: every `files` row names its full-text row. Last, so the steps
   // above read the table as they always did.
-  await numberFullTextRowsOrRebuild(db);
+  await numberFullTextRowsOrRebuild(db, { adoptUnnamed: true });
   await db.execute(
     `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`,
     [String(INDEX_FORMAT_VERSION)]
@@ -925,10 +925,25 @@ const chunks = <T,>(items: readonly T[]): T[][] => {
  * What `numberFullTextRows` writes for an index: which number each file names,
  * which rows go, which move. Pure, so a test can read it from rows.
  *
- * - Per path the one row to keep: the one the file names, when the file names
- *   one this build wrote; else the highest number (an older build deletes a
- *   path's rows before it writes, and SQLite numbers its insert above every
- *   row there is — so the highest is the latest text).
+ * - Per path the one row to keep is the one the file names. Nothing is
+ *   guessed: a path whose file names no row it has keeps none, and the
+ *   closing sweep hands the note to the next full pass, which writes its
+ *   current text. "The highest number is the latest text" is false: this
+ *   build's rows are negative (newer is more negative), an older build's are
+ *   positive, and the delete trigger leaves a row on purpose when its path
+ *   now belongs to another file (a renamed note whose search row still
+ *   carries the old path) — such an orphan under a path can be another
+ *   note's text, at any number.
+ * - One exception, `adoptUnnamed` (the first start of format 9 only): an
+ *   index of format 8 names no row anywhere, and it kept one row per path
+ *   (every write deleted the path's rows before it inserted). A path with
+ *   exactly one row adopts it. Where that row is not the note's own text, a
+ *   queued rename moved the files row and set its `mtime_local` to 0, so the
+ *   next pass re-reads the note and replaces the row by its number. A path
+ *   with more than one row adopts none. On a start flagged by an older build
+ *   (`adoptUnnamed` false) a file it wrote names nothing, and its rows go:
+ *   its parse-error REPLACE of the files row leaves the search rows of the
+ *   path as they were, an orphan among them.
  * - A kept row at 0 or above keeps its number and the file records it (a row
  *   of an index from before format 9; this build never writes there). A kept
  *   row below 0 that is not at `-files.rowid` moves there: an older build
@@ -939,6 +954,7 @@ const chunks = <T,>(items: readonly T[]): T[][] => {
 export function planFullTextNumbering(
   rows: readonly { rowid: number; path: string }[],
   files: readonly { rowid: number; path: string; fts_rowid: number | null }[],
+  { adoptUnnamed }: { adoptUnnamed: boolean },
 ): { explicit: { path: string; num: number }[]; drop: number[]; move: number[] } {
   const fileByPath = new Map(files.map((f) => [f.path, f]));
   const byPath = new Map<string, number[]>();
@@ -953,8 +969,11 @@ export function planFullTextNumbering(
   for (const [path, numbers] of byPath) {
     const file = fileByPath.get(path)!;
     const named = file.fts_rowid === null ? null : file.fts_rowid === 0 ? -file.rowid : file.fts_rowid;
-    const keep = named !== null && numbers.includes(named) ? named : Math.max(...numbers);
+    const keep = named !== null ? (numbers.includes(named) ? named : null) : adoptUnnamed && numbers.length === 1 ? numbers[0] : null;
     for (const n of numbers) if (n !== keep) drop.push(n);
+    // No row kept: the closing sweep of numberFullTextRows sets the note's
+    // mtime_local to 0, and the next full pass writes its current text.
+    if (keep === null) continue;
     if (keep === -file.rowid) continue;
     // Only above 0: 0 itself reads as "-rowid" in `fts_rowid`, and the
     // sentinel lives there; below 0 is this build's range.
@@ -980,7 +999,7 @@ export function planFullTextNumbering(
  * measured with scripts/perf/numbering-cost.ts). It runs only on the first
  * start of format 9 and after an older build wrote to the index.
  */
-async function numberFullTextRows(db: IDatabaseAdapter): Promise<void> {
+async function numberFullTextRows(db: IDatabaseAdapter, adoptUnnamed: boolean): Promise<void> {
   // Only an adapter without a batch can leave this behind, half way through
   // a move: its rows are no longer in the table.
   if (await db.queryOne(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fts_moving'`)) {
@@ -991,7 +1010,7 @@ async function numberFullTextRows(db: IDatabaseAdapter): Promise<void> {
     const named = rowValue(r, "fts_rowid");
     return { rowid: Number(rowValue(r, "rowid")), path: String(rowValue(r, "path") ?? ""), fts_rowid: named === null || named === undefined ? null : Number(named) };
   });
-  const plan = planFullTextNumbering(rows, files);
+  const plan = planFullTextNumbering(rows, files, { adoptUnnamed });
   const statements: { sql: string; params?: unknown[] }[] = [
     { sql: `DROP TABLE IF EXISTS fts_number_map` },
     { sql: `CREATE TABLE fts_number_map (path TEXT PRIMARY KEY, num INTEGER NOT NULL)` },
@@ -1045,9 +1064,9 @@ async function numberFullTextRows(db: IDatabaseAdapter): Promise<void> {
  * Search is empty until that pass has read the notes again — the price of an
  * index that could not be trusted. Should even that fail, the open goes on.
  */
-async function numberFullTextRowsOrRebuild(db: IDatabaseAdapter): Promise<void> {
+async function numberFullTextRowsOrRebuild(db: IDatabaseAdapter, { adoptUnnamed }: { adoptUnnamed: boolean }): Promise<void> {
   try {
-    await numberFullTextRows(db);
+    await numberFullTextRows(db, adoptUnnamed);
     return;
   } catch (error) {
     console.error("[index] numbering the full-text rows failed; the full-text index is built anew", error);

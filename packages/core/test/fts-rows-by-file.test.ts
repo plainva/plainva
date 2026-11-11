@@ -222,18 +222,25 @@ describe("full-text rows named by their files (index format 9)", () => {
     expect(writes.filter((sql) => /fts_notes|UPDATE files/.test(sql) && !/CREATE (VIRTUAL TABLE|TRIGGER) IF NOT EXISTS/.test(sql))).toEqual([]);
   });
 
-  it("keeps the latest of two rows of one path and drops a row no file has", async () => {
-    const { db } = await used();
+  it("never guesses between two rows of one path: neither stays, the next pass writes the note's text; a row no file has goes", async () => {
+    const { db, files, indexer } = await used();
     await asFormatEight(db);
     await db.execute(`INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES ('an orphan', 'Orphan', 'Orphan.md', '', '')`);
-    await db.execute(`INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES ('the latest text of plain', 'Plain', 'Notes/Plain.md', '', '')`);
+    // The higher number, and not the note's text: "the highest is the latest" would show it.
+    await db.execute(`INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES ('another note''s zeppelin', 'Plain', 'Notes/Plain.md', '', '')`);
     await initializeSchema(db);
     expect(await strays(db)).toEqual(clean);
+    expect(await db.query(`SELECT rowid FROM fts_notes WHERE path IN ('Notes/Plain.md', 'Orphan.md')`)).toEqual([]);
+    expect(await db.query(`SELECT path FROM files WHERE mtime_local = 0`)).toEqual([{ path: "Notes/Plain.md" }]);
+    expect(await searchPaths(db, "zeppelin")).toEqual([]);
+    await indexer.indexVaultFull();
+    expect(await strays(db)).toEqual(clean);
+    expect(await searchPaths(db, "zeppelin")).toEqual([]);
+    expect((await new VaultQueryService(db).getCardData(["Notes/Plain.md"]))["Notes/Plain.md"]?.content).toBe(await files.readTextFile("Notes/Plain.md"));
     expect(await ftsCount(db)).toBe(Object.keys(NOTES).length);
-    expect((await db.query<{ content: string }>(`SELECT content FROM fts_notes WHERE path = 'Notes/Plain.md'`)).map((r) => r.content)).toEqual(["the latest text of plain"]);
   });
 
-  it("answers what v0.8.7 left after a downgrade: flagged, numbered at the next start, the newest text kept", async () => {
+  it("answers what v0.8.7 left after a downgrade: flagged, at the next start the notes it wrote are read again", async () => {
     const { db, files } = await used();
     const older = olderBuild(db, files);
     // Each statement the older build runs against `files` and `fts_notes` in a write.
@@ -255,9 +262,11 @@ describe("full-text rows named by their files (index format 9)", () => {
     expect(await meta(db, UNNUMBERED_FLAG)).toBeUndefined();
     expect(await strays(db)).toEqual(clean);
     await expectSentinel(db);
-    // The newest text of each note, before any note is read again.
-    expect((await query.searchFullText("zeppelin")).map((r) => r.path).sort()).toEqual(["Notes/New.md", "Projects/Beta.md"]);
-    expect((await query.searchFullText("kickoff")).map((r) => r.path)).toContain("Projects/Alpha.md");
+    // A files row the older build wrote names no row: nothing of it is adopted (its parse-error
+    // REPLACE leaves whatever rows the path had), the next pass reads exactly those notes.
+    // (Notes/Moved.md: the older build's move set it to 0 itself.)
+    expect((await db.query<{ path: string }>(`SELECT path FROM files WHERE mtime_local = 0 ORDER BY path`)).map((r) => r.path)).toEqual(["Notes/Moved.md", "Notes/New.md", "Projects/Alpha.md", "Projects/Beta.md"]);
+    expect(await query.searchFullText("zeppelin")).toEqual([]);
 
     const indexer = new VaultIndexer(files, db);
     await indexer.indexVaultFull();
@@ -388,13 +397,13 @@ describe("full-text rows named by their files (index format 9)", () => {
     ];
     for (const step of steps) {
       const { db, files } = await used();
-      // A row to move: with the sentinel gone (its rebuild), the older build numbers its insert among this build's (below 0).
-      await olderBuild(db, files).rebuild();
-      await olderBuild(db, files).reindex("Projects/Beta.md", "# Beta\n\nThe older build wrote about a zeppelin.\n");
-      // A number to record: a row of a format-8 index (0 and up) whose file names none.
+      // The first start of format 9 (the one that adopts a path's one row): numbers to record, all
+      // the rows of the format-8 index (1 and up), whose files name none…
+      await asFormatEight(db);
+      // …a row to move: one at or below 0 that is not at its file's number…
       await files.writeTextFile("Notes/Extra.md", "An extra note about a balloon.\n");
       await db.execute(`INSERT INTO files (id, path, title, mtime_local) VALUES ('extra', 'Notes/Extra.md', 'Extra', 1)`);
-      await db.execute(`INSERT INTO fts_notes (rowid, content, title, path, seg_content, seg_title) VALUES (5000, 'An extra note about a balloon.', 'Extra', 'Notes/Extra.md', '', '')`);
+      await db.execute(`INSERT INTO fts_notes (rowid, content, title, path, seg_content, seg_title) VALUES (-7, 'An extra note about a balloon.', 'Extra', 'Notes/Extra.md', '', '')`);
       // A row to drop: no file has its path.
       await db.execute(`INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES ('orphan', 'O', 'Orphan.md', '', '')`);
       const ran: string[] = [];
@@ -423,7 +432,7 @@ describe("full-text rows named by their files (index format 9)", () => {
     }
   });
 
-  it("plans the numbering: the named row or the newest stays, a stray row moves, the rest goes", () => {
+  it("plans the numbering: the named row stays (on the first start a path's one row), a stray row moves, the rest goes", () => {
     const files = [
       { rowid: 20, path: "a.md", fts_rowid: 0 },
       { rowid: 21, path: "b.md", fts_rowid: null },
@@ -438,11 +447,36 @@ describe("full-text rows named by their files (index format 9)", () => {
       { rowid: 5, path: "d.md" },
       { rowid: -8, path: "gone.md" },
     ];
-    expect(planFullTextNumbering(rows, files)).toEqual({
+    // The first start of format 9: a path's one row is adopted.
+    expect(planFullTextNumbering(rows, files, { adoptUnnamed: true })).toEqual({
       explicit: [{ path: "c.md", num: 3 }, { path: "d.md", num: 5 }],
       drop: [-8, -9],
       move: [-10],
     });
+    // A start flagged by an older build: what a file it wrote does not name goes.
+    expect(planFullTextNumbering(rows, files, { adoptUnnamed: false })).toEqual({
+      explicit: [{ path: "d.md", num: 5 }],
+      drop: [-8, -9, -10, 3],
+      move: [],
+    });
+  });
+
+  it("plans no guess: two rows and no named one, or a lone row at a number the file does not name, all go", () => {
+    const files = [
+      { rowid: 4, path: "b.md", fts_rowid: null },
+      { rowid: 5, path: "e.md", fts_rowid: 0 },
+      { rowid: 6, path: "f.md", fts_rowid: 7 },
+    ];
+    const rows = [
+      { rowid: 1, path: "b.md" },
+      { rowid: -4, path: "b.md" },
+      // A lone orphan: another note's text under e.md, whose file names -5.
+      { rowid: 2, path: "e.md" },
+      { rowid: 3, path: "f.md" },
+    ];
+    for (const adoptUnnamed of [true, false]) {
+      expect(planFullTextNumbering(rows, files, { adoptUnnamed })).toEqual({ explicit: [], drop: [1, -4, 2, 3], move: [] });
+    }
   });
 
   it("plans the boundary: an older build's rows at -1, 0 and 1 — only above 0 is recorded, 0 and -1 move, the sentinel stays", () => {
@@ -457,9 +491,9 @@ describe("full-text rows named by their files (index format 9)", () => {
       { rowid: 1, path: "three.md" },
       { rowid: 0, path: "" },
     ];
-    expect(planFullTextNumbering(rows, files)).toEqual({ explicit: [{ path: "three.md", num: 1 }], drop: [], move: [-1, 0] });
+    expect(planFullTextNumbering(rows, files, { adoptUnnamed: true })).toEqual({ explicit: [{ path: "three.md", num: 1 }], drop: [], move: [-1, 0] });
     // The sentinel alone is no row to plan.
-    expect(planFullTextNumbering([{ rowid: 0, path: "" }], files)).toEqual({ explicit: [], drop: [], move: [] });
+    expect(planFullTextNumbering([{ rowid: 0, path: "" }], files, { adoptUnnamed: true })).toEqual({ explicit: [], drop: [], move: [] });
   });
 });
 
@@ -475,7 +509,7 @@ describe("what an older build can leave while it runs (second review of format 9
     for (const f of await files.listDir("", true)) if (!f.isDirectory && f.path.endsWith(".md")) await searchable(db, files, f.path);
   }
 
-  it("a note an older build numbers 0 (the sentinel gone with its rebuild) is moved, never recorded as 0", async () => {
+  it("a note an older build numbers 0 (the sentinel gone with its rebuild) is never recorded as 0", async () => {
     // A fresh index: every files row is a note, the largest search number is -1.
     const db = await realSqlite();
     const files = await vaultWith(NOTES);
@@ -492,6 +526,11 @@ describe("what an older build can leave while it runs (second review of format 9
 
     await initializeSchema(db);
     expect(await meta(db, UNNUMBERED_FLAG)).toBeUndefined();
+    // Never recorded as 0 (that reads as "-rowid"): the row goes, the next pass writes the note at its own number.
+    expect(await db.query(`SELECT rowid FROM fts_notes WHERE path = ?`, [target])).toEqual([]);
+    expect((await db.queryOne<{ mtime_local: number }>(`SELECT mtime_local FROM files WHERE path = ?`, [target]))!.mtime_local).toBe(0);
+    await expectSentinel(db);
+    await indexer.indexVaultFull();
     const file = (await db.queryOne<{ rowid: number; fts_rowid: number }>(`SELECT rowid, fts_rowid FROM files WHERE path = ?`, [target]))!;
     expect(file.fts_rowid).toBe(0);
     expect((await db.queryOne<{ rowid: number }>(`SELECT rowid FROM fts_notes WHERE path = ?`, [target]))!.rowid).toBe(-file.rowid);
@@ -527,6 +566,7 @@ describe("what an older build can leave while it runs (second review of format 9
     expect((await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [target]))?.content).toContain("zeppelin");
 
     await initializeSchema(db);
+    await indexer.indexVaultFull();
     expect(await searchPaths(db, "zeppelin")).toEqual([target]);
     await everyNoteSearchable(db, files);
   });
@@ -545,6 +585,77 @@ describe("what an older build can leave while it runs (second review of format 9
     await indexer.indexVaultFull();
     expect(await searchPaths(db, "kickoff")).toContain("Projects/Alpha.md");
     await everyNoteSearchable(db, files);
+  });
+
+  /**
+   * Third review of format 9: a row the delete trigger leaves on purpose (its
+   * path now belongs to another file) is another note's text at a positive
+   * number; "the highest number is the latest text" would hand it to b.md.
+   */
+  const AB = { "a.md": "Note A writes about a balloon.\n", "b.md": "Note B writes about a zeppelin.\n", "z.md": "Another note.\n" };
+  async function orphanUnderB() {
+    const db = await realSqlite();
+    const files = await vaultWith(AB);
+    const indexer = new VaultIndexer(files, db);
+    await indexer.indexVaultFull();
+    // 1. An index from before format 9 (SQLite numbered its rows above 0), numbered at the first start:
+    //    b.md names its row at a positive number.
+    await asFormatEight(db);
+    await initializeSchema(db);
+    const bRow = (await db.queryOne<{ fts_rowid: number }>(`SELECT fts_rowid FROM files WHERE path = 'b.md'`))!.fts_rowid;
+    expect(bRow).toBeGreaterThan(0);
+    // 2. This build: queued renames b.md -> c.md, then a.md -> b.md (the files rows only; the search rows keep their paths).
+    await files.renameItem("b.md", "c.md");
+    await new SyncQueue(db).queueRename("b.md", "c.md");
+    await files.renameItem("a.md", "b.md");
+    await new SyncQueue(db).queueRename("a.md", "b.md");
+    // 3. The full pass reads c.md (note B) and b.md (note A). Deleting c.md's files row finds its row under b.md,
+    //    a path that has a file: the trigger leaves it, an orphan with note B's text at the positive number.
+    await indexer.indexVaultFull();
+    expect((await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE rowid = ? AND path = 'b.md'`, [bRow]))?.content).toBe(AB["b.md"]);
+    // Harmless to readers (number and path): each note shows its own text.
+    expect(await searchPaths(db, "zeppelin")).toEqual(["c.md"]);
+    expect(await searchPaths(db, "balloon")).toEqual(["b.md"]);
+    return { db, files, indexer, bRow };
+  }
+
+  it("an orphan under a path never becomes that path's note after an older build's REPLACE of the files row (the third review's sequence)", async () => {
+    const { db, files, indexer } = await orphanUnderB();
+    // 4. v0.8.7's parse-error path for b.md, word for word: INSERT OR REPLACE INTO files, the search rows left.
+    await olderBuild(db, files).replaceAfterParseError("b.md");
+    expect(await meta(db, UNNUMBERED_FLAG)).toBe("1");
+    // 5. The next start: b.md has two rows and names neither — both go, the note is read again.
+    await initializeSchema(db);
+    expect(await db.query(`SELECT rowid FROM fts_notes WHERE path = 'b.md'`)).toEqual([]);
+    expect((await db.queryOne<{ mtime_local: number }>(`SELECT mtime_local FROM files WHERE path = 'b.md'`))!.mtime_local).toBe(0);
+    expect(await searchPaths(db, "zeppelin")).toEqual(["c.md"]);
+    await indexer.indexVaultFull();
+    expect(await searchPaths(db, "zeppelin")).toEqual(["c.md"]);
+    expect(await searchPaths(db, "balloon")).toEqual(["b.md"]);
+    expect(await new VaultQueryService(db).findInVault("zeppelin")).toEqual([expect.objectContaining({ path: "c.md" })]);
+    await everyNoteSearchable(db, files);
+    expect(await db.query(`SELECT path FROM fts_notes GROUP BY path HAVING count(*) > 1`)).toEqual([]);
+  });
+
+  it("a lone orphan under a path is not adopted by that path's file, flagged or not", async () => {
+    const { db, files, indexer, bRow } = await orphanUnderB();
+    // Note A's own row gone (a kill between its files row and its search row): the orphan is b.md's only row.
+    const aFile = (await db.queryOne<{ rowid: number }>(`SELECT rowid FROM files WHERE path = 'b.md'`))!;
+    await db.execute(`DELETE FROM fts_notes WHERE rowid = ?`, [-aFile.rowid]);
+    expect((await db.query<{ rowid: number }>(`SELECT rowid FROM fts_notes WHERE path = 'b.md'`)).map((r) => r.rowid)).toEqual([bRow]);
+    // Not flagged: readers join number and path, b.md never shows note B's text.
+    await initializeSchema(db);
+    expect(await searchPaths(db, "zeppelin")).toEqual(["c.md"]);
+    expect((await new VaultQueryService(db).getCardData(["b.md"]))["b.md"]?.content).not.toBe(AB["b.md"]);
+    // Flagged (an older build wrote some other note): the lone row is at a number b.md does not name — it goes.
+    await olderBuild(db, files).reindex("z.md", "Another note, from the older build.\n");
+    await initializeSchema(db);
+    expect(await db.query(`SELECT rowid FROM fts_notes WHERE path = 'b.md'`)).toEqual([]);
+    await indexer.indexVaultFull();
+    expect(await searchPaths(db, "zeppelin")).toEqual(["c.md"]);
+    expect(await searchPaths(db, "balloon")).toEqual(["b.md"]);
+    await everyNoteSearchable(db, files);
+    expect(await db.query(`SELECT path FROM fts_notes GROUP BY path HAVING count(*) > 1`)).toEqual([]);
   });
 });
 

@@ -56,9 +56,14 @@ export interface CoreMetrics {
   /** One note saved and read again (`indexPath`), median and 95th percentile of 40, ms. */
   saveP50Ms: number;
   saveP95Ms: number;
-  /** Full-text search, first 50 hits: median over 6 queries × 7 rounds, ms. */
+  /**
+   * Full-text search, first 50 hits, ms: each of the 6 queries' fastest of 8
+   * rounds (after one warm-up round), and of those six the median. The fastest
+   * of several repetitions is what the code costs; the slower ones carry the
+   * neighbours on a shared runner.
+   */
   searchMs: number;
-  /** `listTasks`, median of 5, ms. */
+  /** `listTasks`, ms: the fastest of 9, after one warm-up call (as for search). */
   listTasksMs: number;
   /** Size of the index database file after the cold index, bytes. */
   dbBytes: number;
@@ -222,25 +227,26 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
   log(`save p50 ${median(saves).toFixed(1)} ms, p95 ${percentile(saves, 95).toFixed(1)} ms`);
 
   const service = new VaultQueryService(db);
-  const searches: number[] = [];
-  for (let round = 0; round < 7; round++) {
+  const fastestPerQuery = new Map<string, number>();
+  for (let round = 0; round < 9; round++) {
     for (const query of SEARCHES) {
       const [ms] = await time(() => service.searchFullText(query, 50));
-      if (round > 0) searches.push(ms);
+      if (round > 0) fastestPerQuery.set(query, Math.min(fastestPerQuery.get(query) ?? Infinity, ms));
     }
   }
-  log(`search median ${median(searches).toFixed(1)} ms`);
+  const searches = [...fastestPerQuery.values()];
+  log(`search ${median(searches).toFixed(1)} ms (median over the queries of each one's fastest of 8)`);
   for (const query of SEARCHES) extra[`search hits "${query}"`] = (await service.searchFullText(query, 50)).length;
 
   const tasks: number[] = [];
   let taskCount = 0;
-  for (let k = 0; k < 5; k++) {
+  for (let k = 0; k < 10; k++) {
     const [ms, rows] = await time(() => service.listTasks());
-    tasks.push(ms);
+    if (k > 0) tasks.push(ms);
     taskCount = rows.length;
   }
   extra.tasksListed = taskCount;
-  log(`listTasks ${median(tasks).toFixed(0)} ms (${taskCount} tasks)`);
+  log(`listTasks ${Math.min(...tasks).toFixed(0)} ms, fastest of 9 (${taskCount} tasks)`);
 
   const [occurrenceMs] = await time(() => service.searchOccurrencesPage("project"));
   extra.occurrencePageMs = round(occurrenceMs);
@@ -274,7 +280,7 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
       saveP50Ms: round(median(saves)),
       saveP95Ms: round(percentile(saves, 95)),
       searchMs: round(median(searches)),
-      listTasksMs: round(median(tasks)),
+      listTasksMs: round(Math.min(...tasks)),
       dbBytes,
     },
     extra,
