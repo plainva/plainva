@@ -49,9 +49,9 @@ try {
   await fs.copyFile(dbPath, eight);
   db = open(eight);
   // A format-8 index has no triggers of format 9 (and SQLite refuses the rename while one names the table).
-  db.raw.exec(`DROP TRIGGER IF EXISTS files_takes_its_full_text_row; DROP TRIGGER IF EXISTS files_written_by_older_index;`);
+  db.raw.exec(`DROP TRIGGER IF EXISTS files_takes_its_full_text_row; DROP TRIGGER IF EXISTS files_full_text_row_goes; DROP TRIGGER IF EXISTS files_written_by_older_index;`);
   db.raw.exec(`CREATE VIRTUAL TABLE fts_old USING fts5(content, title, path UNINDEXED, seg_content, seg_title, tokenize = 'unicode61 remove_diacritics 1');
-    INSERT INTO fts_old (content, title, path, seg_content, seg_title) SELECT content, title, path, seg_content, seg_title FROM fts_notes ORDER BY rowid DESC;
+    INSERT INTO fts_old (content, title, path, seg_content, seg_title) SELECT content, title, path, seg_content, seg_title FROM fts_notes WHERE rowid <> 0 ORDER BY rowid DESC;
     DROP TABLE fts_notes; ALTER TABLE fts_old RENAME TO fts_notes;
     UPDATE files SET fts_rowid = NULL; UPDATE meta SET value = '8' WHERE key = 'index_format_version';
     PRAGMA wal_checkpoint(TRUNCATE);`);

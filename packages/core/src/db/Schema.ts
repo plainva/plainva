@@ -887,6 +887,15 @@ export interface IndexDiagnostic {
   count: number;
 }
 
+/** The count a diagnostic record holds (`{ count, at }`), 0 for anything else. */
+function diagnosticCount(value: unknown): number {
+  try {
+    return Number(JSON.parse(String(value ?? "{}")).count) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** The index's own diagnostics (`meta` keys `index-diagnostic:*`), for the diagnostics export of both shells. */
 export async function readIndexDiagnostics(db: IDatabaseAdapter): Promise<IndexDiagnostic[]> {
   let rows: unknown[];
@@ -899,12 +908,7 @@ export async function readIndexDiagnostics(db: IDatabaseAdapter): Promise<IndexD
   for (const row of rows ?? []) {
     const key = String(rowValue(row, "key") ?? "");
     if (!key.startsWith("index-diagnostic:")) continue;
-    let count = 0;
-    try {
-      count = Number(JSON.parse(String(rowValue(row, "value") ?? "{}")).count) || 0;
-    } catch {
-      count = 0;
-    }
+    const count = diagnosticCount(rowValue(row, "value"));
     if (count > 0) out.push({ kind: key.slice("index-diagnostic:".length), count });
   }
   return out;
@@ -1048,12 +1052,7 @@ async function numberFullTextRowsOrRebuild(db: IDatabaseAdapter): Promise<void> 
   } catch (error) {
     console.error("[index] numbering the full-text rows failed; the full-text index is built anew", error);
     // A kind and a count, nothing of the vault: it goes into the diagnostics export (readIndexDiagnostics).
-    let count = 0;
-    try {
-      count = Number(JSON.parse(String(rowValue(await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [FULL_TEXT_NUMBERING_DIAGNOSTIC]), "value") ?? "{}")).count) || 0;
-    } catch {
-      count = 0;
-    }
+    const count = diagnosticCount(rowValue(await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [FULL_TEXT_NUMBERING_DIAGNOSTIC]).catch(() => null), "value"));
     const record = JSON.stringify({ count: count + 1, at: new Date().toISOString() });
     try {
       await runStatementsAtomic(db, [
