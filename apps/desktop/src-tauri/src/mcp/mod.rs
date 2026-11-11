@@ -2466,14 +2466,20 @@ mod tests {
         let (reply, mut client) = connect(&app, Some("s3cret")).await;
         assert!(reply.ok);
         initialize(&mut client).await;
-        for (id, path) in [(2, "Projects/one.md"), (3, "Projects/two.md"), (4, "Projects/three.md"), (5, "Projects/four.md"), (6, "Projects/a.md")] {
+        // `PLAINV~1` is Plainva's folder by its second name on Windows; elsewhere nothing has that name, an answer that
+        // names it reaches nothing (`real_inside_answer`), and the case is Windows's alone.
+        let mut cases = vec![(2, "Projects/one.md"), (4, "Projects/three.md"), (5, "Projects/four.md"), (6, "Projects/a.md")];
+        if cfg!(windows) {
+            cases.push((3, "Projects/two.md"));
+        }
+        for (id, path) in cases.iter().copied() {
             let answer = call(&mut client, id, path).await;
             assert_eq!(answer["result"]["isError"], true, "{path}: {answer}");
             assert!(!answer.to_string().contains("secret"), "{path}: {answer}");
             assert!(answer["result"]["resultType"].is_null(), "{path}: {answer}");
         }
         let audit = Store::new(dir.path().join("mcp")).audit("vault-key");
-        assert_eq!(audit.len(), 5);
+        assert_eq!(audit.len(), cases.len());
         assert!(audit.iter().all(|entry| !entry.ok && entry.note.is_none()), "{audit:?}");
     }
 
