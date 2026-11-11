@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Sammelplan § 3.135 Nr. 6, decision E10: a link that names an overview only
@@ -32,7 +32,7 @@ test("adopting an overview offers to write the links to other overviews with the
     await page.reload();
     await waitForVaultDirectory(page);
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-maintenance").click();
     await page.getByTestId("open-overviews").click();
     const row = page.getByTestId("overview-row-Projekte");

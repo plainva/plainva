@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page, type TestInfo } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 import { byteExactDav } from "../../../packages/core/test/helpers/byteExactDav";
 
 /**
@@ -74,7 +74,7 @@ async function evidence(page: Page, info: TestInfo, name: string) {
 test("the notice names the files, opens the list as a sheet, uploads one again and hides until the set changes", async ({ context, page }, info) => {
   test.setTimeout(120_000);
   await boot(context, page);
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-sync"]').click();
 
   await page.evaluate(() => {

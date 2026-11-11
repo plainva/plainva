@@ -8,7 +8,8 @@ import { useVault, okfPromptDismissedKey, type SyncProviderId } from "./contexts
 import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStatus, type SyncErrorSnapshot } from "./services/syncStatusStore";
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 import { AlertTriangle } from "lucide-react";
-import { Button, ICON, migrateLegacyBarLayouts, Modal, toast, useStableHandler } from "@plainva/ui";
+import { AreaBoundary, Button, ICON, migrateLegacyBarLayouts, Modal, toast, useStableHandler } from "@plainva/ui";
+import { setNoteLinksVaultLoading } from "@plainva/ui";
 import { WorkspaceActivationOverlay } from "./components/security/WorkspaceActivationOverlay";
 import { appConfirm } from "./services/appDialogs";
 import { IndexMdModal } from "./components/IndexMdModal";
@@ -56,6 +57,9 @@ function App() {
   useWindowTitle({ vaultPath, vaultCount: heldVaults.length });
   // The week start of the vault this window shows (decision E4).
   useVaultWeekStart(vaultPath);
+  // A note link that arrived waits while a vault loads; once the start is over
+  // — a vault shown or the splash without one — its minute runs (F2).
+  useEffect(() => setNoteLinksVaultLoading(isBooting || isLoading), [isBooting, isLoading]);
 
   const [showSettings, setShowSettings] = useState(false);
   // Deep link from the splash's online-vault chooser: open Settings with the
@@ -369,7 +373,7 @@ function App() {
     return (
       <>
         <SplashScreen showFirstRun={showFirstRun} onFirstRunDismiss={dismissReleaseDialog} />
-        {showWhatsNew && <WhatsNewModal onClose={dismissReleaseDialog} />}
+        {showWhatsNew && <AreaBoundary area="dialog:whatsNew" size="dialog" exit={{ label: t("common.close"), onExit: dismissReleaseDialog }}><WhatsNewModal onClose={dismissReleaseDialog} /></AreaBoundary>}
       </>
     );
   }
@@ -380,18 +384,21 @@ function App() {
           fallback is never visible longer than the chunk download. */}
       {/* Above the settings, not inside them: a running conversion must stay
           visible while the user navigates or closes the settings (K8). */}
-      <WorkspaceActivationOverlay />
+      <AreaBoundary area="dialog:workspaceActivation" size="dialog"><WorkspaceActivationOverlay /></AreaBoundary>
       <Suspense fallback={null}>
-        {showSettings && <SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} initialAccountId={settingsInitialAccountId ?? undefined} initialConnect={settingsInitialConnect ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); setSettingsInitialAccountId(null); setSettingsInitialConnect(null); }} />}
+        {showSettings && <AreaBoundary area="dialog:settings" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowSettings(false) }}><SettingsModal initialProvider={settingsInitialProvider ?? undefined} initialArea={settingsInitialArea ?? undefined} initialAccountId={settingsInitialAccountId ?? undefined} initialConnect={settingsInitialConnect ?? undefined} onClose={() => { setShowSettings(false); setSettingsInitialProvider(null); setSettingsInitialArea(null); setSettingsInitialAccountId(null); setSettingsInitialConnect(null); }} /></AreaBoundary>}
         {showOkfWizard && (
+          <AreaBoundary area="dialog:okfConversion" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowOkfWizard(false) }}>
           <OkfConversionModal
             onClose={() => setShowOkfWizard(false)}
             onOpenIndexManager={() => setShowIndexManager(true)}
           />
+          </AreaBoundary>
         )}
-        {showIndexManager && <IndexMdModal onClose={() => setShowIndexManager(false)} />}
+        {showIndexManager && <AreaBoundary area="dialog:indexManager" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowIndexManager(false) }}><IndexMdModal onClose={() => setShowIndexManager(false)} /></AreaBoundary>}
       </Suspense>
       {showErrorModal && (
+        <AreaBoundary area="dialog:syncError" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowErrorModal(false) }}>
         <SyncErrorDialog
           dialogConflicts={dialogConflicts}
           error={syncErrorSnapshot}
@@ -404,9 +411,10 @@ function App() {
           onRetry={() => syncWorker?.retryFailed()}
           onResetEncryption={resetConnectionEncryption}
         />
+        </AreaBoundary>
       )}
-      {showImportWizard && <ImportWizardModal targetVaultPath={vaultPath || ""} onClose={() => setShowImportWizard(false)} />}
-      {showWhatsNew && <WhatsNewModal onClose={dismissReleaseDialog} />}
+      {showImportWizard && <AreaBoundary area="dialog:import" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowImportWizard(false) }}><ImportWizardModal targetVaultPath={vaultPath || ""} onClose={() => setShowImportWizard(false)} /></AreaBoundary>}
+      {showWhatsNew && <AreaBoundary area="dialog:whatsNew" size="dialog" exit={{ label: t("common.close"), onExit: dismissReleaseDialog }}><WhatsNewModal onClose={dismissReleaseDialog} /></AreaBoundary>}
     </AppShell>
   );
 }

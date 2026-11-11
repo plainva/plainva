@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { setNoteLinksVaultLoading } from "@plainva/ui";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
@@ -140,5 +141,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
     };
   }, []);
 
+  // A note link that arrived waits while the vault boots; its minute runs
+  // once the boot answered, ready or failed (F2).
+  useEffect(() => setNoteLinksVaultLoading(boot.kind === "opening"), [boot.kind]);
   return { vault, boot };
 }

@@ -60,6 +60,8 @@
   --touch-sm: 44px;
   --touch-md: 48px;
   --touch-row: 56px;
+  /* The colour dot of an event in the phone's agenda (finding X1). */
+  --m-evt-dot: 6px;
 
   /* Mobile stacking sub-scale (below every shared layer: --z-popover starts at
      500; the shared ToastHost at --z-toast lives in the same document). Tokens
@@ -70,6 +72,9 @@
   --z-m-tl-head: 1;
   --z-m-tl-name: 2;
   --z-m-tl-today: 3;
+  /* The phone calendar's "now" line: above the events of the time grid, below
+     the head and all-day strip that stay pinned over it (finding X2). */
+  --z-m-grid-now: 2;
   --z-m-bar: 30;
 
   /* Height a docked toolbar takes away from the page below it: the

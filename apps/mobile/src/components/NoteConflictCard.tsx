@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button } from "@plainva/ui";
+import { Banner, Button, conflictCopyLabel } from "@plainva/ui";
 import { clearConflict, type NoteConflict } from "../services/conflictState";
 import type { MobileVault } from "../services/vaultService";
 
@@ -26,7 +26,7 @@ export function NoteConflictCard({ conflict, path, vault, onOpenCopy, onShowDiff
   onOpenCopy: () => void;
   onShowDiff: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     let stale = false;
     vault.files
@@ -59,7 +59,11 @@ export function NoteConflictCard({ conflict, path, vault, onOpenCopy, onShowDiff
       {t(conflict.working ? "conflict.workingCopy" : "mobile.conflictBody")}
       {conflict.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
       <br />
-      <code>{conflict.copyPath}</code>
+      {/* The copy as a person reads it, and under it its file name - what the
+          file list shows, and what tells two copies apart (finding X10). */}
+      <span data-testid="note-conflict-copy">{conflictCopyLabel(conflict.copyPath, i18n.language)}</span>
+      <br />
+      <code className="m-conflict-copyname" data-testid="note-conflict-copy-name">{conflict.copyPath.split("/").pop()}</code>
     </Banner>
   );
 }

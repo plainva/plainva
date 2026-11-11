@@ -6,7 +6,7 @@ import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts, pickDefaultMailAccount } from "@plainva/ui/mail";
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
-import { errorText, etagStamp, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -30,6 +30,7 @@ import { mailboxesSwitchedOn } from "@plainva/ui";
 import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { loadCalendarColors } from "../../services/pim/calendarColors";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
+import { vaultLabel } from "../../services/vaultNames";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
 import { useDailyNoteAction } from "../../hooks/useDailyNoteAction";
@@ -1651,7 +1652,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // ---- agenda: a dense timeline (date rail + compact rows) -----------------
 
   const agendaStartTime = (e: PimEventRow) =>
-    new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts));
+    formatClockTime(e.start.ts, { language: i18n.language });
 
   /** One compact agenda row: time · colour bar + title (+ location/attendee
    * meta) · calendar name. The whole row opens the edit dialog — the per-row
@@ -2427,7 +2428,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         <QuickCreatePopover
           anchor={quickCreate.anchor}
           dateLabel={formatDayLong(quickCreate.dayKey)}
-          timeLabel={`${minutesToHHMM(quickCreate.startMin)}–${minutesToHHMM(quickCreate.endMin)}`}
+          timeLabel={formatMinuteRange(quickCreate.startMin, quickCreate.endMin, { language: i18n.language })}
           calendarOptions={calendarOptions}
           initialCalendarKey={defaultCalKey}
           onCancel={() => setQuickCreate(null)}
@@ -2444,6 +2445,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
           calendarOptions={editCalendarOptions}
+          noteLinks={queryService ? { listNotes: () => queryService.listNotes(), vaultName: vaultPath ? vaultLabel(vaultPath) : null } : undefined}
           onCancel={() => { setEditState(null); setCreateInitial(null); seedSaved.current = null; }}
           onSubmit={submitEventForm}
           onMeetingNote={

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * The VAULT settings pages on the phone after the settings plan of 2026-10-29
@@ -40,7 +40,7 @@ test("the VAULT pages carry the desktop's pages and groups, with the explanation
     await close.click();
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     // Two pages where there was one, and the bar row named as its screen.
     await expect(page.getByTestId("settings-area-content")).toContainText("Notes & filing");
     await expect(page.getByTestId("settings-area-journal")).toContainText("Daily notes & journal");

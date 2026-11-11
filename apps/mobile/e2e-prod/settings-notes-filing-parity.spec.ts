@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * "Notes & filing" on the phone carries the desktop's three vault settings
@@ -34,7 +34,7 @@ test("Notes & filing on the phone has the desktop's text files, .base extensions
     await close.click();
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-content").click();
 
     // More text files: the field, its line and its info.

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * "Explain image" on the phone (AI harness P4-5), in the production bundle.
@@ -168,7 +168,7 @@ test("make a note of it: the second door at a picture brings the same overview a
 
     // 3. The summary above a long transcript: a switch of this device in the AI's settings, off until chosen.
     await toList(page);
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-ai").click();
     const row = page.getByTestId("transcript-summary");
     await row.scrollIntoViewIfNeeded();

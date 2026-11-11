@@ -72,7 +72,7 @@ describe("file row actions", () => {
   it("the id catalog matches what the builders can produce", () => {
     const every = fileRowActions(t, {
       openNewTab: noop, openSplitRight: noop, openSplitDown: noop, rename: noop, duplicate: noop, move: noop, overview: noop, bookmark: noop,
-      versionHistory: noop, resolveConflict: noop, reveal: noop, copyPath: noop, removeFromList: noop, delete: noop,
+      versionHistory: noop, resolveConflict: noop, reveal: noop, copyPath: noop, copyLink: noop, removeFromList: noop, delete: noop,
     });
     expect(every.map((a) => a.id)).toEqual([...ROW_ACTION_IDS.file]);
     const task = taskRowActions(t, { done: false, toggle: noop, promote: noop, repeat: noop, block: noop, due: noop, priority: noop, state: noop });

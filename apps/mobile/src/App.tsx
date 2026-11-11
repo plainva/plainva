@@ -3,8 +3,10 @@ import { newEntries, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
-import { Cloud, FileText, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { OnboardingChoice } from "./components/OnboardingChoice";
 import {
+  AreaBoundary,
   BAR_LAYOUT_CHANGED_EVENT,
   barDef,
   getVaultTemplates,
@@ -73,6 +75,7 @@ import {
   reservesFabStrip, showsCaptureFab,
   tapTab,
   SCREEN_ENTRY,
+  barMark,
   type NavState,
 } from "./navigation";
 import { PendingIntentRunner } from "./PendingIntentRunner";
@@ -425,6 +428,7 @@ export default function App() {
       onOpenToday={() => leaveThen(() => openDaily(journalTodayKey()))}
       pendingShortcut={pendingShortcut}
       setPendingShortcut={setPendingShortcut}
+      vault={vault}
     />
   );
 
@@ -636,30 +640,15 @@ export default function App() {
     <ShellProviders index={vault.queryService ?? null} embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
-      <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
-      <IndexBuildNotice vaultId={vault.vaultId} />
-      {!onboarded && (
-        <div className="m-onboarding">
-          <h1>{t("mobile.onboardingTitle")}</h1>
-          <p className="m-hint">{t("mobile.onboardingBody")}</p>
-          <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(false)}>
-            <FileText className="m-accent" size={ICON.touch} />
-            <span className="m-onboarding-label">{t("mobile.onboardingLocal")}</span>
-            <span className="m-onboarding-desc">{t("mobile.onboardingLocalDesc")}</span>
-          </button>
-          <button className="pv-card pv-card--flat m-onboarding-card" onClick={() => finishOnboarding(true)}>
-            <Cloud className="m-accent" size={ICON.touch} />
-            <span className="m-onboarding-label">{t("mobile.onboardingCloud")}</span>
-            <span className="m-onboarding-desc">{t("mobile.onboardingCloudDesc")}</span>
-          </button>
-        </div>
-      )}
+      <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} /></AreaBoundary>
+      {!onboarded && <AreaBoundary area="shell:onboarding" placeClassName="m-onboarding"><OnboardingChoice onChoose={finishOnboarding} /></AreaBoundary>}
 
       <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />
 
       {/* Capture floats above the bar on tab roots and folder screens only. */}
       {hasFab && (
-        <FabMenu
+        <AreaBoundary area="shell:fab" placeClassName="m-fab-float m-fab-float--above-tabs" size="icon"><FabMenu
           icon={<Plus size={ICON.touch} />}
           items={newEntries(t, newHandlers).flatMap((g) =>
             g.items.map((it) => ({ icon: <it.icon size={ICON.head} />, label: it.label, group: g.id, onClick: it.run })),
@@ -667,12 +656,13 @@ export default function App() {
           label={t("mobile.quickCreate")}
           onOpenChange={setQuickCreate}
           open={quickCreate}
-        />
+        /></AreaBoundary>
       )}
 
       {!barHidden && (
-        <NavBar
-          activeTab={nav.overlay.length === 0 ? nav.activeTab : null}
+        <AreaBoundary area="shell:navbar" placeClassName="m-tabbar" size="strip"><NavBar
+          activeTab={barMark(nav, slots).tab}
+          areasActive={barMark(nav, slots).areas}
           areasOpen={areasOpen}
           navCollapsed={navCollapsed}
           onOpenAreas={() => setAreasOpen(true)}
@@ -680,19 +670,19 @@ export default function App() {
           onPick={(id) => void tabTapped(id, setNav)}
           onToggleNav={splitPossible ? toggleNav : undefined}
           tabs={slots}
-        />
+        /></AreaBoundary>
       )}
 
-      <StartupSheets
+      <AreaBoundary area="sheet:startup" size="dialog"><StartupSheets
         onOpenOkf={() => leaveThen(() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "okfconversion", path: "" })))}
         onReleaseSeen={() => setReleaseDialog("none")}
         releaseDialog={releaseDialog}
         showRelease={onboarded}
         vault={vault}
-      />
+      /></AreaBoundary>
 
       {areasOpen && (
-        <AreasSheet
+        <AreaBoundary area="sheet:areas" size="dialog" exit={{ label: t("common.close"), onExit: () => setAreasOpen(false) }}><AreasSheet
           active={currentArea(nav)}
           order={withoutAiArea(barLayout, ai.enabled)}
           onArrange={() => {
@@ -713,34 +703,34 @@ export default function App() {
                 : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY[id])
             ));
           }}
-        />
+        /></AreaBoundary>
       )}
       {oauthPick && (
-        <CloudFolderPickerSheet
+        <AreaBoundary area="sheet:cloudFolder" size="dialog" exit={{ label: t("common.close"), onExit: () => { setOauthPick(false); cancelConnect(); } }}><CloudFolderPickerSheet
           title={t("mobile.syncFolder")}
           listFolders={oauthListFolders}
           createFolder={oauthCreateFolder}
           onPick={(folder) => { setOauthPick(false); void finishConnect(folder); }}
           onClose={() => { setOauthPick(false); cancelConnect(); }}
-        />
+        /></AreaBoundary>
       )}
       {journalCapture && (
-        <JournalCaptureSheet
+        <AreaBoundary area="sheet:journalCapture" size="dialog" exit={{ label: t("common.close"), onExit: () => setJournalCapture(null) }}><JournalCaptureSheet
           initialText={journalCapture.text}
           onClose={() => setJournalCapture(null)}
           onSwitchToTask={(text) => void newInTab("task", "tasks", setNav, text).then((went) => { if (went) { setJournalCapture(null); toast.info(t("journal.handoverTask")); } })}
           vault={vault}
-        />
+        /></AreaBoundary>
       )}
-      <MobileAiShell ai={ai} {...aiShellRoutes({ ai, vault, openNote, push, setNav, commands, aiInBar: slots.includes("ai") })} />
+      <AreaBoundary area="sheet:ai" size="dialog"><MobileAiShell ai={ai} {...aiShellRoutes({ ai, vault, openNote, push, setNav, commands, aiInBar: slots.includes("ai") })} /></AreaBoundary>
       {fromTemplate && (
-        <TemplatePickSheet
+        <AreaBoundary area="sheet:template" size="dialog" exit={{ label: t("common.close"), onExit: () => setFromTemplate(false) }}><TemplatePickSheet
           onClose={() => setFromTemplate(false)}
           onPick={quickNewFromTemplate}
           onCreate={quickCreateTemplate}
           title={t("mobile.newFromTemplate")}
           vault={vault}
-        />
+        /></AreaBoundary>
       )}
     </div>
     </ShellProviders>

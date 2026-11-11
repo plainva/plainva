@@ -28,6 +28,27 @@
  *   --tablet           tablet portrait (768x1024) — the rail class
  *   --tablet-landscape tablet landscape (1024x768) — two columns and the
  *                      third one available
+ *   --viewport WxH     any other size in CSS pixels (e.g. 390x844, 360x740,
+ *                      820x1180); the window class follows from the width
+ *   --lang de|en       UI language and browser locale (default de)
+ *   --surfaces <file>  an extra surface module (see "Extra surfaces" below);
+ *                      its surfaces are appended and `--only` can pick them
+ *
+ * Extra surfaces: a module whose default export receives the helpers
+ * `{ area, settingsArea, AREAS_SWITCH, SETTINGS_BTN }` and returns surface
+ * objects of the same shape as SURFACES. A review round keeps its one-off
+ * walks there instead of forking this script.
+ *
+ * Steps a surface may use, in order: `{ wait }`, `{ scrollTo, nth }`,
+ * `{ scrollBy }` (pixels, every scrolling page region), `{ fill, text }`,
+ * `{ press }` (a key), `{ eval }` (a page expression), `{ shot }` (an
+ * intermediate photo saved as `<surface>__<shot>.png`) and `{ click, nth,
+ * optional }`.
+ *
+ * Before/after: capture into two directories, then
+ *   node ../../scripts/screenshot-side-by-side.mjs <before> <after> <out.html>
+ * writes one page that puts each pair next to each other. What these photos
+ * cannot prove is listed in docs/engineering/Screenshot_Captures.md.
  *
  * A production build is served on purpose: the dev server ships every module
  * as its own request, which turns a fresh page load into seconds and a full
@@ -51,7 +72,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
 import { installMailFixture, workspaceFixtureStorage } from "./screenshot-services.mjs";
 import {
@@ -127,9 +148,13 @@ const SETTINGS_KEY = "CapacitorStorage.mobile-settings";
  */
 const WHATS_NEW_SHEET = '[data-testid="whats-new-sheet"]';
 
+/** Language of a run (`--lang`): the app's UI language and the browser locale. */
+const LANGUAGES = { de: "de-DE", en: "en-US" };
+let runLanguage = "de";
+
 const BASE_SETTINGS = {
   onboarded: true,
-  language: "de",
+  get language() { return runLanguage; },
   motion: "off", // no transitions mid-capture
   // The legacy bar fields (S10): the shell migrates them into the shared bar
   // model on first open, so seeding them still decides what the bar shows.
@@ -143,7 +168,9 @@ const BASE_SETTINGS = {
 // next to the title), and settings sit at the foot of the navigator (S11 — a ⋮
 // carries object actions, never the app settings).
 const AREAS_SWITCH = '[data-testid="tab-areas"]';
-const SETTINGS_BTN = '[data-testid="nav-settings"]';
+// The app bar's gear on a phone; on a tablet (rail) the rail's Settings - the
+// gear gives way there (finding X8, review 2026-11-10).
+const SETTINGS_BTN = '[data-testid="nav-settings"]:visible, [data-testid="rail-settings"]:visible';
 
 /**
  * Floor the fixture has to clear before ANY surface of a run counts as
@@ -318,6 +345,11 @@ const SURFACES = [
   // The "show" row with a database view switched on (S18b). The grid itself
   // stays unreachable (no PIM credential slot, see the fixture's note), so this
   // photographs the row, not the entries in a day.
+  // Every other view of the calendar (the review of 2026-11-10 found the
+  // agenda and the time grid broken where only the day view was photographed).
+  { id: "calendar-agenda", requires: "[data-testid=\"pim-agenda\"]", steps: [...area("calendar"), { click: '[data-testid="pim-view-agenda"]' }] },
+  { id: "calendar-3day", requires: "[data-testid=\"pim-daycol-head\"]", steps: [...area("calendar"), { click: '[data-testid="pim-view-3day"]' }], expectedCount: ["[data-testid=\"pim-daycol-head\"]", 3] },
+  { id: "calendar-week", requires: "[data-testid=\"pim-daycol-head\"]", steps: [...area("calendar"), { click: '[data-testid="pim-view-week"]' }], expectedCount: ["[data-testid=\"pim-daycol-head\"]", 7] },
   { id: "calendar-overlay-row", requires: "[data-testid=\"pim-daycol-head\"]", steps: [...area("calendar"), { wait: 500 }] },
   /**
    * The event PREVIEW (S4). A tap on an event opens it — until then that tap
@@ -604,7 +636,7 @@ const SURFACES = [
 /* -------------------------------------------------------------------- args */
 
 function parseArgs(argv) {
-  const out = { out: "screenshots/baseline", port: 1441, themes: null, only: null, baseUrl: null, compare: null, dev: false, viewport: null };
+  const out = { out: "screenshots/baseline", port: 1441, themes: null, only: null, baseUrl: null, compare: null, dev: false, viewport: null, lang: "de", surfaces: null };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--out") out.out = argv[++i];
@@ -615,6 +647,14 @@ function parseArgs(argv) {
     else if (a === "--landscape") out.landscape = true;
     else if (a === "--tablet") out.viewport = "tablet";
     else if (a === "--tablet-landscape") out.viewport = "tablet-landscape";
+    else if (a === "--viewport") {
+      const m = /^(\d+)x(\d+)$/.exec(argv[++i] ?? "");
+      if (!m) throw new Error("--viewport wants WIDTHxHEIGHT, e.g. 390x844");
+      out.viewport = { width: Number(m[1]), height: Number(m[2]) };
+    } else if (a === "--lang") {
+      out.lang = argv[++i];
+      if (!LANGUAGES[out.lang]) throw new Error(`unknown language: ${out.lang} (one of ${Object.keys(LANGUAGES).join(", ")})`);
+    } else if (a === "--surfaces") out.surfaces = argv[++i];
     else if (a === "--dev") out.dev = true;
     else if (a === "--compare") out.compare = [argv[++i], argv[++i]];
     else throw new Error(`unknown option: ${a}`);
@@ -737,10 +777,42 @@ async function dismissWhatsNew(page) {
   await page.waitForTimeout(300);
 }
 
-async function runSteps(page, surface) {
+async function runSteps(page, surface, dir) {
   for (const step of surface.steps) {
     if (step.wait) {
       await page.waitForTimeout(step.wait);
+      continue;
+    }
+    if (step.fill) {
+      const field = page.locator(step.fill).nth(step.nth ?? 0);
+      await field.waitFor({ state: "visible", timeout: 8000 });
+      await field.fill(step.text ?? "");
+      await page.waitForTimeout(400);
+      continue;
+    }
+    if (step.press) {
+      await page.keyboard.press(step.press);
+      await page.waitForTimeout(400);
+      continue;
+    }
+    if (step.eval) {
+      await page.evaluate(step.eval);
+      await page.waitForTimeout(300);
+      continue;
+    }
+    // Scrolls every region that scrolls on its own (the list of a screen, the
+    // page) by the same amount: the photo then shows the part below the fold.
+    if (step.scrollBy) {
+      await page.evaluate((y) => {
+        for (const el of document.querySelectorAll(".m-scroll, .m-page, main")) el.scrollTop += y;
+      }, step.scrollBy);
+      await page.waitForTimeout(400);
+      continue;
+    }
+    // An intermediate photo inside one surface (a menu open, then scrolled).
+    if (step.shot) {
+      await page.mouse.move(-10, -10);
+      await page.screenshot({ path: join(dir, `${surface.id}__${step.shot}.png`) });
       continue;
     }
     // Bringing a surface's LOWER half into view is the only way to photograph
@@ -823,6 +895,7 @@ async function seedContext(context, baseUrl, sql, themeId, workspaceStorage) {
 
 /** Resolves the CSS-pixel viewport a run was asked for. */
 function viewportFor(args) {
+  if (args.viewport && typeof args.viewport === "object") return args.viewport;
   if (args.viewport === "tablet") return VIEWPORT_TABLET;
   if (args.viewport === "tablet-landscape") return VIEWPORT_TABLET_LANDSCAPE;
   return args.landscape ? VIEWPORT_LANDSCAPE : VIEWPORT;
@@ -837,7 +910,7 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
     deviceScaleFactor: DEVICE_SCALE,
     isMobile: true,
     hasTouch: true,
-    locale: "de-DE",
+    locale: LANGUAGES[runLanguage],
     colorScheme: THEMES[themeId].themeMode === "dark" ? "dark" : "light",
     reducedMotion: "reduce",
   });
@@ -903,7 +976,7 @@ async function captureTheme(browser, themeId, baseUrl, outDir, surfaces, viewpor
       await page.waitForSelector(".m-appbar, .m-onboard, .m-page", { timeout: 20_000 });
       await page.waitForTimeout(1200); // first context seeds the welcome vault
       await dismissWhatsNew(page);
-      await runSteps(page, surface);
+      await runSteps(page, surface, dir);
       // Park the pointer outside the viewport before the shutter. A click
       // leaves the virtual mouse where it landed, and after a sheet closes the
       // NEW surface has whatever sits under that spot — so a card came out
@@ -1009,6 +1082,16 @@ async function main() {
     if (THEMES[t]) return true;
     throw new Error(`unknown theme: ${t}`);
   });
+  runLanguage = args.lang;
+  if (args.surfaces) {
+    const extra = await import(pathToFileURL(resolve(process.cwd(), args.surfaces)).href);
+    const added = extra.default({ area, settingsArea, AREAS_SWITCH, SETTINGS_BTN });
+    const known = new Set(SURFACES.map((s) => s.id));
+    for (const surface of added) {
+      if (known.has(surface.id)) throw new Error(`extra surface ${surface.id} repeats a built-in id`);
+      SURFACES.push(surface);
+    }
+  }
   const surfaces = args.only ? SURFACES.filter((s) => args.only.includes(s.id)) : SURFACES;
   if (surfaces.length === 0) throw new Error("no surfaces selected");
 
@@ -1037,6 +1120,7 @@ async function main() {
   const report = {
     capturedAt: new Date().toISOString(),
     viewport: viewportFor(args),
+    language: runLanguage,
     deviceScale: DEVICE_SCALE,
     themes: {},
     /** Per theme: what the index actually held — the run's evidence, not a claim. */

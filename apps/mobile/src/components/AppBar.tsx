@@ -2,7 +2,7 @@ import { useLongPress } from "../lib/useLongPress";
 import { BACK_HISTORY_EVENT } from "../services/backHistory";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Menu, Search } from "lucide-react";
+import { ChevronLeft, Search, Settings } from "lucide-react";
 import { ICON, IconButton } from "@plainva/ui";
 import { chromeScrollPublisher, resetChromeScroll, scrolledToEnd, type ChromeScroll } from "../services/chromeScroll";
 
@@ -144,8 +144,12 @@ export function AppBar({
           </IconButton>
         ) : (
           onMenu && (
-            <IconButton data-testid="nav-settings" label={t("mobile.sectionSettings")} onClick={onMenu}>
-              <Menu size={ICON.touch} />
+            // The gear, because it opens the settings - ☰ promised a drawer
+            // that does not exist (finding X8, review 2026-11-10). Where the
+            // rail stands (tablet, landscape) the rail carries Settings, and
+            // this one gives way rather than stand beside it.
+            <IconButton className="m-appbar-settings" data-testid="nav-settings" label={t("mobile.sectionSettings")} onClick={onMenu}>
+              <Settings size={ICON.touch} />
             </IconButton>
           )
         )}

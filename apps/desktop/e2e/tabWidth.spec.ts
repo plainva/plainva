@@ -267,3 +267,32 @@ test('a note open twice, pinned and not, leaves the strip settled at every width
   expect(errors.filter((e) => /Maximum update depth|Too many re-renders/i.test(e))).toEqual([]);
   await expect(page.getByTestId('tabstrip-more')).toBeVisible();
 });
+
+// Finding X5 (review 2026-11-10): the tab showed the unsaved dot while the
+// editor's label said "Saved" — the label only knew whether a write was
+// running, not that one was still owed. For the second between a keystroke
+// and its autosave the two disagreed. Both now read the same dirty fact.
+test('the save label never says "Saved" while the tab shows the unsaved dot', async ({ page }) => {
+  await openApp(page);
+  await openTabs(page, ['AGENTS']);
+  // Found by what it says, not by a test id: the same locator reads the label
+  // of the code before the fix.
+  const label = page.locator('span').filter({ hasText: /^(Saved|Saving\.\.\.|Save failed!)$/ }).first();
+  await expect(label).toHaveText('Saved');
+
+  await page.locator('.cm-content').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' more');
+  // Read at once, without waiting: the autosave fires after a second, and a
+  // retrying assertion would simply wait the disagreement out.
+  const close = tab(page, 'AGENTS').locator('.pv-tab-close');
+  const [dirty, text] = await Promise.all([close.getAttribute('data-dirty'), label.textContent()]);
+  expect(dirty).toBe('true');
+  expect(text, 'the tab says unsaved, so the label may not say saved').not.toBe('Saved');
+  await page.mouse.move(700, 600);
+  await evidence(page, 'save-label-while-dirty');
+
+  // Once the autosave went through, dot and label agree again.
+  await expect(close).not.toHaveAttribute('data-dirty', 'true', { timeout: 10_000 });
+  await expect(label).toHaveText('Saved');
+});

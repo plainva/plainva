@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * An overview that cannot be adopted says why (Sammelplan § 3.135 no. 3). The
@@ -31,7 +31,7 @@ test("an adoption the vault refuses names the note and the reason", async ({ pag
     await page.reload();
     await waitForVaultDirectory(page);
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-maintenance").click();
     await page.getByTestId("open-overviews").click();
     const row = page.getByTestId("overview-row-Projekte");

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { installMailFixture } from "../scripts/screenshot-services.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * An e-mail and an appointment an assistant drafted, on the phone (AI harness
@@ -149,7 +149,7 @@ test("AI drafts an e-mail and an appointment: both wait on this phone, open in t
     await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
 
     // The folder of this vault's AI data is made when its first setting is stored.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByRole("switch", { name: "The AI may use the internet in this vault" }).click();
     await expect.poll(() => aiVaults(page)).toHaveLength(1);

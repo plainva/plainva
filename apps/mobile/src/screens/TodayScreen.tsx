@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { consumePendingNew, consumeEventSeed, getPlatformServices } from "@plainva/ui";
+import { AreaBoundary, consumePendingNew, consumeEventSeed, getPlatformServices } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, CalendarDays, ChevronDown, FileText, ListTodo, Trash2 } from "lucide-react";
 import { doneTasksOnDay, dueTimeOf, errorText, noteDisplayName, setPendingSearchJump, TaskCheckButton, TaskDoneFold, taskDueMovedText, TaskTitle, toast, useDoneFold, useTodayKey, type DuePick, type PlannerRow, type TaskDueChange } from "@plainva/ui";
@@ -614,6 +614,7 @@ export function TodayScreen({
         </GroupCard>
       )}
       {dueTarget && (
+        <AreaBoundary area="sheet:taskDue" size="dialog" exit={{ label: t("common.close"), onExit: () => setDueTarget(null) }}>
         <TaskDueSheet
           value={dueTarget.due}
           time={dueTimeOf(dueTarget.dueMinutes)}
@@ -630,8 +631,10 @@ export function TodayScreen({
             else if (target.line) moveDue([{ source: "note", path: target.path, task: target.line, day: pick.day, time: pick.time }], pick);
           }}
         />
+        </AreaBoundary>
       )}
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={sheet.title}
           onClose={() => setSheet(null)}
@@ -640,6 +643,7 @@ export function TodayScreen({
             { icon: <Trash2 size={ICON.head} />, label: t("common.delete"), danger: true, onClick: () => { const s = sheet; setSheet(null); void confirmDeleteFile(vault, s.path, s.title, t); } },
           ]}
         />
+        </AreaBoundary>
       )}
 
       {taskRows.element}

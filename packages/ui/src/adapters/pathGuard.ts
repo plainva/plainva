@@ -1,3 +1,5 @@
+import { contentPathRefusal } from "@plainva/core";
+
 /**
  * Pure decision for the vault path-traversal guard: is `normalizedPath` inside
  * (or equal to) `normalizedRoot`?
@@ -46,5 +48,11 @@ export function resolveVaultRelative(target: string): string | null {
     stack.push(segment);
   }
   if (stack.length === 0) return null;
-  return stack.join("/");
+  const rel = stack.join("/");
+  // Content names it, so it is never followed into the app's own folders,
+  // in any spelling the file system takes for them (`.Plainva/…`). A name of
+  // an unusual shape (`aux.png`, `Meeting 10:30.png`, `IMG~1.JPG`) is an
+  // ordinary file on most systems: the read checks it against the vault's
+  // listing (`loadImageBlob`, `readContentBinary`), F2 review 2026-11-10.
+  return contentPathRefusal(rel) === "internal" ? null : rel;
 }

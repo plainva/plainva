@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, Plus } from "lucide-react";
 import { ROUTINES_MAX, type Routine } from "@plainva/core";
-import { GroupCard, ICON, Row, RowList, routineModelOptions, routineNow, routineRows, routineSkillOptions, SectionLabel, toast, useDirectFolders, useMinuteClock, useTodayKey, useWeekStartDay } from "@plainva/ui";
+import { AreaBoundary, GroupCard, ICON, Row, RowList, routineModelOptions, routineNow, routineRows, routineSkillOptions, SectionLabel, toast, useDirectFolders, useMinuteClock, useTodayKey, useWeekStartDay } from "@plainva/ui";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { mActions, mConfirm } from "../services/mobileDialogs";
 import { RoutineSheet } from "./RoutineSheet";
@@ -131,6 +131,7 @@ export function MobileRoutinesSection({ onOpenNote, folders = [] }: { onOpenNote
         </RowList>
       </GroupCard>
       {sheet && (
+        <AreaBoundary area="sheet:routine" size="dialog" resetKey={sheet.routine?.id ?? "new"} exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RoutineSheet
           key={sheet.routine?.id ?? "new"}
           routine={sheet.routine}
@@ -142,6 +143,7 @@ export function MobileRoutinesSection({ onOpenNote, folders = [] }: { onOpenNote
           onClose={() => setSheet(null)}
           {...(onOpenNote ? { onOpenNote } : {})}
         />
+        </AreaBoundary>
       )}
     </>
   );

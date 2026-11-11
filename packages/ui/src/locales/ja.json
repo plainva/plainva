@@ -406,7 +406,7 @@
     },
     "policy": {
       "columns": "フォルダー",
-      "webOff": "インターネット オフ",
+      "webOff": "無効：この端末ではインターネットがオフです",
       "title": "この保管庫から出てよいもの",
       "desc": "ルールはノートのFrontmatterに、フォルダー全体の場合は.agent/policy.ymlに置きます。クラウドから遠ざけられたノートは本文もタイトルも一切渡さず、そのノートへのリンクも伏せられます。",
       "vaultDefault": "保管庫の既定",
@@ -2699,6 +2699,31 @@
     "mobileProbeFailed": "既存のパスフレーズがあるかクラウドで確認できませんでした。接続してからもう一度お試しください。",
     "mobileCreated": "同期パスフレーズを設定しました。この端末のロックが解除されています。"
   },
+  "noteLink": {
+    "copy": "リンクをコピー",
+    "copyBlock": "ブロックリンクをコピー",
+    "copied": "リンクをコピーしました。",
+    "invalid": "このリンクは Plainva では開けません。",
+    "noVault": "先に保管庫を開いてから、もう一度リンクを開いてください。",
+    "vaultUnknown": "保管庫「{{name}}」はこのデバイスにありません。",
+    "vaultAmbiguous": "このデバイスには「{{name}}」という名前の保管庫が複数あります。目的の保管庫を開いてから、もう一度リンクを開いてください。",
+    "switchTitle": "保管庫を切り替えますか？",
+    "switchMessage": "このリンクは保管庫「{{name}}」のノートを指しています。切り替えますか？",
+    "switchConfirm": "切り替え",
+    "answerFirst": "先に表示中の質問に答えてください。",
+    "openHereTitle": "この保管庫で開きますか？",
+    "openHereMessage": "保管庫「{{vault}}」はこのデバイスにありません。ノート「{{note}}」は開いている保管庫にあります。そこで開きますか？",
+    "openHereAmbiguousMessage": "このデバイスには「{{vault}}」という名前の保管庫が複数あります。ノート「{{note}}」は開いている保管庫にあります。そこで開きますか？",
+    "openHereConfirm": "開く",
+    "notFound": "ノート「{{name}}」はこの保管庫にありません。",
+    "notOpenable": "リンクで開けるのは、ノートと Plainva 自身が表示するファイルだけです。このファイルは開けません。",
+    "blockNotHere": "この行にはブロックリンクを設定できません。",
+    "lineEmpty": "この行は空です。リンクする対象がありません。",
+    "readOnly": "このノートは読み取り専用のため、ブロックに ID を付けられません。",
+    "insert": "ノートをリンク",
+    "pickHint": "予定に、Plainva でノートを開くリンクが入ります。",
+    "openNote": "ノート {{name}} を開く"
+  },
   "contextMenu": {
     "cut": "切り取り",
     "copy": "コピー",
@@ -2815,6 +2840,8 @@
       "entryFailed": "インポートできませんでした",
       "noAvailableName": "1000通りの候補に空きファイル名がありません。既存のファイルは保持されました",
       "reservedPathOccupied": "予約したファイル名がすでに使用されています。既存のファイルは保持されました",
+      "renamedForSystem": "名前を変更しました: このシステムでは元の名前を使えません",
+      "refusedInternalPath": "取り込みませんでした: Plainva または別のアプリ専用のフォルダーに入るところでした",
       "runStopped": "インポートが途中で中断しました——ここまでの内容は書き込み済みです",
       "skippedDuplicate": "同じノートがエクスポート内に2回あります——1回だけインポートしました。取り込み先は",
       "skippedTrashed": "ごみ箱——未インポート",
@@ -3318,6 +3345,7 @@
   },
   "editor": {
     "completionHeadings": "見出し",
+    "completionBlocks": "ブロック",
     "unresolvedLinkTip": "ノートがまだ存在しません——クリックで作成",
     "loading": "読み込み中...",
     "menu": "メニュー",
@@ -4920,7 +4948,11 @@
   },
   "errors": {
     "somethingWentWrong": "問題が発生しました。",
-    "reload": "再読み込み"
+    "reload": "再読み込み",
+    "areaTitle": "この領域を表示できません",
+    "areaBody": "エラーにより停止しました。Plainva のほかの部分はそのまま動作し、エラーは「{{place}}」に記録されています。",
+    "areaAgain": "再読み込み後も失敗しました。続く場合は Plainva を再起動してください。エラーは「{{place}}」に記録されています。",
+    "areaReload": "この領域を再読み込み"
   },
   "palette": {
     "title": "コマンド",
@@ -5284,6 +5316,7 @@
     "todayInFolder": "フォルダー {{folder}}/",
     "folderCount_other": "{{count}}件のノート",
     "baseCount_other": "{{count}}件のデータベース",
+    "attachmentCount_other": "{{count}}件のファイル",
     "aboutTip": "ヒント: ロゴは注目されるのが好きです。5回。",
     "syncResume": "同期を再開",
     "reconnected": "アカウントを再接続しました。",
@@ -7289,6 +7322,7 @@
     "highlight5Title": "改善と不具合の修正",
     "highlight5": "アカウントはアシスタントで接続でき、設定は並べ直され、スマートフォンでは片手で書きやすくなりました。同期、メール、エディタにも多くの修正があります。詳細はリリースノートをご覧ください。",
     "readBlog": "ブログ記事を読む",
+    "readReleaseNotes": "リリースノートを読む",
     "understand": "了解"
   },
   "firstRun": {

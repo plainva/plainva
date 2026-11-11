@@ -1,5 +1,5 @@
 import React, { Fragment, useMemo } from "react";
-import { Link2, Video } from "lucide-react";
+import { FileText, Link2, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button, type ButtonSize } from "./ui/Button";
 import { ICON } from "../lib/iconSizes";
@@ -41,6 +41,7 @@ function LinkChip({ link, label, onOpenUrl }: { link: EventLinkView; label: stri
       <a
         className="pv-evtdesc__link"
         href={link.href}
+        {...(link.note ? { "aria-label": t("noteLink.openNote", { name: link.host }), "data-testid": "event-note-link" } : {})}
         data-tip={link.tip}
         // The href is there for the context menu and assistive technology; the
         // click itself belongs to the shell's opener (a WebView would navigate
@@ -51,7 +52,7 @@ function LinkChip({ link, label, onOpenUrl }: { link: EventLinkView; label: stri
           onOpenUrl(link.href);
         }}
       >
-        <Link2 size={ICON.meta} aria-hidden />
+        {link.note ? <FileText size={ICON.meta} aria-hidden /> : <Link2 size={ICON.meta} aria-hidden />}
         {label ? (
           <>
             <span className="pv-evtdesc__label">{label}</span>

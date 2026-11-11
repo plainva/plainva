@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { AreaBoundary } from "@plainva/ui";
 import { renderRoute, TAB_ROUTES, type RouteContext } from "../routes";
 import { SplitPlaceholder } from "./SplitPlaceholder";
 import { besideContext } from "../services/besideNav";
@@ -43,16 +45,22 @@ export function AdaptiveLayout({
   const [step, setStep] = useState({ key, depth, motion: "none" as NavMotion, seq: 0 });
   if (step.key !== key) setStep({ key, depth, motion: navMotion(step.depth, depth), seq: step.seq + 1 });
   const motionClass = step.motion === "none" ? "" : ` is-nav-${step.motion}-${step.seq % 2}`;
+  const { t } = useTranslation();
   return (
     <div className={`m-screen${twoColumn ? " m-screen--split" : ""}`}>
       {/* Beside the work, not on top of it: what the navigator opens takes the
           surface in the work column off the screen, so it asks first. */}
-      {twoColumn && <div className="m-col m-col--nav">{TAB_ROUTES.notes(besideContext(ctx))}</div>}
+      {/* Every screen is an area of its own (stability plan R3): one that
+          fails leaves the tab bar, the navigator and the screens below it,
+          and a pushed one offers the way back. */}
+      {twoColumn && <div className="m-col m-col--nav"><AreaBoundary area="screen:navigator">{() => TAB_ROUTES.notes(besideContext(ctx))}</AreaBoundary></div>}
       <div className={`${twoColumn ? "m-col m-col--work" : "m-col"}${motionClass}`}>
         {twoColumn && !top && activeTab === "notes" ? (
           <SplitPlaceholder onCreateNote={ctx.captureNote} />
         ) : (
-          renderRoute(top, activeTab, ctx)
+          <AreaBoundary area={`screen:${top ? top.kind : activeTab}`} resetKey={key} exit={top ? { label: t("common.back"), onExit: () => ctx.done(top) } : null}>
+            {() => renderRoute(top, activeTab, ctx)}
+          </AreaBoundary>
         )}
       </div>
       <BackNavigation ctx={ctx} nav={nav} />

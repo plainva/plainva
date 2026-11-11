@@ -53,6 +53,12 @@ export interface JournalEntry {
   tags: string[];
   /** The exact source lines without their line endings — finds the entry again after the file changed. */
   source: string[];
+  /**
+   * The block id at the end of the entry (`… ^k3x9qa`, F2), without the `^` —
+   * an address other notes link to, so it is no part of `text` and an edit
+   * of the text keeps it.
+   */
+  blockId?: string;
 }
 
 export interface JournalSection {
@@ -74,6 +80,8 @@ export interface JournalOptions { heading?: string | null }
 
 const ENTRY_LINE = /^(?<prefix>(?<indent> {0,3})(?<marker>[-*+])(?<gap>[ \t]+)(?:\[(?<box>[ xX/-])\](?<boxGap>[ \t]+))?)(?<time>(?<h>\d{1,2}):(?<m>\d{2})(?::(?<s>\d{2}))?)(?:[ \t](?<rest>.*))?$/;
 const TIME = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
+/** A block id at the end of an entry (F2, ADR 0037). */
+const ENTRY_BLOCK_ID = /[ \t]\^([A-Za-z0-9][A-Za-z0-9-]*)[ \t]*$/;
 
 interface EntryLineParts {
   prefix: string;
@@ -273,13 +281,16 @@ function parseSection(raw: string, options: JournalOptions): ParsedSection {
       const source = lines.slice(first, last + 1).map((line) => line.text);
       const column = parts.indent.length + parts.marker.length + parts.gap.length;
       const body = [parts.rest, ...source.slice(1).map((text) => dedent(text, column))];
-      const text = tidyBody(stripAnchorMarkers(body.join("\n")).text);
+      const full = tidyBody(stripAnchorMarkers(body.join("\n")).text);
+      const block = ENTRY_BLOCK_ID.exec(full);
+      const text = block && block.index > 0 ? full.slice(0, block.index).trimEnd() : full;
       const tags: string[] = [];
       for (const part of text.split("\n")) for (const tag of findInlineTagsInLine(part)) if (!tags.includes(tag.name)) tags.push(tag.name);
       entries.push({
         line: first, lineCount: last - first + 1, time: parts.time, seconds, text,
         task: parts.box === undefined ? null : taskBoxState(parts.box), tags, source,
         marker: parts.marker, loose,
+        ...(block && block.index > 0 ? { blockId: block[1] } : {}),
       });
     }
   }
@@ -426,7 +437,9 @@ export function replaceJournalEntry(raw: string, ref: JournalEntryRef, change: {
   const groups = entry && entryLineParts(entry.source[0]);
   if (!entry || !groups) return { ok: false, reason: "missing" };
   const column = groups.indent.length + groups.marker.length + groups.gap.length;
-  const source = entryLines(groups.prefix, column, time ?? groups.time, change.text);
+  // The entry's block id stays where it was: links to the entry keep leading there (F2).
+  const text = entry.blockId && !ENTRY_BLOCK_ID.test(change.text.trimEnd()) ? `${change.text.trimEnd()} ^${entry.blockId}` : change.text;
+  const source = entryLines(groups.prefix, column, time ?? groups.time, text);
   return confirmed(section.mark, replaceLines(section.lines, entry, source), entry.line, source, options, false) ?? { ok: false, reason: "unplaceable" };
 }
 

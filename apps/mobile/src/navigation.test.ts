@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   activeFolderPath,
   backStep,
+  barMark,
   commandNotePath,
   currentArea,
   ensureVisibleTab,
@@ -374,6 +375,45 @@ describe("the area on screen, as the areas sheet marks it (E20)", () => {
     s = pushEntry(s, SCREEN_ENTRY.journal);
     s = pushEntry(s, { kind: "settings", path: "" });
     expect(currentArea(s)).toBe("journal");
+  });
+});
+
+// Finding X9 (review 2026-11-10): Mail, the graph, the journal, the AI and
+// the databases, opened from the areas sheet, left "Home" lit in the bar.
+describe("what the bar lights", () => {
+  const bar = ["notes", "today", "tasks", "calendar"] as const;
+
+  it("lights the tab of an area that is in the bar", () => {
+    const s = tapTab(initialNavState("notes"), "tasks");
+    expect(barMark(s, [...bar])).toEqual({ tab: "tasks", areas: false });
+  });
+
+  it("lights Areas, not the tab below, for an area outside the bar", () => {
+    for (const id of ["mail", "graph", "journal", "ai", "comments"] as const) {
+      const s = pushEntry(initialNavState("notes"), SCREEN_ENTRY[id]);
+      expect(s.activeTab).toBe("notes");
+      expect(barMark(s, [...bar]), id).toEqual({ tab: null, areas: true });
+    }
+  });
+
+  it("keeps the area lit while a note opened from it is on top", () => {
+    let s = pushEntry(initialNavState("notes"), SCREEN_ENTRY.graph);
+    s = pushEntry(s, { kind: "note", path: "A.md" });
+    expect(barMark(s, [...bar])).toEqual({ tab: null, areas: true });
+    s = popTop(popTop(s));
+    expect(barMark(s, [...bar])).toEqual({ tab: "notes", areas: false });
+  });
+
+  it("lights the tab again for a database or a folder pushed inside it", () => {
+    let s = pushEntry(initialNavState("notes"), { kind: "folder", path: "Projects" });
+    expect(barMark(s, [...bar])).toEqual({ tab: "notes", areas: false });
+    s = pushEntry(s, { kind: "base", path: "Projects.base" });
+    expect(barMark(s, [...bar])).toEqual({ tab: "notes", areas: false });
+  });
+
+  it("lights nothing under an overlay that is no area", () => {
+    const s = { ...initialNavState("notes"), overlay: [{ kind: "settings" as const, path: "" }] };
+    expect(barMark(s, [...bar])).toEqual({ tab: null, areas: false });
   });
 });
 

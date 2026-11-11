@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * "Keep as a note" on the phone (AI harness P4-6), in the production bundle.
@@ -104,7 +104,7 @@ test("keep as a note: an answer becomes a marked note in the inbox folder, with 
     await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
 
     // The folder of this vault's AI data is made when its first setting is stored.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByRole("switch", { name: "The AI may use the internet in this vault" }).click();
     await expect.poll(() => aiVaults(page)).toHaveLength(1);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
-import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, formatDateAndTime, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
 import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import {
@@ -12,6 +12,7 @@ import {
   messageJunkState,
   remoteImagesDecision,
   buildMailFrameDoc,
+  useMailCanvas,
   buildReplyBody,
   buildForwardBody,
   replyAllRecipients,
@@ -190,15 +191,17 @@ export function MailMessageScreen({
       }),
     [alwaysRemote, showRemote, accountId, mailbox, boxes]
   );
+  const mailCanvas = useMailCanvas();
   const frame = useMemo(() => {
     if (!message) return null;
     if (message.html) {
       const allowRemote = remoteImages.allow;
       const clean = sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote });
-      return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote }), blocked: clean.blockedRemote };
+      // The theme's canvas for a mail that sets no colours of its own (finding X3).
+      return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote, canvas: mailCanvas }), blocked: clean.blockedRemote };
     }
     return null;
-  }, [message, remoteImages.allow]);
+  }, [message, remoteImages.allow, mailCanvas]);
 
   /**
    * Fit the message into the width it was given (P5). Mail is written for a
@@ -604,13 +607,16 @@ export function MailMessageScreen({
         </IconButton></>} />
 
       {menu && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setMenu(false) }}>
         <RowActionSheet actions={menuActions} onClose={() => setMenu(false)} title={message?.subject ?? ""} />
+        </AreaBoundary>
       )}
 
       {/* Where a held link leads (M1): the target in full, its host
           emphasised, then what one may do with it. What opens — and what is
           copied — is the address as written, a Safe Link included. */}
       {linkSheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setLinkSheet(null) }}>
         <RowActionSheet
           actions={[
             {
@@ -635,6 +641,7 @@ export function MailMessageScreen({
           onClose={() => setLinkSheet(null)}
           title=""
         />
+        </AreaBoundary>
       )}
 
       {error ? (
@@ -672,8 +679,9 @@ export function MailMessageScreen({
           <div className="m-mailmeta">
             <p className="m-mailmeta-from">{message.from}</p>
             <p className="m-mailmeta-to">{message.to}</p>
-            <p className="m-mailmeta-date">
-              {message.dateTs ? new Date(message.dateTs).toLocaleString(i18n.language) : ""}
+            {/* The day as before, the clock through the one formatter (finding X4): no seconds, one spelling. */}
+            <p className="m-mailmeta-date" data-testid="mail-reader-date">
+              {message.dateTs ? formatDateAndTime(message.dateTs, { language: i18n.language, date: { year: "numeric", month: "numeric", day: "numeric" } }) : ""}
             </p>
           </div>
 

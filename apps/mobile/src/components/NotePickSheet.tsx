@@ -26,7 +26,8 @@ export function NotePickSheet({
   title: string;
   /** One line under the title: what the note is picked for. */
   hint?: string;
-  onPick: (path: string) => void;
+  /** The note picked: its path, and the name it was listed under. */
+  onPick: (path: string, title: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -77,7 +78,7 @@ export function NotePickSheet({
             data-testid="note-pick-row"
             onClick={() => {
               onClose();
-              onPick(note.path);
+              onPick(note.path, note.title);
             }}
           >
             <FileText size={ICON.head} />

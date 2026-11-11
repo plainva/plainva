@@ -1,3 +1,13 @@
+/**
+ * The release notes of a catalog entry: the GitHub release of its version
+ * (finding X10, review 2026-11-10). "What's new" sends people to "the release
+ * notes" for the details and used to link only the blog post.
+ */
+export function getWhatsNewReleaseNotesUrl(release) {
+  if (!/^\d+\.\d+\.\d+$/.test(release.version ?? "")) return undefined;
+  return `https://github.com/plainva/plainva/releases/tag/v${release.version}`;
+}
+
 /** The same blog destination for both app shells and the store-note generator. */
 export function getWhatsNewBlogUrl(release, language = "en") {
   if (!release.blogUrl) return undefined;

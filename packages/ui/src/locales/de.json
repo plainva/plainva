@@ -430,7 +430,7 @@
     },
     "policy": {
       "columns": "Ordner",
-      "webOff": "Internet aus",
+      "webOff": "gilt nicht – auf diesem Gerät ist das Internet aus",
       "title": "Was diesen Vault verlassen darf",
       "desc": "Eine Regel steht im Frontmatter einer Notiz oder, für einen ganzen Ordner, in .agent/policy.yml. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie werden zurückgehalten.",
       "vaultDefault": "Vault-Standard",
@@ -2787,6 +2787,31 @@
     "mobileProbeFailed": "Die Cloud konnte nicht auf eine vorhandene Passphrase geprüft werden. Versuch es mit Verbindung noch einmal.",
     "mobileCreated": "Sync-Passphrase gesetzt. Dieses Gerät ist entsperrt."
   },
+  "noteLink": {
+    "copy": "Link kopieren",
+    "copyBlock": "Block-Link kopieren",
+    "copied": "Link kopiert.",
+    "invalid": "Diesen Link kann Plainva nicht öffnen.",
+    "noVault": "Öffne zuerst einen Vault, dann den Link noch einmal.",
+    "vaultUnknown": "Den Vault „{{name}}“ gibt es auf diesem Gerät nicht.",
+    "vaultAmbiguous": "Auf diesem Gerät gibt es mehrere Vaults mit dem Namen „{{name}}“. Öffne den gemeinten, dann den Link noch einmal.",
+    "switchTitle": "Vault wechseln?",
+    "switchMessage": "Dieser Link führt zu einer Notiz im Vault „{{name}}“. Dorthin wechseln?",
+    "switchConfirm": "Wechseln",
+    "answerFirst": "Beantworte zuerst die offene Frage.",
+    "openHereTitle": "In diesem Vault öffnen?",
+    "openHereMessage": "Den Vault „{{vault}}“ gibt es auf diesem Gerät nicht. Die Notiz „{{note}}“ ist im geöffneten Vault. Dort öffnen?",
+    "openHereAmbiguousMessage": "Auf diesem Gerät gibt es mehrere Vaults mit dem Namen „{{vault}}“. Die Notiz „{{note}}“ ist im geöffneten Vault. Dort öffnen?",
+    "openHereConfirm": "Öffnen",
+    "notFound": "Die Notiz „{{name}}“ gibt es in diesem Vault nicht.",
+    "notOpenable": "Ein Link öffnet Notizen und Dateien, die Plainva selbst zeigt – diese Datei nicht.",
+    "blockNotHere": "In dieser Zeile lässt sich kein Block-Link setzen.",
+    "lineEmpty": "Diese Zeile ist leer – hier gibt es nichts zu verlinken.",
+    "readOnly": "Diese Notiz ist schreibgeschützt, ihr Block kann keine Kennung bekommen.",
+    "insert": "Notiz verlinken",
+    "pickHint": "Der Termin bekommt einen Link, der die Notiz in Plainva öffnet.",
+    "openNote": "Notiz {{name}} öffnen"
+  },
   "contextMenu": {
     "cut": "Ausschneiden",
     "copy": "Kopieren",
@@ -2903,6 +2928,8 @@
       "entryFailed": "konnte nicht importiert werden",
       "noAvailableName": "kein freier Dateiname unter 1000 Varianten; vorhandene Dateien wurden erhalten",
       "reservedPathOccupied": "der reservierte Dateiname ist inzwischen belegt; die vorhandene Datei wurde erhalten",
+      "renamedForSystem": "umbenannt: dieses System kann den ursprünglichen Namen nicht tragen",
+      "refusedInternalPath": "nicht übernommen: es wäre in einem eigenen Ordner von Plainva oder einer anderen App gelandet",
       "runStopped": "der Import wurde vorzeitig beendet — alles bis hierhin ist geschrieben",
       "skippedDuplicate": "dieselbe Notiz steht zweimal im Export — einmal importiert, als",
       "skippedTrashed": "im Papierkorb — nicht importiert",
@@ -3406,6 +3433,7 @@
   },
   "editor": {
     "completionHeadings": "Überschriften",
+    "completionBlocks": "Blöcke",
     "unresolvedLinkTip": "Notiz existiert noch nicht – klicken zum Anlegen",
     "loading": "Laden...",
     "menu": "Menü",
@@ -5027,7 +5055,11 @@
   },
   "errors": {
     "somethingWentWrong": "Etwas ist schiefgelaufen.",
-    "reload": "Neu laden"
+    "reload": "Neu laden",
+    "areaTitle": "Dieser Bereich kann nicht angezeigt werden",
+    "areaBody": "Ein Fehler hat ihn angehalten. Der Rest von Plainva arbeitet weiter, und der Fehler steht unter {{place}}.",
+    "areaAgain": "Auch nach dem Neuladen ging es nicht. Wenn es so bleibt, starte Plainva neu; der Fehler steht unter {{place}}.",
+    "areaReload": "Diesen Bereich neu laden"
   },
   "palette": {
     "title": "Befehle",
@@ -5397,6 +5429,8 @@
     "folderCount_other": "{{count}} Notizen",
     "baseCount_one": "1 Datenbank",
     "baseCount_other": "{{count}} Datenbanken",
+    "attachmentCount_one": "1 Datei",
+    "attachmentCount_other": "{{count}} Dateien",
     "aboutTip": "Tipp: Das Logo mag Aufmerksamkeit. Fünfmal.",
     "syncResume": "Abgleich fortsetzen",
     "reconnected": "Konto neu verbunden.",
@@ -7443,6 +7477,7 @@
     "highlight5Title": "Verbesserungen und Fehlerbehebungen",
     "highlight5": "Konten verbinden sich über einen Assistenten, die Einstellungen sind neu geordnet, am Telefon schreibt es sich leichter mit einer Hand, und Sync, Mail und Editor haben viele Korrekturen bekommen. Die Einzelheiten stehen in den Release-Notizen.",
     "readBlog": "Blogpost lesen",
+    "readReleaseNotes": "Release-Notizen lesen",
     "understand": "Verstanden"
   },
   "firstRun": {

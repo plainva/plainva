@@ -1,9 +1,9 @@
 import { Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
-import { EmptyState } from "@plainva/ui";
+import { AreaBoundary, EmptyState } from "@plainva/ui";
 import { COMPARISON_PREFIX } from "../services/comparisonWindow";
 const ComparisonWindow = lazy(() => import("./ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
-import { AI_TAB_PATH, CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, JOURNAL_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH } from "./graph/virtualPaths";
+import { AI_TAB_PATH, CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, JOURNAL_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH, tabAreaName } from "./graph/virtualPaths";
 
 const Editor = lazy(() => import("./Editor").then((m) => ({ default: m.Editor })));
 const BaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
@@ -41,7 +41,9 @@ export function AuxPane({ path, onCloseTab, isActivePane, onOpenPath, onOpenInSp
   const { t } = useTranslation();
   const fallback = <EmptyState>{t("common.loading")}</EmptyState>;
 
+  // One boundary per tab, as in the central window (stability plan R3).
   return (
+    <AreaBoundary area={tabAreaName(path)} resetKey={path} exit={{ label: t("tabMenu.close"), onExit: onCloseTab }}>{() => (
     <Suspense fallback={fallback}>
       {path.startsWith(COMPARISON_PREFIX) ? <ComparisonWindow key={path} path={path} onClose={onCloseTab} /> : path === GRAPH_TAB_PATH ? (
         <VaultGraphView
@@ -78,5 +80,6 @@ export function AuxPane({ path, onCloseTab, isActivePane, onOpenPath, onOpenInSp
         />
       )}
     </Suspense>
+    )}</AreaBoundary>
   );
 }

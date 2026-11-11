@@ -17,13 +17,15 @@
  * `<autolinks>` and bare addresses. Images are shown by their alt text — a
  * preview does not load a stranger's pictures. Everything else is text.
  *
- * Links: only http(s) becomes a link. What a link SHOWS is the host it leads
+ * Links: only http(s) becomes a link — and a link to a note
+ * (`plainva://open?…`), which opens the note in Plainva (F2). What a link SHOWS is the host it leads
  * to, because a Teams invitation's addresses are pages of percent-encoding.
  * A Microsoft Safe Link shows the host of its TARGET and says it goes through
  * Safe Links — but what opens is the original Safe Link, always: the check
  * the organisation put in front of the target is not ours to skip.
  */
 
+import { parseNoteLinkUrl } from "@plainva/core";
 import { describeHttpLink, shortenUrl } from "../lib/linkTarget";
 
 export type EventDescInline =
@@ -46,6 +48,11 @@ export interface EventLinkView {
   tip: string;
   /** The address is a Microsoft Safe Link; `host` and `tip` name its target. */
   viaSafeLinks: boolean;
+  /**
+   * A link to a note (`plainva://open?…`, F2): `host` is the note's name,
+   * `tip` its path, and a click opens the note in Plainva.
+   */
+  note?: boolean;
 }
 
 const MAX_DEPTH = 3;
@@ -59,6 +66,12 @@ const MAX_TEXT = 200_000;
  * which mail uses too.
  */
 export function describeEventLink(href: string): EventLinkView | null {
+  const note = parseNoteLinkUrl(href);
+  if (note.ok) {
+    const name = (note.target.path.split("/").pop() ?? note.target.path).replace(/\.md$/i, "");
+    const place = note.target.heading ?? (note.target.block ? `^${note.target.block}` : null);
+    return { href: href.trim(), host: place ? `${name} › ${place}` : name, tip: note.target.path, viaSafeLinks: false, note: true };
+  }
   const link = describeHttpLink(href);
   if (!link) return null;
   return { href: link.href, host: link.host, tip: shortenUrl(link.address), viaSafeLinks: link.viaSafeLinks };
@@ -179,8 +192,8 @@ function bareUrlEnd(text: string, from: number, to: number): number {
 }
 
 function startsWithHttp(text: string, at: number): boolean {
-  const head = text.slice(at, at + 8).toLowerCase();
-  return head.startsWith("http://") || head.startsWith("https://");
+  const head = text.slice(at, at + 10).toLowerCase();
+  return head.startsWith("http://") || head.startsWith("https://") || head.startsWith("plainva://");
 }
 
 /**
@@ -255,7 +268,7 @@ function parseInline(scan: Scan, from: number, to: number, depth: number): Event
       }
     }
     // Bare address, not glued to a preceding word.
-    if ((ch === "h" || ch === "H") && startsWithHttp(text, i) && (i === from || !/[A-Za-z0-9]/.test(text[i - 1]))) {
+    if ((ch === "h" || ch === "H" || ch === "p" || ch === "P") && startsWithHttp(text, i) && (i === from || !/[A-Za-z0-9]/.test(text[i - 1]))) {
       const end = bareUrlEnd(text, i, to);
       // `htmlToMarkdown` escapes the underscores of an address it found as text
       // (`a\_b`); a browser would read that backslash as a slash.

@@ -1,3 +1,4 @@
+import { readContentBinary } from "@plainva/ui";
 import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll, scrolledToEnd } from "./services/chromeScroll";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
@@ -37,6 +38,7 @@ import {
   Keyboard,
   KeyboardOff,
 } from "lucide-react";
+import { copyPhoneLineLink } from "./services/noteLinkRoute";
 import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
@@ -55,7 +57,7 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { decideDirtyExternalUpdate, textDirectionOf, toast, imageExplainer } from "@plainva/ui";
+import { AreaBoundary, decideDirtyExternalUpdate, textDirectionOf, toast, imageExplainer } from "@plainva/ui";
 import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { NoteConflictCard } from "./components/NoteConflictCard";
@@ -472,8 +474,9 @@ export function EditorHost({
         });
         return true;
       },
+      // A name a note embeds: checked against the vault's listing where its shape is unusual (F2 review).
       readBinaryFile: (absolutePath) =>
-        vault.adapter.readBinaryFile(absolutePath.replace(/^\/+/, "")),
+        readContentBinary(vault.adapter, absolutePath.replace(/^\/+/, "")),
       // Where an embed may point (P3, Build-91 feedback): beside the note, in
       // the attachment folder, or — as Obsidian writes it — by bare basename
       // anywhere in the vault; the wiki resolver already knows attachments.
@@ -1237,6 +1240,13 @@ export function EditorHost({
     if (view && from !== null) applyBlockAction(view, from, action);
   };
 
+  const runLineLink = (mode: "url" | "wiki") => {
+    const view = sessionRef.current?.view;
+    const from = blockMenuFrom;
+    setBlockMenuFrom(null);
+    if (view && from !== null) void copyPhoneLineLink(view, from, mode, vault, path);
+  };
+
   const run = (fn: (v: NonNullable<EditorSession["view"]>) => unknown) => {
     const view = sessionRef.current?.view;
     if (view) fn(view);
@@ -1461,7 +1471,7 @@ export function EditorHost({
         canEdit: !!onEditAt,
         hasAi: !!onAskAi,
       }).length > 0 && (
-        <SelectionToolbarSurface
+        <AreaBoundary area="editor:readSelectionBar" size="quiet"><SelectionToolbarSurface
           role="toolbar"
           aria-label={t("contextMenu.label")}
           data-testid="read-selection-bar"
@@ -1576,10 +1586,10 @@ export function EditorHost({
               <span>{t("ai.selection.menu")}</span>
             </button>
           )}
-        </SelectionToolbarSurface>
+        </SelectionToolbarSurface></AreaBoundary>
       )}
       {editable && selectionAt && (
-        <SelectionToolbar
+        <AreaBoundary area="editor:selectionToolbar" size="quiet"><SelectionToolbar
           above={selectionAt.above}
           getAnchor={selectionAt.getAnchor}
           onAction={(action) => {
@@ -1603,7 +1613,7 @@ export function EditorHost({
           }
           x={selectionAt.x}
           y={selectionAt.y}
-        />
+        /></AreaBoundary>
       )}
       {/* What is selected, where the editor reports it (S17). The desktop says
           this in the status bar; the phone has no status bar, and the toolbar
@@ -1697,6 +1707,7 @@ export function EditorHost({
       {/* S5: "what is different" — the same read-only diff the browser shows
           for a conflict copy, so there is one definition of that answer. */}
       {conflict && conflictDiff && (
+        <AreaBoundary area="sheet:conflictCompare" size="dialog" exit={{ label: t("common.close"), onExit: () => setConflictDiff(false) }}>
         <ConflictCompareSheet
           vault={vault}
           conflictPath={conflict.copyPath}
@@ -1704,6 +1715,7 @@ export function EditorHost({
           onClose={() => setConflictDiff(false)}
           onResolved={() => setConflictDiff(false)}
         />
+        </AreaBoundary>
       )}
       {tableSheet && (
         <div className="m-sheet-backdrop" onClick={() => setTableSheet(null)}>
@@ -1733,15 +1745,18 @@ export function EditorHost({
       )}
 
       {tableMenu && (
+        <AreaBoundary area="sheet:tableMenu" size="dialog" exit={{ label: t("common.close"), onExit: () => setTableMenu(null) }}>
         <TableMenuSheet
           // A cell that already carries a comment offers no second one (V7).
           canComment={canComment && !tableMenu.cellCommented}
           onAction={handleTableAction}
           onClose={() => setTableMenu(null)}
         />
+        </AreaBoundary>
       )}
 
       {emojiPick && (
+        <AreaBoundary area="sheet:emoji" size="dialog" exit={{ label: t("common.close"), onExit: () => setEmojiPick(null) }}>
         <EmojiPickSheet
           onClose={() => setEmojiPick(null)}
           onPick={handleEmojiPick}
@@ -1756,9 +1771,11 @@ export function EditorHost({
           showRemove={emojiPick === "icon"}
           title={emojiPick === "icon" ? t("docHeader.addIcon") : t("editor.slashEmoji")}
         />
+        </AreaBoundary>
       )}
 
       {colorPick && (
+        <AreaBoundary area="sheet:color" size="dialog" exit={{ label: t("common.close"), onExit: () => setColorPick(false) }}>
         <ColorPickSheet
           onClose={() => setColorPick(false)}
           onPick={(hex) => {
@@ -1770,6 +1787,7 @@ export function EditorHost({
             applyPlainva((text) => withNoteColor(text, null));
           }}
         />
+        </AreaBoundary>
       )}
 
       {dateMention && (
@@ -1793,12 +1811,14 @@ export function EditorHost({
       )}
 
       {templatePick && (
+        <AreaBoundary area="sheet:template" size="dialog" exit={{ label: t("common.close"), onExit: () => setTemplatePick(null) }}>
         <TemplatePickSheet
           onClose={() => setTemplatePick(null)}
           onPick={insertTemplate}
           title={t("editor.slashTemplate")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
 
       {basePick && (
@@ -1873,6 +1893,15 @@ export function EditorHost({
             <button className="m-row" onClick={() => runBlockAction({ kind: "duplicate" })}>
               <Copy size={ICON.ui} />
               <span>{t("block.duplicate")}</span>
+            </button>
+            {/* Links to this block (F2): the address for other apps, the wiki link for other notes. */}
+            <button className="m-row" data-testid="block-copy-link" onClick={() => runLineLink("url")}>
+              <Link2 size={ICON.ui} />
+              <span>{t("noteLink.copy")}</span>
+            </button>
+            <button className="m-row" data-testid="block-copy-block-link" onClick={() => runLineLink("wiki")}>
+              <Link2 size={ICON.ui} />
+              <span>{t("noteLink.copyBlock")}</span>
             </button>
             {/* The app's own "select all" (P5, Build-91 feedback) — the whole
                 note, not the lines the platform's callout could reach. */}

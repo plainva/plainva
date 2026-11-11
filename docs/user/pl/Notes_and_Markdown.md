@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-05
+Stan na: 2026-11-10
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -63,6 +63,28 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 - **Linki zwrotne**: sekcja **Linki zwrotne** w prawym pasku bocznym pokazuje, które notatki linkują do aktywnej — pogrupowane według pliku źródłowego, z licznikiem przy wielu wystąpieniach. Pod każdym plikiem wymienione jest każde wystąpienie wraz z nagłówkami i elementami listy nad nim oraz samą linią; kliknięcie przenosi dokładnie tam. Na telefonie arkusz kontekstu notatki pokazuje te same miejsca. Wiersze są ułożone według pola **Tytuł**; przycisk sortowania nad nimi przełącza na **Ostatnia zmiana** lub **Liczba odnośników**, ponowny wybór tego samego klucza odwraca kierunek, a wybór jest zapamiętywany na tym urządzeniu.
 - **Zmiana nazwy z dbałością o linki**: przy zmianie nazwy pliku w drzewie plików Plainva aktualizuje wszystkie linki do niego w całym vaulcie (kotwice takie jak `#Sekcja` są zachowywane) i zgłasza: „Zaktualizowano N link(ów) w M pliku(ach) na nową nazwę." Link, który dociera do notatki przez `title` z jej właściwości, pozostaje bez zmian — ten tytuł nie zmienia się wraz z nazwą pliku.
 - **Tagi**: `#projekt` — albo zagnieżdżony `#projekt/strona` — w dowolnym miejscu tekstu jest tagiem. Jest rysowany jako mała pigułka podczas pisania i czytania, a kliknięcie go otwiera notatki, które go noszą (na telefonie: dotknięcie w trybie czytania). Co liczy się jako tag i jak tagi dostają kolor: [Wyszukiwanie](Search.md).
+
+## Linki do notatki z zewnątrz
+
+Każda notatka ma adres, który otwiera ją z dowolnego miejsca: z wydarzenia w kalendarzu, zadania na liście Twojego dostawcy, maila, zakładki, czatu albo innej aplikacji:
+
+`plainva://open?vault=Work&path=Projects%2FPlan.md`
+
+- **Kopiuj link** kopiuje ten adres do schowka: na komputerze w menu ⋮ notatki, w menu karty i w menu kontekstowym drzewa plików; na telefonie w menu notatki i w arkuszu pliku.
+- **Przy nagłówku albo wierszu**: menu bloku (uchwyt po lewej stronie bloku; na telefonie arkusz bloku) i na komputerze menu prawego przycisku w edytorze oferują **Kopiuj link** — adres dokładnie tego nagłówka lub bloku — oraz **Kopiuj link do bloku** — link do Twoich notatek, np. `[[Plan#Cele]]` albo `[[Plan#^k3x9qa]]`. Blok bez identyfikatora dostaje go: Plainva zapisuje ` ^k3x9qa` (sześć liter i cyfr) na końcu akapitu lub punktu listy, przy tabeli w osobnym wierszu pod nią — tak, jakbyś to wpisał(a), więc Cofnij to usuwa. Frontmatter, bloki kodu, wzory i puste wiersze nie dostają identyfikatora.
+- **Podpowiedzi**: gdy wpiszesz `[[Notatka#^`, pojawią się identyfikatory bloków, które notatka już ma, z początkiem ich tekstu.
+- **W wydarzeniu**: **Połącz notatkę** w edytorze wydarzenia dodaje `[Tytuł](plainva://open?…)` do opisu. Podgląd wydarzenia pokazuje go jako chip z nazwą notatki; kliknięcie ją otwiera.
+- **Kliknięty w Plainva**: link `plainva://` w notatce, mailu, wydarzeniu lub zadaniu otwiera notatkę w Plainva, na komputerze i na telefonie. Nigdy nie trafia do systemu.
+
+Co link może, a czego nie:
+
+- Tylko **otwiera**. Nigdy nie tworzy notatki, niczego nie zapisuje, niczego nie uruchamia i nie zmienia ustawień; parametry, których Plainva nie zna, są pomijane.
+- `vault` to **nazwa** vaulta, tak jak pokazuje ją Plainva — nigdy jego folder na dysku. Na innym urządzeniu link działa, jeśli vault nazywa się tam tak samo. Jeśli nazwa należy do innego vaulta na tym urządzeniu, Plainva pyta, zanim przełączy; jeśli żaden vault — albo więcej niż jeden — na tym urządzeniu nie ma tej nazwy, mówi o tym. Zmiana nazwy vaulta psuje linki ze starą nazwą. Jeśli vaulta nie ma na tym urządzeniu, ale notatka jest w otwartym vaulcie, Plainva pyta, czy otworzyć ją tam.
+- `path` to ścieżka notatki w vaulcie. Jeśli notatkę przeniesiono albo przemianowano, a jej stara nazwa nadal jest `title` w jej właściwościach, Plainva znajdzie ją według reguły linków wiki. W przeciwnym razie powie, że notatki nie ma.
+- `heading=` albo `block=` (jedno z dwóch) przenosi do nagłówka lub bloku.
+- Link otwiera notatki, bazy danych, obrazy i pliki tekstowe — nigdy program ani inny plik, który otworzyłby system. Pliki i foldery, których nazwa zaczyna się od kropki — pliki ukryte, własne foldery Plainva — nigdy nie są otwierane przez link. Link, który czekał na vault, przepada po minucie.
+- Linki zawsze zaczynają się od `plainva://`. Wersje deweloperska i Labs odpowiadają na `plainva-dev://` i `plainva-labs://`, więc nigdy nie zabierają linków zainstalowanej aplikacji.
+- System poznaje adres przy instalacji Plainva (instalator Windows, aplikacja macOS, pakiet deb lub rpm, Android, iOS). AppImage bez integracji z pulpitem nie jest zarejestrowany; linki klikane w Plainva działają tam mimo to.
 
 ## Właściwości (frontmatter)
 

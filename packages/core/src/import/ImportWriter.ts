@@ -5,7 +5,9 @@ import {
 } from '../frontmatter-surgical.js';
 import { okfInstant, type OkfSource } from '../okf-trust.js';
 import type { IVaultAdapter } from '../vault/IVaultAdapter.js';
+import { contentPathRefusal, isWindowsDeviceSegment } from '../vault/internalPath.js';
 import {
+  DEFAULT_IMPORT_LABELS,
   ImportLabels,
   ImportOptions,
   ImportReport,
@@ -20,6 +22,34 @@ import {
  * A distinct type because stopping is a decision, not a fault: the report says
  * so in its own words instead of surfacing a technical abort message.
  */
+
+/** Whether the system this runs on cannot hold a device name or a colon in a file name (Windows). */
+function systemReservesNames(): boolean {
+  const g = globalThis as { navigator?: { userAgent?: string }; process?: { platform?: string } };
+  return /Windows/i.test(g.navigator?.userAgent ?? "") || g.process?.platform === "win32";
+}
+
+/**
+ * A name an import writes, in the spelling this system can hold (F2 review,
+ * 2026-11-10). On Windows a device name (`Con`, `aux.md`) gets a `_` and a
+ * colon becomes `-`; everywhere else the name stays as it is — `Meeting 10:30.md`
+ * is an ordinary file on a Mac.
+ */
+function systemSpelling(path: string, reserves: boolean): string {
+  if (!reserves) return path;
+  return path
+    .split("/")
+    .map((segment) => {
+      let out = segment.split(":").join("-");
+      if (isWindowsDeviceSegment(out)) {
+        const dot = out.indexOf(".");
+        out = dot < 0 ? `${out}_` : `${out.slice(0, dot)}_${out.slice(dot)}`;
+      }
+      return out;
+    })
+    .join("/");
+}
+
 export class ImportAbortedError extends Error {
   constructor() {
     super('import cancelled');
@@ -115,10 +145,31 @@ export class ImportWriter {
     this.ensuredFolders.add(folder);
   }
 
+  /** Names this run had to spell differently for the system (Windows device names, colons). */
+  private readonly systemRenamed = new Set<string>();
+
+  /**
+   * Where an entry may go: never into the app's own folders (`.plainva`,
+   * `.git`, … in any spelling), which fails that one entry with a sentence the
+   * report shows; a name this system cannot hold is respelled and reported.
+   */
+  private placeOf(full: string): string {
+    if (contentPathRefusal(full) === "internal") throw new Error(`${this.labels.refusedInternalPath ?? DEFAULT_IMPORT_LABELS.refusedInternalPath}: ${full}`);
+    const spelled = systemSpelling(full, this.opts.reservesWindowsNames ?? systemReservesNames());
+    if (spelled !== full) this.systemRenamed.add(spelled);
+    return spelled;
+  }
+
+  /** The words the report gives a write that did not keep its name. */
+  private renameNote(path: string, renamed: boolean): string | undefined {
+    if (this.systemRenamed.has(path)) return this.labels.renamedForSystem ?? DEFAULT_IMPORT_LABELS.renamedForSystem;
+    return renamed ? this.labels.renamedToAvoidOverwrite : undefined;
+  }
+
   /** Preserve an explicitly exported empty notebook as well as its notes. */
   async writeFolder(relativePath: string): Promise<void> {
     this.abortIfRequested();
-    const full = `${this.prefix}${relativePath}`;
+    const full = this.placeOf(`${this.prefix}${relativePath}`);
     if (this.adapter) await this.adapter.createDir(full);
     this.ensuredFolders.add(full);
   }
@@ -131,7 +182,7 @@ export class ImportWriter {
    */
   private async claimPath(relativePath: string): Promise<{ path: string; renamed: boolean }> {
     return this.withAllocation(async () => {
-      const full = `${this.prefix}${relativePath}`;
+      const full = this.placeOf(`${this.prefix}${relativePath}`);
 
       // A reserved name was already decided (and already counted as taken) in an
       // earlier pass, so the write must use exactly that one — re-claiming would
@@ -146,7 +197,9 @@ export class ImportWriter {
         return { path: reserved, renamed: reserved !== full };
       }
 
-      return this.allocatePath(full);
+      const claimed = await this.allocatePath(full);
+      if (this.systemRenamed.has(full)) this.systemRenamed.add(claimed.path);
+      return claimed;
     });
   }
 
@@ -179,10 +232,11 @@ export class ImportWriter {
    */
   async reserve(relativePath: string): Promise<string> {
     return this.withAllocation(async () => {
-      const full = `${this.prefix}${relativePath}`;
+      const full = this.placeOf(`${this.prefix}${relativePath}`);
       // Deliberately NOT memoized by intended path: two source notes may want the
       // same name, and each has to learn its own.
       const { path } = await this.allocatePath(full);
+      if (this.systemRenamed.has(full)) this.systemRenamed.add(path);
       this.reservations.set(full, [...(this.reservations.get(full) ?? []), path]);
       return path;
     });
@@ -219,7 +273,8 @@ export class ImportWriter {
 
     const notes: string[] = [];
     if (options.details) notes.push(options.details);
-    if (renamed) notes.push(this.labels.renamedToAvoidOverwrite);
+    const why = this.renameNote(path, renamed);
+    if (why) notes.push(why);
 
     this.items.push({
       path,
@@ -248,7 +303,8 @@ export class ImportWriter {
 
     const notes: string[] = [];
     if (details) notes.push(details);
-    if (renamed) notes.push(this.labels.renamedToAvoidOverwrite);
+    const why = this.renameNote(path, renamed);
+    if (why) notes.push(why);
 
     this.items.push({
       path,
@@ -279,7 +335,7 @@ export class ImportWriter {
     this.items.push({
       path,
       status: 'imported',
-      details: renamed ? this.labels.renamedToAvoidOverwrite : undefined,
+      details: this.renameNote(path, renamed),
     });
     return path;
   }

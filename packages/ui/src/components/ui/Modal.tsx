@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { AreaBoundary } from "./AreaBoundary";
 import { IconButton } from "./IconButton";
 import { cx } from "./cx";
 import { useDiscardGuard } from "../../lib/discardQuestion";
@@ -153,7 +154,13 @@ export function Modal({
             </IconButton>
           )}
         </div>
-        <div className={cx("pv-modal-body", bodyClassName)}>{children}</div>
+        {/* What the dialog shows is an area of its own (stability plan R3):
+            content that fails leaves the dialog, its X and the shell. */}
+        <div className={cx("pv-modal-body", bodyClassName)}>
+          <AreaBoundary area={`dialog:${testId ?? "modal"}`} exit={{ label: t("common.close", { defaultValue: "Schließen" }), onExit: onClose }} size="section">
+            {children}
+          </AreaBoundary>
+        </div>
         {footer ? <div className="pv-modal-footer">{footer}</div> : null}
       </div>
     </div>

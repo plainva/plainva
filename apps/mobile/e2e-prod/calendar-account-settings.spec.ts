@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema, openSettings } from "./exampleVault";
 
 const LOCALES = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "ui", "src", "locales");
 const de = JSON.parse(readFileSync(join(LOCALES, "de.json"), "utf8"));
@@ -27,7 +27,7 @@ test("a calendar account is one card, and its failure a note that says who faile
   const sql = await installSqlBridge(context);
   await context.addInitScript(() => {
     if (!localStorage.getItem("CapacitorStorage.mobile-settings")) localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "de", motion: "off" }));
-    // The account's sign-in slot for THIS device: it reads "aktiv".
+    // The account's sign-in slot for THIS device: signed in, so no "expired".
     localStorage.setItem("CapacitorStorage.secret_pim_local_pim-fixture-1", JSON.stringify({ kind: "google", clientId: "fixture-client", refreshToken: "fixture" }));
   });
   const shoot = async (name: string) => {
@@ -39,7 +39,7 @@ test("a calendar account is one card, and its failure a note that says who faile
     await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
   };
   const openAccounts = async () => {
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-pim").click();
     await expect(page.getByTestId("pim-account-pim-fixture-1")).toBeVisible({ timeout: 20_000 });
   };
@@ -65,11 +65,10 @@ test("a calendar account is one card, and its failure a note that says who faile
     await expect(card.getByTestId("pim-account-calendars-pim-fixture-1")).toBeVisible();
     await expect(head.locator(".pv-grouprow-title")).toHaveText("anna@gmail.com");
     await expect(head.locator(".pv-grouprow-sub")).toHaveText("Google");
-    await expect(head.locator(".m-state")).toHaveText(de.deviceSignIn.active);
-    // The pill keeps its distance from everything beside it.
-    const pill = await head.locator(".m-state").boundingBox();
-    const title = await head.locator(".pv-grouprow-text").boundingBox();
-    expect(pill!.x - (title!.x + title!.width)).toBeGreaterThanOrEqual(8);
+    // No "active" pill above the failure (finding X10, review 2026-11-10): the
+    // sign-in is fine, the account is not reachable, and the note below says
+    // which. The pill read "aktiv" right above "Keine Verbindung".
+    await expect(head.locator(".m-state")).toHaveCount(0);
 
     // The failure: in the account's group, under its card — sender, sentence, the words small.
     const note = page.locator(".m-pimacct").filter({ has: head }).getByTestId("pim-account-error-pim-fixture-1");

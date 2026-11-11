@@ -3,7 +3,7 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus } from "lucide-react";
-import { accountInputProps, AccountFailureNote, Banner, Button, calendarTargetForFamily, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily, InfoTip, pimAccountFailure, pimProviderName, travelsWithVault } from "@plainva/ui";
+import { AreaBoundary, accountInputProps, AccountFailureNote, Banner, Button, calendarTargetForFamily, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, reminderDiagnosis, Row, RowList, SectionLabel, SettingField, Switch, TextInput, toast, type CloudProviderFamily, InfoTip, pimAccountFailure, pimProviderName, travelsWithVault } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { accessProblemKey, isGoogleAuthorizationCancelled, serviceConnectionMessage, type AccessFamily, type AccessResolution } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -674,7 +674,11 @@ export function PimAccountsScreen({
                       data-testid={`pim-account-${a.id}`}
                       title={a.label}
                       subtitle={pimProviderName(a.provider, t)}
-                      end={<DeviceSignInBadge state={state} />}
+                      // No "active" pill above a failure (finding X10, review
+                      // 2026-11-10): the sign-in is fine, the account is not
+                      // reachable, and the note right below says so - the pill
+                      // answered a question nobody asked and contradicted it.
+                      end={state === "active" && failure ? undefined : <DeviceSignInBadge state={state} />}
                     />
                     {calendarRun ? null : (
                       <Row
@@ -1015,6 +1019,7 @@ export function PimAccountsScreen({
       )}
 
       {pickMeetingFolder && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickMeetingFolder(false) }}>
         <FolderPickerSheet
           onClose={() => setPickMeetingFolder(false)}
           onPick={(path) => {
@@ -1024,13 +1029,16 @@ export function PimAccountsScreen({
           title={t("settings.browseFolders")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
       {accessFor && (
+        <AreaBoundary area="sheet:accountAccess" size="dialog" exit={{ label: t("common.close"), onExit: () => setAccessFor(null) }}>
         <AccountAccessSheet
           family={accessFor}
           onCancel={() => setAccessFor(null)}
           onSaved={() => { const family = accessFor; setAccessFor(null); if (family !== "dropbox") void deviceAccess(family).then(setAccess); }}
         />
+        </AreaBoundary>
       )}
       {calendarRun && (
         <ConnectRunFooter

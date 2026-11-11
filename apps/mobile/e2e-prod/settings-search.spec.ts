@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * The search over all settings on the phone (settings plan 2026-10-29, § 4.3,
@@ -32,7 +32,7 @@ test("the settings search on the phone lands on a row; the overview shows states
     await expect(close).toBeVisible({ timeout: 15000 });
     await close.click();
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     // E15: a state where a description was - no account carries the calendar, mail or anything.
     await expect(page.getByTestId("settings-area-cloudAccounts")).toContainText("Off");
     await expect(page.getByTestId("settings-area-pim")).toContainText("Off");

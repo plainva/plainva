@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-11-06
+Ultimo aggiornamento: 2026-11-10
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -139,7 +139,7 @@ Un tocco su un promemoria di evento apre l’evento stesso: la vista giorno alla
 
 **Ciò che non è aggiornato e ciò che non ci sta.** Quando un account o un calendario non viene sincronizzato, anche il telefono lo dice in una riga sopra il calendario — quale, da quando e perché — con **Riprova**; gli appuntamenti sotto restano come ultimo stato noto. Nella vista **Mese** un giorno mostra al massimo tre punti; un numero dopo di essi (per esempio **+3**) dice quante altre voci contiene. Luogo di lavoro, tempo di concentrazione e assenza compaiono nella griglia oraria come una banda discreta nella striscia dell'intera giornata, non come un appuntamento. L'area **Attività** ha la stessa riga per gli elenchi attività, e il suo aggiornamento interroga subito i fornitori, come sul desktop.
 
-Gestisci gli account in ☰ → **Impostazioni** → **Calendario**: **Aggiungi account…** apre lo stesso assistente di **Account cloud**, con **Calendario e attività** già spuntato (il vecchio modulo a sé non esiste più). I provider **CalDAV** (es. Fastmail, Nextcloud, iCloud) li colleghi sul dispositivo con un unico modulo per tutti i servizi scelti e il segreto indicato dal provider — di solito una **Password per app**; Google e Microsoft seguono tramite accesso dal browser. Per ogni account puoi mostrare o nascondere singoli calendari.
+Gestisci gli account in ⚙ → **Impostazioni** → **Calendario**: **Aggiungi account…** apre lo stesso assistente di **Account cloud**, con **Calendario e attività** già spuntato (il vecchio modulo a sé non esiste più). I provider **CalDAV** (es. Fastmail, Nextcloud, iCloud) li colleghi sul dispositivo con un unico modulo per tutti i servizi scelti e il segreto indicato dal provider — di solito una **Password per app**; Google e Microsoft seguono tramite accesso dal browser. Per ogni account puoi mostrare o nascondere singoli calendari.
 
 Da un evento, **Nota della riunione** crea la nota che gli appartiene — la stessa nota che trova anche il desktop: resta collegata all'evento, quindi richiamarla di nuovo la riapre invece di crearne una seconda, e finisce nella **Cartella riunioni**. Scegli quella cartella in **Impostazioni** → **Calendario**, nel gruppo **Note delle riunioni**, con un **esplora cartelle** invece di digitarne il percorso; il gruppo **Eventi** contiene il **Calendario predefinito** (quello in cui inizia un nuovo evento); entrambi appartengono al vault e viaggiano con la sincronizzazione delle impostazioni. Lì stesso puoi scegliere, per account, quali **Elenchi attività** si riflettono nel tuo database attività. Lì scegli anche il **Modello per le note della riunione**; viaggia come la cartella, e i dettagli sono in [Calendario e attività esterne](Calendar_and_Tasks.md).
 

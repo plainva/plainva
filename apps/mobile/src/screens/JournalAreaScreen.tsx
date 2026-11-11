@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
-import {
+import { AreaBoundary,
   boundaryLabel,
   clampBoundary,
   CommittedTextInput,
@@ -147,6 +147,7 @@ export function JournalAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       </div>
 
       {pickFolder && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickFolder(false) }}>
         <FolderPickerSheet
           onClose={() => setPickFolder(false)}
           onPick={(path) => {
@@ -155,6 +156,7 @@ export function JournalAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           title={t("settings.browseFolders")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
     </div>
   );

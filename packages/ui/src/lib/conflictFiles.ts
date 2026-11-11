@@ -4,18 +4,14 @@
  * resolving needs the reverse mapping back to the original path.
  */
 import { isNotTextFileError, updateVaultText, type IVaultAdapter, type TextUpdateFiles } from "@plainva/core";
+import { conflictOriginalPath } from "./conflictLabel";
+
+// The naming half lives in conflictLabel.ts (no vault, no core): both shells
+// and the end-to-end specs read the label through it.
+export { conflictCopyLabel, conflictCopyTime, conflictOriginalPath } from "./conflictLabel";
 
 export function isConflictCopyPath(path: string): boolean {
   return conflictOriginalPath(path) !== null;
-}
-
-/** `Notes/a.CONFLICT-2026-07-05T12-30-00-000Z.md` -> `Notes/a.md`; null if not a conflict copy. */
-export function conflictOriginalPath(conflictPath: string): string | null {
-  const marker = conflictPath.lastIndexOf(".CONFLICT-");
-  if (marker < 0 || marker < Math.max(conflictPath.lastIndexOf("/"), conflictPath.lastIndexOf("\\"))) return null;
-  const suffix = conflictPath.slice(marker + ".CONFLICT-".length);
-  const dot = suffix.lastIndexOf(".");
-  return conflictPath.slice(0, marker) + (dot >= 0 && dot < suffix.length - 1 ? suffix.slice(dot) : "");
 }
 
 /**

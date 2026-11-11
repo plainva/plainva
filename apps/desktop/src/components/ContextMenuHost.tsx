@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Scissors, Copy, ClipboardPaste, Download, FilePlus2, Sparkles, TextSelect, ExternalLink } from "lucide-react";
-import { ICON, MenuItem, MenuSurface, useImageExplainer } from "@plainva/ui";
+import { Scissors, Copy, ClipboardPaste, Download, FilePlus2, Sparkles, TextSelect, ExternalLink, Link2 } from "lucide-react";
+import { ICON, MenuItem, MenuSeparator, MenuSurface, useImageExplainer } from "@plainva/ui";
 import { useContextMenu, closeContextMenu, type ImageContextTarget } from "../services/contextMenuStore";
 import { insertIntoEditable, deleteEditableSelection, selectAllInEditable } from "@plainva/ui";
 import { toast } from "@plainva/ui";
@@ -17,7 +17,7 @@ export function ContextMenuHost() {
   // The AI's door at a picture (plan KI-Harness P4-5): null while the AI is off.
   const explain = useImageExplainer();
   if (!state) return null;
-  const { selection, editable, image } = state;
+  const { selection, editable, image, lineLink } = state;
   const hasSelection = selection.length > 0;
   const place = image?.place;
 
@@ -96,6 +96,17 @@ export function ContextMenuHost() {
           <MenuItem icon={<TextSelect size={ICON.ui} />} onSelect={() => selectAllInEditable(editable)}>
             {t("shortcuts.selectAll")}
           </MenuItem>
+          {lineLink && (
+            <>
+              <MenuSeparator />
+              <MenuItem icon={<Link2 size={ICON.ui} />} data-testid="context-copy-link" onSelect={() => lineLink.copy("url")}>
+                {t("noteLink.copy")}
+              </MenuItem>
+              <MenuItem icon={<Link2 size={ICON.ui} />} data-testid="context-copy-block-link" onSelect={() => lineLink.copy("wiki")}>
+                {t("noteLink.copyBlock")}
+              </MenuItem>
+            </>
+          )}
         </>
       ) : (
         <MenuItem icon={<Copy size={ICON.ui} />} onSelect={onCopy}>

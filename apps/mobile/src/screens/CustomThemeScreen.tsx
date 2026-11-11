@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
+import { AreaBoundary,
   AVAILABLE_THEMES,
   Banner,
   Button,
@@ -171,10 +171,14 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
       </div>
 
       {sheet === "background" && (
+        <AreaBoundary area="sheet:swatch" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <SwatchSheet title={t("settings.customThemeBackground")} hint={t("settings.customThemeBackgroundHint", { lo: Math.round(lo * 100), hi: Math.round(hi * 100) })} presets={customBackgroundPresets(spec.mode)} value={spec.background} onPick={(hex) => set({ background: hex })} onClose={() => setSheet(null)} />
+        </AreaBoundary>
       )}
       {sheet === "accent" && (
+        <AreaBoundary area="sheet:swatch" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <SwatchSheet title={t("settings.customThemeAccent")} hint={t("settings.customThemeAccentHint", { min: CUSTOM_ACCENT_MIN_CONTRAST })} presets={customAccentPresets()} value={spec.accent} onPick={(hex) => set({ accent: hex })} onClose={() => setSheet(null)} />
+        </AreaBoundary>
       )}
     </div>
   );

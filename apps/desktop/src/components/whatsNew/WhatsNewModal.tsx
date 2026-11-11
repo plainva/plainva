@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Button, ICON, WhatsNewIcon, getWhatsNewBlogUrl } from '@plainva/ui';
+import { Modal, Button, ICON, WhatsNewIcon, getWhatsNewBlogUrl, getWhatsNewReleaseNotesUrl } from '@plainva/ui';
 import { useTranslation } from 'react-i18next';
 import { getAppVersion, getLatestWhatsNew } from '../../services/whatsNew';
 
@@ -23,6 +23,8 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
   const latest = getLatestWhatsNew();
   const blogUrl = getWhatsNewBlogUrl(latest, i18n.resolvedLanguage ?? i18n.language);
+  // The highlights point to the release notes for the details: they are linked too (finding X10).
+  const notesUrl = getWhatsNewReleaseNotesUrl(latest);
 
   // The title names the version the user is actually running, not the catalog's.
   // The two diverge on purpose: the shells ship on separate version lines (the
@@ -45,6 +47,10 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
     if (!blogUrl) return;
     const { openExternalUrl } = await import('../../services/openExternal');
     await openExternalUrl(blogUrl).catch(() => undefined);
+  };
+  const openUrl = async (url: string) => {
+    const { openExternalUrl } = await import('../../services/openExternal');
+    await openExternalUrl(url).catch(() => undefined);
   };
 
   /** The pill. It replaces the word "(experimental)" inside a sentence, which
@@ -74,8 +80,13 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ onClose }) => {
       footer={
         <>
           {blogUrl && (
-            <Button variant="ghost" onClick={handleOpenBlog} style={{ marginRight: 'auto' }}>
+            <Button variant="ghost" onClick={handleOpenBlog} style={notesUrl ? undefined : { marginRight: 'auto' }}>
               {t('whatsNew.readBlog')}
+            </Button>
+          )}
+          {notesUrl && (
+            <Button variant="ghost" data-testid="whatsnew-release-notes" onClick={() => void openUrl(notesUrl)} style={{ marginRight: 'auto' }}>
+              {t('whatsNew.readReleaseNotes')}
             </Button>
           )}
           <Button variant="primary" onClick={onClose}>

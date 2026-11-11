@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Activity, CalendarDays, ChevronRight, Cloud, ListChecks, Mail, Pause, RefreshCw } from "lucide-react";
-import {
+import { AreaBoundary,
   accountPageModel,
   Banner,
   Button,
@@ -246,6 +246,7 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
       {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
         onSave={async (selected) => { await changeRemoteFolder(vault, selected.path, selected.id); await reload(); }} />}
       {folderPick && (
+        <AreaBoundary area="sheet:cloudFolderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setFolderPick(null) }}>
         <CloudFolderPickerSheet
           title={t("mobile.changeCloudFolder")}
           listFolders={(path) => listProviderFolders(folderPick, path)}
@@ -256,6 +257,7 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
             void changeRemoteFolder(vault, path).then(reload).catch((e) => toast.warning(String(e)));
           }}
         />
+        </AreaBoundary>
       )}
     </>
   );
@@ -363,12 +365,14 @@ function CalendarPart({ pimAccountId }: { pimAccountId: string }) {
         </RowList>
       </GroupCard>
       {colorFor && (
+        <AreaBoundary area="sheet:colorPick" size="dialog" exit={{ label: t("common.close"), onExit: () => setColorFor(null) }}>
         <ColorPickSheet
           value={colors[`${pimAccountId} ${colorFor.id}`] ?? null}
           onPick={(hex) => pickColor(colorFor, hex)}
           onRemove={() => pickColor(colorFor, "")}
           onClose={() => setColorFor(null)}
         />
+        </AreaBoundary>
       )}
     </>
   );

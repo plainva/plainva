@@ -1,4 +1,5 @@
 import { test, expect } from "./clockedTest";
+import { openSettings } from "./exampleVault";
 
 /**
  * Picking a service in the connect wizard has to OPEN something.
@@ -41,7 +42,7 @@ test("picking a service opens its sign-in surface", async ({ page }) => {
   // Into the wizard the way a user gets there: app-bar menu → Settings →
   // Cloud accounts → add → provider. Real taps, because the route wiring
   // between those screens is precisely what is under test.
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await page.locator('[data-testid="cloudacct-connect"]').click();
 

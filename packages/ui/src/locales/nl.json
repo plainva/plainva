@@ -430,7 +430,7 @@
     },
     "policy": {
       "columns": "Map",
-      "webOff": "Internet uit",
+      "webOff": "geldt niet: internet staat uit op dit apparaat",
       "title": "Wat deze vault mag verlaten",
       "desc": "Een regel staat in de frontmatter van een notitie of, voor een hele map, in .agent/policy.yml. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe worden achtergehouden.",
       "vaultDefault": "Vault-standaard",
@@ -2787,6 +2787,31 @@
     "mobileProbeFailed": "De cloud kon niet worden gecontroleerd op een bestaande wachtwoordzin. Probeer het opnieuw met een verbinding.",
     "mobileCreated": "Synchronisatie-wachtwoordzin ingesteld. Dit apparaat is ontgrendeld."
   },
+  "noteLink": {
+    "copy": "Link kopiëren",
+    "copyBlock": "Bloklink kopiëren",
+    "copied": "Link gekopieerd.",
+    "invalid": "Plainva kan deze link niet openen.",
+    "noVault": "Open eerst een vault en daarna de link opnieuw.",
+    "vaultUnknown": "De vault ‘{{name}}’ staat niet op dit apparaat.",
+    "vaultAmbiguous": "Dit apparaat heeft meerdere vaults met de naam ‘{{name}}’. Open de bedoelde en daarna de link opnieuw.",
+    "switchTitle": "Van vault wisselen?",
+    "switchMessage": "Deze link leidt naar een notitie in de vault ‘{{name}}’. Daarheen wisselen?",
+    "switchConfirm": "Wisselen",
+    "answerFirst": "Beantwoord eerst de openstaande vraag.",
+    "openHereTitle": "In deze vault openen?",
+    "openHereMessage": "De vault ‘{{vault}}’ staat niet op dit apparaat. De notitie ‘{{note}}’ staat in de geopende vault. Daar openen?",
+    "openHereAmbiguousMessage": "Dit apparaat heeft meerdere vaults met de naam ‘{{vault}}’. De notitie ‘{{note}}’ staat in de geopende vault. Daar openen?",
+    "openHereConfirm": "Openen",
+    "notFound": "De notitie ‘{{name}}’ staat niet in deze vault.",
+    "notOpenable": "Een link opent notities en bestanden die Plainva zelf toont, niet dit bestand.",
+    "blockNotHere": "Op deze regel kan geen bloklink worden gezet.",
+    "lineEmpty": "Deze regel is leeg; er is niets om naar te linken.",
+    "readOnly": "Deze notitie is alleen-lezen, dus het blok kan geen ID krijgen.",
+    "insert": "Notitie koppelen",
+    "pickHint": "De afspraak krijgt een link die de notitie in Plainva opent.",
+    "openNote": "Notitie {{name}} openen"
+  },
   "contextMenu": {
     "cut": "Knippen",
     "copy": "Kopiëren",
@@ -2903,6 +2928,8 @@
       "entryFailed": "kon niet worden geïmporteerd",
       "noAvailableName": "geen vrije bestandsnaam onder 1000 varianten; bestaande bestanden zijn behouden",
       "reservedPathOccupied": "de gereserveerde bestandsnaam is inmiddels bezet; het bestaande bestand is behouden",
+      "renamedForSystem": "hernoemd: dit systeem kan de oorspronkelijke naam niet dragen",
+      "refusedInternalPath": "niet geïmporteerd: het zou in een eigen map van Plainva of een andere app zijn beland",
       "runStopped": "de import is voortijdig gestopt — alles tot dit punt is al weggeschreven",
       "skippedDuplicate": "dezelfde notitie staat twee keer in de export — één keer geïmporteerd, als",
       "skippedTrashed": "in de prullenbak — niet geïmporteerd",
@@ -3406,6 +3433,7 @@
   },
   "editor": {
     "completionHeadings": "Koppen",
+    "completionBlocks": "Blokken",
     "unresolvedLinkTip": "Notitie bestaat nog niet – klikken om aan te maken",
     "loading": "Laden...",
     "menu": "Menu",
@@ -5027,7 +5055,11 @@
   },
   "errors": {
     "somethingWentWrong": "Er is iets misgegaan.",
-    "reload": "Opnieuw laden"
+    "reload": "Opnieuw laden",
+    "areaTitle": "Dit gedeelte kan niet worden weergegeven",
+    "areaBody": "Een fout heeft het gestopt. De rest van Plainva blijft werken, en de fout staat onder {{place}}.",
+    "areaAgain": "Het mislukte opnieuw na het herladen. Blijft het mislukken, herstart Plainva dan; de fout staat onder {{place}}.",
+    "areaReload": "Dit gedeelte opnieuw laden"
   },
   "palette": {
     "title": "Opdrachten",
@@ -5397,6 +5429,8 @@
     "folderCount_other": "{{count}} notities",
     "baseCount_one": "1 database",
     "baseCount_other": "{{count}} databases",
+    "attachmentCount_one": "1 bestand",
+    "attachmentCount_other": "{{count}} bestanden",
     "aboutTip": "Tip: het logo houdt van aandacht. Vijf keer.",
     "syncResume": "Synchronisatie hervatten",
     "reconnected": "Account opnieuw verbonden.",
@@ -7443,6 +7477,7 @@
     "highlight5Title": "Verbeteringen en oplossingen",
     "highlight5": "Accounts verbinden via een assistent, de instellingen zijn opnieuw geordend, op de telefoon schrijf je makkelijker met één hand, en sync, mail en editor kregen veel correcties. De details staan in de release-opmerkingen.",
     "readBlog": "Lees het blogbericht",
+    "readReleaseNotes": "Lees de release-opmerkingen",
     "understand": "Begrepen"
   },
   "firstRun": {

@@ -1119,7 +1119,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
 }
 
 export interface FolderListing {
-  folders: Array<{ name: string; count: number }>;
+  /** `count` notes and `files` attachments below each subfolder, recursively once the index is ready. */
+  folders: Array<{ name: string; count: number; files: number }>;
   notes: Array<{ path: string; title: string; mtime?: number; ctime?: number }>;
   /** Read-only databases (M4): .base files in this folder. */
   bases: Array<{ path: string; title: string }>;
@@ -1260,10 +1261,22 @@ export const vaultOps = {
         return 0;
       }
     };
+    // Attachments beside the notes (finding X10, review 2026-11-10): a folder
+    // of pictures said "0 notes" and nothing else, as if it were empty. Same
+    // predicate as the listing's own `attachments` below.
+    const deepFiles = deep && v.queryService ? await v.queryService.countAttachmentsPerSubfolder(folder) : null;
+    const shallowFiles = async (path: string): Promise<number> => {
+      try {
+        return (await v.files.listDir(path)).filter((e) => !e.isDirectory && !e.name.startsWith(".") && !/\.(md|base)$/i.test(e.name)).length;
+      } catch {
+        return 0;
+      }
+    };
     const folders = await Promise.all(
       folderNames.map(async (name) => ({
         name,
         count: deep ? (deep.get(name) ?? 0) : await shallowCount(folder ? `${folder}/${name}` : name),
+        files: deepFiles ? (deepFiles.get(name) ?? 0) : await shallowFiles(folder ? `${folder}/${name}` : name),
       })),
     );
     const notes = entries

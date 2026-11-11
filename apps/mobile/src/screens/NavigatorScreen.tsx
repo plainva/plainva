@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Folder } from "lucide-react";
-import { Chip, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
+import { AreaBoundary, Chip, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { useSyncSubtitle } from "../components/syncSubtitle";
@@ -208,7 +208,10 @@ export function NavigatorScreen({
         onChange={(v) => pick(v as NavigatorTab)}
       />
 
-      {tab === "files" ? (
+      {/* Each pane an area of its own (stability plan R3), as the desktop's
+          sidebar views: the segment control above stays. */}
+      <AreaBoundary area={`navigator:${tab}`} resetKey={tab} size="section">{() => (
+      tab === "files" ? (
         <BrowseScreen
           bump={bump}
           folder=""
@@ -224,7 +227,8 @@ export function NavigatorScreen({
         <TagsScreen bump={bump} onOpenNote={onOpenNote} onOpenTag={onOpenTag} pane tag="" vault={vault} />
       ) : (
         <DatabasesScreen bump={bump} onCreate={onCreateDatabase} onOpenBase={onOpenBase} pane vault={vault} />
-      )}
+      )
+      )}</AreaBoundary>
 
     </div>
   );

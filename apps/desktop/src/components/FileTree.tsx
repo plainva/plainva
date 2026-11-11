@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { appConfirm, appConfirmOption, dialogStore } from "../services/appDialogs";
+import { copyDesktopNoteLink } from "../services/noteLinkReceiver";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ActiveSemanticCoverage, EmptyState, FoundChip, ICON, meaningActive, toast, errorText, useLocalEmbeddings, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
@@ -1439,7 +1440,8 @@ export const FileTree: React.FC<{
       // Programmatically focusable (not in the tab order) so multi-select can
       // make the tree the keyboard surface for the Delete shortcut.
       tabIndex={-1}
-      style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-secondary)", outline: "none" }}
+      className="pv-focus-frame"
+      style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-secondary)" }}
       onContextMenu={(e) => {
         // If clicking on the empty background of the tree, open context menu for root
         if (e.target === e.currentTarget) {
@@ -1512,6 +1514,7 @@ export const FileTree: React.FC<{
           onToggleBookmark={onToggleBookmarkPath}
           onVersionHistory={(path: string) => window.dispatchEvent(new CustomEvent("plainva-show-version-history", { detail: { path } }))}
           onCopyPath={copyContextPath}
+          onCopyLink={(p) => { copyDesktopNoteLink(vaultPath, p); setContextMenu(null); }}
           onDelete={handleDelete}
           onResolveConflict={(path: string) => window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path } }))}
           onNewItem={createNewItem}

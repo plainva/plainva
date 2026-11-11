@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * External tools on the phone (AI harness P4.5): a server the user connects
@@ -143,7 +143,7 @@ test("a server is added, reviewed and granted on the phone; a call asks first an
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
 
     // 1. The vault's AI settings: the section is there, and no server is connected.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await expect(page.getByText("No server is connected on this device.", { exact: false })).toBeVisible();
     await expect(page.getByTestId("settings-ai-ext-server")).toHaveCount(0);
@@ -214,7 +214,7 @@ test("a server is added, reviewed and granted on the phone; a call asks first an
 
     // 6. Switched off for this vault in the settings: the row says so.
     await back();
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByRole("switch", { name: "Use Tracker in this vault" }).click();
     await expect(page.getByTestId("settings-ai-ext-server")).toContainText("Not used in this vault");
@@ -232,7 +232,7 @@ test("a tool that changes something at its service is ticked on its own on the p
   try {
     await openApp(page);
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByTestId("settings-ai-ext-add").click();
     const add = page.getByTestId("ai-ext-add");

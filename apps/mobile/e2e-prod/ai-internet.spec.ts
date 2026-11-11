@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * The internet on the phone (AI harness P4): a vault nobody decided about has
@@ -52,7 +52,7 @@ test("the internet is off for a fresh vault; the switch in its settings brings t
 
     // 2. The vault's AI settings: the switch is off, and no site can be added before it is on.
     await back();
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     const allow = page.getByRole("switch", { name: "The AI may use the internet in this vault" });
     await expect(allow).toHaveAttribute("aria-checked", "false");
@@ -89,7 +89,7 @@ test("the internet is off for a fresh vault; the switch in its settings brings t
 
     // 4. Switched off again, the choice is gone at once.
     await back();
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await allow.click();
     await expect(allow).toHaveAttribute("aria-checked", "false");

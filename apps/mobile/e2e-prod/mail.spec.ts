@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { installMailFixture } from "../scripts/screenshot-services.mjs";
-import { leaveApp, readVaultFile, returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { leaveApp, readVaultFile, returnToApp, waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Mail on the phone, against the locally routed Graph fixture (plan Befunde
@@ -310,7 +310,7 @@ test("remote images: the phone has the switch, and it does not reach into the ju
 
     // The switch — it was missing on the phone; the value could only arrive
     // through the settings sync.
-    await page.getByTestId("nav-settings").click();
+    await openSettings(page);
     await page.getByTestId("settings-area-mail").click();
     const row = page.getByTestId("mail-remote-images");
     await expect(row).toContainText("Always load remote images");
@@ -629,5 +629,73 @@ test("+ .eml gives a note filed before its raw copy, once", async ({ page, conte
     expect((await readVaultFile(page, `Mail/${note}`)).split(`[[Mail/${eml}]]`)).toHaveLength(2);
   } finally {
     await sql.close();
+  }
+});
+
+// Findings X3 and X9 (review 2026-11-10). X3: in the dark design every HTML
+// mail was a white sheet, also one that sets no colours of its own and reads
+// in the theme's colours like a plain-text mail. X9: Mail, opened from
+// "Areas", left "Home" lit in the bar.
+test("X9: Mail opened from Areas lights Areas in the bar, not Home", async ({ page, context }) => {
+  const { sql } = await bootMail(context, page);
+  try {
+    await expect(page.getByTestId("tab-areas")).toHaveClass(/is-active/);
+    await expect(page.locator(".m-tabbar .m-tab.is-active")).toHaveCount(1);
+  } finally {
+    sql.close();
+  }
+});
+
+test("X4: the reader's head writes its clock time in the device's cycle, without seconds", async ({ page, context }) => {
+  const { sql } = await bootMail(context, page);
+  try {
+    await openFolder(page, "Archiv");
+    await page.locator("button.m-mailrow", { hasText: "Ihre Rechnung" }).click();
+    // en-US here: it said "9/13/2026, 11:00:00 AM".
+    await expect(page.locator(".m-mailmeta-date")).toHaveText(/^\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{2}\s?[AP]M$/);
+  } finally {
+    sql.close();
+  }
+});
+
+test("X3: in the dark design a mail without colours of its own reads on the dark canvas", async ({ page, context }, testInfo) => {
+  const { sql } = await bootMail(context, page);
+  try {
+    // The dark design chosen in the app's settings: the app sets the theme on
+    // its own, and a test that only flips the attribute is overruled by it.
+    await page.evaluate(() => {
+      const key = "CapacitorStorage.mobile-settings";
+      localStorage.setItem(key, JSON.stringify({ ...JSON.parse(localStorage.getItem(key) ?? "{}"), themeMode: "dark", themeName: "petrol" }));
+    });
+    await page.reload();
+    await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });
+    await openMailArea(page);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await openFolder(page, "Archiv");
+    await page.locator("button.m-mailrow", { hasText: "Ihre Rechnung" }).click();
+    const frame = page.locator("iframe.m-mailframe");
+    await expect(frame).toBeVisible();
+    const colours = () => frame.evaluate((el: HTMLIFrameElement) => {
+      const body = el.contentDocument?.body;
+      const root = getComputedStyle(document.documentElement);
+      return {
+        body: body ? getComputedStyle(body).backgroundColor : "",
+        text: body ? getComputedStyle(body).color : "",
+        theme: root.getPropertyValue("--bg-primary").trim(),
+      };
+    });
+    // The frame's body takes the theme's background: not white.
+    await expect.poll(async () => (await colours()).body).not.toBe("rgb(255, 255, 255)");
+    const dark = await colours();
+    const luminance = (rgb: string) => {
+      const [r, g, b] = (rgb.match(/\d+/g) ?? ["255", "255", "255"]).map(Number);
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    expect(luminance(dark.body), "a dark canvas").toBeLessThan(80);
+    expect(luminance(dark.text), "light text on it").toBeGreaterThan(150);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-dark-canvas.png") });
+
+  } finally {
+    sql.close();
   }
 });

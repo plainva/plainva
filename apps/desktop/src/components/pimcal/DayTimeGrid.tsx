@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
-import { Button, ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, fillAllDayRoom, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
+import { Button, ICON, blockHeightPx, formatHourMark, formatMinuteOfDay, formatMinuteRange, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToPx, moveEventMinutes, nextLaneStartMin, fillAllDayRoom, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
@@ -595,8 +595,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
           {/* Hour gutter */}
           <div style={{ width: gutterWidth, flexShrink: 0, position: "relative" }}>
             {hours.map((h) => (
-              <div key={h} style={{ position: "absolute", top: h * pxPerHour, right: 6, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums" }}>
-                {h > 0 ? minutesToHHMM(h * 60) : ""}
+              <div key={h} data-testid="calendar-hour-label" style={{ position: "absolute", top: h * pxPerHour, right: 6, transform: "translateY(-50%)", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                {h > 0 ? formatHourMark(h, { language: locale }) : ""}
               </div>
             ))}
           </div>
@@ -632,7 +632,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   const e = drag.moved ? snapMinutes(pxToMinutes(top + height, pxPerHour)) : s + 30;
                   return (
                     <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--text-xs)", color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 4 }}>
-                      {minutesToHHMM(s)}–{minutesToHHMM(e)}
+                      {formatMinuteRange(s, e, { language: locale })}
                     </div>
                   );
                 })()}
@@ -643,7 +643,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   const height = Math.max(MIN_BLOCK_PX, minutesToPx(blockDrag.curEndMin - blockDrag.curStartMin, pxPerHour));
                   return (
                     <div style={{ position: "absolute", left: 2, right: 2, top, height, background: "var(--accent-soft)", border: "1.5px dashed var(--accent-color)", borderRadius: "var(--radius-xs)", display: "flex", alignItems: "flex-start", padding: "2px 5px", fontSize: "var(--text-xs)", color: "var(--accent-color)", fontWeight: 600, pointerEvents: "none", zIndex: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
-                      {minutesToHHMM(blockDrag.curStartMin)}–{minutesToHHMM(blockDrag.curEndMin)}
+                      {formatMinuteRange(blockDrag.curStartMin, blockDrag.curEndMin, { language: locale })}
                     </div>
                   );
                 })()}
@@ -830,7 +830,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                         {task.title}
                       </span>
                       <span style={{ marginInlineStart: "auto", flexShrink: 0, opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
-                        {minutesToHHMM(task.dueMinutes ?? 0)}
+                        {formatMinuteOfDay(task.dueMinutes ?? 0, { language: locale })}
                       </span>
                     </div>
                   );

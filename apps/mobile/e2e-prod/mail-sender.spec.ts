@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FIXTURE_SIGN_IN, fixtureAccessToken, installMailFixture } from "../scripts/screenshot-services.mjs";
-import { readVaultFile, waitForVaultDirectory } from "./exampleVault";
+import { readVaultFile, waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * A message is written from the mailbox it belongs to — on the phone (finding
@@ -192,7 +192,7 @@ test("the default mailbox: chosen in the settings, Mail opens on it and a new me
     await back(page);
     // The narrowest phone width the app is laid out for.
     await page.setViewportSize({ width: 360, height: 780 });
-    await page.getByTestId("nav-settings").click();
+    await openSettings(page);
     await page.getByTestId("settings-area-mail").click();
     // Without a choice the first mailbox is the default, and says so.
     await expect(page.getByTestId("mail-account-mail-fixture-1").getByTestId("mail-account-default")).toBeVisible();
