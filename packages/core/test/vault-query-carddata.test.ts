@@ -27,7 +27,8 @@ describe("VaultQueryService.getCardData", () => {
 
     // SQL pinning: exactly three chunk queries, IN placeholders, paths as params.
     expect(db.queries).toHaveLength(3);
-    expect(db.queries[0].query).toContain("SELECT path, content FROM fts_notes WHERE path IN (?,?)");
+    // From each file to its search row by number (index format 9), not a scan by path.
+    expect(db.queries[0].query).toContain("FROM files f JOIN fts_notes n ON n.rowid = (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) AND n.path = f.path WHERE f.path IN (?,?)");
     expect(db.queries[1].query).toContain("SELECT path, ctime FROM files WHERE path IN (?,?)");
     expect(db.queries[2].query).toContain("FROM tags t JOIN files f ON f.id = t.file_id WHERE f.path IN (?,?)");
     for (const q of db.queries) expect(q.params).toEqual(["Zettel/A.md", "Zettel/B.md"]);

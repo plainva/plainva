@@ -71,6 +71,14 @@ export interface CoreResult {
   /** The calibration loop of this run, ms (median of three: before, between, after). */
   calibrationMs: number;
   calibrationSamplesMs: number[];
+  /**
+   * A plain walk of the vault folder (every folder listed, every entry
+   * stat'ed), median of the walks taken right before each pass without
+   * changes: that pass is almost all file system, which the calibration loop
+   * does not see. On a machine where something else is reading the disk the
+   * two move together.
+   */
+  fsWalkMs: number;
   metrics: CoreMetrics;
   /** Other numbers worth keeping, not gated. */
   extra: Record<string, number>;
@@ -131,6 +139,18 @@ export async function calibrate(dir: string): Promise<number> {
   }
 }
 
+/** Lists every folder below `dir` and stats every entry, as a scan of the vault does. */
+async function walk(dir: string): Promise<number> {
+  let entries = 0;
+  for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    await fs.stat(full);
+    entries++;
+    if (entry.isDirectory()) entries += await walk(full);
+  }
+  return entries;
+}
+
 export interface CoreBenchmarkOptions {
   count: number;
   /** A fresh folder for the vault and the index; created when missing, must be empty. */
@@ -179,7 +199,11 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
   calibrationSamplesMs.push(await calibrate(options.root));
 
   const warm: number[] = [];
-  for (let k = 0; k < 3; k++) warm.push((await time(() => indexer.indexVaultFull()))[0]);
+  const walks: number[] = [];
+  for (let k = 0; k < 3; k++) {
+    walks.push((await time(() => walk(vaultPath)))[0]);
+    warm.push((await time(() => indexer.indexVaultFull()))[0]);
+  }
   log(`warm pass ${median(warm).toFixed(0)} ms`);
 
   // A save: a medium note of a project folder, rewritten 40 times.
@@ -242,6 +266,7 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
     shape,
     calibrationMs: round(median(calibrationSamplesMs)),
     calibrationSamplesMs: calibrationSamplesMs.map(round),
+    fsWalkMs: round(median(walks)),
     metrics: {
       coldIndexMs: round(coldIndexMs),
       warmIndexMs: round(median(warm)),

@@ -65,7 +65,7 @@ describe("Database Schema", () => {
     const queries = db.queries.map(q => q.query);
     const reset = queries.find(q => q.includes("UPDATE files SET mtime_local = 0"));
     expect(reset).toContain(`LIKE '%.md'`);
-    const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta"));
+    const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
     expect(stamp).toBeDefined();
     expect(stamp!.params).toEqual(["9"]);
   });

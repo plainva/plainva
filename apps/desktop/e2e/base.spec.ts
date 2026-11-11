@@ -468,7 +468,8 @@ test.beforeEach(async ({ page }) => {
           // Pinboard card data (plan Pinboard P2/P3): body from the FTS mirror
           // (read LIVE from mockFs so checkbox writes show up on re-query),
           // ctime from the files table, tags via the file join.
-          if (query.includes('FROM fts_notes WHERE path IN')) {
+          // Since index format 9 read from each file to its search row by number.
+          if (query.includes('FROM fts_notes WHERE path IN') || query.includes('JOIN fts_notes n ON n.rowid')) {
             return values
               .map((v: any) => {
                 const c = fs['/test-vault/' + v];

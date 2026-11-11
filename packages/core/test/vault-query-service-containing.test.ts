@@ -14,7 +14,8 @@ describe("VaultQueryService.notesContaining", () => {
     db.mockedResults.push([{ path: "Journal/Private.md" }, { path: "Projects/Kickoff.md" }]);
     expect(await qs.notesContaining(["Scan 1.png", "Scan%201.png"])).toEqual({ paths: ["Journal/Private.md", "Projects/Kickoff.md"], truncated: false });
     const q = db.queries.find((x) => x.query.includes("FROM fts_notes"))!;
-    expect(q.query.replace(/\s+/g, " ").trim()).toBe("SELECT path FROM fts_notes WHERE content LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\' ORDER BY path LIMIT ?");
+    // Only rows that belong to a file (index format 9, FULL_TEXT_ROW_IS_FILED).
+    expect(q.query.replace(/\s+/g, " ").trim()).toBe("SELECT path FROM fts_notes WHERE (content LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\') AND EXISTS (SELECT 1 FROM files f WHERE f.path = fts_notes.path AND (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) = fts_notes.rowid) ORDER BY path LIMIT ?");
     // The words themselves never stand in the statement, and what LIKE would read as a wildcard is escaped: a percent sign in a name is a percent sign.
     expect(q.params).toEqual(["%Scan 1.png%", "%Scan\\%201.png%", 201]);
   });

@@ -22,12 +22,10 @@ import { REPO, shippedSources } from "./test-sourceTree";
 const SCHEMA = join(REPO, "packages/core/src/db/Schema.ts");
 
 /** Writes that are meant to drop the children, each with its reason. */
-const ALLOWED: Record<string, string> = {
-  // The parse-failure fallback of the indexer: the file's content could not be
-  // parsed, so the links, tags and properties derived from its OLD content must
-  // go with the old row — they are rebuilt from the file on the next index.
-  "packages/core/src/vault/VaultIndexer.ts:files": "derived rows are rebuilt from the file",
-};
+// Empty since index format 9 (performance plan L1): the indexer's parse-failure
+// fallback deletes and inserts its `files` row instead of replacing it — a
+// REPLACE fires no delete trigger, and the file's full-text row stayed behind.
+const ALLOWED: Record<string, string> = {};
 
 function cascadeParents(schema: string): Set<string> {
   const parents = new Set<string>();

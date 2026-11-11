@@ -61,7 +61,8 @@ describe("VaultQueryService", () => {
     db.mockedResults.push([]);
     await queryService.searchFullText("projekt -review");
     const q = db.queries[0];
-    expect(q.query).toContain("f.path NOT IN (SELECT path FROM fts_notes WHERE fts_notes MATCH ?)");
+    // By the number the file names (index format 9): a stray row under the path excludes nothing.
+    expect(q.query).toContain("(CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) NOT IN (SELECT rowid FROM fts_notes WHERE fts_notes MATCH ?)");
     expect(q.params as any[]).toEqual(['"projekt"*', '"review"*', 50]);
   });
 
@@ -628,7 +629,7 @@ describe("VaultQueryService", () => {
     ]);
     const rows = await queryService.queryDatabaseFiles({ views: [{ type: "board", groupBy: "status" }] });
     expect(db.queries.length).toBe(3);
-    expect(db.queries[2].query).toContain("FROM fts_notes WHERE path IN (?,?)");
+    expect(db.queries[2].query).toContain("JOIN fts_notes n ON n.rowid = (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) AND n.path = f.path WHERE f.path IN (?,?)");
     expect(rows.find((r: any) => r["file.path"] === "Tasks/A.md")["file.tasks"]).toBe("1/2");
     expect(rows.find((r: any) => r["file.path"] === "Tasks/B.md")["file.tasks"]).toBe("");
 

@@ -26,6 +26,7 @@ import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./fi
 import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
+import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
 import { buildLinkTargetIndex, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
@@ -97,7 +98,9 @@ function operatorClauses(parsed: ParsedSearchQuery): { where: string[]; params: 
   const where: string[] = [];
   const params: unknown[] = [];
   if (parsed.notMatch !== null) {
-    where.push(`f.path NOT IN (SELECT path FROM fts_notes WHERE fts_notes MATCH ?)`);
+    // By the number the file names (index format 9): a row an older build left
+    // under the path of a note never excludes that note.
+    where.push(`${fullTextRowOf("f")} NOT IN (SELECT rowid FROM fts_notes WHERE fts_notes MATCH ?)`);
     params.push(parsed.notMatch);
   }
   for (const p of parsed.paths) {
@@ -255,7 +258,9 @@ export class VaultQueryService {
       select = `f.id, f.path, f.title, f.mtime_local, f.size_bytes,
         snippet(fts_notes, 0, char(1), char(2), '…', 12) AS snippet,
         highlight(fts_notes, 1, char(1), char(2)) AS titleHighlighted`;
-      from = `fts_notes fn JOIN files f ON f.path = fn.path`;
+      // The row of the file: same path, and the number the file names (index
+      // format 9, db/fullTextRows.ts).
+      from = `fts_notes fn JOIN files f ON f.path = fn.path AND fn.rowid = ${fullTextRowOf("f")}`;
       where.push(`fts_notes MATCH ?`);
       params.push(parsed.match);
       // Title hits outrank body hits (fts_notes column order: content, title,
@@ -283,7 +288,7 @@ export class VaultQueryService {
     params.push(...operators.params);
 
     const sql = `
-      SELECT ${select}${includeSource ? ", (SELECT content FROM fts_notes WHERE path = f.path LIMIT 1) AS sourceContent" : ""}
+      SELECT ${select}${includeSource ? `, ${parsed.match !== null ? "fn.content" : `(SELECT content FROM fts_notes WHERE rowid = ${fullTextRowOf("f")} AND path = f.path)`} AS sourceContent` : ""}
       FROM ${from}
       WHERE ${where.join(" AND ")}
       ORDER BY ${orderBy}, f.path ASC
@@ -429,7 +434,7 @@ export class VaultQueryService {
       `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local,
          -bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0) AS score,
          snippet(fts_notes, 0, char(1), char(2), '…', 16) AS snippet
-       FROM fts_notes fn JOIN files f ON f.path = fn.path
+       FROM fts_notes fn JOIN files f ON f.path = fn.path AND fn.rowid = ${fullTextRowOf("f")}
        WHERE fts_notes MATCH ? AND (f.is_deleted IS NULL OR f.is_deleted = 0)
        ORDER BY bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0), f.path ASC
        LIMIT ?`,
@@ -658,11 +663,13 @@ export class VaultQueryService {
    * document-order ordinal that toggleTaskAtIndex needs to flip it back.
    */
   async listTasks(): Promise<TaskRecord[]> {
-    // `rowid DESC`: in the order the notes came into the index, as before
-    // index format 9 numbered the rows after their files (`-files.rowid`).
-    // The other readers of the whole table below keep the same order.
+    // Only rows that belong to a file (FULL_TEXT_ROW_IS_FILED). `rowid DESC`:
+    // the rows this build writes are numbered `-files.rowid`, so this is the
+    // order the notes came into the index, as it was before index format 9;
+    // rows kept from an older index keep their own numbers (fullTextRows.ts).
+    // The other readers of the whole table below read the same way.
     const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
-      `SELECT path, title, content FROM fts_notes ORDER BY rowid DESC`,
+      `SELECT path, title, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
     const out: TaskRecord[] = [];
@@ -701,7 +708,7 @@ export class VaultQueryService {
    */
   async listTemplateKeyNotes(): Promise<Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }>> {
     const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
-      `SELECT path, title, content FROM fts_notes WHERE content LIKE '%templateFor%' OR content LIKE '%tasks%' ORDER BY rowid DESC`,
+      `SELECT path, title, content FROM fts_notes WHERE (content LIKE '%templateFor%' OR content LIKE '%tasks%') AND ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
     const out: Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }> = [];
@@ -728,8 +735,9 @@ export class VaultQueryService {
     for (let i = 0; i < paths.length; i += chunkSize) {
       const chunk = paths.slice(i, i + chunkSize);
       const placeholders = chunk.map(() => "?").join(",");
+      // From each file to its row by number (index format 9): no scan.
       const contentRows = await this.db.query<{ path: string; content: string | null }>(
-        `SELECT path, content FROM fts_notes WHERE path IN (${placeholders})`,
+        `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${placeholders})`,
         chunk,
       );
       for (const r of contentRows) {
@@ -765,7 +773,7 @@ export class VaultQueryService {
       if (signal?.aborted) throw new DOMException("Search cancelled", "AbortError");
       const chunk = unique.slice(i, i + 200);
       const rows = await this.db.query<{ path: string; content: string | null }>(
-        `SELECT path, content FROM fts_notes WHERE path IN (${chunk.map(() => "?").join(",")}) ORDER BY rowid DESC`, chunk,
+        `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${chunk.map(() => "?").join(",")}) ORDER BY n.rowid DESC`, chunk,
       );
       for (const row of rows) {
         const body = (row.content ?? "").replace(/^\uFEFF?---[ \t]*\r?\n(?:[\s\S]*?\r?\n)??(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/, "");
@@ -783,7 +791,7 @@ export class VaultQueryService {
       const chunk = paths.slice(i, i + chunkSize);
       const placeholders = chunk.map(() => "?").join(",");
       const contentRows = await this.db.query<{ path: string; content: string | null }>(
-        `SELECT path, content FROM fts_notes WHERE path IN (${placeholders})`,
+        `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${placeholders})`,
         chunk,
       );
       for (const r of contentRows) {
@@ -819,11 +827,15 @@ export class VaultQueryService {
   async findInVault(query: string, opts: FindReplaceOptions = {}, limitPerNote = 100): Promise<VaultFindResult[]> {
     if (!query) return [];
     const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
-      `SELECT path, title, content FROM fts_notes ORDER BY rowid DESC`,
+      `SELECT path, title, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
     const out: VaultFindResult[] = [];
+    // One entry per note, whatever the index holds: a replace plans each note once.
+    const seen = new Set<string>();
     for (const r of rows) {
+      if (seen.has(r.path)) continue;
+      seen.add(r.path);
       // Replace across the vault never reaches into a file the user does not see (E8).
       if (!r.path || isHiddenPath(r.path)) continue;
       const matches = findMatchesInText(r.content ?? "", query, opts);
@@ -845,7 +857,7 @@ export class VaultQueryService {
    */
   async findNotesWithTag(tag: string): Promise<string[]> {
     const rows = await this.db.query<{ path: string; content: string | null }>(
-      `SELECT path, content FROM fts_notes ORDER BY rowid DESC`,
+      `SELECT path, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
     const out: string[] = [];
@@ -948,7 +960,7 @@ export class VaultQueryService {
     const wanted = [...new Set(needles.filter((needle) => needle.length > 0))].slice(0, 8);
     if (wanted.length === 0) return { paths: [], truncated: false };
     const rows = await this.db.query<{ path: string }>(
-      `SELECT path FROM fts_notes WHERE ${wanted.map(() => "content LIKE ? ESCAPE '\\'").join(" OR ")} ORDER BY path LIMIT ?`,
+      `SELECT path FROM fts_notes WHERE (${wanted.map(() => "content LIKE ? ESCAPE '\\'").join(" OR ")}) AND ${FULL_TEXT_ROW_IS_FILED} ORDER BY path LIMIT ?`,
       [...wanted.map((needle) => `%${needle.replace(/[\\%_]/g, "\\$&")}%`), limit + 1],
     );
     const paths = [...new Set(rows.map((row) => row.path))];

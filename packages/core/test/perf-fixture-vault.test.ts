@@ -59,6 +59,7 @@ describe("the core gate's verdict", () => {
     shape: {},
     calibrationMs,
     calibrationSamplesMs: [calibrationMs],
+    fsWalkMs: calibrationMs / 2,
     metrics: { coldIndexMs: 30_000, warmIndexMs: 400, saveP50Ms: 8, saveP95Ms: 12, searchMs: 20, listTasksMs: 400, dbBytes: 60_000_000, ...metrics },
     extra: {},
     boundary: "",

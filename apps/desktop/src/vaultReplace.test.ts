@@ -36,6 +36,23 @@ const deps = (files: Record<string, string>) => {
 };
 
 describe("runVaultReplace", () => {
+  // A preview that names a note twice (an index an older build left with two
+  // rows for it, Gesamtplan Leistung L1) writes that note once: the
+  // replacement is computed from the note as it is, and a second pass would
+  // replace in the replaced text.
+  it("writes a note the preview names twice once, from its current text", async () => {
+    const { io, written } = deps({ "a.md": "plan" });
+    const res = await runVaultReplace(io, {
+      results: [result("a.md"), result("a.md")],
+      selected: new Set(["a.md"]),
+      query: "plan",
+      replacement: "plans",
+    });
+    expect(res).toMatchObject({ notes: 1, hits: 1, skipped: [], cancelled: false });
+    expect(written).toEqual({ "a.md": "plans" });
+    expect(io.writeTextFile).toHaveBeenCalledTimes(1);
+  });
+
   it("writes only the selected notes", async () => {
     const { io, written } = deps({ "a.md": "alpha", "b.md": "alpha" });
     const res = await runVaultReplace(io, {

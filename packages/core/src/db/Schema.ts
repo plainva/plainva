@@ -4,7 +4,7 @@ import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
 import { mergeWorkspaceQueueCopies } from "./workspaceQueueCopies.js";
 import { markNotesForWikiLinkReading } from "./wikiLinkReadingMigration.js";
 import { runStatementsAtomic } from "./batch.js";
-import { FIRST_ROWID_BEFORE } from "./fullTextRows.js";
+import { FIRST_ROWID_BEFORE, UNNUMBERED_FLAG } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 
 /**
@@ -12,8 +12,8 @@ import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
  * (tasks overview, graph); `seg_content`/`seg_title` hold the character-pair
  * form of text written without spaces (vault/spacelessText.ts, format 5).
  * `content`, `title` and `path` stay in front — inserts that name only those
- * keep working, and so does an older app on a newer index. Since format 9 a
- * row's number is the negated number of its file's row (db/fullTextRows.ts).
+ * keep working, and so does an older app on a newer index. Since format 9 the
+ * `files` row names its full-text row (`files.fts_rowid`, db/fullTextRows.ts).
  */
 const FTS_NOTES_COLUMNS = `content,
       title,
@@ -661,7 +661,28 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   // is created without property_key, so this index cannot live in schemaQueries.
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_links_property ON links(property_key, target_path);`);
 
+  // Index format 9 (db/fullTextRows.ts): the `files` row names its full-text
+  // row, a deleted file takes its row with it, and an insert by a build that
+  // does not know the column raises the flag the next start answers.
+  try {
+    await db.execute(`ALTER TABLE files ADD COLUMN fts_rowid INTEGER`);
+  } catch {
+    // Column already exists
+  }
   await migrateIndexFormat(db);
+  // After the migration: the copy of version 5 renames the table, which a
+  // trigger naming it would refuse while it is gone.
+  await db.execute(
+    `CREATE TRIGGER IF NOT EXISTS files_takes_its_full_text_row AFTER DELETE ON files BEGIN
+       DELETE FROM fts_notes WHERE rowid = (CASE OLD.fts_rowid WHEN 0 THEN -OLD.rowid ELSE OLD.fts_rowid END);
+     END`
+  );
+  await db.execute(
+    `CREATE TRIGGER IF NOT EXISTS files_written_by_older_index AFTER INSERT ON files WHEN NEW.fts_rowid IS NULL BEGIN
+       INSERT OR REPLACE INTO meta (key, value) VALUES ('${UNNUMBERED_FLAG}', '1');
+     END`
+  );
+
   // Paths are NFC identities since ADR 0016; re-keys what older versions stored.
   await migratePathIdentity(db);
   // Files an older version synced as text although their bytes are not UTF-8
@@ -713,14 +734,12 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 // note that begins with a block and that the index holds no property for is
 // re-parsed, and no other.
 //
-// Version 9 numbers every full-text row after its file (Gesamtplan Leistung
-// L1, db/fullTextRows.ts): `fts_notes.rowid = -files.rowid`, so a note's row
-// is deleted and replaced by its number instead of by a search over the whole
-// table. Nothing is re-parsed: the table is copied under the new numbers
-// (`keyFullTextRowsByFile`), as version 5 copied it into its new shape. The
-// same copy runs at every start that finds a row an older app wrote (a row at
-// 0 or above, see fullTextRows.ts), so a downgrade and back costs one copy
-// and no lost search row.
+// Version 9 lets the `files` row name its full-text row (Gesamtplan Leistung
+// L1, db/fullTextRows.ts), so a note's row is deleted and replaced by its
+// number instead of by a search over the whole table. Nothing is re-parsed
+// and no text is tokenized again: `numberFullTextRows` records the number
+// every row already has. It runs again at a start after an older build wrote
+// to the index (the flag its inserts raise).
 const INDEX_FORMAT_VERSION = 9;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
@@ -735,8 +754,9 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
     stored = 0;
   }
   if (stored >= INDEX_FORMAT_VERSION) {
-    // Only what an older app may have left on this index since (version 9).
-    await keyFullTextRowsByFile(db);
+    // Only what an older build may have left on this index since (version 9).
+    const flagged = await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [UNNUMBERED_FLAG]);
+    if (flagged) await numberFullTextRowsOrRebuild(db);
     return;
   }
 
@@ -771,9 +791,9 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
     await db.execute(`UPDATE files SET ctime = mtime_local WHERE ctime IS NULL`);
     await db.execute(`UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'`);
   }
-  // Version 9: the full-text rows under the numbers of their files. Last, so
-  // the steps above read the table as they always did.
-  await keyFullTextRowsByFile(db);
+  // Version 9: every `files` row names its full-text row. Last, so the steps
+  // above read the table as they always did.
+  await numberFullTextRowsOrRebuild(db);
   await db.execute(
     `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`,
     [String(INDEX_FORMAT_VERSION)]
@@ -791,6 +811,10 @@ const rowValue = (row: unknown, key: string): unknown =>
  * the copy then takes its place.
  */
 async function upgradeFullTextTable(db: IDatabaseAdapter): Promise<void> {
+  // An index this old has no triggers of format 9; should one be there, it
+  // would refuse the rename below (initializeSchema creates them afterwards).
+  await db.execute(`DROP TRIGGER IF EXISTS files_takes_its_full_text_row`);
+  await db.execute(`DROP TRIGGER IF EXISTS files_written_by_older_index`);
   const columns = new Set(
     (await db.query(`PRAGMA table_info(fts_notes)`)).map((row) => String(rowValue(row, "name") ?? ""))
   );
@@ -844,60 +868,139 @@ async function fillSegmentedColumns(db: IDatabaseAdapter): Promise<void> {
   }
 }
 
-const COPY_COLUMNS = "content, title, path, seg_content, seg_title";
+/** Where a failed numbering of the full-text rows is recorded (`meta`, read by the diagnostics). */
+export const FULL_TEXT_NUMBERING_DIAGNOSTIC = "index-diagnostic:fts-numbering";
+
+const CHUNK = 400;
+const chunks = <T,>(items: readonly T[]): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += CHUNK) out.push(items.slice(i, i + CHUNK));
+  return out;
+};
 
 /**
- * Index format 9 (db/fullTextRows.ts): gives every full-text row the negated
- * number of its file's row, by a copy — no note is read again. Runs at every
- * start and costs one look-up when there is nothing to do: rows at 0 or
- * above are the ones to number, written by an app before format 9 (all rows
- * of an index that comes from one, or the rows an older app wrote after a
- * downgrade).
+ * What `numberFullTextRows` writes for an index: which number each file names,
+ * which rows go, which move. Pure, so a test can read it from rows.
  *
- * - The copy takes the rows that already carry their file's number, then
- *   numbers the others by their path; a later row of one path replaces an
- *   earlier one (the older app deleted by path before it wrote, so the later
- *   row is the current text). A row whose path no file has is left behind:
- *   it belonged to nothing, search never showed it.
- * - Copy, drop and rename run as one batch: an interrupted run leaves the
- *   table as it was, and the next start copies again. Where an adapter has no
- *   batch and the run stopped between drop and rename, initializeSchema has
- *   recreated an empty table meanwhile and the copy takes its place, as in
- *   version 5 (`upgradeFullTextTable`).
- * - An older app on the new index keeps working: the columns are the same,
- *   it reads and deletes by path, and its writes are numbered here next time.
+ * - Per path the one row to keep: the one the file names, when the file names
+ *   one this build wrote; else the highest number (an older build deletes a
+ *   path's rows before it writes, and SQLite numbers its insert above every
+ *   row there is — so the highest is the latest text).
+ * - A kept row at 0 or above keeps its number and the file records it (a row
+ *   of an index from before format 9; this build never writes there). A kept
+ *   row below 0 that is not at `-files.rowid` moves there: an older build
+ *   numbered it on top of the table after this build's rows. No other row can
+ *   sit at that number — it would belong to the same file.
+ * - Rows of a path no file has, and the rows not kept, go.
  */
-async function keyFullTextRowsByFile(db: IDatabaseAdapter): Promise<void> {
-  const copy = await db.queryOne(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fts_notes_next'`);
-  if (copy) {
-    const count = Number(rowValue(await db.queryOne(`SELECT count(*) AS n FROM fts_notes`), "n") ?? 0);
-    await runStatementsAtomic(
-      db,
-      count === 0
-        ? [{ sql: `DROP TABLE fts_notes` }, { sql: `ALTER TABLE fts_notes_next RENAME TO fts_notes` }]
-        : [{ sql: `DROP TABLE fts_notes_next` }]
+export function planFullTextNumbering(
+  rows: readonly { rowid: number; path: string }[],
+  files: readonly { rowid: number; path: string; fts_rowid: number | null }[],
+): { explicit: { path: string; num: number }[]; drop: number[]; move: number[] } {
+  const fileByPath = new Map(files.map((f) => [f.path, f]));
+  const byPath = new Map<string, number[]>();
+  const drop: number[] = [];
+  for (const row of rows) {
+    if (!fileByPath.has(row.path)) drop.push(row.rowid);
+    else byPath.set(row.path, [...(byPath.get(row.path) ?? []), row.rowid]);
+  }
+  const explicit: { path: string; num: number }[] = [];
+  const move: number[] = [];
+  for (const [path, numbers] of byPath) {
+    const file = fileByPath.get(path)!;
+    const named = file.fts_rowid === null ? null : file.fts_rowid === 0 ? -file.rowid : file.fts_rowid;
+    const keep = named !== null && numbers.includes(named) ? named : Math.max(...numbers);
+    for (const n of numbers) if (n !== keep) drop.push(n);
+    if (keep === -file.rowid) continue;
+    if (keep >= 0) explicit.push({ path, num: keep });
+    else move.push(keep);
+  }
+  return { explicit, drop, move };
+}
+
+/**
+ * Index format 9 (db/fullTextRows.ts): every `files` row names its full-text
+ * row. Reads the number and path of every row once (no text is tokenized) and
+ * writes, in one batch: the numbers the files name (`fts_rowid`), the rows
+ * that go, the few rows an older build numbered among this build's that move
+ * to `-files.rowid`, the version, and the flag cleared. An interrupted batch
+ * leaves the index as it was, and the next start does it again.
+ */
+async function numberFullTextRows(db: IDatabaseAdapter): Promise<void> {
+  // Only an adapter without a batch can leave this behind, half way through
+  // a move: its rows are no longer in the table.
+  if (await db.queryOne(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fts_moving'`)) {
+    throw new Error("an earlier numbering of the full-text rows stopped half way");
+  }
+  const rows = (await db.query(`SELECT rowid, path FROM fts_notes`)).map((r) => ({ rowid: Number(rowValue(r, "rowid")), path: String(rowValue(r, "path") ?? "") }));
+  const files = (await db.query(`SELECT rowid, path, fts_rowid FROM files`)).map((r) => {
+    const named = rowValue(r, "fts_rowid");
+    return { rowid: Number(rowValue(r, "rowid")), path: String(rowValue(r, "path") ?? ""), fts_rowid: named === null || named === undefined ? null : Number(named) };
+  });
+  const plan = planFullTextNumbering(rows, files);
+  const statements: { sql: string; params?: unknown[] }[] = [
+    { sql: `DROP TABLE IF EXISTS fts_number_map` },
+    { sql: `CREATE TABLE fts_number_map (path TEXT PRIMARY KEY, num INTEGER NOT NULL)` },
+    ...chunks(plan.explicit).map((part) => ({
+      sql: `INSERT INTO fts_number_map (path, num) VALUES ${part.map(() => "(?, ?)").join(", ")}`,
+      params: part.flatMap((e) => [e.path, e.num]),
+    })),
+    { sql: `UPDATE files SET fts_rowid = coalesce((SELECT num FROM fts_number_map m WHERE m.path = files.path), 0)` },
+    { sql: `DROP TABLE fts_number_map` },
+    ...chunks(plan.drop).map((part) => ({ sql: `DELETE FROM fts_notes WHERE rowid IN (${part.map(() => "?").join(", ")})`, params: part })),
+  ];
+  if (plan.move.length > 0) {
+    statements.push({ sql: `CREATE TABLE fts_moving (path TEXT, content TEXT, title TEXT, seg_content TEXT, seg_title TEXT)` });
+    for (const part of chunks(plan.move)) {
+      const marks = part.map(() => "?").join(", ");
+      statements.push(
+        { sql: `INSERT INTO fts_moving SELECT path, content, title, seg_content, seg_title FROM fts_notes WHERE rowid IN (${marks})`, params: part },
+        { sql: `DELETE FROM fts_notes WHERE rowid IN (${marks})`, params: part },
+      );
+    }
+    statements.push(
+      {
+        sql: `INSERT OR REPLACE INTO fts_notes (rowid, content, title, path, seg_content, seg_title)
+          SELECT -f.rowid, m.content, m.title, m.path, m.seg_content, m.seg_title FROM fts_moving m JOIN files f ON f.path = m.path`,
+      },
+      { sql: `DROP TABLE fts_moving` },
     );
   }
-  if (!(await db.queryOne(`SELECT rowid FROM fts_notes WHERE rowid >= 0 LIMIT 1`))) return;
-  await runStatementsAtomic(db, [
-    { sql: `DROP TABLE IF EXISTS fts_notes_next` },
-    { sql: `CREATE VIRTUAL TABLE fts_notes_next USING fts5(${FTS_NOTES_COLUMNS})` },
-    // CROSS JOIN keeps the search table outside: one pass over it, a look-up
-    // in `files` by its path index for each row.
-    {
-      sql: `INSERT OR REPLACE INTO fts_notes_next (rowid, ${COPY_COLUMNS})
-        SELECT n.rowid, n.content, n.title, n.path, n.seg_content, n.seg_title
-        FROM fts_notes n CROSS JOIN files f ON f.path = n.path
-        WHERE n.rowid < 0 AND f.rowid = -n.rowid`,
-    },
-    {
-      sql: `INSERT OR REPLACE INTO fts_notes_next (rowid, ${COPY_COLUMNS})
-        SELECT -f.rowid, n.content, n.title, n.path, n.seg_content, n.seg_title
-        FROM fts_notes n CROSS JOIN files f ON f.path = n.path
-        WHERE n.rowid >= 0
-        ORDER BY n.rowid`,
-    },
-    { sql: `DROP TABLE fts_notes` },
-    { sql: `ALTER TABLE fts_notes_next RENAME TO fts_notes` },
-  ]);
+  statements.push(
+    { sql: `DELETE FROM meta WHERE key = ?`, params: [UNNUMBERED_FLAG] },
+    { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`, params: [String(INDEX_FORMAT_VERSION)] },
+  );
+  await runStatementsAtomic(db, statements);
+}
+
+/**
+ * A numbering that fails never keeps a vault from opening: the full-text
+ * table is then dropped and made anew, every note is handed to the next full
+ * pass, and the failure is recorded under {@link FULL_TEXT_NUMBERING_DIAGNOSTIC}.
+ * Search is empty until that pass has read the notes again — the price of an
+ * index that could not be trusted. Should even that fail, the open goes on.
+ */
+async function numberFullTextRowsOrRebuild(db: IDatabaseAdapter): Promise<void> {
+  try {
+    await numberFullTextRows(db);
+    return;
+  } catch (error) {
+    console.error("[index] numbering the full-text rows failed; the full-text index is built anew", error);
+    const record = JSON.stringify({ at: new Date().toISOString(), error: String(error instanceof Error ? error.message : error) });
+    try {
+      await runStatementsAtomic(db, [
+        { sql: `DROP TABLE IF EXISTS fts_number_map` },
+        { sql: `DROP TABLE IF EXISTS fts_moving` },
+        { sql: `DROP TABLE IF EXISTS fts_notes` },
+        { sql: `CREATE VIRTUAL TABLE fts_notes USING fts5(${FTS_NOTES_COLUMNS})` },
+        { sql: `UPDATE files SET fts_rowid = 0` },
+        { sql: `UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'` },
+        { sql: `DELETE FROM meta WHERE key = ?`, params: [UNNUMBERED_FLAG] },
+        { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)`, params: [FULL_TEXT_NUMBERING_DIAGNOSTIC, record] },
+        { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`, params: [String(INDEX_FORMAT_VERSION)] },
+      ]);
+    } catch (fallback) {
+      console.error("[index] building the full-text index anew failed too; the vault opens without it", fallback);
+    }
+  }
 }

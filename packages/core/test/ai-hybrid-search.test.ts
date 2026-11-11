@@ -31,10 +31,10 @@ describe("search by words, by meaning, or by both", () => {
     let mtime = 1000;
     for (const [path, note] of Object.entries(NOTES)) {
       const title = path.replace(/^.*\//, "").replace(/\.md$/, "");
-      await db.execute(`INSERT INTO files (id, path, title, sha256, mtime_local, mode) VALUES (?, ?, ?, ?, ?, 'obsidian')`, [
+      await db.execute(`INSERT INTO files (id, path, title, sha256, mtime_local, mode, fts_rowid) VALUES (?, ?, ?, ?, ?, 'obsidian', 0)`, [
         path, path, title, sha256Hex(utf8Encode(note.content)), mtime++,
       ]);
-      await db.execute(`INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES (?, ?, ?, '', '')`, [note.content, title, path]);
+      await db.execute(`INSERT INTO fts_notes (rowid, content, title, path, seg_content, seg_title) VALUES (-(SELECT rowid FROM files WHERE path = ?), ?, ?, ?, '', '')`, [path, note.content, title, path]);
       for (const tag of note.tags ?? []) await db.execute(`INSERT INTO tags (file_id, tag) VALUES (?, ?)`, [path, tag]);
     }
     const readText = async (path: string) => NOTES[path]?.content ?? null;

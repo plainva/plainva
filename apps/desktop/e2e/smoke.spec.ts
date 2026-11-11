@@ -2471,9 +2471,10 @@ test('Creating from another tab switches to Files instead of vanishing', async (
 test('Search occurrences: real SQLite pages, heading context and exact reader jumps', async ({ page }) => {
   const text = '# Record\n\n## First\nneedle first\n\n## Second\nneedle second\n\n' + Array.from({ length: 53 }, (_, i) => `needle extra ${i}`).join('\n\n');
   const sql = new DatabaseSync(':memory:');
-  sql.exec('CREATE TABLE files (id TEXT, path TEXT, title TEXT, mtime_local INTEGER, size_bytes INTEGER); CREATE VIRTUAL TABLE fts_notes USING fts5(content,title,path UNINDEXED)');
-  sql.prepare('INSERT INTO files VALUES (?,?,?,?,?)').run('record', 'Record.md', 'Record', 1, text.length);
-  sql.prepare('INSERT INTO fts_notes VALUES (?,?,?)').run(text, 'Record', 'Record.md');
+  // The file row names its search row, as since index format 9 (db/fullTextRows.ts).
+  sql.exec('CREATE TABLE files (id TEXT, path TEXT, title TEXT, mtime_local INTEGER, size_bytes INTEGER, is_deleted INTEGER, fts_rowid INTEGER); CREATE VIRTUAL TABLE fts_notes USING fts5(content,title,path UNINDEXED)');
+  sql.prepare('INSERT INTO files (id, path, title, mtime_local, size_bytes, fts_rowid) VALUES (?,?,?,?,?,0)').run('record', 'Record.md', 'Record', 1, text.length);
+  sql.prepare('INSERT INTO fts_notes (rowid, content, title, path) VALUES (-(SELECT rowid FROM files WHERE path = ?),?,?,?)').run('Record.md', text, 'Record', 'Record.md');
   await page.exposeFunction('__occurrenceQuery', (query: string, params: unknown[]) => sql.prepare(query).all(...params as never[]));
   await page.addInitScript((text) => {
     (window as any).mockFs['/test-vault/Record.md'] = text;
@@ -2520,9 +2521,9 @@ test('Search occurrences: real SQLite pages, heading context and exact reader ju
 test('Search finds a Japanese word in the middle of a sentence and jumps to it', async ({ page }) => {
   const text = '# 議事録\n\n今日は会議の議事録を書いた。来週の打ち合わせも。\n';
   const sql = new DatabaseSync(':memory:');
-  sql.exec('CREATE TABLE files (id TEXT, path TEXT, title TEXT, mtime_local INTEGER, size_bytes INTEGER); CREATE VIRTUAL TABLE fts_notes USING fts5(content,title,path UNINDEXED,seg_content,seg_title)');
-  sql.prepare('INSERT INTO files VALUES (?,?,?,?,?)').run('minutes', 'Minutes.md', 'Minutes', 1, text.length);
-  sql.prepare('INSERT INTO fts_notes VALUES (?,?,?,?,?)').run(text, 'Minutes', 'Minutes.md', segmentedIndexText(text), '');
+  sql.exec('CREATE TABLE files (id TEXT, path TEXT, title TEXT, mtime_local INTEGER, size_bytes INTEGER, is_deleted INTEGER, fts_rowid INTEGER); CREATE VIRTUAL TABLE fts_notes USING fts5(content,title,path UNINDEXED,seg_content,seg_title)');
+  sql.prepare('INSERT INTO files (id, path, title, mtime_local, size_bytes, fts_rowid) VALUES (?,?,?,?,?,0)').run('minutes', 'Minutes.md', 'Minutes', 1, text.length);
+  sql.prepare('INSERT INTO fts_notes (rowid, content, title, path, seg_content, seg_title) VALUES (-(SELECT rowid FROM files WHERE path = ?),?,?,?,?,?)').run('Minutes.md', text, 'Minutes', 'Minutes.md', segmentedIndexText(text), '');
   await page.exposeFunction('__occurrenceQuery', (query: string, params: unknown[]) => sql.prepare(query).all(...params as never[]));
   await page.addInitScript((text) => {
     (window as any).mockFs['/test-vault/Minutes.md'] = text;

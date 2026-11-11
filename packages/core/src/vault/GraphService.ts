@@ -4,6 +4,7 @@ import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { ftsExactTerm } from "./ftsQuery.js";
+import { fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
 import { isSpacelessChar, wordBoundedPattern } from "./spacelessText.js";
 
 /**
@@ -698,7 +699,7 @@ export class GraphService {
         if (!expression) continue;
         const rows = await this.db.query<{ path: string }>(
           // In the order the notes came into the index (see listTasks).
-          `SELECT path FROM fts_notes WHERE fts_notes MATCH ? ORDER BY rowid DESC`,
+          `SELECT path FROM fts_notes WHERE fts_notes MATCH ? AND ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
           [expression]
         );
         for (const r of rows) {
@@ -709,8 +710,9 @@ export class GraphService {
 
       // (b) Which foreign titles appear inside the focused note's own text?
       const contentRow = await this.db.queryOne<{ content: string | null }>(
-        `SELECT content FROM fts_notes WHERE path = ?`,
-        [opts.forPath]
+        // By the number the file names (index format 9): no scan.
+        `SELECT content FROM fts_notes WHERE rowid = (SELECT ${fullTextRowOf("f")} FROM files f WHERE f.path = ?) AND path = ?`,
+        [opts.forPath, opts.forPath]
       );
       const content = ((contentRow as any)?.content ?? (contentRow as any)?.CONTENT ?? "") as string;
       if (content) {
@@ -745,7 +747,7 @@ export class GraphService {
       const expression = ftsExactTerm(term);
       if (!expression) continue;
       const rows = await this.db.query<{ path: string }>(
-        `SELECT path FROM fts_notes WHERE fts_notes MATCH ? ORDER BY rowid DESC`,
+        `SELECT path FROM fts_notes WHERE fts_notes MATCH ? AND ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
         [expression]
       );
       for (const r of rows) {

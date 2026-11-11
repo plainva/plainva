@@ -20,6 +20,9 @@
  *   the platform and CPU when it is not set — and compared only there. An
  *   environment without a baseline gets the measurement and a warning, never
  *   a verdict: a guessed baseline would make the gate fail or pass at random.
+ * - The pass without changes is almost all file system, which the loop does
+ *   not see: it is divided by a plain walk of the vault folder measured right
+ *   before it in the same run (`fsWalkMs`) instead.
  * - A small time moves by more than 25 % for nothing; a metric only fails
  *   when it is also worse by its floor in absolute terms (`FLOOR_MS`).
  * - The index size is a byte count, compared as it is.
@@ -47,13 +50,18 @@ const FLOOR_MS: Record<Exclude<keyof CoreMetrics, "dbBytes">, number> = {
   listTasksMs: 30,
 };
 
+/** What each time is divided by: the walk of the folder for the pass without changes, the loop for the rest. */
+const scale = (result: CoreResult, key: keyof typeof FLOOR_MS): number =>
+  key === "warmIndexMs" && result.fsWalkMs ? result.fsWalkMs : result.calibrationMs;
+
 export interface EnvironmentBaseline {
   recorded: string;
   commit?: string;
   node: string;
   cpu: string;
   calibrationMs: number;
-  /** Each time divided by the run's calibration. */
+  fsWalkMs?: number;
+  /** Each time divided by the run's calibration (the pass without changes: by the walk of the folder). */
   ratios: Record<string, number>;
   /** The same times in milliseconds, for reading only. */
   ms: Record<string, number>;
@@ -76,7 +84,7 @@ export function toBaseline(result: CoreResult, commit?: string): EnvironmentBase
   const ratios: Record<string, number> = {};
   const ms: Record<string, number> = {};
   for (const key of Object.keys(FLOOR_MS) as (keyof typeof FLOOR_MS)[]) {
-    ratios[key] = Number((result.metrics[key] / result.calibrationMs).toFixed(5));
+    ratios[key] = Number((result.metrics[key] / scale(result, key)).toFixed(5));
     ms[key] = result.metrics[key];
   }
   return {
@@ -85,6 +93,7 @@ export function toBaseline(result: CoreResult, commit?: string): EnvironmentBase
     node: result.meta.node,
     cpu: result.meta.cpu,
     calibrationMs: result.calibrationMs,
+    fsWalkMs: result.fsWalkMs,
     ratios,
     ms,
     dbBytes: result.metrics.dbBytes,
@@ -100,9 +109,9 @@ export function judge(baseline: EnvironmentBaseline, result: CoreResult, toleran
   for (const key of Object.keys(FLOOR_MS) as (keyof typeof FLOOR_MS)[]) {
     const base = baseline.ratios[key];
     if (base === undefined) continue;
-    const now = result.metrics[key] / result.calibrationMs;
+    const now = result.metrics[key] / scale(result, key);
     // What the baseline's ratio comes to on this run's machine speed.
-    const expectedMs = base * result.calibrationMs;
+    const expectedMs = base * scale(result, key);
     const worseMs = result.metrics[key] - expectedMs;
     verdicts.push({ metric: key, baseline: base, now, ratio: now / base, worseMs, over: now > base * tolerance && worseMs > FLOOR_MS[key] });
   }

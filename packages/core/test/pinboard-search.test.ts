@@ -7,8 +7,13 @@ describe("pinboard body search", () => {
     const db = await realSqlite();
     try {
       const paths = Array.from({ length: 503 }, (_, i) => `Note-${i}.md`);
-      for (const [i, path] of paths.entries()) await db.execute("INSERT INTO fts_notes(path, content) VALUES (?, ?)", [path, i === 502 ? "---\nHidden: secret-value\n---\nMÜLLER finds 100% here." : "Ordinary body"]);
-      await db.execute("INSERT INTO fts_notes(path, content) VALUES (?, ?)", ["Outside.md", "MÜLLER finds 100% here."]);
+      // Rows as the indexer writes them (index format 9): a file row, and the search row numbered after it.
+      const note = async (path: string, content: string) => {
+        await db.execute("INSERT INTO files (id, path, fts_rowid) VALUES (?, ?, 0)", [path, path]);
+        await db.execute("INSERT INTO fts_notes (rowid, path, content) VALUES (-(SELECT rowid FROM files WHERE path = ?), ?, ?)", [path, path, content]);
+      };
+      for (const [i, path] of paths.entries()) await note(path, i === 502 ? "---\nHidden: secret-value\n---\nMÜLLER finds 100% here." : "Ordinary body");
+      await note("Outside.md", "MÜLLER finds 100% here.");
       const query = new VaultQueryService(db);
       const reads = vi.spyOn(db, "query");
       expect(await query.searchCardContent(paths, "müller")).toEqual(["Note-502.md"]);

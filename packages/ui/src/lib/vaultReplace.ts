@@ -60,7 +60,16 @@ export async function runVaultReplace(
   deps: VaultReplaceDeps,
   req: VaultReplaceRequest
 ): Promise<VaultReplaceResult> {
-  const targets = req.results.filter((r) => req.selected.has(r.path));
+  // Each note once, whatever the preview holds: the replacement is computed
+  // from the note as it is, so a second entry for the same note would replace
+  // in the already replaced text ("plan" -> "plans" -> "planss").
+  const seen = new Set<string>();
+  const targets: VaultFindResult[] = [];
+  for (const r of req.results) {
+    if (!req.selected.has(r.path) || seen.has(r.path)) continue;
+    seen.add(r.path);
+    targets.push(r);
+  }
   const out: VaultReplaceResult = { notes: 0, hits: 0, skipped: [], cancelled: false };
   if (!req.query || targets.length === 0) return out;
 

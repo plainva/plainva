@@ -28,7 +28,7 @@ export async function vaultWith(notes: Record<string, string>) {
   const db = new NodeSqliteAdapter();
   await initializeSchema(db);
   for (const [path, content] of Object.entries(notes)) {
-    await db.execute(`INSERT INTO files (id, path, title, sha256, mtime_local, mode, size_bytes) VALUES (?, ?, ?, ?, ?, 'obsidian', ?)`, [
+    await db.execute(`INSERT INTO files (id, path, title, sha256, mtime_local, mode, size_bytes, fts_rowid) VALUES (?, ?, ?, ?, ?, 'obsidian', ?, 0)`, [
       path,
       path,
       path.replace(/^.*\//, "").replace(/\.md$/, ""),
@@ -36,7 +36,8 @@ export async function vaultWith(notes: Record<string, string>) {
       1000,
       new TextEncoder().encode(content).length,
     ]);
-    await db.execute(`INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES (?, ?, ?, '', '')`, [content, path.replace(/^.*\//, "").replace(/\.md$/, ""), path]);
+    // Numbered after the file, as the indexer writes it (index format 9).
+    await db.execute(`INSERT INTO fts_notes (rowid, content, title, path, seg_content, seg_title) VALUES (-(SELECT rowid FROM files WHERE path = ?), ?, ?, ?, '', '')`, [path, content, path.replace(/^.*\//, "").replace(/\.md$/, ""), path]);
   }
   return { db, query: new VaultQueryService(db), readText: async (path: string) => notes[path] ?? null };
 }
