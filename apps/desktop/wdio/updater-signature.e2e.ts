@@ -85,12 +85,19 @@ interface PluginOutcome {
 
 /** The updater plugin's own check and download, in the app's window. */
 async function pluginCheckAndDownload(): Promise<PluginOutcome> {
-  return browser.executeAsync((done: (outcome: PluginOutcome) => void) => {
-    const ipc = (window as unknown as {
+  // Started in the window and read back by polling, not through an
+  // asynchronous script: both drivers ended "execute/async" with the
+  // plugin's refusal as a WebDriver error although the script caught it
+  // (first CI run, 2026-11-11), which lost the outcome the case is about.
+  await browser.execute(() => {
+    const w = window as unknown as {
+      __updaterTestOutcome?: unknown;
       __TAURI_INTERNALS__: { invoke: (cmd: string, args?: unknown) => Promise<unknown>; transformCallback: (cb: () => void) => number };
-    }).__TAURI_INTERNALS__;
+    };
+    w.__updaterTestOutcome = undefined;
+    const ipc = w.__TAURI_INTERNALS__;
     const close = (rid: unknown) => ipc.invoke("plugin:resources|close", { rid }).catch(() => undefined);
-    void (async (): Promise<PluginOutcome> => {
+    const run = async () => {
       const meta = (await ipc.invoke("plugin:updater|check", {})) as { rid: number; version: string } | null;
       if (!meta) return { check: "none" };
       try {
@@ -104,8 +111,21 @@ async function pluginCheckAndDownload(): Promise<PluginOutcome> {
       } finally {
         await close(meta.rid);
       }
-    })().then(done, (error: unknown) => done({ check: "error", error: String(error) }));
+    };
+    run().then(
+      (outcome) => (w.__updaterTestOutcome = outcome),
+      (error: unknown) => (w.__updaterTestOutcome = { check: "error", error: String(error) }),
+    );
   });
+  let outcome: PluginOutcome | undefined;
+  await browser.waitUntil(
+    async () => {
+      outcome = (await browser.execute(() => (window as unknown as { __updaterTestOutcome?: PluginOutcome }).__updaterTestOutcome)) ?? undefined;
+      return outcome !== undefined;
+    },
+    { timeout: 30_000, interval: 200, timeoutMsg: "the updater plugin never answered" },
+  );
+  return outcome!;
 }
 
 async function dismissDialogs(): Promise<void> {
@@ -142,7 +162,9 @@ describe("Updater signature test", () => {
   before(async () => {
     if (!port || !appBinary) throw new Error("wdio.updater.conf.ts did not prepare the run");
     binaryBefore = sha256(appBinary);
-    await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 60_000 });
+    // The explicit switch first: without it the service looks for the active
+    // window before every find, five seconds each time (smoke.e2e.ts, S1) —
+    // the first CI run spent the start-up prompt's twelve seconds on that.
     await browser.switchToWindow(await browser.getWindowHandle());
   });
 
@@ -150,7 +172,12 @@ describe("Updater signature test", () => {
     // The first case is set before the app started (wdio.updater.conf.ts):
     // the start-up check runs about ten seconds after the start.
     const offer = $(`//div[contains(@class,"pv-toast")][.//div[contains(@class,"pv-toast-msg")][normalize-space()="${available(fixture.next)}"]]`);
-    await offer.waitForExist({ timeout: 60_000, timeoutMsg: "the start-up check never offered the update" });
+    try {
+      await offer.waitForExist({ timeout: 60_000, interval: 250 });
+    } catch (error) {
+      const toasts = await browser.execute(() => [...document.querySelectorAll(".pv-toast-msg")].map((el) => el.textContent ?? ""));
+      throw new Error(`the start-up check never offered the update; the server saw ${JSON.stringify(await served())}, toasts now: ${JSON.stringify(toasts)}`, { cause: error });
+    }
     const action = offer.$(".pv-toast-action");
     try {
       await action.click();
@@ -163,13 +190,14 @@ describe("Updater signature test", () => {
     await evidence("u1-startup-refused");
     const fetched = await served();
     if (!fetched.includes("/files/Plainva_update-tampered.bin")) throw new Error(`the app never downloaded the changed file: ${fetched.join(", ")}`);
-    if (!(await $('[data-testid="ribbon-tasks"]').isExisting())) throw new Error("the app is gone after the refusal");
+    await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 60_000, timeoutMsg: "the app is gone after the refusal" });
     if (sha256(appBinary) !== binaryBefore) throw new Error("the program file changed — something was installed");
     report("U1 start-up prompt, one byte changed", "REFUSED (toast: updateRefused), app running, binary unchanged");
     await dismissDialogs();
   });
 
   it("U2 accepts the genuine file with the genuine signature (positive control)", async () => {
+    await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 60_000 });
     await useCase("a-valid");
     const outcome = await pluginCheckAndDownload();
     if (outcome.check !== "available" || outcome.version !== fixture.next) throw new Error(`no offer of ${fixture.next}: ${JSON.stringify(outcome)}`);
