@@ -5,6 +5,7 @@ import { isTwinSpelling } from "./pathIdentity.js";
 import { indexedRowStamp, type IndexedRowStamp } from "../vault/indexedRowStamp.js";
 import { EDITED_AT_SQL } from "../vault/editedAt.js";
 import type { OwedStructure } from "../vault/owedQueueEntries.js";
+import { outsideWorkspaceNamespaceSql } from "../workspace/path.js";
 
 function containsPath(parent: string, path: string): boolean {
   return path === parent || path.startsWith(parent + "/");
@@ -256,7 +257,7 @@ export class SyncQueue {
    */
   async enqueueAllLocalFiles(): Promise<void> {
     await this.db.transaction(async (tx) => {
-      const files = await tx.query<{ path: string }>('SELECT path FROM files WHERE path NOT LIKE \'.plainva%\'');
+      const files = await tx.query<{ path: string }>(`SELECT path FROM files WHERE path NOT LIKE '.plainva%' AND ${outsideWorkspaceNamespaceSql("path")}`);
       for (const row of files) {
         // Only enqueue if not already queued
         const existing = await tx.queryOne<{ id: number }>(
@@ -291,7 +292,7 @@ export class SyncQueue {
     let n = 0;
     await this.db.transaction(async (tx) => {
       const files = await tx.query<{ path: string }>(
-        `SELECT path FROM files WHERE path NOT LIKE '.plainva%' AND path NOT LIKE '%.CONFLICT%'`
+        `SELECT path FROM files WHERE path NOT LIKE '.plainva%' AND path NOT LIKE '%.CONFLICT%' AND ${outsideWorkspaceNamespaceSql("path")}`
       );
       for (const row of files) {
         const structural = await tx.queryOne<{ id: number }>(
@@ -481,6 +482,7 @@ export class SyncQueue {
          LEFT JOIN sync_state s ON s.path = f.path
          WHERE f.path NOT LIKE '.plainva%'
            AND f.path NOT LIKE '%.CONFLICT%'
+           AND ${outsideWorkspaceNamespaceSql("f.path")}
            AND (s.path IS NULL OR s.remote_etag IS NULL)`
       );
       for (const row of files) {

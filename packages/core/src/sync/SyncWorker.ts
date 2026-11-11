@@ -390,8 +390,11 @@ export interface SyncWorkerOptions {
   workspaceListed?: PlainRemoteGuard;
 }
 
+/** What became of `pushSettingsNow` (R8): sent, waiting for the session's first clean listing, refused at a workspace, or failed. */
+export type SettingsPushOutcome = "pushed" | "pending" | "held" | "failed";
+
 /** See `SyncWorkerOptions.workspaceListed`. */
-export type PlainRemoteGuard = (rawTarget: ISyncTarget) => Promise<void>;
+export type PlainRemoteGuard = (rawTarget: ISyncTarget, listedGenesisPath: string) => Promise<void>;
 
 /**
  * What became of one remote deletion the worker tried to mirror locally.
@@ -753,14 +756,33 @@ export class SyncWorker {
    * the other devices never learned that files were off. A failure is reported
    * and left at that; the next cycle (files on again) pushes anyway.
    */
-  public async pushSettingsNow(): Promise<void> {
+  public async pushSettingsNow(): Promise<SettingsPushOutcome> {
+    if (!this.settingsSyncRunner) return "pushed";
+    // Never next to a workspace this device may not sync next to (R8).
+    if (this.workspaceHalt) return "held";
+    // Not before a listing of this session has shown the folder (R8): the
+    // request is remembered, and the first cycle whose listing clears runs it
+    // (its settings step). Said as "pending", so no caller claims it went out.
+    if (!this.sessionListingClear) {
+      this.settingsPushPending = true;
+      return "pending";
+    }
     // Not behind a running file cycle (second review, B3): the settings step is
     // serialised on its own, so this waits at most for another settings run.
     try {
       await this.runSettingsSerially();
+      return "pushed";
     } catch (e) {
       console.error("[SyncWorker] settings push before stopping failed:", e);
+      return "failed";
     }
+  }
+
+  /** A settings push asked for before the session's first clean listing (R8); the next clean cycle runs it. */
+  private settingsPushPending = false;
+  /** Whether a settings push is still waiting for a clean listing (R8). */
+  public get settingsPushWaiting(): boolean {
+    return this.settingsPushPending;
   }
 
   /** The tail of the settings runs: one at a time, whoever asks - a cycle or `pushSettingsNow`. */
@@ -2282,7 +2304,6 @@ export class SyncWorker {
         await this.settingsSyncRunner.guardBeforeCycle(this.rawTarget, this.vault);
       }
 
-
       // 1. Pull the remote change set. Change-token providers (Drive) pull only what
       // changed since the last cursor — a single cheap changes.list instead of walking the
       // whole tree every cycle — with a periodic full listing as a safety net. Every other
@@ -2313,13 +2334,24 @@ export class SyncWorker {
       // workspace. `.pvws/` is local-only and drops out below, so this is the
       // one place it shows, and nothing has been written to the remote yet in
       // this cycle. A listing without one costs nothing.
-      if ([...pullResult.etagMap.keys()].some((path) => isWorkspaceGenesisPath(path))) {
-        if (this.options.workspaceListed) await this.options.workspaceListed(this.rawTarget);
+      const listedGenesis = [...pullResult.etagMap.keys()].find((path) => isWorkspaceGenesisPath(path));
+      if (listedGenesis !== undefined) {
+        if (this.options.workspaceListed) await this.options.workspaceListed(this.rawTarget, listedGenesis);
         else throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace");
       }
       // A cursor pull that could not resolve every change may have missed a
       // brand-new folder - a workspace's `.pvws/` among them: this cycle writes
       // nothing, and the full listing follows at once.
+      //
+      // What it costs: on Drive (the only target with an unresolved change),
+      // each folder rename, move or new folder whose parent the cursor cannot
+      // place delays the local pushes by one full walk. It is kept rather than
+      // narrowed because the target does not say WHICH change it could not
+      // place: the cycle cannot prove the unplaced item is not a `.pvws`
+      // folder or its genesis, so it cannot prove a push here is safe.
+      // `recordQueuedDeletionIntents` belongs to the journal step and goes
+      // with it: the deletes it would record are still queued, and the full
+      // cycle right after records them before its own journal merge.
       const writesDeferred = !doFullListing && !!pullResult.needsFullListing;
       if (!writesDeferred) this.sessionListingClear = true;
 
@@ -2934,6 +2966,7 @@ export class SyncWorker {
       if (this.settingsSyncRunner && alive() && !writesDeferred) {
         try {
           await this.runSettingsSerially();
+          this.settingsPushPending = false;
         } catch (e) {
           console.error("[SyncWorker] settings-sync sideband failed:", e);
         }
@@ -3083,6 +3116,9 @@ export class SyncWorker {
       // gate says what to do. Not counted as a failure: no retry helps.
       if (syncErrorReason(error) === "encrypted-workspace") {
         this.workspaceHalt = true;
+        // Should this worker ever list again, it lists in full: a cursor would
+        // not show a genesis it already passed, and the full listing is what
+        // shows the folder as it is.
         this.cursor = undefined;
         this.onProgress?.(null);
         this.stop();

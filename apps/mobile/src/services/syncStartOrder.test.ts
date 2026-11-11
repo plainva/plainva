@@ -80,13 +80,16 @@ vi.mock("@plainva/core", async (original) => {
     SettingsOnlySync: FakeSettingsOnly,
     SyncEngine: class {},
     DeletionJournal: class {},
-    createProviderWorkspaceObjectStore: () => ({
-      get: async () => {
+    createProviderWorkspaceObjectStore: () => ({ get: async () => null }),
+    // The folder's genesis, as the vault's own target reads it (R8).
+    WebDavSyncTarget: class extends (await original<typeof import("@plainva/core")>()).WebDavSyncTarget {
+      override async download(path: string): Promise<Uint8Array | null> {
+        if (path.toLowerCase() !== ".pvws/genesis.pvgen") return null;
         state.genesisReads += 1;
         if (state.genesis === "error") throw new Error("HTTP 503");
         return state.genesis === "found" ? new Uint8Array([1]) : null;
-      },
-    }),
+      }
+    },
   };
 });
 vi.mock("@plainva/ui", async (original) => ({

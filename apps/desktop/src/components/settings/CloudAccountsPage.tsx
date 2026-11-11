@@ -51,7 +51,7 @@ import {
   isOwnClientRejected,
   standardAccessAvailable,
 } from "@plainva/ui";
-import { filesCarrier, findCloudAccountByRef } from "@plainva/ui";
+import { filesCarrier, findCloudAccountByRef, logDiagnostic } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { credentialManager } from "../../services/CredentialManager";
@@ -578,7 +578,12 @@ export const CloudAccountsPage: React.FC<{
     try {
       // The last settings push before the file sync stops, so the other devices learn of it (review finding 4).
       const worker = isActiveVault ? syncWorker : null;
-      setRecords(await setAccountServiceOff(selectedVault, runtime, record, service, !on, worker?.pushSettingsNow ? async () => { await worker.pushSettingsNow?.(); } : undefined));
+      setRecords(await setAccountServiceOff(selectedVault, runtime, record, service, !on, worker?.pushSettingsNow ? async () => {
+        // Said as it is (R8): before the session's first clean listing the push
+        // waits, and the settings-only sync that follows sends it.
+        const outcome = await worker.pushSettingsNow?.();
+        if (outcome && outcome !== "pushed") logDiagnostic("sync", `settings push before files off: ${outcome}`);
+      } : undefined));
     } catch (err) {
       failWith(err);
     } finally {

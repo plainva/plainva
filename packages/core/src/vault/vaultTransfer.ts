@@ -1,4 +1,5 @@
 import type { IVaultAdapter } from "./IVaultAdapter.js";
+import { isWorkspaceNamespacePath } from "../workspace/path.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import { sha256Hex } from "../workspace/encoding.js";
 
@@ -15,7 +16,7 @@ export interface VaultTransferPlan {
   keptBack: TransferFile[];
 }
 const safePath = (path: string) => path.length > 0 && !path.startsWith("/") && !/[\\:]/.test(path) && ![...path].some(c => c.charCodeAt(0) < 32) && !path.split("/").some(p => !p || p === "." || p === "..");
-const transferable = (path: string) => ![".plainva", ".pvws"].some(root => path === root || path.startsWith(root + "/"));
+const transferable = (path: string) => !(path === ".plainva" || path.startsWith(".plainva/") || isWorkspaceNamespacePath(path));
 
 /** Fails closed when any directory cannot be read. Private vault metadata is
  * transferred through its own device-local stores, never as cloud file data. */

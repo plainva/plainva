@@ -43,7 +43,17 @@ export interface EncryptedRemoteFact {
   absentInARow?: number;
   /** The server refused to show the hidden path: the way out is offered. */
   refused?: boolean;
+  /**
+   * The genesis at the spelling a listing showed it (`.PVWS/Genesis.pvgen` on
+   * a case-sensitive store). Read there, not at the canonical spelling, or a
+   * variant would count as "not found" and the vault would loop between the
+   * gate and the listing's halt.
+   */
+  genesisPath?: string;
 }
+
+/** Where a workspace keeps its genesis. */
+export const GENESIS_PATH = ".pvws/genesis.pvgen";
 
 export interface EncryptedRemotePorts {
   load(): Promise<unknown>;
@@ -143,12 +153,13 @@ export async function decideHeldFolder(input: {
   binding: SyncStateBinding;
   fact: EncryptedRemoteFact;
   provider: string;
-  readGenesis: () => Promise<Uint8Array | null>;
+  /** Reads a file of the folder (vault-relative) through the vault's own target. */
+  readGenesis: (path: string) => Promise<Uint8Array | null>;
 }): Promise<HeldFolderVerdict> {
   const { ports, binding, fact } = input;
   let bytes: Uint8Array | null;
   try {
-    bytes = await input.readGenesis();
+    bytes = await input.readGenesis(fact.genesisPath ?? GENESIS_PATH);
   } catch (error) {
     const failure = classifyGenesisReadError(error, input.provider);
     if (failure === "root-missing") return { kind: "root-missing" };
@@ -165,7 +176,7 @@ export async function decideHeldFolder(input: {
       await safeSave(ports, { ...fact, binding, workspace: found, absentInARow: 0, refused: false });
       return { kind: "left", peers: fact.peers ?? "unknown" };
     }
-    await safeSave(ports, { v: 2, state: fact.state === "joined" ? "joined" : "encrypted", binding, workspace: found, absentInARow: 0 });
+    await safeSave(ports, { v: 2, state: fact.state === "joined" ? "joined" : "encrypted", binding, workspace: found, absentInARow: 0, ...(fact.genesisPath ? { genesisPath: fact.genesisPath } : {}) });
     return { kind: "pair-required" };
   }
   // A clean "not found".
@@ -185,19 +196,20 @@ export async function decideHeldFolder(input: {
  * shows a genesis. Lets the sync go on next to exactly the workspace this
  * device ended; anything else records the fact and stops the worker.
  */
-export function plainWorkspaceListed(input: { ports: EncryptedRemotePorts; binding: SyncStateBinding; readGenesis: (target: ISyncTarget) => Promise<Uint8Array | null> }) {
-  return async (target: ISyncTarget): Promise<void> => {
+export function plainWorkspaceListed(input: { ports: EncryptedRemotePorts; binding: SyncStateBinding }) {
+  return async (target: ISyncTarget, listedPath: string = GENESIS_PATH): Promise<void> => {
     const fact = await encryptedRemoteFactFor(input.ports, input.binding);
     let found = "unreadable-genesis";
     try {
-      const bytes = await input.readGenesis(target);
+      // At the spelling the listing showed (any case on a case-sensitive store).
+      const bytes = await target.download(listedPath);
       if (bytes && bytes.length > 0) found = workspaceIdentityOf(bytes);
     } catch {
       // Listed but not readable: still a workspace.
     }
     if (fact?.state === "released" && fact.workspace === found) return;
     if (fact?.state !== "left") {
-      await safeSave(input.ports, { v: 2, state: fact?.state === "joined" ? "joined" : "encrypted", binding: input.binding, workspace: found, absentInARow: 0 });
+      await safeSave(input.ports, { v: 2, state: fact?.state === "joined" ? "joined" : "encrypted", binding: input.binding, workspace: found, absentInARow: 0, ...(listedPath !== GENESIS_PATH ? { genesisPath: listedPath } : {}) });
     }
     throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace this device has not joined");
   };
@@ -214,12 +226,11 @@ export function settingsOnlyFolderCheck(input: {
   binding: SyncStateBinding;
   provider: string;
   target: ISyncTarget;
-  readGenesis: (target: ISyncTarget) => Promise<Uint8Array | null>;
 }) {
   return async (): Promise<void> => {
     const fact = await encryptedRemoteFactFor(input.ports, input.binding);
     if (fact) {
-      const verdict = await decideHeldFolder({ ports: input.ports, binding: input.binding, fact, provider: input.provider, readGenesis: () => input.readGenesis(input.target) });
+      const verdict = await decideHeldFolder({ ports: input.ports, binding: input.binding, fact, provider: input.provider, readGenesis: (path) => input.target.download(path) });
       if (verdict.kind === "plain" || verdict.kind === "root-missing") return;
       if (verdict.kind === "waiting") throw new Error("the cloud folder could not be checked yet");
       throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace this device may not sync next to");
@@ -227,9 +238,9 @@ export function settingsOnlyFolderCheck(input: {
     // One read per session. A failure - a server that will not show the hidden
     // path, a network hiccup - stops nothing for a vault that knows nothing:
     // the settings run meets the same network on its own.
-    const listed = await input.readGenesis(input.target).catch(() => null);
+    const listed = await input.target.download(GENESIS_PATH).catch(() => null);
     if (!listed || listed.length === 0) return;
-    await plainWorkspaceListed(input)(input.target);
+    await plainWorkspaceListed(input)(input.target, GENESIS_PATH);
   };
 }
 

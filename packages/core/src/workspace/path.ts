@@ -1,6 +1,7 @@
 import { hasControlCharacters, hasUnpairedSurrogate, utf8Encode } from "./encoding.js";
 import { MAX_VAULT_PATH_BYTES, MAX_VAULT_SEGMENT_BYTES } from "./constants.js";
 import { protocolAssert } from "./errors.js";
+import { foldSegment } from "../vault/internalPath.js";
 
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const RESERVED_CHARS = /[<>:"|?*\\]/;
@@ -11,7 +12,18 @@ const RESERVED_CHARS = /[<>:"|?*\\]/;
  * sync, which never touches it (R8).
  */
 export function isWorkspaceNamespacePath(path: string): boolean {
-  return path.split("/")[0].toLowerCase() === ".pvws";
+  // Folded as the file systems fold a segment (case, trailing dots and spaces):
+  // the same form the internal-path rules use, so `.PVWS` and `.pvws.` are it too.
+  return foldSegment(path.replace(/\\/g, "/").split("/")[0]) === ".pvws";
+}
+
+/**
+ * `isWorkspaceNamespacePath` as an SQL condition that is TRUE for a path
+ * OUTSIDE the namespace (R8). SQLite's LIKE ignores ASCII case, which is the
+ * case rule of the namespace. `column` is a literal of the caller's statement.
+ */
+export function outsideWorkspaceNamespaceSql(column: string): string {
+  return `(${column} NOT LIKE '.pvws' AND ${column} NOT LIKE '.pvws/%')`;
 }
 
 /** Whether a path is a workspace's genesis, the file that makes a folder a workspace (any case). */

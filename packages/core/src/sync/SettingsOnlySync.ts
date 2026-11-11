@@ -65,9 +65,12 @@ export class SettingsOnlySync {
   }
 
   /** One run now, after any run in flight; failures are reported, never thrown. */
-  async pushSettingsNow(): Promise<void> {
+  async pushSettingsNow(): Promise<"pushed" | "held"> {
     await this.runSerially();
+    return this.held ? "held" : "pushed";
   }
+
+  private held = false;
 
   private runSerially(): Promise<void> {
     const run = this.chain.then(async () => {
@@ -80,6 +83,7 @@ export class SettingsOnlySync {
         await this.runner.run(this.target, this.vault);
       } catch (error) {
         if (error instanceof FatalSyncProtocolError && error.reason === "encrypted-workspace") {
+          this.held = true;
           this.stop();
           this.onHeld?.(error);
           return;

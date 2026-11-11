@@ -212,25 +212,37 @@ describe("SyncWorker", () => {
     expect(target.download).not.toHaveBeenCalledWith(".pvws/genesis.pvgen", expect.anything());
   });
 
-  it("a cursor pull that could not resolve every change writes nothing in that cycle (R8)", async () => {
+  it("a cursor pull that could not resolve every change writes nothing in that cycle - no journal, no push, no settings - and the full cycle right after does (R8)", async () => {
+    const journal = { sync: vi.fn().mockResolvedValue(undefined), load: vi.fn(), activePathEntries: () => [], recordPathEntries: vi.fn(), explainsPath: () => null };
+    const settingsSync = { run: vi.fn().mockResolvedValue(undefined) };
+    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal as never, settingsSync });
+    worker["isRunning"] = true;
     target.getStartCursor = vi.fn().mockResolvedValue("c1");
     target.pull.mockResolvedValueOnce({ etagMap: new Map(), nextCursor: "c1" });
     await worker.runCycle();
-    expect(engine.processQueue).toHaveBeenCalledTimes(1);
+    expect([engine.processQueue.mock.calls.length, journal.sync.mock.calls.length, settingsSync.run.mock.calls.length]).toEqual([1, 1, 1]);
+    // The deferred cycle: an unresolvable change.
     target.pull.mockResolvedValueOnce({ etagMap: new Map(), nextCursor: "c2", needsFullListing: true });
     await worker.runCycle();
-    expect(engine.processQueue).toHaveBeenCalledTimes(1);
+    expect([engine.processQueue.mock.calls.length, journal.sync.mock.calls.length, settingsSync.run.mock.calls.length]).toEqual([1, 1, 1]);
+    // The full cycle that follows at once pushes what was held back.
+    target.pull.mockResolvedValueOnce({ etagMap: new Map() });
+    await worker.runCycle();
+    expect(target.pull).toHaveBeenLastCalledWith();
+    expect([engine.processQueue.mock.calls.length, journal.sync.mock.calls.length, settingsSync.run.mock.calls.length]).toEqual([2, 2, 2]);
   });
 
-  it("pushes no settings before a listing of the session has been seen (R8)", async () => {
+  it("a settings push asked for before the session's first clean listing waits, says so, and goes with that listing's cycle (R8)", async () => {
     const runner = { run: vi.fn().mockResolvedValue(undefined) };
     worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync: runner });
     worker["isRunning"] = true;
-    await worker.pushSettingsNow();
+    expect(await worker.pushSettingsNow()).toBe("pending");
+    expect(worker.settingsPushWaiting).toBe(true);
     expect(runner.run).not.toHaveBeenCalled();
     await worker.runCycle();
     expect(runner.run).toHaveBeenCalledTimes(1);
-    await worker.pushSettingsNow();
+    expect(worker.settingsPushWaiting).toBe(false);
+    expect(await worker.pushSettingsNow()).toBe("pushed");
     expect(runner.run).toHaveBeenCalledTimes(2);
   });
 
@@ -368,10 +380,13 @@ describe("SyncWorker", () => {
   it("pushes the settings profile once on request, without a file cycle - the last act before files go off (review finding 4)", async () => {
     const settingsSync = { run: vi.fn().mockResolvedValue(undefined) };
     const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
-    // A listing of this session has shown the folder (R8: no profile goes up before one).
-    w["sessionListingClear"] = true;
+    // A cycle of this session has listed the folder (R8: no profile goes up before one).
+    w["isRunning"] = true;
+    await w.runCycle();
+    settingsSync.run.mockClear();
+    engine.processQueue.mockClear();
 
-    await w.pushSettingsNow();
+    expect(await w.pushSettingsNow()).toBe("pushed");
 
     expect(settingsSync.run).toHaveBeenCalledWith(target, vault);
     expect(engine.processQueue).not.toHaveBeenCalled();
@@ -379,7 +394,7 @@ describe("SyncWorker", () => {
     await new SyncWorker(engine, target, stateRepo, vault, queue, 100).pushSettingsNow();
     // A failing push is reported, not thrown: files go off all the same.
     settingsSync.run.mockRejectedValueOnce(new Error("settings boom"));
-    await expect(w.pushSettingsNow()).resolves.toBeUndefined();
+    await expect(w.pushSettingsNow()).resolves.toBe("failed");
   });
 
   it("does not keep the settings push waiting behind a running file cycle, and never syncs the profile twice at once (second review, B3)", async () => {
@@ -395,7 +410,13 @@ describe("SyncWorker", () => {
       }),
     };
     const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
-    w["sessionListingClear"] = true;
+    // A cycle of this session has listed the folder (R8), with its own settings run.
+    w["isRunning"] = true;
+    const cycle = w.runCycle();
+    await vi.waitFor(() => expect(settingsSync.run).toHaveBeenCalledTimes(1));
+    releaseRun();
+    await cycle;
+    settingsSync.run.mockClear();
     // A long file cycle is running.
     (w as unknown as { currentCycle: Promise<void> }).currentCycle = new Promise<void>(() => {});
     const first = w.pushSettingsNow();

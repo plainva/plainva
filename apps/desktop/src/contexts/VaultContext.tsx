@@ -111,7 +111,7 @@ export interface VaultSyncWorker {
   uploadUnverifiedAgain?: (paths?: readonly string[]) => Promise<number>;
   listPendingOperations(limit?: number): Promise<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> }>;
   /** One settings push outside a cycle, the last act before files go off for the vault (review of plan "Verbinden", finding 4). */
-  pushSettingsNow?: () => Promise<void>;
+  pushSettingsNow?: () => Promise<"pushed" | "pending" | "held" | "failed" | void>;
 }
 
 interface VaultState {
@@ -1468,12 +1468,11 @@ export const VaultProvider: React.FC<{
           // its knowledge as membership; a member without its keys is held by
           // the locked branch below whatever the files switch says.
           const remotePorts = encryptedRemoteFilePorts(backupVaultAdapter);
-          const readGenesisOf = (t: ISyncTarget) => createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), t).get(".pvws/genesis.pvgen");
           let remoteFact: EncryptedRemoteFact | null = null;
           if (workspaceSecurityStatus) await markEncryptedRemoteJoined(remotePorts, workspaceDeparture(workspaceRuntime).workspace);
           else remoteFact = await encryptedRemoteFactFor(remotePorts, binding);
           const branch = desktopSyncBranch({ held: !!remoteFact, filesRun, member: !!workspaceSecurityStatus, hasRuntime: !!workspaceRuntime });
-          const workspaceListed = plainWorkspaceListed({ ports: remotePorts, binding, readGenesis: readGenesisOf });
+          const workspaceListed = plainWorkspaceListed({ ports: remotePorts, binding });
           if (branch === "settingsOnly") {
             // Files are off for the vault (E3): no file worker, only the
             // settings profile on the interval (second review, B3). No file
@@ -1482,7 +1481,7 @@ export const VaultProvider: React.FC<{
             syncProviderRef.current = null;
             const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
             if (runner) {
-              const sessionCheck = workspaceRuntime ? undefined : settingsOnlyFolderCheck({ ports: remotePorts, binding, provider: syncProvider!, target, readGenesis: readGenesisOf });
+              const sessionCheck = workspaceRuntime ? undefined : settingsOnlyFolderCheck({ ports: remotePorts, binding, provider: syncProvider!, target });
               const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {
                 syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), provider: syncProvider, reason: "encrypted-workspace" });
               });
@@ -1825,7 +1824,7 @@ export const VaultProvider: React.FC<{
                   decide: async () => {
                     const now = await encryptedRemoteFactFor(remotePorts, binding);
                     if (!now) return { kind: "plain" };
-                    return decideHeldFolder({ ports: remotePorts, binding, fact: now ?? fact, provider: syncProvider!, readGenesis: () => readGenesisOf(target!) });
+                    return decideHeldFolder({ ports: remotePorts, binding, fact: now ?? fact, provider: syncProvider!, readGenesis: (path) => target!.download(path) });
                   },
                   onWaiting: (verdict, retryAt) => syncStatusStore.set(path, { status: "retrying", message: i18n.t(heldFolderMessageKey(verdict)), provider: syncProvider, reason: "encrypted-workspace", retryAt }),
                   onHeld: (verdict) => syncStatusStore.set(path, { status: "error", message: i18n.t(heldFolderMessageKey(verdict)), provider: syncProvider, reason: "encrypted-workspace" }),

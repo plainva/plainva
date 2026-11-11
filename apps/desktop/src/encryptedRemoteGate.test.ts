@@ -43,7 +43,7 @@ async function workspace(name = "Owner") {
 const refused = async (): Promise<Uint8Array | null> => { throw Object.assign(new Error("WebDAV GET failed: 403"), { status: 403 }); };
 const offline = async (): Promise<Uint8Array | null> => { throw new Error("network down"); };
 const none = async () => null;
-async function held(m: ReturnType<typeof memory>, readGenesis: () => Promise<Uint8Array | null>, provider = "webdav", binding = folder) {
+async function held(m: ReturnType<typeof memory>, readGenesis: (path: string) => Promise<Uint8Array | null>, provider = "webdav", binding = folder) {
   const fact = await encryptedRemoteFactFor(m.ports, binding);
   if (!fact) return { kind: "no-fact" } as const;
   return decideHeldFolder({ ports: m.ports, binding, fact, provider, readGenesis });
@@ -161,22 +161,36 @@ describe("a held folder (R8)", () => {
 });
 
 describe("the listing net and the settings-only look (R8)", () => {
-  const target = {} as ISyncTarget;
+  const targetWith = (files: Record<string, Uint8Array>, fail?: unknown) => ({
+    download: async (path: string) => { if (fail) throw fail; return files[path] ?? null; },
+  }) as unknown as ISyncTarget;
+
   it("a listed genesis stops the plain worker and records it; the workspace this device ended lets it on", async () => {
     const m = memory();
     const { bytes, runtime } = await workspace();
-    await expect(plainWorkspaceListed({ ports: m.ports, binding: folder, readGenesis: async () => bytes })(target)).rejects.toMatchObject({ reason: "encrypted-workspace" });
+    const target = targetWith({ ".pvws/genesis.pvgen": bytes });
+    await expect(plainWorkspaceListed({ ports: m.ports, binding: folder })(target, ".pvws/genesis.pvgen")).rejects.toMatchObject({ reason: "encrypted-workspace" });
     expect(m.stored()).toMatchObject({ state: "encrypted" });
     const ender = memory();
     await markEncryptedRemoteDeparted(ender.ports, workspaceDeparture(runtime));
-    await expect(plainWorkspaceListed({ ports: ender.ports, binding: folder, readGenesis: async () => bytes })(target)).resolves.toBeUndefined();
+    await expect(plainWorkspaceListed({ ports: ender.ports, binding: folder })(target, ".pvws/genesis.pvgen")).resolves.toBeUndefined();
+  });
+
+  it("a genesis listed at another spelling is read there - by the listing net and by the held folder after it", async () => {
+    const m = memory();
+    const { bytes } = await workspace();
+    const target = targetWith({ ".PVWS/Genesis.pvgen": bytes });
+    await expect(plainWorkspaceListed({ ports: m.ports, binding: folder })(target, ".PVWS/Genesis.pvgen")).rejects.toMatchObject({ reason: "encrypted-workspace" });
+    expect(m.stored()).toMatchObject({ genesisPath: ".PVWS/Genesis.pvgen" });
+    // No loop: the held folder finds it where the listing did, not "not found" three times.
+    for (let i = 0; i < 4; i++) expect(await held(m, (path) => target.download(path))).toEqual({ kind: "pair-required" });
   });
 
   it("the settings-only look of a vault that knows nothing stops nothing on a refusing server, and holds at a genesis", async () => {
     const m = memory();
-    await expect(settingsOnlyFolderCheck({ ports: m.ports, binding: folder, provider: "webdav", target, readGenesis: refused })()).resolves.toBeUndefined();
+    await expect(settingsOnlyFolderCheck({ ports: m.ports, binding: folder, provider: "webdav", target: targetWith({}, Object.assign(new Error("403"), { status: 403 })) })()).resolves.toBeUndefined();
     const { bytes } = await workspace();
-    await expect(settingsOnlyFolderCheck({ ports: m.ports, binding: folder, provider: "webdav", target, readGenesis: async () => bytes })()).rejects.toBeInstanceOf(FatalSyncProtocolError);
+    await expect(settingsOnlyFolderCheck({ ports: m.ports, binding: folder, provider: "webdav", target: targetWith({ ".pvws/genesis.pvgen": bytes }) })()).rejects.toBeInstanceOf(FatalSyncProtocolError);
   });
 
   it("the desktop keeps the fact inside the vault folder, so it moves with the vault", async () => {
