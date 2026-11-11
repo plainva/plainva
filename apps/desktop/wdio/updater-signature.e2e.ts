@@ -59,7 +59,12 @@ const fixture = JSON.parse(readFileSync(resolve(process.env.PLAINVA_UPDATER_TEST
 
 const available = (version: string) => en.settings.updateAvailable.replace("{{version}}", version);
 const sha256 = (file: string) => createHash("sha256").update(readFileSync(file)).digest("hex");
-const report = (name: string, line: string) => console.log(`[updater-signature] ${name}: ${line}`);
+/** The cases that held, by their id ("U3"): the summary line is written only when every one did. */
+const held = new Set<string>();
+const report = (name: string, line: string) => {
+  held.add(name.split(" ")[0]);
+  console.log(`[updater-signature] ${name}: ${line}`);
+};
 /** What the person saw, kept beside the driver logs (the workflow uploads the folder). */
 async function evidence(name: string): Promise<void> {
   mkdirSync("wdio-logs-updater", { recursive: true });
@@ -83,44 +88,55 @@ interface PluginOutcome {
   error?: string;
 }
 
+/**
+ * The script the window runs: the plugin's `check`, then `download`, each
+ * outcome written to `window.__updaterTestOutcome`; resources are closed.
+ */
+const UPDATER_PROBE = `
+  window.__updaterTestOutcome = undefined;
+  var ipc = window.__TAURI_INTERNALS__;
+  var meta = null;
+  ipc.invoke("plugin:updater|check", {})
+    .then(function (m) {
+      meta = m;
+      if (!m) return { check: "none" };
+      // A channel the way @tauri-apps/api serialises one.
+      var channel = "__CHANNEL__:" + ipc.transformCallback(function () {});
+      return ipc.invoke("plugin:updater|download", { rid: m.rid, onEvent: channel }).then(
+        function (bytes) {
+          ipc.invoke("plugin:resources|close", { rid: bytes }).catch(function () {});
+          return { check: "available", version: m.version, download: "accepted" };
+        },
+        function (error) {
+          return { check: "available", version: m.version, download: "refused", error: String(error) };
+        }
+      );
+    })
+    .then(
+      function (outcome) {
+        if (meta) ipc.invoke("plugin:resources|close", { rid: meta.rid }).catch(function () {});
+        window.__updaterTestOutcome = outcome;
+      },
+      function (error) {
+        window.__updaterTestOutcome = { check: "error", error: String(error) };
+      }
+    );
+`;
+
 /** The updater plugin's own check and download, in the app's window. */
 async function pluginCheckAndDownload(): Promise<PluginOutcome> {
   // Started in the window and read back by polling, not through an
   // asynchronous script: both drivers ended "execute/async" with the
   // plugin's refusal as a WebDriver error although the script caught it
   // (first CI run, 2026-11-11), which lost the outcome the case is about.
-  await browser.execute(() => {
-    const w = window as unknown as {
-      __updaterTestOutcome?: unknown;
-      __TAURI_INTERNALS__: { invoke: (cmd: string, args?: unknown) => Promise<unknown>; transformCallback: (cb: () => void) => number };
-    };
-    w.__updaterTestOutcome = undefined;
-    const ipc = w.__TAURI_INTERNALS__;
-    const close = (rid: unknown) => ipc.invoke("plugin:resources|close", { rid }).catch(() => undefined);
-    const run = async () => {
-      const meta = (await ipc.invoke("plugin:updater|check", {})) as { rid: number; version: string } | null;
-      if (!meta) return { check: "none" };
-      try {
-        // A channel the way @tauri-apps/api serialises one.
-        const channel = `__CHANNEL__:${ipc.transformCallback(() => undefined)}`;
-        const bytes = await ipc.invoke("plugin:updater|download", { rid: meta.rid, onEvent: channel });
-        await close(bytes);
-        return { check: "available", version: meta.version, download: "accepted" };
-      } catch (error) {
-        return { check: "available", version: meta.version, download: "refused", error: String(error) };
-      } finally {
-        await close(meta.rid);
-      }
-    };
-    run().then(
-      (outcome) => (w.__updaterTestOutcome = outcome),
-      (error: unknown) => (w.__updaterTestOutcome = { check: "error", error: String(error) }),
-    );
-  });
+  // As a string: the spec is transpiled with names kept, and a function
+  // handed to the window then calls a helper (`__name`) that exists only in
+  // this process (second CI run, 2026-11-11).
+  await browser.execute(UPDATER_PROBE);
   let outcome: PluginOutcome | undefined;
   await browser.waitUntil(
     async () => {
-      outcome = (await browser.execute(() => (window as unknown as { __updaterTestOutcome?: PluginOutcome }).__updaterTestOutcome)) ?? undefined;
+      outcome = ((await browser.execute("return window.__updaterTestOutcome;")) as PluginOutcome | null) ?? undefined;
       return outcome !== undefined;
     },
     { timeout: 30_000, interval: 200, timeoutMsg: "the updater plugin never answered" },
@@ -263,6 +279,8 @@ describe("Updater signature test", () => {
     report("U9 settings, older version", "NOT OFFERED (status line: noUpdate)");
 
     if (sha256(appBinary) !== binaryBefore) throw new Error("the program file changed — something was installed");
+    const missing = ["U1", "U2", "U3", "U4", "U5", "U6", "U7", "U8", "U9"].filter((id) => !held.has(id));
+    if (missing.length) throw new Error(`no summary: ${missing.join(", ")} did not hold`);
     report("summary", "every refused case refused, the positive control accepted, the program file unchanged");
   });
 });
