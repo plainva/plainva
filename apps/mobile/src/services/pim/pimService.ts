@@ -243,9 +243,12 @@ async function reconcilePendingEventWrites(): Promise<void> {
   const found: PimEventRow[] = [];
   for (const write of writes) {
     const ref = write.kind === "create" ? write.row : write.ref;
-    if (write.kind === "stamp") {
+    if (write.kind !== "create") {
       // A stamp speaks about every row of its object (R2): a series' master
-      // and occurrences share the etag, so they are all asked for.
+      // and occurrences share the etag. A delete or a change of a whole
+      // series speaks about its occurrences (R7), and the series' own row may
+      // not be cached at all (Google, Microsoft, the device). So all of them
+      // are asked for.
       const rows = await cache.findEventsByUid(ref.uid.split("#")[0]).catch(() => []);
       found.push(...rows.filter((row) => row.accountId === ref.accountId && row.calendarId === ref.calendarId));
       continue;

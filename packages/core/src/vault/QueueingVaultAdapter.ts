@@ -1,6 +1,7 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
 import { SyncQueue } from "../sync/SyncQueue.js";
 import { isSystemJunkPath } from "./systemJunk.js";
+import { isWorkspaceNamespacePath } from "../workspace/path.js";
 import { OwedQueueEntries, type OwedQueueEntriesOptions, type OwedStructure, type QueueEntryKind } from "./owedQueueEntries.js";
 
 export { formatQueueEntryReport, type QueueEntryKind, type QueueEntryReport } from "./owedQueueEntries.js";
@@ -14,7 +15,11 @@ export { formatQueueEntryReport, type QueueEntryKind, type QueueEntryReport } fr
  * an import may copy it into the vault, and deleting it here deletes nothing remotely.
  */
 function isLocalOnly(path: string): boolean {
-  return path.startsWith(".plainva") || path.includes(".CONFLICT") || isSystemJunkPath(path);
+  // An encrypted workspace's namespace is never part of the plain vault (R8):
+  // a `.pvws/` copied in, restored from a backup or pulled before the rule
+  // must not go up - its genesis would make the folder a workspace for every
+  // device on it.
+  return path.startsWith(".plainva") || isWorkspaceNamespacePath(path) || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
 function notifyQueued(): void {

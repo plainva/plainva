@@ -163,6 +163,31 @@ describe("the account-to-files transfer before vault activation", () => {
     const target = state.switches[0];
     expect([...state.disks.get(target)!.keys()].filter((p) => !p.startsWith(".plainva")).sort()).toEqual(["Note.md", "Willkommen.md"]);
   });
+  it("makes an encrypted folder a vault of its own, with none of this device's notes in it (R8)", async () => {
+    // The second phone of the TestFlight report (2026-11-08): the folder holds
+    // the workspace another device created. The step refused it and pointed at
+    // "the existing vault" - which on this phone did not exist, so the join in
+    // Security & Sharing was out of reach. Now it is reached through the vault.
+    remoteFiles.set(".pvws/genesis.pvgen", "genesis");
+    await connect();
+    const target = state.switches[0];
+    expect(target).toBeDefined();
+    expect(state.events).not.toContain("review");
+    expect([...state.disks.get(target)!.keys()].filter((p) => !p.startsWith(".plainva"))).toEqual([]);
+    expect(state.disks.get("source")!.get("Note.md")).toBe("local notes");
+    // Bound to the folder: its sync is what reports "pair required" from here on.
+    expect(state.secrets.get(`sync_provider_mobile_${target}`)).toEqual(provider);
+    // Known before its first start: no failed probe lets the plain sync run against it.
+    expect(state.settings.get(`encryptedRemote_${target}`)).toEqual({ v: 2, state: "encrypted" });
+    expect((await loadConnectQueue())?.outcomes.files).toMatchObject({ state: "connected", bindingId: target });
+  });
+  it("knows the encrypted folder before the vault is bound to it, so a kill in between leaves no bound vault without the fact (R8)", async () => {
+    remoteFiles.set(".pvws/genesis.pvgen", "genesis");
+    state.failSecret = "sync_provider_mobile_prepared-1";
+    await expect(connect()).rejects.toThrow();
+    expect(state.secrets.get("sync_provider_mobile_prepared-1")).toBeUndefined();
+    expect(state.settings.get("encryptedRemote_prepared-1")).toEqual({ v: 2, state: "encrypted" });
+  });
   it("does not ask at all when the vault holds only its starter notes", async () => {
     const starter = "# Willkommen\n";
     state.disks.get("source")!.delete("Note.md");

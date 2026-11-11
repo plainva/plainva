@@ -1,4 +1,4 @@
-import { withServiceOff, type CloudAccountRecord, type CloudServiceId, type SyncProviderId } from "@plainva/ui";
+import { logDiagnostic, withServiceOff, type CloudAccountRecord, type CloudServiceId, type SyncProviderId } from "@plainva/ui";
 import { listMailAccounts } from "@plainva/ui/mail";
 import i18n from "@plainva/ui/i18n";
 import type { AccountCard } from "./cloudAccountCards";
@@ -90,7 +90,12 @@ export async function setMobileServiceOff(vaultId: string, card: AccountCard, se
   // The last settings push before the file sync stops, so the other devices learn of it (review finding 4).
   if (service === "files" && off) {
     const { getActiveVaultEntry } = await import("./vaultRegistry");
-    if ((await getActiveVaultEntry()).id === vaultId) await (await import("./syncService")).pushSettingsNow().catch(() => undefined);
+    if ((await getActiveVaultEntry()).id === vaultId) {
+      // Said as it is (R8): before the session's first clean listing the push
+      // waits, and the settings-only sync that follows sends it.
+      const outcome = await (await import("./syncService")).pushSettingsNow().catch(() => "failed" as const);
+      if (outcome !== "pushed" && outcome !== "none") logDiagnostic("sync", `settings push before files off: ${outcome}`);
+    }
   }
   const { applyMobileServiceSwitches } = await import("./serviceSwitches");
   await applyMobileServiceSwitches(vaultId);

@@ -462,6 +462,9 @@ function SyncErrorDialog({
   // again — and a cloud folder that is gone, which only the folder picker fixes.
   const incomplete = error?.listingIncomplete ?? null;
   const rootMissing = error?.reason === "root-missing";
+  // An encrypted workspace this device has not joined, or a folder it left (R8):
+  // no retry helps - the way on is Security & Sharing.
+  const encryptedWorkspace = error?.reason === "encrypted-workspace";
   const shownMessage = incomplete
     ? t(incomplete.empty ? "sync.listingIncompleteEmpty" : "sync.listingIncompleteBody", {
         missing: incomplete.missing, total: incomplete.confirmed, present: incomplete.present, probed: incomplete.probed,
@@ -490,7 +493,14 @@ function SyncErrorDialog({
           {!recovered && encryptionBricked && (
             <Button variant="danger-soft" onClick={handleResetEncryption}>{t("sync.resetEncryptionAction", { defaultValue: "Verschlüsselung zurücksetzen" })}</Button>
           )}
-          {!recovered && !encryptionBricked && (error?.signInAccountId
+          {!recovered && encryptedWorkspace && (
+            <>
+              {/* A held folder is asked again at once (R8): never a reload of the vault. */}
+              <Button variant="secondary" onClick={() => { window.dispatchEvent(new CustomEvent("plainva-recheck-held-folder")); onClose(); }} data-testid="sync-error-recheck">{t("sync.retryNow", { defaultValue: "Jetzt erneut versuchen" })}</Button>
+              <Button variant="primary" onClick={() => { window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "security" } })); onClose(); }} data-testid="sync-error-security">{t("workspaceSecurity.openSecurity")}</Button>
+            </>
+          )}
+          {!recovered && !encryptionBricked && !encryptedWorkspace && (error?.signInAccountId
             ? <Button variant="primary" onClick={() => onOpenSettings(error.provider ?? null, error.signInAccountId)} data-testid="sync-error-signin">{t("deviceSignIn.submit")}</Button>
             : authError || rootMissing
             ? <Button variant="primary" onClick={() => onOpenSettings(error?.provider ?? null)}>{t("sync.openSettings")}</Button>
@@ -508,7 +518,7 @@ function SyncErrorDialog({
               : t("sync.retrying", { defaultValue: "Plainva versucht die Synchronisierung erneut …" })}
           </p>
         )}
-        {!incomplete && !rootMissing && !error?.signInAccountId && <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
+        {!incomplete && !rootMissing && !encryptedWorkspace && !error?.signInAccountId && <p style={{ margin: "0.85rem 0 0", fontSize: "var(--text-md)", color: "var(--text-muted)" }}>
           {encryptionBricked
             ? t("sync.encryptionErrorHint", { defaultValue: "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück." })
             : error?.workspaceFailure === "integrity"

@@ -20,7 +20,8 @@ describe("how a vault's file sync runs on this device (B3)", () => {
   it("is what the desktop opens a vault with, and a switch arriving with the profile reopens it", () => {
     const vault = readFileSync(join(__dirname, "..", "contexts", "VaultContext.tsx"), "utf8");
     expect(vault).toMatch(/filesRunState\(\{ filesOff: filesOffHere, pausedHere, signedOut: !!fileAccess\.signedOut \}\)/);
-    expect(vault).toMatch(/new SettingsOnlySync\(runner, target, backupVaultAdapter, intervalMs\)/);
+    // With the per-run guard against an encrypted workspace's folder (R8).
+    expect(vault).toMatch(/new SettingsOnlySync\(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, \(\) => \{/);
     expect(vault).toMatch(/window\.addEventListener\(CLOUD_ACCOUNTS_EVENT, handleFilesSwitch\)/);
   });
 });

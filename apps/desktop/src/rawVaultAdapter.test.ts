@@ -54,6 +54,10 @@ const SITES: Record<string, Site[]> = {
     ["kept as backup.current", 1, SKILL_VERSION],
   ],
   "components/import/ImportWizardModal.tsx": [["builds TauriVaultAdapter", 1, `${NOT_OPEN} (an import into a new vault; into the open one it writes through \`vaultAdapter\`)`]],
+  "components/security/SecuritySharingPage.tsx": [
+    ["taken from useVault()", 1, "the encrypted-workspace fact (R8) lives in `.plainva/encrypted-remote.json`, device-local state of the vault that never syncs and is no note"],
+    ["handed to encryptedRemoteFilePorts", 2, "the encrypted-workspace fact (R8): read for the way out, cleared when the person takes it"],
+  ],
   "components/settings/EncryptionUnlockHost.tsx": [
     ["taken from useVault()", 1, KEY_FILE],
     ["handed to hasLocalKeyfile", 1, KEY_FILE],

@@ -22,6 +22,7 @@ import {
 } from "./nameTwins.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
+import { isWorkspaceGenesisPath, isWorkspaceNamespacePath } from "../workspace/path.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, UnsyncableFileError, type SyncErrorKind } from "./errorKind.js";
 import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js";
 import { localNameRefusal } from "./localNameRefusal.js";
@@ -161,7 +162,13 @@ export function isLocalOnlyPath(path: string): boolean {
   // Operating-system bookkeeping (`.DS_Store`, `Thumbs.db`, …; issue #110,
   // E10) is neither downloaded nor mirrored as a deletion. A copy an older
   // version uploaded stays in the cloud: excluding a name deletes nothing.
-  return path.startsWith(".plainva") || path.includes(".CONFLICT") || isSystemJunkPath(path);
+  //
+  // `.pvws/` is an encrypted workspace's object store (R8 follow-up). Its own
+  // worker reads and writes it through the object store; the plain file sync
+  // has nothing to do with it - pulling it put ciphertext objects into a plain
+  // vault (a vault that lifted the encryption keeps syncing that folder, and
+  // the objects stay there until the person removes them).
+  return path.startsWith(".plainva") || isWorkspaceNamespacePath(path) || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
 /**
@@ -372,7 +379,22 @@ export interface SyncWorkerOptions {
    * a file the WORKER removed must not come back as a queued remote delete.
    */
   ownDeletions?: OwnDeletionRegister;
+  /**
+   * Asked only when a listing shows an encrypted workspace's genesis (R8): it
+   * returns when this device may sync next to exactly that workspace (it ended
+   * it) and throws `FatalSyncProtocolError` ("encrypted-workspace") otherwise.
+   * Without it, a listed genesis stops the worker. A listing without one costs
+   * nothing: the folder's own listing is the probe, and the worker writes
+   * nothing to the remote in a cycle before it has seen that cycle's listing.
+   */
+  workspaceListed?: PlainRemoteGuard;
 }
+
+/** What became of `pushSettingsNow` (R8): sent, waiting for the session's first clean listing, refused at a workspace, or failed. */
+export type SettingsPushOutcome = "pushed" | "pending" | "held" | "failed";
+
+/** See `SyncWorkerOptions.workspaceListed`. */
+export type PlainRemoteGuard = (rawTarget: ISyncTarget, listedGenesisPath: string) => Promise<void>;
 
 /**
  * What became of one remote deletion the worker tried to mirror locally.
@@ -716,6 +738,11 @@ export class SyncWorker {
   /** Profile-sync sideband, toggled live when the vault opt-in changes. */
   private settingsSyncRunner?: SettingsSyncRunner;
 
+  /** A listing of this session showed the folder without a workspace this device may not sync next to (R8). */
+  private sessionListingClear = false;
+  /** A listing showed such a workspace: the worker writes nothing more and stops (R8). */
+  private workspaceHalt = false;
+
   /** Enables/disables the profile-sync sideband at runtime (opt-in toggle). */
   public setSettingsSync(runner?: SettingsSyncRunner) {
     this.settingsSyncRunner = runner;
@@ -729,14 +756,33 @@ export class SyncWorker {
    * the other devices never learned that files were off. A failure is reported
    * and left at that; the next cycle (files on again) pushes anyway.
    */
-  public async pushSettingsNow(): Promise<void> {
+  public async pushSettingsNow(): Promise<SettingsPushOutcome> {
+    if (!this.settingsSyncRunner) return "pushed";
+    // Never next to a workspace this device may not sync next to (R8).
+    if (this.workspaceHalt) return "held";
+    // Not before a listing of this session has shown the folder (R8): the
+    // request is remembered, and the first cycle whose listing clears runs it
+    // (its settings step). Said as "pending", so no caller claims it went out.
+    if (!this.sessionListingClear) {
+      this.settingsPushPending = true;
+      return "pending";
+    }
     // Not behind a running file cycle (second review, B3): the settings step is
     // serialised on its own, so this waits at most for another settings run.
     try {
       await this.runSettingsSerially();
+      return "pushed";
     } catch (e) {
       console.error("[SyncWorker] settings push before stopping failed:", e);
+      return "failed";
     }
+  }
+
+  /** A settings push asked for before the session's first clean listing (R8); the next clean cycle runs it. */
+  private settingsPushPending = false;
+  /** Whether a settings push is still waiting for a clean listing (R8). */
+  public get settingsPushWaiting(): boolean {
+    return this.settingsPushPending;
   }
 
   /** The tail of the settings runs: one at a time, whoever asks - a cycle or `pushSettingsNow`. */
@@ -750,6 +796,10 @@ export class SyncWorker {
   private runSettingsSerially(): Promise<void> {
     const runner = this.settingsSyncRunner;
     if (!runner) return Promise.resolve();
+    // The profile is written to the folder: not before a listing of this
+    // session has shown that the folder holds no workspace this device may
+    // not sync next to, and never after one did (R8).
+    if (!this.sessionListingClear || this.workspaceHalt) return Promise.resolve();
     const run = this.settingsChain.then(() => runner.run(this.rawTarget, this.vault));
     this.settingsChain = run.catch(() => undefined);
     return run;
@@ -2141,6 +2191,8 @@ export class SyncWorker {
   }
 
   public async runCycle(gen = this.activeCycleGen) {
+    // A folder that showed a workspace this device may not sync next to gets nothing more (R8).
+    if (this.workspaceHalt) return;
     // Cycle liveness: false once the worker stops OR the watchdog abandoned
     // THIS cycle (generation bump). Every loop boundary below checks it, so a
     // zombie cycle whose hung await eventually settles stops writing at the
@@ -2252,20 +2304,6 @@ export class SyncWorker {
         await this.settingsSyncRunner.guardBeforeCycle(this.rawTarget, this.vault);
       }
 
-      // 0b. Deletion journal (P1): merge the remote journal BEFORE the pull, so
-      // the reconcile below already knows which absences a human confirmed.
-      // Its own try/catch: a journal hiccup falls back to the local journal and
-      // never stops the file sync.
-      if (this.deletionJournal && alive()) {
-        // Local persistence must succeed before any confirmed row can retire.
-        await this.recordQueuedDeletionIntents();
-        try {
-          await this.deletionJournal.sync(this.rawTarget);
-        } catch (e) {
-          console.warn("[SyncWorker] deletion-journal sync failed; using the local journal only:", e);
-        }
-      }
-
       // 1. Pull the remote change set. Change-token providers (Drive) pull only what
       // changed since the last cursor — a single cheap changes.list instead of walking the
       // whole tree every cycle — with a periodic full listing as a safety net. Every other
@@ -2291,6 +2329,46 @@ export class SyncWorker {
       const pullResult = doFullListing
         ? await this.target.pull()
         : await this.target.pull(this.cursor);
+      // The folder's own listing is the probe (R8): one that carries a genesis
+      // (any case) shows a folder that is - or just became - an encrypted
+      // workspace. `.pvws/` is local-only and drops out below, so this is the
+      // one place it shows, and nothing has been written to the remote yet in
+      // this cycle. A listing without one costs nothing.
+      const listedGenesis = [...pullResult.etagMap.keys()].find((path) => isWorkspaceGenesisPath(path));
+      if (listedGenesis !== undefined) {
+        if (this.options.workspaceListed) await this.options.workspaceListed(this.rawTarget, listedGenesis);
+        else throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace");
+      }
+      // A cursor pull that could not resolve every change may have missed a
+      // brand-new folder - a workspace's `.pvws/` among them: this cycle writes
+      // nothing, and the full listing follows at once.
+      //
+      // What it costs: on Drive (the only target with an unresolved change),
+      // each folder rename, move or new folder whose parent the cursor cannot
+      // place delays the local pushes by one full walk. It is kept rather than
+      // narrowed because the target does not say WHICH change it could not
+      // place: the cycle cannot prove the unplaced item is not a `.pvws`
+      // folder or its genesis, so it cannot prove a push here is safe.
+      // `recordQueuedDeletionIntents` belongs to the journal step and goes
+      // with it: the deletes it would record are still queued, and the full
+      // cycle right after records them before its own journal merge.
+      const writesDeferred = !doFullListing && !!pullResult.needsFullListing;
+      if (!writesDeferred) this.sessionListingClear = true;
+
+      // 0b. Deletion journal (P1): merged right after the listing (R8: nothing
+      // is written before it) and before the reconcile, so the reconcile
+      // already knows which absences a human confirmed. Its own try/catch: a
+      // journal hiccup falls back to the local journal and never stops the
+      // file sync.
+      if (this.deletionJournal && alive() && !writesDeferred) {
+        // Local persistence must succeed before any confirmed row can retire.
+        await this.recordQueuedDeletionIntents();
+        try {
+          await this.deletionJournal.sync(this.rawTarget);
+        } catch (e) {
+          console.warn("[SyncWorker] deletion-journal sync failed; using the local journal only:", e);
+        }
+      }
       const now = Date.now();
       const pullMs = now - pullStartedAt;
       const remotePaths = new Set(pullResult.etagMap.keys());
@@ -2874,7 +2952,8 @@ export class SyncWorker {
       }).map((op) => op.id));
 
       // 3. Push the local queue (offline writes, renames, deletes, merge results).
-      await this.engine.processQueue(
+      // Not in a cycle whose listing may have missed a new folder (R8).
+      if (!writesDeferred) await this.engine.processQueue(
         () => !alive(),
         (current, total) => this.emitProgress("push", current, total),
         // Held-back twin DELETEs join the pull side's collisions (issue #112).
@@ -2884,9 +2963,10 @@ export class SyncWorker {
       // 4. Profile-sync sideband (opt-in): transport `.plainva/sync/settings.json`
       // directly, outside the queue/reconcile path. Its own try/catch so a
       // settings hiccup never fails or slows the file sync.
-      if (this.settingsSyncRunner && alive()) {
+      if (this.settingsSyncRunner && alive() && !writesDeferred) {
         try {
           await this.runSettingsSerially();
+          this.settingsPushPending = false;
         } catch (e) {
           console.error("[SyncWorker] settings-sync sideband failed:", e);
         }
@@ -3031,6 +3111,20 @@ export class SyncWorker {
         this.setStatus("idle");
       }
     } catch (error) {
+      // The folder holds an encrypted workspace this device may not sync next
+      // to (R8): nothing more is written, and the worker stops - the shell's
+      // gate says what to do. Not counted as a failure: no retry helps.
+      if (syncErrorReason(error) === "encrypted-workspace") {
+        this.workspaceHalt = true;
+        // Should this worker ever list again, it lists in full: a cursor would
+        // not show a genesis it already passed, and the full listing is what
+        // shows the folder as it is.
+        this.cursor = undefined;
+        this.onProgress?.(null);
+        this.stop();
+        this.setStatus("error", syncErrorMessage(error), "encrypted-workspace");
+        return;
+      }
       this.consecutiveFailures++;
       // Drop the incremental cursor so the NEXT cycle does a full listing. This self-heals
       // an invalidated/expired change token (Drive answers 410 for a stale startPageToken)

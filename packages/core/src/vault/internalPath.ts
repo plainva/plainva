@@ -34,8 +34,9 @@ export interface InternalPathRules {
 
 export const INTERNAL_PATH_RULES: InternalPathRules = {
   exact: [
-    // Plainva / vault tooling
-    ".plainva", ".obsidian", ".trash", ".smart-env",
+    // Plainva / vault tooling. `.pvws` is an encrypted workspace's object
+    // store (R8): never a note, never indexed, never pushed by the plain sync.
+    ".plainva", ".pvws", ".obsidian", ".trash", ".smart-env",
     // version control and package managers
     ".git", "node_modules",
     // language and build tooling that lives next to notes in a developer's vault

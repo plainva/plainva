@@ -111,10 +111,6 @@ const BUDGET: Record<string, Counts> = {
    * content, documented inline).
    */
   "mobile.css": { zIndexRaw: 1, spacingRaw: 79, gapRaw: 35, sizeRaw: 59 },
-  // A QR code is DATA, not an icon: `size` is the rendered pixel edge of a
-  // square a camera has to resolve, and 232 fills the phone's sheet. The
-  // iconLiteral rule cannot tell the two apart by shape (S7).
-  "screens/SecurityAreaScreen.tsx": { iconLiteral: 1 },
   /**
    * Inline spacing in JSX (E5, entering the ratchet with N0.3). PinboardView
    * was the worst of them and has no entry any more: N3.6 took its 29 inline

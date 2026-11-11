@@ -51,6 +51,7 @@ import {
   activateMobileWorkspaceOwnerTransfer,
   activatePreparedMobileWorkspace,
   decommissionMobileWorkspace,
+  loadMobileWorkspaceRuntime,
   discardPreparedMobileWorkspace,
   getMobileWorkspaceStatus,
   inviteMobileWorkspaceMember,
@@ -205,6 +206,28 @@ describe("mobile encrypted-workspace decommission", () => {
     expect(await getMobileWorkspaceStatus("v1")).toBeNull();
     expect(secrets.has("workspace_runtime_mobile_v1")).toBe(false);
     expect(await state.loadMeta()).toBeNull();
+  });
+
+  it("records what the folder is afterwards: released only for the only device, left otherwise (R8)", async () => {
+    const state = await joined();
+    const settings = new Map<string, unknown>();
+    const { getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({ ...previous, loadSettings: async () => ({
+      keys: async () => [...settings.keys()], get: async (key: string) => settings.get(key) ?? null,
+      set: async (key: string, value: unknown) => { settings.set(key, value); }, delete: async (key: string) => settings.delete(key), save: async () => {},
+    }) } as Parameters<typeof setPlatformServices>[0]);
+    try {
+      // Without the runtime nobody can tell whether other devices still use it: the folder stays theirs.
+      await decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {} });
+      expect(settings.get("encryptedRemote_v1")).toMatchObject({ v: 2, state: "left" });
+      // The workspace's only device and member ends it: released for exactly that workspace.
+      const again = await joined();
+      const runtime = await loadMobileWorkspaceRuntime("v1");
+      await decommissionMobileWorkspace({ vaultId: "v1", state: again, stopSync: async () => {}, runtime });
+      expect(settings.get("encryptedRemote_v1")).toMatchObject({ v: 2, state: "released", workspace: expect.any(String) });
+    } finally { if (previous) setPlatformServices(previous); }
   });
 
   it("refuses on a locked keystore and leaves everything in place", async () => {

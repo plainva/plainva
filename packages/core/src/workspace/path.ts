@@ -1,9 +1,35 @@
 import { hasControlCharacters, hasUnpairedSurrogate, utf8Encode } from "./encoding.js";
 import { MAX_VAULT_PATH_BYTES, MAX_VAULT_SEGMENT_BYTES } from "./constants.js";
 import { protocolAssert } from "./errors.js";
+import { foldSegment } from "../vault/internalPath.js";
 
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 const RESERVED_CHARS = /[<>:"|?*\\]/;
+
+/**
+ * Whether a path lies in an encrypted workspace's own namespace (`.pvws/`, any
+ * case). One rule for the workspace's reservation below and for the plain
+ * sync, which never touches it (R8).
+ */
+export function isWorkspaceNamespacePath(path: string): boolean {
+  // Folded as the file systems fold a segment (case, trailing dots and spaces):
+  // the same form the internal-path rules use, so `.PVWS` and `.pvws.` are it too.
+  return foldSegment(path.replace(/\\/g, "/").split("/")[0]) === ".pvws";
+}
+
+/**
+ * `isWorkspaceNamespacePath` as an SQL condition that is TRUE for a path
+ * OUTSIDE the namespace (R8). SQLite's LIKE ignores ASCII case, which is the
+ * case rule of the namespace. `column` is a literal of the caller's statement.
+ */
+export function outsideWorkspaceNamespaceSql(column: string): string {
+  return `(${column} NOT LIKE '.pvws' AND ${column} NOT LIKE '.pvws/%')`;
+}
+
+/** Whether a path is a workspace's genesis, the file that makes a folder a workspace (any case). */
+export function isWorkspaceGenesisPath(path: string): boolean {
+  return path.toLowerCase() === ".pvws/genesis.pvgen";
+}
 
 /** Normalises a user path for creation and rejects cross-platform ambiguities. */
 export function normalizeVaultPath(input: string): string {
@@ -14,7 +40,7 @@ export function normalizeVaultPath(input: string): string {
   protocolAssert(!RESERVED_CHARS.test(path) && !hasControlCharacters(path), "format", "vault path contains a reserved character");
   protocolAssert(utf8Encode(path).length <= MAX_VAULT_PATH_BYTES, "bounds", "vault path is too long");
   const segments = path.split("/");
-  protocolAssert(segments[0].toLowerCase() !== ".pvws", "format", "vault path uses the reserved workspace namespace");
+  protocolAssert(!isWorkspaceNamespacePath(path), "format", "vault path uses the reserved workspace namespace");
   for (const segment of segments) {
     protocolAssert(segment.length > 0 && segment !== "." && segment !== "..", "format", "vault path contains an invalid segment");
     protocolAssert(!segment.endsWith(" ") && !segment.endsWith("."), "format", "vault path segment has an unsafe suffix");

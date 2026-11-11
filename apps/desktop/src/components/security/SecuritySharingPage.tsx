@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { InfoTip, Banner, Button, ICON, Modal, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
+import { InfoTip, Banner, Button, ICON, Modal, dismissEncryptedRemote, encryptedRemoteDismissable, encryptedRemoteFilePorts, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
@@ -77,7 +77,29 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     exportWorkspaceQuarantine,
     detectJoinableWorkspace,
     openVault,
+    backupAdapter,
   } = useVault();
+  /**
+   * The way out where the app cannot find out itself (R8): a server that will
+   * not show the hidden `.pvws` path, or a departure from a workspace whose
+   * other devices it cannot see. The person's own word; the listing stays the net.
+   */
+  const [plainFolderOffered, setPlainFolderOffered] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (!isActiveVault || !backupAdapter) { setPlainFolderOffered(false); return; }
+    void encryptedRemoteDismissable(encryptedRemoteFilePorts(backupAdapter)).then((offer) => { if (alive) setPlainFolderOffered(offer); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [isActiveVault, backupAdapter, workspaceSecurityStatus]);
+  const syncAsPlainFolder = async () => {
+    const ok = await appConfirm({ title: t("workspaceSecurity.plainFolderAction"), message: t("workspaceSecurity.plainFolderConfirm"), kind: "danger", confirmLabel: t("workspaceSecurity.plainFolderAction") });
+    if (!ok) return;
+    if (backupAdapter && (await dismissEncryptedRemote(encryptedRemoteFilePorts(backupAdapter)))) {
+      setPlainFolderOffered(false);
+      // The held folder is asked again: now it starts its sync step.
+      window.dispatchEvent(new CustomEvent("plainva-recheck-held-folder"));
+    }
+  };
   const status = isActiveVault ? workspaceSecurityStatus : null;
   const [joinable, setJoinable] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -420,6 +442,23 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     }, form.publicationMode === "private" ? t("workspaceSecurity.sliceCreated", { defaultValue: "Slice created" }) : t("workspaceSecurity.publicationCreated", { defaultValue: "Encrypted publication configured" }));
     if (dialog === "rotate") return rotateRecovery();
     if (dialog === "owner") return transferOwner();
+    return restoreAfterAsking();
+  };
+
+  /**
+   * Restoring makes this device the only one (`revokeOtherDevices`): right when
+   * every device is lost, wrong for a second device next to one that still
+   * works, which joins through "Add another device" (R8). Asked first, on both
+   * shells.
+   */
+  const restoreAfterAsking = async (): Promise<void> => {
+    const ok = await appConfirm({
+      title: t("workspaceSecurity.restoreRevokesTitle"),
+      message: t("workspaceSecurity.restoreRevokesBody"),
+      kind: "danger",
+      confirmLabel: t("workspaceSecurity.restore", { defaultValue: "Restore access" }),
+    });
+    if (!ok) return;
     return runGovernance(async () => {
       if (!form.recoveryFile) throw new Error("Select a recovery file");
       await restoreWorkspaceRecovery({ bytes: await readFile(form.recoveryFile), recoveryCode: form.recoveryCode, deviceDisplayName: form.deviceName, fallbackPassphrase: form.fallbackPassphrase || undefined, revokeOtherDevices: true });
@@ -505,8 +544,9 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       <section className="pv-security-hero" aria-label={t("workspaceSecurity.currentStatus")}>
         <div className="pv-security-hero-icon"><ShieldCheck size={ICON.empty} /></div>
         <div className="pv-security-hero-copy">
-          <strong>{status ? t("workspaceSecurity.workspaceProtected") : t("workspaceSecurity.notConfigured")}</strong>
-          <span>{status ? `${phaseLabel(t, status.phase)} · ${status.deviceName}` : selectedVault}</span>
+          {/* Not "not configured yet" where the folder holds a workspace this device has not joined (R8). */}
+          <strong>{status ? t("workspaceSecurity.workspaceProtected") : joinable ? t("workspaceSecurity.notJoinedTitle") : t("workspaceSecurity.notConfigured")}</strong>
+          <span>{status ? `${phaseLabel(t, status.phase)} · ${status.deviceName}` : joinable ? t("workspaceSecurity.notJoinedSubtitle") : selectedVault}</span>
         </div>
         {status
           ? <Button variant="secondary" onClick={() => { setShowDetails((value) => !value); void refreshDiagnostics(); }}>{showDetails ? t("workspaceSecurity.hideDetails") : t("workspaceSecurity.showDetails")}</Button>
@@ -514,7 +554,15 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
             ? <Button variant="primary" disabled={busy} onClick={() => setShowJoin(true)} data-testid="workspace-security-join">{t("workspaceSecurity.joinCta", { defaultValue: "Join" })}</Button>
             : <Button variant="primary" disabled={busy} onClick={() => void requireWorkspace(() => setShowSetup(true), true)} data-testid="workspace-security-hero-setup">{t("workspaceSecurity.setup")}</Button>}
       </section>
+      {!status && plainFolderOffered && (
+        <SettingCard label={t("workspaceSecurity.currentStatus")}>
+          <SettingRow label={t("workspaceSecurity.plainFolderAction")}>
+            <Button variant="secondary" onClick={() => void syncAsPlainFolder()} data-testid="workspace-plain-folder">{t("workspaceSecurity.plainFolderAction")}</Button>
+          </SettingRow>
+        </SettingCard>
+      )}
       {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinDetectedShort")}<InfoTip label={t("workspaceSecurity.joinCta", { defaultValue: "Join" })} info={t("workspaceSecurity.joinDetected")} /></Banner>}
+      {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinEndedHint")}</Banner>}
 
       {/* Two named entry cards (IA v2, P2) open the second level: "your access"
           (devices + recovery) and "sharing" (members, groups, slices,
@@ -978,7 +1026,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
           <div className="pv-security-wizard">
             <Banner kind="info" rounded>{inviteFor.self ? t("workspaceSecurity.addDeviceHint") : t("workspaceSecurity.inviteArtifactHint", { defaultValue: "Send this code to the invited person through a secure channel. On their device they open Security & Sharing, paste it and request to join; approving their device here hands over the key." })}</Banner>
             <div className="pv-security-field"><span>{t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })}</span><code className="pv-security-code">{inviteCode}</code></div>
-            <div className="pv-security-field"><span>{t("workspaceSecurity.inviteQrCaption", { defaultValue: "Or scan this code with the Plainva app on your other device" })}</span><QrImage value={inviteCode} label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })} /></div>
+            <div className="pv-security-field">{inviteFor.self && <span>{t("workspaceSecurity.inviteQrCaption", { defaultValue: "Or scan this code with the Plainva app on your other device" })}</span>}<QrImage value={inviteCode} label={t("workspaceSecurity.inviteCode", { defaultValue: "Invitation code" })} /></div>
             {!inviteFor.self && <div className="pv-security-field"><span>{t("workspaceSecurity.memberIdFull", { defaultValue: "Member ID" })}</span><code className="pv-security-code">{inviteFor.memberId}</code></div>}
             <div className="pv-security-actions">
               <Button variant="ghost" onClick={() => setInviteFor(null)}>{t("common.close", { defaultValue: "Close" })}</Button>

@@ -79,6 +79,7 @@ export * from "./lib/accountCheck";
 export * from "./lib/accountSignOut";
 export * from "./lib/accountPage";
 export * from "./lib/syncStateBinding";
+export * from "./lib/encryptedRemoteGate";
 export * from "./lib/googleAuthorization";
 export * from "./components/accounts/OAuthAccessEditor";
 export * from "./components/accounts/AccountFailureNote";

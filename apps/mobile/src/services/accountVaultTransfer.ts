@@ -1,6 +1,6 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, getPlatformServices, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { assertConnectionIdentity, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { webdavFetch } from "../adapters/webdavHttp";
@@ -122,7 +122,16 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   if (context.cloudAccountId && !selected) throw new Error("accountChanged");
   const profile = await verifyIdentity(p, context, selected);
   const remote = await createRemote();
-  if (await remote.download(".pvws/genesis.pvgen")) throw new Error("pair-required");
+  // An encrypted vault in the folder (R8, TestFlight 2026-11-08). Refused here
+  // until now, with "open the existing vault through Security & Sharing" - on a
+  // second phone there is no existing vault, and Security & Sharing, where the
+  // join is, belongs to a vault that is connected to the folder. So the step
+  // ended where the person had to start. Now the folder becomes a vault of its
+  // own, empty: nothing of this device's notes goes into it (they would only
+  // wait as plaintext for an encryption they were never asked about), and its
+  // sync stands at "pair required" until this device has joined - the same
+  // state "Add vault" has always reached.
+  const encrypted = !!(await remote.download(".pvws/genesis.pvgen"));
   const key = fileDestinationKey(p, profile?.identity);
   const secrets = getPlatformServices().credentials;
   let id = run.preparedVaultId;
@@ -161,17 +170,18 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
   // sync - in the background, resumable, with its progress, an unreadable file
   // skipped and named. What is copied here is what is local: the notes of the
   // vault the run started in (where both sides have a file, the sync keeps
-  // both versions) and, below, the accounts and settings. An encrypted
-  // workspace was refused above by its genesis file.
+  // both versions) and, below, the accounts and settings. Into an encrypted
+  // workspace no note goes (see above).
   // The starter notes of a fresh vault stay behind where the folder already
   // holds notes (review 2026-10-27): they are the app's, and went up into the
   // person's existing wiki. One rule with the desktop's binding
   // (starterFilesToHoldBack): a new, empty folder takes the vault as it is,
   // and a listing that fails counts as a folder with notes. Only the folder's
   // listing is asked for, none of its files; the source vault is only read.
-  const listing = await remote.pull().catch(() => null);
-  const held = await starterFilesToHoldBack(v.adapter, listing && !listing.needsFullListing ? listing.etagMap.keys() : null);
-  const plan = await planVaultTransfer(v.adapter, null, target, undefined, held.size > 0 ? (file) => held.get(file.path) === file.hash : undefined);
+  const listing = encrypted ? null : await remote.pull().catch(() => null);
+  const held = encrypted ? new Map<string, string>() : await starterFilesToHoldBack(v.adapter, listing && !listing.needsFullListing ? listing.etagMap.keys() : null);
+  const keepBack = encrypted ? () => true : held.size > 0 ? (file: { path: string; hash: string }) => held.get(file.path) === file.hash : undefined;
+  const plan = await planVaultTransfer(v.adapter, null, target, undefined, keepBack);
   setFilesConnectProgress(null);
   // Asked only when there is something of the person's to copy - the question
   // says how many notes go up; a fresh vault goes on at once.
@@ -235,6 +245,9 @@ async function transferAccountFiles(v: MobileVault, p: MobileSyncProvider, conte
     if (!existing) await copyProfilePreferences(v, id, target);
     await saveCloudAccounts(id, [...combined.values()]);
     if (!sameStoredValue(await loadCloudAccounts(id), [...combined.values()])) throw new Error("storageFailed");
+    // Known before the vault is bound: a kill between the two must not leave a
+    // bound vault that does not know it sits on a workspace (R8).
+    if (encrypted) await markEncryptedRemote(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), id));
     await secrets.writeSecret(syncProviderSlot(id), p);
     if (!sameStoredValue(await secrets.readSecret(syncProviderSlot(id)), p)) throw new Error("storageFailed");
     await bindRunTokenToAccount(id, run.family, runServices(run));

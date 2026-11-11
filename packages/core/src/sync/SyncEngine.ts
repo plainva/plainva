@@ -7,6 +7,7 @@ import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isTextFile, mergeableText } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 import { unsyncableCopyPath } from "./unsyncablePaths.js";
+import { isWorkspaceNamespacePath } from "../workspace/path.js";
 
 async function sha256Bytes(bytes: Uint8Array): Promise<string> {
   const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
@@ -742,7 +743,7 @@ export class SyncEngine {
             const entries = report?.files ?? await this.vault.listDir(op.new_path, true);
             await this.target.createVaultFolder(op.new_path);
             for (const entry of entries) {
-              if (entry.path.startsWith(".plainva") || entry.path.includes(".CONFLICT")) continue;
+              if (entry.path.startsWith(".plainva") || isWorkspaceNamespacePath(entry.path) || entry.path.includes(".CONFLICT")) continue;
               if (entry.isDirectory) await this.queue.queueMkdir(entry.path);
               else await this.queue.queueWrite(entry.path, { force: true });
             }
