@@ -30,6 +30,7 @@ describe("profile roundtrip into mobile settings", () => {
     const { patch } = importVaultSettings(
       Object.fromEntries(storeBackedFields("mobile").map((f) => [f.logical, sampleFor(f.kind)]))
     );
+    expect(Object.keys(patch).length, "the import writes properties").toBeGreaterThan(0);
     for (const prop of Object.keys(patch)) expect(vaultDefaults()).toHaveProperty(prop);
   });
 

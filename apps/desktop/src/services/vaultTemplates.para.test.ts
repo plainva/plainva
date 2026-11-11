@@ -103,11 +103,13 @@ describe("PARA template", () => {
         const areaTitles = new Set(inFolder(sourceOf(areasBase.config)).map((n) => stem(n.path)));
         const projectTitles = new Set(inFolder(sourceOf(projectsBase.config)).map((n) => stem(n.path)));
 
+        expect(inFolder(sourceOf(projectsBase.config)).length, "the projects folder has notes").toBeGreaterThan(0);
         for (const note of inFolder(sourceOf(projectsBase.config))) {
           const target = wikiTarget(note.properties?.[areaKey]);
           expect(target, `${note.path} has no area`).toBeTruthy();
           expect(areaTitles.has(target!), `${note.path}: area "${target}" does not exist`).toBe(true);
         }
+        expect(inFolder(sourceOf(tasksBase.config)).length, "the tasks folder has notes").toBeGreaterThan(0);
         for (const note of inFolder(sourceOf(tasksBase.config))) {
           const target = wikiTarget(note.properties?.[projectKey]);
           expect(target, `${note.path} has no project`).toBeTruthy();
@@ -183,6 +185,7 @@ describe("PARA template", () => {
         }
         // Every due date became a real date, so the board and the table sort.
         const dueKey = dateKeyOf(tasksBase.config);
+        expect(inFolder(sourceOf(tasksBase.config)).length, "the tasks folder has notes").toBeGreaterThan(0);
         for (const note of inFolder(sourceOf(tasksBase.config))) {
           const written = files.get(note.path)!;
           const line = written.split("\n").find((l) => l.startsWith(`${dueKey}:`))!;

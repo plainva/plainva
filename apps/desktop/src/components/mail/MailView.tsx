@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, PenLine, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, mailboxesSwitchedOn, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, useWeekStartDay, type LinkTarget, type MailRowCaps } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, EmptyState, ICON, IconButton, mailboxesSwitchedOn, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, useWeekStartDay, type LinkTarget, type MailRowCaps } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT, loadCloudAccounts } from "../../services/cloudAccounts";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { firstAngleValue, nameBeforeAngle } from "@plainva/core";
@@ -2358,6 +2358,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         )}
         <MailBulkReport items={bulkReport} busy={bulkRunning} onCancel={() => bulkAbort.current?.abort()} onDismiss={() => setBulkReport([])} />
         {filterAttachments && <Banner kind="info">{t("mail.attachmentsLoaded", { known: displayedEnvelopes.filter(e => e.hasAttachments !== undefined).length, loaded: displayedEnvelopes.length })}</Banner>}
+        {/* The list and the reader are areas of their own (stability plan
+            R3): a message that cannot be drawn leaves the list, and a list
+            that fails leaves the folders and the open message. */}
+        <AreaBoundary area="mail:list" size="section">{() => (
         <div className="pv-mail-scroll" data-testid="mail-list" ref={listRef} role="listbox" aria-multiselectable onKeyDown={onListKeyDown}>
           {(searchBusy || flaggedBusy) && <p className="pv-mail-hint">{t("pim.syncing", { defaultValue: "Aktualisiere…" })}</p>}
           {/* Only in the merged list, as the line below: left while it is still
@@ -2609,6 +2613,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             </div>
           )}
         </div>
+        )}</AreaBoundary>
       </div>
 
       <div
@@ -2620,7 +2625,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
 
       {/* Column 3 — reader */}
       <div className="pv-mail-read pv-focus-frame" ref={readerRef} tabIndex={-1}>
-        {!message ? (
+        <AreaBoundary area="mail:reader" resetKey={selectedId ?? ""}>{() => (
+        !message ? (
           <div className="pv-mail-empty">
             {loadingMessage ? t("pim.syncing", { defaultValue: "Aktualisiere…" }) : t("mail.pickMessage", { defaultValue: "Nachricht auswählen." })}
           </div>
@@ -2817,7 +2823,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               </button>
             </div>
           </>
-        )}
+        )
+        )}</AreaBoundary>
       </div>
     </div>
     {moveMenu && (

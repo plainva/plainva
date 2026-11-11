@@ -393,6 +393,7 @@ describe("Android: AiMcpAuthPlugin", () => {
     // Nothing that is answered is read from a secret field of what is kept.
     for (const [, value] of code(androidAuth).matchAll(/\b(?:ret|info|shown)\.put\("\w+", ([^;]+)\);/g)) expect(value, value).not.toMatch(/"access"\)(?! != null)|"refresh"\)(?! != null)|verifier|clientSecret|tokens\./);
     // A rejection carries one of the fixed words, or a sentence written in the plugin.
+    expect([...code(androidAuth).matchAll(/call\.reject\(([^)]*)\)/g)].length, "the Android plugin rejects somewhere").toBeGreaterThan(0);
     for (const [, reason] of code(androidAuth).matchAll(/call\.reject\(([^)]*)\)/g)) expect(reason === "e.word" || /^"[^"]+"$/.test(reason!), reason).toBe(true);
     expect(code(androidAuth)).not.toMatch(/getMessage\(\)/);
   });
@@ -440,6 +441,7 @@ describe("iOS: AiMcpAuthPlugin", () => {
     expect([...shown.matchAll(/"(\w+)": /g)].map((m) => m[1])).toEqual(["issuer", "scopes", "signedIn", "renewable", "client"]);
     expect(shown).toContain('"signedIn": link["access"] is String,');
     expect(shown).toContain('"renewable": link["refresh"] is String,');
+    expect([...code(iosAuth).matchAll(/call\.reject\(([^)]*\)?)\)/g)].length, "the iOS plugin rejects somewhere").toBeGreaterThan(0);
     for (const [, reason] of code(iosAuth).matchAll(/call\.reject\(([^)]*\)?)\)/g)) expect(reason === "AiMcpAuthPlugin.word(error)" || /^"[^"]+"$/.test(reason!), reason).toBe(true);
     expect(code(iosAuth)).not.toMatch(/localizedDescription/);
   });

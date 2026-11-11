@@ -292,7 +292,28 @@ export function createPhoneSqlitePlugin(platform: PhonePlatform = "android") {
 
   return {
     /** What stands in for the module `@capacitor-community/sqlite`. */
-    module: { CapacitorSQLite: { deleteDatabase: async () => {} }, SQLiteConnection },
+    module: {
+      CapacitorSQLite: {
+        /**
+         * Deletes a database the plugin has a connection for (`deleteDatabase`
+         * in CapacitorSQLite.java / .swift): without one, "No available
+         * connection" / "Connection … not available". The database is closed
+         * first and its rows go; the connection stays in the native list, closed.
+         */
+        deleteDatabase: ({ database }: { database: string }) => serve("deleteDatabase", () => {
+          const entry = native.get(database);
+          if (!entry) throw notAvailable(database);
+          const c = connections.get(database);
+          if (c) {
+            if (c.inTransaction) end(c, "ROLLBACK");
+            c.sqlite.close();
+            connections.delete(database);
+          }
+          entry.open = false;
+        }),
+      },
+      SQLiteConnection,
+    },
     /** Whether `name` is open on the native side. */
     isOpen: (name: string) => native.get(name)?.open ?? false,
     counts,

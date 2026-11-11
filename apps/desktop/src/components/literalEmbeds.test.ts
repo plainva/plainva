@@ -4,6 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { buildNoteEmbedCoreExtension, imagePreviewPlugin, type NoteEmbedRenderer } from "@plainva/ui";
+import { forceFullParse } from "../test-parse";
 
 /**
  * Embed syntax inside code is an example, not an embed (TestFlight build 136,
@@ -20,6 +21,8 @@ function mountImages(doc: string) {
   const readBinary = vi.fn(async () => new Uint8Array([1]));
   const state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage }), imagePreviewPlugin("/vault", true, readBinary)] });
   const view = new EditorView({ state, parent });
+  // The decorations follow the tree; a parse that yielded under load would draw too little.
+  forceFullParse(view);
   return { view, parent, pictures: () => parent.querySelectorAll(".pv-image-embed").length };
 }
 
@@ -80,6 +83,7 @@ describe("a note embed in code stays text as well", () => {
     document.body.appendChild(parent);
     const state = EditorState.create({ doc: "Write `![[Note]]` to embed, like this:\n\n![[Real note]]", extensions: [markdown({ base: markdownLanguage }), buildNoteEmbedCoreExtension(renderer, true)] });
     const view = new EditorView({ state, parent });
+    forceFullParse(view);
     expect(rendered).toEqual(["Real note"]);
     view.destroy();
   });

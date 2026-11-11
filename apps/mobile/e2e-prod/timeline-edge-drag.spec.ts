@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./clockedTest";
 
 /**
  * Dragging the edge of a timeline bar has to answer a real FINGER.

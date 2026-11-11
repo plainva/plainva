@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CopyPlus, FilePlus2, Mail, MoreVertical, Trash2 } from "lucide-react";
-import { Button, Checkbox, ChipField, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, SwatchGrid, TextInput, useDiscardGuard, WEEKDAY_CODES, weekdayCodeLabel } from "@plainva/ui";
+import { appendLine, Button, Checkbox, ChipField, noteLinkMarkdown, noteLinkUrlFor, EVENT_COLOR_PALETTE, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Modal, SwatchGrid, TextInput, useDiscardGuard, WEEKDAY_CODES, weekdayCodeLabel } from "@plainva/ui";
 import { sameStoredValue, type PimAttendee, type PimAttendeeStatus } from "@plainva/core";
 import { Select } from "../Select";
 import { parseEmails, type EventFormValues } from "../../services/pim/calendarModel";
 import { ComposeEditor } from "../mail/ComposeEditor";
+import { NoteLinkField } from "../NoteLinkField";
 
 const STATUS_COLOR: Record<PimAttendeeStatus, string> = {
   accepted: "var(--success-text)",
@@ -38,6 +39,12 @@ interface EventEditModalProps {
   onBlock?: () => void;
   /** Edit mode: send the event as a standards-compliant iCal invite. */
   onEmailInvite?: () => void;
+  /**
+   * "Link a note" (F2): the vault's notes and the vault's name. A pick adds
+   * `[Title](plainva://open?…)` to the description, which opens the note in
+   * Plainva from the event — on this device and every other one.
+   */
+  noteLinks?: { listNotes: () => Promise<{ path: string; title: string }[]>; vaultName: string | null };
   /** Edit mode: attendees with their RSVP status (the back-channel). */
   rsvps?: PimAttendee[];
   /** Edit mode: the user's own RSVP status when invited (shows accept/decline). */
@@ -46,7 +53,7 @@ interface EventEditModalProps {
   onRespond?: (response: "accepted" | "declined" | "tentative") => Promise<void>;
 }
 
-export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete, onBlock, onEmailInvite, rsvps, selfResponse, onRespond }: EventEditModalProps) {
+export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSubmit, onMeetingNote, onDelete, onBlock, onEmailInvite, noteLinks, rsvps, selfResponse, onRespond }: EventEditModalProps) {
   const { t, i18n } = useTranslation();
   const [values, setValues] = useState<EventFormValues>(initial);
   const [busy, setBusy] = useState(false);
@@ -293,7 +300,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                   type="time"
                   className="pv-field"
                   value={values.endTime}
-                  onChange={(e) => set("endTime", e.target.value)}
+                  onChange={(e) => setValues((prev) => ({ ...prev, endTime: e.target.value, endDayOffset: undefined }))}
                   data-testid="event-end-time"
                   style={{ display: "block", marginTop: 2 }}
                 />
@@ -392,6 +399,19 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                 data-testid="event-description"
               />
             </div>
+            {noteLinks && (
+              <div className="pv-setrow pv-setrow--wide">
+                <div className="pv-setrow-main">
+                  <span className="pv-setrow-label">{t("noteLink.insert")}</span>
+                  <span className="pv-setrow-desc">{t("noteLink.pickHint")}</span>
+                </div>
+                <NoteLinkField
+                  listNotes={noteLinks.listNotes}
+                  testId="event-note-link"
+                  onPick={(note) => setDescription(appendLine(values.description, noteLinkMarkdown(note.title || note.path, noteLinkUrlFor(noteLinks.vaultName, note.path))))}
+                />
+              </div>
+            )}
           </div>
         </div>
         {/* Group: Teilnehmer — invitees (chips), notify, RSVP responses. */}

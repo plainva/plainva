@@ -2,7 +2,7 @@ import { sha256Hex, utf8Encode } from "../workspace/encoding.js";
 import { createFenceTracker } from "../markdownFence.js";
 import { joinSourceLines, sourceLinesOf } from "../sourceLines.js";
 import { GFM_TASK_LINE, scanTasks, taskBoxChar, type ScannedTask, type TaskBoxState } from "./taskScan.js";
-import { nextTasksDates, readTasksMetadata, setTasksDue, setTasksField, setTasksPriority, tasksDayNumber } from "./taskMetadata.js";
+import { nextTasksDates, readTasksMetadata, setTasksDue, setTasksField, setTasksPriority, tasksDayNumber, withoutBlockId } from "./taskMetadata.js";
 import { htmlInputTagRanges, readHtmlCheckbox, withHtmlCheckboxChecked } from "./htmlCheckbox.js";
 
 export { readHtmlCheckbox };
@@ -53,7 +53,8 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
       body = setTasksField(body, "taskId", id);
       // Reopening a completed predecessor does not duplicate its existing child.
       if (!tasks.some(t => t.taskId === nextId)) {
-        let nextBody = setTasksField(body, "taskId", nextId);
+        // The block id stays with the original line, where every link to it points (F2).
+        let nextBody = setTasksField(withoutBlockId(body), "taskId", nextId);
         nextBody = setTasksField(nextBody, "completed", null);
         // The next occurrence is neither done nor cancelled, as in the Tasks plugin.
         nextBody = setTasksField(nextBody, "cancelled", null);

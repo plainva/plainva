@@ -280,6 +280,7 @@ describe("Zettelkasten template", () => {
         const statusKey = Object.entries(literature.columns).find(
           ([, c]) => (c as { input?: string }).input === "status"
         )![0];
+        expect(optionValues(literature.columns[statusKey]).length, "the status column has options").toBeGreaterThan(0);
         for (const value of optionValues(literature.columns[statusKey])) {
           expect(notes.some((n) => n.properties?.[statusKey] === value), `no source is "${value}"`).toBe(true);
         }

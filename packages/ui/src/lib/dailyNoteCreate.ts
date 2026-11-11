@@ -21,7 +21,7 @@
  * daily note had no `{{daily±N}}` at all, and a capture's counted
  * `{{weekday:…}}` from Monday on both shells.
  */
-import { trimEndChars } from "@plainva/core";
+import { trimEndChars, checkedContentPath } from "@plainva/core";
 import { applyTemplatePlaceholders } from "../base/templateFiles";
 import type { TemplateContext } from "../base/templateEngine";
 import { buildDailyNotePath } from "./dailyNotePath";
@@ -47,6 +47,8 @@ export interface DailyNoteFiles {
   readTextFile(path: string): Promise<string>;
   /** Writes a note that does not exist yet, creating the folders it needs. */
   createNote(path: string, content: string): Promise<void>;
+  /** One folder of the vault, for the check of a template name of an unusual shape (`checkedContentPath`). */
+  listDir?(path: string, recursive?: boolean): Promise<readonly { name: string }[]>;
 }
 
 export interface EnsureDailyNoteOptions {
@@ -116,7 +118,7 @@ export async function ensureDailyNote(
   const templatePath = dailyTemplatePath(config);
   // A template that is named but missing falls back to the blank note below.
   if (templatePath && (await files.exists(templatePath))) {
-    const raw = await files.readTextFile(templatePath);
+    const raw = await files.readTextFile(await checkedContentPath(templatePath, files.listDir ? (f) => files.listDir!(f, false) : null));
     const stamp = noteStamp(date, options.now);
     const ctx: TemplateContext = {
       folder,

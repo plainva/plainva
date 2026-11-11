@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-11-02
+Stand: 2026-11-10
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -139,6 +139,10 @@ Solange es noch keine öffentlichen Releases gibt, meldet die Update-Suche: „A
 ### Gibt es versteckte Funktionen?
 
 Die Sternenflotte kommentiert Gerüchte grundsätzlich nicht. Aber es heißt, das Logo in der Titelleiste reagiere auf beharrliches Klopfen — und wer dann die richtigen Worte kennt, sieht Plainva danach in einem völlig neuen Licht. Manche sagen: in vieren.
+
+### Ein Teil des Fensters zeigt „Dieser Bereich kann nicht angezeigt werden“
+
+Ein Bereich ließ sich nicht zeichnen — ein Tab, ein Abschnitt der Seitenleiste, eine Datenbank-Ansicht, eine Mail, eine Einstellungsseite, ein Dialog oder am Telefon ein Bildschirm oder ein Blatt. Ersetzt wird nur dieser Bereich; alles andere arbeitet weiter, und eine offene Notiz behält ihren Text. **Diesen Bereich neu laden** zeichnet den Bereich neu. Scheitert er ein zweites Mal, sagt die Meldung das und bleibt stehen: Schließe den Tab (**Tab schließen**) oder tippe am Telefon auf **Zurück**, und starte Plainva neu, wenn es wieder passiert. Der Fehler steht unter **Über & Diagnose**; der Diagnose-Export dort enthält keinen Notizinhalt und hilft bei einer Fehlermeldung.
 
 ## Siehe auch
 

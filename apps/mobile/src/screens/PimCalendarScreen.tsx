@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, ListChecks, RefreshCw, CalendarPlus } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
-import { chunkWeeks, dayRangeLabel, formatClockTime, formatHourMark, formatMinuteOfDay, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
+import { AreaBoundary, chunkWeeks, dayRangeLabel, formatClockTime, formatHourMark, formatMinuteOfDay, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, fillAllDayRoom, planAllDayRows, CalendarSyncNotice, hiddenBeyondDots, syncProblemsFor, dueRowsByDay, isOpenState, setPendingSearchJump, TaskStateIcon, errorText, type PlannerRow } from "@plainva/ui";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "@plainva/ui";
 import type { PimEventRow, PimSyncProblem } from "@plainva/core";
 import { isoOf } from "../lib/dates";
@@ -1174,11 +1174,13 @@ export function PimCalendarScreen({
 
       {editor.element}
       {accessFor && (
+        <AreaBoundary area="sheet:accountAccess" size="dialog" exit={{ label: t("common.close"), onExit: () => setAccessFor(null) }}>
         <AccountAccessSheet
           family={accessFor}
           onCancel={() => setAccessFor(null)}
           onSaved={() => { setAccessFor(null); void renewSignIn(); }}
         />
+        </AreaBoundary>
       )}
     </div>
   );

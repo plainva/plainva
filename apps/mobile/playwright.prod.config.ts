@@ -1,4 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import { TEST_TIME_ZONE, pinTestTimeZone } from "../../scripts/test-clock.mjs";
+
+// One zone for the runner and the page (R9, scripts/test-clock.mjs); the shared
+// `test` of e2e-prod/clockedTest.ts starts each page clock at TEST_NOW.
+pinTestTimeZone();
 
 /**
  * Playwright config for the mobile PRODUCTION-build smoke check (./e2e-prod).
@@ -16,11 +21,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  // CI: two shards of two workers each (stability plan R10); one worker locally.
+  // The Enter that two workers once lost was the test typing within one frame
+  // of it (note-line-ends.spec.ts), not the app.
+  workers: process.env.CI ? 2 : 1,
   reporter: "list",
   // In CI the first run of every test is traced and the trace kept when it
   // fails: `on-first-retry` kept the retry, which is the attempt that passed.
-  use: { baseURL, trace: process.env.CI ? "retain-on-first-failure" : "on-first-retry", ...devices["Pixel 7"] },
+  use: { baseURL, timezoneId: TEST_TIME_ZONE, trace: process.env.CI ? "retain-on-first-failure" : "on-first-retry", ...devices["Pixel 7"] },
   projects: [{ name: "mobile-chromium" }],
   ...(process.env.E2E_BASE_URL
     ? {}

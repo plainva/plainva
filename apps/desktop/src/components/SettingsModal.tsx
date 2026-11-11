@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, taskDatabaseLabels, toast } from "@plainva/ui";
+import { AreaBoundary, clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, taskDatabaseLabels, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -91,9 +91,11 @@ const basename = (p: string) => p.split(/[/\\]/).pop() || p;
  * page carries its own overflow, so a short page shows no scrollbar at all.
  * Inactive pages are visibility-hidden: not clickable, not focusable, not in
  * the a11y tree — their handlers can only fire while their area is active. */
-const SettingsPage: React.FC<{ active: boolean; children: React.ReactNode }> = ({ active, children }) => (
+const SettingsPage: React.FC<{ area: string; active: boolean; children: React.ReactNode }> = ({ area, active, children }) => (
   <div className="pv-setpage custom-scrollbar" data-active={active ? "true" : "false"}>
-    {children}
+    {/* Every page an area of its own (stability plan R3): a page that fails
+        leaves the settings, their navigation and every other page. */}
+    <AreaBoundary area={`settings:${area}`}>{children}</AreaBoundary>
   </div>
 );
 
@@ -833,7 +835,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
           <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
             <div ref={contentRef} className="pv-setcontent">
               <div className="pv-setpages">
-                  <SettingsPage active={inAppWorld && appPage === "appearance"}>
+                  <SettingsPage area="appearance" active={inAppWorld && appPage === "appearance"}>
                     <AppearancePage
                       themeName={themeName}
                       onThemeName={(name) => { setThemeName(name); setStoredThemeName(name).catch(console.error); }}
@@ -856,7 +858,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   {/* "Mein Design" (A2): a second level under Appearance, not a rail entry. */}
-                  <SettingsPage active={inAppWorld && appPage === "customTheme"}>
+                  <SettingsPage area="customTheme" active={inAppWorld && appPage === "customTheme"}>
                     <CustomThemePage
                       spec={customTheme}
                       onChange={async (spec) => { await designSync.save(spec, () => setStoredCustomTheme(spec)); setCustomThemeSpec(spec); }}
@@ -865,7 +867,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       active={inAppWorld && appPage === "customTheme" && customThemeLoaded}
                     />
                   </SettingsPage>
-                  <SettingsPage active={inAppWorld && appPage === "editor"}>
+                  <SettingsPage area="editor" active={inAppWorld && appPage === "editor"}>
                     <EditorPage
                       defaultViewMode={defaultViewMode}
                       onDefaultViewMode={(m) => { setDefaultViewMode(m); void setStoredDefaultViewMode(m); }}
@@ -879,7 +881,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onPlaceStamp={(v) => { setPlaceStamp(v); setPlaceStampEnabled(v); }}
                     />
                   </SettingsPage>
-                  <SettingsPage active={inAppWorld && appPage === "behavior"}>
+                  <SettingsPage area="behavior" active={inAppWorld && appPage === "behavior"}>
                     <BehaviorPage
                       autoOpenLastVault={autoOpenLastVault}
                       onAutoOpenLastVault={(v) => { void setAutoOpenLastVault(v); }}
@@ -898,10 +900,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                     />
                   </SettingsPage>
-                  <SettingsPage active={inAppWorld && appPage === "ai"}>
+                  <SettingsPage area="ai" active={inAppWorld && appPage === "ai"}>
                     <AiSettingsPage />
                   </SettingsPage>
-                  <SettingsPage active={inAppWorld && appPage === "about"}>
+                  <SettingsPage area="about" active={inAppWorld && appPage === "about"}>
                     <AboutPage
                       aboutLine={aboutInfo ? `Plainva ${aboutInfo.appVersion} (${formatBuildLine()}) · Tauri ${aboutInfo.tauriVersion} · WebView ${webViewVersion} · ${aboutInfo.os}` : "…"}
                       keychainStatus={keychainStatus}
@@ -922,10 +924,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                     />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "cloudAccounts"}>
+                  <SettingsPage area="cloudAccounts" active={!inAppWorld && vaultPage === "cloudAccounts"}>
                     <CloudAccountsPage selectedVault={selectedVault} initialProvider={initialProvider} connectRequest={connectRequest} focusAccount={cloudAccountFocus} onOpenArea={(areaId) => openArea("vault", areaId)} />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "sync"}>
+                  <SettingsPage area="sync" active={!inAppWorld && vaultPage === "sync"}>
                     <SyncPage
                       chainRequest={syncChainRequest}
                       selectedVault={selectedVault}
@@ -943,7 +945,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       }}
                     />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "security"}>
+                  <SettingsPage area="security" active={!inAppWorld && vaultPage === "security"}>
                     <SecuritySharingPage
                       selectedVault={selectedVault}
                       isActiveVault={isActiveVault}
@@ -952,16 +954,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onOpenSecurityArea={setSecurityArea}
                     />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "aiVault"}>
+                  <SettingsPage area="aiVault" active={!inAppWorld && vaultPage === "aiVault"}>
                     <AiVaultSettingsPage isActiveVault={isActiveVault} onClose={onClose} />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "pim"}>
+                  <SettingsPage area="pim" active={!inAppWorld && vaultPage === "pim"}>
                     <PimPage isActiveVault={isActiveVault} onOpenCloudAccounts={openCloudAccounts} />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "mail"}>
+                  <SettingsPage area="mail" active={!inAppWorld && vaultPage === "mail"}>
                     <MailPage isActiveVault={isActiveVault} onOpenCloudAccounts={openCloudAccounts} />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "content"}>
+                  <SettingsPage area="content" active={!inAppWorld && vaultPage === "content"}>
                     <ContentPage
                       isActiveVault={isActiveVault}
                       templateFolder={templateFolder}
@@ -1005,7 +1007,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onCommentAnchors={(v) => { setCommentAnchors(v); void persistFeature(section, commentAnchorsKey(section), v); }}
                     />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "journal"}>
+                  <SettingsPage area="journal" active={!inAppWorld && vaultPage === "journal"}>
                     <JournalPage
                       isActiveVault={isActiveVault}
                       dailyNotesFolder={dailyNotesFolder}
@@ -1026,10 +1028,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onJournalMoodProperty={(v) => { setJournalMoodProperty(v); void persistFeature(section, journalMoodPropertyKey(section), v.trim()); }}
                     />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "bars"}>
+                  <SettingsPage area="bars" active={!inAppWorld && vaultPage === "bars"}>
                     <BarsPage isActiveVault={isActiveVault} vaultPath={isActiveVault ? section : null} />
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "backup"}>
+                  <SettingsPage area="backup" active={!inAppWorld && vaultPage === "backup"}>
                     <BackupPage
                       isActiveVault={isActiveVault}
                       zipEnabled={zipEnabled}
@@ -1081,7 +1083,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                     />
                   </SettingsPage>
                   {/* The vault itself — the phone's vault page (Sammelplan § 3.169 Nr. 3). */}
-                  <SettingsPage active={!inAppWorld && vaultPage === "vaultDetails"}>
+                  <SettingsPage area="vaultDetails" active={!inAppWorld && vaultPage === "vaultDetails"}>
                     {selectedVault && (
                       <VaultDetailsPage
                         vaultPath={selectedVault}
@@ -1100,7 +1102,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       />
                     )}
                   </SettingsPage>
-                  <SettingsPage active={!inAppWorld && vaultPage === "maintenance"}>
+                  <SettingsPage area="maintenance" active={!inAppWorld && vaultPage === "maintenance"}>
                     <MaintenancePage
                       isActiveVault={isActiveVault}
                       reindexRunning={reindexRunning}

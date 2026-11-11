@@ -34,6 +34,8 @@ describe("mobile settings areas follow the shared catalog", () => {
   });
 
   it("states a reason for every omitted area instead of dropping it silently", () => {
+    // None may be omitted today; the catalog still has areas to look at.
+    expect(SETTINGS_AREAS.length).toBeGreaterThan(0);
     for (const area of SETTINGS_AREAS) {
       if (!area.mobileOmitted) continue;
       expect(area.mobileOmitted.trim().length, `${area.id} needs a reason`).toBeGreaterThan(10);

@@ -63,6 +63,8 @@ env:
   PLAINVA_BUNDLE_BASE: com.plainva.app.labs
   PLAINVA_APP_GROUP: group.com.plainva.app.labs
   PLAINVA_DISPLAY_NAME: Plainva Labs
+  # Note links (F2, ADR 0037): Labs answers its own scheme, never the store app's `plainva`.
+  PLAINVA_NOTE_LINK_SCHEME: plainva-labs
 
 jobs:
   android:
@@ -267,6 +269,7 @@ jobs:
             PLAINVA_BUNDLE_BASE="$PLAINVA_BUNDLE_BASE" \
             PLAINVA_APP_GROUP="$PLAINVA_APP_GROUP" \
             PLAINVA_DISPLAY_NAME="$PLAINVA_DISPLAY_NAME" \
+            PLAINVA_NOTE_LINK_SCHEME="$PLAINVA_NOTE_LINK_SCHEME" \
             PLAINVA_APP_PROFILE="$PLAINVA_APP_PROFILE" \
             PLAINVA_SHARE_PROFILE="$PLAINVA_SHARE_PROFILE" \
             PLAINVA_WIDGETS_PROFILE="$PLAINVA_WIDGETS_PROFILE"

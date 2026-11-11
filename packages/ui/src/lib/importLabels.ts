@@ -38,6 +38,8 @@ export function buildImportLabels(t: TFunction): ImportLabels {
     renamedToAvoidOverwrite: pick('renamed', d.renamedToAvoidOverwrite),
     noAvailableName: pick('noAvailableName', d.noAvailableName),
     reservedPathOccupied: pick('reservedPathOccupied', d.reservedPathOccupied),
+    renamedForSystem: pick('renamedForSystem', d.renamedForSystem ?? ''),
+    refusedInternalPath: pick('refusedInternalPath', d.refusedInternalPath ?? ''),
     viewTable: t('database.viewTable', { defaultValue: d.viewTable }) as string,
     viewList: t('database.viewList', { defaultValue: d.viewList }) as string,
     viewBoard: t('database.viewBoard', { defaultValue: d.viewBoard }) as string,

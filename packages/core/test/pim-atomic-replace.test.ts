@@ -172,6 +172,7 @@ describe("PIM cache: a replace is one step", () => {
 
     await repo.applyEventDelta("acc1", "cal1", [ev("new-1", 3)], ["old-1"]);
     expect(readerRows()).toEqual(["new-1", "old-2"]);
+    expect(seen.length, "the reader looked while the delta ran").toBeGreaterThan(0);
     for (const rows of seen) expect([["old-1", "old-2"], ["new-1", "old-2"]]).toContainEqual(rows);
   });
 

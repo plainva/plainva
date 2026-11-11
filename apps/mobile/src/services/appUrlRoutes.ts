@@ -1,4 +1,5 @@
-import { logDiagnostic } from "@plainva/ui";
+import { isNoteLinkAddress } from "@plainva/core";
+import { deliverNoteLink, logDiagnostic } from "@plainva/ui";
 import { APP_URL } from "./appScheme";
 import { handleOAuthRedirect } from "./oauthService";
 import { handlePimOAuthRedirect } from "./pim/pimOAuth";
@@ -19,6 +20,13 @@ import { handlePimOAuthRedirect } from "./pim/pimOAuth";
  */
 export async function routeAppUrl(url: string): Promise<void> {
   logDiagnostic("app-url", describeAppUrl(url));
+  // A note link (`plainva://open?…`, F2): first, because the sign-in handlers
+  // below take any address they do not know for an answer to a sign-in. It
+  // waits in the inbox until a vault is open (`useNoteLinkReceiver`).
+  if (isNoteLinkAddress(url)) {
+    deliverNoteLink(url);
+    return;
+  }
   // Launcher shortcuts (package J) ride the app scheme.
   if (url.startsWith(`${APP_URL}shortcut/`)) {
     const which = url.split("/").pop();

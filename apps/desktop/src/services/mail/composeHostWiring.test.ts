@@ -46,7 +46,9 @@ describe("where a composer is rendered", () => {
 
   for (const { rel, text } of hosts) {
     it(`${name(rel)}: a composer that is handed a draft is a new composer for every draft`, () => {
-      for (const tag of composerTags(text)) {
+      const tags = composerTags(text);
+      expect(tags, "the host renders a composer").not.toHaveLength(0);
+      for (const tag of tags) {
         // The composer in a window of its own restores one snapshot and is that
         // window: nothing can ask it for another message.
         if (/\brestore=/.test(tag)) continue;

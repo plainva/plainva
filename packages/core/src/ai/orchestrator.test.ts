@@ -482,6 +482,7 @@ describe("tools of foreign servers, through the dispatcher (plan P4.5)", () => {
     const answer = result.conversation.turns[2]!.parts[0] as ToolResultPart;
     expect(answer).toMatchObject({ callId: "1", name: "call_tool", tool: NAME });
     expect(answer.content).toContain('<untrusted_data origin="tool:tracker/search_issues" trust="3">');
+    expect(sent.length, "requests were sent").toBeGreaterThan(0);
     for (const spec of sent) {
       const names = ((spec as { body: { tools: { name: string }[] } }).body.tools ?? []).map((tool) => tool.name);
       expect(names).toEqual(["search_vault", "find_tools", "call_tool"]);

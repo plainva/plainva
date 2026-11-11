@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { copyPhoneNoteLink } from "../services/noteLinkRoute";
 import { CheckSquare, Database, FileText, Folder } from "lucide-react";
-import { bookmarkKey, fileRowActions, ICON, isLargeDeletion, pickRowActions, toast, type RowActionSpec } from "@plainva/ui";
+import { AreaBoundary, bookmarkKey, fileRowActions, ICON, isLargeDeletion, pickRowActions, toast, type RowActionSpec } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { VersionsPanel } from "../components/VersionsPanel";
@@ -243,6 +244,7 @@ export function useFileRowSheet({
     if (kind === "base") {
       return fileRowActions(t, {
         versionHistory: closeThen(() => setHistory({ path: target.path, title: target.title })),
+        copyLink: closeThen(() => void copyPhoneNoteLink(target.path)),
         removeFromList: removeFromList && (() => removeFromList(target)),
         delete: closeThen(() => void confirmDeleteFile(vault, target.path, target.title, t)),
       });
@@ -254,6 +256,7 @@ export function useFileRowSheet({
       bookmarked: bookmarked.has(bookmarkKey({ type: "file", path: target.path })),
       bookmark: () => bookmarkNote(target),
       versionHistory: closeThen(() => setHistory({ path: target.path, title: target.title })),
+      copyLink: closeThen(() => void copyPhoneNoteLink(target.path)),
       removeFromList: removeFromList && (() => removeFromList(target)),
       delete: () => deleteNote(target),
     });
@@ -349,6 +352,7 @@ export function useFileRowSheet({
       )}
 
       {movePick && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setMovePick(null) }}>
         <FolderPickerSheet
           vault={vault}
           title={t("mobile.moveNoteTo", { name: movePick.title })}
@@ -362,6 +366,7 @@ export function useFileRowSheet({
           }}
           onClose={() => setMovePick(null)}
         />
+        </AreaBoundary>
       )}
     </>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core";
-import {
+import { AreaBoundary,
   AiSendOverview,
   Banner,
   Button,
@@ -244,7 +244,7 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
           </RowList>
         </GroupCard>
       )}
-      {asking && <SemanticLoadSheet spec={asking} onCancel={() => setAsking(null)} onLoad={() => void load(asking)} />}
+      {asking && <AreaBoundary area="sheet:semanticLoad" size="dialog" exit={{ label: t("common.close"), onExit: () => setAsking(null) }}><SemanticLoadSheet spec={asking} onCancel={() => setAsking(null)} onLoad={() => void load(asking)} /></AreaBoundary>}
     </>
   );
 }

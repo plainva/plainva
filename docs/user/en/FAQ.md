@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-11-02
+Last reviewed: 2026-11-10
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -139,6 +139,10 @@ As long as there are no public releases yet, the update check reports: "No publi
 ### Are there hidden features?
 
 Starfleet does not comment on rumors. But word is the logo in the title bar responds to persistent knocking — and whoever knows the right words afterwards will see Plainva in a whole new light. Some say: four of them.
+
+### Part of the window says “This area could not be shown”
+
+One area failed to draw — a tab, a sidebar section, a database view, a mail, a settings page, a dialog or, on the phone, a screen or a sheet. Only that area is replaced; everything else keeps working, and an open note keeps its text. **Reload this area** draws the area again. If it fails a second time, the message says so and stays: close the tab (**Close tab**) or, on the phone, tap **Back**, and restart Plainva if it keeps happening. The error is recorded under **About & diagnostics**; the diagnostics export there contains no note content and helps a bug report.
 
 ## See also
 

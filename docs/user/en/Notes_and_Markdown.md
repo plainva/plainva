@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-11-05
+Last updated: 2026-11-10
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -63,6 +63,28 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 - **Backlinks**: The **Backlinks** section in the right sidebar shows which notes link to the active one — grouped per source file, with a counter for multiple occurrences. Under each file every occurrence is listed with the headings and list items above it and the line itself; a click jumps right there. On the phone the note's context sheet shows the same places. The rows are ordered by **Title**; the sort button above them switches to **Last modified** or **Number of links**, choosing the same key again reverses the direction, and the choice is remembered on this device.
 - **Rename with link care**: When you rename a file in the file tree, Plainva updates every link to it across the whole vault (anchors like `#Section` are preserved) and reports: "N link(s) in M file(s) were updated to the new name." A link that reaches the note through the `title` of its properties stays as it is — that title does not change with the file's name.
 - **Tags**: `#project` — or nested, `#project/website` — anywhere in the text is a tag. It is drawn as a small pill while you write and while you read, and a click on it opens the notes that carry it (on the phone: a tap while reading). What counts as a tag and how tags get a colour: [Search](Search.md).
+
+## Links to a note from outside
+
+Every note has an address that opens it from anywhere — a calendar event, a task in your provider's list, a mail, a bookmark, a chat or another app:
+
+`plainva://open?vault=Work&path=Projects%2FPlan.md`
+
+- **Copy link** puts that address on the clipboard: on the desktop in the note's ⋮ menu, the tab menu and the context menu of the file tree; on the phone in the note's menu and in a file's sheet.
+- **At a heading or a line**: the block menu (the handle left of a block; on the phone the block sheet) and, on the desktop, the right-click menu of the editor offer **Copy link** — the address of exactly that heading or block — and **Copy block link** — a link for your notes such as `[[Plan#Goals]]` or `[[Plan#^k3x9qa]]`. A block without an ID gets one: Plainva writes ` ^k3x9qa` (six letters and digits) at the end of the paragraph or list item, for a table on a line of its own below it — as if you had typed it, so undo takes it back. Frontmatter, code blocks, formulas and empty lines get no ID.
+- **Suggestions**: typing `[[Note#^` lists the block IDs the note already has, with the beginning of their text.
+- **In an event**: **Link a note** in the event editor adds `[Title](plainva://open?…)` to the description. The event preview shows it as a chip with the note's name; a click opens the note.
+- **Clicked in Plainva**: a `plainva://` link in a note, a mail, an event or a task opens the note in Plainva, on the desktop and on the phone. It is never handed to the system.
+
+What a link can do, and what it cannot:
+
+- It only **opens**. It never creates a note, writes, runs anything or changes a setting; parameters Plainva does not know are ignored.
+- `vault` is the vault's **name** as Plainva shows it — never its folder on disk. On another device the link works when the vault has the same name there. If the name belongs to another vault on this device, Plainva asks before it switches; if no vault — or more than one — on this device has that name, it says so. Renaming a vault breaks the links that name it. If the vault is not on this device but the note is in the vault that is open, Plainva asks whether to open it there.
+- `path` is the note's path in the vault. If the note has moved, or was renamed while its old name is still the `title` in its properties, Plainva finds it by the rule of the wiki links. Otherwise it says the note is not there.
+- `heading=` or `block=` (one of the two) jumps to a heading or a block.
+- A link opens notes, databases, images and text files — never a program or another file the system would open. Files and folders whose name starts with a dot — hidden files, Plainva's own folders — are never opened by a link. A link that waited for a vault is dropped after a minute.
+- Links always start with `plainva://`. The development and Labs builds answer `plainva-dev://` and `plainva-labs://`, so they never take the installed app's links.
+- The system learns the address when Plainva is installed (Windows installer, macOS app, deb or rpm package, Android, iOS). An AppImage without desktop integration is not registered; links clicked inside Plainva work there all the same.
 
 ## Properties (frontmatter)
 

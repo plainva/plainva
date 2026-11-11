@@ -81,6 +81,10 @@ const BATCH = 40;
 
 const hooks = () => ({
   scanBatchStatements: BATCH,
+  // These scenes count the scan's batches of statements: in ONE transaction,
+  // so that the count does not depend on the clock. A scan in several short
+  // transactions fails the same way: vault-indexer-short-transactions.test.ts.
+  scanTransactionMs: Number.POSITIVE_INFINITY,
   onNewLocalFile: (p: string) => void fresh.push(p),
   onExternalModification: (p: string) => void foreign.push(p),
   onLocalFileDeleted: (p: string) => void gone.push(p),

@@ -105,6 +105,7 @@ import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openE
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
+import { afterFirstPaint } from "./bootStagger";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -976,16 +977,23 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // empty on first open.
     const warm = ((await db.queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM files"))?.n ?? 0) > 0;
     if (warm) {
-      void indexer
-        .indexVaultFull("open")
-        .then(() => {
-          // Got through after the vault began to close: it belongs to no open
-          // vault (as on the desktop).
-          if (indexAbort.signal.aborted) return;
-          indexPassSettled = true;
-          window.dispatchEvent(new CustomEvent("m-vault-changed"));
-        })
-        .catch(() => {});
+      // Begun with the vault's first picture, not before it: the screen's own
+      // reads come first on the one connection (bootStagger.ts, performance
+      // plan L4). A scan asked for meanwhile - a pull to refresh - starts it.
+      const warmIndexer = indexer;
+      afterFirstPaint(() => {
+        if (indexAbort.signal.aborted) return;
+        void warmIndexer
+          .indexVaultFull("open")
+          .then(() => {
+            // Got through after the vault began to close: it belongs to no open
+            // vault (as on the desktop).
+            if (indexAbort.signal.aborted) return;
+            indexPassSettled = true;
+            window.dispatchEvent(new CustomEvent("m-vault-changed"));
+          })
+          .catch(() => {});
+      });
     } else if (isExternalVault(entry)) {
       // A folder another app keeps is read through the platform's storage
       // access, one call per folder and per file (issue 143): minutes for a

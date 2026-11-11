@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect, testNow } from './fixtures/clockedTest';
 
 /**
  * Calendar tab E2E (PIM stage 2c): open the view from the ribbon, see cached
@@ -1613,7 +1613,7 @@ test('a database view can be shown in the calendar, stays recognisable as a note
 
   // Dragging it onto another day writes the date column of ITS database — the
   // same write the table's cell editor performs.
-  const now = new Date();
+  const now = testNow();
   const other = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 20 ? 21 : 20);
   const pad = (n: number) => String(n).padStart(2, '0');
   const otherKey = `${other.getFullYear()}-${pad(other.getMonth() + 1)}-${pad(other.getDate())}`;
@@ -1678,7 +1678,7 @@ test('the title opens the date jump picker: a picked day lands, the keyboard rea
   await expect(page.locator('.pv-datejump-day[tabindex="0"]')).toBeFocused();
 
   // Next year, March, the 3rd: the month grid follows and the day is selected.
-  const year = new Date().getFullYear() + 1;
+  const year = testNow().getFullYear() + 1;
   await page.getByTestId('calendar-jump-next-year').click();
   await page.getByTestId('calendar-jump-month-2').click();
   await page.getByTestId(`calendar-jump-day-${year}-03-03`).click();

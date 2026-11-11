@@ -154,9 +154,18 @@ export function listDepthAt(state: EditorState, pos: number): number {
  * marker line and its continuation lines).
  */
 export function listItemAt(state: EditorState, pos: number): { depth: number; itemFrom: number | null } {
+  return listItemInTree(syntaxTree(state), pos);
+}
+
+/** `listItemAt` against a given tree, for a caller that parsed further than the state's snapshot. */
+export function listDepthInTree(tree: ReturnType<typeof syntaxTree>, pos: number): number {
+  return listItemInTree(tree, pos).depth;
+}
+
+function listItemInTree(tree: ReturnType<typeof syntaxTree>, pos: number): { depth: number; itemFrom: number | null } {
   let depth = 0;
   let itemFrom: number | null = null;
-  for (let node: ReturnType<typeof syntaxTree>["topNode"] | null = syntaxTree(state).resolveInner(pos, 1); node; node = node.parent) {
+  for (let node: ReturnType<typeof syntaxTree>["topNode"] | null = tree.resolveInner(pos, 1); node; node = node.parent) {
     if (node.name === "ListItem") {
       if (itemFrom === null) itemFrom = node.from;
       depth++;

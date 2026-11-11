@@ -1,7 +1,7 @@
 import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter, SqlStatements } from "../db/IDatabaseAdapter.js";
 import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
-import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
+import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules, contentPathRefusal, contentPathIsReal, checkedContentPath, foldSegment, isWindowsDeviceSegment, isShortNameAlias } from "./internalPath.js";
 import { createYielder } from "./yielder.js";
 import { trimChars } from "../textScan.js";
 import { runStatementsAtomic } from "../db/batch.js";
@@ -44,7 +44,7 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
 
 // The internal-path rules live in internalPath.ts (as data, shared with the
 // native vault walk); re-exported so the many existing importers keep their path.
-export { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules };
+export { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules, contentPathRefusal, contentPathIsReal, checkedContentPath, foldSegment, isWindowsDeviceSegment, isShortNameAlias };
 
 /** Re-exported so the many existing importers keep their path. */
 export { escapeLikePrefix };
@@ -194,6 +194,12 @@ export interface VaultIndexerOptions {
    * loaded commit hook (Sammelplan § 3.142 Nr. 1).
    */
   scanBatchStatements?: number;
+  /**
+   * How long one transaction of a full scan may read and write before it lets
+   * the others have the database (default 100 ms; performance plan L4). A
+   * test sets 0: one file per transaction.
+   */
+  scanTransactionMs?: number;
 }
 
 /**
@@ -366,7 +372,7 @@ export class VaultIndexer {
   private movedAway(
     paths: readonly string[],
     known: ReadonlyMap<string, { rowid?: number | null }>,
-    lookups: BulkIndexLookups,
+    lookups: { pathByRow: ReadonlyMap<number, string> },
   ): Set<string> {
     const moved = new Set<string>();
     for (const path of paths) {
@@ -429,7 +435,8 @@ export class VaultIndexer {
    * large vault — and a file the app had moved in between was unknown to that
    * list: announced as new, for an upload nobody needed (finding 2026-10-12).
    */
-  private async loadBulkLookups(tx: SqlStatements): Promise<BulkIndexLookups> {
+  private async loadBulkLookups(tx: SqlStatements, paths?: readonly string[]): Promise<BulkIndexLookups> {
+    if (paths) return this.loadLookupsFor(tx, paths);
     const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null }>(
       `SELECT rowid, id, path, sync_state, ctime FROM files`
     );
@@ -453,6 +460,64 @@ export class VaultIndexer {
 
     const syncStateByPath = await this.syncRepo.getAllStates(tx);
     return { fileStateByPath, pathByRow, pathById, queuedPaths, syncStateByPath };
+  }
+
+  /**
+   * The lookups for the files of ONE transaction of a full scan (performance
+   * plan L4): the same rows `loadBulkLookups` reads, for these paths only - a
+   * file is looked up by its path and by the id its path hashes to, and by
+   * nothing else. Read in each transaction, so that what another flow wrote
+   * between two of them (a save, a pull, a move) is what the scan sees.
+   * `pathByRow` stays empty: only the end of the scan asks it (`rowLocations`).
+   */
+  private async loadLookupsFor(tx: SqlStatements, paths: readonly string[]): Promise<BulkIndexLookups> {
+    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null }>();
+    const pathById = new Map<string, string>();
+    const queuedPaths = new Set<string>();
+    const syncStateByPath = new Map<string, SyncState>();
+    const lookups = { fileStateByPath, pathByRow: new Map<number, string>(), pathById, queuedPaths, syncStateByPath };
+    if (paths.length === 0) return lookups;
+    const ids = await Promise.all(paths.map((path) => this.generateFileId(path)));
+    const marks = (n: number) => Array.from({ length: n }, () => "?").join(", ");
+    const fileRows = await tx.query<{ id?: string | null; path: string; sync_state: string | null; ctime?: number | null }>(
+      `SELECT id, path, sync_state, ctime FROM files WHERE path IN (${marks(paths.length)}) OR id IN (${marks(ids.length)})`,
+      [...paths, ...ids],
+    );
+    const wanted = new Set(paths);
+    for (const r of fileRows) {
+      if (wanted.has(r.path)) fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null });
+      if (r.id) pathById.set(r.id, r.path);
+    }
+    const queueRows = await tx.query<{ file_path: string; new_path: string | null }>(
+      `SELECT file_path, new_path FROM offline_queue WHERE file_path IN (${marks(paths.length)}) OR new_path IN (${marks(paths.length)})`,
+      [...paths, ...paths],
+    );
+    for (const r of queueRows) {
+      queuedPaths.add(r.file_path);
+      if (r.new_path) queuedPaths.add(r.new_path);
+    }
+    for (const [path, state] of await this.syncRepo.getStatesFor(paths, tx)) syncStateByPath.set(path, state);
+    return lookups;
+  }
+
+  /**
+   * The paths of `paths` a rename queued for the remote moves away - the path
+   * itself or a folder it lies in (`SyncQueue.queueRename` keeps the old path
+   * of a moved folder, not one row per file).
+   */
+  private async renamedAway(paths: readonly string[], tx: SqlStatements): Promise<string[]> {
+    const renames = await tx.query<{ file_path: string }>(`SELECT file_path FROM offline_queue WHERE operation = 'rename'`);
+    if (renames.length === 0) return [];
+    const from = renames.map((r) => r.file_path);
+    return paths.filter((path) => from.some((old) => path === old || path.startsWith(`${old}/`)));
+  }
+
+  /** Where every row of the index sits, by SQLite's rowid (`movedAway`). */
+  private async rowLocations(tx: SqlStatements): Promise<Map<number, string>> {
+    const rows = await tx.query<{ rowid?: number | null; path: string }>(`SELECT rowid, path FROM files`);
+    const at = new Map<number, string>();
+    for (const r of rows) if (r.rowid !== undefined && r.rowid !== null) at.set(Number(r.rowid), r.path);
+    return at;
   }
 
   /**
@@ -501,13 +566,27 @@ export class VaultIndexer {
     knownToIndex: boolean,
     pass: IndexPass,
     markerNamesThisFile = false,
-  ): { isNewLocalFile: boolean; keepsSyncedBase: boolean } {
+  ): { isNewLocalFile: boolean; keepsSyncedBase: boolean; externallyModified: boolean } {
     const orphaned = !!oldSyncState && !knownToIndex;
     const differs = !!oldSyncState?.local_sha256 && oldSyncState.local_sha256 !== sha256;
-    if (differs && !orphaned && !markerNamesThisFile && !this.options?.isOwnWrite?.(path, sha256)) {
+    const externallyModified = differs && !orphaned && !markerNamesThisFile && !this.options?.isOwnWrite?.(path, sha256);
+    if (externallyModified) {
       pass.externalMods.push({ path, oldHash: oldSyncState!.local_sha256!, newHash: sha256 });
     }
-    return { isNewLocalFile: !oldSyncState || orphaned, keepsSyncedBase: orphaned && !!oldSyncState?.base_sha256 };
+    return { isNewLocalFile: !oldSyncState || orphaned, keepsSyncedBase: orphaned && !!oldSyncState?.base_sha256, externallyModified };
+  }
+
+  /**
+   * The `sync_state` a file's row is written with. A foreign change is written
+   * as `local_ahead` in the very transaction that writes its new hash
+   * (performance plan L4): the host hears of it only after that transaction,
+   * and an app ended in between - killed by the system, swiped away - would
+   * otherwise leave a row that matches the disk (the next scan skips it) and a
+   * sync state that never learns of the change. `SyncQueue.enqueueLocalOnlyFiles`
+   * queues every `local_ahead` row that has nothing queued.
+   */
+  private rowSyncState(indexed: string, externallyModified: boolean): string {
+    return externallyModified ? "local_ahead" : indexed;
   }
 
   /**
@@ -637,7 +716,8 @@ export class VaultIndexer {
       : await this.syncRepo.getSyncState(fileInfo.path, tx);
     const knownToIndex = existingFileState !== null;
     const markerNamesThisFile = read.exact && await isMarkerTakenWithoutMark({ text: read.text, sha256 }, oldSyncState);
-    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const { isNewLocalFile, keepsSyncedBase, externallyModified } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const rowSyncState = this.rowSyncState(indexedSyncState, externallyModified);
     // A row is written for the path: a pass that read the index earlier leaves it alone (stillMine).
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
@@ -760,7 +840,7 @@ export class VaultIndexer {
       await writer.execute(
         `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-        [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, indexedSyncState]
+        [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, rowSyncState]
       );
 
       // Insert into fts_notes — with the character-pair form of text written
@@ -822,7 +902,7 @@ export class VaultIndexer {
       await writer.execute(
         `INSERT OR REPLACE INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
          VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?)`,
-        [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, indexedSyncState]
+        [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, rowSyncState]
       );
       if (!oldSyncState) {
         await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
@@ -913,7 +993,8 @@ export class VaultIndexer {
       : await this.syncRepo.getSyncState(fileInfo.path, tx);
     const knownToIndex = existingFileState !== null;
     const markerNamesThisFile = textContent !== null && await isMarkerTakenWithoutMark({ text: textContent, sha256 }, oldSyncState);
-    const { isNewLocalFile, keepsSyncedBase } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const { isNewLocalFile, keepsSyncedBase, externallyModified } = this.judgeSyncState(fileInfo.path, sha256, oldSyncState, knownToIndex, pass, markerNamesThisFile);
+    const rowSyncState = this.rowSyncState(indexedSyncState, externallyModified);
     this.touch(fileInfo.path);
     // The id the row is written under (rowIdFor), asked after the lookups above.
     const fileId = await this.rowIdFor(fileInfo.path, tx, lookups);
@@ -928,7 +1009,7 @@ export class VaultIndexer {
     await writer.execute(
       `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-      [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, "attachment", indexedSyncState]
+      [fileId, fileInfo.path, fileInfo.name, sha256, fileInfo.mtime, ctime, fileInfo.size, "attachment", rowSyncState]
     );
 
     if (isNewLocalFile) {
@@ -1527,8 +1608,10 @@ export class VaultIndexer {
    * database when it failed; the rows of files that went are removed last by
    * every pass and are never part of it.
    */
-  private announceWhatStays(pass: IndexPass, written: { news: number; mods: number }): void {
-    if (!this.dbAdapter.keepsWhatAFailedTransactionWrote) return;
+  private announceWhatStays(pass: IndexPass, written: { news: number; mods: number }, committed = false): void {
+    // `committed`: what transactions that went through wrote stands on any
+    // adapter (a full scan writes in several, performance plan L4).
+    if (!committed && !this.dbAdapter.keepsWhatAFailedTransactionWrote) return;
     pass.newLocalFiles.length = Math.min(pass.newLocalFiles.length, written.news);
     pass.externalMods.length = Math.min(pass.externalMods.length, written.mods);
     this.flushCallbacks(pass);
@@ -1860,134 +1943,192 @@ export class VaultIndexer {
       return report();
     }
 
-    // How far this scan's finds have been handed to the database (announceWhatStays).
-    const written = { news: 0, mods: 0 };
-    await this.dbAdapter.transaction(async (tx) => {
-      // One-query-per-table lookups for the whole pass (P2.4) instead of three
-      // SELECT round-trips per file — read here, so that they are as old as
-      // the writes below and no older (loadBulkLookups).
-      const lookups = await this.loadBulkLookups(tx);
-      // Whether an earlier scan left the index owed one (indexComplete).
-      const owedBefore = !startsEmpty && (await this.indexOwed(tx));
-      signal?.throwIfAborted();
-      // Added vs. changed: a file with no row was created outside Plainva, one
-      // with a row just moved on. Against the index as it is now — a file
-      // whose row the app moved here since the scan began is no new file.
-      const counted = (file: VaultFileInfo) => {
-        scannedCount += 1;
-        if (!lookups.fileStateByPath.has(file.path)) addedCount += 1;
-      };
-      // The cold full-scan's writes (file/fts/links/tags/properties rows + the
-      // sync_state upsert for new files) are recorded into a buffer and flushed as
-      // ONE atomic batch instead of one execute() — one IPC hop, one pooled
-      // connection checkout, one auto-commit — per row, which dominated the 20k
-      // cold-index budget (Performance_Notes). Reads are pre-loaded in `lookups`,
-      // so the batch needs no interleaved reads. Flushed in bounded chunks so a
-      // huge vault does not hold every statement in memory or in one giant IPC
-      // payload. When the adapter has no runBatch (tests, non-Tauri), the buffer
-      // is replayed statement-by-statement in the exact same order — behavior is
-      // unchanged, only the delivery differs.
-      const batch: BatchStatement[] = [];
-      const sink: SqlWriter = {
-        execute: (query: string, params: unknown[] = []) => {
-          batch.push({ sql: query, params });
-          return Promise.resolve();
-        },
-      };
-      // Owed with the first rows, not only once the scan failed: on the
-      // desktop a batch that went through stays when the scan ends there —
-      // the app was closed, the process ended — and no failure is ever said.
-      if (startsEmpty) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
-      const FLUSH_AT = this.options?.scanBatchStatements ?? 4000;
-      // The flushes run inside this very transaction, on its handle: where a
-      // batch is a transaction of its own (the phone's single connection), one
-      // sent to the adapter would wait for the scan it belongs to.
-      const flushIfLarge = async () => {
-        if (batch.length >= FLUSH_AT) {
-          await runStatementsAtomic(tx, batch);
-          batch.length = 0;
-          // Each file's finds are noted after its statements: all of them so far are in.
-          written.news = pass.newLocalFiles.length;
-          written.mods = pass.externalMods.length;
-        }
-      };
-
-      // Process markdown indexing
-      let i = 0;
-      for (const file of mdToIndex) {
-        if (this.options?.onProgress) {
-          this.options.onProgress(i + 1, mdToIndex.length, file.path);
-        }
-        if (i % 10 === 0) {
-          // Yield to event loop to allow UI updates
-          await new Promise(r => setTimeout(r, 0));
-          // A vault that is being left is not written any further (3.120):
-          // the loop used to run to its end for a vault nobody had open, and
-          // the open that was called off went on behind it.
+    // The scan writes in SHORT transactions, one after the other (performance
+    // plan L4, Sammelplan § 3.179 no. 1). It used to hold one transaction from
+    // its first read to its last write: on the phone's single connection a
+    // save, the sync worker and every write from elsewhere waited behind it,
+    // up to a minute on a large vault; the desktop's transactions take turns
+    // the same way. Each transaction now reads and writes for about
+    // `scanTransactionMs` and lets the others have their turn.
+    //
+    // What a transaction does stays whole: a file is read, looked up and
+    // written inside one, so nothing between two of them sees half a file,
+    // and a save that comes in between is read again, not overwritten (the
+    // lookups are read anew in every transaction). An interrupted scan leaves
+    // the files it wrote with their timestamps: the next scan skips them and
+    // does the rest; an index that began empty stays marked as owed one
+    // (`INDEX_OWED_KEY`) until a scan gets through. The rows of vanished files
+    // go last, with the last transaction, as they always did.
+    const work: Array<{ file: VaultFileInfo; attachment: boolean }> = [
+      ...mdToIndex.map((file) => ({ file, attachment: false })),
+      ...attachmentsToIndex.map((file) => ({ file, attachment: true })),
+    ];
+    const FLUSH_AT = this.options?.scanBatchStatements ?? 4000;
+    const TRANSACTION_MS = this.options?.scanTransactionMs ?? 100;
+    // At most this many files are looked up for one transaction (bound parameters stay few).
+    const LOOKUP_SLICE = 200;
+    // How far this scan's finds have been handed to the database
+    // (`flushed`) and committed with a transaction that went through
+    // (`committed`) - what stays when a later one fails (announceWhatStays).
+    const flushed = { news: 0, mods: 0 };
+    const committed = { news: 0, mods: 0 };
+    let owedBefore = false;
+    // Where every row sat before the scan wrote anything (a row it reads
+    // again gets a new rowid): what `movedAway` asks, with where they sit at
+    // the end.
+    let rowsBefore: ReadonlyMap<number, string> = new Map<number, string>();
+    let next = 0;
+    let mdDone = 0;
+    let attachmentsDone = 0;
+    try {
+      for (let first = true, done = false; !done; first = false) {
+        await this.dbAdapter.transaction(async (tx) => {
+          // The scan's writes (file/fts/links/tags/properties rows + the
+          // sync_state upsert for new files) are recorded into a buffer and
+          // flushed as ONE atomic batch instead of one execute() — one IPC hop,
+          // one pooled connection checkout, one auto-commit — per row, which
+          // dominated the 20k cold-index budget (Performance_Notes). Reads are
+          // pre-loaded in `lookups`, so the batch needs no interleaved reads.
+          // Flushed in bounded chunks so a huge vault does not hold every
+          // statement in memory or in one giant IPC payload. When the adapter
+          // has no runBatch (tests, non-Tauri), the buffer is replayed
+          // statement-by-statement in the exact same order.
+          const batch: BatchStatement[] = [];
+          const sink: SqlWriter = {
+            execute: (query: string, params: unknown[] = []) => {
+              batch.push({ sql: query, params });
+              return Promise.resolve();
+            },
+          };
+          // The flushes run inside this very transaction, on its handle: where a
+          // batch is a transaction of its own (the phone's single connection), one
+          // sent to the adapter would wait for the scan it belongs to.
+          const flush = async () => {
+            await runStatementsAtomic(tx, batch);
+            batch.length = 0;
+            // Each file's finds are noted after its statements: all of them so far are in.
+            flushed.news = pass.newLocalFiles.length;
+            flushed.mods = pass.externalMods.length;
+          };
+          // One reading of index, queue and sync rows for these files, as old as
+          // the writes below and no older (loadBulkLookups): in the first
+          // transaction of the whole index, before the scan has written, in
+          // every later one of the files it is about to read.
+          const slice = work.slice(next, next + LOOKUP_SLICE);
+          const lookups = first ? await this.loadBulkLookups(tx) : await this.loadBulkLookups(tx, slice.map((w) => w.file.path));
+          if (first) {
+            rowsBefore = lookups.pathByRow;
+            // Whether an earlier scan left the index owed one (indexComplete).
+            owedBefore = !startsEmpty && (await this.indexOwed(tx));
+            // Owed with the first rows, not only once the scan failed: a
+            // transaction that went through stays when the scan ends there -
+            // the app was closed, the process ended - and no failure is ever said.
+            if (startsEmpty) batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_OWED_KEY] });
+          }
           signal?.throwIfAborted();
-        }
-        i++;
-        const reading = await this.readOrLeaveOut(file, unreadable);
-        if (!reading) continue;
-        await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
-        counted(file);
-        await flushIfLarge();
+          // Added vs. changed: a file with no row was created outside Plainva, one
+          // with a row just moved on. Against the index as it is now — a file
+          // whose row the app moved here since the scan began is no new file.
+          const counted = (file: VaultFileInfo) => {
+            scannedCount += 1;
+            if (!lookups.fileStateByPath.has(file.path)) addedCount += 1;
+          };
+          const began = Date.now();
+          for (const { file, attachment } of slice) {
+            if (!attachment) {
+              if (this.options?.onProgress) {
+                this.options.onProgress(mdDone + 1, mdToIndex.length, file.path);
+              }
+              if (mdDone % 10 === 0) {
+                // Yield to event loop to allow UI updates
+                await new Promise(r => setTimeout(r, 0));
+                // A vault that is being left is not written any further (3.120):
+                // the loop used to run to its end for a vault nobody had open, and
+                // the open that was called off went on behind it.
+                signal?.throwIfAborted();
+              }
+              mdDone++;
+            } else {
+              // Attachment registration (lightweight, no parsing/FTS)
+              if (attachmentsDone % 20 === 0) {
+                await new Promise(r => setTimeout(r, 0));
+                signal?.throwIfAborted();
+              }
+              attachmentsDone++;
+            }
+            next++;
+            const reading = await this.readOrLeaveOut(file, unreadable);
+            if (reading) {
+              if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
+              else await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
+              counted(file);
+              if (batch.length >= FLUSH_AT) await flush();
+            }
+            if (Date.now() - began >= TRANSACTION_MS) break;
+          }
+
+          if (next >= work.length) {
+            // Process deletions — LAST, with the transaction that ends the scan
+            // (finding 2026-10-12). They used to lead the first batch. Where batches
+            // are committed one by one, a scan that failed on a later file had
+            // removed the rows by then and never got to report them: the sync rows
+            // stayed, no remote deletion was queued, and the next scan no longer
+            // knew the paths. Nothing that reads a file comes after this point; a
+            // scan that fails before it leaves the rows for the next one.
+            //
+            // We deliberately do NOT delete sync_state here: a file gone from disk
+            // may need a remote delete pushed first (otherwise the next pull would
+            // resurrect it). sync_state is cleaned only after the remote delete
+            // succeeds; the deletion is surfaced via onLocalFileDeleted after this
+            // transaction commits.
+            //
+            // Keyed on the PATH (issue #110, E8). It used to delete by sha256(path),
+            // but a row moved inside Plainva keeps the id of its OLD path
+            // (SyncQueue.queueRename rewrites `path` in place) — once such a file was
+            // moved again outside Plainva, the delete matched nothing and the stale
+            // row survived every full scan: a file that no longer exists stayed in
+            // the tree for good. removePathFromIndex was moved to the path for the
+            // same reason (issue #34); the full scan had been left behind.
+            // The rows this scan removes, asked right before it removes them: a
+            // path another pass indexed or reported since this scan read the index
+            // — while it read every changed file — is not this scan's to remove
+            // (stillMine); nor is a path the app has moved away meanwhile a file
+            // that vanished. Two questions, because neither answers alone:
+            //  - where the rows sat before the scan wrote, and where they sit
+            //    now (movedAway). A row the app moved between two of the scan's
+            //    transactions is found by the second - unless the scan has
+            //    read the file at the new path since: reading a file again
+            //    deletes its row and inserts it under a new rowid, and the
+            //    moved row is then gone from both readings;
+            //  - so also whether a rename AWAY from the path, or from a folder
+            //    it lies in, waits in the queue (`renamedAway`). The queue
+            //    keeps it until the move went to the remote; a remote deletion
+            //    queued behind it would remove the moved file (finding
+            //    2026-10-12). Once the move went up, the next scan decides.
+            const moved = this.movedAway(filesToDelete, dbFileMap, { pathByRow: rowsBefore });
+            if (!first) for (const path of this.movedAway(filesToDelete, dbFileMap, { pathByRow: await this.rowLocations(tx) })) moved.add(path);
+            if (filesToDelete.length > moved.size) for (const path of await this.renamedAway(filesToDelete, tx)) moved.add(path);
+            removedRows = new Set(this.stillMine(filesToDelete.filter((path) => !moved.has(path)), pass));
+            if (removedRows.size > 0) await this.deleteIndexRows([...removedRows], sink);
+
+            // The scan has gone through once its last rows are in: the index owes no more.
+            if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
+            done = true;
+          }
+
+          // Flush the tail (all writes when runBatch is unavailable).
+          await flush();
+        });
+        committed.news = flushed.news;
+        committed.mods = flushed.mods;
       }
-
-      // Process attachment registration (lightweight, no parsing/FTS)
-      let j = 0;
-      for (const file of attachmentsToIndex) {
-        if (j % 20 === 0) {
-          await new Promise(r => setTimeout(r, 0));
-          signal?.throwIfAborted();
-        }
-        j++;
-        const reading = await this.readOrLeaveOut(file, unreadable);
-        if (!reading) continue;
-        await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
-        counted(file);
-        await flushIfLarge();
-      }
-
-      // Process deletions — LAST, with the batch that ends the scan (finding
-      // 2026-10-12). They used to lead the first batch. Where batches are
-      // committed one by one (the desktop), a scan that failed on a later
-      // file had removed the rows by then and never got to report them: the
-      // sync rows stayed, no remote deletion was queued, and the next scan
-      // no longer knew the paths. Nothing that reads a file comes after this
-      // point; a scan that fails before it leaves the rows for the next one.
-      //
-      // We deliberately do NOT delete sync_state here: a file gone from disk
-      // may need a remote delete pushed first (otherwise the next pull would
-      // resurrect it). sync_state is cleaned only after the remote delete
-      // succeeds; the deletion is surfaced via onLocalFileDeleted after this
-      // transaction commits.
-      //
-      // Keyed on the PATH (issue #110, E8). It used to delete by sha256(path),
-      // but a row moved inside Plainva keeps the id of its OLD path
-      // (SyncQueue.queueRename rewrites `path` in place) — once such a file was
-      // moved again outside Plainva, the delete matched nothing and the stale
-      // row survived every full scan: a file that no longer exists stayed in
-      // the tree for good. removePathFromIndex was moved to the path for the
-      // same reason (issue #34); the full scan had been left behind.
-      // The rows this scan removes, asked right before it removes them: a
-      // path another pass indexed or reported since this scan read the index
-      // — while it read every changed file — is not this scan's to remove
-      // (stillMine); nor is a path whose row the app has moved away meanwhile
-      // a file that vanished (movedAway).
-      const moved = this.movedAway(filesToDelete, dbFileMap, lookups);
-      removedRows = new Set(this.stillMine(filesToDelete.filter((path) => !moved.has(path)), pass));
-      if (removedRows.size > 0) await this.deleteIndexRows([...removedRows], sink);
-
-      // The scan has gone through once its last rows are in: the index owes no more.
-      if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
-
-      // Flush the tail (all writes when runBatch is unavailable).
-      await runStatementsAtomic(tx, batch);
-    }).catch((error: unknown) => {
-      this.announceWhatStays(pass, written);
+    } catch (error: unknown) {
+      // What the transactions that went through wrote stays on every adapter;
+      // on one that keeps what a failed transaction wrote, its flushes too.
+      if (this.dbAdapter.keepsWhatAFailedTransactionWrote) this.announceWhatStays(pass, flushed);
+      else this.announceWhatStays(pass, committed, true);
       throw error;
-    });
+    }
 
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest
     // inside it.

@@ -1,5 +1,6 @@
 import React from "react";
 import i18n from "@plainva/ui/i18n";
+import { describeAreaError, logDiagnostic } from "@plainva/ui";
 
 interface Props {
   children: React.ReactNode;
@@ -23,6 +24,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
+    // The last net, behind the boundaries of every area (stability plan R3).
+    logDiagnostic("area:window", describeAreaError(error, errorInfo.componentStack));
     this.setState({ errorInfo });
   }
 

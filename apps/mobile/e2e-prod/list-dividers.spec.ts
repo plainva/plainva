@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 
 /**
  * The hairline between two rows of a list (TestFlight 2026-10-28, build 149:

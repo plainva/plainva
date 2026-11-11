@@ -117,7 +117,9 @@ describe("custom theme guardrails", () => {
 
   it("every preset passes without a correction", () => {
     for (const mode of ["light", "dark"] as const) {
+      expect(customBackgroundPresets(mode).length, "background presets of the mode").toBeGreaterThan(0);
       for (const background of customBackgroundPresets(mode)) {
+        expect(customAccentPresets().length, "accent presets").toBeGreaterThan(0);
         for (const accent of customAccentPresets()) {
           const { corrections } = clampCustomTheme({ ...defaultCustomTheme(mode), background, accent });
           // An accent may legitimately need a nudge on one mood; a background never.

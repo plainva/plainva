@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/clockedTest";
 import type { SecurityRenderingWindow } from "./fixtures/securityRenderingProbe";
 
 test("gallery covers and converted HTML remain inert in the real reader", async ({ page }) => {

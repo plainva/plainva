@@ -3,7 +3,7 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, devicePimHasReminders, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Activity, CalendarDays, ChevronRight, Folder, KeyRound, ListChecks, LogOut, Mail, Merge, Server, Trash2, User } from "lucide-react";
-import {
+import { AreaBoundary,
   AccountPasswordChangePanel,
   PLAINVA_DROPBOX_APP_KEY,
   accountSecretOf,
@@ -541,6 +541,7 @@ export function CloudAccountDetailScreen({
             </>
           )}
           {checking && loginVaultId && (
+            <AreaBoundary area="sheet:accountCheck" size="dialog" exit={{ label: t("common.close"), onExit: () => setChecking(false) }}>
             <AccountCheckSheet
               vaultId={loginVaultId}
               record={card.record}
@@ -555,6 +556,7 @@ export function CloudAccountDetailScreen({
               onChecked={(rows: ServiceCheck[]) => { lastChecks.set(card.key, { time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), ok: rows.every((row) => row.state === "ok") }); }}
               onClose={() => setChecking(false)}
             />
+            </AreaBoundary>
           )}
 
           {/* E3's fallback, as on the desktop (E6): only where another card of the
@@ -613,6 +615,7 @@ export function CloudAccountDetailScreen({
     </div>
 
       {needClient && (
+        <AreaBoundary area="sheet:accountAccess" size="dialog" exit={{ label: t("common.close"), onExit: () => setNeedClient(null) }}>
         <AccountAccessSheet
           family={needClient}
           onCancel={() => setNeedClient(null)}
@@ -624,6 +627,7 @@ export function CloudAccountDetailScreen({
             if (saved === "dropbox") { if (card?.vaultId) onReconnectVault(card.vaultId); } else signIn();
           }}
         />
+        </AreaBoundary>
       )}
       </div>
   );

@@ -2875,6 +2875,31 @@
     "mobileProbeFailed": "Non è stato possibile verificare nel cloud se esiste già una passphrase. Riprova con una connessione.",
     "mobileCreated": "Passphrase di sincronizzazione impostata. Questo dispositivo è sbloccato."
   },
+  "noteLink": {
+    "copy": "Copia link",
+    "copyBlock": "Copia link del blocco",
+    "copied": "Link copiato.",
+    "invalid": "Plainva non può aprire questo link.",
+    "noVault": "Apri prima un vault, poi di nuovo il link.",
+    "vaultUnknown": "Il vault «{{name}}» non è su questo dispositivo.",
+    "vaultAmbiguous": "Su questo dispositivo ci sono più vault chiamati «{{name}}». Apri quello che intendi, poi di nuovo il link.",
+    "switchTitle": "Cambiare vault?",
+    "switchMessage": "Questo link porta a una nota del vault «{{name}}». Passare a quello?",
+    "switchConfirm": "Cambia",
+    "answerFirst": "Rispondi prima alla domanda aperta.",
+    "openHereTitle": "Aprire in questo vault?",
+    "openHereMessage": "Il vault «{{vault}}» non è su questo dispositivo. La nota «{{note}}» è nel vault aperto. Aprirla lì?",
+    "openHereAmbiguousMessage": "Su questo dispositivo ci sono più vault chiamati «{{vault}}». La nota «{{note}}» è nel vault aperto. Aprirla lì?",
+    "openHereConfirm": "Apri",
+    "notFound": "La nota «{{name}}» non è in questo vault.",
+    "notOpenable": "Un link apre le note e i file che Plainva mostra da sé, non questo file.",
+    "blockNotHere": "Su questa riga non si può mettere un link di blocco.",
+    "lineEmpty": "Questa riga è vuota: non c'è niente da collegare.",
+    "readOnly": "Questa nota è di sola lettura, quindi il suo blocco non può ricevere un identificativo.",
+    "insert": "Collega una nota",
+    "pickHint": "L'evento riceve un link che apre la nota in Plainva.",
+    "openNote": "Apri la nota {{name}}"
+  },
   "contextMenu": {
     "cut": "Taglia",
     "copy": "Copia",
@@ -2991,6 +3016,8 @@
       "entryFailed": "non è stato possibile importarlo",
       "noAvailableName": "nessun nome file libero tra 1000 varianti; i file esistenti sono stati conservati",
       "reservedPathOccupied": "il nome file riservato è ora occupato; il file esistente è stato conservato",
+      "renamedForSystem": "rinominato: questo sistema non può usare il nome originale",
+      "refusedInternalPath": "non importato: sarebbe finito in una cartella propria di Plainva o di un'altra app",
       "runStopped": "l'importazione si è interrotta anzitempo — tutto quanto fatto finora è stato scritto",
       "skippedDuplicate": "la stessa nota è due volte nell’esportazione — importata una volta, come",
       "skippedTrashed": "nel cestino — non importato",
@@ -3494,6 +3521,7 @@
   },
   "editor": {
     "completionHeadings": "Titoli",
+    "completionBlocks": "Blocchi",
     "unresolvedLinkTip": "La nota non esiste ancora – clic per crearla",
     "loading": "Caricamento...",
     "menu": "Menu",
@@ -5134,7 +5162,11 @@
   },
   "errors": {
     "somethingWentWrong": "Si è verificato un errore.",
-    "reload": "Ricarica"
+    "reload": "Ricarica",
+    "areaTitle": "Impossibile mostrare quest’area",
+    "areaBody": "Un errore l’ha interrotta. Il resto di Plainva continua a funzionare e l’errore è registrato in {{place}}.",
+    "areaAgain": "Non è riuscita di nuovo dopo il ricaricamento. Se continua, riavvia Plainva; l’errore è registrato in {{place}}.",
+    "areaReload": "Ricarica quest’area"
   },
   "palette": {
     "title": "Comandi",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
-import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, formatDateAndTime, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, formatDateAndTime, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
 import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import {
@@ -607,13 +607,16 @@ export function MailMessageScreen({
         </IconButton></>} />
 
       {menu && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setMenu(false) }}>
         <RowActionSheet actions={menuActions} onClose={() => setMenu(false)} title={message?.subject ?? ""} />
+        </AreaBoundary>
       )}
 
       {/* Where a held link leads (M1): the target in full, its host
           emphasised, then what one may do with it. What opens — and what is
           copied — is the address as written, a Safe Link included. */}
       {linkSheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setLinkSheet(null) }}>
         <RowActionSheet
           actions={[
             {
@@ -638,6 +641,7 @@ export function MailMessageScreen({
           onClose={() => setLinkSheet(null)}
           title=""
         />
+        </AreaBoundary>
       )}
 
       {error ? (

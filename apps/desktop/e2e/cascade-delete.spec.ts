@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/clockedTest';
 
 // E2E of the cascade deletion (plan Kaskadenloeschung): deleting a relation
 // target offers its assigned elements (recursive, shared ones excluded by

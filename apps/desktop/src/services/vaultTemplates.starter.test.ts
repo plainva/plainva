@@ -46,6 +46,7 @@ describe("the starter content of a fresh vault", () => {
     const manifest = await readStarterManifest(vault);
     const written = [...vault.files.keys()].filter((path) => path !== STARTER_MANIFEST_PATH);
     expect(Object.keys(manifest!.files).sort()).toEqual(written.sort());
+    expect(written.length, "the scaffold writes files").toBeGreaterThan(0);
     for (const path of written) expect(isUntouchedStarter(manifest, path, bytes(vault, path))).toBe(true);
   });
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CloudOff, FileText, Plus, X } from "lucide-react";
 import { memoryFileOf, STYLE_EXAMPLES_MAX } from "@plainva/core";
-import {
+import { AreaBoundary,
   Banner,
   Button,
   filterMemoryRows,
@@ -327,9 +327,10 @@ export function MobileMemoryView({
           </div>
         </div>
       )}
-      {form && <MemoryEntrySheet id={form.id} onClose={() => setForm(null)} />}
-      {rule && <MemoryRuleSheet onClose={() => setRule(false)} />}
+      {form && <AreaBoundary area="sheet:memoryEntry" size="dialog" exit={{ label: t("common.close"), onExit: () => setForm(null) }}><MemoryEntrySheet id={form.id} onClose={() => setForm(null)} /></AreaBoundary>}
+      {rule && <AreaBoundary area="sheet:memoryRule" size="dialog" exit={{ label: t("common.close"), onExit: () => setRule(false) }}><MemoryRuleSheet onClose={() => setRule(false)} /></AreaBoundary>}
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={sheet.title}
           // The sheet closes with the choice: what an action opens — the form, a question — must not lie under it.
@@ -345,9 +346,10 @@ export function MobileMemoryView({
           }))}
           onClose={() => setSheet(null)}
         />
+        </AreaBoundary>
       )}
       {/* The vault's instructions are approved here, not one segment further (plan KI-Oberflächen K12). */}
-      {reviewing && <SkillApprovalSheet id={reviewing} onClose={() => setReviewing(null)} />}
+      {reviewing && <AreaBoundary area="sheet:skillApproval" size="dialog" exit={{ label: t("common.close"), onExit: () => setReviewing(null) }}><SkillApprovalSheet id={reviewing} onClose={() => setReviewing(null)} /></AreaBoundary>}
     </div>
   );
 }

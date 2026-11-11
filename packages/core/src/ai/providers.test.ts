@@ -108,9 +108,12 @@ describe.each(cases)("provider conformance: %s", (_id, endpoint) => {
   });
 
   it("switches off provider-side storage where the API allows it", () => {
+    expect(specs.length).toBeGreaterThan(0);
     for (const spec of specs) {
       if (endpoint.api === "openai-responses") expect(spec.body!.store).toBe(false);
-      if (endpoint.api === "openai-chat") expect(spec.body!.store).toBe(endpoint.officialOpenAi ? false : undefined);
+      else if (endpoint.api === "openai-chat") expect(spec.body!.store).toBe(endpoint.officialOpenAi ? false : undefined);
+      // An API without the switch gets no `store` field it would not understand.
+      else expect(spec.body?.store).toBeUndefined();
     }
   });
 

@@ -42,7 +42,10 @@ export function onMain(compareStatus) {
 export function judgeChecks(runs, required = REQUIRED_CHECKS) {
   const verdict = { green: [], failed: [], pending: [], missing: [] };
   for (const name of required) {
-    const mine = runs.filter((run) => run.name === name);
+    // A skipped run did nothing, so it decides nothing: the run on `main` skips
+    // a commit whose checks are already green on its branch (ci-verified.mjs,
+    // decision E3). A check that has only skipped runs never ran.
+    const mine = runs.filter((run) => run.name === name && run.conclusion !== 'skipped');
     const done = mine
       .filter((run) => run.status === 'completed')
       .sort((a, b) => String(a.completed_at ?? '').localeCompare(String(b.completed_at ?? '')) || (a.id ?? 0) - (b.id ?? 0));

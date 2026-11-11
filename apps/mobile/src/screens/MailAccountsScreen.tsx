@@ -5,7 +5,7 @@ import { beginMobileSignIn } from "../services/accountSignIn";
 import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, MoreHorizontal, Pencil, Plus } from "lucide-react";
-import { accountInputProps, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
+import { AreaBoundary, accountInputProps, Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailboxesSwitchedOn, mailTargetForFamily, Row, RowList, SectionLabel, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily, InfoTip } from "@plainva/ui";
 import type { MailAccountConfig, MailRule } from "@plainva/ui/mail";
 import { checkMailLogin, getMailPassword, listMailRules, saveMailRules, setMailRules as putMailRules, mailAccountKind, pickDefaultMailAccount, saveMailAccount, setVacation, orphanedMailServer, useOrphanedMailAccounts, vacationSupport } from "@plainva/ui/mail";
 import { MailImapForm, type ImapFormValues } from "./mail/MailImapForm";
@@ -791,6 +791,7 @@ export function MailAccountsScreen({
       )}
 
       {pickMailFolder && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickMailFolder(false) }}>
         <FolderPickerSheet
           onClose={() => setPickMailFolder(false)}
           onPick={(path) => {
@@ -800,6 +801,7 @@ export function MailAccountsScreen({
           title={t("settings.browseFolders")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
       {mailRun && <ConnectRunFooter run={mailRun} service="mail" />}
     </div>

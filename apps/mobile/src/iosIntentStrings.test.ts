@@ -105,6 +105,7 @@ describe("the intents' texts (PlainvaIntents.xcstrings)", () => {
 
   it("says each of them in all ten languages, with the same placeholders", () => {
     const problems: string[] = [];
+    expect(Object.keys(catalog.strings).length, "the catalog holds strings").toBeGreaterThan(0);
     for (const [key, entry] of Object.entries(catalog.strings)) {
       expect(Object.keys(entry.localizations ?? {}).sort(), key).toEqual(LANGUAGES);
       for (const language of LANGUAGES) {
@@ -130,6 +131,7 @@ describe("the spoken phrases (AppShortcuts.strings)", () => {
 
   it("has every phrase in every language — naming the app, keeping the note, and nothing beside them", () => {
     const problems: string[] = [];
+    expect(LANGUAGES.length, "the locale folders are found").toBeGreaterThanOrEqual(10);
     for (const language of LANGUAGES) {
       const file = join(app, `${language}.lproj`, "AppShortcuts.strings");
       expect(existsSync(file), `${language}.lproj/AppShortcuts.strings`).toBe(true);
@@ -146,6 +148,7 @@ describe("the spoken phrases (AppShortcuts.strings)", () => {
   });
 
   it("is part of the app in every language", () => {
+    expect(LANGUAGES.length, "the locale folders are found").toBeGreaterThanOrEqual(10);
     for (const language of LANGUAGES) {
       expect(project, language).toContain(`${language}.lproj/AppShortcuts.strings`);
       // A region the project does not know is a file the build may leave out.

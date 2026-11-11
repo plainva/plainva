@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Plug, Plus } from "lucide-react";
 import { mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
-import {
+import { AreaBoundary,
   AI_POLICY_FILE,
   Banner,
   changeFolderRules,
@@ -272,8 +272,8 @@ export function AiPolicyScreen({
           </RowList>
         </GroupCard>
       </div>
-      {external === "add" && <ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} />}
-      {external !== null && external !== "add" && <ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} />}
+      {external === "add" && <AreaBoundary area="sheet:externalAdd" size="dialog" exit={{ label: t("common.close"), onExit: () => setExternal(null) }}><ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} /></AreaBoundary>}
+      {external !== null && external !== "add" && <AreaBoundary area="sheet:externalReview" size="dialog" exit={{ label: t("common.close"), onExit: () => setExternal(null) }}><ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} /></AreaBoundary>}
     </div>
   );
 }

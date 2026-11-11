@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 // The OKF conversion, converted → continued → undone, through the real wizard
 // (Maintenance › OKF format) over a mock file system (findings § 3.129 Nr. 1,

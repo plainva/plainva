@@ -150,6 +150,7 @@ describe("callout variants", () => {
   });
 
   it("all callout variants live in the ranked callouts section", () => {
+    expect(filterSlashCommands("callout").length, "the callout query finds the callout commands").toBeGreaterThan(0);
     for (const c of filterSlashCommands("callout")) {
       expect(typeof c.section === "object" && c.section.rank).toBe(5);
     }

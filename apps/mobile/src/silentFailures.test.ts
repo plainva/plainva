@@ -127,6 +127,7 @@ describe("a database cell that cannot be written, says so", () => {
   it("queries the rows anew only after a write that landed", () => {
     // The screen shows the index's rows, not the value being written: left
     // alone after a failure, the cell goes on showing what the note says.
+    expect([...text.matchAll(/void writeCell\([^\n]*/g)].length, "BaseScreen writes cells through writeCell").toBeGreaterThan(0);
     for (const call of text.matchAll(/void writeCell\([^\n]*/g)) {
       expect(call[0], "a cell write that re-queries without asking").toMatch(/\.then\(\(written\) => \{ if \(written\) requery\(/);
     }

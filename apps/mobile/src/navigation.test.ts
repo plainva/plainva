@@ -236,6 +236,7 @@ describe("bar labels (\u00a7 9.1)", () => {
     // into the navigator. The list may legitimately be empty, so the count is
     // NOT asserted; what must hold is that a declared short label differs from
     // the long one, and that everything drawing the bar reads it.
+    expect(TAB_POOL.length).toBeGreaterThan(0);
     for (const def of TAB_POOL.filter((d) => d.barLabelKey)) {
       expect(def.barLabelKey).not.toBe(def.labelKey);
     }

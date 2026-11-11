@@ -18,12 +18,14 @@
     ".Spotlight-V100", ".Trashes", ".fseventsd", "$RECYCLE.BIN", "$Recycle.Bin", "System Volume Information",
     ".stfolder", ".stfolder.removed-20260101",
     ".plainva-tmp-412-7-note.md", ".plainva-tmp-1234567890.tmp", ".plainva-tmp-6F9619FF-8B86-D011-B42D-00C04FC964FF",
-    ".mypy_cache", ".pytest_cache", ".ruff_cache", ".rumdl_cache"
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", ".rumdl_cache",
+    ".GIT", ".Plainva", ".PLAINVA", "Node_Modules", ".Obsidian", ".Trash", "icon\r",
+    ".plainva.", ".plainva ", ".plainva. .", ".git.", ".Plainva-Tmp-1.tmp", ".MyPy_Cache"
   ],
   "user": [
     "note.md", ".env-notes.md", "._notes.md", ".hidden", ".", "..", "",
-    "Icon", "Icon\n", "icon\r",
-    "notes.plainva.png", "node_modules_archive", "Node_Modules", ".GIT", ".Plainva", "plainva", ".plainvatmp",
+    "Icon", "Icon\n",
+    "notes.plainva.png", "node_modules_archive", "plainva", ".plainvatmp",
     "plainva-tmp-notes.md", ".plainva-tm", ".plainva-temp-x.md", "x.plainva-tmp-1-2-y.md",
     "read_cache", "_cache", "cache", ".cache_notes", "my.stfolder", "stfolder",
     "Thumbs.db.md", "desktop.ini.bak", "Build", "Target", ".CONFLICT", "note.CONFLICT.md"

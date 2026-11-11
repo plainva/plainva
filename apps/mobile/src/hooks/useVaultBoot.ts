@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { setNoteLinksVaultLoading } from "@plainva/ui";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
@@ -8,6 +9,7 @@ import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
 import { resumePimOAuthResult } from "../services/pim/pimOAuth";
 import { startMobileMail, stopMobileMail } from "../services/mail/mailRuntime";
 import { healMailAccounts } from "@plainva/ui/mail";
+import { staggerAfterFirstPaint, type BootStagger } from "../services/bootStagger";
 
 /**
  * Where the boot of the active vault stands — what the shell shows while it
@@ -53,6 +55,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
     let alive = true;
     // The open vault's cards follow its calendars and mailboxes (§ 3.105).
     let stopReconcile: (() => void) | null = null;
+    // The services of the open vault that have not started yet.
+    let stagger: BootStagger | null = null;
     const run = (first: boolean) => {
       const mine = ++generation;
       const current = () => alive && mine === generation;
@@ -66,15 +70,29 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         setBoot({ kind: "ready" });
         bindConflictStore(v.vaultId); // unresolved conflicts survive the restart (P1)
         handlersRef.current.onOpened(v, first);
-        void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e));
-        const pim = startPim(v);
-        void (first ? pim.then(resumePimOAuthResult) : pim).catch((e) => console.error("[boot] pim start failed", e));
-        // One mailbox stored several times under one id folds back into one
-        // row (finding 2026-11-06, M2; the desktop does the same on vault open).
-        void healMailAccounts(v.vaultId).catch(() => undefined);
+        // Binds the mailboxes to this vault and takes the mail sign-in: no
+        // database work, and a sign-in may come back at any moment.
         startMobileMail(v);
-        stopReconcile?.();
-        stopReconcile = startCloudAccountsReconcile(v.vaultId, isPimRuntimeReady);
+        // The rest works on the vault's one database connection: started after
+        // the first picture, a short gap apart, and all at once at the first
+        // touch (bootStagger.ts, performance plan L4).
+        stagger?.cancel();
+        stagger = staggerAfterFirstPaint([
+          () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
+          () => {
+            if (!current()) return;
+            const pim = startPim(v);
+            void (first ? pim.then(resumePimOAuthResult) : pim).catch((e) => console.error("[boot] pim start failed", e));
+          },
+          () => {
+            if (!current()) return;
+            stopReconcile?.();
+            stopReconcile = startCloudAccountsReconcile(v.vaultId, isPimRuntimeReady);
+          },
+          // One mailbox stored several times under one id folds back into one
+          // row (finding 2026-11-06, M2; the desktop does the same on vault open).
+          () => { if (current()) void healMailAccounts(v.vaultId).catch(() => undefined); },
+        ]);
       }, (error: unknown) => {
         if (!current()) return;
         console.error("[boot] the vault did not open", error);
@@ -87,6 +105,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
     // Vault switch (M3.5 isolation): drop all stacks (and any overlay), then
     // reboot the vault and restart sync for the newly active container.
     const onSwitched = () => {
+      stagger?.cancel();
+      stagger = null;
       stopReconcile?.();
       stopReconcile = null;
       stopPim();
@@ -100,6 +120,8 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
     // state from before — without this the imported calendar stays empty and
     // the mailbox invisible until the next app start.
     const onAccountsImported = () => {
+      // What the boot still holds back starts first: the restart below is of a running calendar.
+      stagger?.now();
       void getMobileVault().then((v) => {
         // Queued behind a sign-in that is being stored (pimService).
         void restartPimAfterImport(v).catch((e) => console.error("[import] pim restart failed", e));
@@ -112,11 +134,15 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
     window.addEventListener("m-accounts-imported", onAccountsImported);
     return () => {
       alive = false;
+      stagger?.cancel();
       stopReconcile?.();
       window.removeEventListener("m-vault-switched", onSwitched);
       window.removeEventListener("m-accounts-imported", onAccountsImported);
     };
   }, []);
 
+  // A note link that arrived waits while the vault boots; its minute runs
+  // once the boot answered, ready or failed (F2).
+  useEffect(() => setNoteLinksVaultLoading(boot.kind === "opening"), [boot.kind]);
   return { vault, boot };
 }

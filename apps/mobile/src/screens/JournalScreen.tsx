@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { useTranslation } from "react-i18next";
 import { CalendarDays, ChevronRight, LayoutGrid, List as ListIcon, NotebookPen, NotebookText, Sun } from "lucide-react";
 import type { JournalEntry } from "@plainva/core";
-import {
+import { AreaBoundary,
   Button, Chip, DateJumpPicker, EmptyState, Fab, GroupCard, ICON, IconButton, JournalCaptureField, JournalCardWall, JournalDayList, Row, RowList, SearchField, Segmented,
   buildDailyNotePath, errorText, isJournalFiltered, journalRowActions, journalToday, loadImageBlob, NO_JOURNAL_FILTER, readJournalShape, setPendingSearchJump, toast, writeJournalShape, writeNoteProperty,
   type JournalShape,
@@ -291,11 +291,13 @@ export function JournalScreen({
       />
 
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={sheet.title}
           actions={rowActions(sheet.caps).map((a) => ({ ...a, onClick: () => { setSheet(null); a.onClick(); } }))}
           onClose={() => setSheet(null)}
         />
+        </AreaBoundary>
       )}
 
       {jumpOpen && (

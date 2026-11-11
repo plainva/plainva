@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page, type TestInfo } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory } from "./exampleVault";
 import { byteExactDav } from "../../../packages/core/test/helpers/byteExactDav";

@@ -1,9 +1,10 @@
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
-import { EditorState, Range, RangeSetBuilder, StateField } from "@codemirror/state";
+import { EditorState, Extension, RangeSetBuilder, Text } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { interactivityChanged, revealedLineSet, revealsRange } from "./LivePreviewPlugin";
+import { interactivityChanged, revealsRange } from "./LivePreviewPlugin";
 import { isEditorInteractive } from "./editorInteractive";
-import { fenceOpenerFor, fencedCodeRanges, findFencedBlocks } from "./fencedBlocks";
+import { fenceOpenerFor, fencedCodeRanges, fencedCodeRangesIn, findFencedBlocks, findFencedBlocksIn, type FencedBlock } from "./fencedBlocks";
+import { blockDecorationsFromScratch, incrementalBlockField, nodeScopedDiscovery, selectionTouches, type BlockEntry, type BlockFieldConfig, type BlockKind, type BlockRescan, type KindState, type SyntaxNode } from "./incrementalBlocks";
 import { renderMermaidDiagram, currentMermaidTheme } from "../services/mermaidRender";
 import { anchorFrameAt, anchorFrameSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import i18n from "../i18n";
@@ -352,83 +353,208 @@ export interface MathMermaidTexts {
 /** The opening line of a mermaid fence, without what stands in front of the run. */
 const MERMAID_OPEN = fenceOpenerFor("mermaid");
 
-function buildBlockDecorations(state: EditorState, texts: MathMermaidTexts): DecorationSet {
-  const decos: Range<Decoration>[] = [];
-  try {
-    const activeLines = revealedLineSet(state);
-    const doc = state.doc;
-    const fences = fencedCodeRanges(state);
+interface MermaidInfo {
+  readonly code: string;
+  readonly quoteClass: string;
+}
 
-    // ```mermaid fences - at the top level, in a list item, and in a quote or
-    // callout (the shared detection of fencedBlocks.ts, which the ```tasks
-    // query block reads too).
-    for (const block of findFencedBlocks(state, MERMAID_OPEN)) {
-      let active = false;
-      for (let i = block.firstLine; i <= block.lastLine; i++) if (activeLines.has(i)) active = true;
-      if (active || !block.code.trim()) continue;
-      decos.push(
-        Decoration.replace({
-          widget: new MermaidLiveWidget(
-            block.code,
-            currentMermaidTheme(),
-            texts,
-            block.from,
-            block.to,
-            anchorFrameAt(state, block.from, block.to),
-            block.quoteClass,
-          ),
-          block: true,
-        }).range(block.from, block.to)
-      );
-    }
+interface BlockContext {
+  /** The caret shows a block's source (editing, not the touch read mode). */
+  readonly reveal: boolean;
+  readonly theme: string;
+}
 
-    // Multi-line $$ blocks: an opening line that starts with $$ (and does not
-    // close on the same line) up to the next line ending in $$.
-    for (let n = 1; n <= doc.lines; n++) {
-      const line = doc.line(n);
-      const t = line.text.trim();
-      if (!t.startsWith("$$") || (t.length > 2 && t.endsWith("$$"))) continue;
-      if (overlaps(line.from, line.to, fences)) continue;
-      let closing = -1;
-      for (let m = n + 1; m <= doc.lines; m++) {
-        if (doc.line(m).text.trim().endsWith("$$")) { closing = m; break; }
-      }
-      if (closing === -1) break;
-      let focused = false;
-      for (let i = n; i <= closing; i++) if (activeLines.has(i)) { focused = true; break; }
-      if (!focused) {
-        const raw = doc.sliceString(line.from, doc.line(closing).to);
-        const expr = raw.replace(/^\s*\$\$/, "").replace(/\$\$\s*$/, "").trim();
-        if (expr) {
-          decos.push(
-            Decoration.replace({
-              widget: new MathWidget(expr, true),
-              block: true,
-            }).range(line.from, doc.line(closing).to)
-          );
-        }
-      }
-      n = closing;
-    }
-  } catch (e) {
-    console.error("[mathMermaidLive] build error", e);
-    return Decoration.none;
+const mermaidEntry = (block: FencedBlock): BlockEntry<MermaidInfo> => ({ from: block.from, to: block.to, info: { code: block.code, quoteClass: block.quoteClass } });
+
+// ```mermaid fences - at the top level, in a list item, and in a quote or
+// callout (the shared detection of fencedBlocks.ts, which the ```tasks
+// query block reads too).
+function mermaidKind(texts: MathMermaidTexts): BlockKind<MermaidInfo, BlockContext> {
+  return {
+    ...nodeScopedDiscovery<MermaidInfo>(
+      (state) => findFencedBlocks(state, MERMAID_OPEN).map(mermaidEntry),
+      (state, top, out) => {
+        const found: FencedBlock[] = [];
+        findFencedBlocksIn(state, MERMAID_OPEN, top, found);
+        for (const block of found) out.push(mermaidEntry(block));
+      },
+    ),
+    decorate(state, ctx, block) {
+      if (ctx.reveal && selectionTouches(state.selection, block.from, block.to)) return null;
+      if (!block.info.code.trim()) return null;
+      return Decoration.replace({
+        widget: new MermaidLiveWidget(block.info.code, ctx.theme, texts, block.from, block.to, anchorFrameAt(state, block.from, block.to), block.info.quoteClass),
+        block: true,
+      });
+    },
+  };
+}
+
+interface MathInfo {
+  /** The expression between the `$$`; empty draws nothing. */
+  readonly expr: string;
+}
+
+interface MathExtra {
+  /** Start of an opening line that never closes: the search stopped there. */
+  readonly stoppedAt: number | null;
+}
+
+const isMathOpener = (text: string) => {
+  const t = text.trim();
+  return t.startsWith("$$") && !(t.length > 2 && t.endsWith("$$"));
+};
+
+/** The first line from line number `from` on that ends in `$$`, or -1. */
+function mathClosing(doc: Text, from: number): number {
+  for (let m = from; m <= doc.lines; m++) {
+    if (doc.line(m).text.trim().endsWith("$$")) return m;
   }
-  return Decoration.set(decos, true);
+  return -1;
+}
+
+function mathEntry(doc: Text, open: number, closing: number): BlockEntry<MathInfo> {
+  const from = doc.line(open).from;
+  const to = doc.line(closing).to;
+  const raw = doc.sliceString(from, to);
+  return { from, to, info: { expr: raw.replace(/^\s*\$\$/, "").replace(/\$\$\s*$/, "").trim() } };
+}
+
+/**
+ * Multi-line $$ blocks: an opening line that starts with $$ (and does not
+ * close on the same line) up to the next line ending in $$. An opening line
+ * inside fenced code is none; an opening line without a closing one ends the
+ * search. Every pair counts, also one with nothing between the `$$`: the next
+ * search starts after it.
+ */
+function discoverAllMath(state: EditorState): KindState<MathInfo, MathExtra> {
+  const doc = state.doc;
+  const fences = fencedCodeRanges(state);
+  const blocks: BlockEntry<MathInfo>[] = [];
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n);
+    if (!isMathOpener(line.text)) continue;
+    if (overlaps(line.from, line.to, fences)) continue;
+    const closing = mathClosing(doc, n + 1);
+    if (closing === -1) return { blocks, extra: { stoppedAt: line.from } };
+    blocks.push(mathEntry(doc, n, closing));
+    n = closing;
+  }
+  return { blocks, extra: { stoppedAt: null } };
+}
+
+/**
+ * The same search, continued from the last pair the edit left alone and ended
+ * where it meets the old search again. Unlike the other blocks a `$$` pair is
+ * not one node of the tree - it pairs lines along the whole note - so it is
+ * followed line by line: the old pairs before the rescanned stretch stand
+ * (their lines and the fences around them did not change), the search runs
+ * through the stretch, and behind it, at the first line where neither the old
+ * nor the new search is inside a pair, both go on alike.
+ */
+function discoverMath(state: EditorState, prev: KindState<MathInfo, MathExtra>, plan: BlockRescan): KindState<MathInfo, MathExtra> {
+  if (plan.from === Infinity) return prev;
+  const doc = state.doc;
+  const old = prev.blocks;
+  const oldStop = prev.extra?.stoppedAt ?? null;
+  const startLine = doc.lineAt(Math.min(plan.from, doc.length));
+  const blocks: BlockEntry<MathInfo>[] = [];
+  let i = 0;
+  while (i < old.length && old[i].to < startLine.from) blocks.push(old[i++]);
+
+  // Fenced code along the search, collected per top-level node as it advances.
+  const top = syntaxTree(state).topNode;
+  let nextNode: SyntaxNode | null | undefined;
+  const fences: Array<{ from: number; to: number }> = [];
+  const inFence = (from: number, to: number) => {
+    if (nextNode === undefined) nextNode = top.childAfter(from);
+    while (nextNode && nextNode.from < to) {
+      fencedCodeRangesIn(nextNode, fences);
+      nextNode = nextNode.nextSibling;
+    }
+    return overlaps(from, to, fences);
+  };
+
+  let n: number;
+  if (oldStop !== null && oldStop < startLine.from) {
+    // The old search stopped at an opening line before the stretch: no line
+    // between it and the stretch ends in `$$`, so look for its closing from there.
+    const open = doc.lineAt(oldStop).number;
+    const closing = mathClosing(doc, Math.max(open + 1, startLine.number));
+    if (closing === -1) return { blocks, extra: { stoppedAt: oldStop } };
+    blocks.push(mathEntry(doc, open, closing));
+    n = closing + 1;
+  } else {
+    // A pair the stretch cuts through is searched again from its opening line.
+    n = i < old.length && old[i].from < startLine.from ? doc.lineAt(old[i].from).number : startLine.number;
+  }
+
+  // Where the old search stood at a line start: outside every pair, and not yet stopped.
+  const oldOutside = (pos: number) => {
+    if (oldStop !== null && pos > oldStop) return false;
+    let lo = 0;
+    let hi = old.length - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (old[mid].from < pos) lo = mid + 1;
+      else hi = mid - 1;
+    }
+    // old[hi] is the last pair opening before pos.
+    return hi < 0 || pos > old[hi].to;
+  };
+
+  for (; n <= doc.lines; n++) {
+    const line = doc.line(n);
+    if (line.from >= plan.to) {
+      const oldPos = line.from - plan.delta;
+      if (oldOutside(oldPos)) {
+        for (const block of old) {
+          if (block.from >= oldPos) blocks.push({ from: block.from + plan.delta, to: block.to + plan.delta, info: block.info });
+        }
+        return { blocks, extra: { stoppedAt: oldStop === null ? null : oldStop + plan.delta } };
+      }
+    }
+    if (!isMathOpener(line.text)) continue;
+    if (inFence(line.from, line.to)) continue;
+    const closing = mathClosing(doc, n + 1);
+    if (closing === -1) return { blocks, extra: { stoppedAt: line.from } };
+    blocks.push(mathEntry(doc, n, closing));
+    n = closing;
+  }
+  return { blocks, extra: { stoppedAt: null } };
+}
+
+const mathKind: BlockKind<MathInfo, BlockContext, MathExtra> = {
+  discoverAll: discoverAllMath,
+  discover: discoverMath,
+  decorate(state, ctx, block) {
+    if (ctx.reveal && selectionTouches(state.selection, block.from, block.to)) return null;
+    if (!block.info.expr) return null;
+    return Decoration.replace({ widget: new MathWidget(block.info.expr, true), block: true });
+  },
+};
+
+function blockFieldConfig(texts: MathMermaidTexts): BlockFieldConfig<BlockContext> {
+  return {
+    label: "mathMermaidLive",
+    kinds: [mermaidKind(texts), mathKind],
+    // The theme joins the context so a switch redraws every diagram.
+    context: (state) => ({ reveal: isEditorInteractive(state), theme: currentMermaidTheme() }),
+    sameContext: (a, b) => a.reveal === b.reveal && a.theme === b.theme,
+    triggers: (tr) => tr.docChanged || !!tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state) || interactivityChanged(tr.startState, tr.state),
+    refreshesAll: hasAnchorHighlightChange,
+  };
+}
+
+/** The diagram and `$$` decorations of `state` searched from scratch - what the field always equals. */
+export function mathMermaidDecorationsFromScratch(state: EditorState, texts: MathMermaidTexts): DecorationSet {
+  return blockDecorationsFromScratch(blockFieldConfig(texts), state);
 }
 
 // Block-level widgets MUST come from a StateField (not a view plugin): they
 // change line heights and have to be known before the viewport is measured —
-// same rule as tableField.
-export function mathMermaidBlockField(texts: MathMermaidTexts) {
-  return StateField.define<DecorationSet>({
-    create: (state) => buildBlockDecorations(state, texts),
-    update: (value, tr) => {
-      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state) || interactivityChanged(tr.startState, tr.state)) {
-        return buildBlockDecorations(tr.state, texts);
-      }
-      return value;
-    },
-    provide: (f) => EditorView.decorations.from(f),
-  });
+// same rule as tableField. The field follows the text (performance plan L6,
+// incrementalBlocks.ts).
+export function mathMermaidBlockField(texts: MathMermaidTexts): Extension {
+  return incrementalBlockField(blockFieldConfig(texts));
 }

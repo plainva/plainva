@@ -2699,6 +2699,31 @@
     "mobileProbeFailed": "无法在云端检查是否已存在口令。请在有网络时重试。",
     "mobileCreated": "同步口令已设置，本设备已解锁。"
   },
+  "noteLink": {
+    "copy": "复制链接",
+    "copyBlock": "复制块链接",
+    "copied": "链接已复制。",
+    "invalid": "Plainva 无法打开此链接。",
+    "noVault": "请先打开一个仓库，然后再次打开链接。",
+    "vaultUnknown": "此设备上没有仓库“{{name}}”。",
+    "vaultAmbiguous": "此设备上有多个名为“{{name}}”的仓库。请先打开你要的那个，然后再次打开链接。",
+    "switchTitle": "切换仓库？",
+    "switchMessage": "此链接指向仓库“{{name}}”中的一篇笔记。要切换过去吗？",
+    "switchConfirm": "切换",
+    "answerFirst": "请先回答当前的问题。",
+    "openHereTitle": "在此仓库中打开？",
+    "openHereMessage": "此设备上没有仓库“{{vault}}”。笔记“{{note}}”在当前打开的仓库中。要在那里打开吗？",
+    "openHereAmbiguousMessage": "此设备上有多个名为“{{vault}}”的仓库。笔记“{{note}}”在当前打开的仓库中。要在那里打开吗？",
+    "openHereConfirm": "打开",
+    "notFound": "此仓库中没有笔记“{{name}}”。",
+    "notOpenable": "链接只能打开笔记以及 Plainva 自己显示的文件，不能打开此文件。",
+    "blockNotHere": "无法在此行设置块链接。",
+    "lineEmpty": "此行为空，没有可链接的内容。",
+    "readOnly": "此笔记为只读，其块无法获得 ID。",
+    "insert": "链接笔记",
+    "pickHint": "日程会获得一个在 Plainva 中打开该笔记的链接。",
+    "openNote": "打开笔记 {{name}}"
+  },
   "contextMenu": {
     "cut": "剪切",
     "copy": "复制",
@@ -2815,6 +2840,8 @@
       "entryFailed": "无法导入",
       "noAvailableName": "1000 个候选文件名中没有可用名称；已保留现有文件",
       "reservedPathOccupied": "预留的文件名现已被占用；已保留现有文件",
+      "renamedForSystem": "已重命名：此系统无法使用原名称",
+      "refusedInternalPath": "未导入：它会进入 Plainva 或其他应用自己的文件夹",
       "runStopped": "导入已提前终止——此前的内容均已写入",
       "skippedDuplicate": "同一篇笔记在导出中出现了两次——只导入一次，位置为",
       "skippedTrashed": "回收站——未导入",
@@ -3318,6 +3345,7 @@
   },
   "editor": {
     "completionHeadings": "标题",
+    "completionBlocks": "块",
     "unresolvedLinkTip": "笔记尚不存在——点击以新建",
     "loading": "加载中…",
     "menu": "菜单",
@@ -4920,7 +4948,11 @@
   },
   "errors": {
     "somethingWentWrong": "出了点问题。",
-    "reload": "重新加载"
+    "reload": "重新加载",
+    "areaTitle": "无法显示此区域",
+    "areaBody": "一个错误使其停止。Plainva 的其余部分继续运行，错误已记录在“{{place}}”中。",
+    "areaAgain": "重新加载后再次失败。如果持续失败，请重新启动 Plainva；错误已记录在“{{place}}”中。",
+    "areaReload": "重新加载此区域"
   },
   "palette": {
     "title": "命令",

@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-05
+Laatst bijgewerkt: 2026-11-10
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -63,6 +63,28 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 - **Backlinks**: De sectie **Backlinks** in de rechterzijbalk toont welke notities naar de actieve notitie linken — gegroepeerd per bronbestand, met een teller bij meerdere voorkomens. Onder elk bestand staat elk voorkomen met de koppen en lijstitems erboven en de regel zelf; een klik springt er direct heen. Op de telefoon toont het contextblad van de notitie dezelfde plekken. De rijen staan op **Titel**; de sorteerknop erboven wisselt naar **Laatst gewijzigd** of **Aantal links**, dezelfde sleutel nogmaals kiezen keert de richting om, en de keuze wordt op dit apparaat onthouden.
 - **Hernoemen met linkzorg**: Wanneer je een bestand hernoemt in de bestandsboom, werkt Plainva elke link ernaartoe bij in de hele vault (ankers zoals `#Sectie` blijven behouden) en meldt: "N link(s) in M bestand(en) zijn bijgewerkt naar de nieuwe naam." Een link die de notitie bereikt via de `title` uit haar eigenschappen blijft zoals hij is — die titel verandert niet mee met de bestandsnaam.
 - **Tags**: `#project` — of genest, `#project/website` — ergens in de tekst is een tag. Hij staat er als een kleine pil, tijdens het schrijven en tijdens het lezen, en een klik erop opent de notities die hem dragen (op de telefoon: een tik in de leesmodus). Wat als tag telt en hoe tags een kleur krijgen: [Zoeken](Search.md).
+
+## Links naar een notitie van buitenaf
+
+Elke notitie heeft een adres dat haar overal vandaan opent: een afspraak in de agenda, een taak in de lijst van je provider, een mail, een bladwijzer, een chat of een andere app:
+
+`plainva://open?vault=Work&path=Projects%2FPlan.md`
+
+- **Link kopiëren** zet dat adres op het klembord: op de desktop in het ⋮-menu van de notitie, het tabmenu en het contextmenu van de bestandsboom; op de telefoon in het menu van de notitie en in het blad van een bestand.
+- **Bij een kop of een regel**: het blokmenu (de greep links naast een blok; op de telefoon het blokblad) en op de desktop het rechtsklikmenu van de editor bieden **Link kopiëren** — het adres van precies die kop of dat blok — en **Bloklink kopiëren** — een link voor je notities zoals `[[Plan#Doelen]]` of `[[Plan#^k3x9qa]]`. Een blok zonder ID krijgt er een: Plainva schrijft ` ^k3x9qa` (zes letters en cijfers) aan het einde van de alinea of het lijstitem, bij een tabel op een eigen regel eronder — alsof je het zelf had getypt, dus ongedaan maken haalt het weg. Frontmatter, codeblokken, formules en lege regels krijgen geen ID.
+- **Suggesties**: als je `[[Notitie#^` typt, verschijnen de blok-ID's die de notitie al heeft, met het begin van hun tekst.
+- **In een afspraak**: **Notitie koppelen** in de afspraakeditor voegt `[Titel](plainva://open?…)` toe aan de beschrijving. Het voorbeeld van de afspraak toont dat als chip met de naam van de notitie; een klik opent haar.
+- **Aangeklikt in Plainva**: een `plainva://`-link in een notitie, een mail, een afspraak of een taak opent de notitie in Plainva, op de desktop en op de telefoon. Hij gaat nooit naar het systeem.
+
+Wat een link kan, en wat niet:
+
+- Hij **opent** alleen. Hij maakt nooit een notitie, schrijft niets, voert niets uit en wijzigt geen instelling; parameters die Plainva niet kent, worden genegeerd.
+- `vault` is de **naam** van de vault zoals Plainva die toont — nooit de map op de schijf. Op een ander apparaat werkt de link als de vault daar dezelfde naam heeft. Hoort de naam bij een andere vault op dit apparaat, dan vraagt Plainva eerst of het moet wisselen; heeft geen vault — of meer dan één — op dit apparaat die naam, dan zegt Plainva dat. Wie een vault hernoemt, breekt de links met de oude naam. Staat de vault niet op dit apparaat, maar staat de notitie in de geopende vault, dan vraagt Plainva of hij haar daar moet openen.
+- `path` is het pad van de notitie in de vault. Is de notitie verplaatst, of hernoemd terwijl haar oude naam nog als `title` in haar eigenschappen staat, dan vindt Plainva haar volgens de regel van de wikilinks. Anders zegt het dat de notitie er niet is.
+- `heading=` of `block=` (een van beide) springt naar een kop of een blok.
+- Een link opent notities, databases, afbeeldingen en tekstbestanden — nooit een programma of een ander bestand dat het systeem zou openen. Bestanden en mappen waarvan de naam met een punt begint — verborgen bestanden, de eigen mappen van Plainva — worden nooit door een link geopend. Een link die op een vault wachtte, vervalt na een minuut.
+- Links beginnen altijd met `plainva://`. De ontwikkel- en Labs-versies reageren op `plainva-dev://` en `plainva-labs://`, zodat ze de geïnstalleerde app nooit haar links afnemen.
+- Het systeem leert het adres bij de installatie van Plainva (Windows-installer, macOS-app, deb- of rpm-pakket, Android, iOS). Een AppImage zonder desktopintegratie is niet aangemeld; links die je in Plainva aanklikt werken daar toch.
 
 ## Eigenschappen (frontmatter)
 

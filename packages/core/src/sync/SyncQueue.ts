@@ -473,6 +473,14 @@ export class SyncQueue {
    * blindly re-push EVERY file over a possibly-newer remote — the pull's reconcile
    * establishes the base for files that exist remotely, and only genuinely local-only
    * files are pushed. `.plainva`/`.CONFLICT` are excluded (device-local).
+   *
+   * Also every row marked `local_ahead` with nothing queued: a change the
+   * index found that never reached the queue (performance plan L4). The index
+   * writes a foreign change's new hash and that mark in one transaction and
+   * tells the host afterwards; an app ended in between left the change known
+   * to nobody - the next scan finds the file as it indexed it. A row is
+   * `local_ahead` only while a change of it is owed to the remote: queueing
+   * sets it, `markSynced` takes it off once nothing is queued for the path.
    */
   async enqueueLocalOnlyFiles(): Promise<void> {
     await this.db.transaction(async (tx) => {
@@ -481,7 +489,7 @@ export class SyncQueue {
          LEFT JOIN sync_state s ON s.path = f.path
          WHERE f.path NOT LIKE '.plainva%'
            AND f.path NOT LIKE '%.CONFLICT%'
-           AND (s.path IS NULL OR s.remote_etag IS NULL)`
+           AND (s.path IS NULL OR s.remote_etag IS NULL OR f.sync_state = 'local_ahead')`
       );
       for (const row of files) {
         // A twin spelling (ADR 0016) is reported by the sync, never uploaded.

@@ -13,6 +13,53 @@ import tseslint from "typescript-eslint";
 // SCREAMING_SNAKE statics off an imported binding — read them lazily instead.
 const plainvaPlugin = {
   rules: {
+    "no-real-clock-in-tests": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "End-to-end tests run on the fixed test clock and zone (stability plan R9): the page clock starts at TEST_NOW, and the runner side reads the same moment through testNow().",
+        },
+        schema: [],
+        messages: {
+          clock:
+            "'{{what}}' on the runner side of an E2E test reads the real clock, which the page does not run on. Use testNow() from the shared clockedTest module (a test about the real clock: test.use({ testClock: \"real\" }) and realDateNow() from scripts/test-clock.mjs, with the reason).",
+          import:
+            "Import `test` from the app's clockedTest module, not from @playwright/test: only that `test` puts the page on the fixed test clock (stability plan R9).",
+        },
+      },
+      create(context) {
+        // Code inside a function handed to the page runs in the browser, on the
+        // page clock that the shared `test` fixed — that is the clock to use there.
+        const PAGE_SIDE = new Set(["addInitScript", "evaluate", "evaluateHandle", "evaluateAll", "waitForFunction", "$eval", "$$eval"]);
+        function onPageSide(node) {
+          for (let cur = node.parent; cur; cur = cur.parent) {
+            if ((cur.type === "ArrowFunctionExpression" || cur.type === "FunctionExpression") && cur.parent && cur.parent.type === "CallExpression" && cur.parent.arguments.includes(cur)) {
+              const callee = cur.parent.callee;
+              if (callee.type === "MemberExpression" && !callee.computed && callee.property.type === "Identifier" && PAGE_SIDE.has(callee.property.name)) return true;
+            }
+          }
+          return false;
+        }
+        const isDate = (n) => n && n.type === "Identifier" && n.name === "Date";
+        return {
+          ImportDeclaration(node) {
+            if (node.source.value !== "@playwright/test" || node.importKind === "type") return;
+            for (const spec of node.specifiers) {
+              if (spec.type === "ImportSpecifier" && spec.importKind !== "type" && spec.imported.name === "test") context.report({ node: spec, messageId: "import" });
+            }
+          },
+          NewExpression(node) {
+            if (isDate(node.callee) && node.arguments.length === 0 && !onPageSide(node)) context.report({ node, messageId: "clock", data: { what: "new Date()" } });
+          },
+          CallExpression(node) {
+            const c = node.callee;
+            if (isDate(c) && !onPageSide(node)) context.report({ node, messageId: "clock", data: { what: "Date()" } });
+            if (c.type === "MemberExpression" && !c.computed && isDate(c.object) && c.property.name === "now" && !onPageSide(node)) context.report({ node, messageId: "clock", data: { what: "Date.now()" } });
+          },
+        };
+      },
+    },
     "no-top-level-imported-static-read": {
       meta: {
         type: "problem",
@@ -85,6 +132,7 @@ export default tseslint.config(
   {
     ignores: [
       "**/dist/**",
+      "**/dist-e2e/**",
       "**/build/**",
       "**/target/**",
       "**/node_modules/**",
@@ -207,6 +255,18 @@ export default tseslint.config(
     plugins: { plainva: plainvaPlugin },
     rules: {
       "plainva/no-top-level-imported-static-read": "error",
+    },
+  },
+  {
+    // The fixed test clock (stability plan R9, scripts/test-clock.mjs). Unit
+    // tests get it from the first vitest setup file without any rule; E2E specs
+    // have a runner side that Playwright does not shift, so this rule keeps the
+    // real clock out of it and every spec on the shared, clocked `test`.
+    files: ["apps/*/e2e/**/*.ts", "apps/*/e2e-prod/**/*.ts"],
+    ignores: ["apps/desktop/e2e/fixtures/clockedTest.ts", "apps/mobile/e2e-prod/clockedTest.ts"],
+    plugins: { plainva: plainvaPlugin },
+    rules: {
+      "plainva/no-real-clock-in-tests": "error",
     },
   },
   {

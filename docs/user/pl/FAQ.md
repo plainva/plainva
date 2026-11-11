@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-11-02
+Stan na: 2026-11-10
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -139,6 +139,10 @@ Dopóki nie ma jeszcze publicznych wydań, sprawdzanie aktualizacji zgłasza: �
 ### Czy są ukryte funkcje?
 
 Gwiezdna Flota zasadniczo nie komentuje plotek. Ale podobno logo na pasku tytułu reaguje na uporczywe pukanie — a kto zna wtedy odpowiednie słowa, zobaczy potem Plainva w zupełnie nowym świetle. Niektórzy mówią: w czterech.
+
+### Część okna pokazuje „Nie można wyświetlić tego obszaru”
+
+Nie udało się narysować jednego obszaru: karty, sekcji paska bocznego, widoku bazy danych, wiadomości, strony ustawień, okna dialogowego albo na telefonie ekranu lub arkusza. Zastępowany jest tylko ten obszar; reszta działa dalej, a otwarta notatka zachowuje swój tekst. **Załaduj ten obszar ponownie** rysuje obszar od nowa. Jeśli nie uda się po raz drugi, komunikat to mówi i zostaje: zamknij kartę (**Zamknij kartę**) albo na telefonie dotknij **Wstecz**, a jeśli to się powtarza, uruchom Plainva ponownie. Błąd jest zapisany w **Informacje i diagnostyka**; eksport diagnostyki stamtąd nie zawiera treści notatek i pomaga przy zgłoszeniu błędu.
 
 ## Zobacz też
 

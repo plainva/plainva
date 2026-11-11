@@ -80,7 +80,11 @@ export function within<T>(budgetMs: number, run: () => T): T {
   let start = performance.now();
   let result = run();
   const first = performance.now() - start;
-  if (first < budgetMs) return result;
+  // The fast path asserts too: a test whose only check is the budget makes one.
+  if (first < budgetMs) {
+    expect(first).toBeLessThan(budgetMs);
+    return result;
+  }
   const slowdown = coreSlowdown();
   start = performance.now();
   result = run();
@@ -93,7 +97,10 @@ export async function withinAsync<T>(budgetMs: number, run: () => T | Promise<T>
   let start = performance.now();
   let result = await run();
   const first = performance.now() - start;
-  if (first < budgetMs) return result;
+  if (first < budgetMs) {
+    expect(first).toBeLessThan(budgetMs);
+    return result;
+  }
   const slowdown = coreSlowdown();
   start = performance.now();
   result = await run();

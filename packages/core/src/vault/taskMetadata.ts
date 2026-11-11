@@ -70,7 +70,14 @@ export function readTasksMetadata(text: string): TasksMetadata {
   // Unsupported directives and malformed/duplicated dates remain verbatim.
   const validOffsets = new Set(found.map(token => token.from));
   for (const match of text.matchAll(markers)) if (outsideCode(text, match.index, ranges) && !validOffsets.has(match.index)) result.unsafeRecurrence = true;
-  if (/(?:^|\s)(?:⛔|🏁|\^[A-Za-z0-9_-]+(?:\s|$))/.test(text)) result.unsafeRecurrence = true;
+  // `⛔` and `🏁` are Tasks fields Plainva cannot carry over to a successor.
+  // A `^id` was distrusted with them because a successor copied the whole
+  // line, and two lines with one block id are a link that leads nowhere. The
+  // id at the END of the line is a block id and nothing else (F2): the
+  // successor is written without it (`setChecklistTaskDone`), so the original
+  // keeps the place links point to — as the Tasks plugin does. A `^word`
+  // inside the text still counts as unknown.
+  if (/(?:^|\s)(?:⛔|🏁)/.test(text) || /(?:^|\s)\^[A-Za-z0-9_-]+(?:\s|$)/.test(withoutBlockId(text))) result.unsafeRecurrence = true;
   const rule = result.recurrence?.match(/^every(?: ([1-9]\d{0,2}))? (day|week|month|year)s?( when done)?$/i);
   if (rule && !result.unsafeRecurrence) result.repeatRule = { unit: rule[2].toLowerCase() as TasksRepeatRule["unit"], interval: Number(rule[1] ?? 1), whenDone: !!rule[3] };
   return result;
@@ -99,11 +106,27 @@ export function readTasksInvalidDates(text: string): TasksDateField[] {
   return out;
 }
 
-/** Remove only unambiguous fields displayed separately in the metadata row. */
+/**
+ * A block id at the end of a task line (`… ^k3x9qa`), F2 / ADR 0037 — THE
+ * definition every task reader and writer uses: letters, digits and `-`, as
+ * the note reader (`analyzeNoteSource`) and Obsidian take a block id. Any
+ * other `^token` (`^my_id`, one in the middle) is no block id and stays
+ * distrusted by the recurrence check, as before.
+ */
+const TRAILING_BLOCK_ID = /(?:^|[ \t])\^[A-Za-z0-9][A-Za-z0-9-]*[ \t]*$/;
+
+/** The task text without the block id at its end — the id is an address, not words of the task. */
+export function withoutBlockId(text: string): string {
+  return text.replace(TRAILING_BLOCK_ID, "").trimEnd();
+}
+
+/** Remove only unambiguous fields displayed separately in the metadata row (and a trailing block id). */
 export function tasksDescription(text: string): string {
   const found = tokens(text), counts = new Map<Field, number>();
   for (const token of found) counts.set(token.field, (counts.get(token.field) ?? 0) + 1);
   let result = text;
+  const block = TRAILING_BLOCK_ID.exec(result);
+  if (block) result = result.slice(0, block.index);
   // A due date's time goes with it: it is part of the field, not of the words.
   for (const token of found.reverse()) if (counts.get(token.field) === 1) result = result.slice(0, token.from) + result.slice(token.timeTo ?? token.to);
   return result.replace(/\s{2,}/g, " ").trim();
@@ -124,8 +147,8 @@ export function setTasksField(text: string, field: Field, value: string | null):
     return text.slice(0, start) + (value === null ? "" : symbol + " " + value) + text.slice(value === null ? token.timeTo ?? token.to : token.to);
   }
   if (value === null) return text;
-  const tail = text.trimEnd(), block = /\^[A-Za-z0-9_-]+$/.exec(tail);
-  const at = block && block.index > 0 && /\s/.test(tail[block.index - 1]) ? tail.slice(0, block.index).trimEnd().length : tail.length;
+  const tail = text.trimEnd(), block = TRAILING_BLOCK_ID.exec(tail);
+  const at = block && block.index > 0 ? tail.slice(0, block.index).trimEnd().length : tail.length;
   return text.slice(0, at) + " " + symbol + " " + value + text.slice(at);
 }
 const DUE_CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -211,8 +234,8 @@ export function setTasksPriority(text: string, rank: 0 | 1 | 2 | 3): string {
   const bare = stripTasksPriority(text);
   if (rank === 0) return bare;
   const first = tokens(bare)[0];
-  const block = /\s\^[A-Za-z0-9_-]+\s*$/.exec(bare);
-  const at = first ? first.from : block ? block.index + 1 : bare.length;
+  const block = TRAILING_BLOCK_ID.exec(bare);
+  const at = first ? first.from : block && block.index > 0 ? block.index + 1 : bare.length;
   const head = bare.slice(0, at).trimEnd();
   const tail = bare.slice(at).trimStart();
   return [head, PRIORITY_MARK[rank], tail].filter((part) => part.length > 0).join(" ");

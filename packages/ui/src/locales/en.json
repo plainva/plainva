@@ -2787,6 +2787,31 @@
     "mobileProbeFailed": "The cloud could not be checked for an existing passphrase. Try again with a connection.",
     "mobileCreated": "Sync passphrase set. This device is unlocked."
   },
+  "noteLink": {
+    "copy": "Copy link",
+    "copyBlock": "Copy block link",
+    "copied": "Link copied.",
+    "invalid": "Plainva can't open this link.",
+    "noVault": "Open a vault first, then the link again.",
+    "vaultUnknown": "The vault “{{name}}” is not on this device.",
+    "vaultAmbiguous": "This device has several vaults named “{{name}}”. Open the one you mean, then the link again.",
+    "switchTitle": "Switch vault?",
+    "switchMessage": "This link leads to a note in the vault “{{name}}”. Switch to it?",
+    "switchConfirm": "Switch",
+    "answerFirst": "Answer the open question first.",
+    "openHereTitle": "Open in this vault?",
+    "openHereMessage": "The vault “{{vault}}” is not on this device. The note “{{note}}” is in the open vault. Open it there?",
+    "openHereAmbiguousMessage": "This device has several vaults named “{{vault}}”. The note “{{note}}” is in the open vault. Open it there?",
+    "openHereConfirm": "Open",
+    "notFound": "The note “{{name}}” is not in this vault.",
+    "notOpenable": "A link opens notes and the files Plainva shows itself — not this file.",
+    "blockNotHere": "A block link can't be placed on this line.",
+    "lineEmpty": "This line is empty — there is nothing to link to.",
+    "readOnly": "This note is read-only, so its block can't get an id.",
+    "insert": "Link a note",
+    "pickHint": "The event gets a link that opens the note in Plainva.",
+    "openNote": "Open note {{name}}"
+  },
   "contextMenu": {
     "cut": "Cut",
     "copy": "Copy",
@@ -2903,6 +2928,8 @@
       "entryFailed": "could not be imported",
       "noAvailableName": "no free filename among 1000 variants; existing files were preserved",
       "reservedPathOccupied": "the reserved filename is now occupied; the existing file was preserved",
+      "renamedForSystem": "renamed: this system cannot hold the original name",
+      "refusedInternalPath": "not imported: it would have gone into Plainva's or another app's own folder",
       "runStopped": "the import stopped early — everything up to this point was written",
       "skippedDuplicate": "the same note is in the export twice — imported once, as",
       "skippedTrashed": "in the trash — not imported",
@@ -3406,6 +3433,7 @@
   },
   "editor": {
     "completionHeadings": "Headings",
+    "completionBlocks": "Blocks",
     "unresolvedLinkTip": "Note doesn't exist yet — click to create",
     "loading": "Loading...",
     "menu": "Menu",
@@ -5027,7 +5055,11 @@
   },
   "errors": {
     "somethingWentWrong": "Something went wrong.",
-    "reload": "Reload"
+    "reload": "Reload",
+    "areaTitle": "This area could not be shown",
+    "areaBody": "An error stopped it. The rest of Plainva keeps working, and the error is recorded under {{place}}.",
+    "areaAgain": "It failed again after reloading. If it keeps failing, restart Plainva; the error is recorded under {{place}}.",
+    "areaReload": "Reload this area"
   },
   "palette": {
     "title": "Commands",
