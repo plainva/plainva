@@ -1,5 +1,5 @@
 import type { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultWalkOptions, WatchEvent } from "../vault/IVaultAdapter.js";
-import { VaultPermissionDeniedError } from "../vault/IVaultAdapter.js";
+import { VaultPermissionDeniedError, indexReadsOf } from "../vault/IVaultAdapter.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import type {
   WorkspaceCapability,
@@ -228,6 +228,9 @@ export class PermissionedVaultAdapter implements IVaultAdapter {
   initialize(): Promise<void> { return this.inner.initialize(); }
   dispose(): Promise<void> { return this.inner.dispose(); }
   acknowledgeExternalUpdate?(path: string): Promise<void> { return this.inner.acknowledgeExternalUpdate?.(path) ?? Promise.resolve(); }
+  /** Handed on to the inner adapter where it has it (performance plan L2); read when asked, after the constructor. */
+  get readFilesForIndex() { return indexReadsOf(this.inner); }
+
   readTextFile(path: string): Promise<string> { return this.inner.readTextFile(path); }
   readBinaryFile(path: string): Promise<Uint8Array> { return this.inner.readBinaryFile(path); }
   exists(path: string): Promise<boolean> { return this.inner.exists(path); }

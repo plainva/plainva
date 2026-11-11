@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, SnapshotBeforeDeleteError, VaultListing, VaultFileInfo, VaultFileNotFoundError, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, indexReadsOf, DeletionConfirmation, SnapshotBeforeDeleteError, VaultListing, VaultFileInfo, VaultFileNotFoundError, type VaultWalkOptions } from "./IVaultAdapter.js";
 import {
   backupDirFor,
   isPlainvaInternalPath,
@@ -112,6 +112,9 @@ export class BackupVaultAdapter implements IVaultAdapter {
   async dispose(): Promise<void> {
     await this.inner.dispose();
   }
+
+  /** Handed on to the inner adapter where it has it (performance plan L2); read when asked, after the constructor. */
+  get readFilesForIndex() { return indexReadsOf(this.inner); }
 
   async readTextFile(path: string): Promise<string> {
     return this.inner.readTextFile(path);

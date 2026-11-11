@@ -47,6 +47,25 @@ export interface VaultFileInfo {
   id?: string;
 }
 
+/** One file a pass of the index reads (`IVaultAdapter.readFilesForIndex`). */
+export interface IndexReadRequest {
+  path: string;
+  /** Read as text (a note, or a file that is text by its name); else only its bytes are hashed. */
+  text: boolean;
+}
+
+/**
+ * What `readFilesForIndex` answers for one request, in the order asked:
+ * - `text`: the bytes are UTF-8, and `text` is the file exactly (a byte order
+ *   mark included); `sha256` is the hash of the bytes;
+ * - `bytes`: the hash of the bytes of a file asked for as bytes;
+ * - `fallback`: anything else — gone, refused, not UTF-8 — for the ordinary read to answer.
+ */
+export type IndexReadResult =
+  | { kind: "text"; text: string; sha256: string }
+  | { kind: "bytes"; sha256: string }
+  | { kind: "fallback" };
+
 /** Applies only to the successful delete call carrying it, never to a path's future contents. */
 export interface DeletionConfirmation {
   /** The person confirmed this deletion: it reaches the other devices as one (`SyncQueue.queueDeletePaths`). */
@@ -228,6 +247,18 @@ export interface IVaultAdapter {
   readBinaryFile(path: string): Promise<Uint8Array>;
 
   /**
+   * Reads many files for a pass of the index in one call (performance plan
+   * L2): for each request, the file's text and the hash of its bytes, or the
+   * hash alone for a file that is read as bytes. Optional — a host whose
+   * every call is a round trip (the desktop's bridge into Rust) has it, and
+   * every adapter that wraps another hands it on only where the inner one
+   * has it. An answer of `fallback` sends that one file down the ordinary
+   * read (`readTextFile`/`readBinaryFile`), which knows its refusals: a file
+   * that is gone, cannot be read or is no UTF-8 text is never answered here.
+   */
+  readFilesForIndex?(requests: readonly IndexReadRequest[]): Promise<IndexReadResult[]>;
+
+  /**
    * Writes text to a file. Overwrites if exists, creates if it doesn't.
    * Also creates missing parent directories.
    */
@@ -391,4 +422,13 @@ export interface VaultWalkOptions {
 export interface VaultListing {
   files: VaultFileInfo[];
   skipped: VaultWalkSkip[];
+}
+
+/**
+ * `readFilesForIndex` of an adapter that wraps `inner`: handed on where the
+ * inner one has it, absent where it does not — so the index asks a wrapped
+ * chain exactly what it would ask its innermost adapter (performance plan L2).
+ */
+export function indexReadsOf(inner: IVaultAdapter): IVaultAdapter["readFilesForIndex"] {
+  return inner.readFilesForIndex ? (requests) => inner.readFilesForIndex!(requests) : undefined;
 }

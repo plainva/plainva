@@ -20,17 +20,65 @@ export type Yielder = () => Promise<void> | void;
 const now = (): number =>
   typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
 
+/**
+ * One turn of the event loop, the cheapest way the host has (performance plan
+ * L3).
+ *
+ * The turn used to be a `setTimeout(…, 0)`. A browser clamps a timer set from
+ * inside a timer to 4 ms after a few levels, and in a window that is hidden or
+ * minimised it runs a timer at most once a second: a first index of 10 000
+ * notes that let go every tenth file waited about four seconds for nothing in
+ * a visible window, and in a minimised one it all but stood still. A message
+ * on a `MessageChannel` is a task like a timer's — input and painting get
+ * their turn before it — without the clamp and without the throttling of
+ * background timers. Node (the core's tests and measurements) has
+ * `setImmediate` for the same; a host with neither falls back to the timer.
+ */
+export function nextMacrotask(): Promise<void> {
+  return new Promise<void>((resolve) => scheduleMacrotask(resolve));
+}
+
+type Task = () => void;
+let schedule: ((task: Task) => void) | null = null;
+
+function scheduleMacrotask(task: Task): void {
+  if (!schedule) schedule = pickScheduler();
+  schedule(task);
+}
+
+function pickScheduler(): (task: Task) => void {
+  const g = globalThis as { setImmediate?: (task: Task) => unknown; MessageChannel?: typeof MessageChannel; document?: unknown };
+  // Node, and a test environment that runs on it. Asked first: a port of a
+  // MessageChannel keeps a Node process alive for as long as it listens.
+  if (typeof g.setImmediate === "function") {
+    const immediate = g.setImmediate;
+    return (task) => { immediate(task); };
+  }
+  if (typeof g.MessageChannel === "function") {
+    // One channel for every turn: the tasks waiting for it run in the order
+    // they asked, one message each.
+    const channel = new g.MessageChannel();
+    const waiting: Task[] = [];
+    channel.port1.onmessage = () => {
+      const task = waiting.shift();
+      if (task) task();
+    };
+    return (task) => {
+      waiting.push(task);
+      channel.port2.postMessage(null);
+    };
+  }
+  return (task) => { setTimeout(task, 0); };
+}
+
 export function createYielder(budgetMs = 8, every = 64, clock: () => number = now): Yielder {
   let last = clock();
   let calls = 0;
   return () => {
     if (++calls % every !== 0) return;
     if (clock() - last < budgetMs) return;
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        last = clock();
-        resolve();
-      }, 0);
+    return nextMacrotask().then(() => {
+      last = clock();
     });
   };
 }

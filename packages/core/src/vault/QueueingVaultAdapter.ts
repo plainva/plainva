@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, indexReadsOf, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
 import { SyncQueue } from "../sync/SyncQueue.js";
 import { isSystemJunkPath } from "./systemJunk.js";
 import { isWorkspaceNamespacePath } from "../workspace/path.js";
@@ -85,6 +85,9 @@ export class QueueingVaultAdapter implements IVaultAdapter {
   async flush(): Promise<void> {
     await this.owed.flush();
   }
+
+  /** Handed on to the inner adapter where it has it (performance plan L2); read when asked, after the constructor. */
+  get readFilesForIndex() { return indexReadsOf(this.inner); }
 
   async readTextFile(path: string): Promise<string> {
     return this.inner.readTextFile(path);

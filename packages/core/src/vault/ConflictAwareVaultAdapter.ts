@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, type IndexReadRequest, type IndexReadResult, VaultListing, VaultFileInfo, VaultFileNotFoundError, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
@@ -504,6 +504,22 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     const text = await readExactText(this.inner, path);
     this.noteReading(path, text);
     return text;
+  }
+
+  /**
+   * Many files for a pass of the index in one call, where the inner adapter
+   * can (performance plan L2). A text handed out here is a reading like one of
+   * `readTextFile` and is noted the same way (`readings`): what the chain
+   * knows of the texts it handed out does not depend on how the index read.
+   */
+  get readFilesForIndex(): ((requests: readonly IndexReadRequest[]) => Promise<IndexReadResult[]>) | undefined {
+    const inner = this.inner;
+    if (!inner.readFilesForIndex) return undefined;
+    return async (requests) => {
+      const answers = await inner.readFilesForIndex!(requests);
+      answers.forEach((answer, i) => { if (answer?.kind === "text" && requests[i]) this.noteReading(requests[i].path, answer.text); });
+      return answers;
+    };
   }
 
   /**

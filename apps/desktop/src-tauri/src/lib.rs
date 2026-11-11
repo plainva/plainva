@@ -13,6 +13,7 @@ mod mcp_client;
 mod app_identity;
 mod atomic_write;
 mod checked_fs;
+mod index_read;
 mod backup;
 mod db_batch;
 mod embedding;
@@ -565,6 +566,7 @@ pub fn run() {
             checked_fs::checked_path_exists,
             checked_fs::checked_read_text_file,
             checked_fs::checked_read_dir,
+            index_read::read_files_for_index,
             vault_walk::vault_walk,
             vault_walk::vault_walk_cancel,
             vault_watch::vault_watch_start,

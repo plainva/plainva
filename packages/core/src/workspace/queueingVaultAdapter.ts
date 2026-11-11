@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent, type VaultWalkOptions } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, indexReadsOf, DeletionConfirmation, VaultListing, VaultFileInfo, WatchEvent, type VaultWalkOptions } from "../vault/IVaultAdapter.js";
 import { OwedQueueEntries, type OwedQueueEntriesOptions, type OwedStructure, type QueueEntryKind } from "../vault/owedQueueEntries.js";
 import { normalizeVaultPath } from "./path.js";
 import { WorkspaceStateStore } from "./state.js";
@@ -58,6 +58,9 @@ export class WorkspaceQueueingVaultAdapter implements IVaultAdapter {
   /** One last attempt for every entry still owed, while the database is open (`OwedQueueEntries.flush`). */
   flush(): Promise<void> { return this.owed.flush(); }
   acknowledgeExternalUpdate?(path: string): Promise<void> { return this.raw.acknowledgeExternalUpdate?.(path) ?? Promise.resolve(); }
+  /** Handed on to the inner adapter where it has it (performance plan L2); read when asked, after the constructor. */
+  get readFilesForIndex() { return indexReadsOf(this.raw); }
+
   readTextFile(path: string): Promise<string> { return this.raw.readTextFile(path); }
   readBinaryFile(path: string): Promise<Uint8Array> { return this.raw.readBinaryFile(path); }
   exists(path: string): Promise<boolean> { return this.raw.exists(path); }
