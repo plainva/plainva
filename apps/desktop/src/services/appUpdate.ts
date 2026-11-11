@@ -1,7 +1,7 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getSettingsStore } from "./settingsStore";
-import { toast } from "@plainva/ui";
+import { logDiagnostic, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**
@@ -68,6 +68,66 @@ export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
   }
 }
 
+/**
+ * Why an update did not go through, in the words the person reads (S12/R11).
+ *
+ * The updater checks every download against the Plainva project's public key
+ * (`plugins.updater.pubkey` in tauri.conf.json, nothing else) and against the
+ * version the signature was made for (`requireSignedVersion`) BEFORE anything
+ * is installed — a changed file, a file signed with another key, the signature
+ * of another file, or a new version number put on an older release are all
+ * refused there (proven against the built app by the updater signature test,
+ * `wdio/updater-signature.e2e.ts`). The plugin's words for that ("The
+ * signature verification failed") say nothing to a person, so the refusal
+ * gets a sentence of its own with its sender first — Plainva refused it —
+ * and so does a missing connection to the update server. Anything else keeps
+ * the plugin's own words behind the existing line.
+ */
+export type UpdateFailureKind = "refused" | "network" | "other";
+
+const REFUSED = [
+  "signature verification failed",
+  "signature was created with a different key",
+  "signed for version",
+  "does not specify the version it was signed for",
+  "invalid encoding in minisign data",
+  "unexpected signature algorithm",
+  "signature algorithm is not supported",
+];
+const NETWORK = [
+  "error sending request",
+  "connection refused",
+  "dns error",
+  "failed to lookup address",
+  "timed out",
+  "network is unreachable",
+  "download request failed with status",
+  "error decoding response body",
+];
+
+export function classifyUpdateFailure(error: unknown): UpdateFailureKind {
+  const text = String(error).toLowerCase();
+  if (REFUSED.some((words) => text.includes(words))) return "refused";
+  if (NETWORK.some((words) => text.includes(words))) return "network";
+  return "other";
+}
+
+/**
+ * The line for a failed update. `step` names where it failed: "install" for
+ * download and installation, "check" for asking the update server.
+ */
+export function describeUpdateFailure(error: unknown, step: "check" | "install", t: (key: string, options?: Record<string, unknown>) => string): string {
+  const raw = String(error);
+  switch (classifyUpdateFailure(error)) {
+    case "refused":
+      return t("settings.updateRefused");
+    case "network":
+      return t("settings.updateNoConnection");
+    default:
+      return step === "check" ? t("settings.updateCheckError", { error: raw }) : t("settings.updateInstallError", { error: raw });
+  }
+}
+
 /** Downloads, installs and relaunches. Rejects on failure — caller shows it. */
 export async function downloadAndInstallUpdate(update: Update): Promise<void> {
   await update.downloadAndInstall();
@@ -117,7 +177,8 @@ export function scheduleStartupUpdateCheck(): void {
               const installingId = toast.progress(i18n.t("settings.installingUpdate"));
               void downloadAndInstallUpdate(update).catch((e) => {
                 toast.dismiss(installingId);
-                toast.error(i18n.t("settings.updateInstallError", { error: String(e) }));
+                logDiagnostic("update.install", String(e));
+                toast.error(describeUpdateFailure(e, "install", (key, options) => i18n.t(key, options)));
               });
             },
           });

@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-11-10
+Stan na: 2026-11-11
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -135,6 +135,10 @@ Plainva respektuje ustawienie systemowe „ogranicz ruch”. Jeśli brakuje prze
 ### „Sprawdź aktualizacje” niczego nie znajduje
 
 Dopóki nie ma jeszcze publicznych wydań, sprawdzanie aktualizacji zgłasza: „Nie ma jeszcze publicznych aktualizacji (wydań).” To nie jest błąd.
+
+### „Plainva odrzuciła tę aktualizację”
+
+Zanim cokolwiek zostanie zainstalowane, Plainva sprawdza, czy pobrany plik jest podpisany kluczem projektu Plainva i to dokładnie dla oferowanej wersji. Jeśli sprawdzenie się nie powiedzie, aktualizacja zostaje odrzucona: nic nie jest instalowane, a Twoja wersja działa dalej bez zmian. Jeśli odrzucenie się powtarza, plik został zmieniony po drodze; zgłoś to jako issue.
 
 ### Czy są ukryte funkcje?
 

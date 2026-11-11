@@ -215,3 +215,62 @@ legs. A red Linux or Windows smoke turns the release run red. macOS is on
 it with `macos_may_fail`, the job runs and its result goes into the release
 record, but it does not stop the release. It is not a required check for
 `main`.
+
+## Updater signature test (since 2026-11-11)
+
+Does the built app refuse an update that is not what the Plainva project
+signed? Open since v0.1.0 (stability plan R11, finding S12), now a job of
+`native-smoke.yml` (`updater-signature`, Linux and Windows), so every release
+runs it. Spec `apps/desktop/wdio/updater-signature.e2e.ts`, launcher
+`apps/desktop/wdio.updater.conf.ts`, fixtures
+`apps/desktop/scripts/updater-signature-fixtures.mjs`.
+
+How it is built: the fixture script makes two minisign key pairs for this run
+(`trusted`, `foreign`; never the release key, no secret anywhere), signs the
+update files with the Tauri CLI (`tauri signer sign --app-version`, the signer
+a release uses) and writes one manifest per case plus a build overlay with
+the trusted public key and ONE endpoint, `http://127.0.0.1:1479/latest.json`.
+The job builds the debug binary with that overlay; the launcher serves the
+address before the app starts, and the spec picks the manifest per case. The
+overlay carries no `dangerous…` flag: a debug build accepts a plain-http
+endpoint with a warning, a release build refuses it at start, and the release
+configuration is held to https by `apps/desktop/src/updaterTrust.test.ts`.
+
+| Case | Offered | Expected |
+|---|---|---|
+| U1 | the start-up prompt; one byte of the file changed | refused through the app's own toast with **updateRefused**, app running, program file unchanged |
+| U2 | the genuine file, signed with the trusted key for 9.9.9 | **accepted** — downloaded and verified (positive control) |
+| U3 | one byte changed | refused: "The signature verification failed" |
+| U4 | signed with the foreign key | refused: "…created with a different key…" |
+| U5 | the signature of another file | refused: "The signature verification failed" |
+| U6 | 0.0.1, and the running version | not offered |
+| U7 | 9.9.9 announced, file signed for 9.9.8 | refused: signed version mismatch |
+| U8 | a signature that names no version | refused (`requireSignedVersion`) |
+| U9 | U3–U5, U7, U8 through Settings → About & diagnostics → Updates | refused with **updateRefused**, install button gone; 0.0.1 shows "You are up to date." |
+
+A refusal counts only for the plugin's own reason (the spec checks its
+words) and only after the app downloaded the file (the launcher records
+every request). U2–U8 call the plugin's commands `check` and `download` in
+the app's window: `download_and_install`, which the app runs, is `download`
+(where the signature is verified) followed by `install`. U2 stops before
+`install`, because on the bare debug binary an install would write the
+downloaded bytes over the running program. Each case prints one line
+`[updater-signature] <case>: ACCEPTED|REFUSED|NOT OFFERED (…)`; the job
+uploads two pictures of the refusal (`evidence-*.png`).
+
+What holds per system: the check is the same code everywhere —
+`Update::download` verifies the bytes against the configured key and the
+signed version before any installer runs, and the installer formats (NSIS
+`.exe`/`.msi` on Windows, `.app.tar.gz` on macOS, AppImage/`.deb`/`.rpm` on
+Linux) only differ after it. The job runs on Linux and Windows; macOS is not
+run (its driver needs the smoke feature build, and the check before the
+installer is the same code), and no installer is ever reached.
+
+Run it locally (Windows adds the smoke overlay):
+
+```bash
+node apps/desktop/scripts/updater-signature-fixtures.mjs /tmp/updater-test
+pnpm --filter desktop build
+pnpm --filter desktop exec tauri build --debug --no-bundle --config /tmp/updater-test/tauri.updater-test.conf.json
+PLAINVA_UPDATER_TEST_DIR=/tmp/updater-test pnpm --filter desktop test:native:updater
+```

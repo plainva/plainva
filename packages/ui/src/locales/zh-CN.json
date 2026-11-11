@@ -3230,6 +3230,8 @@
     "updateCheckError": "检查时出错：{{error}}",
     "updateErrorNoRelease": "目前还没有公开的更新（发行版）。",
     "updateInstallError": "安装时出错：{{error}}",
+    "updateNoConnection": "无法连接到更新服务器。未安装任何内容；请稍后重试。",
+    "updateRefused": "Plainva 拒绝了此更新：下载的文件没有 Plainva 项目的签名。未安装任何内容。",
     "updates": "更新",
     "updatesManagedBy": "通过 {{manager}} 更新",
     "updatesManagedByDesc": "此安装不会自行更新。Plainva 的下一个版本将通过你的包管理器提供。",

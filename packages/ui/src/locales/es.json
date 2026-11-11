@@ -3406,6 +3406,8 @@
     "updateCheckError": "Error al comprobar: {{error}}",
     "updateErrorNoRelease": "Aún no hay actualizaciones públicas (releases) disponibles.",
     "updateInstallError": "Error al instalar: {{error}}",
+    "updateNoConnection": "No hay conexión con el servidor de actualizaciones. No se ha instalado nada; inténtalo de nuevo más tarde.",
+    "updateRefused": "Plainva ha rechazado esta actualización: a la descarga le falta la firma del proyecto Plainva. No se ha instalado nada.",
     "updates": "Actualizaciones",
     "updatesManagedBy": "Actualizado mediante {{manager}}",
     "updatesManagedByDesc": "Esta instalación no se actualiza sola. La próxima versión de Plainva llega a través de tu gestor de paquetes.",

@@ -3318,6 +3318,8 @@
     "updateCheckError": "Fout bij het controleren: {{error}}",
     "updateErrorNoRelease": "Er zijn nog geen openbare updates (releases) beschikbaar.",
     "updateInstallError": "Fout bij het installeren: {{error}}",
+    "updateNoConnection": "Geen verbinding met de updateserver. Er is niets geïnstalleerd; probeer het later opnieuw.",
+    "updateRefused": "Plainva heeft deze update geweigerd: de download mist de handtekening van het Plainva-project. Er is niets geïnstalleerd.",
     "updates": "Updates",
     "updatesManagedBy": "Bijgewerkt via {{manager}}",
     "updatesManagedByDesc": "Deze installatie werkt zichzelf niet bij. De volgende versie van Plainva komt via je pakketbeheerder.",

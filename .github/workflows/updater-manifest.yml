@@ -90,7 +90,19 @@ jobs:
             echo "::error::a platform URL inside latest.json depends on the 'latest' label"
             exit 1
           fi
-          echo "Manifest for $version with $(jq '.platforms | length' latest.json) platforms."
+          # Since R11 the app requires every signature to name the version it
+          # was signed for (`requireSignedVersion` in tauri.conf.json) and
+          # refuses one that names another or none. A manifest whose
+          # signatures do not all say this version would leave every install
+          # unable to update, so it never reaches the fixed address.
+          for platform in $(jq -r '.platforms | keys[]' latest.json); do
+            comment=$(jq -r --arg p "$platform" '.platforms[$p].signature' latest.json | base64 -d | sed -n 3p)
+            if ! printf '%s\n' "$comment" | tr '\t' '\n' | grep -qx "version:$version"; then
+              echo "::error::the signature for $platform is not bound to version $version (trusted comment: $comment)"
+              exit 1
+            fi
+          done
+          echo "Manifest for $version with $(jq '.platforms | length' latest.json) platforms, every signature bound to $version."
 
       - name: Ensure the fixed release exists
         if: steps.src.outputs.skip == 'false'

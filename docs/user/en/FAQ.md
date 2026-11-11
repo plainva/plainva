@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-11-10
+Last reviewed: 2026-11-11
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -135,6 +135,10 @@ Plainva honors your system's "reduce motion" setting. If transitions and effects
 ### "Check for Updates" finds nothing
 
 As long as there are no public releases yet, the update check reports: "No public updates (releases) are available yet." That is not an error.
+
+### "Plainva refused this update"
+
+Before anything is installed, Plainva checks that the download is signed with the Plainva project's key and for exactly the version offered. If that check fails, the update is refused: nothing is installed and your version keeps running as it is. A refusal that keeps coming back points to a changed download on the way to you; please report it as an issue.
 
 ### Are there hidden features?
 

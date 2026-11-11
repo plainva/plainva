@@ -3318,6 +3318,8 @@
     "updateCheckError": "Fehler beim Suchen: {{error}}",
     "updateErrorNoRelease": "Aktuell sind noch keine öffentlichen Updates (Releases) verfügbar.",
     "updateInstallError": "Fehler beim Installieren: {{error}}",
+    "updateNoConnection": "Keine Verbindung zum Update-Server. Es wurde nichts installiert; versuche es später noch einmal.",
+    "updateRefused": "Plainva hat dieses Update abgelehnt: Dem Download fehlt die Signatur des Plainva-Projekts. Es wurde nichts installiert.",
     "updates": "Updates",
     "updatesManagedBy": "Aktualisiert über {{manager}}",
     "updatesManagedByDesc": "Diese Installation aktualisiert sich nicht selbst. Die nächste Version von Plainva kommt über Deinen Paketmanager.",

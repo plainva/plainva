@@ -3494,6 +3494,8 @@
     "updateCheckError": "Błąd podczas sprawdzania: {{error}}",
     "updateErrorNoRelease": "Nie ma jeszcze publicznych aktualizacji (wydań).",
     "updateInstallError": "Błąd podczas instalacji: {{error}}",
+    "updateNoConnection": "Brak połączenia z serwerem aktualizacji. Nic nie zostało zainstalowane; spróbuj ponownie później.",
+    "updateRefused": "Plainva odrzuciła tę aktualizację: pobrany plik nie ma podpisu projektu Plainva. Nic nie zostało zainstalowane.",
     "updates": "Aktualizacje",
     "updatesManagedBy": "Aktualizowane przez {{manager}}",
     "updatesManagedByDesc": "Ta instalacja nie aktualizuje się sama. Następna wersja Plainva przychodzi przez Twój menedżer pakietów.",
