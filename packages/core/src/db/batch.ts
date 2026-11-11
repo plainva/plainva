@@ -18,6 +18,14 @@ import { BatchStatement, SqlStatements } from "./IDatabaseAdapter.js";
  * itself from there, the batch would be a transaction of its own and wait for
  * its own caller (D3).
  */
+// The fallback stays, deliberately: both shipping adapters (the desktop's
+// `db_batch`, the phone's `executeSet`) and the phone's E2E fixture adapter
+// have `runBatch`, and inside a transaction's body the handle's statements are
+// in that transaction anyway. Without one are the SDK's adapter for Node
+// (`SqliteDatabaseAdapter`, used by scripts and other tools), the core's test
+// adapters and the mock — the format-9 tests use exactly that to stop a
+// numbering half way and prove the fallback rebuild. Making it throw would
+// take the SDK's writes away; what needs atomicity on a device has it.
 export async function runStatementsAtomic(
   db: SqlStatements,
   statements: BatchStatement[],

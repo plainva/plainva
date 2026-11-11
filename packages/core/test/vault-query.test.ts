@@ -62,7 +62,7 @@ describe("VaultQueryService", () => {
     await queryService.searchFullText("projekt -review");
     const q = db.queries[0];
     // By the number the file names (index format 9): a stray row under the path excludes nothing.
-    expect(q.query).toContain("(CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) NOT IN (SELECT rowid FROM fts_notes WHERE fts_notes MATCH ?)");
+    expect(q.query).toContain("((CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END), f.path) NOT IN (SELECT rowid, path FROM fts_notes WHERE fts_notes MATCH ?)");
     expect(q.params as any[]).toEqual(['"projekt"*', '"review"*', 50]);
   });
 

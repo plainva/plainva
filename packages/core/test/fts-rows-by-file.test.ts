@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { realSqlite, beforeEveryWrite } from "./helpers/realSqlite.js";
 import { MemoryVaultAdapter } from "./helpers/memoryVault.js";
-import { initializeSchema, FULL_TEXT_NUMBERING_DIAGNOSTIC, planFullTextNumbering } from "../src/db/Schema.js";
-import { UNNUMBERED_FLAG } from "../src/db/fullTextRows.js";
+import { initializeSchema, FULL_TEXT_NUMBERING_DIAGNOSTIC, planFullTextNumbering, readIndexDiagnostics } from "../src/db/Schema.js";
+import { FULL_TEXT_SENTINEL, UNNUMBERED_FLAG } from "../src/db/fullTextRows.js";
 import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
@@ -68,14 +68,17 @@ async function answers(db: IDatabaseAdapter) {
 async function strays(db: IDatabaseAdapter) {
   const unfiled = await db.query<{ rowid: number; path: string }>(
     `SELECT n.rowid AS rowid, n.path AS path FROM fts_notes n
-     WHERE NOT EXISTS (SELECT 1 FROM files f WHERE f.path = n.path AND (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) = n.rowid)`,
+     WHERE NOT (n.rowid = 0 AND n.path = '') AND NOT EXISTS (SELECT 1 FROM files f WHERE f.path = n.path AND (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) = n.rowid)`,
   );
   const twice = await db.query<{ path: string; n: number }>(`SELECT path, count(*) AS n FROM fts_notes GROUP BY path HAVING count(*) > 1`);
   const unnamed = await db.query<{ path: string }>(`SELECT path FROM files WHERE fts_rowid IS NULL`);
   return { unfiled, twice, unnamed };
 }
 const clean = { unfiled: [], twice: [], unnamed: [] };
-const ftsCount = async (db: IDatabaseAdapter) => Number((await db.queryOne<{ n: number }>(`SELECT count(*) AS n FROM fts_notes`))!.n);
+/** The sentinel of fullTextRows.ts, and only it, at 0 (an older build's rebuild deletes it; this build's start puts it back). */
+const expectSentinel = async (db: IDatabaseAdapter) =>
+  expect(await db.query<{ path: string }>(`SELECT path FROM fts_notes WHERE rowid = 0`)).toEqual([{ path: "" }]);
+const ftsCount = async (db: IDatabaseAdapter) => Number((await db.queryOne<{ n: number }>(`SELECT count(*) AS n FROM fts_notes WHERE rowid <> 0`))!.n);
 const meta = async (db: IDatabaseAdapter, key: string) => (await db.queryOne<{ value: string }>(`SELECT value FROM meta WHERE key = ?`, [key]))?.value;
 const mtimes = async (db: IDatabaseAdapter) => db.query(`SELECT path, mtime_local FROM files ORDER BY path`);
 
@@ -99,9 +102,11 @@ async function used(notes = NOTES) {
 async function asFormatEight(db: IDatabaseAdapter) {
   // An index of format 8 has neither the column's use nor the triggers.
   await db.execute(`DROP TRIGGER IF EXISTS files_takes_its_full_text_row`);
+  await db.execute(`DROP TRIGGER IF EXISTS files_full_text_row_goes`);
   await db.execute(`DROP TRIGGER IF EXISTS files_written_by_older_index`);
   await db.execute(`CREATE VIRTUAL TABLE fts_old USING fts5(content, title, path UNINDEXED, seg_content, seg_title, tokenize = 'unicode61 remove_diacritics 1')`);
-  await db.execute(`INSERT INTO fts_old (content, title, path, seg_content, seg_title) SELECT content, title, path, seg_content, seg_title FROM fts_notes ORDER BY rowid DESC`);
+  // An index of format 8 has no sentinel either.
+  await db.execute(`INSERT INTO fts_old (content, title, path, seg_content, seg_title) SELECT content, title, path, seg_content, seg_title FROM fts_notes WHERE rowid <> 0 ORDER BY rowid DESC`);
   await db.execute(`DROP TABLE fts_notes`);
   await db.execute(`ALTER TABLE fts_old RENAME TO fts_notes`);
   await db.execute(`UPDATE files SET fts_rowid = NULL`);
@@ -203,8 +208,9 @@ describe("full-text rows named by their files (index format 9)", () => {
     undo();
     expect(await meta(db, "index_format_version")).toBe("9");
     // The rows keep their numbers; the files record them. No row is written into the search table.
-    expect((await db.query<{ rowid: number }>(`SELECT rowid FROM fts_notes ORDER BY rowid`)).map((r) => r.rowid)).toEqual(numbers);
-    expect(writes.filter((sql) => /INSERT[^;]*INTO fts_notes|UPDATE fts_notes/.test(sql))).toEqual([]);
+    expect((await db.query<{ rowid: number }>(`SELECT rowid FROM fts_notes WHERE rowid <> 0 ORDER BY rowid`)).map((r) => r.rowid)).toEqual(numbers);
+    // Only the sentinel is written into the search table.
+    expect(writes.filter((sql) => /INSERT[^;]*INTO fts_notes|UPDATE fts_notes/.test(sql))).toEqual([FULL_TEXT_SENTINEL]);
     expect(await strays(db)).toEqual(clean);
     expect(await mtimes(db)).toEqual(stamps);
     expect(await answers(db)).toEqual(before);
@@ -236,8 +242,8 @@ describe("full-text rows named by their files (index format 9)", () => {
     await older.replaceAfterParseError("Projects/Alpha.md");
     await older.move("Notes/Plain.md", "Notes/Moved.md");
     await older.remove("Archive/Old.md");
-    // Its rows sit among this build's (all below 0 here), where a check of the sign sees nothing.
-    expect(Number((await db.queryOne<{ n: number }>(`SELECT max(rowid) AS n FROM fts_notes`))!.n)).toBeLessThan(0);
+    // The sentinel at 0 holds SQLite's own numbering above 0: the older build's rows never land among this build's.
+    expect((await db.query<{ rowid: number }>(`SELECT rowid FROM fts_notes WHERE path IN ('Projects/Beta.md', 'Notes/New.md') ORDER BY rowid`)).map((r) => r.rowid)).toEqual([1, 2]);
     expect(await meta(db, UNNUMBERED_FLAG)).toBe("1");
     // The older build still finds what it wrote (it reads by path).
     expect((await db.query<{ path: string }>(`SELECT path FROM fts_notes WHERE fts_notes MATCH 'zeppelin' ORDER BY path`)).map((r) => r.path)).toEqual(["Notes/New.md", "Projects/Beta.md"]);
@@ -248,6 +254,7 @@ describe("full-text rows named by their files (index format 9)", () => {
     await initializeSchema(db);
     expect(await meta(db, UNNUMBERED_FLAG)).toBeUndefined();
     expect(await strays(db)).toEqual(clean);
+    await expectSentinel(db);
     // The newest text of each note, before any note is read again.
     expect((await query.searchFullText("zeppelin")).map((r) => r.path).sort()).toEqual(["Notes/New.md", "Projects/Beta.md"]);
     expect((await query.searchFullText("kickoff")).map((r) => r.path)).toContain("Projects/Alpha.md");
@@ -381,7 +388,8 @@ describe("full-text rows named by their files (index format 9)", () => {
     ];
     for (const step of steps) {
       const { db, files } = await used();
-      // A row to move: the older build numbers its insert among this build's (below 0).
+      // A row to move: with the sentinel gone (its rebuild), the older build numbers its insert among this build's (below 0).
+      await olderBuild(db, files).rebuild();
       await olderBuild(db, files).reindex("Projects/Beta.md", "# Beta\n\nThe older build wrote about a zeppelin.\n");
       // A number to record: a row of a format-8 index (0 and up) whose file names none.
       await files.writeTextFile("Notes/Extra.md", "An extra note about a balloon.\n");
@@ -402,7 +410,11 @@ describe("full-text rows named by their files (index format 9)", () => {
       await expect(initializeSchema(db), step).resolves.toBeUndefined();
       undo();
       expect(ran.length, `${step} ran`).toBeGreaterThan(0);
-      expect(JSON.parse((await meta(db, FULL_TEXT_NUMBERING_DIAGNOSTIC)) ?? "{}").error, step).toContain("stopped at");
+      // A count for the diagnostics, nothing of the vault.
+      const record = JSON.parse((await meta(db, FULL_TEXT_NUMBERING_DIAGNOSTIC)) ?? "{}");
+      expect(Object.keys(record).sort(), step).toEqual(["at", "count"]);
+      expect(record.count, step).toBe(1);
+      expect(await readIndexDiagnostics(db), step).toEqual([{ kind: "fts-numbering", count: 1 }]);
       expect(await strays(db), step).toEqual(clean);
       expect(await meta(db, UNNUMBERED_FLAG), step).toBeUndefined();
       await new VaultIndexer(files, db).indexVaultFull();
@@ -431,6 +443,108 @@ describe("full-text rows named by their files (index format 9)", () => {
       drop: [-8, -9],
       move: [-10],
     });
+  });
+
+  it("plans the boundary: an older build's rows at -1, 0 and 1 — only above 0 is recorded, 0 and -1 move, the sentinel stays", () => {
+    const files = [
+      { rowid: 11, path: "one.md", fts_rowid: null },
+      { rowid: 12, path: "two.md", fts_rowid: null },
+      { rowid: 13, path: "three.md", fts_rowid: null },
+    ];
+    const rows = [
+      { rowid: -1, path: "one.md" },
+      { rowid: 0, path: "two.md" },
+      { rowid: 1, path: "three.md" },
+      { rowid: 0, path: "" },
+    ];
+    expect(planFullTextNumbering(rows, files)).toEqual({ explicit: [{ path: "three.md", num: 1 }], drop: [], move: [-1, 0] });
+    // The sentinel alone is no row to plan.
+    expect(planFullTextNumbering([{ rowid: 0, path: "" }], files)).toEqual({ explicit: [], drop: [], move: [] });
+  });
+});
+
+describe("what an older build can leave while it runs (second review of format 9)", () => {
+  const searchable = async (db: IDatabaseAdapter, files: MemoryVaultAdapter, path: string) => {
+    const text = await files.readTextFile(path);
+    const rows = await new VaultQueryService(db).getCardData([path]);
+    expect(rows[path]?.content, path).toBe(text);
+  };
+  async function everyNoteSearchable(db: IDatabaseAdapter, files: MemoryVaultAdapter) {
+    expect(await strays(db)).toEqual(clean);
+    await expectSentinel(db);
+    for (const f of await files.listDir("", true)) if (!f.isDirectory && f.path.endsWith(".md")) await searchable(db, files, f.path);
+  }
+
+  it("a note an older build numbers 0 (the sentinel gone with its rebuild) is moved, never recorded as 0", async () => {
+    // A fresh index: every files row is a note, the largest search number is -1.
+    const db = await realSqlite();
+    const files = await vaultWith(NOTES);
+    const indexer = new VaultIndexer(files, db);
+    await indexer.indexVaultFull();
+    expect(Number((await db.queryOne<{ n: number }>(`SELECT max(rowid) AS n FROM fts_notes WHERE rowid <> 0`))!.n)).toBe(-1);
+    const older = olderBuild(db, files);
+    // The start of v0.8.7's rebuild deletes every row whose path no file has: the sentinel too.
+    await older.rebuild();
+    // A note that is not the files row 1, so the largest number left is -1.
+    const target = (await db.queryOne<{ path: string }>(`SELECT path FROM files WHERE rowid <> 1 ORDER BY rowid LIMIT 1`))!.path;
+    await older.reindex(target, "A note the older build wrote, with a zeppelin.\n");
+    expect((await db.queryOne<{ rowid: number }>(`SELECT rowid FROM fts_notes WHERE path = ?`, [target]))!.rowid).toBe(0);
+
+    await initializeSchema(db);
+    expect(await meta(db, UNNUMBERED_FLAG)).toBeUndefined();
+    const file = (await db.queryOne<{ rowid: number; fts_rowid: number }>(`SELECT rowid, fts_rowid FROM files WHERE path = ?`, [target]))!;
+    expect(file.fts_rowid).toBe(0);
+    expect((await db.queryOne<{ rowid: number }>(`SELECT rowid FROM fts_notes WHERE path = ?`, [target]))!.rowid).toBe(-file.rowid);
+    expect(await searchPaths(db, "zeppelin")).toEqual([target]);
+    await everyNoteSearchable(db, files);
+  });
+
+  it("an attachment's deletion in an older build leaves another note's text alone, and the next start numbers it", async () => {
+    // An attachment is the files row 1: its number -1 has no search row.
+    const db = await realSqlite();
+    const files = new MemoryVaultAdapter(1_000);
+    await files.writeBinaryFile("Attachments/a.png", new Uint8Array([1, 2, 3]));
+    const indexer = new VaultIndexer(files, db);
+    await indexer.indexVaultFull();
+    for (const [path, text] of Object.entries(NOTES)) await files.writeTextFile(path, text);
+    await indexer.indexVaultFull();
+    expect((await db.queryOne<{ rowid: number }>(`SELECT rowid FROM files WHERE path = 'Attachments/a.png'`))!.rowid).toBe(1);
+    const older = olderBuild(db, files);
+    await older.rebuild();
+    // v0.8.7 reads a note again (not the files row 2, whose number is the largest left): SQLite numbers it -1, the attachment's number.
+    const target = (await db.queryOne<{ path: string }>(`SELECT path FROM files WHERE rowid > 2 ORDER BY rowid LIMIT 1`))!.path;
+    await older.reindex(target, "# A note\n\nThe older build wrote about a zeppelin.\n");
+    expect((await db.queryOne<{ rowid: number }>(`SELECT rowid FROM fts_notes WHERE path = ?`, [target]))!.rowid).toBe(-1);
+    // It reads the attachment again (its delete and insert), then removes it: Beta's text stays.
+    await db.execute(`DELETE FROM files WHERE id = ? OR path = ?`, ["older:Attachments/a.png", "Attachments/a.png"]);
+    await db.execute(
+      `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      ["older:Attachments/a.png", "Attachments/a.png", "a.png", "h", 1, 1, 3, "attachment", "synced"],
+    );
+    expect((await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE rowid = -1`))?.content).toContain("zeppelin");
+    await files.deleteItem("Attachments/a.png");
+    await older.remove("Attachments/a.png");
+    expect((await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [target]))?.content).toContain("zeppelin");
+
+    await initializeSchema(db);
+    expect(await searchPaths(db, "zeppelin")).toEqual([target]);
+    await everyNoteSearchable(db, files);
+  });
+
+  it("hands every note an older build left without a row to the next full pass", async () => {
+    const { db, files, indexer } = await used();
+    const older = olderBuild(db, files);
+    // Its parse-error REPLACE: Alpha's files row anew, its search row left at the old number…
+    await older.replaceAfterParseError("Projects/Alpha.md");
+    // …and that row gone (an older build's delete by path, a rebuild, anything).
+    await db.execute(`DELETE FROM fts_notes WHERE path = ?`, ["Projects/Alpha.md"]);
+    await initializeSchema(db);
+    expect((await db.queryOne<{ mtime_local: number }>(`SELECT mtime_local FROM files WHERE path = 'Projects/Alpha.md'`))!.mtime_local).toBe(0);
+    // The others keep their timestamps: nothing else is read again.
+    expect((await db.query(`SELECT path FROM files WHERE mtime_local = 0`)).length).toBe(1);
+    await indexer.indexVaultFull();
+    expect(await searchPaths(db, "kickoff")).toContain("Projects/Alpha.md");
+    await everyNoteSearchable(db, files);
   });
 });
 

@@ -51,7 +51,7 @@ describe("path identity migration (ADR 0016)", () => {
     const report = (await migratePathIdentity(db))!;
 
     expect(await paths(`SELECT path AS p FROM files`)).toEqual([`${NFC}/a.md`]);
-    expect(await paths(`SELECT path AS p FROM fts_notes`)).toEqual([`${NFC}/a.md`]);
+    expect(await paths(`SELECT path AS p FROM fts_notes WHERE rowid <> 0`)).toEqual([`${NFC}/a.md`]);
     expect(await paths(`SELECT path AS p FROM sync_state`)).toEqual([`${NFC}/a.md`]);
     expect(await paths(`SELECT file_path || ' ' || operation || COALESCE(' -> ' || new_path, '') AS p FROM offline_queue`)).toEqual(
       [`${NFC}/a.md rename -> ${NFC}/b.md`, `${NFC}/a.md write`],
@@ -98,7 +98,7 @@ describe("path identity migration (ADR 0016)", () => {
     await db.execute(`INSERT INTO fts_notes (content, title, path) VALUES ('x', 'a', ?), ('y', 'a', ?)`, [`${NFC}/a.md`, `${NFD}/a.md`]);
     const report = (await migratePathIdentity(db))!;
     expect(await paths(`SELECT path AS p FROM files`)).toEqual([`${NFC}/a.md`]);
-    expect(await paths(`SELECT path AS p FROM fts_notes`)).toEqual([`${NFC}/a.md`]);
+    expect(await paths(`SELECT path AS p FROM fts_notes WHERE rowid <> 0`)).toEqual([`${NFC}/a.md`]);
     expect(report.droppedIndexRows).toBe(2);
   });
 

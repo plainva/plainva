@@ -39,7 +39,7 @@ async function harness() {
   });
   const queue = new SyncQueue(db);
   const rows = async (table: "files" | "fts_notes") =>
-    (await db.query<{ path: string }>(`SELECT path FROM ${table} ORDER BY path`)).map((r) => r.path);
+    (await db.query<{ path: string }>(`SELECT path FROM ${table}${table === "fts_notes" ? " WHERE rowid <> 0" : ""} ORDER BY path`)).map((r) => r.path);
   const baseText = async (p: string) =>
     (await db.queryOne<{ base_text: string | null }>(`SELECT base_text FROM sync_state WHERE path = ?`, [p]))?.base_text ?? null;
   return { vault, db, indexer, queue, deleted, created, rows, baseText };

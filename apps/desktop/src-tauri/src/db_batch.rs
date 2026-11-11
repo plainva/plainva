@@ -262,9 +262,11 @@ mod tests {
     const FTS_DDL: &str = "CREATE VIRTUAL TABLE fts_notes USING fts5(content, title, path UNINDEXED, seg_content, seg_title, tokenize = 'unicode61 remove_diacritics 1')";
     const ADD_CTIME: &str = "ALTER TABLE files ADD COLUMN ctime INTEGER";
     const ADD_COLUMN: &str = "ALTER TABLE files ADD COLUMN fts_rowid INTEGER";
-    const DELETE_TRIGGER: &str = "CREATE TRIGGER IF NOT EXISTS files_takes_its_full_text_row AFTER DELETE ON files BEGIN
-       DELETE FROM fts_notes WHERE rowid = (CASE OLD.fts_rowid WHEN 0 THEN -OLD.rowid ELSE OLD.fts_rowid END);
+    const DELETE_TRIGGER: &str = "CREATE TRIGGER IF NOT EXISTS files_full_text_row_goes AFTER DELETE ON files BEGIN
+       DELETE FROM fts_notes WHERE rowid = (CASE OLD.fts_rowid WHEN 0 THEN -OLD.rowid ELSE OLD.fts_rowid END)
+         AND (path = OLD.path OR NOT EXISTS (SELECT 1 FROM files WHERE files.path = fts_notes.path));
      END";
+    const SENTINEL: &str = "INSERT OR REPLACE INTO fts_notes (rowid, content, title, path, seg_content, seg_title) VALUES (0, '', '', '', '', '')";
     const INSERT_TRIGGER: &str = "CREATE TRIGGER IF NOT EXISTS files_written_by_older_index AFTER INSERT ON files WHEN NEW.fts_rowid IS NULL BEGIN
        INSERT OR REPLACE INTO meta (key, value) VALUES ('fts_rows_unnumbered', '1');
      END";
@@ -279,7 +281,7 @@ mod tests {
             .connect()
             .await
             .unwrap();
-        for sql in [FILES_DDL, META_DDL, FTS_DDL, ADD_CTIME, ADD_COLUMN, DELETE_TRIGGER, INSERT_TRIGGER] {
+        for sql in [FILES_DDL, META_DDL, FTS_DDL, ADD_CTIME, ADD_COLUMN, DELETE_TRIGGER, INSERT_TRIGGER, SENTINEL] {
             sqlx::query(sql).execute(&mut c).await.unwrap();
         }
         c.close().await.unwrap();
@@ -327,14 +329,14 @@ mod tests {
             run_batch(&url, &save_this_build("A.md", "first zeppelin")).await.unwrap();
             run_batch(&url, &save_this_build("B.md", "another note")).await.unwrap();
             run_batch(&url, &save_this_build("A.md", "second balloon")).await.unwrap();
-            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes").await, 2);
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE rowid <> 0").await, 2);
             assert_eq!(rows_named_by_their_file(&url).await, 2);
             assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE fts_notes MATCH 'zeppelin'").await, 0);
             assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE fts_notes MATCH 'balloon'").await, 1);
             assert_eq!(scalar(&url, "SELECT COUNT(*) FROM meta WHERE key = 'fts_rows_unnumbered'").await, 0);
             // A deleted file takes its row with it: the trigger writes to the FTS5 table.
             run_batch(&url, &[stmt("DELETE FROM files WHERE path IN (?)", vec![json!("B.md")])]).await.unwrap();
-            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes").await, 1);
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE rowid <> 0").await, 1);
             assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE fts_notes MATCH 'another'").await, 0);
         });
     }
@@ -346,10 +348,10 @@ mod tests {
             setup_index(&url).await;
             run_batch(&url, &save_this_build("A.md", "first")).await.unwrap();
             run_batch(&url, &save_this_build("B.md", "second")).await.unwrap();
-            // v0.8.7 saves A: its insert is numbered by SQLite, below 0 here, among this build's rows.
+            // v0.8.7 saves A: SQLite numbers its insert above the sentinel at 0, apart from this build's rows.
             run_batch(&url, &save_older_build("A.md", "older zeppelin")).await.unwrap();
             assert_eq!(scalar(&url, "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'fts_rows_unnumbered'").await, 1);
-            assert_eq!(scalar(&url, "SELECT max(rowid) < 0 FROM fts_notes").await, 1);
+            assert_eq!(scalar(&url, "SELECT rowid FROM fts_notes WHERE path = 'A.md'").await, 1);
             assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE path = 'A.md'").await, 1);
             // Its row is one no file names yet: readers do not show it until the next start numbers it.
             assert_eq!(rows_named_by_their_file(&url).await, 1);
@@ -365,6 +367,37 @@ mod tests {
             .await
             .unwrap();
             assert_eq!(scalar(&url, "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'fts_rows_unnumbered'").await, 1);
+        });
+    }
+
+    #[test]
+    fn a_files_rows_deletion_leaves_another_notes_text_on_the_bundled_sqlite() {
+        block(async {
+            let (_d, url) = tmp_url();
+            setup_index(&url).await;
+            // An attachment is files row 1 (its number -1 has no row), then a note.
+            run_batch(
+                &url,
+                &[stmt(
+                    "INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)",
+                    vec![json!("id:a.png"), json!("a.png"), json!("a"), json!("h"), json!(1), json!(1), json!(1), json!("attachment"), json!("synced")],
+                )],
+            )
+            .await
+            .unwrap();
+            run_batch(&url, &save_this_build("B.md", "this build")).await.unwrap();
+            // The sentinel gone (an older build's rebuild), the older build writes P's text at -1: the attachment's number.
+            run_batch(&url, &[stmt("DELETE FROM fts_notes WHERE path NOT IN (SELECT path FROM files)", vec![])]).await.unwrap();
+            run_batch(&url, &save_older_build("P.md", "older zeppelin")).await.unwrap();
+            run_batch(&url, &save_this_build("B.md", "this build again")).await.unwrap();
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE rowid = -1 AND path = 'P.md'").await, 1);
+            // The attachment goes: the trigger finds a row at its number, but under another note's path, and leaves it.
+            run_batch(&url, &[stmt("DELETE FROM files WHERE id = ? OR path = ?", vec![json!("id:a.png"), json!("a.png")])]).await.unwrap();
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE fts_notes MATCH 'zeppelin'").await, 1);
+            // A row whose path lags its file (a queued rename) is still that file's and goes with it.
+            run_batch(&url, &[stmt("UPDATE files SET path = 'B2.md' WHERE path = 'B.md'", vec![])]).await.unwrap();
+            run_batch(&url, &[stmt("DELETE FROM files WHERE path = ?", vec![json!("B2.md")])]).await.unwrap();
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE path = 'B.md'").await, 0);
         });
     }
 }

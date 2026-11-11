@@ -4,7 +4,7 @@ import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
 import { mergeWorkspaceQueueCopies } from "./workspaceQueueCopies.js";
 import { markNotesForWikiLinkReading } from "./wikiLinkReadingMigration.js";
 import { runStatementsAtomic } from "./batch.js";
-import { FIRST_ROWID_BEFORE, UNNUMBERED_FLAG } from "./fullTextRows.js";
+import { FIRST_ROWID_BEFORE, FULL_TEXT_SENTINEL, fullTextRowOf, UNNUMBERED_FLAG } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 
 /**
@@ -672,9 +672,13 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   await migrateIndexFormat(db);
   // After the migration: the copy of version 5 renames the table, which a
   // trigger naming it would refuse while it is gone.
+  // The first form of the delete trigger took the row at the number alone; a
+  // number an older build had reused for another note went with it.
+  await db.execute(`DROP TRIGGER IF EXISTS files_takes_its_full_text_row`);
   await db.execute(
-    `CREATE TRIGGER IF NOT EXISTS files_takes_its_full_text_row AFTER DELETE ON files BEGIN
-       DELETE FROM fts_notes WHERE rowid = (CASE OLD.fts_rowid WHEN 0 THEN -OLD.rowid ELSE OLD.fts_rowid END);
+    `CREATE TRIGGER IF NOT EXISTS files_full_text_row_goes AFTER DELETE ON files BEGIN
+       DELETE FROM fts_notes WHERE rowid = (CASE OLD.fts_rowid WHEN 0 THEN -OLD.rowid ELSE OLD.fts_rowid END)
+         AND (path = OLD.path OR NOT EXISTS (SELECT 1 FROM files WHERE files.path = fts_notes.path));
      END`
   );
   await db.execute(
@@ -814,6 +818,7 @@ async function upgradeFullTextTable(db: IDatabaseAdapter): Promise<void> {
   // An index this old has no triggers of format 9; should one be there, it
   // would refuse the rename below (initializeSchema creates them afterwards).
   await db.execute(`DROP TRIGGER IF EXISTS files_takes_its_full_text_row`);
+  await db.execute(`DROP TRIGGER IF EXISTS files_full_text_row_goes`);
   await db.execute(`DROP TRIGGER IF EXISTS files_written_by_older_index`);
   const columns = new Set(
     (await db.query(`PRAGMA table_info(fts_notes)`)).map((row) => String(rowValue(row, "name") ?? ""))
@@ -868,8 +873,42 @@ async function fillSegmentedColumns(db: IDatabaseAdapter): Promise<void> {
   }
 }
 
-/** Where a failed numbering of the full-text rows is recorded (`meta`, read by the diagnostics). */
+/**
+ * Where a failed numbering of the full-text rows is recorded in `meta`: a
+ * count and a date, nothing of the vault. Both shells put it into the
+ * diagnostics export at the vault's open (`readIndexDiagnostics`, then
+ * `logIndexDiagnostics` in packages/ui).
+ */
 export const FULL_TEXT_NUMBERING_DIAGNOSTIC = "index-diagnostic:fts-numbering";
+
+/** What the index recorded about itself for the diagnostics: a kind and a count, no path, no text. */
+export interface IndexDiagnostic {
+  kind: string;
+  count: number;
+}
+
+/** The index's own diagnostics (`meta` keys `index-diagnostic:*`), for the diagnostics export of both shells. */
+export async function readIndexDiagnostics(db: IDatabaseAdapter): Promise<IndexDiagnostic[]> {
+  let rows: unknown[];
+  try {
+    rows = await db.query(`SELECT key, value FROM meta WHERE key LIKE 'index-diagnostic:%'`);
+  } catch {
+    return [];
+  }
+  const out: IndexDiagnostic[] = [];
+  for (const row of rows ?? []) {
+    const key = String(rowValue(row, "key") ?? "");
+    if (!key.startsWith("index-diagnostic:")) continue;
+    let count = 0;
+    try {
+      count = Number(JSON.parse(String(rowValue(row, "value") ?? "{}")).count) || 0;
+    } catch {
+      count = 0;
+    }
+    if (count > 0) out.push({ kind: key.slice("index-diagnostic:".length), count });
+  }
+  return out;
+}
 
 const CHUNK = 400;
 const chunks = <T,>(items: readonly T[]): T[][] => {
@@ -901,6 +940,7 @@ export function planFullTextNumbering(
   const byPath = new Map<string, number[]>();
   const drop: number[] = [];
   for (const row of rows) {
+    if (row.rowid === 0 && row.path === "") continue; // the sentinel (fullTextRows.ts)
     if (!fileByPath.has(row.path)) drop.push(row.rowid);
     else byPath.set(row.path, [...(byPath.get(row.path) ?? []), row.rowid]);
   }
@@ -912,7 +952,9 @@ export function planFullTextNumbering(
     const keep = named !== null && numbers.includes(named) ? named : Math.max(...numbers);
     for (const n of numbers) if (n !== keep) drop.push(n);
     if (keep === -file.rowid) continue;
-    if (keep >= 0) explicit.push({ path, num: keep });
+    // Only above 0: 0 itself reads as "-rowid" in `fts_rowid`, and the
+    // sentinel lives there; below 0 is this build's range.
+    if (keep > 0) explicit.push({ path, num: keep });
     else move.push(keep);
   }
   return { explicit, drop, move };
@@ -920,11 +962,19 @@ export function planFullTextNumbering(
 
 /**
  * Index format 9 (db/fullTextRows.ts): every `files` row names its full-text
- * row. Reads the number and path of every row once (no text is tokenized) and
- * writes, in one batch: the numbers the files name (`fts_rowid`), the rows
- * that go, the few rows an older build numbered among this build's that move
- * to `-files.rowid`, the version, and the flag cleared. An interrupted batch
- * leaves the index as it was, and the next start does it again.
+ * row. Reads the number and path of every row once and writes, in one batch:
+ * the numbers the files name (`fts_rowid`), the rows that go, the few rows an
+ * older build numbered among this build's that move to `-files.rowid` (only
+ * those are tokenized again), the sentinel, the notes left without a row
+ * handed to the next full pass, the version, and the flag cleared. An
+ * interrupted batch leaves the index as it was, and the next start does it
+ * again.
+ *
+ * Reading the paths is not free: `path` is stored after `content` in each
+ * row's record, so SQLite walks every row's text to reach it — the whole
+ * table once (about 30 MB of text at 10 000 notes; 108–140 ms on a laptop,
+ * measured with scripts/perf/numbering-cost.ts). It runs only on the first
+ * start of format 9 and after an older build wrote to the index.
  */
 async function numberFullTextRows(db: IDatabaseAdapter): Promise<void> {
   // Only an adapter without a batch can leave this behind, half way through
@@ -967,6 +1017,17 @@ async function numberFullTextRows(db: IDatabaseAdapter): Promise<void> {
     );
   }
   statements.push(
+    // The sentinel back in its place (after the moves: a note's row an older
+    // build had put at 0 has gone to its own number by now).
+    { sql: FULL_TEXT_SENTINEL },
+    // Every note that ends without a row is read again by the next full pass:
+    // no sequence of an older build leaves a note unsearchable until it is
+    // edited (a row it deleted, its REPLACE of a files row).
+    {
+      sql: `UPDATE files SET mtime_local = 0
+        WHERE path LIKE '%.md' AND (mode IS NULL OR mode <> 'attachment')
+          AND NOT EXISTS (SELECT 1 FROM fts_notes n WHERE n.rowid = ${fullTextRowOf("files")} AND n.path = files.path)`,
+    },
     { sql: `DELETE FROM meta WHERE key = ?`, params: [UNNUMBERED_FLAG] },
     { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`, params: [String(INDEX_FORMAT_VERSION)] },
   );
@@ -986,13 +1047,21 @@ async function numberFullTextRowsOrRebuild(db: IDatabaseAdapter): Promise<void> 
     return;
   } catch (error) {
     console.error("[index] numbering the full-text rows failed; the full-text index is built anew", error);
-    const record = JSON.stringify({ at: new Date().toISOString(), error: String(error instanceof Error ? error.message : error) });
+    // A kind and a count, nothing of the vault: it goes into the diagnostics export (readIndexDiagnostics).
+    let count = 0;
+    try {
+      count = Number(JSON.parse(String(rowValue(await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [FULL_TEXT_NUMBERING_DIAGNOSTIC]), "value") ?? "{}")).count) || 0;
+    } catch {
+      count = 0;
+    }
+    const record = JSON.stringify({ count: count + 1, at: new Date().toISOString() });
     try {
       await runStatementsAtomic(db, [
         { sql: `DROP TABLE IF EXISTS fts_number_map` },
         { sql: `DROP TABLE IF EXISTS fts_moving` },
         { sql: `DROP TABLE IF EXISTS fts_notes` },
         { sql: `CREATE VIRTUAL TABLE fts_notes USING fts5(${FTS_NOTES_COLUMNS})` },
+        { sql: FULL_TEXT_SENTINEL },
         { sql: `UPDATE files SET fts_rowid = 0` },
         { sql: `UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'` },
         { sql: `DELETE FROM meta WHERE key = ?`, params: [UNNUMBERED_FLAG] },

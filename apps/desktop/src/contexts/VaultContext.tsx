@@ -24,7 +24,7 @@ import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
@@ -824,6 +824,8 @@ export const VaultProvider: React.FC<{
       const dbAdapter = new TauriDatabaseAdapter(dbPath);
       await perfMeasure("vault open: database pool", () => dbAdapter.initialize());
       await perfMeasure("vault open: database schema", () => initializeSchema(dbAdapter));
+      // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
+      await logIndexDiagnostics(dbAdapter);
 
       const syncQueue = new SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));

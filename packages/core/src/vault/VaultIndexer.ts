@@ -1779,9 +1779,10 @@ export class VaultIndexer {
     await this.dbAdapter.transaction(async (tx) => {
       await tx.execute(`UPDATE files SET mtime_local = 0`);
       // A search row belongs to the file that names its number and has its
-      // path (index format 9); any other is left over.
+      // path (index format 9); any other is left over — except the sentinel
+      // at 0 (db/fullTextRows.ts).
       await tx.execute(
-        `DELETE FROM fts_notes WHERE NOT EXISTS (SELECT 1 FROM files f WHERE f.path = fts_notes.path AND ${fullTextRowOf("f")} = fts_notes.rowid)`
+        `DELETE FROM fts_notes WHERE rowid <> 0 AND NOT EXISTS (SELECT 1 FROM files f WHERE f.path = fts_notes.path AND ${fullTextRowOf("f")} = fts_notes.rowid)`
       );
       await tx.execute(`DELETE FROM links WHERE source_id IS NULL OR source_id NOT IN (SELECT id FROM files)`);
       await tx.execute(`DELETE FROM tags WHERE file_id IS NULL OR file_id NOT IN (SELECT id FROM files)`);

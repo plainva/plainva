@@ -188,7 +188,8 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
   log(`cold index ${(coldIndexMs / 1000).toFixed(1)} s`);
   const shape: Record<string, number> = {};
   for (const table of ["files", "fts_notes", "links", "tags", "properties"]) {
-    shape[table] = Number((await db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`))!.n);
+    // The search table's row 0 is the index's own sentinel (db/fullTextRows.ts), no note.
+    shape[table] = Number((await db.queryOne<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}${table === "fts_notes" ? " WHERE rowid <> 0" : ""}`))!.n);
   }
   if (shape.fts_notes !== fixture.notes || shape.files !== fixture.notes + fixture.attachments + fixture.bases) {
     throw new Error(`The index does not hold the fixture: ${JSON.stringify(shape)} for ${JSON.stringify(fixture)}`);

@@ -26,6 +26,32 @@
       },
       "dbBytes": 105361408,
       "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94"
+    },
+    "github-ubuntu-latest": {
+      "recorded": "2026-11-11",
+      "node": "v22.23.4",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "calibrationMs": 753.68,
+      "fsWalkMs": 230.59,
+      "ratios": {
+        "coldIndexMs": 43.1501,
+        "warmIndexMs": 1.22941,
+        "saveP50Ms": 0.00401,
+        "saveP95Ms": 0.00872,
+        "searchMs": 0.04372,
+        "listTasksMs": 0.60485
+      },
+      "ms": {
+        "coldIndexMs": 32521.37,
+        "warmIndexMs": 283.49,
+        "saveP50Ms": 3.02,
+        "saveP95Ms": 6.57,
+        "searchMs": 32.95,
+        "listTasksMs": 455.86
+      },
+      "dbBytes": 105488384,
+      "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
+      "commit": "6b3e348fc1bab6931a716d9c333fb0d2b108755d"
     }
   }
 }

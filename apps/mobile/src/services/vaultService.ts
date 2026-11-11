@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver, logDiagnostic, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver, logDiagnostic, logIndexDiagnostics, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -806,6 +806,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     db = createIndexDatabase(isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`);
     await db.initialize();
     await initializeSchema(db);
+    // What the index recorded about itself (a failed numbering of its full-text rows) goes into the diagnostics export.
+    await logIndexDiagnostics(db);
 
     // Retention comes from the global mobile settings (package G); the
     // desktop keeps this per vault, mobile applies one policy to the active

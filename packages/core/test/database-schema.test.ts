@@ -107,7 +107,8 @@ describe("Database Schema", () => {
     await initializeSchema(db);
 
     const queries = db.queries.map(q => q.query);
-    const resets = queries.filter(q => q.includes("UPDATE files SET mtime_local = 0"));
+    // (The numbering of version 9 hands notes left without a search row to the next pass; that is its own.)
+    const resets = queries.filter(q => q.includes("UPDATE files SET mtime_local = 0") && !q.includes("FROM fts_notes n WHERE n.rowid"));
     // Version 7's notes, then version 8's: those that begin with a block the index holds no property for.
     expect(resets).toHaveLength(2);
     expect(resets[0]).toContain("link_type = 'markdown-link' AND anchor IS NOT NULL");

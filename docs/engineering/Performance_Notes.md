@@ -156,13 +156,28 @@ of a cold index.
 Since index format 9 the `files` row of a note names its full-text row (`files.fts_rowid`,
 `packages/core/src/db/fullTextRows.ts`): `0` means the row is numbered `-files.rowid` (every row
 this build writes; the number is known before the insert, so the insert needs no second statement
-and no insert id from a pooled connection), another number is the row a format-8 index already
-had (recorded by the conversion instead of rewriting the row), and `NULL` is a `files` row written
-by a build that does not know the column. Every write reaches the row through that number: the
-insert after the file's row is written (`INSERT OR REPLACE`), the delete by a trigger on `files`
-(`files_takes_its_full_text_row`, for this build and an older one alike, so no row can outlive its
-file), a move keeps the number and only rewrites the path, the rebuild drops every row no file
-names under its path.
+and no insert id from a pooled connection), a number above 0 is a row SQLite numbered (a format-8
+index's, or an older build's after a downgrade; recorded instead of rewriting the row), and `NULL`
+is a `files` row written by a build that does not know the column. Every write reaches the row
+through that number: the insert after the file's row is written (`INSERT OR REPLACE`), the delete
+by a trigger on `files` (`files_full_text_row_goes`, for this build and an older one alike), a move
+keeps the number and only rewrites the path, the rebuild drops every row no file names under its
+path.
+
+**The invariant (second review, 2026-11-11):** this build writes only below 0 and keeps a row of its
+own at 0 (path `''`, no file has it, readers never show it), so SQLite's own numbering — one above
+the largest number, the only one an older build uses — lands above 0 while that row stands, and the
+two builds' numbers never share a range. `fts_rowid` records only numbers above 0; a row found at 0,
+or below 0 away from its file's `-rowid`, is moved there. The delete trigger takes only the row at
+the file's number that is under the file's path, or under a path no file has (its own row while a
+queued rename lags): a number an older build gave another note is left alone. "No row outlives its
+file" holds together with that condition, and the numbering ends by handing every note left without
+a row to the next full pass. The sentinel can go — an older build's rebuild deletes every row whose
+path no file has — but that rebuild writes every note again, which raises the flag, and the next
+start puts the sentinel back; until then the trigger's path condition and the moves keep the two
+builds apart. Two sequences the second review found are tests now: an older build numbering a note
+0 after its rebuild (largest number -1), and an older build putting a note's text at the number of
+an attachment (files row 1) whose deletion would have taken it.
 
 **Downgrades (first design corrected, 2026-11-10).** The first version numbered rows `-files.rowid`
 and took any row at 0 or above as an older build's. That was wrong: SQLite numbers an older
@@ -182,13 +197,15 @@ the note twice). Now detection does not depend on numbers at all:
 So every way an older build can leave a row whose number is not its file's, or a second row for a
 path, passes through an insert into `files` without the column, and that raises the flag; the
 check at a start is one `meta` read. The numbering (`numberFullTextRows`) reads number and path of
-every row once (no text is tokenized), keeps per path the row the file names, else the highest
+every row once — which walks every row's text, since `path` is stored after `content` in the row's
+record (about 30 MB at 10 000 notes, 108–140 ms here) — tokenizes nothing but the rows it moves,
+keeps per path the row the file names, else the highest
 number (an older build deletes a path's rows before it writes, and its insert is numbered above
 all others, so the highest is the newest text), records numbers of rows at 0 or above, moves the
 few rows an older build numbered below 0 to `-files.rowid` (only those are tokenized again), drops
 rows of paths no file has, and clears the flag — one batch. If it fails at any step the vault
 still opens: the full-text table is dropped and made anew, every note is handed to the next full
-pass, and the failure is recorded in `meta` under `index-diagnostic:fts-numbering`.
+pass, and the failure is recorded in `meta` under `index-diagnostic:fts-numbering` as a count and a date; both shells put it into the diagnostics export ("About & diagnostics") when the vault opens (`readIndexDiagnostics`, `logIndexDiagnostics`), with no path and no text.
 
 **Readers** join by path and number: search and the AI's candidates (`files` by path, then the
 number), the `-term` operator (by number), the readers of the whole table (tasks, find in vault,

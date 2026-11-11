@@ -98,9 +98,9 @@ function operatorClauses(parsed: ParsedSearchQuery): { where: string[]; params: 
   const where: string[] = [];
   const params: unknown[] = [];
   if (parsed.notMatch !== null) {
-    // By the number the file names (index format 9): a row an older build left
-    // under the path of a note never excludes that note.
-    where.push(`${fullTextRowOf("f")} NOT IN (SELECT rowid FROM fts_notes WHERE fts_notes MATCH ?)`);
+    // By the number the file names and its path (index format 9), as every
+    // reader: a row an older build left never excludes a note it is not.
+    where.push(`(${fullTextRowOf("f")}, f.path) NOT IN (SELECT rowid, path FROM fts_notes WHERE fts_notes MATCH ?)`);
     params.push(parsed.notMatch);
   }
   for (const p of parsed.paths) {

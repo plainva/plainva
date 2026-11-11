@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { clearDiagnosticsForTests, formatDiagnosticsExport, logDiagnostic, redactDiagnosticText } from "@plainva/ui";
+import { clearDiagnosticsForTests, formatDiagnosticsExport, logDiagnostic, logIndexDiagnostics, redactDiagnosticText } from "@plainva/ui";
+import type { IDatabaseAdapter } from "@plainva/core";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { REPO } from "../test-sourceTree";
 import { conflictDiagnostic } from "@plainva/core";
 
 describe("diagnostics export redaction", () => {
@@ -60,5 +64,31 @@ describe("diagnostics export redaction", () => {
     expect(safe).not.toContain("desktop-client-marker");
     expect(safe).not.toContain("client-secret-marker");
     expect(safe).not.toContain("grant-marker");
+  });
+
+  // A numbering of the index's full-text rows that failed (index format 9) is
+  // recorded in the database as a kind and a count. Both shells hand it to the
+  // export right after opening the database; nothing of the vault goes with it.
+  it("carries the index's own diagnostics: a kind and a count, no path, no text", async () => {
+    const db = {
+      query: async () => [
+        { key: "index-diagnostic:fts-numbering", value: JSON.stringify({ count: 2, at: "2026-11-11T08:00:00.000Z" }) },
+        { key: "index-diagnostic:empty", value: "{}" },
+      ],
+    } as unknown as IDatabaseAdapter;
+    await logIndexDiagnostics(db);
+    const report = formatDiagnosticsExport({ appVersion: "test", tauriVersion: "test", os: "test", language: "en" });
+    expect(report).toContain("fts-numbering: the full-text index was built anew after a failed numbering (2×)");
+    expect(report).not.toContain("index-diagnostic:empty");
+    expect(report).not.toMatch(/\.md/);
+  });
+
+  it("is read by both shells right after the vault's database is opened", () => {
+    for (const file of ["apps/desktop/src/contexts/VaultContext.tsx", "apps/mobile/src/services/vaultService.ts"]) {
+      const source = readFileSync(join(REPO, file), "utf8");
+      const schema = source.search(/await (?:perfMeasure\("vault open: database schema", \(\) => )?initializeSchema\((?:dbAdapter|db)\)\)?;/);
+      expect(schema, file).toBeGreaterThan(-1);
+      expect(source.indexOf("await logIndexDiagnostics(", schema), file).toBeGreaterThan(schema);
+    }
   });
 });

@@ -5,6 +5,7 @@
  * appear in messages; the export header says so.
  */
 import { formatBuildLine } from "../lib/buildInfo";
+import { readIndexDiagnostics, type IDatabaseAdapter } from "@plainva/core";
 
 export interface DiagEntry {
   ts: number;
@@ -39,6 +40,17 @@ export function logDiagnostic(source: string, message: string): void {
   }
   entries.push({ ts: Date.now(), source, message: text });
   if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
+}
+
+/**
+ * What the index recorded about itself (`readIndexDiagnostics`: a kind and a
+ * count, no path, no text), into this buffer — called by both shells right
+ * after the vault's database is opened, so the export carries it.
+ */
+export async function logIndexDiagnostics(db: IDatabaseAdapter): Promise<void> {
+  for (const diagnostic of await readIndexDiagnostics(db)) {
+    logDiagnostic("index", `${diagnostic.kind}: the full-text index was built anew after a failed numbering (${diagnostic.count}×)`);
+  }
 }
 
 export function getDiagnostics(): readonly DiagEntry[] {

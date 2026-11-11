@@ -9,28 +9,45 @@
  * the row number.
  *
  * Since format 9 the `files` row of a note names its full-text row
- * (`files.fts_rowid`, read through {@link fullTextRowOf}):
+ * (`files.fts_rowid`, read through {@link fullTextRowOf}).
+ *
+ * THE INVARIANT, in one sentence: a note's full-text row sits at
+ * `-files.rowid` when `files.fts_rowid` is 0, at `files.fts_rowid` when that
+ * is above 0, and nowhere this build relies on when it is NULL; this build
+ * writes rows only below 0 and keeps the row 0 ({@link FULL_TEXT_SENTINEL})
+ * for itself, so SQLite's own numbering (one above the largest number, the
+ * only one an older build uses) lands above 0 while that row stands — the two
+ * builds' numbers never share a range.
  *
  * - `0` — the full-text row is numbered `-files.rowid`. Every row this build
  *   writes is numbered so: the number is known before the insert, so it needs
  *   no second statement and no read of an insert id (a pooled connection on
- *   the desktop would not give the right one). Negative, so it never meets a
- *   number SQLite handed out on its own (an index from before format 9 keeps
- *   those, from 1 up).
- * - another number — the row an index from before format 9 had for the file:
- *   the conversion records it instead of rewriting the row, which would read
- *   every note's text again through the tokenizer.
+ *   the desktop would not give the right one).
+ * - a number above 0 — a row numbered by SQLite: one an index from before
+ *   format 9 had, or one an older build wrote after a downgrade. The
+ *   numbering records it instead of rewriting the row, which would read the
+ *   note's text again through the tokenizer. Never 0: a row found at 0, or
+ *   anywhere below 0 but not at its file's `-rowid`, is moved there.
  * - `NULL` — written by a build that does not know the column: an app before
  *   format 9 on this index after a downgrade. The trigger
  *   `files_written_by_older_index` raises the flag {@link UNNUMBERED_FLAG} on
  *   such an insert, and the next start numbers what that build left behind
- *   (`numberFullTextRows` in Schema.ts).
+ *   (`numberFullTextRows` in Schema.ts), and hands every note that ends
+ *   without a row to the next full pass.
  *
  * A deleted `files` row takes its full-text row with it, through the trigger
- * `files_takes_its_full_text_row` — for this build and for an older one
- * alike, so no row can outlive its file. (A `REPLACE` deletes without firing
- * delete triggers; this build never replaces a `files` row, an older one
- * raises the flag when it does.)
+ * `files_full_text_row_goes` — for this build and for an older one alike —
+ * but only a row that is that file's: at its number AND under its path, or
+ * under a path no file has (its own row, while a queued rename still lags).
+ * A number an older build handed to another note is left alone. So no row
+ * outlives its file, and no file's deletion takes another note's text. (A
+ * `REPLACE` deletes without firing delete triggers; this build never
+ * replaces a `files` row, an older one raises the flag when it does.)
+ *
+ * The sentinel can go: an older build's rebuild deletes every row whose path
+ * no file has. It then writes every note again, raising the flag, and the
+ * numbering puts the sentinel back; until then the trigger's path condition
+ * and the numbering's moves keep both builds' rows apart.
  *
  * Readers join `files` by path and by this number: a row whose number and
  * path do not both belong to one file is never shown, whatever state an
@@ -40,6 +57,13 @@
 /** The full-text row number of the `files` row `alias` names, as SQL. */
 export const fullTextRowOf = (alias: string): string =>
   `(CASE ${alias}.fts_rowid WHEN 0 THEN -${alias}.rowid ELSE ${alias}.fts_rowid END)`;
+
+/**
+ * The row this build keeps at 0, under the path '' no file has: it holds
+ * SQLite's own numbering above 0 (the invariant above). Readers never show it
+ * (no file has its path); the numbering and the rebuild leave it alone.
+ */
+export const FULL_TEXT_SENTINEL = `INSERT OR REPLACE INTO fts_notes (rowid, content, title, path, seg_content, seg_title) VALUES (0, '', '', '', '', '')`;
 
 /** The `meta` key an insert by an older build sets (Schema.ts creates the trigger). */
 export const UNNUMBERED_FLAG = "fts_rows_unnumbered";
