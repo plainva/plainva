@@ -49,6 +49,7 @@
     "benchmark": "tsx scripts/benchmark.ts",
     "benchmark:large": "tsx scripts/benchmark-large-vault.ts",
     "perf:gate": "tsx scripts/perf/core-gate.ts",
+    "perf:tables": "tsx scripts/perf/many-tables.ts",
     "fuzz:workspace": "tsx scripts/workspace-fuzz.ts",
     "vectors:workspace": "tsx scripts/workspace-vectors.ts"
   },

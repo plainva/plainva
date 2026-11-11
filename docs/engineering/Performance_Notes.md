@@ -68,9 +68,9 @@ with tables; 65 % with properties, about 40 % with tasks (dates on half of them)
 with aliases and headings, Markdown links, embeds, callouts, code, 2 % CJK or Thai text;
 `count / 40` attachments (images and PDFs), `count / 2000` `.base` files (at least 3).
 10 000 notes are 34.7 MB on disk. The core measurement leaves the long table note out
-(`longTableNote: false`, 33.1 MB): the Markdown parser needs minutes for that one note (see
-"Many tables in one note" below), and it would be the whole cold index instead of one note
-in 10 000. The browser report keeps it, it is the editor's case.
+(`longTableNote: false`, 33.1 MB): until 2026-11-11 the Markdown parser needed minutes for
+that one note (see "Many tables in one note" below), and the recorded baselines were measured
+without it. The browser report keeps it, it is the editor's case.
 
 **Core gate.** `core-gate.ts` runs `coreBenchmark.ts` on 10 000 notes (disk and `node:sqlite`,
 WAL on) and gates six times and one size: cold index, a pass without changes (median of 3),
@@ -344,28 +344,58 @@ long notes — carried by `garden*` and the CJK term (L11 shrinks the table); `l
 The p95 of a save moved between 7.7 and 18.2 ms on a busy machine; the median stays near 6 ms.
 The browser rows were taken before the corrected design.
 
-### Many tables in one note (new finding, 2026-11-10)
+### Many tables in one note (finding 2026-11-10, fixed 2026-11-11, L13)
 
 The fixture's long note (80 tables of 200 rows, 19 600 lines, 1.7 MB) took most of a
-462-second cold index of the 1 000-note fixture. The time is in the Markdown parser's GFM tables
-(`micromark-extension-gfm-table` 2.1.1 under `parseMarkdownAst` and `parseMarkdownTree`), and it
-grows with the square of the number of tables, not with the text: 20 tables of 50 rows parse in
-0.3 s, 40 in 1.2–4.4 s, 80 in 39 s (single runs on a loaded machine); one table of 4 000 rows in 0.2 s; the same text as CommonMark
-in 20 ms. The indexer, the reading view and every other reader of the tree pay it. Not part of
-L0/L1; the core gate leaves that note out until it is fixed (`longTableNote: false`). Even
-without many tables it is not linear: 20 tables of 20 rows among 2 100 lines parse in 0.45 s, 40
-tables in 2 600 lines in 1.1 s, and 10 tables of 1 800 rows took longer than 170 s. In the browser report the full 19 600-line note did not answer a single key for ten minutes;
-whether the editor's table decorations (B7, package L6) or the re-index after the save (this
-parser) held the page is not separated yet — a save re-reads the note on the main thread, so
-this parser alone is minutes per save for such a note. Worth settling before 0.9.0, next to L6. Where the time goes (profiled 2026-11-10): in the micromark tokenizer's GFM table
-extension, `EditMap.add` (`micromark-extension-gfm-table/lib/edit-map.js`, `addImplementation`)
-looks for an existing edit at the same index by walking the whole list of edits, and the table
-resolver adds one edit per cell boundary — quadratic in the cells of a document. 2.9 of 3.0 s of
-`fromMarkdown` on one table of 6 400 rows are in that function; micromark without the extension
-reads the same text in 35 ms, and the mdast step adds almost nothing. Smallest showing input: one
-two-column table, 400 / 1 600 / 6 400 rows → 18 / 125 / 3 023 ms. The installed 2.1.1 is the
-package's current release as far as the installed files show (no changelog ships with it); an
-upstream issue was not looked up (no network in the measuring session).
+462-second cold index of the 1 000-note fixture. The time was in the Markdown parser's GFM
+tables (`micromark-extension-gfm-table` 2.1.1, under `parseMarkdownAst` and
+`parseMarkdownTree` in `packages/core/src/markdown-parser.ts`, and under the desktop reading
+view's `remark-gfm`): the table resolver collects one edit per cell boundary of the whole note
+in an `EditMap`, and `EditMap.add` (`lib/edit-map.js`, `addImplementation`) found an earlier
+edit at the same index by walking every edit made before it — quadratic in the table cells of
+a note, whatever their split into tables. Profiled on 40 tables of 50 rows: 852 of 1 210 ms in
+`addImplementation` and `add`. Prose in front of a table costs what it costs CommonMark
+(linear); the table cells are what squared.
+
+Fixed upstream in 2.1.2 (2026-09-11, commit `4f43ead3` "Fix edit map algorithm for better
+performance", issues #16/#17): a `Map` from index to edit beside the list, same merge per index,
+same order. Plainva takes 2.1.2 through the lockfile; nothing else moved (the package's
+dependencies are the same). `pnpm --filter @plainva/core perf:tables` (`scripts/perf/many-tables.ts`)
+measures it through the app's entry points, median of up to five parses, this machine:
+
+| Note | 2.1.1 index / tree | 2.1.2 index / tree | CommonMark |
+|---|---|---|---|
+| 10 tables × 50 rows | 92 / 80 ms | 53 / 47 ms | 8 ms |
+| 20 tables × 50 rows | 304 / 484 ms | 105 / 93 ms | 20 ms |
+| 40 tables × 50 rows | 2 061 / 2 026 ms | 300 / 277 ms | 70 ms |
+| 80 tables × 50 rows | 19 155 / 10 044 ms | 652 / 590 ms | 151 ms |
+| 1 table × 1 600 rows | 1 153 / 1 100 ms | 202 / 181 ms | 38 ms |
+| 8 000 prose lines + 1 table × 50 rows | 489 / 500 ms | 499 / 492 ms | 232 ms |
+| Long table note (80 × 200 rows) | minutes | 2 337 / 2 223 ms | 443 ms |
+
+What stays above CommonMark is the table work itself (cells become their own inline
+contents: about four times the events), linear in the cells. The 1 000-note fixture through
+both entry points: 778 s with 2.1.1; with 2.1.2 the whole test file that reads it (below) takes 15 s. The core gate (10 000 notes, long
+note left out as before) did not move: cold index 70.3 s before, 68.2 s after, every metric
+within its budget. A single 6 400-row table measured 2.2 s once in the benchmark and 0.3 s in a
+profile run of its own; the difference was the heap the earlier cases left behind, so the
+benchmark collects before each parse when Node runs with `--expose-gc`.
+
+The result did not change: `packages/core/test/gfm-table-parse.test.ts` pins the digests of the
+trees 2.1.1 made — every node, value and position through both entry points — for 37 hard
+tables (alignment, escaped pipes, code with pipes, links/tasks/tags/block ids in cells, tables
+after paragraphs, in lists, quotes and callouts, without outer pipes, at the end without a
+newline, CRLF, a byte order mark, malformed delimiter rows, 1 000 rows, …) and for every note of
+the 1 000-note fixture, the long table note included; 2.1.2 makes the same trees. The same test
+gives the 80 × 50 note a budget of 3 s on the reference core through `within()`
+(`test/helpers/timeBudget.ts`, scaled to a slower core): about 0.6 s linear, 19–39 s quadratic. A
+unit test rather than a gate metric because it runs on every commit in the required checks, and
+the scaled budget holds on a slow runner without a baseline per machine.
+
+The core gate still leaves the long note out (`longTableNote: false`): taking it in would void
+every recorded baseline, and the unit test above already holds its cost. Whether the editor
+still holds a 19 600-line note in the browser report is the editor's question (L6), not this
+parser's any more.
 
 ## Measurement points
 
