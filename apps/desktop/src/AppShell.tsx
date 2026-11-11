@@ -20,7 +20,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, IndexBuildNotice, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -1505,6 +1505,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         onToggleRightSidebar={toggleRightSidebar}
       />
       </AreaBoundary>
+      {/* While the first index of the vault is built behind the open app (performance plan L3). */}
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vaultPath} /></AreaBoundary>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <AreaBoundary area="shell:ribbon" size="icon">
       <AppRibbon

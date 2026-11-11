@@ -996,14 +996,24 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
           })
           .catch(() => {});
       });
-    } else if (isExternalVault(entry)) {
-      // A folder another app keeps is read through the platform's storage
-      // access, one call per folder and per file (issue 143): minutes for a
-      // large vault, where the desktop's walk takes seconds. Waiting for it
-      // before the first picture was a blank screen for as long, and for good
-      // when one call never answered. It runs behind the open app now, like
-      // the warm pass; the strip on top counts it, and what needs the whole
-      // index waits for it (`awaitWholeIndex`).
+    } else {
+      // Every first index runs behind the open app (performance plan L3, the
+      // desktop builds its first index the same way). A folder another app
+      // keeps is read through the platform's storage access, one call per
+      // folder and per file (issue 143): minutes for a large vault. Waiting
+      // for it before the first picture was a blank screen for as long, and
+      // for good when one call never answered. The app's own container used
+      // to block still — small the first time, but not after its index was
+      // lost under a full vault. The strip on top counts the build, and what
+      // needs the whole index waits for it (`awaitWholeIndex`).
+      //
+      // A scan that fails leaves the index as far as it got (issue 125). It
+      // used to throw into the catch below, which took the whole database with
+      // it — search, tags, databases, the sync queue and the calendar — for
+      // one link to a folder that was not on the phone, and said nothing. The
+      // failure is on screen now (onFullScanFailed); the next full scan, at the
+      // return to the app or a pull to refresh, tries again, and only one that
+      // goes through counts the index as settled (onFullScan).
       beginIndexBuild(entry.id);
       indexWhole = indexer
         .indexVaultFull("open, empty index")
@@ -1013,20 +1023,6 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         })
         .catch(() => {})
         .finally(() => endIndexBuild(entry.id));
-    } else {
-      // A scan that fails leaves the index as far as it got (issue 125). It
-      // used to throw into the catch below, which took the whole database with
-      // it — search, tags, databases, the sync queue and the calendar — for
-      // one link to a folder that was not on the phone, and said nothing. The
-      // failure is on screen now (onFullScanFailed); the next full scan, at the
-      // return to the app or a pull to refresh, tries again, and only one that
-      // goes through counts the index as settled (onFullScan).
-      //
-      // The app's own container still blocks: it is read through the file
-      // system, not a provider, and is empty or small the first time (a new
-      // vault, or one the first pull fills). The boot surface counts it.
-      beginIndexBuild(entry.id);
-      await indexer.indexVaultFull("open, empty index").catch(() => {}).finally(() => endIndexBuild(entry.id));
     }
     searchAvailable = true;
   } catch (err) {

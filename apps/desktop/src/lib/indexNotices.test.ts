@@ -124,13 +124,15 @@ describe("what both shells say about the search index", () => {
       expect(source).toContain("indexNotices.failed(info);");
       expect(source).not.toContain('"refresh.leftOut"');
     }
-    // The desktop opens the vault — unless the load was called off — and the phone keeps its database.
-    expect(desktop).toMatch(/indexer\.indexVaultFull\("open, empty index"\)\)\s*\.catch\(\(error: unknown\) => \{\s*\/\/[^\n]*\n\s*if \(currentAbortSignal\.aborted\) throw error;/);
+    // The desktop opens the vault and builds a first index behind it (performance plan L3):
+    // a scan that fails is logged unless the load was called off, and the build ends either way.
+    expect(desktop).toMatch(/coldIndexRun = perfMeasure\("initial full index \(cold\)", \(\) => indexer\.indexVaultFull\("open, empty index"\)\)\s*\.then\(\(\) => undefined, \(error: unknown\) => \{\s*if \(!currentAbortSignal\.aborted\)[^\n]*\n\s*\}\)\s*\.finally\(\(\) => \{\s*reportInitialProgress = false;\s*endIndexBuild\(path\);/);
+    expect(desktop).not.toContain('await perfMeasure("initial full index (cold)"');
     // Owed a full scan from the start; a warm index only counts as whole once a scan went through on it.
     expect(desktop).toContain("let coldIndexOwed = true;");
     expect(desktop).toMatch(/if \(await indexer\.indexComplete\(\)\.catch\(\(\) => false\)\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*\}/);
-    // A container's first scan before the vault opens, a picked folder's behind it (issue 143) — both keep what they got.
-    expect(mobile).toContain('await indexer.indexVaultFull("open, empty index").catch(() => {})');
+    // Every first scan runs behind the open vault (issue 143, performance plan L3) and keeps what it got.
+    expect(mobile).not.toContain('await indexer.indexVaultFull("open, empty index")');
     expect(mobile).toMatch(/indexWhole = indexer\s*\.indexVaultFull\("open, empty index"\)[\s\S]{0,240}\.catch\(\(\) => \{\}\)/);
     expect(mobile).toContain("toast.error(indexUnavailableText(err))");
     // Until a full scan has gone through, the task reconciler creates no notes:

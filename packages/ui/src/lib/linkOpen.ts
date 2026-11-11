@@ -1,3 +1,4 @@
+import { awaitAnyWholeIndex, isAnyIndexBuilding } from "./indexBuild";
 import { contentPathIsReal, contentPathRefusal, explicitLinkPath, isNoteLinkAddress, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
 import { externalUrlToOpen } from "./externalUrl";
 import { splitLinkAnchor } from "./linkAnchor";
@@ -127,6 +128,13 @@ export function markdownLinkNotePlace(sourcePath: string, target: string): { pat
 
 const answersNo = () => false;
 
+/** Whether a first index was being built, waited for until it is whole (`awaitAnyWholeIndex`). */
+async function waitedForWholeIndex(): Promise<boolean> {
+  if (!isAnyIndexBuilding()) return false;
+  await awaitAnyWholeIndex();
+  return true;
+}
+
 export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promise<LinkOpenOutcome> {
   const fileThere = (path: string) => deps.fileExists(path).catch(answersNo);
   const folderThere = (path: string) => deps.folderExists(path).catch(answersNo);
@@ -150,6 +158,14 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
     // checks the listing) and is created only where the system can hold it.
     if (contentPathRefusal(path) === "internal") return { action: "notFound", target: split.target };
     if (await fileThere(path)) return { action: "open", path, anchor };
+    // The note may be there and not read yet (performance plan L3): while the
+    // first index is built, a link is created only once the index is whole.
+    // Created at once, it would be a second note of a name the vault holds.
+    if (await waitedForWholeIndex()) {
+      const later = await deps.resolveWiki(split.target, link.sourcePath).catch(() => null);
+      if (later) return { action: "open", path: later, anchor };
+      if (await fileThere(path)) return { action: "open", path, anchor };
+    }
     if (!creatableHere(path)) return { action: "notFound", target: split.target };
     return { action: "create", target: split.target, path, title };
   }
@@ -181,6 +197,14 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
   }
 
   if (isBareNoteName(target)) {
+    // As for a wiki link: not created over a first index that is not whole.
+    if (await waitedForWholeIndex()) {
+      const later = await deps.resolveMarkdown(target, link.sourcePath).catch(() => null);
+      if (later !== null) {
+        if (later.kind === "file") return { action: "open", path: later.path, anchor };
+        return later.index !== null ? { action: "open", path: later.index, anchor: null } : { action: "folder", path: later.path };
+      }
+    }
     const place = markdownLinkNotePlace(link.sourcePath ?? "", target);
     if (place && contentPathRefusal(place.path) !== "internal" && creatableHere(place.path)) return { action: "create", target, ...place };
   }

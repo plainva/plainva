@@ -27,7 +27,7 @@ import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpl
 import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText, beginIndexBuild, endIndexBuild, reportIndexBuild } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -1001,7 +1001,9 @@ export const VaultProvider: React.FC<{
           .catch((e) => console.error("[VaultContext] failed to enqueue local change", e));
       };
 
-      // Only the initial full index below reports progress into React state (P3).
+      // Only the first index of an empty index reports progress (P3), into the
+      // shared store of the first build (performance plan L3) — never into
+      // this context's state, which would draw every consumer per file.
       let reportInitialProgress = true;
       // Defer the initial-index push enqueue until the first pull establishes the base
       // (3c). A COLD/rebuilt index sees EVERY local file as "new"; enqueuing them all as
@@ -1107,10 +1109,9 @@ export const VaultProvider: React.FC<{
           // fired one state update per indexed file and re-rendered every
           // useVault consumer for an invisible loading bar.
           if (!reportInitialProgress) return;
-          setState(s => ({
-            ...s,
-            loadingProgress: { current, total, message: `Indexing ${current}/${total}: ${msgPath}` }
-          }));
+          void msgPath;
+          // The store tells the strip at most every 200 ms, never once per file.
+          reportIndexBuild(path, current, total);
         }
       });
       const queryService = new VaultQueryService(dbAdapter);
@@ -1281,6 +1282,8 @@ export const VaultProvider: React.FC<{
       // Warm index ⇒ the notes are already on screen, so the encrypted-workspace
       // reconcile sweep (A2) can run in the background instead of blocking open.
       const deferWorkspaceReconcile = indexedCount > 0;
+      // The first index of an empty index, running behind the open (L3).
+      let coldIndexRun: Promise<void> | null = null;
 
       if (indexedCount > 0) {
         reportInitialProgress = false; // background reconcile: no loading bar
@@ -1310,24 +1313,55 @@ export const VaultProvider: React.FC<{
           })
           .catch((e) => { if (!currentAbortSignal.aborted) console.error("[VaultContext] background full index failed", e); });
       } else {
-        // Fresh/empty index: block with progress so the tree isn't empty. Every file is
-        // "new" here — the deferred enqueue (3c) keeps this from mass-pushing over the
-        // remote; the first pull reconciles and onFirstCycleComplete sweeps local-only.
-        // A scan that fails no longer keeps the vault from opening (issue 125): the
-        // index holds what it got, the failure is on screen (onFullScanFailed), and
-        // the next full scan — the watcher's, a refresh — tries again. The index
-        // is owed that scan from the start (coldIndexOwed), and onFullScan settles it.
-        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"))
-          .catch((error: unknown) => {
-            // Called off because another vault opens: the load ends here, as at every other step.
-            if (currentAbortSignal.aborted) throw error;
+        // Fresh/empty index: the first index is built BEHIND the open vault
+        // (performance plan L3), as the phone does for a folder vault (issue
+        // 143). It used to block the open with a splash bar: about a minute for
+        // 10 000 notes before anything could be read or typed. The tree draws
+        // its files from the disk listing until the index is whole (FileTree),
+        // the strip on top says that search, tags and databases are not whole
+        // yet (IndexBuildNotice), and what needs the whole index waits for it
+        // (`awaitWholeIndex`: rename and move with their link updates, the
+        // clean-up, find and replace, a link whose note is not read yet).
+        //
+        // Every file is "new" here — the deferred enqueue (3c) keeps this from
+        // mass-pushing over the remote; the first pull reconciles and
+        // onFirstCycleComplete sweeps local-only, and the scan's end sweeps
+        // again what it found after that (onFullScan). The sync worker reads no
+        // index rows: a file the scan has not reached yet is a file on disk to
+        // it, never a deletion. A scan that fails keeps what it got (issue
+        // 125), says so (onFullScanFailed) and the next full scan tries again;
+        // the index is owed that scan from the start (coldIndexOwed).
+        beginIndexBuild(path);
+        coldIndexRun = perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"))
+          .then(() => undefined, (error: unknown) => {
+            if (!currentAbortSignal.aborted) console.error("[VaultContext] first full index failed", error);
+          })
+          .finally(() => {
+            reportInitialProgress = false;
+            endIndexBuild(path);
+            if (currentAbortSignal.aborted) return;
+            // The tree drew the files from the disk until now: from the index again,
+            // with their titles. The folders were the disk's all along.
+            setState((s) => (s.vaultPath === path
+              ? { ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: null }
+              : s));
           });
-        reportInitialProgress = false;
+        // Called off with the vault: the build ends with it (the scan sees the
+        // signal at its next file), and the strip goes at once.
+        currentAbortSignal.addEventListener("abort", () => endIndexBuild(path), { once: true });
       }
 
-      // If it's a new WebDAV connection, we enqueue all local files to trigger an initial push
+      // If it's a new WebDAV connection, we enqueue all local files to trigger an
+      // initial push. Read from the index: on a first index once it is whole.
       if (isNewConnection && !workspaceStateStore) {
-        await syncQueue.enqueueAllLocalFiles();
+        if (coldIndexRun) {
+          void coldIndexRun.then(() => {
+            if (currentAbortSignal.aborted) return;
+            return syncQueue.enqueueAllLocalFiles().then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")));
+          }).catch((e) => console.error("[VaultContext] enqueueAllLocalFiles failed", e));
+        } else {
+          await syncQueue.enqueueAllLocalFiles();
+        }
       }
 
       let syncWorker: SyncWorker | EncryptedWorkspaceWorker | null = null;

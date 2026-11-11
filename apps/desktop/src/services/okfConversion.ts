@@ -1,3 +1,4 @@
+import { awaitWholeIndex } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import {
   scanOkfConformance,
@@ -31,6 +32,8 @@ export async function scanVaultOkf(opts: {
 }): Promise<OkfScanResult> {
   const store = await getSettingsStore();
   const templateFolder = (await store.get<string>(templateFolderKey(opts.vaultPath))) || "Templates";
+  // The list of notes comes from the index: whole, or the conversion misses some (L3, as on the phone).
+  await awaitWholeIndex({ vaultId: opts.vaultPath });
   const rows = await opts.queryService.db.query<{ path: string }>(
     `SELECT path FROM files WHERE mode != 'attachment'`
   );

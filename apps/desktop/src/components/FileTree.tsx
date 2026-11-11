@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { appConfirm, appConfirmOption, dialogStore } from "../services/appDialogs";
 import { copyDesktopNoteLink } from "../services/noteLinkReceiver";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
@@ -6,7 +6,7 @@ import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ActiveSemanticCoverage, EmptyState, FoundChip, ICON, meaningActive, toast, errorText, useLocalEmbeddings, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isHiddenPath, isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
+import { isAppleDoubleName, isHiddenPath, isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
@@ -18,7 +18,7 @@ import { parkTemplateCaret } from "@plainva/ui";
 import { hasSnippetMark, renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
 import { useStableHandler } from "@plainva/ui";
-import { sameTreeFiles } from "@plainva/ui";
+import { sameTreeFiles, isIndexBuilding, subscribeIndexBuild } from "@plainva/ui";
 import { consumePendingTreeReveal } from "@plainva/ui";
 import { useDocumentIcons, type DocIconEntry } from "../hooks/useDocumentIcons";
 import { currentWindowParams } from "../services/windowContext";
@@ -449,9 +449,20 @@ export const FileTree: React.FC<{
   // It now hangs on treeStructureVersion only (P2.5): file-only refreshes
   // (every save) reuse the cached folder list instead of re-walking the vault.
   const [diskFolders, setDiskFolders] = useState<{ path: string; title: string; isDir: true }[]>([]);
+  // The files of the same listing, for as long as the first index of the vault
+  // is built behind the open app (performance plan L3): the tree draws them
+  // from the disk until the index has them, as the index will name them (a
+  // note by its file name until its title is read). Never otherwise — the
+  // index decides what is a file of the vault (a sidecar `._x.md` is none).
+  const indexBuilding = useSyncExternalStore(subscribeIndexBuild, () => (vaultPath ? isIndexBuilding(vaultPath) : false));
+  const [diskOnlyFiles, setDiskOnlyFiles] = useState<{ path: string; title: string }[]>([]);
+  // While the index is built, a file made, moved or deleted meanwhile has no row to
+  // follow it: the listing is read again with every change of the files, until then.
+  const listingVersion = indexBuilding ? fileTreeVersion : -1;
   useEffect(() => {
     if (!vaultAdapter) {
       setDiskFolders([]);
+      setDiskOnlyFiles([]);
       return;
     }
     let cancelled = false;
@@ -462,13 +473,22 @@ export const FileTree: React.FC<{
           // A dot folder is hidden (E8), like every internal one.
           .filter(f => f.isDirectory && !isInternalPath(f.path) && !isHiddenPath(f.path))
           .map(f => ({ path: f.path, title: f.name, isDir: true as const }));
-        if (!cancelled) setDiskFolders(folders);
+        // Kept from every listing (one walk for both), used only while the
+        // first index is built: a later end of the build walks nothing again.
+        const files = diskFiles
+          .filter((f) => !f.isDirectory && !isInternalPath(f.path) && !isHiddenPath(f.path) && !isAppleDoubleName(f.name))
+          .map((f) => ({ path: f.path, title: f.name.endsWith(".md") ? f.name.slice(0, -3) : f.name }));
+        if (!cancelled) {
+          setDiskFolders(folders);
+          setDiskOnlyFiles(files);
+        }
       } catch (err) {
         console.warn("Failed to list folders from disk", err);
       }
     })();
     return () => { cancelled = true; };
-  }, [vaultAdapter, treeStructureVersion, isLoading]);
+  }, [vaultAdapter, treeStructureVersion, isLoading, listingVersion]);
+  const treeDiskFiles = indexBuilding ? diskOnlyFiles : null;
 
   useEffect(() => {
     if (!queryService) return;
@@ -500,6 +520,12 @@ export const FileTree: React.FC<{
           // The index holds hidden files (the sync needs them); the tree does not show them (E8).
           const allFiles: { path: string; title: string; mode?: string; isDir?: boolean; mtime?: number | null; ctime?: number | null }[] =
             [...dbFiles.filter((f) => !isHiddenPath(f.path)).map((f) => ({ ...f, ...(times.get(f.path) ?? {}) })), ...diskFolders];
+          // While the first index is built: what the disk holds and the index
+          // does not yet (L3). Gone once the build ends (`indexBuilding`).
+          if (treeDiskFiles && treeDiskFiles.length > 0) {
+            const indexed = new Set(dbFiles.map((f) => f.path));
+            for (const f of treeDiskFiles) if (!indexed.has(f.path)) allFiles.push(f);
+          }
 
           // Keep the previous reference when nothing tree-relevant changed, so a
           // content-only autosave does not rebuild + re-render the whole tree.
@@ -529,7 +555,7 @@ export const FileTree: React.FC<{
 
     fetchFiles();
     return () => { cancelled = true; };
-  }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders, sort.key]);
+  }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders, sort.key, treeDiskFiles]);
 
   const folderPaths = useMemo(() => collectFolderPaths(files), [files]);
   // Which folders already carry an overview note: the context menu says "refresh" there (shared row list).

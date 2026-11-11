@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-11-10
+Last reviewed: 2026-11-11
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -111,6 +111,8 @@ Plainva additionally reconciles automatically whenever you return to the window 
 When Plainva reads the vault it follows links the way the system does: a link to a folder is read as that folder, a link to a file as that file — on the desktop and in a folder you picked on the iPhone. What it cannot read, it leaves out and names: a link to a place that does not exist on this device (for example a folder that exists only on another computer and arrived here as a link), or a folder without access. A notice names them once — **could not be read and is left out of the search index** — and the rest of the vault is indexed as usual. Nothing under such an entry is treated as deleted, neither by the index nor by the sync of an encrypted workspace.
 
 If the index cannot be updated at all, the notice says why (**The search index could not be updated: …**); the vault stays open with what the index already holds, and the next time the vault is read Plainva tries again. On the phone a search index that cannot be opened is named as well: search, tags, databases, the sync and the calendar then stay off until Plainva can open it.
+
+**Opening a vault for the first time.** A vault without a search index — opened for the first time, or after its app data was forgotten — opens at once, and Plainva reads it in the background. Until it is done, a strip at the top counts the files read; search, tags, backlinks, databases and the graph answer from what has been read so far, and the file tree already shows every file. What needs the whole vault waits until then and says so: renaming or moving with the link updates, the clean-up, find and replace, the OKF format, and a link to a note that has not been read yet. A minimised window keeps reading. The phone does the same.
 
 Remove or repair the entry the notice names, then use **Read the vault again** (on the phone: pull down a list).
 

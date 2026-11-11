@@ -128,6 +128,8 @@ export * from "./lib/contentFont";
 export * from "./lib/orderedAreas";
 export * from "./lib/openTarget";
 export * from "./lib/linkOpen";
+export * from "./lib/indexBuild";
+export { IndexBuildNotice } from "./components/IndexBuildNotice";
 export * from "./lib/externalUrl";
 export * from "./lib/noteLinks";
 export * from "./lib/textFileShape";

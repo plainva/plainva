@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-11-10
+Dernière mise à jour : 2026-11-11
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -111,6 +111,8 @@ Plainva réconcilie en plus automatiquement dès que vous revenez à la fenêtre
 En lisant le vault, Plainva suit les liens comme le fait le système : un lien vers un dossier est lu comme ce dossier, un lien vers un fichier comme ce fichier — sur l'ordinateur et dans un dossier que vous avez choisi sur l'iPhone. Ce qu'il ne peut pas lire, il le laisse de côté et le nomme : un lien vers un emplacement qui n'existe pas sur cet appareil (par exemple un dossier qui n'existe que sur un autre ordinateur et arrivé ici sous forme de lien) ou un dossier sans accès. Une notification les nomme une fois — **reste hors de l'index de recherche** — et le reste du vault est indexé comme d'habitude. Rien de ce qui se trouve sous une telle entrée n'est considéré comme supprimé, ni par l'index ni par la synchronisation d'un espace de travail chiffré.
 
 Si l'index ne peut pas du tout être mis à jour, la notification dit pourquoi (**L'index de recherche n'a pas pu être mis à jour : …**) ; le vault reste ouvert avec ce que l'index contient déjà, et à la prochaine lecture du vault Plainva réessaie. Sur le téléphone, un index de recherche qui ne peut pas être ouvert est nommé lui aussi : la recherche, les tags, les bases de données, la synchronisation et le calendrier restent alors désactivés jusqu'à ce que Plainva puisse l'ouvrir.
+
+**Ouvrir un vault pour la première fois.** Un vault sans index de recherche — ouvert pour la première fois, ou après l'oubli de ses données d'application — s'ouvre aussitôt, et Plainva le lit en arrière-plan. Jusqu'à la fin, une bande en haut compte les fichiers lus ; la recherche, les tags, les rétroliens, les bases de données et le graphe répondent avec ce qui a été lu jusque-là, et l'arborescence montre déjà chaque fichier. Ce qui a besoin du vault entier attend jusque-là et le dit : renommer ou déplacer avec la mise à jour des liens, le nettoyage, rechercher et remplacer, le format OKF et un lien vers une note pas encore lue. Une fenêtre réduite continue de lire. Le téléphone fait de même.
 
 Supprimez ou réparez l'entrée nommée par la notification, puis utilisez **Relire le vault** (sur le téléphone : tirez une liste vers le bas).
 

@@ -1,3 +1,4 @@
+import { awaitAnyWholeIndex } from "@plainva/ui";
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search as SearchIcon, SearchX } from "lucide-react";
@@ -59,6 +60,8 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
     if (!queryService || !find || regexError) return;
     setBusy(true);
     try {
+      // A replace over half an index would miss the notes not read yet (L3, as on the phone).
+      await awaitAnyWholeIndex();
       const res = await queryService.findInVault(find, opts);
       setResults(res);
       setSelected(new Set(res.map((r) => r.path)));

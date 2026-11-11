@@ -180,6 +180,7 @@ describe("every surface of the desktop shell is an area of its own", () => {
       "editor:selectionToolbar": "appears with every text selection",
       "menu:aiSelection": "the AI menu of that toolbar, mounted whenever the assistant is on",
       "menu:recentSearches": "opens by itself when the empty search field takes the focus",
+      "shell:indexNotice": "a strip that appears by itself while the first index is built (performance plan L3)",
     };
     const found = new Set<string>();
     const walk = (dir: string): string[] => readdirSync(dir).flatMap((name) => {

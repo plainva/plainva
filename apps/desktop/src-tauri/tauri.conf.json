@@ -20,7 +20,8 @@
         "center": true,
         "visible": false,
         "decorations": false,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "backgroundThrottling": "disabled"
       }
     ],
     "security": {

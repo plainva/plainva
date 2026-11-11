@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-11-10
+Última actualización: 2026-11-11
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -111,6 +111,8 @@ Además, Plainva concilia automáticamente cada vez que vuelves a la ventana des
 Al leer el vault, Plainva sigue los enlaces como lo hace el sistema: un enlace a una carpeta se lee como esa carpeta y un enlace a un archivo como ese archivo, en el escritorio y en una carpeta que hayas elegido en el iPhone. Lo que no puede leer lo deja fuera y lo nombra: un enlace a un lugar que no existe en este dispositivo (por ejemplo, una carpeta que solo existe en otro ordenador y llegó aquí como enlace) o una carpeta sin acceso. Un aviso los nombra una vez —**queda fuera del índice de búsqueda**— y el resto del vault se indexa como siempre. Nada de lo que hay bajo una entrada así se trata como eliminado, ni por el índice ni por la sincronización de un espacio de trabajo cifrado.
 
 Si el índice no se puede actualizar en absoluto, el aviso dice por qué (**No se pudo actualizar el índice de búsqueda: …**); el vault sigue abierto con lo que el índice ya contiene y, la próxima vez que se lea el vault, Plainva lo vuelve a intentar. En el teléfono también se nombra un índice de búsqueda que no se puede abrir: la búsqueda, las etiquetas, las bases de datos, la sincronización y el calendario quedan desactivados hasta que Plainva pueda abrirlo.
+
+**Abrir un vault por primera vez.** Un vault sin índice de búsqueda —abierto por primera vez o después de olvidar sus datos de la aplicación— se abre al instante, y Plainva lo lee en segundo plano. Hasta que termina, una franja arriba cuenta los archivos leídos; la búsqueda, las etiquetas, los enlaces entrantes, las bases de datos y el grafo responden con lo leído hasta ese momento, y el árbol de archivos ya muestra todos los archivos. Lo que necesita el vault entero espera hasta entonces y lo dice: renombrar o mover con la actualización de enlaces, la limpieza, buscar y reemplazar, el formato OKF y un enlace a una nota que aún no se ha leído. Una ventana minimizada sigue leyendo. En el teléfono es igual.
 
 Elimina o repara la entrada que nombra el aviso y usa después **Volver a leer el vault** (en el teléfono: desliza una lista hacia abajo).
 

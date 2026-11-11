@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-11-10
+Última revisão: 2026-11-11
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -111,6 +111,8 @@ Além disso, o Plainva concilia automaticamente sempre que você volta para a ja
 Ao ler o vault, o Plainva segue links como o sistema faz: um link para uma pasta é lido como essa pasta, um link para um arquivo como esse arquivo — no computador e em uma pasta que você escolheu no iPhone. O que ele não consegue ler, ele deixa de fora e nomeia: um link para um local que não existe neste dispositivo (por exemplo, uma pasta que só existe em outro computador e chegou aqui como link) ou uma pasta sem acesso. Um aviso os nomeia uma vez — **ficou fora do índice de busca** — e o restante do vault é indexado como sempre. Nada que esteja sob uma entrada dessas é tratado como excluído, nem pelo índice nem pela sincronização de um espaço de trabalho criptografado.
 
 Se o índice não puder ser atualizado de forma alguma, o aviso diz por quê (**Não foi possível atualizar o índice de busca: …**); o vault continua aberto com o que o índice já contém e, na próxima vez que o vault for lido, o Plainva tenta de novo. No celular, um índice de busca que não pode ser aberto também é nomeado: a busca, as tags, os bancos de dados, a sincronização e o calendário ficam então desativados até que o Plainva consiga abri-lo.
+
+**Abrir um vault pela primeira vez.** Um vault sem índice de busca — aberto pela primeira vez ou depois de esquecer os dados do app — abre na hora, e o Plainva o lê em segundo plano. Até terminar, uma faixa no topo conta os arquivos lidos; a busca, as tags, os backlinks, os bancos de dados e o grafo respondem com o que já foi lido, e a árvore de arquivos já mostra todos os arquivos. O que precisa do vault inteiro espera até lá e avisa: renomear ou mover com a atualização dos links, a limpeza, localizar e substituir, o formato OKF e um link para uma nota ainda não lida. Uma janela minimizada continua lendo. No celular é igual.
 
 Remova ou conserte a entrada que o aviso nomeia e depois use **Reler o vault** (no celular: puxe uma lista para baixo).
 

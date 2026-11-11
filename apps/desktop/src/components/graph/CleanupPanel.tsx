@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
-import { ICON, toast } from "@plainva/ui";
+import { awaitAnyWholeIndex, ICON, toast } from "@plainva/ui";
 import { applyMentionLink, brokenLinkLabel, brokenLinkNotePath, createBrokenLinkTarget } from "../../services/graphActions";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { getGraphState, suggestionKey } from "../../services/graphState";
@@ -42,6 +42,11 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
     if (!graphService) return;
     (async () => {
       try {
+        // An orphan is a note the index knows no link to: over a first index
+        // still being built, a wrong offer to delete (performance plan L3, as
+        // on the phone, issue 143).
+        await awaitAnyWholeIndex();
+        if (!alive) return;
         const graph = await graphService.loadGraph({ includeAttachments: true });
         const [o, b] = await Promise.all([graphService.getOrphans(graph), graphService.getBrokenLinks(graph)]);
         if (!alive) return;
@@ -76,6 +81,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
     setProgress(null);
     try {
       await graphState?.load();
+      await awaitAnyWholeIndex();
       const found = await graphService.findUnlinkedMentions({
         signal: controller.signal,
         onProgress: (current, total) => setProgress({ current, total }),

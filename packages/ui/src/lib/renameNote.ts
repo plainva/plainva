@@ -1,3 +1,4 @@
+import { awaitAnyWholeIndex } from "./indexBuild";
 import {
   buildLinkTargetIndex,
   explicitLinkPath,
@@ -365,6 +366,10 @@ export async function renameFileWithLinkUpdates(opts: {
 }): Promise<RenameResult> {
   const { adapter, queryService, oldPath, newPath } = opts;
 
+  // The links onto the note are found in the index: over a first index that
+  // is still being built, half of them would be missed (performance plan L3,
+  // issue 143). Waits for it, and says so once.
+  await awaitAnyWholeIndex();
   const { plan, failed: planFailed } = await planLinkUpdates(queryService, oldPath, newPath);
 
   await adapter.renameItem(oldPath, newPath);

@@ -12,6 +12,7 @@
         "visible": false,
         "decorations": false,
         "dragDropEnabled": false,
+        "backgroundThrottling": "disabled",
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=0"
       }
     ]

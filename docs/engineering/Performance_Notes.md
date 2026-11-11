@@ -1,6 +1,6 @@
 # Performance Notes (Measurement Guide)
 
-Last reviewed: 2026-11-10
+Last reviewed: 2026-11-11
 
 This document records measurement budgets, fixture methods and structural changes.
 The [September large-vault report](Performance_Large_Vault_2026-09-14.md) adds native
@@ -315,6 +315,65 @@ median 7.0 ms, p95 9.5 ms, search 73 ms, `listTasks` 615 ms, pass without change
 core baseline was recorded again on that state. Whether the short transactions cost the cold
 index that much or the machine was busier is not separated (one run each).
 
+## Reading ahead and the first open (performance plan L2 and L3, 2026-11-11)
+
+**Where the cold pass spent its time before L2** (10 000-note fixture, this machine, the core
+measurement instrumented by a scratch tool that times the adapter's reads, SQLite's statements,
+the parse of each note and the turns the loop gave away; node's hash in place of WebCrypto so its
+cost is not hidden in the thread pool's queue): 68.5 s in all — reading 15.1 s (one
+`fs.readFile` after the other, 1.5 ms a file), parsing and extracting 22.5 s, SQL 7.9 s, hashing
+0.4 s (with WebCrypto as shipped the pass took 75 s: 110 000 digests went through the async
+thread pool), the loop's `setTimeout(0)` every tenth file 8.2 s (1 015 timers of about 8 ms each
+on Windows), the rest (walk, lookups, JavaScript between) about 14 s.
+
+**L2.** The full scan reads the files of each of its transactions ahead of the loop that indexes
+them (`packages/core/src/vault/readAhead.ts`): eight single reads at a time, or two groups of
+eight where the adapter reads many files in one call (`IVaultAdapter.readFilesForIndex`; the
+desktop's `read_files_for_index` in `src-tauri/src/index_read.rs` reads a group on up to eight
+threads, hashes the bytes in Rust and returns a note's text with its hash and an attachment's hash
+alone — before, a note was three bridge calls and an attachment's whole bytes crossed the bridge
+only to be hashed). What is ahead is bounded by bytes (16 MB; a heavier file is read alone), and
+nothing is read ahead across a transaction: a reading is written in the transaction that read it,
+so a save that lands meanwhile is indexed after it, as before. Rows are written in the same order
+(test: the index is row for row, in rowid order, the one of a scan that reads one file at a time).
+Everything the one call does not answer plainly — gone, refused, not UTF-8, another stored
+spelling — goes down the ordinary read. The loop gives its turn by time (8 ms) and by a message,
+not a timer (`nextMacrotask` in `yielder.ts`).
+
+**Numbers** (`pnpm perf:core`, this machine, one run each, back to back): cold index 71.3 s on
+`main` (`927dff411`) → 43.4 s with L2 (ratio to the calibration 73.29 → 48.78, x0.66); the
+pass without changes, a save, search and `listTasks` unchanged within the noise (1 034 → 1 035 ms,
+p50 7.6 → 7.0 ms, 73.7 → 73.9 ms, 625 → 635 ms). The instrumented run put the cold pass at 44.1 s
+(from 68.5 s): the reads are overlapped with parsing, the timers are gone, and with more files per
+transaction the scan hashes fewer path ids for the lookups of its slices (60 000 digests instead
+of 110 000). The baseline of this environment was recorded again after L2 (`--update`). Not
+measured: the native bridge (Rust reads, IPC) — the core measurement reads through Node.
+
+**L3.** The desktop no longer waits for the first index of an empty index: the open completes, the
+tree draws its files from the folder listing it already walks for the folders, and the shared
+strip (`IndexBuildNotice`, the phone's words) says that search, tags and databases are not whole
+yet; progress reaches it at most every 200 ms (`packages/ui/src/lib/indexBuild.ts`, the phone's
+store lifted). The phone builds every first index this way now, its own container included. The
+main window does not throttle background work (`backgroundThrottling: disabled`; honoured by
+WKWebView on macOS 14+, not by WebView2 or WebKitGTK — there the message-based turns keep a
+minimised window indexing, since only timers are throttled). Browser measurement of the first
+open (`e2e-perf/first-open.spec.ts`, 10 000 notes, Tauri stand-in, real SQLite): on `main` the tree showed after 53.9 s and the
+note took typing after 55.1 s, the index was whole at 55.5 s; with L2 and L3 the tree shows after
+3.0 s, the note takes typing after 3.8 s, and the index is whole at 35.0 s. A lower bound again: no
+IPC, no Rust, Chromium instead of WebView2/WKWebView.
+
+**What the user sees while the first index is built**, and why it is right: the tree holds every
+file (from the listing; a note by its file name until its title is read); search, tags, backlinks,
+databases, tasks and the graph answer from what is read so far, and the strip says so; what would
+be wrong over half an index waits for it with the phone's sentence (`mobile.indexWaitWhole`) — a
+rename or move with its link updates (`renameFileWithLinkUpdates`, `moveItems`, `renameToName`),
+the clean-up (orphans, mentions), find and replace, the OKF scans, and creating the note of a link
+the index does not know (`planLinkOpen`: it would be a second note of a name the vault holds). The
+sync reads no index rows: a file the scan has not reached is a file on disk to it; the deferral of
+the first index (3c, `coldIndexOwed`) holds until the scan went through, and a new connection's
+`enqueueAllLocalFiles` waits for it. An encrypted workspace's first reconcile still runs before the
+first picture on an empty index (with its own progress bar); the index builds beside it.
+
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
 Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers
@@ -323,7 +382,7 @@ Tauri stand-in — a lower bound).
 
 | Metric | Budget | Measured | Source |
 |---|---|---|---|
-| Cold index, 10 000 notes (core) | ≤ 40 s | 49.5–56.4 s (224.6 s before L1) | core gate |
+| Cold index, 10 000 notes (core) | ≤ 40 s | 49.5–56.4 s (224.6 s before L1); 43.4 s after L2 (71.3 s on `main` the same hour) | core gate |
 | Pass without changes | ≤ 500 ms | 692–907 ms (a plain walk of the folder: 813–834 ms) | core gate |
 | Re-reading after a save, p95 | ≤ 15 ms | 7.7–18.2 ms, median 5.5–7.0 ms (48.7 / 42.2 ms before L1) | core gate |
 | Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 64–77 ms | core gate |
