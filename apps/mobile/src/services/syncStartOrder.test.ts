@@ -156,6 +156,7 @@ const vault = {
   workspaceRuntime: null,
   enableSyncEnqueue: () => undefined,
   markFirstSyncComplete: () => undefined,
+  sweepOwedToRemote: () => undefined,
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
@@ -318,13 +319,16 @@ describe("an encrypted workspace's first cycle (3.119)", () => {
     // Until it did, a file another app put beside the app reached the
     // workspace queue only through the reconcile at the next start.
     const markFirstSyncComplete = vi.fn();
-    const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {}, markFirstSyncComplete } as unknown as MobileVault;
+    const sweepOwedToRemote = vi.fn();
+    const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {}, markFirstSyncComplete, sweepOwedToRemote } as unknown as MobileVault;
     await startSyncIfConfigured(workspaceVault);
     const encrypted = state.workerHooks[state.workerHooks.length - 1];
     expect(encrypted?.onFirstCycleComplete).toBeTypeOf("function");
     expect(markFirstSyncComplete).not.toHaveBeenCalled();
     encrypted!.onFirstCycleComplete!({ skipped: [], conflictCopies: [] });
     expect(markFirstSyncComplete).toHaveBeenCalledTimes(1);
+    // And queues what the index found and an ended app never queued (R22).
+    expect(sweepOwedToRemote).toHaveBeenCalledWith("workspace");
   });
 });
 

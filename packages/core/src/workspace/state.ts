@@ -882,6 +882,28 @@ function laterTouches(paths: ReadonlyArray<string | null>): { sql: string; param
 }
 
 /** SQLite-backed crash-safe P3 repository. Private keys never enter these tables. */
+/**
+ * Takes the index's `local_ahead` mark off the paths of the queue entries
+ * `ids` once nothing else is queued for them (stability plan R22), as the plain
+ * queue's `markSynced` does. The workspace's queue never did: the mark stayed
+ * on every file the index found changed, and the sweep that queues what the
+ * index found and nobody queued (`sweepWorkspaceOwed`) could not tell a change
+ * that went up from one that was lost. Runs before the entries are deleted, in
+ * the same batch.
+ */
+function consumedMarks(ids: readonly number[]): Array<{ sql: string; params: unknown[] }> {
+  if (ids.length === 0) return [];
+  const list = ids.map(() => "?").join(",");
+  return [{
+    sql: `UPDATE files SET sync_state = 'synced'
+           WHERE sync_state = 'local_ahead'
+             AND path IN (SELECT path FROM workspace_queue WHERE id IN (${list})
+                          UNION SELECT new_path FROM workspace_queue WHERE id IN (${list}) AND new_path IS NOT NULL)
+             AND NOT EXISTS (SELECT 1 FROM workspace_queue q WHERE q.id NOT IN (${list}) AND (q.path = files.path OR q.new_path = files.path))`,
+    params: [...ids, ...ids, ...ids],
+  }];
+}
+
 export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   constructor(private readonly db: IDatabaseAdapter) {}
 
@@ -1127,7 +1149,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     ]);
   }
   async discardQueue(queueId: number): Promise<void> {
-    await this.db.execute(`DELETE FROM workspace_queue WHERE id = ?`, [queueId]);
+    await runStatementsAtomic(this.db, [...consumedMarks([queueId]), { sql: `DELETE FROM workspace_queue WHERE id = ?`, params: [queueId] }]);
   }
   async markQueueFailed(queueId: number, message: string): Promise<void> {
     await this.db.execute(`UPDATE workspace_queue SET retry_count = retry_count + 1, last_error = ? WHERE id = ?`, [message.slice(0, 1000), queueId]);
@@ -1137,7 +1159,10 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async commitQueued(queueId: number, mutation: CommitWorkspaceMutation, meta: WorkspaceRuntimeMeta, absorbedQueueIds: number[] = []): Promise<void> {
     const completed = [...new Set([queueId, ...absorbedQueueIds])];
-    await this.commitMutation(mutation, true, meta, completed.map((id) => ({ sql: `DELETE FROM workspace_queue WHERE id = ?`, params: [id] })));
+    await this.commitMutation(mutation, true, meta, [
+      ...consumedMarks(completed),
+      ...completed.map((id) => ({ sql: `DELETE FROM workspace_queue WHERE id = ?`, params: [id] })),
+    ]);
   }
   async recordIncoming(mutation: CommitWorkspaceMutation, setCurrent: boolean, meta: WorkspaceRuntimeMeta): Promise<void> {
     await this.commitMutation(mutation, setCurrent, meta, []);

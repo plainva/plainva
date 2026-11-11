@@ -37,6 +37,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
+import { sweepPlainOwed, sweepWorkspaceOwed } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -154,6 +155,13 @@ export interface MobileVault {
   enableSyncEnqueue(): void;
   /** Ends the initial-index enqueue deferral (3c) after the first pull. */
   markFirstSyncComplete(): void;
+  /**
+   * Queues what the index decided and committed while the queue never heard
+   * of it — the app ended between the two (stability plan R22): deletions,
+   * and in an encrypted workspace also changes. Run at the first cycle of the
+   * vault's sync (desktop twin: `sweepOwedToRemote` in VaultContext).
+   */
+  sweepOwedToRemote(kind: "plain" | "workspace"): void;
   /**
    * Whether the full index pass has finished. The task reconciler gates note
    * CREATION on this: a vault whose notes are still being indexed would look
@@ -783,6 +791,20 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   // is back has nothing to delete remotely.
   const stillGone = (path: string) => () => adapter.exists(path).then((there) => !there);
 
+  /**
+   * A file that left the vault, queued the way its index pass reports it. The
+   * index's `onLocalFileDeleted` and the sweep of what an ended app left owed
+   * (`sweepOwedToRemote`, R22) both come here.
+   */
+  const queueLocalDeletion = async (path: string): Promise<void> => {
+    if (!syncEnqueueEnabled || isInternal(path)) return;
+    const plain = queue;
+    if (permissioned) {
+      const allowed = await permissioned.authorizeExternalChange(path, false).catch(() => false);
+      if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path));
+    } else if (plain) void announce(() => plain.queueDelete(path), stillGone(path));
+  };
+
   const enqueueLocal = async (path: string) => {
     if (!syncEnqueueEnabled || isInternal(path)) return;
     if (permissioned && !await permissioned.authorizeExternalChange(path, true)) return;
@@ -961,10 +983,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         // the index removed: the mark answers for the file the worker took
         // away, not for a later one of that name (finding 2026-10-12).
         if (ownDeletions.consume(path, row)) return;
-        if (!syncEnqueueEnabled || isInternal(path)) return;
-        const plain = queue;
-        if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path)); }).catch(() => {}); }
-        else if (plain) void announce(() => plain.queueDelete(path), stillGone(path));
+        void queueLocalDeletion(path);
       },
     });
     queryService = new VaultQueryService(db);
@@ -1076,6 +1095,20 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     },
     markFirstSyncComplete: () => {
       deferInitialEnqueue = false;
+    },
+    sweepOwedToRemote: (kind) => {
+      if (!db || !syncEnqueueEnabled) return;
+      const handlers = {
+        vaultIsThere: () => adapter.exists("").catch(() => false),
+        stillGone: async (p: string) => !(await adapter.exists(p)),
+        remove: queueLocalDeletion,
+        write: enqueueLocal,
+      };
+      (kind === "plain" ? sweepPlainOwed(db, handlers) : sweepWorkspaceOwed(db, handlers))
+        .then((report) => {
+          if (report.deletions + report.writes > 0) logDiagnostic("sync", `queued what the index had found and nobody queued: ${report.deletions} deletion(s), ${report.writes} change(s)`);
+        })
+        .catch(() => {});
     },
     indexSettled: () => indexPassSettled,
     whenIndexWhole: () => indexWhole,

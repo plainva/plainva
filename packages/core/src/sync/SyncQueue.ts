@@ -222,6 +222,22 @@ export class SyncQueue {
         if (p !== oldPath) {
           updatedPath = newPath + p.substring(oldLen);
         }
+        // An index pass may have read the file at its new path already — the
+        // watcher's event for the destination came first (stability plan R22).
+        // Moving the old row onto it failed on `files.path`'s UNIQUE, and the
+        // rename was never queued: the remote kept the file at its old path, and
+        // the next pass reported that one deleted. The row at the destination
+        // describes the file that lies there; the old one goes, and the
+        // destination is read again (its row may be older than the move).
+        const taken = await tx.queryOne<{ id: string }>(`SELECT id FROM files WHERE path = ? COLLATE BINARY`, [updatedPath]);
+        if (taken) {
+          await tx.execute(`DELETE FROM files WHERE path = ? COLLATE BINARY`, [p]);
+          await tx.execute(
+            `UPDATE files SET sync_state = 'local_ahead', mtime_local = 0 WHERE path = ? COLLATE BINARY`,
+            [updatedPath]
+          );
+          continue;
+        }
         await tx.execute(
           `UPDATE files SET path = ?, sync_state = 'local_ahead', mtime_local = 0 WHERE path = ?`,
           [updatedPath, p]

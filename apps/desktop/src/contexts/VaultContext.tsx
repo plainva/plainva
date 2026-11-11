@@ -31,7 +31,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } 
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson } from "@plainva/core";
+import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -1021,6 +1021,53 @@ export const VaultProvider: React.FC<{
       let localOnlySwept = false;
       // What a full scan left out, or why it failed, said once on screen (issue 125).
       const indexNotices = createIndexNotices(toast);
+      // A file that left the vault, queued the way its index pass reports it:
+      // the remote deletion, or — without a sync target — the stale sync row.
+      // The index's `onLocalFileDeleted` and the sweep of what an ended app
+      // left owed (`sweepOwedToRemote`, R22) both come here.
+      const queueLocalDeletion = async (deletedPath: string): Promise<void> => {
+        if (queuesChanges) {
+          if (permissionedWorkspaceAdapter) {
+            try {
+              if (!(await permissionedWorkspaceAdapter.authorizeExternalChange(deletedPath, false))) return;
+              await workspaceStateStore!.enqueue("delete", deletedPath);
+              window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
+            } catch (e) {
+              console.error("[VaultContext] failed to authorize local delete", e);
+            }
+            return;
+          }
+          // Propagate the deletion to the remote; sync_state is cleaned after the push.
+          try {
+            if (workspaceStateStore) await workspaceStateStore.enqueue("delete", deletedPath);
+            else await syncQueue.queueDelete(deletedPath);
+            window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
+          } catch (e) {
+            console.error("[VaultContext] failed to enqueue local delete", e);
+          }
+        } else {
+          // No sync target: just drop the stale state row.
+          await syncRepo.deleteSyncState(deletedPath).catch(() => {});
+        }
+      };
+      // What the index decided and committed while the queue never heard of it
+      // — the app ended between the two (stability plan R22): deletions, and in
+      // an encrypted workspace also changes. Run at the first cycle of the
+      // vault's sync, through the handlers the index's callbacks use.
+      const sweepOwedToRemote = (kind: "plain" | "workspace") => {
+        if (!queuesChanges) return;
+        const handlers = {
+          vaultIsThere: () => vaultAdapter.exists("").catch(() => false),
+          stillGone: async (p: string) => !(await vaultAdapter.exists(p)),
+          remove: queueLocalDeletion,
+          write: enqueueLocalChange,
+        };
+        (kind === "plain" ? sweepPlainOwed(dbAdapter, handlers) : sweepWorkspaceOwed(dbAdapter, handlers))
+          .then((report: OwedSweepReport) => {
+            if (report.deletions + report.writes > 0) logDiagnostic("sync", `queued what the index had found and nobody queued: ${report.deletions} deletion(s), ${report.writes} change(s)`);
+          })
+          .catch((e) => console.error("[VaultContext] sweep of owed changes failed", e));
+      };
       // What the sync worker removes itself is not the user's deletion (finding
       // 2026-09-20): the worker marks a path before it mirrors a remote deletion,
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
@@ -1054,25 +1101,7 @@ export const VaultProvider: React.FC<{
           // the index removed: the mark answers for the file the worker took
           // away, not for a later one of that name (finding 2026-10-12).
           if (ownDeletions.consume(path, row)) return;
-          if (queuesChanges) {
-            if (permissionedWorkspaceAdapter) {
-              void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
-                if (!allowed) return;
-                return workspaceStateStore!.enqueue("delete", path).then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")));
-              }).catch((e) => console.error("[VaultContext] failed to authorize local delete", e));
-              return;
-            }
-            // Propagate the deletion to the remote; sync_state is cleaned after the push.
-            const queued = workspaceStateStore
-              ? workspaceStateStore.enqueue("delete", path)
-              : syncQueue.queueDelete(path);
-            queued
-              .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-              .catch((e) => console.error("[VaultContext] failed to enqueue local delete", e));
-          } else {
-            // No sync target: just drop the stale state row.
-            syncRepo.deleteSyncState(path).catch(() => {});
-          }
+          void queueLocalDeletion(path);
         },
         // One line per full scan (issue 122): what set it off, how much it
         // walked, how long it took and what it changed. Counts only. On
@@ -1090,6 +1119,7 @@ export const VaultProvider: React.FC<{
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
                 .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+              sweepOwedToRemote("plain");
             }
           }
           logDiagnostic("index", formatFullScan(info));
@@ -1584,6 +1614,9 @@ export const VaultProvider: React.FC<{
                   });
                 };
                 worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
+                // The first cycle has looked: what the index found and an ended
+                // app never queued goes into the workspace's queue (R22).
+                worker.onFirstCycleComplete = () => sweepOwedToRemote("workspace");
                 // A queued remark published or failed, or one arrived from another
                 // device: the open column and the overview refresh themselves (K6).
                 worker.onCommentsChanged = (paths) => {
@@ -1723,6 +1756,7 @@ export const VaultProvider: React.FC<{
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
                 .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+              sweepOwedToRemote("plain");
               localOnlySwept = true;
               // Never silently: the copies kept where both sides differed (review 2026-10-27).
               sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
