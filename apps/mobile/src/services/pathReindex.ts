@@ -57,7 +57,7 @@ import type { IVaultAdapter, VaultFileInfo, VaultIndexer } from "@plainva/core";
  * another, refused each other's files, and of several files one pass
  * announced to hooks that queue without waiting, only the first was queued.
  * Since 2026-10-12 the adapter has its transactions wait for one another
- * (`adapters/transactionTurns.ts`), as the desktop's always has.
+ * (`packages/ui/src/lib/transactionTurns.ts`), as the desktop's always has.
  *
  * The row here keeps the ORDER: a pass over a path and what a pass sets off
  * each take a turn, in the order they were asked for. A batch asks for its

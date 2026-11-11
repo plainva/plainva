@@ -19,12 +19,11 @@ import { sourceFile } from "./test-sourceTree";
  * write.
  *
  * The phone's database refused a second transaction while one was open; the
- * desktop's adapter has always queued them (`TauriDatabaseAdapter`: a lock in
- * front of a pool, each statement committed by itself). So on the desktop an
- * entry rarely fails — but it can: a statement that finds the database locked
- * by another connection for longer than the pool waits (the native batch of
- * the calendar cache or of a cold index runs on a connection of its own), or a
- * vault closing under a write. What followed was the phone's story: the editor
+ * desktop's adapter has always queued them (`TauriDatabaseAdapter`, whose
+ * transactions are real since stability plan R1, each on a connection of its
+ * own). So on the desktop an entry rarely fails — but it can: a transaction
+ * that finds the database locked by another program for longer than it waits,
+ * or a vault closing under a write. What followed was the phone's story: the editor
  * heard "not saved" for a saved file, the chain did not take note of its own
  * write, and nothing was queued. Now the entry is made up for while the save
  * waits, the vault context hears of it once it is there
@@ -33,12 +32,11 @@ import { sourceFile } from "./test-sourceTree";
  * change fails the save as before, so that the index announces the file (the
  * core's queueing-vault-adapter-owed test).
  *
- * The database here is a real SQLite behind what the desktop's adapter does
- * with a transaction — a lock, no BEGIN — that finds the queue's table locked
- * as often as a test says. The pool answers a lock only after it has waited
- * five seconds (sqlx's busy timeout, which tauri-plugin-sql's pool keeps): the
- * test's clock moves on by that much before the statement fails, so the entry
- * is tried again at its next time after that, 5.25 seconds after the change.
+ * The database here is a real SQLite whose transactions find the queue's table
+ * locked as often as a test says; the transaction is rolled back. SQLite
+ * answers a lock only after it has waited (a busy timeout): the test's clock
+ * moves on by five seconds before the statement fails, so the entry is tried
+ * again at its next time after that, 5.25 seconds after the change.
  */
 
 const sha = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
@@ -48,26 +46,31 @@ const POOL_BUSY_WAIT_MS = 5_000;
 /** The test's clock: what the adapter measures its times with. */
 let clock = 0;
 
-/** `TauriDatabaseAdapter.transaction`: a lock and nothing else — and an INSERT into the queue that can find the table locked. */
+/** `TauriDatabaseAdapter.transaction`: a real transaction — whose INSERT into the queue can find the table locked. */
 function desktopDatabase(inner: IDatabaseAdapter) {
   let tail: Promise<unknown> = Promise.resolve();
   let locked = 0;
+  const lockedOr = async (sql: string, run: () => Promise<void>): Promise<void> => {
+    if (locked > 0 && /INSERT INTO offline_queue/.test(sql)) {
+      locked -= 1;
+      clock += POOL_BUSY_WAIT_MS;
+      throw new Error("error returned from database: (code: 5) database is locked");
+    }
+    return run();
+  };
   const database: IDatabaseAdapter = {
     initialize: () => inner.initialize(),
     close: () => inner.close(),
-    async execute(sql, params) {
-      if (locked > 0 && /INSERT INTO offline_queue/.test(sql)) {
-        locked -= 1;
-        clock += POOL_BUSY_WAIT_MS;
-        throw new Error("error returned from database: (code: 5) database is locked");
-      }
-      return inner.execute(sql, params);
-    },
+    execute: (sql, params) => lockedOr(sql, () => inner.execute(sql, params)),
     query: (sql, params) => inner.query(sql, params),
     queryOne: (sql, params) => inner.queryOne(sql, params),
     transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
-      // A turn, not a transaction, as on the desktop: the body's handle is this adapter.
-      const turn = tail.then(() => fn(database));
+      // In its turn, and real (R1): a statement of the body that fails takes the body back.
+      const turn = tail.then(() => inner.transaction((tx) => fn({
+        execute: (sql, params) => lockedOr(sql, () => tx.execute(sql, params)),
+        query: (sql, params) => tx.query(sql, params),
+        queryOne: (sql, params) => tx.queryOne(sql, params),
+      })));
       tail = turn.catch(() => {});
       return turn;
     },

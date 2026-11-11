@@ -48,35 +48,46 @@ pub async fn db_batch(db_path: String, statements: Vec<BatchStatement>) -> Resul
         .map_err(|e| e.to_string())
 }
 
+/// Binds JSON parameters as SQLite scalars: integers exact, other numbers as
+/// REAL, booleans as 0/1. Shared with the transactions of `db_tx.rs`.
+pub(crate) fn bind_params<'q>(
+    mut q: sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>>,
+    params: &'q [serde_json::Value],
+) -> sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>> {
+    for p in params {
+        q = match p {
+            serde_json::Value::Null => q.bind(None::<String>),
+            serde_json::Value::Bool(b) => q.bind(*b as i64),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() {
+                    q.bind(i)
+                } else if let Some(f) = n.as_f64() {
+                    q.bind(f)
+                } else {
+                    q.bind(n.to_string())
+                }
+            }
+            serde_json::Value::String(s) => q.bind(s.as_str()),
+            // Arrays/objects are not SQLite scalars; the app never binds these,
+            // but store their JSON text rather than panic on an unexpected shape.
+            other => q.bind(other.to_string()),
+        };
+    }
+    q
+}
+
 async fn run_batch(db_path: &str, statements: &[BatchStatement]) -> Result<u64, sqlx::Error> {
     let opts = SqliteConnectOptions::from_str(db_path)?
         .create_if_missing(false)
         .foreign_keys(true)
+        // As the adapter sets it on the plugin's pool (WAL: a commit survives the app ending).
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal)
         .busy_timeout(Duration::from_secs(10));
     let mut conn = opts.connect().await?;
     let mut tx = conn.begin().await?;
     let mut affected: u64 = 0;
     for stmt in statements {
-        let mut q = sqlx::query(&stmt.sql);
-        for p in &stmt.params {
-            q = match p {
-                serde_json::Value::Null => q.bind(None::<String>),
-                serde_json::Value::Bool(b) => q.bind(*b as i64),
-                serde_json::Value::Number(n) => {
-                    if let Some(i) = n.as_i64() {
-                        q.bind(i)
-                    } else if let Some(f) = n.as_f64() {
-                        q.bind(f)
-                    } else {
-                        q.bind(n.to_string())
-                    }
-                }
-                serde_json::Value::String(s) => q.bind(s.clone()),
-                // Arrays/objects are not SQLite scalars; the app never binds these,
-                // but store their JSON text rather than panic on an unexpected shape.
-                other => q.bind(other.to_string()),
-            };
-        }
+        let q = bind_params(sqlx::query(&stmt.sql), &stmt.params);
         // The `?` drops `tx`, which rolls the transaction back on any statement error.
         affected += q.execute(&mut *tx).await?.rows_affected();
     }

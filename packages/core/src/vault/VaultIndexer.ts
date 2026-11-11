@@ -1559,8 +1559,8 @@ export class VaultIndexer {
       await this.deleteIndexRows([...mine], tx);
       return mine;
     }).catch((error: unknown) => {
-      // No batches here: whatever ran is in.
-      this.announceWhatStays(pass, { news: pass.newLocalFiles.length, mods: pass.externalMods.length });
+      // One transaction, rolled back: nothing of it stands, and nothing is said.
+      this.announceWhatStays(pass, { news: 0, mods: 0 });
       throw error;
     });
     this.flushCallbacks(pass);
@@ -1611,26 +1611,18 @@ export class VaultIndexer {
   }
 
   /**
-   * What a pass that FAILED still has to say (finding 2026-10-12).
-   *
-   * Where its transaction took everything back, nothing: it wrote nothing,
-   * and the next pass finds every file as this one did. The desktop's database
-   * keeps what a failed transaction wrote
-   * (`IDatabaseAdapter.keepsWhatAFailedTransactionWrote`): the files this pass
-   * had indexed stay indexed, the next pass finds them as it left them and
-   * has nothing to say about them — a new file was not queued for upload
-   * before the sweep of the next sync start, a change another program made
-   * to a known file not at all. So what the pass found about the files it
-   * wrote is said now. `written` is how far its finds had been handed to the
-   * database when it failed; the rows of files that went are removed last by
-   * every pass and are never part of it.
+   * What a pass that FAILED still has to say (finding 2026-10-12): what the
+   * transactions that went through wrote. A full scan writes in several
+   * (performance plan L4); the one that failed took back everything it wrote
+   * on both shells (the desktop's transactions are real since stability plan
+   * R1). Its finds are cut to what was committed, and said: a new file is
+   * queued for upload, a change another program made to a known file goes up.
+   * The rows of files that went are removed last by every pass and are never
+   * part of it.
    */
-  private announceWhatStays(pass: IndexPass, written: { news: number; mods: number }, committed = false): void {
-    // `committed`: what transactions that went through wrote stands on any
-    // adapter (a full scan writes in several, performance plan L4).
-    if (!committed && !this.dbAdapter.keepsWhatAFailedTransactionWrote) return;
-    pass.newLocalFiles.length = Math.min(pass.newLocalFiles.length, written.news);
-    pass.externalMods.length = Math.min(pass.externalMods.length, written.mods);
+  private announceWhatStays(pass: IndexPass, committed: { news: number; mods: number }): void {
+    pass.newLocalFiles.length = Math.min(pass.newLocalFiles.length, committed.news);
+    pass.externalMods.length = Math.min(pass.externalMods.length, committed.mods);
     this.flushCallbacks(pass);
   }
 
@@ -2145,10 +2137,9 @@ export class VaultIndexer {
         committed.mods = flushed.mods;
       }
     } catch (error: unknown) {
-      // What the transactions that went through wrote stays on every adapter;
-      // on one that keeps what a failed transaction wrote, its flushes too.
-      if (this.dbAdapter.keepsWhatAFailedTransactionWrote) this.announceWhatStays(pass, flushed);
-      else this.announceWhatStays(pass, committed, true);
+      // What the transactions that went through wrote stays; the one that
+      // failed took its flushes back with it.
+      this.announceWhatStays(pass, committed);
       throw error;
     }
 

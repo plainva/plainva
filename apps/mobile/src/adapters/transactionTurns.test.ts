@@ -11,9 +11,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  * an error and a line in the diagnostics naming the turn that held.
  */
 const diagnostics: string[] = [];
-vi.mock("@plainva/ui", () => ({ logDiagnostic: (_area: string, line: string) => diagnostics.push(line) }));
+vi.mock("../../../../packages/ui/src/services/diagnosticsLog", () => ({ logDiagnostic: (_area: string, line: string) => diagnostics.push(line) }));
 
-const { TransactionTurns, TransactionTurnTimeout, TURN_WAIT_MS } = await import("./transactionTurns");
+// The turns live in the shared UI package since the desktop takes them too (stability plan R1).
+const { TransactionTurns, TransactionTurnTimeout, TURN_WAIT_MS } = await import("../../../../packages/ui/src/lib/transactionTurns");
 
 afterEach(() => {
   vi.useRealTimers();
