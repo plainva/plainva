@@ -392,24 +392,51 @@ gives the 80 × 50 note a budget of 3 s on the reference core through `within()`
 unit test rather than a gate metric because it runs on every commit in the required checks, and
 the scaled budget holds on a slow runner without a baseline per machine.
 
-The parse budget's table rule went with it. Since 2026-11-01 (`inlineParseBudget.ts`) a table
-whose rows times length went over 5 × 10⁸ was read as written, because the table parser's work
+The parse budget's table rule changed with it. Since 2026-11-01 (`inlineParseBudget.ts`) a table
+whose rows times length went over 5 × 10⁸ was read as written, because the table parser's time
 was taken to grow that way — so from about 2 500 short rows on a table was no table in the index,
-the note source or the reading view, and none of its links reached the index. That cost was the
-quadratic `EditMap` above; read as a table now, a table costs less than read as written
-(through `parseMarkdownTree`, this machine, fastest of three):
+the note source or the reading view, and none of its links reached the index. That time was the
+quadratic `EditMap` above. What a large table still costs is memory: every cell is a parse of its
+own, and the events of the whole table are held until the tree is built. Measured 2026-11-12 on
+this machine (one table, a fresh process each, `--expose-gc`; peak = the process's resident memory
+during the parse, retained = heap after a forced collection with the tree kept):
 
-| Table | read as written (old rule) | read as a table |
+| Table | index parse: ms / peak / retained | reading view (mdast + hast): retained |
 |---|---|---|
-| 5 000 short rows, 120 KB | 92 ms | 268 ms |
-| 8 000 short rows, 193 KB | 262 ms | 565 ms |
-| 24 000 short rows, 611 KB | 8 961 ms | 1 912 ms |
-| 6 400 rows of four columns, 500 KB | 2 228 ms | 1 002 ms |
-| 12 800 rows of four columns, 1 MB | 6 203 ms | 2 305 ms |
+| 10 000 rows of four short cells and a link, 253 KB | 1 091 ms / 425 MB / 24 MB | 65 MB |
+| 20 000 such rows, 517 KB | 1 977 ms / 875 MB / 48 MB | 129 MB |
+| 50 000 such rows, 1.3 MB | 7 305 ms / 1 802 MB / 126 MB | 320 MB |
+| 10 000 rows of four cells of words, 749 KB | 1 302 ms / 534 MB / 25 MB | 66 MB |
+| 2 000 rows with links and emphasis in every cell, 282 KB | 1 005 ms / 395 MB / 22 MB | 45 MB |
+| 1 000 rows of 400 unclosed `[` and `*`, 594 KB | 1 915 ms / 636 MB / 76 MB | 181 MB |
 
-So a table has no budget of its own any more; a single row over the inline budget is still read
-as written, as every paragraph is. `inline-parse-budget.test.ts` reads a table of 8 000 rows as a
-table with all 8 000 links, within 3 s on the reference core.
+The peak follows the characters, the cells and the inline syntax, not the rows: about 0.33 MB per
+1 000 characters, 7 KB per cell boundary and 1.4 KB per character of inline syntax, within a factor
+of 1.5 for every shape above. So a table is weighed by exactly that (`tableReadCost`: one per
+character, 20 per `|`, 4 per character of inline syntax) and has a budget of 1 200 000
+(`TABLE_READ_BUDGET`): about 400 MB at the peak on the desktop and one to two seconds, which a
+phone's WebView carries with room for the rest of the app. In rows: about 12 000 short rows of a
+word and a link, 8 500 rows of four short cells, 6 000 rows of four cells of words, 2 300 rows with
+links and emphasis in every cell, 550 rows of 400 unclosed `[` and `*` — three to five times the
+old rule for ordinary tables. A table over the budget is read as written, as before: in the index
+it has no links, and the reading view shows its lines as one paragraph of text with the pipes in
+it, no table. Read as written the same tables hold 20–200 MB at the peak and a few MB afterwards.
+
+What the written reading costs above the budget is the one thing not linear here, and it is not the
+table's: micromark's text initializer (`resolveAllText`, 4.0.2) merges adjacent `data` events with
+one `splice` each on the paragraph's whole event list, quadratic in the lines of one paragraph —
+20 000 such rows read as written take 2.5 s, 40 000 rows 19.6 s (93 % in that function), 50 000
+rows 23 s in the reading view. The same holds for any paragraph of that many lines. micromark 4.0.3
+(2026-09-26, "use edit map in text initializer") fixes it, but the same release changes how
+emphasis next to other punctuation is read ("fix attention flanking next to others"), so taking it
+is a package of its own with its own corpus check, not part of this one. Lists are in the same
+class as tables for memory (20 000 list items with a link: 409 MB at the peak), with no budget of
+their own.
+
+`inline-parse-budget.test.ts` reads a table at the budget (about 12 000 rows) as a table with every
+link, the same table one row longer as written — one paragraph, every other block of the note as
+before — within 5 s on the reference core, and times a table of 4 000 rows apart from those (3 s on
+the reference core, about half a second here).
 
 The core gate still leaves the long note out (`longTableNote: false`): taking it in would void
 every recorded baseline, and the unit test above already holds its cost. Whether the editor

@@ -9,6 +9,10 @@ import {
   overBudgetInlineRanges,
   restoreBoundedTree,
   restoreBoundedValue,
+  TABLE_CELL_WEIGHT,
+  TABLE_READ_BUDGET,
+  TABLE_SYNTAX_WEIGHT,
+  tableReadCost,
 } from "../src/inlineParseBudget.ts";
 import { parseCommonMarkTree, parseMarkdownAst, parseMarkdownTree, type MarkdownTreeNode } from "../src/markdown-parser.ts";
 import { extractLinksAndTags } from "../src/ast-scanner.ts";
@@ -18,8 +22,8 @@ import { analyzeNoteOutline, analyzeNoteSource } from "../src/noteSource.ts";
  * The parse budget (open-items plan 3.133 no. 4): a line of 100 000 `]` held
  * the reading view and the note source for minutes, because the Markdown
  * parser looks back over a whole paragraph at each `]`, `*`, `_` and `~`. The
- * same work came from short lines without a blank line between them (a table
- * of many rows did too, until GFM tables 2.1.2 read one in linear time — L13).
+ * same work came from short lines without a blank line between them, and a
+ * table of many rows holds hundreds of megabytes while it is read (L13).
  * A stretch over the budget is read as written; every
  * other part of the note, and every note a person writes, is read as before.
  *
@@ -82,22 +86,64 @@ describe("the inline parse budget", () => {
     expect(source.blocks.map((b) => b.id)).toEqual(["block"]);
   }, 240 * SECONDS);
 
-  it("reads a table of many rows as a table, in time linear in its cells, with the links of every cell", () => {
-    // Until GFM tables 2.1.2 the table parser's work grew with the square of
-    // the cells, and a table this long was read as written (L13): no table,
-    // and none of its 8 000 links reached the index. Linear, it takes about
-    // half a second; reading it as written took no less.
-    const rows = Array.from({ length: 8_000 }, (_, i) => `| row ${i} | [[n${i}]] |`);
-    const table = ["| a | b |", "|---|---|", ...rows].join("\n");
-    const note = `# Data\n\n${table}\n\nbelow [[Link]]\n`;
+  it("weighs a table by its characters, its cells and its inline syntax", () => {
+    const row = "| [[a]] | *b* |";
+    // 15 characters, 3 pipes, 4 brackets and 2 stars.
+    expect(tableReadCost(row, 0, row.length)).toBe(15 + 3 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT);
+    expect(tableReadCost(`x${row}x`, 1, row.length + 1)).toBe(tableReadCost(row, 0, row.length));
+  });
+
+  // Rows of a word and a link, added until the table is at the budget (L13):
+  // about 12 000 of them. Until GFM tables 2.1.2 the rule was rows times
+  // length, for a parse that grew with the square of the cells, and a table
+  // of more than about 2 500 such rows was read as written — no table, and
+  // none of its links in the index.
+  const HEADER = "| a | b |";
+  const atBudget = (() => {
+    const rows: string[] = [];
+    // The header row weighs in; the delimiter row holds no content.
+    let cost = tableReadCost(HEADER, 0, HEADER.length);
+    for (let i = 0; ; i++) {
+      const row = `| row ${i} | [[n${i}]] |`;
+      if (cost + tableReadCost(row, 0, row.length) > TABLE_READ_BUDGET) return { rows, next: row };
+      rows.push(row);
+      cost += tableReadCost(row, 0, row.length);
+    }
+  })();
+  const noteOf = (rows: string[]) => `# Data\n\n${[HEADER, "|---|---|", ...rows].join("\n")}\n\nbelow [[Link]]\n`;
+
+  it("reads a table at its budget as a table, with the link of every cell", () => {
+    expect(atBudget.rows.length).toBeGreaterThan(10_000);
+    const note = noteOf(atBudget.rows);
     expect(overBudgetInlineRanges(note)).toEqual([]);
-    const tree = within(3 * SECONDS, () => parseMarkdownTree(note));
-    expect(tree.children!.map((node) => node.type)).toEqual(["heading", "table", "paragraph"]);
-    expect(tree.children![1].children).toHaveLength(8_001);
-    expect(typesOf(tree.children![1]).filter((type) => type === "wikiLink")).toHaveLength(8_000);
+    const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });
+    expect(ast.children.map((node) => node.type)).toEqual(["heading", "table", "paragraph"]);
+    expect(extractLinksAndTags(ast).links.map((link) => link.target)).toEqual([...atBudget.rows.map((_, i) => `n${i}`), "Link"]);
+  }, 240 * SECONDS);
+
+  it("reads a table one row over its budget as written, in bounded time and memory, and the note around it as before", () => {
+    const rows = [...atBudget.rows, atBudget.next];
+    const note = noteOf(rows);
+    const table = [HEADER, "|---|---|", ...rows].join("\n");
+    const ranges = overBudgetInlineRanges(note);
+    expect(ranges).toHaveLength(1);
+    expect(note.slice(ranges[0].from, ranges[0].to)).toBe(table);
+    const tree = within(5 * SECONDS, () => parseMarkdownTree(note));
+    expect(tree.children!.map((node) => node.type)).toEqual(["heading", "paragraph", "paragraph"]);
+    expect(textsOf(tree.children![1]).join("")).toBe(table);
+    // What the parse keeps of it is a paragraph of text — no cell, no link: a
+    // handful of nodes where the table held more than 100 000.
+    expect(typesOf(tree.children![1]).length).toBeLessThan(10);
     expect(typesOf(tree.children![2])).toContain("wikiLink");
-    const ast = within(3 * SECONDS, () => parseMarkdownAst(note, { preserveObsidianSyntax: true }));
-    expect(extractLinksAndTags(ast).links.map((link) => link.target)).toEqual([...rows.map((_, i) => `n${i}`), "Link"]);
+  }, 240 * SECONDS);
+
+  it("reads a long table in time linear in its cells", () => {
+    // 4 000 rows take about half a second; the budget leaves five times that,
+    // scaled to a slower core. Quadratic, as before GFM tables 2.1.2, they took
+    // seconds.
+    const note = noteOf(Array.from({ length: 4_000 }, (_, i) => `| row ${i} | [[n${i}]] |`));
+    const tree = within(3 * SECONDS, () => parseMarkdownTree(note));
+    expect(tree.children![1].type).toBe("table");
   }, 240 * SECONDS);
 
   it("leaves the links of a stretch read as written out of the index's reading", () => {

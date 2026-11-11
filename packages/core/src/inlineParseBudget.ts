@@ -30,11 +30,11 @@
  * markers are read past). Two kinds of lines inside such a run are no
  * paragraph text and are measured on their own or not at all: the lines of
  * fenced code (no inline syntax is read in them) and the rows of a table
- * (each cell is read for itself). A table as a whole has no budget of its
- * own: the table parser reads it in time linear in its cells since GFM tables
- * 2.1.2 (Gesamtplan Leistung L13; before, its work grew with the square of a
- * note's cells, and a table of more than about 2 500 rows was read as written
- * — its links missing from the index). Each of
+ * (each cell is read for itself). A table as a whole has a budget of its
+ * own (`TABLE_READ_BUDGET`), for the memory its parse takes: since GFM
+ * tables 2.1.2 the table parser reads a table in time linear in its cells
+ * (Gesamtplan Leistung L13), but every cell is a parse of its own, and the
+ * events of a large table take hundreds of megabytes while it is read. Each of
  * these is recognised only where every Markdown reader agrees it is what it
  * looks like; anything less certain is measured with the lines around it — a
  * mistake there can only make a stretch be read as written, never let one
@@ -368,10 +368,53 @@ function delimiterRowCells(line: string): number | null {
   return cells.length;
 }
 
+/** The characters of inline syntax a table's weight counts (`tableReadCost`): each opens or closes a construct the parser keeps events for. */
+const TABLE_SYNTAX = "\\[]*_~`<&!$";
+
+/** What a cell boundary weighs against a character: a cell is a parse of its own, with its own events. */
+export const TABLE_CELL_WEIGHT = 20;
+
+/** What a character of inline syntax weighs against a plain one. */
+export const TABLE_SYNTAX_WEIGHT = 4;
+
+/**
+ * What reading the table rows in `text[from, to)` weighs: one per character,
+ * `TABLE_CELL_WEIGHT` per `|`, `TABLE_SYNTAX_WEIGHT` per character of inline
+ * syntax. Fitted to what the parse holds at its peak (L13, measured
+ * 2026-11-12 on the desktop, short rows, wide rows, links and emphasis in
+ * every cell, openers without closers): about 0.33 MB per 1 000 of weight,
+ * within a factor of 1.5 for every shape; the tree that stays afterwards is
+ * a tenth of that for the index and a quarter for the reading view.
+ */
+export function tableReadCost(text: string, from: number, to: number): number {
+  let cost = to - from;
+  for (let i = from; i < to; i++) {
+    const ch = text[i];
+    if (ch === "|") cost += TABLE_CELL_WEIGHT;
+    else if (TABLE_SYNTAX.includes(ch)) cost += TABLE_SYNTAX_WEIGHT;
+  }
+  return cost;
+}
+
+/**
+ * The most `tableReadCost` a table may have and still be read as a table;
+ * over it the whole table is read as written. At the budget the parse holds
+ * about 400 MB at its peak on the desktop (the process's resident memory;
+ * the live heap is about two thirds of it) and takes one to two seconds: a
+ * phone's WebView carries that with room for the rest of the app, and a
+ * crash in the index pass would come back at the next start with the same
+ * note. In rows: about 12 000 short rows of a link and a word, 8 500 rows of
+ * four short cells, 6 000 rows of four cells of words, 2 300 rows with
+ * links and emphasis in every cell, 550 rows of 400 unclosed `[` and `*`.
+ * Before GFM tables 2.1.2 the rule was rows times length (5 × 10⁸), about
+ * 2 500 short rows, for the time a quadratic parse took.
+ */
+export const TABLE_READ_BUDGET = 1_200_000;
+
 /**
  * The stretches of `text` a parser would spend more than the budget on:
  * paragraphs (runs of lines without a blank line, fenced code and table rows
- * left out) and single table rows. In text order, never
+ * left out), single table rows, and whole tables. In text order, never
  * overlapping; empty for every note a person writes.
  */
 export function overBudgetInlineRanges(text: string): BoundedRange[] {
@@ -384,16 +427,18 @@ export function overBudgetInlineRanges(text: string): BoundedRange[] {
     if (run && exceedsInlineParseBudget(text, run.from, run.to)) ranges.push({ ...run });
     run = null;
   };
-  // The table being read: where it starts and ends, the rows over the budget.
-  let table: { from: number; to: number; costly: BoundedRange[] } | null = null;
+  // The table being read: where it starts and ends, what it weighs, the rows over the budget.
+  let table: { from: number; to: number; cost: number; costly: BoundedRange[] } | null = null;
   const endTable = () => {
     if (!table) return;
-    ranges.push(...table.costly);
+    if (table.cost > TABLE_READ_BUDGET) ranges.push({ from: table.from, to: table.to });
+    else ranges.push(...table.costly);
     table = null;
   };
   const addRow = (line: Line) => {
     if (!table) return;
     table.to = line.to;
+    table.cost += tableReadCost(text, line.from, line.to);
     if (exceedsInlineParseBudget(text, line.from, line.to)) table.costly.push({ from: line.from, to: line.to });
   };
   let fence: Fence | null = null;
@@ -452,7 +497,7 @@ export function overBudgetInlineRanges(text: string): BoundedRange[] {
       const header = tableCells(line.text);
       const delimiter = delimiterRowCells(lines[index + 1].text);
       if (header !== null && delimiter !== null && header === delimiter) {
-        table = { from: line.from, to: line.to, costly: [] };
+        table = { from: line.from, to: line.to, cost: 0, costly: [] };
         list = null;
         addRow(line);
         // The delimiter row holds nothing but `|`, `-`, `:` and blanks.
