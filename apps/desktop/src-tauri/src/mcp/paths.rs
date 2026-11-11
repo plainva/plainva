@@ -10,8 +10,11 @@ use unicode_normalization::UnicodeNormalization;
 /// module compares; `None` when it could leave the vault, reach Plainva's own
 /// folders, or mean something other than it says on some file system.
 pub fn safe_rel_path(raw: &str) -> Option<String> {
-    let trimmed = raw.trim();
-    let p = trimmed.strip_prefix("./").unwrap_or(trimmed);
+    // Not trimmed: the argument goes on to the web view as the client wrote it, so what is checked here is that
+    // very spelling. A trimmed copy let `Icon\r` (the internal folder icon file of macOS) and `a.md ` through as
+    // `Icon` and `a.md` (R19 of the stability plan); white space at either end now stays part of the name, and a
+    // control character or a trailing space or dot refuses it below.
+    let p = raw.strip_prefix("./").unwrap_or(raw);
     if p.is_empty() || p.len() > 1024 {
         return None;
     }
@@ -40,7 +43,99 @@ pub fn safe_rel_path(raw: &str) -> Option<String> {
     if parts.iter().any(|part| part.starts_with('.')) {
         return None;
     }
+    // The core's internal folders that have no leading dot (`node_modules`, `Thumbs.db`, `$RECYCLE.BIN`, …), folded as
+    // the file system folds them: never shown in the app, never a path here (`content_path_refusal`).
+    if content_path_refusal(p) == Some(Refusal::Internal) {
+        return None;
+    }
     Some(parts.join("/").nfc().collect())
+}
+
+/// The internal-path rules of the core (`INTERNAL_PATH_RULES` in `internalPath.ts`), read from the file the core's
+/// own test pins to them: a folder the core never shows is no path a client may name here either.
+fn internal_rules() -> &'static crate::vault_walk::WalkRules {
+    #[derive(serde::Deserialize)]
+    struct Pinned {
+        rules: crate::vault_walk::WalkRules,
+    }
+    static RULES: std::sync::OnceLock<crate::vault_walk::WalkRules> = std::sync::OnceLock::new();
+    RULES.get_or_init(|| {
+        serde_json::from_str::<Pinned>(include_str!("../../../../../packages/core/src/vault/internalPathRules.fixture.json"))
+            .map(|pinned| pinned.rules)
+            // Compiled in and tested: a file that does not read is a build that is broken, and it refuses every name
+            // that starts with a dot through `safe_rel_path` all the same.
+            .unwrap_or_default()
+    })
+}
+
+/// Why a path a client names needs a second look before it is followed to the disk — `contentPathRefusal` of the
+/// core, the same verdicts on the same list (`contentPathRefusal.fixture.json`). `Internal` is final; the other three
+/// are shapes that are ordinary names on some systems and reach a device, a hidden stream or another folder on
+/// Windows: followed only where the vault holds exactly that spelling (`real_inside`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refusal {
+    Internal,
+    Device,
+    Stream,
+    Alias,
+}
+
+pub fn content_path_refusal(path: &str) -> Option<Refusal> {
+    let normalized = path.replace('\\', "/");
+    let segments: Vec<&str> = normalized.split('/').collect();
+    let rules = internal_rules();
+    if segments.iter().any(|segment| rules.is_internal(&segment.nfc().collect::<String>())) {
+        return Some(Refusal::Internal);
+    }
+    if segments.iter().any(|segment| is_device_segment(segment)) {
+        return Some(Refusal::Device);
+    }
+    if segments.iter().any(|segment| segment.contains(':')) {
+        return Some(Refusal::Stream);
+    }
+    if segments.iter().any(|segment| is_short_name_alias(segment)) {
+        return Some(Refusal::Alias);
+    }
+    None
+}
+
+/// A Windows device name with or without an extension, in any case (`isWindowsDeviceSegment`).
+fn is_device_segment(segment: &str) -> bool {
+    let base = segment.split('.').next().unwrap_or("").trim_end_matches(' ').to_lowercase();
+    if matches!(base.as_str(), "con" | "prn" | "aux" | "nul" | "conin$" | "conout$") {
+        return true;
+    }
+    let mut chars = base.chars();
+    let head: String = chars.by_ref().take(3).collect();
+    let rest: Vec<char> = chars.collect();
+    (head == "com" || head == "lpt") && rest.len() == 1 && (rest[0].is_ascii_digit() || matches!(rest[0], '\u{b9}' | '\u{b2}' | '\u{b3}'))
+}
+
+/// The 8.3 short form Windows can keep beside a long name (`isShortNameAlias`): one to six characters other than a
+/// dot or a tilde, a tilde, a number from 1 without a leading zero (at most six digits), and up to three characters
+/// of extension.
+fn is_short_name_alias(segment: &str) -> bool {
+    let (name, extension) = match segment.split_once('.') {
+        Some((name, extension)) => (name, Some(extension)),
+        None => (segment, None),
+    };
+    if extension.is_some_and(|extension| extension.contains('.') || extension.chars().count() > 3) {
+        return false;
+    }
+    let Some((stem, number)) = name.split_once('~') else {
+        return false;
+    };
+    let stem_len = stem.chars().count();
+    (1..=6).contains(&stem_len)
+        && !stem.contains('~')
+        && (1..=6).contains(&number.len())
+        && number.chars().all(|c| c.is_ascii_digit())
+        && !number.starts_with('0')
+}
+
+/// Whether one segment has a shape `content_path_refusal` asks about beside the internal folders.
+fn unusual_shape(segment: &str) -> bool {
+    is_device_segment(segment) || segment.contains(':') || is_short_name_alias(segment)
 }
 
 /// The spelling two paths are compared in: NFC always (macOS may hand either
@@ -79,21 +174,55 @@ pub fn result_paths_allowed(paths: &[String], folders: &[String]) -> bool {
 
 /// The file a vault path names, with symlinks and junctions resolved (ADR
 /// 0021): it must still lie inside the vault and inside the client's folders.
-/// A path that does not exist passes — the web view then answers "not found".
+/// A path that does not exist (yet) is judged by the nearest part of it that
+/// does: a new note under a link that leads out of the vault or the folders
+/// bounces like an existing one, and a missing one inside them passes — the
+/// web view then answers "not found". A segment of an unusual shape (a
+/// device name, an 8.3 alias, a stream) passes only where the listing of its
+/// folder holds exactly that name: the vault's own spelling, never another one
+/// the file system resolves (`contentPathIsReal` in the core).
 pub fn real_inside(root: &std::path::Path, rel: &str, folders: &[String]) -> bool {
     let Ok(real_root) = std::fs::canonicalize(root) else {
         return false;
     };
-    let real = match std::fs::canonicalize(root.join(rel)) {
-        Ok(path) => path,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return true,
-        Err(_) => return false,
+    let segments: Vec<&str> = rel.split('/').filter(|segment| !segment.is_empty()).collect();
+    if content_path_refusal(rel) == Some(Refusal::Internal) {
+        return false;
+    }
+    for (i, segment) in segments.iter().enumerate() {
+        if !unusual_shape(segment) {
+            continue;
+        }
+        let folder = segments[..i].iter().fold(root.to_path_buf(), |path, part| path.join(part));
+        let Ok(entries) = std::fs::read_dir(&folder) else {
+            return false;
+        };
+        let wanted: String = segment.nfc().collect();
+        let held = entries.flatten().any(|entry| entry.file_name().to_str().is_some_and(|name| name.nfc().collect::<String>() == wanted));
+        if !held {
+            return false;
+        }
+    }
+    // The nearest part of the path that exists, resolved; what does not exist yet follows it as it was named.
+    let mut existing = segments.len();
+    let real = loop {
+        let probe = segments[..existing].iter().fold(root.to_path_buf(), |path, part| path.join(part));
+        match std::fs::canonicalize(&probe) {
+            Ok(real) => break real,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && existing > 0 => existing -= 1,
+            Err(_) => return false,
+        }
     };
     let Ok(inner) = real.strip_prefix(&real_root) else {
         return false;
     };
-    let inner = inner.to_string_lossy().replace('\\', "/");
-    allowed(&inner, folders).is_some()
+    let mut parts: Vec<String> = inner.components().map(|part| part.as_os_str().to_string_lossy().to_string()).collect();
+    parts.extend(segments[existing..].iter().map(|segment| segment.to_string()));
+    if parts.is_empty() {
+        // The vault itself: a place only for a client that was given all of it.
+        return folders.iter().any(|folder| folder.trim_matches('/').is_empty());
+    }
+    allowed(&parts.join("/"), folders).is_some()
 }
 
 /// Addresses no answer may carry to a client: local files and the loopback.
@@ -222,6 +351,123 @@ mod tests {
         assert!(real_inside(vault.path(), "Projects/missing.md", &granted), "not found is the web view's answer");
         assert!(!real_inside(vault.path(), "Projects/escape.md", &granted), "out of the vault");
         assert!(!real_inside(vault.path(), "Projects/private/s.md", &granted), "into a folder not granted");
+    }
+
+    /// A vault for the shape tests: a granted folder, Plainva's own folder beside it.
+    fn shaped_vault() -> tempfile::TempDir {
+        let vault = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(vault.path().join("Projects")).unwrap();
+        std::fs::create_dir_all(vault.path().join(".plainva/sync")).unwrap();
+        std::fs::write(vault.path().join(".plainva/sync/keyfile.json"), "k").unwrap();
+        vault
+    }
+
+    #[test]
+    fn internal_folders_without_a_leading_dot_bounce_as_in_the_core() {
+        for bad in ["node_modules/x.md", "Notes/__pycache__/x.md", "Thumbs.db", "Notes/desktop.ini", "$RECYCLE.BIN/x.md", "System Volume Information/x.md", "Icon\r"] {
+            assert_eq!(safe_rel_path(bad), None, "{bad:?} must bounce");
+        }
+        for good in ["node_modules_archive/x.md", "Thumbs.db.md", "Build/x.md", "plainva/x.md"] {
+            assert!(safe_rel_path(good).is_some(), "{good:?} stays the user's");
+        }
+    }
+
+    #[test]
+    fn a_name_of_an_unusual_shape_passes_only_where_the_vault_holds_that_spelling() {
+        let vault = shaped_vault();
+        let all = folders(&[""]);
+        // Not held by the vault: an 8.3 alias of Plainva's own folder, a device name.
+        for bad in ["PLAINV~1/sync/keyfile.json", "PLAINV~1/sync/new.md", "Projects/aux.md", "Projects/NUL", "Projects/com1.txt", "CON/x.md"] {
+            assert!(!real_inside(vault.path(), bad, &all), "{bad:?} must bounce");
+        }
+    }
+
+    #[test]
+    fn a_missing_note_under_a_link_out_of_the_folders_bounces() {
+        let vault = shaped_vault();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(vault.path().join("Private")).unwrap();
+        // Joined part by part: `mklink` reads a forward slash as the start of an option.
+        link_dir(outside.path(), &vault.path().join("Projects").join("out"));
+        link_dir(&vault.path().join("Private"), &vault.path().join("Projects").join("private"));
+        let granted = folders(&["Projects"]);
+        assert!(!real_inside(vault.path(), "Projects/out/new.md", &granted), "a new note out of the vault");
+        assert!(!real_inside(vault.path(), "Projects/out/deeper/new.md", &granted), "deeper still");
+        assert!(!real_inside(vault.path(), "Projects/private/new.md", &granted), "a new note in a folder not granted");
+        assert!(real_inside(vault.path(), "Projects/new/deeper.md", &granted), "a new folder in a granted one");
+    }
+
+    /// A folder link as the platform makes one without rights: a symlink on Unix, a junction on Windows.
+    fn link_dir(target: &std::path::Path, link: &std::path::Path) {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(target, link).unwrap();
+        #[cfg(windows)]
+        {
+            let status = std::process::Command::new("cmd").arg("/C").arg("mklink").arg("/J").arg(link).arg(target).output().unwrap();
+            assert!(status.status.success(), "{}", String::from_utf8_lossy(&status.stderr));
+        }
+    }
+
+    /// The short name Windows keeps for a long one, where the volume makes them.
+    #[cfg(windows)]
+    fn short_name(path: &std::path::Path) -> Option<String> {
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+        let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+        let mut buffer = vec![0u16; 1024];
+        let n = unsafe { windows_sys::Win32::Storage::FileSystem::GetShortPathNameW(wide.as_ptr(), buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+        if n == 0 || n > buffer.len() {
+            return None;
+        }
+        let short = std::path::PathBuf::from(std::ffi::OsString::from_wide(&buffer[..n]));
+        let name = short.file_name()?.to_string_lossy().to_string();
+        (name != path.file_name()?.to_string_lossy()).then_some(name)
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn the_real_short_name_of_plainvas_folder_bounces_on_windows() {
+        let vault = shaped_vault();
+        let all = folders(&[""]);
+        // Where the volume keeps 8.3 names (the system drive does by default), the real one; the shape alone otherwise.
+        let alias = short_name(&vault.path().join(".plainva")).unwrap_or_else(|| "PLAINV~1".to_string());
+        for rel in [format!("{alias}/sync/keyfile.json"), format!("{alias}/sync/new.md"), format!("{alias}/new.md")] {
+            assert!(safe_rel_path(&rel).is_some(), "the shape alone passes the first look: {rel}");
+            assert!(!real_inside(vault.path(), &rel, &all), "{rel} must bounce");
+        }
+    }
+
+    /// The verdicts of the core's `contentPathRefusal`, from the one list both sides read
+    /// (`packages/core/src/vault/contentPathRefusal.fixture.json`; the core's test reads it as well).
+    #[test]
+    fn the_verdicts_are_the_cores_on_the_shared_list() {
+        let fixture: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(include_str!("../../../../../packages/core/src/vault/contentPathRefusal.fixture.json")).unwrap();
+        let verdicts = [("internal", Some(Refusal::Internal)), ("device", Some(Refusal::Device)), ("stream", Some(Refusal::Stream)), ("alias", Some(Refusal::Alias)), ("none", None)];
+        let mut keys: Vec<&str> = fixture.keys().map(String::as_str).filter(|key| *key != "about").collect();
+        keys.sort_unstable();
+        let mut named: Vec<&str> = verdicts.iter().map(|(key, _)| *key).collect();
+        named.sort_unstable();
+        assert_eq!(keys, named, "the list names no other verdict");
+        for (key, verdict) in verdicts {
+            let paths = fixture[key].as_array().unwrap();
+            assert!(!paths.is_empty(), "the list names {key} paths");
+            for path in paths {
+                let path = path.as_str().unwrap();
+                assert_eq!(content_path_refusal(path), verdict, "{path:?}");
+            }
+        }
+    }
+
+    /// A path the core refuses as internal is never one a client may name here; one of an unusual shape passes the
+    /// first look and is decided at the disk (`real_inside`).
+    #[test]
+    fn the_first_look_refuses_what_the_core_calls_internal() {
+        let fixture: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(include_str!("../../../../../packages/core/src/vault/contentPathRefusal.fixture.json")).unwrap();
+        for path in fixture["internal"].as_array().unwrap() {
+            let path = path.as_str().unwrap();
+            assert_eq!(safe_rel_path(path), None, "{path:?}");
+        }
     }
 
     #[test]

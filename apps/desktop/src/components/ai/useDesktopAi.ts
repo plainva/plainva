@@ -265,7 +265,7 @@ export function useDesktopAi(input: DesktopAiInput) {
     }),
   );
 
-  const { vaultPath, vaultAdapter, queryService } = input;
+  const { vaultPath, vaultAdapter, queryService, encrypted: sealed } = input;
   /** The vault host of the open vault: the MCP server's calls run on it too (plan §17.3). */
   const hostRef = useRef<AiVaultHost | null>(null);
   useEffect(() => {
@@ -410,9 +410,10 @@ export function useDesktopAi(input: DesktopAiInput) {
   useEffect(() => {
     if (!session || !state?.loaded) return;
     const vault = vaultPath && vaultAdapter && queryService ? { path: vaultPath, name: vaultName(vaultPath) } : null;
-    void configureMcp(mcpOn, vault).catch(() => undefined);
+    // An encrypted workspace takes no changes from an app (E32): no tool that writes is even listed there.
+    void configureMcp(mcpOn, vault, { sealed }).catch(() => undefined);
     // The prompts speak the app's language: a switch registers them again.
-  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language]);
+  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language, sealed]);
 
   // "Transcribe" at every voice note (plan P1.5): the door exists while the AI is on for the open vault.
   useEffect(() => {

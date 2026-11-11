@@ -277,7 +277,8 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         }
         // The call names the vault it is for: the main window runs it only while that vault is open.
         let from = CallFrom { client: &self.client, vault_key: &self.vault_key, generation: self.generation };
-        let answer = match state.forward_call(&self.app, from, &name, serde_json::Value::Object(args), &folders, extra).await {
+        // A client that cancels the call, or leaves, ends the wait: nothing of it is kept for an answer nobody reads.
+        let answer = match state.forward_call(&self.app, from, &name, serde_json::Value::Object(args), &folders, extra, context.ct.cancelled()).await {
             Ok(answer) => answer,
             Err(message) => {
                 self.audit(&name, false, 0);

@@ -318,12 +318,16 @@ export function vaultName(path: string): string {
   return trimmed.slice(Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\")) + 1);
 }
 
-/** Tells the native side what to serve: on or off, the open vault, the tools. */
-export function configureMcp(enabled: boolean, vault: { path: string; name: string } | null): Promise<void> {
+/**
+ * Tells the native side what to serve: on or off, the open vault, the tools. In an encrypted workspace (`sealed`),
+ * which takes no suggestion, draft or plan of anyone outside it yet (E32), only the tools that read: a tool that
+ * would be refused at every call is not offered at all, as the assistant offers none there (`writeTools.ts`).
+ */
+export function configureMcp(enabled: boolean, vault: { path: string; name: string } | null, options: { sealed?: boolean } = {}): Promise<void> {
   return invoke("mcp_configure", {
     enabled,
     vault: vault ? { key: aiVaultKey(vault.path), name: vault.name, root: vault.path } : null,
-    tools: mcpToolSpecs(),
+    tools: mcpToolSpecs().filter((spec) => !options.sealed || spec.kind === "read"),
     // The core skills as prompts (plan P1.5), in the app's language.
     prompts: mcpSkillPrompts((key, vars) => i18n.t(key, vars)),
   });

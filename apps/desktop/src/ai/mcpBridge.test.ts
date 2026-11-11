@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolsFor, type EgressRecipient } from "@plainva/core";
 import { createVaultToolExecutor, type AiVaultHost, type ToolScope, type VaultToolDeps } from "@plainva/ui";
+import { invoke } from "@tauri-apps/api/core";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 // The event plugin as the E2E browser has it: registering works, stopping rejects.
@@ -12,7 +13,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   }),
 }));
 
-const { MCP_VAULT_CHANGED, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { MCP_VAULT_CHANGED, configureMcp, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -141,6 +142,26 @@ describe("the MCP bridge", () => {
     expect(JSON.parse(mcpClientConfig("/Applications/Plainva.app/Contents/MacOS/plainva-mcp", "com.plainva.desktop"))).toEqual({
       mcpServers: { plainva: { command: "/Applications/Plainva.app/Contents/MacOS/plainva-mcp", args: ["--app", "com.plainva.desktop"] } },
     });
+  });
+});
+
+/** R19 of the stability plan: an encrypted workspace takes no change of an app, so it is offered none. */
+describe("what the native side is told to serve", () => {
+  const served = () => {
+    const calls = vi.mocked(invoke).mock.calls.filter(([command]) => command === "mcp_configure");
+    return (calls[calls.length - 1]![1] as { tools: { name: string; kind: string }[]; vault: { key: string; name: string; root: string } | null });
+  };
+
+  it("in an encrypted workspace only the tools that read; elsewhere the tools that write as well", async () => {
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" });
+    const open = served();
+    expect(open.tools.some((tool) => tool.kind !== "read")).toBe(true);
+    expect(open.vault).toEqual({ key: expect.stringMatching(/^v[0-9a-f]{16}$/), name: "Work", root: "D:/Vaults/Work" });
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true });
+    const sealed = served();
+    expect(sealed.tools.length).toBeGreaterThan(0);
+    expect(sealed.tools.every((tool) => tool.kind === "read")).toBe(true);
+    expect(sealed.tools.map((tool) => tool.name)).toEqual(open.tools.filter((tool) => tool.kind === "read").map((tool) => tool.name));
   });
 });
 
