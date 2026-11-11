@@ -90,10 +90,11 @@ interface PluginOutcome {
 
 /**
  * The script the window runs: the plugin's `check`, then `download`, each
- * outcome written to `window.__updaterTestOutcome`; resources are closed.
+ * outcome written to the attribute `data-updater-test-outcome` of the page;
+ * resources are closed.
  */
 const UPDATER_PROBE = `
-  window.__updaterTestOutcome = undefined;
+  document.documentElement.removeAttribute("data-updater-test-outcome");
   var ipc = window.__TAURI_INTERNALS__;
   var meta = null;
   ipc.invoke("plugin:updater|check", {})
@@ -115,20 +116,22 @@ const UPDATER_PROBE = `
     .then(
       function (outcome) {
         if (meta) ipc.invoke("plugin:resources|close", { rid: meta.rid }).catch(function () {});
-        window.__updaterTestOutcome = outcome;
+        document.documentElement.setAttribute("data-updater-test-outcome", JSON.stringify(outcome));
       },
       function (error) {
-        window.__updaterTestOutcome = { check: "error", error: String(error) };
+        document.documentElement.setAttribute("data-updater-test-outcome", JSON.stringify({ check: "error", error: String(error) }));
       }
     );
 `;
 
 /** The updater plugin's own check and download, in the app's window. */
 async function pluginCheckAndDownload(): Promise<PluginOutcome> {
-  // Started in the window and read back by polling, not through an
-  // asynchronous script: both drivers ended "execute/async" with the
-  // plugin's refusal as a WebDriver error although the script caught it
-  // (first CI run, 2026-11-11), which lost the outcome the case is about.
+  // Started in the window and read back from the page's attribute, never
+  // through a script: the driver service reports a rejected IPC call of the
+  // page as the error of the NEXT script it runs ("execute/async" failed
+  // with the plugin's refusal although the probe caught it — CI runs 1 and 3,
+  // 2026-11-11), which lost the outcome the case is about. An element's
+  // attribute is read without a script.
   // As a string: the spec is transpiled with names kept, and a function
   // handed to the window then calls a helper (`__name`) that exists only in
   // this process (second CI run, 2026-11-11).
@@ -136,7 +139,8 @@ async function pluginCheckAndDownload(): Promise<PluginOutcome> {
   let outcome: PluginOutcome | undefined;
   await browser.waitUntil(
     async () => {
-      outcome = ((await browser.execute("return window.__updaterTestOutcome;")) as PluginOutcome | null) ?? undefined;
+      const json = await $("html").getAttribute("data-updater-test-outcome");
+      outcome = json ? (JSON.parse(json) as PluginOutcome) : undefined;
       return outcome !== undefined;
     },
     { timeout: 30_000, interval: 200, timeoutMsg: "the updater plugin never answered" },
