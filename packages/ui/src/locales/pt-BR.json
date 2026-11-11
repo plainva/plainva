@@ -5171,7 +5171,11 @@
       "aiKeyNotRemoved": "Não foi possível remover a chave de {{provider}} deste dispositivo, por isso {{provider}} continua na lista: {{reason}}",
       "accountSignInKept": "A conta foi removida, mas o login dela não pôde ser apagado deste dispositivo: {{reason}}",
       "taskNoteNotRestored": "Não foi possível recuperar “{{name}}”: {{reason}}",
-      "ledgerKept": "As alterações feitas enquanto o índice de busca estava fechado ainda não puderam ser entregues à sincronização: {{reason}}. Elas ficam neste dispositivo, e a próxima inicialização tenta de novo."
+      "ledgerKept": "As alterações feitas enquanto o índice de busca estava fechado ainda não puderam ser entregues à sincronização: {{reason}}. Elas ficam neste dispositivo, e a próxima inicialização tenta de novo.",
+      "ledgerSkipped": "Não enviado ({{count}}): exclusões ou renomeações feitas enquanto o índice de busca estava fechado. O arquivo mudou nesse meio-tempo em outro dispositivo, e essa versão está aqui agora.",
+      "ledgerDropped": "Não enviado ({{count}}): as alterações feitas enquanto o índice de busca estava fechado não puderam ser entregues à sincronização: {{reason}}. Faça-as de novo se elas devem chegar aos seus outros dispositivos.",
+      "ledgerSetAside": "As alterações registradas enquanto o índice de busca estava fechado não foram enviadas: pertencem a outra pasta de sincronização, ou o Plainva não conseguiu lê-las. Elas ficam guardadas à parte neste dispositivo.",
+      "ledgerNotWritten": "O Plainva não conseguiu registrar uma alteração para a sincronização enquanto o índice de busca está fechado: {{reason}}. Suas notas estão salvas; esta alteração talvez não chegue aos seus outros dispositivos."
     }
   },
   "palette": {

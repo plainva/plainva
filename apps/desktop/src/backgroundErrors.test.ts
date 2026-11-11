@@ -61,6 +61,22 @@ describe("reportBackground", () => {
     reportBackground("mail:send", new Error("401 for https://me:hunter2@example.com token=abc"));
     expect(getDiagnostics()[0]!.message).not.toMatch(/hunter2|abc/);
   });
+
+  it("keeps out what provider errors echo: an API key, an OAuth code, a bare bearer token, a mailbox's address", () => {
+    const shapes = [
+      "Request failed https://www.googleapis.com/drive/v3/files?key=AIzaSyA-EXAMPLEKEY123&q=x",
+      "token exchange failed: https://example.com/cb?code=4/0AbCdEfSECRETCODE&state=xyz",
+      "Bearer eyJhbGciOiJSUzI1NiJ9.SECRETJWT rejected",
+      "IMAP NO [AUTHENTICATIONFAILED] Invalid credentials for jane.doe@example.org",
+    ];
+    for (const shape of shapes) reportBackground("provider", new Error(shape));
+    const lines = getDiagnostics().map((e) => e.message).join("\n");
+    expect(lines).not.toMatch(/AIzaSyA|SECRETCODE|SECRETJWT|jane\.doe|example\.org/);
+    expect(lines).toContain("key=[REDACTED]");
+    expect(lines).toContain("code=[REDACTED]");
+    expect(lines).toContain("Bearer [REDACTED]");
+    expect(lines).toContain("for [email]");
+  });
 });
 
 describe("reportVisible", () => {

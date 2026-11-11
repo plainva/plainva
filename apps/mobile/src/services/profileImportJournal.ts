@@ -21,7 +21,7 @@ import {
 } from "@plainva/ui";
 import { listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { atomicWriteText } from "../platform/atomicFile";
-import { removeDataFile } from "../platform/dataFiles";
+import { retireDataFile } from "../platform/dataFiles";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
 import { applyVaultSettings, getVaultSettings, type VaultSettings } from "./mobileSettings";
 import type { MobileVault } from "./vaultService";
@@ -165,13 +165,14 @@ export async function writeProfileJournal(vaultId: string, snapshot: ProfileImpo
 }
 
 /**
- * Already gone, or never written — both mean there is nothing to roll back. A
- * journal that stays in place throws (stability plan R4): the next start
- * would take it for an interrupted import and roll back one that went
- * through, without a word.
+ * Already gone, or never written — both mean there is nothing to roll back.
+ * One that will not go is closed in place (`retireDataFile`, read as absent):
+ * left as it was, the next start would take it for an interrupted import and
+ * roll back one that went through, without a word. Throws only when neither
+ * works (stability plan R4).
  */
 export async function clearProfileJournal(vaultId: string): Promise<void> {
-  await removeDataFile(profileJournalPath(vaultId));
+  await retireDataFile(profileJournalPath(vaultId));
 }
 
 async function readProfileJournal(vaultId: string): Promise<ProfileImportJournal | null> {

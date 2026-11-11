@@ -5064,7 +5064,11 @@
       "aiKeyNotRemoved": "De sleutel voor {{provider}} kon niet van dit apparaat worden verwijderd, dus {{provider}} blijft in de lijst: {{reason}}",
       "accountSignInKept": "Het account is verwijderd, maar de aanmelding ervan kon niet van dit apparaat worden gewist: {{reason}}",
       "taskNoteNotRestored": "‘{{name}}’ kon niet worden teruggezet: {{reason}}",
-      "ledgerKept": "Wijzigingen die zijn gemaakt terwijl de zoekindex gesloten was, konden nog niet aan de synchronisatie worden doorgegeven: {{reason}}. Ze blijven op dit apparaat, en de volgende start probeert het opnieuw."
+      "ledgerKept": "Wijzigingen die zijn gemaakt terwijl de zoekindex gesloten was, konden nog niet aan de synchronisatie worden doorgegeven: {{reason}}. Ze blijven op dit apparaat, en de volgende start probeert het opnieuw.",
+      "ledgerSkipped": "Niet verzonden ({{count}}): verwijderingen of hernoemingen die zijn gedaan terwijl de zoekindex gesloten was. Het bestand is intussen op een ander apparaat gewijzigd, en die versie is nu hier.",
+      "ledgerDropped": "Niet verzonden ({{count}}): wijzigingen die zijn gedaan terwijl de zoekindex gesloten was, konden niet aan de synchronisatie worden doorgegeven: {{reason}}. Doe ze opnieuw als ze je andere apparaten moeten bereiken.",
+      "ledgerSetAside": "Wijzigingen die zijn vastgelegd terwijl de zoekindex gesloten was, zijn niet verzonden: ze horen bij een andere synchronisatiemap, of Plainva kon ze niet lezen. Ze worden apart bewaard op dit apparaat.",
+      "ledgerNotWritten": "Plainva kon een wijziging voor de synchronisatie niet vastleggen terwijl de zoekindex gesloten is: {{reason}}. Je notities zijn opgeslagen; deze wijziging bereikt je andere apparaten misschien niet."
     }
   },
   "palette": {

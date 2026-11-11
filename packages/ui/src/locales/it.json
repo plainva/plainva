@@ -5171,7 +5171,11 @@
       "aiKeyNotRemoved": "Impossibile rimuovere la chiave di {{provider}} da questo dispositivo, quindi {{provider}} resta nell'elenco: {{reason}}",
       "accountSignInKept": "L'account è stato rimosso, ma il suo accesso non è stato eliminato da questo dispositivo: {{reason}}",
       "taskNoteNotRestored": "Impossibile recuperare “{{name}}”: {{reason}}",
-      "ledgerKept": "Le modifiche fatte mentre l'indice di ricerca era chiuso non sono ancora state passate alla sincronizzazione: {{reason}}. Restano su questo dispositivo e il prossimo avvio riprova."
+      "ledgerKept": "Le modifiche fatte mentre l'indice di ricerca era chiuso non sono ancora state passate alla sincronizzazione: {{reason}}. Restano su questo dispositivo e il prossimo avvio riprova.",
+      "ledgerSkipped": "Non inviato ({{count}}): eliminazioni o rinomine fatte mentre l'indice di ricerca era chiuso. Nel frattempo il file è cambiato su un altro dispositivo, e quella versione ora è qui.",
+      "ledgerDropped": "Non inviato ({{count}}): le modifiche fatte mentre l'indice di ricerca era chiuso non sono state passate alla sincronizzazione: {{reason}}. Rifalle se devono raggiungere gli altri tuoi dispositivi.",
+      "ledgerSetAside": "Le modifiche registrate mentre l'indice di ricerca era chiuso non sono state inviate: appartengono a un'altra cartella di sincronizzazione, oppure Plainva non è riuscito a leggerle. Sono tenute da parte su questo dispositivo.",
+      "ledgerNotWritten": "Plainva non è riuscito a registrare una modifica per la sincronizzazione mentre l'indice di ricerca è chiuso: {{reason}}. Le tue note sono salvate; questa modifica potrebbe non raggiungere gli altri tuoi dispositivi."
     }
   },
   "palette": {

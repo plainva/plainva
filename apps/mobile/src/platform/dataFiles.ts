@@ -1,4 +1,5 @@
 import { Directory, Filesystem } from "@capacitor/filesystem";
+import { atomicWriteText } from "./atomicFile";
 
 /**
  * Removals in the app's data folder that are allowed to find nothing.
@@ -28,6 +29,26 @@ export async function removeDataFile(path: string, directory: Directory = Direct
     await Filesystem.deleteFile({ path, directory });
   } catch (error) {
     if (await stillInData(path, directory)) throw error;
+  }
+}
+
+/**
+ * Ends a journal: removes it, and where the file will not go, writes a closed
+ * one in its place (`{"done":true}`), which every journal reader takes for
+ * "nothing pending". A journal left as it was would tell the next start that
+ * a finished run was interrupted — an import rolled back, a conversion
+ * offered again. Throws only when neither works.
+ */
+export async function retireDataFile(path: string): Promise<void> {
+  try {
+    await removeDataFile(path);
+  } catch (error) {
+    try {
+      await atomicWriteText(path, JSON.stringify({ done: true }));
+    } catch {
+      // silent: the removal's failure is the one that says what is wrong with the file.
+      throw error;
+    }
   }
 }
 

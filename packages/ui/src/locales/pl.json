@@ -5278,7 +5278,11 @@
       "aiKeyNotRemoved": "Nie udało się usunąć klucza {{provider}} z tego urządzenia, więc {{provider}} pozostaje na liście: {{reason}}",
       "accountSignInKept": "Konto zostało usunięte, ale jego logowania nie udało się usunąć z tego urządzenia: {{reason}}",
       "taskNoteNotRestored": "Nie udało się przywrócić „{{name}}”: {{reason}}",
-      "ledgerKept": "Zmian wprowadzonych, gdy indeks wyszukiwania był zamknięty, nie udało się jeszcze przekazać do synchronizacji: {{reason}}. Pozostają na tym urządzeniu, a następne uruchomienie spróbuje ponownie."
+      "ledgerKept": "Zmian wprowadzonych, gdy indeks wyszukiwania był zamknięty, nie udało się jeszcze przekazać do synchronizacji: {{reason}}. Pozostają na tym urządzeniu, a następne uruchomienie spróbuje ponownie.",
+      "ledgerSkipped": "Nie wysłano ({{count}}): usunięcia lub zmiany nazw wprowadzone, gdy indeks wyszukiwania był zamknięty. W międzyczasie plik zmieniono na innym urządzeniu i ta wersja jest teraz tutaj.",
+      "ledgerDropped": "Nie wysłano ({{count}}): zmian wprowadzonych, gdy indeks wyszukiwania był zamknięty, nie udało się przekazać do synchronizacji: {{reason}}. Wprowadź je ponownie, jeśli mają dotrzeć do innych urządzeń.",
+      "ledgerSetAside": "Zmiany zapisane, gdy indeks wyszukiwania był zamknięty, nie zostały wysłane: należą do innego folderu synchronizacji albo Plainva nie mogła ich odczytać. Są przechowywane osobno na tym urządzeniu.",
+      "ledgerNotWritten": "Plainva nie mogła zapisać zmiany dla synchronizacji, gdy indeks wyszukiwania jest zamknięty: {{reason}}. Twoje notatki są zapisane; ta zmiana może nie dotrzeć do innych urządzeń."
     }
   },
   "palette": {

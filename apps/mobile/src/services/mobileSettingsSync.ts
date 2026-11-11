@@ -172,7 +172,7 @@ interface CachedKeyring {
  * another connection, and the E2E pin hangs off that fingerprint. The defaults
  * are kept verbatim so an existing vault keeps the fingerprint it already has.
  */
-async function remoteRoot(vaultId: string, provider: MobileSyncProvider): Promise<string> {
+export async function remoteRoot(vaultId: string, provider: MobileSyncProvider): Promise<string> {
   switch (provider.provider) {
     case "webdav": return provider.creds.url;
     case "s3": return `${provider.creds.endpoint}/${provider.creds.bucket}/${provider.creds.prefix ?? ""}`;
@@ -800,12 +800,14 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
         await store.set(unknownKey(vaultId), unknown);
         await store.save();
         await applyVaultSettings(vaultId, patch);
-        await clearProfileJournal(vaultId);
       } catch (error) {
         await restoreProfileSnapshot(vault, snapshot);
         await clearProfileJournal(vaultId);
         throw error;
       }
+      // The import went through: ending its journal is outside the rollback,
+      // or a journal that will not close would undo what was applied (R4).
+      await clearProfileJournal(vaultId);
       // The accounts exist now; the runtimes have to be told, or the calendar
       // The design register joins after the rollback-able profile import; a
       // retry is idempotent and cannot roll back a concurrent local choice.

@@ -5064,7 +5064,11 @@
       "aiKeyNotRemoved": "The key for {{provider}} could not be removed from this device, so {{provider}} stays on the list: {{reason}}",
       "accountSignInKept": "The account was removed, but its sign-in could not be deleted from this device: {{reason}}",
       "taskNoteNotRestored": "“{{name}}” could not be brought back: {{reason}}",
-      "ledgerKept": "Changes made while the search index was closed could not be handed to the sync yet: {{reason}}. They stay on this device, and the next start tries again."
+      "ledgerKept": "Changes made while the search index was closed could not be handed to the sync yet: {{reason}}. They stay on this device, and the next start tries again.",
+      "ledgerSkipped": "Not sent ({{count}}): deletions or renames made while the search index was closed. The file changed on another device meanwhile, and that version is here now.",
+      "ledgerDropped": "Not sent ({{count}}): changes made while the search index was closed could not be handed to the sync: {{reason}}. Make them again if they should reach your other devices.",
+      "ledgerSetAside": "Changes recorded while the search index was closed were not sent: they belong to another sync folder, or Plainva could not read them. They are kept aside on this device.",
+      "ledgerNotWritten": "Plainva could not record a change for the sync while the search index is closed: {{reason}}. Your notes are saved; this change may not reach your other devices."
     }
   },
   "palette": {

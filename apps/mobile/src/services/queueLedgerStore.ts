@@ -28,5 +28,14 @@ export function queueLedgerStore(vaultId: string): QueueLedgerStore {
     },
     save: (text) => atomicWriteText(path, text),
     clear: () => removeDataFile(path),
+    // Kept beside it for a bug report (About & diagnostics); nothing reads it again.
+    setAside: async () => {
+      try {
+        await Filesystem.rename({ from: path, to: `queue-ledger/${vaultId}.set-aside-${Date.now()}.json`, directory: Directory.Data, toDirectory: Directory.Data });
+      } catch (error) {
+        // A ledger that will not move must still never be read again.
+        if (await stillInData(path)) await removeDataFile(path).catch(() => { throw error; });
+      }
+    },
   };
 }

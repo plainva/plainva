@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, utimes } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -715,9 +715,13 @@ describe.each(["android", "ios"] as const)("one connection, two flows (%s)", (pl
 
   it("a new note, a rename, a confirmed deletion, a new folder and an attachment that meet an index pass each get their entry", async () => {
     let pulled = 0;
-    // The index follows a file a pull just wrote — a new one each time.
+    // The index follows a file a pull just wrote — a new one each time, with
+    // a time of its own: two writes can share a modification time, and a
+    // file with the time the index has is one it has read already.
     const indexPass = async () => {
       await raw.writeTextFile("Projects/Gamma.md", note("Gamma", "open", `Grace ${++pulled}`));
+      const at = new Date(Date.UTC(2026, 0, 1) + pulled * 60_000);
+      await utimes(join(root, "Projects/Gamma.md"), at, at);
       return indexer.indexPath("Projects/Gamma.md");
     };
     const meet = async (flow: () => Promise<unknown>) => {

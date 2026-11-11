@@ -4957,7 +4957,11 @@
       "aiKeyNotRemoved": "无法从此设备移除 {{provider}} 的密钥，因此 {{provider}} 仍保留在列表中：{{reason}}",
       "accountSignInKept": "账户已移除，但其登录信息无法从此设备删除：{{reason}}",
       "taskNoteNotRestored": "无法恢复“{{name}}”：{{reason}}",
-      "ledgerKept": "搜索索引关闭期间所做的更改尚未能交给同步：{{reason}}。这些更改保留在此设备上，下次启动时会再次尝试。"
+      "ledgerKept": "搜索索引关闭期间所做的更改尚未能交给同步：{{reason}}。这些更改保留在此设备上，下次启动时会再次尝试。",
+      "ledgerSkipped": "未发送（{{count}}）：搜索索引关闭期间所做的删除或重命名。该文件在此期间已在另一台设备上更改，那个版本现在已在这里。",
+      "ledgerDropped": "未发送（{{count}}）：搜索索引关闭期间所做的更改无法交给同步：{{reason}}。如果需要同步到其他设备，请重新操作一次。",
+      "ledgerSetAside": "搜索索引关闭期间记录的更改未发送：它们属于另一个同步文件夹，或 Plainva 无法读取它们。它们已另行保存在此设备上。",
+      "ledgerNotWritten": "搜索索引关闭期间，Plainva 无法为同步记录一项更改：{{reason}}。你的笔记已保存；此更改可能不会同步到你的其他设备。"
     }
   },
   "palette": {

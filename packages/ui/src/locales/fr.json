@@ -5171,7 +5171,11 @@
       "aiKeyNotRemoved": "La clé de {{provider}} n'a pas pu être retirée de cet appareil, {{provider}} reste donc dans la liste : {{reason}}",
       "accountSignInKept": "Le compte a été retiré, mais sa connexion n'a pas pu être supprimée de cet appareil : {{reason}}",
       "taskNoteNotRestored": "« {{name}} » n'a pas pu être restaurée : {{reason}}",
-      "ledgerKept": "Les modifications faites pendant que l'index de recherche était fermé n'ont pas encore pu être remises à la synchronisation : {{reason}}. Elles restent sur cet appareil, et le prochain démarrage réessaie."
+      "ledgerKept": "Les modifications faites pendant que l'index de recherche était fermé n'ont pas encore pu être remises à la synchronisation : {{reason}}. Elles restent sur cet appareil, et le prochain démarrage réessaie.",
+      "ledgerSkipped": "Non envoyé ({{count}}) : suppressions ou renommages faits pendant que l'index de recherche était fermé. Le fichier a changé entre-temps sur un autre appareil, et cette version est maintenant ici.",
+      "ledgerDropped": "Non envoyé ({{count}}) : les modifications faites pendant que l'index de recherche était fermé n'ont pas pu être remises à la synchronisation : {{reason}}. Refaites-les si elles doivent atteindre vos autres appareils.",
+      "ledgerSetAside": "Les modifications enregistrées pendant que l'index de recherche était fermé n'ont pas été envoyées : elles appartiennent à un autre dossier de synchronisation, ou Plainva n'a pas pu les lire. Elles sont mises de côté sur cet appareil.",
+      "ledgerNotWritten": "Plainva n'a pas pu enregistrer une modification pour la synchronisation pendant que l'index de recherche est fermé : {{reason}}. Vos notes sont enregistrées ; cette modification n'atteindra peut-être pas vos autres appareils."
     }
   },
   "palette": {

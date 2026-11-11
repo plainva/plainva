@@ -24,7 +24,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo, reportBackground } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -310,6 +310,12 @@ export async function getStoredProvider(vaultId: string): Promise<MobileSyncProv
   const store = getPlatformServices().credentials;
   const stored = await store.readSecret<MobileSyncProvider>(credKeyFor(vaultId));
   return stored && stored.provider ? stored : null;
+}
+
+/** Hands the vault's queue ledger over (R5) and asks for a cycle that carries it, when anything was handed. */
+async function handOverLedger(v: MobileVault, cycle: () => void): Promise<void> {
+  const handed = await v.replayLedger?.().catch((error: unknown) => { reportBackground("sync:ledger", error); return 0; });
+  if (handed) cycle();
 }
 
 export function syncPossible(v: MobileVault): boolean {
@@ -1338,7 +1344,11 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     // The first cycle has looked: a file the index finds as new from now on
     // goes into the workspace queue at once, as with the plain worker (3.119).
-    encrypted.onFirstCycleComplete = () => v.markFirstSyncComplete();
+    encrypted.onFirstCycleComplete = () => {
+      // The workspace's queue gets the ledger too, after this pull (R5).
+      void handOverLedger(v, () => encrypted.triggerImmediate());
+      v.markFirstSyncComplete();
+    };
     worker = encrypted;
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
@@ -1434,7 +1444,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
     void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
     // Owed changes not queued now are queued by the next start's first cycle; a trace says why they waited.
-    void v.syncQueue!.enqueueLocalOnlyFiles().catch(reportingTo("sync:queue-owed"));
+    // What was changed while the database did not open goes first, after this
+    // pull (R5): a file another device changed meanwhile is back by now, and a
+    // deletion of it is not sent. Then what the index owes.
+    void handOverLedger(v, () => w.triggerImmediate()).then(() => v.syncQueue!.enqueueLocalOnlyFiles()).catch(reportingTo("sync:queue-owed"));
     v.markFirstSyncComplete();
     // The remote content is here now, so anchored notes exist and can be
     // ADOPTED rather than imported a second time.
