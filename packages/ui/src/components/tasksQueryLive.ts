@@ -1,8 +1,8 @@
 import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemirror/view";
-import { StateField, type EditorState, type Extension, type Range } from "@codemirror/state";
+import type { EditorState, Extension } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { activeLineSet } from "./LivePreviewPlugin";
-import { fenceOpenerFor, findFencedBlocks } from "./fencedBlocks";
+import { fenceOpenerFor, findFencedBlocks, findFencedBlocksIn, type FencedBlock } from "./fencedBlocks";
+import { blockDecorationsFromScratch, incrementalBlockField, nodeScopedDiscovery, selectionTouches, type BlockEntry, type BlockFieldConfig, type BlockKind } from "./incrementalBlocks";
 
 /**
  * The ```tasks block of the Obsidian Tasks plugin in the live editor of both
@@ -137,41 +137,57 @@ class TasksQueryWidget extends WidgetType {
 
 const TASKS_OPEN = fenceOpenerFor("tasks");
 
-function buildTasksQueryDecorations(state: EditorState, host: () => TasksQueryHost | null | undefined): DecorationSet {
-  if (!host()) return Decoration.none;
-  const decos: Range<Decoration>[] = [];
-  try {
-    const editable = state.facet(EditorView.editable);
-    const activeLines = editable ? activeLineSet(state) : new Set<number>();
-    for (const block of findFencedBlocks(state, TASKS_OPEN)) {
-      let active = false;
-      for (let i = block.firstLine; i <= block.lastLine; i++) if (activeLines.has(i)) active = true;
-      if (active) continue;
-      decos.push(Decoration.replace({ widget: new TasksQueryWidget(block.code, block.quoteClass, host), block: true }).range(block.from, block.to));
-    }
-  } catch (e) {
-    console.error("[tasksQueryLive] build error", e);
-    return Decoration.none;
-  }
-  return Decoration.set(decos, true);
+interface TasksInfo {
+  readonly source: string;
+  readonly quoteClass: string;
+}
+
+interface TasksContext {
+  /** Editable: the caret shows the query's text. */
+  readonly editable: boolean;
+  readonly hasHost: boolean;
+}
+
+const tasksEntry = (block: FencedBlock): BlockEntry<TasksInfo> => ({ from: block.from, to: block.to, info: { source: block.code, quoteClass: block.quoteClass } });
+
+function tasksQueryConfig(host: () => TasksQueryHost | null | undefined): BlockFieldConfig<TasksContext> {
+  const kind: BlockKind<TasksInfo, TasksContext> = {
+    ...nodeScopedDiscovery<TasksInfo>(
+      (state) => findFencedBlocks(state, TASKS_OPEN).map(tasksEntry),
+      (state, top, out) => {
+        const found: FencedBlock[] = [];
+        findFencedBlocksIn(state, TASKS_OPEN, top, found);
+        for (const block of found) out.push(tasksEntry(block));
+      },
+    ),
+    decorate(state, ctx, block) {
+      if (ctx.editable && selectionTouches(state.selection, block.from, block.to)) return null;
+      return Decoration.replace({ widget: new TasksQueryWidget(block.info.source, block.info.quoteClass, host), block: true });
+    },
+  };
+  return {
+    label: "tasksQueryLive",
+    kinds: [kind],
+    // Without a host the blocks stay text.
+    context: (state) => ({ editable: state.facet(EditorView.editable), hasHost: !!host() }),
+    sameContext: (a, b) => a.editable === b.editable && a.hasHost === b.hasHost,
+    enabled: (ctx) => ctx.hasHost,
+    triggers: (tr) => tr.docChanged || !!tr.selection || tr.startState.facet(EditorView.editable) !== tr.state.facet(EditorView.editable) || syntaxTree(tr.startState) !== syntaxTree(tr.state),
+  };
+}
+
+/** The ```tasks decorations of `state` searched from scratch - what the field always equals. */
+export function tasksQueryDecorationsFromScratch(state: EditorState, host: () => TasksQueryHost | null | undefined): DecorationSet {
+  return blockDecorationsFromScratch(tasksQueryConfig(host), state);
 }
 
 /**
  * The block field. A block widget changes line heights, so it has to come from
  * a StateField (known before the viewport is measured), like the Mermaid
  * diagrams and tables. `host` is read when a block is built; without one the
- * blocks stay text.
+ * blocks stay text. The field follows the text (performance plan L6,
+ * incrementalBlocks.ts).
  */
 export function tasksQueryBlockField(host: () => TasksQueryHost | null | undefined): Extension {
-  return StateField.define<DecorationSet>({
-    create: (state) => buildTasksQueryDecorations(state, host),
-    update: (value, tr) => {
-      const editableChanged = tr.startState.facet(EditorView.editable) !== tr.state.facet(EditorView.editable);
-      if (tr.docChanged || tr.selection || editableChanged || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
-        return buildTasksQueryDecorations(tr.state, host);
-      }
-      return value.map(tr.changes);
-    },
-    provide: (f) => EditorView.decorations.from(f),
-  });
+  return incrementalBlockField(tasksQueryConfig(host));
 }

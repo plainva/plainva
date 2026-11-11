@@ -57,7 +57,7 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { decideDirtyExternalUpdate, textDirectionOf, toast, imageExplainer } from "@plainva/ui";
+import { AreaBoundary, decideDirtyExternalUpdate, textDirectionOf, toast, imageExplainer } from "@plainva/ui";
 import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { NoteConflictCard } from "./components/NoteConflictCard";
@@ -1471,7 +1471,7 @@ export function EditorHost({
         canEdit: !!onEditAt,
         hasAi: !!onAskAi,
       }).length > 0 && (
-        <SelectionToolbarSurface
+        <AreaBoundary area="editor:readSelectionBar" size="quiet"><SelectionToolbarSurface
           role="toolbar"
           aria-label={t("contextMenu.label")}
           data-testid="read-selection-bar"
@@ -1586,10 +1586,10 @@ export function EditorHost({
               <span>{t("ai.selection.menu")}</span>
             </button>
           )}
-        </SelectionToolbarSurface>
+        </SelectionToolbarSurface></AreaBoundary>
       )}
       {editable && selectionAt && (
-        <SelectionToolbar
+        <AreaBoundary area="editor:selectionToolbar" size="quiet"><SelectionToolbar
           above={selectionAt.above}
           getAnchor={selectionAt.getAnchor}
           onAction={(action) => {
@@ -1613,7 +1613,7 @@ export function EditorHost({
           }
           x={selectionAt.x}
           y={selectionAt.y}
-        />
+        /></AreaBoundary>
       )}
       {/* What is selected, where the editor reports it (S17). The desktop says
           this in the status bar; the phone has no status bar, and the toolbar
@@ -1707,6 +1707,7 @@ export function EditorHost({
       {/* S5: "what is different" — the same read-only diff the browser shows
           for a conflict copy, so there is one definition of that answer. */}
       {conflict && conflictDiff && (
+        <AreaBoundary area="sheet:conflictCompare" size="dialog" exit={{ label: t("common.close"), onExit: () => setConflictDiff(false) }}>
         <ConflictCompareSheet
           vault={vault}
           conflictPath={conflict.copyPath}
@@ -1714,6 +1715,7 @@ export function EditorHost({
           onClose={() => setConflictDiff(false)}
           onResolved={() => setConflictDiff(false)}
         />
+        </AreaBoundary>
       )}
       {tableSheet && (
         <div className="m-sheet-backdrop" onClick={() => setTableSheet(null)}>
@@ -1743,15 +1745,18 @@ export function EditorHost({
       )}
 
       {tableMenu && (
+        <AreaBoundary area="sheet:tableMenu" size="dialog" exit={{ label: t("common.close"), onExit: () => setTableMenu(null) }}>
         <TableMenuSheet
           // A cell that already carries a comment offers no second one (V7).
           canComment={canComment && !tableMenu.cellCommented}
           onAction={handleTableAction}
           onClose={() => setTableMenu(null)}
         />
+        </AreaBoundary>
       )}
 
       {emojiPick && (
+        <AreaBoundary area="sheet:emoji" size="dialog" exit={{ label: t("common.close"), onExit: () => setEmojiPick(null) }}>
         <EmojiPickSheet
           onClose={() => setEmojiPick(null)}
           onPick={handleEmojiPick}
@@ -1766,9 +1771,11 @@ export function EditorHost({
           showRemove={emojiPick === "icon"}
           title={emojiPick === "icon" ? t("docHeader.addIcon") : t("editor.slashEmoji")}
         />
+        </AreaBoundary>
       )}
 
       {colorPick && (
+        <AreaBoundary area="sheet:color" size="dialog" exit={{ label: t("common.close"), onExit: () => setColorPick(false) }}>
         <ColorPickSheet
           onClose={() => setColorPick(false)}
           onPick={(hex) => {
@@ -1780,6 +1787,7 @@ export function EditorHost({
             applyPlainva((text) => withNoteColor(text, null));
           }}
         />
+        </AreaBoundary>
       )}
 
       {dateMention && (
@@ -1803,12 +1811,14 @@ export function EditorHost({
       )}
 
       {templatePick && (
+        <AreaBoundary area="sheet:template" size="dialog" exit={{ label: t("common.close"), onExit: () => setTemplatePick(null) }}>
         <TemplatePickSheet
           onClose={() => setTemplatePick(null)}
           onPick={insertTemplate}
           title={t("editor.slashTemplate")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
 
       {basePick && (

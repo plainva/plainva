@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Reminders for checkbox tasks on the phone (Sammelplan § 3.145 Nr. 1, decision
@@ -70,7 +70,7 @@ test("a checkbox with a due time: its switch, its reminder at its time with its 
     await expect.poll(() => sql.count(INDEX, "files WHERE path = 'Haushalt.md'"), { timeout: 20_000 }).toBe(1);
 
     // Off by default: nothing is handed to the system.
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-pim").click();
     const row = page.getByTestId("reminder-checkboxes");
     await expect(row).toBeVisible({ timeout: 20_000 });

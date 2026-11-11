@@ -19,8 +19,19 @@ import { scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
 import { isLineFolded, listFoldRange, toggleFoldAtLine } from "./foldingExtension";
 import { frontmatterLines, frontmatterLinesOf } from "./editorFrontmatter";
+import { blockDecorationsFromScratch, incrementalBlockField, nodeScopedDiscovery, selectionTouches, walkSubtree, type BlockEntry, type BlockFieldConfig, type BlockKind } from "./incrementalBlocks";
 
 const HIDE = Decoration.replace({});
+/** The info string of a fenced code block ("js"), shown as the block's label. */
+const CODE_INFO = Decoration.mark({ class: "cm-md-codeinfo" });
+
+/** The line class of line `ln` of a code block running from `first` to `last`. */
+export function codeBlockLineClass(ln: number, first: number, last: number): string {
+  let cls = "cm-md-codeblock";
+  if (ln === first) cls += " cm-md-codeblock--first";
+  if (ln === last) cls += " cm-md-codeblock--last";
+  return cls;
+}
 
 /** Link handlers for rendered table-cell content (wiki links, external URLs).
  *  Provided by the editor; widgets read them via `view.state.facet(...)`. */
@@ -342,11 +353,12 @@ class TableWidget extends WidgetType {
     readonly dir: TextDirection = "ltr",
   ) { super(); }
   eq(other: TableWidget) {
+    if (other === this) return true;
     return other.from === this.from && other.to === this.to && other.dir === this.dir
       // The frames join the identity: without them CodeMirror keeps the DOM it
       // already built and a frame would never appear.
       && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames)
-      && JSON.stringify(other.model) === JSON.stringify(this.model);
+      && (other.model === this.model || JSON.stringify(other.model) === JSON.stringify(this.model));
   }
   toDOM(view: EditorView) {
     const wrap = document.createElement("div");
@@ -570,53 +582,78 @@ class TableWidget extends WidgetType {
   ignoreMutation() { return true; }
 }
 
-function buildTableDecorations(state: EditorState, isLive: boolean): DecorationSet {
-  if (!isLive) return Decoration.none;
-  const decos: Range<Decoration>[] = [];
-  try {
-    const tree = syntaxTree(state);
-    const activeLines = revealedLineSet(state);
-    tree.iterate({
-      enter: (node) => {
-        if (node.name !== "Table") return;
-        const startLine = state.doc.lineAt(node.from).number;
-        let endLine = state.doc.lineAt(Math.min(node.to, state.doc.length)).number;
-        // lezer folds the line directly below the table (when no blank line
-        // separates them) into the Table node. Trim back to the last real table
-        // row (one containing a pipe) so the caret being on that following line
-        // doesn't mark the table active (which would flip it to raw markdown).
-        while (endLine > startLine + 1 && !state.doc.line(endLine).text.includes("|")) endLine--;
-        for (let i = startLine; i <= endLine; i++) if (activeLines.has(i)) return false;
-        const from = state.doc.line(startLine).from;
-        const to = state.doc.line(endLine).to;
-        const model = parseMarkdownTable(state.sliceDoc(from, to));
-        if (model) {
-          decos.push(Decoration.replace({ widget: new TableWidget(model, from, to, anchorFramesAt(state, from, to), editorLineDirection(state, startLine)), block: true }).range(from, to));
-        }
-        return false;
-      },
-    });
-  } catch (e) {
-    console.error("[tableField] build error", e);
-    return Decoration.none;
-  }
-  return Decoration.set(decos, true);
+interface TableInfo {
+  /** The table's model, read from its text the first time it is drawn (undefined: not read yet). */
+  model?: TableModel | null;
+}
+
+/**
+ * The table a `Table` node stands for: from the start of its first line to the
+ * end of its last row, or nothing.
+ */
+function tableAt(state: EditorState, node: { from: number; to: number }): BlockEntry<TableInfo> {
+  const startLine = state.doc.lineAt(node.from).number;
+  let endLine = state.doc.lineAt(Math.min(node.to, state.doc.length)).number;
+  // lezer folds the line directly below the table (when no blank line
+  // separates them) into the Table node. Trim back to the last real table
+  // row (one containing a pipe) so the caret being on that following line
+  // doesn't mark the table active (which would flip it to raw markdown).
+  while (endLine > startLine + 1 && !state.doc.line(endLine).text.includes("|")) endLine--;
+  return { from: state.doc.line(startLine).from, to: state.doc.line(endLine).to, info: {} };
+}
+
+const tableKind: BlockKind<TableInfo, { reveal: boolean }> = {
+  ...nodeScopedDiscovery<TableInfo>(
+    (state) => {
+      const out: BlockEntry<TableInfo>[] = [];
+      syntaxTree(state).iterate({
+        enter: (node) => {
+          if (node.name !== "Table") return;
+          out.push(tableAt(state, node));
+          return false;
+        },
+      });
+      return out;
+    },
+    (state, top, out) => walkSubtree(top, (node) => {
+      if (node.name !== "Table") return;
+      out.push(tableAt(state, node));
+      return false;
+    }),
+  ),
+  decorate(state, ctx, block) {
+    // The caret on one of its lines shows the table's source.
+    if (ctx.reveal && selectionTouches(state.selection, block.from, block.to)) return null;
+    // The text of a found table does not change while it is kept, so neither does its model.
+    if (block.info.model === undefined) block.info.model = parseMarkdownTable(state.sliceDoc(block.from, block.to));
+    const model = block.info.model;
+    if (!model) return null;
+    const startLine = state.doc.lineAt(block.from).number;
+    return Decoration.replace({ widget: new TableWidget(model, block.from, block.to, anchorFramesAt(state, block.from, block.to), editorLineDirection(state, startLine)), block: true });
+  },
+};
+
+const tableFieldConfig: BlockFieldConfig<{ reveal: boolean }> = {
+  label: "tableField",
+  kinds: [tableKind],
+  context: (state) => ({ reveal: isEditorInteractive(state) }),
+  sameContext: (a, b) => a.reveal === b.reveal,
+  triggers: (tr) => tr.docChanged || !!tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state) || interactivityChanged(tr.startState, tr.state),
+  refreshesAll: hasAnchorHighlightChange,
+};
+
+/** The table decorations of `state` searched from scratch - what `tableField` always equals. */
+export function tableDecorationsFromScratch(state: EditorState): DecorationSet {
+  return blockDecorationsFromScratch(tableFieldConfig, state);
 }
 
 // Block-level table widgets MUST come from a StateField (not a view plugin),
 // because they change line heights and have to be known before the viewport is
-// measured. (Same reason the frontmatter block decoration uses a field.)
-export function tableField(isLive: boolean) {
-  return StateField.define<DecorationSet>({
-    create: (state) => buildTableDecorations(state, isLive),
-    update: (value, tr) => {
-      if (tr.docChanged || tr.selection || hasAnchorHighlightChange(tr) || syntaxTree(tr.startState) !== syntaxTree(tr.state) || interactivityChanged(tr.startState, tr.state)) {
-        return buildTableDecorations(tr.state, isLive);
-      }
-      return value;
-    },
-    provide: (f) => EditorView.decorations.from(f),
-  });
+// measured. (Same reason the frontmatter block decoration uses a field.) The
+// field follows the text instead of searching the note again on every caret
+// move and keystroke (performance plan L6, see incrementalBlocks.ts).
+export function tableField(isLive: boolean): Extension {
+  return isLive ? incrementalBlockField(tableFieldConfig) : [];
 }
 
 const HIGHLIGHT_RE = /==([^=\n]+)==/g;
@@ -684,6 +721,7 @@ export function markdownDecorationPlugin(isLive: boolean) {
             revealRaw && state.selection.ranges.some((r) => r.from <= to && r.to >= from);
 
           const quoteLineClass = new Map<number, string>();
+          const codeLineClass = new Map<number, string>();
           const hrLines = new Set<number>();
           // Ranges of tables rendered as widgets (by tableField); we must not add
           // any inline decoration inside them or it would overlap the block widget.
@@ -760,6 +798,29 @@ export function markdownDecorationPlugin(isLive: boolean) {
                 }
 
                 if (!isLive) return;
+
+                // A code block is a block (finding X6, review 2026-11-10): its
+                // lines carry one card - monospace on the note's code tint, the
+                // corners on the first and last line - and the info string is a
+                // small label rather than a bare line "js". Until then only the
+                // backticks were hidden, which left exactly that bare line and
+                // the code as running text. Descends: the marks below still hide
+                // the fences on lines without the caret.
+                if (name === "FencedCode" || name === "CodeBlock") {
+                  const startLine = state.doc.lineAt(node.from).number;
+                  const endLine = state.doc.lineAt(Math.min(node.to, state.doc.length)).number;
+                  // Only the lines of this visible range get their class: a code
+                  // block of thousands of lines costs what is on screen, like the
+                  // rest of this pass. The first and last line are still known.
+                  const fromLine = Math.max(startLine, state.doc.lineAt(from).number);
+                  const toLine = Math.min(endLine, state.doc.lineAt(Math.min(to, state.doc.length)).number);
+                  for (let i = fromLine; i <= toLine; i++) codeLineClass.set(i, codeBlockLineClass(i, startLine, endLine));
+                  return;
+                }
+                if (name === "CodeInfo") {
+                  if (!activeLines.has(state.doc.lineAt(node.from).number)) decos.push(CODE_INFO.range(node.from, node.to));
+                  return;
+                }
 
                 // Tables: when inactive they are replaced by a block widget
                 // (tableField), so skip their children here to avoid overlap.
@@ -888,6 +949,10 @@ export function markdownDecorationPlugin(isLive: boolean) {
 
           // Line decorations for blockquotes / callouts / horizontal rules.
           for (const [ln, cls] of quoteLineClass) {
+            const line = state.doc.line(ln);
+            decos.push(Decoration.line({ class: cls }).range(line.from));
+          }
+          for (const [ln, cls] of codeLineClass) {
             const line = state.doc.line(ln);
             decos.push(Decoration.line({ class: cls }).range(line.from));
           }

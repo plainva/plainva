@@ -18,12 +18,12 @@ import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
 import { parkEditorSuggestion, clearEditorSuggestion } from "../services/editorSuggestionPark";
-import { askDiscard, readSourceSelection } from "@plainva/ui";
+import { AreaBoundary, askDiscard, readSourceSelection } from "@plainva/ui";
 import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor, copyLineLink, type LineLinkMode } from "@plainva/ui";
 import { copyDesktopNoteLink, desktopVaultLinkName } from "../services/noteLinkReceiver";
 import { registerLineLinkEditor } from "../services/editorLineLinks";
@@ -51,7 +51,7 @@ import { activeDocument, type DocChannel } from "../services/activeDocument";
 import { setEditorRangeReader, setEditorSelectionReader } from "../services/editorSelection";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
-import { dirtyStore } from "../services/dirtyStore";
+import { dirtyStore, saveLabelFor, useDirtyPaths } from "../services/dirtyStore";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { openExternalUrl as openUrl } from "../services/openExternal";
 import { readFile } from "@tauri-apps/plugin-fs";
@@ -167,6 +167,8 @@ export const Editor: React.FC<{
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // The tab strip's dirty dot reads this store; the save label reads it too.
+  const dirtyPaths = useDirtyPaths();
   const [workspaceCapabilities, setWorkspaceCapabilities] = useState<Awaited<ReturnType<typeof getWorkspaceCapabilities>>>(null);
   const [workspaceComments, setWorkspaceComments] = useState<Awaited<ReturnType<typeof listWorkspaceComments>>>([]);
   const [publicationComments, setPublicationComments] = useState<Awaited<ReturnType<typeof listPublicationComments>>>([]);
@@ -980,7 +982,7 @@ export const Editor: React.FC<{
           }
           triggerFileTreeUpdate([kept.copy]);
           // Said wherever the editor went meanwhile — once per copy.
-          if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+          if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: conflictCopyLabel(kept.copy, i18n.language) }));
           if (current()) {
             setSaveError(null);
             setConflictInfo({ conflictPath: kept.copy });
@@ -1001,7 +1003,7 @@ export const Editor: React.FC<{
           setSaveError(e.message || String(error));
           if (e.name === "ConflictError") {
             setConflictInfo({ conflictPath: e.conflictPath ?? "" });
-            toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ?? ".CONFLICT" }));
+            toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ? conflictCopyLabel(e.conflictPath, i18n.language) : ".CONFLICT" }));
           }
         }
         throw error;
@@ -2192,7 +2194,7 @@ export const Editor: React.FC<{
               const kept = await keepTextBeside(files, path, editorTextOf(draft.text));
               await clearDraft(vault, path, draft.revision, draft.sessionId);
               triggerFileTreeUpdate([kept.copy]);
-              toast.warning(t("dialogs.conflictSavedMsg", { path: kept.copy }));
+              toast.warning(t("dialogs.conflictSavedMsg", { path: conflictCopyLabel(kept.copy, i18n.language) }));
             } catch (error) {
               // Not kept: handed out again at the next look, this one and those after it.
               releaseLeftoverDrafts(vault, path, leftovers.slice(at));
@@ -3471,9 +3473,14 @@ export const Editor: React.FC<{
           </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <span style={{ fontSize: "var(--text-ui)", color: saveError ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""}>
-            {isSaving ? t("editor.saving") : saveError ? t("editor.saveFailed") : t("editor.saved")}
-          </span>
+          {(() => {
+            const label = saveLabelFor({ writing: isSaving, failed: !isSaving && !!saveError, dirty: !!activePath && dirtyPaths.has(activePath) });
+            return (
+              <span style={{ fontSize: "var(--text-ui)", color: label === "failed" ? "var(--error-text)" : "var(--text-muted)" }} data-tip={saveError || ""} data-testid="editor-save-state" data-state={label}>
+                {label === "saving" ? t("editor.saving") : label === "failed" ? t("editor.saveFailed") : t("editor.saved")}
+              </span>
+            );
+          })()}
           {!isPlainText && <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", background: "var(--bg-secondary)", borderRadius: "var(--radius-xs)", padding: "2px" }}>
             <button
               onClick={() => { setViewMode('read'); rememberSessionViewMode(activePath, 'read'); }}
@@ -3644,7 +3651,7 @@ export const Editor: React.FC<{
       )}
 
       {showTemplateTargets && activePath && (
-        <TemplateTargetsModal templatePath={activePath} onClose={() => setShowTemplateTargets(false)} />
+        <AreaBoundary area="dialog:templateTargets" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowTemplateTargets(false) }}><TemplateTargetsModal templatePath={activePath} onClose={() => setShowTemplateTargets(false)} /></AreaBoundary>
       )}
 
       {staleSince && (
@@ -3724,7 +3731,9 @@ export const Editor: React.FC<{
           }
         >
           {conflictInfo.working ? t("conflict.workingCopy") : conflictInfo.conflictPath
-            ? t("editor.conflictBanner", { path: conflictInfo.conflictPath })
+            // The copy as a person reads it; its file name - what the file
+            // tree shows - is the tooltip (finding X10, review 2026-11-10).
+            ? <span data-testid="editor-conflict-copy" data-tip={conflictInfo.conflictPath.split("/").pop()}>{t("editor.conflictBanner", { path: conflictCopyLabel(conflictInfo.conflictPath, i18n.language) })}</span>
             : t("editor.conflictBannerNoPath")}
           {conflictInfo.foreignCopySnapshot && <><br />{t("conflict.workingCopyChanged")}</>}
         </Banner>
@@ -3819,12 +3828,12 @@ export const Editor: React.FC<{
               </div>
             )}
             <DocumentHeaderRead meta={docMeta} fullWidth={editorWidth === 'full'} badge={trustBadge} badgeTexts={badgeTexts} />
-            {!newEntry && <NoteDatabaseBar
+            {!newEntry && <AreaBoundary area="editor:databaseBar" size="strip"><NoteDatabaseBar
               context={dbContext}
               title={activePath ? noteDisplayName(activePath) : ""}
               fullWidth={editorWidth === 'full'}
               onOpenPath={(p) => onOpenPath?.(p, false)}
-            />}
+            /></AreaBoundary>}
             <div className={managedIndex ? "pv-index-doc" : undefined}>
               <MarkdownReader
                 content={content}
@@ -3931,12 +3940,12 @@ export const Editor: React.FC<{
           // The database context line sits ABOVE it as a plain React sibling —
           // the editor container itself must stay untouched by React.
           <>
-            {!newEntry && <NoteDatabaseBar
+            {!newEntry && <AreaBoundary area="editor:databaseBar" size="strip"><NoteDatabaseBar
               context={dbContext}
               title={activePath ? noteDisplayName(activePath) : ""}
               fullWidth={editorWidth === 'full'}
               onOpenPath={(p) => onOpenPath?.(p, false)}
-            />}
+            /></AreaBoundary>}
           <div
             ref={editorContainerRef}
             // Readable line length (#1): center the text column when narrow.
@@ -3949,7 +3958,11 @@ export const Editor: React.FC<{
           </>
         )}
       </div>
+      {/* Beside the text, an area of its own (stability plan R3): the comments
+          column, the database line and every popup of the editor can fail
+          without taking the editor and its unsaved text along. */}
       {commentColumnOpen && (
+        <AreaBoundary area="editor:comments" size="section" exit={{ label: t("common.close"), onExit: toggleCommentColumn }}>
         <WorkspaceCommentsColumn
           operationStatus={<CommentOperationStatus operations={pendingCommentOperations.operations} failed={pendingCommentOperations.failed} onRetry={retryCommentOperation} onRefresh={pendingCommentOperations.refresh} currentText={content} />}
           onClose={toggleCommentColumn}
@@ -3989,19 +4002,23 @@ export const Editor: React.FC<{
           muted={commentMute.muted ?? false}
           onToggleMute={commentMute.toggle}
         />
+        </AreaBoundary>
       )}
       </div>
 
       {tablePicker && (
+        <AreaBoundary area="editor:tablePicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setTablePicker(null) }}>
         <TableSizePicker
           x={tablePicker.x}
           y={tablePicker.y}
           onSelect={handleTableSelect}
           onClose={() => setTablePicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {iconPicker && (
+        <AreaBoundary area="editor:iconPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setIconPicker(null) }}>
         <EmojiPicker
           x={iconPicker.x}
           y={iconPicker.y}
@@ -4012,9 +4029,11 @@ export const Editor: React.FC<{
           onRemove={() => { applyNoteProperties((text) => withNoteIcon(text, null, null)); setIconPicker(null); }}
           onClose={() => setIconPicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {emojiTextPicker && (
+        <AreaBoundary area="editor:emojiPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setEmojiTextPicker(null) }}>
         <EmojiPicker
           x={emojiTextPicker.x}
           y={emojiTextPicker.y}
@@ -4036,9 +4055,11 @@ export const Editor: React.FC<{
           onSelectIcon={() => setEmojiTextPicker(null)}
           onClose={() => setEmojiTextPicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {colorPicker && (
+        <AreaBoundary area="editor:colorPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setColorPicker(null) }}>
         <ColorPopover
           x={colorPicker.x}
           y={colorPicker.y}
@@ -4047,9 +4068,11 @@ export const Editor: React.FC<{
           onRemove={() => { applyNoteProperties((text) => withNoteColor(text, null)); setColorPicker(null); }}
           onClose={() => setColorPicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {dateMention && (
+        <AreaBoundary area="editor:datePicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setDateMention(null) }}>
         <div
           className="pv-popover--fixed"
           style={{ left: dateMention.x, top: dateMention.y, minWidth: "180px", visibility: "visible" }}
@@ -4061,21 +4084,27 @@ export const Editor: React.FC<{
             onClose={() => setDateMention(null)}
           />
         </div>
+        </AreaBoundary>
       )}
 
       {basePicker && (
+        <AreaBoundary area="editor:basePicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setBasePicker(null) }}>
         <BasePicker
           onPick={(path) => { embedBaseAtPos(path, basePicker.pos); setBasePicker(null); }}
           onCreate={() => { const pos = basePicker.pos; setBasePicker(null); createAndEmbedBase(pos); }}
           onClose={() => setBasePicker(null)}
         />
+        </AreaBoundary>
       )}
 
       {viewMode !== 'read' && selToolbar && (
+        <AreaBoundary area="editor:selectionToolbar" size="quiet">
         <SelectionToolbar {...selToolbar} onAction={applyFormat} extra={<AiSelectionButton />} />
+        </AreaBoundary>
       )}
 
       {blockMenu && (
+        <AreaBoundary area="editor:blockMenu" size="dialog" exit={{ label: t("common.close"), onExit: () => setBlockMenu(null) }}>
         <BlockMenu
           x={blockMenu.x}
           y={blockMenu.y}
@@ -4083,9 +4112,11 @@ export const Editor: React.FC<{
           onCopyLink={(mode) => { const from = blockMenu.from; setBlockMenu(null); void copyLinkAt(from, mode); }}
           onClose={() => setBlockMenu(null)}
         />
+        </AreaBoundary>
       )}
 
       {tableMenu && (
+        <AreaBoundary area="editor:tableMenu" size="dialog" exit={{ label: t("common.close"), onExit: () => setTableMenu(null) }}>
         <TableContextMenu
           x={tableMenu.x}
           y={tableMenu.y}
@@ -4101,6 +4132,7 @@ export const Editor: React.FC<{
           onAction={handleTableMenuAction}
           onClose={() => setTableMenu(null)}
         />
+        </AreaBoundary>
       )}
     </div>
   );

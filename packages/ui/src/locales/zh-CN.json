@@ -406,7 +406,7 @@
     },
     "policy": {
       "columns": "文件夹",
-      "webOff": "互联网已关闭",
+      "webOff": "不生效：此设备已关闭互联网",
       "title": "哪些内容可以离开此仓库",
       "desc": "规则可以写在笔记的frontmatter中，或者对整个文件夹写在.agent/policy.yml中。被排除在云端之外的笔记不会贡献任何内容——不论是正文还是标题——指向它的链接也会被隐去。",
       "vaultDefault": "仓库默认",
@@ -4948,7 +4948,11 @@
   },
   "errors": {
     "somethingWentWrong": "出了点问题。",
-    "reload": "重新加载"
+    "reload": "重新加载",
+    "areaTitle": "无法显示此区域",
+    "areaBody": "一个错误使其停止。Plainva 的其余部分继续运行，错误已记录在“{{place}}”中。",
+    "areaAgain": "重新加载后再次失败。如果持续失败，请重新启动 Plainva；错误已记录在“{{place}}”中。",
+    "areaReload": "重新加载此区域"
   },
   "palette": {
     "title": "命令",
@@ -5312,6 +5316,7 @@
     "todayInFolder": "文件夹 {{folder}}/",
     "folderCount_other": "{{count}} 条笔记",
     "baseCount_other": "{{count}} 个数据库",
+    "attachmentCount_other": "{{count}} 个文件",
     "aboutTip": "提示：这个标志喜欢被关注。五次。",
     "syncResume": "继续同步",
     "reconnected": "已重新连接账户。",
@@ -7330,6 +7335,7 @@
     "highlight5Title": "改进与问题修复",
     "highlight5": "账号通过向导连接，设置已重新整理，在手机上单手书写更方便，同步、邮件和编辑器也有大量修复。详情见发行说明。",
     "readBlog": "阅读博客文章",
+    "readReleaseNotes": "阅读发行说明",
     "understand": "知道了"
   },
   "firstRun": {

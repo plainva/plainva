@@ -526,7 +526,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsIndexEntry[] = [
   {"shell":"mobile","area":"aiVault","kind":"row","card":"ai.web.settings.title","label":"ai.web.settings.switch","desc":["ai.web.settings.switchLine"],"info":["ai.web.settings.switchDesc"]},
   {"shell":"mobile","area":"aiVault","kind":"row","card":"ai.web.settings.title","label":"ai.web.settings.addSite"},
   {"shell":"mobile","area":"aiVault","kind":"card","card":"ai.policy.title","info":["ai.policy.desc"]},
-  {"shell":"mobile","area":"aiVault","kind":"row","card":"ai.policy.title","label":"ai.policy.vaultDefault","desc":["ai.policy.cloud","ai.policy.web","ai.policy.webOff","ai.policy.write","ai.policy.deny","ai.policy.allow","ai.policy.inherit"]},
+  {"shell":"mobile","area":"aiVault","kind":"row","card":"ai.policy.title","label":"ai.policy.vaultDefault","desc":["ai.policy.cloud","ai.policy.web","ai.policy.write","ai.policy.deny","ai.policy.allow","ai.policy.inherit","ai.policy.webOff"]},
   {"shell":"mobile","area":"aiVault","kind":"row","card":"ai.policy.title","label":"ai.policy.addFolder"},
   {"shell":"mobile","area":"aiVault","kind":"card","card":"ai.ext.title","info":["ai.ext.desc"]},
   {"shell":"mobile","area":"aiVault","kind":"row","card":"ai.ext.title","label":"ai.ext.addAction"},

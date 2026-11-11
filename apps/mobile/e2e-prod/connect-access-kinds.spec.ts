@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page, type TestInfo } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 import { PLAINVA_DROPBOX_APP_KEY } from "../../../packages/ui/src/services/providerDefaults";
 
 /**
@@ -76,7 +76,7 @@ async function boot(context: BrowserContext, page: Page): Promise<Harness> {
 }
 
 async function openConnect(page: Page) {
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await page.getByTestId("cloudacct-connect").click();
   await expect(page.getByTestId("connect-steps")).toBeVisible();

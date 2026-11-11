@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * Signing in to a remote MCP server on the phone (AI harness P4.5): a server
@@ -129,7 +129,7 @@ test("a server that wants a sign-in is signed in to in the browser, and comes ba
     await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
 
     // 1. A server is added. Its review cannot show what it lists: the server wants a sign-in, and the review says so.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByTestId("settings-ai-ext-add").click();
     const add = page.getByTestId("ai-ext-add");

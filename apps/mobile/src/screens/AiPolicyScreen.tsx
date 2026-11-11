@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Plug, Plus } from "lucide-react";
 import { mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
-import {
+import { AreaBoundary,
   AI_POLICY_FILE,
   Banner,
   changeFolderRules,
@@ -102,9 +102,14 @@ export function AiPolicyScreen({
   // "Change without asking" (plan "KI direkt schreiben", W3): allowed or not, in the words of the other two questions.
   const writeWord = (choice: AiWriteRule | "inherit" | undefined) => (choice === "direct" ? t("ai.policy.allow") : choice === "ask" ? t("ai.policy.deny") : t("ai.policy.inherit"));
   // The two questions of a rule, named (plan KI-Oberflächen K6). The rules travel with the vault, the internet switch is
-  // this phone's: the answer stays, and it is said when the internet is off here.
-  const line = (rule: FolderPolicyRule | undefined, inherit: boolean) =>
-    `${t("ai.policy.cloud")}: ${word(rule?.cloud ?? (inherit ? "inherit" : "allow"))} · ${t("ai.policy.web")}: ${word(rule?.web ?? (inherit ? "inherit" : "allow"))}${aiState.web.enabled ? "" : ` (${t("ai.policy.webOff")})`} · ${t("ai.policy.write")}: ${writeWord(rule?.write ?? (inherit ? "inherit" : "ask"))}`;
+  // this phone's: the answer stays, and it is said when the internet is off here. Said as what it is - the rule does
+  // not take effect on this device (finding X10, review 2026-11-10): "allowed (internet off)" read as both at once.
+  // A rule that forbids the internet needs no such remark.
+  const webNote = (choice: PolicyChoice) => (aiState.web.enabled || choice === "deny" ? "" : ` (${t("ai.policy.webOff")})`);
+  const line = (rule: FolderPolicyRule | undefined, inherit: boolean) => {
+    const web = rule?.web ?? (inherit ? "inherit" : "allow");
+    return `${t("ai.policy.cloud")}: ${word(rule?.cloud ?? (inherit ? "inherit" : "allow"))} · ${t("ai.policy.web")}: ${word(web)}${webNote(web)} · ${t("ai.policy.write")}: ${writeWord(rule?.write ?? (inherit ? "inherit" : "ask"))}`;
+  };
 
   const edit = async (folder: string, inherit: boolean) => {
     const rule = ruleOf(rules, folder);
@@ -267,8 +272,8 @@ export function AiPolicyScreen({
           </RowList>
         </GroupCard>
       </div>
-      {external === "add" && <ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} />}
-      {external !== null && external !== "add" && <ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} />}
+      {external === "add" && <AreaBoundary area="sheet:externalAdd" size="dialog" exit={{ label: t("common.close"), onExit: () => setExternal(null) }}><ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} /></AreaBoundary>}
+      {external !== null && external !== "add" && <AreaBoundary area="sheet:externalReview" size="dialog" exit={{ label: t("common.close"), onExit: () => setExternal(null) }}><ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} /></AreaBoundary>}
     </div>
   );
 }

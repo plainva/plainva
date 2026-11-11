@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FakeOAuthProvider, type FakeConsentChoice } from "../../../packages/ui/src/testing/fakeOAuthProvider";
-import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
+import { waitForVaultDirectory, waitForIndexSchema, openSettings } from "./exampleVault";
 import { E2E_STANDARD_GOOGLE_IOS_CLIENT_ID } from "../scripts/e2e-build-env.mjs";
 import { PLAINVA_ONEDRIVE_CLIENT_ID } from "../../../packages/ui/src/services/providerDefaults";
 
@@ -167,7 +167,7 @@ async function boot(context: BrowserContext, page: Page, seed?: (storage: Record
 }
 
 async function openGoogleCard(page: Page) {
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   // The card named exactly so: another row of the account may carry the address in other letters.
   await page.getByTestId("cloudacct-row").filter({ has: page.getByText(ANNA.email, { exact: true }) }).click();
@@ -294,7 +294,7 @@ const withGoogleCalendar = (storage: Record<string, unknown>) => {
 };
 const storedCards = async (page: Page) => JSON.parse((await page.evaluate(() => localStorage.getItem("CapacitorStorage.cloudAccounts_local"))) ?? "[]") as { id: string; services: Record<string, unknown> }[];
 const openCard = async (page: Page, label: string) => {
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await page.getByTestId("cloudacct-row").filter({ hasText: label }).click();
   await expect(page.getByTestId("cloudacct-detail")).toBeVisible();
@@ -468,7 +468,7 @@ test("one mailbox stored under two entries: the Accounts screen asks which to ke
     const imap = rows.find((row) => row.id === "m-imap")!;
     storage[`mailAccounts_${LOCAL_KEY}`] = [...rows, { ...imap, id: "m-imap-old", signature: "Anna" }];
   });
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   const entries = page.getByTestId("cloudacct-mailbox-keep");
   await expect(entries).toHaveCount(2, { timeout: 15000 });
@@ -511,7 +511,7 @@ async function firstGoogleConnect(context: BrowserContext, page: Page, access: "
   harness.answerApis = true;
   page.on("pageerror", (error) => console.log("PAGE ERROR:", error.message));
 
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await page.getByTestId("cloudacct-connect").click();
   await page.getByTestId("connect-family-google").click();
@@ -649,7 +649,7 @@ test("a calendar not signed in under a signed-in card says so on its row, and si
   // The phone reconciles its cards as the desktop does (Sammelplan § 3.105): the
   // older row is no part of the card - it has a card of its own that asks for its
   // sign-in, and the card's calendar is the row the card names.
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await expect(page.getByTestId("cloudacct-row").filter({ has: page.getByText("Anna@gmail.com", { exact: true }) })).toBeVisible({ timeout: 15000 });
   await page.getByTestId("cloudacct-row").filter({ has: page.getByText(ANNA.email, { exact: true }) }).click();
@@ -767,7 +767,7 @@ test("a Microsoft account for calendar and mail, next to a Google account that c
     storage.secret_oauth_access_microsoft = { source: "plainva" };
   });
   page.on("pageerror", (error) => console.log("PAGE ERROR:", error.message));
-  await page.locator('[data-testid="nav-settings"]').first().click();
+  await openSettings(page);
   await page.locator('[data-testid="settings-area-cloudAccounts"]').click();
   await page.getByTestId("cloudacct-connect").click();
   await page.getByTestId("connect-family-microsoft").click();

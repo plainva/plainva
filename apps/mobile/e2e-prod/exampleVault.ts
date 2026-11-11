@@ -107,3 +107,20 @@ export async function folderEntries(page: Page, folder: string): Promise<Array<{
 export async function vaultFolderNames(page: Page, folder = ""): Promise<string[]> {
   return (await folderEntries(page, folder ? `vault/${folder}` : "vault")).map((entry) => entry.name).sort();
 }
+
+/**
+ * The way into the settings from wherever the app stands (finding X8, review
+ * 2026-11-10): the gear of a phone's app bar, the rail's Settings on a tablet
+ * or in two columns - and on a pushed screen, where neither bar carries it,
+ * Back until one does. A restored session can start on such a screen.
+ */
+export async function openSettings(page: Page) {
+  const way = page.locator('[data-testid="nav-settings"]:visible, [data-testid="rail-settings"]:visible').first();
+  const back = page.getByTestId("appbar-back").first();
+  await way.or(back).first().waitFor({ state: "visible", timeout: 20_000 });
+  for (let i = 0; i < 6 && !(await way.isVisible()); i++) {
+    await back.click();
+    await way.or(back).first().waitFor({ state: "visible" });
+  }
+  await way.click();
+}

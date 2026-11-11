@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * What an assistant laid down, on the phone (AI harness P5), in the
@@ -157,7 +157,7 @@ test("AI writes: drafts wait on this phone until the reader creates or discards 
     await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
 
     // The folder of this vault's AI data is made when its first setting is stored.
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByRole("switch", { name: "The AI may use the internet in this vault" }).click();
     await expect.poll(() => aiVaults(page)).toHaveLength(1);
@@ -413,7 +413,7 @@ test("AI writes into a database: a proposed value stands in its cell, the cell's
     await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
 
     // The drafted entry waits in the app's data on this phone (the folder is made with the vault's first AI setting).
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByRole("switch", { name: "The AI may use the internet in this vault" }).click();
     await expect.poll(() => aiVaults(page)).toHaveLength(1);

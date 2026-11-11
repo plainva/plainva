@@ -79,7 +79,7 @@ export interface WhatsNewItem {
   blogLanguages?: string[];
 }
 
-export { getWhatsNewBlogUrl } from "./releaseBlog.mjs";
+export { getWhatsNewBlogUrl, getWhatsNewReleaseNotesUrl } from "./releaseBlog.mjs";
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
   {

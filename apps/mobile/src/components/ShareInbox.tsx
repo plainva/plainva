@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, Chip, ICON, noteDisplayName, notifyFileOps, prepareTaskNote, toast, useStableHandler } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, Chip, ICON, noteDisplayName, notifyFileOps, prepareTaskNote, toast, useStableHandler } from "@plainva/ui";
 import { CheckSquare, FileText, Folder, NotebookPen, Paperclip } from "lucide-react";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { getMobileSettings } from "../services/mobileSettings";
@@ -169,6 +169,6 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
         <Button variant="ghost" disabled={busy} onClick={() => void discard()}>{t("shareInbox.discard")}</Button>
       </div>
     </div>}
-    {pickFolder && <FolderPickerSheet vault={vault} title={t("shareInbox.chooseFolder")} onPick={setFolder} onClose={() => setPickFolder(false)} />}
+    {pickFolder && <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickFolder(false) }}><FolderPickerSheet vault={vault} title={t("shareInbox.chooseFolder")} onPick={setFolder} onClose={() => setPickFolder(false)} /></AreaBoundary>}
   </>;
 }

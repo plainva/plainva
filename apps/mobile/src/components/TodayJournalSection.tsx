@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { JournalEntry } from "@plainva/core";
-import { ICON, JournalDaySection, journalRowActions, loadImageBlob, requestNew, setPendingSearchJump, useJournalActions, useJournalDay, useJournalDayKey, type JournalDay, type JournalRowCaps, getPlatformServices } from "@plainva/ui";
+import { AreaBoundary, ICON, JournalDaySection, journalRowActions, loadImageBlob, requestNew, setPendingSearchJump, useJournalActions, useJournalDay, useJournalDayKey, type JournalDay, type JournalRowCaps, getPlatformServices } from "@plainva/ui";
 import { JournalCaptureSheet } from "./JournalCaptureSheet";
 import { RowActionSheet } from "./RowActionSheet";
 import { SwipeRow } from "./SwipeRow";
@@ -91,19 +91,23 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
         })}
       />
       {capture && (
+        <AreaBoundary area="sheet:journalCapture" size="dialog" exit={{ label: t("common.close"), onExit: () => setCapture(false) }}>
         <JournalCaptureSheet
           date={date}
           onClose={() => setCapture(false)}
           onSwitchToTask={(text) => { setCapture(false); requestNew("task", text); onOpenTasks?.(); }}
           vault={vault}
         />
+        </AreaBoundary>
       )}
       {sheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setSheet(null) }}>
         <RowActionSheet
           title={sheet.title}
           actions={rowActions(sheet.caps).map((a) => ({ ...a, onClick: () => { setSheet(null); a.onClick(); } }))}
           onClose={() => setSheet(null)}
         />
+        </AreaBoundary>
       )}
     </>
   );

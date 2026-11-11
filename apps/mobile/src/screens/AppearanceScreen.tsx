@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil } from "lucide-react";
-import { LinkStylePreview, NOTE_LINK_STYLES, WEB_LINK_STYLES, readNoteLinkStyle, readWebLinkStyle } from "@plainva/ui";
+import { AreaBoundary, LinkStylePreview, NOTE_LINK_STYLES, WEB_LINK_STYLES, readNoteLinkStyle, readWebLinkStyle } from "@plainva/ui";
 import { APP_LANGUAGES, AVAILABLE_THEMES, clampContentFontSize, getWeekStartSetting, GroupCard, ICON, Row, RowList, SectionLabel, Segmented, SettingField, setWeekStartSetting, Switch, type FontChoice, type FontSlot, type WeekStartSetting, CUSTOM_THEME_ID, themesWithCustom, IconButton } from "@plainva/ui";
 import { FontSlotSheet } from "../components/FontSlotSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
@@ -316,6 +316,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
       </div>
 
       {fontSheet && (
+        <AreaBoundary area="sheet:fontSlot" size="dialog" exit={{ label: t("common.close"), onExit: () => setFontSheet(null) }}>
         <FontSlotSheet
           slot={fontSheet}
           title={t(FONT_SLOT_ROWS.find((r) => r[0] === fontSheet)![1])}
@@ -327,6 +328,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
           }}
           onClose={() => setFontSheet(null)}
         />
+        </AreaBoundary>
       )}
     </div>
   );

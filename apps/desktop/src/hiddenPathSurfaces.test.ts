@@ -38,6 +38,7 @@ const FUNCTIONS: [file: string, name: string, surface: string][] = [
   [QUERY, "getRecentFiles", "the desktop quick switcher's recent files"],
   [QUERY, "listNotesModifiedBetween", "the phone's notes edited today"],
   [QUERY, "countNotesPerSubfolder", "the phone's folder rows"],
+  [QUERY, "countAttachmentsPerSubfolder", "the phone's folder rows (attachments)"],
   [QUERY, "listBases", "the database lists of both shells"],
   [QUERY, "listTasks", "the task lists of both shells"],
   [QUERY, "findInVault", "find & replace across the vault"],

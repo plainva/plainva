@@ -10,7 +10,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
@@ -3013,7 +3013,9 @@ export function BaseViewer({
             <div style={{ color: 'var(--error-text)' }}>{error}</div>
           ) : (
             <div style={{ background: 'var(--bg-primary)', borderRadius: "var(--radius-sm)", border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-1)', overflow: 'hidden' }}>
-              {content ? renderViewContent() : <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>{t("database.emptyConfig", "Empty database configuration.")}</div>}
+              {/* The view is an area of its own (stability plan R3): the head with its
+                  view tabs stays, and another view can be picked. */}
+              {content ? <AreaBoundary area={`base:${currentViewType || "table"}`} resetKey={`${activeViewIndex}:${currentViewType}`}>{() => renderViewContent()}</AreaBoundary> : <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>{t("database.emptyConfig", "Empty database configuration.")}</div>}
             </div>
           )}
         </div>

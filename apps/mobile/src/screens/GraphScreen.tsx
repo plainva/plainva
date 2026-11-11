@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
-import { appendWikiLink, errorText, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink, consumeGraphTrail, GRAPH_TRAIL_EVENT, trailFocus, trailFolders, type VaultMapFocus } from "@plainva/ui";
+import { AreaBoundary, appendWikiLink, errorText, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink, consumeGraphTrail, GRAPH_TRAIL_EVENT, trailFocus, trailFolders, type VaultMapFocus } from "@plainva/ui";
 import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, Button, GroupCard, ICON, IconButton, Row, RowList, SearchField, Switch } from "@plainva/ui";
 import { AlertTriangle, ChevronRight, Clock, Crosshair, FileText, Flame, ImageDown, Maximize2, Minus, MousePointerSquareDashed, PinOff, Plus, SlidersHorizontal, Trash2, Link2, Waypoints } from "lucide-react";
 import { mActions, mConfirm, mSelect } from "../services/mobileDialogs";
@@ -810,6 +810,7 @@ export function GraphScreen({
         </div>
       )}
       {connect && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setConnect(null) }}>
         <RowActionSheet
           title={t("graph.connectMenu")}
           onClose={() => setConnect(null)}
@@ -821,12 +822,17 @@ export function GraphScreen({
             },
           ]}
         />
+        </AreaBoundary>
       )}
       {nodeSheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setNodeSheet(null) }}>
         <RowActionSheet title={titleOf(nodeSheet)} onClose={() => setNodeSheet(null)} actions={nodeActions(nodeSheet)} />
+        </AreaBoundary>
       )}
       {edgeSheet && edgeActions(edgeSheet).length > 0 && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setEdgeSheet(null) }}>
         <RowActionSheet title={t("graph.menuOpen")} onClose={() => setEdgeSheet(null)} actions={edgeActions(edgeSheet)} />
+        </AreaBoundary>
       )}
     </div>
   );

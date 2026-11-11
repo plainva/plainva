@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Button, getLatestWhatsNew, getWhatsNewBlogUrl, WhatsNewIcon, getPlatformServices } from "@plainva/ui";
+import { Button, getLatestWhatsNew, getWhatsNewBlogUrl, getWhatsNewReleaseNotesUrl, WhatsNewIcon, getPlatformServices } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 
 /**
@@ -20,6 +20,7 @@ export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
   // remains in diagnostics; TestFlight's marketing version can stay at 1.0.
   const version = latest.version;
   const blogUrl = getWhatsNewBlogUrl(latest, i18n.resolvedLanguage ?? i18n.language);
+  const notesUrl = getWhatsNewReleaseNotesUrl(latest);
 
   const items = latest.highlights.map((h, i) => ({
     ...h,
@@ -54,6 +55,16 @@ export function WhatsNewSheet({ onClose }: { onClose: () => void }) {
             onClick={() => void getPlatformServices().openExternal(blogUrl).catch(() => undefined)}
           >
             {t("whatsNew.readBlog")}
+          </Button>
+        )}
+        {/* The highlights point to the release notes for the details: they are linked too (finding X10). */}
+        {notesUrl && (
+          <Button
+            variant="ghost"
+            data-testid="whatsnew-release-notes"
+            onClick={() => void getPlatformServices().openExternal(notesUrl).catch(() => undefined)}
+          >
+            {t("whatsNew.readReleaseNotes")}
           </Button>
         )}
         <Button variant="primary" data-testid="whats-new-close" onClick={onClose}>

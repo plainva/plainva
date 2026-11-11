@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "react-i18next";
 import { Ban, CheckSquare, ChevronDown, Clock, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
-import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, EmptyState, Fab, formatClockTime, formatDateAndTime, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler, useWeekStartDay } from "@plainva/ui";
 import { addSnooze, filterSnoozedRows, onlySnoozedRows, parseSnoozeState, pruneSnoozes, removeSnooze, SNOOZE_PRESETS, snoozeEntryFor, snoozeUntil, undoSnoozes, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
 import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAction } from "@plainva/ui/mail";
 import { mailListView } from "./mail/mailListView";
@@ -1205,7 +1205,7 @@ export function MailListScreen({
     await persistSnoozed(next);
     toast.info(
       t("mail.snoozedUntil", {
-        when: new Date(until).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" }),
+        when: formatDateAndTime(until, { language: i18n.language, date: { dateStyle: "short" } }),
       }),
       { label: t("common.undo"), run: () => undoSnooze(before, [entry]) }
     );
@@ -1948,7 +1948,7 @@ export function MailListScreen({
             },
           })),
         ];
-        return <RowActionSheet actions={actions} onClose={() => setRowSheet(null)} title={m.subject || t("mail.noSubject")} />;
+        return <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setRowSheet(null) }}><RowActionSheet actions={actions} onClose={() => setRowSheet(null)} title={m.subject || t("mail.noSubject")} /></AreaBoundary>;
       })()}
 
       {sheet && (
@@ -2113,7 +2113,8 @@ function formatDate(ts: number, lang: string): string {
   const d = new Date(ts);
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
+  // The clock through the one formatter (finding X4), the date as before (O2).
   return sameDay
-    ? d.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })
+    ? formatClockTime(d, { language: lang })
     : d.toLocaleDateString(lang, { day: "2-digit", month: "2-digit" });
 }

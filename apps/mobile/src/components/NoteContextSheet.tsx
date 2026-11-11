@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
+import { AreaBoundary, isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, PenLine, Plus } from "lucide-react";
@@ -404,6 +404,9 @@ export function NoteContextSheet({
             onChange={(v) => setTab(v as ContextTab)}
           />
 
+          {/* Each segment an area of its own (stability plan R3), as each
+              section of the desktop's right column: the segment control stays. */}
+          <AreaBoundary area={`context:${tab}`} resetKey={tab} size="section">{() => (<>
           {tab === "props" && (
             <>
               {unreadable && <p className="m-hint" data-testid="props-unreadable">{t("properties.unreadableBlock")}</p>}
@@ -438,7 +441,7 @@ export function NoteContextSheet({
                   <div className="m-row m-row--static" key={k} {...press}>
                     <Lock className="m-chevron" size={ICON.meta} />
                     <span className="m-prop-key">{k === "okf_version" ? t("trust.okfVersion") : k}</span>
-                    <span className="m-prop-val">{valueText(v)}</span>
+                    <span className="m-prop-val m-prop-val--wrap">{valueText(v)}</span>
                     {badge}
                   </div>
                 ) : (
@@ -449,7 +452,7 @@ export function NoteContextSheet({
                     {...press}
                   >
                     <span className="m-prop-key">{k}</span>
-                    <span className="m-prop-val">{valueNode(k, v)}</span>
+                    <span className="m-prop-val m-prop-val--wrap">{valueNode(k, v)}</span>
                     {badge}
                   </button>
                 );
@@ -465,7 +468,7 @@ export function NoteContextSheet({
               {generatedAt && (
                 <div className="m-row m-row--static">
                   <span className="m-prop-key">{t("trust.generated")}</span>
-                  <span className="m-prop-val">
+                  <span className="m-prop-val m-prop-val--wrap">
                     {trust.generated ? `${formatActor(trust.generated.by, actorWords)} · ` : ""}
                     {formatStampDate(generatedAt, locale)}
                   </span>
@@ -474,7 +477,7 @@ export function NoteContextSheet({
               {trust.verified.map((v, i) => (
                 <div className="m-row m-row--static" key={`${v.by}-${v.at}-${i}`}>
                   <span className="m-prop-key">{i === 0 ? t("trust.verified") : ""}</span>
-                  <span className="m-prop-val">
+                  <span className="m-prop-val m-prop-val--wrap">
                     {formatActor(v.by, actorWords)} · {formatStampDate(v.at, locale)}
                   </span>
                 </div>
@@ -694,17 +697,19 @@ export function NoteContextSheet({
           {tab === "history" && (
             <VersionsPanel onDone={onClose} onRestored={onRestored} path={path} vault={vault} />
           )}
+          </>)}</AreaBoundary>
         </div>
       </div>
-      {adding && <AddPropertySheet key={`${vault.vaultId}:${path}`} source={vault.queryService} columns={governing?.columns}
+      {adding && <AreaBoundary area="sheet:addProperty" size="dialog" resetKey={`${vault.vaultId}:${path}`} exit={{ label: t("common.close"), onExit: () => setAdding(false) }}><AddPropertySheet key={`${vault.vaultId}:${path}`} source={vault.queryService} columns={governing?.columns}
         registry={loadPropertyTypes(vault.vaultId)} existing={props.map(([key]) => key)} onClose={() => setAdding(false)}
         onAdd={(name, type) => {
           const schema = governing?.columns?.[name];
           setAdding(false);
           setEdit({ notePath: path, col: name, input: type, value: defaultValueForType(type), options: schema?.options ?? [],
             curated: schema?.options !== undefined, relationBase: schema?.relationBase, relationLimit: schema?.relationLimit });
-        }} />}
+        }} /></AreaBoundary>}
       {edit && (
+        <AreaBoundary area="sheet:cellEdit" size="dialog" resetKey={`${vault.vaultId}:${edit.notePath}:${edit.col}`} exit={{ label: t("common.close"), onExit: () => setEdit(null) }}>
         <CellEditSheet key={`${vault.vaultId}:${edit.notePath}:${edit.col}`}
           onClose={() => setEdit(null)}
           onRename={renamable(edit.col) ? () => { const key = edit.col; setEdit(null); renameProp(key); } : undefined}
@@ -728,8 +733,10 @@ export function NoteContextSheet({
           target={edit}
           vault={vault}
         />
+        </AreaBoundary>
       )}
       {backlinkSortOpen && (
+        <AreaBoundary area="sheet:sort" size="dialog" exit={{ label: t("common.close"), onExit: () => setBacklinkSortOpen(false) }}>
         <SortSheet
           testId="backlinks-sort-sheet"
           title={t("browse.sortBy")}
@@ -740,8 +747,10 @@ export function NoteContextSheet({
           onChoose={chooseBacklinkSort}
           onClose={() => setBacklinkSortOpen(false)}
         />
+        </AreaBoundary>
       )}
       {propSheet && (
+        <AreaBoundary area="sheet:rowAction" size="dialog" exit={{ label: t("common.close"), onExit: () => setPropSheet(null) }}>
         <RowActionSheet
           actions={[
             ...(propSheet.editable
@@ -771,6 +780,7 @@ export function NoteContextSheet({
           onClose={() => setPropSheet(null)}
           title={propSheet.key}
         />
+        </AreaBoundary>
       )}
     </>
   );

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * The vault's memory on the phone (AI harness P6), in the production bundle:
@@ -204,7 +204,7 @@ test("AI memory: the phone shows both places, writes an entry by hand, and makes
 
     // 6. The vault's AI settings say it in one line and lead to the memory.
     await toList(page);
-    await page.getByTestId("nav-settings").first().click();
+    await openSettings(page);
     await page.getByTestId("settings-area-aiVault").click();
     const row = page.getByTestId("settings-ai-memory-open");
     await expect(row).toContainText("3 always included · 2 on demand");

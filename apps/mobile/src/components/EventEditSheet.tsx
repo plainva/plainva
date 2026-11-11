@@ -8,6 +8,7 @@ import {
   emptyEventForm,
   localDayDistance,
   type EventFormValues,
+  AreaBoundary,
   eventFormFromEvent,
   eventFormToDraft,
   ICON,
@@ -226,6 +227,7 @@ export function EventEditSheet({
           {t("noteLink.insert")}
         </Button>
         {pickVault && (
+          <AreaBoundary area="sheet:notePick" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickVault(null) }}>
           <NotePickSheet
             vault={pickVault}
             title={t("noteLink.insert")}
@@ -233,6 +235,7 @@ export function EventEditSheet({
             onClose={() => setPickVault(null)}
             onPick={(picked, title) => void linkNote(picked, title || picked)}
           />
+          </AreaBoundary>
         )}
 
         {/* Repeat (S25). Touching ANY control here marks the rule as edited —

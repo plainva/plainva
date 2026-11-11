@@ -186,6 +186,49 @@ export const editorTheme = EditorView.theme({
   ".cm-md-hr-line": {
     borderBottom: "2px solid var(--border-color)",
   },
+  // A fenced code block in the live preview is one card built from its lines
+  // (finding X6, review 2026-11-10), the way a callout is: tint and font on
+  // every line, corners on the first and last. Padding, never margin - the
+  // height map measures lines. The reading view's block has the same tint.
+  ".cm-md-codeblock": {
+    fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+    fontSize: "0.9em",
+    backgroundColor: "var(--code-bg)",
+    color: "var(--text-main)",
+    paddingInline: "var(--space-3)",
+  },
+  ".cm-md-codeblock--first": {
+    borderTopLeftRadius: "var(--radius-md)",
+    borderTopRightRadius: "var(--radius-md)",
+    paddingTop: "var(--space-1)",
+  },
+  ".cm-md-codeblock--last": {
+    borderBottomLeftRadius: "var(--radius-md)",
+    borderBottomRightRadius: "var(--radius-md)",
+    paddingBottom: "var(--space-1)",
+  },
+  // Inside the card the code is not inline code a second time: no box of its
+  // own around every line, no second step down in size.
+  ".cm-md-codeblock .cm-md-mono": {
+    backgroundColor: "transparent",
+    padding: "0",
+    fontSize: "inherit",
+  },
+  // The language of the block, as the reading view labels it.
+  ".cm-md-codeinfo": {
+    fontFamily: "var(--font-ui)",
+    fontSize: "var(--text-xs)",
+    color: "var(--text-muted)",
+  },
+  // Inline code (the monospace tag of the highlighter, named so the code
+  // block above can address it).
+  ".cm-md-mono": {
+    fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+    backgroundColor: "var(--code-bg)",
+    padding: "2px 4px",
+    borderRadius: "var(--radius-xs)",
+    fontSize: "0.9em",
+  },
   // Live-mode rendered GFM table (see LivePreviewPlugin tableField/TableWidget).
   ".cm-md-table-wrap": {
     padding: "4px 0",
@@ -486,7 +529,10 @@ export const markdownHighlightStyle = HighlightStyle.define([
   // look has to step aside (finding 2026-09-19), and a rule can only address a
   // class it knows. The look itself lives in editorTheme (".cm-md-quote").
   { tag: t.quote, class: "cm-md-quote" },
-  { tag: t.monospace, fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)", backgroundColor: "var(--code-bg)", padding: "2px 4px", borderRadius: "var(--radius-xs)", fontSize: "0.9em" },
+  // A NAMED class for the same reason as the quote: the code block card has to
+  // undo the inline-code box on its lines (finding X6). The look is in
+  // editorTheme (".cm-md-mono").
+  { tag: t.monospace, class: "cm-md-mono" },
   { tag: t.list, color: "var(--text-main)" },
   { tag: t.comment, fontStyle: "italic", color: "var(--text-muted)" },
   { tag: t.keyword, color: "var(--accent-color)" },

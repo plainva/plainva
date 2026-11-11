@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import ts from "typescript";
 import { EditorState } from "@codemirror/state";
 import { ConflictError, containsTextChanges, isNotTextFileError, mergeEditorText } from "@plainva/core";
-import { applyTextShape, editorTextOf, keepTextBeside, openEditorText, readTextShape } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, editorTextOf, keepTextBeside, openEditorText, readTextShape } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
 import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
@@ -85,6 +85,8 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
   const deps = {
     activePath: path, vaultPath: root, vaultAdapter: files, saveState: lifetime, sessionRef, contentRef,
     withPendingWrite, mergeEditorText, containsTextChanges, ConflictError, isNotTextFileError, applyTextShape, editorTextOf, dirtyStore,
+    // The notice names the copy as a person reads it (finding X10).
+    conflictCopyLabel, i18n: { language: "en" },
     keepTextBeside: async (...args: Parameters<typeof keepTextBeside>) => { await hooks.beforeKeep(); return keepTextBeside(...args); },
     loadJournal: async () => ({ recordDraft, clearDraft }),
     setIsSaving: ui.saving, setSaveError: ui.error, setContent: ui.content, setConflictInfo: ui.conflict, setNotText: ui.notText, loadedPathRef,
@@ -162,7 +164,7 @@ describe("original desktop save completion", () => {
     expect(await readFile(join(root, copies[0]), "utf8")).toBe("my draft\n");
     // Said where the text went, and the note shows as what it is now.
     expect(h.ui.conflict).toHaveBeenLastCalledWith({ conflictPath: copies[0] });
-    expect(h.ui.toast).toHaveBeenCalledWith(`dialogs.conflictSavedMsg ${JSON.stringify({ path: copies[0] })}`);
+    expect(h.ui.toast).toHaveBeenCalledWith(`dialogs.conflictSavedMsg ${JSON.stringify({ path: conflictCopyLabel(copies[0]!, "en") })}`);
     expect(h.ui.notText).toHaveBeenCalledWith(true);
     expect(h.loadedPathRef.current).toBeNull();
     expect(h.ui.error).not.toHaveBeenCalledWith(expect.stringMatching(/./));

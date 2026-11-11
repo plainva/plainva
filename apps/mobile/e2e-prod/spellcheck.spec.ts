@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { waitForVaultDirectory, type MobileTestGlobals, openSettings } from "./exampleVault";
 
 /**
  * Spell checking as a device switch on the phone (plan Befunde 2026-10-06, E3).
@@ -64,7 +64,7 @@ test("the switch under Editor & notes turns checking on for the note editor, and
     // The switch: Settings -> Editor & notes.
     await back();
     await back();
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.locator('[data-testid="settings-area-editor"]').click();
     const toggle = page.getByRole("switch", { name: "Spell checking" });
     await expect(toggle).toHaveAttribute("aria-checked", "false");

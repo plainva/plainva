@@ -406,7 +406,7 @@
     },
     "policy": {
       "columns": "フォルダー",
-      "webOff": "インターネット オフ",
+      "webOff": "無効：この端末ではインターネットがオフです",
       "title": "この保管庫から出てよいもの",
       "desc": "ルールはノートのFrontmatterに、フォルダー全体の場合は.agent/policy.ymlに置きます。クラウドから遠ざけられたノートは本文もタイトルも一切渡さず、そのノートへのリンクも伏せられます。",
       "vaultDefault": "保管庫の既定",
@@ -4948,7 +4948,11 @@
   },
   "errors": {
     "somethingWentWrong": "問題が発生しました。",
-    "reload": "再読み込み"
+    "reload": "再読み込み",
+    "areaTitle": "この領域を表示できません",
+    "areaBody": "エラーにより停止しました。Plainva のほかの部分はそのまま動作し、エラーは「{{place}}」に記録されています。",
+    "areaAgain": "再読み込み後も失敗しました。続く場合は Plainva を再起動してください。エラーは「{{place}}」に記録されています。",
+    "areaReload": "この領域を再読み込み"
   },
   "palette": {
     "title": "コマンド",
@@ -5312,6 +5316,7 @@
     "todayInFolder": "フォルダー {{folder}}/",
     "folderCount_other": "{{count}}件のノート",
     "baseCount_other": "{{count}}件のデータベース",
+    "attachmentCount_other": "{{count}}件のファイル",
     "aboutTip": "ヒント: ロゴは注目されるのが好きです。5回。",
     "syncResume": "同期を再開",
     "reconnected": "アカウントを再接続しました。",
@@ -7330,6 +7335,7 @@
     "highlight5Title": "改善と不具合の修正",
     "highlight5": "アカウントはアシスタントで接続でき、設定は並べ直され、スマートフォンでは片手で書きやすくなりました。同期、メール、エディタにも多くの修正があります。詳細はリリースノートをご覧ください。",
     "readBlog": "ブログ記事を読む",
+    "readReleaseNotes": "リリースノートを読む",
     "understand": "了解"
   },
   "firstRun": {

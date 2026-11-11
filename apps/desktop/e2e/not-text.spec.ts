@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { test, expect } from './fixtures/clockedTest';
+import { conflictCopyLabel } from '../../../packages/ui/src/lib/conflictLabel';
 
 /**
  * A file whose name says text and whose bytes are not UTF-8 (finding
@@ -166,6 +167,22 @@ const untouched = async (page: any) => {
   expect(state.table).toEqual(TABLE);
 };
 
+
+/**
+ * The banner that names THIS conflict copy (finding X10, review 2026-11-10):
+ * it reads the copy as the app labels it - through the app's own function, in
+ * the browser's time zone and hour cycle - and carries the copy's file name as
+ * its tooltip, which is what tells two copies of one minute apart.
+ */
+async function copyBanner(page: any, copyName: string) {
+  const clock = await page.evaluate(() => {
+    const cycle = (new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions() as { hourCycle?: string }).hourCycle;
+    return { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, hourCycle: cycle === 'h12' || cycle === 'h11' ? 'h12' : 'h23' };
+  });
+  const label = conflictCopyLabel(copyName, 'en', clock as { timeZone: string; hourCycle: 'h12' | 'h23' });
+  return page.locator('.pv-banner', { has: page.locator(`[data-testid="editor-conflict-copy"][data-tip="${copyName}"]`, { hasText: label }) });
+}
+
 test('a note in Windows-1252 shows that it is not text — not that it is missing — and nothing is written to it', async ({ page }) => {
   await open(page, 'Alt');
   const notText = page.getByTestId('editor-not-text');
@@ -216,7 +233,7 @@ test('what was typed into a note that another program saved in Windows-1252 mean
   expect(state.kept[0]).toContain('Typed meanwhile.');
   expect(state.note).toEqual({ bytes: OLD_NOTE });
   const copyName = state.copies[0].replace('/test-vault/', '');
-  const banner = page.locator('.pv-banner', { hasText: copyName });
+  const banner = await copyBanner(page, copyName);
   await expect(banner).toBeVisible();
   // Nothing of what was typed is left to count, or to write properties into.
   await expect(page.getByText('UTF-8', { exact: true })).toHaveCount(0);
@@ -315,7 +332,7 @@ async function openOverJournal(page: any) {
   // Kept in the editor's shape: the old journal's mark and line ends do not come along.
   await expect.poll(async () => (await copies()).map((copy) => copy.text)).toEqual(['# Alt\n\nLeft unsaved.\n']);
   const [kept] = await copies();
-  const banner = page.locator('.pv-banner', { hasText: kept.path.replace('/test-vault/', '') });
+  const banner = await copyBanner(page, kept.path.replace('/test-vault/', ''));
   await expect(banner).toBeVisible();
   return { copies, banner };
 }

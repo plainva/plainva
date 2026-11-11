@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-11-06
+Stand: 2026-11-10
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -139,7 +139,7 @@ Ein Tipp auf eine Termin-Erinnerung öffnet den Termin selbst — die Tagesansic
 
 **Was nicht aktuell ist und was nicht passt.** Wird ein Konto oder ein Kalender nicht abgeglichen, steht das auch am Telefon in einer Zeile über dem Kalender – wer, seit wann und warum – mit **Erneut versuchen**; die Termine darunter bleiben als letzter Stand stehen. In der Ansicht **Monat** zeigt ein Tag höchstens drei Punkte; eine Zahl dahinter (etwa **+3**) sagt, wie viele Einträge er darüber hinaus hat. Arbeitsort, Fokuszeit und Abwesenheit stehen im Zeitraster als ruhiges Band in der Ganztägig-Zeile, nicht als Termin. Der Bereich **Aufgaben** hat dieselbe Zeile für Aufgabenlisten, und sein Aktualisieren fragt sofort bei den Anbietern nach, wie am Desktop.
 
-Konten verwaltest Du unter ☰ → **Einstellungen** → **Kalender**: **Konto hinzufügen…** öffnet denselben Assistenten wie **Cloud-Konten**, mit **Kalender & Aufgaben** schon angehakt (das frühere eigene Formular gibt es nicht mehr). **CalDAV**-Anbieter (z. B. Fastmail, Nextcloud, iCloud) verbindest Du direkt auf dem Gerät mit einem Formular für alle gewählten Dienste und dem Geheimnis, das der Anbieter nennt — meist ein **App-Passwort**; Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
+Konten verwaltest Du unter ⚙ → **Einstellungen** → **Kalender**: **Konto hinzufügen…** öffnet denselben Assistenten wie **Cloud-Konten**, mit **Kalender & Aufgaben** schon angehakt (das frühere eigene Formular gibt es nicht mehr). **CalDAV**-Anbieter (z. B. Fastmail, Nextcloud, iCloud) verbindest Du direkt auf dem Gerät mit einem Formular für alle gewählten Dienste und dem Geheimnis, das der Anbieter nennt — meist ein **App-Passwort**; Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
 
 Aus einem Termin heraus legst Du über **Besprechungsnotiz** die zugehörige Notiz an — dieselbe Notiz, die auch der Desktop findet: sie trägt einen Anker auf den Termin, wird beim zweiten Aufruf wieder geöffnet statt doppelt angelegt und landet im **Meeting-Ordner**. Diesen Ordner wählst Du unter **Einstellungen** → **Kalender** in der Gruppe **Meeting-Notizen** über einen **Ordner-Browser** aus, statt seinen Pfad zu tippen; die Gruppe **Termine** hält den **Standardkalender für Termine** (in dem ein neuer Termin startet); beides gilt für den Vault und reist über die Einstellungs-Synchronisation mit. Ebendort wählst Du je Konto auch die **Aufgabenlisten**, die in Deine Aufgaben-Datenbank gespiegelt werden. Ebendort wählst Du die **Vorlage für Meeting-Notizen**; sie reist wie der Ordner mit, alles Weitere steht in [Kalender & externe Aufgaben](Calendar_and_Tasks.md).
 

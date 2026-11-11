@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * "Fully local" on the phone (AI harness P7-1, ADR 0030), in the production
@@ -101,7 +101,7 @@ test("AI fully local: the phone's settings say what holds; switched on they list
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
     const sheet = (title: string) => page.locator(".m-sheet").filter({ has: page.locator(".m-sheet-title", { hasText: title }) });
     const toAppSettings = async () => {
-      await page.getByTestId("nav-settings").first().click();
+      await openSettings(page);
       await page.getByTestId("settings-area-ai").click();
       await expect(page.getByTestId("settings-ai")).toBeVisible();
     };

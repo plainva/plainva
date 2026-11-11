@@ -6,7 +6,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
 import { ZipBackupGroup } from "../components/ZipBackupGroup";
-import { errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, taskDatabaseLabels, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
+import { AreaBoundary, errorText, toast, placeStampEnabled, setPlaceStampEnabled, createTaskDatabase, taskDatabaseLabels, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, PlainvaLogo, Row, RowList, SectionLabel, SettingField, Switch, CommittedTextInput, splitTextFileExtensions, travelsWithVault, choicesWith, VERSION_INTERVAL_CHOICES, VERSION_MAX_AGE_CHOICES, VERSION_MAX_COUNT_CHOICES, versionIntervalLabel } from "@plainva/ui";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView, NOTE_HEAD_BUTTONS, type NoteHeadButton } from "../services/mobileSettings";
 import { noteTypeOf } from "../services/newNote";
@@ -402,6 +402,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       </div>
 
       {pickFor && (
+        <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setPickFor(null) }}>
         <FolderPickerSheet
           onClose={() => setPickFor(null)}
           onPick={(path) => {
@@ -410,6 +411,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
           title={t("settings.browseFolders")}
           vault={vault}
         />
+        </AreaBoundary>
       )}
     </div>
   );
@@ -501,7 +503,7 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
           </RowList>
         </GroupCard>
       </div>
-      {deleted && <DeletedFilesSheet onClose={() => setDeleted(false)} vault={vault} />}
+      {deleted && <AreaBoundary area="sheet:deletedFiles" size="dialog" exit={{ label: t("common.close"), onExit: () => setDeleted(false) }}><DeletedFilesSheet onClose={() => setDeleted(false)} vault={vault} /></AreaBoundary>}
     </div>
   );
 }
@@ -587,7 +589,7 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
         </GroupCard>
       </div>
 
-      {hailing && <HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} />}
+      {hailing && <AreaBoundary area="sheet:hailing" size="dialog" exit={{ label: t("common.close"), onExit: () => setHailing(false) }}><HailingSheet onChanged={() => setTick((n) => n + 1)} onClose={() => setHailing(false)} /></AreaBoundary>}
 
     </div>
   );

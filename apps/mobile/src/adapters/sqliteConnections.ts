@@ -79,6 +79,7 @@ export function acquireDatabase(name: string): Promise<DatabaseHandle> {
       await conn.closeConnection(name, false).catch(() => {});
       throw error;
     }
+    await useWriteAheadLog(name, connection);
     const entry: OpenDatabase = { connection, users: 1, turns: new TransactionTurns() };
     open.set(name, entry);
     return { connection, turns: entry.turns };
@@ -101,9 +102,102 @@ export function releaseDatabase(name: string): Promise<void> {
   });
 }
 
-/** Removes a per-vault database file (vault deletion). Best effort. */
-export async function deleteDatabaseFile(name: string): Promise<void> {
-  await CapacitorSQLite.deleteDatabase({ database: name });
+/**
+ * The database writes through a write-ahead log, and waits for the disk only
+ * at a checkpoint (performance plan L4, finding B5) - as the desktop's has
+ * always done (`TauriDatabaseAdapter`). The plugin opens a database in its
+ * rollback-journal mode, where every single write waits for the disk: in the
+ * core's measurement the index of a saved note took twice as long that way.
+ *
+ * What it costs, and why it is safe:
+ *  - The log is a file beside the database (`<name>-wal`, with its index
+ *    `<name>-shm`). SQLite folds it into the database when the last
+ *    connection closes and removes both; deleting a database leaves the log
+ *    first (`deleteDatabaseFile`), so no log of a deleted database is left
+ *    for a new one of the same name to replay. Nothing on the phone copies or
+ *    backs up a database file: the index is rebuilt from the vault.
+ *  - An app killed in the middle of a write comes back with every committed
+ *    transaction and nothing of the one that was open: SQLite reads the log
+ *    on the next open and drops what was never committed (`walRecovery.test.ts`
+ *    shows it on a real file). That is the common case on a phone - the
+ *    system ends apps - and `NORMAL` loses nothing there: a commit is in the
+ *    log as soon as the app hands it over.
+ *  - What `synchronous = NORMAL` gives up is the last transactions before the
+ *    DEVICE loses power (an empty battery, a forced restart), never the
+ *    file's integrity. This database is more than the index: it holds the
+ *    sync queue, the sync states (merge bases, ETags), the deletion journal,
+ *    the comment and workspace queues and the calendar caches. Losing their
+ *    last transactions means doing something again, not doing something
+ *    wrong - the same trade the desktop has always made:
+ *     - a queued write or deletion that is lost: the file on disk still
+ *       differs from its sync state (the index marks it `local_ahead` and
+ *       the sweep after the first pull queues it), or the deletion stays
+ *       unpropagated until the next scan;
+ *     - a done upload whose record is lost: the upload runs again; the
+ *       remote then has the same bytes (`pending_push_sha` and the identical-
+ *       content check take it as no change, never as a conflict);
+ *     - a done remote deletion whose record is lost: it is sent again and
+ *       finds nothing to delete;
+ *     - a pull whose record is lost: the file on disk is the remote's, its
+ *       sync state the older one; the next cycle finds the same content on
+ *       both sides.
+ *    The calendar caches are read again from the provider.
+ *  - The journal mode is kept in the file; `synchronous` is not, so both are
+ *    set at every open. Android's SQLite opens a database in its own default
+ *    mode and so folds the log back first; that is a checkpoint, no loss.
+ *  - In the browser build (jeep-sqlite, the database in memory and stored
+ *    whole) there is no log: SQLite answers "memory" and nothing changes.
+ *
+ * `query`, not `execute`: `PRAGMA journal_mode` answers with a row, and
+ * Android runs `execute` through a call that refuses statements with rows.
+ * A database that does not take the log stays in its old mode and works.
+ */
+async function useWriteAheadLog(name: string, connection: SQLiteDBConnection): Promise<void> {
+  try {
+    await connection.query("PRAGMA journal_mode = WAL;");
+    await connection.query("PRAGMA synchronous = NORMAL;");
+  } catch (error) {
+    console.warn(`[sqlite] ${name} keeps its journal mode`, error);
+  }
+}
+
+/**
+ * Removes a per-vault database file (vault deletion, a discarded connect
+ * destination). Best effort.
+ *
+ * The plugin deletes only a database it has a connection for, and the vault
+ * being deleted has been closed by then: "No available connection" (Android)
+ * or "Connection … not available" (iOS) was the answer, swallowed by the
+ * caller, and the index - every note's text - stayed on the phone. So a
+ * connection is opened for the deletion when none is. Before the file goes,
+ * the database leaves its write-ahead log: the log is folded in and removed
+ * with its index file, which the plugin's deletion on iOS would leave behind
+ * (it removes the database file alone).
+ */
+export function deleteDatabaseFile(name: string): Promise<void> {
+  return inQueue(async () => {
+    const known = open.get(name);
+    let connection = known?.connection ?? null;
+    let opened = false;
+    if (!connection) {
+      const conn = plugin();
+      if (!checked) {
+        await conn.checkConnectionsConsistency();
+        checked = true;
+      }
+      connection = (await conn.isConnection(name, false)).result
+        ? await conn.retrieveConnection(name, false)
+        : await conn.createConnection(name, false, "no-encryption", 1, false);
+      opened = true;
+      await connection.open().catch(() => {});
+    }
+    try {
+      await connection.query("PRAGMA journal_mode = DELETE;").catch(() => {});
+      await CapacitorSQLite.deleteDatabase({ database: name });
+    } finally {
+      if (opened) await plugin().closeConnection(name, false).catch(() => {});
+    }
+  });
 }
 
 /** Tests only: a new JavaScript lifetime, as after a reload of the web view. */

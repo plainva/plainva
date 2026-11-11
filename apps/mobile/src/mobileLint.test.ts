@@ -119,7 +119,7 @@ const BUDGET: Record<string, Counts> = {
    */
   "components/CloudFolderPickerSheet.tsx": { gapBare: 1 },
   "components/NoteContextSheet.tsx": { spacingBare: 1 },
-  "screens/PimCalendarScreen.tsx": { spacingRaw: 2, sizeBare: 3 },
+  "screens/PimCalendarScreen.tsx": { spacingRaw: 1, sizeBare: 1 },
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -2995,7 +2995,8 @@ describe("a tap on Home leads home", () => {
  *
  * They used to be a row at the FOOT of the navigator: reachable only from
  * Home, and only after scrolling to the end of it. They now sit in the leading
- * slot of the app bar as a hamburger — the slot M3 reserves for navigation,
+ * slot of the app bar as a gear (a hamburger until finding X8) — the slot M3
+ * reserves for navigation,
  * which a pushed surface still uses for its back arrow.
  *
  * The list below is the point of this test. Threading a prop through six
@@ -3005,10 +3006,14 @@ describe("a tap on Home leads home", () => {
 describe("settings are reachable from every root", () => {
   const routes = () => stripComments(readFileSync(join(SRC, "routes.tsx"), "utf8"));
 
-  it("gives the app bar a hamburger when there is nothing to go back to", () => {
+  it("gives the app bar the settings gear when there is nothing to go back to", () => {
     const bar = stripComments(readFileSync(join(SRC, "components/AppBar.tsx"), "utf8"));
     expect(bar).toMatch(/onMenu/);
     expect(bar).toMatch(/data-testid="nav-settings"/);
+    // A gear, not ☰: the button opens the settings, and there is no drawer
+    // for a hamburger to promise (finding X8, review 2026-11-10).
+    expect(bar).toMatch(/<Settings size=\{ICON\.touch\} \/>/);
+    expect(bar).not.toMatch(/<Menu size=/);
     // The back arrow keeps the slot when both are given — M3's definition of it.
     expect(bar).toMatch(/\{onBack \? \(/);
   });

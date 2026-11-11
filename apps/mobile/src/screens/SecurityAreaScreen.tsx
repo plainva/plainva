@@ -8,7 +8,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { QuarantineList } from "../components/QuarantineList";
 import type { WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
-import { Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, workspaceDeparture, dismissEncryptedRemote, encryptedRemoteDismissable, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, workspaceDeparture, dismissEncryptedRemote, encryptedRemoteDismissable, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup } from "@plainva/ui";
 import { decodeWorkspaceInvite, encodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
@@ -1297,6 +1297,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
         onCompareFork={(fork) => setCompareFork(fork)}
       />
       {compareFork && (
+        <AreaBoundary area="sheet:conflictCompare" size="dialog" exit={{ label: t("common.close"), onExit: () => setCompareFork(null) }}>
         <ConflictCompareSheet
           vault={vault}
           conflictPath={compareFork.forkPath}
@@ -1309,14 +1310,15 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
             void discardMobileLocalFork(vault, fork.forkId).then(() => refresh()).catch((error) => toast.error(errorText(error)));
           }}
         />
+        </AreaBoundary>
       )}
-      {publishFor && <PublishSliceSheet
+      {publishFor && <AreaBoundary area="sheet:publishSlice" size="dialog" exit={{ label: t("common.close"), onExit: () => setPublishFor(null) }}><PublishSliceSheet
                        sliceName={publishFor.name}
                        onClose={() => setPublishFor(null)}
                        onPreview={previewPublish}
                        onSubmit={submitPublish}
-                     />}
-      {recipientsFor && <PublicationRecipientsSheet
+                     /></AreaBoundary>}
+      {recipientsFor && <AreaBoundary area="sheet:publicationRecipients" size="dialog" exit={{ label: t("common.close"), onExit: () => setRecipientsFor(null) }}><PublicationRecipientsSheet
                           busy={recipientsBusy}
                           locked={recipientsFor.locked}
                           record={recipientsFor.record}
@@ -1324,13 +1326,13 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
                           onClose={() => setRecipientsFor(null)}
                           onInvite={(displayName) => inviteRecipient(recipientsFor.record, displayName)}
                           onRevoke={(memberId) => revokeRecipient(recipientsFor.record, memberId)}
-                        />}
-      {withdrawFor && <WithdrawPublicationSheet
+                        /></AreaBoundary>}
+      {withdrawFor && <AreaBoundary area="sheet:withdrawPublication" size="dialog" exit={{ label: t("common.close"), onExit: () => setWithdrawFor(null) }}><WithdrawPublicationSheet
                         record={withdrawFor}
                         onClose={() => setWithdrawFor(null)}
                         onWithdraw={() => withdrawPublication(withdrawFor)}
-                      />}
-      {sliceFolderPick && <FolderPickerSheet vault={vault} title={t("settings.browseFolders")} onPick={(path) => { setSliceFolder(path); setSlicePreview(null); setSliceFolderPick(false); }} onClose={() => setSliceFolderPick(false)} />}
+                      /></AreaBoundary>}
+      {sliceFolderPick && <AreaBoundary area="sheet:folderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setSliceFolderPick(false) }}><FolderPickerSheet vault={vault} title={t("settings.browseFolders")} onPick={(path) => { setSliceFolder(path); setSlicePreview(null); setSliceFolderPick(false); }} onClose={() => setSliceFolderPick(false)} /></AreaBoundary>}
       {scan === "invite" && <QrScanner onDecode={(value) => { setInviteCode(value); setScan(null); }} onClose={() => setScan(null)} />}
       {scan === "approve" && <QrScanner onDecode={(value) => void approveFromScan(value)} onClose={() => setScan(null)} />}
     </div>

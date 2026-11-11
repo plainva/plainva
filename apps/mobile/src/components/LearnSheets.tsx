@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { GraduationCap, History } from "lucide-react";
-import {
+import { AreaBoundary,
   approvalFacts,
   Banner,
   Button,
@@ -43,14 +43,15 @@ export function LearnSheets({ onOpenNote }: { onOpenNote: (path: string) => void
   const surfaces = useLearnSurfaces();
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
+  const { t } = useTranslation();
   return (
     <>
       {surfaces.map((surface) => {
         const close = () => closeLearnSurface(surface);
         const key = learnSurfaceKey(surface);
-        if (surface.kind === "learn") return <LearnSheet key={key} session={session} state={state} conversationId={surface.conversationId} onClose={close} onOpenNote={onOpenNote} />;
-        if (surface.kind === "skill-draft") return <SkillDraftSheet key={key} session={session} state={state} draftId={surface.draftId} onClose={close} />;
-        return <SkillVersionsSheet key={key} session={session} state={state} skillId={surface.skillId} onClose={close} />;
+        if (surface.kind === "learn") return <AreaBoundary key={key} area="sheet:learn" size="dialog" exit={{ label: t("common.close"), onExit: close }}><LearnSheet session={session} state={state} conversationId={surface.conversationId} onClose={close} onOpenNote={onOpenNote} /></AreaBoundary>;
+        if (surface.kind === "skill-draft") return <AreaBoundary key={key} area="sheet:skillDraft" size="dialog" exit={{ label: t("common.close"), onExit: close }}><SkillDraftSheet session={session} state={state} draftId={surface.draftId} onClose={close} /></AreaBoundary>;
+        return <AreaBoundary key={key} area="sheet:skillVersions" size="dialog" exit={{ label: t("common.close"), onExit: close }}><SkillVersionsSheet session={session} state={state} skillId={surface.skillId} onClose={close} /></AreaBoundary>;
       })}
     </>
   );

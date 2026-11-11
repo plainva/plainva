@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/clockedTest';
 
 /**
  * Note links (F2, ADR 0037): `plainva://open?vault=…&path=…` opens a note at

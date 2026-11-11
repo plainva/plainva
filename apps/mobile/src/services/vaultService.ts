@@ -105,6 +105,7 @@ import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openE
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
+import { afterFirstPaint } from "./bootStagger";
 
 /**
  * Mobile vault bootstrap (M2/M3): a real sandbox vault behind the SAME
@@ -976,16 +977,23 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // empty on first open.
     const warm = ((await db.queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM files"))?.n ?? 0) > 0;
     if (warm) {
-      void indexer
-        .indexVaultFull("open")
-        .then(() => {
-          // Got through after the vault began to close: it belongs to no open
-          // vault (as on the desktop).
-          if (indexAbort.signal.aborted) return;
-          indexPassSettled = true;
-          window.dispatchEvent(new CustomEvent("m-vault-changed"));
-        })
-        .catch(() => {});
+      // Begun with the vault's first picture, not before it: the screen's own
+      // reads come first on the one connection (bootStagger.ts, performance
+      // plan L4). A scan asked for meanwhile - a pull to refresh - starts it.
+      const warmIndexer = indexer;
+      afterFirstPaint(() => {
+        if (indexAbort.signal.aborted) return;
+        void warmIndexer
+          .indexVaultFull("open")
+          .then(() => {
+            // Got through after the vault began to close: it belongs to no open
+            // vault (as on the desktop).
+            if (indexAbort.signal.aborted) return;
+            indexPassSettled = true;
+            window.dispatchEvent(new CustomEvent("m-vault-changed"));
+          })
+          .catch(() => {});
+      });
     } else if (isExternalVault(entry)) {
       // A folder another app keeps is read through the platform's storage
       // access, one call per folder and per file (issue 143): minutes for a
@@ -1111,7 +1119,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
 }
 
 export interface FolderListing {
-  folders: Array<{ name: string; count: number }>;
+  /** `count` notes and `files` attachments below each subfolder, recursively once the index is ready. */
+  folders: Array<{ name: string; count: number; files: number }>;
   notes: Array<{ path: string; title: string; mtime?: number; ctime?: number }>;
   /** Read-only databases (M4): .base files in this folder. */
   bases: Array<{ path: string; title: string }>;
@@ -1252,10 +1261,22 @@ export const vaultOps = {
         return 0;
       }
     };
+    // Attachments beside the notes (finding X10, review 2026-11-10): a folder
+    // of pictures said "0 notes" and nothing else, as if it were empty. Same
+    // predicate as the listing's own `attachments` below.
+    const deepFiles = deep && v.queryService ? await v.queryService.countAttachmentsPerSubfolder(folder) : null;
+    const shallowFiles = async (path: string): Promise<number> => {
+      try {
+        return (await v.files.listDir(path)).filter((e) => !e.isDirectory && !e.name.startsWith(".") && !/\.(md|base)$/i.test(e.name)).length;
+      } catch {
+        return 0;
+      }
+    };
     const folders = await Promise.all(
       folderNames.map(async (name) => ({
         name,
         count: deep ? (deep.get(name) ?? 0) : await shallowCount(folder ? `${folder}/${name}` : name),
+        files: deepFiles ? (deepFiles.get(name) ?? 0) : await shallowFiles(folder ? `${folder}/${name}` : name),
       })),
     );
     const notes = entries

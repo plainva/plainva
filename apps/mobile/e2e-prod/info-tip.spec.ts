@@ -1,6 +1,6 @@
 import { test, expect } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { waitForVaultDirectory, openSettings } from "./exampleVault";
 
 /**
  * The info button of a setting on the phone (settings plan 2026-10-29, § 3):
@@ -23,7 +23,7 @@ test("the info button opens a sheet, not the row, and Escape closes it", async (
     await expect(close).toBeVisible({ timeout: 15000 });
     await close.click();
 
-    await page.locator('[data-testid="nav-settings"]').first().click();
+    await openSettings(page);
     await page.locator('[data-testid="settings-area-maintenance"]').click();
     const info = page.getByRole("button", { name: "More about Rebuild index" });
     await expect(info).toBeVisible();

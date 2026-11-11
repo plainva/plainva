@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-11-02
+Última actualización: 2026-11-10
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -139,6 +139,10 @@ Mientras no haya releases públicas todavía, la búsqueda de actualizaciones in
 ### ¿Hay funciones ocultas?
 
 La Flota Estelar, por principio, no comenta rumores. Pero se dice que el logo de la barra de título responde a llamadas persistentes — y quien conozca después las palabras adecuadas verá Plainva bajo una luz completamente nueva. Algunos dicen: en cuatro.
+
+### Una parte de la ventana dice «No se puede mostrar esta área»
+
+Un área no se pudo dibujar: una pestaña, una sección de la barra lateral, una vista de base de datos, un correo, una página de ajustes, un diálogo o, en el teléfono, una pantalla o una hoja. Solo se reemplaza esa área; todo lo demás sigue funcionando y una nota abierta conserva su texto. **Recargar esta área** vuelve a dibujar el área. Si falla una segunda vez, el mensaje lo dice y se queda: cierra la pestaña (**Cerrar pestaña**) o, en el teléfono, pulsa **Atrás**, y reinicia Plainva si vuelve a ocurrir. El error queda registrado en **Acerca de y diagnóstico**; la exportación de diagnóstico de allí no contiene el contenido de las notas y ayuda en un informe de error.
 
 ## Ver también
 

@@ -478,7 +478,7 @@
     },
     "policy": {
       "columns": "Folder",
-      "webOff": "Internet wyłączony",
+      "webOff": "nie obowiązuje: internet jest wyłączony na tym urządzeniu",
       "title": "Co może opuścić ten vault",
       "desc": "Reguła znajduje się we frontmatterze notatki albo, dla całego folderu, w .agent/policy.yml. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej są wstrzymywane.",
       "vaultDefault": "Domyślne dla vaultu",
@@ -5269,7 +5269,11 @@
   },
   "errors": {
     "somethingWentWrong": "Coś poszło nie tak.",
-    "reload": "Załaduj ponownie"
+    "reload": "Załaduj ponownie",
+    "areaTitle": "Nie można wyświetlić tego obszaru",
+    "areaBody": "Zatrzymał go błąd. Reszta Plainva działa dalej, a błąd jest zapisany w {{place}}.",
+    "areaAgain": "Po ponownym załadowaniu znów się nie udało. Jeśli tak zostanie, uruchom Plainva ponownie; błąd jest zapisany w {{place}}.",
+    "areaReload": "Załaduj ten obszar ponownie"
   },
   "palette": {
     "title": "Polecenia",
@@ -5651,6 +5655,10 @@
     "baseCount_few": "{{count}} bazy danych",
     "baseCount_many": "{{count}} baz danych",
     "baseCount_other": "{{count}} bazy danych",
+    "attachmentCount_one": "1 plik",
+    "attachmentCount_few": "{{count}} pliki",
+    "attachmentCount_many": "{{count}} plików",
+    "attachmentCount_other": "{{count}} pliku",
     "aboutTip": "Wskazówka: logo lubi uwagę. Pięć razy.",
     "syncResume": "Wznów synchronizację",
     "reconnected": "Ponownie połączono konto.",
@@ -7792,6 +7800,7 @@
     "highlight5Title": "Ulepszenia i poprawki",
     "highlight5": "Konta łączą się przez asystenta, ustawienia są ułożone na nowo, na telefonie łatwiej pisać jedną ręką, a synchronizacja, poczta i edytor dostały wiele poprawek. Szczegóły są w informacjach o wydaniu.",
     "readBlog": "Przeczytaj wpis na blogu",
+    "readReleaseNotes": "Przeczytaj informacje o wydaniu",
     "understand": "Zrozumiano"
   },
   "firstRun": {

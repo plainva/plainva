@@ -1833,6 +1833,55 @@
     </div>
   </section>
 
+  <section id="area-fallback">
+    <h2>An area that could not be shown</h2>
+    <p class="sec-sub">When a tab, a sidebar section, a column, a screen, a sheet or a dialog fails to draw, only that area is replaced (<code>AreaBoundary</code>, stability plan R3). The fallback is the empty state with the alert glyph: one sentence, <b>Reload this area</b> as the tonal button, the area's own way out as a ghost button. After a reload that fails again the sentence says so and the reload button is gone. The section form has no glyph, a small title and small buttons; the strip form is one line (glyph, title, reload as an icon button) for a horizontal bar, whose height must not change and which it never widens; the icon form is the glyph and the reload stacked, the sentence as tooltip, for the ribbon and the phone's floating button; the quiet form is for a surface that appears on its own (selection toolbars, banners): nothing drawn, one warning toast per area and run; a dialog that fails is replaced by a dialog (a sheet on the phone) with the same body.</p>
+    <div class="grid g2">
+      <div class="card" style="padding: var(--space-6); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; color: var(--text-muted)">
+        <span aria-hidden="true" style="font-size: var(--text-headline); color: var(--text-faint)">⊘</span>
+        <div style="font-size: var(--text-headline); font-weight: 700; color: var(--text-main)">This area could not be shown</div>
+        <div style="max-width: 420px; line-height: 1.5">An error stopped it. The rest of Plainva keeps working, and the error is recorded under About &amp; diagnostics.</div>
+        <div style="display: flex; gap: var(--space-2)"><span class="pvbtn tonal">Reload this area</span><span class="pvbtn ghost">Close tab</span></div>
+      </div>
+      <div class="card" style="padding: var(--space-3); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; color: var(--text-muted)">
+        <div style="font-size: var(--text-headline); font-weight: 700; color: var(--text-main)">This area could not be shown</div>
+        <div style="max-width: 420px; line-height: 1.5">It failed again after reloading. If it keeps failing, restart Plainva; the error is recorded under About &amp; diagnostics.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="code-block-card">
+    <h2>A code block is one card, in the live preview as in the reading view</h2>
+    <p class="sec-sub">Review 2026-11-10, X6. Built from lines like a callout: <code>.cm-md-codeblock</code> on every line (monospace, the code tint, <code>--space-3</code> inline padding), <code>--first</code> and <code>--last</code> carry the corners (<code>--radius-md</code>) and a little air. On a line without the caret the fence's backticks are hidden and its language is a small <code>--text-muted</code> label (<code>.cm-md-codeinfo</code>); the caret on a fence shows it whole. Inline code inside the card has no box of its own (<code>.cm-md-mono</code>). Only the lines of the visible range are decorated.</p>
+    <div class="card" style="max-width: 640px">
+      <p style="margin: 0 0 var(--space-2)">Before the block.</p>
+      <div style="background: color-mix(in srgb, var(--accent-color) 7%, var(--bg-secondary)); border-radius: var(--radius-md); padding: var(--space-1) var(--space-3); font-family: var(--font-mono); font-size: 0.9em; line-height: 1.6">
+        <div style="font-family: var(--font-ui, system-ui); font-size: var(--text-xs); color: var(--text-muted)">js</div>
+        <div><span style="color: var(--accent-color)">const</span> hero = "Your notes, plain Markdown.";</div>
+        <div>console.log(hero);</div>
+        <div>&nbsp;</div>
+      </div>
+      <p style="margin: var(--space-2) 0 0">After the block.</p>
+    </div>
+  </section>
+
+  <section id="focus-frame">
+    <h2>The frame of a keyboard surface wears no focus ring; its controls do</h2>
+    <p class="sec-sub">Review 2026-11-10, X7. A dialog (<code>.pv-modal</code>), the file tree, the mail reader and a popover panel take the focus by code (<code>tabIndex={-1}</code>) as the frame the keyboard works in. They carry <code>.pv-focus-frame</code> (or are <code>.pv-modal</code>); the rule takes the global ring off them with <code>!important</code>, because the ring itself carries one. Without it every dialog that took the focus wore a teal frame that read like an error state. A button inside keeps its ring. The phone's sheets take no focus of their own.</p>
+    <div style="display: flex; gap: var(--space-4); flex-wrap: wrap">
+      <div class="card" style="width: 280px">
+        <p style="margin: 0 0 var(--space-2); font-weight: 600">Welcome to Plainva</p>
+        <p style="margin: 0 0 var(--space-3); color: var(--text-muted); font-size: var(--text-sm)">The dialog has the focus: no ring around the frame.</p>
+        <span class="pvbtn">Open Vault</span>
+      </div>
+      <div class="card" style="width: 280px">
+        <p style="margin: 0 0 var(--space-2); font-weight: 600">Welcome to Plainva</p>
+        <p style="margin: 0 0 var(--space-3); color: var(--text-muted); font-size: var(--text-sm)">Tab moved to a control: the control shows the ring.</p>
+        <span class="pvbtn" style="outline: 2px solid var(--accent-color); outline-offset: 1px">Open Vault</span>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= FRAGEN ================= -->
   <section id="fragen">
     <h2><span class="no">13</span>Entscheidungen</h2>

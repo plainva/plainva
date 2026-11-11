@@ -454,7 +454,7 @@
     },
     "policy": {
       "columns": "Carpeta",
-      "webOff": "Internet desactivado",
+      "webOff": "sin efecto: internet está desactivado en este dispositivo",
       "title": "Lo que puede salir de este vault",
       "desc": "Una regla va en el frontmatter de una nota o, para toda una carpeta, en .agent/policy.yml. Una nota que se mantiene fuera de la nube no aporta nada — ni texto ni título — y los enlaces hacia ella se retienen.",
       "vaultDefault": "Predeterminado del vault",
@@ -5162,7 +5162,11 @@
   },
   "errors": {
     "somethingWentWrong": "Algo salió mal.",
-    "reload": "Recargar"
+    "reload": "Recargar",
+    "areaTitle": "No se puede mostrar esta área",
+    "areaBody": "Un error la detuvo. El resto de Plainva sigue funcionando y el error queda registrado en {{place}}.",
+    "areaAgain": "Volvió a fallar después de recargarla. Si sigue fallando, reinicia Plainva; el error queda registrado en {{place}}.",
+    "areaReload": "Recargar esta área"
   },
   "palette": {
     "title": "Comandos",
@@ -5538,6 +5542,9 @@
     "baseCount_one": "1 base de datos",
     "baseCount_many": "{{count}} bases de datos",
     "baseCount_other": "{{count}} bases de datos",
+    "attachmentCount_one": "1 archivo",
+    "attachmentCount_many": "{{count}} archivos",
+    "attachmentCount_other": "{{count}} archivos",
     "aboutTip": "Consejo: al logotipo le gusta la atención. Cinco veces.",
     "syncResume": "Reanudar la sincronización",
     "reconnected": "Cuenta reconectada.",
@@ -7638,6 +7645,7 @@
     "highlight5Title": "Mejoras y correcciones",
     "highlight5": "Las cuentas se conectan con un asistente, los ajustes están reordenados, en el teléfono se escribe mejor con una mano, y el sync, el correo y el editor han recibido muchas correcciones. Los detalles están en las notas de la versión.",
     "readBlog": "Leer la entrada del blog",
+    "readReleaseNotes": "Leer las notas de la versión",
     "understand": "Entendido"
   },
   "firstRun": {

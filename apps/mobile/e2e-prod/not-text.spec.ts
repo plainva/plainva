@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "./clockedTest";
 import { waitForVaultDirectory, type MobileTestGlobals, vaultFolderNames } from "./exampleVault";
+import { conflictCopyLabel } from "../../../packages/ui/src/lib/conflictLabel";
 
 /**
  * A file whose name says text and whose bytes are not UTF-8, on the phone
@@ -43,6 +44,21 @@ async function bytesOf(page: Page, path: string): Promise<number[]> {
   }, path);
 }
 
+
+/**
+ * The card names THIS conflict copy (finding X10, review 2026-11-10): the
+ * label the app shows - through the app's own function, in the browser's time
+ * zone and hour cycle - and, under it, the copy's file name.
+ */
+async function expectCopyNamed(page: Page, copyName: string) {
+  const clock = await page.evaluate(() => {
+    const cycle = (new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions() as { hourCycle?: string }).hourCycle;
+    return { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, hourCycle: cycle === "h12" || cycle === "h11" ? "h12" : "h23" };
+  });
+  await expect(page.getByTestId("note-conflict-copy")).toHaveText(conflictCopyLabel(copyName, "en", clock as { timeZone: string; hourCycle: "h12" | "h23" }));
+  await expect(page.getByTestId("note-conflict-copy-name")).toHaveText(copyName);
+}
+
 test("a note in Windows-1252 shows that it is not text, offers it to another app, and stays as it lies there", async ({ page }) => {
   await vaultWith(page, { "Alt.md": OLD_NOTE, "Data.csv": TABLE });
   await page.getByText("Alt", { exact: true }).first().click();
@@ -82,7 +98,7 @@ test("what was typed into a note that another program saves in Windows-1252 mean
   await expect(page.getByText("This note was changed elsewhere")).toBeVisible();
   const copies = (await vaultFolderNames(page)).filter((name) => name.startsWith("Alt.CONFLICT-"));
   expect(copies).toHaveLength(1);
-  await expect(page.locator("code", { hasText: copies[0] })).toBeVisible();
+  await expectCopyNamed(page, copies[0]!);
   const kept = await page.evaluate(async (name) => (await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/" + name, directory: "DATA" as never, encoding: "utf8" as never })).data, copies[0]);
   expect(kept).toContain("eins");
   expect(kept).toContain("zwei");
@@ -106,7 +122,7 @@ test("a pull that turns an open note into Windows-1252 and leaves this phone's v
   }, { bytes: OLD_NOTE, copy: COPY });
   await expect(page.getByTestId("note-not-text")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("This note was changed elsewhere")).toBeVisible();
-  await expect(page.locator("code", { hasText: COPY })).toBeVisible();
+  await expectCopyNamed(page, COPY);
   expect(await bytesOf(page, "Alt.md")).toEqual(OLD_NOTE);
 });
 
@@ -118,7 +134,7 @@ test("the copy a sync left beside such a table is shown from it, as on the deskt
   await expect(page.getByTestId("note-not-text")).toBeVisible({ timeout: 20_000 });
   // No editor of this phone kept it: the card leads to it all the same.
   await expect(page.getByText("This note was changed elsewhere")).toBeVisible();
-  await expect(page.locator("code", { hasText: COPY })).toBeVisible();
+  await expectCopyNamed(page, COPY);
   await page.getByRole("button", { name: "Show differences" }).click();
   // Nothing of either file is shown — and the copy can take the table's place.
   await expect(page.getByTestId("compare-not-text")).toBeVisible();

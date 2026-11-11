@@ -1,0 +1,3 @@
+# Screenshot walks are build artifacts, recreated by e2e-screenshots/walk.spec.ts.
+*
+!.gitignore
