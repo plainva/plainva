@@ -98,6 +98,11 @@ gate trustworthy on the runner:
    `asBaseline` object from the `perf-core` artifact into `environments["github-ubuntu-latest"]`,
    commit. Record anew when the runner image changes.
 
+The pass without changes is almost all file system (two SQL statements, ten thousand
+`stat`s), which the loop does not see: on this machine it moved between 0.5 and 6.7 s for the same
+code while other work read the disk. It is divided by a plain walk of the vault folder
+(`fsWalkMs`: every folder listed, every entry stat'ed) measured right before each pass instead.
+
 Small times move by more than 25 % for nothing, so a metric fails only when it is also worse
 by its floor in absolute terms (2 s cold index, 50 ms warm pass, 2 ms / 3 ms save p50 / p95,
 3 ms search, 30 ms `listTasks`). The index size is compared as it is (SQLite writes the same
@@ -143,43 +148,72 @@ index run, every move and every deletion paid that once or twice. Measured in th
 10 000 rows: 7.17 ms for one such delete against 0.011 ms by the row number, 64 of the 96 seconds
 of a cold index.
 
-Since index format 9 a note's full-text row carries the **negated** row number of its row in
-`files` (`fts_notes.rowid = -files.rowid`, `packages/core/src/db/fullTextRows.ts`), and every write
-reaches it through that number: the delete before the file's row goes, the insert after it is
-written (`INSERT OR REPLACE`, so a row left at that number gives way instead of failing the
-batch), a move keeps the number on both sides and only updates the path, the rebuild drops every
-row whose number and path do not match a file. Reads still name rows by path where they did; the
-readers of the whole table read `ORDER BY rowid DESC`, which is the order they had before.
+Since index format 9 the `files` row of a note names its full-text row (`files.fts_rowid`,
+`packages/core/src/db/fullTextRows.ts`): `0` means the row is numbered `-files.rowid` (every row
+this build writes; the number is known before the insert, so the insert needs no second statement
+and no insert id from a pooled connection), another number is the row a format-8 index already
+had (recorded by the conversion instead of rewriting the row), and `NULL` is a `files` row written
+by a build that does not know the column. Every write reaches the row through that number: the
+insert after the file's row is written (`INSERT OR REPLACE`), the delete by a trigger on `files`
+(`files_takes_its_full_text_row`, for this build and an older one alike, so no row can outlive its
+file), a move keeps the number and only rewrites the path, the rebuild drops every row no file
+names under its path.
 
-Negative, because an older app still writes on a newer index after a downgrade (its statements
-are valid on the same columns) and leaves the number to SQLite, which counts on from the largest
-one — always 0 or above. The two kinds never meet, and `SELECT rowid FROM fts_notes WHERE rowid >= 0
-LIMIT 1` (microseconds) tells at every start whether there is anything to number.
+**Downgrades (first design corrected, 2026-11-10).** The first version numbered rows `-files.rowid`
+and took any row at 0 or above as an older build's. That was wrong: SQLite numbers an older
+build's insert one above the largest number, and on an index of this build that is still below 0,
+so nothing was found, and the next save of the note wrote a second row (find & replace then wrote
+the note twice). Now detection does not depend on numbers at all:
 
-The conversion (`keyFullTextRowsByFile` in `Schema.ts`) reads no note: like format 5 it copies the
-table into `fts_notes_next` under the new numbers, drops the old one and renames the copy, in one
-batch. Rows that already carry their file's number are copied as they are, the others get the
-number of the file at their path (the later of two rows of one path wins); a row whose path no
-file has is left behind. It runs at every start that finds a row at 0 or above, so the same code is
-the format-9 migration and the repair after a downgrade. An interrupted run leaves the table as it
-was (atomic batch); where an adapter replays statement by statement and stopped between drop and
-rename, the empty table `initializeSchema` recreated gives way to the copy, as in format 5. The two
-earlier migrations that page through the table by `rowid > ?` start below every negative number.
+| What an older build (v0.8.3 … v0.8.7 and the internal builds) runs on `files` / `fts_notes` | Effect on a format-9 index |
+|---|---|
+| `INSERT INTO files (…)` (a note read again, an attachment) and `INSERT OR REPLACE INTO files (…)` (its parse-error path) | `fts_rowid` stays `NULL` → trigger `files_written_by_older_index` sets the flag; the next start numbers |
+| `INSERT INTO fts_notes (…)` | only right after its `INSERT INTO files` of the same note (the one place it writes a row; its format-5 copy and its migrations never run on a newer index) → flagged with it |
+| `DELETE FROM files WHERE id = ? OR path = ?`, `… WHERE path = ?`, `… WHERE path IN (…)`, `… WHERE id IN (…)` (v0.8.3), `DELETE FROM files` (v0.8.3 rebuild) | the delete trigger removes the row by its number |
+| `DELETE FROM fts_notes WHERE path = ? / IN (…)`, `… NOT IN (SELECT path FROM files)`, `DELETE FROM fts_notes` | removes rows only: no number changes, no second row |
+| `UPDATE files SET path = ? …` (a move, the queued rename, path identity), `UPDATE fts_notes SET path = ? WHERE path = ?` | numbers kept; a search row whose path lags its file's is hidden from readers until the move reaches it |
+| `UPDATE files SET mtime_local / sync_state / ctime / is_deleted …` | no effect on numbering |
 
-SQL used: rowid equality and `rowid IN (SELECT -rowid FROM files WHERE …)` (FTS5 answers both from
-its rowid index), `INSERT OR REPLACE` with an explicit rowid, a rowid range, `CROSS JOIN` to keep
-the search table outside in the copy. All of it is plain SQLite with FTS5 since 3.9 and runs on
-the desktop's SQL plugin and `db_batch` (sqlx, bundled SQLite), the phone's
-`@capacitor-community/sqlite`, the phone's web/E2E fixture adapter (`node:sqlite`) and the tests
-(`node:sqlite`). Tested on node:sqlite only: neither native side was built or run here.
+So every way an older build can leave a row whose number is not its file's, or a second row for a
+path, passes through an insert into `files` without the column, and that raises the flag; the
+check at a start is one `meta` read. The numbering (`numberFullTextRows`) reads number and path of
+every row once (no text is tokenized), keeps per path the row the file names, else the highest
+number (an older build deletes a path's rows before it writes, and its insert is numbered above
+all others, so the highest is the newest text), records numbers of rows at 0 or above, moves the
+few rows an older build numbered below 0 to `-files.rowid` (only those are tokenized again), drops
+rows of paths no file has, and clears the flag — one batch. If it fails at any step the vault
+still opens: the full-text table is dropped and made anew, every note is handed to the next full
+pass, and the failure is recorded in `meta` under `index-diagnostic:fts-numbering`.
 
-Tests: `packages/core/test/fts-rows-by-file.test.ts` — the rule through indexing, saving, moving
-in the app and by the sync queue, deleting and rebuilding; a format-8 index converted without a
-note read and every reader of `fts_notes` answering as before (searches of both shells, the
-occurrence list, the AI's candidates, tasks, find in vault, tags, cards, card search, mentions,
-"notes containing"); the listing order kept; orphans and duplicates; a conversion stopped at the
-drop and at the rename; an older app's writes after a downgrade, and a search that answers
-exactly as a freshly built index of the same vault.
+**Readers** join by path and number: search and the AI's candidates (`files` by path, then the
+number), the `-term` operator (by number), the readers of the whole table (tasks, find in vault,
+tags, template keys, "notes containing", card search, mentions) keep only rows a file names
+(`FULL_TEXT_ROW_IS_FILED`), point reads (card data, task progress, the source text of a hit, the
+mentions of one note) go from the file to its row by number. `findInVault` lists a note once, and
+`runVaultReplace` (both shells) plans each note once and computes the replacement from the note
+as it is. A task toggle already resolves its line against the current text (`resolveTaskOrdinal`:
+ordinal and text, or the task id, must match the fresh note) and never trusted the index row.
+
+SQL used: rowid equality and `rowid IN (…)` (FTS5 answers both from its rowid index), `INSERT OR
+REPLACE` with an explicit rowid, two triggers on `files` whose body writes to `fts_notes`, a
+`CASE` on `fts_rowid`. Plain SQLite with FTS5; runs on the desktop's SQL plugin and `db_batch`
+(sqlx, bundled SQLite), the phone's `@capacitor-community/sqlite`, the web/E2E fixture adapter and
+the tests (`node:sqlite`). Tested on node:sqlite only: neither native side was built or run here.
+The triggers are created after the index-format migration, because the format-5 copy renames the
+table and SQLite refuses a rename while a trigger names a missing table.
+
+Tests: `packages/core/test/fts-rows-by-file.test.ts` — on an index with realistic row numbers (read
+three times, smallest `files.rowid` above 10): the rule through indexing, saving, moving, a queued
+rename, deleting and rebuilding; a format-8 index numbered without a row written into the search
+table and every reader answering as before; v0.8.7's statements word for word after a downgrade
+(note saved, new note, parse-error REPLACE, move, delete) — flagged, numbered at the next start with
+the newest text, then exactly what a fresh index of the vault answers; which writes raise the flag
+and which do not; readers that show each note once while stray rows are still there; reads after a
+save, a move and a failed reading on a converted index; a numbering stopped at each of its twelve
+statements; the write order inside the scan's units (pinned for the batched scan of `feature/w1-app`:
+a note's file delete, file insert and search insert sit in one unit in that order, deletes of gone
+files sit in the last unit, nothing names a search row by path). `apps/desktop/src/vaultReplace.test.ts`:
+a preview that names a note twice writes it once, correctly.
 
 Measured with `pnpm perf:core` on the 10 000-note fixture (Windows 11, Ryzen AI 9 HX 370,
 Node 24.17, `node:sqlite`, WAL), before = app `c192eb2ba`, after = this change, both in one
@@ -203,6 +237,18 @@ and FTS5 keeps the rowid as the key of its content and docsize tables and at the
 "from 96 s to about 30 s"; on this fixture the cold index went from 225 s to 56 s, which is
 above the budget of 40 s — what is left is reading, parsing and writing, packages L2 and L3.
 
+With the corrected design (`files.fts_rowid`, triggers, readers joined by number and path), one
+run of `pnpm perf:core` after recording the new baseline and one check, on a busier machine:
+cold index 50.3 s / 49.5 s, save median 6.5 / 7.0 ms and p95 14.7 / 18.2 ms, search 69 / 64 ms,
+`listTasks` 550 / 612 ms (the filter on `files` costs nothing measurable), pass without changes
+876 / 907 ms against a plain walk of the folder of 813 / 834 ms — the pass is the walk; the
+two SQL statements it runs did not change. Interleaved in one process on 3 000 notes, the save
+was 5.95 ms (first design) against 5.73 ms (corrected). Numbering a format-8 index of 10 000 notes
+takes 108–140 ms (the whole-table copy of the first design took 1.2 s), a start with nothing to
+number 1.1–1.5 ms, the numbering after an older build saved 50 notes 64–83 ms
+(`packages/core/scripts/perf/numbering-cost.ts`). 500 cards read by number: 9–15 ms, by path
+32–38 ms. Nothing of this runs before the first picture in a way that matters, on either shell.
+
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
 Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers
@@ -211,11 +257,11 @@ Tauri stand-in — a lower bound).
 
 | Metric | Budget | Measured | Source |
 |---|---|---|---|
-| Cold index, 10 000 notes (core) | ≤ 40 s | 56.3 s (224.6 s before L1) | core gate |
-| Pass without changes | ≤ 500 ms | 708 ms | core gate |
-| Re-reading after a save, p95 | ≤ 15 ms | 7.7 ms (48.7 ms before L1) | core gate |
-| Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 74 ms | core gate |
-| List every task | ≤ 100 ms (after L8) | 649 ms (32 046 tasks) | core gate |
+| Cold index, 10 000 notes (core) | ≤ 40 s | 49.5–56.4 s (224.6 s before L1) | core gate |
+| Pass without changes | ≤ 500 ms | 692–907 ms (a plain walk of the folder: 813–834 ms) | core gate |
+| Re-reading after a save, p95 | ≤ 15 ms | 7.7–18.2 ms, median 5.5–7.0 ms (48.7 / 42.2 ms before L1) | core gate |
+| Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 64–77 ms | core gate |
+| List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks) | core gate |
 | Start bytes per shell | ≤ 3.5 MB | desktop 7.37 MB (2.27 MB gzip, 98 files), phone 8.40 MB (2.51 MB gzip, 60 files) | bundle gate |
 | Phone entry file | ≤ 400 KB | 1 079 KB (desktop entry 88 KB) | bundle gate |
 | Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 966.2 ms, p50 57.3 ms, max 1275.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
@@ -225,9 +271,12 @@ Tauri stand-in — a lower bound).
 The plan's "today" column (96 s, 397 ms, 13.7 ms, 21 ms, 469 ms) was measured on the review's
 smaller fixture (1.2 KB notes, three tasks each, one search term); this fixture is about twice as
 large per note and searches six terms, two of them a prefix and a CJK word. Over budget after L1:
-the cold index (L2, L3), the pass without changes and search (both new against the plan — the
-search median is carried by `garden*` and the CJK term, worth a look in L2/L11), `listTasks`
-(L8).
+the cold index (L2, L3); the pass without changes, which is the walk of the folder (L3 lists
+in Rust on the desktop; the core measurement walks from Node); search, which is not the
+reading of rows (point reads go by number now) but FTS5 matching, ranking and snippets of
+long notes — carried by `garden*` and the CJK term (L11 shrinks the table); `listTasks` (L8).
+The p95 of a save moved between 7.7 and 18.2 ms on a busy machine; the median stays near 6 ms.
+The browser rows were taken before the corrected design.
 
 ### Many tables in one note (new finding, 2026-11-10)
 
@@ -242,7 +291,15 @@ without many tables it is not linear: 20 tables of 20 rows among 2 100 lines par
 tables in 2 600 lines in 1.1 s, and 10 tables of 1 800 rows took longer than 170 s. In the browser report the full 19 600-line note did not answer a single key for ten minutes;
 whether the editor's table decorations (B7, package L6) or the re-index after the save (this
 parser) held the page is not separated yet — a save re-reads the note on the main thread, so
-this parser alone is minutes per save for such a note. Worth settling before 0.9.0, next to L6.
+this parser alone is minutes per save for such a note. Worth settling before 0.9.0, next to L6. Where the time goes (profiled 2026-11-10): in the micromark tokenizer's GFM table
+extension, `EditMap.add` (`micromark-extension-gfm-table/lib/edit-map.js`, `addImplementation`)
+looks for an existing edit at the same index by walking the whole list of edits, and the table
+resolver adds one edit per cell boundary — quadratic in the cells of a document. 2.9 of 3.0 s of
+`fromMarkdown` on one table of 6 400 rows are in that function; micromark without the extension
+reads the same text in 35 ms, and the mdast step adds almost nothing. Smallest showing input: one
+two-column table, 400 / 1 600 / 6 400 rows → 18 / 125 / 3 023 ms. The installed 2.1.1 is the
+package's current release as far as the installed files show (no changelog ships with it); an
+upstream issue was not looked up (no network in the measuring session).
 
 ## Measurement points
 
