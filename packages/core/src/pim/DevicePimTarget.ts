@@ -116,9 +116,20 @@ export interface DeviceEventHandle {
   occurrenceStartTs?: number;
 }
 
+/**
+ * How a platform stores the day of an all-day event. Android's CalendarContract
+ * keeps it at UTC midnight (EVENT_TIMEZONE "UTC"); EventKit at local midnight.
+ * Read the wrong way, an all-day event lies a day early wherever the clock is
+ * behind UTC - the Americas - and one written the wrong way lands there too
+ * (found 2026-11-10 with the tests at 23:59 in New York).
+ */
+export type DeviceAllDayAnchor = "utc" | "local";
+
 export interface DevicePimPort {
   /** False on Android: no system task store. The target then lists no task lists. */
   readonly supportsReminders: boolean;
+  /** Where the platform puts an all-day day (see `DeviceAllDayAnchor`); EventKit's local midnight when absent. */
+  readonly allDayAt?: DeviceAllDayAnchor;
   listCollections(): Promise<DeviceCollection[]>;
   /** Instances overlapping [fromTs, toTs), series expanded by the platform. */
   events(calendarId: string, fromTs: number, toTs: number): Promise<DeviceEventRecord[]>;
@@ -183,18 +194,21 @@ function fromWallClock(wall: number): number {
  * duration. Without W only the time of day is taken from the draft.
  */
 export function anchorSeriesDraft(
-  first: Pick<DeviceEventRecord, "startTs">,
+  first: Pick<DeviceEventRecord, "startTs"> & { allDay?: boolean },
   draft: DeviceEventDraft,
   original?: { startTs: number; date?: string },
+  at: DeviceAllDayAnchor = "local",
 ): DeviceEventDraft {
   if (draft.allDay) {
-    // All-day: whole days. The draft names its day by UTC midnight, the rows by
-    // the local date they were read with (`civilDate`), so each is read its own way.
-    const draftDay = Date.parse(new Date(draft.startTs).toISOString().slice(0, 10));
-    const firstDay = Date.parse(civilDate(first.startTs));
-    const originalDay = original ? Date.parse(original.date ?? civilDate(original.startTs)) : draftDay;
-    const start = firstDay + (draftDay - originalDay);
-    return { ...draft, startTs: start, endTs: start + (draft.endTs - draft.startTs) };
+    // All-day: whole days. The draft and an all-day row are in the platform's
+    // anchor (`toDeviceDraft` put the draft there); a timed row, and an opened
+    // event that carries no date, name their day on the local clock.
+    const draftDay = dayNumber(draft.startTs, at);
+    const firstDay = dayNumber(first.startTs, first.allDay === false ? "local" : at);
+    const originalDay = original ? (original.date ? Date.parse(original.date) / DAY_MS : dayNumber(original.startTs, "local")) : draftDay;
+    const startDay = firstDay + (draftDay - originalDay);
+    const span = dayNumber(draft.endTs, at) - draftDay;
+    return { ...draft, startTs: dayStart(startDay, at), endTs: dayStart(startDay + span, at) };
   }
   const f = wallClock(first.startTs);
   const d = wallClock(draft.startTs);
@@ -205,21 +219,35 @@ export function anchorSeriesDraft(
   return { ...draft, startTs: fromWallClock(startWall), endTs: fromWallClock(endWall) };
 }
 
-function civilDate(ts: number): string {
+const DAY_MS = 86_400_000;
+
+/** The day an all-day timestamp names, as days since 1970-01-01, read in the platform's anchor. */
+function dayNumber(ts: number, at: DeviceAllDayAnchor): number {
+  if (at === "utc") return Math.floor(ts / DAY_MS);
   const d = new Date(ts);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS;
 }
 
-function toPimEvent(calendarId: string, r: DeviceEventRecord): PimEvent {
+/** The timestamp the platform uses for the start of a day. */
+function dayStart(day: number, at: DeviceAllDayAnchor): number {
+  if (at === "utc") return day * DAY_MS;
+  const d = new Date(day * DAY_MS);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).getTime();
+}
+
+function dayKey(day: number): string {
+  return new Date(day * DAY_MS).toISOString().slice(0, 10);
+}
+
+function toPimEvent(calendarId: string, r: DeviceEventRecord, at: DeviceAllDayAnchor): PimEvent {
   const series = r.seriesId ?? (r.rrule ? r.id : undefined);
   const uid = series ? `${series}${OCCURRENCE_SEP}${r.startTs}` : r.id;
   return {
     uid,
     calendarId,
     title: r.title,
-    start: r.allDay ? { ts: r.startTs, date: civilDate(r.startTs) } : { ts: r.startTs },
-    end: r.allDay ? { ts: r.endTs, date: civilDate(r.endTs) } : { ts: r.endTs },
+    start: r.allDay ? { ts: r.startTs, date: dayKey(dayNumber(r.startTs, at)) } : { ts: r.startTs },
+    end: r.allDay ? { ts: r.endTs, date: dayKey(dayNumber(r.endTs, at)) } : { ts: r.endTs },
     allDay: r.allDay,
     location: r.location,
     description: r.notes,
@@ -230,11 +258,14 @@ function toPimEvent(calendarId: string, r: DeviceEventRecord): PimEvent {
   };
 }
 
-function toDeviceDraft(d: PimEventDraft): DeviceEventDraft {
+function toDeviceDraft(d: PimEventDraft, at: DeviceAllDayAnchor): DeviceEventDraft {
+  // An all-day draft names its days (`date`, else the UTC midnight the form
+  // writes); the platform gets them in its own anchor.
+  const day = (point: { ts: number; date?: string }) => (point.date ? Date.parse(point.date) / DAY_MS : Math.floor(point.ts / DAY_MS));
   return {
     title: d.title,
-    startTs: d.start.ts,
-    endTs: d.end.ts,
+    startTs: d.allDay ? dayStart(day(d.start), at) : d.start.ts,
+    endTs: d.allDay ? dayStart(day(d.end), at) : d.end.ts,
     allDay: d.allDay,
     location: d.location,
     notes: d.description,
@@ -270,6 +301,10 @@ export class DevicePimTarget implements IPimTarget {
 
   constructor(private readonly port: DevicePimPort) {}
 
+  private get allDayAt(): DeviceAllDayAnchor {
+    return this.port.allDayAt ?? "local";
+  }
+
   async listCalendars(): Promise<PimCalendar[]> {
     const all = await this.port.listCollections();
     return all
@@ -289,7 +324,7 @@ export class DevicePimTarget implements IPimTarget {
     const events: PimEvent[] = [];
     const masters = new Map<string, PimEvent>();
     for (const r of records) {
-      const ev = toPimEvent(calendarId, r);
+      const ev = toPimEvent(calendarId, r, this.allDayAt);
       events.push(ev);
       // One master per series, carrying the rule — the views badge it and the
       // "edit all" path addresses it. Its uid is the series id itself.
@@ -318,19 +353,19 @@ export class DevicePimTarget implements IPimTarget {
   }
 
   async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
-    const r = await this.port.createEvent(calendarId, toDeviceDraft(draft));
+    const r = await this.port.createEvent(calendarId, toDeviceDraft(draft, this.allDayAt));
     return { uid: r.rrule ? `${r.id}${OCCURRENCE_SEP}${r.startTs}` : r.id, etag: r.version };
   }
 
   async updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }> {
     const handle = deviceHandleOf(ref.uid);
     await this.assertUnchanged(handle, ref.etag);
-    let deviceDraft = toDeviceDraft(draft);
+    let deviceDraft = toDeviceDraft(draft, this.allDayAt);
     // A handle without an occurrence start names the whole event: for a series
     // the port answers with its first occurrence, whose date the series keeps.
     if (handle.occurrenceStartTs === undefined) {
       const first = await this.port.event(handle);
-      if (first?.rrule) deviceDraft = anchorSeriesDraft(first, deviceDraft, ref.originalStartTs === undefined ? undefined : { startTs: ref.originalStartTs, date: ref.originalStartDate });
+      if (first?.rrule) deviceDraft = anchorSeriesDraft(first, deviceDraft, ref.originalStartTs === undefined ? undefined : { startTs: ref.originalStartTs, date: ref.originalStartDate }, this.allDayAt);
     }
     const r = await this.port.updateEvent(handle, deviceDraft);
     return { etag: r.version };

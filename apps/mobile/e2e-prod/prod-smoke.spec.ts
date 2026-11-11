@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 
 /**
  * Production-build smoke check for the MOBILE shell.

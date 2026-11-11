@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 
 /**

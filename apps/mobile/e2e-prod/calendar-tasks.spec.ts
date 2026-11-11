@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, testNow } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, type MobileTestGlobals, waitForIndexSchema } from "./exampleVault";
 
@@ -76,7 +76,7 @@ test("Show tasks and a database chip draw their entries in the day view, and a t
     localStorage.setItem("CapacitorStorage.secret_pim_local_pim-fixture-1", JSON.stringify({ kind: "google", clientId: "fixture-client", refreshToken: "fixture" }));
     localStorage.setItem("plainva-calendar-view", "day");
   });
-  const now = new Date();
+  const now = testNow();
   const pad = (n: number) => String(n).padStart(2, "0");
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   try {

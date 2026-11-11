@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 /**
  * The parse budget in the desktop's editor and reading view (open-items plan
@@ -170,9 +170,9 @@ async function openNote(page: Page, name: string) {
 
 /** How long the page takes to answer a script: a frozen main thread does not. */
 async function answers(page: Page): Promise<number> {
-  const start = Date.now();
+  const start = performance.now();
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(null))));
-  return Date.now() - start;
+  return performance.now() - start;
 }
 
 for (const name of NOTES) {
@@ -180,7 +180,7 @@ for (const name of NOTES) {
     test.setTimeout(120_000);
     await page.goto('/');
     await expect(page.getByText(name, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
-    const start = Date.now();
+    const start = performance.now();
     await page.getByText(name, { exact: true }).first().click();
     const editor = page.locator('.cm-content');
     await expect(editor.getByText('Title').first()).toBeVisible({ timeout: 30_000 });
@@ -189,7 +189,7 @@ for (const name of NOTES) {
     await page.keyboard.press('Control+End');
     await expect(editor.getByText('The end.')).toBeVisible({ timeout: 30_000 });
     expect(await answers(page)).toBeLessThan(5_000);
-    const editorDone = Date.now() - start;
+    const editorDone = performance.now() - start;
 
     await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
     const reader = page.locator('.markdown-reader').first();
@@ -197,9 +197,9 @@ for (const name of NOTES) {
     await expect(reader.locator('h1', { hasText: 'Title' })).toHaveCount(1);
     await expect(reader.locator('em', { hasText: 'em' })).toHaveCount(1);
     expect(await answers(page)).toBeLessThan(5_000);
-    console.log(`${name}: editor ${editorDone} ms, with the reading view ${Date.now() - start} ms`);
+    console.log(`${name}: editor ${editorDone} ms, with the reading view ${performance.now() - start} ms`);
     // The old parse took minutes for each of these notes; a generous budget for the whole way.
-    expect(Date.now() - start).toBeLessThan(60_000);
+    expect(performance.now() - start).toBeLessThan(60_000);
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`parse-budget-${name}.png`) });
   });
 }

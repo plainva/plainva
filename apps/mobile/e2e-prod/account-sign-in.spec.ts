@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FakeOAuthProvider, type FakeConsentChoice } from "../../../packages/ui/src/testing/fakeOAuthProvider";
 import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
@@ -584,6 +584,7 @@ test("a files step that fails after the folder pick says why, with its sender", 
     .filter((entry) => entry.width < entry.min));
   expect(squeezed).toEqual([]);
   const labels = await page.locator(".pv-wizstep-label").evaluateAll((els) => els.map((el) => ({ height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.4 })));
+  expect(labels.length, "the wizard draws step labels").toBeGreaterThan(0);
   for (const label of labels) expect(label.height, "a step label stays on one line").toBeLessThanOrEqual(label.line + 1);
 });
 

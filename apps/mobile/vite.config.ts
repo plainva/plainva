@@ -2,11 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
+import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
 import { e2eBuildDefine } from "./scripts/e2e-build-env.mjs";
 
 // Port 1430 on purpose: the desktop dev server owns 1420 and both run in
 // parallel during development.
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  // Unit tests run in one fixed zone, set before any worker starts (R9, scripts/test-clock.mjs).
+  if (mode === "test") pinTestTimeZone();
+  return {
   plugins: [react()],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   // The e2e build (`--mode e2e`, the smoke:prod script) also ships the fake
@@ -43,7 +47,8 @@ export default defineConfig(({ mode }) => ({
     // `localStorage.clear()` threw on the harness while CI's Node 22 stayed
     // green (2026-09-10); the shim and the flag close the class here too.
     // test-setup gives `vi.waitFor` the suites' common default (Sammelplan 3.160 Nr. 3).
-    setupFiles: ["./src/test-localstorage.ts", "./src/test-setup.ts"],
+    // The test clock comes first (R9): every file starts at TEST_NOW, in the zone pinned at the top.
+    setupFiles: [fileURLToPath(new URL("../../scripts/vitest-shared-setup.mjs", import.meta.url)), "./src/test-localstorage.ts", "./src/test-setup.ts"],
     execArgv: ["--no-experimental-webstorage"],
   },
   build: {
@@ -68,6 +73,15 @@ export default defineConfig(({ mode }) => ({
     target: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
     rollupOptions: {
       output: {
+        // Modules run in the order their imports say, whichever chunk they
+        // land in. Rolldown does not promise that by default: across chunks
+        // that import each other, a module could run before one it imports
+        // and read its exports as undefined. In the desktop bundle the
+        // keychain slot builders were undefined that way and every mail
+        // sign-in check threw; a probe of the shared UI read a list of AI
+        // tools as "not iterable" (stability plan R10, 2026-11-10). This
+        // closes the class for every module instead of rewriting each read.
+        strictExecutionOrder: true,
         /**
          * React and everything that reaches for it go in ONE chunk.
          *
@@ -94,4 +108,5 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-}) as any);
+  } as any;
+});

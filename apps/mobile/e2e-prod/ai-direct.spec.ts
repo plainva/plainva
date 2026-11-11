@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { EXAMPLE_NOTE, readVaultFile, seedExampleNote, waitForVaultDirectory } from "./exampleVault";
 

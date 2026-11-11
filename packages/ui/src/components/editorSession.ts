@@ -5,7 +5,7 @@ import { indentWithTab } from "@codemirror/commands";
 import { basicSetup } from "@uiw/codemirror-extensions-basic-setup";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages as codeLanguages } from "@codemirror/language-data";
-import { LanguageDescription, syntaxHighlighting } from "@codemirror/language";
+import { LanguageDescription, syntaxHighlighting, syntaxTree } from "@codemirror/language";
 
 import { editorTheme, markdownHighlightStyle, markdownTheme } from "./MarkdownTheme";
 import type { SelectionToolbarPosition } from "./SelectionToolbar";
@@ -459,7 +459,9 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       }
       deps.current.onSelectionStats(chars > 0 ? { chars, words } : null);
     }
-    if (deps.current.onCaretInList && (update.selectionSet || update.docChanged)) deps.current.onCaretInList(caretInListItem(v.state));
+    // Asked again when the tree grows: a caret placed before the background
+    // parse reached its line has an answer only once it has (stability, 2026-11-10).
+    if (deps.current.onCaretInList && (update.selectionSet || update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state))) deps.current.onCaretInList(caretInListItem(v.state));
     const main = v.state.selection.main;
     deps.current.onSelectionRange?.(main.empty ? null : { from: main.from, to: main.to });
     const range = v.state.selection.main;

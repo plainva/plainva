@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { test, expect, type Locator, type Page, type TestInfo, testNow } from './fixtures/clockedTest';
 import AxeBuilder from '@axe-core/playwright';
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -1806,7 +1806,7 @@ test('Sidebar calendar: a day click opens the calendar tab; right-click offers a
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
 
-  const now = new Date();
+  const now = testNow();
   const pad = (n: number) => String(n).padStart(2, '0');
   const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
@@ -8587,7 +8587,7 @@ test('AI history analysis: a look back lists what changed from the index — a n
     ['message_stop', { type: 'message_stop' }],
   ]);
   const dayKey = (offset: number) => {
-    const d = new Date();
+    const d = testNow();
     d.setDate(d.getDate() + offset);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };

@@ -122,6 +122,7 @@ describe("lucideIconData", () => {
     });
 
     it("carries the category through, so search and tabs read one source", () => {
+      expect(searchLucideIcons("folder").length, "the folder query finds icons").toBeGreaterThan(0);
       for (const entry of searchLucideIcons("folder")) {
         expect(LUCIDE_ICON_MAP.get(entry.name)?.category).toBe(entry.category);
       }

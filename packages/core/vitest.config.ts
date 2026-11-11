@@ -1,5 +1,9 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
+import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
+
+// One fixed zone for every test, set before any worker starts (R9, scripts/test-clock.mjs).
+pinTestTimeZone();
 
 export default defineConfig({
   resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("./src/index.ts", import.meta.url)) }] },
@@ -21,7 +25,8 @@ export default defineConfig({
     // although every test had passed (Sammelplan 3.153 Nr. 9).
     disableConsoleIntercept: true,
     // `vi.waitFor` waits ten seconds unless a test says otherwise, as in both shells (Sammelplan 3.160 Nr. 3).
-    setupFiles: ["./test/setup.ts"],
+    // The test clock comes first (R9): every file starts at TEST_NOW.
+    setupFiles: [fileURLToPath(new URL("../../scripts/vitest-shared-setup.mjs", import.meta.url)), "./test/setup.ts"],
     // See the desktop config: PLAINVA_TEST_WORKERS=<n> caps the workers on a loaded machine.
     ...(process.env.PLAINVA_TEST_WORKERS ? { maxWorkers: Number(process.env.PLAINVA_TEST_WORKERS) } : {}),
   },

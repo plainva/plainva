@@ -75,7 +75,8 @@ describe("requestSaveFlush", () => {
   it("does not wait for another vault's identical note path", async () => {
     const gate = deferred();
     const write = trackPendingWrite("vault B", "same.md", gate.promise);
-    await requestSaveFlush("same.md", "vault A");
+    // Resolves while the other vault's write is still held.
+    await expect(requestSaveFlush("same.md", "vault A")).resolves.toBeUndefined();
     gate.resolve(); await write;
   });
 });

@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import { TEST_TIME_ZONE, pinTestTimeZone } from '../../scripts/test-clock.mjs';
+
+// One zone for the runner and the page (R9, scripts/test-clock.mjs); the shared
+// `test` of e2e/fixtures/clockedTest.ts starts each page clock at TEST_NOW.
+pinTestTimeZone();
 
 /**
  * Playwright config for the PRODUCTION-build smoke check (../e2e-prod).
@@ -27,6 +32,7 @@ export default defineConfig({
   outputDir: 'test-results/prod',
   use: {
     baseURL,
+    timezoneId: TEST_TIME_ZONE,
     // See playwright.config.ts: the trace of the attempt that FAILED is the one worth keeping.
     trace: process.env.CI ? 'retain-on-first-failure' : 'on-first-retry',
   },

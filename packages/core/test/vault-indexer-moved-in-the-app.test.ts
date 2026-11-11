@@ -303,6 +303,7 @@ describe("the scan a folder move ends in", () => {
     await expectTheFolderMoved("Archiv/Projekt");
     // A row found again has the id of the path it is at.
     const ids = await db.query<{ id: string; path: string }>("SELECT id, path FROM files WHERE path LIKE 'Archiv/%' ORDER BY path");
+    expect(ids.length, "rows of the moved folder are indexed").toBeGreaterThan(0);
     for (const r of ids) expect(r.id, r.path).toBe(await sha(r.path));
   });
 

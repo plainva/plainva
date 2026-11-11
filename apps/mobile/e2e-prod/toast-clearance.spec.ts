@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./clockedTest";
 
 /**
  * A notice stands clear of the floating bar and of the "+" (Sammelplan § 3.48).

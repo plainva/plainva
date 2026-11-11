@@ -517,13 +517,16 @@ describe("the links as they are read", () => {
     const listed = [...read.links, ...read.unplaced].map((link) => `${link.type} ${link.target}`);
     // Every link the rewriter reads is one the index lists…
     const left = [...indexed];
+    const notIndexed: string[] = [];
     for (const link of listed) {
       const at = left.indexOf(link);
-      expect(at, `${link} is not in the index`).toBeGreaterThan(-1);
-      left.splice(at, 1);
+      if (at < 0) notIndexed.push(link);
+      else left.splice(at, 1);
     }
+    // (asserted as lists, not inside the loops: a note without links must still check something)
+    expect(notIndexed, "links the rewriter reads that the index does not list").toEqual([]);
     // …and what the index lists beyond those is an address (`https://…`, `mailto:…`), never a file.
-    for (const link of left) expect(link).toMatch(/^markdown-link [a-z][a-z0-9+.-]*:/);
+    expect(left.filter((link) => !/^markdown-link [a-z][a-z0-9+.-]*:/.test(link)), "files the index lists that the rewriter does not read").toEqual([]);
   });
 
   it("stays linear in a long note", () => {

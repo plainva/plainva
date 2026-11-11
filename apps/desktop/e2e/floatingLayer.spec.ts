@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "./fixtures/clockedTest";
 import { openProbePage } from "./fixtures/openProbePage";
 import type { FloatingLayerProbeWindow, ProbeTheme } from "./fixtures/floatingLayerProbe";
 

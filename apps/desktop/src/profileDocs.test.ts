@@ -39,6 +39,7 @@ function documentedAreas(lang: string): string[] {
 describe("settings-sync documentation", () => {
   it("documents exactly the areas the desktop carries, in every language", () => {
     const expected = travellingAreas("desktop");
+    expect(languages().length, "user guide language folders are found").toBeGreaterThanOrEqual(10);
     for (const lang of languages()) {
       expect(documentedAreas(lang), `docs/user/${lang}/Sync_Setup.md`).toEqual(expected);
     }
@@ -53,6 +54,7 @@ describe("settings-sync documentation", () => {
   });
 
   it("lists one table row per area, so the marker cannot drift from the prose", () => {
+    expect(languages().length, "user guide language folders are found").toBeGreaterThanOrEqual(10);
     for (const lang of languages()) {
       const page = syncPage(lang);
       const after = page.slice(page.search(MARKER));

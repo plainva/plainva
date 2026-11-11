@@ -27,7 +27,12 @@ export const legacySlot = {
   files: (vaultPath: string, provider: SyncProvider) => `${provider}_credentials_${b64(vaultPath)}`,
   account: (vaultPath: string, accountId: string) => `account_${accountId}_${b64(vaultPath)}`,
   calendar: (vaultPath: string, accountId: string) => `pim_${accountId}_${b64(vaultPath)}`,
-  mail: legacyMailSecretKey,
+  // Called through, never referenced: this object is built while the module
+  // loads, and in the production bundle the shared mail module has not run yet
+  // at that moment - `legacySlot.mail` was undefined there, and the keychain
+  // migration and every mail sign-in check threw "legacy.mail is not a
+  // function" (found by the E2E suite against the bundle, stability plan R10).
+  mail: (vaultPath: string, accountId: string) => legacyMailSecretKey(vaultPath, accountId),
   encryption: (vaultPath: string) => `mkcache_${b64(vaultPath)}`,
   repair: (vaultPath: string) => `account_repair_backup_${b64(vaultPath)}`,
 } as const;
@@ -41,7 +46,7 @@ export const slot = {
     keychainSlotName({ vaultKey: vaultPath, service: "account", account: accountId }),
   calendar: (vaultPath: string, accountId: string) =>
     keychainSlotName({ vaultKey: vaultPath, service: "calendar", account: accountId }),
-  mail: mailSecretKey,
+  mail: (vaultPath: string, accountId: string) => mailSecretKey(vaultPath, accountId),
   encryption: (vaultPath: string) => keychainSlotName({ vaultKey: vaultPath, service: "encryption" }),
   repair: (vaultPath: string) => keychainSlotName({ vaultKey: vaultPath, service: "repair" }),
 } as const;

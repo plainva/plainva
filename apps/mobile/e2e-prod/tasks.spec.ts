@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Locator, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { returnToApp, waitForVaultDirectory, type MobileTestGlobals, folderEntries } from "./exampleVault";
 import { installShareInbox } from "./shareInbox";

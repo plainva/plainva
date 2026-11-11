@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { installMailFixture } from "../scripts/screenshot-services.mjs";
 import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";

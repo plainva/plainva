@@ -157,6 +157,7 @@ describe("mobile profile port round trip (2026-09-04)", () => {
     // omits values equal to their default, so the comparison is against the
     // canonical form of what was applied.
     const canonical = canonicalizeProfileValues(applied);
+    expect(storeBackedFields("mobile").length, "the phone carries profile fields").toBeGreaterThan(0);
     for (const field of storeBackedFields("mobile")) {
       expect(first[field.logical], field.logical).toEqual(canonical[field.logical]);
     }

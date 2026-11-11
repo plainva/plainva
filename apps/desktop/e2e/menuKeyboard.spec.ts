@@ -1,4 +1,4 @@
-import { test, expect, type Locator, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from './fixtures/clockedTest';
 import { installMenuVault } from './fixtures/menuVault';
 
 // A menu takes the keyboard when it opens: its first entry has the focus, the

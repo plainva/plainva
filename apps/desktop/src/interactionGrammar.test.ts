@@ -412,6 +412,7 @@ describe("modal, menu and bar grammar (E5)", () => {
     // (directly or through one of the menu components) or only forwards the
     // gesture to a parent that does. What it may not do is build a menu.
     const menuBearers = /MenuSurface|FileContextMenu|TabContextMenu|TableContextMenu|EventContextMenu|GraphMapMenus|DropdownMenu|BlockMenu|ContextMenuHost/;
+    expect(desktopSurfaces().length, "desktop surfaces are read").toBeGreaterThan(0);
     for (const { rel, src } of desktopSurfaces()) {
       if (!/onContextMenu=/.test(src)) continue;
       const bearsMenu = menuBearers.test(src);

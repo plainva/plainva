@@ -48,6 +48,7 @@ describe("AI test vault", () => {
   });
 
   it("its inbox injections are caught by the linter and the invisible-character filter", () => {
+    expect(files.filter(([p]) => p.startsWith("Inbox/")).length, "the vault has inbox notes").toBeGreaterThan(0);
     for (const [path, text] of files.filter(([p]) => p.startsWith("Inbox/"))) {
       const linted = preWriteLint(text).text;
       expect(linted, path).not.toMatch(/(?:https?:)?\/\/attacker\.example/);

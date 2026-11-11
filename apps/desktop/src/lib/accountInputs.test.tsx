@@ -54,6 +54,7 @@ describe("the rule", () => {
 describe("the field primitives", () => {
   it("a multi-line field of addresses asks for no capitals and no correction, like the single-line one", () => {
     act(() => root.render(<><TextArea purpose="address" /><GrowingField purpose="address" value="" onChange={() => {}} /></>));
+    expect(container.querySelectorAll("textarea").length, "the fields render a textarea").toBeGreaterThan(0);
     for (const area of Array.from(container.querySelectorAll("textarea"))) {
       expect(area.getAttribute("autocapitalize")).toBe("none");
       expect(area.getAttribute("autocorrect")).toBe("off");

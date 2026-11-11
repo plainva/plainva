@@ -83,6 +83,8 @@ export function onDevicePimChanged(fn: () => void): () => void {
 export function devicePimPort(): DevicePimPort {
   return {
     supportsReminders: devicePimHasReminders(),
+    // CalendarContract stores an all-day day at UTC midnight, EventKit at local midnight.
+    allDayAt: Capacitor.getPlatform() === "android" ? "utc" : "local",
     listCollections: async () => (await DevicePim.listCollections()).collections,
     events: async (calendarId, fromTs, toTs) => (await DevicePim.events({ calendarId, fromTs, toTs })).events,
     event: async (handle) => (await DevicePim.event(handle)).event,

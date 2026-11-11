@@ -58,6 +58,7 @@ describe("full second window", () => {
   });
 
   it("is not covered by the owner capability", () => {
+    expect(ownerCaps.windows, "the owner capability names its windows").toContain("main");
     for (const pattern of ownerCaps.windows as string[]) {
       // The owner set matches "main" exactly; a wildcard here would hand a
       // second window the updater, the watcher and every write permission.
