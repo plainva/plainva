@@ -11,7 +11,9 @@
  * Per shell:
  * - start bytes: every file the built `index.html` loads — the entry module,
  *   each `modulepreload`, the style sheets — raw and gzipped;
- * - the entry file on its own;
+ * - the entry file on its own: the start chunk that holds the shell's
+ *   `src/main.tsx` (with `strictExecutionOrder` the module `index.html` names
+ *   is a stub that only imports it);
  * - which module families the start files carry, read from their source maps.
  *
  * The rules (`bundle-baseline.json`):
@@ -96,10 +98,14 @@ function measure(shell, dir) {
     const bytes = fs.readFileSync(path.join(dir, file.path));
     raw += bytes.length;
     gzip += zlib.gzipSync(bytes).length;
-    if (file.entry) entry = { path: file.path, bytes: bytes.length };
+    if (file.entry && !entry) entry = { path: file.path, bytes: bytes.length };
     const map = path.join(dir, file.path + ".map");
     if (file.path.endsWith(".js") && fs.existsSync(map)) {
       const parsed = JSON.parse(fs.readFileSync(map, "utf8"));
+      // The entry file is the chunk that holds the shell's own entry module. With
+      // `strictExecutionOrder` the `<script>` index.html names is a stub of a few
+      // bytes that imports that chunk, so the chunk is found by its source map.
+      if (parsed.sources.some((source) => source.split(String.fromCharCode(92)).join("/").endsWith(`apps/${shell}/src/main.tsx`))) entry = { path: file.path, bytes: bytes.length, holdsMain: true };
       parsed.sources.forEach((source, i) => {
         const family = familyOf(source);
         if (family) sources.set(family, (sources.get(family) ?? 0) + (parsed.sourcesContent?.[i]?.length ?? 0));
@@ -107,6 +113,7 @@ function measure(shell, dir) {
     }
   }
   if (!entry) throw new Error(`${shell}: no entry module in ${path.join(dir, "index.html")}`);
+  if (!entry.holdsMain) throw new Error(`${shell}: no start file holds apps/${shell}/src/main.tsx (source maps missing?)`);
   const families = Object.fromEntries([...sources].sort((a, b) => b[1] - a[1]));
   return { files: files.map((f) => f.path), startBytes: raw, startGzipBytes: gzip, entryBytes: entry.bytes, entry: entry.path, families };
 }

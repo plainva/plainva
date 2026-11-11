@@ -126,7 +126,12 @@ not counted (B2 of the plan names it; L5 splits it). Recorded 2026-11-10: deskto
 start files (entry 88 KB), phone 8.40 MB in 60 (entry 1 079 KB) — more than the review's 7.3 MB,
 because this count takes every `modulepreload` and style sheet. Source characters of the
 forbidden families in the start files: `packages/ui/src/ai/` about 1.5 MB, `packages/core/src/ai/`
-about 1.3 MB, `packages/core/src/import/adapters/` 165 KB, in both shells.
+about 1.3 MB, `packages/core/src/import/adapters/` 165 KB, in both shells. Recorded again on 2026-11-11
+after `strictExecutionOrder` came with main (stability plan R10): desktop 7.49 MB in 98 files (+0.12 MB),
+phone 7.56 MB in 60 files (−0.84 MB from what main brought besides). With that option the module
+`index.html` names is a stub of 46 bytes that imports the shell's entry chunk, so the entry file the
+gate measures is the start chunk whose source map holds `apps/<shell>/src/main.tsx`: desktop 93 KB,
+phone 1 096 KB.
 
 **Browser report.** `apps/desktop/e2e-perf/browser-perf.spec.ts` (config
 `playwright.perf.config.ts`, port 1462 or `PERF_PORT`) runs the production bundle in Chromium
@@ -249,6 +254,12 @@ number 1.1–1.5 ms, the numbering after an older build saved 50 notes 64–83 m
 (`packages/core/scripts/perf/numbering-cost.ts`). 500 cards read by number: 9–15 ms, by path
 32–38 ms. Nothing of this runs before the first picture in a way that matters, on either shell.
 
+On main of 2026-11-11 (the scan in short transactions of package L4 merged in): cold index 72.8 s
+at a calibration of 879 ms, 23 % above the ratio recorded before, inside the gate's 25 %; save
+median 7.0 ms, p95 9.5 ms, search 73 ms, `listTasks` 615 ms, pass without changes 955 ms. The
+core baseline was recorded again on that state. Whether the short transactions cost the cold
+index that much or the machine was busier is not separated (one run each).
+
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
 Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers
@@ -262,8 +273,8 @@ Tauri stand-in — a lower bound).
 | Re-reading after a save, p95 | ≤ 15 ms | 7.7–18.2 ms, median 5.5–7.0 ms (48.7 / 42.2 ms before L1) | core gate |
 | Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 64–77 ms | core gate |
 | List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks) | core gate |
-| Start bytes per shell | ≤ 3.5 MB | desktop 7.37 MB (2.27 MB gzip, 98 files), phone 8.40 MB (2.51 MB gzip, 60 files) | bundle gate |
-| Phone entry file | ≤ 400 KB | 1 079 KB (desktop entry 88 KB) | bundle gate |
+| Start bytes per shell | ≤ 3.5 MB | desktop 7.49 MB (2.33 MB gzip, 98 files), phone 7.56 MB (2.30 MB gzip, 60 files) — on main of 2026-11-11 | bundle gate |
+| Phone entry file | ≤ 400 KB | 1 096 KB (desktop entry 93 KB) | bundle gate |
 | Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 966.2 ms, p50 57.3 ms, max 1275.6 ms over 59 keys (1963 lines, 8 tables) | browser report |
 | Search in the sidebar, typing to first hit (browser) | — | `project` 479 ms, `review meeting` 88 ms, `Müller` 102 ms, `garden` 38 ms | browser report |
 | Navigation to an editable note, warm index | ≤ 1.5 s | 2.35 s (tree 1.52 s); first start 6.87 s | browser report |

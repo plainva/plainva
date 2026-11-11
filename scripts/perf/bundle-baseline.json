@@ -37,15 +37,15 @@
   ],
   "shells": {
     "desktop": {
-      "startBytes": 7365725,
-      "startGzipBytes": 2270641,
-      "entryBytes": 87621
+      "startBytes": 7488772,
+      "startGzipBytes": 2325455,
+      "entryBytes": 92969
     },
     "mobile": {
-      "startBytes": 8400204,
-      "startGzipBytes": 2513859,
-      "entryBytes": 1078751
+      "startBytes": 7558464,
+      "startGzipBytes": 2304259,
+      "entryBytes": 1096480
     }
   },
-  "recorded": "2026-11-10"
+  "recorded": "2026-11-11"
 }

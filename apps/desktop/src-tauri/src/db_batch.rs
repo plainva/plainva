@@ -250,4 +250,121 @@ mod tests {
             assert_eq!(scalar(&url, "SELECT COUNT(*) FROM files").await, 1000);
         });
     }
+
+    // Index format 9 (performance plan L1) on the SQLite this app bundles
+    // (libsqlite3-sys through sqlx): the app's own DDL for `files`, `meta` and
+    // `fts_notes`, its two triggers on `files` that write to the FTS5 table,
+    // and the statements of this build and of v0.8.7, each sent through the
+    // batch the indexer uses on the desktop. packages/core/src/db/Schema.ts and
+    // fullTextRows.ts hold the originals; a change there belongs here too.
+    const FILES_DDL: &str = "CREATE TABLE files (id TEXT PRIMARY KEY, path TEXT NOT NULL UNIQUE, title TEXT, sha256 TEXT, cloud_etag TEXT, cloud_id TEXT, mtime_local INTEGER, mtime_cloud INTEGER, size_bytes INTEGER, is_cached INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0, mode TEXT, sync_state TEXT DEFAULT 'synced')";
+    const META_DDL: &str = "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)";
+    const FTS_DDL: &str = "CREATE VIRTUAL TABLE fts_notes USING fts5(content, title, path UNINDEXED, seg_content, seg_title, tokenize = 'unicode61 remove_diacritics 1')";
+    const ADD_CTIME: &str = "ALTER TABLE files ADD COLUMN ctime INTEGER";
+    const ADD_COLUMN: &str = "ALTER TABLE files ADD COLUMN fts_rowid INTEGER";
+    const DELETE_TRIGGER: &str = "CREATE TRIGGER IF NOT EXISTS files_takes_its_full_text_row AFTER DELETE ON files BEGIN
+       DELETE FROM fts_notes WHERE rowid = (CASE OLD.fts_rowid WHEN 0 THEN -OLD.rowid ELSE OLD.fts_rowid END);
+     END";
+    const INSERT_TRIGGER: &str = "CREATE TRIGGER IF NOT EXISTS files_written_by_older_index AFTER INSERT ON files WHEN NEW.fts_rowid IS NULL BEGIN
+       INSERT OR REPLACE INTO meta (key, value) VALUES ('fts_rows_unnumbered', '1');
+     END";
+    const INSERT_FULL_TEXT_ROW: &str = "INSERT OR REPLACE INTO fts_notes (content, title, path, seg_content, seg_title, rowid)
+   VALUES (?, ?, ?, ?, ?, -(SELECT rowid FROM files WHERE path = ?))";
+
+    async fn setup_index(url: &str) {
+        let mut c = SqliteConnectOptions::from_str(url)
+            .unwrap()
+            .create_if_missing(true)
+            .foreign_keys(true)
+            .connect()
+            .await
+            .unwrap();
+        for sql in [FILES_DDL, META_DDL, FTS_DDL, ADD_CTIME, ADD_COLUMN, DELETE_TRIGGER, INSERT_TRIGGER] {
+            sqlx::query(sql).execute(&mut c).await.unwrap();
+        }
+        c.close().await.unwrap();
+    }
+
+    fn stmt(sql: &str, params: Vec<serde_json::Value>) -> BatchStatement {
+        BatchStatement { sql: sql.into(), params }
+    }
+
+    /// This build's statements for a note read again (VaultIndexer, index format 9).
+    fn save_this_build(path: &str, text: &str) -> Vec<BatchStatement> {
+        vec![
+            stmt("DELETE FROM files WHERE id = ? OR path = ?", vec![json!(format!("id:{path}")), json!(path)]),
+            stmt(
+                "INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0)",
+                vec![json!(format!("id:{path}")), json!(path), json!("t"), json!("h"), json!(1), json!(1), json!(1), json!("obsidian"), json!("synced")],
+            ),
+            stmt(INSERT_FULL_TEXT_ROW, vec![json!(text), json!("t"), json!(path), json!(""), json!(""), json!(path)]),
+        ]
+    }
+
+    /// v0.8.7's statements for the same (`git show v0.8.7:packages/core/src/vault/VaultIndexer.ts`).
+    fn save_older_build(path: &str, text: &str) -> Vec<BatchStatement> {
+        vec![
+            stmt("DELETE FROM files WHERE id = ? OR path = ?", vec![json!(format!("older:{path}")), json!(path)]),
+            stmt("DELETE FROM fts_notes WHERE path = ?", vec![json!(path)]),
+            stmt(
+                "INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
+                vec![json!(format!("older:{path}")), json!(path), json!("t"), json!("h"), json!(1), json!(1), json!(1), json!("obsidian"), json!("synced")],
+            ),
+            stmt("INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES (?, ?, ?, ?, ?)", vec![json!(text), json!("t"), json!(path), json!(""), json!("")]),
+        ]
+    }
+
+    async fn rows_named_by_their_file(url: &str) -> i64 {
+        scalar(url, "SELECT COUNT(*) FROM fts_notes n WHERE EXISTS (SELECT 1 FROM files f WHERE f.path = n.path AND (CASE f.fts_rowid WHEN 0 THEN -f.rowid ELSE f.fts_rowid END) = n.rowid)").await
+    }
+
+    #[test]
+    fn full_text_rows_follow_their_files_on_the_bundled_sqlite() {
+        block(async {
+            let (_d, url) = tmp_url();
+            setup_index(&url).await;
+            // This build: a note saved twice keeps exactly one row, at -files.rowid, with the new text.
+            run_batch(&url, &save_this_build("A.md", "first zeppelin")).await.unwrap();
+            run_batch(&url, &save_this_build("B.md", "another note")).await.unwrap();
+            run_batch(&url, &save_this_build("A.md", "second balloon")).await.unwrap();
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes").await, 2);
+            assert_eq!(rows_named_by_their_file(&url).await, 2);
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE fts_notes MATCH 'zeppelin'").await, 0);
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE fts_notes MATCH 'balloon'").await, 1);
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM meta WHERE key = 'fts_rows_unnumbered'").await, 0);
+            // A deleted file takes its row with it: the trigger writes to the FTS5 table.
+            run_batch(&url, &[stmt("DELETE FROM files WHERE path IN (?)", vec![json!("B.md")])]).await.unwrap();
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes").await, 1);
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE fts_notes MATCH 'another'").await, 0);
+        });
+    }
+
+    #[test]
+    fn an_older_build_on_the_index_raises_the_flag_on_the_bundled_sqlite() {
+        block(async {
+            let (_d, url) = tmp_url();
+            setup_index(&url).await;
+            run_batch(&url, &save_this_build("A.md", "first")).await.unwrap();
+            run_batch(&url, &save_this_build("B.md", "second")).await.unwrap();
+            // v0.8.7 saves A: its insert is numbered by SQLite, below 0 here, among this build's rows.
+            run_batch(&url, &save_older_build("A.md", "older zeppelin")).await.unwrap();
+            assert_eq!(scalar(&url, "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'fts_rows_unnumbered'").await, 1);
+            assert_eq!(scalar(&url, "SELECT max(rowid) < 0 FROM fts_notes").await, 1);
+            assert_eq!(scalar(&url, "SELECT COUNT(*) FROM fts_notes WHERE path = 'A.md'").await, 1);
+            // Its row is one no file names yet: readers do not show it until the next start numbers it.
+            assert_eq!(rows_named_by_their_file(&url).await, 1);
+            // v0.8.7's parse-error path: a REPLACE of the files row raises the flag as well.
+            run_batch(&url, &[stmt("DELETE FROM meta WHERE key = 'fts_rows_unnumbered'", vec![])]).await.unwrap();
+            run_batch(
+                &url,
+                &[stmt(
+                    "INSERT OR REPLACE INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'obsidian', ?)",
+                    vec![json!("older:B.md"), json!("B.md"), json!("t"), json!("h"), json!(1), json!(1), json!(1), json!("synced")],
+                )],
+            )
+            .await
+            .unwrap();
+            assert_eq!(scalar(&url, "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'fts_rows_unnumbered'").await, 1);
+        });
+    }
 }
