@@ -1,7 +1,9 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+// The suite's fixed clock: two walks of the same commit photograph the same day.
+import { test } from '../e2e/fixtures/clockedTest';
 import { installMenuVault } from '../e2e/fixtures/menuVault';
 import { installReviewVault } from './reviewVault';
 import { specMock } from './specMocks';
