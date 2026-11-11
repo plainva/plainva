@@ -1,4 +1,5 @@
 import { openContextMenu } from "./contextMenuStore";
+import { lineLinkAt } from "./editorLineLinks";
 import { findEditable, installCompositionEnterGuard, selectedText, wantsSystemTextMenu } from "@plainva/ui";
 
 /**
@@ -86,7 +87,9 @@ function onContextMenu(e: MouseEvent): void {
   // Over an editable field we always offer Paste; over plain text we only offer
   // Copy when there is a selection. Otherwise nothing shows.
   if (!editable && !selection) return;
-  openContextMenu({ x: e.clientX, y: e.clientY, selection, editable });
+  // Over a note's editor the menu also links to the clicked line (F2).
+  const lineLink = editable ? lineLinkAt(e.target, e.clientX, e.clientY) : null;
+  openContextMenu({ x: e.clientX, y: e.clientY, selection, editable, ...(lineLink ? { lineLink } : {}) });
 }
 
 let uninstallCompositionGuard: (() => void) | null = null;

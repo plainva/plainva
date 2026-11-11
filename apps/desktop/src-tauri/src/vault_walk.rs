@@ -59,7 +59,7 @@ const WALK_THREADS: usize = 8;
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WalkRules {
-    /// Segment equals one of these, case-sensitively.
+    /// Segment equals one of these, compared folded (`fold`).
     #[serde(default)]
     pub exact: Vec<String>,
     /// Segment, lower-cased, equals one of these.
@@ -74,18 +74,23 @@ pub struct WalkRules {
 }
 
 impl WalkRules {
+    /// The segment as the file system compares it, as `foldSegment` in
+    /// internalPath.ts does: trailing dots and spaces dropped (Windows), letter
+    /// case ignored (NTFS, APFS). Every rule names an ASCII segment, so the
+    /// NFC step of the JS side changes nothing here.
+    fn fold(name: &str) -> String {
+        name.trim_end_matches(['.', ' ']).to_lowercase()
+    }
+
     pub fn is_internal(&self, name: &str) -> bool {
-        if self.exact.iter().any(|n| n == name) {
+        let folded = Self::fold(name);
+        if self.exact.iter().chain(self.exact_ignore_case.iter()).any(|n| Self::fold(n) == folded) {
             return true;
         }
-        let lower = name.to_lowercase();
-        if self.exact_ignore_case.contains(&lower) {
+        if self.prefix.iter().any(|p| folded.starts_with(p.to_lowercase().as_str())) {
             return true;
         }
-        if self.prefix.iter().any(|p| name.starts_with(p.as_str())) {
-            return true;
-        }
-        name.chars().count() > 1 && name.starts_with('.') && self.dot_suffix.iter().any(|s| name.ends_with(s.as_str()))
+        folded.chars().count() > 1 && folded.starts_with('.') && self.dot_suffix.iter().any(|s| folded.ends_with(s.to_lowercase().as_str()))
     }
 }
 

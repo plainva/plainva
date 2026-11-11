@@ -418,3 +418,111 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     },
   };
 }
+
+/**
+ * What "Copy link" and "Copy block link" do at one line of a note (ADR 0037):
+ * link to the heading the line is, or to the block the line belongs to — by
+ * the id the block already carries, or by a new one written where the block
+ * reader (`analyzeNoteSource`) and Obsidian look for it:
+ *
+ *   paragraph, quote line   ` ^id` at the end of the paragraph
+ *   list item               ` ^id` at the end of the item's paragraph
+ *   table                   `^id` on a line of its own behind the table,
+ *                           with a blank line around it
+ *
+ * Nothing is written into frontmatter, a code fence, an HTML block, a `$$`
+ * formula or an Obsidian comment — an id there would be text of that block,
+ * not a name for it — nor onto an empty line; a table inside a list or a
+ * quote is refused too, its own line would need the container's prefix.
+ * Every new id is checked: the plan is only made when the note, with the id
+ * written, leads `[[Note#^id]]` to that block and to nothing else.
+ */
+export type BlockLinkPlan =
+  | { kind: "heading"; text: string }
+  | { kind: "block"; id: string; insert: { at: number; text: string } | null }
+  | { kind: "refused"; reason: "empty" | "code" | "frontmatter" | "unsupported" };
+
+const STOP_TYPES = new Set(["heading", "paragraph", "table", "code", "html", "yaml", "toml", "thematicBreak", "definition", "math"]);
+
+/** A new block id: six lower-case letters and digits, as Obsidian makes them, unused in this note. */
+export function newBlockId(taken: Iterable<string>, random: () => number = Math.random): string {
+  const used = new Set([...taken].map((id) => id.toLowerCase()));
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  for (let attempt = 0; attempt < 1000; attempt += 1) {
+    let id = "";
+    for (let i = 0; i < 6; i += 1) id += alphabet[Math.min(alphabet.length - 1, Math.floor(random() * alphabet.length))];
+    if (!used.has(id)) return id;
+  }
+  throw new Error("no free block id");
+}
+
+export function planBlockLink(raw: string, offset: number, random: () => number = Math.random): BlockLinkPlan {
+  const at = Math.max(0, Math.min(raw.length, Math.floor(Number(offset) || 0)));
+  const lineFrom = Math.max(raw.lastIndexOf("\n", at - 1) + 1, raw.lastIndexOf("\r", at - 1) + 1);
+  const lineEndMatch = /\r\n|\r|\n/.exec(raw.slice(at));
+  const lineTo = lineEndMatch ? at + lineEndMatch.index : raw.length;
+  if (raw.slice(lineFrom, lineTo).trim() === "") return { kind: "refused", reason: "empty" };
+  const clean = stripAnchorMarkers(raw);
+  const range = sourceRanger(raw, clean);
+  const root = treeFor(clean.text);
+  // The chain of nodes from the top down to the block-level node on this line.
+  const chain: SourceNode[] = [];
+  let parent: SourceNode = root;
+  for (;;) {
+    const child: SourceNode | undefined = (parent.children ?? []).find((node) => {
+      if (!node.position) return false;
+      const r = range(node);
+      return r.from <= lineTo && r.to >= lineFrom;
+    });
+    if (!child) break;
+    chain.push(child);
+    if (STOP_TYPES.has(child.type)) break;
+    parent = child;
+  }
+  const leaf = chain[chain.length - 1];
+  if (!leaf) return { kind: "refused", reason: "empty" };
+  if (leaf.type === "yaml" || leaf.type === "toml") return { kind: "refused", reason: "frontmatter" };
+  if (leaf.type === "code" || leaf.type === "math") return { kind: "refused", reason: "code" };
+  if (leaf.type === "heading") return { kind: "heading", text: textOf(leaf) };
+  if (leaf.type !== "paragraph" && leaf.type !== "table") return { kind: "refused", reason: "unsupported" };
+  const leafRange = range(leaf);
+  const source = raw.slice(leafRange.from, leafRange.to);
+  if (leaf.type === "paragraph" && /^\s*(\$\$|%%)/.test(source)) return { kind: "refused", reason: "unsupported" };
+  const { blocks } = analyzeNoteSource(raw);
+  // A line that is only `^id` names the block in front of it.
+  const standalone = leaf.type === "paragraph" ? /^\s*\^([A-Za-z0-9][A-Za-z0-9-]*)\s*$/.exec(source) : null;
+  if (standalone) {
+    const named = blocks.find((block) => block.markerFrom >= leafRange.from && block.markerFrom < leafRange.to);
+    return named ? { kind: "block", id: named.id, insert: null } : { kind: "refused", reason: "unsupported" };
+  }
+  // A table, a quote and a callout are one block each: their id stands on a
+  // line of its own behind them (Obsidian's rule for structured blocks). In
+  // the title line of a callout it would be shown as part of the title.
+  const quote = chain.find((node) => node.type === "blockquote");
+  const structured = quote ?? (leaf.type === "table" ? leaf : undefined);
+  if (structured && chain[0] !== structured) return { kind: "refused", reason: "unsupported" };
+  const listItem = !structured && leaf.type === "paragraph" ? [...chain].reverse().find((node) => node.type === "listItem") : undefined;
+  const addressed = range(structured ?? listItem ?? leaf);
+  // An id the block already carries, in either place: on a line of its own
+  // behind it, or — as Obsidian also writes it for a quote — at the end of
+  // the paragraph the line belongs to.
+  const existing =
+    blocks.find((block) => block.from === addressed.from && block.to === addressed.to) ??
+    (structured && leaf.type === "paragraph" ? blocks.find((block) => block.markerFrom >= leafRange.from && block.markerFrom <= leafRange.to) : undefined);
+  if (existing) return { kind: "block", id: existing.id, insert: null };
+  const id = newBlockId(blocks.map((block) => block.id), random);
+  const eol = /\r\n/.test(raw) ? "\r\n" : /\r/.test(raw) && !/\n/.test(raw) ? "\r" : "\n";
+  let insert: { at: number; text: string };
+  if (structured) {
+    const after = raw.slice(addressed.to);
+    const nextLine = /^(?:\r\n|\r|\n)([^\r\n]*)/.exec(after);
+    const trailing = nextLine && nextLine[1].trim() !== "" ? eol : "";
+    insert = { at: addressed.to, text: `${eol}${eol}^${id}${trailing}` };
+  } else {
+    insert = { at: leafRange.to, text: ` ^${id}` };
+  }
+  const written = raw.slice(0, insert.at) + insert.text + raw.slice(insert.at);
+  const check = selectNoteFragment(written, `^${id}`);
+  if (check.status !== "found" || check.range.from !== addressed.from) return { kind: "refused", reason: "unsupported" };
+  return { kind: "block", id, insert };
+}

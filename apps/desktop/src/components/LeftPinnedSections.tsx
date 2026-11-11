@@ -1,5 +1,6 @@
 import type { BookmarkEntry } from "@plainva/ui";
 import { useId, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { copyDesktopNoteLink } from "../services/noteLinkReceiver";
 import { ChevronDown, Clock, Bookmark, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -317,6 +318,7 @@ export function LeftPinnedSections({
             window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: p } }));
           }}
           onCopyPath={(p) => void copyRowPath(p)}
+          onCopyLink={(p) => copyDesktopNoteLink(vaultPath, p)}
           onRemoveFromList={
             rowMenu.id === "recents"
               ? onForgetRecent

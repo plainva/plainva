@@ -54,6 +54,18 @@
                 <data android:scheme="${applicationId}" />
             </intent-filter>
 
+            <!-- Note links (F2, ADR 0037): plainva://open?vault=…&path=… opens a
+                 note. The scheme is a placeholder (build.gradle): the store app
+                 answers `plainva`, the Labs build `plainva-labs`, so a Labs
+                 install never takes the store app's links. Capacitor hands the
+                 address to the JS shell (appUrlOpen → routeAppUrl). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${noteLinkScheme}" android:host="open" />
+            </intent-filter>
+
             <!-- Share target (package J): plain text becomes a captured note;
                  images and arbitrary files (single or multiple) are saved as
                  vault attachments and embedded/linked in a new note.

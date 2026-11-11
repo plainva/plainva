@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Fragment } from "react";
+import { hasNoteLink } from "../services/noteLinkReceiver";
 import {
   ArchiveRestore, Copy, Database, Download,
   ExternalLink, FilePlus, FolderPlus, FolderInput, RefreshCw, Trash2,
@@ -61,6 +62,8 @@ export interface FileContextMenuProps {
   onVersionHistory?: (path: string) => void;
   onRevealInTree?: (path: string) => void;
   onCopyPath?: (path: string) => void;
+  /** "Copy link" (F2): the file's `plainva://open?…` address. Only for files Plainva shows itself. */
+  onCopyLink?: (path: string) => void;
   /** Removes the entry from the list it was right-clicked in (never the file). */
   onRemoveFromList?: (path: string) => void;
   onDelete?: (path: string, isFolder: boolean) => void;
@@ -154,6 +157,7 @@ export function FileContextMenu(props: FileContextMenuProps) {
         resolveConflict: !isFolder && conflict && props.onResolveConflict ? () => props.onResolveConflict!(path) : undefined,
         reveal: props.onRevealInTree ? () => props.onRevealInTree!(path) : undefined,
         copyPath: props.onCopyPath ? () => props.onCopyPath!(path) : undefined,
+        copyLink: !isFolder && props.onCopyLink && hasNoteLink(path) ? () => props.onCopyLink!(path) : undefined,
         removeFromList: props.onRemoveFromList ? () => props.onRemoveFromList!(path) : undefined,
         delete: props.onDelete ? () => props.onDelete!(path, isFolder) : undefined,
       });

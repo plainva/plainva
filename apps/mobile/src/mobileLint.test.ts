@@ -1465,6 +1465,8 @@ describe("a vault switch the program starts is offered, not taken", () => {
       "services/accountVaultTransfer.ts",
       // The one place a flow's way to its vault is decided.
       "services/flowVault.ts",
+      // A note link to another vault (F2): only after the person said "Switch", and unsaved input asked first.
+      "services/noteLinkRoute.ts",
       // The switch itself; a vault made in a chain of dialogs, and the one left behind by a delete.
       "services/vaultService.ts",
     ]);

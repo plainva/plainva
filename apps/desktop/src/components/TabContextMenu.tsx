@@ -1,4 +1,4 @@
-import { Bookmark, ClipboardCopy, Columns2, ExternalLink, FolderTree, History, Pencil, Pin, PinOff, RefreshCw, Rows2, X } from "lucide-react";
+import { Bookmark, ClipboardCopy, Columns2, ExternalLink, FolderTree, History, Link2, Pencil, Pin, PinOff, RefreshCw, Rows2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SplitDirection } from "./SplitButton";
 import { ICON, MenuItem, MenuSeparator, MenuSurface } from "@plainva/ui";
@@ -23,6 +23,8 @@ interface Props {
   onTogglePin?: () => void;
   onRevealInTree?: () => void;
   onCopyPath?: () => void;
+  /** "Copy link" (F2): the file's `plainva://open?…` address. */
+  onCopyLink?: () => void;
   onRename?: () => void;
   onToggleBookmark?: () => void;
   isBookmarked?: boolean;
@@ -64,7 +66,8 @@ const SHORTCUT_REOPEN = IS_MAC ? "⌘⇧T" : "Ctrl ⇧T";
  */
 export function TabContextMenu({
   x, y, onSplitVertical, onSplitHorizontal, onCloseTab, onClose, activeDirection, onShowVersionHistory,
-  onReload, pinned, onTogglePin, onRevealInTree, onCopyPath, onRename, onToggleBookmark, isBookmarked,
+  onReload, pinned, onTogglePin, onRevealInTree, onCopyPath,
+  onCopyLink, onRename, onToggleBookmark, isBookmarked,
   onReopenClosed, canReopenClosed, onCloseOthers, onCloseLeft, onCloseRight, onCloseAll,
   canCloseLeft, canCloseRight, onOpenInNewWindow, onReturnToMain,
 }: Props) {
@@ -120,6 +123,11 @@ export function TabContextMenu({
       {onCopyPath && (
         <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={onCopyPath}>
           {t("fileTree.copyPath", { defaultValue: "Pfad kopieren" })}
+        </MenuItem>
+      )}
+      {onCopyLink && (
+        <MenuItem icon={<Link2 size={ICON.ui} />} data-testid="tab-menu-copy-link" onSelect={onCopyLink}>
+          {t("noteLink.copy")}
         </MenuItem>
       )}
       {onToggleBookmark && (

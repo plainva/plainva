@@ -39,6 +39,7 @@ import {
   payload,
   redactSensitive,
   sectionOf,
+  contentPathRefusal,
   sensitiveFindings,
   SITUATION_SOURCE,
   toolByName,
@@ -300,6 +301,8 @@ export function safeRelPath(path: string): string | null {
   if (parts.some((part) => part === "" || part === "." || part === "..")) return null;
   // Plainva's own state, the policy files and the skills are never tool results (ADR 0020, ADR 0022).
   if (isAiHiddenPath(p)) return null;
+  // The app's own folders in any spelling the file system takes for them (F2 review).
+  if (contentPathRefusal(p) === "internal") return null;
   return p;
 }
 
@@ -393,6 +396,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const readAllowed = async (raw: unknown): Promise<{ path: string; text: string } | null> => {
     const path = typeof raw === "string" ? safeRelPath(raw) : null;
     if (!path) return null;
+    // A name of an unusual shape (a device name, a colon, an 8.3 alias) is read
+    // only where the vault knows exactly that file — on Windows `PLAINV~1/…`
+    // would reach `.plainva` (F2 review). Every other name, as before.
+    if (contentPathRefusal(path) !== null && (await deps.resolveLink(path, "").catch(() => null)) !== path) return null;
     const text = await deps.readNote(path);
     if (text === null || !(await allowed(path, text))) return null;
     return { path, text };

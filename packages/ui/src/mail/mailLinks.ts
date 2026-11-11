@@ -209,8 +209,8 @@ export type MailTextSegment = { kind: "text"; text: string } | { kind: "link"; h
 const TRAILING_PUNCT = ").,;:!?'\"]>";
 
 function startsWithHttp(text: string, at: number): boolean {
-  const head = text.slice(at, at + 8).toLowerCase();
-  return head.startsWith("http://") || head.startsWith("https://");
+  const head = text.slice(at, at + 10).toLowerCase();
+  return head.startsWith("http://") || head.startsWith("https://") || head.startsWith("plainva://");
 }
 
 function isWordChar(ch: string | undefined): boolean {
@@ -231,8 +231,8 @@ export function mailTextSegments(text: string): MailTextSegment[] {
   let i = 0;
   while (i < text.length) {
     const ch = text.charCodeAt(i);
-    // "h" or "H" — the only place an address can start.
-    if ((ch !== 104 && ch !== 72) || !startsWithHttp(text, i) || isWordChar(text[i - 1])) {
+    // "h" or "H" — where a web address starts —, "p" or "P" for a note link.
+    if ((ch !== 104 && ch !== 72 && ch !== 112 && ch !== 80) || !startsWithHttp(text, i) || isWordChar(text[i - 1])) {
       i++;
       continue;
     }
@@ -247,7 +247,8 @@ export function mailTextSegments(text: string): MailTextSegment[] {
     }
     while (end > at && TRAILING_PUNCT.includes(text[end - 1])) end--;
     const candidate = text.slice(at, end);
-    if (describeLink(candidate)?.kind === "web") {
+    const kind = describeLink(candidate)?.kind;
+    if (kind === "web" || kind === "note") {
       if (at > run) out.push({ kind: "text", text: text.slice(run, at) });
       out.push({ kind: "link", href: candidate, text: candidate });
       run = end;

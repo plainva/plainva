@@ -1,7 +1,7 @@
 import { CompletionContext, CompletionResult, Completion, pickedCompletion } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import i18n from "../i18n";
-import { visiblePathSql } from "@plainva/core";
+import { analyzeNoteSource, visiblePathSql } from "@plainva/core";
 import { searchEmoji } from "./emojiData";
 import { parseHeadings } from "../lib/outline";
 import { searchLinkTargets, searchTags } from "../lib/inlineTriggers";
@@ -62,6 +62,12 @@ export function wikiQueryBefore(context: CompletionContext): { from: number; to:
   return found < 0 ? null : { from: start + found, to: context.pos, text: before.slice(found) };
 }
 
+/** The first words of a block, on one line, for the completion's detail column. */
+function blockSnippet(text: string): string {
+  const flat = text.replace(/^\s*(?:[-*+]|\d+[.)])\s+(?:\[.\]\s+)?/, "").replace(/\s+/g, " ").trim();
+  return flat.length > 48 ? `${flat.slice(0, 47)}…` : flat;
+}
+
 // `[[` -> live note search; selection inserts `[[Title]]`.
 //
 // Attachments are offered too since issue #56, but SECOND (E4): notes keep the
@@ -114,6 +120,26 @@ export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
           content = await deps.readNote(path);
         }
         if (!content) return null;
+        // `[[Note#^`: the blocks that already carry an id (F2), by id and by
+        // the start of their text — an id alone says nothing about its line.
+        if (headPart.startsWith("^")) {
+          const idPart = headPart.slice(1);
+          const blocks = analyzeNoteSource(content).blocks
+            .filter((b) => !idPart || b.id.toLowerCase().includes(idPart))
+            .slice(0, 12);
+          if (blocks.length === 0) return null;
+          return {
+            from: word.from,
+            filter: false,
+            options: blocks.map((b) => ({
+              label: `^${b.id}`,
+              detail: blockSnippet(content.slice(b.from, b.markerFrom > b.from && b.markerFrom <= b.to ? b.markerFrom : b.to)),
+              apply: applyLinkText(`[[${noteLabel}#^${b.id}]]`),
+              type: "wikilink",
+              section: { name: i18n.t("editor.completionBlocks"), rank: 0 },
+            })),
+          };
+        }
         const headings = parseHeadings(content).filter((h) => !headPart || h.text.toLowerCase().includes(headPart)).slice(0, 12);
         if (headings.length === 0) return null;
         return {

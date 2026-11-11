@@ -1,3 +1,4 @@
+import { readContentBinary } from "@plainva/ui";
 import { baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
@@ -1371,7 +1372,7 @@ export function BaseScreen({
           }
           const ext = rel.split(".").pop()?.toLowerCase() ?? "";
           if (!(ext in MIME)) continue;
-          const bin = await vault.adapter.readBinaryFile(rel);
+          const bin = await readContentBinary(vault.adapter, rel);
           const url = URL.createObjectURL(new Blob([bin as BlobPart], { type: MIME[ext] }));
           created.push(url);
           next[rowPath(r)] = url;

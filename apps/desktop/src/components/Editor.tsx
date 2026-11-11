@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, FolderInput, MessageSquare, PenLine } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, Link2, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, FolderInput, MessageSquare, PenLine } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -24,7 +24,9 @@ import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
 import { applyTextShape, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
-import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor } from "@plainva/ui";
+import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor, copyLineLink, type LineLinkMode } from "@plainva/ui";
+import { copyDesktopNoteLink, desktopVaultLinkName } from "../services/noteLinkReceiver";
+import { registerLineLinkEditor } from "../services/editorLineLinks";
 import { openLink } from "../services/openLink";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
@@ -33,7 +35,7 @@ import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from 
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState } from "@plainva/core";
+import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
@@ -1635,6 +1637,16 @@ export const Editor: React.FC<{
     };
   }, []);
 
+  // "Copy link" / "Copy block link" at a line (F2): from the block menu and
+  // the right-click menu. The id a block needs is typed into this editor.
+  const copyLinkAt = useStableHandler(async (pos: number, mode: LineLinkMode) => {
+    const view = sessionRef.current?.view;
+    if (!view || !activePath) return;
+    const notes = queryService ? await queryService.listNotes().then((list) => list.map((n) => n.path)).catch(() => [] as string[]) : [];
+    if (sessionRef.current?.view !== view) return;
+    await copyLineLink(view, pos, mode, { notePath: activePath, vaultName: desktopVaultLinkName(vaultPath), wikiName: wikiTargetForPath(activePath, [...notes, activePath]) });
+  });
+
   const handleBlockAction = (action: BlockAction) => {
     const view = sessionRef.current?.view;
     if (view && blockMenu) applyBlockAction(view, blockMenu.from, action);
@@ -2692,7 +2704,13 @@ export const Editor: React.FC<{
       onPickIcon: setIconPicker,
       onPickColor: setColorPicker,
       // Shell capabilities injected into the shared session (ADR 0011).
-      readBinaryFile: (absolutePath) => readFile(absolutePath),
+      // A name a note embeds: checked against the vault's listing where its shape is unusual (F2 review).
+      readBinaryFile: async (absolutePath) => {
+        const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/";
+        const normalized = absolutePath.replace(/\\/g, "/");
+        if (vaultAdapter && normalized.startsWith(root)) await checkedContentPath(normalized.slice(root.length), (folder) => vaultAdapter.listDir(folder, false));
+        return readFile(absolutePath);
+      },
       // The `[[Note#` completion lists that note's headings (issue #92).
       readNote: (p) => (vaultAdapter ? vaultAdapter.readTextFile(p).catch(() => null) : Promise.resolve(null)),
       // Where an embed may point (P3, Build-91 feedback): beside the note or,
@@ -2789,6 +2807,7 @@ export const Editor: React.FC<{
       deps: sessionDepsRef,
     });
     sessionRef.current = session;
+    const offLineLinks = registerLineLinkEditor(session.view, (pos, mode) => void copyLinkAt(pos, mode));
     session.setEditable(!workspaceReadOnly && !saveState.transferFrozen);
     // Where you were (feedback round 2026-09-01, A5/E7): the scroll position
     // per file, device-local, restored once the view has laid the document
@@ -2834,6 +2853,7 @@ export const Editor: React.FC<{
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
       if (scrollKey) rememberScrollTop(scrollKey.vault, scrollKey.path, session.view.scrollDOM.scrollTop);
       sessionRef.current = null;
+      offLineLinks();
       session.destroy();
     };
     // viewMode is handled by setMode below (the compartment swap keeps the
@@ -3572,6 +3592,9 @@ export const Editor: React.FC<{
               <MenuItem icon={<ClipboardCopy size={ICON.ui} />} onSelect={() => { void handleMenuCopyPath(); }}>
                 {t("fileTree.copyPath")}
               </MenuItem>
+              <MenuItem icon={<Link2 size={ICON.ui} />} data-testid="editor-menu-copy-link" onSelect={() => { if (activePath) copyDesktopNoteLink(vaultPath, activePath); }}>
+                {t("noteLink.copy")}
+              </MenuItem>
               <MenuItem icon={<FolderTree size={ICON.ui} />} data-testid="editor-menu-reveal-tree" onSelect={handleMenuRevealInTree}>
                 {t("editor.revealInTree")}
               </MenuItem>
@@ -4053,7 +4076,13 @@ export const Editor: React.FC<{
       )}
 
       {blockMenu && (
-        <BlockMenu x={blockMenu.x} y={blockMenu.y} onAction={handleBlockAction} onClose={() => setBlockMenu(null)} />
+        <BlockMenu
+          x={blockMenu.x}
+          y={blockMenu.y}
+          onAction={handleBlockAction}
+          onCopyLink={(mode) => { const from = blockMenu.from; setBlockMenu(null); void copyLinkAt(from, mode); }}
+          onClose={() => setBlockMenu(null)}
+        />
       )}
 
       {tableMenu && (
