@@ -27,7 +27,7 @@
       "dbBytes": 105361408,
       "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94"
     },
-    "github-ubuntu-latest": {
+    "github-ubuntu-latest-amd-epyc-9v45-96-core-processor": {
       "recorded": "2026-11-11",
       "node": "v22.23.4",
       "cpu": "AMD EPYC 9V45 96-Core Processor",
@@ -52,6 +52,32 @@
       "dbBytes": 105488384,
       "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
       "commit": "6b3e348fc1bab6931a716d9c333fb0d2b108755d"
+    },
+    "github-ubuntu-latest-amd-epyc-9v74-80-core-processor": {
+      "recorded": "2026-11-11",
+      "node": "v22.23.4",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "calibrationMs": 993.15,
+      "fsWalkMs": 339.54,
+      "ratios": {
+        "coldIndexMs": 41.39759,
+        "warmIndexMs": 1.22642,
+        "saveP50Ms": 0.00435,
+        "saveP95Ms": 0.0077,
+        "searchMs": 0.055,
+        "listTasksMs": 0.77895
+      },
+      "ms": {
+        "coldIndexMs": 41114.02,
+        "warmIndexMs": 416.42,
+        "saveP50Ms": 4.32,
+        "saveP95Ms": 7.65,
+        "searchMs": 54.62,
+        "listTasksMs": 773.61
+      },
+      "dbBytes": 105488384,
+      "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
+      "commit": "7483afe3f1832ef93db0b6b02f1a316deccf8889"
     }
   }
 }

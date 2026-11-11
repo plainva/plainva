@@ -91,12 +91,15 @@ gate trustworthy on the runner:
    while.
 2. *A baseline per environment.* A ratio still drifts between machines (disk, cache sizes, CPU
    generation, Windows against Linux), so `core-baseline.json` keeps one entry per environment —
-   `PERF_ENV` (`github-ubuntu-latest` in the workflow), or the platform and CPU model when it is
-   not set — and a run is only judged against its own. An environment without an entry gets the
+   `PERF_ENV` (`github-ubuntu-latest` in the workflow) plus the CPU model, or the platform and CPU
+   model when it is not set — and a run is only judged against its own. An environment without an entry gets the
    measurement and a warning, never a verdict: a baseline borrowed from another machine would
    pass or fail at random. To arm the gate on the runner: run the workflow once, take the
-   `asBaseline` object from the `perf-core` artifact into `environments["github-ubuntu-latest"]`,
-   commit. Record anew when the runner image changes.
+   `asBaseline` object from the `perf-core` artifact into the environment the run names, commit.
+   The runner label is not one machine: the first two runs got an EPYC 9V45 and an EPYC 9V74,
+   and for the same code their ratios for search and `listTasks` stood 26 % and 29 % apart —
+   over the tolerance, so the CPU model is part of the name and each model gets its own entry
+   (a model not seen yet gets a warning, no verdict). Record anew when the runner image changes.
 
 The pass without changes is almost all file system (two SQL statements, ten thousand
 `stat`s), which the loop does not see: on this machine it moved between 0.5 and 6.7 s for the same

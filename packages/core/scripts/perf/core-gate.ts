@@ -75,8 +75,11 @@ interface BaselineFile {
 }
 
 export function environmentName(): string {
-  if (process.env.PERF_ENV) return process.env.PERF_ENV;
   const cpu = (os.cpus()[0]?.model ?? "cpu").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // A hosted runner label is not one machine: GitHub hands out more than one CPU model under it,
+  // and the ratios of SQL-bound metrics differ between them by more than the tolerance
+  // (search and listTasks 26 % and 29 % apart for the same code). The CPU model is part of the name.
+  if (process.env.PERF_ENV) return `${process.env.PERF_ENV}-${cpu}`;
   return `${os.platform()}-${os.arch()}-${cpu}`;
 }
 
