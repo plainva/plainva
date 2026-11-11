@@ -38,8 +38,6 @@ function shipped(): { rel: string; text: string }[] {
   return files.sort((a, b) => (a.rel < b.rel ? -1 : 1));
 }
 
-const EDITOR_WITHOUT_CHAIN =
-  "the note saver's write where the vault's files carry no chain: the editor holds the text it started from, merges against the disk itself and reads back what it wrote. Where there is a chain this is `writeEditorText`, a few lines above";
 const NEW_FILE = "a new file: written once and read back to confirm; a file that is there already is compared, never written";
 const RESTORE = "gives back a note that was deleted a moment ago: a whole text that was held, to a path where no file is";
 const OWN_FILE = "the app's own file, below the chain on purpose (see `rawVaultAdapter.test.ts`): no version, no conflict, never queued";
@@ -61,7 +59,6 @@ const SITES: Record<string, Site[]> = {
       1,
       "a new note with a text that was made whole (a draft of the assistant, an answer kept as a note): `writeCapturedNote` asks for a name no file has and writes there once — it never writes a file that is there",
     ],
-    ["reads and writes path in write", 1, EDITOR_WITHOUT_CHAIN],
   ],
 };
 

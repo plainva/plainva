@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSaveCoordinator } from "./saveCoordinator";
+import { createSaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
 
 describe("saveCoordinator", () => {
   beforeEach(() => {

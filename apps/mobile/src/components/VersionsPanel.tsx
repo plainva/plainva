@@ -33,7 +33,7 @@ export function VersionsPanel({
   onRestored: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const service = useMemo(() => new VersionHistoryService(vault.adapter), [vault]);
+  const service = useMemo(() => new VersionHistoryService(vault.belowChain), [vault]);
   const [versions, setVersions] = useState<FileVersion[] | null>(null);
   const [selected, setSelected] = useState<FileVersion | null>(null);
   const [preview, setPreview] = useState<string | null>(null);

@@ -14,7 +14,7 @@ const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { clearMobileCommentWorker(); await Promise.all(cleanups.splice(0).map(clean => clean())); vi.restoreAllMocks(); });
 async function setup() {
   const w = await commentShellWorkspace(); cleanups.push(w.cleanup);
-  const vault = { vaultId: "mobile-vault", adapter: w.raw, workspaceRuntime: w.runtime, workspaceState: w.state } as unknown as MobileVault;
+  const vault = { vaultId: "mobile-vault", adapter: w.raw, belowChain: w.raw, workspaceRuntime: w.runtime, workspaceState: w.state } as unknown as MobileVault;
   return { ...w, vault };
 }
 describe("the actual mobile workspace comment connection", () => {

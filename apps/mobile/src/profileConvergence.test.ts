@@ -107,7 +107,7 @@ function mobileVault(vaultId = "fixture-vault"): MobileVault {
       files.delete(path);
     },
   } as unknown as IVaultAdapter;
-  return { vaultId, adapter, db: null } as unknown as MobileVault;
+  return { vaultId, adapter, belowChain: adapter, db: null } as unknown as MobileVault;
 }
 
 const sampleFor = (kind: string): unknown =>

@@ -363,7 +363,13 @@ describe("the decision stays in one place", () => {
     const read = /async readEditor\([\s\S]*?\n {2}\},/.exec(phone);
     expect(read, "the phone's editor read moved — re-point this guard").not.toBeNull();
     expect(read![0]).toMatch(/openEditorText\(path, /);
-    expect(phone, "the phone's saver no longer puts the shape back").toMatch(/writeEditorText\(path, applyTextShape\(text, shape\)/);
+    // Both savers hand the file's shape to the one save step (stability plan R6), and that step puts it back
+    // around every text it writes.
+    expect(phone, "the phone's saver no longer hands the shape on").toMatch(/writeEditorSave\(\{[\s\S]*?shape: editorTextShape\.get\(key\)/);
+    expect(editor, "the desktop's save no longer hands the shape on").toMatch(/writeEditorSave\(\{[\s\S]*?shape, kept: earlier/);
+    const step = readFileSync(join(desktopSrc, "..", "..", "..", "packages", "ui", "src", "lib", "editorSave.ts"), "utf8");
+    expect(step).toMatch(/files\.writeEditorText\(path, shaped\(text\), base === null \? null : shaped\(base\)\)/);
+    expect(step).toMatch(/files\.writeTextFile\(path, shaped\(candidate\)\)/);
     // …and nothing else on a note screen reads the open file around it.
     for (const rel of ["screens/NoteScreen.tsx", "EditorHost.tsx", "screens/base/PinboardEntryScreen.tsx"]) {
       const source = readFileSync(join(desktopSrc, "..", "..", "mobile", "src", rel), "utf8");

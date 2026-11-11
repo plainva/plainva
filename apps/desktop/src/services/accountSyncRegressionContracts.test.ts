@@ -94,7 +94,7 @@ function selectStore(store: ReturnType<typeof fakeStore>): void {
 }
 
 function mobileVault(vaultId: string, files: MemoryProfileVault): MobileVault {
-  return { vaultId, adapter: files, db: null } as unknown as MobileVault;
+  return { vaultId, adapter: files, belowChain: files, db: null } as unknown as MobileVault;
 }
 
 const googleRow = (clientId: string): PimAccountRow => ({
