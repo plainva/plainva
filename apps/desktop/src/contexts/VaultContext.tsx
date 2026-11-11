@@ -922,17 +922,23 @@ export const VaultProvider: React.FC<{
       );
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
-      // get enqueued for push, and which target the worker uses below.
-      const driveCreds = await perfMeasure("vault open: drive credentials", () => credentialManager.getDriveCredentials(path)).catch(() => null);
-      const webdavCreds = await perfMeasure("vault open: webdav credentials", () => credentialManager.getWebDavCredentials(path)).catch(() => null);
-      const oneDriveCreds = await perfMeasure("vault open: onedrive credentials", () => credentialManager.getOneDriveCredentials(path)).catch(() => null);
-      const dropboxCreds = await perfMeasure("vault open: dropbox credentials", () => credentialManager.getDropboxCredentials(path)).catch(() => null);
-      const s3Creds = await perfMeasure("vault open: s3 credentials", () => credentialManager.getS3Credentials(path)).catch(() => null);
+      // get enqueued for push, and which target the worker uses below. The five
+      // slots are independent keychain entries: read side by side, not one
+      // after the other (performance plan L4, finding B10).
+      const [driveCreds, webdavCreds, oneDriveCreds, dropboxCreds, s3Creds] = await Promise.all([
+        perfMeasure("vault open: drive credentials", () => credentialManager.getDriveCredentials(path)).catch(() => null),
+        perfMeasure("vault open: webdav credentials", () => credentialManager.getWebDavCredentials(path)).catch(() => null),
+        perfMeasure("vault open: onedrive credentials", () => credentialManager.getOneDriveCredentials(path)).catch(() => null),
+        perfMeasure("vault open: dropbox credentials", () => credentialManager.getDropboxCredentials(path)).catch(() => null),
+        perfMeasure("vault open: s3 credentials", () => credentialManager.getS3Credentials(path)).catch(() => null),
+      ]);
       // Whether this device can open the vault's provider is ONE rule, shared
       // with the account surface — see `fileSyncAccess.ts` for why it may not
       // be restated per caller.
-      const driveTokenProvider = driveCreds ? await fileBrokerTokenProvider(path, { provider: "drive", ...driveCreds }) : undefined;
-      const oneDriveTokenProvider = oneDriveCreds ? await fileBrokerTokenProvider(path, { provider: "onedrive", ...oneDriveCreds }) : undefined;
+      const [driveTokenProvider, oneDriveTokenProvider] = await Promise.all([
+        driveCreds ? fileBrokerTokenProvider(path, { provider: "drive", ...driveCreds }) : undefined,
+        oneDriveCreds ? fileBrokerTokenProvider(path, { provider: "onedrive", ...oneDriveCreds }) : undefined,
+      ]);
       const filesViaBroker = { drive: !!driveTokenProvider, onedrive: !!oneDriveTokenProvider };
       const fileAccess = resolveFileSyncAccess(
         { drive: driveCreds, onedrive: oneDriveCreds, dropbox: dropboxCreds, s3: s3Creds, webdav: webdavCreds },
@@ -942,8 +948,7 @@ export const VaultProvider: React.FC<{
       // vault opens without a target and queues nothing (plan "Verbinden", V2/V3).
       // Files off for the vault keeps the settings profile moving (settings
       // only, second review B3); paused here or signed out stops everything.
-      const filesOffHere = await filesOffForVault(path);
-      const pausedHere = await isSyncPausedHere(path);
+      const [filesOffHere, pausedHere] = await Promise.all([filesOffForVault(path), isSyncPausedHere(path)]);
       const filesRun = filesRunState({ filesOff: filesOffHere, pausedHere, signedOut: !!fileAccess.signedOut });
       // Standing still is said the way the phone says it: paused reads as off,
       // signed out here as "Sign-in needed", with the way to the sign-in (third

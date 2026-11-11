@@ -460,10 +460,12 @@ describe("the write order the scan's transactions must keep (merge note for the 
     return { deleteFile: at(/^DELETE FROM files WHERE id = \? OR path = \?/), insertFile: at(/^\s*INSERT INTO files /), insertRow: at(/INSERT OR REPLACE INTO fts_notes/) };
   };
 
+  // One file per transaction (scanTransactionMs 0): the most breaks the scan of
+  // feature/w1-app can make, each of them between two notes.
   it("writes each note's file row and search row in one unit: delete, insert, then the search row; a break only between notes", async () => {
     const { db, units } = await recording();
     const files = await vaultWith(NOTES);
-    const indexer = new VaultIndexer(files, db);
+    const indexer = new VaultIndexer(files, db, { scanTransactionMs: 0 });
     await indexer.indexVaultFull();
     await indexer.rebuildIndex();
     units.length = 0;
@@ -484,7 +486,7 @@ describe("the write order the scan's transactions must keep (merge note for the 
   it("deletes a gone file's row and its search row by number, in the last unit of the pass", async () => {
     const { db, units } = await recording();
     const files = await vaultWith(NOTES);
-    const indexer = new VaultIndexer(files, db);
+    const indexer = new VaultIndexer(files, db, { scanTransactionMs: 0 });
     await indexer.indexVaultFull();
     units.length = 0;
     await files.deleteItem("Archive/Old.md");
@@ -494,5 +496,26 @@ describe("the write order the scan's transactions must keep (merge note for the 
     expect(units.indexOf(deleting[0])).toBe(units.length - 1);
     expect(await strays(db)).toEqual(clean);
     expect(await ftsCount(db)).toBe(Object.keys(NOTES).length - 1);
+  });
+
+  it("keeps every search row with its file when a scan of short transactions re-reads the newest row (its number comes back)", async () => {
+    const { db } = await recording();
+    const files = await vaultWith(NOTES);
+    const indexer = new VaultIndexer(files, db, { scanTransactionMs: 0 });
+    await indexer.indexVaultFull();
+    // The note with the highest row number: read again, its row is deleted and
+    // inserted, and SQLite hands the same number out again.
+    const top = (await db.queryOne<{ rowid: number; path: string }>(`SELECT rowid, path FROM files ORDER BY rowid DESC LIMIT 1`))!;
+    await files.writeTextFile(top.path, `${NOTES[top.path]}
+zeppelin
+`);
+    await files.writeTextFile("Notes/Plain.md", `${NOTES["Notes/Plain.md"]}
+balloon
+`);
+    const report = await indexer.indexVaultFull();
+    expect(report.removed).toBe(0);
+    expect(await strays(db)).toEqual(clean);
+    expect(await searchPaths(db, "zeppelin")).toEqual([top.path]);
+    expect(await searchPaths(db, "balloon")).toEqual(["Notes/Plain.md"]);
   });
 });
