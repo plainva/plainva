@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef, Fragment, type MouseEvent as 
 import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
 import { onTrayJournal, onTrayNewTask } from "./services/background";
+import { copyDesktopNoteLink, hasNoteLink, useDesktopNoteLinks } from "./services/noteLinkReceiver";
 import { openAttachmentExternally } from "./services/openAttachment";
 import { useVault } from "./contexts/VaultContext";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to
@@ -1263,6 +1264,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // was switched on in an earlier session is registered again. Off is the
   // default — then nothing is registered and the plugin is not even loaded.
   useQuickCaptureSink();
+  // Note links (F2, ADR 0037): from the system and clicked anywhere in the app.
+  const { recentVaults, openVault } = useVault();
+  useDesktopNoteLinks({ vaultPath, recentVaults, openVault, queryService, vaultAdapter, openNote: (path) => openInFocusedPane(path, false) });
   // This vault's day boundary, published once for every way into the journal (X2).
   useDayBoundary();
   useEffect(() => {
@@ -2157,6 +2161,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             onReload={isFile ? () => window.dispatchEvent(new CustomEvent("plainva-reload-file", { detail: { path: tabPath } })) : undefined}
             onRevealInTree={isFile ? () => { parkTreeReveal(tabPath!); window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: tabPath } })); } : undefined}
             onCopyPath={isFile ? () => { void navigator.clipboard.writeText(tabPath!).then(() => toast.success(t("fileTree.pathCopied", { defaultValue: "Pfad kopiert" }))); } : undefined}
+            onCopyLink={isFile && hasNoteLink(tabPath!) ? () => copyDesktopNoteLink(vaultPath, tabPath!) : undefined}
             onRename={isFile ? () => { selectTab(tabMenu.paneIndex, tabMenu.tabIndex); window.dispatchEvent(new CustomEvent("plainva-rename-active")); } : undefined}
             onToggleBookmark={isFile ? () => toggleBookmark(tabPath!) : undefined}
             isBookmarked={isFile ? bookmarks.some((b) => b.type === "file" && b.path === tabPath) : false}

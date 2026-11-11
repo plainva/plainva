@@ -1,6 +1,8 @@
+import { isNoteLinkAddress } from "@plainva/core";
 import i18n from "../i18n";
 import { logDiagnostic } from "../services/diagnosticsLog";
 import { toast } from "../services/toastStore";
+import { deliverNoteLink } from "./noteLinks";
 
 /**
  * Which addresses Plainva hands to the system — one rule for both shells
@@ -95,6 +97,14 @@ function schemeOf(url: unknown): string {
  */
 export function guardedExternalOpener(open: (url: string) => Promise<void>): (url: string) => Promise<void> {
   return async (url: string) => {
+    // A Plainva address (`plainva://open?…`, ADR 0037) is the app's own: it
+    // never reaches the system — which would hand it straight back, or to
+    // another installation — but opens the note here, wherever it was
+    // clicked: a note, a mail, an event, a task, a database cell.
+    if (isNoteLinkAddress(url)) {
+      deliverNoteLink(urlAsTheBrowserReadsIt(url as string));
+      return;
+    }
     const allowed = externalUrlToOpen(url);
     if (allowed === null) {
       logDiagnostic("open-external", `refused a link with the scheme ${schemeOf(url)}`);

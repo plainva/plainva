@@ -25,6 +25,7 @@ import { virtualTabMeta } from "./components/graph/virtualPaths";
 import { getWindowBus } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { PRESET_CONTENT } from "./services/windowManager";
+import { copyDesktopNoteLink, hasNoteLink } from "./services/noteLinkReceiver";
 
 /** Sections an auxiliary window may show (E5): everything note-bound, no calendar. */
 const AUX_SECTIONS: readonly SectionId[] = ["outline", "graph", "databases", "backlinks", "properties"];
@@ -581,6 +582,7 @@ export function AuxApp() {
           onReload={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-reload-file", { detail: { path: menuTabPath } })) : undefined}
           onRevealInTree={menuIsFile ? () => window.dispatchEvent(new CustomEvent("plainva-reveal-folder", { detail: { path: menuTabPath } })) : undefined}
           onCopyPath={menuIsFile ? () => { void navigator.clipboard.writeText(menuTabPath!).then(() => toast.success(t("fileTree.pathCopied", { defaultValue: "Pfad kopiert" }))); } : undefined}
+          onCopyLink={menuIsFile && hasNoteLink(menuTabPath!) ? () => copyDesktopNoteLink(vaultPath, menuTabPath!) : undefined}
           onRename={menuIsFile ? () => { selectTab(tabMenu.paneIndex, tabMenu.tabIndex); window.dispatchEvent(new CustomEvent("plainva-rename-active")); } : undefined}
           isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === menuTabPath)}
           onToggleBookmark={menuIsFile ? () => toggleBookmark(menuTabPath!) : undefined}

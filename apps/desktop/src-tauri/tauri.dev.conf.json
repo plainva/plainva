@@ -7,6 +7,11 @@
     "devUrl": "http://localhost:1440"
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["plainva-dev"]
+      }
+    },
     "updater": {
       "endpoints": []
     }

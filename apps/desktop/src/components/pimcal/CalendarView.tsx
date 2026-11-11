@@ -30,6 +30,7 @@ import { mailboxesSwitchedOn } from "@plainva/ui";
 import { loadCloudAccounts } from "../../services/cloudAccounts";
 import { loadCalendarColors } from "../../services/pim/calendarColors";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
+import { vaultLabel } from "../../services/vaultNames";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
 import { useDailyNoteAction } from "../../hooks/useDailyNoteAction";
@@ -2444,6 +2445,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
           calendarOptions={editCalendarOptions}
+          noteLinks={queryService ? { listNotes: () => queryService.listNotes(), vaultName: vaultPath ? vaultLabel(vaultPath) : null } : undefined}
           onCancel={() => { setEditState(null); setCreateInitial(null); seedSaved.current = null; }}
           onSubmit={submitEventForm}
           onMeetingNote={

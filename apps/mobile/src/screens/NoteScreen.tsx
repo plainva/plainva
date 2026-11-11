@@ -31,6 +31,7 @@ import {
   ListTree,
   Link2,
 } from "lucide-react";
+import { copyPhoneNoteLink } from "../services/noteLinkRoute";
 import { Share } from "@capacitor/share";
 import { buildMailtoUrl, noteMailPrefill, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
@@ -1782,6 +1783,16 @@ export function NoteScreen({
               onClick: () => {
                 setMenu(false);
                 rename();
+              },
+            },
+            // Its address for other apps (F2): `plainva://open?…`.
+            {
+              icon: <Link2 size={ICON.head} />,
+              label: t("noteLink.copy"),
+              testId: "note-copy-link",
+              onClick: () => {
+                setMenu(false);
+                void copyPhoneNoteLink(path);
               },
             },
             {

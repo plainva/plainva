@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 import { installMenuVault } from './fixtures/menuVault';
 
 // Areas that fail on their own (stability plan 2026-11-10, R3). Before it, a

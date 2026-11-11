@@ -5,6 +5,7 @@ import { DEFAULT_IMPORT_LABELS, type ImportOptions, type ImportPlan, type Import
 import { dirOf, encodeTarget, relativeFrom } from '../notionFileLinks.js';
 import { checkArchiveAbort, JEX_LIMITS, safeTarPath } from '../tarArchive.js';
 import { trimEndChars } from '../../textScan.js';
+import { isInternalSegment } from '../../vault/internalPath.js';
 
 const idPattern = /^[a-f0-9]{32}$/i;
 const invalid = (): never => { throw new Error('import.jexInvalid'); };
@@ -40,6 +41,8 @@ function name(title: string, fallback: string): string {
   result = trimEndChars(result, ' .');
   if (!result || result === '.' || result === '..') result = fallback;
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(result)) result = `_${result}`;
+  // A notebook or note named like an app's own folder (`.git`, `.plainva`) is kept, under a name the writer takes (F2 review).
+  if (isInternalSegment(result)) result = `_${result}`;
   return result;
 }
 function parse(files: UnpackedFile[], opts: ImportOptions): Model {

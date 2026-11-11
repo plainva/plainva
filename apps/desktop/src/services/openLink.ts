@@ -16,7 +16,7 @@ import { openExternalUrl as openUrl } from "./openExternal";
 
 export interface DesktopLinkContext {
   queryService: Pick<VaultQueryService, "resolveNotePath" | "resolveMarkdownLink"> | null | undefined;
-  vaultAdapter: Pick<IVaultAdapter, "exists" | "getFileInfo"> | null | undefined;
+  vaultAdapter: Pick<IVaultAdapter, "exists" | "getFileInfo" | "listDir"> | null | undefined;
   onOpenPath: (path: string, newTab: boolean) => void;
   /** Ctrl/Cmd+click. */
   newTab: boolean;

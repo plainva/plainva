@@ -28,6 +28,11 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["plainva"]
+      }
+    },
     "fs": {
       "requireLiteralLeadingDot": false
     },

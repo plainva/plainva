@@ -9,6 +9,7 @@ import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStat
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 import { AlertTriangle } from "lucide-react";
 import { AreaBoundary, Button, ICON, migrateLegacyBarLayouts, Modal, toast, useStableHandler } from "@plainva/ui";
+import { setNoteLinksVaultLoading } from "@plainva/ui";
 import { WorkspaceActivationOverlay } from "./components/security/WorkspaceActivationOverlay";
 import { appConfirm } from "./services/appDialogs";
 import { IndexMdModal } from "./components/IndexMdModal";
@@ -56,6 +57,9 @@ function App() {
   useWindowTitle({ vaultPath, vaultCount: heldVaults.length });
   // The week start of the vault this window shows (decision E4).
   useVaultWeekStart(vaultPath);
+  // A note link that arrived waits while a vault loads; once the start is over
+  // — a vault shown or the splash without one — its minute runs (F2).
+  useEffect(() => setNoteLinksVaultLoading(isBooting || isLoading), [isBooting, isLoading]);
 
   const [showSettings, setShowSettings] = useState(false);
   // Deep link from the splash's online-vault chooser: open Settings with the

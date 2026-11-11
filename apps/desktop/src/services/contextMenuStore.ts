@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { EditableTarget, ImagePlace } from "@plainva/ui";
+import type { EditableTarget, ImagePlace, LineLinkMode } from "@plainva/ui";
 
 /**
  * Tiny store for the app's own right-click menu (webview hardening, 2026-07-07).
@@ -35,6 +35,8 @@ export interface ContextMenuState {
   editable: EditableTarget | null;
   /** Set when the click landed on a vault image — shows Copy / Save image as… */
   image?: ImageContextTarget | null;
+  /** Set over a note's editor: "Copy link" / "Copy block link" for the clicked line (F2). */
+  lineLink?: { copy: (mode: LineLinkMode) => void } | null;
 }
 
 let state: ContextMenuState | null = null;

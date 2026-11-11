@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Database, Plus, X } from "lucide-react";
 import { addTemplateForAssignment, errorText, ICON, Modal, parseTemplateForTargets, removeTemplateForAssignment, templateMatchesBase, toast } from "@plainva/ui";
-import { updateVaultText } from "@plainva/core";
+import { updateVaultText, checkedContentPath } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { applyIndexChanges } from "../services/fileActions";
 
@@ -27,7 +27,7 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
     void (async () => {
       try {
         const [raw, baseList] = await Promise.all([
-          vaultAdapter ? vaultAdapter.readTextFile(templatePath) : Promise.resolve(""),
+          vaultAdapter ? checkedContentPath(templatePath, (f) => vaultAdapter.listDir(f, false)).then((p) => vaultAdapter.readTextFile(p)) : Promise.resolve(""),
           queryService ? queryService.listBases() : Promise.resolve([] as { path: string; title: string }[]),
         ]);
         if (!alive) return;

@@ -1,4 +1,5 @@
 import { ICON_CR, SYSTEM_JUNK_NAMES } from "./systemJunk.js";
+import { trimEndChars } from "../textScan.js";
 
 /**
  * Which path SEGMENTS are internal: tooling, version control, operating-system
@@ -21,7 +22,7 @@ import { ICON_CR, SYSTEM_JUNK_NAMES } from "./systemJunk.js";
  * `.CONFLICT` local-only on push.
  */
 export interface InternalPathRules {
-  /** Segment equals one of these, case-sensitively. */
+  /** Segment equals one of these. Compared folded (`foldSegment`): letter case, trailing dots and spaces do not count. */
   exact: string[];
   /** Segment, lower-cased, equals one of these (already lower-case). */
   exactIgnoreCase: string[];
@@ -68,16 +69,32 @@ export const INTERNAL_PATH_RULES: InternalPathRules = {
   dotSuffix: ["_cache"],
 };
 
-const EXACT = new Set(INTERNAL_PATH_RULES.exact);
-const EXACT_IGNORE_CASE = new Set(INTERNAL_PATH_RULES.exactIgnoreCase);
+/**
+ * A segment as the file systems Plainva runs on compare it (finding
+ * 2026-11-10, F2 review): NTFS and a default APFS volume ignore letter case,
+ * Windows drops trailing dots and spaces from a name, and a Mac may hand a
+ * name over decomposed. `.Plainva`, `.plainva.` and `.plainva ` are the app's
+ * own folder there — a note link, a Markdown link or an embed that spelled it
+ * so reached the sync key file. Every rule compares this form, so no caller
+ * can bring a spelling the rules do not know; the native walk folds the same
+ * way (`vault_walk.rs`, `WalkRules::is_internal`).
+ */
+export function foldSegment(segment: string): string {
+  return trimEndChars(segment.normalize("NFC"), ". ").toLowerCase();
+}
 
-/** True for one path segment the rules name. */
+const EXACT = new Set(INTERNAL_PATH_RULES.exact.map(foldSegment));
+const EXACT_IGNORE_CASE = new Set(INTERNAL_PATH_RULES.exactIgnoreCase.map(foldSegment));
+const PREFIX = INTERNAL_PATH_RULES.prefix.map((p) => p.toLowerCase());
+const DOT_SUFFIX = INTERNAL_PATH_RULES.dotSuffix.map((p) => p.toLowerCase());
+
+/** True for one path segment the rules name, in any spelling the file system reads as it. */
 export function isInternalSegment(s: string): boolean {
-  if (EXACT.has(s)) return true;
-  if (EXACT_IGNORE_CASE.has(s.toLowerCase())) return true;
-  for (const p of INTERNAL_PATH_RULES.prefix) if (s.startsWith(p)) return true;
-  if (s.length > 1 && s.startsWith(".")) {
-    for (const suffix of INTERNAL_PATH_RULES.dotSuffix) if (s.endsWith(suffix)) return true;
+  const folded = foldSegment(s);
+  if (EXACT.has(folded) || EXACT_IGNORE_CASE.has(folded)) return true;
+  for (const p of PREFIX) if (folded.startsWith(p)) return true;
+  if (folded.length > 1 && folded.startsWith(".")) {
+    for (const suffix of DOT_SUFFIX) if (folded.endsWith(suffix)) return true;
   }
   return false;
 }
@@ -116,4 +133,97 @@ export function isHiddenPath(path: string): boolean {
  */
 export function visiblePathSql(column: string): string {
   return `(${column} NOT LIKE '.%' AND ${column} NOT LIKE '%/.%')`;
+}
+
+/**
+ * A Windows device name — `CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`,
+ * `LPT0`–`LPT9` (and the superscript digits Windows also reserves),
+ * `CONIN$`, `CONOUT$` — with or without an extension, in any case. Opening
+ * such a path on Windows reaches the device, not a file, and a read can hang.
+ * Refused on every platform: a path is written on one system and opened on
+ * another (F2 review, 2026-11-10).
+ */
+const DEVICE_NAME = /^(?:con|prn|aux|nul|com[0-9\u00b9\u00b2\u00b3]|lpt[0-9\u00b9\u00b2\u00b3]|conin\$|conout\$)$/i;
+export function isWindowsDeviceSegment(segment: string): boolean {
+  const base = trimEndChars(segment.split(".")[0], " ");
+  return DEVICE_NAME.test(base);
+}
+
+/**
+ * The 8.3 short form Windows can keep beside a long name (`PLAINV~1` for
+ * `.plainva`): a second spelling of a folder that no rule above sees. A path
+ * from content that has this shape is not followed to the disk.
+ */
+export function isShortNameAlias(segment: string): boolean {
+  return /^[^.~]{1,6}~[1-9][0-9]{0,5}(?:\.[^.]{0,3})?$/.test(segment);
+}
+
+/**
+ * Why a path that CONTENT names — a link, an embed, an archive entry, a
+ * template setting — needs a second look before it is followed to the disk,
+ * or `null`. `internal` is final: the app's own folders in any spelling are
+ * never a link target. The other three are SHAPES — a device name, an
+ * alternate data stream (`note.md:hidden`), an 8.3 alias — that are real,
+ * ordinary names on macOS, Linux, Android and iOS (`Meeting 10:30.png`,
+ * `aux.png`, `IMG~1.JPG`), and on Windows reach a device, a hidden stream
+ * or another folder. Such a path is followed only when the vault itself holds
+ * that exact spelling: the index, or the listing of its folder
+ * (`contentPathIsReal`). F2 review, 2026-11-10.
+ */
+export function contentPathRefusal(path: string): "internal" | "device" | "stream" | "alias" | null {
+  const segments = path.replace(/\\/g, "/").split("/");
+  if (segments.some(isInternalSegment)) return "internal";
+  if (segments.some(isWindowsDeviceSegment)) return "device";
+  if (segments.some((segment) => segment.includes(":"))) return "stream";
+  if (segments.some(isShortNameAlias)) return "alias";
+  return null;
+}
+
+/** Whether one segment has one of the three shapes `contentPathRefusal` asks about. */
+function hasSuspiciousShape(segment: string): boolean {
+  return isWindowsDeviceSegment(segment) || segment.includes(":") || isShortNameAlias(segment);
+}
+
+/**
+ * Whether a path content names may be followed to the disk: never into an
+ * internal folder; a segment with a suspicious shape only where the listing
+ * of its folder holds exactly that name — a real file, not another spelling
+ * the file system resolves (a device, a stream, an 8.3 alias are never
+ * listed). Every other path: yes, as before. `list` is the vault's own
+ * listing of one folder (`""` is the vault's root).
+ */
+export async function contentPathIsReal(
+  path: string,
+  list: (folder: string) => Promise<readonly { name: string }[]>,
+): Promise<boolean> {
+  const segments = path.replace(/\\/g, "/").split("/");
+  if (segments.some(isInternalSegment)) return false;
+  for (let i = 0; i < segments.length; i += 1) {
+    if (!hasSuspiciousShape(segments[i])) continue;
+    const wanted = segments[i].normalize("NFC");
+    let names: readonly { name: string }[];
+    try {
+      names = await list(segments.slice(0, i).join("/"));
+    } catch {
+      return false;
+    }
+    if (!names.some((entry) => entry.name.normalize("NFC") === wanted)) return false;
+  }
+  return true;
+}
+
+/**
+ * `contentPathIsReal` as a gate in front of a read: the path, or an error.
+ * A `.base` file is synced content — its `template:` must not paste the sync
+ * key file into a new note — and a template named `Meeting: weekly.md` on a
+ * Mac is a real template.
+ */
+export async function checkedContentPath(
+  path: string,
+  list: ((folder: string) => Promise<readonly { name: string }[]>) | null | undefined,
+): Promise<string> {
+  if (contentPathRefusal(path) === "internal") throw new Error("refused path (internal)");
+  if (contentPathRefusal(path) === null) return path;
+  if (!list || !(await contentPathIsReal(path, list))) throw new Error("refused path (not a file of this vault)");
+  return path;
 }

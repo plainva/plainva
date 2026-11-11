@@ -428,6 +428,7 @@ export default function App() {
       onOpenToday={() => leaveThen(() => openDaily(journalTodayKey()))}
       pendingShortcut={pendingShortcut}
       setPendingShortcut={setPendingShortcut}
+      vault={vault}
     />
   );
 
