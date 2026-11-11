@@ -300,7 +300,7 @@ export function EventEditModal({ mode, initial, calendarOptions, onCancel, onSub
                   type="time"
                   className="pv-field"
                   value={values.endTime}
-                  onChange={(e) => set("endTime", e.target.value)}
+                  onChange={(e) => setValues((prev) => ({ ...prev, endTime: e.target.value, endDayOffset: undefined }))}
                   data-testid="event-end-time"
                   style={{ display: "block", marginTop: 2 }}
                 />
