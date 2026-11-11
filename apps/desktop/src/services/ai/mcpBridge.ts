@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { WRITE_REFUSALS, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient, type ToolOutcome } from "@plainva/core";
+import { WRITE_REFUSALS, isInternalSegment, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient, type ToolOutcome } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { aiVaultKey, mcpSkillPrompts, type AiSession, type AiVaultHost, type PlanQuestion, type WriteRun } from "@plainva/ui";
 import { samePlan, type McpPlanQuestion, type McpPlans } from "./mcpPlans";
@@ -385,7 +385,9 @@ export function topLevelFolders(all: readonly string[]): string[] {
   const top = new Set<string>();
   for (const folder of all) {
     const first = folder.replace(/^\/+/, "").split("/")[0];
-    if (first && !first.startsWith(".")) top.add(first);
+    // Plainva's own and the tools' folders (`node_modules`, `$RECYCLE.BIN`, …) are no folder an app can be given:
+    // the native side refuses such a grant (review of R19).
+    if (first && !first.startsWith(".") && !isInternalSegment(first)) top.add(first);
   }
   return [...top].sort((a, b) => a.localeCompare(b));
 }

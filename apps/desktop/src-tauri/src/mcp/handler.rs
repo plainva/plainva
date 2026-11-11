@@ -66,6 +66,13 @@ const FORMAT_REFERENCE: &str = include_str!("../../../../../docs/user/en/File_Fo
 /// a note that does not exist, so a refusal does not reveal that there is one.
 pub(crate) const NOT_AVAILABLE: &str = "No note is available at this path.";
 
+/// What a client is told about a name of a form Windows reads as something else — a device (`aux`, `NUL`), an 8.3
+/// short name (`Draft~1`) — that the vault does not hold in exactly that spelling. It says only what the name looks
+/// like: for a new name it is the reason, and for one inside the client's folders that is not there it reveals
+/// nothing a listing would not (the core follows the same rule for every path content names, `contentPathIsReal`).
+pub(crate) const UNUSUAL_NAME: &str =
+    "Plainva does not use a name of this form (a device name or a short name on Windows) unless the vault already holds exactly that name. Choose another name.";
+
 /// What a client is told once the user took its access to this vault back,
 /// while its connection is still open.
 pub(crate) const NO_ACCESS: &str = "This client has no access to this vault any more. Restart the connection to ask for it again.";
@@ -255,11 +262,13 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
                 extra.answer = answer;
             }
         }
-        let args = request.arguments.unwrap_or_default();
+        let mut args = request.arguments.unwrap_or_default();
         // Paths are checked in the vault this connection was admitted for, whatever is open now.
         let root = &self.root;
         // The first wall: a path outside the client's folders — also by way of
-        // a link — never reaches the web view.
+        // a link — never reaches the web view. What it checked is what goes on: each path argument is replaced by
+        // the one spelling `safe_rel_path` judged (trimmed as the web view trims, NFC), so no transformation
+        // between this wall and the file system can make it name another place (review of R19).
         for key in &spec.path_args {
             if let Some(value) = args.get(key) {
                 let inside = match value.as_str() {
@@ -269,16 +278,28 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
                     Some(raw) => paths::allowed(raw, &folders),
                     None => None,
                 };
-                if !inside.is_some_and(|rel| rel.is_empty() || paths::real_inside(root, &rel, &folders)) {
+                let Some(checked) = inside else {
                     self.audit(&name, false, 0);
                     return Ok(Self::refuse(NOT_AVAILABLE));
+                };
+                let verdict = if checked.is_empty() { paths::Inside::Yes } else { paths::real_inside(root, &checked, &folders) };
+                match verdict {
+                    paths::Inside::Yes => {}
+                    paths::Inside::Outside => {
+                        self.audit(&name, false, 0);
+                        return Ok(Self::refuse(NOT_AVAILABLE));
+                    }
+                    paths::Inside::Shape => {
+                        self.audit(&name, false, 0);
+                        return Ok(Self::refuse(UNUSUAL_NAME));
+                    }
                 }
+                args.insert(key.clone(), serde_json::Value::String(checked));
             }
         }
         // The call names the vault it is for: the main window runs it only while that vault is open.
         let from = CallFrom { client: &self.client, vault_key: &self.vault_key, generation: self.generation };
-        // A client that cancels the call, or leaves, ends the wait: nothing of it is kept for an answer nobody reads.
-        let answer = match state.forward_call(&self.app, from, &name, serde_json::Value::Object(args), &folders, extra, context.ct.cancelled()).await {
+        let answer = match state.forward_call(&self.app, from, &name, serde_json::Value::Object(args), &folders, extra).await {
             Ok(answer) => answer,
             Err(message) => {
                 self.audit(&name, false, 0);
@@ -291,7 +312,9 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
             return Ok(Self::refuse(CHANGED));
         }
         // The second wall: an answer that names a note outside the folders is refused whole.
-        let real = answer.paths.iter().all(|p| paths::real_inside(root, p, &folders));
+        // Each path is judged in the spelling it is checked in; a name of unusual shape the action itself took away
+        // (a confirmed deletion, rename or move) reaches nothing any more and does not withhold the answer.
+        let real = answer.paths.iter().all(|p| paths::allowed(p, &folders).is_some_and(|rel| paths::real_inside_answer(root, &rel, &folders)));
         if !paths::result_paths_allowed(&answer.paths, &folders) || !real {
             self.audit(&name, false, 0);
             return Ok(Self::refuse("The answer could not be checked and was withheld."));

@@ -1,24 +1,78 @@
 {
   "about": "Verdicts of contentPathRefusal (internalPath.ts) on paths content or an outside client names. Read by packages/core/test/contentPathRefusalFixture.test.ts and by the MCP server's Rust test (apps/desktop/src-tauri/src/mcp/paths.rs), so the two rules cannot drift. A hidden dot folder that is not internal (.agent) is 'none' here; the AI tools and the MCP server refuse every dot segment on top of this rule.",
   "internal": [
-    ".plainva/sync/keyfile.json", ".Plainva/x.md", ".PLAINVA/x.md", ".plainva./x.md", ".plainva /x.md",
-    ".pvws/genesis", ".PVWS/x", ".obsidian/workspace.json", ".trash/old.md", ".Trash/old.md",
-    "Notes/.git/config", "node_modules/x.md", "Notes/Node_Modules/x.md", "__pycache__/x.md",
-    "Thumbs.db", "Notes/desktop.ini", "$RECYCLE.BIN/x.md", "System Volume Information/x", ".DS_Store",
-    ".plainva-tmp-412-7-note.md", "Notes/.mypy_cache/x", "a\\.plainva\\b.md"
+    ".plainva/sync/keyfile.json",
+    ".Plainva/x.md",
+    ".PLAINVA/x.md",
+    ".plainva./x.md",
+    ".plainva /x.md",
+    ".pvws/genesis",
+    ".PVWS/x",
+    ".obsidian/workspace.json",
+    ".trash/old.md",
+    ".Trash/old.md",
+    "Notes/.git/config",
+    "node_modules/x.md",
+    "Notes/Node_Modules/x.md",
+    "__pycache__/x.md",
+    "Thumbs.db",
+    "Notes/desktop.ini",
+    "$RECYCLE.BIN/x.md",
+    "System Volume Information/x",
+    ".DS_Store",
+    ".plainva-tmp-412-7-note.md",
+    "Notes/.mypy_cache/x",
+    "a\\.plainva\\b.md"
   ],
   "device": [
-    "aux.md", "Notes/NUL", "Notes/nul.md", "CON/x.md", "com1.txt", "LPT9", "Notes/conin$", "CONOUT$.txt", "NUL .md", "Notes/com¹.md"
+    "aux.md",
+    "Notes/NUL",
+    "Notes/nul.md",
+    "CON/x.md",
+    "com1.txt",
+    "LPT9",
+    "Notes/conin$",
+    "CONOUT$.txt",
+    "NUL .md",
+    "Notes/com¹.md"
   ],
   "stream": [
-    "note.md:hidden", "Notes/a:b/c.md", "C:x.md", "Meeting 10:30.png"
+    "note.md:hidden",
+    "Notes/a:b/c.md",
+    "C:x.md",
+    "Meeting 10:30.png"
   ],
   "alias": [
-    "PLAINV~1/sync/keyfile.json", "Notes/PROGRA~1/x.md", "NOTES~12.MD", "a~1.md", "Notes/IMG~1.JPG"
+    "PLAINV~1/sync/keyfile.json",
+    "Notes/PROGRA~1/x.md",
+    "NOTES~12.MD",
+    "a~1.md",
+    "Notes/IMG~1.JPG",
+    "😀~1.md",
+    "𝔸𝔸𝔸~9",
+    "ab~1.😀",
+    "📝📝ab~3"
   ],
   "none": [
-    "Notes/Plan.md", "Projects/v1.2 notes.md", "~draft.md", "notes~.md", "LongerName~1.md", "Null.md", "COM10.md",
-    "Console.md", "aux_notes.md", "node_modules_archive/x.md", "Thumbs.db.md", "plainva/x.md", ".hidden-notes.md",
-    "Café/x.md", "Icon", ".agent/policy.yml"
+    "Notes/Plan.md",
+    "Projects/v1.2 notes.md",
+    "~draft.md",
+    "notes~.md",
+    "LongerName~1.md",
+    "Null.md",
+    "COM10.md",
+    "Console.md",
+    "aux_notes.md",
+    "node_modules_archive/x.md",
+    "Thumbs.db.md",
+    "plainva/x.md",
+    ".hidden-notes.md",
+    "Café/x.md",
+    "Icon",
+    ".agent/policy.yml",
+    "📝📝📝📝~1.md",
+    "𝔸𝔸𝔸𝔸~2",
+    "ab~1.😀😀",
+    "📝📝📝x~1"
   ]
 }

@@ -1,0 +1,527 @@
+{
+  "about": "The one spelling the MCP server checks and forwards for a path argument (apps/desktop/src-tauri/src/mcp/paths.rs, safe_rel_path), and the trim set of the engine the web view runs on. The Rust test asserts every case; the ui test asserts that the web view's safeRelPath leaves every checked spelling as it is, and that the trim set is the engine's. Generated: control characters are escapes.",
+  "trimSet": [
+    9,
+    10,
+    11,
+    12,
+    13,
+    32,
+    160,
+    5760,
+    8192,
+    8193,
+    8194,
+    8195,
+    8196,
+    8197,
+    8198,
+    8199,
+    8200,
+    8201,
+    8202,
+    8232,
+    8233,
+    8239,
+    8287,
+    12288,
+    65279
+  ],
+  "cases": [
+    {
+      "input": "\tProjects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+0009 before"
+    },
+    {
+      "input": "Projects/a.md\t",
+      "checked": "Projects/a.md",
+      "why": "U+0009 after"
+    },
+    {
+      "input": "Projects/private\t",
+      "checked": "Projects/private",
+      "why": "U+0009 after a folder"
+    },
+    {
+      "input": "\nProjects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+000A before"
+    },
+    {
+      "input": "Projects/a.md\n",
+      "checked": "Projects/a.md",
+      "why": "U+000A after"
+    },
+    {
+      "input": "Projects/private\n",
+      "checked": "Projects/private",
+      "why": "U+000A after a folder"
+    },
+    {
+      "input": "\u000bProjects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+000B before"
+    },
+    {
+      "input": "Projects/a.md\u000b",
+      "checked": "Projects/a.md",
+      "why": "U+000B after"
+    },
+    {
+      "input": "Projects/private\u000b",
+      "checked": "Projects/private",
+      "why": "U+000B after a folder"
+    },
+    {
+      "input": "\fProjects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+000C before"
+    },
+    {
+      "input": "Projects/a.md\f",
+      "checked": "Projects/a.md",
+      "why": "U+000C after"
+    },
+    {
+      "input": "Projects/private\f",
+      "checked": "Projects/private",
+      "why": "U+000C after a folder"
+    },
+    {
+      "input": "\rProjects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+000D before"
+    },
+    {
+      "input": "Projects/a.md\r",
+      "checked": "Projects/a.md",
+      "why": "U+000D after"
+    },
+    {
+      "input": "Projects/private\r",
+      "checked": "Projects/private",
+      "why": "U+000D after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+0020 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+0020 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+0020 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+00A0 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+00A0 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+00A0 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+1680 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+1680 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+1680 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2000 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2000 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2000 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2001 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2001 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2001 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2002 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2002 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2002 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2003 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2003 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2003 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2004 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2004 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2004 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2005 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2005 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2005 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2006 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2006 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2006 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2007 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2007 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2007 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2008 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2008 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2008 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2009 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2009 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2009 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+200A before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+200A after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+200A after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2028 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2028 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2028 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+2029 before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+2029 after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+2029 after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+202F before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+202F after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+202F after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+205F before"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "U+205F after"
+    },
+    {
+      "input": "Projects/private ",
+      "checked": "Projects/private",
+      "why": "U+205F after a folder"
+    },
+    {
+      "input": "　Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+3000 before"
+    },
+    {
+      "input": "Projects/a.md　",
+      "checked": "Projects/a.md",
+      "why": "U+3000 after"
+    },
+    {
+      "input": "Projects/private　",
+      "checked": "Projects/private",
+      "why": "U+3000 after a folder"
+    },
+    {
+      "input": "﻿Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "U+FEFF before"
+    },
+    {
+      "input": "Projects/a.md﻿",
+      "checked": "Projects/a.md",
+      "why": "U+FEFF after"
+    },
+    {
+      "input": "Projects/private﻿",
+      "checked": "Projects/private",
+      "why": "U+FEFF after a folder"
+    },
+    {
+      "input": " Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "leading ASCII space"
+    },
+    {
+      "input": "Projects/a.md ",
+      "checked": "Projects/a.md",
+      "why": "trailing ASCII space"
+    },
+    {
+      "input": " .plainva/sync/keyfile.json",
+      "checked": null,
+      "why": "internal behind a space"
+    },
+    {
+      "input": "﻿.agent/policy.yml",
+      "checked": null,
+      "why": "hidden behind a BOM"
+    },
+    {
+      "input": " node_modules/x.md",
+      "checked": null,
+      "why": "internal behind a space"
+    },
+    {
+      "input": " .plainva/sync/keyfile.json",
+      "checked": null,
+      "why": "internal behind a no-break space"
+    },
+    {
+      "input": "　Projects/out/secret.md",
+      "checked": "Projects/out/secret.md",
+      "why": "ideographic space before"
+    },
+    {
+      "input": "./Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "leading ./"
+    },
+    {
+      "input": " ./Projects/a.md",
+      "checked": "Projects/a.md",
+      "why": "space, then ./"
+    },
+    {
+      "input": "./ Projects/a.md",
+      "checked": null,
+      "why": "./ then white space the web view would still trim"
+    },
+    {
+      "input": "././Projects/a.md",
+      "checked": null,
+      "why": "a second ./ is a segment '.'"
+    },
+    {
+      "input": "Projects/",
+      "checked": null,
+      "why": "trailing slash"
+    },
+    {
+      "input": "Projects//a.md",
+      "checked": null,
+      "why": "empty segment"
+    },
+    {
+      "input": "Icon\r",
+      "checked": "Icon",
+      "why": "CR at the end is trimmed as the web view trims it"
+    },
+    {
+      "input": "Icon\r/x.md",
+      "checked": null,
+      "why": "a control character inside"
+    },
+    {
+      "input": "Projects/a.md",
+      "checked": null,
+      "why": "U+0085 is no JS white space and a control character"
+    },
+    {
+      "input": "Projects/a.md᠎",
+      "checked": "Projects/a.md᠎",
+      "why": "U+180E is no longer JS white space: kept as written"
+    },
+    {
+      "input": "Café/x.md",
+      "checked": "Café/x.md",
+      "why": "NFD becomes NFC"
+    },
+    {
+      "input": "Projects/Café",
+      "checked": "Projects/Café",
+      "why": "an NFD folder name"
+    },
+    {
+      "input": "Café/x.md",
+      "checked": "Café/x.md",
+      "why": "NFC stays"
+    },
+    {
+      "input": ".Plainva/x.md",
+      "checked": null,
+      "why": "internal, other case"
+    },
+    {
+      "input": ".plainva./x.md",
+      "checked": null,
+      "why": "internal, trailing dot"
+    },
+    {
+      "input": "Node_Modules/x.md",
+      "checked": null,
+      "why": "internal without a dot, other case"
+    },
+    {
+      "input": "Projects/v1.2 notes.md",
+      "checked": "Projects/v1.2 notes.md",
+      "why": "an ordinary name"
+    }
+  ]
+}

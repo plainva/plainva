@@ -291,12 +291,9 @@ impl ListChange {
 /// What a connection of an earlier vault or setting is told: it answers nothing any more (ADR 0022).
 pub(crate) const CHANGED: &str = "Plainva's settings or its open vault changed. Restart the connection.";
 
-/// What a call that its client cancelled — or left — ends with; nobody reads it but the audit.
-pub(crate) const CANCELLED: &str = "The call was cancelled.";
-
-/// A call that waits for the main window, let go however the wait ends (R19 of the stability plan): a client that
-/// cancels or leaves mid-call left its entry behind until the main window answered — and one that never answers
-/// (a reload, a closed window) left it for good.
+/// A call that waits for the main window, let go however the wait ends (R19 of the stability plan): the entry of a
+/// call whose future is dropped — its connection's task ended — goes with it, not only one that was answered or
+/// ran out of time.
 struct Waiting<'a> {
     state: &'a McpState,
     request_id: String,
@@ -483,7 +480,16 @@ impl McpState {
     /// The folders a client reads in the vault open now. Its open connections are told when that changes its tools.
     pub(crate) fn set_folders<R: Runtime>(&self, app: &AppHandle<R>, client_id: &str, folders: &[String]) -> Result<(), String> {
         let vault = self.lock().vault.clone().ok_or("no vault is open")?;
-        let clean: Vec<String> = folders.iter().filter_map(|f| if f.is_empty() { Some(String::new()) } else { paths::safe_rel_path(f) }).collect();
+        // A folder the path rules refuse is refused with the request, never dropped: dropping every entry would have
+        // taken the client's whole grant — and its leave to propose changes — without a word (review of R19).
+        let mut clean = Vec::with_capacity(folders.len());
+        for folder in folders {
+            if folder.is_empty() {
+                clean.push(String::new());
+            } else {
+                clean.push(paths::safe_rel_path(folder).ok_or_else(|| format!("this folder cannot be shared with an app: {folder}"))?);
+            }
+        }
         let (before, after) = self.edit_store(app, |store| -> Result<_, String> {
             let mut grants = store.grants(&vault.key);
             let before = sees(&grants, client_id);
@@ -556,9 +562,9 @@ impl McpState {
 
     /// Hands one call to the main window and waits for its answer. The call names the vault its connection was
     /// admitted for, and it is handed on only while the vault and the settings are still those of that admission.
-    /// `cancelled` resolves when the client cancels the call or its connection ends: the wait ends then, and however
-    /// it ends — answered, out of time, cancelled, or the caller's future dropped — nothing of it is kept here.
-    #[allow(clippy::too_many_arguments)]
+    /// However the wait ends — answered, out of time, the vault changed, or the caller's future dropped — nothing of
+    /// it is kept here. A call the client cancels is still waited for: the main window cannot be stopped mid-call,
+    /// so whatever it did (a suggestion laid down, a draft) is what the audit records (review of R19, minor 6).
     pub(crate) async fn forward_call<R: Runtime>(
         &self,
         app: &AppHandle<R>,
@@ -567,7 +573,6 @@ impl McpState {
         args: serde_json::Value,
         folders: &[String],
         extra: CallExtra,
-        cancelled: impl std::future::Future<Output = ()>,
     ) -> Result<CallAnswer, String> {
         let request_id = self.next_id("call");
         let (tx, rx) = oneshot::channel();
@@ -596,15 +601,11 @@ impl McpState {
         if app.emit_to("main", "mcp-call", request).is_err() {
             return Err("Plainva could not reach its window.".into());
         }
-        tokio::select! {
-            biased;
-            () = cancelled => Err(CANCELLED.into()),
-            answered = tokio::time::timeout(limit, rx) => match answered {
-                Ok(Ok(answer)) => Ok(answer),
-                // Taken from the calls while it waited: the vault or the settings changed (`configure`).
-                Ok(Err(_)) => Err(CHANGED.into()),
-                Err(_) => Err("Plainva did not answer in time.".into()),
-            },
+        match tokio::time::timeout(limit, rx).await {
+            Ok(Ok(answer)) => Ok(answer),
+            // Taken from the calls while it waited: the vault or the settings changed (`configure`).
+            Ok(Err(_)) => Err(CHANGED.into()),
+            Err(_) => Err("Plainva did not answer in time.".into()),
         }
     }
 
@@ -1830,12 +1831,12 @@ mod tests {
         let args = serde_json::json!({ "path": "Projects/a.md" });
         let folders = vec!["Projects".to_string()];
         let from = CallFrom { client: &client, vault_key: "vault-key", generation };
-        let answer = state.forward_call(app.handle(), from, "read_note", args.clone(), &folders, extra(), std::future::pending()).await;
+        let answer = state.forward_call(app.handle(), from, "read_note", args.clone(), &folders, extra()).await;
         assert_eq!(answer.err().as_deref(), Some(CHANGED), "the call is no longer waited for");
         assert_eq!(named.lock().unwrap().as_slice(), ["vault-key"]);
         // A call of that connection after the switch is not handed on at all.
         let from = CallFrom { client: &client, vault_key: "vault-key", generation };
-        let again = state.forward_call(app.handle(), from, "read_note", args, &folders, extra(), std::future::pending()).await;
+        let again = state.forward_call(app.handle(), from, "read_note", args, &folders, extra()).await;
         assert_eq!(again.err().as_deref(), Some(CHANGED));
         assert_eq!(named.lock().unwrap().len(), 1, "the main window never heard of it");
     }
@@ -2404,13 +2405,15 @@ mod tests {
             ".pvws/genesis", ".obsidian/workspace.json", ".trash/old.md", "node_modules/x.md", "Node_Modules/x.md", "Projects/.agent/policy.yml",
             "../outside.md", "Projects/../../outside.md", "Projects/./a.md", "/etc/passwd", "C:/Windows/win.ini", "C:x.md",
             "\\\\server\\share\\x.md", "Projects\\a.md", "Projects/a.md:hidden", "Projects/a.md::$DATA", "Projects/aux.md", "Projects/NUL",
-            "CON", "Projects/a.md.", "Projects/a.md ", "", "Projects//a.md", absolute.as_str(),
+            // (`Projects/a.md ` is no longer here: white space at either end is trimmed as the web view trims it, and the
+            // trimmed spelling is what goes on — `the_main_window_gets_the_very_spelling_the_wall_checked`.)
+            "CON", "Projects/a.md.", "Projects/a. /b.md", "", " ", "Projects//a.md", absolute.as_str(),
         ] {
             for tool in ["read_note", "propose_edit", "delete_note"] {
                 id += 1;
                 let answer = ask(&mut client, old_call(id, tool, path)).await;
                 let refused = answer["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
-                assert!(refused == handler::NOT_AVAILABLE || refused.starts_with("There is no tool"), "{tool} {path:?}: {answer}");
+                assert!(refused == handler::NOT_AVAILABLE || refused == handler::UNUSUAL_NAME || refused.starts_with("There is no tool"), "{tool} {path:?}: {answer}");
                 assert_eq!(answer["result"]["isError"], true, "{tool} {path:?}");
             }
         }
@@ -2419,7 +2422,8 @@ mod tests {
             id += 1;
             let request = serde_json::json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call", "params": { "name": "propose_edit", "arguments": { "path": "Projects/a.md", "folder": folder } } });
             let answer = ask(&mut client, request).await;
-            assert_eq!(answer["result"]["content"][0]["text"], handler::NOT_AVAILABLE, "{folder:?}");
+            let refused = answer["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
+            assert!(refused == handler::NOT_AVAILABLE || refused == handler::UNUSUAL_NAME, "{folder:?}: {answer}");
         }
         // A path that is no text is no path.
         let odd = ask(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": 900, "method": "tools/call", "params": { "name": "read_note", "arguments": { "path": 7 } } })).await;
@@ -2574,26 +2578,29 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_client_that_leaves_or_cancels_mid_call_leaves_no_call_waiting() {
+    async fn a_call_its_client_cancels_or_leaves_is_seen_through_and_recorded_as_what_it_did() {
         let dir = tempfile::tempdir().unwrap();
         vault(dir.path());
         pair(dir.path(), "s3cret");
         let app = mock_app(dir.path());
         let state = app.state::<McpState>();
         let seen = silent_main(&app);
+        let audit = || Store::new(dir.path().join("mcp")).audit("vault-key");
 
-        // Cancelled by the client while the main window works on it: nothing of it waits on this side.
+        // Cancelled by the client while the main window works on it. The main window cannot be stopped mid-call: the
+        // call is waited for, and the audit says what it did, not that it was refused.
         let (reply, mut client) = connect(&app, Some("s3cret")).await;
         assert!(reply.ok);
         initialize(&mut client).await;
         send(&mut client, old_call(2, "read_note", "Projects/a.md")).await;
         until_heard(&seen, 1).await;
-        assert_eq!(state.lock().calls.len(), 1);
         send(&mut client, serde_json::json!({ "jsonrpc": "2.0", "method": "notifications/cancelled", "params": { "requestId": 2 } })).await;
-        assert!(until_no_call_waits(&state, CALL_TIMEOUT / 2).await, "a cancelled call is let go at once, not when its time is up");
-        // The main window's late answer finds nobody, and the connection goes on.
-        let late = seen.lock().unwrap()[0]["requestId"].as_str().unwrap().to_string();
-        answer_call(&app, &late, text("text of Projects/a.md", vec!["Projects/a.md".into()]));
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(state.lock().calls.len(), 1, "the cancelled call still waits for what the main window does");
+        let first = seen.lock().unwrap()[0]["requestId"].as_str().unwrap().to_string();
+        answer_call(&app, &first, text("text of Projects/a.md", vec!["Projects/a.md".into()]));
+        assert!(until_no_call_waits(&state, Duration::from_secs(1)).await);
+        // The connection goes on.
         send(&mut client, old_call(3, "read_note", "Projects/a.md")).await;
         until_heard(&seen, 2).await;
         let second = seen.lock().unwrap()[1]["requestId"].as_str().unwrap().to_string();
@@ -2601,17 +2608,39 @@ mod tests {
         let (answer, _) = until_answer(&mut client, 3).await;
         assert_eq!(answer["result"]["isError"], false, "{answer}");
 
-        // The client goes away while a call waits: nothing of it waits on this side either.
+        // The client goes away while a call waits: the call is seen through as well, and nothing of it is kept.
         send(&mut client, old_call(4, "read_note", "Projects/a.md")).await;
         until_heard(&seen, 3).await;
         drop(client);
-        // Its handler hears that the connection ended once the transport has drained (at most a few seconds), or its
-        // time is up: either way nothing of it is kept.
-        assert!(until_no_call_waits(&state, CALL_TIMEOUT + Duration::from_secs(1)).await, "a call of a client that left is let go");
         let third = seen.lock().unwrap()[2]["requestId"].as_str().unwrap().to_string();
         answer_call(&app, &third, text("text of Projects/a.md", vec!["Projects/a.md".into()]));
-        let audit = Store::new(dir.path().join("mcp")).audit("vault-key");
-        assert_eq!(audit.iter().filter(|entry| entry.ok).count(), 1, "{audit:?}");
+        assert!(until_no_call_waits(&state, Duration::from_secs(1)).await);
+        for _ in 0..100 {
+            if audit().len() >= 3 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        let audit = audit();
+        assert_eq!(audit.iter().filter(|entry| entry.ok).count(), 3, "every call that ran is recorded as having run: {audit:?}");
+    }
+
+    #[tokio::test]
+    async fn a_call_whose_main_window_never_answers_is_let_go_when_its_time_is_up() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        let app = mock_app(dir.path());
+        let state = app.state::<McpState>();
+        let seen = silent_main(&app);
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        send(&mut client, old_call(2, "read_note", "Projects/a.md")).await;
+        until_heard(&seen, 1).await;
+        let (answer, _) = until_answer(&mut client, 2).await;
+        assert_eq!(answer["result"]["content"][0]["text"], "Plainva did not answer in time.", "{answer}");
+        assert!(state.lock().calls.is_empty());
     }
 
     #[tokio::test]
@@ -2701,5 +2730,208 @@ mod tests {
         assert_eq!(answer["result"]["isError"], false, "{answer}");
         assert_eq!(seen.lock().unwrap().len(), 1);
         assert_eq!(Store::new(dir.path().join("mcp")).audit("vault-key").len(), 1);
+    }
+
+    // --- R19 after the independent review: one spelling end to end ---------------------------------------------
+
+    /// A folder link as the platform makes one without rights: a symlink on Unix, a junction on Windows.
+    fn link_folder(target: &std::path::Path, link: &std::path::Path) {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(target, link).unwrap();
+        #[cfg(windows)]
+        {
+            let made = std::process::Command::new("cmd").arg("/C").arg("mklink").arg("/J").arg(link).arg(target).output().unwrap();
+            assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+        }
+    }
+
+    #[tokio::test]
+    async fn the_main_window_gets_the_very_spelling_the_wall_checked() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        set_writes(dir.path(), true);
+        let app = mock_app(dir.path());
+        let seen = stand_in(&app);
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        let sent = [
+            ("\u{a0}Projects/a.md\u{3000}", "Projects/a.md"),
+            ("\u{feff}./Projects/a.md ", "Projects/a.md"),
+            ("Projects/Cafe\u{301}.md", "Projects/Caf\u{e9}.md"),
+            ("Projects/a.md\r\n", "Projects/a.md"),
+        ];
+        for (id, (raw, checked)) in sent.iter().enumerate() {
+            let answer = ask(&mut client, old_call(10 + id as u64, "propose_edit", raw)).await;
+            assert_eq!(answer["result"]["isError"], false, "{raw:?}: {answer}");
+            assert_eq!(seen.lock().unwrap().last().unwrap()["args"]["path"], *checked, "{raw:?}");
+        }
+        // A folder argument the same way.
+        let request = serde_json::json!({ "jsonrpc": "2.0", "id": 30, "method": "tools/call", "params": { "name": "propose_edit", "arguments": { "path": "Projects/a.md", "folder": "Projects\u{2009}" } } });
+        let answer = ask(&mut client, request).await;
+        assert_eq!(answer["result"]["isError"], false, "{answer}");
+        assert_eq!(seen.lock().unwrap().last().unwrap()["args"]["folder"], "Projects");
+    }
+
+    /// The review's sequence: `Projects` is granted with leave to propose, `Projects/private` is a link to `Private`,
+    /// which is not. White space the web view trims made the wall check a place that does not exist.
+    #[tokio::test]
+    async fn a_folder_named_with_white_space_the_web_view_trims_is_judged_where_it_leads() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        link_folder(&dir.path().join("vault").join("Private"), &dir.path().join("vault").join("Projects").join("private"));
+        pair(dir.path(), "s3cret");
+        set_writes(dir.path(), true);
+        let app = mock_app(dir.path());
+        let seen = stand_in(&app);
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        let mut id = 40;
+        for folder in ["Projects/private\u{a0}", "Projects/private\u{3000}", "\u{feff}Projects/private", "Projects/private\u{2028}", " Projects/private", "Projects/private"] {
+            id += 1;
+            let request = serde_json::json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call", "params": { "name": "propose_edit", "arguments": { "path": "Projects/a.md", "folder": folder } } });
+            let answer = ask(&mut client, request).await;
+            assert_eq!(answer["result"]["content"][0]["text"], handler::NOT_AVAILABLE, "{folder:?}: {answer}");
+        }
+        for path in [" .plainva/sync/keyfile.json", "\u{feff}.agent/policy.yml", " node_modules/x.md", "\u{a0}.plainva/sync/keyfile.json"] {
+            id += 1;
+            let answer = ask(&mut client, old_call(id, "read_note", path)).await;
+            assert_eq!(answer["result"]["content"][0]["text"], handler::NOT_AVAILABLE, "{path:?}: {answer}");
+        }
+        assert!(seen.lock().unwrap().is_empty(), "{:?}", seen.lock().unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_new_name_of_unusual_shape_is_refused_and_the_client_is_told_why() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        set_writes(dir.path(), true);
+        let app = mock_app(dir.path());
+        let seen = stand_in(&app);
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        let mut id = 60;
+        for path in ["Projects/Draft~1/new.md", "Projects/NOTES~2.MD", "Projects/aux.md", "Projects/aux/new.md", "Projects/COM1"] {
+            id += 1;
+            let answer = ask(&mut client, old_call(id, "propose_edit", path)).await;
+            assert_eq!(answer["result"]["content"][0]["text"], handler::UNUSUAL_NAME, "{path}: {answer}");
+        }
+        // Outside the client's folders the name says nothing: the place is no place.
+        let answer = ask(&mut client, old_call(80, "propose_edit", "Private/Draft~1/new.md")).await;
+        assert_eq!(answer["result"]["content"][0]["text"], handler::NOT_AVAILABLE);
+        assert!(seen.lock().unwrap().is_empty());
+        // Where the vault holds exactly that name, it is used (on Windows no file can be called so).
+        #[cfg(unix)]
+        {
+            std::fs::create_dir_all(dir.path().join("vault/Projects/Draft~1")).unwrap();
+            let answer = ask(&mut client, old_call(81, "propose_edit", "Projects/Draft~1/new.md")).await;
+            assert_eq!(answer["result"]["isError"], false, "{answer}");
+        }
+    }
+
+    /// After a confirmed deletion, rename or move of a note of unusual shape, the answer names the old path: the
+    /// client and the audit are told what happened.
+    #[tokio::test]
+    async fn an_action_on_a_note_of_unusual_shape_that_went_through_is_reported_as_such() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        let app = mock_app(dir.path());
+        let handle = app.handle().clone();
+        app.listen_any("mcp-call", move |event| {
+            let request: serde_json::Value = serde_json::from_str(event.payload()).unwrap();
+            let id = request["requestId"].as_str().unwrap().to_string();
+            // The note `Projects/a~1.md` was deleted in Plainva; the answer names where it was.
+            let answer = text("Deleted Projects/a~1.md.", vec!["Projects/a~1.md".into()]);
+            let state = handle.state::<McpState>();
+            let tx = state.lock().calls.remove(&id);
+            if let Some(tx) = tx {
+                let _ = tx.send(answer);
+            }
+        });
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        let answer = call(&mut client, 2, "Projects/a.md").await;
+        assert_eq!(answer["result"]["isError"], false, "{answer}");
+        assert_eq!(answer["result"]["content"][0]["text"], "Deleted Projects/a~1.md.");
+        let audit = Store::new(dir.path().join("mcp")).audit("vault-key");
+        assert!(audit.last().is_some_and(|entry| entry.ok), "{audit:?}");
+    }
+
+    #[tokio::test]
+    async fn a_client_holding_a_list_from_before_the_workspace_was_sealed_is_refused_at_the_call() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        set_writes(dir.path(), true);
+        let app = mock_app(dir.path());
+        let seen = stand_in(&app);
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok);
+        initialize(&mut client).await;
+        let list = ask(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" })).await;
+        assert!(names(&list).contains(&"propose_edit".to_string()));
+        // The workspace is sealed: the web view registers only the tools that read (`configureMcp`, sealed).
+        let state = app.state::<McpState>();
+        let reading: Vec<ToolSpec> = state.tools().into_iter().filter(|tool| tool.kind == ToolKind::Read).collect();
+        let here = state.lock().vault.clone();
+        state.configure(app.handle(), true, here, reading, state.prompts());
+        assert_eq!(next(&mut client).await["method"], "notifications/tools/list_changed");
+        let refused = ask(&mut client, old_call(3, "propose_edit", "Projects/a.md")).await;
+        assert_eq!(refused["result"]["content"][0]["text"], "There is no tool called propose_edit.", "{refused}");
+        assert!(seen.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_folder_the_rules_refuse_is_refused_with_the_request_and_nothing_is_dropped() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        pair(dir.path(), "s3cret");
+        set_writes(dir.path(), true);
+        let app = mock_app(dir.path());
+        let state = app.state::<McpState>();
+        let store = Store::new(dir.path().join("mcp"));
+        for folders in [vec!["node_modules".to_string()], vec!["Projects".to_string(), ".plainva".to_string()], vec!["../x".to_string()]] {
+            let refused = state.set_folders(app.handle(), "c1", &folders);
+            assert!(refused.is_err(), "{folders:?}");
+            assert_eq!(store.grants("vault-key").folders["c1"], vec!["Projects".to_string()], "the grant stays as it was");
+            assert!(store.grants("vault-key").may_write("c1"), "and so does the leave to propose");
+        }
+        state.set_folders(app.handle(), "c1", &[" Private".to_string()]).unwrap();
+        assert_eq!(store.grants("vault-key").folders["c1"], vec!["Private".to_string()], "kept in the spelling that is checked");
+    }
+
+    /// A grants file 0.8.7 wrote may name a folder the rules now refuse: it is read as it was written — nothing
+    /// lost from the file, nothing widened — and only the folder that can never be named reads nothing.
+    #[tokio::test]
+    async fn grants_written_by_an_older_build_are_neither_lost_nor_widened() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        std::fs::create_dir_all(dir.path().join("vault/node_modules")).unwrap();
+        std::fs::write(dir.path().join("vault/node_modules/x.md"), "x").unwrap();
+        pair(dir.path(), "s3cret");
+        let old = r#"{"folders":{"c1":["Projects","node_modules"," Notes"]},"writes":["c1"]}"#;
+        std::fs::write(dir.path().join("mcp").join("grants-vault-key.json"), old).unwrap();
+        let app = mock_app(dir.path());
+        let seen = stand_in(&app);
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok, "{reply:?}");
+        initialize(&mut client).await;
+        let inside = call(&mut client, 2, "Projects/a.md").await;
+        assert_eq!(inside["result"]["isError"], false, "{inside}");
+        let internal = call(&mut client, 3, "node_modules/x.md").await;
+        assert_eq!(internal["result"]["content"][0]["text"], handler::NOT_AVAILABLE);
+        let private = call(&mut client, 4, "Private/b.md").await;
+        assert_eq!(private["result"]["content"][0]["text"], handler::NOT_AVAILABLE, "no folder widens to another");
+        let notes = call(&mut client, 5, " Notes/x.md").await;
+        assert_eq!(notes["result"]["content"][0]["text"], handler::NOT_AVAILABLE, "` Notes` is not `Notes`");
+        assert_eq!(seen.lock().unwrap().len(), 1);
+        let after = std::fs::read_to_string(dir.path().join("mcp").join("grants-vault-key.json")).unwrap();
+        assert_eq!(after, old, "the file is as the older build wrote it");
     }
 }

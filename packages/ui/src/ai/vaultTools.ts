@@ -468,7 +468,11 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
         case "search_vault": {
           const limit = Number(a.limit) || 10;
           const offset = offsetOf(a.cursor);
-          const folder = typeof a.folder === "string" && a.folder.trim() ? ` path:"${a.folder.trim().replace(/"/g, "")}"` : "";
+          // The folder as it was given (the MCP server's wall checked and forwarded exactly this spelling): a quote,
+          // which the query syntax cannot carry, is refused rather than taken out (review of R19).
+          const folderName = typeof a.folder === "string" ? a.folder.trim() : "";
+          if (folderName.includes('"')) return { content: NOT_FOUND, isError: true };
+          const folder = folderName ? ` path:"${folderName}"` : "";
           const hits = await deps.search(`${String(a.query)}${folder}`, limit, offset);
           const lines: string[] = [];
           const results: { title: string; path: string; snippet: string }[] = [];

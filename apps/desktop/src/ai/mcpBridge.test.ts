@@ -129,6 +129,14 @@ describe("the MCP bridge", () => {
     expect(gates).toEqual([]);
   });
 
+  it("refuses a search folder with a quote instead of changing it (review of R19)", async () => {
+    const quoted = await call("search_vault", { query: "Offer", folder: 'Pro"jects' });
+    expect(quoted.isError).toBe(true);
+    expect(quoted.paths).toEqual([]);
+    const plain = await call("search_vault", { query: "Offer", folder: "Projects" });
+    expect(plain.isError).toBe(false);
+  });
+
   it("opens a note in the app only through the gate", async () => {
     expect((await call("open_in_app", { path: "Projects/Offer.md" })).isError).toBe(false);
     expect((await call("open_in_app", { path: "Finance/Salaries.md" })).isError).toBe(true);
@@ -136,6 +144,8 @@ describe("the MCP bridge", () => {
 
   it("lists top-level folders and writes the set-up snippets", () => {
     expect(topLevelFolders(["Projects/2026", "Projects", "Areas", ".plainva", "Areas/Home"])).toEqual(["Areas", "Projects"]);
+    // Folders the native side refuses as a grant are not offered (review of R19).
+    expect(topLevelFolders(["Projects", "node_modules", "node_modules/x", "$RECYCLE.BIN", "Node_Modules", "node_modules_archive"])).toEqual(["node_modules_archive", "Projects"]);
     expect(vaultName("/home/u/notes/")).toBe("notes");
     expect(vaultName("D:/Vaults/Work")).toBe("Work");
     expect(claudeCodeCommand("C:\\Program Files\\Plainva\\plainva-mcp.exe", "com.plainva.desktop")).toBe('claude mcp add plainva -- "C:\\Program Files\\Plainva\\plainva-mcp.exe" --app com.plainva.desktop');
