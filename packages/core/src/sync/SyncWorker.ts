@@ -380,16 +380,17 @@ export interface SyncWorkerOptions {
    */
   ownDeletions?: OwnDeletionRegister;
   /**
-   * Asked before the plain sync writes anything to the remote, every cycle and
-   * before every settings run (R8): throws `FatalSyncProtocolError`
-   * ("encrypted-workspace") when the folder holds an encrypted workspace this
-   * device may not sync next to; any other error skips the step. A listing that
-   * carries a genesis asks it again. Without it, a listed genesis stops the cycle.
+   * Asked only when a listing shows an encrypted workspace's genesis (R8): it
+   * returns when this device may sync next to exactly that workspace (it ended
+   * it) and throws `FatalSyncProtocolError` ("encrypted-workspace") otherwise.
+   * Without it, a listed genesis stops the worker. A listing without one costs
+   * nothing: the folder's own listing is the probe, and the worker writes
+   * nothing to the remote in a cycle before it has seen that cycle's listing.
    */
-  remoteGuard?: PlainRemoteGuard;
+  workspaceListed?: PlainRemoteGuard;
 }
 
-/** See `SyncWorkerOptions.remoteGuard`. */
+/** See `SyncWorkerOptions.workspaceListed`. */
 export type PlainRemoteGuard = (rawTarget: ISyncTarget) => Promise<void>;
 
 /**
@@ -734,6 +735,11 @@ export class SyncWorker {
   /** Profile-sync sideband, toggled live when the vault opt-in changes. */
   private settingsSyncRunner?: SettingsSyncRunner;
 
+  /** A listing of this session showed the folder without a workspace this device may not sync next to (R8). */
+  private sessionListingClear = false;
+  /** A listing showed such a workspace: the worker writes nothing more and stops (R8). */
+  private workspaceHalt = false;
+
   /** Enables/disables the profile-sync sideband at runtime (opt-in toggle). */
   public setSettingsSync(runner?: SettingsSyncRunner) {
     this.settingsSyncRunner = runner;
@@ -768,10 +774,11 @@ export class SyncWorker {
   private runSettingsSerially(): Promise<void> {
     const runner = this.settingsSyncRunner;
     if (!runner) return Promise.resolve();
-    const run = this.settingsChain.then(async () => {
-      if (this.options.remoteGuard) await this.options.remoteGuard(this.rawTarget);
-      await runner.run(this.rawTarget, this.vault);
-    });
+    // The profile is written to the folder: not before a listing of this
+    // session has shown that the folder holds no workspace this device may
+    // not sync next to, and never after one did (R8).
+    if (!this.sessionListingClear || this.workspaceHalt) return Promise.resolve();
+    const run = this.settingsChain.then(() => runner.run(this.rawTarget, this.vault));
     this.settingsChain = run.catch(() => undefined);
     return run;
   }
@@ -2162,6 +2169,8 @@ export class SyncWorker {
   }
 
   public async runCycle(gen = this.activeCycleGen) {
+    // A folder that showed a workspace this device may not sync next to gets nothing more (R8).
+    if (this.workspaceHalt) return;
     // Cycle liveness: false once the worker stops OR the watchdog abandoned
     // THIS cycle (generation bump). Every loop boundary below checks it, so a
     // zombie cycle whose hung await eventually settles stops writing at the
@@ -2272,24 +2281,7 @@ export class SyncWorker {
       if (this.settingsSyncRunner?.guardBeforeCycle && alive()) {
         await this.settingsSyncRunner.guardBeforeCycle(this.rawTarget, this.vault);
       }
-      // 0a. The folder is no encrypted workspace this device may not sync next
-      // to (R8) - asked before the journal below writes, and every cycle: a
-      // folder can become a workspace while this worker runs.
-      if (this.options.remoteGuard && alive()) await this.options.remoteGuard(this.rawTarget);
 
-      // 0b. Deletion journal (P1): merge the remote journal BEFORE the pull, so
-      // the reconcile below already knows which absences a human confirmed.
-      // Its own try/catch: a journal hiccup falls back to the local journal and
-      // never stops the file sync.
-      if (this.deletionJournal && alive()) {
-        // Local persistence must succeed before any confirmed row can retire.
-        await this.recordQueuedDeletionIntents();
-        try {
-          await this.deletionJournal.sync(this.rawTarget);
-        } catch (e) {
-          console.warn("[SyncWorker] deletion-journal sync failed; using the local journal only:", e);
-        }
-      }
 
       // 1. Pull the remote change set. Change-token providers (Drive) pull only what
       // changed since the last cursor — a single cheap changes.list instead of walking the
@@ -2316,12 +2308,34 @@ export class SyncWorker {
       const pullResult = doFullListing
         ? await this.target.pull()
         : await this.target.pull(this.cursor);
-      // A listing that carries a genesis: the folder is (or just became) a
+      // The folder's own listing is the probe (R8): one that carries a genesis
+      // (any case) shows a folder that is - or just became - an encrypted
       // workspace. `.pvws/` is local-only and drops out below, so this is the
-      // one place it shows (R8).
+      // one place it shows, and nothing has been written to the remote yet in
+      // this cycle. A listing without one costs nothing.
       if ([...pullResult.etagMap.keys()].some((path) => isWorkspaceGenesisPath(path))) {
-        if (this.options.remoteGuard) await this.options.remoteGuard(this.rawTarget);
+        if (this.options.workspaceListed) await this.options.workspaceListed(this.rawTarget);
         else throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace");
+      }
+      // A cursor pull that could not resolve every change may have missed a
+      // brand-new folder - a workspace's `.pvws/` among them: this cycle writes
+      // nothing, and the full listing follows at once.
+      const writesDeferred = !doFullListing && !!pullResult.needsFullListing;
+      if (!writesDeferred) this.sessionListingClear = true;
+
+      // 0b. Deletion journal (P1): merged right after the listing (R8: nothing
+      // is written before it) and before the reconcile, so the reconcile
+      // already knows which absences a human confirmed. Its own try/catch: a
+      // journal hiccup falls back to the local journal and never stops the
+      // file sync.
+      if (this.deletionJournal && alive() && !writesDeferred) {
+        // Local persistence must succeed before any confirmed row can retire.
+        await this.recordQueuedDeletionIntents();
+        try {
+          await this.deletionJournal.sync(this.rawTarget);
+        } catch (e) {
+          console.warn("[SyncWorker] deletion-journal sync failed; using the local journal only:", e);
+        }
       }
       const now = Date.now();
       const pullMs = now - pullStartedAt;
@@ -2906,7 +2920,8 @@ export class SyncWorker {
       }).map((op) => op.id));
 
       // 3. Push the local queue (offline writes, renames, deletes, merge results).
-      await this.engine.processQueue(
+      // Not in a cycle whose listing may have missed a new folder (R8).
+      if (!writesDeferred) await this.engine.processQueue(
         () => !alive(),
         (current, total) => this.emitProgress("push", current, total),
         // Held-back twin DELETEs join the pull side's collisions (issue #112).
@@ -2916,7 +2931,7 @@ export class SyncWorker {
       // 4. Profile-sync sideband (opt-in): transport `.plainva/sync/settings.json`
       // directly, outside the queue/reconcile path. Its own try/catch so a
       // settings hiccup never fails or slows the file sync.
-      if (this.settingsSyncRunner && alive()) {
+      if (this.settingsSyncRunner && alive() && !writesDeferred) {
         try {
           await this.runSettingsSerially();
         } catch (e) {
@@ -3063,6 +3078,17 @@ export class SyncWorker {
         this.setStatus("idle");
       }
     } catch (error) {
+      // The folder holds an encrypted workspace this device may not sync next
+      // to (R8): nothing more is written, and the worker stops - the shell's
+      // gate says what to do. Not counted as a failure: no retry helps.
+      if (syncErrorReason(error) === "encrypted-workspace") {
+        this.workspaceHalt = true;
+        this.cursor = undefined;
+        this.onProgress?.(null);
+        this.stop();
+        this.setStatus("error", syncErrorMessage(error), "encrypted-workspace");
+        return;
+      }
       this.consecutiveFailures++;
       // Drop the incremental cursor so the NEXT cycle does a full listing. This self-heals
       // an invalidated/expired change token (Drive answers 410 for a stale startPageToken)

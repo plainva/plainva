@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsOnlySync } from "../../src/sync/SettingsOnlySync.js";
+import { FatalSyncProtocolError } from "../../src/settingsSync/errors.js";
 
 /**
  * Second review of plan "Verbinden", B3: while files are off for a vault, a
@@ -28,18 +29,32 @@ describe("the settings-only sync of a vault whose files are off", () => {
     expect(runner.run).toHaveBeenCalledTimes(2);
   });
 
-  it("sends no profile into a folder its guard refuses (R8)", async () => {
-    const errors: unknown[] = [];
+  it("looks at the folder once per session, never per run (R8)", async () => {
     const runner = { run: vi.fn().mockResolvedValue(undefined) };
-    const guard = vi.fn(async () => { throw new Error("encrypted workspace"); });
-    const sync = new SettingsOnlySync(runner, target, vault, 1000, (error) => errors.push(error), guard);
+    const check = vi.fn().mockResolvedValue(undefined);
+    const sync = new SettingsOnlySync(runner, target, vault, 1000, undefined, check);
     sync.start();
-    await vi.advanceTimersByTimeAsync(0);
-    await sync.pushSettingsNow();
-    expect(guard).toHaveBeenCalledTimes(2);
-    expect(runner.run).not.toHaveBeenCalled();
-    expect(errors).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(runner.run.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(check).toHaveBeenCalledTimes(1);
     await sync.stopAndDrain();
+  });
+
+  it("a workspace in the folder stops it with a held state; any other failure of the look skips one run (R8)", async () => {
+    const runner = { run: vi.fn().mockResolvedValue(undefined) };
+    const onHeld = vi.fn();
+    const sync = new SettingsOnlySync(runner, target, vault, 1000, () => undefined, vi.fn(async () => { throw new FatalSyncProtocolError("encrypted-workspace", "workspace"); }), onHeld);
+    sync.start();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(onHeld).toHaveBeenCalledTimes(1);
+    expect(runner.run).not.toHaveBeenCalled();
+    const flaky = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
+    const again = new SettingsOnlySync(runner, target, vault, 1000, () => undefined, flaky);
+    again.start();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(flaky).toHaveBeenCalledTimes(2);
+    expect(runner.run).toHaveBeenCalledTimes(1);
+    await again.stopAndDrain();
   });
 
   it("goes on after a failed run - the next tick delivers what did not get through", async () => {

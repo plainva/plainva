@@ -486,7 +486,11 @@ function SyncErrorDialog({
             <Button variant="danger-soft" onClick={handleResetEncryption}>{t("sync.resetEncryptionAction", { defaultValue: "Verschlüsselung zurücksetzen" })}</Button>
           )}
           {!recovered && encryptedWorkspace && (
-            <Button variant="primary" onClick={() => { window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "security" } })); onClose(); }} data-testid="sync-error-security">{t("workspaceSecurity.openSecurity")}</Button>
+            <>
+              {/* A held folder is asked again at once (R8): never a reload of the vault. */}
+              <Button variant="secondary" onClick={() => { window.dispatchEvent(new CustomEvent("plainva-recheck-held-folder")); onClose(); }} data-testid="sync-error-recheck">{t("sync.retryNow", { defaultValue: "Jetzt erneut versuchen" })}</Button>
+              <Button variant="primary" onClick={() => { window.dispatchEvent(new CustomEvent("plainva-open-sync-settings", { detail: { area: "security" } })); onClose(); }} data-testid="sync-error-security">{t("workspaceSecurity.openSecurity")}</Button>
+            </>
           )}
           {!recovered && !encryptionBricked && !encryptedWorkspace && (error?.signInAccountId
             ? <Button variant="primary" onClick={() => onOpenSettings(error.provider ?? null, error.signInAccountId)} data-testid="sync-error-signin">{t("deviceSignIn.submit")}</Button>

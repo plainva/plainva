@@ -739,7 +739,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     // Lifting puts plain text into the folder. While other devices still use
     // the workspace there, that would sit next to their encrypted notes (R8):
     // the folder stays theirs, and this vault needs another one.
-    if (!workspaceDeparture(vault.workspaceRuntime ?? null).sole) {
+    if (workspaceDeparture(vault.workspaceRuntime ?? null).sole !== true) {
       toast.error(t("workspaceSecurity.liftNotSole"));
       return;
     }
@@ -837,7 +837,6 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           disabled={busy}
           icon={<ShieldOff size={ICON.ui} />}
           onClick={() => void syncAsPlainFolder()}
-          subtitle={t("workspaceSecurity.workspaceNotFound")}
           title={t("workspaceSecurity.plainFolderAction")}
         /></RowList></GroupCard>
       )}
@@ -1170,6 +1169,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
         <SectionLabel>{t("workspaceSecurity.joinTitle", { defaultValue: "Join this workspace" })}</SectionLabel>
         <p className="m-hint">{t("workspaceSecurity.joinHelp")}</p>
+        {/* A workspace ended on its last device leaves its objects behind: nobody can let this device in (R8). */}
+        <p className="m-hint">{t("workspaceSecurity.joinEndedHint")}</p>
         {/* Opening a publication is the same door (Stufe B, S7).
 
             A publication is a workspace of its own - own genesis, own keys, own

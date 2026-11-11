@@ -174,39 +174,64 @@ describe("SyncWorker", () => {
     expect([...files.values()]).toContain(content("done"));
   });
 
-  it("stops before writing anything when the guard finds a workspace this device may not sync next to (R8)", async () => {
-    const seen: Array<string | undefined> = [];
-    const journal = { sync: vi.fn().mockResolvedValue(undefined), load: vi.fn(), activePathEntries: () => [], recordPathEntries: vi.fn(), explainsPath: () => null };
-    const remoteGuard = vi.fn(async () => { throw new FatalSyncProtocolError("encrypted-workspace", "workspace"); });
-    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { remoteGuard, deletionJournal: journal as never });
+  it("asks nothing extra for a listing without a genesis, and writes the journal only after the listing (R8)", async () => {
+    const order: string[] = [];
+    const journal = { sync: vi.fn(async () => { order.push("journal"); }), load: vi.fn(), activePathEntries: () => [], recordPathEntries: vi.fn(), explainsPath: () => null };
+    const workspaceListed = vi.fn(async () => undefined);
+    target.pull.mockImplementation(async () => { order.push("listing"); return { etagMap: new Map() }; });
+    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { workspaceListed, deletionJournal: journal as never });
     worker["isRunning"] = true;
-    worker.onStatusChange = (_status, _message, reason) => seen.push(reason);
     await worker.runCycle();
-    expect(remoteGuard).toHaveBeenCalledTimes(1);
-    expect(journal.sync).not.toHaveBeenCalled();
-    expect(target.pull).not.toHaveBeenCalled();
-    expect(engine.processQueue).not.toHaveBeenCalled();
-    expect(seen).toContain("encrypted-workspace");
+    expect(workspaceListed).not.toHaveBeenCalled();
+    expect(target.download).not.toHaveBeenCalled();
+    expect(order).toEqual(["listing", "journal"]);
   });
 
-  it("a listing that carries a genesis (any case) stops the cycle before the push, with no guard to ask (R8)", async () => {
+  it("a listing that carries a genesis (any case) stops the worker before any write, with no rule to ask (R8)", async () => {
     const seen: Array<string | undefined> = [];
+    const journal = { sync: vi.fn().mockResolvedValue(undefined), load: vi.fn(), activePathEntries: () => [], recordPathEntries: vi.fn(), explainsPath: () => null };
+    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { deletionJournal: journal as never });
+    worker["isRunning"] = true;
     target.pull.mockResolvedValue({ etagMap: new Map([[".PVWS/Genesis.pvgen", "e1"], ["note.md", "e2"]]) });
     worker.onStatusChange = (_status, _message, reason) => seen.push(reason);
     await worker.runCycle();
+    expect(journal.sync).not.toHaveBeenCalled();
     expect(engine.processQueue).not.toHaveBeenCalled();
     expect(target.download).not.toHaveBeenCalled();
     expect(seen).toContain("encrypted-workspace");
   });
 
-  it("a listing that carries a genesis asks the guard again, and a guard that allows it lets the cycle on (R8)", async () => {
-    const remoteGuard = vi.fn(async () => undefined);
-    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { remoteGuard });
+  it("a listed genesis the rule allows (the workspace this device ended) lets the cycle on (R8)", async () => {
+    const workspaceListed = vi.fn(async () => undefined);
+    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { workspaceListed });
     worker["isRunning"] = true;
     target.pull.mockResolvedValue({ etagMap: new Map([[".pvws/genesis.pvgen", "e1"]]) });
     await worker.runCycle();
-    expect(remoteGuard).toHaveBeenCalledTimes(2);
+    expect(workspaceListed).toHaveBeenCalledTimes(1);
+    expect(engine.processQueue).toHaveBeenCalledTimes(1);
     expect(target.download).not.toHaveBeenCalledWith(".pvws/genesis.pvgen", expect.anything());
+  });
+
+  it("a cursor pull that could not resolve every change writes nothing in that cycle (R8)", async () => {
+    target.getStartCursor = vi.fn().mockResolvedValue("c1");
+    target.pull.mockResolvedValueOnce({ etagMap: new Map(), nextCursor: "c1" });
+    await worker.runCycle();
+    expect(engine.processQueue).toHaveBeenCalledTimes(1);
+    target.pull.mockResolvedValueOnce({ etagMap: new Map(), nextCursor: "c2", needsFullListing: true });
+    await worker.runCycle();
+    expect(engine.processQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("pushes no settings before a listing of the session has been seen (R8)", async () => {
+    const runner = { run: vi.fn().mockResolvedValue(undefined) };
+    worker = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync: runner });
+    worker["isRunning"] = true;
+    await worker.pushSettingsNow();
+    expect(runner.run).not.toHaveBeenCalled();
+    await worker.runCycle();
+    expect(runner.run).toHaveBeenCalledTimes(1);
+    await worker.pushSettingsNow();
+    expect(runner.run).toHaveBeenCalledTimes(2);
   });
 
   it("reports a temporary failure as retrying with the time of the next attempt, not as an error", async () => {
@@ -343,6 +368,8 @@ describe("SyncWorker", () => {
   it("pushes the settings profile once on request, without a file cycle - the last act before files go off (review finding 4)", async () => {
     const settingsSync = { run: vi.fn().mockResolvedValue(undefined) };
     const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
+    // A listing of this session has shown the folder (R8: no profile goes up before one).
+    w["sessionListingClear"] = true;
 
     await w.pushSettingsNow();
 
@@ -368,6 +395,7 @@ describe("SyncWorker", () => {
       }),
     };
     const w = new SyncWorker(engine, target, stateRepo, vault, queue, 100, { settingsSync });
+    w["sessionListingClear"] = true;
     // A long file cycle is running.
     (w as unknown as { currentCycle: Promise<void> }).currentCycle = new Promise<void>(() => {});
     const first = w.pushSettingsNow();

@@ -39,6 +39,10 @@ const state = vi.hoisted(() => ({
   genesis: "none" as "none" | "found" | "error",
   /** A stored workspace status (a member) - with or without its keys. */
   wsStatus: null as null | { phase: string },
+  /** How often the genesis was read on its own. */
+  genesisReads: 0,
+  /** The settings store fails for the encrypted-remote fact. */
+  brokenStore: false,
 }));
 
 vi.mock("@plainva/core", async (original) => {
@@ -78,6 +82,7 @@ vi.mock("@plainva/core", async (original) => {
     DeletionJournal: class {},
     createProviderWorkspaceObjectStore: () => ({
       get: async () => {
+        state.genesisReads += 1;
         if (state.genesis === "error") throw new Error("HTTP 503");
         return state.genesis === "found" ? new Uint8Array([1]) : null;
       },
@@ -94,7 +99,10 @@ vi.mock("@plainva/ui", async (original) => ({
     removeSecret: async () => undefined,
   },
   loadSettings: async () => ({
-    get: async (key: string) => state.settings.get(key) ?? null,
+    get: async (key: string) => {
+      if (state.brokenStore && key.startsWith("encryptedRemote_")) throw new Error("store unavailable");
+      return state.settings.get(key) ?? null;
+    },
     set: async (key: string, value: unknown) => { state.settings.set(key, structuredClone(value)); },
     delete: async (key: string) => state.settings.delete(key),
     save: async () => undefined,
@@ -148,7 +156,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, disconnectFiles, getSyncStatus, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
+import { connectProvider, disconnectFiles, getSyncStatus, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -179,6 +187,8 @@ beforeEach(() => {
   state.settingsOnly.length = 0;
   state.genesis = "none";
   state.wsStatus = null;
+  state.genesisReads = 0;
+  state.brokenStore = false;
 });
 
 afterEach(async () => {
@@ -345,57 +355,63 @@ describe("a vault that synced before stays one, whatever its records say (fifth 
   });
 });
 
-describe("a vault on an encrypted workspace this phone has not joined (R8)", () => {
-  /** A first plain sync against this folder: the binding is stored and the records confirm remote files. */
-  async function syncedPlainlyOnce() {
-    await startSyncIfConfigured(vault);
-    await stopSyncAndDrain();
-    state.confirmed = true;
-    state.workers.length = 0;
-  }
+describe("the encrypted-workspace rule on the phone (R8)", () => {
+  const known = () => state.settings.set("encryptedRemote_v", { v: 2, state: "encrypted" });
 
-  it("a probe that finds the genesis builds no worker and says so", async () => {
-    state.genesis = "found";
-    await startSyncIfConfigured(vault);
-    expect(running().workers).toBe(0);
-    expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required" });
-    expect(state.settings.get("encryptedRemote_v")).toMatchObject({ v: 2, state: "encrypted" });
+  it("a vault that knows nothing starts as before - no read of the genesis, whatever the folder answers", async () => {
+    for (const genesis of ["none", "found", "error"] as const) {
+      state.genesis = genesis;
+      await startSyncIfConfigured(vault);
+      expect(running().workers).toBe(1);
+      await stopSyncAndDrain();
+      state.workers.length = 0;
+    }
+    expect(state.genesisReads).toBe(0);
   });
 
-  it("once known, a failed probe builds no worker either - even for a folder that synced plainly before", async () => {
-    await syncedPlainlyOnce();
-    state.genesis = "found";
-    await startSyncIfConfigured(vault);
-    await stopSyncAndDrain();
-    state.genesis = "error";
-    await startSyncIfConfigured(vault);
-    expect(running().workers).toBe(0);
-    expect(getSyncStatus()).toMatchObject({ status: "retrying", errorKind: "pair-required" });
-    expect(getSyncStatus().retryAt).toBeGreaterThan(Date.now());
-  });
-
-  it("a folder that never synced plainly waits through a failed probe; one that did starts", async () => {
-    state.genesis = "error";
-    await startSyncIfConfigured(vault);
-    expect(running().workers).toBe(0);
-    expect(getSyncStatus()).toMatchObject({ status: "retrying" });
-    await stopSyncAndDrain();
-    state.genesis = "none";
-    await syncedPlainlyOnce();
-    state.genesis = "error";
+  it("an update from a vault without a stored binding syncs at once", async () => {
+    expect(state.settings.has("syncStateBinding_v")).toBe(false);
     await startSyncIfConfigured(vault);
     expect(running().workers).toBe(1);
   });
 
-  it("the connect wizard's fact holds back the first start", async () => {
-    state.settings.set("encryptedRemote_v", { v: 2, state: "encrypted" });
+  it("a known workspace in the folder holds the start and says so", async () => {
+    known();
+    state.genesis = "found";
+    await startSyncIfConfigured(vault);
+    expect(running().workers).toBe(0);
+    expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required" });
+  });
+
+  it("a failed read waits calmly and asks again; 'Sync now' asks at once", async () => {
+    known();
     state.genesis = "error";
     await startSyncIfConfigured(vault);
     expect(running().workers).toBe(0);
+    expect(getSyncStatus()).toMatchObject({ status: "retrying" });
+    const before = state.genesisReads;
+    state.genesis = "found";
+    syncNow();
+    await vi.waitFor(() => expect(state.genesisReads).toBe(before + 1));
+    await vi.waitFor(() => expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required" }));
   });
 
-  it("the settings-only sync of a vault whose files are off is held by the same gate", async () => {
+  it("three clean 'not found' answers make it a normal folder again", async () => {
+    known();
+    state.genesis = "none";
+    for (let i = 0; i < 2; i++) {
+      await startSyncIfConfigured(vault);
+      expect(running().workers).toBe(0);
+      await stopSyncAndDrain();
+    }
+    await startSyncIfConfigured(vault);
+    expect(running().workers).toBe(1);
+    expect(state.settings.has("encryptedRemote_v")).toBe(false);
+  });
+
+  it("the settings-only sync of a vault whose files are off is held by the same rule", async () => {
     state.filesOff = true;
+    known();
     state.genesis = "found";
     await startSyncIfConfigured(vault);
     expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
@@ -403,7 +419,6 @@ describe("a vault on an encrypted workspace this phone has not joined (R8)", () 
   });
 
   it("a member without its keys - locked, or the key gone with a reinstall - never starts the plain sync", async () => {
-    await syncedPlainlyOnce();
     state.wsStatus = { phase: "locked" };
     state.genesis = "error";
     await startSyncIfConfigured(vault);
@@ -412,14 +427,21 @@ describe("a vault on an encrypted workspace this phone has not joined (R8)", () 
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
   });
 
-  it("\"Add vault\" learns it before the vault's credentials are written", async () => {
+  it("a store that fails inside the rule does not stop the start", async () => {
+    state.brokenStore = true;
+    await expect(startSyncIfConfigured(vault)).resolves.toBeUndefined();
+    expect(running().workers).toBe(1);
+  });
+
+  it("\"Add vault\" reads nothing from the folder: its first listing is the look", async () => {
     state.genesis = "found";
     await connectProvider(vault, { provider: "webdav", creds: { url: state.url, user: "u", pass: "p" } });
-    expect(state.settings.get("encryptedRemote_added")).toMatchObject({ v: 2, state: "encrypted" });
+    expect(state.genesisReads).toBe(0);
+    expect(state.settings.has("encryptedRemote_added")).toBe(false);
   });
 
   it("joining keeps the knowledge, as membership", async () => {
-    state.settings.set("encryptedRemote_v", { v: 2, state: "encrypted" });
+    known();
     const joined = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
     await startSyncIfConfigured(joined).catch(() => undefined);
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });

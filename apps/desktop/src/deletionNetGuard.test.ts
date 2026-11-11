@@ -53,6 +53,7 @@ const CALLS: Record<string, { count: number; kind: Kind; why: string }> = {
   "packages/core/src/settingsSync/SettingsSyncStep.ts": { count: 1, kind: "internal", why: "the profile file under .plainva/sync" },
   "packages/core/src/comments/CommentsSyncStep.ts": { count: 2, kind: "internal", why: "comment bundles under .plainva, the first after a verified recovery copy" },
   "packages/ui/src/lib/bookmarksFile.ts": { count: 1, kind: "internal", why: ".plainva/bookmarks.json" },
+  "packages/ui/src/lib/encryptedRemoteGate.ts": { count: 1, kind: "internal", why: ".plainva/encrypted-remote.json, the encrypted-workspace fact of the vault (R8)" },
   "packages/ui/src/lib/okfConversion.ts": { count: 1, kind: "internal", why: "its own batch backup under .plainva/backups" },
   "packages/ui/src/lib/deletionNet.ts": { count: 1, kind: "asks", why: "deleteWithNet: the one way a person's deletion is put" },
   "packages/core/src/sync/SyncWorker.ts": { count: 1, kind: "background", why: "mirrors another device's deletion through the backup adapter; refused without a net, the file stays and the next cycle tries again" },

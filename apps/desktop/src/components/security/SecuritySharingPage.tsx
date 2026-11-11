@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
-import { InfoTip, Banner, Button, ICON, Modal, dismissEncryptedRemote, encryptedRemoteDismissable, encryptedRemoteSettingsPorts, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
+import { InfoTip, Banner, Button, ICON, Modal, dismissEncryptedRemote, encryptedRemoteDismissable, encryptedRemoteFilePorts, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedProjectionPreview, type PublishedSliceMode, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core";
 import { appConfirm } from "../../services/appDialogs";
-import { getSettingsStore } from "../../services/settingsStore";
 import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";
 import { parseSliceForm, roleName, type Diagnostics, type Governance, type GovernanceForm, type WorkspaceRole } from "./securityForms";
@@ -78,25 +77,27 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     exportWorkspaceQuarantine,
     detectJoinableWorkspace,
     openVault,
-    reloadVault,
+    backupAdapter,
   } = useVault();
   /**
-   * The way out when the folder was known to hold a workspace and answered
-   * "not found" several times in a row (R8): the person's own word that it is a
-   * normal folder now. The guard in every sync cycle stays behind it.
+   * The way out where the app cannot find out itself (R8): a server that will
+   * not show the hidden `.pvws` path, or a departure from a workspace whose
+   * other devices it cannot see. The person's own word; the listing stays the net.
    */
   const [plainFolderOffered, setPlainFolderOffered] = useState(false);
   useEffect(() => {
     let alive = true;
-    void getSettingsStore().then((store) => encryptedRemoteDismissable(encryptedRemoteSettingsPorts(store, selectedVault))).then((offer) => { if (alive) setPlainFolderOffered(offer); }).catch(() => undefined);
+    if (!isActiveVault || !backupAdapter) { setPlainFolderOffered(false); return; }
+    void encryptedRemoteDismissable(encryptedRemoteFilePorts(backupAdapter)).then((offer) => { if (alive) setPlainFolderOffered(offer); }).catch(() => undefined);
     return () => { alive = false; };
-  }, [selectedVault]);
+  }, [isActiveVault, backupAdapter, workspaceSecurityStatus]);
   const syncAsPlainFolder = async () => {
     const ok = await appConfirm({ title: t("workspaceSecurity.plainFolderAction"), message: t("workspaceSecurity.plainFolderConfirm"), kind: "danger", confirmLabel: t("workspaceSecurity.plainFolderAction") });
     if (!ok) return;
-    if (await dismissEncryptedRemote(encryptedRemoteSettingsPorts(await getSettingsStore(), selectedVault))) {
+    if (backupAdapter && (await dismissEncryptedRemote(encryptedRemoteFilePorts(backupAdapter)))) {
       setPlainFolderOffered(false);
-      if (isActiveVault) await reloadVault();
+      // The held folder is asked again: now it starts its sync step.
+      window.dispatchEvent(new CustomEvent("plainva-recheck-held-folder"));
     }
   };
   const status = isActiveVault ? workspaceSecurityStatus : null;
@@ -555,12 +556,13 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       </section>
       {!status && plainFolderOffered && (
         <SettingCard label={t("workspaceSecurity.currentStatus")}>
-          <SettingRow label={t("workspaceSecurity.plainFolderAction")} desc={t("workspaceSecurity.workspaceNotFound")}>
+          <SettingRow label={t("workspaceSecurity.plainFolderAction")}>
             <Button variant="secondary" onClick={() => void syncAsPlainFolder()} data-testid="workspace-plain-folder">{t("workspaceSecurity.plainFolderAction")}</Button>
           </SettingRow>
         </SettingCard>
       )}
       {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinDetectedShort")}<InfoTip label={t("workspaceSecurity.joinCta", { defaultValue: "Join" })} info={t("workspaceSecurity.joinDetected")} /></Banner>}
+      {!status && joinable && <Banner kind="info" rounded>{t("workspaceSecurity.joinEndedHint")}</Banner>}
 
       {/* Two named entry cards (IA v2, P2) open the second level: "your access"
           (devices + recovery) and "sharing" (members, groups, slices,

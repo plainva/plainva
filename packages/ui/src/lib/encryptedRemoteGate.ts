@@ -1,32 +1,34 @@
-import { FatalSyncProtocolError, parseWorkspaceDocument, probeRemoteGenesis, workspaceDocumentHash, type ISyncTarget, type PersonalWorkspaceRuntime } from "@plainva/core";
+import { FatalSyncProtocolError, parseWorkspaceDocument, SyncRootMissingError, workspaceDocumentHash, type ISyncTarget, type PersonalWorkspaceRuntime } from "@plainva/core";
 import { sameSyncTarget, type SyncStateBinding } from "./syncStateBinding";
 
 /**
- * Whether the plain file sync may touch a cloud folder (R8, both shells).
+ * The plain sync and a cloud folder that holds an encrypted workspace (R8,
+ * both shells).
  *
- * The plain sync knows nothing of an encrypted workspace. Run against a folder
- * that holds one, it uploads this device's notes and settings profile as plain
- * text next to the encrypted objects - the one thing encryption exists to
- * prevent. So nothing plain touches the folder before this rule says so: not
- * the file worker, not the settings-only sync, and - per cycle, from the core
- * (`PlainRemoteGuard`) - not a worker already running when another device
- * makes the folder a workspace.
+ * The rule costs an ordinary plain vault nothing. Its worker starts as it
+ * always did, and the folder's own listing is the probe: the worker writes
+ * nothing to the remote in a cycle before it has seen that cycle's listing, and
+ * a listing that shows a workspace's genesis stops it (`workspaceListed`, in
+ * the core). No extra request in any cycle, no wait when a vault opens.
  *
- * What a probe once found is a fact of the vault, kept apart from the sync
- * records (a reset of those never forgets it), per folder:
+ * Only a vault that KNOWS something about its folder is held before its worker
+ * starts, and only for it is the genesis read on its own. What it knows is a
+ * fact of the vault, kept apart from the sync records (a reset never forgets
+ * it), per folder:
  *
  *  - `encrypted`: the folder holds a workspace this device has not joined.
- *  - `joined`: this device is a member. Joining does not erase the knowledge:
- *    a locked phone, or one whose key went with a reinstall, has no runtime and
- *    must not fall back to the plain sync.
- *  - `released`: this device ended the workspace for this folder - it lifted
- *    the encryption as its only device and member. Recorded with the identity
- *    of the workspace it ended: the folder may be synced plainly while it holds
- *    no genesis or exactly that one, never another workspace's.
- *  - `left`: this device left a workspace that other devices still use. The
- *    folder is theirs: no plain sync into it, ever; the vault needs another folder.
+ *  - `joined`: this device is a member (kept while it has no keys - locked, or
+ *    the key went with a reinstall).
+ *  - `released`: this device ended the workspace as its only device and member:
+ *    plain sync while the folder holds no genesis or exactly that one.
+ *  - `left`: this device left the workspace, and other devices use it (or it
+ *    cannot tell - `peers: "unknown"`).
  *
- * Only another folder forgets a fact.
+ * Each is a claim about the folder's CONTENT, so content lifts it: a folder
+ * that answers "not found" several times in a row (one answer is not trusted -
+ * an incomplete listing was the 2026-09-20 incident) is a normal folder again.
+ * A server that will not show the hidden path at all is not retried forever:
+ * the person gets the explicit way out.
  */
 export interface EncryptedRemoteFact {
   v: 2;
@@ -35,8 +37,12 @@ export interface EncryptedRemoteFact {
   binding?: SyncStateBinding;
   /** The workspace the folder held (its genesis fingerprint), where known. */
   workspace?: string;
-  /** Clean "not found" answers in a row while the folder is known to hold a workspace. */
+  /** `left`: whether other devices are known to use the workspace. */
+  peers?: "others" | "unknown";
+  /** Clean "not found" answers in a row. */
   absentInARow?: number;
+  /** The server refused to show the hidden path: the way out is offered. */
+  refused?: boolean;
 }
 
 export interface EncryptedRemotePorts {
@@ -45,23 +51,8 @@ export interface EncryptedRemotePorts {
   clear(): Promise<void>;
 }
 
-/** After this many clean "not found" answers the person may decide the workspace is gone. */
-export const ENCRYPTED_REMOTE_ABSENT_TO_OFFER = 3;
-
-export type EncryptedRemoteGate =
-  /** The plain sync may start. A failed probe is handed on for the log. */
-  | { kind: "plain"; probeError: unknown | null }
-  /** The folder holds a workspace this device has not joined: pair or recover first. */
-  | { kind: "pair-required" }
-  /** This device left a workspace others still use: the vault needs another folder. */
-  | { kind: "left" }
-  /**
-   * Nothing could be confirmed: wait and try again. `known`: the folder is
-   * known to hold a workspace; `first`: it never synced plainly against this
-   * folder and the probe failed. `mayDismiss`: the workspace was answered
-   * "not found" often enough that the person may call the folder a normal one.
-   */
-  | { kind: "unconfirmed"; why: "known" | "first"; probeError: unknown | null; mayDismiss: boolean };
+/** Clean "not found" answers in a row before a folder counts as normal again. */
+export const ENCRYPTED_REMOTE_ABSENT_TO_CLEAR = 3;
 
 function readFact(stored: unknown): EncryptedRemoteFact | null {
   if (!stored || typeof stored !== "object") return null;
@@ -69,17 +60,32 @@ function readFact(stored: unknown): EncryptedRemoteFact | null {
   return fact.v === 2 && (fact.state === "encrypted" || fact.state === "joined" || fact.state === "released" || fact.state === "left") ? (fact as EncryptedRemoteFact) : null;
 }
 
-/** The fact for this folder, or null. A fact without a folder takes this one; another folder forgets it. */
-async function factFor(ports: EncryptedRemotePorts, binding: SyncStateBinding): Promise<EncryptedRemoteFact | null> {
-  const fact = readFact(await ports.load().catch(() => null));
+/** Storage never decides a start: a store that fails is "nothing known" for a read, and nothing for a write. */
+async function safeLoad(ports: EncryptedRemotePorts): Promise<EncryptedRemoteFact | null> {
+  try { return readFact(await ports.load()); } catch { return null; }
+}
+async function safeSave(ports: EncryptedRemotePorts, fact: EncryptedRemoteFact): Promise<void> {
+  try { await ports.save(fact); } catch (error) { console.warn("[encryptedRemote] could not record the folder's state", error); }
+}
+async function safeClear(ports: EncryptedRemotePorts): Promise<void> {
+  try { await ports.clear(); } catch (error) { console.warn("[encryptedRemote] could not clear the folder's state", error); }
+}
+
+/**
+ * What the vault knows about this folder, or null - which is what nearly every
+ * vault gets, at the cost of one local read. A fact without a folder takes this
+ * one; another folder forgets it. Never rejects.
+ */
+export async function encryptedRemoteFactFor(ports: EncryptedRemotePorts, binding: SyncStateBinding): Promise<EncryptedRemoteFact | null> {
+  const fact = await safeLoad(ports);
   if (!fact) return null;
   if (!fact.binding) {
     const adopted: EncryptedRemoteFact = { ...fact, binding };
-    await ports.save(adopted);
+    await safeSave(ports, adopted);
     return adopted;
   }
   if (sameSyncTarget(fact.binding, binding)) return fact;
-  await ports.clear();
+  await safeClear(ports);
   return null;
 }
 
@@ -92,90 +98,162 @@ export function workspaceIdentityOf(genesisBytes: Uint8Array): string {
   }
 }
 
-type Probe = { found: string } | { found: null; error: unknown | null };
+/**
+ * What reading the genesis failed with, per provider.
+ *
+ *  - WebDAV and S3 address the path itself: 404 is "not there" (the target
+ *    answers null), and 400/403/405/409/451 are a server that will not show a
+ *    hidden path at all - nginx and Apache hardening (`location ~ /\. { deny
+ *    all; }`), an S3 policy limited to a prefix (403 for any key it may not
+ *    list). Waiting does not change that.
+ *  - Google Drive, OneDrive and Dropbox address by name through their API,
+ *    which never refuses a dot name: a 403 there is a rate limit or a
+ *    permission of the account, and passes like any other error.
+ *  - A folder that is gone is the worker's own recovery (`root-missing`).
+ */
+export type GenesisReadFailure = "root-missing" | "refused" | "transient";
 
-async function probe(readGenesis: () => Promise<Uint8Array | null>): Promise<Probe> {
-  const read: { bytes: Uint8Array | null } = { bytes: null };
-  const result = await probeRemoteGenesis(async () => (read.bytes = await readGenesis()));
-  if (result.encryptedGenesisFound && read.bytes) return { found: workspaceIdentityOf(read.bytes) };
-  return { found: null, error: result.probeError };
+export function classifyGenesisReadError(error: unknown, provider: string): GenesisReadFailure {
+  if (error instanceof SyncRootMissingError) return "root-missing";
+  const status = (error as { status?: unknown } | null)?.status;
+  if ((provider === "webdav" || provider === "s3") && typeof status === "number" && [400, 403, 405, 409, 451].includes(status)) return "refused";
+  return "transient";
 }
 
-export async function decideEncryptedRemote(input: {
+export type HeldFolderVerdict =
+  /** The plain worker may start; its listing stays the net. */
+  | { kind: "plain" }
+  /** The folder is gone: the worker starts and shows its own recovery. */
+  | { kind: "root-missing" }
+  /** The folder holds a workspace this device has not joined. */
+  | { kind: "pair-required" }
+  /** This device left a workspace others use, or cannot tell. */
+  | { kind: "left"; peers: "others" | "unknown" }
+  /** The server will not show the hidden path: the person decides. */
+  | { kind: "refused" }
+  /** Not confirmed yet - a failed read, or a "not found" not yet repeated: wait and ask again. */
+  | { kind: "waiting" };
+
+/**
+ * For a vault WITH a fact only: reads the genesis and decides. Never rejects -
+ * a failure inside is "waiting".
+ */
+export async function decideHeldFolder(input: {
   ports: EncryptedRemotePorts;
   binding: SyncStateBinding;
-  /** Reads `.pvws/genesis.pvgen` through the vault's own target. */
+  fact: EncryptedRemoteFact;
+  provider: string;
   readGenesis: () => Promise<Uint8Array | null>;
-  /** The vault completed a plain sync against THIS folder before (its records confirm remote files). */
-  syncedPlainlyBefore: () => Promise<boolean>;
-}): Promise<EncryptedRemoteGate> {
-  const fact = await factFor(input.ports, input.binding);
-  if (fact?.state === "left") return { kind: "left" };
-  const answer = await probe(input.readGenesis);
-
-  if (answer.found !== null) {
-    if (fact?.state === "released" && fact.workspace === answer.found) return { kind: "plain", probeError: null };
-    // Another workspace than the one this device ended, or one nobody knew of.
-    const state = fact?.state === "joined" ? "joined" : "encrypted";
-    await input.ports.save({ v: 2, state, binding: input.binding, workspace: answer.found, absentInARow: 0 });
+}): Promise<HeldFolderVerdict> {
+  const { ports, binding, fact } = input;
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await input.readGenesis();
+  } catch (error) {
+    const failure = classifyGenesisReadError(error, input.provider);
+    if (failure === "root-missing") return { kind: "root-missing" };
+    if (failure === "refused") {
+      if (!fact.refused) await safeSave(ports, { ...fact, binding, refused: true });
+      return { kind: "refused" };
+    }
+    return { kind: "waiting" };
+  }
+  if (bytes && bytes.length > 0) {
+    const found = workspaceIdentityOf(bytes);
+    if (fact.state === "released" && fact.workspace === found) return { kind: "plain" };
+    if (fact.state === "left" && (!fact.workspace || fact.workspace === found)) {
+      await safeSave(ports, { ...fact, binding, workspace: found, absentInARow: 0, refused: false });
+      return { kind: "left", peers: fact.peers ?? "unknown" };
+    }
+    await safeSave(ports, { v: 2, state: fact.state === "joined" ? "joined" : "encrypted", binding, workspace: found, absentInARow: 0 });
     return { kind: "pair-required" };
   }
-
-  if (answer.error === null) {
-    // A clean "not found".
-    if (!fact || fact.state === "released") return { kind: "plain", probeError: null };
-    const absentInARow = (fact.absentInARow ?? 0) + 1;
-    await input.ports.save({ ...fact, binding: input.binding, absentInARow });
-    return { kind: "unconfirmed", why: "known", probeError: null, mayDismiss: absentInARow >= ENCRYPTED_REMOTE_ABSENT_TO_OFFER };
+  // A clean "not found".
+  if (fact.state === "released") return { kind: "plain" };
+  const absentInARow = (fact.absentInARow ?? 0) + 1;
+  if (absentInARow >= ENCRYPTED_REMOTE_ABSENT_TO_CLEAR) {
+    // Verified by repetition: the folder holds no workspace any more.
+    await safeClear(ports);
+    return { kind: "plain" };
   }
-
-  // The probe failed: nothing about the folder is known now.
-  if (fact && fact.state !== "released") return { kind: "unconfirmed", why: "known", probeError: answer.error, mayDismiss: false };
-  if (await input.syncedPlainlyBefore().catch(() => false)) return { kind: "plain", probeError: answer.error };
-  return { kind: "unconfirmed", why: "first", probeError: answer.error, mayDismiss: false };
+  await safeSave(ports, { ...fact, binding, absentInARow, refused: false });
+  return { kind: "waiting" };
 }
 
 /**
- * Asked before the plain sync writes anything to the folder, every cycle (R8).
- * A genesis this device may not sync next to stops the sync with a fatal,
- * explained state and records the fact; a failed probe skips the cycle - the
- * next one asks again.
+ * For the plain worker's `workspaceListed` (core): asked only when a listing
+ * shows a genesis. Lets the sync go on next to exactly the workspace this
+ * device ended; anything else records the fact and stops the worker.
  */
-export function plainRemoteGuard(input: { ports: EncryptedRemotePorts; binding: SyncStateBinding; readGenesis: (target: ISyncTarget) => Promise<Uint8Array | null> }) {
+export function plainWorkspaceListed(input: { ports: EncryptedRemotePorts; binding: SyncStateBinding; readGenesis: (target: ISyncTarget) => Promise<Uint8Array | null> }) {
   return async (target: ISyncTarget): Promise<void> => {
-    const bytes = await input.readGenesis(target);
-    if (!bytes || bytes.length === 0) return;
-    const found = workspaceIdentityOf(bytes);
-    const fact = await factFor(input.ports, input.binding);
+    const fact = await encryptedRemoteFactFor(input.ports, input.binding);
+    let found = "unreadable-genesis";
+    try {
+      const bytes = await input.readGenesis(target);
+      if (bytes && bytes.length > 0) found = workspaceIdentityOf(bytes);
+    } catch {
+      // Listed but not readable: still a workspace.
+    }
     if (fact?.state === "released" && fact.workspace === found) return;
     if (fact?.state !== "left") {
-      await input.ports.save({ v: 2, state: fact?.state === "joined" ? "joined" : "encrypted", binding: input.binding, workspace: found, absentInARow: 0 });
+      await safeSave(input.ports, { v: 2, state: fact?.state === "joined" ? "joined" : "encrypted", binding: input.binding, workspace: found, absentInARow: 0 });
     }
     throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace this device has not joined");
   };
 }
 
+/**
+ * The settings-only sync's one look per session (files off: no listing shows a
+ * genesis). A vault with a fact asks the held-folder rule; one without reads
+ * the genesis once (`listFolders` speaks about the account's root, not the
+ * vault's folder, so there is no shallower look).
+ */
+export function settingsOnlyFolderCheck(input: {
+  ports: EncryptedRemotePorts;
+  binding: SyncStateBinding;
+  provider: string;
+  target: ISyncTarget;
+  readGenesis: (target: ISyncTarget) => Promise<Uint8Array | null>;
+}) {
+  return async (): Promise<void> => {
+    const fact = await encryptedRemoteFactFor(input.ports, input.binding);
+    if (fact) {
+      const verdict = await decideHeldFolder({ ports: input.ports, binding: input.binding, fact, provider: input.provider, readGenesis: () => input.readGenesis(input.target) });
+      if (verdict.kind === "plain" || verdict.kind === "root-missing") return;
+      if (verdict.kind === "waiting") throw new Error("the cloud folder could not be checked yet");
+      throw new FatalSyncProtocolError("encrypted-workspace", "the cloud folder holds an encrypted workspace this device may not sync next to");
+    }
+    // One read per session. A failure - a server that will not show the hidden
+    // path, a network hiccup - stops nothing for a vault that knows nothing:
+    // the settings run meets the same network on its own.
+    const listed = await input.readGenesis(input.target).catch(() => null);
+    if (!listed || listed.length === 0) return;
+    await plainWorkspaceListed(input)(input.target);
+  };
+}
+
 /** The connect wizard or "Add vault" bound this vault to a folder that holds a workspace. */
 export async function markEncryptedRemote(ports: EncryptedRemotePorts, binding?: SyncStateBinding): Promise<void> {
-  await ports.save({ v: 2, state: "encrypted", ...(binding ? { binding } : {}) });
+  await safeSave(ports, { v: 2, state: "encrypted", ...(binding ? { binding } : {}) });
 }
 
 /** The device joined: the knowledge stays, as membership. */
 export async function markEncryptedRemoteJoined(ports: EncryptedRemotePorts, workspace?: string): Promise<void> {
-  const fact = readFact(await ports.load().catch(() => null));
+  const fact = await safeLoad(ports);
   if (fact?.state === "joined" && (!workspace || fact.workspace === workspace)) return;
-  await ports.save({ v: 2, state: "joined", ...(fact?.binding ? { binding: fact.binding } : {}), ...(workspace ?? fact?.workspace ? { workspace: workspace ?? fact?.workspace } : {}) });
+  await safeSave(ports, { v: 2, state: "joined", ...(fact?.binding ? { binding: fact.binding } : {}), ...(workspace ?? fact?.workspace ? { workspace: workspace ?? fact?.workspace } : {}) });
 }
 
 /**
- * What lifting or decommissioning on this device means for its folder.
- * The remote is not touched by either (its `.pvws/` objects are immutable):
- * the workspace lives on for every other device. Only a device that is the
- * workspace's single active device of its single active member ends it.
+ * What lifting or decommissioning on this device means for its folder. Neither
+ * touches the remote (its `.pvws/` objects are immutable), so the workspace
+ * lives on for every other device. Only the workspace's single active device of
+ * its single active member ends it; without its runtime (a locked device) the
+ * app cannot tell.
  */
-export function workspaceDeparture(runtime: Pick<PersonalWorkspaceRuntime, "genesis" | "policy"> | null): { workspace: string | undefined; sole: boolean } {
-  if (!runtime) return { workspace: undefined, sole: false };
-  if (!runtime.policy?.payload) return { workspace: undefined, sole: false };
+export function workspaceDeparture(runtime: Pick<PersonalWorkspaceRuntime, "genesis" | "policy"> | null): { workspace: string | undefined; sole: boolean | "unknown" } {
+  if (!runtime?.policy?.payload) return { workspace: undefined, sole: "unknown" };
   const devices = runtime.policy.payload.devices.filter((device) => device.state === "active").length;
   const members = runtime.policy.payload.members.filter((member) => member.state === "active").length;
   let workspace: string | undefined;
@@ -188,35 +266,34 @@ export function workspaceDeparture(runtime: Pick<PersonalWorkspaceRuntime, "gene
 }
 
 /** This device lifted or decommissioned the workspace (see `workspaceDeparture`). */
-export async function markEncryptedRemoteDeparted(ports: EncryptedRemotePorts, departure: { workspace: string | undefined; sole: boolean }): Promise<void> {
-  const fact = readFact(await ports.load().catch(() => null));
+export async function markEncryptedRemoteDeparted(ports: EncryptedRemotePorts, departure: { workspace: string | undefined; sole: boolean | "unknown" }): Promise<void> {
+  const fact = await safeLoad(ports);
   const binding = fact?.binding ? { binding: fact.binding } : {};
-  if (departure.sole && departure.workspace) await ports.save({ v: 2, state: "released", ...binding, workspace: departure.workspace });
-  else await ports.save({ v: 2, state: "left", ...binding, ...(departure.workspace ? { workspace: departure.workspace } : {}) });
+  if (departure.sole === true && departure.workspace) await safeSave(ports, { v: 2, state: "released", ...binding, workspace: departure.workspace });
+  else await safeSave(ports, { v: 2, state: "left", ...binding, peers: departure.sole === false ? "others" : "unknown", ...(departure.workspace ? { workspace: departure.workspace } : {}) });
 }
 
 /**
- * The person's own word, offered only after repeated clean "not found"
- * answers: this folder no longer holds an encrypted workspace. The per-cycle
- * guard stays behind it - a genesis that turns up after all stops the sync.
+ * The person's own word that this folder holds no workspace for this device -
+ * offered where the app cannot find out: a server that will not show the
+ * hidden path, or a departure from a workspace whose other devices the app
+ * cannot see. The listing net stays behind it.
  */
 export async function dismissEncryptedRemote(ports: EncryptedRemotePorts): Promise<boolean> {
-  const fact = readFact(await ports.load().catch(() => null));
-  if (!fact || (fact.state !== "encrypted" && fact.state !== "joined") || (fact.absentInARow ?? 0) < ENCRYPTED_REMOTE_ABSENT_TO_OFFER) return false;
-  await ports.clear();
+  if (!(await encryptedRemoteDismissable(ports))) return false;
+  await safeClear(ports);
   return true;
 }
 
-/** Whether the person may now call the folder a normal one (both shells show the action from this). */
 export async function encryptedRemoteDismissable(ports: EncryptedRemotePorts): Promise<boolean> {
-  const fact = readFact(await ports.load().catch(() => null));
-  return !!fact && (fact.state === "encrypted" || fact.state === "joined") && (fact.absentInARow ?? 0) >= ENCRYPTED_REMOTE_ABSENT_TO_OFFER;
+  const fact = await safeLoad(ports);
+  return !!fact && (fact.refused === true || (fact.state === "left" && fact.peers === "unknown"));
 }
 
-/** The settings key both shells keep the fact under, per vault. */
+/** The settings key the phone keeps the fact under, per vault id. */
 export const encryptedRemoteKey = (vaultKey: string): string => `encryptedRemote_${vaultKey}`;
 
-/** The ports over a settings store, as both shells keep it. */
+/** The ports over a settings store (the phone: keyed by the vault's stable id). */
 export function encryptedRemoteSettingsPorts(
   store: { get<T>(key: string): Promise<T | null | undefined>; set(key: string, value: unknown): Promise<void>; delete(key: string): Promise<unknown>; save(): Promise<void> },
   vaultKey: string,
@@ -229,7 +306,29 @@ export function encryptedRemoteSettingsPorts(
   };
 }
 
-/** A start held back because the folder could not be confirmed tries again after this long, then longer. */
+/** Where the desktop keeps the fact: inside the vault's own device-local folder, so it moves with the vault. */
+export const ENCRYPTED_REMOTE_FILE = ".plainva/encrypted-remote.json";
+
+/** The ports over a vault folder (the desktop: the fact travels when the vault folder moves). */
+export function encryptedRemoteFilePorts(vault: { exists(path: string): Promise<boolean>; readTextFile(path: string): Promise<string>; writeTextFile(path: string, value: string): Promise<void>; deleteItem?(path: string): Promise<void> }): EncryptedRemotePorts {
+  return {
+    load: async () => ((await vault.exists(ENCRYPTED_REMOTE_FILE)) ? JSON.parse(await vault.readTextFile(ENCRYPTED_REMOTE_FILE)) : null),
+    save: async (fact) => { await vault.writeTextFile(ENCRYPTED_REMOTE_FILE, JSON.stringify(fact)); },
+    clear: async () => { if ((await vault.exists(ENCRYPTED_REMOTE_FILE)) && vault.deleteItem) await vault.deleteItem(ENCRYPTED_REMOTE_FILE); },
+  };
+}
+
+/** A held vault asks again after this long, then longer. */
 export const ENCRYPTED_REMOTE_RETRY_MS = 60_000;
 export const ENCRYPTED_REMOTE_RETRY_MAX_MS = 15 * 60_000;
 export const encryptedRemoteRetryDelay = (attempt: number): number => Math.min(ENCRYPTED_REMOTE_RETRY_MAX_MS, ENCRYPTED_REMOTE_RETRY_MS * 2 ** Math.max(0, attempt));
+
+/** The message key of a held vault's state, one per verdict, both shells. */
+export function heldFolderMessageKey(verdict: HeldFolderVerdict): string {
+  switch (verdict.kind) {
+    case "left": return verdict.peers === "unknown" ? "workspaceSecurity.leftUnknownPeers" : "workspaceSecurity.leftWorkspaceFolder";
+    case "refused": return "workspaceSecurity.dotPathRefused";
+    case "waiting": return "workspaceSecurity.folderUnconfirmed";
+    default: return "workspaceSecurity.mobilePairRequired";
+  }
+}

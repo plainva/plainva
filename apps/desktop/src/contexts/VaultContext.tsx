@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache, decideEncryptedRemote, encryptedRemoteSettingsPorts, filesRunState, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainRemoteGuard, sayFirstSyncConflictCopies, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingDecision, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteGate } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
@@ -16,7 +16,7 @@ import { migrateVaultKeychainSlots } from "../services/keychainSlots";
 import { fileBrokerTokenProvider } from "../services/accountBroker";
 import { migrateVaultGrants } from "../services/accountGrantMigration";
 import { resolveFileSyncAccess } from "../services/fileSyncAccess";
-import { bindVaultSyncState, syncStateBindingKey, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
+import { bindVaultSyncState, filesAccountIdForVault, filesIdentityForVault, filesOffForVault, isSyncPausedHere, markVaultSyncedBefore, queuesLocalChanges, syncedBeforeForVault } from "../services/filesSwitch";
 import { readDriveDestination, readSyncRootFolder, writeSyncRootFolder } from "../services/syncRootFolder";
 import { syncStatusStore, type SyncStatusSnapshot } from "../services/syncStatusStore";
 import { settlePendingWrites } from "../services/pendingWrites";
@@ -59,7 +59,7 @@ import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
 import { getSettingsStore } from "../services/settingsStore";
-import { desktopSyncBranch, recheckEncryptedRemote } from "../services/encryptedRemoteStart";
+import { askHeldFolder, desktopSyncBranch } from "../services/encryptedRemoteStart";
 import { templateVaultOf } from "../services/dailyNotes";
 import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
@@ -632,14 +632,6 @@ type VaultLifecycleApi = Pick<
   | "setAutoOpenLastVault"
 >;
 
-/** What a vault held back by an encrypted workspace says (R8). */
-function encryptedRemoteMessageKey(hold: "pair-required" | "left" | "unconfirmed" | "first" | "absent"): string {
-  if (hold === "left") return "workspaceSecurity.leftWorkspaceFolder";
-  if (hold === "first") return "workspaceSecurity.folderUnconfirmed";
-  if (hold === "absent") return "workspaceSecurity.workspaceNotFound";
-  return "workspaceSecurity.mobilePairRequired";
-}
-
 const ownerOnly = (name: string) => `${name} is owner-only; an auxiliary window cannot run it`;
 
 export const VaultProvider: React.FC<{
@@ -666,8 +658,13 @@ export const VaultProvider: React.FC<{
   // a module-level tracker would let the second vault's load abort the first.
   // It still does what it always did — swallow React Strict Mode's double call.
   const activeLoadPathRef = useRef<string | null>(null);
-  /** The next probe of a vault held back by a folder it could not confirm (R8). */
-  const encryptedRemoteRetryRef = useRef<{ cancel: () => void } | null>(null);
+  /** The background ask of a held folder (R8): cancelled on every load and teardown, asked again by hand. */
+  const encryptedRemoteRetryRef = useRef<{ cancel: () => void; askNow: () => void } | null>(null);
+  useEffect(() => {
+    const askNow = () => encryptedRemoteRetryRef.current?.askNow();
+    window.addEventListener("plainva-recheck-held-folder", askNow);
+    return () => window.removeEventListener("plainva-recheck-held-folder", askNow);
+  }, []);
   const loadAbortRef = useRef<AbortController | null>(null);
   // Recents, the last-vault memory, auto-open and the three lifecycle entry
   // points live one level up (contexts/AppContext.tsx) — they outlive any
@@ -739,23 +736,6 @@ export const VaultProvider: React.FC<{
   // Incremental indexing for changed-path batches (watcher events, sync pulls)
   // lives in services/incrementalIndexQueue.ts (P2.5): loadVault creates one
   // serialized queue per vault and maps its batch results to version bumps.
-
-  /** Asks a held folder again, only the probe (R8; `recheckEncryptedRemote`); a verdict reloads the vault once. */
-  const recheckHeldFolder = (path: string, signal: AbortSignal, decide: () => Promise<EncryptedRemoteGate>) => {
-    encryptedRemoteRetryRef.current?.cancel();
-    const handle = recheckEncryptedRemote({
-      decide,
-      signal,
-      onStillHeld: (gate) => {
-        if (gate?.kind === "unconfirmed" && gate.mayDismiss) syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.workspaceNotFound"), reason: "encrypted-workspace" });
-      },
-      onVerdict: () => {
-        if (encryptedRemoteRetryRef.current === handle) encryptedRemoteRetryRef.current = null;
-        void loadVault(path);
-      },
-    });
-    encryptedRemoteRetryRef.current = handle;
-  };
 
   const loadVault = async (path: string, isNewConnection?: boolean) => {
     // The owner path below builds indexer, watcher, sync worker, workspace
@@ -1344,8 +1324,8 @@ export const VaultProvider: React.FC<{
       }
 
       let syncWorker: SyncWorker | EncryptedWorkspaceWorker | null = null;
-      /** Why the plain sync did not start: an encrypted workspace not joined here (R8 follow-up). */
-      let encryptedRemoteHold: "pair-required" | "left" | "unconfirmed" | "first" | "absent" | null = null;
+      /** A held folder's background ask, kicked once the load's own status is written (R8). */
+      let heldStart: (() => void) | null = null;
       let syncProvider: SyncProviderId | null = null;
       try {
         // Target selection per vault: the settings UI enforces one provider per vault
@@ -1480,45 +1460,21 @@ export const VaultProvider: React.FC<{
               : syncProvider === "onedrive" || syncProvider === "dropbox" ? { path: await readSyncRootFolder(path, syncProvider) } : undefined,
             identity: await filesIdentityForVault(path, syncProvider!),
           });
-          // Nothing plain touches the folder - not the file worker, not the
-          // settings-only sync - before the rule says so (R8; the phone has
-          // probed since F2, the desktop never did). A member keeps its
-          // knowledge as membership; a member without its keys is held by the
-          // locked branch below whatever the files switch says.
-          const remotePorts = encryptedRemoteSettingsPorts(settingsStore, path);
+          // The plain sync and an encrypted workspace in its folder (R8). A
+          // vault that knows nothing about its folder - nearly every vault -
+          // costs one local read: its worker starts as before, and its first
+          // listing answers before its first write. Only a vault with a fact is
+          // held, in the background, never as part of opening it. A member keeps
+          // its knowledge as membership; a member without its keys is held by
+          // the locked branch below whatever the files switch says.
+          const remotePorts = encryptedRemoteFilePorts(backupVaultAdapter);
           const readGenesisOf = (t: ISyncTarget) => createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), t).get(".pvws/genesis.pvgen");
-          let remoteGate: EncryptedRemoteGate | null = null;
-          if (workspaceSecurityStatus) {
-            await markEncryptedRemoteJoined(remotePorts, workspaceDeparture(workspaceRuntime).workspace).catch(() => undefined);
-          } else {
-            const gateTarget = target;
-            remoteGate = await decideEncryptedRemote({
-              ports: remotePorts,
-              binding,
-              readGenesis: () => readGenesisOf(gateTarget),
-              syncedPlainlyBefore: async () => syncStateBindingDecision(await settingsStore.get(syncStateBindingKey(path)), binding) === "keep" && (await syncRepo.hasConfirmedRemoteFiles()),
-            });
-            if (currentAbortSignal.aborted) return;
-            if (remoteGate.kind === "plain" && remoteGate.probeError) console.warn("[VaultContext] workspace genesis probe failed; this folder synced plainly before, so the sync starts", remoteGate.probeError);
-          }
-          // A member is never the plain branch - with or without its keys, with
-          // or without its local state store (then nothing starts).
-          const branch = desktopSyncBranch({ gate: remoteGate, filesRun, member: !!workspaceSecurityStatus, hasRuntime: !!workspaceRuntime });
-          const plainGuard = plainRemoteGuard({ ports: remotePorts, binding, readGenesis: readGenesisOf });
-          if (branch === "held" && remoteGate && remoteGate.kind !== "plain") {
-            encryptedRemoteHold = remoteGate.kind === "unconfirmed" ? (remoteGate.why === "first" ? "first" : remoteGate.mayDismiss ? "absent" : "unconfirmed") : remoteGate.kind;
-            if (remoteGate.kind === "unconfirmed") {
-              // Only the probe is asked again - not the vault: with backoff,
-              // not while offline, and never for a vault this load no longer
-              // shows (R8, review point 6). A verdict reloads once.
-              recheckHeldFolder(path, currentAbortSignal, () => decideEncryptedRemote({
-                ports: remotePorts,
-                binding,
-                readGenesis: () => readGenesisOf(target!),
-                syncedPlainlyBefore: async () => syncStateBindingDecision(await settingsStore.get(syncStateBindingKey(path)), binding) === "keep" && (await syncRepo.hasConfirmedRemoteFiles()),
-              }));
-            }
-          } else if (branch === "settingsOnly") {
+          let remoteFact: EncryptedRemoteFact | null = null;
+          if (workspaceSecurityStatus) await markEncryptedRemoteJoined(remotePorts, workspaceDeparture(workspaceRuntime).workspace);
+          else remoteFact = await encryptedRemoteFactFor(remotePorts, binding);
+          const branch = desktopSyncBranch({ held: !!remoteFact, filesRun, member: !!workspaceSecurityStatus, hasRuntime: !!workspaceRuntime });
+          const workspaceListed = plainWorkspaceListed({ ports: remotePorts, binding, readGenesis: readGenesisOf });
+          if (branch === "settingsOnly") {
             // Files are off for the vault (E3): no file worker, only the
             // settings profile on the interval (second review, B3). No file
             // target is published either, so nothing here offers a file sync.
@@ -1526,7 +1482,10 @@ export const VaultProvider: React.FC<{
             syncProviderRef.current = null;
             const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
             if (runner) {
-              const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, workspaceRuntime ? undefined : plainGuard);
+              const sessionCheck = workspaceRuntime ? undefined : settingsOnlyFolderCheck({ ports: remotePorts, binding, provider: syncProvider!, target, readGenesis: readGenesisOf });
+              const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {
+                syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), provider: syncProvider, reason: "encrypted-workspace" });
+              });
               loadStarts.start(
                 {
                   stop: () => {
@@ -1655,7 +1614,8 @@ export const VaultProvider: React.FC<{
                 syncWorker = await startEncryptedWorkspace();
               }
             }
-          } else if (branch === "plain") {
+          } else if (branch === "plain" || branch === "held") {
+            const startPlainWorker = async (): Promise<SyncWorker | null> => {
             // The queue and the per-file records belong to the folder they were
             // made with: kept for the same one, dropped for another - before the
             // worker below can push or compare anything (third review, finding 1).
@@ -1684,8 +1644,7 @@ export const VaultProvider: React.FC<{
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
-            const fileWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, remoteGuard: plainGuard });
-            syncWorker = fileWorker;
+            const fileWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });
             // Bound to this folder now (no file confirmed with it yet): where the
             // folder already holds notes, the starter content nobody changed stays
             // here - the one rule the phone's copy follows too (third review 2026-10-27).
@@ -1694,17 +1653,17 @@ export const VaultProvider: React.FC<{
             // The listing contradicts itself: facts for the dialog, null once a
             // listing holds again. Set BEFORE the status, so the error entry the
             // status creates already carries them (finding 2026-09-20).
-            syncWorker.onListingIncomplete = (info) => {
+            fileWorker.onListingIncomplete = (info) => {
               syncStatusStore.set(path, { listingIncomplete: info });
             };
             // One line of numbers per noteworthy listing — never a name (plan A0).
-            syncWorker.onListingMetrics = (report) => {
+            fileWorker.onListingMetrics = (report) => {
               logDiagnostic("sync", formatListingReport(report, syncProvider));
             };
             // A full listing of the folder resolved by name has held: from now on
             // the ID addresses it, and a rename or move in Drive cannot send this
             // vault into a fresh, empty folder any more (plan A4).
-            syncWorker.onFullListingTrusted = () => {
+            fileWorker.onFullListingTrusted = () => {
               const root = resolvedDriveRoot;
               if (!root) return;
               resolvedDriveRoot = null;
@@ -1716,18 +1675,18 @@ export const VaultProvider: React.FC<{
             // stores sealed objects under content hashes, so the remote never
             // carries a human file name and two Unicode forms of one cannot
             // exist (finding 2026-08-21).
-            syncWorker.onNameCollisions = (collisions) => {
+            fileWorker.onNameCollisions = (collisions) => {
               syncStatusStore.set(path, { collisions });
             };
             // The same, as cases the card can tell apart and act on (finding 2026-11-03).
-            syncWorker.onNameCollisionCases = (collisionCases) => {
+            fileWorker.onNameCollisionCases = (collisionCases) => {
               syncStatusStore.set(path, { collisionCases });
             };
             // Files Drive no longer reports and could not be asked about (D7); an empty list takes the notice down.
-            syncWorker.onUnverifiedFiles = (unverifiedFiles) => {
+            fileWorker.onUnverifiedFiles = (unverifiedFiles) => {
               syncStatusStore.set(path, { unverifiedFiles });
             };
-            syncWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
+            fileWorker.onStatusChange = (status, errorMsg, reason, retryAt) => {
               // Store instead of context state (P3/E2): idle→syncing→idle fires
               // every poll cycle and must not re-render the whole app. `reason`
               // (a fatal-protocol kind) rides along so the error dialog can offer
@@ -1735,17 +1694,17 @@ export const VaultProvider: React.FC<{
               if (reason === "encrypted-workspace") {
                 // The folder is (or just became) a workspace this device has not
                 // joined (R8): the worker stops for good, and the status says so.
-                syncWorker?.stop();
+                fileWorker.stop();
                 syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), reason, progress: null });
                 return;
               }
               syncStatusStore.set(path, { status, message: errorMsg || null, reason, retryAt, ...(status !== "syncing" ? { progress: null } : {}) });
             };
-            syncWorker.onProgress = (progress) => {
+            fileWorker.onProgress = (progress) => {
               // Coarse cycle progress for the status bar (WP6); throttled in core.
               syncStatusStore.set(path, { progress });
             };
-            syncWorker.onFirstCycleComplete = (outcome) => {
+            fileWorker.onFirstCycleComplete = (outcome) => {
               // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
               void markVaultSyncedBefore(path).catch((e) => console.error("[VaultContext] could not record the first sync", e));
               // The vault has its remote content now, so anchored notes exist
@@ -1763,7 +1722,7 @@ export const VaultProvider: React.FC<{
               sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
                 window.dispatchEvent(new CustomEvent("plainva-resolve-conflict", { detail: { path: copy } })));
             };
-            syncWorker.onFilesChanged = (paths) => {
+            fileWorker.onFilesChanged = (paths) => {
               // Pulled writes/deletions happen outside the editor; re-index so the
               // file tree and search reflect them deterministically. The worker
               // emits in chunks while the cycle runs (and flushes on abort), so the
@@ -1776,8 +1735,8 @@ export const VaultProvider: React.FC<{
                 }
               }
             };
-            const guardedWorker = syncWorker;
-            syncWorker.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
+            const guardedWorker = fileWorker;
+            fileWorker.onMassDeletionPending = ({ pendingDeletes, syncedTotal }) => {
               // The push-side mass-deletion guard tripped: a large share of the
               // synced files is queued for REMOTE deletion (typically the local
               // vault folder was emptied or moved while Plainva knew the vault).
@@ -1805,7 +1764,7 @@ export const VaultProvider: React.FC<{
                 }
               })();
             };
-            syncWorker.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
+            fileWorker.onDeletionMirroringSuspended = ({ missing, confirmed, probed, absent }) => {
               // The pull-side guard tripped and the journal does not explain the
               // absences. Since 2026-09-20 the worker has ASKED the remote about a
               // sample of them first: had one been alive, there would be no
@@ -1838,7 +1797,7 @@ export const VaultProvider: React.FC<{
                 }
               })();
             };
-            syncWorker.onDeletionReport = (report) => {
+            fileWorker.onDeletionReport = (report) => {
               // A remote deletion the worker did NOT mirror because the local
               // copy carries unsynced edits used to be silent — and silence is
               // how a "deleted" note came back without anyone knowing why. The
@@ -1850,7 +1809,36 @@ export const VaultProvider: React.FC<{
                 toast.info(kept);
               }
             };
-            loadStarts.start(fileWorker, () => fileWorker.start());
+            if (!loadStarts.start(fileWorker, () => fileWorker.start())) return null;
+            return fileWorker;
+            };
+            if (branch === "plain") {
+              syncWorker = await startPlainWorker();
+            } else {
+              // Held: asked in the background once the load has settled; a
+              // verdict that allows it starts the sync step, nothing else.
+              const fact = remoteFact!;
+              heldStart = () => {
+                encryptedRemoteRetryRef.current?.cancel();
+                encryptedRemoteRetryRef.current = askHeldFolder({
+                  signal: currentAbortSignal,
+                  decide: async () => {
+                    const now = await encryptedRemoteFactFor(remotePorts, binding);
+                    if (!now) return { kind: "plain" };
+                    return decideHeldFolder({ ports: remotePorts, binding, fact: now ?? fact, provider: syncProvider!, readGenesis: () => readGenesisOf(target!) });
+                  },
+                  onWaiting: (verdict, retryAt) => syncStatusStore.set(path, { status: "retrying", message: i18n.t(heldFolderMessageKey(verdict)), provider: syncProvider, reason: "encrypted-workspace", retryAt }),
+                  onHeld: (verdict) => syncStatusStore.set(path, { status: "error", message: i18n.t(heldFolderMessageKey(verdict)), provider: syncProvider, reason: "encrypted-workspace" }),
+                  onStart: () => {
+                    void startPlainWorker().then((worker) => {
+                      if (!worker || currentAbortSignal.aborted) { void worker?.stopAndDrain(); return; }
+                      syncStatusStore.set(path, { status: "idle", message: null, provider: syncProvider, reason: undefined });
+                      setState((st) => (st.vaultPath === path ? { ...st, syncWorker: worker } : st));
+                    }).catch((error) => console.error("[VaultContext] starting the sync of a held folder failed", error));
+                  },
+                });
+              };
+            }
           }
         }
       } catch (e) {
@@ -1879,8 +1867,8 @@ export const VaultProvider: React.FC<{
             authRecoverable: true,
             signInAccountId,
           });
-        } else if (!syncWorker && encryptedRemoteHold) {
-          syncStatusStore.set(path, { status: "error", message: i18n.t(encryptedRemoteMessageKey(encryptedRemoteHold)), provider: syncProvider, reason: "encrypted-workspace" });
+        } else if (!syncWorker && heldStart) {
+          syncStatusStore.set(path, { status: "retrying", message: i18n.t("workspaceSecurity.folderUnconfirmed"), provider: syncProvider, reason: "encrypted-workspace" });
         } else if (!syncWorker && filesConfiguredWithoutAccess) {
           // Saying nothing here is what made the failure invisible: the card
           // still read "connected", the status bar stayed idle, and only the
@@ -1895,6 +1883,9 @@ export const VaultProvider: React.FC<{
           syncStatusStore.set(path, { status: "idle", message: null, provider: syncWorker ? syncProvider : null });
         }
       }
+      // A held folder is asked only now, in the background: opening the vault
+      // never waits for the network (R8, review point B).
+      if (!currentAbortSignal.aborted) heldStart?.();
       setState(s => ({
         ...s,
         vaultPath: path,
@@ -3718,7 +3709,7 @@ export const VaultProvider: React.FC<{
     // workspace lives on for every other device. Read before the teardown.
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
     await tearDownWorkspace(path);
-    await markEncryptedRemoteDeparted(encryptedRemoteSettingsPorts(await getSettingsStore(), path), departure);
+    if (state.backupAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.backupAdapter), departure);
     await loadVault(path);
   };
 
@@ -3735,9 +3726,9 @@ export const VaultProvider: React.FC<{
     // device is the workspace's only one, never next to other devices' encrypted
     // notes (R8). Asked before anything is torn down.
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
-    if (!departure.sole) throw new Error(i18n.t("workspaceSecurity.liftNotSole"));
+    if (departure.sole !== true) throw new Error(i18n.t("workspaceSecurity.liftNotSole"));
     await tearDownWorkspace(path);
-    await markEncryptedRemoteDeparted(encryptedRemoteSettingsPorts(await getSettingsStore(), path), departure);
+    if (state.backupAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.backupAdapter), departure);
     await loadVault(path, true);
   };
 
