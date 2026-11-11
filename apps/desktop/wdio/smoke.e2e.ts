@@ -269,6 +269,15 @@ describe("Plainva native smoke", () => {
     });
 
     const record = '[data-testid="quick-capture-record"]';
+    // The switch flips at once, but the card stays busy - recorder disabled -
+    // until the setting is stored and the shortcut registered. A WebDriver
+    // click does not wait for that the way a Playwright click does: on Linux it
+    // landed on the disabled button and did nothing (runs 42902554320,
+    // 42997612948). Click it once it can be used, as a user would.
+    await $(record).waitForEnabled({
+      timeout: 10_000,
+      timeoutMsg: "the recorder stayed disabled after the quick capture switch turned on",
+    });
     if (isMac) {
       // A real click: the recorder has to start without the focus the driver's
       // click would force onto the button.
