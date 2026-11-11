@@ -1,4 +1,4 @@
-import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Locator, type Page } from "./clockedTest";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { FIXTURE_SIGN_IN, fixtureAccessToken, installMailFixture } from "../scripts/screenshot-services.mjs";
 import { waitForVaultDirectory } from "./exampleVault";

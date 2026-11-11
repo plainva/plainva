@@ -82,6 +82,7 @@ describe("every surface follows the choice", () => {
 
   it("has a preview sentence with all three kinds of link in every language", () => {
     const dir = join(REPO, "packages/ui/src/locales");
+    expect(readdirSync(dir).filter((name) => name.endsWith(".json")).length, "locale files are found").toBeGreaterThanOrEqual(10);
     for (const file of readdirSync(dir).filter((name) => name.endsWith(".json"))) {
       const sentence = JSON.parse(readFileSync(join(dir, file), "utf8")).settings.linkPreviewSentence as string;
       for (const tag of ["note", "web", "missing"]) expect(sentence, `${file}: <${tag}>`).toMatch(new RegExp(`<${tag}>[^<]+</${tag}>`));

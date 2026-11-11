@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, testNow } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import type { MobileTestGlobals } from "./exampleVault";
 
@@ -49,7 +49,7 @@ test("tapping the period opens the date jump sheet, and a picked day moves the c
   const sheet = page.locator('[data-testid="pim-jump-sheet"]');
   await expect(sheet).toBeVisible();
 
-  const year = new Date().getFullYear() + 1;
+  const year = testNow().getFullYear() + 1;
   await sheet.locator('[data-testid="pim-jump-next-year"]').click();
   await sheet.locator('[data-testid="pim-jump-month-2"]').click();
   await sheet.locator(`[data-testid="pim-jump-day-${year}-03-03"]`).click();

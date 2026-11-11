@@ -1,3 +1,4 @@
+import { testNow } from "./clockedTest";
 import { createHash } from "node:crypto";
 import type { BrowserContext } from "@playwright/test";
 
@@ -108,7 +109,7 @@ export async function installShareInbox(context: BrowserContext) {
         bytes.set(id, file.bytes);
         return { id, name: file.name, mime: file.mime, size: file.bytes.length, sha256: createHash("sha256").update(file.bytes).digest("hex") };
       });
-      entries.set(share.id, { version: 1, id: share.id, createdAt: Date.now(), status: "ready", text: share.text, subject: share.subject ?? "", files });
+      entries.set(share.id, { version: 1, id: share.id, createdAt: testNow().getTime(), status: "ready", text: share.text, subject: share.subject ?? "", files });
       return files.map((f) => f.id);
     },
     /** What is still waiting, as the app would read it. */

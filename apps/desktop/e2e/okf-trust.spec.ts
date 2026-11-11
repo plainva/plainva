@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 // OKF 0.2 trust signals (plan OKF v0.2, P3a): the lifecycle badge in the
 // document header (live widget AND read view), the stale banner with its one

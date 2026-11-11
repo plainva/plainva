@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, testNow } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
@@ -42,7 +42,7 @@ test("a blocker carries the chain mark, asks what a change was meant for, and a 
     // Sammelplan § 3.72 Nr. 12). Now the event and its blocker always hold
     // the current minute, so every run clicks THROUGH the now-line — which
     // takes no pointer events — and "Lunch" lies hours away from both.
-    const now = Date.now();
+    const now = testNow().getTime();
     const today = new Date(now);
     const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
     const HOUR = 3600_000;

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createHash } from 'node:crypto';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, testNow } from './fixtures/clockedTest';
 import { pickCompletion } from './completion';
 
 // E2E of the `.base` database viewer (plan Base-Erweiterungen W7): table with
@@ -3274,7 +3274,7 @@ test('Database context: opening an entry directly shows its databases and its pa
 
 test('the calendar view has three periods, and a spanning entry is one bar (S20)', async ({ page }) => {
   const pad2 = (n: number) => String(n).padStart(2, '0');
-  const now = new Date();
+  const now = testNow();
   const dayKey = (d: number) => `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(d)}`;
 
   // The fixture puts its entries on the 15th to the 17th of the CURRENT month, and
@@ -3369,7 +3369,7 @@ test('the timeline draws milestones as diamonds and dependencies as arrows', asy
   // without a line of code changing. Pinning the browser clock to the 16th
   // keeps the whole fixture in the window without touching what is asserted.
   // Same class as the pinned clock in the calendar-periods case above.
-  const pinned = new Date();
+  const pinned = testNow();
   await page.clock.setFixedTime(new Date(pinned.getFullYear(), pinned.getMonth(), 16, 12, 0, 0));
   await page.goto('/');
   const aside = page.locator('aside[aria-label="Left Sidebar"]');
@@ -3418,7 +3418,7 @@ test('the timeline is a row per entry, and dragging an edge writes the end (S21)
   // without a line of code changing. Pinning the browser clock to the 16th
   // keeps the whole fixture in the window without touching what is asserted.
   // Same class as the pinned clock in the calendar-periods case above.
-  const pinned = new Date();
+  const pinned = testNow();
   await page.clock.setFixedTime(new Date(pinned.getFullYear(), pinned.getMonth(), 16, 12, 0, 0));
   await page.goto('/');
   const aside = page.locator('aside[aria-label="Left Sidebar"]');
@@ -3450,7 +3450,7 @@ test('the timeline is a row per entry, and dragging an edge writes the end (S21)
   await page.mouse.up();
 
   const pad2 = (n: number) => String(n).padStart(2, '0');
-  const now = new Date();
+  const now = testNow();
   const expected = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-19`;
   await expect
     .poll(async () => await page.evaluate(() => (window as any).__writtenFiles?.['Projekte/Gamma.md'] ?? ''), { timeout: 8000 })
@@ -3667,7 +3667,7 @@ test('the calendar view title opens the date jump picker, and a picked day is sh
   await title.click();
   await expect(page.getByTestId('base-cal-jump-picker')).toBeVisible();
 
-  const year = new Date().getFullYear() + 1;
+  const year = testNow().getFullYear() + 1;
   await page.getByTestId('base-cal-jump-next-year').click();
   await page.getByTestId('base-cal-jump-month-2').click();
   await page.getByTestId(`base-cal-jump-day-${year}-03-03`).click();

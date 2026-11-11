@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, testNow } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, waitForIndexSchema } from "./exampleVault";
 
@@ -37,7 +37,7 @@ test("an account that is not synced says so above the calendar, the events stay;
 
     // Today, in the phone's own clock: four appointments and a working
     // location — five entries, two more than a month cell has dots for.
-    const now = new Date();
+    const now = testNow();
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const pad = (n: number) => String(n).padStart(2, "0");
     const key = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -52,7 +52,8 @@ test("an account that is not synced says so above the calendar, the events stay;
     sql.run(
       "plainva-index",
       "INSERT OR REPLACE INTO pim_state (account_id, scope, cursor, last_sync_ts, last_error, last_error_kind, auth_revision) VALUES (?, 'account', NULL, ?, ?, 'transient', NULL)",
-      ["pim-fixture-1", midnight + (10 * 60 + 42) * 60_000, "google api 503 backendError"],
+      // 10:42 on the wall clock: midnight plus hours is another time on a day the clock is put forward.
+      ["pim-fixture-1", new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 42).getTime(), "google api 503 backendError"],
     );
     await page.reload();
     await expect(page.locator(".m-tabbar")).toBeVisible({ timeout: 20_000 });

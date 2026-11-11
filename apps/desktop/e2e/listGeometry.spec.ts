@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures/clockedTest";
 import { openProbePage } from "./fixtures/openProbePage";
 import type { ListProbeWindow } from "./fixtures/listProbe";
 

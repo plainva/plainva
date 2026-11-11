@@ -103,6 +103,7 @@ pnpm install --frozen-lockfile
 pnpm --filter desktop tauri dev     # run the desktop app
 pnpm test && pnpm lint && pnpm typecheck   # checks
 pnpm --filter desktop test:e2e      # Playwright E2E (Vite dev server)
+pnpm --filter desktop build:e2e && E2E_BUNDLE=1 pnpm --filter desktop test:e2e   # the same against the built bundle, as CI runs it
 pnpm --filter desktop smoke:prod    # production-build smoke (vite build + preview + boot check)
 ```
 
@@ -114,7 +115,9 @@ With Nix, the flake provides the toolchain and the native libraries, so nothing 
 nix develop     # shell with Node.js, pnpm, Rust and the Tauri prerequisites
 ```
 
-When a Playwright test fails or needs a retry in CI, the run uploads the traces as the artifact `playwright-checks-<attempt>` (or `playwright-webkit-<attempt>`), kept for seven days; open one with `npx playwright show-trace <trace.zip>`.
+Every test runs on a fixed clock and in one time zone (`scripts/test-clock.mjs`: Wednesday 2026-11-11, 10:30, Europe/Berlin); set `PLAINVA_TEST_NOW` and `PLAINVA_TEST_TZ` to run a suite at another moment or in another zone.
+
+When a Playwright test fails or needs a retry in CI, the run uploads the traces as an artifact (`playwright-e2e-<shard>-<attempt>`, `playwright-mobile-<shard>-<attempt>`, `playwright-probes-<attempt>`, `playwright-build-<attempt>` or `playwright-webkit-<attempt>`), kept for seven days; open one with `npx playwright show-trace <trace.zip>`.
 
 The repo is a pnpm/Turborepo monorepo: `apps/desktop` (Tauri v2 + React + CodeMirror 6), `packages/core` (vault logic: indexing, sync, merge — UI-free and heavily unit-tested), `docs/` (user guide, ADRs, engineering notes).
 

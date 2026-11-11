@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
+import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
+import { e2eBundleBuild, e2eBundlePlugins } from "./scripts/e2e-bundle.mjs";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -11,8 +13,13 @@ const host = process.env.TAURI_DEV_HOST;
 const labsEnv = (): Record<string, string | undefined> => ({ ...process.env, PLAINVA_BUILD_CHANNEL: "labs" });
 
 // https://vite.dev/config/
-export default defineConfig(async ({ mode }) => ({
-  plugins: [react()],
+export default defineConfig(async ({ mode }) => {
+  // Unit tests run in one fixed zone, set before any worker starts (R9, scripts/test-clock.mjs).
+  if (mode === "test") pinTestTimeZone();
+  // The bundle the E2E suite runs against in CI (`--mode e2e`, R10); nothing for any other mode.
+  const root = fileURLToPath(new URL(".", import.meta.url));
+  return {
+  plugins: [react(), ...e2eBundlePlugins(mode, root)],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   define: buildInfoDefine(mode === "labs" ? labsEnv() : undefined),
   // The installed SDK has a deliberately smaller API. Both shells and every
@@ -77,6 +84,7 @@ export default defineConfig(async ({ mode }) => ({
     },
   },
   build: {
+    ...e2eBundleBuild(mode),
     // The supported engine floor is a PRODUCT decision, not a Vite default.
     // Until this line existed the floor came from `baseline-widely-available`,
     // which Vite bumps on every major — silently, and without anyone deciding
@@ -94,6 +102,15 @@ export default defineConfig(async ({ mode }) => ({
     target: ["chrome111", "edge111", "firefox114", "safari16.4", "ios16.4"],
     rollupOptions: {
       output: {
+        // Modules run in the order their imports say, whichever chunk they
+        // land in. Rolldown does not promise that by default: across chunks
+        // that import each other, a module could run before one it imports
+        // and read its exports as undefined. In the desktop bundle the
+        // keychain slot builders were undefined that way and every mail
+        // sign-in check threw; a probe of the shared UI read a list of AI
+        // tools as "not iterable" (stability plan R10, 2026-11-10). This
+        // closes the class for every module instead of rewriting each read.
+        strictExecutionOrder: true,
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
 
@@ -143,7 +160,8 @@ export default defineConfig(async ({ mode }) => ({
     // must run FIRST; test-setup loads every locale bundle eagerly for tests —
     // the app itself lazy-loads them (P2.8) and tests would otherwise assert
     // against raw keys.
-    setupFiles: ['./src/test-localstorage.ts', './src/test-setup.ts'],
+    // The test clock comes before both (R9): every file starts at TEST_NOW.
+    setupFiles: [fileURLToPath(new URL("../../scripts/vitest-shared-setup.mjs", import.meta.url)), './src/test-localstorage.ts', './src/test-setup.ts'],
     // B3 (code review): Node's experimental web storage prints a
     // "--localstorage-file" warning at every worker start and shadows jsdom's
     // storage; the workers run without it, the setup file covers the rest.
@@ -152,4 +170,5 @@ export default defineConfig(async ({ mode }) => ({
     // workers (found 2026-09-10 while closing the same class on the phone).
     execArgv: ['--no-experimental-webstorage'],
   },
-} as any));
+  } as any;
+});

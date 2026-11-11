@@ -22,6 +22,7 @@ describe("embedding model catalog", () => {
   it("pins every file by commit, size and SHA-256", () => {
     for (const spec of EMBEDDING_MODELS) {
       expect(spec.revision).toMatch(/^[0-9a-f]{40}$/);
+      expect(embeddingPackageFiles(spec).length, "an embedding package lists files").toBeGreaterThan(0);
       for (const file of embeddingPackageFiles(spec)) {
         expect(file.sha256).toMatch(/^[0-9a-f]{64}$/);
         expect(file.bytes).toBeGreaterThan(0);

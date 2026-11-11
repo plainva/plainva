@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/clockedTest';
 
 /**
  * Vault-wide find & replace + tag rename E2E (B6). Drives the modal (Mod+Shift+F)

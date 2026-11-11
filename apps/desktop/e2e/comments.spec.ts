@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 /**
  * Comments and suggestions in a vault WITHOUT an encrypted workspace

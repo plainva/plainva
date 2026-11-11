@@ -16,6 +16,7 @@ describe("profile field catalog", () => {
   });
 
   it("names a real per-vault setting for every field the phone carries", () => {
+    expect(storeBackedFields("mobile").length, "the phone carries profile fields").toBeGreaterThan(0);
     for (const field of storeBackedFields("mobile")) {
       expect(VAULT_KEYS, `${field.logical} → ${String(field.mobile)}`).toContain(field.mobile);
     }

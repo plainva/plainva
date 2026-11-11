@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/clockedTest';
 
 /**
  * Anchor links (issue #92, plan Kalender, Anker-Links, Dependabot 2026-09-10,

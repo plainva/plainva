@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect, testNow } from './fixtures/clockedTest';
 
 /**
  * Vault-wide Tasks view E2E (B4): open the view from the ribbon, see checkboxes
@@ -651,9 +651,12 @@ test('a repeating task spawns its next occurrence when checked off (issue #34, w
   // the day the fixture went overdue. The overdue catch-up itself has its own
   // unit test; what THIS test is about is the note appearing a week on.
   const day = (offset: number) => {
-    const d = new Date();
+    const d = testNow();
     d.setDate(d.getDate() + offset);
-    return d.toISOString().slice(0, 10);
+    // The local date, as the app writes it: toISOString() is the UTC date, a
+    // day off whenever the local and the UTC day differ (seen on the day
+    // summer time begins, stability plan R9).
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
   const due = day(0);
   const nextDue = day(7);

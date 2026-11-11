@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { forceFullParse } from "../test-parse";
 import {
   boundedInlineSyntax,
   finalizeTemplate,
@@ -94,7 +95,7 @@ describe("the fence readers of mail, copy and writing direction read the one rul
 
 describe("the editor reads a wiki link's name as written (3.133 no. 2, E9)", () => {
   const tree = (doc: string) => {
-    const state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage, extensions: [boundedInlineSyntax, wikiLinkInlineSyntax] })] });
+    const state = forceFullParse(EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage, extensions: [boundedInlineSyntax, wikiLinkInlineSyntax] })] }));
     const names: string[] = [];
     syntaxTree(state).iterate({ enter: (node) => { names.push(`${node.name}:${doc.slice(node.from, node.to)}`); } });
     return names;

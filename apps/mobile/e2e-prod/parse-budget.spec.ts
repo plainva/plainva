@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./clockedTest";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 
@@ -64,9 +64,9 @@ async function openNote(page: Page, title: string) {
 
 /** How long the page takes to answer a script: a frozen main thread does not. */
 async function answers(page: Page): Promise<number> {
-  const start = Date.now();
+  const start = performance.now();
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(null))));
-  return Date.now() - start;
+  return performance.now() - start;
 }
 
 test.beforeEach(async ({ context }) => {
@@ -79,7 +79,7 @@ for (const name of ["LongLine", "ShortLines", "Emphasis", "BigTable"]) {
     const sql = await installSqlBridge(context);
     try {
       await openVaultWith(page, { [`${name}.md`]: NOTES[`${name}.md`] });
-      const start = Date.now();
+      const start = performance.now();
       await openNote(page, name);
       const editor = page.locator(".cm-content").first();
       await expect(editor.getByText("Title").first()).toBeVisible({ timeout: 30_000 });
@@ -88,7 +88,7 @@ for (const name of ["LongLine", "ShortLines", "Emphasis", "BigTable"]) {
       await expect(editor.getByText("The end.")).toBeVisible({ timeout: 30_000 });
       expect(await answers(page)).toBeLessThan(5_000);
       // The old parse took minutes for each of these notes; a generous budget for the whole way.
-      expect(Date.now() - start).toBeLessThan(60_000);
+      expect(performance.now() - start).toBeLessThan(60_000);
       if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`parse-budget-${name}.png`) });
     } finally {
       await sql.close();

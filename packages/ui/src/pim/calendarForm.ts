@@ -25,6 +25,15 @@ export function eventStartDayKey(e: PimEventRow): string {
 }
 
 /** Day key shifted by whole days (calendar math on civil dates). */
+/** Whole local days from the day of `fromTs` to the day of `toTs` (summer time does not make it a fraction): a timed form's `endDayOffset`. */
+export function localDayDistance(fromTs: number, toTs: number): number {
+  const day = (ts: number) => {
+    const d = new Date(ts);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  };
+  return Math.round((day(toTs) - day(fromTs)) / 86_400_000);
+}
+
 export function shiftDayKey(date: string, deltaDays: number): string {
   const [y, m, d] = date.split("-").map(Number);
   return localIsoKey(new Date(y, (m ?? 1) - 1, (d ?? 1) + deltaDays));
@@ -44,6 +53,15 @@ export interface EventFormValues {
   /** Timed only: local wall-clock HH:MM. */
   startTime: string;
   endTime: string;
+  /**
+   * Timed only: on which day after the start's the end lies, as the event was
+   * opened - 1 for an event that ends at midnight (23:00-24:00) or runs past
+   * it. The form has no end date for a timed event, and without this an
+   * event to 24:00 was saved as 23:00-23:30 by any edit, a title alone
+   * included (stability plan, 2026-11-10). Dropped when the end time is
+   * edited: that end is on the start's day.
+   */
+  endDayOffset?: number;
   location: string;
   description: string;
   /** Set true once the user edits the description so an unrelated edit (or a drag
@@ -102,6 +120,7 @@ export function eventFormFromEvent(e: PimEventRow): EventFormValues {
     endDayKey: endInclusive >= dayKey ? endInclusive : dayKey,
     startTime: e.allDay ? "09:00" : hhmm(new Date(e.start.ts)),
     endTime: e.allDay ? "10:00" : hhmm(new Date(e.end.ts)),
+    ...(e.allDay ? {} : { endDayOffset: Math.max(0, localDayDistance(e.start.ts, e.end.ts)) }),
     location: e.location ?? "",
     description: e.description ?? "",
     color: e.color ?? "",
@@ -202,7 +221,8 @@ export function eventFormToDraft(v: EventFormValues): PimEventDraft {
     };
   }
   const startTs = new Date(`${v.dayKey}T${v.startTime || "09:00"}:00`).getTime();
-  let endTs = new Date(`${v.dayKey}T${v.endTime || "10:00"}:00`).getTime();
+  const endDay = v.endDayOffset ? shiftDayKey(v.dayKey, v.endDayOffset) : v.dayKey;
+  let endTs = new Date(`${endDay}T${v.endTime || "10:00"}:00`).getTime();
   if (!(endTs > startTs)) endTs = startTs + 30 * 60 * 1000;
   return { title, allDay: false, start: { ts: startTs }, end: { ts: endTs }, location, description, descriptionHtml, color, attendees, recurrence, notifyAttendees };
 }

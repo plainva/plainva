@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures/clockedTest';
 
 /**
  * Tags as pills (finding 2026-09-19, plan Rueckmeldungen P7): a tag is drawn

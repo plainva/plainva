@@ -112,6 +112,7 @@ describe("desktop: the commands of external agents", () => {
     expect(start).toContain("Command::new(&file)");
     expect(start).toContain("command.args(&entry.args)");
     expect(start).toContain("current_dir(&folder)");
+    expect([...start.matchAll(/Err\("([a-z-]+)"\.into\(\)\)|map_err\(\|_\| "([a-z-]+)"\.to_string\(\)\)/g)].length, "acp_start names its failure words").toBeGreaterThan(0);
     for (const word of [...start.matchAll(/Err\("([a-z-]+)"\.into\(\)\)|map_err\(\|_\| "([a-z-]+)"\.to_string\(\)\)/g)].map((m) => m[1] ?? m[2]!)) {
       if (word !== "lock failed") expect(ACP_START_PROBLEMS as readonly string[], word).toContain(word);
     }

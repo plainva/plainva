@@ -126,6 +126,7 @@ export function applyEventChanges(base: EventFormValues, after: EventFormValues,
       case "time":
         out.startTime = after.startTime;
         out.endTime = after.endTime;
+        out.endDayOffset = after.endDayOffset;
         break;
       case "location":
         out.location = after.location;

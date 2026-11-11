@@ -10,6 +10,7 @@ const entries = () => resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_A
 describe("the app's own skills", () => {
   it("are SKILL.md files in the Agent Skills format, one entry each, without a problem", () => {
     expect([...APP_SKILL_FOLDERS].sort()).toEqual(APP_SKILLS.map((s) => s.name).sort());
+    expect(APP_SKILL_SOURCES, "every app skill has its SKILL.md").toHaveLength(APP_SKILLS.length);
     for (const source of APP_SKILL_SOURCES) {
       expect(source.problems, source.id).toEqual([]);
       expect(source.skill!.name).toBe(source.id.slice("plainva:".length));

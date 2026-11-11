@@ -178,7 +178,7 @@ describe("LocalVaultAdapter", () => {
         timeoutTimer = setTimeout(() => reject(new Error("Watch event timeout")), WATCH_TIMEOUT_MS);
       });
 
-      await Promise.race([eventReceived, timeout]);
+      await expect(Promise.race([eventReceived, timeout])).resolves.toBeUndefined();
     } finally {
       if (pollTimer) clearInterval(pollTimer);
       if (timeoutTimer) clearTimeout(timeoutTimer);

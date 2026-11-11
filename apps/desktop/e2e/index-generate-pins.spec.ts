@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 
 // P21 (maintainer, 03.11.): a link that names an overview only as `index`
 // leads to whichever `index.md` the link rule finds first. Generating an

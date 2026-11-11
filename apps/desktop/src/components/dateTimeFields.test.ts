@@ -40,6 +40,7 @@ describe("date and time fields", () => {
 
   it("each WebKit pseudo-element has a rule of its own (an unknown one drops the whole rule)", () => {
     const rules = [...css.matchAll(/([^{}]+)\{/g)].map((m) => m[1].trim());
+    expect(rules.filter((s) => s.includes("::-webkit-date")).length, "the WebKit date rules are found").toBeGreaterThan(0);
     for (const selector of rules.filter((s) => s.includes("::-webkit-date"))) {
       expect(selector.split(",")).toHaveLength(1);
     }

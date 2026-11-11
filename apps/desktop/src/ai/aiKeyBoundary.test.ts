@@ -110,6 +110,7 @@ describe("iOS: AiNetPlugin", () => {
   it("answers with flags, status and scrubbed text only", () => {
     const answers = [...ios.matchAll(/resolve\(\[([^\]]*)\]\)/g)].map((m) => m[1]!);
     expect(answers.length).toBeGreaterThan(8);
+    expect(answers.flatMap((a) => [...a.matchAll(/"(\w+)": ([^,]+(?:\([^)]*\))?)/g)]).length, "the answers carry keyed values").toBeGreaterThan(0);
     for (const answer of answers) {
       for (const [, name, value] of answer.matchAll(/"(\w+)": ([^,]+(?:\([^)]*\))?)/g)) {
         expect(["type", "code", "message", "status", "body", "retryAfter", "text", "present", "cancelled", "added"], name).toContain(name);

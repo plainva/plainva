@@ -59,6 +59,8 @@ function sharedChecks(get: () => VaultTemplateDefinition) {
   it("every wiki link points at a note the template ships", () => {
     const def = get();
     const titles = new Set(def.notes.map((n) => stem(n.path)));
+    // The journal template links nothing; it still ships notes to look at.
+    expect(def.notes.length).toBeGreaterThan(0);
     for (const note of def.notes) {
       for (const target of linksIn(note.body)) {
         expect(titles.has(target), `${note.path}: dead link [[${target}]]`).toBe(true);
@@ -183,8 +185,10 @@ describe("Johnny.Decimal template", () => {
       it("areas, categories and IDs are numbered the way the method requires", () => {
         const def = get();
         const areas = def.folders!.filter((f) => !f.includes("/"));
+        expect(areas.length, "the method has area folders").toBeGreaterThan(0);
         for (const area of areas) expect(area, `${area} is not an area number`).toMatch(/^\d\d-\d\d /);
         const categories = def.folders!.filter((f) => f.includes("/"));
+        expect(categories.length, "the method has category folders").toBeGreaterThan(0);
         for (const cat of categories) {
           expect(cat.slice(cat.lastIndexOf("/") + 1), `${cat} is not a category number`).toMatch(/^\d\d /);
         }
@@ -217,6 +221,7 @@ describe("Johnny.Decimal template", () => {
         }
         // Every category folder is named in the index too, so the empty one is
         // visibly reserved rather than forgotten.
+        expect(def.folders!.filter((f) => f.includes("/")).length, "the method has category folders").toBeGreaterThan(0);
         for (const folder of def.folders!.filter((f) => f.includes("/"))) {
           const name = folder.slice(folder.lastIndexOf("/") + 1);
           if (name.startsWith("00 ")) continue; // the index's own home

@@ -3,7 +3,8 @@ import { undo, redo, selectAll, indentMore, indentLess } from "@codemirror/comma
 import { openSearchPanel } from "@codemirror/search";
 import { EditorSelection, type EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { listDepthAt } from "./listIndent";
+import { ensureSyntaxTree } from "@codemirror/language";
+import { listDepthAt, listDepthInTree } from "./listIndent";
 
 /**
  * Small selection-based editing commands for the mobile keyboard toolbar
@@ -27,7 +28,14 @@ type TextChange = { from: number; to?: number; insert: string };
 export function caretInListItem(state: EditorState): boolean {
   const line = state.doc.lineAt(state.selection.main.head);
   const lead = line.text.length - line.text.trimStart().length;
-  return listDepthAt(state, line.from + lead) > 0;
+  const pos = line.from + lead;
+  // The state's tree covers only what was parsed when it was made: a caret far
+  // down a long note sat beyond it and read as "not in a list". Parse up to
+  // the caret (bounded; a parse that is done costs nothing), else ask the
+  // snapshot and let the next tree update ask again (editorSession).
+  const tree = ensureSyntaxTree(state, line.to, 50);
+  if (tree) return listDepthInTree(tree, pos) > 0;
+  return listDepthAt(state, pos) > 0;
 }
 
 /**

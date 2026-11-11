@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures/clockedTest';
 import { installMenuVault } from './fixtures/menuVault';
 
 // Three readings of a note the editor shared with nobody (bug-clearing plan, P9).

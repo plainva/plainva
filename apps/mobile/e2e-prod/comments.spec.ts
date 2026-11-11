@@ -1,6 +1,6 @@
 import { EXAMPLE_NOTE_FROM_WINDOWS, readVaultFile, seedExampleNote } from "./exampleVault";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./clockedTest";
 
 /**
  * Comments on the phone, in a vault WITHOUT an encrypted workspace

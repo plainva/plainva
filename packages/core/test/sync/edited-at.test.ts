@@ -15,6 +15,13 @@ import { SyncQueue } from "../../src/sync/SyncQueue.js";
 import { SyncEngine } from "../../src/sync/SyncEngine.js";
 import { SyncWorker } from "../../src/sync/SyncWorker.js";
 import { WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
+import { useRealDate } from "../../../../scripts/test-clock.mjs";
+
+// This file is about the real clock (stability plan R9): "edited at" comes from
+// the mtimes a real disk writes, and the "today" window and the server's clock
+// must be the same clock as those. A test clock moves neither, so this file
+// runs on the real one.
+useRealDate();
 
 /**
  * "Edited at" of a file the sync downloaded (Sammelplan § 3.164).

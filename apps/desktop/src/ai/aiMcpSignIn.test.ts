@@ -86,6 +86,7 @@ describe("a server that wants a sign-in", () => {
     // What the browser was opened at carries the challenge, never the verifier it was made of.
     expect(t.oauth.opened[0]).toContain("code_challenge=");
     // The requests this side wrote to the server name no credential at all.
+    expect([...t.native.ports.values()].some((port) => "requests" in port && port.requests.length > 0), "the sign-in sent requests to the server").toBe(true);
     for (const port of t.native.ports.values()) {
       if ("requests" in port) for (const { request } of port.requests) expect(Object.keys(request.headers).map((name) => name.toLowerCase())).not.toContain("authorization");
     }
