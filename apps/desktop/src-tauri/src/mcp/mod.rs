@@ -2469,6 +2469,8 @@ mod tests {
         initialize(&mut client).await;
         // `PLAINV~1` is Plainva's folder by its second name on Windows; elsewhere nothing has that name, an answer that
         // names it reaches nothing (`real_inside_answer`), and the case is Windows's alone.
+        // Grown only on Windows (the short-name case below): elsewhere it stays as it is.
+        #[cfg_attr(not(windows), allow(unused_mut, clippy::useless_vec))]
         let mut cases = vec![(2, "Projects/one.md"), (4, "Projects/three.md"), (5, "Projects/four.md"), (6, "Projects/a.md"), (7, "Projects/five.md")];
         // Only where the volume keeps short names (asked, not assumed).
         #[cfg(windows)]
