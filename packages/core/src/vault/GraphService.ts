@@ -1,6 +1,7 @@
 import { foldPathNormalization } from "../sync/pathIdentity.js";
 import { isHiddenPath } from "./internalPath.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { ALWAYS_WHOLE, requireWholeIndex, type IndexWholeness } from "./indexWholeness.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { ftsExactTerm } from "./ftsQuery.js";
@@ -179,7 +180,32 @@ function pairKey(a: string, b: string): string {
 }
 
 export class GraphService {
-  constructor(public readonly db: IDatabaseAdapter) {}
+  /**
+   * `wholeness`: whether the index is whole (performance plan L3) — the
+   * clean-up's verdicts and the mentions offered as links are refused over
+   * half of one. The app builds its graph services from the vault's query
+   * service (`GraphService.forIndex`), which carries it; a guard test keeps
+   * the app from building one without.
+   */
+  constructor(public readonly db: IDatabaseAdapter, private readonly wholeness: IndexWholeness = ALWAYS_WHOLE) {}
+
+  /** The graph over the index a query service reads, with its wholeness. */
+  static forIndex(queryService: { db: IDatabaseAdapter; indexWholenessSource(): IndexWholeness }): GraphService {
+    return new GraphService(queryService.db, queryService.indexWholenessSource());
+  }
+
+  /**
+   * The clean-up's verdicts — notes nothing links to (offered for deletion)
+   * and links that lead nowhere (offered to be created) — only over a whole
+   * index: over half of one, a note linked from a note not read yet is an
+   * "orphan" and a link to a note not read yet is "broken" (L3).
+   */
+  async cleanupVerdicts(graph?: VaultGraph): Promise<{ orphans: GraphNodeInfo[]; broken: BrokenLinkInfo[] }> {
+    requireWholeIndex(this.wholeness);
+    const g = graph ?? (await this.loadGraph({ includeAttachments: true }));
+    const [orphans, broken] = await Promise.all([this.getOrphans(g), this.getBrokenLinks(g)]);
+    return { orphans, broken };
+  }
 
   /**
    * Loads the full resolved vault graph. Attachments only become nodes when
@@ -634,6 +660,8 @@ export class GraphService {
    * are skipped.
    */
   async findUnlinkedMentions(opts: UnlinkedMentionScanOptions = {}, graph?: VaultGraph): Promise<GraphSuggestion[]> {
+    // A mention is offered to be turned into a link: over a whole index only (L3).
+    requireWholeIndex(this.wholeness);
     const g = graph ?? (await this.loadGraph());
     const adj = this.adjacency(g);
     const maxResults = opts.maxResults ?? 500;
@@ -796,8 +824,9 @@ export class GraphService {
     return [
       {
         id: "mention",
+        // Over half an index no mention is suggested (L3): the strip says why.
         suggest: async (forPath, limit, signal) =>
-          (await this.findUnlinkedMentions({ forPath, signal, maxResults: forPath ? limit * 4 : limit })).slice(0, limit),
+          this.wholeness.state().kind !== "whole" ? [] : (await this.findUnlinkedMentions({ forPath, signal, maxResults: forPath ? limit * 4 : limit })).slice(0, limit),
       },
       {
         id: "cocitation",

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
-import { awaitAnyWholeIndex, ICON, toast } from "@plainva/ui";
+import { errorText, ICON, indexBuildState, subscribeIndexBuild, toast } from "@plainva/ui";
+import { isIndexNotWholeError } from "@plainva/core";
 import { applyMentionLink, brokenLinkLabel, brokenLinkNotePath, createBrokenLinkTarget } from "../../services/graphActions";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { getGraphState, suggestionKey } from "../../services/graphState";
@@ -36,30 +37,37 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // The verdicts are refused over an index that is not whole (performance plan
+  // L3): the panel says why instead of "nothing to clean up", and asks again
+  // once the index is whole.
+  const [refused, setRefused] = useState<string | null>(null);
+  const indexKind = useSyncExternalStore(subscribeIndexBuild, () => (vaultPath ? indexBuildState(vaultPath).kind : "whole"));
 
   useEffect(() => {
     let alive = true;
     if (!graphService) return;
     (async () => {
       try {
-        // An orphan is a note the index knows no link to: over a first index
-        // still being built, a wrong offer to delete (performance plan L3, as
-        // on the phone, issue 143).
-        await awaitAnyWholeIndex();
+        // An orphan is a note the index knows no link to: over half an index,
+        // a wrong offer to delete — refused there (performance plan L3).
+        const { orphans: o, broken: b } = await graphService.cleanupVerdicts();
         if (!alive) return;
-        const graph = await graphService.loadGraph({ includeAttachments: true });
-        const [o, b] = await Promise.all([graphService.getOrphans(graph), graphService.getBrokenLinks(graph)]);
-        if (!alive) return;
+        setRefused(null);
         setOrphans(o);
         setBroken(b);
-      } catch {
-        /* panel stays empty */
+      } catch (e) {
+        if (alive && isIndexNotWholeError(e)) {
+          setRefused(errorText(e));
+          setOrphans([]);
+          setBroken([]);
+        }
+        /* otherwise the panel stays empty */
       }
     })();
     return () => {
       alive = false;
     };
-  }, [graphService, refreshToken]);
+  }, [graphService, refreshToken, indexKind]);
 
   useEffect(() => {
     onHighlight(
@@ -81,13 +89,13 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
     setProgress(null);
     try {
       await graphState?.load();
-      await awaitAnyWholeIndex();
       const found = await graphService.findUnlinkedMentions({
         signal: controller.signal,
         onProgress: (current, total) => setProgress({ current, total }),
       });
       setMentions(found.filter((m) => !graphState?.isDismissed(suggestionKey(m.reason, m.source, m.target))));
-    } catch {
+    } catch (e) {
+      if (isIndexNotWholeError(e)) toast.warning(errorText(e));
       /* aborted or failed: keep the previous list */
     } finally {
       setScanning(false);
@@ -193,7 +201,8 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
         ))}
       </div>
       <div className="custom-scrollbar" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 var(--space-2) var(--space-2)", display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
-        {tab === "orphans" &&
+        {refused && <span data-testid="graph-cleanup-refused" style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>{refused}</span>}
+        {!refused && tab === "orphans" &&
           (orphans.length === 0 ? (
             <span style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>{t("graph.cleanupNoOrphans", { defaultValue: "Keine Waisen — alles verbunden." })}</span>
           ) : (
@@ -212,7 +221,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
               </div>
             ))
           ))}
-        {tab === "broken" &&
+        {!refused && tab === "broken" &&
           (broken.length === 0 ? (
             <span style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>{t("graph.cleanupNoBroken", { defaultValue: "Keine kaputten Links." })}</span>
           ) : (
@@ -235,7 +244,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
               </div>
             ))
           ))}
-        {tab === "mentions" && (
+        {!refused && tab === "mentions" && (
           <>
             <button className="pv-btn pv-btn--secondary pv-btn--sm" disabled={scanning} onClick={() => void scanMentions()} data-testid="graph-cleanup-scan">
               {scanning

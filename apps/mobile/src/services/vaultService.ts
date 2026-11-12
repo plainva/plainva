@@ -104,7 +104,7 @@ import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, mov
 import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
-import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
+import { beginIndexBuild, indexBuildState, indexWholenessFor, isIndexBuilding, markIndexClosed, markIndexFailed, markIndexWhole, reportIndexBuild } from "./indexBuild";
 import { afterFirstPaint } from "./bootStagger";
 
 /**
@@ -929,12 +929,17 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         // task reconciler waits for before it creates a note (taskSyncRuntime).
         // Said first: a line or a notice that fails must not keep it closed.
         indexPassSettled = true;
+        // And whole for whoever plans a write from it (performance plan L3).
+        markIndexWhole(entry.id);
         logDiagnostic("index", formatFullScan(info));
         indexNotices.scanned(info);
       },
       // A scan that failed is said once, with its reason (issue 125): the
       // index keeps what it got, and the next scan tries again.
       onFullScanFailed: (info) => {
+        // An index that was not whole stays so, refused to every planner with
+        // the reason, until a scan goes through (L3). One that was whole stays whole.
+        if (indexBuildState(entry.id).kind !== "whole") markIndexFailed(entry.id, errorText(info.error));
         logDiagnostic("index", formatFullScanFailure(info));
         indexNotices.failed(info);
       },
@@ -968,6 +973,11 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       },
     });
     queryService = new VaultQueryService(db);
+    // Whether the index is whole, for whoever plans a write from it (L3):
+    // this vault's entry of the shared store. A vault that closes refuses
+    // whoever still waits for it.
+    queryService.setIndexWholeness(indexWholenessFor(entry.id));
+    indexAbort.signal.addEventListener("abort", () => markIndexClosed(entry.id), { once: true });
     // `file.day` (plan Journal-Erweiterungen, X8): the two settings that name a
     // daily note tell every query which day a file name stands for. Set on the
     // service rather than per call - there are five call sites and they all
@@ -983,6 +993,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       // reads come first on the one connection (bootStagger.ts, performance
       // plan L4). A scan asked for meanwhile - a pull to refresh - starts it.
       const warmIndexer = indexer;
+      // An index a first scan never got through (issue 125) is not whole: the
+      // warm pass is its build, counted and gated like a first one (L3).
+      if (!(await indexer.indexComplete().catch(() => false))) beginIndexBuild(entry.id);
       afterFirstPaint(() => {
         if (indexAbort.signal.aborted) return;
         void warmIndexer
@@ -1021,8 +1034,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
           if (indexAbort.signal.aborted) return;
           window.dispatchEvent(new CustomEvent("m-vault-changed"));
         })
-        .catch(() => {})
-        .finally(() => endIndexBuild(entry.id));
+        // Its end is said by the scan itself: whole (onFullScan), failed
+        // (onFullScanFailed) or closed with the vault (indexAbort).
+        .catch(() => {});
     }
     searchAvailable = true;
   } catch (err) {
@@ -1328,7 +1342,8 @@ export const vaultOps = {
     if (newPath === oldPath) return { newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     let changedPaths: string[] = [];
     let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
-    await awaitWholeIndex(v);
+    // Refused over an index that is not whole, before anything moves (issue 143, L3).
+    v.queryService?.requireWholeIndex?.();
     const queryService = v.queryService;
     const followUpError = await moveStep(v, oldPath, newPath, async () => {
       if (queryService) {
@@ -1436,7 +1451,8 @@ export const vaultOps = {
     // we do not know which of them the editor holds — so everything pending
     // lands first. With nothing pending this costs nothing.
     await flushBeforeMove(v, oldPath, true);
-    await awaitWholeIndex(v);
+    // Refused over an index that is not whole, before anything moves (issue 143, L3).
+    v.queryService?.requireWholeIndex?.();
     const followUpError = await moveStep(v, oldPath, newPath, () => v.files.renameItem(oldPath, newPath));
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
@@ -1481,7 +1497,8 @@ export const vaultOps = {
     const name = path.split("/").pop()!;
     const newPath = targetFolder ? `${targetFolder}/${name}` : name;
     if (newPath === path) return path;
-    await awaitWholeIndex(v);
+    // Refused over an index that is not whole, before anything moves (issue 143, L3).
+    v.queryService?.requireWholeIndex?.();
     const followUpError = await moveStep(v, path, newPath, () => v.files.renameItem(path, newPath));
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
@@ -1796,6 +1813,9 @@ export const vaultOps = {
    * (finding 2026-10-09).
    */
   async createNoteFromWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
+    // A note of a name the vault may hold in a note not read yet: not made over
+    // an index that is not whole (performance plan L3, as on the desktop).
+    v.queryService?.requireWholeIndex?.();
     const { path, title } = wikiTargetToPath(target, hostPath);
     if (!title) return null;
     return this.createNoteAt(v, path, title);

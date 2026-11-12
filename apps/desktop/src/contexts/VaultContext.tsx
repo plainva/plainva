@@ -9,7 +9,7 @@ import React, { createContext, useContext, useState, useEffect, useLayoutEffect,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { isIndexNotWholeError, VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -24,10 +24,10 @@ import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown
 import { LoadStarts } from "../services/loadStarts";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createIndexNotices, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createIndexNotices, errorText, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText, beginIndexBuild, endIndexBuild, reportIndexBuild } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText, beginIndexBuild, indexBuildState, indexWholenessFor, markIndexClosed, markIndexFailed, markIndexWhole, reportIndexBuild } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -1080,6 +1080,8 @@ export const VaultProvider: React.FC<{
         // walked, how long it took and what it changed. Counts only. On
         // screen, what it left out, by name (issue 125).
         onFullScan: (info) => {
+          // Whole for whoever plans a write from it (performance plan L3).
+          markIndexWhole(path);
           // First, so that a line or a notice that fails cannot keep the
           // deferral up for the rest of the session.
           if (coldIndexOwed) {
@@ -1100,6 +1102,9 @@ export const VaultProvider: React.FC<{
         // A scan that failed is said once, with its reason (issue 125): the
         // index keeps what it got, and the next scan tries again.
         onFullScanFailed: (info) => {
+          // An index that was not whole stays so — refused to every planner,
+          // with the reason — until a scan goes through. One that was whole stays whole.
+          if (indexBuildState(path).kind !== "whole") markIndexFailed(path, errorText(info.error));
           logDiagnostic("index", formatFullScanFailure(info));
           indexNotices.failed(info);
         },
@@ -1115,7 +1120,13 @@ export const VaultProvider: React.FC<{
         }
       });
       const queryService = new VaultQueryService(dbAdapter);
-      const graphService = new GraphService(dbAdapter);
+      // Whether the index is whole, for whoever plans a write from it
+      // (performance plan L3): this vault's entry of the shared store, which
+      // the windows that show it mirror. A vault that closes refuses whoever
+      // still waits for it.
+      queryService.setIndexWholeness(indexWholenessFor(path));
+      currentAbortSignal.addEventListener("abort", () => markIndexClosed(path), { once: true });
+      const graphService = GraphService.forIndex(queryService);
 
       // Serialized incremental indexing for watcher events and sync pulls (P2.5):
       // one batch at a time, concurrent producers coalesce into one follow-up
@@ -1282,8 +1293,6 @@ export const VaultProvider: React.FC<{
       // Warm index ⇒ the notes are already on screen, so the encrypted-workspace
       // reconcile sweep (A2) can run in the background instead of blocking open.
       const deferWorkspaceReconcile = indexedCount > 0;
-      // The first index of an empty index, running behind the open (L3).
-      let coldIndexRun: Promise<void> | null = null;
 
       if (indexedCount > 0) {
         reportInitialProgress = false; // background reconcile: no loading bar
@@ -1295,6 +1304,11 @@ export const VaultProvider: React.FC<{
         if (await indexer.indexComplete().catch(() => false)) {
           coldIndexOwed = false;
           deferInitialEnqueue = false;
+        } else {
+          // Not whole either for whoever plans a write from it (performance
+          // plan L3): this pass is its build, counted and gated like a first one.
+          reportInitialProgress = true;
+          beginIndexBuild(path);
         }
         void indexer
           .indexVaultFull("open")
@@ -1319,9 +1333,10 @@ export const VaultProvider: React.FC<{
         // 10 000 notes before anything could be read or typed. The tree draws
         // its files from the disk listing until the index is whole (FileTree),
         // the strip on top says that search, tags and databases are not whole
-        // yet (IndexBuildNotice), and what needs the whole index waits for it
-        // (`awaitWholeIndex`: rename and move with their link updates, the
-        // clean-up, find and replace, a link whose note is not read yet).
+        // yet (IndexBuildNotice), and whatever plans a write from the index is
+        // refused until it is whole (core `indexWholeness.ts`: renames and moves
+        // with their links, overviews, the clean-up, find and replace, a link
+        // whose note is not read yet, the slices of a workspace).
         //
         // Every file is "new" here — the deferred enqueue (3c) keeps this from
         // mass-pushing over the remote; the first pull reconciles and
@@ -1332,13 +1347,14 @@ export const VaultProvider: React.FC<{
         // 125), says so (onFullScanFailed) and the next full scan tries again;
         // the index is owed that scan from the start (coldIndexOwed).
         beginIndexBuild(path);
-        coldIndexRun = perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"))
+        void perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"))
           .then(() => undefined, (error: unknown) => {
             if (!currentAbortSignal.aborted) console.error("[VaultContext] first full index failed", error);
           })
           .finally(() => {
+            // Its end is said by the scan itself: whole (onFullScan), failed
+            // (onFullScanFailed) or closed with the vault (the abort above).
             reportInitialProgress = false;
-            endIndexBuild(path);
             if (currentAbortSignal.aborted) return;
             // The tree drew the files from the disk until now: from the index again,
             // with their titles. The folders were the disk's all along.
@@ -1346,21 +1362,19 @@ export const VaultProvider: React.FC<{
               ? { ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: null }
               : s));
           });
-        // Called off with the vault: the build ends with it (the scan sees the
-        // signal at its next file), and the strip goes at once.
-        currentAbortSignal.addEventListener("abort", () => endIndexBuild(path), { once: true });
       }
 
       // If it's a new WebDAV connection, we enqueue all local files to trigger an
-      // initial push. Read from the index: on a first index once it is whole.
+      // initial push. Read from the index: only once it is whole — after a build,
+      // and after a failed one only once a later scan went through (L3).
       if (isNewConnection && !workspaceStateStore) {
-        if (coldIndexRun) {
-          void coldIndexRun.then(() => {
+        if (queryService.indexWholeness().kind === "whole") {
+          await syncQueue.enqueueAllLocalFiles();
+        } else {
+          void queryService.untilWholeIndex().then(() => {
             if (currentAbortSignal.aborted) return;
             return syncQueue.enqueueAllLocalFiles().then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")));
-          }).catch((e) => console.error("[VaultContext] enqueueAllLocalFiles failed", e));
-        } else {
-          await syncQueue.enqueueAllLocalFiles();
+          }).catch((e) => { if (!isIndexNotWholeError(e)) console.error("[VaultContext] enqueueAllLocalFiles failed", e); });
         }
       }
 
@@ -3244,7 +3258,7 @@ export const VaultProvider: React.FC<{
   /** Every workspace object with the tags and properties a dynamic slice rule can ask about. */
   const workspaceSliceObjects = async () => {
     const { workspaceState } = workspaceControlPlane();
-    return loadWorkspaceSliceObjects(await workspaceState.listObjects(), state.dbAdapter);
+    return loadWorkspaceSliceObjects(await workspaceState.listObjects(), state.queryService);
   };
 
   const previewSlice = async (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }): Promise<Array<{ objectId: string; path: string }>> => {
@@ -3294,7 +3308,16 @@ export const VaultProvider: React.FC<{
   const refreshWorkspaceSliceCounts = async (): Promise<void> => {
     const { runtime } = workspaceControlPlane();
     if (runtime.policy.payload.slices.length === 0) return;
-    const refreshed = refreshWorkspaceSliceMaterialization({ runtime, objects: await workspaceSliceObjects() });
+    let objects: WorkspaceSliceObject[];
+    try {
+      objects = await workspaceSliceObjects();
+    } catch (error) {
+      // Over half an index the slices keep what they last gave access to (L3):
+      // a re-materialisation now would publish a policy that takes access away.
+      if (isIndexNotWholeError(error)) return;
+      throw error;
+    }
+    const refreshed = refreshWorkspaceSliceMaterialization({ runtime, objects });
     if (!refreshed) return;
     await commitGovernance({ policy: refreshed.policy, grants: [], groupKeys: runtime.groupKeys });
   };

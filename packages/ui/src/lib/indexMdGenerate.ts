@@ -30,6 +30,10 @@ export interface IndexGenAdapter {
 
 /** Every indexed markdown path, normalised and minus the excluded areas. */
 export async function listMarkdownPaths(queryService: VaultQueryService): Promise<string[]> {
+  // What an overview lists, and what an adoption may link to: never from half
+  // an index (performance plan L3) — a listing written now would miss every
+  // note not read yet, and stay that way.
+  queryService.requireWholeIndex?.();
   const rows = await queryService.db.query<{ path: string }>(
     `SELECT path FROM files WHERE mode != 'attachment'`,
   );

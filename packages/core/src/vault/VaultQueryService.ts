@@ -1,5 +1,6 @@
 import { trimEndChars } from "../textScan.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { ALWAYS_WHOLE, requireWholeIndex, untilWholeIndex, type IndexWholeness, type IndexWholenessState } from "./indexWholeness.js";
 import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, isWholeVaultFolder, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
 import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
@@ -229,6 +230,21 @@ export class VaultQueryService {
   static readonly SNIPPET_MARK_END = SNIPPET_MARK_END;
 
   constructor(public readonly db: IDatabaseAdapter) {}
+
+  /**
+   * Whether this index holds the whole vault (performance plan L3,
+   * `indexWholeness.ts`): set by the window that runs the vault, mirrored in
+   * every other window. Whole unless somebody says otherwise.
+   */
+  private wholeness: IndexWholeness = ALWAYS_WHOLE;
+  setIndexWholeness(wholeness: IndexWholeness): void { this.wholeness = wholeness; }
+  /** The wholeness itself, read when asked — for services over the same index (`GraphService.forIndex`). */
+  indexWholenessSource(): IndexWholeness { return { state: () => this.wholeness.state(), changed: () => this.wholeness.changed() }; }
+  indexWholeness(): IndexWholenessState { return this.wholeness.state(); }
+  /** Refuses (`IndexNotWholeError`) unless the index is whole: for whoever plans a write from it now. */
+  requireWholeIndex(): void { requireWholeIndex(this.wholeness); }
+  /** Resolves once the index is whole; rejects when the vault is closed first. For background work. */
+  untilWholeIndex(): Promise<void> { return untilWholeIndex(this.wholeness); }
 
   /** Parses the search-box grammar (prefix terms, "phrases", -exclusions,
    *  path:/tag: filters); UI code uses `terms` for highlighting and the
@@ -846,6 +862,8 @@ export class VaultQueryService {
    * against the current on-disk content.
    */
   async findInVault(query: string, opts: FindReplaceOptions = {}, limitPerNote = 100): Promise<VaultFindResult[]> {
+    // The set of files a replace writes: never from half an index (L3).
+    this.requireWholeIndex();
     if (!query) return [];
     const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
       `SELECT path, title, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
@@ -1072,6 +1090,8 @@ export class VaultQueryService {
    * `[[index]]` the link rule then finds it for, Sammelplan § 3.135 Nr. 6).
    */
   async linksNamingFile(fileName: string): Promise<LinkRecord[]> {
+    // Asked to plan what an adoption or overview pins: never from half an index (L3).
+    this.requireWholeIndex();
     const isNote = /\.md$/i.test(fileName);
     const patterns = new Set<string>();
     for (const spelling of likeAnySpelling(isNote ? fileName.replace(/\.md$/i, "") : fileName)) {

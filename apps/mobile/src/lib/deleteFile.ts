@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
-import { initialSelection, isBasePath, isLargeDeletion, noteDisplayName, planNeedsDialog, selectedPaths } from "@plainva/ui";
+import { errorText, initialSelection, isBasePath, toast, isLargeDeletion, noteDisplayName, planNeedsDialog, selectedPaths } from "@plainva/ui";
+import { isIndexNotWholeError } from "@plainva/core";
 import { mCascade, mConfirm } from "../services/mobileDialogs";
 import { buildMobileDeletionPlan, executeMobileCascade } from "../services/cascadeDelete";
 import { vaultOps, type MobileVault } from "../services/vaultService";
@@ -12,13 +13,34 @@ import { countVaultFiles } from "./folderDeletion";
  * databases); anything else keeps the slim confirm exactly as before. Shared
  * by Browse / Today / Databases / Note / Pinboard.
  */
+const REFUSED = "refused" as const;
+
+/**
+ * The cascade plan, or the refusal where the index is not whole (performance
+ * plan L3): its warnings — another database a note is part of, notes that go
+ * with it — are read from the index, and a delete over half of one would go
+ * without the warning it needs. Said, nothing deleted; as on the desktop.
+ */
+async function deletionPlanOrRefusal(vault: MobileVault, paths: string[]) {
+  try {
+    return await buildMobileDeletionPlan(vault, paths);
+  } catch (e) {
+    if (isIndexNotWholeError(e)) {
+      toast.warning(errorText(e));
+      return REFUSED;
+    }
+    return null;
+  }
+}
+
 export async function confirmDeleteFile(
   vault: MobileVault,
   path: string,
   title: string,
   t: TFunction,
 ): Promise<boolean> {
-  const plan = await buildMobileDeletionPlan(vault, [path]).catch(() => null);
+  const plan = await deletionPlanOrRefusal(vault, [path]);
+  if (plan === REFUSED) return false;
 
   if (plan && planNeedsDialog(plan)) {
     const sel = await mCascade({
@@ -80,7 +102,8 @@ export async function confirmDeleteFiles(
     return ok ? [paths[0]] : [];
   }
 
-  const plan = await buildMobileDeletionPlan(vault, [...paths]).catch(() => null);
+  const plan = await deletionPlanOrRefusal(vault, [...paths]);
+  if (plan === REFUSED) return [];
 
   // Whatever the cascade adds, the person asked for these to go — so the
   // confirmation counts what will ACTUALLY be deleted, not what was tapped.

@@ -37,7 +37,15 @@ import { noteDisplayName } from "../lib/noteTitle";
  */
 
 /** The data surface a plan needs — shared with the note database context. */
-export type DeletionPlanDeps = BaseDataDeps;
+export type DeletionPlanDeps = BaseDataDeps & {
+  /**
+   * Refuses unless the index is whole (`VaultQueryService.requireWholeIndex`,
+   * performance plan L3): what goes with a deleted note, and what the dialog
+   * warns about — another database it is part of, a note that shares it —, is
+   * read from the index; over half of one a warning would be missing.
+   */
+  requireWholeIndex(): void;
+};
 
 export interface CascadeElement {
   path: string;
@@ -140,6 +148,7 @@ async function computeCascade(deps: DeletionPlanDeps, seeds: string[]): Promise<
  * assigned/linked group per source base.
  */
 export async function buildDeletionPlan(deps: DeletionPlanDeps, targetPaths: string[]): Promise<DeletionPlan> {
+  deps.requireWholeIndex?.();
   const targets = [...new Set(targetPaths.map(normPath))];
   const baseTargets = targets.filter(isBasePath);
   const noteTargets = targets.filter((p) => !isBasePath(p));

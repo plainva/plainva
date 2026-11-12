@@ -7,7 +7,7 @@ import { AreaBoundary,
   rememberSearch, SearchField,
   setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge,
   IconButton, SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey,
-  ActiveSearchModeSwitch, ActiveSemanticCoverage, FoundChip, meaningActive, useLocalEmbeddings } from "@plainva/ui";
+  ActiveSearchModeSwitch, ActiveSemanticCoverage, errorText, toast, FoundChip, meaningActive, useLocalEmbeddings } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
@@ -176,7 +176,7 @@ export function SearchScreen({
   const createNote = () => {
     void vaultOps.createNoteFromWikiTarget(vault, createName).then((path) => {
       if (path) openPath(path);
-    });
+    }, (e) => toast.warning(errorText(e)));
   };
 
   const resultRow = (r: SearchResult) => (

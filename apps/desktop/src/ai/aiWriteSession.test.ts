@@ -183,7 +183,7 @@ function writeVault(
     folderExists: async (folder) => folder === "" || Object.keys(NOTES).some((path) => path.startsWith(`${folder}/`)),
     taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), "en"),
     draftPlace: async (kind, day) => (kind === "task" ? "Tasks/task.md" : `Daily/${day}.md`),
-    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never }, exists, path, name),
+    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never, requireWholeIndex: () => {} }, exists, path, name),
     rename: async (path, name) => {
       acts.push(`rename ${path} -> ${name}`);
       return `${path.slice(0, path.lastIndexOf("/") + 1)}${name}.md`;

@@ -303,6 +303,9 @@ export function startReminderScheduler(deps: ReminderSchedulerDeps): () => void 
   };
 
   timeouts.push(setTimeout(() => void plan(), INITIAL_DELAY_MS));
+  // Planned over half an index, the checkbox reminders of the notes not read
+  // yet are missing (performance plan L3): planned again the moment it is whole.
+  void (deps.queryService as { untilWholeIndex?: () => Promise<void> } | null)?.untilWholeIndex?.().then(() => { if (!stopped) void plan(); }, () => {});
   intervals.push(setInterval(() => void plan(), PLAN_INTERVAL_MS));
   window.addEventListener("plainva-pim-changed", onPimChanged);
   window.addEventListener("plainva-reminders-changed", onPimChanged);

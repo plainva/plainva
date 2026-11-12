@@ -109,6 +109,8 @@ export async function removeRelationLink(
   targetPath: string,
   propertyKey: string
 ): Promise<number> {
+  // Which spelling a link is written in, and which values lead to a note, is read from the index: never over half of one (performance plan L3).
+  queryService.requireWholeIndex?.();
   const { noteLinkResolver } = await import("@plainva/core");
   const linkedNote = noteLinkResolver(await queryService.linkTargets());
   const resolves = (value: string): boolean => {
@@ -161,6 +163,8 @@ export async function writeRelationLink(
   limitOne: boolean,
   options: { keepTaken?: boolean } = {},
 ): Promise<string | null> {
+  // Which spelling a link is written in, and which values lead to a note, is read from the index: never over half of one (performance plan L3).
+  queryService.requireWholeIndex?.();
   const notes = await queryService.listNotes();
   const allPaths = notes.map((n) => n.path);
   const link = `[[${wikiTargetForPath(targetPath, allPaths)}]]`;

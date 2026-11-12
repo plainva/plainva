@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { initialSelection, planNeedsDialog, selectedPaths, type CascadeSelection, type DeletionPlan } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
-import { deleteWithNet, toast } from "@plainva/ui";
+import { deleteWithNet, errorText, toast } from "@plainva/ui";
 import { confirmDeletion, confirmLargeDeletion, isLargeDeletion } from "../services/deleteConfirm";
 import {
   buildDesktopDeletionPlan,
@@ -164,7 +164,7 @@ export function CascadeDeleteHost({ onDeleted }: { onDeleted: (paths: string[]) 
         setPlan(p);
       } catch (e) {
         console.error("cascade plan failed", e);
-        toast.error(d.t("dialogs.deleteFailedMsg", { error: e instanceof Error ? e.message : String(e) }));
+        toast.error(d.t("dialogs.deleteFailedMsg", { error: errorText(e) }));
         finish(false);
       }
     })();

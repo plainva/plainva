@@ -11,9 +11,14 @@ import type { WorkspaceSliceObject } from "./slices.js";
  */
 export async function loadWorkspaceSliceObjects(
   objects: readonly WorkspaceSliceObject[],
-  db: IDatabaseAdapter | null
+  index: { db: IDatabaseAdapter; requireWholeIndex(): void } | null
 ): Promise<WorkspaceSliceObject[]> {
-  if (!db) return objects.map((object) => ({ ...object, tags: [], properties: {} }));
+  if (!index) return objects.map((object) => ({ ...object, tags: [], properties: {} }));
+  // What a slice gives access to is published, signed, to every member: never
+  // from half an index (performance plan L3). Over one, a tag slice would lose
+  // every note not read yet, and the members their access.
+  index.requireWholeIndex();
+  const db = index.db;
   const tagRows = await db.query<{ path: string; tag: string }>(
     `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id`
   );

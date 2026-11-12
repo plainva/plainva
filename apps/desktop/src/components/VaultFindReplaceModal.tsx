@@ -1,4 +1,3 @@
-import { awaitAnyWholeIndex } from "@plainva/ui";
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search as SearchIcon, SearchX } from "lucide-react";
@@ -6,6 +5,7 @@ import { updateVaultText, type FindReplaceOptions, type VaultFindResult } from "
 import {
   Button,
   Checkbox,
+  errorText,
   EmptyState,
   ICON,
   Modal,
@@ -60,8 +60,8 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
     if (!queryService || !find || regexError) return;
     setBusy(true);
     try {
-      // A replace over half an index would miss the notes not read yet (L3, as on the phone).
-      await awaitAnyWholeIndex();
+      // Refused over an index that is not whole (core findInVault, L3): a
+      // replace over half of one would miss the notes not read yet.
       const res = await queryService.findInVault(find, opts);
       setResults(res);
       setSelected(new Set(res.map((r) => r.path)));
@@ -72,7 +72,12 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
 
   const runFind = async () => {
     setStatus(null);
-    await search();
+    try {
+      await search();
+    } catch (e) {
+      setResults(null);
+      setStatus({ text: errorText(e), warn: true });
+    }
   };
 
   const runReplace = async () => {
@@ -106,7 +111,7 @@ export const VaultFindReplaceModal: React.FC<{ onClose: () => void; onOpenPath: 
     if (res.skipped.length > 0) parts.push(t("findReplace.skipped", { count: res.skipped.length }));
     if (res.cancelled) parts.push(t("findReplace.cancelled"));
     setStatus({ text: parts.join(" "), warn: res.cancelled || res.skipped.length > 0 });
-    await search();
+    await search().catch(() => setResults(null));
   };
 
   const toggleNote = (path: string) =>

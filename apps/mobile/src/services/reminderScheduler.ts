@@ -329,6 +329,20 @@ async function runOnce(): Promise<void> {
     return;
   }
 
+  // Task and checkbox reminders are planned from the index, and every run
+  // first clears what was scheduled: over half an index the reminders of the
+  // notes not read yet would be cancelled and never come back (performance
+  // plan L3). So nothing is replanned until the index is whole — what was
+  // scheduled stays — and the run comes again the moment it is.
+  if (settings.remindTasks || settings.remindCheckboxes) {
+    const { getMobileVault } = await import("./vaultService");
+    const queryService = (await getMobileVault().catch(() => null))?.queryService;
+    if (queryService && (queryService.indexWholeness?.().kind ?? "whole") !== "whole") {
+      void queryService.untilWholeIndex().then(() => rescheduleReminders(), () => {});
+      return;
+    }
+  }
+
   const rule: ReminderRule = {
     defaultLeadMinutes: settings.reminderLeadMinutes,
     allDayLeadDays: settings.reminderAllDayLeadDays,

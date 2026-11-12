@@ -25,7 +25,7 @@ export interface TaskDuplicatesDeps {
   /** Anything that means "the index may have changed". */
   reloadKey: unknown;
   /** The vault's query service. Must be stable across renders. */
-  queryService: { getTaskAnchors(): Promise<Map<string, TaskAnchorRecord[]>> } | null;
+  queryService: { getTaskAnchors(): Promise<Map<string, TaskAnchorRecord[]>>; requireWholeIndex(): void } | null;
   /** `PimCacheRepository.listBoundTaskNotes()`; resolves empty without a PIM runtime. */
   listBoundTaskNotes: () => Promise<Array<{ listId: string; uid: string; notePath: string }>>;
   readTextFile: (path: string) => Promise<string>;
@@ -85,6 +85,9 @@ export function useTaskDuplicates(deps: TaskDuplicatesDeps): TaskDuplicatesState
 
   const options = async (): Promise<FindTaskDuplicatesOptions | null> => {
     if (!queryService || !db) return null;
+    // Which copies are removed is planned from the index: never from half of
+    // one, where the copy that is kept may not be read yet (performance plan L3).
+    queryService.requireWholeIndex?.();
     const [anchorsByUid, bound] = await Promise.all([queryService.getTaskAnchors(), deps.listBoundTaskNotes()]);
     const boundByTask = new Map(bound.map((b) => [JSON.stringify([b.listId, b.uid]), b.notePath]));
     return {

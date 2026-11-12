@@ -161,8 +161,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   /** The vault as a slice rule sees it — shared with the desktop so both count the same. */
   const sliceObjects = useCallback(
-    async () => (vault.workspaceState ? loadWorkspaceSliceObjects(await vault.workspaceState.listObjects(), vault.db) : []),
-    [vault.workspaceState, vault.db]
+    async () => (vault.workspaceState ? loadWorkspaceSliceObjects(await vault.workspaceState.listObjects(), vault.queryService) : []),
+    [vault.workspaceState, vault.queryService]
   );
 
   const refresh = useCallback(async () => {

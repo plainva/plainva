@@ -1,4 +1,3 @@
-import { awaitAnyWholeIndex, isAnyIndexBuilding } from "./indexBuild";
 import { contentPathIsReal, contentPathRefusal, explicitLinkPath, isNoteLinkAddress, markdownDestinationUrl, markdownLinkPlaces, markdownLinkTarget, type MarkdownLinkAnswer } from "@plainva/core";
 import { externalUrlToOpen } from "./externalUrl";
 import { splitLinkAnchor } from "./linkAnchor";
@@ -68,7 +67,9 @@ export type LinkOpenOutcome =
   | { action: "create"; target: string; path: string; title: string }
   | { action: "notFound"; target: string }
   | { action: "anchor"; anchor: string }
-  | { action: "external"; url: string };
+  | { action: "external"; url: string }
+  /** A note would be created over an index that is not whole (performance plan L3): refused, with the reason. */
+  | { action: "refused"; error: unknown };
 
 export interface LinkOpenDeps {
   /** The wiki rule over the index (`VaultQueryService.resolveNotePath`). */
@@ -79,6 +80,14 @@ export interface LinkOpenDeps {
   fileExists: (path: string) => Promise<boolean>;
   /** A FOLDER lies at this vault path on disk. */
   folderExists: (path: string) => Promise<boolean>;
+  /**
+   * Refuses unless the index is whole (`VaultQueryService.requireWholeIndex`).
+   * Asked before a note is CREATED for a link the index does not resolve: over
+   * half an index the note may be there and not read yet, and a second note of
+   * its name would be made (performance plan L3). Required, so that no surface
+   * creates around it.
+   */
+  requireWholeIndex: () => void;
 }
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -128,11 +137,14 @@ export function markdownLinkNotePlace(sourcePath: string, target: string): { pat
 
 const answersNo = () => false;
 
-/** Whether a first index was being built, waited for until it is whole (`awaitAnyWholeIndex`). */
-async function waitedForWholeIndex(): Promise<boolean> {
-  if (!isAnyIndexBuilding()) return false;
-  await awaitAnyWholeIndex();
-  return true;
+/** Creating a note is planned from the index: refused over one that is not whole. */
+function refusal(deps: LinkOpenDeps): LinkOpenOutcome | null {
+  try {
+    deps.requireWholeIndex();
+    return null;
+  } catch (error) {
+    return { action: "refused", error };
+  }
 }
 
 export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promise<LinkOpenOutcome> {
@@ -158,16 +170,12 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
     // checks the listing) and is created only where the system can hold it.
     if (contentPathRefusal(path) === "internal") return { action: "notFound", target: split.target };
     if (await fileThere(path)) return { action: "open", path, anchor };
-    // The note may be there and not read yet (performance plan L3): while the
-    // first index is built, a link is created only once the index is whole.
-    // Created at once, it would be a second note of a name the vault holds.
-    if (await waitedForWholeIndex()) {
-      const later = await deps.resolveWiki(split.target, link.sourcePath).catch(() => null);
-      if (later) return { action: "open", path: later, anchor };
-      if (await fileThere(path)) return { action: "open", path, anchor };
-    }
     if (!creatableHere(path)) return { action: "notFound", target: split.target };
-    return { action: "create", target: split.target, path, title };
+    // The note may be there and not read yet (performance plan L3): created
+    // over half an index, it would be a second note of a name the vault holds.
+    // A note the index resolves opens over half an index all the same — that
+    // is read only, and the note is there.
+    return refusal(deps) ?? { action: "create", target: split.target, path, title };
   }
 
   const url = link.parsed ? link.text : markdownDestinationUrl(link.text);
@@ -197,16 +205,9 @@ export async function planLinkOpen(link: LinkToOpen, deps: LinkOpenDeps): Promis
   }
 
   if (isBareNoteName(target)) {
-    // As for a wiki link: not created over a first index that is not whole.
-    if (await waitedForWholeIndex()) {
-      const later = await deps.resolveMarkdown(target, link.sourcePath).catch(() => null);
-      if (later !== null) {
-        if (later.kind === "file") return { action: "open", path: later.path, anchor };
-        return later.index !== null ? { action: "open", path: later.index, anchor: null } : { action: "folder", path: later.path };
-      }
-    }
     const place = markdownLinkNotePlace(link.sourcePath ?? "", target);
-    if (place && contentPathRefusal(place.path) !== "internal" && creatableHere(place.path)) return { action: "create", target, ...place };
+    // As for a wiki link: not created over an index that is not whole.
+    if (place && contentPathRefusal(place.path) !== "internal" && creatableHere(place.path)) return refusal(deps) ?? { action: "create", target, ...place };
   }
   return { action: "notFound", target };
 }

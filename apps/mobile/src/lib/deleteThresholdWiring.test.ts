@@ -67,7 +67,8 @@ describe("all three mobile deletion paths use it", () => {
     // array — it must not grow a second delete of its own that skips the
     // relation cleanup or the second prompt.
     expect(deleteFile).toContain("export async function confirmDeleteFiles");
-    expect(deleteFile).toMatch(/confirmDeleteFiles[\s\S]*buildMobileDeletionPlan\(vault, \[\.\.\.paths\]\)/);
+    expect(deleteFile).toMatch(/confirmDeleteFiles[\s\S]*deletionPlanOrRefusal\(vault, \[\.\.\.paths\]\)/);
+    expect(deleteFile).toMatch(/async function deletionPlanOrRefusal[\s\S]*buildMobileDeletionPlan\(vault, paths\)/);
     expect(deleteFile).toMatch(/confirmDeleteFiles[\s\S]*isLargeDeletion\(/);
     // One prompt, not one per row: a loop of confirms would be the naive
     // version and is exactly what this guards against.

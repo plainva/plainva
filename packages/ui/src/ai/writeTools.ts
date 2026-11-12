@@ -178,7 +178,9 @@ export type DirectTarget = { path: string } | { folder: string | null } | { unkn
  * notes' links change with it —, without doing any of it. Both shells ask
  * this before the user is asked; the rename itself is the shell's own.
  */
-export async function noteRenamePlan(query: Pick<VaultQueryService, "getBacklinks">, exists: (path: string) => Promise<boolean>, path: string, title: string): Promise<RenamePlan | PlanProblem> {
+export async function noteRenamePlan(query: Pick<VaultQueryService, "getBacklinks" | "requireWholeIndex">, exists: (path: string) => Promise<boolean>, path: string, title: string): Promise<RenamePlan | PlanProblem> {
+  // Which notes change with the rename is read from the index: not over half of one (L3).
+  query.requireWholeIndex?.();
   const folder = path.slice(0, Math.max(0, path.lastIndexOf("/")));
   const target = `${folder ? `${folder}/` : ""}${title}.md`;
   if (target === path) return "same-place";

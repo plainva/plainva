@@ -205,7 +205,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     folderExists: async (folder) => folder === "" || backup.exists(folder),
     taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), "en"),
     draftPlace: async (kind, day) => (kind === "task" ? "Tasks/task.md" : `Daily/${day}.md`),
-    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never }, (candidate) => backup.exists(candidate), path, name),
+    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never, requireWholeIndex: () => {} }, (candidate) => backup.exists(candidate), path, name),
     // What the app does itself after a yes goes the way the app's own renames, moves and deletions go: the chain.
     rename: async (path, name) => {
       const target = `${path.slice(0, path.lastIndexOf("/") + 1)}${name}.md`;

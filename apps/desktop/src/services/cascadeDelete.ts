@@ -66,6 +66,7 @@ export function buildDesktopPlanDeps(adapter: IVaultAdapter, queryService: Vault
     queryDatabaseFiles: (config) => queryService.queryDatabaseFiles(config),
     listBaseFilePaths: () => queryService.listBaseFilePaths(),
     readTextFile: (path) => adapter.readTextFile(path),
+    requireWholeIndex: () => queryService.requireWholeIndex(),
   };
 }
 

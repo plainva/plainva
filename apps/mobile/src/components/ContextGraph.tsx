@@ -58,7 +58,7 @@ export function ContextGraph({
     let alive = true;
     void (async () => {
       try {
-        const service = new GraphService(vault.queryService!.db);
+        const service = GraphService.forIndex(vault.queryService!);
         const graph = await service.loadGraph({ includeAttachments: false });
         if (!alive || !graph.nodes.has(path)) return;
         const neighborhood = await service.getNeighborhood(path, 1, graph);

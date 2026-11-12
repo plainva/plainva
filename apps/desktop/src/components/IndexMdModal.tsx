@@ -5,6 +5,7 @@ import { retargetDesktopBookmarks } from "../services/bookmarks";
 import { announcePathRenamed } from "../services/fileMoved";
 import { requestSaveFlush } from "../services/saveFlush";
 import { toast } from "@plainva/ui";
+import { isIndexNotWholeError } from "@plainva/core";
 import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { SelectField } from "@plainva/ui";
@@ -60,7 +61,11 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     if (!vaultAdapter || !queryService) return;
     collectFolderIndexInfos({ queryService, adapter: vaultAdapter })
       .then((list) => { if (alive) setInfos(list); })
-      .catch((e) => console.error("[IndexMdModal] collecting folders failed", e));
+      .catch((e) => {
+        // Over an index that is not whole the overviews are refused, with the reason (L3).
+        if (isIndexNotWholeError(e)) toast.warning(errorText(e));
+        else console.error("[IndexMdModal] collecting folders failed", e);
+      });
     return () => { alive = false; };
   }, [vaultAdapter, queryService, vaultPath]);
 

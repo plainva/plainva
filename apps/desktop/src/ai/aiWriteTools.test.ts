@@ -85,7 +85,7 @@ function vault(over: Partial<VaultWriteDeps> = {}) {
     folderExists: async (folder) => folder === "" || Object.keys(NOTES).some((path) => path.startsWith(`${folder}/`)),
     taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), "en"),
     draftPlace: async (kind, day) => (kind === "task" ? "Tasks/task.md" : `Daily/${day}.md`),
-    renamePlan: (path, title) => noteRenamePlan({ getBacklinks: async () => (path === "Projects/Offer.md" ? BACKLINKS : []) as never }, exists, path, title),
+    renamePlan: (path, title) => noteRenamePlan({ getBacklinks: async () => (path === "Projects/Offer.md" ? BACKLINKS : []) as never, requireWholeIndex: () => {} }, exists, path, title),
     rename: async (path, title) => {
       acts.push(`rename ${path} -> ${title}`);
       return `${path.slice(0, path.lastIndexOf("/") + 1)}${title}.md`;
@@ -817,6 +817,7 @@ describe("a rename, a move and a deletion are a question", () => {
             getBacklinks: async () => {
               throw new Error("index closed");
             },
+            requireWholeIndex: () => {},
           },
           async () => false,
           path,
@@ -1159,7 +1160,7 @@ describe("the name of a note, and where it would go", () => {
   });
 
   it("plans a rename without doing it — a change of letter case is the same file, not another note's", async () => {
-    const none = { getBacklinks: async () => [] as never };
+    const none = { getBacklinks: async () => [] as never, requireWholeIndex: () => {} };
     const all = async () => true;
     expect(await noteRenamePlan(none, all, "Projects/offer.md", "offer")).toBe("same-place");
     expect(await noteRenamePlan(none, all, "Projects/offer.md", "Offer")).toEqual({ target: "Projects/Offer.md", files: [], links: 0 });

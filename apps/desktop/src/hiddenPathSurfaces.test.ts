@@ -55,7 +55,8 @@ const FUNCTIONS: [file: string, name: string, surface: string][] = [
 const FILES: [file: string, times: number, surface: string][] = [
   ["packages/ui/src/components/AtMentionPlugin.ts", 2, "`@` suggestions: notes and databases"],
   ["apps/desktop/src/components/QuickSwitcher.tsx", 1, "the quick switcher's names"],
-  ["apps/desktop/src/components/FileTree.tsx", 2, "the file tree: files and folders"],
+  ["apps/desktop/src/components/FileTree.tsx", 1, "the file tree: the files of the index"],
+  ["apps/desktop/src/lib/treeDiskEntries.ts", 1, "the file tree: folders, and files while the index is built"],
   ["apps/desktop/src/components/BasePicker.tsx", 1, "the database picker"],
   ["apps/mobile/src/screens/SearchScreen.tsx", 1, "the phone search's names"],
   ["apps/mobile/src/services/vaultService.ts", 3, "the phone's folder screen, its recents and first-run recent list"],

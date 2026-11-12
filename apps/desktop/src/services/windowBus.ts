@@ -25,7 +25,7 @@ import type { BookmarkEntry } from "@plainva/ui";
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
-import type { CommentPathMove, CommentStoreState, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
+import type { IndexWholenessState, CommentPathMove, CommentStoreState, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
 import type { WorkspaceSecurityPublicStatus } from "./workspaceSecurity/workspaceKeychain";
 import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";
@@ -71,6 +71,8 @@ export interface BroadcastMap {
   "comment-operation-changed": { path: string; operationId: string };
   /** The owner's workspace security status moved; a client asks for it again (V7). */
   "workspace-security-changed": Record<string, never>;
+  /** How whole the owner's index of the vault is (performance plan L3): a client mirrors it, its planners refuse on it. */
+  "index-build": { state: IndexWholenessState };
   /**
    * The owner's sync status, mirrored into every other window (C3).
    *
@@ -221,6 +223,8 @@ export interface RpcMap {
   "comment-move": { args: { moves: CommentPathMove[] }; result: void };
   /** The owner's public workspace security status - what gates the comment surface. */
   "workspace-status": { args: Record<string, never>; result: WorkspaceSecurityPublicStatus | null };
+  /** How whole the owner's index of the vault is now (L3), asked once by a client that opens it; the rest comes as `index-build`. */
+  "index-build-state": { args: Record<string, never>; result: IndexWholenessState };
   /**
    * The revision history of a workspace note, from the owner's runtime
    * (finding 2026-09-07: the version history in an auxiliary window).
@@ -452,6 +456,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "comments-changed": "vault",
   "comment-operation-changed": "vault",
   "workspace-security-changed": "vault",
+  "index-build": "vault",
   "sync-status": "vault",
   "pim-changed": "vault",
   "line-ends-converted": "vault",
@@ -523,6 +528,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "comment-state": "vault",
   "comment-move": "vault",
   "workspace-status": "vault",
+  "index-build-state": "vault",
   "workspace-revisions": "vault",
   "workspace-revision-read": "vault",
   // Answered once for the process: these route windows, hand over drafts, open

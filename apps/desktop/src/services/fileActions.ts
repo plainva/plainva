@@ -1,6 +1,6 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
 import { copyFileContent, frontmatterSpan, toPathIdentity, updateVaultText, type VaultQueryService } from "@plainva/core";
-import { awaitAnyWholeIndex, carryTemplateAssignments, errorText, landedAtDestination, logDiagnostic, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
+import { carryTemplateAssignments, errorText, landedAtDestination, logDiagnostic, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
 
@@ -179,8 +179,8 @@ export async function renameToName(opts: {
 
   if (await adapter.exists(newPath)) return { ok: false, reason: "already-exists" };
   // What a rename rewrites is found in the index (links, boards, template
-  // assignments): not over a first index still being built (L3).
-  await awaitAnyWholeIndex();
+  // assignments): refused over one that is not whole, before anything moves (L3).
+  queryService?.requireWholeIndex?.();
 
   // Before the move, while the old name is still the truth.
   if (opts.carryHeading && wasNote) {
@@ -535,9 +535,9 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
   const moved: MoveOp[] = [];
   const errors: string[] = [];
   const followUpErrors: MoveItemsResult["followUpErrors"] = [];
-  // The boards that hold a moved file are found in the index: over a first
-  // index still being built, some would be missed (performance plan L3).
-  if (movableInto(sources, target).length > 0) await awaitAnyWholeIndex();
+  // The boards that hold a moved file are found in the index: refused over an
+  // index that is not whole, before anything moves (performance plan L3).
+  if (movableInto(sources, target).length > 0) deps.queryService?.requireWholeIndex?.();
   for (const from of movableInto(sources, target)) {
     const name = from.split(/[/\\]/).pop();
     if (!name) continue;

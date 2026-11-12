@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { App as CapApp } from "@capacitor/app";
 import { okfMigrationPending, type OkfVersionState } from "@plainva/core";
-import { announceOkfRollback, Button, Checkbox, GroupCard, Row, RowList, SectionLabel, okfVersionBreakdown, toast, type OkfRunRecipe } from "@plainva/ui";
+import { announceOkfRollback, Button, Checkbox, GroupCard, Row, RowList, SectionLabel, okfVersionBreakdown, errorText, toast, type OkfRunRecipe } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import {
@@ -47,7 +47,7 @@ export function OkfMigrationScreen({ vault, onBack }: { vault: MobileVault; onBa
       setState(result);
       setStep("summary");
     } catch (e) {
-      toast.error(`${t("okf.scanning")} — ${e instanceof Error ? e.message : String(e)}`);
+      toast.error(`${t("okf.scanning")} — ${errorText(e)}`);
       onBack();
     }
   }, [onBack, t, vault]);

@@ -1,3 +1,4 @@
+import { isIndexNotWholeError } from "@plainva/core";
 import {
   frontmatterSpan,
   hasOkfVersionKey,
@@ -140,6 +141,10 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
     const updated: string[] = [];
     if (folders.length === 0 || disposed) return { updated };
     if (!(await okfActive())) return { updated };
+    // A listing is never written from half an index (performance plan L3):
+    // it would miss every note not read yet and stay that way. Its folder
+    // waits for the whole index and is written then.
+    const deferred: string[] = [];
     for (const folder of folders) {
       try {
         const written = await refreshFolder(folder);
@@ -148,8 +153,16 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
           deps.onWritten?.(written);
         }
       } catch (e) {
-        console.warn("[indexMdAutoUpdate] refresh failed for", folder, e);
+        if (isIndexNotWholeError(e)) deferred.push(folder);
+        else console.warn("[indexMdAutoUpdate] refresh failed for", folder, e);
       }
+    }
+    if (deferred.length > 0) {
+      void deps.queryService.untilWholeIndex().then(() => {
+        if (disposed) return;
+        for (const folder of deferred) pendingFolders.add(folder);
+        void flush();
+      }, () => { /* the vault closed first */ });
     }
     return { updated };
   };

@@ -5,7 +5,7 @@ import { Modal } from "@plainva/ui";
 import { Button } from "@plainva/ui";
 import { TextInput } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
-import { announceOkfRollback, OkfRunOpenError, toast, type OkfRunRecipe } from "@plainva/ui";
+import { announceOkfRollback, errorText, OkfRunOpenError, toast, type OkfRunRecipe } from "@plainva/ui";
 import {
   scanVaultOkf,
   runOkfConversion,
@@ -78,7 +78,7 @@ export const OkfConversionModal: React.FC<{
       })
       .catch((e) => {
         if (!alive) return;
-        setScanError(e instanceof Error ? e.message : String(e));
+        setScanError(errorText(e));
         setStep("options");
       });
     return () => { alive = false; };

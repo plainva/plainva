@@ -58,6 +58,7 @@ function makeDeps(opts: {
       if (!cfg) throw new Error(`no base at ${path}`);
       return serializeBaseConfig(cfg);
     },
+    requireWholeIndex() {},
   };
 }
 

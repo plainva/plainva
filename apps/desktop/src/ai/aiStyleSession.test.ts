@@ -98,7 +98,7 @@ function vault() {
     folderExists: async () => true,
     taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), "en"),
     draftPlace: async (kind, day) => (kind === "task" ? "Tasks/task.md" : `Daily/${day}.md`),
-    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never }, async (p) => notes.has(p), path, name),
+    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never, requireWholeIndex: () => {} }, async (p) => notes.has(p), path, name),
     rename: async () => null,
     movePlan: (path, folder) => noteMovePlan(async (p) => notes.has(p), path, folder),
     move: async () => null,

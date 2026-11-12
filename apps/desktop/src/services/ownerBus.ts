@@ -3,6 +3,7 @@ import { CommentOperationError, PimConflictError, type CommentOperationService, 
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
+import { installIndexBuildMirror } from "./indexBuildMirror";
 import { enqueueSend, appendDraftFor, releaseRefusedSend } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
@@ -399,6 +400,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     return deps.comments;
   };
   const scoped = { vaultPath: deps.vaultPath };
+  offs.push(await installIndexBuildMirror(bus, deps.vaultPath, scoped));
   offs.push(await bus.handle("comment-capabilities", ({ path }) => comments().capabilities(path), scoped));
   offs.push(await bus.handle("comment-list", ({ path }) => comments().list(path), scoped));
   offs.push(await bus.handle("comment-list-publication", ({ path }) => comments().listPublication(path), scoped));

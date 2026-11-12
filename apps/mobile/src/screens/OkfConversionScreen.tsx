@@ -13,6 +13,7 @@ import {
   TextInput,
   toast,
   type OkfRunRecipe,
+  errorText,
 } from "@plainva/ui";
 import type { OkfScanResult } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
@@ -92,7 +93,7 @@ export function OkfConversionScreen({ vault, onBack }: { vault: MobileVault; onB
       setScan(result);
       setStep("preview");
     } catch (e) {
-      toast.error(`${t("okf.scanning")} — ${e instanceof Error ? e.message : String(e)}`);
+      toast.error(`${t("okf.scanning")} — ${errorText(e)}`);
       onBack();
     }
   }, [onBack, t, vault]);

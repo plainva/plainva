@@ -1,11 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, FolderOpen } from "lucide-react";
 import { Button, EmptyState, errorText, ICON } from "@plainva/ui";
 import type { VaultBootState } from "../hooks/useVaultBoot";
 import { previousMobileVault, switchVault } from "../services/vaultService";
 import { listVaults, type VaultEntry } from "../services/vaultRegistry";
-import { getIndexBuild, subscribeIndexBuild } from "../services/indexBuild";
+import { indexBuildState, subscribeIndexBuild } from "../services/indexBuild";
 import { mActions } from "../services/mobileDialogs";
 
 /**
@@ -27,7 +27,8 @@ export function VaultBootSurface({ boot: state }: { boot: VaultBootState }) {
   // "Ready" without a vault is the one render between the two state updates.
   const boot = state.kind === "ready" ? { kind: "opening" as const, vaultId: null, name: "" } : state;
   const { t } = useTranslation();
-  const build = useSyncExternalStore(subscribeIndexBuild, getIndexBuild);
+  const readBuild = useCallback(() => (boot.vaultId ? indexBuildState(boot.vaultId) : null), [boot.vaultId]);
+  const build = useSyncExternalStore(subscribeIndexBuild, readBuild);
   const [back, setBack] = useState<{ previous: VaultEntry | null; others: VaultEntry[] } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -62,7 +63,7 @@ export function VaultBootSurface({ boot: state }: { boot: VaultBootState }) {
     </Button>
   ) : null;
 
-  const read = build && build.vaultId === boot.vaultId ? build.done : 0;
+  const read = build?.kind === "building" ? build.done : 0;
 
   return (
     <div className="m-app">

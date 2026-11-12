@@ -39,9 +39,9 @@ const ALLOWED_CONSTRUCTIONS = [
   "TauriVaultAdapter",
   // The read connection to the index DB (opened without writing to it).
   "TauriDatabaseAdapter",
-  // Renders from the index.
+  // Renders from the index. (The graph service is built from it, `GraphService.forIndex`,
+  // so that it carries the index's wholeness — performance plan L3.)
   "VaultQueryService",
-  "GraphService",
   // Hands every mutation to the owner instead of writing itself.
   "RemoteVaultAdapter",
 ] as const;

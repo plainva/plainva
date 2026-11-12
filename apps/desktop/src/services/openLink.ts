@@ -1,5 +1,5 @@
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
-import { linkDiskProbe, planLinkOpen, requestAnchorJump, toast, type LinkToOpen } from "@plainva/ui";
+import { errorText, linkDiskProbe, planLinkOpen, requestAnchorJump, toast, type LinkToOpen } from "@plainva/ui";
 import { openExternalUrl as openUrl } from "./openExternal";
 
 /**
@@ -15,7 +15,7 @@ import { openExternalUrl as openUrl } from "./openExternal";
  */
 
 export interface DesktopLinkContext {
-  queryService: Pick<VaultQueryService, "resolveNotePath" | "resolveMarkdownLink"> | null | undefined;
+  queryService: Pick<VaultQueryService, "resolveNotePath" | "resolveMarkdownLink" | "requireWholeIndex"> | null | undefined;
   vaultAdapter: Pick<IVaultAdapter, "exists" | "getFileInfo" | "listDir"> | null | undefined;
   onOpenPath: (path: string, newTab: boolean) => void;
   /** Ctrl/Cmd+click. */
@@ -34,6 +34,7 @@ export async function openLink(link: LinkToOpen, ctx: DesktopLinkContext): Promi
     resolveWiki: (target, from) => queryService.resolveNotePath(target, from),
     resolveMarkdown: (target, from) => queryService.resolveMarkdownLink(target, from),
     ...(vaultAdapter ? linkDiskProbe(vaultAdapter) : noDisk),
+    requireWholeIndex: () => queryService.requireWholeIndex(),
   });
   switch (outcome.action) {
     case "open":
@@ -57,6 +58,9 @@ export async function openLink(link: LinkToOpen, ctx: DesktopLinkContext): Promi
       return;
     case "notFound":
       toast.warning(ctx.t("dialogs.linkNotFoundMsg", { target: outcome.target }));
+      return;
+    case "refused":
+      toast.warning(errorText(outcome.error));
       return;
     case "create":
       // The app owns the write, the index and the open, and asks first where

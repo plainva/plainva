@@ -9,7 +9,7 @@ import { renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
 import { buildNewNoteFromTemplate } from "../services/newNoteTemplate";
 import { parkTemplateCaret } from "@plainva/ui";
-import { toast } from "@plainva/ui";
+import { errorText, toast } from "@plainva/ui";
 import { virtualTabMeta } from "./graph/virtualPaths";
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
 
@@ -165,6 +165,9 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
     if (!vaultAdapter || !createName) return;
     const path = `${createName}.md`;
     try {
+      // A note of a name the vault may hold in a note not read yet: not made
+      // over an index that is not whole (performance plan L3).
+      queryService?.requireWholeIndex?.();
       if (await vaultAdapter.exists(path)) {
         onOpenPath(path, newTab);
         onClose();
@@ -187,7 +190,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
       onClose();
     } catch (e) {
       console.error("Failed to create note from switcher", e);
-      toast.error(t("quickSwitcher.createFailed", { error: e instanceof Error ? e.message : String(e) }));
+      toast.error(t("quickSwitcher.createFailed", { error: errorText(e) }));
     }
   };
 

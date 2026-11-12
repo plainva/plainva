@@ -52,6 +52,7 @@ async function vaultOf(files: Record<string, string>, opts: { index?: boolean } 
     resolveWiki: (target, from) => query.resolveNotePath(target, from),
     resolveMarkdown: (target, from) => query.resolveMarkdownLink(target, from),
     ...linkDiskProbe(adapter),
+    requireWholeIndex: () => query.requireWholeIndex(),
   };
   return { db, adapter, indexer, query, graph: new GraphService(db), deps };
 }

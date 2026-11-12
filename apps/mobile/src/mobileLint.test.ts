@@ -1889,8 +1889,8 @@ describe("the vault map can be acted on", () => {
 describe("the cleanup worklist", () => {
   it("asks the shared service all three questions", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/CleanupScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/getOrphans\(/);
-    expect(screen).toMatch(/getBrokenLinks\(/);
+    // Orphans and broken links in one question that refuses over half an index (performance plan L3).
+    expect(screen).toMatch(/cleanupVerdicts\(/);
     expect(screen).toMatch(/findUnlinkedMentions\(/);
   });
 

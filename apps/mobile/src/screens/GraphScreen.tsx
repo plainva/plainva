@@ -213,7 +213,7 @@ export function GraphScreen({
     let created: GraphStateStore | null = null;
     void (async () => {
       try {
-        const service = new GraphService(vault.queryService!.db);
+        const service = GraphService.forIndex(vault.queryService!);
         const graph = await service.loadGraph({ includeAttachments: false });
         const overview = await service.getFolderOverview(graph);
         // Ages for the heatmap and the replay cutoff — frontmatter date first,

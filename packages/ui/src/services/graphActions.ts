@@ -52,6 +52,8 @@ export async function appendWikiLink(
   sourcePath: string,
   targetPath: string
 ): Promise<string> {
+  // Planned from the index (which notes, which spelling of the link): never over half of one (performance plan L3).
+  queryService.requireWholeIndex?.();
   const notes = await queryService.listNotes();
   const allPaths = notes.map((n) => n.path);
   const target = wikiTargetForPath(targetPath, allPaths);
@@ -85,6 +87,8 @@ export async function removeLinksTo(
   sourcePath: string,
   targetPath: string
 ): Promise<number> {
+  // Planned from the index (which notes, which spelling of the link): never over half of one (performance plan L3).
+  queryService.requireWholeIndex?.();
   const corpus = buildLinkTargetIndex(await queryService.linkTargets());
   await flushPendingSave(sourcePath);
   const unlinked = (current: string): { removed: number; next: string } => {
@@ -232,6 +236,8 @@ export async function createBrokenLinkTarget(
   link: BrokenLinkToCreate,
   noteType: string
 ): Promise<string | null> {
+  // Planned from the index (which notes, which spelling of the link): never over half of one (performance plan L3).
+  queryService.requireWholeIndex?.();
   const place = brokenLinkNotePath(link);
   if (!place) return null;
   const folder = place.path.includes("/") ? place.path.slice(0, place.path.lastIndexOf("/")) : "";
@@ -301,6 +307,8 @@ export async function applyInlineLink(
   targetPath: string,
   terms: string[]
 ): Promise<{ matched: string; link: string } | null> {
+  // Planned from the index (which notes, which spelling of the link): never over half of one (performance plan L3).
+  queryService.requireWholeIndex?.();
   const notes = await queryService.listNotes();
   const allPaths = notes.map((n) => n.path);
   const target = wikiTargetForPath(targetPath, allPaths);

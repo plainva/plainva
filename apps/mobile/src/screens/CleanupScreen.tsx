@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, Link2, Plus, Trash2 } from "lucide-react";
-import { GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
+import { GraphService, isIndexNotWholeError, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
 import {
   applyMentionLink,
   Button,
@@ -9,7 +9,10 @@ import {
   brokenLinkNotePath,
   createBrokenLinkTarget,
   EmptyState,
+  errorText,
   getGraphState,
+  indexBuildState,
+  subscribeIndexBuild,
   type GraphStateStore,
   ICON,
   IconButton,
@@ -22,7 +25,6 @@ import { confirmDeleteFile } from "../lib/deleteFile";
 import { configuredNoteType } from "../services/newNote";
 import { syncSoon } from "../services/syncService";
 import type { MobileVault } from "../services/vaultService";
-import { awaitWholeIndex } from "../services/indexBuild";
 
 /**
  * Cleanup mode (S35) — the desktop's worklist, mobile-sized.
@@ -63,6 +65,10 @@ export function CleanupScreen({
   const [store, setStore] = useState<GraphStateStore | null>(null);
   const [tick, setTick] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  // The verdicts are refused over an index that is not whole (performance plan
+  // L3): the screen says why, and asks again once the index is whole.
+  const [refused, setRefused] = useState<string | null>(null);
+  const indexKind = useSyncExternalStore(subscribeIndexBuild, () => indexBuildState(vault.vaultId).kind);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -72,19 +78,25 @@ export function CleanupScreen({
     let alive = true;
     void (async () => {
       try {
-        // An orphan is a note the index knows no link to — over half an index, a wrong offer to delete (issue 143).
-        await awaitWholeIndex(vault);
-        const graph = new GraphService(service.db);
+        // An orphan is a note the index knows no link to — over half an index,
+        // a wrong offer to delete: refused there (issue 143, performance plan L3).
+        const graph = GraphService.forIndex(service);
         const model = await graph.loadGraph({ includeAttachments: false });
-        const [o, b] = await Promise.all([graph.getOrphans(model), graph.getBrokenLinks(model)]);
+        const { orphans: o, broken: b } = await graph.cleanupVerdicts(model);
         const gs = getGraphState(vault.files);
         await gs.load().catch(() => {});
         if (!alive) return;
         setStore(gs);
+        setRefused(null);
         setOrphans(o);
         setBroken(b);
-      } catch {
-        /* cold index — the empty states stay */
+      } catch (e) {
+        if (alive && isIndexNotWholeError(e)) {
+          setRefused(errorText(e));
+          setOrphans([]);
+          setBroken([]);
+        }
+        /* otherwise the empty states stay */
       }
     })();
     return () => {
@@ -94,7 +106,7 @@ export function CleanupScreen({
       // is the surface telling you your answer did not count.
       void getGraphState(vault.files).flush();
     };
-  }, [vault, tick]);
+  }, [vault, tick, indexKind]);
 
   const scanMentions = useCallback(async () => {
     const service = vault.queryService;
@@ -105,8 +117,7 @@ export function CleanupScreen({
     setScanning(true);
     setProgress(null);
     try {
-      await awaitWholeIndex(vault);
-      const graph = new GraphService(service.db);
+      const graph = GraphService.forIndex(service);
       const found = await graph.findUnlinkedMentions({
         signal: controller.signal,
         onProgress: (current, total) => setProgress({ current, total }),
@@ -114,7 +125,8 @@ export function CleanupScreen({
       // A mention someone already rejected must not return with every scan.
       setMentions(found.filter((m) => !store?.isDismissed(suggestionKey(m.reason, m.source, m.target))));
       setScanned(true);
-    } catch {
+    } catch (e) {
+      if (isIndexNotWholeError(e)) toast.warning(errorText(e));
       /* aborted or failed: the previous list stays */
     } finally {
       setScanning(false);
@@ -192,7 +204,8 @@ export function CleanupScreen({
         value={tab}
       />
 
-      {tab === "orphans" &&
+      {refused && <EmptyState icon={<FileText size={ICON.empty} />}><span data-testid="cleanup-refused">{refused}</span></EmptyState>}
+      {!refused && tab === "orphans" &&
         (orphans.length === 0 ? (
           <EmptyState icon={<FileText size={ICON.empty} />}>{t("graph.cleanupNoOrphans")}</EmptyState>
         ) : (
@@ -215,7 +228,7 @@ export function CleanupScreen({
           ))
         ))}
 
-      {tab === "broken" &&
+      {!refused && tab === "broken" &&
         (broken.length === 0 ? (
           <EmptyState icon={<Link2 size={ICON.empty} />}>{t("graph.cleanupNoBroken")}</EmptyState>
         ) : (
@@ -240,7 +253,7 @@ export function CleanupScreen({
           ))
         ))}
 
-      {tab === "mentions" && (
+      {!refused && tab === "mentions" && (
         <>
           <div className="m-turninto">
             <Button disabled={scanning} onClick={() => void scanMentions()} variant="tonal">

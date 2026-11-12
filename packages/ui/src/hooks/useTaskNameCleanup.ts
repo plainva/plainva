@@ -94,6 +94,14 @@ export function useTaskNameCleanup(deps: TaskNameCleanupDeps): TaskNameCleanupSt
   // for what is left. A stable handler reads the latest deps, so the effect
   // runs on what matters and not on every render's fresh callbacks.
   const scan = useStableHandler(async (): Promise<TaskNameRename[]> => {
+    // Renames and the links they rewrite are planned from the index: over half
+    // of one nothing is resumed and nothing offered (performance plan L3). The
+    // view scans again when the index changes — the end of the build included.
+    try {
+      deps.queryService?.requireWholeIndex?.();
+    } catch {
+      return [];
+    }
     const run = runner();
     if (run && run.journal.read()) {
       const resumed = await withTaskSyncPaused(() => resumeTaskNameCleanup(run));

@@ -1288,7 +1288,7 @@ export function BaseScreen({
     if (render !== "graph" || !vault.queryService) return;
     let stale = false;
     void import("@plainva/core").then(({ GraphService }) =>
-      new GraphService(vault.queryService!.db).loadGraph().then((g) => {
+      GraphService.forIndex(vault.queryService!).loadGraph().then((g) => {
         if (!stale) setVaultGraph(g);
       }),
     );

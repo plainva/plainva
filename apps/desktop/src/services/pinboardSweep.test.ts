@@ -20,7 +20,7 @@ function fakeVault(files: Record<string, string>) {
           writes.push(p);
         },
       },
-      queryService: { listBaseFilePaths: async () => Object.keys(files).filter((p) => p.endsWith(".base")) },
+      queryService: { listBaseFilePaths: async () => Object.keys(files).filter((p) => p.endsWith(".base")), requireWholeIndex: () => {} },
     },
   };
 }

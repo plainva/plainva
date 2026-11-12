@@ -9,6 +9,7 @@ import {
   Chip,
   DockedToolbar,
   EmptyState,
+  errorText,
   GroupCard,
   ICON,
   Row,
@@ -21,7 +22,6 @@ import {
 } from "@plainva/ui";
 import type { FindReplaceOptions, VaultFindResult } from "@plainva/core";
 import { vaultTextFiles, type MobileVault } from "../services/vaultService";
-import { awaitWholeIndex } from "../services/indexBuild";
 import { AppBar } from "../components/AppBar";
 
 /**
@@ -86,8 +86,8 @@ export function FindReplaceScreen({
     if (!vault.queryService || !find) return;
     setBusy(true);
     try {
-      // A replace over half an index would miss the notes not read yet (issue 143).
-      await awaitWholeIndex(vault);
+      // Refused over an index that is not whole (core findInVault; issue 143,
+      // performance plan L3): a replace over half of one would miss notes.
       const res = await vault.queryService.findInVault(find, opts);
       setResults(res);
       setSelected(new Set(res.map((r) => r.path)));
@@ -99,7 +99,12 @@ export function FindReplaceScreen({
 
   const runFind = async () => {
     setStatus(null);
-    await search();
+    try {
+      await search();
+    } catch (e) {
+      setResults(null);
+      setStatus({ text: errorText(e), warn: true });
+    }
   };
 
   const runReplace = async () => {
@@ -138,7 +143,7 @@ export function FindReplaceScreen({
       parts.push(t("findReplace.cancelled"));
     }
     setStatus({ text: parts.join(" "), warn: res.cancelled || res.skipped.length > 0 });
-    await search();
+    await search().catch(() => setResults(null));
   };
 
   const toggleNote = (path: string) =>

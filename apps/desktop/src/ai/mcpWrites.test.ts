@@ -65,7 +65,7 @@ function mcpVault(options: { sealed?: boolean; deletes?: boolean } = {}) {
     folderExists: async (folder) => folder === "" || Object.keys(notes).some((path) => path.startsWith(`${folder}/`)),
     taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), "en"),
     draftPlace: async () => null,
-    renamePlan: (path, title) => noteRenamePlan({ getBacklinks: async () => (path === "Projects/Offer.md" ? links : []) as never }, exists, path, title),
+    renamePlan: (path, title) => noteRenamePlan({ getBacklinks: async () => (path === "Projects/Offer.md" ? links : []) as never, requireWholeIndex: () => {} }, exists, path, title),
     rename: async (path, title) => {
       acts.push(`rename ${path} -> ${title}`);
       return `${path.slice(0, path.lastIndexOf("/") + 1)}${title}.md`;

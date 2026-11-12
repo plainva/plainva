@@ -5,6 +5,8 @@ import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { RemoteVaultAdapter } from "../adapters/RemoteVaultAdapter";
 import { indexDbFileName } from "./indexDbPath";
+import { indexWholenessFor } from "@plainva/ui";
+import { mirrorOwnerIndexBuild } from "./indexBuildMirror";
 import type { WindowBus } from "./windowBus";
 
 /**
@@ -76,7 +78,12 @@ export async function openClientVault(vaultPath: string, bus: WindowBus): Promis
   // it) belongs to the window that owns the writes. A client that ran them
   // would race the owner on the very first open of a new vault.
   const queryService = new VaultQueryService(dbAdapter);
-  const graphService = new GraphService(dbAdapter);
+  // Whether the index is whole is the owner's to say (performance plan L3):
+  // this window mirrors it — listening first, then asking, so no change falls
+  // between the two — and its planners refuse on it like the owner's.
+  const stopMirror = await mirrorOwnerIndexBuild(bus, vaultPath);
+  queryService.setIndexWholeness(indexWholenessFor(vaultPath));
+  const graphService = GraphService.forIndex(queryService);
   const vaultAdapter = new RemoteVaultAdapter(readAdapter, bus, vaultPath);
 
   return {
@@ -91,6 +98,7 @@ export async function openClientVault(vaultPath: string, bus: WindowBus): Promis
       // the connection string, so closing here would take the OWNER's index
       // connection down with it — the central window would start failing
       // queries the moment an auxiliary window was closed.
+      stopMirror();
       dbAdapter.detach();
       await readAdapter.dispose().catch(() => {});
     },

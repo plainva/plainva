@@ -55,6 +55,7 @@ export * from "./vault/pathMutation.js";
 export * from "./vault/findReplace.js";
 export * from "./vault/renameTag.js";
 export * from "./vault/GraphService.js";
+export * from "./vault/indexWholeness.js";
 export * from "./vault/LinkResolver.js";
 export * from "./vault/rollup.js";
 export * from "./vault/obsidianRollup.js";

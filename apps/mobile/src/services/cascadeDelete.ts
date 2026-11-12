@@ -48,6 +48,7 @@ export function buildMobilePlanDeps(v: MobileVault): DeletionPlanDeps | null {
     queryDatabaseFiles: (config) => qs.queryDatabaseFiles(config),
     listBaseFilePaths: () => qs.listBaseFilePaths(),
     readTextFile: (path) => v.files.readTextFile(path),
+    requireWholeIndex: () => qs.requireWholeIndex(),
   };
 }
 

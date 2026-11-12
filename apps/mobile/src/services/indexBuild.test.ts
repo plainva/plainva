@@ -1,31 +1,29 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { toastStore } from "@plainva/ui";
-import { awaitWholeIndex, beginIndexBuild, endIndexBuild, getIndexBuild, isIndexBuilding, reportIndexBuild, subscribeIndexBuild } from "./indexBuild";
+import { VaultQueryService } from "@plainva/core";
+import { resetIndexBuildsForTests } from "@plainva/ui";
+import { beginIndexBuild, indexBuildState, indexWholenessFor, isIndexBuilding, markIndexFailed, markIndexWhole, reportIndexBuild, subscribeIndexBuild } from "./indexBuild";
 
 /**
- * The first index of a folder vault is built behind the open app (issue 143).
- * What needs the WHOLE index — a rename rewriting every link onto a note, a
- * clean-up calling a note unlinked — waits for it; everything else is told how
- * far it has come.
+ * The first index of a vault is built behind the open app (issue 143; every
+ * vault since performance plan L3). What plans a write from the index — a
+ * rename rewriting every link onto a note, a clean-up calling a note unlinked
+ * — is refused until it is whole; everything else is told how far it has come.
  */
-afterEach(() => {
-  endIndexBuild("v");
-  endIndexBuild("other");
-});
+afterEach(() => resetIndexBuildsForTests());
 
-describe("the first index of a vault", () => {
-  it("is reported only for the vault whose first build runs", () => {
+describe("the index build of a vault", () => {
+  it("is reported only for the vault whose build runs", () => {
     reportIndexBuild("v", 3, 10);
-    expect(getIndexBuild()).toBeNull();
+    expect(indexBuildState("v").kind).toBe("whole");
     beginIndexBuild("v");
     reportIndexBuild("other", 3, 10);
-    expect(getIndexBuild()).toEqual({ vaultId: "v", done: 0, total: 0 });
+    expect(indexBuildState("v")).toEqual({ kind: "building", done: 0, total: 0 });
     reportIndexBuild("v", 3, 10);
-    expect(getIndexBuild()).toEqual({ vaultId: "v", done: 3, total: 10 });
+    expect(indexBuildState("v")).toEqual({ kind: "building", done: 3, total: 10 });
     expect(isIndexBuilding("v")).toBe(true);
     expect(isIndexBuilding("other")).toBe(false);
-    endIndexBuild("v");
+    markIndexWhole("v");
     expect(isIndexBuilding("v")).toBe(false);
   });
 
@@ -41,32 +39,22 @@ describe("the first index of a vault", () => {
       expect(heard).toHaveBeenCalledTimes(1);
       vi.advanceTimersByTime(250);
       expect(heard).toHaveBeenCalledTimes(2);
-      expect(getIndexBuild()?.done).toBe(50);
+      expect(indexBuildState("v")).toEqual({ kind: "building", done: 50, total: 50 });
       off();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("holds back what needs the whole index until the build is through, and says so once", async () => {
-    let finish: () => void = () => {};
-    const whole = new Promise<void>((resolve) => { finish = resolve; });
-    const vault = { vaultId: "v", whenIndexWhole: () => whole };
-    const shown = toastStore.get().length;
+  it("refuses what plans from the index until it is whole — after a failed build too", () => {
+    const queryService = new VaultQueryService({} as never);
+    queryService.setIndexWholeness(indexWholenessFor("v"));
+    expect(() => queryService.requireWholeIndex()).not.toThrow();
     beginIndexBuild("v");
-    let through = false;
-    const waiting = awaitWholeIndex(vault).then(() => { through = true; });
-    await Promise.resolve();
-    expect(through).toBe(false);
-    expect(toastStore.get().length).toBe(shown + 1);
-    finish();
-    endIndexBuild("v");
-    await waiting;
-    expect(through).toBe(true);
-  });
-
-  it("does not hold back anything in a vault whose index is there", async () => {
-    const vault = { vaultId: "v", whenIndexWhole: () => new Promise<void>(() => {}) };
-    await expect(awaitWholeIndex(vault)).resolves.toBeUndefined();
+    expect(() => queryService.requireWholeIndex()).toThrow(/still being built/);
+    markIndexFailed("v", "a folder could not be read");
+    expect(() => queryService.requireWholeIndex()).toThrow(/incomplete/);
+    markIndexWhole("v");
+    expect(() => queryService.requireWholeIndex()).not.toThrow();
   });
 });

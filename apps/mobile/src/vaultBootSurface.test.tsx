@@ -46,7 +46,7 @@ vi.mock("./services/mail/mailRuntime", () => ({ startMobileMail: vi.fn(), stopMo
 import "@plainva/ui/i18n";
 import { useVaultBoot } from "./hooks/useVaultBoot";
 import { VaultBootSurface } from "./components/VaultBootSurface";
-import { beginIndexBuild, endIndexBuild, reportIndexBuild } from "./services/indexBuild";
+import { beginIndexBuild, markIndexWhole, reportIndexBuild } from "./services/indexBuild";
 import { currentMobileDialog, dismissMobileDialog } from "./services/mobileDialogs";
 
 /** What App.tsx renders before its vault is there. */
@@ -77,7 +77,7 @@ afterEach(() => {
   if (open) dismissMobileDialog(open);
   act(() => root.unmount());
   container.remove();
-  endIndexBuild("folder-1");
+  markIndexWhole("folder-1");
 });
 
 const q = (id: string) => container.querySelector<HTMLElement>(`[data-testid="${id}"]`);

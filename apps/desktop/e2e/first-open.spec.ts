@@ -37,6 +37,10 @@ test('a vault opens before its first index is built, says so, and has the index 
   const heading = (files['Start note.md'].match(/^# (.+)$/m) ?? [])[1] ?? 'Start note';
   const editor = page.locator('.cm-content[contenteditable="true"]').first();
   await expect(editor.getByText(heading).first()).toBeVisible({ timeout: 30_000 });
+  // The counts in the status bar come from the note, not from the index: they are
+  // there while the index is built (the first photo of this test caught them
+  // inside their 250 ms debounce).
+  await expect(page.locator('footer').getByText(/[1-9][\d,.\s]* words/).first()).toBeVisible({ timeout: 10_000 });
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('first-open-building.png') });
 
   // Folders of the fixture are in the tree as well, from the same listing.

@@ -1,5 +1,5 @@
 import i18n from "@plainva/ui/i18n";
-import { getPlatformServices, linkDiskProbe, planLinkOpen, requestAnchorJump, toast, type LinkToOpen } from "@plainva/ui";
+import { errorText, getPlatformServices, linkDiskProbe, planLinkOpen, requestAnchorJump, toast, type LinkToOpen } from "@plainva/ui";
 import { mConfirm } from "./mobileDialogs";
 import { getMobileSettings } from "./mobileSettings";
 import { vaultOps, type MobileVault } from "./vaultService";
@@ -32,6 +32,7 @@ export async function openLink(link: LinkToOpen, ctx: MobileLinkContext): Promis
     resolveWiki: (target, from) => vaultOps.resolveWikiTarget(vault, target, from, "wiki"),
     resolveMarkdown: (target, from) => vaultOps.resolveMarkdownLink(vault, target, from),
     ...linkDiskProbe(vault.files),
+    requireWholeIndex: () => vault.queryService?.requireWholeIndex(),
   });
   switch (outcome.action) {
     case "open":
@@ -56,6 +57,9 @@ export async function openLink(link: LinkToOpen, ctx: MobileLinkContext): Promis
       return;
     case "notFound":
       toast.warning(i18n.t("dialogs.linkNotFoundMsg", { target: outcome.target }));
+      return;
+    case "refused":
+      toast.warning(errorText(outcome.error));
       return;
     case "create": {
       // The target note does not exist yet — create it (Obsidian parity,

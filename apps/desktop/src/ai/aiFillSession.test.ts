@@ -107,7 +107,7 @@ function fillVault(options: { sealed?: boolean; onPropose?: (round: ProposalRoun
     folderExists: async () => true,
     taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), "en"),
     draftPlace: async () => null,
-    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never }, exists, path, name),
+    renamePlan: (path, name) => noteRenamePlan({ getBacklinks: async () => [] as never, requireWholeIndex: () => {} }, exists, path, name),
     rename: async () => null,
     movePlan: (path, folder) => noteMovePlan(exists, path, folder),
     move: async () => null,

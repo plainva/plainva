@@ -114,7 +114,7 @@ describe("useTaskDuplicates", () => {
 
   function setup(files: Record<string, string>) {
     const state = { paths: Object.keys(files) };
-    const queryService = { getTaskAnchors: async () => anchors(state.paths) };
+    const queryService = { getTaskAnchors: async () => anchors(state.paths), requireWholeIndex: () => {} };
     const deleteNote = vi.fn(async (p: string) => {
       delete files[p];
       state.paths = state.paths.filter((x) => x !== p);

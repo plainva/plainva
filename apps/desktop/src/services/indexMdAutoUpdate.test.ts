@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { PLAINVA_INDEX_MARKER } from "@plainva/core";
+import { IndexNotWholeError, PLAINVA_INDEX_MARKER } from "@plainva/core";
 import {
   affectedFolders,
   createIndexAutoUpdater,
@@ -29,6 +29,8 @@ function makeVault(files: Record<string, string>) {
     },
   };
   const queryService = {
+    requireWholeIndex: () => {},
+    untilWholeIndex: async () => {},
     db: {
       query: async (sql: string) => {
         const mdPaths = [...store.keys()].filter((p) => p.endsWith(".md"));
@@ -155,5 +157,37 @@ describe("updateAllManagedIndexes", () => {
     expect(result.skippedNoMarker).toBe(1);
     expect(v.store.get("Q/index.md")).toBe("# Manuell\n");
     expect(v.store.get("P/index.md")).toContain("[a](a.md)");
+  });
+});
+
+describe("a listing while the index is not whole (performance plan L3)", () => {
+  it("is not written from half an index, and is written once the index is whole", async () => {
+    const v = makeVault({
+      "index.md": ROOT_OKF_INDEX,
+      "P/index.md": managedIndex("P"),
+      "P/A.md": "# A",
+    });
+    let whole = false;
+    let becameWhole: () => void = () => {};
+    const untilWhole = new Promise<void>((resolve) => { becameWhole = resolve; });
+    const queryService = {
+      ...v.queryService,
+      requireWholeIndex: () => {
+        if (!whole) throw new IndexNotWholeError({ kind: "building", done: 1, total: 3 });
+      },
+      untilWholeIndex: () => untilWhole,
+    };
+    const updater = createIndexAutoUpdater(deps(v, { queryService: queryService as any, debounceMs: 1 }));
+    updater.notify([{ type: "create", path: "P/B.md" }]);
+    await updater.flush();
+    expect(v.writes).toEqual([]);
+    expect(v.store.get("P/index.md")).toBe(managedIndex("P"));
+    // The notes not read yet are in the index now: the listing is written with them.
+    v.store.set("P/B.md", "# B");
+    whole = true;
+    becameWhole();
+    await vi.waitFor(() => expect(v.writes).toContain("P/index.md"));
+    expect(v.store.get("P/index.md")).toContain("B");
+    updater.dispose();
   });
 });

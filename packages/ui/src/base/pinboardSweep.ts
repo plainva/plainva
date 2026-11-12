@@ -21,7 +21,7 @@ import { retargetPinboardPaths } from "./pinboardModel";
 export interface PinboardSweepDeps {
   /** A vault's chain, or a storage with nothing above it: each `.base` is read, changed and written in one step. */
   adapter: TextUpdateFiles;
-  queryService: { listBaseFilePaths(): Promise<string[]> } | null | undefined;
+  queryService: { listBaseFilePaths(): Promise<string[]>; requireWholeIndex(): void } | null | undefined;
 }
 
 /** Exact file moves plus folder-prefix moves; returns the rewritten `.base` paths. */
@@ -41,6 +41,9 @@ export async function sweepPinboardRefs(
     return undefined;
   };
 
+  // The boards that hold a moved file are found in the index: refused over half
+  // of one, before the `catch` below that goes on without them (L3).
+  deps.queryService.requireWholeIndex?.();
   let basePaths: string[];
   try {
     basePaths = await deps.queryService.listBaseFilePaths();

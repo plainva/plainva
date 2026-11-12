@@ -1,5 +1,5 @@
 import { scanOkfVersionState, type OkfVersionState, type VaultQueryService } from "@plainva/core";
-import { awaitAnyWholeIndex, type OkfConversionAdapter } from "@plainva/ui";
+import type { OkfConversionAdapter } from "@plainva/ui";
 
 /**
  * The desktop's half of the OKF bundle migration (OKF v0.2 plan, P2): finding
@@ -19,8 +19,8 @@ export async function scanVaultOkfVersion(opts: {
   queryService: VaultQueryService;
   adapter: Pick<OkfConversionAdapter, "readTextFile">;
 }): Promise<OkfVersionState> {
-  // The candidates come from the index: whole, or some are missed (L3, as on the phone).
-  await awaitAnyWholeIndex();
+  // The candidates come from the index: refused over one that is not whole (L3).
+  opts.queryService.requireWholeIndex?.();
   const rows = await opts.queryService.db.query<{ path: string }>(
     `SELECT DISTINCT f.path AS path
      FROM properties p JOIN files f ON f.id = p.file_id

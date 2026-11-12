@@ -67,7 +67,15 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
 
   const load = useCallback(async () => {
     if (!vault.queryService) return;
-    const infos = await collectFolderIndexInfos({ queryService: vault.queryService, adapter: vault.files });
+    let infos: Awaited<ReturnType<typeof collectFolderIndexInfos>>;
+    try {
+      infos = await collectFolderIndexInfos({ queryService: vault.queryService, adapter: vault.files });
+    } catch (e) {
+      // Over an index that is not whole the overviews are refused, with the reason (L3).
+      toast.warning(errorText(e));
+      setRows([]);
+      return;
+    }
     const withState = await Promise.all(
       infos.map(async (info) => ({ ...info, state: await folderIndexState(vault.files, info.folder) })),
     );

@@ -93,7 +93,7 @@ describe("the inbox", () => {
   });
 
   it("is where a Markdown link to a note address leads, as a link out of the note", async () => {
-    const deps = { resolveWiki: async () => null, resolveMarkdown: async () => null, fileExists: async () => false, folderExists: async () => false };
+    const deps = { resolveWiki: async () => null, resolveMarkdown: async () => null, fileExists: async () => false, folderExists: async () => false, requireWholeIndex: () => {} };
     expect(await planLinkOpen({ text: URL_PLAN, kind: "markdown" }, deps)).toEqual({ action: "external", url: URL_PLAN });
   });
 });
@@ -370,6 +370,7 @@ describe("F2 review: what a link may reach, how long it waits, how often it asks
       resolveMarkdown: async () => null,
       fileExists: async (path: string) => { probed.push(path); return true; },
       folderExists: async () => false,
+      requireWholeIndex: () => {},
     };
     expect(await planLinkOpen({ text: ".Plainva/sync/keyfile", kind: "wiki" }, raw)).toEqual({ action: "notFound", target: ".Plainva/sync/keyfile" });
     expect(await planLinkOpen({ text: ".Plainva/sync/keyfile.json", kind: "markdown", parsed: true }, raw)).toMatchObject({ action: "notFound" });
@@ -384,7 +385,7 @@ describe("F2 review: what a link may reach, how long it waits, how often it asks
       getFileInfo: async () => ({ isDirectory: false }),
       listDir: async (folder?: string) => (listing[folder ?? ""] ?? []).map((name) => ({ name })),
     });
-    const deps = { resolveWiki: async () => null, resolveMarkdown: async () => null, ...probe };
+    const deps = { resolveWiki: async () => null, resolveMarkdown: async () => null, ...probe, requireWholeIndex: () => {} };
     expect(await planLinkOpen({ text: "Meeting 10:30.md", kind: "markdown", parsed: true }, deps)).toMatchObject({ action: "open", path: "Meeting 10:30.md" });
     expect(await planLinkOpen({ text: "aux.md", kind: "markdown", parsed: true }, deps)).toMatchObject({ action: "open", path: "aux.md" });
     expect(await planLinkOpen({ text: "PLAINV~1/sync/keyfile.json", kind: "markdown", parsed: true }, deps)).toMatchObject({ action: "notFound" });

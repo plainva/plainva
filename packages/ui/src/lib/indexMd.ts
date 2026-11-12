@@ -251,6 +251,9 @@ export async function adoptFileAsIndex(opts: {
   afterMove: (from: string, to: string) => Promise<void>;
 }): Promise<AdoptionResult> {
   const { adapter, queryService, candidatePath, folder, prepare } = opts;
+  // Every step below plans from the index — the links by title, the links it
+  // turns into Markdown links, the move: refused over half of one (L3).
+  queryService.requireWholeIndex?.();
   const indexPath = folder ? `${folder}/index.md` : "index.md";
   if (await adapter.exists(indexPath)) throw new VaultFileExistsError(indexPath);
 
@@ -392,9 +395,12 @@ export interface OverviewLinkPins {
  * refused afterwards.
  */
 export async function planOverviewLinkPins(
-  queryService: Pick<VaultQueryService, "linkTargets" | "linksNamingFile">,
+  queryService: Pick<VaultQueryService, "linkTargets" | "linksNamingFile" | "requireWholeIndex">,
   placements: readonly OverviewPlacement[],
 ): Promise<OverviewLinkPins> {
+  // The links an overview would take over are found in the index: refused over
+  // half of one, before the `failed` below that goes on without pinning (L3).
+  queryService.requireWholeIndex?.();
   const plan: LinkUpdatePlan = { oldPath: "", newPath: "", sources: [] };
   if (placements.length === 0) return { plan, links: 0, failed: false };
   let files: Awaited<ReturnType<VaultQueryService["linkTargets"]>>;
@@ -475,7 +481,7 @@ export async function pinOverviewLinks(
  * tells `changed` each note it wrote, for an open editor of it.
  */
 export async function pinLinksBeforeOverviews(opts: {
-  queryService: Pick<VaultQueryService, "linkTargets" | "linksNamingFile">;
+  queryService: Pick<VaultQueryService, "linkTargets" | "linksNamingFile" | "requireWholeIndex">;
   adapter: TextUpdateFiles;
   placements: readonly OverviewPlacement[];
   ask: (links: number) => Promise<boolean | null>;

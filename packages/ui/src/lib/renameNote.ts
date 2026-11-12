@@ -1,4 +1,3 @@
-import { awaitAnyWholeIndex } from "./indexBuild";
 import {
   buildLinkTargetIndex,
   explicitLinkPath,
@@ -74,7 +73,7 @@ export interface RenameResult {
 }
 
 /** What planning needs from the index. */
-export type LinkUpdateQuery = Pick<VaultQueryService, "getBacklinks" | "db">;
+export type LinkUpdateQuery = Pick<VaultQueryService, "getBacklinks" | "db" | "requireWholeIndex">;
 
 /**
  * The link rewrites one rename implies — plain data (a journal can hold it).
@@ -133,6 +132,10 @@ export async function planLinkUpdates(
   oldPath: string,
   newPath: string
 ): Promise<{ plan: LinkUpdatePlan; failed: boolean; bareTarget: string }> {
+  // The links onto a file are found in the index: never planned over half of
+  // one (performance plan L3). Refused before anything is asked — outside the
+  // `failed` below, which goes on without link updates.
+  queryService.requireWholeIndex?.();
   let backlinks: { source_path: string; target_path: string; link_type?: string | null; property_key?: string | null }[] = [];
   let allPaths: string[] = [];
   let failed = false;
@@ -366,10 +369,8 @@ export async function renameFileWithLinkUpdates(opts: {
 }): Promise<RenameResult> {
   const { adapter, queryService, oldPath, newPath } = opts;
 
-  // The links onto the note are found in the index: over a first index that
-  // is still being built, half of them would be missed (performance plan L3,
-  // issue 143). Waits for it, and says so once.
-  await awaitAnyWholeIndex();
+  // Refused over an index that is not whole, before the file moves (L3).
+  queryService.requireWholeIndex?.();
   const { plan, failed: planFailed } = await planLinkUpdates(queryService, oldPath, newPath);
 
   await adapter.renameItem(oldPath, newPath);

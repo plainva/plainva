@@ -18,6 +18,8 @@
  * than by whoever remembers.
  */
 
+import { isIndexNotWholeError, type IndexNotWholeError } from "@plainva/core";
+import { indexNotWholeText } from "./indexBuild";
 import { connectionErrorText } from "./connectionErrorText";
 import i18n from "i18next";
 
@@ -123,6 +125,8 @@ function inputErrorText(message: string): string {
 
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
+  // A refusal over an index that is not whole says why, in the person's language (L3).
+  if (isIndexNotWholeError(err) && (err as { state?: unknown }).state) return indexNotWholeText((err as IndexNotWholeError).state);
   const connection = connectionErrorText(err);
   if (connection) return connection;
   if (typeof err === "string") return inputErrorText(err.trim() || "unknown error");

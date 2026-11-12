@@ -6,7 +6,11 @@ import { requestCascadeDelete } from "../services/cascadeDelete";
 import { ActiveSemanticCoverage, EmptyState, FoundChip, ICON, meaningActive, toast, errorText, useLocalEmbeddings, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isAppleDoubleName, isHiddenPath, isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
+import { isHiddenPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
+import { treeDiskEntries } from "../lib/treeDiskEntries";
+
+/** While the index is built, the tree reads the folder again at most this often after a change (L3). */
+const LISTING_DURING_BUILD_MS = 3_000;
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
@@ -456,9 +460,23 @@ export const FileTree: React.FC<{
   // index decides what is a file of the vault (a sidecar `._x.md` is none).
   const indexBuilding = useSyncExternalStore(subscribeIndexBuild, () => (vaultPath ? isIndexBuilding(vaultPath) : false));
   const [diskOnlyFiles, setDiskOnlyFiles] = useState<{ path: string; title: string }[]>([]);
-  // While the index is built, a file made, moved or deleted meanwhile has no row to
-  // follow it: the listing is read again with every change of the files, until then.
-  const listingVersion = indexBuilding ? fileTreeVersion : -1;
+  // While the index is built, a file made, moved or deleted meanwhile has no
+  // row to follow it: the listing is read again after a change of the files —
+  // at most every few seconds and never twice at once, so a large first pull
+  // does not walk the vault once per file (the class of issue 122).
+  const [listingTick, setListingTick] = useState(0);
+  const listingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const walking = useRef(false);
+  const walkAgain = useRef(false);
+  useEffect(() => {
+    if (!indexBuilding || listingTimer.current) return;
+    listingTimer.current = setTimeout(() => {
+      listingTimer.current = null;
+      if (walking.current) walkAgain.current = true;
+      else setListingTick((n) => n + 1);
+    }, LISTING_DURING_BUILD_MS);
+  }, [indexBuilding, fileTreeVersion]);
+  useEffect(() => () => { if (listingTimer.current) clearTimeout(listingTimer.current); }, []);
   useEffect(() => {
     if (!vaultAdapter) {
       setDiskFolders([]);
@@ -466,28 +484,28 @@ export const FileTree: React.FC<{
       return;
     }
     let cancelled = false;
+    walking.current = true;
     (async () => {
       try {
-        const diskFiles = await vaultAdapter.listDir("", true);
-        const folders = diskFiles
-          // A dot folder is hidden (E8), like every internal one.
-          .filter(f => f.isDirectory && !isInternalPath(f.path) && !isHiddenPath(f.path))
-          .map(f => ({ path: f.path, title: f.name, isDir: true as const }));
-        // Kept from every listing (one walk for both), used only while the
-        // first index is built: a later end of the build walks nothing again.
-        const files = diskFiles
-          .filter((f) => !f.isDirectory && !isInternalPath(f.path) && !isHiddenPath(f.path) && !isAppleDoubleName(f.name))
-          .map((f) => ({ path: f.path, title: f.name.endsWith(".md") ? f.name.slice(0, -3) : f.name }));
+        const { folders, files } = treeDiskEntries(await vaultAdapter.listDir("", true));
         if (!cancelled) {
           setDiskFolders(folders);
+          // Kept from every listing (one walk for both), used only while the
+          // index is built: the end of the build walks nothing again.
           setDiskOnlyFiles(files);
         }
       } catch (err) {
         console.warn("Failed to list folders from disk", err);
+      } finally {
+        walking.current = false;
+        if (walkAgain.current && !cancelled) {
+          walkAgain.current = false;
+          setListingTick((n) => n + 1);
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [vaultAdapter, treeStructureVersion, isLoading, listingVersion]);
+  }, [vaultAdapter, treeStructureVersion, isLoading, listingTick]);
   const treeDiskFiles = indexBuilding ? diskOnlyFiles : null;
 
   useEffect(() => {

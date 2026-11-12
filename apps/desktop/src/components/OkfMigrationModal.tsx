@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { announceOkfRollback, Button, Checkbox, Modal, toast } from "@plainva/ui";
+import { announceOkfRollback, Button, Checkbox, errorText, Modal, toast } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import {
   okfMigrationPending,
@@ -53,7 +53,7 @@ export const OkfMigrationModal: React.FC<{
       })
       .catch((e) => {
         if (!alive) return;
-        setScanError(e instanceof Error ? e.message : String(e));
+        setScanError(errorText(e));
         setStep("summary");
       });
     return () => { alive = false; };

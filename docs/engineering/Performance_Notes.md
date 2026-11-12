@@ -362,17 +362,49 @@ note took typing after 55.1 s, the index was whole at 55.5 s; with L2 and L3 the
 3.0 s, the note takes typing after 3.8 s, and the index is whole at 35.0 s. A lower bound again: no
 IPC, no Rust, Chromium instead of WebView2/WKWebView.
 
-**What the user sees while the first index is built**, and why it is right: the tree holds every
-file (from the listing; a note by its file name until its title is read); search, tags, backlinks,
-databases, tasks and the graph answer from what is read so far, and the strip says so; what would
-be wrong over half an index waits for it with the phone's sentence (`mobile.indexWaitWhole`) — a
-rename or move with its link updates (`renameFileWithLinkUpdates`, `moveItems`, `renameToName`),
-the clean-up (orphans, mentions), find and replace, the OKF scans, and creating the note of a link
-the index does not know (`planLinkOpen`: it would be a second note of a name the vault holds). The
-sync reads no index rows: a file the scan has not reached is a file on disk to it; the deferral of
-the first index (3c, `coldIndexOwed`) holds until the scan went through, and a new connection's
-`enqueueAllLocalFiles` waits for it. An encrypted workspace's first reconcile still runs before the
-first picture on an empty index (with its own progress bar); the index builds beside it.
+**What the user sees while the index is not whole**, and why it is right (reworked after the
+review of 11.11.). The tree holds every file (from the listing, read again at most every 3 s after a
+change during the build; a note by its file name until its title is read); search, tags, backlinks,
+databases, tasks and the graph answer from what is read so far, and the strip says so — or that the
+last full read did not go through.
+
+Whatever PLANS A WRITE from the index is refused over one that is not whole, with the reason
+(core `vault/indexWholeness.ts`: `requireWholeIndex`, `IndexNotWholeError`, said in the person's
+language by `errorText`). The gate sits in the planners, not in the features: `planLinkUpdates`,
+`renameFileWithLinkUpdates`, `adoptFileAsIndex`, `planOverviewLinkPins`, `listMarkdownPaths` (every
+overview listing), `findInVault`, `linksNamingFile`, `GraphService.cleanupVerdicts` and
+`findUnlinkedMentions`, `loadWorkspaceSliceObjects` (nothing is published from half an index),
+`sweepPinboardRefs`, `buildDeletionPlan`, the relation and graph link writers, the AI rename plan,
+the task clean-ups, `planLinkOpen` before a note is created, the quick switcher's "create". A guard
+(`apps/desktop/src/indexPlanningGate.test.ts`) checks that each planner asks before it reads, and
+that every file reading the index a plan can be made from is on a reviewed list with what it does
+over half an index (gated, refused, says "partial", or safe for a named reason) — a new reader fails
+until it is decided. Background work waits instead: overview listings deferred during the build are
+written once the index is whole (`createIndexAutoUpdater`), the phone's reminders are not replanned
+(so nothing scheduled is cancelled) and the desktop's are planned again the moment it is whole, a new
+connection's `enqueueAllLocalFiles` runs once it is whole. A wait ends in "whole" or in a refusal:
+a failed build stays "failed" — refused, with its reason — until a scan goes through; a closed vault
+refuses whoever still waits.
+
+The state is per vault (the desktop's central window runs one runtime per held vault) and has one
+owner: the window that runs the vault writes it, every other window that shows the vault mirrors it
+over the window bus (`index-build-state`, `index-build`; `services/indexBuildMirror.ts`). An index
+owed a full scan (a first scan that failed, issue 125) counts as building on the next open as well.
+
+The sync reads no index rows: a file the scan has not reached is a file on disk to it; the deferral
+of the first index (3c, `coldIndexOwed`) holds until the scan went through. An encrypted
+workspace's first reconcile still runs before the first picture on an empty index (with its own
+progress bar); the index builds beside it.
+
+**Reading ahead across transactions.** The first version kept "a reading is written in the
+transaction that read it" and so awaited up to 16 started reads inside a transaction once its time
+was up — on slow media for long, and under an idle rollback a failing cold scan. The read-ahead now
+spans the scan; a transaction waits only for the reading of the file it writes, and when its time is
+up the reads go on for the next one. The sentence is replaced by a check at write time: a file whose
+row another pass wrote since the scan began (row gone, new row, or another `rowid`/`mtime_local`
+than at the scan's start — unless the row is owed a reading, `mtime_local` 0) keeps that pass's row
+(`indexedMeanwhile`). Large files read whole by the ordinary read (above 8 MB) are read one at a
+time across all groups; the loop stops reading however it ends.
 
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 

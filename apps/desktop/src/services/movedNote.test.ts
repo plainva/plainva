@@ -96,7 +96,7 @@ describe("adoptExternalMove", () => {
             readTextFile: async (p: string) => { if (!(p in files)) throw new Error("not found"); return files[p]; },
             writeTextFile: async (p: string, c: string) => { files[p] = c; },
           },
-          queryService: { listBaseFilePaths: async () => ["Pinnwand.base"] },
+          queryService: { listBaseFilePaths: async () => ["Pinnwand.base"], requireWholeIndex: () => {} },
         },
         reindex,
       }, "4 blog/link-50.md", "4 blog/taken/link-50.md");
