@@ -31,7 +31,7 @@ import { basename, join } from "node:path";
  */
 
 const APP_ID = "com.plainva.desktop";
-const STORE_FILE = "plainva-settings.json";
+export const STORE_FILE = "plainva-settings.json";
 const isWin = process.platform === "win32";
 const isMac = process.platform === "darwin";
 
@@ -71,7 +71,7 @@ let vaultDir = "";
  * (`~/.local/share/<id>` vs `~/.config/<id>`) — the first real run seeded the
  * config dir there, and the app never saw the vault.
  */
-function appDataDir(): string {
+export function appDataDir(): string {
   if (isWin) return join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), APP_ID);
   if (isMac) return join(homedir(), "Library", "Application Support", APP_ID);
   return join(process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"), APP_ID);

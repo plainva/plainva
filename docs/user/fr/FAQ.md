@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-11-10
+Dernière mise à jour : 2026-11-11
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -135,6 +135,10 @@ Plainva respecte le réglage « réduire les animations » de votre système. Si
 ### « Rechercher des mises à jour » ne trouve rien
 
 Tant qu'il n'y a pas encore de releases publiques, la vérification des mises à jour signale : « Aucune mise à jour publique (release) n'est encore disponible. » Ce n'est pas une erreur.
+
+### « Plainva a refusé la mise à jour »
+
+Avant toute installation, Plainva vérifie que le téléchargement est signé avec la clé du projet Plainva, et précisément pour la version proposée. Si la vérification échoue, la mise à jour est refusée : rien n'est installé et votre version continue de fonctionner telle quelle. Si le refus se répète, le téléchargement a été modifié en chemin ; signalez-le dans une issue.
 
 ### Y a-t-il des fonctionnalités cachées ?
 
