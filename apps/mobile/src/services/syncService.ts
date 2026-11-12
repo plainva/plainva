@@ -437,7 +437,7 @@ async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generati
   if (worker || settingsOnlySync || generation !== startGeneration) return;
   // No listing shows a genesis here: one look per session, never one per run.
   const sessionCheck = v.workspaceRuntime ? undefined : await mobileSettingsOnlyCheck(v, p, rawTarget).catch(() => undefined);
-  settingsOnlySync = new SettingsOnlySync(runner, target, v.backup ?? v.adapter, syncIntervalMs(), undefined, sessionCheck, () => {
+  settingsOnlySync = new SettingsOnlySync(runner, target, v.belowChain, syncIntervalMs(), undefined, sessionCheck, () => {
     setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
   });
   settingsOnlySync.start();
@@ -1306,13 +1306,13 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // large vault; surface it as determinate sync progress instead of a silent
     // freeze (package F1, Punkt 14).
     setState({ status: "syncing", message: null });
-    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.backup ?? v.adapter, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
+    await initializePersonalWorkspaceMigration({ store: objectStore, state: v.workspaceState, vault: v.belowChain, runtime: v.workspaceRuntime, recoveryConfirmedAt: new Date().toISOString(), onProgress: (done, total) => setProgress({ current: done, total }) });
     if (generation !== startGeneration) {
       // Stopped meanwhile (finding 4): no worker, and no "syncing" left standing.
       await settleCancelledStart(v);
       return;
     }
-    const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.backup ?? v.adapter, v.workspaceRuntime, {
+    const encrypted = new EncryptedWorkspaceWorker(objectStore, v.workspaceState, v.belowChain, v.workspaceRuntime, {
       intervalMs: syncIntervalMs(),
       // The workspace worker runs its sideband AFTER pull and push, so the
       // manifest guard is not a pre-pull check here. That is fine and not a
@@ -1320,7 +1320,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       // that has meanwhile become encrypted, and in an encrypted workspace
       // everything leaves sealed by construction. It still runs, so a manifest
       // that has gone missing surfaces as a cycle error (verified 2026-08-19).
-      sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.backup ?? v.adapter); await settingsSync.run(rawTarget, v.backup ?? v.adapter); },
+      sideband: async () => { await settingsSync.guardBeforeCycle?.(rawTarget, v.belowChain); await settingsSync.run(rawTarget, v.belowChain); },
       // Only whether THIS device holds the publication's keys; the folder it
       // lives in is derived inside core from the vault's workspace id. Null
       // covers both "never published from here" and "vault locked" - and
@@ -1378,10 +1378,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // Deletion journal (feedback round 2026-09-01, P1): the deletions a person
   // confirmed here reach the other devices as an intent, and theirs reach us.
   // Raw adapter — it is a sideband file, not a note.
-  const journal = new DeletionJournal(v.backup ?? v.adapter, await mobileSyncDeviceId());
+  const journal = new DeletionJournal(v.belowChain, await mobileSyncDeviceId());
   if (generation !== startGeneration) return; // stopped meanwhile (finding 4)
   deletionJournal = journal;
-  const w = new SyncWorker(engine, target, v.syncRepo!, v.backup, v.syncQueue!, syncIntervalMs(), {
+  const w = new SyncWorker(engine, target, v.syncRepo!, v.belowChain, v.syncQueue!, syncIntervalMs(), {
     downloadConcurrency: 2,
     downloadBufferBytes: 8 * 1024 * 1024,
     settingsSync,

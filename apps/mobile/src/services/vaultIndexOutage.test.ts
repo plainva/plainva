@@ -136,7 +136,7 @@ async function container(): Promise<IVaultAdapter> {
 function sync(vault: Vault) {
   const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, dav.fetch);
   const engine = new SyncEngine(vault.syncQueue!, target, vault.files, vault.syncRepo!);
-  const worker = new SyncWorker(engine, target, vault.syncRepo!, vault.backup, vault.syncQueue!, 60_000);
+  const worker = new SyncWorker(engine, target, vault.syncRepo!, vault.belowChain, vault.syncQueue!, 60_000);
   (worker as unknown as { isRunning: boolean }).isRunning = true;
   let owed: Promise<void> = Promise.resolve();
   worker.onFirstCycleComplete = () => {

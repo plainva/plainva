@@ -127,7 +127,7 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
  * waits in the note saver; the index and the open editor learn of the change as of every other change the assistant makes.
  */
 export function mobileDirectWrites(vault: MobileVault): DirectWriteFiles {
-  const versions = new VersionHistoryService(vault.adapter);
+  const versions = new VersionHistoryService(vault.belowChain);
   return {
     files: vault.files,
     snapshot: (path, origin) => vault.backup.ensureSnapshot(path, origin ? { origin } : {}),

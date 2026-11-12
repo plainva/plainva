@@ -489,7 +489,7 @@ export default function App() {
       });
       const def = defs.find((d) => d.id === pick) ?? null;
       await scaffoldVaultTemplate({
-        adapter: vault.adapter,
+        adapter: vault.belowChain,
         isNewVault: vault.freshlySeeded,
         template: def,
         vaultName: "Plainva",

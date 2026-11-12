@@ -11,7 +11,8 @@ import { keepTextBeside, type CommentEditorSnapshot } from "@plainva/ui";
 import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, isNotTextFileError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, type IDatabaseAdapter } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
-import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
+import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
+import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
 
 // CodeMirror belongs to the shared UI package; load that exact installed copy.
@@ -81,7 +82,7 @@ function harness(vault: MobileVault) {
   const stopped = vi.fn(async () => {});
   const activated = vi.fn(async () => {});
   const deps = {
-    vault, createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
+    vault, createSaveCoordinator, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>
       drafts.set(JSON.stringify([v.vaultId, path]), { text, revision }),

@@ -136,6 +136,10 @@ Plainva respecteert de systeeminstelling "beweging verminderen". Als overgangen 
 
 Zolang er nog geen openbare releases zijn, meldt de update-check: "Er zijn nog geen openbare updates (releases) beschikbaar." Dat is geen fout.
 
+### "Plainva heeft de update geweigerd"
+
+Voordat er iets wordt geïnstalleerd, controleert Plainva of de download is ondertekend met de sleutel van het Plainva-project, en wel voor precies de aangeboden versie. Mislukt die controle, dan wordt de update geweigerd: er wordt niets geïnstalleerd en je versie blijft gewoon draaien. Komt de weigering steeds terug, dan is de download onderweg veranderd; meld dat als issue.
+
 ### Zijn er verborgen functies?
 
 Starfleet becommentarieert geruchten in principe niet. Maar het schijnt dat het logo in de titelbalk reageert op aanhoudend kloppen — en wie vervolgens de juiste woorden kent, ziet Plainva daarna in een heel nieuw licht. Sommigen zeggen: in vieren.

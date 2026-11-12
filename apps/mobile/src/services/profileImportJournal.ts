@@ -96,7 +96,7 @@ const unknownKey = (vaultId: string) => `settingsSyncUnknownMobile_${vaultId}`;
 
 /** A new files container keeps the source's presentation and logical ids.
  * Credentials and service rows are copied separately through their stores. */
-export async function copyProfilePreferences(source: MobileVault, targetId: string, target: Pick<MobileVault["adapter"], "writeTextFile" | "readTextFile">): Promise<void> {
+export async function copyProfilePreferences(source: MobileVault, targetId: string, target: Pick<MobileVault["belowChain"], "writeTextFile" | "readTextFile">): Promise<void> {
   const store = await settingsStore();
   await applyVaultSettings(targetId, await getVaultSettings(source.vaultId));
   for (const keyOf of [unknownKey, accountMapKey]) {
@@ -142,7 +142,7 @@ export async function captureProfileSnapshot(vault: MobileVault): Promise<Profil
     accountMap: (await store.get<ProfileAccountMap>(accountMapKey(vaultId))) ?? null,
     mailAccounts: mailAccountsForProfile(await listMailAccounts(vaultId), map) as MailAccountConfig[],
     cloudAccounts: cloudRegistryToLogical(await loadCloudAccounts(vaultId), map) as CloudAccountRecord[],
-    bookmarks: await snapshotBookmarksFile(vault.adapter),
+    bookmarks: await snapshotBookmarksFile(vault.belowChain),
     barLayout: (await barLayoutIsInherited("mobileBar", vaultId))
       ? null
       : await loadBarLayout("mobileBar", vaultId),
@@ -259,7 +259,7 @@ export async function restoreProfileSnapshot(vault: MobileVault, snapshot: Profi
 
   // The file as it was, folder bookmarks included, on the lane the star
   // clicks share (Sammelplan § 3.127 Nr. 1).
-  await restoreBookmarksFile(vault.adapter, snapshot.bookmarks);
+  await restoreBookmarksFile(vault.belowChain, snapshot.bookmarks);
 
   if (snapshot.barLayout) await saveBarLayout("mobileBar", vaultId, snapshot.barLayout);
 

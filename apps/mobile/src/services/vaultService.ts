@@ -1,24 +1,14 @@
 import { clearPinboardCache, dailyDayResolver, logDiagnostic, reportBackground, reportingTo, logIndexDiagnostics, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
-  ConflictAwareVaultAdapter,
-  ConflictFileStore,
   ConflictError,
-  mergeEditorText,
-  containsTextChanges,
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
   QueueingVaultAdapter,
-  StructureRefusingVaultAdapter,
   StructureNeedsIndexError,
   WorkspaceQueueingVaultAdapter,
   PermissionedVaultAdapter,
   SqlWorkspaceStateStore,
-  evaluateWorkspaceAccess,
-  workspaceSliceIdsForObject,
-  previewWorkspaceMoveAccess,
-  workspaceGroupNames,
-  createWorkspaceObjectId,
   SyncQueue,
   SyncStateRepository,
   OwnDeletionRegister,
@@ -37,8 +27,8 @@ import {
   formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
-import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, WORKSPACE_FORKS_FOLDER, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
-import { copyFileContent, isNotTextFileError, NotTextFileError, type EditorWriteResult } from "@plainva/core";
+import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
+import { buildVaultChain, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -60,7 +50,7 @@ import { takeScreen } from "./screenStep";
 import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
-import { createSaveCoordinator } from "./saveCoordinator";
+import { createSaveCoordinator, writeEditorSave, type SaveCoordinator } from "@plainva/ui";
 import { removeDataFolder } from "../platform/dataFiles";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
@@ -102,8 +92,8 @@ import {
 } from "@plainva/ui";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
-import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet } from "@plainva/ui";
-import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
+import { workspaceWriteAuthorizer, type WorkspaceMoveQuestion, rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet } from "@plainva/ui";
+import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
@@ -125,17 +115,27 @@ export interface MobileVault {
   freshlySeeded: boolean;
   /** Single-use creation opportunity, consumed before showing the chooser. */
   claimTemplateCreation(): boolean;
-  /** Raw storage adapter (listing, binary reads): the sandbox one, or the external-folder one. */
-  adapter: MobileRawAdapter;
+  /**
+   * The storage below the chain (listing, binary reads): the sandbox one, or
+   * the external-folder one. Typed to READ only (stability plan R2): seven
+   * writers once took it for `files` and wrote past the version, the conflict
+   * check and the sync queue (finding 2026-10-09). A write goes through `files`.
+   */
+  adapter: MobileStorageReader;
   /** The picked folder this vault lives in, or null for a container vault (P4). */
   external: ExternalFolderRef | null;
-  /** App-facing adapter: the conflict-aware chain natively, raw on the web. */
+  /** App-facing adapter: the top of the vault's chain (`buildVaultChain`) — every write of the app. */
   files: IVaultAdapter;
+  /** The versions layer's own controls: take a version of a file as it is, how long versions are kept. */
+  backup: VaultVersionsControl;
   /**
-   * The version history over the raw storage, on every vault: every deletion and
-   * write below `files` passes it, so a deletion happens only with a net (D1).
+   * The lowest link of the chain, writable: the version history over the raw
+   * storage, so even here a deletion happens only with a net (D1). Below the
+   * conflict check and the queue — for the sync, the encrypted workspace and the
+   * app's own sideband files only, each place listed with its reason in
+   * `rawVaultAdapter.test.ts`. Never for a file the user sees.
    */
-  backup: BackupVaultAdapter;
+  belowChain: BackupVaultAdapter;
   syncQueue: SyncQueue | null;
   syncRepo: SyncStateRepository | null;
   /**
@@ -730,11 +730,29 @@ export async function rereadVault(folder?: string): Promise<void> {
  * opens natively (absent for an external folder — no sync runs there, E4)
  * and the access state an external folder reports.
  */
-export type MobileRawAdapter = IVaultAdapter & {
+export type MobileRawAdapter = IVaultAdapter & MobileStorageExtras;
+
+/** What the phone's storage tells beyond the shared contract, all of it read-only. */
+interface MobileStorageExtras {
   readonly sandboxRoot?: string;
   readonly accessState?: VaultFolderAccess | null;
   refreshAccess?(): Promise<VaultFolderAccess>;
-};
+}
+
+/** The phone's storage as app code may hold it: it can ask, never write (`VaultStorageReader`). */
+export type MobileStorageReader = VaultStorageReader & MobileStorageExtras;
+
+/** The question the workspace's permission check puts before a move, in the phone's own dialog. */
+async function confirmWorkspaceMove(question: WorkspaceMoveQuestion): Promise<boolean> {
+  const { Dialog } = await import("@capacitor/dialog");
+  const answer = await Dialog.confirm({
+    title: question.title,
+    message: question.message,
+    okButtonTitle: question.confirmLabel,
+    cancelButtonTitle: question.cancelLabel,
+  });
+  return answer.value;
+}
 
 async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVault> {
   // Paths are vault-relative: a stale lastPersisted entry from another vault
@@ -824,6 +842,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   let queryService: VaultQueryService | null;
   let searchAvailable = false;
 
+  /** Where this vault's conflict copies and diagnostics say they come from. */
+  const chainKind = isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud";
   let db: IDatabaseAdapter | null = null;
   try {
     db = createIndexDatabase(isDefaultLocal ? "plainva-index" : `plainva-${entry.id}`);
@@ -836,7 +856,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // desktop keeps this per vault, mobile applies one policy to the active
     // vault (updatePolicy also reacts to live settings changes below).
     const ms = getMobileSettings();
-    backup = new BackupVaultAdapter(adapter, {
+    const versionsOptions: BackupVaultAdapterOptions = {
       policy: {
         ...DEFAULT_BACKUP_RETENTION,
         minSnapshotIntervalSeconds: ms.backupIntervalSeconds,
@@ -861,81 +881,36 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       // No `moveToTrash` here: this device has no trash, so every file a
       // deletion takes — a folder's included — gets a snapshot first, and a
       // deletion whose snapshot fails asks before it goes (S4, D1).
-    });
+    };
     queue = new SyncQueue(db);
     workspaceState = workspaceStatus ? new SqlWorkspaceStateStore(db) : null;
-    // With the workspace's state: what the worker brought from another device
-    // is nothing the index reports for this one (finding 2026-10-12).
-    permissioned = workspaceState ? new PermissionedVaultAdapter(backup, workspaceState, async (request) => {
-      if (!workspaceRuntime) return false;
-      const existing = await workspaceState!.getObjectByPath(request.path);
-      const objectId = existing?.objectId ?? createWorkspaceObjectId();
-      const policy = workspaceRuntime.policy.payload;
-      const sliceObject = (path: string) => ({ objectId, path, contentKind: existing?.contentKind });
-      const access = (path: string, capability: Parameters<typeof evaluateWorkspaceAccess>[1]["capability"]) => evaluateWorkspaceAccess(policy, {
-        memberId: workspaceRuntime.memberId,
-        deviceId: workspaceRuntime.device.publicIdentity.deviceId,
-        capability,
-        objectId,
-        sliceIds: workspaceSliceIdsForObject(policy, sliceObject(path)),
-        object: sliceObject(path),
-        objectAuthorMemberId: existing?.authorMemberId ?? null,
-      });
-      const sourceDecision = access(request.path, request.capability);
-      if (!request.newPath || !sourceDecision.allowed) return sourceDecision;
-      const targetDecision = access(request.newPath, request.capability);
-      if (!targetDecision.allowed) return targetDecision;
-      // Same question the desktop asks (finding 2026-08-25): a move can take the file out of
-      // other people's reach without the mover noticing anything.
-      const impact = previewWorkspaceMoveAccess(policy, sliceObject(request.path), request.newPath, workspaceRuntime.memberId);
-      const confirmMove = async (title: string, message: string) => {
-        const { Dialog } = await import("@capacitor/dialog");
-        const answer = await Dialog.confirm({
-          title,
-          message,
-          okButtonTitle: i18n.t("workspaceSecurity.moveAnyway"),
-          cancelButtonTitle: i18n.t("common.cancel"),
-        });
-        return answer.value;
-      };
-      if (impact.removesActorAccess) {
-        return await confirmMove(
-          i18n.t("workspaceSecurity.moveAccessLossTitle"),
-          i18n.t("workspaceSecurity.moveAccessLossMessage", { path: request.newPath })
-        );
-      }
-      if (impact.removedGroupIds.length > 0) {
-        return await confirmMove(
-          i18n.t("workspaceSecurity.moveGroupLossTitle"),
-          i18n.t("workspaceSecurity.moveGroupLossMessage", {
-            groups: workspaceGroupNames(policy, impact.removedGroupIds).join(", "),
-            path: request.newPath,
-          })
-        );
-      }
-      return targetDecision;
-    }, async (request) => {
-      const forkId = createWorkspaceObjectId();
-      const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
-      const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
-      if (await backup!.exists(request.path)) { await backup!.createDir(WORKSPACE_FORKS_FOLDER); await backup!.writeBinaryFile(forkPath, await backup!.readBinaryFile(request.path)); }
-      await workspaceState!.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
-    }) : null;
-    // An entry of the sync queue that fails after its change is on disk is made
-    // up for while its write waits (QueueingVaultAdapter); one given up fails
-    // its write and is named in the diagnostics, like on the desktop.
-    // The encrypted workspace's queue makes up for its entries the same way (D2).
-    const queueing = workspaceState
-      ? new WorkspaceQueueingVaultAdapter(permissioned!, workspaceState, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) })
-      : new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
-    ownQueue = queueing;
-    syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
-    const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
-      window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
-    }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
+    // The chain every write of the app goes through, in its one order
+    // (`buildVaultChain`, stability plan R2), the desktop's own. With the
+    // workspace's state: what the worker brought from another device is
+    // nothing the index reports for this one (finding 2026-10-12). An entry of
+    // the sync queue that fails after its change is on disk is made up for
+    // while its write waits; one given up fails its write and is named in the
+    // diagnostics, like on the desktop — the workspace's queue the same (D2).
+    const chain = buildVaultChain({
+      storage: adapter,
+      versions: versionsOptions,
+      deviceId: await mobileSyncDeviceId(),
+      index: { db, queue },
+      workspace: workspaceState ? { state: workspaceState, authorize: workspaceWriteAuthorizer(workspaceRuntime, workspaceState, confirmWorkspaceMove) } : null,
+      onQueueEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)),
+      onAutoMerged: (path, mergedText) => {
+        window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
+      },
       // A write turned line ends the file's shape does not keep (a carriage
       // return of its own): said here for every writer of the app at once.
-      (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
+      onLineEndsConverted: (path, lineEnd) => sayLineEndsConverted(path, lineEnd),
+      kind: chainKind,
+    });
+    backup = chain.belowChain;
+    permissioned = chain.permissions;
+    ownQueue = chain.queueing;
+    syncRepo = chain.syncRepo;
+    const conflictAware = chain.files;
     files = conflictAware;
 
     // What a full scan left out, or why it failed, said once on screen (issue 125).
@@ -1060,17 +1035,18 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // The search index is optional; durable conflict editing is not. The
     // same file journal is used before and after the database recovers.
     const settings = getMobileSettings();
-    backup = new BackupVaultAdapter(adapter, { policy: { ...DEFAULT_BACKUP_RETENTION,
-      minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
-      onBackupError: reportSnapshotFailure });
-    // The sync queue lives in the database: a deletion, a rename or a move
-    // made now would reach no other device, and the remote would keep the
-    // file for good. They are refused before they touch the disk (R5);
-    // writing and creating files go on, and the next start with the database
-    // carries them (an edit by its hash, a new file as one the remote lacks).
-    files = new ConflictAwareVaultAdapter(new StructureRefusingVaultAdapter(backup), new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
-      isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
-      (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
+    const chain = buildVaultChain({
+      storage: adapter,
+      versions: { policy: { ...DEFAULT_BACKUP_RETENTION,
+        minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
+      onBackupError: reportSnapshotFailure },
+      deviceId: await mobileSyncDeviceId(),
+      index: null,
+      onLineEndsConverted: (path, lineEnd) => sayLineEndsConverted(path, lineEnd),
+      kind: chainKind,
+    });
+    backup = chain.belowChain;
+    files = chain.files;
     queue = null;
     syncRepo = null;
     indexer = null;
@@ -1090,6 +1066,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     external: entry.external ?? null,
     files,
     backup,
+    belowChain: backup,
     syncQueue: queue,
     syncRepo,
     ownDeletions,
@@ -1383,7 +1360,7 @@ export const vaultOps = {
       await v.indexer.relocatePathInIndex(oldPath, newPath).catch(reportingTo("index:relocate"));
       await v.reindexPaths([newPath, ...changedPaths]);
     }
-    await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await renameBookmarksOnDisk(v.belowChain, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
     notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -1409,7 +1386,7 @@ export const vaultOps = {
       await v.indexer.relocatePathInIndex(oldPath, newPath).catch(reportingTo("index:relocate"));
       await v.reindexPaths([newPath, ...changedPaths]);
     }
-    await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await renameBookmarksOnDisk(v.belowChain, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
     notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -1487,7 +1464,7 @@ export const vaultOps = {
       await v.indexer.relocatePathInIndex(oldPath, newPath).catch(reportingTo("index:relocate"));
       await v.indexer.indexVaultFull("folder moved in the app").catch(() => { /* silent: a failed full scan is said by the indexer itself (onFullScanFailed: the notice and the diagnostics line) */ });
     }
-    await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await renameBookmarksOnDisk(v.belowChain, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
     notifyFileOps([{ type: "move", from: oldPath, to: newPath, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -1530,7 +1507,7 @@ export const vaultOps = {
       await v.indexer.relocatePathInIndex(path, newPath).catch(reportingTo("index:relocate"));
       await v.reindexPaths([newPath, ...sweptBases]);
     }
-    await renameBookmarksOnDisk(v.adapter, path, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await renameBookmarksOnDisk(v.belowChain, path, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: path, to: newPath }]);
     notifyFileOps([{ type: "move", from: path, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -1562,22 +1539,22 @@ export const vaultOps = {
   /* ---- P3: bookmarks (device-local, .plainva/bookmarks.json) ---- */
 
   async getBookmarks(v: MobileVault): Promise<BookmarkEntry[]> {
-    return importObsidianBookmarks(v.adapter);
+    return importObsidianBookmarks(v.belowChain);
   },
   async toggleBookmark(v: MobileVault, path: string, type: BookmarkEntry["type"] = "file"): Promise<boolean> {
-    const marks = await toggleBookmarkOnDisk(v.adapter, path, type);
+    const marks = await toggleBookmarkOnDisk(v.belowChain, path, type);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
     return marks.some((m) => m.path === path && m.type === type);
   },
   /** One entry in front of another, or to the end (plan Befunde 2026-10-06, W6); keys are `bookmarkKey`s. */
   async moveBookmark(v: MobileVault, key: string, beforeKey: string | null): Promise<BookmarkEntry[]> {
-    const marks = await moveBookmarkOnDisk(v.adapter, key, beforeKey);
+    const marks = await moveBookmarkOnDisk(v.belowChain, key, beforeKey);
     window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
     return marks;
   },
   async removeBookmark(v: MobileVault, path: string): Promise<void> {
-    await removeBookmarksOnDisk(v.adapter, [path]);
+    await removeBookmarksOnDisk(v.belowChain, [path]);
     window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
   },
 
@@ -1639,14 +1616,14 @@ export const vaultOps = {
    * since P4. It drops the entry, never the file.
    */
   async forgetRecent(v: MobileVault, path: string): Promise<void> {
-    await forgetRecentOnDisk(v.adapter, path);
+    await forgetRecentOnDisk(v.belowChain, path);
     window.dispatchEvent(new CustomEvent("m-recents-changed"));
   },
 
   async pushRecent(v: MobileVault, path: string): Promise<void> {
     if (!/\.md$/i.test(path) || isHiddenPath(path)) return;
     try {
-      await pushRecentOnDisk(v.adapter, path, Date.now());
+      await pushRecentOnDisk(v.belowChain, path, Date.now());
     } catch {
       /* recents are best-effort; never block opening a note */
     }
@@ -2041,126 +2018,103 @@ export function clearPersistedTextCache(): void {
  * vault switch/delete flush it. A first failure surfaces one toast; retries
  * keep running silently in the background.
  */
-export const noteSaver = createSaveCoordinator<MobileVault>({
-  contextKey: (vault) => vault.vaultId,
-  write: async (vault, path, text, revision) => {
-    const key = JSON.stringify([vault.vaultId, path]);
-    // The editor's text leaves in the shape its file was read in, and what the
-    // disk answers is read back into the editor's text — so everything this
-    // module remembers and compares stays in one text space.
-    const shape = editorTextShape.get(key) ?? DEFAULT_TEXT_SHAPE;
-    const base = editorBaseText.get(key);
-    // Nothing to write: the editor holds what the file last said — the
-    // suggestion mode put its base back, or an edit was taken back before the
-    // save came. Writing it anyway cost a version and an upload for nothing,
-    // and a note that arrived with `\r\n` every one of its line ends, for an
-    // edit that never happened (finding 2026-10-08; the desktop's save has the
-    // same guard). A file that changed elsewhere meanwhile is the external
-    // update's business — this text has nothing to add to it.
-    if (base !== undefined && text === base && text === lastPersistedText.get(key)) return;
-    // The file turned into no text while the note was open — another program
-    // saved it in another encoding, or a pull brought such a version (finding
-    // 2026-10-11). Nothing is written over it: the text is kept beside it as a
-    // conflict copy, the way a conflict keeps one, and the note screen shows
-    // the file as what it is now. The desktop's save does the same.
-    const keepBeside = async (error: unknown): Promise<void> => {
-      if (!isNotTextFileError(error)) throw error;
-      // Typing that went on while a keep ran goes into the same copy — one
-      // copy for one buffer, the one the card points to.
-      const earlier = keptTexts.get(key) ?? null;
-      const kept = await keepTextBeside(vault.files, path, applyTextShape(text, shape), earlier);
-      keptTexts.set(key, kept);
-      // Nothing of this text is unsaved any more: it lies beside the file. The
-      // merge base stays what editor and file last agreed on, as on the
-      // desktop — should the file be text again by the next save, that save
-      // brings all of the typing into it.
-      lastPersistedText.set(key, text);
-      noteConflict(path, kept.copy, vault.vaultId);
-      try { await vault.reindexPaths([kept.copy]); } catch (error) { reportBackground("index:paths", error); /* a later index pass repairs the derived data */ }
-      if (kept.copy !== earlier?.copy) toast.warning(i18n.t("dialogs.conflictSavedMsg", { path: kept.copy }));
-      window.dispatchEvent(new CustomEvent("m-note-not-text", { detail: { vaultId: vault.vaultId, path, kept: kept.copy } }));
-    };
-    if (vault.files.writeEditorText) {
-      let result: EditorWriteResult;
-      try {
-        result = await vault.files.writeEditorText(path, applyTextShape(text, shape), base === undefined ? null : applyTextShape(base, shape));
-      } catch (error) {
-        await keepBeside(error);
+export const noteSaver: SaveCoordinator<MobileVault> = (() => {
+  // Made on first use, not while this module loads: the coordinator lives in
+  // another package (C20, moduleInitBoundary.test.ts).
+  let made: SaveCoordinator<MobileVault> | null = null;
+  const saver = () => (made ??= createSaveCoordinator<MobileVault>({
+    contextKey: (vault) => vault.vaultId,
+    write: async (vault, path, text, revision) => {
+      const key = JSON.stringify([vault.vaultId, path]);
+      // One save, the desktop's own (`writeEditorSave` in @plainva/ui, stability
+      // plan R6): no write of an unchanged text (finding 2026-10-08), the text in
+      // the shape its file was read in and the disk's answer read back into the
+      // editor's text, the chain's three-way merge, and a file that turned into
+      // no text kept beside instead of written over (finding 2026-10-11).
+      const base = editorBaseText.get(key);
+      const outcome = await writeEditorSave({
+        files: vault.files,
+        path,
+        text,
+        base: base ?? null,
+        persisted: lastPersistedText.get(key) ?? null,
+        shape: editorTextShape.get(key) ?? DEFAULT_TEXT_SHAPE,
+        kept: keptTexts.get(key) ?? null,
+        keep: keepTextBeside,
+      });
+      if (outcome.kind === "unchanged") return;
+      if (outcome.kind === "kept-beside") {
+        // Typing that goes on is kept into the same copy — one copy for one buffer, the one the card points to.
+        const { kept, earlier } = outcome;
+        keptTexts.set(key, kept);
+        // Nothing of this text is unsaved any more: it lies beside the file. The
+        // merge base stays what editor and file last agreed on, as on the
+        // desktop — should the file be text again by the next save, that save
+        // brings all of the typing into it.
+        lastPersistedText.set(key, text);
+        noteConflict(path, kept.copy, vault.vaultId);
+        try { await vault.reindexPaths([kept.copy]); } catch (error) { reportBackground("index:paths", error); /* a later index pass repairs the derived data */ }
+        if (kept.copy !== earlier?.copy) toast.warning(i18n.t("dialogs.conflictSavedMsg", { path: kept.copy }));
+        window.dispatchEvent(new CustomEvent("m-note-not-text", { detail: { vaultId: vault.vaultId, path, kept: kept.copy } }));
         return;
       }
-      if (result.session) noteConflict(path, result.session.workingCopyPath, vault.vaultId, result.session);
-      const stored = editorTextOf(result.stored);
+      const { stored, session } = outcome;
+      if (session) noteConflict(path, session.workingCopyPath, vault.vaultId, session);
       editorBaseText.set(key, text);
       lastPersistedText.set(key, stored);
       // The file took this text: a copy kept beside it before holds another.
       keptTexts.delete(key);
-      try { await vault.reindexPaths([result.session?.workingCopyPath ?? path]); } catch (error) { reportBackground("index:paths", error); /* a later index pass repairs the derived data */ }
+      try { await vault.reindexPaths([session?.workingCopyPath ?? path]); } catch (error) { reportBackground("index:paths", error); /* a later index pass repairs the derived data */ }
       window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
-      return;
-    }
-    let disk: string;
-    try {
-      disk = editorTextOf(await vault.files.readTextFile(path));
-    } catch (error) {
-      await keepBeside(error);
-      return;
-    }
-    let candidate = text;
-    // A pull can advance the sync index while the editor still holds its old
-    // base. Preserve that ancestry through delayed saves and further typing.
-    if (base !== undefined && disk !== base && disk !== text) {
-      const merged = mergeEditorText(base, text, disk);
-      if (merged.hasConflicts) {
-        throw new Error("Conflict-safe editing is unavailable; the pending draft has been retained");
+    },
+    onSchedule: (vault, path, text, revision) => writeDraft(vault, path, text, revision),
+    onSaved: (path, vault, revision) => {
+      // Only up to the revision that was written: typing on while the save was in
+      // flight journals a newer text, and that one has to survive.
+      clearDraft(vault, path, revision);
+      syncSoon();
+    },
+    // S5: a conflict is not a transient failure. The adapter has already written
+    // the user's text to a `.CONFLICT` sibling; retrying writes another one every
+    // backoff round, and none of them is anywhere on screen.
+    // Nor is a note whose file vanished under the editor (issue 110, E9): the
+    // adapter refuses to recreate it at its old place, and retrying cannot
+    // change that. The text stays in the editor and the draft journal; the note
+    // screen looks for the file and asks where the text goes.
+    // (Asked by the error code: a vanished file is the adapter's FILE_NOT_FOUND.)
+    // Nor is a file that is no text any more (NOT_TEXT_FILE): the adapter writes
+    // no text over it, however often it is asked. The write above keeps the text
+    // beside such a file; what still arrives here met the change between its
+    // read and its write.
+    isTerminal: (err) => err instanceof ConflictError || ["FILE_NOT_FOUND", "NOT_TEXT_FILE"].includes((err as { code?: string } | null)?.code ?? ""),
+    onError: (path, err, attempt, vault) => {
+      if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
+        window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+        return;
       }
-      candidate = merged.mergedText;
-    }
-    await vaultOps.save(vault, path, applyTextShape(candidate, shape));
-    const stored = editorTextOf(await vault.files.readTextFile(path));
-    if (!containsTextChanges(disk, candidate, stored)) throw new Error("The saved note could not be confirmed");
-    editorBaseText.set(key, text);
-    lastPersistedText.set(key, stored);
-    keptTexts.delete(key);
-    window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
-  },
-  onSchedule: (vault, path, text, revision) => writeDraft(vault, path, text, revision),
-  onSaved: (path, vault, revision) => {
-    // Only up to the revision that was written: typing on while the save was in
-    // flight journals a newer text, and that one has to survive.
-    clearDraft(vault, path, revision);
-    syncSoon();
-  },
-  // S5: a conflict is not a transient failure. The adapter has already written
-  // the user's text to a `.CONFLICT` sibling; retrying writes another one every
-  // backoff round, and none of them is anywhere on screen.
-  // Nor is a note whose file vanished under the editor (issue 110, E9): the
-  // adapter refuses to recreate it at its old place, and retrying cannot
-  // change that. The text stays in the editor and the draft journal; the note
-  // screen looks for the file and asks where the text goes.
-  // (Asked by the error code: a vanished file is the adapter's FILE_NOT_FOUND.)
-  // Nor is a file that is no text any more (NOT_TEXT_FILE): the adapter writes
-  // no text over it, however often it is asked. The write above keeps the text
-  // beside such a file; what still arrives here met the change between its
-  // read and its write.
-  isTerminal: (err) => err instanceof ConflictError || ["FILE_NOT_FOUND", "NOT_TEXT_FILE"].includes((err as { code?: string } | null)?.code ?? ""),
-  onError: (path, err, attempt, vault) => {
-    if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
-      window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
-      return;
-    }
-    if ((err as { code?: string } | null)?.code === "NOT_TEXT_FILE") {
-      // The text stays in the editor and the draft journal; the file stays as
-      // the other program left it. Said in the words the screen uses for it.
-      toast.warning(i18n.t("editor.notTextTitle"));
-      return;
-    }
-    console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);
-    if (err instanceof ConflictError) {
-      // An end state, shown as a banner at the note itself — not a toast that
-      // fades before the user can act on it.
-      noteConflict(path, err.conflictPath ?? conflictCopyPath(path), vault.vaultId);
-      return;
-    }
-    if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));
-  },
-});
+      if ((err as { code?: string } | null)?.code === "NOT_TEXT_FILE") {
+        // The text stays in the editor and the draft journal; the file stays as
+        // the other program left it. Said in the words the screen uses for it.
+        toast.warning(i18n.t("editor.notTextTitle"));
+        return;
+      }
+      console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);
+      if (err instanceof ConflictError) {
+        // An end state, shown as a banner at the note itself — not a toast that
+        // fades before the user can act on it.
+        noteConflict(path, err.conflictPath ?? conflictCopyPath(path), vault.vaultId);
+        return;
+      }
+      if (attempt === 1) toast.warning(i18n.t("mobile.saveRetry"));
+    },
+  }));
+  return {
+    schedule: (vault, path, text) => saver().schedule(vault, path, text),
+    flush: (path, vault) => saver().flush(path, vault),
+    flushAll: (vault) => saver().flushAll(vault),
+    hasPending: (path, vault) => saver().hasPending(path, vault),
+    getRevision: (path, vault) => saver().getRevision(path, vault),
+    withWriteLock: (path, vault, work) => saver().withWriteLock(path, vault, work),
+    discard: (path, vault, upToRevision) => saver().discard(path, vault, upToRevision),
+  };
+})();

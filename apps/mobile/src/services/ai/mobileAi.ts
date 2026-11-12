@@ -416,7 +416,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
     // A skill's version before a suggestion rewrites it, and the way back (plan P6-2): the store the versions panel of
     // a note reads. A vault without one keeps no versions; the way back is then the copy the approval holds while the
     // new version is watched — and a folder's log shows a changed note's beginning instead of what it gained.
-    const versions = vault.backup ? adapterInstructionVersions(vault.adapter, () => vault.backup) : null;
+    const versions = vault.backup ? adapterInstructionVersions(vault.belowChain, () => vault.backup) : null;
     /**
      * A note the assistant changed where it lies — a rule kept on this device, a folder's log, a TODO line made a
      * task: an open editor of it adopts the change. The chain counts the write as the app's own, so nothing else

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { useVault } from "./contexts/VaultContext";
 import { shippedSources } from "./test-sourceTree";
 import { ADAPTER_WRITE, adapterRead, anyOf, built, countUses, destructuredAs, propertyNamed, valueUses, variableNamed } from "../../../packages/core/test/helpers/valueUses";
 
@@ -28,9 +29,9 @@ const ROOT = "apps/desktop/src/";
 const OWNER = "contexts/VaultContext.tsx";
 
 const BELOW_THE_CHAIN = anyOf(
-  variableNamed("backupAdapter"),
-  propertyNamed("backupAdapter"),
-  destructuredAs(/\bVault(State|ContextType|ContextValue)\b|ReturnType<typeof useVault>/, "backupAdapter"),
+  variableNamed("backupAdapter", "belowChainAdapter"),
+  propertyNamed("backupAdapter", "belowChainAdapter"),
+  destructuredAs(/\bVault(State|ContextType|ContextValue)\b|ReturnType<typeof useVault>/, "backupAdapter", "belowChainAdapter"),
   built("TauriVaultAdapter"),
 );
 
@@ -96,14 +97,28 @@ describe("the storage below a vault's chain", () => {
     expect(owner, "the vault context moved — re-point this guard").toBeDefined();
     const uses = valueUses(OWNER, owner!.text, built("TauriVaultAdapter"));
     expect(uses.map(({ use }) => use)).toEqual(["builds TauriVaultAdapter"]);
-    // …and what it hands the app as `vaultAdapter` is the top of the chain.
-    expect(owner!.text).toMatch(/const vaultAdapter = new ConflictAwareVaultAdapter\(\s*queueingVaultAdapter,/);
+    // …it builds the chain over them with the one factory both shells use (stability plan R2), and what it hands
+    // the app as `vaultAdapter` is the top of that chain.
+    expect(owner!.text).toMatch(/const chain = buildVaultChain\(\{\s*storage: tauriVaultAdapter,/);
+    expect(owner!.text).toMatch(/const vaultAdapter = chain\.files;/);
   });
 
   it("is written to by none of them directly", () => {
     for (const [file, sites] of Object.entries(SITES)) {
       for (const [use] of sites) expect(use, `${file} ${use} below the chain`).not.toMatch(ADAPTER_WRITE);
     }
+  });
+
+  it("is typed so that what holds `backupAdapter` cannot write (stability plan R2)", () => {
+    // Held by the type checker, not by reading the source: `pnpm typecheck` fails where one of these lines compiles.
+    const vault = { backupAdapter: {}, belowChainAdapter: {} } as unknown as ReturnType<typeof useVault>;
+    // @ts-expect-error — the versions control takes versions, it does not write files
+    const write = vault.backupAdapter!.writeTextFile;
+    // @ts-expect-error — nor deletes past the chain
+    const remove = vault.backupAdapter!.deleteItem;
+    // The writable link has a name of its own, and every place that takes it is in SITES above.
+    const below = vault.belowChainAdapter!.writeTextFile;
+    expect([write, remove, below]).toEqual([undefined, undefined, undefined]);
   });
 
   it("every entry says why", () => {

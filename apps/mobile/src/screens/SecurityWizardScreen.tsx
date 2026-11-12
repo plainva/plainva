@@ -184,7 +184,7 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
           store: await getMobileWorkspaceObjectStore(vault.vaultId),
           // The RAW/backup adapter: the sweep reads local files as they are —
           // the permissioned + workspace-queueing chain exists after reload.
-          vault: vault.backup ?? vault.adapter,
+          vault: vault.belowChain,
           state: new SqlWorkspaceStateStore(vault.db),
           onProgress: (done, total) => setMigration({ done, total }),
         });

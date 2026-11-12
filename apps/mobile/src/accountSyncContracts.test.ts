@@ -112,7 +112,7 @@ function mobileVault(vaultId = "fixture-vault"): MobileVault {
       files.delete(path);
     },
   } as unknown as IVaultAdapter;
-  return { vaultId, adapter, db: null } as unknown as MobileVault;
+  return { vaultId, adapter, belowChain: adapter, db: null } as unknown as MobileVault;
 }
 
 describe("mobile account-sync regression contracts", () => {
@@ -324,7 +324,7 @@ describe("mobile account-sync regression contracts", () => {
     const store = fakeStore();
     install(store);
     const vault = mobileVault();
-    await vault.adapter.writeTextFile(".plainva/bookmarks.json", JSON.stringify({
+    await vault.belowChain.writeTextFile(".plainva/bookmarks.json", JSON.stringify({
       items: ["Notes/Old.md"],
     }));
     const port = createMobileProfilePort(vault);
@@ -364,7 +364,7 @@ describe("mobile account-sync regression contracts", () => {
     await store.set("mobile-vault-fixture-vault", { dailyFolder: "Journal" });
     install(store);
     const vault = mobileVault();
-    await vault.adapter.writeTextFile(".plainva/bookmarks.json", '{"items":["Notes/Mine.md"]}');
+    await vault.belowChain.writeTextFile(".plainva/bookmarks.json", '{"items":["Notes/Mine.md"]}');
 
     // The apply writes bookmarks early and the settings record LAST, so the
     // failure has to land in between — otherwise nothing would have changed yet

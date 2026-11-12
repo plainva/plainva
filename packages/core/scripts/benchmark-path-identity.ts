@@ -16,10 +16,7 @@ import { DatabaseSync } from "node:sqlite";
 import { initializeSchema } from "../src/db/Schema.js";
 import type { IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
-import { BackupVaultAdapter } from "../src/vault/BackupVaultAdapter.js";
-import { QueueingVaultAdapter } from "../src/vault/QueueingVaultAdapter.js";
-import { ConflictAwareVaultAdapter } from "../src/vault/ConflictAwareVaultAdapter.js";
-import { SyncStateRepository } from "../src/vault/SyncStateRepository.js";
+import { buildVaultChain } from "../src/vault/vaultChain.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { SyncQueue } from "../src/sync/SyncQueue.js";
 import { SyncEngine } from "../src/sync/SyncEngine.js";
@@ -74,10 +71,12 @@ const measure = async (name: string, action: () => Promise<unknown>) => {
 const db = new DatabasePort(new DatabaseSync(path.join(root, "index.sqlite")));
 await db.initialize();
 const raw = new LocalVaultAdapter(vaultPath);
-const backup = new BackupVaultAdapter(raw);
 const queue = new SyncQueue(db);
-const repo = new SyncStateRepository(db);
-const app = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, queue), repo);
+// The app's chain, from the one factory both shells build it with.
+const chain = buildVaultChain({ storage: raw, deviceId: "benchmark", index: { db, queue }, kind: "external-folder" });
+const backup = chain.belowChain;
+const repo = chain.syncRepo!;
+const app = chain.files;
 const indexer = new VaultIndexer(raw, db, {
   onNewLocalFile: (p) => void queue.queueWrite(p),
   onExternalModification: (p) => void queue.queueWrite(p),

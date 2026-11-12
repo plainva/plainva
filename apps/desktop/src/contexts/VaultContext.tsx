@@ -1,16 +1,16 @@
-import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact, workspaceWriteAuthorizer } from "@plainva/ui";
 import { reportingTo } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText, WORKSPACE_FORKS_FOLDER } from "@plainva/core";
+import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -118,8 +118,19 @@ export interface VaultSyncWorker {
 interface VaultState {
   vaultPath: string | null;
   vaultAdapter: IVaultAdapter | null;
-  /** The backup layer of the adapter chain (forceBackup/updatePolicy live here). */
-  backupAdapter: BackupVaultAdapter | null;
+  /**
+   * The versions layer's own controls (forceBackup/ensureSnapshot/updatePolicy)
+   * and reads. Typed without a way to write (stability plan R2): a write goes
+   * through `vaultAdapter`, the top of the chain (`buildVaultChain`).
+   */
+  backupAdapter: VaultVersionsControl | null;
+  /**
+   * The chain's lowest link, writable — below the conflict check and the sync
+   * queue. For the sync's and the workspace's own steps and the app's sideband
+   * files only; every place that takes it is listed with its reason in
+   * `rawVaultAdapter.test.ts`. Never for a file the user sees.
+   */
+  belowChainAdapter: BackupVaultAdapter | null;
   dbAdapter: TauriDatabaseAdapter | null;
   // Typed by what the app calls, not by the class: an auxiliary window gets a
   // no-op stand-in (services/remoteIndexer.ts) because the owner indexes every
@@ -685,6 +696,7 @@ export const VaultProvider: React.FC<{
     vaultPath: null,
     vaultAdapter: null,
     backupAdapter: null,
+    belowChainAdapter: null,
     dbAdapter: null,
     indexer: null,
     queryService: null,
@@ -812,7 +824,7 @@ export const VaultProvider: React.FC<{
       // a vault reload (plainva-backup-settings-changed listener below).
       const retentionStore = await getSettingsStore();
       const retentionPolicy = await loadBackupRetentionSettings(retentionStore, path);
-      const backupVaultAdapter = new BackupVaultAdapter(tauriVaultAdapter, {
+      const versionsOptions: BackupVaultAdapterOptions = {
         policy: retentionPolicy,
         onBackupError: reportSnapshotFailure,
         onLargeFileTrimmed: (file, size) => {
@@ -826,7 +838,7 @@ export const VaultProvider: React.FC<{
             size
           );
         },
-      });
+      };
 
       // The SQLite index lives in the OS app-data dir, not in the vault (WP5 5b):
       // a network-drive vault paid a round-trip per index statement on every save.
@@ -851,88 +863,45 @@ export const VaultProvider: React.FC<{
       workspaceStateRef.current = workspaceStateStore;
       // With the workspace's state: what the worker brought from another
       // device is nothing the index reports for this one (finding 2026-10-12).
-      const permissionedWorkspaceAdapter = workspaceStateStore ? new PermissionedVaultAdapter(backupVaultAdapter, workspaceStateStore, async (request) => {
-        if (!workspaceRuntime) return false;
-        const existing = await workspaceStateStore.getObjectByPath(request.path);
-        const objectId = existing?.objectId ?? createWorkspaceObjectId();
-        const policy = workspaceRuntime.policy.payload;
-        const sliceObject = (path: string) => ({ objectId, path, contentKind: existing?.contentKind });
-        const access = (path: string, capability: WorkspaceCapability) => evaluateWorkspaceAccess(policy, {
-          memberId: workspaceRuntime.memberId,
-          deviceId: workspaceRuntime.device.publicIdentity.deviceId,
-          capability,
-          objectId,
-          sliceIds: workspaceSliceIdsForObject(policy, sliceObject(path)),
-          object: sliceObject(path),
-          objectAuthorMemberId: existing?.authorMemberId ?? null,
-        });
-        const sourceDecision = access(request.path, request.capability);
-        if (!request.newPath || !sourceDecision.allowed) return sourceDecision;
-        const targetDecision = access(request.newPath, request.capability);
-        if (!targetDecision.allowed) return targetDecision;
-        // A move can change who can read a file. Asking only "do I still see it?" misses the
-        // case that costs other people their access while the mover notices nothing — that is
-        // what previewWorkspaceMoveAccess was written for (finding 2026-08-25).
-        const impact = previewWorkspaceMoveAccess(policy, sliceObject(request.path), request.newPath, workspaceRuntime.memberId);
-        if (impact.removesActorAccess) {
-          return await appConfirm({
-            title: i18n.t("workspaceSecurity.moveAccessLossTitle"),
-            message: i18n.t("workspaceSecurity.moveAccessLossMessage", { path: request.newPath }),
-            kind: "warning",
-            confirmLabel: i18n.t("workspaceSecurity.moveAnyway"),
-            cancelLabel: i18n.t("common.cancel"),
-          });
-        }
-        if (impact.removedGroupIds.length > 0) {
-          return await appConfirm({
-            title: i18n.t("workspaceSecurity.moveGroupLossTitle"),
-            message: i18n.t("workspaceSecurity.moveGroupLossMessage", {
-              groups: workspaceGroupNames(policy, impact.removedGroupIds).join(", "),
-              path: request.newPath,
-            }),
-            kind: "warning",
-            confirmLabel: i18n.t("workspaceSecurity.moveAnyway"),
-            cancelLabel: i18n.t("common.cancel"),
-          });
-        }
-        return targetDecision;
-      }, async (request) => {
-        const forkId = createWorkspaceObjectId();
-        const safeName = request.path.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "external-change";
-        const forkPath = `${WORKSPACE_FORKS_FOLDER}/${forkId}-${safeName}`;
-        if (await backupVaultAdapter.exists(request.path)) {
-          await backupVaultAdapter.createDir(WORKSPACE_FORKS_FOLDER);
-          await backupVaultAdapter.writeBinaryFile(forkPath, await backupVaultAdapter.readBinaryFile(request.path));
-        }
-        await workspaceStateStore.saveLocalFork({ forkId, originalPath: request.path, forkPath, reason: "permission-denied", createdAt: new Date().toISOString() });
-      }) : null;
-      const queueingVaultAdapter = workspaceStateStore
+      // The chain every write of the app goes through, in its one order
+      // (`buildVaultChain`, stability plan R2): the versions over the files,
+      // with the workspace's permission check above them, the queue, and the
+      // conflict guard on top. What the worker brings from another device is
+      // nothing the index reports for this one (finding 2026-10-12).
+      const chain = buildVaultChain({
+        storage: tauriVaultAdapter,
+        versions: versionsOptions,
+        deviceId: await getDeviceId(),
+        index: { db: dbAdapter, queue: syncQueue },
+        workspace: workspaceStateStore
+          ? {
+            state: workspaceStateStore,
+            authorize: workspaceWriteAuthorizer(workspaceRuntime, workspaceStateStore, (question) => appConfirm({ ...question, kind: "warning" })),
+          }
+          : null,
         // The encrypted workspace's queue makes up for its entries the same way (D2).
-        ? new WorkspaceQueueingVaultAdapter(permissionedWorkspaceAdapter!, workspaceStateStore, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) })
-        : new QueueingVaultAdapter(backupVaultAdapter, syncQueue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
-
-      const syncRepo = new SyncStateRepository(dbAdapter, backupVaultAdapter, await getDeviceId());
-      const vaultAdapter = new ConflictAwareVaultAdapter(
-        queueingVaultAdapter,
-        syncRepo,
-        (mergedPath, mergedText) => {
-          // The adapter auto-merged external + local changes and wrote the result to disk.
-          // Tell the editor so it adopts the merged content instead of overwriting it on the next save.
+        onQueueEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)),
+        // The adapter auto-merged external + local changes and wrote the result to disk.
+        // Tell the editor so it adopts the merged content instead of overwriting it on the next save.
+        onAutoMerged: (mergedPath, mergedText) => {
           window.dispatchEvent(new CustomEvent("plainva-auto-merged", { detail: { path: mergedPath, mergedText } }));
         },
-        workspaceStateStore ?? syncRepo,
-        "external-folder",
         // A write turned line ends the file's shape does not keep (a carriage
         // return of its own) — every line of the file, unasked: said here for
         // every writer of the app at once, in this window and in the auxiliary
         // windows on this vault, whose saves come through this chain as well.
-        (convertedPath, lineEnd) => {
+        onLineEndsConverted: (convertedPath, lineEnd) => {
           sayLineEndsConverted(convertedPath, lineEnd);
           void getWindowBus()
             .then((bus) => bus.broadcast("line-ends-converted", { path: convertedPath, eol: lineEnd }, path))
             .catch(() => { /* no bus (browser/test): a single window has said it */ });
-        }
-      );
+        },
+        kind: "external-folder",
+      });
+      const backupVaultAdapter = chain.belowChain;
+      const permissionedWorkspaceAdapter = chain.permissions;
+      const syncRepo = chain.syncRepo!;
+      const vaultAdapter = chain.files;
 
       // Read this vault's sync credentials once: decides whether locally-detected changes
       // get enqueued for push, and which target the worker uses below. The five
@@ -1902,6 +1871,7 @@ export const VaultProvider: React.FC<{
         vaultPath: path,
         vaultAdapter,
         backupAdapter: backupVaultAdapter,
+        belowChainAdapter: backupVaultAdapter,
         dbAdapter,
         indexer,
         queryService,
@@ -2424,7 +2394,7 @@ export const VaultProvider: React.FC<{
         void loadVault(state.vaultPath);
         return;
       }
-      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.backupAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
+      buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.belowChainAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
         .then((step) => {
           worker.setSettingsSync(step ?? undefined);
           if (step) worker.triggerImmediate();
@@ -2513,6 +2483,7 @@ export const VaultProvider: React.FC<{
       vaultPath: null,
       vaultAdapter: null,
       backupAdapter: null,
+      belowChainAdapter: null,
       dbAdapter: null,
       indexer: null,
       queryService: null,
@@ -2776,12 +2747,12 @@ export const VaultProvider: React.FC<{
   };
 
   const activateWorkspace = async (draftId: string, onProgress?: (done: number, total: number) => void): Promise<{ queued: number; total: number }> => {
-    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) {
+    if (!state.vaultPath || !state.dbAdapter || !state.belowChainAdapter || !syncTargetRef.current || !syncProviderRef.current) {
       throw new Error("workspace-no-connection");
     }
     const vaultPath = state.vaultPath;
     const dbAdapter = state.dbAdapter;
-    const backupAdapter = state.backupAdapter;
+    const backupAdapter = state.belowChainAdapter;
     const rawTarget = syncTargetRef.current;
     const provider = workspaceProviderName(syncProviderRef.current);
     return underActivationOverlay(vaultPath, "activate", onProgress, async (report) => {
@@ -2833,12 +2804,12 @@ export const VaultProvider: React.FC<{
 
   /** Picks an interrupted conversion back up; the key bundle is already on this device. */
   const resumeWorkspaceSetup = async (onProgress?: (done: number, total: number) => void): Promise<{ queued: number; total: number }> => {
-    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) {
+    if (!state.vaultPath || !state.dbAdapter || !state.belowChainAdapter || !syncTargetRef.current || !syncProviderRef.current) {
       throw new Error("workspace-no-connection");
     }
     const vaultPath = state.vaultPath;
     const dbAdapter = state.dbAdapter;
-    const backupAdapter = state.backupAdapter;
+    const backupAdapter = state.belowChainAdapter;
     const rawTarget = syncTargetRef.current;
     const provider = workspaceProviderName(syncProviderRef.current);
     return underActivationOverlay(vaultPath, "resume", onProgress, async (report) => {
@@ -3271,14 +3242,14 @@ export const VaultProvider: React.FC<{
   };
 
   const restoreWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }): Promise<void> => {
-    if (!state.vaultPath || !state.dbAdapter || !state.backupAdapter || !syncTargetRef.current || !syncProviderRef.current) throw new Error("workspace-no-connection");
+    if (!state.vaultPath || !state.dbAdapter || !state.belowChainAdapter || !syncTargetRef.current || !syncProviderRef.current) throw new Error("workspace-no-connection");
     await state.syncWorker?.stopAndDrain();
     const store = createProviderWorkspaceObjectStore(workspaceProviderName(syncProviderRef.current), syncTargetRef.current);
     const restored = await restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
     await publishWorkspaceGovernanceUpdate(store, restored);
     await persistWorkspaceRuntime({ vaultPath: state.vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
     const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
-    await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: state.backupAdapter, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
+    await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: state.belowChainAdapter, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
     await reloadVault();
   };
 
@@ -3371,9 +3342,9 @@ export const VaultProvider: React.FC<{
   syncWorkerRef.current = state.syncWorker;
   const commentStoreMemo = useMemo((): CommentStore | null => {
     const vaultPath = state.vaultPath;
-    if (!vaultPath || !state.backupAdapter) return null;
+    if (!vaultPath || !state.belowChainAdapter) return null;
     return createDesktopCommentStore({
-      vaultPath, raw: state.backupAdapter, workspaceId: state.workspaceSecurityStatus?.workspaceId,
+      vaultPath, raw: state.belowChainAdapter, workspaceId: state.workspaceSecurityStatus?.workspaceId,
       authorName: async () => (await getSettingsStore()).get<string>(verifierNameKey(vaultPath)),
       plane: () => {
         if (workspacePlaneVaultRef.current !== vaultPath) throw new Error("workspace-comment-runtime-changed");
@@ -3386,7 +3357,7 @@ export const VaultProvider: React.FC<{
     });
     // The store is chosen by these three and nothing else; the control plane
     // reads its runtime through refs at call time.
-  }, [state.vaultPath, state.backupAdapter, state.workspaceSecurityStatus]);
+  }, [state.vaultPath, state.belowChainAdapter, state.workspaceSecurityStatus]);
   const commentStore = (): CommentStore | null => commentStoreMemo;
 
   const getCommentStoreState = async (): Promise<CommentStoreState | null> => commentStore()?.state() ?? null;
@@ -3612,7 +3583,7 @@ export const VaultProvider: React.FC<{
   });
   const refreshOperationIndex = useStableHandler((path: string) => triggerFileTreeUpdate([path]));
   const commentOperations = useMemo((): CommentOperationService | null => {
-    const vaultPath = state.vaultPath, adapter = state.vaultAdapter, indexer = state.indexer, backup = state.backupAdapter;
+    const vaultPath = state.vaultPath, adapter = state.vaultAdapter, indexer = state.indexer, backup = state.belowChainAdapter;
     if (!vaultPath) return null;
     if (isClient) return clientCommentOperations(vaultPath);
     if (!adapter || !commentStoreMemo) return null;
@@ -3627,7 +3598,7 @@ export const VaultProvider: React.FC<{
         if (indexer && await indexer.indexFile(await adapter.getFileInfo(path))) refreshOperationIndex(path);
       },
     });
-  }, [state.vaultPath, state.vaultAdapter, state.indexer, state.backupAdapter, isClient, commentStoreMemo, ensureOperationAuthor, refreshOperationIndex]);
+  }, [state.vaultPath, state.vaultAdapter, state.indexer, state.belowChainAdapter, isClient, commentStoreMemo, ensureOperationAuthor, refreshOperationIndex]);
   const clientCommentApi = useMemo(() => clientComments(state.vaultPath), [state.vaultPath]);
 
   const postWorkspaceCommentInput = async (input: CommentPostInput): Promise<void> => {
@@ -3720,7 +3691,7 @@ export const VaultProvider: React.FC<{
     // workspace lives on for every other device. Read before the teardown.
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
     await tearDownWorkspace(path);
-    if (state.backupAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.backupAdapter), departure);
+    if (state.belowChainAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.belowChainAdapter), departure);
     await loadVault(path);
   };
 
@@ -3739,7 +3710,7 @@ export const VaultProvider: React.FC<{
     const departure = workspaceDeparture(workspaceRuntimeRef.current);
     if (departure.sole !== true) throw new Error(i18n.t("workspaceSecurity.liftNotSole"));
     await tearDownWorkspace(path);
-    if (state.backupAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.backupAdapter), departure);
+    if (state.belowChainAdapter) await markEncryptedRemoteDeparted(encryptedRemoteFilePorts(state.belowChainAdapter), departure);
     await loadVault(path, true);
   };
 

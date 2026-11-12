@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import ts from "typescript";
 import {
-  BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, DEFAULT_BACKUP_RETENTION, DEFAULT_TEXT_SHAPE, QueueingVaultAdapter,
+  buildVaultChain, ConflictAwareVaultAdapter, ConflictError, DEFAULT_BACKUP_RETENTION, DEFAULT_TEXT_SHAPE,
   SyncQueue, SyncStateRepository, VaultIndexer, VaultQueryService, VersionHistoryService, applyTextShape, containsTextChanges,
   editorTextOf, initializeSchema, isNotTextFileError, isOpenTaskState, mergeEditorText, resolveTaskOrdinal, updateVaultText, type IDatabaseAdapter, type TaskRecord, type TextChange,
   type TextFileUpdate,
@@ -21,7 +21,8 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { phoneSqlite, type PhonePlatform } from "../../../../packages/core/test/helpers/phoneSqlitePlugin";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
 import { resetDatabasesForTests } from "../adapters/sqliteConnections";
-import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
+import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
+import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -158,11 +159,20 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   db = database;
   clock = Date.now();
   merged = []; foreign = []; kicks = 0; syncing = false; enqueued = Promise.resolve(); shown = [];
-  // boot(): storage, above it versions, the sync queue and the conflict check — and the index over all of it.
-  const backup = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION, now: () => clock });
+  // boot(): storage, above it versions, the sync queue and the conflict check, from the one factory boot builds
+  // it with (`buildVaultChain`) — and the index over all of it.
   const queue = new SyncQueue(db);
-  repo = new SyncStateRepository(db, raw, "phone-a");
-  chain = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, queue), repo, (path) => { merged.push(path); }, repo, "container");
+  const built = buildVaultChain({
+    storage: raw,
+    versions: { policy: DEFAULT_BACKUP_RETENTION, now: () => clock },
+    deviceId: "phone-a",
+    index: { db, queue },
+    onAutoMerged: (path) => { merged.push(path); },
+    kind: "container",
+  });
+  const backup = built.belowChain;
+  repo = built.syncRepo!;
+  chain = built.files;
   // What an index run finds is queued the way `enqueueLocal` does it once a sync runs — one after the other here.
   const enqueue = (path: string) => {
     if (syncing && !path.startsWith(".plainva") && !path.includes(".CONFLICT")) enqueued = enqueued.then(() => queue.queueWrite(path)).catch(() => {});
@@ -174,13 +184,13 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
   });
   history = new VersionHistoryService(raw);
   vault = {
-    vaultId: "phone-vault", adapter: raw, files: chain, backup, syncQueue: queue, syncRepo: repo, db, indexer,
+    vaultId: "phone-vault", adapter: raw, files: chain, backup, belowChain: backup, syncQueue: queue, syncRepo: repo, db, indexer,
     queryService: new VaultQueryService(db),
     reindexPaths: async (paths: string[]) => { for (const path of paths) await indexer.indexPath(path).catch(() => {}); },
   } as unknown as MobileVault;
   const syncSoon = () => { kicks += 1; };
   services = run<PhoneServices>(serviceCode, "{ vaultOps, noteSaver, rememberPersistedText }", {
-    createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, updateVaultText,
+    createSaveCoordinator, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, updateVaultText,
     writeDraft: () => {}, clearDraft: () => {}, noteConflict: () => {}, conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon, toast: { warning: () => {}, error: () => {} }, i18n: { t: (key: string) => key }, window: new EventTarget(), CustomEvent,
     console: { error: () => {}, warn: () => {} },
@@ -794,13 +804,19 @@ describe.each(["android", "ios"] as const)("one connection, two flows (%s)", (pl
 });
 
 it("boot hands its chain the reporter, as the desktop's vault context does: an entry made up for or given up is a line in the diagnostics", () => {
-  // Both chains: the sync queue's and the encrypted workspace's (Datensicherheit D2).
-  for (const chain of ["QueueingVaultAdapter", "WorkspaceQueueingVaultAdapter"]) {
-    const built = all(serviceFile, ts.isNewExpression)
-      .filter((node) => node.expression.getText(serviceFile) === chain)
-      .map((node) => node.getText(serviceFile));
-    expect(built, chain).toHaveLength(1);
-    for (const one of built) expect(one).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
+  // Both queues — the sync queue's and the encrypted workspace's (Datensicherheit D2) — are built by the one factory
+  // (`buildVaultChain`, stability plan R2), which hands either the reporter it is given.
+  for (const link of ["QueueingVaultAdapter", "WorkspaceQueueingVaultAdapter", "ConflictAwareVaultAdapter", "BackupVaultAdapter"]) {
+    expect(all(serviceFile, ts.isNewExpression).filter((node) => node.expression.getText(serviceFile) === link), link).toEqual([]);
+  }
+  const built = all(serviceFile, ts.isCallExpression)
+    .filter((node) => node.expression.getText(serviceFile) === "buildVaultChain")
+    .map((node) => node.getText(serviceFile));
+  // With the index database, and without it (no queue there).
+  expect(built).toHaveLength(2);
+  expect(built.filter((call) => /index: \{ db, queue \}/.test(call))).toHaveLength(1);
+  for (const call of built.filter((text) => /index: \{ db, queue \}/.test(text))) {
+    expect(call).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
   }
 });
 

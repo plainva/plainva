@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import ts from "typescript";
 import { EditorState } from "@codemirror/state";
 import { ConflictError, containsTextChanges, isNotTextFileError, mergeEditorText } from "@plainva/core";
-import { applyTextShape, conflictCopyLabel, editorTextOf, keepTextBeside, openEditorText, readTextShape } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, createDraftWriter, editorTextOf, keepTextBeside, KeepBesideFailedError, openEditorText, readTextShape, writeEditorSave } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
 import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
@@ -74,23 +74,33 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
   const recordDraft = vi.fn(async (_vault, _path, text: string, revision: number, id: string) => {
     journals.set(id, { text, revision });
   });
-  const clearDraft = vi.fn(async (_vault, _path, revision: number, id: string) => {
-    if ((journals.get(id)?.revision ?? Infinity) <= revision) journals.delete(id);
-  });
+  // The snapshots while typing goes on: the shared throttled writer (R6), over this harness's journal.
+  const writer = createDraftWriter<string>({
+    serial: <T,>(_file: string, work: () => Promise<T>) => work(),
+    recordInLane: async (_vault: string, _path: string, text: string, revision: number, id: string) => { journals.set(id, { text, revision }); },
+    clear: async (_vault: string, _path: string, revision: number, id: string) => {
+      if ((journals.get(id)?.revision ?? Infinity) <= revision) journals.delete(id);
+    },
+    adopt: async () => {},
+  }, { file: (vault: string, note: string) => `${vault}/${note}` });
+  const clearDraft = vi.fn(async (vault: string, notePath: string, revision: number, id: string) => writer.clear(vault, notePath, revision, id));
+  const writeDraft = (vault: string, notePath: string, text: () => string, revision: number, id: string) => writer.write(vault, notePath, text, revision, id);
+  const dropDraft = (vault: string, notePath: string, id: string) => writer.drop(vault, notePath, id);
   const ui = { saving: vi.fn(), error: vi.fn(), content: vi.fn(), conflict: vi.fn(), notText: vi.fn(), toast: vi.fn() };
   const loadedPathRef = { current: path as string | null };
-  const saveTimeoutRef = { current: null as number | null }, draftTimerRef = { current: null as number | null };
+  const saveTimeoutRef = { current: null as number | null };
   // A keep beside the file can be held or made to fail.
   const hooks = { beforeKeep: async () => {} };
   const deps = {
     activePath: path, vaultPath: root, vaultAdapter: files, saveState: lifetime, sessionRef, contentRef,
     withPendingWrite, mergeEditorText, containsTextChanges, ConflictError, isNotTextFileError, applyTextShape, editorTextOf, dirtyStore,
+    writeEditorSave, KeepBesideFailedError,
     // The notice names the copy as a person reads it (finding X10).
     conflictCopyLabel, i18n: { language: "en" },
     keepTextBeside: async (...args: Parameters<typeof keepTextBeside>) => { await hooks.beforeKeep(); return keepTextBeside(...args); },
-    loadJournal: async () => ({ recordDraft, clearDraft }),
+    loadJournal: async () => ({ recordDraft, clearDraft, writeDraft, dropDraft }),
     setIsSaving: ui.saving, setSaveError: ui.error, setContent: ui.content, setConflictInfo: ui.conflict, setNotText: ui.notText, loadedPathRef,
-    saveTimeoutRef, draftTimerRef,
+    saveTimeoutRef,
     indexer: null, triggerFileTreeUpdate: vi.fn(), window, CustomEvent, crypto,
     console: { error: vi.fn() }, toast: { warning: ui.toast }, t: (key: string, values?: Record<string, string>) => (values ? `${key} ${JSON.stringify(values)}` : key),
   };
@@ -101,7 +111,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
     session.applyExternalText(text); contentRef.current = text;
     lifetime.dirty = true; lifetime.nextRevision(); dirtyStore.set(path, true, lifetime.id);
   }
-  return { persist, schedule, edit, hooks, lifetime, session, sessionRef, contentRef, journals, recordDraft, clearDraft, ui, loadedPathRef, saveTimeoutRef, draftTimerRef };
+  return { persist, schedule, edit, hooks, lifetime, session, sessionRef, contentRef, journals, recordDraft, clearDraft, ui, loadedPathRef, saveTimeoutRef };
 }
 
 describe("original desktop save completion", () => {
@@ -146,16 +156,15 @@ describe("original desktop save completion", () => {
 
   it("keeps a save that a note another program saved in another encoding cannot take beside it, as a conflict copy — the note keeps its bytes", async () => {
     const h = harness(); h.edit("my draft\n");
-    // Still scheduled for this revision when the save came: the debounced save and the journal snapshot.
-    // Far out, so that no save outlasts them on a loaded machine (20 ms did,
-    // in a full run of the suite); whether the save lets them go is asked of
-    // clearTimeout.
+    // Still scheduled for this revision when the save came: the debounced save.
+    // Far out, so that no save outlasts it on a loaded machine (20 ms did,
+    // in a full run of the suite); whether the save lets it go is asked of
+    // clearTimeout. (The journal's snapshot of the revision is taken back by
+    // the clear of its entry, `journals` below.)
     const scheduled = vi.fn();
     const letGo = vi.spyOn(window, "clearTimeout");
     const save = window.setTimeout(scheduled, 60_000);
-    const draft = window.setTimeout(scheduled, 60_000);
     h.saveTimeoutRef.current = save;
-    h.draftTimerRef.current = draft;
     await writeFile(join(root, "Note.md"), FOREIGN);
     await h.persist("my draft\n");
     expect([...await readFile(join(root, "Note.md"))]).toEqual([...FOREIGN]);
@@ -174,12 +183,9 @@ describe("original desktop save completion", () => {
     expect(await files.listConflictSessions()).toHaveLength(0);
     // Nothing of this revision is still scheduled to run.
     expect(h.saveTimeoutRef.current).toBeNull();
-    expect(h.draftTimerRef.current).toBeNull();
     expect(letGo).toHaveBeenCalledWith(save);
-    expect(letGo).toHaveBeenCalledWith(draft);
     expect(scheduled).not.toHaveBeenCalled();
     window.clearTimeout(save);
-    window.clearTimeout(draft);
   });
 
   it("keeps nothing a second time when a save of the kept revision comes round after the next load — and drops what it journaled", async () => {
@@ -331,11 +337,10 @@ describe("original desktop save completion", () => {
     h.hooks.beforeKeep = async () => { entered.resolve(); await release.promise; };
     const saving = h.persist("my draft\n");
     await entered.promise;
-    // The pane shows another file now, which has scheduled its own save and journal snapshot.
+    // The pane shows another file now, which has scheduled its own save.
     h.lifetime.deactivate();
     const next = vi.fn();
     h.saveTimeoutRef.current = window.setTimeout(next, 20);
-    h.draftTimerRef.current = window.setTimeout(next, 20);
     Object.values(h.ui).forEach((spy) => spy.mockClear());
     release.resolve(); await saving;
     const [copy] = await copiesOf("Note");
@@ -344,9 +349,8 @@ describe("original desktop save completion", () => {
     expect(h.ui.toast).toHaveBeenCalledTimes(1);
     for (const spy of [h.ui.conflict, h.ui.notText, h.ui.error, h.ui.content, h.ui.saving]) expect(spy).not.toHaveBeenCalled();
     expect(h.saveTimeoutRef.current).not.toBeNull();
-    expect(h.draftTimerRef.current).not.toBeNull();
     await new Promise((done) => setTimeout(done, 40));
-    expect(next).toHaveBeenCalledTimes(2);
+    expect(next).toHaveBeenCalledTimes(1);
     // What was kept belongs to this editor's lifetime, not to the pane.
     expect(h.lifetime.kept?.copy).toBe(copy);
   });
@@ -363,6 +367,28 @@ describe("original desktop save completion", () => {
     expect(h.journals.get(h.lifetime.id)?.text).toBe("my draft\n");
     expect(await copiesOf("Note")).toHaveLength(0);
     expect([...await readFile(join(root, "Note.md"))]).toEqual([...FOREIGN]);
+  });
+
+  it("never journals another note's text under this one: a snapshot still buffered when the pane opens another file is dropped (review 2026-11-11, M1)", async () => {
+    const h = harness();
+    // The getter of the vanish check's "stay": whatever the pane shows when it is called.
+    const liveText = () => h.sessionRef.current.view.state.doc.toString();
+    h.session.applyExternalText("A typed"); h.lifetime.dirty = true;
+    h.schedule(liveText);
+    window.clearTimeout(h.saveTimeoutRef.current!); h.saveTimeoutRef.current = null;
+    await new Promise((done) => setTimeout(done, 20));
+    expect(h.journals.get(h.lifetime.id)?.text).toBe("A typed");
+    // Within the interval: buffered, with a timer.
+    h.session.applyExternalText("A typed more");
+    h.schedule(liveText);
+    window.clearTimeout(h.saveTimeoutRef.current!); h.saveTimeoutRef.current = null;
+    // The pane opens B: this editor lifetime lets go, the pane's view shows B.
+    h.lifetime.deactivate();
+    h.loadedPathRef.current = "B.md";
+    h.session.applyExternalText("B: a completely different note");
+    await new Promise((done) => setTimeout(done, 500));
+    expect(h.journals.get(h.lifetime.id)?.text).toBe("A typed");
+    expect([...h.journals.values()].some((entry) => entry.text.startsWith("B:"))).toBe(false);
   });
 
   it("journals nothing for a revision a save covered first: the snapshot comes after Ctrl+S, and the entry would outlive the text it held", async () => {

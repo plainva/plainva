@@ -16,7 +16,8 @@ import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { appStorageBytes, capacitorFilesystem, fakeAppStorage } from "../adapters/fakeAppStorage";
 import { fakeVaultFolder, folderBytes } from "../adapters/fakeVaultFolder";
 import type { VaultFolderNative } from "../platform/vaultFolder";
-import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
+import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
+import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
 
 // The container adapter's two plugins, for the tests of the app's own storage below.
@@ -104,7 +105,7 @@ beforeEach(async () => {
   vault = { vaultId: "vault-a", adapter: raw, files, backup, db, indexer: null, reindexPaths: async () => {} } as unknown as MobileVault;
   conflicts = []; events = new EventTarget();
   const deps = {
-    createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, openEditorText,
+    createSaveCoordinator, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, openEditorText,
     writeDraft: () => {}, clearDraft: () => {}, noteConflict: (path: string) => { conflicts.push(path); },
     conflictCopyPath: () => { throw new Error("actual conflict path required"); },
     syncSoon: () => {}, toast: { warning: () => {} }, i18n: { t: (key: string) => key }, window: events, CustomEvent, console: { error: () => {} },

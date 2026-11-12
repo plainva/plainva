@@ -393,7 +393,7 @@ export async function mobileCommentsMode(vault: MobileVault): Promise<MobileComm
 }
 
 export async function unlockMobileEncryption(vault: MobileVault, passphrase: string): Promise<void> {
-  const raw = vault.backup ?? vault.adapter;
+  const raw = vault.belowChain;
   if (!(await raw.exists(KEYFILE_PATH))) throw new Error("no keyfile present");
   const keyfile = JSON.parse(await raw.readTextFile(KEYFILE_PATH));
   const keys = await unlockAllKeys(keyfile, passphrase);
@@ -452,7 +452,7 @@ export async function prepareMobileEncryption(
   passphrase: string,
   probeRemote: (path: string) => Promise<boolean>,
 ): Promise<{ draftId: string; recoveryCode: string }> {
-  const raw = vault.backup ?? vault.adapter;
+  const raw = vault.belowChain;
   if (await raw.exists(KEYFILE_PATH)) throw new KeyfileAlreadyExistsError();
   let remoteExists: boolean;
   try {
@@ -479,7 +479,7 @@ export async function activatePreparedMobileEncryption(vault: MobileVault, draft
     if (draft) discardPreparedMobileEncryption(draftId);
     throw new Error("encryption-draft-expired");
   }
-  const raw = vault.backup ?? vault.adapter;
+  const raw = vault.belowChain;
   await raw.writeTextFile(KEYFILE_PATH, JSON.stringify(draft.keyfile, null, 2));
   // The bundle now lives in the keyring, so it must NOT be zeroed with the draft.
   await rememberKeyring(vault.vaultId, draft.bundle, new Map([[draft.bundle.keyId, draft.bundle]]));
@@ -493,7 +493,7 @@ export async function lockMobileEncryption(vaultId: string): Promise<void> {
 
 export async function mobileEncryptionStatus(vault: MobileVault): Promise<"none" | "locked" | "unlocked"> {
   if (await loadKeyring(vault.vaultId)) return "unlocked";
-  return (await (vault.backup ?? vault.adapter).exists(KEYFILE_PATH)) ? "locked" : "none";
+  return (await (vault.belowChain).exists(KEYFILE_PATH)) ? "locked" : "none";
 }
 
 /**
@@ -751,7 +751,7 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
           }
         }
         if (preserveBookmarks.size) await updateDiagnostics(vaultId, (d) => recordSkipped(d, new Date().toISOString(), skipped));
-        await applyBookmarkProfileOnDisk(vault.adapter, values, preserveBookmarks);
+        await applyBookmarkProfileOnDisk(vault.belowChain, values, preserveBookmarks);
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
 
         // Template rules (plan Vorlagen-Engine P6). The parsers normalize and
@@ -1151,7 +1151,7 @@ export async function prepareMobileSettingsSync(
   await recoverMobileAccountRepair(vault.vaultId, accountMapKey(vault.vaultId));
   const connectionId = connectionFingerprint(provider.provider, await remoteRoot(vault.vaultId, provider));
   const keyfile = new KeyfileSyncStep({ onRemoteKeyfileAdopted: () => window.dispatchEvent(new CustomEvent("m-encryption-locked")) });
-  const rawVault = vault.backup ?? vault.adapter;
+  const rawVault = vault.belowChain;
   let ring = await loadKeyring(vault.vaultId);
   // The profile encryption is independent of content encryption. Pull the
   // public keyfile before choosing settings.json vs settings.enc; when it is
