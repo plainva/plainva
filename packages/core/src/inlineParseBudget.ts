@@ -327,25 +327,10 @@ function mayStartBlock(line: string): boolean {
   return itemStart(line) !== null;
 }
 
-/** The cells of a table line: split at each `|` without a backslash in front, the outer pipes dropped. */
+/** The cells of a table line as the table parser counts them (`tableRowParts`); `null` for a line without a cell boundary. */
 function tableCells(line: string): number | null {
-  const trimmed = line.trim();
-  let cells = 1;
-  let pipes = 0;
-  for (let at = 0; at < trimmed.length; at++) {
-    if (trimmed[at] === "\\") {
-      at++;
-      continue;
-    }
-    if (trimmed[at] === "|") {
-      pipes++;
-      cells++;
-    }
-  }
-  if (pipes === 0) return null;
-  if (trimmed.startsWith("|")) cells--;
-  if (trimmed.endsWith("|") && trimmed.length > 1 && trimmed[trimmed.length - 2] !== "\\") cells--;
-  return cells;
+  const parts = tableRowParts(line, 0, line.length);
+  return parts.boundaries === 0 ? null : parts.cells;
 }
 
 /** A table's delimiter row: cells of `-` with an optional `:` on either side, at least one `|`. */
@@ -371,69 +356,78 @@ function delimiterRowCells(line: string): number | null {
 /** The characters of inline syntax a table's weight counts (`tableReadCost`): each opens or closes a construct the parser keeps events for. */
 const TABLE_SYNTAX = "\\[]*_~`<&!$";
 
-/** What a cell boundary (`|` without a backslash in front) weighs against a character. */
-export const TABLE_PIPE_WEIGHT = 10;
-
-/** What a cell with content weighs on top: its content is a parse of its own, with its own events. */
-export const TABLE_CELL_WEIGHT = 18;
+/** What a cell weighs against a character, filled or empty: each cell's content is a parse of its own, with its own events. */
+export const TABLE_CELL_WEIGHT = 30;
 
 /** What a character of inline syntax weighs against a plain one. */
-export const TABLE_SYNTAX_WEIGHT = 6;
+export const TABLE_SYNTAX_WEIGHT = 8;
 
-/** The parts of the table row `text[from, to)` its weight is made of. */
-export function tableRowParts(text: string, from: number, to: number): { chars: number; pipes: number; cells: number; syntax: number } {
-  let pipes = 0;
+/**
+ * The parts of the table row `text[from, to)` its weight is made of, its
+ * cells counted the way the table parser counts them: a `|` is a cell
+ * boundary unless an odd number of backslashes stands right in front of it
+ * (`\|` is a pipe in the cell, `\\|` a backslash and a boundary, `\\\|` again
+ * a pipe), also inside a code span; every stretch between two boundaries is a
+ * cell, empty or not; the stretch before the first and after the last
+ * boundary is one only when it holds something (a row without outer pipes
+ * has one cell more than boundaries). Quote markers in front of a row hold
+ * nothing.
+ */
+export function tableRowParts(text: string, from: number, to: number): { chars: number; boundaries: number; cells: number; syntax: number } {
+  let boundaries = 0;
   let cells = 0;
   let syntax = 0;
-  let filled = false;
+  let backslashes = 0;
+  // Whether the stretch since the last boundary (or the row's start) holds anything.
+  let held = false;
   for (let i = from; i < to; i++) {
     const ch = text[i];
-    if (ch === "|" && text[i - 1] !== "\\") {
-      pipes++;
-      if (filled) cells++;
-      filled = false;
+    if (ch === "|" && backslashes % 2 === 0) {
+      // A stretch between two boundaries is a cell; the one before the first only when it holds something.
+      if (boundaries > 0 || held) cells++;
+      boundaries++;
+      held = false;
     } else {
       if (TABLE_SYNTAX.includes(ch)) syntax++;
-      if (ch !== " " && ch !== "\t") filled = true;
+      if (ch !== " " && ch !== "\t" && !(boundaries === 0 && !held && ch === ">")) held = true;
     }
+    backslashes = ch === "\\" ? backslashes + 1 : 0;
   }
-  if (filled) cells++;
-  return { chars: to - from, pipes, cells, syntax };
+  if (held) cells++;
+  return { chars: to - from, boundaries, cells, syntax };
 }
 
 /**
  * What reading the table row `text[from, to)` weighs: one per character,
- * `TABLE_PIPE_WEIGHT` per cell boundary, `TABLE_CELL_WEIGHT` per cell with
- * content, `TABLE_SYNTAX_WEIGHT` per character of inline syntax. The weights
- * are fitted (`scripts/perf/table-budget.ts`, 2026-11-11) so that the largest
- * table the parse reads under a capped heap weighs about the same for every
- * shape measured — a word and a link, four short cells, four cells of words,
- * links and emphasis in every cell, unclosed openers, empty cells, literal
- * autolinks, one long cell of prose: the heaviest of them 1.2 times the
- * lightest.
+ * `TABLE_CELL_WEIGHT` per cell, `TABLE_SYNTAX_WEIGHT` per character of inline
+ * syntax. The weights are an upper bound, not a fit (`scripts/perf/table-budget.ts`,
+ * measured 2026-11-12): they are chosen so that the largest table the parse reads
+ * under a capped heap weighs at least `TABLE_READ_BUDGET / 0.9` for every
+ * measured shape — the costliest shape of each part decides its weight.
  */
 export function tableReadCost(text: string, from: number, to: number): number {
   const parts = tableRowParts(text, from, to);
-  return parts.chars + TABLE_PIPE_WEIGHT * parts.pipes + TABLE_CELL_WEIGHT * parts.cells + TABLE_SYNTAX_WEIGHT * parts.syntax;
+  return parts.chars + TABLE_CELL_WEIGHT * parts.cells + TABLE_SYNTAX_WEIGHT * parts.syntax;
 }
 
 /**
  * The most `tableReadCost` a table may have and still be read as a table;
  * over it the whole table is read as written. The criterion
- * (`pnpm --filter @plainva/core perf:tables -- --calibrate`): a table of every
- * measured shape at the budget is read by the index parse and by the
- * note-source parse each under `node --max-old-space-size=128`, with a tenth
- * to spare against the lightest shape's limit. That is the parse alone; the
- * heap a WebView gives the app is not known here, so raising the budget needs
- * a measurement in the phone's WebView first. In rows (2026-11-11): about
- * 6 400 rows of a word and a link, 4 300 rows of four short cells, 3 300
- * rows of four cells of words, 1 400 rows with links and emphasis in every
- * cell, 240 rows of 400 unclosed `[` and `*`; each parse about one to two
- * seconds on the desktop.
+ * (`pnpm --filter @plainva/core perf:tables -- --calibrate`, then `--check`):
+ * a table of every measured and every generated shape at the budget is read by
+ * the index parse and by the note-source parse each under
+ * `node --max-old-space-size=128`, and every measured shape's largest such
+ * table weighs at least the budget / 0.9. That is the parse alone; the heap a
+ * WebView gives the app is not known here, so raising the budget needs a
+ * measurement in the phone's WebView first. In rows (2026-11-12): about
+ * 5 200 rows of a word and a link, 3 400 rows of four short cells and a link,
+ * 2 600 rows of four cells of words, 1 000 rows with links and emphasis in
+ * every cell, 1 150 rows of sixteen one-character cells, 150 rows of 400
+ * unclosed `[` and `*`.
  * Before GFM tables 2.1.2 the rule was rows times length (5 × 10⁸), about
  * 2 500 short rows, for the time a quadratic parse took.
  */
-export const TABLE_READ_BUDGET = 730_000;
+export const TABLE_READ_BUDGET = 600_000;
 
 /**
  * The stretches of `text` a parser would spend more than the budget on:
