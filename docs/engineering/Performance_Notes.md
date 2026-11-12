@@ -397,7 +397,7 @@ whose rows times length went over 5 × 10⁸ was read as written, because the ta
 was taken to grow that way — so from about 2 500 short rows on a table was no table in the index,
 the note source or the reading view, and none of its links reached the index. That time was the
 quadratic `EditMap` above. What a large table still costs is memory: every cell is a parse of its
-own, and the events of the whole table are held until the tree is built. Measured 2026-11-12 on
+own, and the events of the whole table are held until the tree is built. Measured 2026-11-11 on
 this machine (one table, a fresh process each, `--expose-gc`; peak = the process's resident memory
 during the parse, retained = heap after a forced collection with the tree kept):
 
@@ -410,17 +410,34 @@ during the parse, retained = heap after a forced collection with the tree kept):
 | 2 000 rows with links and emphasis in every cell, 282 KB | 1 005 ms / 395 MB / 22 MB | 45 MB |
 | 1 000 rows of 400 unclosed `[` and `*`, 594 KB | 1 915 ms / 636 MB / 76 MB | 181 MB |
 
-The peak follows the characters, the cells and the inline syntax, not the rows: about 0.33 MB per
-1 000 characters, 7 KB per cell boundary and 1.4 KB per character of inline syntax, within a factor
-of 1.5 for every shape above. So a table is weighed by exactly that (`tableReadCost`: one per
-character, 20 per `|`, 4 per character of inline syntax) and has a budget of 1 200 000
-(`TABLE_READ_BUDGET`): about 400 MB at the peak on the desktop and one to two seconds, which a
-phone's WebView carries with room for the rest of the app. In rows: about 12 000 short rows of a
-word and a link, 8 500 rows of four short cells, 6 000 rows of four cells of words, 2 300 rows with
-links and emphasis in every cell, 550 rows of 400 unclosed `[` and `*` — three to five times the
-old rule for ordinary tables. A table over the budget is read as written, as before: in the index
-it has no links, and the reading view shows its lines as one paragraph of text with the pipes in
-it, no table. Read as written the same tables hold 20–200 MB at the peak and a few MB afterwards.
+The peak follows the characters, the cells and the inline syntax, not the rows. The budget is set
+by a criterion that can be re-run (`pnpm --filter @plainva/core perf:tables -- --calibrate`,
+`scripts/perf/table-budget.ts`): a table of every measured shape at the budget is read by the index
+parse and by the note-source parse, each in a process of its own under
+`node --max-old-space-size=128`. The script finds each shape's largest table under that cap, fits
+the weights of `tableReadCost` so that those limits weigh as nearly the same as possible, and
+checks the constants at the budget and at 1.25 times it. Calibrated 2026-11-11:
+
+| Shape | Limit under 128 MB | At the budget (730 000) | At 1.25 × |
+|---|---|---|---|
+| a word and a link | 8 653 rows | 6 422 rows, pass, 0.9 s | pass |
+| four short cells and a link | 4 681 rows | 4 274 rows, pass, 1.1 s | fail |
+| four cells of words | 4 548 rows | 3 299 rows, pass, 1.1 s | pass |
+| links and emphasis in every cell | 1 542 rows | 1 404 rows, pass, 1.8 s | fail |
+| 400 unclosed `[` and `*` per row | 287 rows | 237 rows, pass, 1.4 s | fail |
+| eight empty cells | 8 307 rows | 6 819 rows, pass, 1.0 s | fail |
+| literal autolinks | 6 491 rows | 5 737 rows, pass, 1.5 s | fail |
+| one long cell of prose | 2 378 rows | 2 112 rows, pass, 0.9 s | fail |
+
+(time: both parses together, on the desktop.) The weights: one per character, 10 per `|` without a
+backslash in front, 18 per cell with content (its content is a parse of its own; an empty cell is
+cheap), 6 per character of inline syntax. With them the heaviest shape's limit weighs 1.25 times the
+lightest; with a weight per `|` alone it was 1.85 times, because four short cells cost twice what
+two do. The budget is a tenth under the lightest limit. That is the parse alone: the heap a
+WebView gives the app is not known here, so raising the budget needs a measurement in the phone's
+WebView first. A table over the budget is read as written, as before: in the index it has no links,
+and the reading view shows its lines as one paragraph of text with the pipes in it, no table. Read
+as written, 12 000 such rows take 0.3 s and about 120 MB of resident memory at the peak.
 
 What the written reading costs above the budget is the one thing not linear here, and it is not the
 table's: micromark's text initializer (`resolveAllText`, 4.0.2) merges adjacent `data` events with
@@ -433,7 +450,7 @@ is a package of its own with its own corpus check, not part of this one. Lists a
 class as tables for memory (20 000 list items with a link: 409 MB at the peak), with no budget of
 their own.
 
-`inline-parse-budget.test.ts` reads a table at the budget (about 12 000 rows) as a table with every
+`inline-parse-budget.test.ts` reads a table at the budget (about 6 400 rows) as a table with every
 link, the same table one row longer as written — one paragraph, every other block of the note as
 before — within 5 s on the reference core, and times a table of 4 000 rows apart from those (3 s on
 the reference core, about half a second here).

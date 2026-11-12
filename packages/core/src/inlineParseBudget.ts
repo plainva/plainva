@@ -34,7 +34,7 @@
  * own (`TABLE_READ_BUDGET`), for the memory its parse takes: since GFM
  * tables 2.1.2 the table parser reads a table in time linear in its cells
  * (Gesamtplan Leistung L13), but every cell is a parse of its own, and the
- * events of a large table take hundreds of megabytes while it is read. Each of
+ * events of a large table are held until its tree is built. Each of
  * these is recognised only where every Markdown reader agrees it is what it
  * looks like; anything less certain is measured with the lines around it — a
  * mistake there can only make a stretch be read as written, never let one
@@ -371,45 +371,69 @@ function delimiterRowCells(line: string): number | null {
 /** The characters of inline syntax a table's weight counts (`tableReadCost`): each opens or closes a construct the parser keeps events for. */
 const TABLE_SYNTAX = "\\[]*_~`<&!$";
 
-/** What a cell boundary weighs against a character: a cell is a parse of its own, with its own events. */
-export const TABLE_CELL_WEIGHT = 20;
+/** What a cell boundary (`|` without a backslash in front) weighs against a character. */
+export const TABLE_PIPE_WEIGHT = 10;
+
+/** What a cell with content weighs on top: its content is a parse of its own, with its own events. */
+export const TABLE_CELL_WEIGHT = 18;
 
 /** What a character of inline syntax weighs against a plain one. */
-export const TABLE_SYNTAX_WEIGHT = 4;
+export const TABLE_SYNTAX_WEIGHT = 6;
 
-/**
- * What reading the table rows in `text[from, to)` weighs: one per character,
- * `TABLE_CELL_WEIGHT` per `|`, `TABLE_SYNTAX_WEIGHT` per character of inline
- * syntax. Fitted to what the parse holds at its peak (L13, measured
- * 2026-11-12 on the desktop, short rows, wide rows, links and emphasis in
- * every cell, openers without closers): about 0.33 MB per 1 000 of weight,
- * within a factor of 1.5 for every shape; the tree that stays afterwards is
- * a tenth of that for the index and a quarter for the reading view.
- */
-export function tableReadCost(text: string, from: number, to: number): number {
-  let cost = to - from;
+/** The parts of the table row `text[from, to)` its weight is made of. */
+export function tableRowParts(text: string, from: number, to: number): { chars: number; pipes: number; cells: number; syntax: number } {
+  let pipes = 0;
+  let cells = 0;
+  let syntax = 0;
+  let filled = false;
   for (let i = from; i < to; i++) {
     const ch = text[i];
-    if (ch === "|") cost += TABLE_CELL_WEIGHT;
-    else if (TABLE_SYNTAX.includes(ch)) cost += TABLE_SYNTAX_WEIGHT;
+    if (ch === "|" && text[i - 1] !== "\\") {
+      pipes++;
+      if (filled) cells++;
+      filled = false;
+    } else {
+      if (TABLE_SYNTAX.includes(ch)) syntax++;
+      if (ch !== " " && ch !== "\t") filled = true;
+    }
   }
-  return cost;
+  if (filled) cells++;
+  return { chars: to - from, pipes, cells, syntax };
+}
+
+/**
+ * What reading the table row `text[from, to)` weighs: one per character,
+ * `TABLE_PIPE_WEIGHT` per cell boundary, `TABLE_CELL_WEIGHT` per cell with
+ * content, `TABLE_SYNTAX_WEIGHT` per character of inline syntax. The weights
+ * are fitted (`scripts/perf/table-budget.ts`, 2026-11-11) so that the largest
+ * table the parse reads under a capped heap weighs about the same for every
+ * shape measured — a word and a link, four short cells, four cells of words,
+ * links and emphasis in every cell, unclosed openers, empty cells, literal
+ * autolinks, one long cell of prose: the heaviest of them 1.2 times the
+ * lightest.
+ */
+export function tableReadCost(text: string, from: number, to: number): number {
+  const parts = tableRowParts(text, from, to);
+  return parts.chars + TABLE_PIPE_WEIGHT * parts.pipes + TABLE_CELL_WEIGHT * parts.cells + TABLE_SYNTAX_WEIGHT * parts.syntax;
 }
 
 /**
  * The most `tableReadCost` a table may have and still be read as a table;
- * over it the whole table is read as written. At the budget the parse holds
- * about 400 MB at its peak on the desktop (the process's resident memory;
- * the live heap is about two thirds of it) and takes one to two seconds: a
- * phone's WebView carries that with room for the rest of the app, and a
- * crash in the index pass would come back at the next start with the same
- * note. In rows: about 12 000 short rows of a link and a word, 8 500 rows of
- * four short cells, 6 000 rows of four cells of words, 2 300 rows with
- * links and emphasis in every cell, 550 rows of 400 unclosed `[` and `*`.
+ * over it the whole table is read as written. The criterion
+ * (`pnpm --filter @plainva/core perf:tables -- --calibrate`): a table of every
+ * measured shape at the budget is read by the index parse and by the
+ * note-source parse each under `node --max-old-space-size=128`, with a tenth
+ * to spare against the lightest shape's limit. That is the parse alone; the
+ * heap a WebView gives the app is not known here, so raising the budget needs
+ * a measurement in the phone's WebView first. In rows (2026-11-11): about
+ * 6 400 rows of a word and a link, 4 300 rows of four short cells, 3 300
+ * rows of four cells of words, 1 400 rows with links and emphasis in every
+ * cell, 240 rows of 400 unclosed `[` and `*`; each parse about one to two
+ * seconds on the desktop.
  * Before GFM tables 2.1.2 the rule was rows times length (5 × 10⁸), about
  * 2 500 short rows, for the time a quadratic parse took.
  */
-export const TABLE_READ_BUDGET = 1_200_000;
+export const TABLE_READ_BUDGET = 730_000;
 
 /**
  * The stretches of `text` a parser would spend more than the budget on:

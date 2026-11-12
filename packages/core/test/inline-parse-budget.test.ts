@@ -10,6 +10,7 @@ import {
   restoreBoundedTree,
   restoreBoundedValue,
   TABLE_CELL_WEIGHT,
+  TABLE_PIPE_WEIGHT,
   TABLE_READ_BUDGET,
   TABLE_SYNTAX_WEIGHT,
   tableReadCost,
@@ -88,13 +89,16 @@ describe("the inline parse budget", () => {
 
   it("weighs a table by its characters, its cells and its inline syntax", () => {
     const row = "| [[a]] | *b* |";
-    // 15 characters, 3 pipes, 4 brackets and 2 stars.
-    expect(tableReadCost(row, 0, row.length)).toBe(15 + 3 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT);
+    // 15 characters, 3 pipes, 2 cells with content, 4 brackets and 2 stars.
+    expect(tableReadCost(row, 0, row.length)).toBe(15 + 3 * TABLE_PIPE_WEIGHT + 2 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT);
+    // An empty cell weighs its boundary only; an escaped pipe is no boundary.
+    const empty = "| | a \\| b |";
+    expect(tableReadCost(empty, 0, empty.length)).toBe(empty.length + 3 * TABLE_PIPE_WEIGHT + 1 * TABLE_CELL_WEIGHT + 1 * TABLE_SYNTAX_WEIGHT);
     expect(tableReadCost(`x${row}x`, 1, row.length + 1)).toBe(tableReadCost(row, 0, row.length));
   });
 
   // Rows of a word and a link, added until the table is at the budget (L13):
-  // about 12 000 of them. Until GFM tables 2.1.2 the rule was rows times
+  // about 6 400 of them. Until GFM tables 2.1.2 the rule was rows times
   // length, for a parse that grew with the square of the cells, and a table
   // of more than about 2 500 such rows was read as written — no table, and
   // none of its links in the index.
@@ -113,7 +117,7 @@ describe("the inline parse budget", () => {
   const noteOf = (rows: string[]) => `# Data\n\n${[HEADER, "|---|---|", ...rows].join("\n")}\n\nbelow [[Link]]\n`;
 
   it("reads a table at its budget as a table, with the link of every cell", () => {
-    expect(atBudget.rows.length).toBeGreaterThan(10_000);
+    expect(atBudget.rows.length).toBeGreaterThan(5_000);
     const note = noteOf(atBudget.rows);
     expect(overBudgetInlineRanges(note)).toEqual([]);
     const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });

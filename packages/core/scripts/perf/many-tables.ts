@@ -2,6 +2,7 @@
  * What reading a note with many GFM tables costs (Gesamtplan Leistung L13).
  *
  *   pnpm --filter @plainva/core perf:tables -- [--json out.json] [--quick] [--no-fixture]
+ *   pnpm --filter @plainva/core perf:tables -- --calibrate | --check   (the table budget, `table-budget.ts`)
  *
  * Parses generated notes through the entry points the app reads a note with:
  * `parseMarkdownAst(…, { preserveObsidianSyntax: true })` (the index pass and
@@ -25,6 +26,7 @@ import { pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { parseCommonMarkTree, parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
 import { fixtureFiles } from "./fixtureVault.js";
+import { runTableBudget } from "./table-budget.js";
 
 const WORDS = ["project", "review", "garden", "meeting", "budget", "draft", "owner", "status", "plan", "notes", "report", "idea", "task", "week", "travel"];
 const STATUS = ["open", "done", "waiting", "blocked"];
@@ -98,6 +100,11 @@ interface Row { series: string; case: string; lines: number; kb: number; ms: Rec
 
 async function main(): Promise<void> {
 const args = process.argv.slice(2);
+// The table budget's calibration under a capped heap (`table-budget.ts`).
+if (args.includes("--calibrate") || args.includes("--check")) {
+  runTableBudget(args);
+  return;
+}
 const quick = args.includes("--quick");
 const rounds = quick ? 1 : 5;
 const cases: Array<{ series: string; name: string; text: () => string }> = [];
