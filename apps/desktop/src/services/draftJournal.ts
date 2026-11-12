@@ -56,6 +56,8 @@ import { checkedReadTextFile } from "../adapters/checkedFilesystem";
  */
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+/** How long a move or a closing window waits for a snapshot that is still being written: never for good. */
+const MOVE_WAIT_MS = 2_000;
 
 type DraftEntry = DraftJournalEntry;
 
@@ -195,7 +197,7 @@ const layout: DraftJournalLayout<string> = {
 
 // Made on first use, not while this module loads: the journal lives in another package (C20, moduleInitBoundary.test.ts).
 let journalInstance: DraftJournal<string> | null = null;
-const journal = () => (journalInstance ??= createDraftJournal<string>({ storage, layout, retentionMs: RETENTION_MS }));
+const journal = () => (journalInstance ??= createDraftJournal<string>({ storage, layout, retentionMs: RETENTION_MS, moveWaitMs: MOVE_WAIT_MS }));
 
 /**
  * The owner writes its snapshots itself; an auxiliary window hands each one
@@ -249,9 +251,48 @@ export async function recordDraft(
  * `text` is read when the snapshot is written. A save that covers the
  * revision takes it out of the buffer (`clearDraft`).
  */
-export function writeDraft(vaultPath: string, notePath: string, text: () => string | null, revision: number, sessionId: string): void {
+export function writeDraft(vaultPath: string, notePath: string, text: string | (() => string | null), revision: number, sessionId: string): void {
   writer().write(vaultPath, notePath, text, revision, sessionId);
 }
+
+/**
+ * Every snapshot this window has buffered, written now — on the way out: the
+ * vault closes or the window switches to another one (`VaultContext`), the
+ * page goes (`flushDraftsOnLeave`). With the interval growing to seconds for a
+ * large note, what is buffered there is otherwise gone with the window.
+ * Bounded: a write that never settles does not hold the way out up.
+ */
+export async function flushDrafts(vaultPath?: string): Promise<void> {
+  await writer().flush((scope) => vaultPath === undefined || scope === vaultPath, { waitMs: MOVE_WAIT_MS });
+}
+
+/**
+ * The last way out a window's page still sees: `pagehide`, and the page going
+ * hidden (minimised, another app in front, the window closing on a platform
+ * that hides it first). Both start the flush; neither can wait for it — the
+ * snapshot reaches the disk if the process lives long enough (the owner's
+ * write is one native call; an auxiliary window's goes over the bus to the
+ * owner, which outlives it). Installed once per window, when this module
+ * loads (the vault context imports it).
+ */
+/** What `flushDraftsOnLeave` listens on: a window and its document, or a stand-in. */
+interface LeaveEvents {
+  addEventListener(type: string, listener: () => void): void;
+  removeEventListener?(type: string, listener: () => void): void;
+}
+
+export function flushDraftsOnLeave(page: LeaveEvents, document?: LeaveEvents & { readonly visibilityState: string }): () => void {
+  const flush = () => { void flushDrafts().catch(() => {}); };
+  const hidden = () => { if (document?.visibilityState === "hidden") flush(); };
+  page.addEventListener("pagehide", flush);
+  document?.addEventListener("visibilitychange", hidden);
+  return () => {
+    page.removeEventListener?.("pagehide", flush);
+    document?.removeEventListener?.("visibilitychange", hidden);
+  };
+}
+
+if (typeof window !== "undefined" && typeof document !== "undefined") flushDraftsOnLeave(window, document);
 
 /** What an editor buffered for the note is let go unwritten (its text went to another window). */
 export function dropDraft(vaultPath: string, notePath: string, sessionId: string): void {
@@ -334,12 +375,14 @@ export async function relocateDrafts(
 ): Promise<void> {
   if (moves.length === 0) return;
   if (!isOwnerWindow()) {
-    await auxWriter().flush((scope) => scope === vaultPath).catch(() => {});
+    await auxWriter().flush((scope) => scope === vaultPath, { notes: (path) => moves.some((m) => relocatedDraftPath(path, m) !== null), waitMs: MOVE_WAIT_MS }).catch(() => {});
     const bus = await getWindowBus();
     await bus.request("draft-relocate", { vaultPath, moves: moves.map(({ from, to }) => ({ from, to })) }).catch(() => {});
     return;
   }
-  await ownerWriter().flush((scope) => scope === vaultPath).catch(() => {});
+  // Only the moved notes' buffered snapshots, and not longer than a moment: a
+  // write that never settles must not hold up the end of the rename.
+  await ownerWriter().flush((scope) => scope === vaultPath, { notes: (path) => moves.some((m) => relocatedDraftPath(path, m) !== null), waitMs: MOVE_WAIT_MS }).catch(() => {});
   await journal().relocate(vaultPath, moves).catch((err) => console.warn("[draftJournal] drafts did not follow the move", err));
 }
 

@@ -105,7 +105,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
     console: { error: vi.fn() }, toast: { warning: ui.toast }, t: (key: string, values?: Record<string, string>) => (values ? `${key} ${JSON.stringify(values)}` : key),
   };
   const { persist, schedule } = new Function(...Object.keys(deps), compiled + "\nreturn { persist: persistText, schedule: scheduleSave };")(...Object.values(deps)) as {
-    persist: (text: string) => Promise<void>; schedule: (getText: () => string) => void;
+    persist: (text: string) => Promise<void>; schedule: (text: string | (() => string)) => void;
   };
   function edit(text: string) {
     session.applyExternalText(text); contentRef.current = text;
@@ -389,6 +389,21 @@ describe("original desktop save completion", () => {
     await new Promise((done) => setTimeout(done, 500));
     expect(h.journals.get(h.lifetime.id)?.text).toBe("A typed");
     expect([...h.journals.values()].some((entry) => entry.text.startsWith("B:"))).toBe(false);
+  });
+
+  it("journals a text handed as a value for its note, also after the pane let go of it: read mode has no teardown that would (review 2026-11-12)", async () => {
+    const h = harness();
+    // Two boxes ticked in the read view (`applyNonViewEdit`): each hands its text as a value.
+    h.schedule("base\n- [x] one\nend");
+    window.clearTimeout(h.saveTimeoutRef.current!); h.saveTimeoutRef.current = null;
+    await new Promise((done) => setTimeout(done, 20));
+    h.schedule("base\n- [x] one\n- [x] two\nend");
+    window.clearTimeout(h.saveTimeoutRef.current!); h.saveTimeoutRef.current = null;
+    // Another note opens in the pane before the second snapshot is written; the app then ends.
+    h.lifetime.deactivate();
+    h.loadedPathRef.current = "B.md";
+    await new Promise((done) => setTimeout(done, 500));
+    expect(h.journals.get(h.lifetime.id)?.text).toBe("base\n- [x] one\n- [x] two\nend");
   });
 
   it("journals nothing for a revision a save covered first: the snapshot comes after Ctrl+S, and the entry would outlive the text it held", async () => {
