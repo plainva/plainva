@@ -104,6 +104,20 @@ fn read_all(requests: Vec<(Option<PathBuf>, bool)>) -> Vec<IndexReadResult> {
         .collect()
 }
 
+/// Where each request is on disk. A path the registry or the lexical rules
+/// refuse — a root that is not (or no longer) registered after a vault closed,
+/// a parent segment, an absolute path — is read nowhere: the ordinary read
+/// gives that refusal its own words.
+fn resolve_requests(roots: &WriteRoots, root_id: &str, files: Vec<IndexReadRequest>) -> Vec<(Option<PathBuf>, bool)> {
+    files
+        .into_iter()
+        .map(|request| {
+            let path = if request.rel_path.is_empty() { None } else { registered_path(roots, root_id, &request.rel_path).ok() };
+            (path, request.text)
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub async fn read_files_for_index(
     root_id: String,
@@ -113,15 +127,7 @@ pub async fn read_files_for_index(
     if files.len() > MAX_REQUESTS {
         return Err(format!("at most {MAX_REQUESTS} files in one call"));
     }
-    // A path the registry or the lexical rules refuse is read nowhere: the
-    // ordinary read gives that refusal its own words.
-    let requests: Vec<(Option<PathBuf>, bool)> = files
-        .into_iter()
-        .map(|request| {
-            let path = if request.rel_path.is_empty() { None } else { registered_path(&state, &root_id, &request.rel_path).ok() };
-            (path, request.text)
-        })
-        .collect();
+    let requests = resolve_requests(&state, &root_id, files);
     tauri::async_runtime::spawn_blocking(move || read_all(requests))
         .await
         .map_err(|error| format!("index read failed: {error}"))
@@ -196,6 +202,24 @@ mod tests {
         let bytes: Vec<u8> = (0..(STREAM_BUFFER_BYTES * 3 + 17)).map(|i| (i % 251) as u8).collect();
         let path = write(&dir, "big.bin", &bytes);
         assert_eq!(read_all(vec![(Some(path), false)])[0], IndexReadResult::Bytes { sha256: to_hex(&Sha256::digest(&bytes)) });
+    }
+
+    #[test]
+    fn refused_and_unregistered_paths_are_read_nowhere() {
+        let dir = scratch("roots");
+        write(&dir, "a.md", b"# A");
+        let roots = WriteRoots::default();
+        roots.0.lock().unwrap().insert("root".into(), dir.clone());
+        let ask = |rel: &str| IndexReadRequest { rel_path: rel.into(), text: true };
+        let resolved = resolve_requests(&roots, "root", vec![ask("a.md"), ask("../outside.md"), ask(""), ask("/abs.md")]);
+        assert_eq!(resolved[0].0, Some(dir.join("a.md")));
+        assert_eq!(resolved[1].0, None);
+        assert_eq!(resolved[2].0, None);
+        assert_eq!(resolved[3].0, None);
+        // A root that was never registered, or no longer is after its vault closed.
+        let gone = resolve_requests(&roots, "closed-root", vec![ask("a.md")]);
+        assert_eq!(gone[0].0, None);
+        assert_eq!(read_all(gone), vec![IndexReadResult::Fallback]);
     }
 
     #[test]

@@ -222,7 +222,7 @@ interface BulkIndexLookups {
    * file's stored creation time by the file system's and dropped the mark
    * that an upload waits (finding 2026-10-12).
    */
-  fileStateByPath: Map<string, { sync_state: string | null; ctime: number | null }>;
+  fileStateByPath: Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null }>;
   /** Where each row sits now, by SQLite's rowid — how a scan tells a row that moved from a file that vanished (`movedAway`). */
   pathByRow: Map<number, string>;
   /** Where the row with each id sits — whether a path's own id is still another row's (`rowIdFor`). */
@@ -254,6 +254,38 @@ const readsAsText = (file: VaultFileInfo): boolean => file.name.endsWith(".md") 
  */
 const SCAN_READS_AT_ONCE = 8;
 const SCAN_GROUPS_AT_ONCE = 2;
+
+/** A file this large read whole by the ordinary read waits for any other such read of the scan (`createSerialGate`). */
+const SCAN_HEAVY_FILE_BYTES = 8 * 1024 * 1024;
+
+/** Runs the tasks handed to it one after the other. */
+type SerialGate = <T>(task: () => Promise<T>) => Promise<T>;
+function createSerialGate(): SerialGate {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(task: () => Promise<T>) => {
+    const run = tail.then(task, task);
+    tail = run.then(() => undefined, () => undefined);
+    return run;
+  };
+}
+
+/**
+ * Whether another pass indexed a path since the full scan began — a save, a
+ * pull, the watcher (performance plan L2). The scan reads ahead of its
+ * writes, also across its transactions; a reading taken before such a pass
+ * may be older than the row that pass wrote, and is not written over it. A
+ * row that pass left owed a reading (`mtime_local` 0: moved in the app,
+ * `SyncQueue.queueRename`) is read by the scan as before.
+ */
+function indexedMeanwhile(
+  atStart: { rowid?: number | null; mtime_local: number } | undefined,
+  now: { rowid?: number | null; mtime_local?: number | null } | undefined,
+): boolean {
+  if (!now) return !!atStart;
+  if (!now.mtime_local) return false;
+  if (!atStart) return true;
+  return (now.rowid ?? null) !== (atStart.rowid ?? null) || now.mtime_local !== atStart.mtime_local;
+}
 
 /**
  * What ONE pass over the index has to say, and where it stood when it began.
@@ -300,6 +332,22 @@ interface IndexedAtScanStart {
   rowid?: number | null;
   path: string;
   mtime_local: number;
+  size_bytes?: number | null;
+}
+
+/**
+ * Whether a file the listing reports is the one a row was written for: the
+ * same modification time AND, where both know it, the same size. The time
+ * alone is not enough — two writes of one file within the clock's resolution
+ * (a write right after a pass indexed the previous one; on Windows a few
+ * milliseconds) carry the same time, and the second one was never read again.
+ */
+export function sameAsIndexed(row: { mtime_local: number | null; size_bytes?: number | null } | null | undefined, file: { mtime: number; size?: number }): boolean {
+  if (!row || row.mtime_local === null || row.mtime_local === undefined) return false;
+  if (Number(row.mtime_local) !== file.mtime) return false;
+  const stored = row.size_bytes;
+  if (stored === null || stored === undefined || file.size === undefined || file.size === null) return true;
+  return Number(stored) === file.size;
 }
 
 export class VaultIndexer {
@@ -453,14 +501,14 @@ export class VaultIndexer {
    */
   private async loadBulkLookups(tx: SqlStatements, paths?: readonly string[]): Promise<BulkIndexLookups> {
     if (paths) return this.loadLookupsFor(tx, paths);
-    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null }>(
-      `SELECT rowid, id, path, sync_state, ctime FROM files`
+    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null; mtime_local?: number | null }>(
+      `SELECT rowid, id, path, sync_state, ctime, mtime_local FROM files`
     );
-    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null }>();
+    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null }>();
     const pathByRow = new Map<number, string>();
     const pathById = new Map<string, string>();
     for (const r of fileRows) {
-      fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null });
+      fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null, rowid: r.rowid ?? null, mtime_local: r.mtime_local ?? null });
       if (r.rowid !== undefined && r.rowid !== null) pathByRow.set(Number(r.rowid), r.path);
       if (r.id) pathById.set(r.id, r.path);
     }
@@ -487,7 +535,7 @@ export class VaultIndexer {
    * `pathByRow` stays empty: only the end of the scan asks it (`rowLocations`).
    */
   private async loadLookupsFor(tx: SqlStatements, paths: readonly string[]): Promise<BulkIndexLookups> {
-    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null }>();
+    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null }>();
     const pathById = new Map<string, string>();
     const queuedPaths = new Set<string>();
     const syncStateByPath = new Map<string, SyncState>();
@@ -495,13 +543,13 @@ export class VaultIndexer {
     if (paths.length === 0) return lookups;
     const ids = await Promise.all(paths.map((path) => this.generateFileId(path)));
     const marks = (n: number) => Array.from({ length: n }, () => "?").join(", ");
-    const fileRows = await tx.query<{ id?: string | null; path: string; sync_state: string | null; ctime?: number | null }>(
-      `SELECT id, path, sync_state, ctime FROM files WHERE path IN (${marks(paths.length)}) OR id IN (${marks(ids.length)})`,
+    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null; mtime_local?: number | null }>(
+      `SELECT rowid, id, path, sync_state, ctime, mtime_local FROM files WHERE path IN (${marks(paths.length)}) OR id IN (${marks(ids.length)})`,
       [...paths, ...ids],
     );
     const wanted = new Set(paths);
     for (const r of fileRows) {
-      if (wanted.has(r.path)) fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null });
+      if (wanted.has(r.path)) fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null, rowid: r.rowid ?? null, mtime_local: r.mtime_local ?? null });
       if (r.id) pathById.set(r.id, r.path);
     }
     const queueRows = await tx.query<{ file_path: string; new_path: string | null }>(
@@ -1184,11 +1232,11 @@ export class VaultIndexer {
 
     // Same mtime as indexed -> the event is an echo (our own save already
     // re-indexed the file, or a no-op touch): skip the re-parse.
-    const knownRow = await this.dbAdapter.queryOne<{ mtime_local: number }>(
-      `SELECT mtime_local FROM files WHERE path = ?`,
+    const knownRow = await this.dbAdapter.queryOne<{ mtime_local: number; size_bytes?: number | null }>(
+      `SELECT mtime_local, size_bytes FROM files WHERE path = ?`,
       [path]
     );
-    if (knownRow && Number(knownRow.mtime_local) === info.mtime) return "unchanged";
+    if (sameAsIndexed(knownRow, info)) return "unchanged";
 
     await this.dbAdapter.transaction(async (tx) => {
       if (info!.name.endsWith(".md")) {
@@ -1303,9 +1351,13 @@ export class VaultIndexer {
    * the whole group where the call fails: what a file that is gone, refused
    * or no UTF-8 text gets is decided in one place. Never rejects.
    */
-  private async readScanGroup(group: readonly VaultFileInfo[]): Promise<Array<FileReading | typeof UNREADABLE | null>> {
+  private async readScanGroup(group: readonly VaultFileInfo[], heavy: SerialGate): Promise<Array<FileReading | typeof UNREADABLE | null>> {
+    // A large file read whole by the ordinary read waits for any other such
+    // read of the scan: two films never lie in memory at once, whichever
+    // group they came in.
+    const ordinary = (file: VaultFileInfo) => ((file.size || 0) > SCAN_HEAVY_FILE_BYTES ? heavy(() => this.readOrNote(file)) : this.readOrNote(file));
     const many = this.vaultAdapter.readFilesForIndex?.bind(this.vaultAdapter);
-    if (!many) return Promise.all(group.map((file) => this.readOrNote(file)));
+    if (!many) return Promise.all(group.map(ordinary));
     const requests: IndexReadRequest[] = group.map((file) => ({ path: file.path, text: readsAsText(file) }));
     const answers = await many(requests).catch(() => null);
     const out: Array<FileReading | typeof UNREADABLE | null> = [];
@@ -1313,7 +1365,7 @@ export class VaultIndexer {
       const answer = answers?.[i];
       if (answer?.kind === "text" && requests[i].text) out.push({ kind: "text", read: { sha256: answer.sha256, text: answer.text, exact: true } });
       else if (answer?.kind === "bytes" && !requests[i].text) out.push({ kind: "bytes", sha256: answer.sha256 });
-      else out.push(await this.readOrNote(group[i]));
+      else out.push(await ordinary(group[i]));
     }
     return out;
   }
@@ -1853,7 +1905,7 @@ export class VaultIndexer {
     // The row each path has as the scan begins: its timestamp decides what is
     // read again, its rowid tells a row the app moves meanwhile (movedAway).
     const dbFiles = await this.dbAdapter.query<IndexedAtScanStart>(
-      `SELECT rowid, path, mtime_local FROM files`
+      `SELECT rowid, path, mtime_local, size_bytes FROM files`
     );
     // An index is owed a full scan from the moment one begins on it empty
     // until one goes through (indexComplete). A scan that gets to write says
@@ -1942,11 +1994,11 @@ export class VaultIndexer {
       if (p) await p;
       if (appleDouble.has(file.path)) continue;
       diskFilePaths.add(file.path);
-      const dbMtime = dbFileMap.get(file.path)?.mtime_local;
-      // `!==` instead of `>`: restoring an OLDER file version (Explorer copy,
-      // backup restore, sync rollback) keeps the old mtime — a strictly-greater
-      // check would never re-index it and the stale content would stick around.
-      if (dbMtime !== undefined && file.mtime === dbMtime) continue;
+      // Any other time instead of a later one: restoring an OLDER file version
+      // (Explorer copy, backup restore, sync rollback) keeps the old mtime — a
+      // strictly-greater check would never re-index it and the stale content
+      // would stick around. And the size too (`sameAsIndexed`).
+      if (sameAsIndexed(dbFileMap.get(file.path), file)) continue;
       (file.name.endsWith(".md") ? mdToIndex : attachmentsToIndex).push(file);
     }
     const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
@@ -2024,10 +2076,11 @@ export class VaultIndexer {
     // the same way. Each transaction now reads and writes for about
     // `scanTransactionMs` and lets the others have their turn.
     //
-    // What a transaction does stays whole: a file is read, looked up and
-    // written inside one, so nothing between two of them sees half a file,
-    // and a save that comes in between is read again, not overwritten (the
-    // lookups are read anew in every transaction). An interrupted scan leaves
+    // What a transaction does stays whole: a file is looked up and written
+    // inside one, so nothing between two of them sees half a file. Its
+    // reading may be older than the transaction (read ahead, L2): a file
+    // another pass indexed meanwhile — a save, a pull — keeps that pass's
+    // row (the lookups are read anew in every transaction, `indexedMeanwhile`). An interrupted scan leaves
     // the files it wrote with their timestamps: the next scan skips them and
     // does the rest; an index that began empty stays marked as owed one
     // (`INDEX_OWED_KEY`) until a scan gets through. The rows of vanished files
@@ -2054,6 +2107,23 @@ export class VaultIndexer {
     // Once per file, and free until a frame's worth of time has passed (8 ms).
     const scanPause = createYielder(8, 1);
     let mdDone = 0;
+    // The files are read ahead of the loop that indexes them (performance plan
+    // L2), across the scan's transactions: a transaction waits for no read but
+    // the one of the file it is writing — on slow media, waiting for every
+    // read begun before its time was up held it open for long. A reading that
+    // was taken before another pass indexed the same file is not written: that
+    // pass wrote what was there after it (`indexedMeanwhile`).
+    // A transaction of one file (a test's `scanTransactionMs: 0`) reads one at a time.
+    const oneAtATime = TRANSACTION_MS <= 0;
+    const many = !!this.vaultAdapter.readFilesForIndex;
+    const heavyReads = createSerialGate();
+    const ahead = createReadAhead(work, (group) => this.readScanGroup(group.map((w) => w.file), heavyReads), {
+      groups: oneAtATime ? 1 : many ? SCAN_GROUPS_AT_ONCE : SCAN_READS_AT_ONCE,
+      groupSize: oneAtATime ? 1 : many ? SCAN_READS_AT_ONCE : 1,
+      // A file the host hashes on its own side (`readFilesForIndex` for
+      // bytes) is never held here; every other one is, while it is ahead.
+      weightOf: (w) => (many && !readsAsText(w.file) ? 0 : Math.max(0, w.file.size || 0)),
+    });
     try {
       for (let first = true, done = false; !done; first = false) {
         await this.dbAdapter.transaction(async (tx) => {
@@ -2108,26 +2178,8 @@ export class VaultIndexer {
             if (!lookups.fileStateByPath.has(file.path)) addedCount += 1;
           };
           const began = Date.now();
-          // The files of this transaction are read ahead of the loop that
-          // indexes them (performance plan L2), and only within it: once its
-          // time is up nothing new is read, and what was begun is written
-          // here. A reading is written in the transaction that read it, as it
-          // always was — a save that comes in meanwhile is indexed after it.
-          // A transaction of one file (a test's `scanTransactionMs: 0`) reads one.
-          const oneAtATime = TRANSACTION_MS <= 0;
-          const many = !!this.vaultAdapter.readFilesForIndex;
-          const ahead = createReadAhead(slice, (group) => this.readScanGroup(group.map((w) => w.file)), {
-            groups: oneAtATime ? 1 : many ? SCAN_GROUPS_AT_ONCE : SCAN_READS_AT_ONCE,
-            groupSize: oneAtATime ? 1 : many ? SCAN_READS_AT_ONCE : 1,
-            // A file the host hashes on its own side (`readFilesForIndex` for
-            // bytes) is never held here; every other one is, while it is ahead.
-            weightOf: (w) => (many && !readsAsText(w.file) ? 0 : Math.max(0, w.file.size || 0)),
-          });
-          let timeUp = oneAtATime;
-          if (timeUp) ahead.stop();
-          for (let i = 0; i < slice.length; i++) {
-            if (i > 0 && timeUp && !ahead.started(i)) break;
-            const { file, attachment } = slice[i];
+          for (let k = 0; k < slice.length; k++) {
+            const { file, attachment } = slice[k];
             if (!attachment) {
               if (this.options?.onProgress) {
                 this.options.onProgress(mdDone + 1, mdToIndex.length, file.path);
@@ -2142,22 +2194,19 @@ export class VaultIndexer {
             // the loop used to run to its end for a vault nobody had open, and
             // the open that was called off went on behind it.
             signal?.throwIfAborted();
+            const reading = await ahead.take(next);
             next++;
-            const reading = await ahead.take(i);
             if (reading === UNREADABLE) {
               unreadable.push({ path: file.path, reason: "unreadable" });
-            } else if (reading) {
+            } else if (reading && !indexedMeanwhile(dbFileMap.get(file.path), lookups.fileStateByPath.get(file.path))) {
               if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
               else await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
               counted(file);
               if (batch.length >= FLUSH_AT) await flush();
             }
-            if (!timeUp && Date.now() - began >= TRANSACTION_MS) {
-              timeUp = true;
-              ahead.stop();
-            }
+            // Time is up: the reads begun go on, and the next transaction writes them.
+            if (oneAtATime || Date.now() - began >= TRANSACTION_MS) break;
           }
-          ahead.stop();
 
           if (next >= work.length) {
             // Process deletions — LAST, with the transaction that ends the scan
@@ -2220,6 +2269,9 @@ export class VaultIndexer {
       if (this.dbAdapter.keepsWhatAFailedTransactionWrote) this.announceWhatStays(pass, flushed);
       else this.announceWhatStays(pass, committed, true);
       throw error;
+    } finally {
+      // However the loop ends — through, failed, called off — nothing more is read.
+      ahead.stop();
     }
 
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest

@@ -149,7 +149,7 @@ describe("rebuilding the index", () => {
     const afterTheReset = new Promise<void>((resolve) => { letItGoOn = resolve; });
     db.query = (async (sql: string, params?: unknown[]) => {
       const rows = await query(sql, params);
-      if (armed && sql.startsWith("SELECT rowid, path, mtime_local FROM files")) {
+      if (armed && sql.startsWith("SELECT rowid, path, mtime_local")) {
         armed = false;
         readTheIndex();
         await afterTheReset;

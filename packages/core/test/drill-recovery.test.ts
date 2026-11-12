@@ -44,6 +44,9 @@ describe("Recovery Drill", () => {
     
     // Simulate what the DB returns when VaultIndexer queries for existing files
     db.mockedResults.push([{ path: "note1.md", mtime_local: 0 }, { path: "orphan-123.md", mtime_local: 0 }]);
+    // ... and as the scan's transaction looks it up again (a row another pass
+    // changed since the scan began keeps that pass's version, L2).
+    db.mockedResults.push([{ path: "note1.md", mtime_local: 0 }, { path: "orphan-123.md", mtime_local: 0 }]);
     
     await indexer.indexVaultFull();
     

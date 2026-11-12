@@ -13,7 +13,8 @@
  * reading out in the order of the items — the loop writes rows in exactly the
  * order it always did. Two bounds hold what is ahead:
  *
- * - `groups` reads at a time, of up to `groupSize` items each (a host that
+ * - `groups` reads at a time, of up to `groupSize` items each, and never more
+ *   than `groups × groupSize` items read ahead of the one taken (a host that
  *   reads many files in one call takes groups; every other one single files);
  * - `maxWeight`: the weight of what is read and not yet taken (by default a
  *   file's size). A group never takes an item past it, and nothing new starts
@@ -22,10 +23,9 @@
  *   films of 200 MB are not read at once.
  *
  * `stop()` starts nothing more; what is already in flight can still be taken.
- * The full scan stops at the end of a transaction's time and takes what it
- * started within the same transaction: a reading is written in the
- * transaction that read it, as before — a save that comes in meanwhile is
- * indexed after it, never under it.
+ * The full scan reads ahead across its transactions and stops when it ends,
+ * however it ends; a reading taken before another pass indexed the same file
+ * is not written over that pass's row (`indexedMeanwhile` in VaultIndexer).
  *
  * The reader must not reject: every failure is an answer (`readOrNote`). A
  * reading nobody takes any more (the pass was called off) simply settles.
@@ -75,7 +75,9 @@ export function createReadAhead<T, R>(
   const startGroup = (forced: boolean): boolean => {
     if (issued >= items.length) return false;
     const first = weightOf(items[issued]);
-    if (!forced && (inFlight >= groups || (weightAhead > 0 && weightAhead + first > maxWeight))) return false;
+    // Bounded three ways: reads at once, items read and not yet taken (a fast
+    // disk would otherwise read the whole list ahead of a slow loop), weight.
+    if (!forced && (inFlight >= groups || issued - taken >= groups * groupSize || (weightAhead > 0 && weightAhead + first > maxWeight))) return false;
     const from = issued;
     let to = from + 1;
     let weight = first;

@@ -198,6 +198,8 @@ describe("VaultIndexer", () => {
     // never re-index it and the stale content would stick in search/links.
     await vaultAdapter.writeTextFile("restored.md", "old content restored");
     db.mockedResults.push([{ path: "restored.md", mtime_local: 9_000_000_000_000_000 }]);
+    // The same row as the scan's transaction looks it up again: nobody else wrote it meanwhile (L2).
+    db.mockedResults.push([{ path: "restored.md", mtime_local: 9_000_000_000_000_000 }]);
 
     await indexer.indexVaultFull();
 

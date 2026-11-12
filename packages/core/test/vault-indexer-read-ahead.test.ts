@@ -55,6 +55,10 @@ class SlowVault extends MemoryVaultAdapter {
   turnsFor: (path: string) => number = () => 2;
   refuse = new Set<string>();
   beforeRead?: (path: string) => Promise<void> | void;
+  /** Called once a read has its bytes, before it returns them. */
+  afterRead?: (path: string) => Promise<void> | void;
+  /** Every read begun, in order. */
+  begun: string[] = [];
   private async slow<T>(path: string, read: () => Promise<T>): Promise<T> {
     const size = (await this.getFileInfo(path).catch(() => null))?.size ?? 0;
     this.inFlight++;
@@ -62,10 +66,13 @@ class SlowVault extends MemoryVaultAdapter {
     this.most = Math.max(this.most, this.inFlight);
     this.mostBytes = Math.max(this.mostBytes, this.bytesInFlight);
     try {
+      this.begun.push(path);
       await this.beforeRead?.(path);
       for (let i = 0; i < this.turnsFor(path); i++) await tick();
       if (this.refuse.has(path)) throw Object.assign(new Error("Access is denied"), { code: "EACCES" });
-      return await read();
+      const value = await read();
+      await this.afterRead?.(path);
+      return value;
     } finally {
       this.inFlight--;
       this.bytesInFlight -= size;
@@ -293,5 +300,50 @@ describe("a full scan that reads ahead", () => {
     } finally {
       process.off("unhandledRejection", onStray);
     }
+  });
+
+  it("keeps the row of a note saved and indexed between two transactions while its reading was ahead", async () => {
+    const vault = new SlowVault(1_700_000_000_000);
+    await fill(vault);
+    const db = takingTurns(await realSqlite());
+    const target = names[5];
+    let saved: Promise<void> | null = null;
+    // One file per transaction: the next file is read while the transaction
+    // before it is open, and written in a transaction of its own.
+    const indexer: VaultIndexer = new VaultIndexer(vault, db, { scanTransactionMs: 0 });
+    vault.afterRead = (path) => {
+      if (path !== target || saved) return;
+      // The scan holds the old text; the save writes and indexes the new one
+      // in a transaction that takes its turn before the scan writes the note.
+      saved = (async () => {
+        await vault.writeTextFile(target, "# Saved\nafter the scan read ahead\n");
+        await indexer.indexFile(await vault.getFileInfo(target));
+      })();
+    };
+    await indexer.indexVaultFull();
+    expect(saved).not.toBeNull();
+    await saved;
+    const row = await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [target]);
+    expect(row?.content).toContain("after the scan read ahead");
+    const file = await db.queryOne<{ mtime_local: number }>(`SELECT mtime_local FROM files WHERE path = ?`, [target]);
+    expect(file?.mtime_local).toBe((await vault.getFileInfo(target)).mtime);
+  });
+
+  it("reads nothing more once it was called off or failed", async () => {
+    const vault = new SlowVault(1_700_000_000_000);
+    await fill(vault);
+    const db = takingTurns(await realSqlite());
+    const leaving = new AbortController();
+    const indexer = new VaultIndexer(vault, db, {
+      scanTransactionMs: Number.POSITIVE_INFINITY,
+      scanSignal: leaving.signal,
+      onProgress: (current) => { if (current === 4) leaving.abort(); },
+    });
+    await expect(indexer.indexVaultFull()).rejects.toThrow();
+    const begunAtAbort = vault.begun.length;
+    for (let i = 0; i < 40; i++) await tick();
+    // What was in flight settles; nothing new begins (the reads ahead are at most 8).
+    expect(vault.begun.length).toBe(begunAtAbort);
+    expect(vault.begun.length).toBeLessThanOrEqual(4 + 8);
   });
 });
