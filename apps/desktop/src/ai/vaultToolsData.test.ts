@@ -192,10 +192,12 @@ describe("the read tools' results as values", () => {
 
   it("search: the hits that passed, each with its excerpt as the text has it, and where the list goes on", async () => {
     expect((await run("search_vault", { query: "rates", limit: 10 })).data).toEqual({ results: [{ title: "Offer", path: "Projects/Offer.md", snippet: "Rates as in ⟦withheld note⟧" }], next: null });
-    // A full page says where the next one starts — as the text does.
-    const page = await run("search_vault", { query: "rates", limit: 2 });
-    expect(page.content).toContain('cursor "2"');
-    expect((page.data as { next: string | null }).next).toBe("2");
+    // Whether the list goes on is said of the hits that pass, never of the index's hits (review of R19): two hits of
+    // which one is withheld are one result and no further page. Where more pass, the next page is named
+    // (mcpBridge.test.ts, "says there are more search results only where there are more it may see").
+    const page = await run("search_vault", { query: "rates", limit: 1 });
+    expect(page.content).not.toContain("cursor");
+    expect((page.data as { next: string | null }).next).toBeNull();
   });
 
   it("read: the page of the note as the text carries it, and the cursor of the next", async () => {

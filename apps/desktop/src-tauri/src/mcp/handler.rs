@@ -314,7 +314,8 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         // The second wall: an answer that names a note outside the folders is refused whole.
         // Each path is judged in the spelling it is checked in; a name of unusual shape the action itself took away
         // (a confirmed deletion, rename or move) reaches nothing any more and does not withhold the answer.
-        let real = answer.paths.iter().all(|p| paths::allowed(p, &folders).is_some_and(|rel| paths::real_inside_answer(root, &rel, &folders)));
+        // A path an answer names is the vault's own spelling and is judged as it stands (`exact_rel_path`).
+        let real = answer.paths.iter().all(|p| paths::exact_rel_path(p).is_some_and(|rel| paths::real_inside_answer(root, rel, &folders)));
         if !paths::result_paths_allowed(&answer.paths, &folders) || !real {
             self.audit(&name, false, 0);
             return Ok(Self::refuse("The answer could not be checked and was withheld."));

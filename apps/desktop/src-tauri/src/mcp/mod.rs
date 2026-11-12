@@ -480,16 +480,10 @@ impl McpState {
     /// The folders a client reads in the vault open now. Its open connections are told when that changes its tools.
     pub(crate) fn set_folders<R: Runtime>(&self, app: &AppHandle<R>, client_id: &str, folders: &[String]) -> Result<(), String> {
         let vault = self.lock().vault.clone().ok_or("no vault is open")?;
-        // A folder the path rules refuse is refused with the request, never dropped: dropping every entry would have
-        // taken the client's whole grant — and its leave to propose changes — without a word (review of R19).
-        let mut clean = Vec::with_capacity(folders.len());
-        for folder in folders {
-            if folder.is_empty() {
-                clean.push(String::new());
-            } else {
-                clean.push(paths::safe_rel_path(folder).ok_or_else(|| format!("this folder cannot be shared with an app: {folder}"))?);
-            }
-        }
+        // A grant is the user's word about one folder on disk: kept as it stands or refused with the request — never
+        // trimmed into another folder, never dropped (dropping every entry took the whole grant and the leave to
+        // propose changes without a word; review of R19).
+        let clean = paths::grant_folders(folders)?;
         let (before, after) = self.edit_store(app, |store| -> Result<_, String> {
             let mut grants = store.grants(&vault.key);
             let before = sees(&grants, client_id);
@@ -698,11 +692,11 @@ impl McpState {
             }
             Err(reason) => return Err(HelloReply::refuse(reason)),
         };
-        let folders: Vec<String> = answer
-            .folders
-            .iter()
-            .filter_map(|f| if f.is_empty() { Some(String::new()) } else { paths::safe_rel_path(f) })
-            .collect();
+        // The folders as the user ticked them, or nobody is admitted: `mcp_pair_answer` refused anything else
+        // already, with the reason; a folder renamed into another, or dropped, would be a grant the user never gave.
+        let Ok(folders) = paths::grant_folders(&answer.folders) else {
+            return Err(HelloReply::refuse("invalid"));
+        };
         if folders.is_empty() {
             return Err(HelloReply::refuse("denied"));
         }
@@ -994,6 +988,11 @@ pub fn mcp_status(app: AppHandle, window: tauri::Window, state: tauri::State<'_,
 #[tauri::command]
 pub fn mcp_pair_answer(window: tauri::Window, state: tauri::State<'_, McpState>, request_id: String, allow: bool, folders: Vec<String>, writes: Option<bool>) -> Result<(), String> {
     only_main(&window)?;
+    // A folder that cannot be granted as it stands is refused here, with the reason, and the question stays open for
+    // another answer: nothing the user did not choose is granted (review of R19).
+    if allow {
+        paths::grant_folders(&folders)?;
+    }
     let pending = state.lock().pairing.take();
     match pending {
         Some((id, tx)) if id == request_id => {
@@ -1314,7 +1313,7 @@ mod tests {
             let pending = state.lock().pairing.take();
             if let Some((pending_id, tx)) = pending {
                 assert_eq!(pending_id, id);
-                let _ = tx.send(PairAnswer { allow: true, folders: vec!["Projects".into(), "../Evil".into()], writes: false });
+                let _ = tx.send(PairAnswer { allow: true, folders: vec!["Projects".into()], writes: false });
             }
         });
         let (reply, _client) = connect(&app, None).await;
@@ -1325,7 +1324,7 @@ mod tests {
         assert_eq!(clients.clients.len(), 1);
         assert!(!serde_json::to_string(&clients).unwrap().contains(&secret), "only the hash is kept");
         let id = clients.clients[0].id.clone();
-        assert_eq!(store.grants("vault-key").folders[&id], vec!["Projects".to_string()], "an unsafe folder is dropped");
+        assert_eq!(store.grants("vault-key").folders[&id], vec!["Projects".to_string()], "granted as ticked (an unsafe folder is refused, never dropped: see the pairing test below)");
         assert!(!store.grants("vault-key").may_write(&id), "folders to read are no leave to propose changes");
         // The next start presents the secret: no question, no new secret.
         let (next, _) = connect(&app, Some(&secret)).await;
@@ -2454,6 +2453,8 @@ mod tests {
                 "Projects/two.md" => text("secret", vec!["PLAINV~1/sync/keyfile.json".into()]),
                 "Projects/three.md" => text("secret", vec!["node_modules/x.md".into()]),
                 "Projects/four.md" => text("secret", vec!["../outside.md".into()]),
+                // A path an answer names is judged as it stands: a trim does not make ` Projects` the granted folder.
+                "Projects/five.md" => text("secret", vec![" Projects/a.md".into()]),
                 // A tool that reads cannot wait for the user: a web view that says it does has lost its way.
                 _ => CallAnswer { content: "secret".into(), is_error: false, paths: vec![path], pending: Some(PendingPlan { handle: "h-0123456789abcdef".into(), message: "m".into() }), declined: false },
             };
@@ -2468,9 +2469,13 @@ mod tests {
         initialize(&mut client).await;
         // `PLAINV~1` is Plainva's folder by its second name on Windows; elsewhere nothing has that name, an answer that
         // names it reaches nothing (`real_inside_answer`), and the case is Windows's alone.
-        let mut cases = vec![(2, "Projects/one.md"), (4, "Projects/three.md"), (5, "Projects/four.md"), (6, "Projects/a.md")];
-        if cfg!(windows) {
-            cases.push((3, "Projects/two.md"));
+        let mut cases = vec![(2, "Projects/one.md"), (4, "Projects/three.md"), (5, "Projects/four.md"), (6, "Projects/a.md"), (7, "Projects/five.md")];
+        // Only where the volume keeps short names (asked, not assumed).
+        #[cfg(windows)]
+        match paths::tests::short_name(&dir.path().join("vault").join(".plainva")) {
+            Some(alias) if alias.eq_ignore_ascii_case("PLAINV~1") => cases.push((3, "Projects/two.md")),
+            Some(alias) => eprintln!("skipped: `.plainva` is {alias} here, not PLAINV~1"),
+            None => eprintln!("skipped: the volume of the temporary folder keeps no short names"),
         }
         for (id, path) in cases.iter().copied() {
             let answer = call(&mut client, id, path).await;
@@ -2908,8 +2913,43 @@ mod tests {
             assert_eq!(store.grants("vault-key").folders["c1"], vec!["Projects".to_string()], "the grant stays as it was");
             assert!(store.grants("vault-key").may_write("c1"), "and so does the leave to propose");
         }
-        state.set_folders(app.handle(), "c1", &[" Private".to_string()]).unwrap();
-        assert_eq!(store.grants("vault-key").folders["c1"], vec!["Private".to_string()], "kept in the spelling that is checked");
+        // A folder whose name a trim would change is not trimmed into another folder: refused as well.
+        for folders in [vec![" Private".to_string()], vec!["Private ".to_string()], vec!["Private\u{a0}".to_string()]] {
+            assert!(state.set_folders(app.handle(), "c1", &folders).is_err(), "{folders:?}");
+            assert_eq!(store.grants("vault-key").folders["c1"], vec!["Projects".to_string()]);
+        }
+        state.set_folders(app.handle(), "c1", &["Private".to_string()]).unwrap();
+        assert_eq!(store.grants("vault-key").folders["c1"], vec!["Private".to_string()]);
+    }
+
+    /// The review's sequence for the pairing: the vault has `Notes` and ` Notes`, the user ticks ` Notes`. It must
+    /// not become a grant of `Notes`, and a folder that cannot be granted is no silent drop either.
+    #[tokio::test]
+    async fn a_pairing_answer_with_a_folder_that_cannot_be_granted_as_it_stands_admits_nobody() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        std::fs::create_dir_all(dir.path().join("vault/Notes")).unwrap();
+        std::fs::write(dir.path().join("vault/Notes/n.md"), "n").unwrap();
+        let app = mock_app(dir.path());
+        for ticked in [vec![" Notes".to_string()], vec!["Notes ".to_string()], vec!["Projects".to_string(), ".plainva".to_string()], vec!["Projects".to_string(), "../Evil".to_string()], vec!["Cafe\u{301}".to_string()]] {
+            let handle = app.handle().clone();
+            let answer = ticked.clone();
+            let id = app.listen_any("mcp-pair", move |_event| {
+                let state = handle.state::<McpState>();
+                let pending = state.lock().pairing.take();
+                if let Some((_, tx)) = pending {
+                    let _ = tx.send(PairAnswer { allow: true, folders: answer.clone(), writes: true });
+                }
+            });
+            let (reply, _client) = connect_another(app.handle().clone()).await;
+            app.unlisten(id);
+            assert_eq!(reply, HelloReply::refuse("invalid"), "{ticked:?}");
+            let store = Store::new(dir.path().join("mcp"));
+            assert!(store.clients().clients.is_empty(), "{ticked:?}: nobody was kept");
+            assert!(store.grants("vault-key").folders.is_empty(), "{ticked:?}: nothing was granted");
+        }
+        // The command the dialog answers through says why (and the question stays open for another answer).
+        assert!(paths::grant_folders(&[" Notes".to_string()]).unwrap_err().contains(" Notes"));
     }
 
     /// A grants file 0.8.7 wrote may name a folder the rules now refuse: it is read as it was written — nothing
