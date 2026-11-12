@@ -388,6 +388,15 @@ export interface IVaultAdapter {
   watch?(callback: (events: WatchEvent[]) => void): Promise<() => void>;
 }
 
+/**
+ * What a place below a vault's chain may do with the storage: ask. Every
+ * method that changes a file is missing from the type, so nothing that holds
+ * only a reader can write past the chain (stability plan R2,
+ * `buildVaultChain`).
+ */
+export type VaultStorageReader = Pick<IVaultAdapter, "readTextFile" | "readBinaryFile" | "exists" | "getFileInfo" | "listDir">
+  & Partial<Pick<IVaultAdapter, "listDirReport" | "listDirForBackup" | "realPath">>;
+
 export interface WatchEvent {
   path: string;
   type?: "create" | "modify" | "remove" | "rename" | "any";

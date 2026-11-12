@@ -30,7 +30,7 @@ describe("mobile comment store coordination", () => {
     await rm(root, { recursive: true, force: true });
   });
   function makeStore(): CommentStore {
-    return mobileCommentStore({ vaultId: root, adapter: new BackupVaultAdapter(raw) } as unknown as MobileVault);
+    return mobileCommentStore({ vaultId: root, adapter: new BackupVaultAdapter(raw), belowChain: new BackupVaultAdapter(raw) } as unknown as MobileVault);
   }
   it.each([false, true])("records a first rename through the actual shell store and reopens with late history (locked: %s)", async locked => {
     const mode = vi.spyOn(await import("./mobileSettingsSync"), "mobileCommentsMode").mockResolvedValue(locked ? { kind: "locked" } : { kind: "plain" });

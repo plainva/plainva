@@ -70,6 +70,18 @@ jobs:
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
+      # The check script and the app's key from the default branch: the key
+      # the installs in the field trust, and a check that also covers a
+      # repair run for an older tag.
+      - uses: actions/checkout@v7
+        if: steps.src.outputs.skip == 'false'
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            apps/desktop/scripts
+            apps/desktop/src-tauri/tauri.conf.json
+          sparse-checkout-cone-mode: false
+
       - name: Download the manifest of that release
         if: steps.src.outputs.skip == 'false'
         run: |
@@ -77,20 +89,14 @@ jobs:
           rm -f latest.json
           gh release download "${{ steps.src.outputs.tag }}" --pattern latest.json --dir .
           test -s latest.json
-          # Sanity: the manifest must name the release it came from, and every
-          # platform URL must point at that release's assets — never at `latest`.
-          version=$(jq -r .version latest.json)
           expected="${{ steps.src.outputs.tag }}"
           expected="${expected#v}"
-          if [ "$version" != "$expected" ]; then
-            echo "::error::latest.json says version $version but the release is $expected"
-            exit 1
-          fi
-          if jq -r '.platforms[].url' latest.json | grep -q '/releases/latest/'; then
-            echo "::error::a platform URL inside latest.json depends on the 'latest' label"
-            exit 1
-          fi
-          echo "Manifest for $version with $(jq '.platforms | length' latest.json) platforms."
+          # Everything an install will check of it, before it reaches the
+          # fixed address: the version, the expected platform set, https
+          # release-asset URLs, every signature made with the app's key and
+          # bound to this version (`requireSignedVersion`). One script, with
+          # its unit test (apps/desktop/src/updaterManifestCheck.test.ts).
+          node apps/desktop/scripts/updater-manifest-check.mjs latest.json "$expected"
 
       - name: Ensure the fixed release exists
         if: steps.src.outputs.skip == 'false'

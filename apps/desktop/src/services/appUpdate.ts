@@ -1,7 +1,7 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getSettingsStore } from "./settingsStore";
-import { toast } from "@plainva/ui";
+import { logDiagnostic, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**
@@ -68,6 +68,78 @@ export async function checkForAppUpdate(): Promise<UpdateCheckResult> {
   }
 }
 
+/**
+ * Why an update did not go through, in the words the person reads (S12/R11).
+ *
+ * The updater checks every download against the Plainva project's public key
+ * (`plugins.updater.pubkey` in tauri.conf.json, nothing else) and against the
+ * version the signature was made for (`requireSignedVersion`) BEFORE anything
+ * is installed — a changed file, a file signed with another key, the signature
+ * of another file, or a new version number put on an older release are all
+ * refused there (proven against the built app by the updater signature test,
+ * `wdio/updater-signature.e2e.ts`). The plugin's words for that ("The
+ * signature verification failed") say nothing to a person, so the refusal
+ * gets a sentence of its own with its sender first — Plainva refused it —
+ * and so does a missing connection to the update server. Anything else keeps
+ * the plugin's own words behind the existing line.
+ */
+export type UpdateFailureKind = "refused" | "network" | "server" | "other";
+
+/*
+ * The words below are the plugin's own (tauri-plugin-updater 2.13 `Error`,
+ * minisign-verify 0.2 `Error`, base64 0.22 `DecodeError`, reqwest 0.13
+ * `Error` — whose Display names its kind and url but not its source chain).
+ * The IPC hands them over as `Error::to_string()`. `updaterTrust.test.ts`
+ * pins the plugin version they were read from.
+ */
+const REFUSED = [
+  // minisign-verify: a changed file, another file's signature, a foreign key, a broken signature
+  "the signature verification failed",
+  "the signature was created with a different key",
+  "invalid encoding in minisign data",
+  "unexpected signature algorithm",
+  "signature algorithm is not supported",
+  // the plugin: the signed version (`requireSignedVersion`) and an undecodable signature
+  "the update was signed for version",
+  "does not specify the version it was signed for",
+  "could not be decoded, please check if it is a valid base64 string",
+  // base64: the signature field is no base64 at all
+  "invalid symbol",
+  "invalid last symbol",
+  "invalid padding",
+  "invalid input length",
+];
+/** No answer, or the answer broke off: reqwest's request and body errors (connect, DNS, TLS, timeout, reset). */
+const NETWORK = ["error sending request", "request or response body error", "operation timed out"];
+/** The server answered the download with an error status (a removed file, a rate limit): `Error::Network`. */
+const SERVER_STATUS = /download request failed with status: ([^`]+)/i;
+
+export function classifyUpdateFailure(error: unknown): UpdateFailureKind {
+  const text = String(error).toLowerCase();
+  if (REFUSED.some((words) => text.includes(words))) return "refused";
+  if (SERVER_STATUS.test(text)) return "server";
+  if (NETWORK.some((words) => text.includes(words))) return "network";
+  return "other";
+}
+
+/**
+ * The line for a failed update. `step` names where it failed: "install" for
+ * download and installation, "check" for asking the update server.
+ */
+export function describeUpdateFailure(error: unknown, step: "check" | "install", t: (key: string, options?: Record<string, unknown>) => string): string {
+  const raw = String(error);
+  switch (classifyUpdateFailure(error)) {
+    case "refused":
+      return t("settings.updateRefused");
+    case "network":
+      return t("settings.updateNoConnection");
+    case "server":
+      return t("settings.updateServerStatus", { status: (SERVER_STATUS.exec(raw)?.[1] ?? "").trim() });
+    default:
+      return step === "check" ? t("settings.updateCheckError", { error: raw }) : t("settings.updateInstallError", { error: raw });
+  }
+}
+
 /** Downloads, installs and relaunches. Rejects on failure — caller shows it. */
 export async function downloadAndInstallUpdate(update: Update): Promise<void> {
   await update.downloadAndInstall();
@@ -117,7 +189,8 @@ export function scheduleStartupUpdateCheck(): void {
               const installingId = toast.progress(i18n.t("settings.installingUpdate"));
               void downloadAndInstallUpdate(update).catch((e) => {
                 toast.dismiss(installingId);
-                toast.error(i18n.t("settings.updateInstallError", { error: String(e) }));
+                logDiagnostic("update.install", String(e));
+                toast.error(describeUpdateFailure(e, "install", (key, options) => i18n.t(key, options)));
               });
             },
           });

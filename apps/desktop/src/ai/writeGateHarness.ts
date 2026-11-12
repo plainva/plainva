@@ -3,15 +3,12 @@ import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  BackupVaultAdapter,
   BundleCommentStore,
-  ConflictAwareVaultAdapter,
+  buildVaultChain,
   DEFAULT_AI_APP_SETTINGS,
   EMPTY_INSTRUCTION_APPROVALS,
   EMPTY_SKILL_TESTS,
-  QueueingVaultAdapter,
   SyncQueue,
-  SyncStateRepository,
   VersionHistoryService,
   buildLinkTargetIndex,
   linkTargetName,
@@ -127,16 +124,23 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
   setGateJournalFolder(deviceKey, join(root, "journal"));
   const raw = new LocalVaultAdapter(vaultRoot);
   await raw.initialize();
-  const backup = new BackupVaultAdapter(raw, options.now ? { now: options.now } : {});
   if (!options.beside) for (const [path, text] of Object.entries(notes)) await raw.writeTextFile(path, text);
-  // The chain the desktop writes a note through (`VaultContext`): the conflict guard over the sync queue over the
-  // version history. The index is this device's own, as it is in the app's data.
+  // The chain the desktop writes a note through, from the one factory both shells build it with
+  // (`buildVaultChain`): the conflict guard over the sync queue over the version history. The index is this
+  // device's own, as it is in the app's data.
   const db = await realSqlite();
   databases.push(db);
-  const syncRepo = new SyncStateRepository(db, backup, device);
-  const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), syncRepo, undefined, syncRepo, "external-folder");
+  const chain = buildVaultChain({
+    storage: raw,
+    versions: options.now ? { now: options.now } : {},
+    deviceId: device,
+    index: { db, queue: new SyncQueue(db) },
+    kind: "external-folder",
+  });
+  const backup = chain.belowChain;
+  const files = chain.files;
 
-  // The comment store reads and writes below the queue, as the desktop's does (`raw: state.backupAdapter`).
+  // The comment store reads and writes below the queue, as the desktop's does (`raw: state.belowChainAdapter`).
   const store = new BundleCommentStore({ vault: backup, vaultKey: deviceKey, deviceId: async () => device, mode: async () => ({ kind: "plain" as const }) });
   // The desktop's own service: the text shape of a file, the write lane, and the version before an accept —
   // over the whole chain, as `VaultContext` hands it `state.vaultAdapter`.
@@ -346,7 +350,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     /** Notes the note as synced with the text it has now — the state a syncing vault is in between two changes. */
     synced: async (path: string) => {
       const text = await backup.readTextFile(path);
-      await syncRepo.updateLocalHashAndBaseText(path, textHash(text), text);
+      await chain.syncRepo!.updateLocalHashAndBaseText(path, textHash(text), text);
     },
     /** A file's text exactly as it lies on disk; null where there is none. */
     disk: read,

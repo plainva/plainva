@@ -138,6 +138,10 @@ Plainva honors your system's "reduce motion" setting. If transitions and effects
 
 As long as there are no public releases yet, the update check reports: "No public updates (releases) are available yet." That is not an error.
 
+### "Plainva refused the update"
+
+Before anything is installed, Plainva checks that the download is signed with the Plainva project's key and for exactly the version offered. If that check fails, the update is refused: nothing is installed and your version keeps running as it is. A refusal that keeps coming back points to a changed download on the way to you; please report it as an issue.
+
 ### Are there hidden features?
 
 Starfleet does not comment on rumors. But word is the logo in the title bar responds to persistent knocking — and whoever knows the right words afterwards will see Plainva in a whole new light. Some say: four of them.

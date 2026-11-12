@@ -23,7 +23,8 @@
     "build:e2e": "vite build --mode e2e",
     "preview:e2e": "vite preview --mode e2e --port 4175 --strictPort",
     "scan:engine-floor": "node scripts/scan-engine-floor.mjs",
-    "test:native": "wdio run ./wdio.conf.ts"
+    "test:native": "wdio run ./wdio.conf.ts",
+    "test:native:updater": "wdio run ./wdio.updater.conf.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

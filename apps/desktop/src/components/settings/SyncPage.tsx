@@ -89,7 +89,7 @@ export interface SyncPageProps {
 
 export const SyncPage: React.FC<SyncPageProps> = (p) => {
   const { t, i18n } = useTranslation();
-  const { backupAdapter, syncWorker, vaultAdapter, queryService } = useVault();
+  const { belowChainAdapter, syncWorker, vaultAdapter, queryService } = useVault();
   const [records, setRecords] = useState<CloudAccountRecord[]>([]);
   const [rootFolder, setRootFolder] = useState("");
   const [settingsSyncOn, setSettingsSyncOn] = useState(false);
@@ -168,13 +168,13 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   }, [p.selectedVault]);
 
   useEffect(() => {
-    if (!p.isActiveVault || !backupAdapter) {
+    if (!p.isActiveVault || !belowChainAdapter) {
       setEncState("none");
       return;
     }
     let alive = true;
     const refresh = async () => {
-      const hasKf = await hasLocalKeyfile(backupAdapter);
+      const hasKf = await hasLocalKeyfile(belowChainAdapter);
       const mk = await loadCachedMasterKey(p.selectedVault);
       const every = await isPassphraseEveryStart(p.selectedVault);
       if (!alive) return;
@@ -189,7 +189,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
       window.removeEventListener("plainva-encryption-changed", refresh);
       window.removeEventListener("plainva-keyfile-arrived", refresh);
     };
-  }, [p.isActiveVault, p.selectedVault, backupAdapter]);
+  }, [p.isActiveVault, p.selectedVault, belowChainAdapter]);
 
   const doLock = useCallback(async () => {
     await lockVault(p.selectedVault);
@@ -295,10 +295,10 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
   // The chain's switches are this device's decision: no profile field carries them (E14).
   const chainDeviceOnly = !travelsWithVault(undefined, "desktop");
 
-  const encryptionModal = encModal && p.isActiveVault && backupAdapter && (
+  const encryptionModal = encModal && p.isActiveVault && belowChainAdapter && (
     <EncryptionSetupModal
       vaultPath={p.selectedVault}
-      raw={backupAdapter}
+      raw={belowChainAdapter}
       mode={encModal}
       onDone={() => {
         const wasCreate = encModal === "create";
@@ -388,7 +388,7 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
 
               {/* Step 2 is OPTIONAL — it exists for step 3, and encrypts step 1
                   as a side effect. The only passphrase surface on this page. */}
-              {p.isActiveVault && backupAdapter && (
+              {p.isActiveVault && belowChainAdapter && (
                 <div className={`pv-chain-step ${encState === "unlocked" ? "is-done" : ""}`}>
                   <div className="pv-chain-node">{encState === "unlocked" ? "✓" : "2"}</div>
                   <div className="pv-chain-body">

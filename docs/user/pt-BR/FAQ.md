@@ -138,6 +138,10 @@ O Plainva respeita a configuração "reduzir movimento" do seu sistema. Se as tr
 
 Enquanto ainda não houver versões públicas (releases), a verificação de atualização informa: "Ainda não há atualizações públicas (releases) disponíveis." Isso não é um erro.
 
+### "O Plainva recusou a atualização"
+
+Antes de instalar qualquer coisa, o Plainva verifica se o download está assinado com a chave do projeto Plainva e exatamente para a versão oferecida. Se a verificação falhar, a atualização é recusada: nada é instalado e sua versão continua funcionando como está. Se a recusa se repetir, o download foi alterado no caminho; informe isso em uma issue.
+
 ### Existem recursos ocultos?
 
 A Frota Estelar não comenta rumores. Mas dizem que o logotipo na barra de título reage a batidas persistentes — e quem então souber as palavras certas verá o Plainva sob uma luz totalmente nova depois disso. Alguns dizem: em quatro delas.

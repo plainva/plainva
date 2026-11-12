@@ -138,6 +138,10 @@ Plainva respecte le réglage « réduire les animations » de votre système. Si
 
 Tant qu'il n'y a pas encore de releases publiques, la vérification des mises à jour signale : « Aucune mise à jour publique (release) n'est encore disponible. » Ce n'est pas une erreur.
 
+### « Plainva a refusé la mise à jour »
+
+Avant toute installation, Plainva vérifie que le téléchargement est signé avec la clé du projet Plainva, et précisément pour la version proposée. Si la vérification échoue, la mise à jour est refusée : rien n'est installé et votre version continue de fonctionner telle quelle. Si le refus se répète, le téléchargement a été modifié en chemin ; signalez-le dans une issue.
+
 ### Y a-t-il des fonctionnalités cachées ?
 
 Starfleet ne commente jamais les rumeurs. Mais il paraît que le logo dans la barre de titre réagit à des coups persistants — et que quiconque connaît ensuite les mots justes verra Plainva sous un tout autre jour. Certains disent : au nombre de quatre.

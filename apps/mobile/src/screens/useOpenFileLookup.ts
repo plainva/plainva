@@ -33,7 +33,7 @@ export function useOpenFileLookup(vault: MobileVault, path: string, opts: OpenFi
     // stay as they are.
     adopt: async (from, to) => {
       await adoptExternalMove({
-        retargetBookmarks: (f, target) => renameBookmarksOnDisk(vault.adapter, f, target),
+        retargetBookmarks: (f, target) => renameBookmarksOnDisk(vault.belowChain, f, target),
         pinboard: { adapter: vault.files, queryService: vault.queryService },
         reindex: (paths) => vault.reindexPaths(paths),
       }, from, to);

@@ -957,8 +957,9 @@ describe("the wiring: one door, and everything goes through it", () => {
 
   it("the editor's saver tells it after every write", () => {
     const saver = service.slice(service.indexOf("export const noteSaver"));
-    expect(saver).toContain("await vault.reindexPaths([result.session?.workingCopyPath ?? path])");
-    expect(saver).toContain("await vaultOps.save(vault, path, applyTextShape(candidate, shape))");
+    // Whatever the one save step wrote (`writeEditorSave`, stability plan R6): the note or its working copy, or the copy kept beside a file that is no text.
+    expect(saver).toContain("await vault.reindexPaths([session?.workingCopyPath ?? path])");
+    expect(saver).toContain("await vault.reindexPaths([kept.copy])");
   });
 
   it("no screen and no service follows a single path past it", () => {

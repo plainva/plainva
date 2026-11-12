@@ -138,6 +138,10 @@ Plainva rispetta l'impostazione "riduci movimento" del tuo sistema. Se transizio
 
 Finché non ci sono ancora release pubbliche, la ricerca di aggiornamenti riporta: "Non ci sono ancora aggiornamenti pubblici (release) disponibili." Non è un errore.
 
+### "Plainva ha rifiutato l'aggiornamento"
+
+Prima di installare qualsiasi cosa, Plainva verifica che il download sia firmato con la chiave del progetto Plainva e proprio per la versione offerta. Se la verifica non riesce, l'aggiornamento viene rifiutato: non viene installato nulla e la tua versione continua a funzionare com'è. Se il rifiuto si ripete, il download è stato modificato lungo la strada; segnalalo con una issue.
+
 ### Ci sono funzioni nascoste?
 
 La Flotta Stellare non commenta le voci di corridoio. Ma si dice che il logo nella barra del titolo risponda a colpi persistenti — e chi poi conosce le parole giuste vedrà Plainva sotto una luce del tutto nuova. Alcuni dicono: in quattro.
