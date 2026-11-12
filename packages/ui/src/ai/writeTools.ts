@@ -19,6 +19,7 @@ import {
   keepBeforeMaking,
   madeDirectly,
   recordApplied,
+  contentPathRefusal,
   createWorkspaceObjectId,
   editProblemSentence,
   isCivilDay,
@@ -318,6 +319,10 @@ function oneLine(value: unknown, max: number): string {
 export function noteNameOf(title: string): string | null {
   const name = title.replace(/\s+/g, " ").trim().replace(/\.md$/i, "");
   if (!name || name.length > 200 || name === "." || name === ".." || /[\\/:*?"<>|]/.test(name) || name.startsWith(".") || name.endsWith(".") || hasControl(name)) return null;
+  // A name Windows reads as something else — a device (`aux`, `NUL`), an 8.3 short name (`Draft~1`) — or one of the
+  // app's own folders is no new note's name: the rule the core follows for every path content names, and the MCP
+  // server's wall for a new name (review of R19, `contentPathRefusal`).
+  if (contentPathRefusal(`${name}.md`) !== null) return null;
   return name;
 }
 
