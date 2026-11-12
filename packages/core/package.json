@@ -53,9 +53,9 @@
     "vectors:workspace": "tsx scripts/workspace-vectors.ts"
   },
   "dependencies": {
-    "@hpke/chacha20poly1305": "^1.8.0",
-    "@hpke/core": "^1.10.0",
-    "@hpke/dhkem-x25519": "^1.8.0",
+    "@hpke/chacha20poly1305": "^1.8.1",
+    "@hpke/core": "^1.10.1",
+    "@hpke/dhkem-x25519": "^1.8.1",
     "@huggingface/tokenizers": "0.2.0",
     "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",
@@ -63,7 +63,7 @@
     "fast-xml-parser": "^5.12.0",
     "ical.js": "^2.2.1",
     "node-diff3": "^3.2.1",
-    "parse5": "^8.1.0",
+    "parse5": "^8.1.1",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
