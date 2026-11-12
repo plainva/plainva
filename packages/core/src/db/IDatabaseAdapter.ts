@@ -34,8 +34,8 @@ export interface SqlStatements {
    * relative order is enough.
    *
    * On the adapter itself, a batch is a transaction of its own (BEGIN/COMMIT,
-   * ROLLBACK on any error); on a database that is a single connection (the
-   * phone's) it waits for an open transaction. On the handle of a
+   * ROLLBACK on any error), and it waits for an open transaction (both
+   * shells' adapters). On the handle of a
    * transaction's body, its statements run in that transaction and are
    * committed or rolled back with it.
    */
@@ -58,20 +58,22 @@ export interface IDatabaseAdapter extends SqlStatements {
    * own handle, `tx`. If the function throws, the transaction is rolled back.
    *
    * Every statement of the body goes through `tx` — and so does every
-   * statement of what the body calls (Datensicherheit D3, E1). On a database
-   * that is a single connection (the phone's), a statement sent to the
-   * adapter itself WAITS while a transaction is open and then runs on its
-   * own: it used to run in whichever transaction was open and was rolled back
+   * statement of what the body calls (Datensicherheit D3, E1). A statement
+   * sent to the adapter itself WAITS while a transaction is open and then runs
+   * on its own, in both shells (the desktop's since stability plan R1, where
+   * it would otherwise meet the transaction's write lock on another
+   * connection). On the phone's single connection it used to run in whichever
+   * transaction was open and was rolled back
    * with it — a sync row deleted, a merge base recorded, an entry of the
    * encrypted workspace's queue, all gone with somebody else's failure. A
    * body that sends a write to the adapter instead of `tx` would wait for
-   * itself: the phone's adapter gives up after a while and names the body
+   * itself: both shells' adapters give up after a while and name the body
    * (`transactionTurns.ts`), and `transaction-nesting.test.ts` reads the
    * bodies for it. Reads do not wait — nothing of them can be rolled back.
    * `tx` is good for the body only; used after the body ended, it throws.
    *
    * Transactions do not nest, and both shells' adapters make a second one WAIT
-   * for the first (the desktop's with a queue in front of its pool, the
+   * for the first (the desktop's in its turns in front of Rust, the
    * phone's because its one connection refuses a second). So `fn` must never
    * open another transaction and wait for it — neither directly nor through
    * anything it calls: that one would wait for the turn `fn` holds, and with
@@ -82,20 +84,25 @@ export interface IDatabaseAdapter extends SqlStatements {
    * database work of its own (a hook, a callback) runs after it.
    * `transaction-nesting.test.ts` reads the sources for this.
    *
-   * On the desktop, whose `transaction()` takes nothing back
-   * (`keepsWhatAFailedTransactionWrote`), `tx` is the adapter itself.
+   * Both shells' transactions are real (the desktop's since stability plan
+   * R1, on a connection Rust holds for it): a body that fails wrote nothing.
+   *
+   * What a read sent to the adapter itself — outside any body — sees while
+   * another flow's transaction is open differs between the shells (review
+   * m4): the desktop reads what is committed (its own connection, WAL), the
+   * phone's single connection also what that transaction wrote so far. A
+   * caller may rely on neither: only on what is committed, read once the
+   * transaction that writes it is through, and on its own body's handle,
+   * which sees what the body wrote.
+   *
+   * A body should read no files and wait for nothing but its statements
+   * (review M1): every other writer waits for it, and on the desktop a
+   * transaction that sends nothing for two minutes is rolled back under it.
+   * Read first, then open the transaction, and let the body decide whether
+   * the reading is still the one to write (`VaultIndexer.indexOne`,
+   * `claimWrite`). The single-path routes of the index do; the full scan
+   * still reads inside its short transactions until its read-ahead moves the
+   * reads in front of them.
    */
   transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T>;
-
-  /**
-   * True where `transaction()` does NOT roll back. The desktop's adapter sits
-   * on a connection pool and cannot hold a transaction across calls: there
-   * `transaction()` only keeps a second one out, every statement is committed
-   * as it runs, and every `runBatch` is a transaction of its own. Whoever
-   * says what it wrote once its transaction is through has to say what it
-   * had written when the transaction fails — nobody takes it back
-   * (`VaultIndexer.announceWhatStays`). Absent or false: a transaction that
-   * failed wrote nothing.
-   */
-  readonly keepsWhatAFailedTransactionWrote?: boolean;
 }

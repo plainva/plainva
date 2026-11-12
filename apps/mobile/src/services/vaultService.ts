@@ -28,6 +28,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
+import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -166,6 +167,13 @@ export interface MobileVault {
   /** Ends the initial-index enqueue deferral (3c) after the first pull. */
   markFirstSyncComplete(): void;
   /**
+   * Queues what the index decided and committed while the queue never heard
+   * of it — the app ended between the two (stability plan R22): deletions,
+   * and in an encrypted workspace also changes. Run at the first cycle of the
+   * vault's sync (desktop twin: `sweepOwedToRemote` in VaultContext).
+   */
+  sweepOwedToRemote(kind: "plain" | "workspace"): void;
+  /**
    * Whether the full index pass has finished. The task reconciler gates note
    * CREATION on this: a vault whose notes are still being indexed would look
    * like it is missing them, and an anchored note that has not been seen yet
@@ -189,7 +197,8 @@ export interface MobileVault {
   dispose(): Promise<void>;
 }
 
-const isInternal = (path: string) => path.startsWith(".plainva") || path.includes(".CONFLICT");
+/** One rule with the desktop and the sweep (review F3). */
+const isInternal = (path: string) => !queuesForTheRemote(path);
 
 /**
  * The vault's index database.
@@ -814,13 +823,24 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   // is back has nothing to delete remotely.
   const stillGone = (path: string) => () => adapter.exists(path).then((there) => !there);
 
-  const enqueueLocal = async (path: string) => {
-    if (!syncEnqueueEnabled || isInternal(path)) return;
-    if (permissioned && !await permissioned.authorizeExternalChange(path, true)) return;
-    const sealed = workspaceState, plain = queue;
-    if (sealed) void announce(() => sealed.enqueue("write", path));
-    else if (plain) void announce(() => plain.queueWrite(path));
-  };
+  /**
+   * A file that left the vault, queued the way its index pass reports it. The
+   * index's `onLocalFileDeleted` and the sweep of what an ended app left owed
+   * (`sweepOwedToRemote`, R22) both come here.
+   */
+  const localQueueing = createLocalQueueing({
+    queuesChanges: () => syncEnqueueEnabled,
+    permission: () => {
+      const check = permissioned;
+      return check ? (path, isChange) => check.authorizeExternalChange(path, isChange) : null;
+    },
+    workspace: () => workspaceState,
+    plain: () => queue,
+    run: (entry, due) => announce(entry, due),
+    stillGone: (path) => stillGone(path)(),
+  });
+  const queueLocalDeletion = (path: string) => localQueueing.deletion(path);
+  const enqueueLocal = (path: string) => localQueueing.change(path);
 
   let files: IVaultAdapter;
   let backup: BackupVaultAdapter;
@@ -942,10 +962,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         // the index removed: the mark answers for the file the worker took
         // away, not for a later one of that name (finding 2026-10-12).
         if (ownDeletions.consume(path, row)) return;
-        if (!syncEnqueueEnabled || isInternal(path)) return;
-        const plain = queue;
-        if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path)); }).catch(() => {}); }
-        else if (plain) void announce(() => plain.queueDelete(path), stillGone(path));
+        void queueLocalDeletion(path);
       },
     });
     queryService = new VaultQueryService(db);
@@ -1081,6 +1098,22 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     },
     markFirstSyncComplete: () => {
       deferInitialEnqueue = false;
+    },
+    sweepOwedToRemote: (kind) => {
+      if (!db || !syncEnqueueEnabled) return;
+      const handlers = {
+        vaultIsThere: () => adapter.exists("").catch(() => false),
+        stillGone: async (p: string) => !(await adapter.exists(p)),
+        remove: queueLocalDeletion,
+        removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
+        write: enqueueLocal,
+      };
+      (kind === "plain" ? sweepPlainOwed(db, handlers) : sweepWorkspaceOwed(db, handlers))
+        .then((report) => {
+          if (report.deletions + report.writes > 0) logDiagnostic("sync", `queued what the index had found and nobody queued: ${report.deletions} deletion(s), ${report.writes} change(s)`);
+          if (report.failed > 0) logDiagnostic("sync", `could not queue ${report.failed} change(s) or deletion(s) the index had found; they wait for the next start`);
+        })
+        .catch(() => {});
     },
     indexSettled: () => indexPassSettled,
     whenIndexWhole: () => indexWhole,

@@ -1,7 +1,7 @@
 import type { SQLiteDBConnection } from "@capacitor-community/sqlite";
 import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "@plainva/core";
 import { acquireDatabase, deleteDatabaseFile, releaseDatabase } from "./sqliteConnections";
-import { TransactionTurns, takeStatement, transactionLabel } from "./transactionTurns";
+import { TransactionTurns, takeStatement, transactionLabel } from "@plainva/ui";
 
 /** How long `close()` waits for the transactions already asked for before it closes all the same. */
 const CLOSE_WAITS_MS = 10_000;

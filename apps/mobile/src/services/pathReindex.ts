@@ -57,7 +57,7 @@ import type { IVaultAdapter, VaultFileInfo, VaultIndexer } from "@plainva/core";
  * another, refused each other's files, and of several files one pass
  * announced to hooks that queue without waiting, only the first was queued.
  * Since 2026-10-12 the adapter has its transactions wait for one another
- * (`adapters/transactionTurns.ts`), as the desktop's always has.
+ * (`packages/ui/src/lib/transactionTurns.ts`), as the desktop's always has.
  *
  * The row here keeps the ORDER: a pass over a path and what a pass sets off
  * each take a turn, in the order they were asked for. A batch asks for its
@@ -106,8 +106,12 @@ export interface AnnouncerOptions {
  * entry may be seconds old by the time it gets there — it stood behind one
  * that waited, or waited itself. The promise it hands back settles when the
  * entry is queued or given up, and never rejects; nobody has to wait for it.
+ * It says what came of the entry (review F1): `queued`, `not-due` (no longer
+ * due when its turn came), or `failed` (given up after both attempts) — the
+ * sweep of what an ended app left owed keeps its mark on a failed one.
  */
-export type Announce = (queue: () => Promise<unknown>, stillDue?: () => Promise<boolean>) => Promise<void>;
+export type AnnounceOutcome = "queued" | "not-due" | "failed";
+export type Announce = (queue: () => Promise<unknown>, stillDue?: () => Promise<boolean>) => Promise<AnnounceOutcome>;
 
 /**
  * What a pass sets off and nobody waits for: an upload or a remote deletion
@@ -130,26 +134,29 @@ export function createAnnouncer(turns: IndexTurns, options: AnnouncerOptions = {
   return (queue, stillDue) => {
     // Unknown counts as due: what cannot be asked is still said.
     const due = async () => !stillDue || (await stillDue().catch(() => true));
-    row = row
-      .then(async () => {
-        if (!(await due())) return;
+    const outcome: Promise<AnnounceOutcome> = row
+      .then(async (): Promise<AnnounceOutcome> => {
+        if (!(await due())) return "not-due";
         try {
           await turns.take(queue);
         } catch {
           await options.whenIdle?.();
           await wait(retryDelayMs);
-          if (!(await due())) return;
+          if (!(await due())) return "not-due";
           await turns.take(queue);
         }
+        return "queued";
       })
-      .catch(() => {
+      .catch((): AnnounceOutcome => {
         try {
           options.onDropped?.();
         } catch {
           // A line in the diagnostics is not worth the row.
         }
+        return "failed";
       });
-    return row;
+    row = outcome.then(() => undefined);
+    return outcome;
   };
 }
 

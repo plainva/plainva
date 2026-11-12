@@ -1,8 +1,14 @@
-import { logDiagnostic } from "@plainva/ui";
+import { logDiagnostic } from "../services/diagnosticsLog";
 
 /**
- * One transaction at a time on a database that is a single connection
- * (finding 2026-10-12).
+ * One transaction at a time on the index database, in both shells (finding
+ * 2026-10-12; the desktop since stability plan R1, whose transactions are real
+ * since then: `TauriDatabaseAdapter` holds one connection per transaction in
+ * Rust, and a write sent to the adapter itself must not reach SQLite while
+ * one is open — it would wait for the write lock behind it, or, on the
+ * phone's single connection, run inside it).
+ *
+ * What follows was written for the phone, where the turns began.
  *
  * The phone's index database is one native connection, and the SQLite plugin
  * refuses a second transaction while one is open: Android answers "Already in
@@ -76,7 +82,7 @@ function underUnitTests(): boolean {
 export function transactionLabel(): string {
   if (!underUnitTests()) return "transaction";
   const frames = (new Error().stack ?? "").split(/\r?\n/).slice(1).map((line) => line.trim());
-  const opener = frames.find((line) => !/transactionTurns|CapacitorSqliteAdapter|FixtureSqliteAdapter|node_modules/.test(line));
+  const opener = frames.find((line) => !/transactionTurns|CapacitorSqliteAdapter|FixtureSqliteAdapter|TauriDatabaseAdapter\.ts|node_modules/.test(line));
   return opener ? `transaction opened ${opener}` : "transaction";
 }
 
