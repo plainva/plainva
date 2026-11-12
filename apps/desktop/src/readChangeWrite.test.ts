@@ -63,9 +63,10 @@ const SITES: Record<string, Site[]> = {
   "packages/ui/src/mail/mailCapture.ts": [["reads and writes path in captureMailAsNote", 1, `${NEW_FILE} (a mail filed as a note; a note of that name is read to see whether it is this mail)`]],
   "apps/desktop/src/components/Editor.tsx": [
     ["reads and writes activePath in unlockManagedIndex", 1, EDITOR_TEXT],
-    ["reads and writes path in persistText (callback)", 1, EDITOR_WITHOUT_CHAIN],
     ["reads and writes to in carryAndFollow (callback)", 1, EDITOR_WITHOUT_CHAIN],
   ],
+  // The editor save both shells share (stability plan R6, before it the desktop's `persistText`).
+  "packages/ui/src/lib/editorSave.ts": [["reads and writes path in writeEditorSave", 1, EDITOR_WITHOUT_CHAIN]],
   "apps/desktop/src/components/base/useBaseCells.tsx": [["reads and writes path in createRelationTarget", 1, `${NEW_FILE} (the note a relation cell creates for a name typed there)`]],
   "apps/desktop/src/contexts/VaultContext.tsx": [["a pair of read and write without the entry, in loadVault", 1, `${RESTORE} (\`initTaskDeletion\`)`]],
 };

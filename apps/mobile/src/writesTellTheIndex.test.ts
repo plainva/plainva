@@ -34,8 +34,6 @@ const WRITERS = new Set([
 
 /** Calls that do not tell the index themselves, and why that is right. */
 const ELSEWHERE: Record<string, string> = {
-  "services/vaultService.ts: writeBinaryFile":
-    "a copy of a file a workspace member may not change, kept under .plainva/workspace/forks — an internal path the index never holds",
   "services/shareImport.ts: writeBinaryFile":
     "the import names every attachment it writes (onFileWritten); the share inbox tells the index of them with the note",
 };

@@ -212,12 +212,64 @@ describe("drafts follow an in-app move (issue 113)", () => {
     expect(await readDraft(VAULT, "Archive/Notes/A.md")).toMatchObject({ text: "unsaved", revision: 4, notePath: "Archive/Notes/A.md" });
   });
 
-  it("keeps the newer revision when the destination already has an entry of the same session", async () => {
+  it("keeps both where the destination already has an entry of the same session, and offers the newer by time", async () => {
     await recordDraft(VAULT, NOTE, "old place", 2, "s1");
+    await new Promise((done) => setTimeout(done, 5));
     await recordDraft(VAULT, "B/A.md", "new place", 5, "s1");
     await relocateDrafts(VAULT, [{ from: NOTE, to: "B/A.md" }]);
     expect((await readDraft(VAULT, "B/A.md"))?.text).toBe("new place");
     expect(await readDraft(VAULT, NOTE)).toBeNull();
+    const held = JSON.parse(files.get(`APPDATA/drafts/${draftJournalFile(VAULT, "B/A.md")}`)!).entries.map((e: { text: string }) => e.text).sort();
+    expect(held).toEqual(["new place", "old place"]);
+  });
+
+  it("never drops the newer unsaved text on a revision another note counted (review 2026-11-11, M2)", async () => {
+    await recordDraft(VAULT, "B.md", "OLD TEXT OF B", 30, "s");
+    await new Promise((done) => setTimeout(done, 5));
+    await recordDraft(VAULT, "A.md", "UNSAVED TEXT OF A", 3, "s");
+    await relocateDrafts(VAULT, [{ from: "A.md", to: "B.md" }]);
+    expect((await readDraft(VAULT, "B.md", "what B.md holds"))?.text).toBe("UNSAVED TEXT OF A");
+    expect(await readDraft(VAULT, "A.md")).toBeNull();
+  });
+
+  it("carries every draft of a folder that moves, each to its own note", async () => {
+    for (let i = 0; i < 12; i++) await recordDraft(VAULT, `Folder/N${i}.md`, `text ${i}`, i + 1, `s${i}`);
+    await recordDraft(VAULT, "Elsewhere.md", "stays", 1, "x");
+    await relocateDrafts(VAULT, [{ from: "Folder", to: "Moved/Folder" }]);
+    for (let i = 0; i < 12; i++) {
+      expect((await readDraft(VAULT, `Moved/Folder/N${i}.md`))?.text).toBe(`text ${i}`);
+      expect(await readDraft(VAULT, `Folder/N${i}.md`)).toBeNull();
+    }
+    expect((await readDraft(VAULT, "Elsewhere.md"))?.text).toBe("stays");
+  });
+
+  it("follows a rename by case only", async () => {
+    await recordDraft(VAULT, "Notes/note.md", "unsaved", 2, "s");
+    await relocateDrafts(VAULT, [{ from: "Notes/note.md", to: "Notes/Note.md" }]);
+    expect((await readDraft(VAULT, "Notes/Note.md"))?.text).toBe("unsaved");
+    expect(await readDraft(VAULT, "Notes/note.md")).toBeNull();
+  });
+
+  it("waits for a snapshot still being written, and carries it", async () => {
+    let release!: () => void;
+    const held = new Promise<void>((done) => { release = done; });
+    const slow = draftJournalFile(VAULT, "Slow.md");
+    const answer = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation(async (cmd: string, args?: Record<string, unknown>) => {
+      if (cmd === "write_file_atomic" && args?.relPath === slow) await held;
+      return answer(cmd, args);
+    });
+    try {
+      const writing = recordDraft(VAULT, "Slow.md", "in flight", 1, "s");
+      const moving = relocateDrafts(VAULT, [{ from: "Slow.md", to: "Fast.md" }]);
+      await new Promise((done) => setTimeout(done, 10));
+      release();
+      await writing; await moving;
+      expect((await readDraft(VAULT, "Fast.md"))?.text).toBe("in flight");
+      expect(await readDraft(VAULT, "Slow.md")).toBeNull();
+    } finally {
+      invokeMock.mockImplementation(answer);
+    }
   });
 });
 

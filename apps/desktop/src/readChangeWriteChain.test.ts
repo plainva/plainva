@@ -200,7 +200,10 @@ async function openConflict(): Promise<string> {
 
 describe("the editor's save is the call this harness opens a conflict with", () => {
   it("writeEditorText, with the text the editor was opened with", () => {
-    expect(sourceFile("apps/desktop/src/components/Editor.tsx")).toMatch(/await vaultAdapter\.writeEditorText\(path, shape \? applyTextShape\(val, shape\) : val,/);
+    // The editor hands its text and the text it started from to the save step both shells share (stability plan R6)…
+    expect(sourceFile("apps/desktop/src/components/Editor.tsx")).toMatch(/writeEditorSave\(\{\s*files: vaultAdapter, path, text: val, base: saveState\.baseInput,/);
+    // …which is this call.
+    expect(sourceFile("packages/ui/src/lib/editorSave.ts")).toMatch(/await files\.writeEditorText\(path, shaped\(text\), base === null \? null : shaped\(base\)\)/);
   });
 });
 

@@ -84,7 +84,7 @@ function mobileVault(vaultFiles = new Map<string, string>()): MobileVault {
       vaultFiles.delete(path);
     },
   } as unknown as IVaultAdapter;
-  return { vaultId: VAULT, adapter, db: null } as unknown as MobileVault;
+  return { vaultId: VAULT, adapter, belowChain: adapter, db: null } as unknown as MobileVault;
 }
 
 describe("the way back out of a half-finished settings import (finding 2026-08-19)", () => {
@@ -267,7 +267,7 @@ describe("the way back out of a half-finished settings import (finding 2026-08-1
       if (first) { first = false; await gate; }
       await plainWrite(path, text);
     };
-    const star = toggleBookmarkOnDisk(vault.adapter, "Notes/Star.md");
+    const star = toggleBookmarkOnDisk(vault.belowChain, "Notes/Star.md");
     await Promise.resolve();
     const rollback = restoreProfileSnapshot(vault, snapshot);
     release();

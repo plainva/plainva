@@ -338,3 +338,67 @@ describe("an offered draft stays until it is restored or discarded (open-items p
     expect(await readDraft(vault, "Restore.md", "edited later")).toBeNull();
   });
 });
+
+describe("review of 2026-11-11: the phone's journal through its own wiring", () => {
+  beforeEach(() => store.clear());
+  const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
+
+  it("M2: a draft that follows a rename onto a path with an older draft of this run is never dropped for a higher revision of the other note", async () => {
+    // Earlier in this run: B.md at revision 30 of B's counter, its save never confirmed.
+    writeDraft(vault, "B.md", "OLD TEXT OF B", 30);
+    await flushDrafts(vault);
+    await pause(5);
+    // Now: A.md's unsaved typing at revision 3 of A's own counter.
+    writeDraft(vault, "A.md", "UNSAVED TEXT OF A", 3);
+    await flushDrafts(vault);
+    await relocateDrafts(vault, [{ from: "A.md", to: "B.md" }]);
+    expect(await readDraft(vault, "B.md", "what B.md holds")).toMatchObject({ text: "UNSAVED TEXT OF A" });
+    expect(await readDraft(vault, "A.md")).toBeNull();
+    // The saver's next confirmed save at B (its counter goes on from 30) clears both.
+    clearDraft(vault, "B.md", 31);
+    await pause(10);
+    expect(await readDraft(vault, "B.md")).toBeNull();
+  });
+
+  it("follows a rename by case only", async () => {
+    writeDraft(vault, "notes/idea.md", "unsaved", 2);
+    await relocateDrafts(vault, [{ from: "notes/idea.md", to: "notes/Idea.md" }]);
+    expect(await readDraft(vault, "notes/Idea.md")).toMatchObject({ text: "unsaved" });
+    expect(await readDraft(vault, "notes/idea.md")).toBeNull();
+  });
+
+  it("carries every draft of a folder that moves, each to its own note", async () => {
+    for (let i = 0; i < 12; i++) writeDraft(vault, `Folder/N${i}.md`, `text ${i}`, i + 1);
+    writeDraft(vault, "Elsewhere.md", "stays", 1);
+    await relocateDrafts(vault, [{ from: "Folder", to: "Moved/Folder" }]);
+    for (let i = 0; i < 12; i++) {
+      expect(await readDraft(vault, `Moved/Folder/N${i}.md`)).toMatchObject({ text: `text ${i}` });
+      expect(await readDraft(vault, `Folder/N${i}.md`)).toBeNull();
+    }
+    expect(await readDraft(vault, "Elsewhere.md")).toMatchObject({ text: "stays" });
+  });
+
+  it("waits for a snapshot still being written, and carries it", async () => {
+    const { Filesystem } = await import("@capacitor/filesystem");
+    let release!: () => void;
+    const held = new Promise<void>((done) => { release = done; });
+    const write = Filesystem.writeFile.bind(Filesystem);
+    vi.spyOn(Filesystem, "writeFile").mockImplementationOnce(async (opts) => { await held; return write(opts); });
+    writeDraft(vault, "Slow.md", "in flight", 1);
+    const moving = relocateDrafts(vault, [{ from: "Slow.md", to: "Fast.md" }]);
+    await pause(10);
+    release();
+    await moving;
+    expect(await readDraft(vault, "Fast.md")).toMatchObject({ text: "in flight" });
+    expect(await readDraft(vault, "Slow.md")).toBeNull();
+  });
+
+  it("M1: each note's snapshot holds its own text — the saver hands the text itself, bound when it is scheduled", async () => {
+    writeDraft(vault, "A.md", "A typed", 1);
+    writeDraft(vault, "A.md", "A typed more", 2);
+    writeDraft(vault, "B.md", "B typed", 1);
+    await flushDrafts(vault);
+    expect(await readDraft(vault, "A.md")).toMatchObject({ text: "A typed more" });
+    expect(await readDraft(vault, "B.md")).toMatchObject({ text: "B typed" });
+  });
+});

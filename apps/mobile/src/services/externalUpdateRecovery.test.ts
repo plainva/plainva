@@ -9,7 +9,7 @@ import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/C
 import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import type { IDatabaseAdapter } from "@plainva/core";
-import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
+import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
 import type { MobileVault } from "./vaultService";
 
 const source = readFileSync(resolve("src/EditorHost.tsx"), "utf8");

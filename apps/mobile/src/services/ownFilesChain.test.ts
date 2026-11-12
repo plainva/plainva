@@ -156,7 +156,7 @@ function openChain(): void {
   repo = new SyncStateRepository(db, raw, "phone-a");
   chain = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), repo, () => {}, repo, "external-folder");
   // `db` stays out of the stand-in: the profile port would start the calendar cache on it.
-  vault = { vaultId: "phone-vault", adapter: raw, files: chain, backup, syncRepo: repo, db: null } as unknown as MobileVault;
+  vault = { vaultId: "phone-vault", adapter: raw, files: chain, backup, belowChain: backup, syncRepo: repo, db: null } as unknown as MobileVault;
 }
 const named = <T>(expression: string) => run<T>(`const handed = ${expression};`, "handed", { vault, v: vault });
 

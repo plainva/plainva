@@ -3,14 +3,16 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, readDir, readTextFile, remove, stat } from "@tauri-apps/plugin-fs";
 import { utf8Encode, workspaceSha256Hex } from "@plainva/core";
 import {
+  createDraftJournal,
+  createDraftWriter,
   decodeDraftJournal,
-  draftSessionOf,
   encodeDraftJournal,
-  isDraftOf,
-  offeredDraft,
-  withDraftEntry,
-  withoutSessionDraft,
+  relocatedDraftPath,
+  type DraftJournal,
   type DraftJournalEntry,
+  type DraftJournalLayout,
+  type DraftJournalStorage,
+  type DraftWriter,
 } from "@plainva/ui";
 import { isOwnerWindow } from "./windowContext";
 import { getWindowBus } from "./windowBus";
@@ -35,8 +37,13 @@ import { checkedReadTextFile } from "../adapters/checkedFilesystem";
  * removes the vault's whole draft folder. Diagnostics exports never include
  * journal content (they only ever carry logs).
  *
- * What a file holds and what may be offered is the shared rule in
- * `@plainva/ui` (`draftJournalEntries.ts`), the same as the phone's journal.
+ * The journal itself is the shared one (`draftJournal.ts` in `@plainva/ui`,
+ * stability plan R6), the phone's as well; what is the desktop's own here is
+ * where the files lie and how they are written, and that an auxiliary window
+ * hands its snapshots to the owner. Snapshots are buffered and written at
+ * most every 400 ms while typing goes on (`writeDraft`); until 2026-11-11 a
+ * snapshot waited for a 400-ms PAUSE in the typing, and a crash during
+ * continuous typing lost everything since the last pause.
  *
  * File names (open-items plan 3.124): the keys are SHA-256 of the vault path
  * and of the note path (`draftPathKey`). Until 2026-10-30 they were a 64-bit
@@ -117,41 +124,11 @@ function legacyJournalFile(vaultPath: string, notePath: string): string {
   return `${legacyPathHash(vaultPath)}/${legacyPathHash(notePath)}.json`;
 }
 
-/** Both places a note's entries can be in, the current one first. */
-const journalFilesOf = (vaultPath: string, notePath: string) => [draftJournalFile(vaultPath, notePath), legacyJournalFile(vaultPath, notePath)];
-
-/** The vault's folders: the current one first. */
-const vaultDirsOf = (vaultPath: string) => [draftPathKey(vaultPath), legacyPathHash(vaultPath)];
-
 /** A file's entries, read locally (also from an auxiliary window); missing → []. Throws when unreadable. */
 async function readLocal(rel: string): Promise<DraftEntry[]> {
   const file = await join(await draftsDir(), ...rel.split("/"));
   if (!(await exists(file))) return [];
   return decodeDraftJournal(await readTextFile(file));
-}
-
-/** The entries of every file that can hold this note's drafts — only those that name it. Unreadable files are skipped. */
-async function entriesOf(vaultPath: string, notePath: string): Promise<DraftEntry[]> {
-  const out: DraftEntry[] = [];
-  for (const rel of journalFilesOf(vaultPath, notePath)) {
-    try {
-      out.push(...(await readLocal(rel)).filter((entry) => isDraftOf(entry, { vaultPath, notePath })));
-    } catch {
-      /* an unreadable journal is left alone; the other file may still hold the note's drafts */
-    }
-  }
-  return out;
-}
-
-// Owner-window operations share one lane per journal file. A delayed
-// clear must finish before a later atomic snapshot replaces the same file.
-const lanes = new Map<string, Promise<void>>();
-function serial(file: string, work: () => Promise<void>): Promise<void> {
-  const run = (lanes.get(file) ?? Promise.resolve()).catch(() => {}).then(work);
-  lanes.set(file, run);
-  void run.then(() => { if (lanes.get(file) === run) lanes.delete(file); },
-    () => { if (lanes.get(file) === run) lanes.delete(file); });
-  return run;
 }
 
 /** Writes `entries` to `rel`, or removes the file when none are left. Owner only. */
@@ -165,13 +142,92 @@ async function store(rel: string, entries: readonly DraftEntry[]): Promise<void>
   await invoke("write_file_atomic", { rootId, relPath: rel, contents: encodeDraftJournal(entries), encoding: "utf8" });
 }
 
-/** A file's entries for an owner-side change: missing → [], an unreadable one throws (never written over). */
-async function readChecked(rel: string): Promise<DraftEntry[]> {
-  const { rootId } = await draftsRoot();
-  const raw = await checkedReadTextFile(rootId, rel);
-  return raw === null ? [] : decodeDraftJournal(raw);
-}
+/**
+ * The journal's files under `<appData>/drafts`. The owner reads through the
+ * checked read (the plugin's `exists()` hides I/O errors, and an unreadable
+ * older draft must never become an empty journal the next editor overwrites);
+ * an auxiliary window reads locally — creating the folder, as the checked read
+ * does, is a write its capability withholds — and never writes.
+ */
+const storage: DraftJournalStorage = {
+  async read(rel) {
+    if (!isOwnerWindow()) {
+      const file = await join(await draftsDir(), ...rel.split("/"));
+      return (await exists(file)) ? readTextFile(file) : null;
+    }
+    const { rootId } = await draftsRoot();
+    return checkedReadTextFile(rootId, rel);
+  },
+  async write(rel, text) {
+    const { rootId } = await draftsRoot();
+    await invoke("write_file_atomic", { rootId, relPath: rel, contents: text, encoding: "utf8" });
+  },
+  async remove(rel) {
+    const file = await join(await draftsDir(), ...rel.split("/"));
+    if (await exists(file)) await remove(file);
+  },
+  async list(dirKey) {
+    const dir = await join(await draftsDir(), dirKey);
+    if (!(await exists(dir))) return [];
+    const out: { name: string; isFile: boolean; mtimeMs: number | null }[] = [];
+    for (const e of await readDir(dir)) {
+      if (!e.name) continue;
+      let mtimeMs: number | null = null;
+      if (!e.isDirectory) {
+        try { mtimeMs = (await stat(await join(dir, e.name))).mtime?.getTime() ?? 0; } catch { mtimeMs = null; }
+      }
+      out.push({ name: e.name, isFile: !e.isDirectory, mtimeMs });
+    }
+    return out;
+  },
+};
 
+const layout: DraftJournalLayout<string> = {
+  key: (vaultPath) => vaultPath,
+  file: draftJournalFile,
+  olderFiles: (vaultPath, notePath) => [legacyJournalFile(vaultPath, notePath)],
+  dirs: (vaultPath) => [draftPathKey(vaultPath), legacyPathHash(vaultPath)],
+  fileIn: (dir, name) => `${dir}/${name}`,
+  owner: (vaultPath, notePath) => ({ vaultPath, notePath }),
+  // A folder of the old name can be shared with another vault whose path hashed alike.
+  ours: (vaultPath, entry) => entry.vaultPath === undefined || entry.vaultPath === vaultPath,
+};
+
+// Made on first use, not while this module loads: the journal lives in another package (C20, moduleInitBoundary.test.ts).
+let journalInstance: DraftJournal<string> | null = null;
+const journal = () => (journalInstance ??= createDraftJournal<string>({ storage, layout, retentionMs: RETENTION_MS }));
+
+/**
+ * The owner writes its snapshots itself; an auxiliary window hands each one
+ * to the owner, like every other write. Not a restriction but the same rule:
+ * one window owns the disk. The crash story is unchanged — a crash takes the
+ * whole process with it, and the owner's journal covers the drafts of every
+ * window in it.
+ */
+let ownerWriterInstance: DraftWriter<string> | null = null;
+const ownerWriter = () => (ownerWriterInstance ??= createDraftWriter<string>(journal(), layout));
+const auxLanes = new Map<string, Promise<void>>();
+let auxWriterInstance: DraftWriter<string> | null = null;
+const auxWriter = () => (auxWriterInstance ??= createDraftWriter<string>({
+  serial: <T,>(file: string, work: () => Promise<T>): Promise<T> => {
+    const run = (auxLanes.get(file) ?? Promise.resolve()).catch(() => {}).then(work);
+    auxLanes.set(file, run.then(() => {}, () => {}));
+    return run;
+  },
+  recordInLane: async (vaultPath: string, notePath: string, text: string, revision: number, sessionId: string) => {
+    const bus = await getWindowBus();
+    await bus.request("draft-record", { vaultPath, notePath, text, revision, sessionId });
+  },
+  clear: async (vaultPath: string, notePath: string, upToRevision: number, sessionId: string) => {
+    const bus = await getWindowBus();
+    // `Infinity` does not survive JSON — null carries "force" over the bus.
+    await bus.request("draft-clear", { vaultPath, notePath, upToRevision: Number.isFinite(upToRevision) ? upToRevision : null, sessionId }).catch(() => {});
+  },
+  adopt: async () => {},
+}, layout));
+const writer = () => (isOwnerWindow() ? ownerWriter() : auxWriter());
+
+/** An immediate snapshot — what a closing editor, a transfer or the start of a save journals. */
 export async function recordDraft(
   vaultPath: string,
   notePath: string,
@@ -179,23 +235,39 @@ export async function recordDraft(
   revision: number,
   sessionId = "legacy",
 ): Promise<void> {
-  // An auxiliary window hands its snapshots to the owner, like every other
-  // write. Not a restriction but the same rule: one window owns the disk. The
-  // crash story is unchanged — a crash takes the whole process with it, and the
-  // owner's journal covers the drafts of every window in it.
   if (!isOwnerWindow()) {
     const bus = await getWindowBus();
     await bus.request("draft-record", { vaultPath, notePath, text, revision, sessionId });
     return;
   }
-  const rel = draftJournalFile(vaultPath, notePath);
-  await serial(rel, async () => {
-    // The plugin's exists() hides I/O errors. An unreadable older draft must
-    // never become an empty journal that the next editor overwrites.
-    const entries = await readChecked(rel);
-    const next = withDraftEntry(entries, { vaultPath, notePath, text, revision, sessionId, savedAt: Date.now() });
-    if (next) await store(rel, next);
-  });
+  await journal().record(vaultPath, notePath, text, revision, sessionId);
+}
+
+/**
+ * The editor's snapshot while typing goes on: buffered, and written at most
+ * every 400 ms per note and editor — also while the typing never pauses.
+ * `text` is read when the snapshot is written. A save that covers the
+ * revision takes it out of the buffer (`clearDraft`).
+ */
+export function writeDraft(vaultPath: string, notePath: string, text: () => string | null, revision: number, sessionId: string): void {
+  writer().write(vaultPath, notePath, text, revision, sessionId);
+}
+
+/** What an editor buffered for the note is let go unwritten (its text went to another window). */
+export function dropDraft(vaultPath: string, notePath: string, sessionId: string): void {
+  writer().drop(vaultPath, notePath, sessionId);
+}
+
+/**
+ * The draft to offer for this note at its load, held for the offer (3.125):
+ * the newest of ITS entries that differs from `diskText`; one of `sessionId`
+ * (this editor, reloading the note) is lifted into a session of its own
+ * first, so the editor's next save cannot clear it. The owner lifts; an
+ * auxiliary window only reads, as it writes nothing itself.
+ */
+export async function offerDraft(vaultPath: string, notePath: string, diskText: string, sessionId: string): Promise<DraftEntry | null> {
+  if (!isOwnerWindow()) return journal().read(vaultPath, notePath, diskText);
+  return journal().offer(vaultPath, notePath, diskText, sessionId);
 }
 
 /** The draft to offer for this note: the newest of ITS entries that differs from `diskText`. */
@@ -204,14 +276,8 @@ export async function readDraft(
   notePath: string,
   diskText?: string,
 ): Promise<DraftEntry | null> {
-  return offeredDraft(await entriesOf(vaultPath, notePath), { vaultPath, notePath }, diskText);
+  return journal().read(vaultPath, notePath, diskText);
 }
-
-/** When this module came up: every draft of this run of the app was journaled after it. */
-const runStartedAt = Date.now();
-const handedOver = new Set<string>();
-const leftoverKey = (vaultPath: string, notePath: string, entry: DraftEntry) =>
-  JSON.stringify([vaultPath, notePath, draftSessionOf(entry), entry.revision]);
 
 /**
  * The drafts the journal holds for a note from before this run of the app —
@@ -221,25 +287,25 @@ const leftoverKey = (vaultPath: string, notePath: string, entry: DraftEntry) =>
  * vault and note, from the current file and the one of the old name.
  */
 export async function takeLeftoverDrafts(vaultPath: string, notePath: string): Promise<DraftEntry[]> {
-  const entries = await entriesOf(vaultPath, notePath);
-  return entries.filter((entry) => {
-    const key = leftoverKey(vaultPath, notePath, entry);
-    if (entry.savedAt >= runStartedAt || handedOver.has(key)) return false;
-    handedOver.add(key);
-    return true;
-  });
+  return journal().takeLeftovers(vaultPath, notePath);
 }
 
 /** Drafts `takeLeftoverDrafts` handed out that could not be kept: handed out again on the next ask. */
 export function releaseLeftoverDrafts(vaultPath: string, notePath: string, drafts: DraftEntry[]): void {
-  for (const entry of drafts) handedOver.delete(leftoverKey(vaultPath, notePath, entry));
+  journal().releaseLeftovers(vaultPath, notePath, drafts);
 }
 
 /**
- * Clears the session's journal entry for this note — but only if no snapshot
- * NEWER than `upToRevision` was written meanwhile (latest wins). `Infinity`
- * forces. Looks in the file of the old name as well: a draft restored from
- * there is cleared by the save that took it in.
+ * Clears the session's journal entry for this note, up to `upToRevision`
+ * (`Infinity` forces) — in the file of the old name as well: a draft restored
+ * from there is cleared by the save that took it in. Best-effort.
+ *
+ * The rule (the shared writer's `clear`, pinned in sharedDraftJournal.test.ts):
+ * only while what this window buffered for the session is still covered — the
+ * same snapshot as at the call, of a revision the save wrote. Typing that came
+ * meanwhile keeps the entry on disk until its own, newer snapshot replaces it;
+ * that snapshot is written within an interval, and its own save clears it. So
+ * no entry stays for good, and a crash in between never finds neither.
  */
 export async function clearDraft(
   vaultPath: string,
@@ -247,51 +313,20 @@ export async function clearDraft(
   upToRevision: number,
   sessionId = "legacy",
 ): Promise<void> {
-  if (!isOwnerWindow()) {
-    // `Infinity` does not survive JSON — null carries "force" over the bus.
-    const bus = await getWindowBus();
-    await bus
-      .request("draft-clear", {
-        vaultPath,
-        notePath,
-        upToRevision: Number.isFinite(upToRevision) ? upToRevision : null,
-        sessionId,
-      })
-      .catch(() => {
-        /* best-effort, same as the local path below */
-      });
-    return;
-  }
-  for (const rel of journalFilesOf(vaultPath, notePath)) {
-    await serial(rel, async () => {
-      try {
-        const entries = await readLocal(rel);
-        const remaining = withoutSessionDraft(entries, { vaultPath, notePath }, sessionId, upToRevision);
-        if (remaining.length !== entries.length) await store(rel, remaining);
-      } catch {
-        // best-effort — a stale journal entry is annoying, not dangerous
-      }
-    });
-  }
+  await writer().clear(vaultPath, notePath, upToRevision, sessionId).catch(() => {});
 }
 
 /** Where `notePath` lives after `move`, or null when the move does not touch it. */
-export function relocatedPath(notePath: string, move: { from: string; to: string }): string | null {
-  if (notePath === move.from) return move.to;
-  if (notePath.startsWith(`${move.from}/`)) return move.to + notePath.slice(move.from.length);
-  return null;
+export function relocatedPath(path: string, move: { from: string; to: string }): string | null {
+  return relocatedDraftPath(path, move);
 }
 
 /**
  * Journal entries follow a move or rename made in the app (issue 113, V3).
  * The journal is keyed by the note's path: an entry left under the old path
- * is one no editor ever asks for again — the unsaved text of a note whose
- * save failed would be offered nowhere once the note had moved. Entry by
- * entry: a file of the old name can hold several notes' entries, and only the
- * moved note's go (3.124). Entries of the same editor session keep the newer
- * revision when the destination already has one. The destination is written
- * before the entries leave their old file. Best-effort like every journal
- * operation.
+ * is one no editor ever asks for again. Snapshots still buffered land first,
+ * under the path they were typed at, and then move with the rest, entry by
+ * entry by the shared rule. Best-effort like every journal operation.
  */
 export async function relocateDrafts(
   vaultPath: string,
@@ -299,72 +334,20 @@ export async function relocateDrafts(
 ): Promise<void> {
   if (moves.length === 0) return;
   if (!isOwnerWindow()) {
+    await auxWriter().flush((scope) => scope === vaultPath).catch(() => {});
     const bus = await getWindowBus();
     await bus.request("draft-relocate", { vaultPath, moves: moves.map(({ from, to }) => ({ from, to })) }).catch(() => {});
     return;
   }
-  const ours = (entry: DraftEntry) => entry.vaultPath === undefined || entry.vaultPath === vaultPath;
-  const target = (entry: DraftEntry) =>
-    ours(entry) ? moves.map((m) => relocatedPath(entry.notePath, m)).find((p): p is string => p !== null) ?? null : null;
-  try {
-    for (const dirKey of vaultDirsOf(vaultPath)) {
-      const vaultDir = await join(await draftsDir(), dirKey);
-      if (!(await exists(vaultDir))) continue;
-      for (const e of await readDir(vaultDir)) {
-        if (e.isDirectory || !e.name?.endsWith(".json")) continue;
-        const oldRel = `${dirKey}/${e.name}`;
-        let entries: DraftEntry[];
-        try {
-          entries = await readLocal(oldRel);
-        } catch {
-          continue; // unreadable: left exactly where it is
-        }
-        const destinations = [...new Set(entries.map(target).filter((to): to is string => to !== null))];
-        for (const to of destinations) {
-          const newRel = draftJournalFile(vaultPath, to);
-          if (newRel === oldRel) continue;
-          await serial(newRel, () => serial(oldRel, async () => {
-            // Read again inside the lane: a snapshot may have landed meanwhile.
-            const current = await readChecked(oldRel);
-            const moving = current.filter((entry) => target(entry) === to);
-            if (moving.length === 0) return;
-            let merged = await readChecked(newRel);
-            for (const entry of moving) {
-              const moved = { ...entry, notePath: to, vaultPath };
-              merged = withDraftEntry(merged, moved) ?? merged;
-            }
-            await store(newRel, merged);
-            await store(oldRel, current.filter((entry) => !moving.includes(entry)));
-          }));
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("[draftJournal] drafts did not follow the move", err);
-  }
+  await ownerWriter().flush((scope) => scope === vaultPath).catch(() => {});
+  await journal().relocate(vaultPath, moves).catch((err) => console.warn("[draftJournal] drafts did not follow the move", err));
 }
 
 /** Removes entries older than the retention window (called on vault open). */
 export async function pruneDrafts(vaultPath: string): Promise<void> {
   try {
-    const { dir } = await draftsRoot();
-    const cutoff = Date.now() - RETENTION_MS;
-    for (const dirKey of vaultDirsOf(vaultPath)) {
-      const vaultDir = await join(dir, dirKey);
-      if (!(await exists(vaultDir))) continue;
-      for (const e of await readDir(vaultDir)) {
-        if (e.isDirectory || !e.name) continue;
-        const file = await join(vaultDir, e.name);
-        await serial(`${dirKey}/${e.name}`, async () => {
-          try {
-            const s = await stat(file);
-            if ((s.mtime?.getTime() ?? 0) < cutoff) await remove(file);
-          } catch {
-            /* skip unreadable entries */
-          }
-        });
-      }
-    }
+    await draftsRoot();
+    await journal().prune(vaultPath, (file) => ownerWriter().isPending(file));
   } catch {
     /* best-effort */
   }
