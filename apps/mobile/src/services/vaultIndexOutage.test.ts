@@ -141,9 +141,17 @@ async function container(): Promise<IVaultAdapter> {
 /**
  * The sync of one start, as `syncService` builds it: the vault's queue, chain
  * and sync state; after the first clean cycle what the index owes is queued
- * (`enqueueLocalOnlyFiles`) and new files may queue from then on.
+ * (`enqueueLocalOnlyFiles`, and the deletion marks' sweep, `sweepOwedToRemote`)
+ * and new files may queue from then on.
+ *
+ * `order: "app"` runs the start in the app's order: the index pass first (the
+ * warm pass is set off at boot, vaultService `afterFirstPaint`), the queue
+ * enabled after it (hooks/useVaultBoot.ts, syncService). A deletion the pass
+ * finds before then is not queued by the pass; the index marks it in
+ * `index_removed` and the first cycle's sweep queues it (tx strand, R22).
+ * `order: "queue first"` enables the queue before the pass.
  */
-function sync(vault: Vault) {
+function sync(vault: Vault, order: "app" | "queue first" = "queue first") {
   const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, dav.fetch);
   const engine = new SyncEngine(vault.syncQueue!, target, vault.files, vault.syncRepo!);
   const worker = new SyncWorker(engine, target, vault.syncRepo!, vault.belowChain, vault.syncQueue!, 60_000);
@@ -151,24 +159,25 @@ function sync(vault: Vault) {
   let owed: Promise<void> = Promise.resolve();
   worker.onFirstCycleComplete = () => {
     owed = vault.syncQueue!.enqueueLocalOnlyFiles();
+    vault.sweepOwedToRemote("plain");
     vault.markFirstSyncComplete();
   };
   worker.onFilesChanged = (paths) => void vault.reindexPaths(paths);
-  // Before the start's pass, unlike the app: there the warm pass is set off at
-  // boot (vaultService, `afterFirstPaint`) and the queue is enabled later
-  // (hooks/useVaultBoot.ts, syncService), and a deletion the pass reports
-  // before that returns early and is never queued again. That race is older
-  // than the refusal; the tx strand's deletion marks close it (not on main
-  // yet). This pins what the chain and the sync do once the queue is on.
-  vault.enableSyncEnqueue();
+  if (order === "queue first") vault.enableSyncEnqueue();
   return {
-    /** The start's index pass, then cycles until the queue is empty. */
-    async run() {
+    /**
+     * The start's index pass, then cycles until the queue is empty. `swept`
+     * says when the first cycle's sweep has queued what it owes (it runs
+     * without being awaited, as in the app).
+     */
+    async run(swept?: () => Promise<boolean>) {
       await vault.indexer!.indexVaultFull("test: the warm pass");
+      if (order === "app") vault.enableSyncEnqueue();
       for (let i = 0; i < 5; i++) {
         await worker.runCycle();
         await owed;
         await vault.indexer!.whenIdle();
+        if (i === 0 && swept) await vi.waitFor(async () => { if (!(await swept())) throw new Error("the sweep has not queued yet"); }, { timeout: 15_000 });
         if ((await queued(vault)).length === 0 && i > 0) break;
       }
     },
@@ -271,7 +280,8 @@ describe("the phone without its index database", () => {
 
     sql.failing = false;
     ({ vault } = await boot());
-    await sync(vault).run();
+    // In the app's order: the deletions reach the remote through the marks' sweep.
+    await sync(vault, "app").run(async () => (await queued(vault)).includes("delete Gone.md") || remoteText("Gone.md") === null);
     expect(remoteText("Gone.md")).toBeNull();
     expect(remoteText("Old.md")).toBeNull();
     expect(remoteText("Moved.md")).toBe("# Old.md\n");
@@ -282,7 +292,7 @@ describe("the phone without its index database", () => {
     expect(await queued(vault)).toEqual([]);
     const sent = changesSent();
     expect(sent.filter((line) => line.startsWith("DELETE ") && line.endsWith("Gone.md"))).toHaveLength(1);
-    await sync(vault).run();
+    await sync(vault, "app").run();
     expect(changesSent()).toEqual(sent);
   }, 120_000);
 
