@@ -231,3 +231,93 @@ describe("the shared draft journal", () => {
     expect([...storage.files.keys()].sort()).toEqual([layout.file(VAULT, "Locked.md"), layout.file(VAULT, "Pending.md"), layout.file(VAULT, "Young.md")].sort());
   });
 });
+
+describe("review of 2026-11-11", () => {
+  it("M1: a snapshot whose getter no longer holds its note is dropped, never written under that note's name", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout);
+    let shows: "A.md" | "B.md" = "A.md";
+    const text = { "A.md": "A typed", "B.md": "B: a completely different note" };
+    const bound = (note: "A.md" | "B.md") => () => (shows === note ? text[shows] : null);
+    writer.write(VAULT, "A.md", bound("A.md"), 1, "pane");
+    await settle();
+    clock += 100;
+    text["A.md"] = "A typed more";
+    writer.write(VAULT, "A.md", bound("A.md"), 2, "pane");
+    // The pane opens B before the buffered snapshot of A is written.
+    shows = "B.md";
+    await settle(500);
+    expect(storage.entries(layout.file(VAULT, "A.md")).map((e) => e.text)).toEqual(["A typed"]);
+    expect(writer.isPending(layout.file(VAULT, "A.md"))).toBe(false);
+  });
+
+  it("M2: a draft that follows a move onto a path with an entry of the same session never gives way to a revision of another note", async () => {
+    const journal = journalOf();
+    // Earlier in the run: B at revision 30 of B's counter, never confirmed.
+    await journal.record(VAULT, "B.md", "OLD TEXT OF B", 30, "run");
+    clock += 4000;
+    // Now: A's unsaved typing at revision 3 of A's counter, newer in time.
+    await journal.record(VAULT, "A.md", "UNSAVED TEXT OF A", 3, "run");
+    await journal.relocate(VAULT, [{ from: "A.md", to: "B.md" }]);
+    const atB = storage.entries(layout.file(VAULT, "B.md"));
+    expect(atB.map((e) => e.text).sort()).toEqual(["OLD TEXT OF B", "UNSAVED TEXT OF A"]);
+    expect(atB.every((e) => e.notePath === "B.md")).toBe(true);
+    expect(storage.files.has(layout.file(VAULT, "A.md"))).toBe(false);
+    // What is offered is the newer by time.
+    expect((await journal.read(VAULT, "B.md", "what B.md holds"))?.text).toBe("UNSAVED TEXT OF A");
+    // The session's next save at B clears both.
+    await journal.clear(VAULT, "B.md", 31, "run");
+    expect(storage.files.has(layout.file(VAULT, "B.md"))).toBe(false);
+  });
+
+  it("M2: entries of different sessions meeting at a destination both stay", async () => {
+    const journal = journalOf();
+    await journal.record(VAULT, "B.md", "B in pane one", 5, "pane-1");
+    clock += 10;
+    await journal.record(VAULT, "A.md", "A in pane two", 1, "pane-2");
+    await journal.relocate(VAULT, [{ from: "A.md", to: "B.md" }]);
+    expect(storage.entries(layout.file(VAULT, "B.md")).map((e) => `${e.sessionId}:${e.text}`).sort()).toEqual(["pane-1:B in pane one", "pane-2:A in pane two"]);
+  });
+
+  it("M2: the same entry moved twice is kept once", async () => {
+    const journal = journalOf();
+    await journal.record(VAULT, "A.md", "text", 1, "s");
+    await journal.relocate(VAULT, [{ from: "A.md", to: "B.md" }]);
+    await journal.relocate(VAULT, [{ from: "B.md", to: "C.md" }]);
+    expect(storage.entries(layout.file(VAULT, "C.md")).map((e) => e.text)).toEqual(["text"]);
+  });
+
+  it("clearing: a confirmation leaves the entry on disk while a newer snapshot of the session is buffered, and that snapshot replaces it", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout);
+    const file = layout.file(VAULT, "Note.md");
+    writer.write(VAULT, "Note.md", "saved text", 1, "s");
+    await settle();
+    clock += 100;
+    writer.write(VAULT, "Note.md", "typed during the save", 2, "s");
+    await writer.clear(VAULT, "Note.md", 1, "s");
+    // The confirmed entry stays until the newer one replaces it: a crash in between finds a text.
+    expect(storage.entries(file).map((e) => e.text)).toEqual(["saved text"]);
+    clock += 400;
+    await settle(500);
+    expect(storage.entries(file).map((e) => e.text)).toEqual(["typed during the save"]);
+  });
+
+  it("a large note is snapshotted less often: the interval grows with its size", async () => {
+    const journal = journalOf();
+    const writer = createDraftWriter(journal, layout);
+    const big = "x".repeat(2_500_000);
+    writer.write(VAULT, "Big.md", big, 1, "s");
+    await settle();
+    const writes = storage.writes;
+    clock += 500;
+    writer.write(VAULT, "Big.md", `${big}y`, 2, "s");
+    // 2.5 MB: 1.2 s between snapshots, not 400 ms.
+    await vi.advanceTimersByTimeAsync(500);
+    expect(storage.writes).toBe(writes);
+    clock += 800;
+    await vi.advanceTimersByTimeAsync(800);
+    await settle();
+    expect(storage.writes).toBe(writes + 1);
+  });
+});

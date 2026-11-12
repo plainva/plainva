@@ -369,6 +369,28 @@ describe("original desktop save completion", () => {
     expect([...await readFile(join(root, "Note.md"))]).toEqual([...FOREIGN]);
   });
 
+  it("never journals another note's text under this one: a snapshot still buffered when the pane opens another file is dropped (review 2026-11-11, M1)", async () => {
+    const h = harness();
+    // The getter of the vanish check's "stay": whatever the pane shows when it is called.
+    const liveText = () => h.sessionRef.current.view.state.doc.toString();
+    h.session.applyExternalText("A typed"); h.lifetime.dirty = true;
+    h.schedule(liveText);
+    window.clearTimeout(h.saveTimeoutRef.current!); h.saveTimeoutRef.current = null;
+    await new Promise((done) => setTimeout(done, 20));
+    expect(h.journals.get(h.lifetime.id)?.text).toBe("A typed");
+    // Within the interval: buffered, with a timer.
+    h.session.applyExternalText("A typed more");
+    h.schedule(liveText);
+    window.clearTimeout(h.saveTimeoutRef.current!); h.saveTimeoutRef.current = null;
+    // The pane opens B: this editor lifetime lets go, the pane's view shows B.
+    h.lifetime.deactivate();
+    h.loadedPathRef.current = "B.md";
+    h.session.applyExternalText("B: a completely different note");
+    await new Promise((done) => setTimeout(done, 500));
+    expect(h.journals.get(h.lifetime.id)?.text).toBe("A typed");
+    expect([...h.journals.values()].some((entry) => entry.text.startsWith("B:"))).toBe(false);
+  });
+
   it("journals nothing for a revision a save covered first: the snapshot comes after Ctrl+S, and the entry would outlive the text it held", async () => {
     const h = harness();
     h.session.applyExternalText("saved at once"); h.contentRef.current = "saved at once"; h.lifetime.dirty = true;

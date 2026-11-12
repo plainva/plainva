@@ -24,10 +24,25 @@ import {
  * typing PAUSED for 400 ms (continuous typing, then a crash, lost everything
  * since the last pause), the phone wrote at most every 400 ms while typing went
  * on; the phone lifted a draft on offer into a session of its own so a save
- * could not clear it (3.125), the desktop relied on a new session per editor;
- * the phone's clean-up kept a file whose entries were young, the desktop's
- * went by the file's time alone. The rules are one now, each the stronger of
- * the two. What stays per shell is where the files lie — their names are kept
+ * could not clear it (3.125), the desktop relied on a new session per editor —
+ * which a reload of the same note in the same pane does not give; the phone's
+ * clean-up kept a file whose entries were young, the desktop's went by the
+ * file's time alone. The rules are one now, each the stronger of the two: both
+ * shells offer through `offer`, which lifts an entry of the asking session.
+ *
+ * Two rules hold the journal to the note an entry names:
+ *
+ * - **A snapshot is bound to its note when it is scheduled.** The throttled
+ *   writer reads a buffered text when it writes it; a caller that hands it a
+ *   getter hands one that answers only while it still holds that note, and
+ *   `null` once it does not (the pane shows another note, the note moved,
+ *   the editor went) — the snapshot is then dropped, never written under the
+ *   name of the note it was scheduled for (review of 2026-11-11, M1).
+ * - **Revisions of different notes are not compared.** A session counts
+ *   revisions per note (the phone's saver per path). Where a draft follows a
+ *   move onto a path that holds an entry of the same session, neither gives
+ *   way: both stay, the newer by time is what is offered, and the session's
+ *   next save clears both (M2). What stays per shell is where the files lie — their names are kept
  * as each shell wrote them, so a draft an older version left is still found —
  * and how a file is written (`DraftJournalStorage`).
  *
@@ -91,6 +106,11 @@ export interface DraftJournalOptions<S> {
 }
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** The same entry: its session, note, time, revision and text. */
+const sameEntry = (a: DraftJournalEntry, b: DraftJournalEntry) =>
+  draftSessionOf(a) === draftSessionOf(b) && a.notePath === b.notePath && a.vaultPath === b.vaultPath &&
+  a.savedAt === b.savedAt && a.revision === b.revision && a.text === b.text;
 
 const isThatDraft = (entry: DraftJournalEntry, owner: DraftOwner, draft: DraftIdentity) =>
   isDraftOf(entry, owner) && entry.savedAt === draft.savedAt && entry.revision === draft.revision &&
@@ -305,6 +325,10 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
      */
     async relocate(scope: S, moves: ReadonlyArray<{ from: string; to: string }>): Promise<void> {
       if (moves.length === 0) return;
+      // A snapshot already under way lands first: its file may not be there yet
+      // for the listing below, and an entry written after the move under the old
+      // path is one no editor asks for again.
+      await Promise.all([...lanes.values()]);
       const target = (entry: DraftJournalEntry) => {
         if (layout.ours && !layout.ours(scope, entry)) return null;
         return moves.map((m) => relocatedDraftPath(entry.notePath, m)).find((p): p is string => p !== null) ?? null;
@@ -327,8 +351,14 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
                 const current = await entriesIn(oldFile);
                 const moving = current.filter((entry) => target(entry) === to);
                 if (moving.length === 0) return;
+                // Neither gives way: a revision counted for another note says nothing
+                // about this one (see the header). Only the same entry, moved twice, is
+                // not kept twice.
                 let merged = await entriesIn(newFile);
-                for (const entry of moving) merged = withDraftEntry(merged, { ...entry, ...layout.owner(scope, to) }) ?? merged;
+                for (const entry of moving) {
+                  const moved = { ...entry, ...layout.owner(scope, to) };
+                  merged = [...merged.filter((held) => !sameEntry(held, moved)), moved];
+                }
                 await store(newFile, merged);
                 await store(oldFile, current.filter((entry) => !moving.includes(entry)));
               }));
@@ -379,7 +409,8 @@ interface PendingSnapshot<S> {
   scope: S;
   notePath: string;
   file: string;
-  text: () => string;
+  /** The text, read when the snapshot is written; `null`: the caller no longer holds this note — drop it. */
+  text: () => string | null;
   revision: number;
   sessionId: string;
 }
@@ -393,13 +424,21 @@ interface PendingSnapshot<S> {
  * file already has is never written after the save. Buffered per session: two
  * editors on one note (a split on the desktop) never take each other's place.
  */
-export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJournalLayout<S>, "file">, options: { throttleMs?: number; retryMs?: number; now?: () => number } = {}) {
+export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJournalLayout<S>, "file">, options: { throttleMs?: number; throttleFor?: (length: number) => number; retryMs?: number; now?: () => number } = {}) {
   const throttleMs = options.throttleMs ?? 400;
+  // Each snapshot serialises the whole text and writes it as one fsynced step.
+  // Up to 1 MB every 400 ms; above it the interval grows with the size (2 MB:
+  // 800 ms, 10 MB: 4 s), so a large note costs about the same per minute as a
+  // 1 MB one — and continuous typing still keeps all but the last interval.
+  const throttleFor = options.throttleFor ?? ((length: number) => throttleMs * Math.max(1, Math.ceil(length / 1_000_000)));
   const retryMs = options.retryMs ?? 2000;
   const now = options.now ?? Date.now;
   const pending = new Map<string, PendingSnapshot<S>>();
   const generations = new Map<string, number>();
   const lastWrite = new Map<string, number>();
+  /** How long the text of the last snapshot was: a large note is snapshotted less often. */
+  const lastLength = new Map<string, number>();
+  const intervalOf = (key: string) => throttleFor(lastLength.get(key) ?? 0);
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const keyOf = (file: string, sessionId: string) => `${file}\u0000${sessionId}`;
 
@@ -420,7 +459,15 @@ export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJo
     lastWrite.set(key, now());
     try {
       // The buffer always holds the session's newest text: it replaces the session's entry whatever revision that holds.
-      await journal.recordInLane(snapshot.scope, snapshot.notePath, snapshot.text(), snapshot.revision, snapshot.sessionId, true);
+      const text = snapshot.text();
+      // The caller let go of the note since: what it would read now is another
+      // note's text, or none. Dropped; what the journal holds for the note stays.
+      if (text === null) {
+        if (pending.get(key) === snapshot) pending.delete(key);
+        return;
+      }
+      await journal.recordInLane(snapshot.scope, snapshot.notePath, text, snapshot.revision, snapshot.sessionId, true);
+      lastLength.set(key, text.length);
       // The write covers THIS snapshot, not keystrokes that arrived meanwhile.
       if (pending.get(key) === snapshot) pending.delete(key);
     } catch {
@@ -431,20 +478,21 @@ export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJo
 
   return {
     /** Buffers the session's newest text of the note; `text` is read when the snapshot is written. */
-    write(scope: S, notePath: string, text: string | (() => string), revision: number, sessionId: string): void {
+    write(scope: S, notePath: string, text: string | (() => string | null), revision: number, sessionId: string): void {
       const file = layout.file(scope, notePath);
       const key = keyOf(file, sessionId);
       generations.set(key, (generations.get(key) ?? 0) + 1);
       pending.set(key, { scope, notePath, file, text: typeof text === "string" ? () => text : text, revision, sessionId });
-      if (now() - (lastWrite.get(key) ?? 0) >= throttleMs) {
+      const interval = intervalOf(key);
+      if (now() - (lastWrite.get(key) ?? 0) >= interval) {
         cancelTimer(key);
         void persist(key, file);
       } else {
-        schedule(key, file, throttleMs);
+        schedule(key, file, interval);
       }
     },
 
-    /** Writes every buffered snapshot now (before the system suspends the app, before a window closes). */
+    /** Writes every buffered snapshot now — the phone before the system suspends the app. */
     async flush(filter: (scope: S) => boolean = () => true): Promise<void> {
       const selected = [...pending].filter(([, snapshot]) => filter(snapshot.scope));
       await Promise.all(selected.map(([key, snapshot]) => { cancelTimer(key); return persist(key, snapshot.file); }));

@@ -1005,11 +1005,19 @@ export const Editor: React.FC<{
     // between keystroke and save loses at most that window. A save that
     // covers the revision takes the buffered snapshot back and clears the
     // entry up to the revision it wrote; newer snapshots survive (latest wins).
+    //
+    // The snapshot is bound to THIS note (review of 2026-11-11, M1): a getter
+    // like `liveText` reads whatever the pane shows when it is called, and the
+    // writer calls it up to an interval later. Once this editor lifetime no
+    // longer holds the note — another file loaded into the pane, the note moved
+    // on, the pane closed — it answers null and the snapshot is dropped, never
+    // written under this note's name.
     if (vaultPath) {
       const draftVault = vaultPath;
       const draftPath = activePath;
+      const holds = () => saveState.isActive() && loadedPathRef.current === draftPath;
       void import("../services/draftJournal")
-        .then(({ writeDraft }) => writeDraft(draftVault, draftPath, getText, rev, saveState.id))
+        .then(({ writeDraft }) => writeDraft(draftVault, draftPath, () => (holds() ? getText() : null), rev, saveState.id))
         .catch(() => {});
     }
   };
@@ -2086,8 +2094,12 @@ export const Editor: React.FC<{
         // differs from the disk state means an edit never made it to disk
         // (crash or failed save) — offer it in a banner, never auto-apply.
         if (vaultPath) {
-          void import("../services/draftJournal").then(async ({ readDraft }) => {
-            const draft = await readDraft(vaultPath, activePath, normalized);
+          // Offered through the shared journal's offer (3.125): an entry of this
+          // editor's own session — a reload of the same note in this pane keeps
+          // the session — is lifted into a session of its own first, so the
+          // next save cannot take the offer with it.
+          void import("../services/draftJournal").then(async ({ offerDraft }) => {
+            const draft = await offerDraft(vaultPath, activePath, normalized, saveState.id);
             // A draft is an editor's text. One journalled before the editor
             // stopped holding a note's byte order mark still starts with it;
             // restoring that as it is would write the mark twice.
@@ -2813,6 +2825,10 @@ export const Editor: React.FC<{
         saveTimeoutRef.current = null;
         void persistText(text).catch(() => {});
       }
+      // The journal's buffer for this note ends with the pane's hold on it: the
+      // save just started journals the final text itself (`persistText`).
+      const dropVault = vaultPath, dropPath = activePath;
+      if (dropVault && dropPath) void import("../services/draftJournal").then(({ dropDraft }) => dropDraft(dropVault, dropPath, saveState.id)).catch(() => {});
       session.view.scrollDOM.removeEventListener("scroll", onScroll);
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
       if (scrollKey) rememberScrollTop(scrollKey.vault, scrollKey.path, session.view.scrollDOM.scrollTop);

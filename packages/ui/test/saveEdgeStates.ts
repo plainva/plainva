@@ -13,10 +13,16 @@ import { writeEditorSave, KeepBesideFailedError, type EditorSaveInput } from "..
 import { createDraftJournal, type DraftJournalLayout, type DraftJournalStorage } from "../src/lib/draftJournal";
 
 /**
- * The edge states of the one save path (stability plan R6), run by BOTH
- * shells' suites with each shell's own chain settings (`desktop` and `phone`
- * below): the save step both shells call (`writeEditorSave`) over the chain
- * both build (`buildVaultChain`), and the journal both wire. A write path that
+ * The edge states of the shared save path (stability plan R6): the save step
+ * both shells call (`writeEditorSave`) over the chain both build
+ * (`buildVaultChain`), and the shared journal. Run by both shells' suites, but
+ * what differs between the two runs is only the chain's settings (`kind`,
+ * `deviceId`) over the same memory storage: these cases exercise the SHARED
+ * code, not `Editor.tsx`, the note saver, either shell's journal wiring or
+ * their callbacks. Those are tested through their own wiring beside them —
+ * `editorSaveRecovery.test.ts` and `services/draftJournal.test.ts` (desktop),
+ * `services/draftJournal.test.ts`, `notTextFiles.test.ts`,
+ * `editorTextSpace.test.ts` and `saveRecovery.test.ts` (phone). A write path that
  * changes is tested where it is most likely to lose a text: an open conflict,
  * a file that is not there, a permission check of a shared workspace, an open
  * database transaction, an encrypted workspace's queue, a file changed from

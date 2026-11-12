@@ -34,11 +34,29 @@ describe("the vault chain", () => {
     expect(UNINDEXED_VAULT_CHAIN).toEqual(["storage", "versions", "conflict-guard"]);
   });
 
-  it("is put together by no shell itself: every link comes from the factory", () => {
-    const offenders = shippedSources(["apps/desktop/src", "apps/mobile/src", "packages/ui/src"])
-      .filter(({ text }) => LINKS.test(text))
-      .map(({ rel, text }) => `${rel}: ${text.match(LINKS)![0]}`);
+  it("is put together by no code but the factory: every link comes from it", () => {
+    const LINK_NAMES = "BackupVaultAdapter|QueueingVaultAdapter|WorkspaceQueueingVaultAdapter|PermissionedVaultAdapter|ConflictAwareVaultAdapter|ConflictFileStore|SyncStateRepository";
+    // Built directly, under another name, or through a subclass of its own.
+    const ALIASED = new RegExp(String.raw`\b(${LINK_NAMES})\s+as\s+\w+`);
+    const EXTENDED = new RegExp(String.raw`\bextends\s+(${LINK_NAMES})\b`);
+    // The links' own modules define them; the factory builds them; nothing else in any package — but the
+    // indexer, whose `SyncStateRepository` over the same database is the index's view of the sync state
+    // (hashes, merge bases, the not-text mark): no conflict journal, no file written, no link of a chain.
+    const OWN = /^packages\/core\/src\/(vault\/(vaultChain|BackupVaultAdapter|QueueingVaultAdapter|ConflictAwareVaultAdapter|ConflictFileStore|SyncStateRepository|VaultIndexer)|workspace\/(authorization|queueingVaultAdapter))\.ts$/;
+    const offenders = shippedSources(["apps/desktop/src", "apps/mobile/src", "packages/ui/src", "packages/core/src"])
+      .filter(({ rel }) => !OWN.test(rel))
+      .flatMap(({ rel, text }) => [LINKS, ALIASED, EXTENDED].filter((rule) => rule.test(text)).map((rule) => `${rel}: ${text.match(rule)![0]}`));
     expect(offenders, "build the chain with `buildVaultChain` (packages/core/src/vault/vaultChain.ts)").toEqual([]);
+  });
+
+  it("is given the workspace's permission check by each shell for a workspace vault", () => {
+    const sources = new Map(shippedSources(["apps/desktop/src", "apps/mobile/src"]).map(({ rel, text }) => [rel, text]));
+    // The workspace port is set whenever the vault has a workspace state — a vault built with `workspace: null`
+    // would get the plain queue and no permission check.
+    expect(sources.get("apps/desktop/src/contexts/VaultContext.tsx")).toMatch(/workspace: workspaceStateStore\s*\?\s*\{\s*state: workspaceStateStore,\s*authorize: workspaceWriteAuthorizer\(workspaceRuntime, workspaceStateStore,/);
+    expect(sources.get("apps/mobile/src/services/vaultService.ts")).toMatch(/workspace: workspaceState \? \{ state: workspaceState, authorize: workspaceWriteAuthorizer\(workspaceRuntime, workspaceState,/);
+    expect(sources.get("apps/desktop/src/contexts/VaultContext.tsx")).toMatch(/const workspaceStateStore = workspaceSecurityStatus \? new SqlWorkspaceStateStore\(dbAdapter\) : null;/);
+    expect(sources.get("apps/mobile/src/services/vaultService.ts")).toMatch(/workspaceState = workspaceStatus \? new SqlWorkspaceStateStore\(db\) : null;/);
   });
 
   it("is built by each shell's vault opening, over the storage it opened", () => {

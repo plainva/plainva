@@ -249,18 +249,25 @@ export async function recordDraft(
  * `text` is read when the snapshot is written. A save that covers the
  * revision takes it out of the buffer (`clearDraft`).
  */
-export function writeDraft(vaultPath: string, notePath: string, text: () => string, revision: number, sessionId: string): void {
+export function writeDraft(vaultPath: string, notePath: string, text: () => string | null, revision: number, sessionId: string): void {
   writer().write(vaultPath, notePath, text, revision, sessionId);
-}
-
-/** Every snapshot this window has buffered, written now (a window that closes, a vault that goes). */
-export async function flushDrafts(vaultPath?: string): Promise<void> {
-  await writer().flush((scope) => vaultPath === undefined || scope === vaultPath);
 }
 
 /** What an editor buffered for the note is let go unwritten (its text went to another window). */
 export function dropDraft(vaultPath: string, notePath: string, sessionId: string): void {
   writer().drop(vaultPath, notePath, sessionId);
+}
+
+/**
+ * The draft to offer for this note at its load, held for the offer (3.125):
+ * the newest of ITS entries that differs from `diskText`; one of `sessionId`
+ * (this editor, reloading the note) is lifted into a session of its own
+ * first, so the editor's next save cannot clear it. The owner lifts; an
+ * auxiliary window only reads, as it writes nothing itself.
+ */
+export async function offerDraft(vaultPath: string, notePath: string, diskText: string, sessionId: string): Promise<DraftEntry | null> {
+  if (!isOwnerWindow()) return journal().read(vaultPath, notePath, diskText);
+  return journal().offer(vaultPath, notePath, diskText, sessionId);
 }
 
 /** The draft to offer for this note: the newest of ITS entries that differs from `diskText`. */
@@ -289,10 +296,16 @@ export function releaseLeftoverDrafts(vaultPath: string, notePath: string, draft
 }
 
 /**
- * Clears the session's journal entry for this note — but only while nothing
- * NEWER than `upToRevision` was buffered or written meanwhile (latest wins).
- * `Infinity` forces. Looks in the file of the old name as well: a draft
- * restored from there is cleared by the save that took it in. Best-effort.
+ * Clears the session's journal entry for this note, up to `upToRevision`
+ * (`Infinity` forces) — in the file of the old name as well: a draft restored
+ * from there is cleared by the save that took it in. Best-effort.
+ *
+ * The rule (the shared writer's `clear`, pinned in sharedDraftJournal.test.ts):
+ * only while what this window buffered for the session is still covered — the
+ * same snapshot as at the call, of a revision the save wrote. Typing that came
+ * meanwhile keeps the entry on disk until its own, newer snapshot replaces it;
+ * that snapshot is written within an interval, and its own save clears it. So
+ * no entry stays for good, and a crash in between never finds neither.
  */
 export async function clearDraft(
   vaultPath: string,
