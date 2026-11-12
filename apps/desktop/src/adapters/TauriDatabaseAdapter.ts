@@ -34,6 +34,8 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
   private readonly turns = new TransactionTurns();
   /** An auxiliary window's handle: it reads, and writes nothing (`attachReadOnly`). */
   private readOnly = false;
+  /** The transaction Rust holds for this adapter now, if one is open. */
+  private openTransaction: number | null = null;
 
   constructor(private readonly dbPath: string) {}
 
@@ -116,6 +118,13 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
       if ((await Promise.race([inTurn, waitedOut])) !== "waited out") return;
       // Its turn, when it comes, finds nothing left to close.
       inTurn.catch(() => {});
+      // The transaction that held the turn goes back now (review m2): it held
+      // the write lock in Rust, and the same vault opened again meanwhile —
+      // or the next one on the same file — met a locked database until the
+      // reaper came. Its body learns of it at its next statement.
+      const open = this.openTransaction;
+      this.openTransaction = null;
+      if (open !== null) await invoke("db_tx_rollback", { id: open }).catch(() => {});
       await shut();
     } finally {
       clearTimeout(timer);
@@ -167,21 +176,27 @@ export class TauriDatabaseAdapter implements IDatabaseAdapter {
     return this.turns.take(async () => {
       this.getDb();
       const id = await invoke<number>("db_tx_begin", { dbPath: this.dbPath });
+      this.openTransaction = id;
       const handle = openHandle(id);
       let result: T;
       try {
         result = await fn(handle.tx);
       } catch (err) {
         handle.end();
+        if (this.openTransaction === id) this.openTransaction = null;
         try {
           await invoke("db_tx_rollback", { id });
         } catch {
-          /* gone already (its page reloaded, it sat idle): nothing of it is kept either way */
+          /* gone already (its page reloaded, it sat idle, the database closed): nothing of it is kept either way */
         }
         throw err;
       }
       handle.end();
-      await invoke("db_tx_commit", { id });
+      try {
+        await invoke("db_tx_commit", { id });
+      } finally {
+        if (this.openTransaction === id) this.openTransaction = null;
+      }
       return result;
     }, transactionLabel());
   }

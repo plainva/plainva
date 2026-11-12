@@ -35,10 +35,15 @@
 //!  - its window is destroyed (`release_owner`, wired to `on_window_event`);
 //!  - it sent nothing for `IDLE_LIMIT` (`reap`, run by a timer and before every
 //!    begin): a body that waits that long between two statements holds every
-//!    other writer of the database behind it. It is rolled back, and its next
-//!    statement or its commit is told so — the body fails, nothing of it stays,
-//!    the same answer as any failed transaction. A statement that is running
-//!    is never cut off (`try_lock`);
+//!    other writer of the database behind it. A body is to read no file and
+//!    wait for nothing but its statements (`IDatabaseAdapter.transaction`;
+//!    the index's single-path routes read before their transactions), so what
+//!    reaches the limit is a page that hangs, a machine that slept with a body
+//!    half way, or a read the full scan still does inside its body. It
+//!    is rolled back, and its next statement or its commit is told so — the
+//!    body fails loudly, nothing of it stays, the same answer as any failed
+//!    transaction (`TauriDatabaseAdapter.test.ts`). A statement that is
+//!    running is never cut off (`try_lock`);
 //!  - the process ends: SQLite rolls back what was not committed.
 
 use crate::db_batch::{bind_params, BatchStatement};
@@ -104,6 +109,32 @@ impl OrderedRow {
     pub fn get(&self, name: &str) -> Option<&JsonValue> {
         self.0.iter().find(|(k, _)| k == name).map(|(_, v)| v)
     }
+}
+
+/// Binds parameters exactly as `tauri-plugin-sql` 2.5 does (`wrapper.rs`,
+/// `execute` and `select`): a number as REAL, a string as TEXT, null as NULL,
+/// anything else (a boolean) as its JSON text. A statement of a transaction's
+/// body used to go through the plugin; bound the same way here, it stores
+/// what it stored before R1 and what the same statement stores outside a
+/// body (review m3: into a TEXT column, `5` is `'5.0'` and `true` is
+/// `'true'` either way). A batch keeps `db_batch`'s binding, inside a body
+/// (`db_tx_batch`) as outside, as before R1.
+fn bind_like_plugin<'q>(
+    mut q: sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>>,
+    params: &'q [JsonValue],
+) -> sqlx::query::Query<'q, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'q>> {
+    for value in params {
+        q = if value.is_null() {
+            q.bind(None::<String>)
+        } else if let Some(text) = value.as_str() {
+            q.bind(text)
+        } else if let Some(number) = value.as_number() {
+            q.bind(number.as_f64().unwrap_or_default())
+        } else {
+            q.bind(value.to_string())
+        };
+    }
+    q
 }
 
 /// A value as `tauri-plugin-sql` 2.5 decodes it (`decode/sqlite.rs`): the
@@ -206,7 +237,7 @@ impl DbTransactions {
     /// Runs one write in the transaction; the number of rows it changed.
     pub async fn execute(&self, id: u64, sql: String, params: Vec<JsonValue>) -> Result<u64, String> {
         self.on_conn(id, move |conn| {
-            Box::pin(async move { Ok(bind_params(sqlx::query(&sql), &params).execute(&mut *conn).await?.rows_affected()) })
+            Box::pin(async move { Ok(bind_like_plugin(sqlx::query(&sql), &params).execute(&mut *conn).await?.rows_affected()) })
         })
         .await
     }
@@ -215,7 +246,7 @@ impl DbTransactions {
     pub async fn select(&self, id: u64, sql: String, params: Vec<JsonValue>) -> Result<Vec<OrderedRow>, String> {
         self.on_conn(id, move |conn| {
             Box::pin(async move {
-                let rows = bind_params(sqlx::query(&sql), &params).fetch_all(&mut *conn).await?;
+                let rows = bind_like_plugin(sqlx::query(&sql), &params).fetch_all(&mut *conn).await?;
                 let mut out = Vec::with_capacity(rows.len());
                 for row in rows {
                     let mut cols = Vec::with_capacity(row.columns().len());
@@ -625,6 +656,31 @@ mod tests {
             let late = txs.commit(idle).await.unwrap_err();
             assert!(late.contains("sent nothing for two minutes"), "{late}");
             assert_eq!(count(&url, "SELECT COUNT(*) FROM files").await, 0);
+        });
+    }
+
+    #[test]
+    fn a_body_binds_as_the_sql_plugin_does_and_a_batch_as_db_batch_does() {
+        block(async {
+            let (_d, url) = tmp_url();
+            setup(&url).await;
+            let mut c = SqliteConnectOptions::from_str(&url).unwrap().connect().await.unwrap();
+            sqlx::query("CREATE TABLE t (k TEXT, v TEXT)").execute(&mut c).await.unwrap();
+            c.close().await.unwrap();
+            let txs = DbTransactions::default();
+            let id = txs.begin(&url, "main").await.unwrap();
+            let insert = "INSERT INTO t (k, v) VALUES (?, ?)".to_string();
+            txs.execute(id, insert.clone(), vec![json!("five"), json!(5)]).await.unwrap();
+            txs.execute(id, insert.clone(), vec![json!("yes"), json!(true)]).await.unwrap();
+            txs.batch(id, vec![
+                BatchStatement { sql: insert.clone(), params: vec![json!("batch five"), json!(5)] },
+                BatchStatement { sql: insert, params: vec![json!("batch yes"), json!(true)] },
+            ]).await.unwrap();
+            let rows = txs.select(id, "SELECT k, v FROM t ORDER BY k".into(), vec![]).await.unwrap();
+            let got: Vec<String> = rows.iter().map(|r| format!("{}={}", r.get("k").unwrap(), r.get("v").unwrap())).collect();
+            // The plugin: REAL and JSON text; db_batch: INTEGER and 0/1 — each as before R1.
+            assert_eq!(got, vec![r#""batch five"="5""#, r#""batch yes"="1""#, r#""five"="5.0""#, r#""yes"="true""#]);
+            txs.rollback(id).await.unwrap();
         });
     }
 

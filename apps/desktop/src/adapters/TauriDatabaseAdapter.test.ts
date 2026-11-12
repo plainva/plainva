@@ -203,6 +203,51 @@ describe("closing the desktop's database", () => {
   });
 });
 
+describe("a transaction Rust rolled back under its body", () => {
+  it("fails loudly at the next statement, leaves nothing, and the next transaction runs (a laptop that slept)", async () => {
+    const { adapter, put, keys } = await open();
+    let resume!: () => void;
+    const asleep = new Promise<void>((resolve) => { resume = resolve; });
+    const body = adapter.transaction(async (tx) => {
+      await put("written before the sleep", tx);
+      await asleep;
+      await put("written after it", tx);
+    });
+    await hops(8);
+    desktopSqlite.reapOpenTransactions();
+    resume();
+    await expect(body).rejects.toThrow(/This transaction is over \(it sent nothing for two minutes/);
+    expect(keys()).toEqual([]);
+    await adapter.transaction((tx) => put("the next one", tx));
+    expect(keys()).toEqual(["the next one"]);
+  });
+});
+
+describe("closing while a transaction never ends (review m2)", () => {
+  it("rolls that transaction back, so the same file opens again and writes", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { adapter, put, keys } = await open();
+      const never = new Promise<void>(() => {});
+      void adapter.transaction(async (tx) => { await put("never committed", tx); await never; }).catch(() => {});
+      await hops(8);
+      expect(desktopSqlite.openTransactions()).toBe(1);
+      const closing = adapter.close();
+      await hops(2);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await closing;
+      expect(desktopSqlite.openTransactions()).toBe(0);
+      // The vault opened again: its first transaction gets the write lock.
+      const again = new TauriDatabaseAdapter(URL);
+      await again.initialize();
+      await again.transaction((tx) => put("after the reopen", tx));
+      expect(keys()).toEqual(["after the reopen"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("an auxiliary window's handle (attachReadOnly)", () => {
   it("reads in a transaction through the pool, opens none in Rust, and writes nothing", async () => {
     const { adapter: owner, put } = await open();

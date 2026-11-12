@@ -86,9 +86,11 @@ export function createDesktopSqlite() {
     if (!pool) throw new Error("Database not loaded");
     return pool;
   };
+  /** Why a transaction that is gone ended, as `db_tx.rs` keeps it for a late statement. */
+  const endedWhy = new Map<number, string>();
   const tx = (id: number): Conn => {
     const c = held.get(id);
-    if (!c) throw new Error("This transaction is over (it is not open); nothing of it was kept");
+    if (!c) throw new Error(`This transaction is over (${endedWhy.get(id) ?? "it is not open"}); nothing of it was kept`);
     return c;
   };
 
@@ -219,6 +221,18 @@ export function createDesktopSqlite() {
       ended = false;
       whenEnded = new Promise<void>((resolve) => { endedNow = resolve; });
       generation += 1;
+    },
+    /**
+     * Rust rolls back every open transaction as its reaper does (two minutes
+     * without a statement — a laptop that slept through a body's wait, say).
+     */
+    reapOpenTransactions(why = "it sent nothing for two minutes and was rolled back") {
+      for (const [id, c] of held) {
+        c.exec("ROLLBACK");
+        c.close();
+        endedWhy.set(id, why);
+      }
+      held.clear();
     },
     /** Another program takes the write lock of the file; the returned function lets it go. */
     holdWriteLock(): () => void {
