@@ -44,17 +44,35 @@ import { outsideWorkspaceNamespaceSql } from "../workspace/path.js";
 /** The table of the index's reported removals (db/Schema.ts). */
 export const INDEX_REMOVED_TABLE = "index_removed";
 
-/** A path the sync never carries, or carries only as a device's own. */
-function notForTheRemote(path: string): boolean {
-  return isInternalPath(path) || path.includes(".CONFLICT") || isTwinSpelling(path) || path === ".pvws" || path.startsWith(".pvws/");
+/**
+ * Whether a change or a deletion of `path` is queued for the remote at all:
+ * the one rule of both hosts' queueing and of this sweep (review F3). Internal
+ * paths go by whole segments (`isInternalPath`): `notes.plainva.md` is a note.
+ * Conflict copies stay on the device.
+ */
+export function queuesForTheRemote(path: string): boolean {
+  return !isInternalPath(path) && !path.includes(".CONFLICT");
 }
 
-/** Something is queued for the path, or for a folder it lies in, or it lies in one queued. */
+/** A path the sync never carries, or carries only as a device's own. */
+function notForTheRemote(path: string): boolean {
+  return !queuesForTheRemote(path) || isTwinSpelling(path) || path === ".pvws" || path.startsWith(".pvws/");
+}
+
+/**
+ * A deletion or a rename AWAY from the path is queued, for it or for a folder
+ * it lies in (review F2). A queued write settles nothing: the engine retires
+ * a write whose file is gone, and the deletion would never be sent.
+ */
 const QUEUED_PLAIN = `EXISTS (
   SELECT 1 FROM offline_queue q
-   WHERE q.file_path = r.path OR q.new_path = r.path
-      OR substr(r.path, 1, length(q.file_path) + 1) = q.file_path || '/'
-      OR (q.new_path IS NOT NULL AND substr(r.path, 1, length(q.new_path) + 1) = q.new_path || '/'))`;
+   WHERE q.operation IN ('delete', 'rename')
+     AND (q.file_path = r.path OR substr(r.path, 1, length(q.file_path) + 1) = q.file_path || '/'))`;
+const deletionQueuedInWorkspace = (column: string) => `EXISTS (
+  SELECT 1 FROM workspace_queue q
+   WHERE q.operation IN ('delete', 'rename')
+     AND (q.path = ${column} OR substr(${column}, 1, length(q.path) + 1) = q.path || '/'))`;
+/** Anything is queued for the path or a folder around it: a marked change is then owed nothing more. */
 const queuedWorkspace = (column: string) => `EXISTS (
   SELECT 1 FROM workspace_queue q
    WHERE q.path = ${column} OR q.new_path = ${column}
@@ -67,7 +85,7 @@ interface Mark {
   remote: number;
   /** The index holds the path again. */
   indexed: number;
-  /** Something is queued for it. */
+  /** Its deletion, or a rename away from it, is queued. */
   queued: number;
 }
 
@@ -79,7 +97,7 @@ async function marks(db: SqlStatements, workspace: boolean): Promise<Mark[]> {
     `SELECT r.path AS path,
             CASE WHEN ${remote} THEN 1 ELSE 0 END AS remote,
             CASE WHEN EXISTS (SELECT 1 FROM files f WHERE f.path = r.path) THEN 1 ELSE 0 END AS indexed,
-            CASE WHEN ${workspace ? queuedWorkspace("r.path") : QUEUED_PLAIN} THEN 1 ELSE 0 END AS queued
+            CASE WHEN ${workspace ? deletionQueuedInWorkspace("r.path") : QUEUED_PLAIN} THEN 1 ELSE 0 END AS queued
        FROM ${INDEX_REMOVED_TABLE} r
       ORDER BY r.path`,
   );
@@ -95,7 +113,7 @@ export async function workspaceChangesOwed(db: SqlStatements): Promise<string[]>
     `SELECT f.path FROM files f
        LEFT JOIN workspace_object o ON o.path = f.path AND o.deleted = 0
       WHERE f.sync_state = 'local_ahead'
-        AND f.path NOT LIKE '.plainva%' AND f.path NOT LIKE '%.CONFLICT%' AND ${outsideWorkspaceNamespaceSql("f.path")}
+        AND f.path NOT LIKE '%.CONFLICT%' AND ${outsideWorkspaceNamespaceSql("f.path")}
         AND NOT ${queuedWorkspace("f.path")}
         AND (o.object_id IS NULL OR o.plaintext_sha256 IS NULL OR f.sha256 IS NULL OR o.plaintext_sha256 <> f.sha256)
       ORDER BY f.path`,
@@ -118,32 +136,50 @@ export async function clearWorkspaceMarksAlreadyUp(db: SqlStatements): Promise<v
   );
 }
 
+/**
+ * What a host's queueing did with a path (review F1): `queued` — the entry is
+ * made; `refused` — nothing is owed (a workspace's policy refused it and kept
+ * a fork, the path is not for the remote, the file is back); `failed` — the
+ * entry could not be made, and whatever recorded the debt must keep it.
+ */
+export type OwedOutcome = "queued" | "refused" | "failed";
+
 export interface OwedSweepHandlers {
   /** The vault's own folder is reachable: without it, every file looks gone. */
   vaultIsThere: () => Promise<boolean>;
   /** The file is not on disk. A look that fails answers false. */
   stillGone: (path: string) => Promise<boolean>;
-  /** Queues the deletion the way the index's `onLocalFileDeleted` does. */
-  remove: (path: string) => Promise<void>;
+  /** Queues the deletion the way the index's `onLocalFileDeleted` does, and says what came of it. */
+  remove: (path: string) => Promise<OwedOutcome>;
+  /**
+   * Queues several deletions in one transaction, where the host can (the
+   * plain queue): a cycle that reads the queue meanwhile sees all of them or
+   * none, so the mass-deletion question is never asked of a slice (review F4).
+   */
+  removeAll?: (paths: readonly string[]) => Promise<OwedOutcome>;
   /** Queues the change the way the index's `onExternalModification` does (workspace only). */
-  write?: (path: string) => Promise<void>;
+  write?: (path: string) => Promise<OwedOutcome>;
 }
 
 /** What a sweep queued, for the diagnostics. Counts only. */
 export interface OwedSweepReport {
   deletions: number;
   writes: number;
+  /** Entries that could not be made: their marks wait for the next start. */
+  failed: number;
 }
 
 /**
- * The marked deletions: each is handed to `remove` once, or found settled
- * (queued, indexed again, nothing left on the remote, not for the remote at
- * all, the file back on disk), and its mark goes either way. While the vault's
- * folder is away nothing is decided and every mark waits.
+ * The marked deletions: each is handed to the host once, or found settled
+ * (its deletion queued, indexed again, nothing left on the remote, not for
+ * the remote at all, the file back on disk). A mark goes when its deletion is
+ * queued or refused; one whose entry failed waits for the next start. While
+ * the vault's folder is away nothing is decided and every mark waits.
  */
-async function sweepRemovals(db: SqlStatements, workspace: boolean, h: OwedSweepHandlers): Promise<number> {
+async function sweepRemovals(db: SqlStatements, workspace: boolean, h: OwedSweepHandlers): Promise<{ queued: number; failed: number }> {
+  const none = { queued: 0, failed: 0 };
   const all = await marks(db, workspace);
-  if (all.length === 0) return 0;
+  if (all.length === 0) return none;
   const settled: string[] = [];
   const candidates: string[] = [];
   for (const mark of all) {
@@ -151,57 +187,172 @@ async function sweepRemovals(db: SqlStatements, workspace: boolean, h: OwedSweep
     else candidates.push(mark.path);
   }
   await clearMarks(db, settled);
-  if (candidates.length === 0 || !(await h.vaultIsThere())) return 0;
+  if (candidates.length === 0 || !(await h.vaultIsThere())) return none;
   const gone: string[] = [];
   const back: string[] = [];
   for (const path of candidates) ((await h.stillGone(path).catch(() => false)) ? gone : back).push(path);
   // Asked once more after the looks: a share that dropped in between proves nothing.
-  if (!(await h.vaultIsThere())) return 0;
+  if (!(await h.vaultIsThere())) return none;
   // A file that is back is the next pass's to judge, not a deletion.
   await clearMarks(db, back);
+  if (gone.length === 0) return none;
+  if (h.removeAll) {
+    const outcome = await h.removeAll(gone).catch((): OwedOutcome => "failed");
+    if (outcome === "failed") return { queued: 0, failed: gone.length };
+    await clearMarks(db, gone);
+    return { queued: outcome === "queued" ? gone.length : 0, failed: 0 };
+  }
   let queued = 0;
+  let failed = 0;
   for (const path of gone) {
-    try {
-      await h.remove(path);
-      queued += 1;
-    } catch (error) {
-      // The mark stays: the next start tries again.
-      console.error("[owedToRemote] could not queue an owed deletion", error);
+    const outcome = await h.remove(path).catch((): OwedOutcome => "failed");
+    if (outcome === "failed") {
+      failed += 1;
       continue;
     }
-    // Handled — queued, or refused by a workspace's permission (which keeps
-    // the file as a fork once): either way it is not offered again.
+    if (outcome === "queued") queued += 1;
     await clearMarks(db, [path]);
   }
-  return queued;
+  return { queued, failed };
 }
 
 /** Plain sync: queues the deletions the index marked and an ended app never queued. */
 export async function sweepPlainOwed(db: SqlStatements, h: OwedSweepHandlers): Promise<OwedSweepReport> {
-  return { deletions: await sweepRemovals(db, false, h), writes: 0 };
+  const removals = await sweepRemovals(db, false, h);
+  return { deletions: removals.queued, writes: 0, failed: removals.failed };
 }
 
 /**
  * Encrypted workspace: queues the changes and deletions its queue is owed.
- * A change is offered once: where the handler queues nothing (the
- * workspace's policy refused it and kept the file as a fork), its mark goes,
- * so that no later start makes another fork of it.
+ * A change is offered until it is queued or refused: where the workspace's
+ * policy refused it (and kept the file as a fork), its mark goes, so that no
+ * later start makes another fork of it (review M2); where the entry failed,
+ * the mark is the change's only record and stays (review F1b).
  */
 export async function sweepWorkspaceOwed(db: SqlStatements, h: OwedSweepHandlers): Promise<OwedSweepReport> {
   await clearWorkspaceMarksAlreadyUp(db);
   let writes = 0;
+  let failed = 0;
   if (h.write) {
     for (const path of await workspaceChangesOwed(db)) {
-      try {
-        await h.write(path);
-      } catch (error) {
-        console.error("[owedToRemote] could not queue an owed change", error);
-        continue;
-      }
-      const entry = await db.queryOne<{ id: number }>(`SELECT id FROM workspace_queue WHERE path = ? OR new_path = ? LIMIT 1`, [path, path]);
-      if (entry) writes += 1;
+      const outcome = await h.write(path).catch((): OwedOutcome => "failed");
+      if (outcome === "queued") writes += 1;
+      else if (outcome === "failed") failed += 1;
       else await db.execute(`UPDATE files SET sync_state = 'synced' WHERE path = ? AND sync_state = 'local_ahead'`, [path]);
     }
   }
-  return { deletions: await sweepRemovals(db, true, h), writes };
+  const removals = await sweepRemovals(db, true, h);
+  return { deletions: removals.queued, writes, failed: failed + removals.failed };
+}
+
+/** The queues a host hands its local changes to. */
+export interface LocalQueueingTargets {
+  /** Whether this vault queues local changes at all (a sync target, its files running). */
+  queuesChanges: () => boolean;
+  /** An encrypted workspace's permission check, where it has one; false refuses and keeps a fork. */
+  permission?: () => ((path: string, isChange: boolean) => Promise<boolean>) | null;
+  /** The encrypted workspace's queue, where the vault is one. */
+  workspace?: () => { enqueue(operation: "write" | "delete", path: string): Promise<unknown> } | null;
+  /** The plain sync's queue. */
+  plain?: () => { queueWrite(path: string): Promise<unknown>; queueDeletePaths(paths: readonly string[]): Promise<unknown> } | null;
+  /** Without a sync target: what a deletion still does (the desktop drops the stale sync row). */
+  withoutTarget?: (path: string) => Promise<void>;
+  /**
+   * Makes an entry: the desktop calls it, the phone hands it to its announcer
+   * (which tries twice). `stillDue` is asked before each attempt where given.
+   * Answers `not-due` where the entry was no longer due, `failed` where it
+   * could not be made.
+   */
+  run?: (entry: () => Promise<unknown>, stillDue?: () => Promise<boolean>) => Promise<"queued" | "not-due" | "failed">;
+  /** For a deletion: the file is still gone. */
+  stillGone?: (path: string) => Promise<boolean>;
+  /** Told after an entry is made. */
+  onQueued?: () => void;
+  /** Told when an entry or a permission check fails. */
+  onError?: (what: string, error: unknown) => void;
+}
+
+export interface LocalQueueing {
+  deletion(path: string): Promise<OwedOutcome>;
+  deletions(paths: readonly string[]): Promise<OwedOutcome>;
+  change(path: string): Promise<OwedOutcome>;
+}
+
+/**
+ * How a host queues a file another program changed or removed — the index's
+ * callbacks and the sweep of what an ended app left owed both come here, in
+ * both shells — and what it answers (review F1). Nothing is swallowed into a
+ * "done": a failed permission check or entry answers `failed`.
+ */
+export function createLocalQueueing(t: LocalQueueingTargets): LocalQueueing {
+  const direct = async (entry: () => Promise<unknown>, stillDue?: () => Promise<boolean>): Promise<"queued" | "not-due" | "failed"> => {
+    if (stillDue && !(await stillDue().catch(() => true))) return "not-due";
+    try {
+      await entry();
+      return "queued";
+    } catch (error) {
+      t.onError?.("entry", error);
+      return "failed";
+    }
+  };
+  const run = t.run ?? direct;
+  const asked = async (path: string, isChange: boolean): Promise<boolean | "failed"> => {
+    const check = t.permission?.() ?? null;
+    if (!check) return true;
+    try {
+      return await check(path, isChange);
+    } catch (error) {
+      t.onError?.("permission", error);
+      return "failed";
+    }
+  };
+  const answer = (made: "queued" | "not-due" | "failed"): OwedOutcome => {
+    if (made === "queued") t.onQueued?.();
+    return made === "queued" ? "queued" : made === "not-due" ? "refused" : "failed";
+  };
+  const stillDue = (path: string) => (t.stillGone ? () => t.stillGone!(path) : undefined);
+  const deletion = async (path: string): Promise<OwedOutcome> => {
+    if (!queuesForTheRemote(path)) return "refused";
+    if (!t.queuesChanges()) {
+      await t.withoutTarget?.(path).catch(() => {});
+      return "refused";
+    }
+    const allowed = await asked(path, false);
+    if (allowed !== true) return allowed === "failed" ? "failed" : "refused";
+    const workspace = t.workspace?.() ?? null;
+    if (workspace) return answer(await run(() => workspace.enqueue("delete", path), stillDue(path)));
+    const plain = t.plain?.() ?? null;
+    if (!plain) return "failed";
+    return answer(await run(() => plain.queueDeletePaths([path]), stillDue(path)));
+  };
+  return {
+    deletion,
+    async deletions(paths) {
+      const workspace = t.workspace?.() ?? null;
+      const plain = t.plain?.() ?? null;
+      const ours = paths.filter(queuesForTheRemote);
+      if (t.permission?.() || workspace || !plain || !t.queuesChanges() || ours.length !== paths.length) {
+        // One by one: a permission check per path, or nothing to batch.
+        let worst: OwedOutcome = "refused";
+        for (const path of paths) {
+          const outcome = await deletion(path);
+          if (outcome === "failed") return "failed";
+          if (outcome === "queued") worst = "queued";
+        }
+        return worst;
+      }
+      // One transaction for all of them (review F4); the queue skips a path asked again.
+      return answer(await run(() => plain.queueDeletePaths(paths)));
+    },
+    async change(path) {
+      if (!queuesForTheRemote(path) || !t.queuesChanges()) return "refused";
+      const allowed = await asked(path, true);
+      if (allowed !== true) return allowed === "failed" ? "failed" : "refused";
+      const workspace = t.workspace?.() ?? null;
+      if (workspace) return answer(await run(() => workspace.enqueue("write", path)));
+      const plain = t.plain?.() ?? null;
+      if (!plain) return "failed";
+      return answer(await run(() => plain.queueWrite(path)));
+    },
+  };
 }

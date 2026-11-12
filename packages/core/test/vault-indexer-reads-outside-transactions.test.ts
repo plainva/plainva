@@ -43,8 +43,13 @@ afterEach(async () => {
   await fs.rm(root, { recursive: true, force: true });
 });
 
-/** The vault, with the next read of `held` waiting until `release()`. */
-function holdingReads(held: string) {
+/**
+ * The vault, with the next read of `held` waiting until `release()`. With
+ * `after`, the read is made first and its answer held: what the pass gets is
+ * the file as it was when its read began (review of R1: holding before the
+ * read let the slow pass read the newer text, and no test needed `claimWrite`).
+ */
+function holdingReads(held: string, after = false) {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   let reached!: () => void;
@@ -56,12 +61,15 @@ function holdingReads(held: string) {
       if (typeof value !== "function") return value;
       if (key !== "readBinaryFile" && key !== "readTextFile") return value.bind(target);
       return async (p: string, ...rest: unknown[]) => {
+        const read = () => (value as (...a: unknown[]) => Promise<unknown>).call(target, p, ...rest);
         if (armed && p === held) {
           armed = false;
+          const answer = after ? await read() : undefined;
           reached();
           await gate;
+          if (after) return answer;
         }
-        return (value as (...a: unknown[]) => Promise<unknown>).call(target, p, ...rest);
+        return read();
       };
     },
   });
@@ -90,7 +98,8 @@ describe("a single path is read before its transaction", () => {
   it.each(["indexFile", "indexPath", "reconcileFolder"] as const)("a save that lands between the read and the write is indexed with its newer text (%s)", async (route) => {
     await raw.writeTextFile("Folder/Note.md", "# Note\n\nfirst balloon\n");
     await fs.utimes(path.join(root, "Folder/Note.md"), new Date(), later(-60_000));
-    const { vault, release, reading } = holdingReads("Folder/Note.md");
+    // The slow pass has READ the first text when the save comes; only the order of the reads keeps it from writing it.
+    const { vault, release, reading } = holdingReads("Folder/Note.md", true);
     const slow = new VaultIndexer(vault, db);
     const listed = await raw.getFileInfo("Folder/Note.md");
     const pass = route === "indexFile" ? slow.indexFile(listed) : route === "indexPath" ? slow.indexPath("Folder/Note.md") : slow.reconcileFolder("Folder");

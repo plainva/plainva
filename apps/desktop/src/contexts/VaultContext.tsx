@@ -31,7 +31,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText } 
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, type OwedSweepReport } from "@plainva/core";
+import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -959,17 +959,22 @@ export const VaultProvider: React.FC<{
 
       // Files created/modified outside Plainva's own write path (another editor, the OS)
       // are indexed but were never enqueued. Push them when this vault has a sync target.
-      const enqueueLocalChange = async (changedPath: string) => {
-        if (!queuesChanges || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
-        if (permissionedWorkspaceAdapter && !await permissionedWorkspaceAdapter.authorizeExternalChange(changedPath, true)) return;
-        const queued = workspaceStateStore
-          ? workspaceStateStore.enqueue("write", changedPath)
-          : syncQueue.queueWrite(changedPath);
-        // Resolves once the entry is made: the sweep of what is owed asks right after (R22).
-        await queued
-          .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-          .catch((e) => console.error("[VaultContext] failed to enqueue local change", e));
-      };
+      // The index's callbacks and the sweep of what an ended app left owed
+      // (`sweepOwedToRemote`, R22) queue through this one place, which says
+      // what came of each entry: queued, refused, or failed (review F1).
+      const localQueueing = createLocalQueueing({
+        queuesChanges: () => queuesChanges,
+        permission: () => permissionedWorkspaceAdapter
+          ? (p, isChange) => permissionedWorkspaceAdapter.authorizeExternalChange(p, isChange)
+          : null,
+        workspace: () => workspaceStateStore,
+        plain: () => syncQueue,
+        // No sync target: just drop the stale state row.
+        withoutTarget: (p) => syncRepo.deleteSyncState(p),
+        onQueued: () => window.dispatchEvent(new CustomEvent("plainva-sync-queued")),
+        onError: (what, e) => console.error(`[VaultContext] could not queue a local change (${what})`, e),
+      });
+      const enqueueLocalChange = (changedPath: string) => localQueueing.change(changedPath);
 
       // Only the initial full index below reports progress into React state (P3).
       let reportInitialProgress = true;
@@ -995,31 +1000,7 @@ export const VaultProvider: React.FC<{
       // the remote deletion, or — without a sync target — the stale sync row.
       // The index's `onLocalFileDeleted` and the sweep of what an ended app
       // left owed (`sweepOwedToRemote`, R22) both come here.
-      const queueLocalDeletion = async (deletedPath: string): Promise<void> => {
-        if (queuesChanges) {
-          if (permissionedWorkspaceAdapter) {
-            try {
-              if (!(await permissionedWorkspaceAdapter.authorizeExternalChange(deletedPath, false))) return;
-              await workspaceStateStore!.enqueue("delete", deletedPath);
-              window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
-            } catch (e) {
-              console.error("[VaultContext] failed to authorize local delete", e);
-            }
-            return;
-          }
-          // Propagate the deletion to the remote; sync_state is cleaned after the push.
-          try {
-            if (workspaceStateStore) await workspaceStateStore.enqueue("delete", deletedPath);
-            else await syncQueue.queueDelete(deletedPath);
-            window.dispatchEvent(new CustomEvent("plainva-sync-queued"));
-          } catch (e) {
-            console.error("[VaultContext] failed to enqueue local delete", e);
-          }
-        } else {
-          // No sync target: just drop the stale state row.
-          await syncRepo.deleteSyncState(deletedPath).catch(() => {});
-        }
-      };
+      const queueLocalDeletion = (deletedPath: string) => localQueueing.deletion(deletedPath);
       // What the index decided and committed while the queue never heard of it
       // — the app ended between the two (stability plan R22): deletions, and in
       // an encrypted workspace also changes. Run at the first cycle of the
@@ -1030,11 +1011,13 @@ export const VaultProvider: React.FC<{
           vaultIsThere: () => vaultAdapter.exists("").catch(() => false),
           stillGone: async (p: string) => !(await vaultAdapter.exists(p)),
           remove: queueLocalDeletion,
+          removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
           write: enqueueLocalChange,
         };
         (kind === "plain" ? sweepPlainOwed(dbAdapter, handlers) : sweepWorkspaceOwed(dbAdapter, handlers))
           .then((report: OwedSweepReport) => {
             if (report.deletions + report.writes > 0) logDiagnostic("sync", `queued what the index had found and nobody queued: ${report.deletions} deletion(s), ${report.writes} change(s)`);
+            if (report.failed > 0) logDiagnostic("sync", `could not queue ${report.failed} change(s) or deletion(s) the index had found; they wait for the next start`);
           })
           .catch((e) => console.error("[VaultContext] sweep of owed changes failed", e));
       };
@@ -1065,7 +1048,7 @@ export const VaultProvider: React.FC<{
           // E9) — moved or deleted outside Plainva while open. It looks for
           // the file; the owner bridge carries the event to other windows.
           if (!path.includes(".plainva")) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
-          if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
+          if (!queuesForTheRemote(path)) return;
           // The worker mirrored a remote deletion: its sync_state is already
           // gone and the remote has nothing left to delete. Asked for the row
           // the index removed: the mark answers for the file the worker took

@@ -15,6 +15,9 @@ import {
   VaultFileNotFoundError,
   VaultIndexer,
   WebDavSyncTarget,
+  createLocalQueueing,
+  queuesForTheRemote,
+  sweepPlainOwed,
   type VaultFileInfo,
 } from "@plainva/core";
 import { serializeBaseConfig } from "@plainva/ui";
@@ -83,7 +86,7 @@ afterEach(async () => {
 });
 
 /** vaultService.ts: what never leaves this device. */
-const isInternal = (p: string) => p.startsWith(".plainva") || p.includes(".CONFLICT");
+const isInternal = (p: string) => !queuesForTheRemote(p);
 
 async function folder(prefix: string) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -132,7 +135,7 @@ async function phone(dav: ByteExactDav) {
   /** Every path the index reported as gone, in the order it said so. */
   const gone: string[] = [];
   /** What the hooks set off without waiting, so that a test can wait for it. */
-  const setOff: Promise<void>[] = [];
+  const setOff: Promise<unknown>[] = [];
   // vaultService.ts: the hooks queue through the announcer, which takes the door's turns for each attempt.
   const announce = createAnnouncer(turns, { whenIdle: () => indexer.whenIdle(), retryDelayMs: 0, onDropped: () => { dropped += 1; } });
   const stillGone = (p: string) => () => raw.exists(p).then((there) => !there);
@@ -917,7 +920,7 @@ describe("what a pass sets off", () => {
     const turns = createIndexTurns();
     const queued: string[] = [];
     const announce = createAnnouncer(turns, { retryDelayMs: 0, onDropped: () => { throw new Error("no log"); } });
-    await expect(announce(async () => { throw new Error("Already in transaction"); })).resolves.toBeUndefined();
+    await expect(announce(async () => { throw new Error("Already in transaction"); })).resolves.toBe("failed");
     await announce(async () => { queued.push("write a.md"); });
     expect(queued).toEqual(["write a.md"]);
   });
@@ -938,9 +941,10 @@ describe("the wiring: one door, and everything goes through it", () => {
     expect(service).toContain("turns: indexTurns,");
     expect(service).toContain("const announce = createAnnouncer(indexTurns, {");
     expect(service).toContain("whenIdle: async () => { await indexer?.whenIdle(); },");
-    expect(service).toContain("await announce(() => plain.queueWrite(path))");
+    // Every local entry is made through the announcer (createLocalQueueing in the core).
+    expect(service).toContain("run: (entry, due) => announce(entry, due),");
     // A deletion that waited is asked whether the file is still gone.
-    expect(service).toContain("await announce(() => plain.queueDelete(path), stillGone(path))");
+    expect(service).toContain("stillGone: (path) => stillGone(path)(),");
     expect(service).toContain("const stillGone = (path: string) => () => adapter.exists(path).then((there) => !there);");
     // Nothing the index announces is queued past the announcer.
     expect(service).not.toMatch(/indexTurns\.take\(/);
@@ -976,5 +980,53 @@ describe("the wiring: one door, and everything goes through it", () => {
     // (A full scan may be asked for from anywhere; it is not listed.)
     expect(calling(/\b(?:inspectPath|reconcileFolder|removePathFromIndex|relocatePathInIndex)\s*\(/).sort())
       .toEqual(["components/TaskNamesNotice.tsx", "services/vaultService.ts"]);
+  });
+});
+
+describe("the sweep of what an ended app left owed, through the phone's announcer (review F1)", () => {
+  it("an entry the announcer gives up after both attempts keeps the deletion's mark, and the next start queues it", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-owed-phone-"));
+    const db = await realSqlite();
+    closers.push(async () => {
+      await db.close();
+      await fs.rm(root, { recursive: true, force: true });
+    });
+    const raw = new LocalVaultAdapter(root);
+    await raw.initialize();
+    await raw.writeTextFile("Gone.md", "# gone\n");
+    await new VaultIndexer(raw, db).indexVaultFull("open");
+    await db.execute("INSERT OR REPLACE INTO sync_state (path, remote_etag, base_sha256) VALUES ('Gone.md', 'e1', 'b1')");
+    await fs.rm(path.join(root, "Gone.md"));
+    // The index removes the row and marks it; the app ends before the deletion is queued.
+    await new VaultIndexer(raw, db, { onLocalFileDeleted: () => {} }).indexVaultFull("automatic refresh");
+    const queue = new SyncQueue(db);
+    const seen = { failing: true, attempts: 0, dropped: 0 };
+    const plain = {
+      queueWrite: (p: string) => queue.queueWrite(p),
+      queueDeletePaths: async (ps: readonly string[]) => {
+        seen.attempts += 1;
+        if (seen.failing) throw new Error("database is closing");
+        await queue.queueDeletePaths(ps);
+      },
+    };
+    // The pieces vaultService.ts hands the core (createLocalQueueing with `run: announce`); the announcer never rejects.
+    const announce = createAnnouncer(createIndexTurns(), { retryDelayMs: 0, onDropped: () => { seen.dropped += 1; } });
+    const stillGone = (p: string) => () => raw.exists(p).then((there) => !there);
+    const local = createLocalQueueing({
+      queuesChanges: () => true,
+      permission: () => null,
+      workspace: () => null,
+      plain: () => plain,
+      run: (entry, due) => announce(entry, due),
+      stillGone: (p) => stillGone(p)(),
+    });
+    const h = { vaultIsThere: () => raw.exists(""), stillGone: async (p: string) => !(await raw.exists(p)), remove: local.deletion, removeAll: local.deletions };
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 0, writes: 0, failed: 1 });
+    expect(seen).toMatchObject({ attempts: 2, dropped: 1 });
+    expect(await db.query("SELECT path FROM index_removed")).toEqual([{ path: "Gone.md" }]);
+    seen.failing = false;
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 1, writes: 0, failed: 0 });
+    expect((await db.query<{ operation: string; file_path: string }>("SELECT operation, file_path FROM offline_queue")).map((op) => `${op.operation} ${op.file_path}`)).toEqual(["delete Gone.md"]);
+    expect(await db.query("SELECT path FROM index_removed")).toEqual([]);
   });
 });

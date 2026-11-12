@@ -28,7 +28,7 @@ import {
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
-import { sweepPlainOwed, sweepWorkspaceOwed } from "@plainva/core";
+import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -187,7 +187,8 @@ export interface MobileVault {
   dispose(): Promise<void>;
 }
 
-const isInternal = (path: string) => path.startsWith(".plainva") || path.includes(".CONFLICT");
+/** One rule with the desktop and the sweep (review F3). */
+const isInternal = (path: string) => !queuesForTheRemote(path);
 
 /**
  * The vault's index database.
@@ -815,24 +816,19 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
    * index's `onLocalFileDeleted` and the sweep of what an ended app left owed
    * (`sweepOwedToRemote`, R22) both come here.
    */
-  const queueLocalDeletion = async (path: string): Promise<void> => {
-    if (!syncEnqueueEnabled || isInternal(path)) return;
-    const plain = queue;
-    // Resolves once the entry is made (or given up): the sweep of what is owed asks right after.
-    if (permissioned) {
-      const allowed = await permissioned.authorizeExternalChange(path, false).catch(() => false);
-      if (allowed) await announce(() => workspaceState!.enqueue("delete", path), stillGone(path));
-    } else if (plain) await announce(() => plain.queueDelete(path), stillGone(path));
-  };
-
-  const enqueueLocal = async (path: string) => {
-    if (!syncEnqueueEnabled || isInternal(path)) return;
-    if (permissioned && !await permissioned.authorizeExternalChange(path, true)) return;
-    const sealed = workspaceState, plain = queue;
-    // Resolves once the entry is made (or given up): the sweep of what is owed asks right after.
-    if (sealed) await announce(() => sealed.enqueue("write", path));
-    else if (plain) await announce(() => plain.queueWrite(path));
-  };
+  const localQueueing = createLocalQueueing({
+    queuesChanges: () => syncEnqueueEnabled,
+    permission: () => {
+      const check = permissioned;
+      return check ? (path, isChange) => check.authorizeExternalChange(path, isChange) : null;
+    },
+    workspace: () => workspaceState,
+    plain: () => queue,
+    run: (entry, due) => announce(entry, due),
+    stillGone: (path) => stillGone(path)(),
+  });
+  const queueLocalDeletion = (path: string) => localQueueing.deletion(path);
+  const enqueueLocal = (path: string) => localQueueing.change(path);
 
   let files: IVaultAdapter;
   let backup: BackupVaultAdapter;
@@ -1087,11 +1083,13 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         vaultIsThere: () => adapter.exists("").catch(() => false),
         stillGone: async (p: string) => !(await adapter.exists(p)),
         remove: queueLocalDeletion,
+        removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
         write: enqueueLocal,
       };
       (kind === "plain" ? sweepPlainOwed(db, handlers) : sweepWorkspaceOwed(db, handlers))
         .then((report) => {
           if (report.deletions + report.writes > 0) logDiagnostic("sync", `queued what the index had found and nobody queued: ${report.deletions} deletion(s), ${report.writes} change(s)`);
+          if (report.failed > 0) logDiagnostic("sync", `could not queue ${report.failed} change(s) or deletion(s) the index had found; they wait for the next start`);
         })
         .catch(() => {});
     },
