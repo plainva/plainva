@@ -9,6 +9,7 @@ import {
   SyncQueue,
   StructureNeedsIndexError,
   StructureRefusingVaultAdapter,
+  UNINDEXED_LOCAL_VAULT_CHAIN,
   UNINDEXED_VAULT_CHAIN,
   VaultPermissionDeniedError,
   WORKSPACE_VAULT_CHAIN,
@@ -97,7 +98,7 @@ describe("buildVaultChain", () => {
 
   it("without an index database: versions, the refusal of what only a queue could carry, the conflict guard; nothing queued", async () => {
     const storage = new RecordingStorage(1_000);
-    const chain = buildVaultChain({ storage, deviceId: "device-a", index: null, kind: "container" });
+    const chain = buildVaultChain({ storage, deviceId: "device-a", index: null, remote: true, kind: "container" });
     expect(chain.links).toEqual(["storage", "versions", "structure-refusal", "conflict-guard"]);
     await storage.writeTextFile("Note.md", "one\n");
     storage.log.length = 0;
@@ -106,6 +107,10 @@ describe("buildVaultChain", () => {
     await chain.files.writeTextFile("Note.md", "two\n");
     expect(storage.userWrites()).toEqual(["write Note.md"]);
     expect(UNINDEXED_VAULT_CHAIN).toEqual(chain.links);
+    // A vault with no remote has nobody to tell: nothing is refused.
+    const local = buildVaultChain({ storage: new RecordingStorage(1_000), deviceId: "device-a", index: null, kind: "external-folder" });
+    expect(local.links).toEqual(UNINDEXED_LOCAL_VAULT_CHAIN);
+    expect(UNINDEXED_LOCAL_VAULT_CHAIN).toEqual(["storage", "versions", "conflict-guard"]);
     expect(linksOf(chain, storage)).toEqual(chain.links);
     expect(chain.queueing).toBeNull();
     expect(chain.syncRepo).toBeNull();

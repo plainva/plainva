@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLAIN_VAULT_CHAIN, UNINDEXED_VAULT_CHAIN, WORKSPACE_VAULT_CHAIN } from "@plainva/core";
+import { PLAIN_VAULT_CHAIN, UNINDEXED_LOCAL_VAULT_CHAIN, UNINDEXED_VAULT_CHAIN, WORKSPACE_VAULT_CHAIN } from "@plainva/core";
 import { shippedSources } from "./test-sourceTree";
 
 /**
@@ -32,6 +32,7 @@ describe("the vault chain", () => {
     expect(PLAIN_VAULT_CHAIN).toEqual(["storage", "versions", "sync-queue", "conflict-guard"]);
     expect(WORKSPACE_VAULT_CHAIN).toEqual(["storage", "versions", "permissions", "workspace-queue", "conflict-guard"]);
     expect(UNINDEXED_VAULT_CHAIN).toEqual(["storage", "versions", "structure-refusal", "conflict-guard"]);
+    expect(UNINDEXED_LOCAL_VAULT_CHAIN).toEqual(["storage", "versions", "conflict-guard"]);
   });
 
   it("is put together by no code but the factory: every link comes from it", () => {

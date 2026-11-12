@@ -225,6 +225,21 @@ describe("the phone without its index database", () => {
     expect(changesSent().length).toBe(sent);
   }, 120_000);
 
+  it("refuses nothing in a vault without a remote: nobody would miss the deletion", async () => {
+    registry.vaults = [{ id: "local-2", name: "Local" } as VaultEntry];
+    registry.activeId = "local-2";
+    const disk = new (await import("../adapters/CapacitorVaultAdapter")).CapacitorVaultAdapter("vaults/local-2") as unknown as IVaultAdapter;
+    await disk.writeTextFile("Old.md", "# Old\n");
+    sql.failing = true;
+    const { service, vault } = await boot();
+    expect(vault.db).toBeNull();
+    expect(vault.indexClosed).toBe(false);
+    expect(await service.vaultOps.remove(vault, "Old.md", { confirmed: true })).toBe(true);
+    expect(await disk.exists("Old.md")).toBe(false);
+    await service.vaultOps.createFolder(vault, "Empty");
+    expect(await disk.exists("Empty")).toBe(true);
+  }, 60_000);
+
   it("finds what another app changed meanwhile by the ordinary pass, and the sync carries it the ordinary way, once", async () => {
     await syncedVault(["Gone.md", "Old.md", "Folder/One.md", "Folder/Two.md"]);
 

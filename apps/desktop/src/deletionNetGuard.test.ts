@@ -151,7 +151,7 @@ describe("every deletion goes through its net (D1)", () => {
     expect(factory).toMatch(/new QueueingVaultAdapter\(versions,/);
     // Without an index database the refusal of what only a queue could carry sits between them (R5).
     expect(factory).toMatch(/new StructureRefusingVaultAdapter\(versions\)/);
-    expect(factory).toMatch(/new ConflictAwareVaultAdapter\(refusing,/);
+    expect(factory).toMatch(/new ConflictAwareVaultAdapter\(refusing \?\? versions,/);
     const desktop = asking("apps/desktop/src/contexts/VaultContext.tsx");
     expect(desktop).toMatch(/buildVaultChain\(\{\s*storage: tauriVaultAdapter,/);
     expect(desktop).toMatch(/const backupVaultAdapter = chain\.belowChain;/);

@@ -153,10 +153,12 @@ export interface MobileVault {
   queryService: VaultQueryService | null;
   searchAvailable: boolean;
   /**
-   * The vault runs without its index database (stability plan R5): writing
-   * and creating notes work, deleting, renaming and moving are refused by the
-   * chain (`StructureRefusingVaultAdapter`) — the sync queue lives in that
-   * database and could not carry them. The screens say so up front.
+   * The vault syncs and runs without its index database (stability plan R5):
+   * writing and creating notes work, deleting, renaming and moving are
+   * refused by the chain (`StructureRefusingVaultAdapter`) — the sync queue
+   * lives in that database and could not carry them. The screens say so up
+   * front. False for a vault with no remote (a local vault, a picked folder):
+   * nothing there needs the queue.
    */
   indexClosed: boolean;
   /** Lets locally created files enqueue for push (called once sync starts). */
@@ -1042,6 +1044,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       onBackupError: reportSnapshotFailure },
       deviceId: await mobileSyncDeviceId(),
       index: null,
+      // Only a vault with a remote loses a deletion, a rename or a move made now (R5).
+      remote: !isLocal,
       onLineEndsConverted: (path, lineEnd) => sayLineEndsConverted(path, lineEnd),
       kind: chainKind,
     });
@@ -1076,7 +1080,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     indexer,
     queryService,
     searchAvailable,
-    indexClosed: db === null,
+    indexClosed: db === null && !isLocal,
     enableSyncEnqueue: () => {
       syncEnqueueEnabled = true;
     },
