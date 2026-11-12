@@ -576,3 +576,76 @@ test('a failed old save does not alter the next mounted note or its save status'
   await expect.poll(() => page.evaluate(() => Object.values((window as any).mockFs).some(
     (value: any) => typeof value === 'string' && value.includes('OLD_NOTE_DRAFT')))).toBe(true);
 });
+
+/**
+ * The draft journal keeps continuous typing (stability plan R6): typing that
+ * never pauses, an app that ends before any save landed — the next start
+ * offers the text. Until 2026-11-11 the desktop's snapshot waited for a 400-ms
+ * pause and the note's save for a 1-s one: the moment the typing stopped,
+ * neither had happened, and an end of the app right then lost all of it.
+ * The "end" is a reload with the note's own write held forever; what the
+ * journal wrote under the app's data survives it, as files on a disk would.
+ */
+test('typing that never pauses survives the app ending before its save: the next start offers it', async ({ page }) => {
+  // Two starts of the app and 2.4 s of typing.
+  test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    const w = window as any;
+    const original = w.__TAURI_INTERNALS__.invoke;
+    const kept = sessionStorage.getItem('plainva-e2e-drafts');
+    if (kept) Object.assign(w.mockFs, JSON.parse(kept));
+    const firstRun = !sessionStorage.getItem('plainva-e2e-ended');
+    w.__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:path|resolve_directory') return '/app-data';
+      // The first run never gets its note written: the app ends first.
+      if (firstRun && cmd === 'write_file_atomic' && args.relPath === 'Big.md') return new Promise(() => {});
+      return original(cmd, args, options);
+    };
+  });
+  await openBigAndArm(page);
+  // A key every 60 ms for 2.4 s: never a pause of 400 ms.
+  await page.keyboard.type('\nNEVER_PAUSED_TYPING_KEPT_BY_THE_JOURNAL', { delay: 60 });
+  // The app ends right now, the moment the typing stops.
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    const drafts = Object.fromEntries(Object.entries(fs).filter(([path]) => path.startsWith('/app-data/drafts')));
+    sessionStorage.setItem('plainva-e2e-drafts', JSON.stringify(drafts));
+    sessionStorage.setItem('plainva-e2e-ended', '1');
+  });
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Big.md'])).not.toContain('NEVER_PAUSED');
+  await page.reload();
+  // The tab of the note comes back with the window; the tree's entry opens it either way.
+  const inTree = page.getByTestId('file-tree').getByText('Big', { exact: true });
+  await expect(inTree).toBeVisible({ timeout: 10000 });
+  await inTree.click();
+  const restore = page.getByRole('button', { name: 'Restore draft' });
+  await expect(restore).toBeVisible({ timeout: 10000 });
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('draft-after-end-desktop.png') });
+  await restore.click();
+  // At most the last 400 ms of the typing may be missing.
+  await expect(page.locator('.cm-content').first()).toContainText('NEVER_PAUSED_TYPING_KEPT_BY_THE');
+  await page.locator('.cm-content').first().click();
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Big.md']), { timeout: 10000 }).toContain('NEVER_PAUSED_TYPING_KEPT_BY_THE');
+});
+
+/**
+ * Typing, then a change from outside while the save waits: the existing
+ * resolution still appears (stability plan R6, the save step both shells
+ * share). The disk changes another line; the editor's text and the other
+ * program's both end up in the file.
+ */
+test('typing, then a change from outside: both are in the file after the save', async ({ page }) => {
+  await openBigAndArm(page);
+  await page.keyboard.type('\nTYPED_HERE');
+  // Another program changes the first line before the save comes.
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Big.md'] = String(fs['/test-vault/Big.md']).replace('# Big', '# Big CHANGED_OUTSIDE');
+  });
+  await page.keyboard.press('Control+s');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Big.md']), { timeout: 10000 }).toContain('TYPED_HERE');
+  const disk = await page.evaluate(() => String((window as any).mockFs['/test-vault/Big.md']));
+  expect(disk).toContain('CHANGED_OUTSIDE');
+  expect(disk).toContain('TYPED_HERE');
+});

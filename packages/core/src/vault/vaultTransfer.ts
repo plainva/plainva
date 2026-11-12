@@ -1,4 +1,4 @@
-import type { IVaultAdapter } from "./IVaultAdapter.js";
+import type { IVaultAdapter, VaultStorageReader } from "./IVaultAdapter.js";
 import { isWorkspaceNamespacePath } from "../workspace/path.js";
 import type { ISyncTarget } from "../sync/ISyncTarget.js";
 import { sha256Hex } from "../workspace/encoding.js";
@@ -20,7 +20,7 @@ const transferable = (path: string) => !(path === ".plainva" || path.startsWith(
 
 /** Fails closed when any directory cannot be read. Private vault metadata is
  * transferred through its own device-local stores, never as cloud file data. */
-export async function readTransferFiles(adapter: IVaultAdapter): Promise<TransferFile[]> {
+export async function readTransferFiles(adapter: VaultStorageReader): Promise<TransferFile[]> {
   const files: TransferFile[] = [];
   const seen = new Set<string>();
   const walk = async (path: string) => {
@@ -51,7 +51,7 @@ export async function readTransferFiles(adapter: IVaultAdapter): Promise<Transfe
  * carries what is local (device finding 2026-10-27).
  */
 export async function planVaultTransfer(
-  source: IVaultAdapter,
+  source: VaultStorageReader,
   remote: ISyncTarget | null,
   target?: IVaultAdapter,
   onProgress?: (done: number, total: number) => void,
@@ -116,7 +116,7 @@ export async function planVaultTransfer(
 
 /** Revalidate the displayed snapshot; never replace a pre-existing destination
  * with different bytes. A retry reuses identical files after an interruption. */
-export async function commitVaultTransfer(plan: VaultTransferPlan, source: IVaultAdapter, target: IVaultAdapter, remote: ISyncTarget | null): Promise<void> {
+export async function commitVaultTransfer(plan: VaultTransferPlan, source: VaultStorageReader, target: IVaultAdapter, remote: ISyncTarget | null): Promise<void> {
   if (remote) {
     const listing = await remote.pull();
     if (listing.needsFullListing || listing.etagMap.size !== plan.etags.size || [...plan.etags].some(([p, tag]) => listing.etagMap.get(p) !== tag)) throw new Error("transfer_source_changed");

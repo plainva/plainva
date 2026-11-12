@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { AreaBoundary, clampBoundary, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, taskDatabaseLabels, toast } from "@plainva/ui";
+import { AreaBoundary, clampBoundary, logDiagnostic, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, taskDatabaseLabels, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -51,7 +51,7 @@ import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/link
 import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK } from "../services/spellcheck";
 import { DEFAULT_NEW_NOTES_IN_NEW_TAB, getStoredNewNotesInNewTab, setStoredNewNotesInNewTab } from "../services/newNoteTab";
 import type { Update } from "@tauri-apps/plugin-updater";
-import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, getUpdatesManagedBy, setAutoUpdateCheck } from "../services/appUpdate";
+import { checkForAppUpdate, classifyUpdateFailure, describeUpdateFailure, downloadAndInstallUpdate, getAutoUpdateCheck, getUpdatesManagedBy, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
 import { SettingsNav } from "./settings/SettingsNav";
 import { SecurityNav } from "./settings/SecurityNav";
@@ -669,7 +669,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     } else if (result.status === "no-release") {
       setUpdateStatus(t("settings.updateErrorNoRelease", "Aktuell sind noch keine öffentlichen Updates (Releases) verfügbar."));
     } else {
-      setUpdateStatus(t("settings.updateCheckError", { defaultValue: "Fehler beim Suchen: {{error}}", error: result.error }));
+      logDiagnostic("update.check", result.error);
+      setUpdateStatus(describeUpdateFailure(result.error, "check", t));
     }
   };
 
@@ -681,7 +682,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       await downloadAndInstallUpdate(updateAvailable);
     } catch (e) {
       setIsUpdating(false);
-      setUpdateStatus(t("settings.updateInstallError", { defaultValue: "Fehler beim Installieren: {{error}}", error: String(e) }));
+      logDiagnostic("update.install", String(e));
+      // A refused download is no offer to try again: the same file would be
+      // refused the same way. The button comes back with the next check.
+      if (classifyUpdateFailure(e) === "refused") setUpdateAvailable(null);
+      setUpdateStatus(describeUpdateFailure(e, "install", t));
     }
   };
 

@@ -16,7 +16,7 @@ vi.mock("./vaultService", async () => {
   // Its file chain and the coordinator used to acquire locks remain real.
   const { readFileSync } = await import("node:fs");
   const ts = await import("typescript");
-  const { createSaveCoordinator } = await import("./saveCoordinator");
+  const { createSaveCoordinator } = await import("../../../../packages/ui/src/lib/saveCoordinator");
   const file = ts.createSourceFile("vaultService.ts", readFileSync("src/services/vaultService.ts", "utf8"), ts.ScriptTarget.Latest, true);
   let method = "";
   const visit = (node: import("typescript").Node) => {
@@ -55,7 +55,7 @@ describe("mobile native comment journal", () => {
     const db = await realSqlite();
     try {
       const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), new SyncQueue(db)), new SyncStateRepository(db));
-      const vault = { vaultId: "vault-a", adapter: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
+      const vault = { vaultId: "vault-a", adapter: raw, belowChain: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
       await raw.writeTextFile("note.md", "Old sentence.\n");
       const service = mobileCommentOperations(vault);
       const op = await service.prepare({ notePath: "note.md", kind: "apply", text: { before: "Old sentence.\n", intended: "New sentence.\n" },
@@ -84,7 +84,7 @@ describe("mobile native comment journal", () => {
       let clock = Date.parse("2026-10-08T10:00:00Z");
       const backup = new BackupVaultAdapter(raw, { now: () => clock });
       const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(backup, new SyncQueue(db)), new SyncStateRepository(db));
-      const vault = { vaultId: "vault-a", adapter: raw, files, backup, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
+      const vault = { vaultId: "vault-a", adapter: raw, belowChain: raw, files, backup, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
       await raw.writeTextFile("note.md", "First sentence.\n");
       // The reader's own save a moment ago: the version history took its one snapshot for these minutes.
       await files.writeTextFile("note.md", "Old sentence.\n");
@@ -109,7 +109,7 @@ describe("mobile native comment journal", () => {
     const db = await realSqlite();
     try {
       const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), new SyncQueue(db)), new SyncStateRepository(db));
-      const vault = { vaultId: "vault-a", adapter: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
+      const vault = { vaultId: "vault-a", adapter: raw, belowChain: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
       // As an editor on Windows may leave a note; the mark is made at run time, never typed into this file.
       const mark = String.fromCharCode(0xfeff);
       await raw.writeTextFile("note.md", `${mark}Old sentence.\r\nKeep this line.\r\n`);
@@ -135,7 +135,7 @@ describe("mobile native comment journal", () => {
     const db = await realSqlite();
     try {
       const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), new SyncQueue(db)), new SyncStateRepository(db));
-      const vault = { vaultId: "vault-a", adapter: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
+      const vault = { vaultId: "vault-a", adapter: raw, belowChain: raw, files, indexer: null, workspaceRuntime: null, workspaceState: null } as unknown as MobileVault;
       const windows = "Rewritten elsewhere.\r\nKeep this line.\r\n";
       await raw.writeTextFile("note.md", windows);
       const service = mobileCommentOperations(vault);

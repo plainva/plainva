@@ -20,7 +20,7 @@ export function DeletedFilesSheet({ vault, onClose }: { vault: MobileVault; onCl
 
   useEffect(() => {
     let stale = false;
-    const service = new VersionHistoryService(vault.adapter);
+    const service = new VersionHistoryService(vault.belowChain);
     void service
       .listOrphans({ onProgress: (n) => !stale && setScanned(n) })
       .then((list) => {
@@ -42,7 +42,7 @@ export function DeletedFilesSheet({ vault, onClose }: { vault: MobileVault; onCl
         confirmLabel: t("versions.restore"),
       });
       if (!ok) return;
-      const service = new VersionHistoryService(vault.adapter);
+      const service = new VersionHistoryService(vault.belowChain);
       try {
         await service.restoreVersion({
           backupPath: g.versions[0].backupPath,

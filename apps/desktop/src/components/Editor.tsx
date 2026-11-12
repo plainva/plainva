@@ -23,7 +23,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, type KeptText, type LinkKind } from "@plainva/ui";
+import { applyTextShape, conflictCopyLabel, editorTextOf, inShapeOf, keepTextBeside, newestConflictCopy, openEditorText, resolveOpenAction, writeEditorSave, KeepBesideFailedError, type KeptText, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, jumpToLineTop, selectAndCenter, resolveAnchor, copyLineLink, type LineLinkMode } from "@plainva/ui";
 import { copyDesktopNoteLink, desktopVaultLinkName } from "../services/noteLinkReceiver";
 import { registerLineLinkEditor } from "../services/editorLineLinks";
@@ -83,7 +83,7 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { frontmatterSpan, isNotTextFileError, mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
+import { frontmatterSpan, isNotTextFileError, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
@@ -785,7 +785,6 @@ export const Editor: React.FC<{
   // Crash/draft recovery (P2.4): a journal snapshot survived that never made
   // it to disk — offered in a banner, applied only on explicit user action.
   const [draftOffer, setDraftOffer] = useState<{ text: string; savedAt: number; revision: number; sessionId?: string } | null>(null);
-  const draftTimerRef = useRef<number | null>(null);
   // The CodeMirror session lives OUTSIDE React (P1/P2, Gesamtplan
   // Editor-Stabilitaet 2026-07-05): one instance per open file, mounted into
   // this container; React re-renders never touch or reconfigure it.
@@ -832,6 +831,58 @@ export const Editor: React.FC<{
     const journal = import("../services/draftJournal").then(async ({ recordDraft }) => {
       if (draftVault) await recordDraft(draftVault, path, val, revAtSave, saveState.id);
     }).catch((error) => { console.error("Could not journal the pending note save", error); });
+    // The file turned into no text while this editor held changes — another
+    // program saved it in another encoding, or a pull brought such a version
+    // (finding 2026-10-11). Nothing was written over it: the text lies beside
+    // it as a conflict copy (`writeEditorSave`), the way a conflict keeps one,
+    // and the editor shows the file as what it is now; the comparison offers to
+    // take the copy in its place. (The phone's saver does the same.)
+    const adoptKept = async (kept: KeptText, earlier: KeptText | null) => {
+      // What is still scheduled for this revision goes, as when the buffer
+      // adopts the disk: a save timer that fired after the next load kept
+      // the same text once more, or wrote it over a version that is text
+      // again. The timers are the pane's: once it shows another file,
+      // they are that file's.
+      if (current() && saveState.revision === revAtSave) {
+        if (saveTimeoutRef.current !== null) { window.clearTimeout(saveTimeoutRef.current); saveTimeoutRef.current = null; }
+      }
+      // Typing that goes on is kept into the same copy (`keepTextBeside`).
+      saveState.update({ kept });
+      // This revision is done with; a save of it still under way gives up
+      // and drops its journal entry (above).
+      saveState.update({ savedRevision: revAtSave });
+      saveState.update({ discardedRevision: Math.max(saveState.discardedRevision, revAtSave) });
+      const sameRevision = saveState.revision === revAtSave;
+      if (sameRevision) {
+        saveState.update({ dirty: false });
+        dirtyStore.set(path, false, saveState.id);
+      }
+      if (draftVault) {
+        const { clearDraft } = await import("../services/draftJournal");
+        await clearDraft(draftVault, path, revAtSave, saveState.id);
+        // A draft restored from the journal is in this text now, as on a save.
+        const recovered = saveState.recoveredDraft;
+        if (recovered && sameRevision) {
+          await clearDraft(draftVault, path, recovered.revision, recovered.sessionId);
+          saveState.update({ recoveredDraft: null });
+        }
+      }
+      triggerFileTreeUpdate([kept.copy]);
+      // Said wherever the editor went meanwhile — once per copy.
+      if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: conflictCopyLabel(kept.copy, i18n.language) }));
+      if (current()) {
+        setSaveError(null);
+        setConflictInfo({ conflictPath: kept.copy });
+        // Typing that came after this revision — also while the journal
+        // entry was cleared just now — is the next save's: it is kept the
+        // same way. Otherwise nothing is left to save here.
+        if (saveState.revision === revAtSave) {
+          loadedPathRef.current = null;
+          setNotText(true);
+          setContent("");
+        }
+      }
+    };
     await withPendingWrite(draftVault, path, async () => {
       await journal;
       if (revAtSave < saveState.savedRevision || revAtSave <= saveState.discardedRevision) {
@@ -847,42 +898,25 @@ export const Editor: React.FC<{
       saveState.update({ activeWrites: saveState.activeWrites + 1 });
       if (current()) { setIsSaving(true); setSaveError(null); }
       try {
-        const base = saveState.baseInput;
-        // Nothing to write: the editor holds what the file last said — the
-        // suggestion mode put its base back, or an edit was taken back before
-        // the save came. Writing it anyway cost a version and an upload for
-        // nothing, and a note that arrived with `\r\n` every one of its line
-        // ends, for an edit that never happened (finding 2026-10-08; the
-        // phone's saver has the same guard). A file that changed elsewhere
-        // meanwhile is the external update's business.
-        const unchanged = base !== null && val === base && val === saveState.persisted;
-        let candidate = val;
-        let conflictSession: import("@plainva/core").ConflictEditSession | null = null;
-        let confirmed: string;
-        if (unchanged) {
-          confirmed = val;
-        } else if (vaultAdapter.writeEditorText) {
-          const result = await vaultAdapter.writeEditorText(path, shape ? applyTextShape(val, shape) : val,
-            base === null ? null : shape ? applyTextShape(base, shape) : base);
-          conflictSession = result.session;
-          confirmed = editorTextOf(result.stored);
-          if (current()) setConflictInfo(conflictSession ? { conflictPath: conflictSession.workingCopyPath, working: true, foreignCopySnapshot: conflictSession.foreignCopySnapshot } : null);
-        } else {
-        // Whatever comes from disk is compared in the editor's text (ONE text
-        // space, see the core's textFileShape.ts).
-        const disk = editorTextOf(await vaultAdapter.readTextFile(path));
-        // A pull may already have advanced the sync index. The editor's own
-        // base still identifies changes it has not incorporated into its buffer.
-        if (base !== null && disk !== base && disk !== val) {
-          const merged = mergeEditorText(base, val, disk);
-          if (merged.hasConflicts) {
-            throw new Error("Conflict-safe editing is unavailable; the pending draft has been retained");
-          }
-          candidate = merged.mergedText;
+        // One save, the phone's own (`writeEditorSave` in @plainva/ui,
+        // stability plan R6): no write of an unchanged text (finding
+        // 2026-10-08), the text in the shape its file was read in and the
+        // disk's answer read back into the editor's text (ONE text space, the
+        // core's textFileShape.ts), the chain's three-way merge, and a file
+        // that turned into no text kept beside instead of written over.
+        const earlier = saveState.kept;
+        const outcome = await writeEditorSave({
+          files: vaultAdapter, path, text: val, base: saveState.baseInput, persisted: saveState.persisted, shape, kept: earlier, keep: keepTextBeside,
+        });
+        if (outcome.kind === "kept-beside") {
+          await adoptKept(outcome.kept, earlier);
+          return;
         }
-        await vaultAdapter.writeTextFile(path, shape ? applyTextShape(candidate, shape) : candidate);
-        confirmed = editorTextOf(await vaultAdapter.readTextFile(path));
-        if (!containsTextChanges(disk, candidate, confirmed)) throw new Error("The saved note could not be confirmed");
+        const unchanged = outcome.kind === "unchanged";
+        const conflictSession = outcome.kind === "written" ? outcome.session : null;
+        const confirmed = outcome.kind === "written" ? outcome.stored : val;
+        if (outcome.kind === "written" && vaultAdapter.writeEditorText && current()) {
+          setConflictInfo(conflictSession ? { conflictPath: conflictSession.workingCopyPath, working: true, foreignCopySnapshot: conflictSession.foreignCopySnapshot } : null);
         }
         const stored = confirmed;
         saveState.update({ baseInput: val });
@@ -931,71 +965,13 @@ export const Editor: React.FC<{
           window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path, vaultPath: draftVault } }));
         } catch (error) { console.error("Could not refresh the saved note index", error); }
       } catch (error) {
-        // The file turned into no text while this editor held changes —
-        // another program saved it in another encoding, or a pull brought such
-        // a version (finding 2026-10-11). Nothing is written over it. The text
-        // is kept beside it as a conflict copy, the way a conflict keeps one,
-        // and the editor shows the file as what it is now; the comparison
-        // offers to take the copy in its place. (The phone's saver does the
-        // same.)
-        if (isNotTextFileError(error)) {
-          // What is still scheduled for this revision goes, as when the buffer
-          // adopts the disk: a save timer that fired after the next load kept
-          // the same text once more, or wrote it over a version that is text
-          // again. The timers are the pane's: once it shows another file,
-          // they are that file's.
-          if (current() && saveState.revision === revAtSave) {
-            if (saveTimeoutRef.current !== null) { window.clearTimeout(saveTimeoutRef.current); saveTimeoutRef.current = null; }
-            if (draftTimerRef.current !== null) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
-          }
-          const earlier = saveState.kept;
-          let kept: KeptText;
-          try {
-            kept = await keepTextBeside(vaultAdapter, path, shape ? applyTextShape(val, shape) : val, earlier);
-          } catch (keepError) {
-            // Not even beside it: the text stays in the editor and its journal,
-            // and the failed save says why the file did not take it.
-            console.error("Could not keep the unsaved text beside the file", keepError);
-            if (current()) setSaveError(t("editor.notTextTitle"));
-            throw error;
-          }
-          // Typing that goes on is kept into the same copy (`keepTextBeside`).
-          saveState.update({ kept });
-          // This revision is done with; a save of it still under way gives up
-          // and drops its journal entry (above).
-          saveState.update({ savedRevision: revAtSave });
-          saveState.update({ discardedRevision: Math.max(saveState.discardedRevision, revAtSave) });
-          const sameRevision = saveState.revision === revAtSave;
-          if (sameRevision) {
-            saveState.update({ dirty: false });
-            dirtyStore.set(path, false, saveState.id);
-          }
-          if (draftVault) {
-            const { clearDraft } = await import("../services/draftJournal");
-            await clearDraft(draftVault, path, revAtSave, saveState.id);
-            // A draft restored from the journal is in this text now, as on a save.
-            const recovered = saveState.recoveredDraft;
-            if (recovered && sameRevision) {
-              await clearDraft(draftVault, path, recovered.revision, recovered.sessionId);
-              saveState.update({ recoveredDraft: null });
-            }
-          }
-          triggerFileTreeUpdate([kept.copy]);
-          // Said wherever the editor went meanwhile — once per copy.
-          if (kept.copy !== earlier?.copy) toast.warning(t("dialogs.conflictSavedMsg", { path: conflictCopyLabel(kept.copy, i18n.language) }));
-          if (current()) {
-            setSaveError(null);
-            setConflictInfo({ conflictPath: kept.copy });
-            // Typing that came after this revision — also while the journal
-            // entry was cleared just now — is the next save's: it is kept the
-            // same way. Otherwise nothing is left to save here.
-            if (saveState.revision === revAtSave) {
-              loadedPathRef.current = null;
-              setNotText(true);
-              setContent("");
-            }
-          }
-          return;
+        // The file is no text and not even a copy beside it could be written:
+        // the text stays in the editor and its journal, and the failed save
+        // says why the file did not take it.
+        if (error instanceof KeepBesideFailedError) {
+          console.error("Could not keep the unsaved text beside the file", error.cause);
+          if (current()) setSaveError(t("editor.notTextTitle"));
+          throw error.notText;
         }
         const e = error as Error & { conflictPath?: string };
         console.error("Failed to save file", error);
@@ -1023,26 +999,26 @@ export const Editor: React.FC<{
       saveTimeoutRef.current = null;
       void persistText(getText()).catch(() => {});
     }, 1000); // 1s debounce
-    // Draft journal (P2.4): snapshot the dirty buffer BEFORE the save fires
-    // (400 ms < 1 s) so a hard crash between keystroke and save loses at most
-    // the last snapshot window. A successful save clears the entry up to the
-    // revision it covered; newer snapshots survive (latest wins).
+    // Draft journal (P2.4, R6): the dirty buffer is snapshotted while the
+    // typing goes on — at most every 400 ms, also when it never pauses (the
+    // shared writer, `draftJournal.ts` in @plainva/ui) — so a hard crash
+    // between keystroke and save loses at most that window. A save that
+    // covers the revision takes the buffered snapshot back and clears the
+    // entry up to the revision it wrote; newer snapshots survive (latest wins).
+    //
+    // The snapshot is bound to THIS note (review of 2026-11-11, M1): a getter
+    // like `liveText` reads whatever the pane shows when it is called, and the
+    // writer calls it up to an interval later. Once this editor lifetime no
+    // longer holds the note — another file loaded into the pane, the note moved
+    // on, the pane closed — it answers null and the snapshot is dropped, never
+    // written under this note's name.
     if (vaultPath) {
-      if (draftTimerRef.current) window.clearTimeout(draftTimerRef.current);
       const draftVault = vaultPath;
       const draftPath = activePath;
-      draftTimerRef.current = window.setTimeout(() => {
-        draftTimerRef.current = null;
-        // A save that covered this revision first — Ctrl+S, a closed tab —
-        // has cleared its entry already. Journalled now, the entry stayed for
-        // days with a text the file has; and where the file has turned into
-        // no text by the next run, nobody can tell it from unsaved typing.
-        if (rev <= saveState.savedRevision || rev <= saveState.discardedRevision) return;
-        const text = getText();
-        void import("../services/draftJournal")
-          .then(({ recordDraft }) => recordDraft(draftVault, draftPath, text, rev, saveState.id))
-          .catch(() => {});
-      }, 400);
+      const holds = () => saveState.isActive() && loadedPathRef.current === draftPath;
+      void import("../services/draftJournal")
+        .then(({ writeDraft }) => writeDraft(draftVault, draftPath, () => (holds() ? getText() : null), rev, saveState.id))
+        .catch(() => {});
     }
   };
 
@@ -2071,7 +2047,6 @@ export const Editor: React.FC<{
     setNotText(false);
     setConflictInfo(null);
     setDraftOffer(null);
-    if (draftTimerRef.current) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
     // Wait for an in-flight write to this file (P1.7) — loading mid-write
     // would show the pre-write content and re-save it over the newer text.
     const inFlight = pendingWriteFor(vaultPath ?? "", activePath);
@@ -2119,8 +2094,12 @@ export const Editor: React.FC<{
         // differs from the disk state means an edit never made it to disk
         // (crash or failed save) — offer it in a banner, never auto-apply.
         if (vaultPath) {
-          void import("../services/draftJournal").then(async ({ readDraft }) => {
-            const draft = await readDraft(vaultPath, activePath, normalized);
+          // Offered through the shared journal's offer (3.125): an entry of this
+          // editor's own session — a reload of the same note in this pane keeps
+          // the session — is lifted into a session of its own first, so the
+          // next save cannot take the offer with it.
+          void import("../services/draftJournal").then(async ({ offerDraft }) => {
+            const draft = await offerDraft(vaultPath, activePath, normalized, saveState.id);
             // A draft is an editor's text. One journalled before the editor
             // stopped holding a note's byte order mark still starts with it;
             // restoring that as it is would write the mark twice.
@@ -2317,7 +2296,6 @@ export const Editor: React.FC<{
   const carryAndFollow = useStableHandler(async (from: string, to: string, picked: boolean, movedOutside = true) => {
     if (!vaultAdapter || !aliveRef.current) return;
     if (saveTimeoutRef.current !== null) { window.clearTimeout(saveTimeoutRef.current); saveTimeoutRef.current = null; }
-    if (draftTimerRef.current !== null) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
     const shape = saveState.shape;
     const draft = liveText();
     const text = shape ? applyTextShape(draft, shape) : draft;
@@ -2555,10 +2533,6 @@ export const Editor: React.FC<{
         if (saveTimeoutRef.current !== null) {
           window.clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = null;
-        }
-        if (draftTimerRef.current !== null) {
-          window.clearTimeout(draftTimerRef.current);
-          draftTimerRef.current = null;
         }
         // Already queued snapshots of this revision are obsolete only AFTER
         // its preservation succeeded and the same buffer adopted the disk.
@@ -2851,6 +2825,10 @@ export const Editor: React.FC<{
         saveTimeoutRef.current = null;
         void persistText(text).catch(() => {});
       }
+      // The journal's buffer for this note ends with the pane's hold on it: the
+      // save just started journals the final text itself (`persistText`).
+      const dropVault = vaultPath, dropPath = activePath;
+      if (dropVault && dropPath) void import("../services/draftJournal").then(({ dropDraft }) => dropDraft(dropVault, dropPath, saveState.id)).catch(() => {});
       session.view.scrollDOM.removeEventListener("scroll", onScroll);
       if (scrollTimer !== null) window.clearTimeout(scrollTimer);
       if (scrollKey) rememberScrollTop(scrollKey.vault, scrollKey.path, session.view.scrollDOM.scrollTop);
@@ -3311,10 +3289,13 @@ export const Editor: React.FC<{
     if (!activePath || !vaultPath || loadedPathRef.current !== activePath || !saveState.isActive() || saveState.transferFrozen) throw new Error("The source editor is unavailable");
     saveState.setTransferFrozen(true);
     sessionRef.current?.setEditable(false);
-    for (const timer of [saveTimeoutRef, draftTimerRef, contentSyncTimeoutRef, parkWriteTimer]) {
+    for (const timer of [saveTimeoutRef, contentSyncTimeoutRef, parkWriteTimer]) {
       if (timer.current !== null) window.clearTimeout(timer.current);
       timer.current = null;
     }
+    // What the journal buffered of this editor goes unwritten: the transfer
+    // journals the text itself, below, or the other window takes it.
+    void import("../services/draftJournal").then(({ dropDraft }) => dropDraft(vaultPath, activePath, saveState.id)).catch(() => {});
     const finish = async (accepted: boolean) => {
       if (accepted) {
         saveState.update({ dirty: false });

@@ -129,7 +129,7 @@ export function mobileCommentStore(vault: MobileVault): CommentStore {
   if (existing && existing.state === vault.workspaceState) return existing.store;
   const changed = (path: string) => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path, vaultId: vault.vaultId } }));
   const legacy = new BundleCommentStore({
-      vault: vault.adapter,
+      vault: vault.belowChain,
       vaultKey: vault.vaultId,
       deviceId: mobileSyncDeviceId,
       mode: () => mobileCommentsMode(vault),

@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-11-10
+Última actualización: 2026-11-11
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -135,6 +135,10 @@ Plainva respeta el ajuste "reducir movimiento" de tu sistema. Si faltan las tran
 ### "Buscar actualizaciones" no encuentra nada
 
 Mientras no haya releases públicas todavía, la búsqueda de actualizaciones informa: "Aún no hay actualizaciones públicas (releases) disponibles." Eso no es un error.
+
+### "Plainva ha rechazado la actualización"
+
+Antes de instalar nada, Plainva comprueba que la descarga esté firmada con la clave del proyecto Plainva y precisamente para la versión ofrecida. Si la comprobación falla, la actualización se rechaza: no se instala nada y tu versión sigue funcionando como está. Si el rechazo se repite, la descarga se modificó por el camino; infórmalo como issue.
 
 ### ¿Hay funciones ocultas?
 

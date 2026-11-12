@@ -88,7 +88,7 @@ beforeEach(async () => {
   const reindexPaths = async (paths: readonly string[]) => {
     for (const path of paths) await indexer.indexFile(await raw.getFileInfo(path));
   };
-  vault = { vaultId: "vault-a", adapter: raw, files, db, indexer, queryService: query, reindexPaths } as unknown as MobileVault;
+  vault = { vaultId: "vault-a", adapter: raw, belowChain: raw, files, db, indexer, queryService: query, reindexPaths } as unknown as MobileVault;
   flushed = [];
   warnings = [];
   const deps = {

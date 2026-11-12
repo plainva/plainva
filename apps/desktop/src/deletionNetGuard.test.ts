@@ -142,20 +142,24 @@ describe("every deletion goes through its net (D1)", () => {
   });
 
   it("the raw storages sit under BackupVaultAdapter in both shells", () => {
+    // Both shells build their chain with the one factory (stability plan R2), which puts the versions layer
+    // directly over the storage — `vault-chain.test.ts` in the core shows a deletion take its version first.
+    const factory = asking("packages/core/src/vault/vaultChain.ts");
+    expect(factory).toMatch(/const versions = new BackupVaultAdapter\(ports\.storage,/);
+    expect(factory).toMatch(/new PermissionedVaultAdapter\(versions,/);
+    expect(factory).toMatch(/new QueueingVaultAdapter\(versions,/);
+    expect(factory).toMatch(/new ConflictAwareVaultAdapter\(versions,/);
     const desktop = asking("apps/desktop/src/contexts/VaultContext.tsx");
-    expect(desktop).toMatch(/new BackupVaultAdapter\(tauriVaultAdapter,/);
-    expect(desktop).toMatch(/new PermissionedVaultAdapter\(backupVaultAdapter,/);
-    expect(desktop).toMatch(/new QueueingVaultAdapter\(backupVaultAdapter,/);
+    expect(desktop).toMatch(/buildVaultChain\(\{\s*storage: tauriVaultAdapter,/);
+    expect(desktop).toMatch(/const backupVaultAdapter = chain\.belowChain;/);
     expect(desktop).toMatch(/new SyncWorker\(engine, target, syncRepo, backupVaultAdapter,/);
     expect(desktop).not.toMatch(/tauriVaultAdapter\.deleteItem/);
 
     const phone = asking("apps/mobile/src/services/vaultService.ts");
-    expect((phone.match(/backup = new BackupVaultAdapter\(adapter,/g) ?? []).length).toBe(2);
-    expect(phone).toMatch(/new PermissionedVaultAdapter\(backup,/);
-    expect(phone).toMatch(/new QueueingVaultAdapter\(backup,/);
-    expect(phone).toMatch(/new ConflictAwareVaultAdapter\(backup,/);
-    expect(phone).toMatch(/^\s*backup: BackupVaultAdapter;$/m);
-    expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new SyncWorker\(engine, target, v\.syncRepo!, v\.backup,/);
+    expect((phone.match(/buildVaultChain\(\{\s*storage: adapter,/g) ?? []).length).toBe(2);
+    expect((phone.match(/backup = chain\.belowChain;/g) ?? []).length).toBe(2);
+    expect(phone).toMatch(/^\s*belowChain: BackupVaultAdapter;$/m);
+    expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new SyncWorker\(engine, target, v\.syncRepo!, v\.belowChain,/);
     // Nothing on the phone deletes on the raw storage.
     for (const file of files.filter((f) => f.rel.startsWith("apps/mobile/"))) {
       expect(file.text, file.rel).not.toMatch(/\b(v|vault)\.adapter\.deleteItem\(/);

@@ -77,7 +77,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     exportWorkspaceQuarantine,
     detectJoinableWorkspace,
     openVault,
-    backupAdapter,
+    belowChainAdapter,
   } = useVault();
   /**
    * The way out where the app cannot find out itself (R8): a server that will
@@ -87,14 +87,14 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
   const [plainFolderOffered, setPlainFolderOffered] = useState(false);
   useEffect(() => {
     let alive = true;
-    if (!isActiveVault || !backupAdapter) { setPlainFolderOffered(false); return; }
-    void encryptedRemoteDismissable(encryptedRemoteFilePorts(backupAdapter)).then((offer) => { if (alive) setPlainFolderOffered(offer); }).catch(() => undefined);
+    if (!isActiveVault || !belowChainAdapter) { setPlainFolderOffered(false); return; }
+    void encryptedRemoteDismissable(encryptedRemoteFilePorts(belowChainAdapter)).then((offer) => { if (alive) setPlainFolderOffered(offer); }).catch(() => undefined);
     return () => { alive = false; };
-  }, [isActiveVault, backupAdapter, workspaceSecurityStatus]);
+  }, [isActiveVault, belowChainAdapter, workspaceSecurityStatus]);
   const syncAsPlainFolder = async () => {
     const ok = await appConfirm({ title: t("workspaceSecurity.plainFolderAction"), message: t("workspaceSecurity.plainFolderConfirm"), kind: "danger", confirmLabel: t("workspaceSecurity.plainFolderAction") });
     if (!ok) return;
-    if (backupAdapter && (await dismissEncryptedRemote(encryptedRemoteFilePorts(backupAdapter)))) {
+    if (belowChainAdapter && (await dismissEncryptedRemote(encryptedRemoteFilePorts(belowChainAdapter)))) {
       setPlainFolderOffered(false);
       // The held folder is asked again: now it starts its sync step.
       window.dispatchEvent(new CustomEvent("plainva-recheck-held-folder"));
