@@ -5274,15 +5274,12 @@
     "areaBody": "Zatrzymał go błąd. Reszta Plainva działa dalej, a błąd jest zapisany w {{place}}.",
     "areaAgain": "Po ponownym załadowaniu znów się nie udało. Jeśli tak zostanie, uruchom Plainva ponownie; błąd jest zapisany w {{place}}.",
     "areaReload": "Załaduj ten obszar ponownie",
+    "structureNeedsIndex": "Teraz nie można tego zrobić: nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu, więc synchronizacja nie mogłaby przekazać usunięcia, zmiany nazwy ani przeniesienia na inne urządzenia. Uruchom aplikację ponownie, aby spróbować jeszcze raz; same notatki pozostały nietknięte.",
+    "indexClosedNotice": "Nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu. Możesz czytać, pisać i tworzyć notatki; usuwanie, zmiana nazwy i przenoszenie są niedostępne, dopóki indeks się nie otworzy. Uruchom aplikację ponownie, aby spróbować jeszcze raz; notatki pozostały nietknięte.",
     "background": {
       "aiKeyNotRemoved": "Nie udało się usunąć klucza {{provider}} z tego urządzenia, więc {{provider}} pozostaje na liście: {{reason}}",
       "accountSignInKept": "Konto zostało usunięte, ale jego logowania nie udało się usunąć z tego urządzenia: {{reason}}",
-      "taskNoteNotRestored": "Nie udało się przywrócić „{{name}}”: {{reason}}",
-      "ledgerKept": "Zmian wprowadzonych, gdy indeks wyszukiwania był zamknięty, nie udało się jeszcze przekazać do synchronizacji: {{reason}}. Pozostają na tym urządzeniu, a następne uruchomienie spróbuje ponownie.",
-      "ledgerSkipped": "Nie wysłano ({{count}}): usunięcia lub zmiany nazw wprowadzone, gdy indeks wyszukiwania był zamknięty. W międzyczasie plik zmieniono na innym urządzeniu i ta wersja jest teraz tutaj.",
-      "ledgerDropped": "Nie wysłano ({{count}}): zmian wprowadzonych, gdy indeks wyszukiwania był zamknięty, nie udało się przekazać do synchronizacji: {{reason}}. Wprowadź je ponownie, jeśli mają dotrzeć do innych urządzeń.",
-      "ledgerSetAside": "Zmiany zapisane, gdy indeks wyszukiwania był zamknięty, nie zostały wysłane: należą do innego folderu synchronizacji albo Plainva nie mogła ich odczytać. Są przechowywane osobno na tym urządzeniu.",
-      "ledgerNotWritten": "Plainva nie mogła zapisać zmiany dla synchronizacji, gdy indeks wyszukiwania jest zamknięty: {{reason}}. Twoje notatki są zapisane; ta zmiana może nie dotrzeć do innych urządzeń."
+      "taskNoteNotRestored": "Nie udało się przywrócić „{{name}}”: {{reason}}"
     }
   },
   "palette": {

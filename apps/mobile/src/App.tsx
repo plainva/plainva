@@ -641,7 +641,7 @@ export default function App() {
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
-      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} /></AreaBoundary>
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} indexClosed={vault.indexClosed} /></AreaBoundary>
       {!onboarded && <AreaBoundary area="shell:onboarding" placeClassName="m-onboarding"><OnboardingChoice onChoose={finishOnboarding} /></AreaBoundary>}
 
       <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />

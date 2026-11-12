@@ -17,8 +17,15 @@ const MAX_ENTRIES = 200;
 const entries: DiagEntry[] = [];
 
 const SECRET_FIELD = "password|pass|secret|client[_-]?id|client[_-]?secret|access[_-]?token|refresh[_-]?token|id[_-]?token|token|api[_-]?key|authorization";
-/** Query parameters a provider's error echoes that carry a credential as well: Google's `key`, an OAuth `code`. */
-const SECRET_PARAM = `${SECRET_FIELD}|key|code`;
+/**
+ * URL query parameters that carry a credential, redacted only in a query
+ * (after `?` or `&`): Google's `key`, an OAuth `code`, an Azure SAS `sig`, an
+ * S3 presigned URL's signature, credential and session token. A "status
+ * code=403" in prose is no credential and stays.
+ */
+const SECRET_QUERY = "key|code|sig|x-amz-signature|x-amz-credential|x-amz-security-token";
+/** Request headers that carry an API key on their own line. */
+const SECRET_HEADER = "x-goog-api-key|x-api-key|api-key|ocp-apim-subscription-key";
 
 /** Best-effort redaction before diagnostic text enters the in-memory buffer.
  * The exporter never reads credential stores; this additionally protects
@@ -28,11 +35,19 @@ export function redactDiagnosticText(input: string): string {
     .replace(/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)[^\s/@]+@/gi, "$1[REDACTED]@")
     .replace(/(authorization\s*[:=]\s*)(?:bearer|basic)\s+[^\s,;]+/gi, "$1[REDACTED]")
     .replace(new RegExp(`(["']?(?:${SECRET_FIELD})["']?\\s*[:=]\\s*)["'][^"']*["']`, "gi"), "$1\"[REDACTED]\"")
-    .replace(new RegExp(`((?:^|[?&\\s,;])(?:${SECRET_PARAM})\\s*=\\s*)[^&\\s,;]+`, "gi"), "$1[REDACTED]")
+    .replace(new RegExp(`((?:^|[?&\\s,;])(?:${SECRET_FIELD})\\s*=\\s*)[^&\\s,;]+`, "gi"), "$1[REDACTED]")
+    .replace(new RegExp(`([?&](?:${SECRET_QUERY})=)[^&\\s,;]+`, "gi"), "$1[REDACTED]")
+    .replace(new RegExp(`(\\b(?:${SECRET_HEADER})\\s*:\\s*)[^\\s,;]+`, "gi"), "$1[REDACTED]")
     // A bearer token on its own, without the header's name (a provider's error that quotes it).
     .replace(/(\bbearer\s+)[\w.~+/-]+=*/gi, "$1[REDACTED]")
-    // An e-mail address (an IMAP or SMTP reply that names the mailbox): whose it is belongs in no bug report.
-    .replace(/(?<![\w.%+-])[\w.%+-]+@[\w-]+(?:\.[\w-]+)+/g, "[email]");
+    // A Dropbox access token on its own (`sl.` and a long run of token characters).
+    .replace(/(?<![\w.])sl\.[\w-]{20,}/g, "[REDACTED]")
+    // IMAP and SMTP sign-in lines a server or library echoes: `a1 LOGIN user pass`, `AUTH PLAIN <base64>`.
+    .replace(/(\b[A-Za-z]?\d+\s+LOGIN\s+)\S+\s+\S+/gi, "$1[REDACTED]")
+    .replace(/(\bAUTH(?:ENTICATE)?\s+(?:PLAIN|LOGIN|XOAUTH2)\s+)\S+/gi, "$1[REDACTED]")
+    // An e-mail address (an IMAP or SMTP reply that names the mailbox), also
+    // quoted-printable (`=40` for `@`): whose it is belongs in no bug report.
+    .replace(/(?<![\w.%+-])[\w.%+-]+(?:@|=40)[\w-]+(?:\.[\w-]+)+/g, "[email]");
 }
 
 export function logDiagnostic(source: string, message: string): void {

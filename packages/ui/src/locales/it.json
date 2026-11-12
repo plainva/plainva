@@ -5167,15 +5167,12 @@
     "areaBody": "Un errore l’ha interrotta. Il resto di Plainva continua a funzionare e l’errore è registrato in {{place}}.",
     "areaAgain": "Non è riuscita di nuovo dopo il ricaricamento. Se continua, riavvia Plainva; l’errore è registrato in {{place}}.",
     "areaReload": "Ricarica quest’area",
+    "structureNeedsIndex": "Non è possibile ora: non è stato possibile aprire l'indice di ricerca su questo dispositivo, quindi la sincronizzazione non potrebbe portare un'eliminazione, una rinomina o uno spostamento sugli altri tuoi dispositivi. Riavvia l'app per riprovare; le tue note non sono state toccate.",
+    "indexClosedNotice": "Impossibile aprire l'indice di ricerca su questo dispositivo. Puoi leggere, scrivere e creare note; eliminare, rinominare e spostare restano non disponibili finché non si apre. Riavvia l'app per riprovare; le tue note non sono state toccate.",
     "background": {
       "aiKeyNotRemoved": "Impossibile rimuovere la chiave di {{provider}} da questo dispositivo, quindi {{provider}} resta nell'elenco: {{reason}}",
       "accountSignInKept": "L'account è stato rimosso, ma il suo accesso non è stato eliminato da questo dispositivo: {{reason}}",
-      "taskNoteNotRestored": "Impossibile recuperare “{{name}}”: {{reason}}",
-      "ledgerKept": "Le modifiche fatte mentre l'indice di ricerca era chiuso non sono ancora state passate alla sincronizzazione: {{reason}}. Restano su questo dispositivo e il prossimo avvio riprova.",
-      "ledgerSkipped": "Non inviato ({{count}}): eliminazioni o rinomine fatte mentre l'indice di ricerca era chiuso. Nel frattempo il file è cambiato su un altro dispositivo, e quella versione ora è qui.",
-      "ledgerDropped": "Non inviato ({{count}}): le modifiche fatte mentre l'indice di ricerca era chiuso non sono state passate alla sincronizzazione: {{reason}}. Rifalle se devono raggiungere gli altri tuoi dispositivi.",
-      "ledgerSetAside": "Le modifiche registrate mentre l'indice di ricerca era chiuso non sono state inviate: appartengono a un'altra cartella di sincronizzazione, oppure Plainva non è riuscito a leggerle. Sono tenute da parte su questo dispositivo.",
-      "ledgerNotWritten": "Plainva non è riuscito a registrare una modifica per la sincronizzazione mentre l'indice di ricerca è chiuso: {{reason}}. Le tue note sono salvate; questa modifica potrebbe non raggiungere gli altri tuoi dispositivi."
+      "taskNoteNotRestored": "Impossibile recuperare “{{name}}”: {{reason}}"
     }
   },
   "palette": {

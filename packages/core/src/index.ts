@@ -39,6 +39,7 @@ export * from "./vault/conflictSession.js";
 export * from "./vault/conflictCopy.js";
 export * from "./vault/ConflictFileStore.js";
 export * from "./vault/QueueingVaultAdapter.js";
+export * from "./vault/StructureRefusingVaultAdapter.js";
 export * from "./vault/SyncStateRepository.js";
 export * from "./vault/VaultIndexer.js";
 export * from "./vault/indexedRowStamp.js";
@@ -64,7 +65,6 @@ export { buildPropertyPredicate, parseDatabaseSourceFilter, unappliedFilterCondi
 
 // Sync exports
 export * from "./sync/SyncQueue.js";
-export * from "./sync/queueLedger.js";
 // The retry rules for HTTP (429 with Retry-After, jittered backoff), shared by
 // the sync targets and the AI harness's model calls.
 export * from "./sync/httpRetry.js";

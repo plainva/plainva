@@ -5167,15 +5167,12 @@
     "areaBody": "Une erreur l’a arrêtée. Le reste de Plainva continue de fonctionner, et l’erreur est consignée dans {{place}}.",
     "areaAgain": "Elle a de nouveau échoué après le rechargement. Si cela persiste, redémarrez Plainva ; l’erreur est consignée dans {{place}}.",
     "areaReload": "Recharger cette zone",
+    "structureNeedsIndex": "Impossible pour le moment : l'index de recherche n'a pas pu être ouvert sur cet appareil, la synchronisation ne pourrait donc pas transmettre une suppression, un renommage ou un déplacement à vos autres appareils. Redémarrez l'app pour réessayer ; vos notes elles-mêmes sont intactes.",
+    "indexClosedNotice": "L'index de recherche n'a pas pu être ouvert sur cet appareil. Vous pouvez lire, écrire et créer des notes ; supprimer, renommer et déplacer restent indisponibles jusqu'à son ouverture. Redémarrez l'app pour réessayer ; vos notes sont intactes.",
     "background": {
       "aiKeyNotRemoved": "La clé de {{provider}} n'a pas pu être retirée de cet appareil, {{provider}} reste donc dans la liste : {{reason}}",
       "accountSignInKept": "Le compte a été retiré, mais sa connexion n'a pas pu être supprimée de cet appareil : {{reason}}",
-      "taskNoteNotRestored": "« {{name}} » n'a pas pu être restaurée : {{reason}}",
-      "ledgerKept": "Les modifications faites pendant que l'index de recherche était fermé n'ont pas encore pu être remises à la synchronisation : {{reason}}. Elles restent sur cet appareil, et le prochain démarrage réessaie.",
-      "ledgerSkipped": "Non envoyé ({{count}}) : suppressions ou renommages faits pendant que l'index de recherche était fermé. Le fichier a changé entre-temps sur un autre appareil, et cette version est maintenant ici.",
-      "ledgerDropped": "Non envoyé ({{count}}) : les modifications faites pendant que l'index de recherche était fermé n'ont pas pu être remises à la synchronisation : {{reason}}. Refaites-les si elles doivent atteindre vos autres appareils.",
-      "ledgerSetAside": "Les modifications enregistrées pendant que l'index de recherche était fermé n'ont pas été envoyées : elles appartiennent à un autre dossier de synchronisation, ou Plainva n'a pas pu les lire. Elles sont mises de côté sur cet appareil.",
-      "ledgerNotWritten": "Plainva n'a pas pu enregistrer une modification pour la synchronisation pendant que l'index de recherche est fermé : {{reason}}. Vos notes sont enregistrées ; cette modification n'atteindra peut-être pas vos autres appareils."
+      "taskNoteNotRestored": "« {{name}} » n'a pas pu être restaurée : {{reason}}"
     }
   },
   "palette": {

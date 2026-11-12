@@ -1,18 +1,25 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { IDatabaseAdapter } from "@plainva/core";
+import { SyncEngine, SyncWorker, WebDavSyncTarget, isStructureNeedsIndexError, type IDatabaseAdapter, type IVaultAdapter } from "@plainva/core";
+import { errorText } from "@plainva/ui";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import { byteExactDav, type ByteExactDav } from "../../../../packages/core/test/helpers/byteExactDav";
 import type { VaultEntry } from "./vaultRegistry";
 
 /**
  * The phone without its index database (stability plan S6, R5).
  *
  * When the vault's database does not open, the vault still opens — without
- * search, tags, databases and the sync — and the person may go on writing,
- * deleting and renaming notes. The sync's queue lives in that database, so
- * nothing of it was queued. This runs the real boot (`vaultService.ts`) three
- * times over one container and one SQLite: synced, then without the
- * database, then with it back, and asks what the sync gets to carry up.
+ * search, tags, databases and the sync — and the person may go on reading,
+ * writing and creating notes. The sync queue lives in that database, so what
+ * only the queue can carry to the other devices — a deletion, a rename, a
+ * move — is refused before it touches the disk (`StructureRefusingVaultAdapter`).
+ *
+ * This runs the real boot (`vaultService.ts`) over one container and one
+ * SQLite, and a real sync — engine, worker and WebDAV target against an
+ * in-memory server, wired the way `syncService` wires them: synced, then
+ * without the database, then with it back. It asks what reaches the remote,
+ * and that nothing is sent twice.
  */
 
 const registry = vi.hoisted(() => ({ vaults: [] as VaultEntry[], activeId: "cloud-1", fresh: new Set<string>() }));
@@ -29,20 +36,6 @@ vi.mock("../adapters/CapacitorVaultAdapter", async () => {
   }
   return { CapacitorVaultAdapter: ContainerAdapter };
 });
-// The ledger's file outside the container, kept across boots (the web shell's Filesystem needs IndexedDB).
-const ledgers = vi.hoisted(() => new Map<string, string>());
-vi.mock("./queueLedgerStore", () => ({
-  queueLedgerPath: (vaultId: string) => `queue-ledger/${vaultId}.json`,
-  queueLedgerStore: (vaultId: string) => ({
-    load: async () => ledgers.get(vaultId) ?? null,
-    save: async (text: string) => { ledgers.set(vaultId, text); },
-    clear: async () => { ledgers.delete(vaultId); },
-    setAside: async () => { ledgers.delete(vaultId); },
-  }),
-}));
-// The remote the vault syncs with: what a ledger is bound to.
-const remote = vi.hoisted(() => ({ binding: "webdav:https://dav.example/notes" as string | null }));
-vi.mock("./queueLedgerBinding", () => ({ ledgerBinding: async () => remote.binding }));
 vi.mock("./vaultRegistry", () => ({
   LOCAL_VAULT_ID: "local",
   isExternalVault: (e: VaultEntry | null | undefined) => Boolean(e?.external?.handle),
@@ -88,8 +81,6 @@ function installSqlBridge(): void {
 beforeEach(() => {
   vi.resetModules();
   containers.clear();
-  ledgers.clear();
-  remote.binding = "webdav:https://dav.example/notes";
   sql.dbs.clear();
   sql.failing = false;
   installSqlBridge();
@@ -118,23 +109,6 @@ async function boot(): Promise<{ service: Service; vault: Vault }> {
   return { service, vault };
 }
 
-/** Every file of the vault confirmed with the remote, nothing owed: a synced vault. */
-async function markAllSynced(vault: Vault): Promise<void> {
-  const db = vault.db!;
-  for (const { path } of await db.query<{ path: string }>("SELECT path FROM files")) {
-    const state = await vault.syncRepo!.getSyncState(path);
-    await vault.syncRepo!.recordSyncedBase(path, { sha256: state!.local_sha256!, etag: "e1", text: await vault.adapter.readTextFile(path) });
-    await vault.syncRepo!.updateRemoteState(path, "e1", `id-${path}`, 1);
-  }
-  await db.execute("DELETE FROM offline_queue");
-  await db.execute("UPDATE files SET sync_state = 'synced'");
-}
-
-/** What the sync of the next start gets to carry up, after its first cycle queued what it owes. */
-async function owed(vault: Vault): Promise<string[]> {
-  await vault.syncQueue!.enqueueLocalOnlyFiles();
-  return queued(vault);
-}
 
 /** Every entry of the sync queue, as `operation path`. */
 async function queued(vault: Vault): Promise<string[]> {
@@ -142,143 +116,142 @@ async function queued(vault: Vault): Promise<string[]> {
   return ops.map((op) => (op.operation === "rename" ? `rename ${op.file_path} -> ${op.new_path}` : `${op.operation} ${op.file_path}`)).sort();
 }
 
+let dav: ByteExactDav;
+beforeEach(() => {
+  dav = byteExactDav();
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+});
+
+/** The container's own adapter: what another app (the Files app) changes, past Plainva. */
+async function container(): Promise<IVaultAdapter> {
+  return new (await import("../adapters/CapacitorVaultAdapter")).CapacitorVaultAdapter("vaults/cloud-1") as unknown as IVaultAdapter;
+}
+
+/**
+ * The sync of one start, as `syncService` builds it: the vault's queue, chain
+ * and sync state; after the first clean cycle what the index owes is queued
+ * (`enqueueLocalOnlyFiles`) and new files may queue from then on.
+ */
+function sync(vault: Vault) {
+  const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, dav.fetch);
+  const engine = new SyncEngine(vault.syncQueue!, target, vault.files, vault.syncRepo!);
+  const worker = new SyncWorker(engine, target, vault.syncRepo!, vault.backup, vault.syncQueue!, 60_000);
+  (worker as unknown as { isRunning: boolean }).isRunning = true;
+  let owed: Promise<void> = Promise.resolve();
+  worker.onFirstCycleComplete = () => {
+    owed = vault.syncQueue!.enqueueLocalOnlyFiles();
+    vault.markFirstSyncComplete();
+  };
+  worker.onFilesChanged = (paths) => void vault.reindexPaths(paths);
+  vault.enableSyncEnqueue();
+  return {
+    /** The start's index pass, then cycles until the queue is empty. */
+    async run() {
+      await vault.indexer!.indexVaultFull("test: the warm pass");
+      for (let i = 0; i < 5; i++) {
+        await worker.runCycle();
+        await owed;
+        await vault.indexer!.whenIdle();
+        if ((await queued(vault)).length === 0 && i > 0) break;
+      }
+    },
+  };
+}
+
+const remoteText = (p: string) => (dav.files.has(p) ? new TextDecoder().decode(dav.files.get(p)!.bytes) : null);
+const changesSent = () => dav.log.filter((line) => /^(PUT|DELETE|MOVE|MKCOL) /.test(line));
+
+/** A vault on the remote, synced: KEEP keeps the guard against mass deletions out of the way. */
+const KEEP = Array.from({ length: 12 }, (_, i) => `Keep ${i + 1}.md`);
+async function syncedVault(paths: string[]): Promise<void> {
+  const disk = await container();
+  for (const p of [...paths, ...KEEP]) await disk.writeTextFile(p, `# ${p}\n`);
+  const { vault } = await boot();
+  expect(vault.db).not.toBeNull();
+  await sync(vault).run();
+  for (const p of paths) expect(remoteText(p), p).toBe(`# ${p}\n`);
+  await vault.dispose();
+}
+
 describe("the phone without its index database", () => {
-  it("carries every change made without the database to the sync once it is back", async () => {
-    const container = new (await import("../adapters/CapacitorVaultAdapter")).CapacitorVaultAdapter("vaults/cloud-1");
-    for (const [path, text] of [["Edited.md", "# Edited\n"], ["Deleted.md", "# Deleted\n"], ["Renamed.md", "# Renamed\n"], ["Later.md", "# Later\n"], ["Kept.md", "# Kept\n"]]) {
-      await container.writeTextFile(path, text);
-    }
+  it("keeps writing and creating notes, refuses what only the queue could carry, and the next start sends what was done", async () => {
+    await syncedVault(["Edited.md", "Doomed.md", "Named.md", "Projects/Plan.md"]);
 
-    // 1. A synced vault.
-    let { vault } = await boot();
-    expect(vault.db).not.toBeNull();
-    vault.enableSyncEnqueue();
-    vault.markFirstSyncComplete();
-    await markAllSynced(vault);
-    await vault.dispose();
-
-    // 2. The database does not open: the vault runs without it, and the person writes.
     sql.failing = true;
-    let service: Service;
-    ({ service, vault } = await boot());
+    const { service, vault } = await boot();
     expect(vault.db).toBeNull();
-    expect(vault.syncQueue).toBeNull();
-    await service.vaultOps.save(vault, "Edited.md", "# Edited\n\nwithout the database\n");
+    expect(vault.indexClosed).toBe(true);
+    // Writing and creating go on, a new file in a new folder included.
+    await service.vaultOps.save(vault, "Edited.md", "# Edited.md\n\nwithout the database\n");
     await service.vaultOps.save(vault, "New.md", "# New\n");
-    expect(await service.vaultOps.remove(vault, "Deleted.md", { confirmed: true })).toBe(true);
-    await service.vaultOps.rename(vault, "Renamed.md", "Moved");
+    await service.vaultOps.save(vault, "Fresh folder/Inner.md", "# Inner\n");
+    // What only the queue could carry is refused, and nothing of it touches the disk.
+    const refusals: unknown[] = [];
+    const refused = (attempt: Promise<unknown>) => attempt.then(() => { throw new Error("went through"); }, (error: unknown) => { refusals.push(error); });
+    await refused(service.vaultOps.remove(vault, "Doomed.md", { confirmed: true }));
+    await refused(service.vaultOps.rename(vault, "Named.md", "Renamed"));
+    await refused(service.vaultOps.moveNote(vault, "Named.md", "Projects"));
+    await refused(service.vaultOps.moveFolder(vault, "Projects", "Archive"));
+    await refused(service.vaultOps.removeFolder(vault, "Projects", { confirmed: true }));
+    await refused(service.vaultOps.createFolder(vault, "Empty"));
+    await refused(vault.files.deleteItem("Doomed.md", false, { confirmed: true }));
+    await refused(vault.files.renameItem("Named.md", "Elsewhere.md"));
+    expect(refusals).toHaveLength(8);
+    for (const error of refusals) expect(isStructureNeedsIndexError(error)).toBe(true);
+    // Each surface that shows a failure shows the one sentence.
+    expect(errorText(refusals[0])).toMatch(/search index could not be opened/);
+    const disk = await container();
+    for (const p of ["Doomed.md", "Named.md", "Projects/Plan.md"]) expect(await disk.exists(p), p).toBe(true);
+    for (const p of ["Renamed.md", "Elsewhere.md", "Archive", "Empty", "Projects/Named.md"]) expect(await disk.exists(p), p).toBe(false);
     await vault.dispose();
 
-    // A second start without the database adds to what the first one kept.
-    ({ service, vault } = await boot());
-    expect(vault.db).toBeNull();
-    expect(await service.vaultOps.remove(vault, "Later.md", { confirmed: true })).toBe(true);
-    await vault.dispose();
-
-    // 3. The database is back. The start's own steps: the index pass — with
-    // the sync's enqueue already on, the worst order —, then the sync's first
-    // cycle: its pull, then the ledger, then what the index owes.
+    // The next start with the database: the ordinary pass and the ordinary sync.
     sql.failing = false;
-    ({ vault } = await boot());
-    expect(vault.db).not.toBeNull();
-    vault.enableSyncEnqueue();
-    await vault.indexer!.indexVaultFull("test: the warm pass");
-    // The pass left the deletions and the rename to the ledger: nothing of them is queued before the pull.
-    expect((await queued(vault)).filter((op) => !op.startsWith("write"))).toEqual([]);
-    await vault.replayLedger();
-    vault.markFirstSyncComplete();
-    const carried = await owed(vault);
-    expect(carried).toEqual([
-      "delete Deleted.md",
-      "delete Later.md",
-      "rename Renamed.md -> Moved.md",
-      "write Edited.md",
-      // Moved.md is Renamed.md under its new name: the move carries it, and nothing of it changed.
-      "write New.md",
-    ]);
-    // Handed over once: the ledger is gone, and the next start queues nothing twice.
-    expect(ledgers.size).toBe(0);
-    await vault.dispose();
-    ({ vault } = await boot());
-    expect(await queued(vault)).toEqual(carried);
-    expect(await vault.replayLedger()).toBe(0);
-    await vault.dispose();
-  }, 60_000);
+    const back = (await boot()).vault;
+    expect(back.indexClosed).toBe(false);
+    const before = changesSent().length;
+    await sync(back).run();
+    expect(remoteText("Edited.md")).toBe("# Edited.md\n\nwithout the database\n");
+    expect(remoteText("New.md")).toBe("# New\n");
+    expect(remoteText("Fresh folder/Inner.md")).toBe("# Inner\n");
+    // What was refused is as it was, here and there.
+    for (const p of ["Doomed.md", "Named.md", "Projects/Plan.md"]) expect(remoteText(p), p).toBe(`# ${p}\n`);
+    expect(await queued(back)).toEqual([]);
+    // Sent once: a further cycle sends nothing.
+    const sent = changesSent().length;
+    expect(sent).toBeGreaterThan(before);
+    await sync(back).run();
+    expect(changesSent().length).toBe(sent);
+  }, 120_000);
 
-  it("hands each change over once: a replay that stops, a sync, a note restored elsewhere and the next start delete nothing again", async () => {
-    const container = new (await import("../adapters/CapacitorVaultAdapter")).CapacitorVaultAdapter("vaults/cloud-1") as unknown as import("@plainva/core").IVaultAdapter;
-    for (const path of ["A.md", "C.md", "D.md", "Kept.md"]) await container.writeTextFile(path, `# ${path}\n`);
+  it("finds what another app changed meanwhile by the ordinary pass, and the sync carries it the ordinary way, once", async () => {
+    await syncedVault(["Gone.md", "Old.md", "Folder/One.md", "Folder/Two.md"]);
+
+    // Without the database, the Files app deletes a note, renames one and renames a folder.
+    sql.failing = true;
     let { vault } = await boot();
-    vault.enableSyncEnqueue();
-    vault.markFirstSyncComplete();
-    await markAllSynced(vault);
+    expect(vault.indexClosed).toBe(true);
     await vault.dispose();
+    const disk = await container();
+    await disk.deleteItem("Gone.md");
+    await disk.renameItem("Old.md", "Moved.md");
+    await disk.renameItem("Folder", "Renamed folder");
 
-    // Without the database: delete C, rename A to B, delete D.
-    sql.failing = true;
-    let service: Service;
-    ({ service, vault } = await boot());
-    expect(await service.vaultOps.remove(vault, "C.md", { confirmed: true })).toBe(true);
-    await service.vaultOps.rename(vault, "A.md", "B");
-    expect(await service.vaultOps.remove(vault, "D.md", { confirmed: true })).toBe(true);
-    await vault.dispose();
-
-    // The database is back; the disk does not answer for D.md while the ledger is handed over.
     sql.failing = false;
     ({ vault } = await boot());
-    vault.enableSyncEnqueue();
-    await vault.indexer!.indexVaultFull("test: the warm pass");
-    const exists = container.exists.bind(container);
-    container.exists = async (path: string) => { if (path === "D.md") throw new Error("no answer from the folder"); return exists(path); };
-    // A step is decided before anything leaves the ledger: a check that fails hands nothing over.
-    // (A step that stops between hand-overs, followed by a sync: queueLedger.test.ts.)
-    await vault.replayLedger();
-    container.exists = exists;
+    await sync(vault).run();
+    expect(remoteText("Gone.md")).toBeNull();
+    expect(remoteText("Old.md")).toBeNull();
+    expect(remoteText("Moved.md")).toBe("# Old.md\n");
+    expect(remoteText("Folder/One.md")).toBeNull();
+    expect(remoteText("Renamed folder/One.md")).toBe("# Folder/One.md\n");
+    expect(remoteText("Renamed folder/Two.md")).toBe("# Folder/Two.md\n");
+    for (const p of KEEP) expect(remoteText(p), p).toBe(`# ${p}\n`);
     expect(await queued(vault)).toEqual([]);
-    expect(ledgers.size).toBe(1);
-    // The sync runs on; another device restores C.md, and the pull brings it here.
-    await container.writeTextFile("C.md", "# C, restored on another device\n");
-    await vault.dispose();
-
-    // The next start: C is back, so its deletion stands on a decision the remote has moved past and is not sent.
-    ({ vault } = await boot());
-    vault.enableSyncEnqueue();
-    await vault.indexer!.indexVaultFull("test: the warm pass");
-    await vault.replayLedger();
-    expect(await queued(vault)).toEqual(["delete D.md", "rename A.md -> B.md"]);
-    expect(await container.exists("C.md")).toBe(true);
-    expect(ledgers.size).toBe(0);
-    await vault.dispose();
-  }, 60_000);
-
-  it("records nothing for a vault without a sync, and replays nothing into a remote the ledger was not written for", async () => {
-    const container = new (await import("../adapters/CapacitorVaultAdapter")).CapacitorVaultAdapter("vaults/cloud-1");
-    await container.writeTextFile("C.md", "# C\n");
-    let { vault } = await boot();
-    await markAllSynced(vault);
-    await vault.dispose();
-    sql.failing = true;
-    let service: Service;
-    ({ service, vault } = await boot());
-    expect(await service.vaultOps.remove(vault, "C.md", { confirmed: true })).toBe(true);
-    await vault.dispose();
-    expect(ledgers.size).toBe(1);
-    // The sync was moved to another folder before the database opened again.
-    remote.binding = "webdav:https://dav.example/elsewhere";
-    sql.failing = false;
-    ({ vault } = await boot());
-    vault.enableSyncEnqueue();
-    await vault.replayLedger();
-    expect(await queued(vault)).toEqual([]);
-    expect(ledgers.size).toBe(0);
-    await vault.dispose();
-    // No sync at all: nothing is recorded.
-    remote.binding = null;
-    await container.writeTextFile("E.md", "# E\n");
-    sql.failing = true;
-    ({ service, vault } = await boot());
-    expect(await service.vaultOps.remove(vault, "E.md", { confirmed: true })).toBe(true);
-    await vault.dispose();
-    expect(ledgers.size).toBe(0);
-  }, 60_000);
+    const sent = changesSent();
+    expect(sent.filter((line) => line.startsWith("DELETE ") && line.endsWith("Gone.md"))).toHaveLength(1);
+    await sync(vault).run();
+    expect(changesSent()).toEqual(sent);
+  }, 120_000);
 });

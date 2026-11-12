@@ -42,6 +42,7 @@ const CALLS: Record<string, { count: number; kind: Kind; why: string }> = {
   "packages/core/src/vault/BackupVaultAdapter.ts": { count: 6, kind: "asks", why: "the net rule itself, and the rotation of its own snapshots under .plainva" },
   "packages/core/src/vault/ConflictAwareVaultAdapter.ts": { count: 6, kind: "chain", why: "top of the chain; a conflict copy goes below with withoutSnapshot only where its text was kept or the person said so" },
   "packages/core/src/vault/QueueingVaultAdapter.ts": { count: 1, kind: "chain", why: "hands the deletion down, then queues it" },
+  "packages/core/src/vault/StructureRefusingVaultAdapter.ts": { count: 1, kind: "chain", why: "refuses a deletion while the index database is closed (R5); hands a device-local one down" },
   "packages/core/src/workspace/authorization.ts": { count: 1, kind: "chain", why: "checks the right, hands the deletion down" },
   "packages/core/src/workspace/queueingVaultAdapter.ts": { count: 1, kind: "chain", why: "hands the deletion down, then queues it" },
   "apps/desktop/src/services/ownerBus.ts": { count: 1, kind: "chain", why: "another window's deletion, carried out in the chain; a refusal goes back as data (windowBus noNet)" },
@@ -153,9 +154,8 @@ describe("every deletion goes through its net (D1)", () => {
     expect((phone.match(/backup = new BackupVaultAdapter\(adapter,/g) ?? []).length).toBe(2);
     expect(phone).toMatch(/new PermissionedVaultAdapter\(backup,/);
     expect(phone).toMatch(/new QueueingVaultAdapter\(backup,/);
-    // Without its database the phone's chain queues into a ledger (stability plan R5), still above the backup.
-    expect(phone).toMatch(/new QueueingVaultAdapter\(backup, new QueueLedger\(/);
-    expect(phone).toMatch(/new ConflictAwareVaultAdapter\(ledgered,/);
+    // Without its database the phone refuses what only the queue could carry, above the backup (stability plan R5).
+    expect(phone).toMatch(/new ConflictAwareVaultAdapter\(new StructureRefusingVaultAdapter\(backup\),/);
     expect(phone).toMatch(/^\s*backup: BackupVaultAdapter;$/m);
     expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new SyncWorker\(engine, target, v\.syncRepo!, v\.backup,/);
     // Nothing on the phone deletes on the raw storage.

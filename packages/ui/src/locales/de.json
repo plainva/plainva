@@ -5060,15 +5060,12 @@
     "areaBody": "Ein Fehler hat ihn angehalten. Der Rest von Plainva arbeitet weiter, und der Fehler steht unter {{place}}.",
     "areaAgain": "Auch nach dem Neuladen ging es nicht. Wenn es so bleibt, starte Plainva neu; der Fehler steht unter {{place}}.",
     "areaReload": "Diesen Bereich neu laden",
+    "structureNeedsIndex": "Das geht gerade nicht: Der Suchindex ließ sich auf diesem Gerät nicht öffnen, deshalb könnte die Synchronisation ein Löschen, Umbenennen oder Verschieben nicht an Deine anderen Geräte weitergeben. Starte die App neu, um es erneut zu versuchen; Deine Notizen selbst sind unberührt.",
+    "indexClosedNotice": "Der Suchindex ließ sich auf diesem Gerät nicht öffnen. Du kannst Notizen lesen, schreiben und anlegen; Löschen, Umbenennen und Verschieben bleiben aus, bis er sich öffnen lässt. Starte die App neu, um es erneut zu versuchen; Deine Notizen sind unberührt.",
     "background": {
       "aiKeyNotRemoved": "Der Schlüssel für {{provider}} ließ sich nicht von diesem Gerät entfernen, deshalb bleibt {{provider}} in der Liste: {{reason}}",
       "accountSignInKept": "Das Konto ist entfernt, aber seine Anmeldung ließ sich nicht von diesem Gerät löschen: {{reason}}",
-      "taskNoteNotRestored": "„{{name}}“ ließ sich nicht wiederherstellen: {{reason}}",
-      "ledgerKept": "Änderungen, die Du gemacht hast, während der Suchindex geschlossen war, ließen sich noch nicht an die Synchronisation übergeben: {{reason}}. Sie bleiben auf diesem Gerät, und der nächste Start versucht es erneut.",
-      "ledgerSkipped": "Nicht gesendet ({{count}}): Löschungen oder Umbenennungen, die Du gemacht hast, während der Suchindex geschlossen war. Die Datei wurde inzwischen auf einem anderen Gerät geändert, und diese Fassung ist jetzt hier.",
-      "ledgerDropped": "Nicht gesendet ({{count}}): Änderungen, die Du gemacht hast, während der Suchindex geschlossen war, ließen sich nicht an die Synchronisation übergeben: {{reason}}. Mach sie noch einmal, wenn sie Deine anderen Geräte erreichen sollen.",
-      "ledgerSetAside": "Änderungen, die aufgezeichnet wurden, während der Suchindex geschlossen war, wurden nicht gesendet: Sie gehören zu einem anderen Sync-Ordner, oder Plainva konnte sie nicht lesen. Sie liegen beiseite auf diesem Gerät.",
-      "ledgerNotWritten": "Plainva konnte eine Änderung für die Synchronisation nicht aufzeichnen, während der Suchindex geschlossen ist: {{reason}}. Deine Notizen sind gespeichert; diese Änderung erreicht Deine anderen Geräte vielleicht nicht."
+      "taskNoteNotRestored": "„{{name}}“ ließ sich nicht wiederherstellen: {{reason}}"
     }
   },
   "palette": {

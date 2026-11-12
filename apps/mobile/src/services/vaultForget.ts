@@ -7,7 +7,6 @@ import { pimSecretKey } from "./pim/pimCredentials";
 import { mobileWorkspaceSecretKeys } from "./mobileWorkspaceSecurity";
 import { profileJournalPath } from "./profileImportJournal";
 import { removeDataFile, removeDataFolder } from "../platform/dataFiles";
-import { queueLedgerPath } from "./queueLedgerStore";
 
 /**
  * Everything a forgotten vault leaves behind (finding 2026-08-19).
@@ -76,17 +75,14 @@ export async function forgetVaultStoreKeys(vaultId: string): Promise<void> {
   await store.save();
 }
 
-/** Drafts, the import journal and the queue ledger — all live outside the container. */
+/** Drafts and the import journal — both live outside the container. */
 export async function forgetVaultFiles(vaultId: string): Promise<void> {
   // Absent is fine (no drafts were ever written, no import was interrupted).
   // Drafts hold note text: a folder that stays behind fails, after the
   // journal had its turn (stability plan R4).
   const drafts = removeDataFolder(`drafts/${vaultId}`).then(() => null, (error: unknown) => error);
   const journal = removeDataFile(profileJournalPath(vaultId)).then(() => null, (error: unknown) => error);
-  // The sync entries kept while the index database was closed (R5): another
-  // vault given this id later must not inherit them.
-  const ledger = removeDataFile(queueLedgerPath(vaultId)).then(() => null, (error: unknown) => error);
-  const failed = (await drafts) ?? (await journal) ?? (await ledger);
+  const failed = (await drafts) ?? (await journal);
   if (failed) throw failed;
 }
 

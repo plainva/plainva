@@ -77,6 +77,23 @@ describe("reportBackground", () => {
     expect(lines).toContain("Bearer [REDACTED]");
     expect(lines).toContain("for [email]");
   });
+
+  it("keeps out what storage and mail services echo as well, and leaves a status code in prose alone", () => {
+    const shapes = [
+      "PUT https://acct.blob.core.windows.net/c/n.md?sv=2022&sig=AZURESECRETSIG%3D&se=x failed",
+      "GET https://b.s3.amazonaws.com/n.md?X-Amz-Credential=AKIAEXAMPLE%2F2026&X-Amz-Signature=S3SECRETSIG refused",
+      "request headers: x-goog-api-key: AIzaHEADERKEY123",
+      "token sl.BxXDROPBOXSECRETTOKEN0123456789abcdef rejected",
+      "A1 LOGIN jane hunter2secret",
+      "AUTH PLAIN AGphbmUAaHVudGVyMg==",
+      "From: jane.doe=40example.org",
+      "request failed with status code=403",
+    ];
+    for (const shape of shapes) reportBackground("provider", new Error(shape));
+    const lines = getDiagnostics().map((e) => e.message).join("\n");
+    expect(lines).not.toMatch(/AZURESECRETSIG|AKIAEXAMPLE|S3SECRETSIG|AIzaHEADERKEY|DROPBOXSECRET|hunter2secret|AGphbmUA|jane\.doe/);
+    expect(lines).toContain("status code=403");
+  });
 });
 
 describe("reportVisible", () => {

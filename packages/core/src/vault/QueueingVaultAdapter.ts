@@ -1,5 +1,5 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
-import type { SyncQueueEntries } from "../sync/queueLedger.js";
+import { SyncQueue } from "../sync/SyncQueue.js";
 import { isSystemJunkPath } from "./systemJunk.js";
 import { isWorkspaceNamespacePath } from "../workspace/path.js";
 import { OwedQueueEntries, type OwedQueueEntriesOptions, type OwedStructure, type QueueEntryKind } from "./owedQueueEntries.js";
@@ -14,6 +14,10 @@ export { formatQueueEntryReport, type QueueEntryKind, type QueueEntryReport } fr
  * Operating-system bookkeeping (`.DS_Store`, …; issue #110, E10) never travels either —
  * an import may copy it into the vault, and deleting it here deletes nothing remotely.
  */
+export function isQueueLocalOnlyPath(path: string): boolean {
+  return isLocalOnly(path);
+}
+
 function isLocalOnly(path: string): boolean {
   // An encrypted workspace's namespace is never part of the plain vault (R8):
   // a `.pvws/` copied in, restored from a backup or pulled before the rule
@@ -47,7 +51,7 @@ export class QueueingVaultAdapter implements IVaultAdapter {
 
   constructor(
     private readonly inner: IVaultAdapter,
-    private readonly syncQueue: SyncQueueEntries,
+    private readonly syncQueue: SyncQueue,
     options: QueueingVaultAdapterOptions = {}
   ) {
     this.owed = new OwedQueueEntries(options);

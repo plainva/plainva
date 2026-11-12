@@ -9,8 +9,8 @@ import {
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
   QueueingVaultAdapter,
-  QueueLedger,
-  heldLedgerPaths,
+  StructureRefusingVaultAdapter,
+  StructureNeedsIndexError,
   WorkspaceQueueingVaultAdapter,
   PermissionedVaultAdapter,
   SqlWorkspaceStateStore,
@@ -62,9 +62,6 @@ import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
 import { removeDataFolder } from "../platform/dataFiles";
-import { queueLedgerStore } from "./queueLedgerStore";
-import { ledgerBinding } from "./queueLedgerBinding";
-import { plainLedgerTarget, replayVaultLedger, workspaceLedgerTarget } from "./queueLedgerReplay";
 import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
@@ -156,12 +153,12 @@ export interface MobileVault {
   queryService: VaultQueryService | null;
   searchAvailable: boolean;
   /**
-   * Hands the queue ledger (what was changed while the database did not open,
-   * stability plan R5) to the sync queue. The sync calls it after the pull of
-   * its first clean cycle, before it queues what the index owes; answers how
-   * many entries it handed over.
+   * The vault runs without its index database (stability plan R5): writing
+   * and creating notes work, deleting, renaming and moving are refused by the
+   * chain (`StructureRefusingVaultAdapter`) — the sync queue lives in that
+   * database and could not carry them. The screens say so up front.
    */
-  replayLedger(): Promise<number>;
+  indexClosed: boolean;
   /** Lets locally created files enqueue for push (called once sync starts). */
   enableSyncEnqueue(): void;
   /** Ends the initial-index enqueue deferral (3c) after the first pull. */
@@ -787,10 +784,6 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   // mass-push over a possibly newer remote).
   let syncEnqueueEnabled = false;
   let deferInitialEnqueue = true;
-  /** Paths the queue ledger owes a deletion or a rename for (R5): the index pass leaves them to it. */
-  let ledgerHeld = new Set<string>();
-  /** Hands the queue ledger over; set once the database is open (R5). */
-  let replayLedger: () => Promise<number> = async () => 0;
   let queue: SyncQueue | null = null;
   let workspaceState: SqlWorkspaceStateStore | null = null;
   let permissioned: PermissionedVaultAdapter | null = null;
@@ -937,25 +930,6 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       : new QueueingVaultAdapter(backup, queue, { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) });
     ownQueue = queueing;
     syncRepo = new SyncStateRepository(db, adapter, await mobileSyncDeviceId());
-    // What was changed while this database did not open waits in a ledger
-    // (stability plan R5). The sync hands it over after the pull of its first
-    // clean cycle (`replayLedger`); until then the index pass leaves the
-    // deletions and renames it owes alone, or it would queue them itself
-    // before the pull could bring back what another device changed meanwhile.
-    const ledgerStore = queueLedgerStore(entry.id);
-    ledgerHeld = heldLedgerPaths(await ledgerStore.load().catch((error: unknown) => { reportBackground("sync:ledger", error); return null; }));
-    const ledgerQueue = queue, ledgerDb = db;
-    replayLedger = async () => {
-      const binding = await ledgerBinding(entry.id).catch((error: unknown) => { reportBackground("sync:ledger", error); return null; });
-      if (!binding) return 0;
-      const denied: string[] = [];
-      const handed = await replayVaultLedger(ledgerStore, workspaceState
-        ? workspaceLedgerTarget(permissioned!, workspaceState, adapter, () => workspaceRuntime !== null, (path) => denied.push(path))
-        : plainLedgerTarget(ledgerQueue, ledgerDb, adapter), binding);
-      if (denied.length > 0) logDiagnostic("sync", `${denied.length} change(s) from the queue ledger refused by the workspace's rules; kept beside the vault`);
-      ledgerHeld = heldLedgerPaths(await ledgerStore.load().catch(() => null));
-      return handed;
-    };
     const conflictAware = new ConflictAwareVaultAdapter(queueing, syncRepo, (path, mergedText) => {
       window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
     }, workspaceState ?? syncRepo, isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
@@ -1010,8 +984,6 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         // the index removed: the mark answers for the file the worker took
         // away, not for a later one of that name (finding 2026-10-12).
         if (ownDeletions.consume(path, row)) return;
-        // The queue ledger owes this deletion, and hands it over after the pull (R5).
-        if (ledgerHeld.has(path)) return;
         if (!syncEnqueueEnabled || isInternal(path)) return;
         const plain = queue;
         if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path)); }).catch(() => {}); }
@@ -1091,25 +1063,12 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     backup = new BackupVaultAdapter(adapter, { policy: { ...DEFAULT_BACKUP_RETENTION,
       minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
       onBackupError: reportSnapshotFailure });
-    // The sync queue lives in the database: what the person changes now is
-    // kept in a ledger beside the vault and queued at the next start that
-    // opens it (stability plan R5). Without it a deletion or a rename made now
-    // never reached the other devices.
-    // A vault without a sync records nothing: there is nobody to tell. A
-    // ledger that cannot be written never fails the save that made the entry
-    // (the note is on disk); it is said once, and the diagnostics say why.
-    const binding = await ledgerBinding(entry.id).catch((error: unknown) => { reportBackground("sync:ledger", error); return null; });
-    let ledgerFailureSaid = false;
-    const ledgered = binding ? new QueueingVaultAdapter(backup, new QueueLedger(queueLedgerStore(entry.id), binding, {
-      onFailure: (error) => {
-        reportBackground("sync:ledger", error);
-        if (ledgerFailureSaid) return;
-        ledgerFailureSaid = true;
-        toast.error(i18n.t("errors.background.ledgerNotWritten", { reason: errorText(error) }));
-      },
-    }), { onEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)) }) : backup;
-    if (ledgered instanceof QueueingVaultAdapter) ownQueue = ledgered;
-    files = new ConflictAwareVaultAdapter(ledgered, new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
+    // The sync queue lives in the database: a deletion, a rename or a move
+    // made now would reach no other device, and the remote would keep the
+    // file for good. They are refused before they touch the disk (R5);
+    // writing and creating files go on, and the next start with the database
+    // carries them (an edit by its hash, a new file as one the remote lacks).
+    files = new ConflictAwareVaultAdapter(new StructureRefusingVaultAdapter(backup), new ConflictFileStore(adapter, await mobileSyncDeviceId()), undefined, adapter,
       isExternalVault(entry) ? "external-folder" : isLocal ? "container" : "cloud",
       (path, lineEnd) => sayLineEndsConverted(path, lineEnd));
     queue = null;
@@ -1140,7 +1099,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     indexer,
     queryService,
     searchAvailable,
-    replayLedger: () => replayLedger(),
+    indexClosed: db === null,
     enableSyncEnqueue: () => {
       syncEnqueueEnabled = true;
     },
@@ -1492,6 +1451,9 @@ export const vaultOps = {
   async createFolder(v: MobileVault, typed: string): Promise<void> {
     // A name typed here is created in NFC, like the desktop (ADR 0016, P6e).
     const path = toPathIdentity(typed);
+    // An empty folder made without the index database would never reach the
+    // sync (R5); a file written into a new folder carries its folder, this does not.
+    if (v.indexClosed) throw new StructureNeedsIndexError("mkdir", path);
     await v.files.createDir(path);
     notifyFileOps([{ type: "create", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));

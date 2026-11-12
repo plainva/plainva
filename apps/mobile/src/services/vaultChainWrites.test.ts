@@ -799,8 +799,7 @@ it("boot hands its chain the reporter, as the desktop's vault context does: an e
     const built = all(serviceFile, ts.isNewExpression)
       .filter((node) => node.expression.getText(serviceFile) === chain)
       .map((node) => node.getText(serviceFile));
-    // The plain chain twice: on the sync queue, and on the ledger while the database is closed (stability plan R5).
-    expect(built, chain).toHaveLength(chain === "QueueingVaultAdapter" ? 2 : 1);
+    expect(built, chain).toHaveLength(1);
     for (const one of built) expect(one).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
   }
 });

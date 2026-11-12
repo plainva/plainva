@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-11-11
+Stan na: 2026-11-12
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -110,7 +110,7 @@ Dodatkowo Plainva uzgadnia stan automatycznie za każdym razem, gdy wracasz do o
 
 Podczas wczytywania vaultu Plainva podąża za linkami tak jak system: link do folderu jest czytany jako ten folder, a link do pliku jako ten plik — na komputerze i w folderze wybranym na iPhonie. To, czego nie da się odczytać, pomija i nazywa: link do miejsca, którego nie ma na tym urządzeniu (na przykład folder, który istnieje tylko na innym komputerze i dotarł tu jako link) lub folder bez dostępu. Powiadomienie nazywa je raz — **pominięto w indeksie wyszukiwania** — a reszta vaultu jest indeksowana jak zwykle. Nic, co leży pod takim wpisem, nie jest traktowane jako usunięte — ani przez indeks, ani przez synchronizację zaszyfrowanej przestrzeni roboczej.
 
-Jeśli indeksu w ogóle nie da się zaktualizować, powiadomienie podaje powód (**Nie udało się zaktualizować indeksu wyszukiwania: …**); vault pozostaje otwarty z tym, co indeks już zawiera, a przy następnym wczytaniu vaultu Plainva spróbuje ponownie. Na telefonie nazwany zostaje też indeks wyszukiwania, którego nie da się otworzyć: wyszukiwanie, tagi, bazy danych, synchronizacja i kalendarz pozostają wtedy wyłączone, dopóki Plainva nie zdoła go otworzyć. To, co w tym czasie zmienisz — notatka zapisana, usunięta lub o zmienionej nazwie — zostaje na telefonie i trafia do synchronizacji, gdy Plainva następnym razem otworzy indeks. Usunięcie lub zmiana nazwy notatki zmienionej w międzyczasie na innym urządzeniu nie zostaje wysłana; zamiast tego wraca tamta wersja, a Plainva o tym informuje.
+Jeśli indeksu w ogóle nie da się zaktualizować, powiadomienie podaje powód (**Nie udało się zaktualizować indeksu wyszukiwania: …**); vault pozostaje otwarty z tym, co indeks już zawiera, a przy następnym wczytaniu vaultu Plainva spróbuje ponownie. Na telefonie nazwany zostaje też indeks wyszukiwania, którego nie da się otworzyć: wyszukiwanie, tagi, bazy danych, synchronizacja i kalendarz pozostają wtedy wyłączone, dopóki Plainva nie zdoła go otworzyć. W tym czasie możesz czytać, pisać i tworzyć notatki, a trafią one do synchronizacji przy następnym uruchomieniu, które otworzy indeks; usuwanie, zmiana nazwy i przenoszenie pozostają do tego czasu niedostępne, a pasek u góry o tym informuje.
 
 Usuń lub napraw wpis wskazany w powiadomieniu, a potem użyj **Wczytaj vault ponownie** (na telefonie: przeciągnij listę w dół).
 
