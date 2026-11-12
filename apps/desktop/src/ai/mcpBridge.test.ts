@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolsFor, type EgressRecipient } from "@plainva/core";
 import { createVaultToolExecutor, type AiVaultHost, type ToolScope, type VaultToolDeps } from "@plainva/ui";
+import { invoke } from "@tauri-apps/api/core";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 // The event plugin as the E2E browser has it: registering works, stopping rejects.
@@ -12,7 +13,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   }),
 }));
 
-const { MCP_VAULT_CHANGED, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { MCP_LEFT_OUT, MCP_VAULT_CHANGED, configureMcp, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -128,6 +129,39 @@ describe("the MCP bridge", () => {
     expect(gates).toEqual([]);
   });
 
+  it("leaves out, and counts, a note whose name the native wall could not judge as it stands (review of R19)", async () => {
+    files["Projects/Draft./Odd.md"] = "# Odd\n\nOffer";
+    try {
+      const answer = await call("search_vault", { query: "Offer" });
+      expect(answer.isError).toBe(false);
+      expect(answer.paths).not.toContain("Projects/Draft./Odd.md");
+      expect(answer.content).toContain(MCP_LEFT_OUT(1));
+      // Outside the app's folders nothing is counted: the count says nothing about the rest of the vault.
+      const elsewhere = await call("search_vault", { query: "Offer" }, ["Finance"]);
+      expect(elsewhere.content).not.toContain("left out");
+    } finally {
+      delete files["Projects/Draft./Odd.md"];
+    }
+  });
+
+  it("says there are more search results only where there are more it may see (review of R19)", async () => {
+    // One result per page: the first page of a search whose other hits lie outside the app's folders says no more.
+    const first = await call("search_vault", { query: "Salaries", limit: 1 }, ["Finance"]);
+    expect(first.content).not.toContain("More results");
+    const outside = await call("search_vault", { query: "Offer", limit: 1 }, ["Finance"]);
+    expect(outside.content).not.toContain("More results");
+    const inside = await call("search_vault", { query: "Offer", limit: 1 });
+    expect(inside.content).toContain("More results");
+  });
+
+  it("refuses a search folder with a quote instead of changing it (review of R19)", async () => {
+    const quoted = await call("search_vault", { query: "Offer", folder: 'Pro"jects' });
+    expect(quoted.isError).toBe(true);
+    expect(quoted.paths).toEqual([]);
+    const plain = await call("search_vault", { query: "Offer", folder: "Projects" });
+    expect(plain.isError).toBe(false);
+  });
+
   it("opens a note in the app only through the gate", async () => {
     expect((await call("open_in_app", { path: "Projects/Offer.md" })).isError).toBe(false);
     expect((await call("open_in_app", { path: "Finance/Salaries.md" })).isError).toBe(true);
@@ -135,12 +169,36 @@ describe("the MCP bridge", () => {
 
   it("lists top-level folders and writes the set-up snippets", () => {
     expect(topLevelFolders(["Projects/2026", "Projects", "Areas", ".plainva", "Areas/Home"])).toEqual(["Areas", "Projects"]);
+    // Folders the native side refuses as a grant are not offered (review of R19).
+    expect(topLevelFolders(["Projects", "node_modules", "node_modules/x", "$RECYCLE.BIN", "Node_Modules", "node_modules_archive"])).toEqual(["node_modules_archive", "Projects"]);
+    // Nor a folder the native side could not keep as it is named: it would be refused, never trimmed into another.
+    expect(topLevelFolders([" Notes", "Notes ", "Notes", "Draft.", "a:b", "Cafe\u0301", "Caf\u00e9"])).toEqual(["Caf\u00e9", "Notes"]);
     expect(vaultName("/home/u/notes/")).toBe("notes");
     expect(vaultName("D:/Vaults/Work")).toBe("Work");
     expect(claudeCodeCommand("C:\\Program Files\\Plainva\\plainva-mcp.exe", "com.plainva.desktop")).toBe('claude mcp add plainva -- "C:\\Program Files\\Plainva\\plainva-mcp.exe" --app com.plainva.desktop');
     expect(JSON.parse(mcpClientConfig("/Applications/Plainva.app/Contents/MacOS/plainva-mcp", "com.plainva.desktop"))).toEqual({
       mcpServers: { plainva: { command: "/Applications/Plainva.app/Contents/MacOS/plainva-mcp", args: ["--app", "com.plainva.desktop"] } },
     });
+  });
+});
+
+/** R19 of the stability plan: an encrypted workspace takes no change of an app, so it is offered none. */
+describe("what the native side is told to serve", () => {
+  const served = () => {
+    const calls = vi.mocked(invoke).mock.calls.filter(([command]) => command === "mcp_configure");
+    return (calls[calls.length - 1]![1] as { tools: { name: string; kind: string }[]; vault: { key: string; name: string; root: string } | null });
+  };
+
+  it("in an encrypted workspace only the tools that read; elsewhere the tools that write as well", async () => {
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" });
+    const open = served();
+    expect(open.tools.some((tool) => tool.kind !== "read")).toBe(true);
+    expect(open.vault).toEqual({ key: expect.stringMatching(/^v[0-9a-f]{16}$/), name: "Work", root: "D:/Vaults/Work" });
+    await configureMcp(true, { path: "D:/Vaults/Work", name: "Work" }, { sealed: true });
+    const sealed = served();
+    expect(sealed.tools.length).toBeGreaterThan(0);
+    expect(sealed.tools.every((tool) => tool.kind === "read")).toBe(true);
+    expect(sealed.tools.map((tool) => tool.name)).toEqual(open.tools.filter((tool) => tool.kind === "read").map((tool) => tool.name));
   });
 });
 
