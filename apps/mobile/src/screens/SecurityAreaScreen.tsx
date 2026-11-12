@@ -715,7 +715,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       const result = await resumeMobileWorkspaceSetup({
         vaultId: vault.vaultId,
         store: await getMobileWorkspaceObjectStore(vault.vaultId),
-        vault: vault.backup ?? vault.adapter,
+        vault: vault.belowChain,
         state: vault.workspaceState ?? new SqlWorkspaceStateStore(vault.db),
         onProgress: (done, total) => setResumeProgress({ done, total }),
       });

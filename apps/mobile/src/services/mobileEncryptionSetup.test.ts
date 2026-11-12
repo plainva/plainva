@@ -59,7 +59,7 @@ function vaultWith(files: Record<string, string>): { vault: MobileVault; files: 
     readTextFile: async (path: string) => files[path] ?? "",
     writeTextFile: async (path: string, text: string) => { files[path] = text; },
   } as unknown as IVaultAdapter;
-  return { vault: { vaultId: "v1", adapter } as unknown as MobileVault, files };
+  return { vault: { vaultId: "v1", adapter, belowChain: adapter } as unknown as MobileVault, files };
 }
 
 const noRemote = async () => false;

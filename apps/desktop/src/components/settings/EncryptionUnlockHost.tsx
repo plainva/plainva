@@ -14,7 +14,7 @@ import { hasLocalKeyfile, loadCachedMasterKey } from "../../services/encryptionS
  * cached, and the guard stops firing.
  */
 export const EncryptionUnlockHost: React.FC = () => {
-  const { vaultPath, backupAdapter } = useVault();
+  const { vaultPath, belowChainAdapter } = useVault();
   const [open, setOpen] = useState(false);
   const dismissedFor = useRef<string | null>(null);
 
@@ -25,7 +25,7 @@ export const EncryptionUnlockHost: React.FC = () => {
   }, [vaultPath]);
 
   useEffect(() => {
-    if (!vaultPath || !backupAdapter) return;
+    if (!vaultPath || !belowChainAdapter) return;
     const onLocked = (e: Event) => {
       const detail = (e as CustomEvent).detail as { vaultPath?: string; force?: boolean } | undefined;
       if (detail?.vaultPath && detail.vaultPath !== vaultPath) return;
@@ -34,19 +34,19 @@ export const EncryptionUnlockHost: React.FC = () => {
       if (dismissedFor.current === vaultPath && !detail?.force) return;
       // Only prompt when genuinely locked: a keyfile is present (pulled by the
       // guard) but no master key is cached on this device.
-      void Promise.all([hasLocalKeyfile(backupAdapter), loadCachedMasterKey(vaultPath)]).then(([kf, mk]) => {
+      void Promise.all([hasLocalKeyfile(belowChainAdapter), loadCachedMasterKey(vaultPath)]).then(([kf, mk]) => {
         if (kf && !mk) setOpen(true);
       });
     };
     window.addEventListener("plainva-encryption-locked", onLocked);
     return () => window.removeEventListener("plainva-encryption-locked", onLocked);
-  }, [vaultPath, backupAdapter]);
+  }, [vaultPath, belowChainAdapter]);
 
-  if (!open || !vaultPath || !backupAdapter) return null;
+  if (!open || !vaultPath || !belowChainAdapter) return null;
   return (
     <EncryptionSetupModal
       vaultPath={vaultPath}
-      raw={backupAdapter}
+      raw={belowChainAdapter}
       mode="unlock"
       onDone={() => setOpen(false)}
       onCancel={() => {

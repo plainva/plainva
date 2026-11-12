@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import type { MobileVault } from "./services/vaultService";
 import { ADAPTER_WRITE, adapterRead, anyOf, built, countUses, destructuredAs, propertyNamed, valueUses } from "../../../packages/core/test/helpers/valueUses";
 
 /**
@@ -47,8 +48,8 @@ function shipped(): { rel: string; text: string }[] {
 }
 
 const BELOW_THE_CHAIN = anyOf(
-  propertyNamed("adapter", "backup"),
-  destructuredAs(/\bMobileVault\b/, "adapter", "backup"),
+  propertyNamed("adapter", "backup", "belowChain"),
+  destructuredAs(/\bMobileVault\b/, "adapter", "backup", "belowChain"),
   built("CapacitorVaultAdapter", "ExternalVaultAdapter"),
 );
 
@@ -152,6 +153,8 @@ const SITES: Record<string, Site[]> = {
   "services/vaultService.ts": [
     ["builds CapacitorVaultAdapter", 2, `${BOOT}; ${NOT_OPEN} (\`createLocalVault\`)`],
     ["builds ExternalVaultAdapter", 1, BOOT],
+    // The chain's lowest link, from the factory (`buildVaultChain`, stability plan R2): with and without the index database.
+    ["kept as backup", 2, BOOT],
     ["handed to renameBookmarksOnDisk", 4, BOOKMARKS],
     ["handed to importObsidianBookmarks", 1, BOOKMARKS],
     ["handed to toggleBookmarkOnDisk", 1, BOOKMARKS],
@@ -193,6 +196,20 @@ describe("the storage below a vault's chain", () => {
     const direct = /\bFilesystem\.(writeFile|appendFile|deleteFile|mkdir|rmdir|rename|copy)\(/;
     const offenders = shipped().filter(({ rel, text }) => !/^(services|adapters|platform)\//.test(rel) && direct.test(text)).map(({ rel }) => rel);
     expect(offenders, "a vault's files are reached through the vault, and written through `vault.files`").toEqual([]);
+  });
+
+  it("is typed so that what holds `vault.adapter` or `vault.backup` cannot write (stability plan R2)", () => {
+    // Held by the type checker, not by reading the source: `pnpm typecheck` fails where one of these lines compiles.
+    const vault = { adapter: {}, backup: {}, belowChain: {} } as unknown as MobileVault;
+    // @ts-expect-error — the storage below the chain only reads
+    const write = vault.adapter.writeTextFile;
+    // @ts-expect-error — nor deletes
+    const remove = vault.adapter.deleteItem;
+    // @ts-expect-error — the versions control takes versions, it does not write files
+    const versionsWrite = vault.backup.writeBinaryFile;
+    // The writable link has a name of its own, and every place that takes it is in SITES above.
+    const below = vault.belowChain.writeTextFile;
+    expect([write, remove, versionsWrite, below]).toEqual([undefined, undefined, undefined, undefined]);
   });
 
   it("every entry says why", () => {

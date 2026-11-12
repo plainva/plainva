@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import ts from "typescript";
 import {
-  BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictSessions, DEFAULT_BACKUP_RETENTION, QueueingVaultAdapter, SyncQueue, SyncStateRepository,
+  BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictSessions, DEFAULT_BACKUP_RETENTION, SyncQueue, buildVaultChain, SyncStateRepository,
   type IDatabaseAdapter, type SqlStatements, type IVaultAdapter,
 } from "@plainva/core";
 import {
@@ -133,17 +133,20 @@ let refusals: () => number;
 
 /** The chain as the vault context builds it when a vault opens — again after a restart, over the same files and the same database. */
 function openChain(): void {
-  versions = new BackupVaultAdapter(raw, { policy: DEFAULT_BACKUP_RETENTION });
-  repo = new SyncStateRepository(db, versions, "desktop-a");
-  top = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(versions, new SyncQueue(db)), repo, () => {}, repo, "external-folder");
+  // From the one factory the vault context builds it with (stability plan R2).
+  const chain = buildVaultChain({ storage: raw, versions: { policy: DEFAULT_BACKUP_RETENTION }, deviceId: "desktop-a", index: { db, queue: new SyncQueue(db) }, onAutoMerged: () => {}, kind: "external-folder" });
+  versions = chain.belowChain;
+  repo = chain.syncRepo!;
+  top = chain.files;
 }
 
 /** The names the desktop's sources know the two levels by. */
 const handedOut = () => ({
   vaultAdapter: top,
   backupAdapter: versions,
+  belowChainAdapter: versions,
   backupVaultAdapter: versions,
-  state: { vaultAdapter: top, backupAdapter: versions },
+  state: { vaultAdapter: top, backupAdapter: versions, belowChainAdapter: versions },
   deps: { vaultAdapter: top },
 });
 function named<T>(expression: string): T {
@@ -295,14 +298,15 @@ describe("the desktop's wiring", () => {
 
   it("…under the names this harness gives them", () => {
     const context = sourceFile(CONTEXT);
-    // What a component reads as `backupAdapter` is the versions layer, and the owner window's handlers get the chain's top.
-    expect(context).toMatch(/\n\s+backupAdapter: backupVaultAdapter,\n/);
-    expect(context).toMatch(/const backupVaultAdapter = new BackupVaultAdapter\(tauriVaultAdapter,/);
-    expect(context).toMatch(/const syncRepo = new SyncStateRepository\(dbAdapter, backupVaultAdapter,/);
+    // What a component reads as `backupAdapter` (only versions) or `belowChainAdapter` (writable) is the versions layer,
+    // the chain's lowest link from the factory, and the owner window's handlers get the chain's top.
+    expect(context).toMatch(/\n\s+backupAdapter: backupVaultAdapter,\n\s+belowChainAdapter: backupVaultAdapter,\n/);
+    expect(context).toMatch(/const backupVaultAdapter = chain\.belowChain;/);
+    expect(context).toMatch(/const syncRepo = chain\.syncRepo!;/);
     expect(context).toMatch(/installOwnerBus\(\{[^}]*?\n\s+vaultAdapter: state\.vaultAdapter,/);
-    expect(all(parsed(CONTEXT), ts.isVariableDeclaration).filter((d) => d.name.getText() === "backupAdapter").map((d) => d.initializer?.getText())).toEqual(["state.backupAdapter", "state.backupAdapter"]);
+    expect(all(parsed(CONTEXT), ts.isVariableDeclaration).filter((d) => d.name.getText() === "backupAdapter").map((d) => d.initializer?.getText())).toEqual(["state.belowChainAdapter", "state.belowChainAdapter"]);
     // What a component reads as `vaultAdapter` is the chain's top — the views of the map take it from the vault context.
-    expect(context).toMatch(/const vaultAdapter = new ConflictAwareVaultAdapter\(/);
+    expect(context).toMatch(/const vaultAdapter = chain\.files;/);
     for (const rel of GRAPH_VIEWS) expect(sourceFile(rel), rel).toMatch(/const \{[^}]*\bvaultAdapter\b[^}]*\} = useVault\(\);/);
   });
 });

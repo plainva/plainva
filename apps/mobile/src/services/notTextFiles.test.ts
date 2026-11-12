@@ -15,7 +15,8 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { RefusingVaultAdapter } from "../../../../packages/core/test/helpers/textReaders";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { fakeVaultFolder, folderBytes } from "../adapters/fakeVaultFolder";
-import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
+import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
+import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -251,7 +252,7 @@ async function phoneOver(storage: Storage) {
   // The note saver's keep beside the file can be held.
   const hooks = { beforeKeep: async () => {} };
   const scope = {
-    createSaveCoordinator, ConflictError, NotTextFileError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
+    createSaveCoordinator, writeEditorSave, ConflictError, NotTextFileError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     openEditorText, copyFileContent, isNotTextFileError,
     keepTextBeside: async (...args: Parameters<typeof keepTextBeside>) => { await hooks.beforeKeep(); return keepTextBeside(...args); },
     writeDraft: () => {}, clearDraft: () => {}, reportCreated: () => {},

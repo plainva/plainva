@@ -24,6 +24,14 @@ on:
       - 'apps/desktop/src-tauri/**'
       - 'apps/desktop/wdio/**'
       - 'apps/desktop/wdio.conf.ts'
+      - 'apps/desktop/wdio.updater.conf.ts'
+      - 'apps/desktop/scripts/updater-signature-fixtures.mjs'
+      - 'apps/desktop/scripts/updater-manifest-check.mjs'
+      - 'apps/desktop/src/services/appUpdate.ts'
+      - 'apps/desktop/src/components/SettingsModal.tsx'
+      - 'apps/desktop/src/components/settings/AppPages.tsx'
+      - 'packages/ui/src/locales/**'
+      - '.github/workflows/updater-manifest.yml'
       - 'apps/desktop/scripts/check-webdriver-server.sh'
       - '.github/workflows/native-smoke.yml'
   workflow_call:
@@ -74,6 +82,72 @@ jobs:
         with:
           name: native-smoke-linux-${{ github.run_attempt }}
           path: apps/desktop/wdio-logs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The updater signature test (stability plan R11): the built app must REFUSE
+  # an update file with one byte changed, one signed with a foreign key, the
+  # signature of another file, an older release announced as new and a
+  # signature without a version — and accept the genuine file (the positive
+  # control). The key pairs are made for this run; no secret is used. See
+  # docs/engineering/WebDriver_Smoke.md, "Updater signature test".
+  updater-signature:
+    name: updater signature (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: System deps (Tauri + WebKitGTK WebDriver)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          driver=webkitgtk-webdriver
+          apt-cache show "$driver" > /dev/null 2>&1 || driver=webkit2gtk-driver
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev "$driver" xvfb
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'apps/desktop/src-tauri -> target'
+          key: updater-signature
+      - run: pnpm install --frozen-lockfile
+      - name: Test keys, update files and manifests
+        shell: bash
+        run: |
+          echo "PLAINVA_UPDATER_TEST_DIR=$RUNNER_TEMP/updater-test" >> "$GITHUB_ENV"
+          node apps/desktop/scripts/updater-signature-fixtures.mjs "$RUNNER_TEMP/updater-test"
+      - name: Build web assets
+        run: pnpm --filter desktop build
+      # The debug binary with the test key and the local endpoint. On Windows
+      # also the smoke overlay, which opens the WebView's debugging port for
+      # the Edge driver (see the windows job).
+      - name: Build the test app
+        shell: bash
+        run: |
+          extra=""
+          if [ "$RUNNER_OS" = "Windows" ]; then extra="--config src-tauri/tauri.smoke.conf.json"; fi
+          pnpm --filter desktop exec tauri build --debug --no-bundle $extra --config "$PLAINVA_UPDATER_TEST_DIR/tauri.updater-test.conf.json"
+      - name: Updater signature test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum pnpm --filter desktop test:native:updater
+      - name: Updater signature test (Windows)
+        if: runner.os == 'Windows'
+        run: pnpm --filter desktop test:native:updater
+      # Always: the pictures of the refusal (toast and settings) are evidence too.
+      - name: Upload driver logs and pictures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: updater-signature-${{ matrix.os }}-${{ github.run_attempt }}
+          path: apps/desktop/wdio-logs-updater/
           if-no-files-found: ignore
           retention-days: 7
 

@@ -38,6 +38,7 @@ export * from "./vault/localText.js";
 export * from "./vault/conflictSession.js";
 export * from "./vault/conflictCopy.js";
 export * from "./vault/ConflictFileStore.js";
+export * from "./vault/vaultChain.js";
 export * from "./vault/QueueingVaultAdapter.js";
 export * from "./vault/SyncStateRepository.js";
 export * from "./vault/VaultIndexer.js";

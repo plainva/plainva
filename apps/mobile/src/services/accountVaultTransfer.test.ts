@@ -96,7 +96,7 @@ beforeEach(async () => {
   state.switches = []; state.events = []; state.endAfter = ""; state.allocations = 0; state.failSecret = ""; state.accepted = true; state.answer = null; state.cancelReview = null; state.afterReview = async () => {};
   await clearConnectQueue();
   const db = await realSqlite(); state.databases.set("source", db);
-  source = { vaultId: "source", db, adapter: memoryDisk("source") } as MobileVault;
+  source = { vaultId: "source", db, adapter: memoryDisk("source") } as unknown as MobileVault;
   state.disks.get("source")!.set("Note.md", "local notes");
   remoteFiles = new Map([["Note.md", "cloud notes"]]);
   downloaded = [];

@@ -644,7 +644,7 @@ export function NoteScreen({
    */
   const adoptMove = useStableHandler(async (from: string, to: string) => {
     await adoptExternalMove({
-      retargetBookmarks: (f, tt) => renameBookmarksOnDisk(vault.adapter, f, tt),
+      retargetBookmarks: (f, tt) => renameBookmarksOnDisk(vault.belowChain, f, tt),
       pinboard: { adapter: vault.files, queryService: vault.queryService },
       reindex: (paths) => vault.reindexPaths(paths),
     }, from, to);

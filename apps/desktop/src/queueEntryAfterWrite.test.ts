@@ -142,10 +142,11 @@ describe("on the desktop, an entry of the sync queue that finds the database loc
     const context = ts.createSourceFile("VaultContext.tsx", sourceFile("apps/desktop/src/contexts/VaultContext.tsx"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const built: string[] = [];
     (function visit(node: ts.Node) {
-      if (ts.isNewExpression(node) && node.expression.getText(context) === "QueueingVaultAdapter") built.push(node.getText(context));
+      // The chain comes from the one factory (stability plan R2), which hands either queue the reporter it is given.
+      if (ts.isCallExpression(node) && node.expression.getText(context) === "buildVaultChain") built.push(node.getText(context));
       ts.forEachChild(node, visit);
     })(context);
     expect(built).toHaveLength(1);
-    expect(built[0]).toMatch(/onEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
+    expect(built[0]).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
   });
 });
