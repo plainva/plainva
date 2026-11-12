@@ -103,6 +103,12 @@ export interface DraftJournalOptions<S> {
   runStartedAt?: number;
   /** A new session name for a draft put on offer. */
   offerSession?: () => string;
+  /**
+   * How long a move waits for a snapshot of a note it moves that is still
+   * being written (default 2 s). A write that never settles must not hold up
+   * the end of a rename; after this the move goes on, best-effort.
+   */
+  moveWaitMs?: number;
 }
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -131,16 +137,50 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
   const now = options.now ?? Date.now;
   const runStartedAt = options.runStartedAt ?? now();
   const offerSession = options.offerSession ?? (() => `offer-${now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`);
+  const moveWaitMs = options.moveWaitMs ?? 2_000;
   const lanes = new Map<string, Promise<void>>();
+  /** Whose note a lane's work concerns, where the caller said: what a move has to wait for. */
+  const laneNotes = new Map<string, { key: string; notePath: string }>();
   const handedOver = new Set<string>();
 
-  /** Every operation on a file takes its turn in that file's lane: a late clear never lands after a newer snapshot. */
-  function serial<T>(file: string, work: () => Promise<T>): Promise<T> {
+  /**
+   * Every operation on a file takes its turn in that file's lane: a late clear
+   * never lands after a newer snapshot. `note` names the note the work is for.
+   */
+  function serial<T>(file: string, work: () => Promise<T>, note?: { scope: S; notePath: string }): Promise<T> {
     const run = (lanes.get(file) ?? Promise.resolve()).catch(() => {}).then(work);
     const settled = run.then(() => {}, () => {});
     lanes.set(file, settled);
-    void settled.then(() => { if (lanes.get(file) === settled) lanes.delete(file); });
+    if (note) laneNotes.set(file, { key: layout.key(note.scope), notePath: note.notePath });
+    void settled.then(() => {
+      if (lanes.get(file) !== settled) return;
+      lanes.delete(file);
+      laneNotes.delete(file);
+    });
     return run;
+  }
+
+  /**
+   * The snapshots under way for the notes a move takes along — of this scope,
+   * under one of its `from` paths —, waited for at most `moveWaitMs`. Nothing
+   * else: another note's write, another vault's, is none of the move's business,
+   * and a write that never settles must not hold the rename up (review
+   * 2026-11-12). What lands after the bound is under the old path and is found
+   * there; the move is best-effort like every journal operation.
+   */
+  async function writesUnderway(scope: S, moves: ReadonlyArray<{ from: string; to: string }>): Promise<void> {
+    const key = layout.key(scope);
+    const concerned = [...laneNotes]
+      .filter(([, note]) => note.key === key && moves.some((m) => relocatedDraftPath(note.notePath, m) !== null))
+      .map(([file]) => lanes.get(file))
+      .filter((lane): lane is Promise<void> => lane !== undefined);
+    if (concerned.length === 0) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      Promise.all(concerned),
+      new Promise<void>((done) => { timer = setTimeout(done, moveWaitMs); }),
+    ]);
+    if (timer !== undefined) clearTimeout(timer);
   }
 
   /** A file's entries: missing → []; unreadable → throws (and nothing is written over it). */
@@ -196,7 +236,7 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
 
     /** The session's snapshot of the note. Rejects where the file is there and unreadable: an older draft is never written over. */
     record(scope: S, notePath: string, text: string, revision: number, sessionId: string): Promise<void> {
-      return serial(layout.file(scope, notePath), () => recordInLane(scope, notePath, text, revision, sessionId));
+      return serial(layout.file(scope, notePath), () => recordInLane(scope, notePath, text, revision, sessionId), { scope, notePath });
     },
 
     /**
@@ -319,16 +359,16 @@ export function createDraftJournal<S>(options: DraftJournalOptions<S>) {
     /**
      * Entries follow a move or rename made in the app (issue 113, V3): an
      * entry left under the old path is one no editor ever asks for again.
-     * Entry by entry — a file can hold several notes' entries (3.124); of the
-     * same session the newer revision wins; the destination is written before
-     * the entries leave their old file. Best-effort.
+     * Entry by entry — a file can hold several notes' entries (3.124); at the
+     * destination nothing gives way (see the header), only the same entry is
+     * not kept twice; the destination is written before the entries leave
+     * their old file. Best-effort.
      */
     async relocate(scope: S, moves: ReadonlyArray<{ from: string; to: string }>): Promise<void> {
       if (moves.length === 0) return;
-      // A snapshot already under way lands first: its file may not be there yet
-      // for the listing below, and an entry written after the move under the old
-      // path is one no editor asks for again.
-      await Promise.all([...lanes.values()]);
+      // A snapshot of a moved note already under way lands first: its file may
+      // not be there yet for the listing below (bounded, see `writesUnderway`).
+      await writesUnderway(scope, moves);
       const target = (entry: DraftJournalEntry) => {
         if (layout.ours && !layout.ours(scope, entry)) return null;
         return moves.map((m) => relocatedDraftPath(entry.notePath, m)).find((p): p is string => p !== null) ?? null;
@@ -474,7 +514,10 @@ export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJo
       schedule(key, snapshot.file, retryMs);
     }
   }
-  const persist = (key: string, file: string) => journal.serial(file, () => persistInLane(key));
+  const persist = (key: string, file: string) => {
+    const snapshot = pending.get(key);
+    return journal.serial(file, () => persistInLane(key), snapshot ? { scope: snapshot.scope, notePath: snapshot.notePath } : undefined);
+  };
 
   return {
     /** Buffers the session's newest text of the note; `text` is read when the snapshot is written. */
@@ -493,9 +536,14 @@ export function createDraftWriter<S>(journal: DraftSink<S>, layout: Pick<DraftJo
     },
 
     /** Writes every buffered snapshot now — the phone before the system suspends the app. */
-    async flush(filter: (scope: S) => boolean = () => true): Promise<void> {
-      const selected = [...pending].filter(([, snapshot]) => filter(snapshot.scope));
-      await Promise.all(selected.map(([key, snapshot]) => { cancelTimer(key); return persist(key, snapshot.file); }));
+    async flush(filter: (scope: S) => boolean = () => true, options: { notes?: (notePath: string) => boolean; waitMs?: number } = {}): Promise<void> {
+      const selected = [...pending].filter(([, snapshot]) => filter(snapshot.scope) && (!options.notes || options.notes(snapshot.notePath)));
+      const all = Promise.all(selected.map(([key, snapshot]) => { cancelTimer(key); return persist(key, snapshot.file); }));
+      if (options.waitMs === undefined) { await all; return; }
+      // Bounded: a write that never settles must not hold up whoever waits (a move, a window going).
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([all.then(() => {}, () => {}), new Promise<void>((done) => { timer = setTimeout(done, options.waitMs); })]);
+      if (timer !== undefined) clearTimeout(timer);
     },
 
     /** Whether a snapshot of this file is still buffered (pruning leaves such a file alone). */

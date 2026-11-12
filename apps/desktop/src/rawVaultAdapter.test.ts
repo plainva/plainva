@@ -99,7 +99,7 @@ describe("the storage below a vault's chain", () => {
     expect(uses.map(({ use }) => use)).toEqual(["builds TauriVaultAdapter"]);
     // …it builds the chain over them with the one factory both shells use (stability plan R2), and what it hands
     // the app as `vaultAdapter` is the top of that chain.
-    expect(owner!.text).toMatch(/const chain = buildVaultChain\(\{\s*storage: tauriVaultAdapter,/);
+    expect(owner!.text).toMatch(/const chain = buildVaultChain\(desktopChainPorts\(\{\s*vaultPath: path,\s*storage: tauriVaultAdapter,/);
     expect(owner!.text).toMatch(/const vaultAdapter = chain\.files;/);
   });
 

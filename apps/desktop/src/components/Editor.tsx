@@ -990,7 +990,8 @@ export const Editor: React.FC<{
     });
   };
 
-  const scheduleSave = (getText: () => string) => {
+  const scheduleSave = (text: string | (() => string)) => {
+    const getText = typeof text === "string" ? () => text : text;
     if (saveState.transferFrozen) return;
     if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
     if (!activePath || !vaultAdapter) return;
@@ -1006,18 +1007,23 @@ export const Editor: React.FC<{
     // covers the revision takes the buffered snapshot back and clears the
     // entry up to the revision it wrote; newer snapshots survive (latest wins).
     //
-    // The snapshot is bound to THIS note (review of 2026-11-11, M1): a getter
-    // like `liveText` reads whatever the pane shows when it is called, and the
-    // writer calls it up to an interval later. Once this editor lifetime no
-    // longer holds the note — another file loaded into the pane, the note moved
-    // on, the pane closed — it answers null and the snapshot is dropped, never
-    // written under this note's name.
+    // The snapshot is bound to THIS note (reviews of 2026-11-11 and -12):
+    // - a text handed as a value (a read-mode edit, a ticked box) already is
+    //   this note's text and is written as it is, whatever the pane does next —
+    //   read mode has no editor session whose teardown would journal it;
+    // - a getter like `liveText` reads whatever the pane shows when it is
+    //   called, and the writer calls it up to an interval later. Once this
+    //   editor lifetime no longer holds the note — another file loaded into the
+    //   pane, the note moved on, the pane closed — it answers null and the
+    //   snapshot is dropped, never written under this note's name; the live
+    //   editor's teardown journals the final text itself (`persistText`).
     if (vaultPath) {
       const draftVault = vaultPath;
       const draftPath = activePath;
       const holds = () => saveState.isActive() && loadedPathRef.current === draftPath;
+      const snapshot = typeof text === "string" ? text : () => (holds() ? text() : null);
       void import("../services/draftJournal")
-        .then(({ writeDraft }) => writeDraft(draftVault, draftPath, () => (holds() ? getText() : null), rev, saveState.id))
+        .then(({ writeDraft }) => writeDraft(draftVault, draftPath, snapshot, rev, saveState.id))
         .catch(() => {});
     }
   };
@@ -1061,7 +1067,7 @@ export const Editor: React.FC<{
     if (activePath) dirtyStore.set(activePath, true, saveState.id);
     contentRef.current = val;
     setContent(val);
-    scheduleSave(() => val);
+    scheduleSave(val);
   };
 
   // Read-mode task checkbox clicked (P3.1): flip the matching [ ]/[x] marker

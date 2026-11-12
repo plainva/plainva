@@ -1,6 +1,6 @@
 import { SyncQueue, REMOTE_REFUSAL } from "./SyncQueue.js";
 import { ISyncTarget, RemoteChangedError, SyncContentRef, type ExpectedRemote, type SyncOperation } from "./ISyncTarget.js";
-import { SyncStateRepository } from "../vault/SyncStateRepository.js";
+import type { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";

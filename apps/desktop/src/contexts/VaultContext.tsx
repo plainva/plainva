@@ -1,15 +1,16 @@
-import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact, workspaceWriteAuthorizer } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
-import { relocateDrafts } from "../services/draftJournal";
+import { flushDrafts, relocateDrafts } from "../services/draftJournal";
+import { desktopChainPorts } from "../services/vaultChainPorts";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, type BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -867,36 +868,16 @@ export const VaultProvider: React.FC<{
       // with the workspace's permission check above them, the queue, and the
       // conflict guard on top. What the worker brings from another device is
       // nothing the index reports for this one (finding 2026-10-12).
-      const chain = buildVaultChain({
+      const chain = buildVaultChain(desktopChainPorts({
+        vaultPath: path,
         storage: tauriVaultAdapter,
         versions: versionsOptions,
         deviceId: await getDeviceId(),
-        index: { db: dbAdapter, queue: syncQueue },
-        workspace: workspaceStateStore
-          ? {
-            state: workspaceStateStore,
-            authorize: workspaceWriteAuthorizer(workspaceRuntime, workspaceStateStore, (question) => appConfirm({ ...question, kind: "warning" })),
-          }
-          : null,
-        // The encrypted workspace's queue makes up for its entries the same way (D2).
-        onQueueEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)),
-        // The adapter auto-merged external + local changes and wrote the result to disk.
-        // Tell the editor so it adopts the merged content instead of overwriting it on the next save.
-        onAutoMerged: (mergedPath, mergedText) => {
-          window.dispatchEvent(new CustomEvent("plainva-auto-merged", { detail: { path: mergedPath, mergedText } }));
-        },
-        // A write turned line ends the file's shape does not keep (a carriage
-        // return of its own) — every line of the file, unasked: said here for
-        // every writer of the app at once, in this window and in the auxiliary
-        // windows on this vault, whose saves come through this chain as well.
-        onLineEndsConverted: (convertedPath, lineEnd) => {
-          sayLineEndsConverted(convertedPath, lineEnd);
-          void getWindowBus()
-            .then((bus) => bus.broadcast("line-ends-converted", { path: convertedPath, eol: lineEnd }, path))
-            .catch(() => { /* no bus (browser/test): a single window has said it */ });
-        },
-        kind: "external-folder",
-      });
+        db: dbAdapter,
+        queue: syncQueue,
+        workspace: workspaceStateStore ? { state: workspaceStateStore, runtime: workspaceRuntime } : null,
+        confirm: (question) => appConfirm({ ...question, kind: "warning" }),
+      }));
       const backupVaultAdapter = chain.belowChain;
       const permissionedWorkspaceAdapter = chain.permissions;
       const syncRepo = chain.syncRepo!;
@@ -2506,6 +2487,9 @@ export const VaultProvider: React.FC<{
     settingsOnlyRef.current = null;
     settingsOnly?.stop();
     const drain = (async () => {
+      // What the draft journal still buffers for this vault goes to disk first
+      // (bounded): with the vault gone, nobody writes it later.
+      if (path) await flushDrafts(path).catch(() => {});
       if (path) await settlePendingWrites(path);
       await worker?.stopAndDrain();
       await settingsOnly?.stopAndDrain();

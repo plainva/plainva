@@ -1,15 +1,15 @@
 import { clearPinboardCache, dailyDayResolver, logDiagnostic, logIndexDiagnostics, markFreshNote, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
-  BackupVaultAdapter,
+  type BackupVaultAdapter,
   ConflictError,
   DEFAULT_BACKUP_RETENTION,
   initializeSchema,
-  QueueingVaultAdapter,
-  WorkspaceQueueingVaultAdapter,
-  PermissionedVaultAdapter,
+  type QueueingVaultAdapter,
+  type WorkspaceQueueingVaultAdapter,
+  type PermissionedVaultAdapter,
   SqlWorkspaceStateStore,
   SyncQueue,
-  SyncStateRepository,
+  type SyncStateRepository,
   OwnDeletionRegister,
   VaultIndexer,
   VaultQueryService,
@@ -23,7 +23,6 @@ import {
   toPathIdentity,
   formatFullScan,
   formatFullScanFailure,
-  formatQueueEntryReport,
   scanChangedNothing,
 } from "@plainva/core";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
@@ -91,10 +90,11 @@ import {
 } from "@plainva/ui";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
-import { workspaceWriteAuthorizer, type WorkspaceMoveQuestion, rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet } from "@plainva/ui";
-import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, sayLineEndsConverted, type KeptText, type TextFileShape } from "@plainva/ui";
+import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet } from "@plainva/ui";
+import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, type KeptText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
+import { mobileChainPorts } from "./mobileChainPorts";
 import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
 import { afterFirstPaint } from "./bootStagger";
 
@@ -720,18 +720,6 @@ interface MobileStorageExtras {
 /** The phone's storage as app code may hold it: it can ask, never write (`VaultStorageReader`). */
 export type MobileStorageReader = VaultStorageReader & MobileStorageExtras;
 
-/** The question the workspace's permission check puts before a move, in the phone's own dialog. */
-async function confirmWorkspaceMove(question: WorkspaceMoveQuestion): Promise<boolean> {
-  const { Dialog } = await import("@capacitor/dialog");
-  const answer = await Dialog.confirm({
-    title: question.title,
-    message: question.message,
-    okButtonTitle: question.confirmLabel,
-    cancelButtonTitle: question.cancelLabel,
-  });
-  return answer.value;
-}
-
 async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVault> {
   // Paths are vault-relative: a stale lastPersisted entry from another vault
   // must never classify this vault's disk content as our own echo.
@@ -869,21 +857,14 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // the sync queue that fails after its change is on disk is made up for
     // while its write waits; one given up fails its write and is named in the
     // diagnostics, like on the desktop — the workspace's queue the same (D2).
-    const chain = buildVaultChain({
+    const chain = buildVaultChain(mobileChainPorts({
       storage: adapter,
       versions: versionsOptions,
       deviceId: await mobileSyncDeviceId(),
       index: { db, queue },
-      workspace: workspaceState ? { state: workspaceState, authorize: workspaceWriteAuthorizer(workspaceRuntime, workspaceState, confirmWorkspaceMove) } : null,
-      onQueueEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)),
-      onAutoMerged: (path, mergedText) => {
-        window.dispatchEvent(new CustomEvent("m-auto-merged", { detail: { path, mergedText } }));
-      },
-      // A write turned line ends the file's shape does not keep (a carriage
-      // return of its own): said here for every writer of the app at once.
-      onLineEndsConverted: (path, lineEnd) => sayLineEndsConverted(path, lineEnd),
+      workspace: workspaceState ? { state: workspaceState, runtime: workspaceRuntime } : null,
       kind: chainKind,
-    });
+    }));
     backup = chain.belowChain;
     permissioned = chain.permissions;
     ownQueue = chain.queueing;
@@ -1013,16 +994,16 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     // The search index is optional; durable conflict editing is not. The
     // same file journal is used before and after the database recovers.
     const settings = getMobileSettings();
-    const chain = buildVaultChain({
+    const chain = buildVaultChain(mobileChainPorts({
       storage: adapter,
       versions: { policy: { ...DEFAULT_BACKUP_RETENTION,
         minSnapshotIntervalSeconds: settings.backupIntervalSeconds, maxBackupsPerFile: settings.backupMaxPerFile, maxAgeDays: settings.backupMaxAgeDays },
       onBackupError: reportSnapshotFailure },
       deviceId: await mobileSyncDeviceId(),
       index: null,
-      onLineEndsConverted: (path, lineEnd) => sayLineEndsConverted(path, lineEnd),
+      workspace: null,
       kind: chainKind,
-    });
+    }));
     backup = chain.belowChain;
     files = chain.files;
     queue = null;

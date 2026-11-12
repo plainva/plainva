@@ -144,6 +144,8 @@ describe("on the desktop, an entry of the sync queue that finds the database loc
       ts.forEachChild(node, visit);
     })(context);
     expect(built).toHaveLength(1);
-    expect(built[0]).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
+    // …with the desktop's ports (`desktopChainPorts`), which carry the reporter.
+    expect(built[0]).toMatch(/^buildVaultChain\(desktopChainPorts\(/);
+    expect(sourceFile("apps/desktop/src/services/vaultChainPorts.ts")).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
   });
 });

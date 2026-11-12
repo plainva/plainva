@@ -88,8 +88,11 @@ describe("the notice that a file's line ends were turned", () => {
   it("is said in an auxiliary window too: the central window hands it on over the window bus", () => {
     // The chain of the desktop lives in the central window; a save from an
     // auxiliary window goes through it, and its notice would stay there.
+    // The chain's ports (`desktopChainPorts`, stability plan R2) say it and hand it on…
+    const ports = sourceFile("apps/desktop/src/services/vaultChainPorts.ts");
+    expect(ports).toMatch(/sayLineEndsConverted\(convertedPath, lineEnd\);\s*void getWindowBus\(\)\s*\.then\(\(bus\) => bus\.broadcast\("line-ends-converted", \{ path: convertedPath, eol: lineEnd \}, input\.vaultPath\)\)/);
+    // …and the auxiliary windows listen.
     const vault = sourceFile("apps/desktop/src/contexts/VaultContext.tsx");
-    expect(vault).toMatch(/sayLineEndsConverted\(convertedPath, lineEnd\);\s*void getWindowBus\(\)\s*\.then\(\(bus\) => bus\.broadcast\("line-ends-converted", \{ path: convertedPath, eol: lineEnd \}, path\)\)/);
     expect(vault).toMatch(/onBroadcast\("line-ends-converted", \(\{ path, eol \}\) => sayLineEndsConverted\(path, eol\)\)/);
   });
 });
