@@ -31,7 +31,8 @@ afterEach(() => {
 });
 
 describe("the strip of a vault without its index database", () => {
-  it("says what is unavailable and why, as a warning", () => {
+  // Under a mocked i18n: this pins which key the strip shows and that it is a warning, not the sentence's words.
+  it("shows the key errors.indexClosedNotice, as a warning", () => {
     act(() => root.render(<IndexBuildNotice vaultId="v1" indexClosed />));
     const notice = container.querySelector('[data-testid="index-closed-notice"]');
     expect(notice?.textContent).toBe("errors.indexClosedNotice");

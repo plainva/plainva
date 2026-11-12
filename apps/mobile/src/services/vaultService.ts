@@ -1012,9 +1012,23 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     searchAvailable = true;
   } catch (err) {
     console.warn("[mobile] index unavailable (expected on the plain web dev server)", err);
-    // On a device the database not opening is no expected case, and the vault
-    // runs without search, tags, databases, the sync and the calendar: said.
-    if (Capacitor.isNativePlatform()) toast.error(indexUnavailableText(err));
+    // The failure can come after the database opened (a malformed file fails
+    // its first query): nothing built on it outlives it. The workspace's state
+    // and permission check and the queueing link read that database; the chain
+    // below is built without them, and the database is closed.
+    workspaceState = null;
+    permissioned = null;
+    ownQueue = null;
+    const half = db;
+    db = null;
+    if (half) await half.close().catch(reportingTo("index:close"));
+    // Why, into the diagnostics, in every case.
+    reportBackground("index:open", err);
+    // On a device the database not opening is no expected case. A vault that
+    // syncs says so once, standing, in the strip on top (`indexClosed`, with
+    // what is unavailable), and a refused action says its own sentence; a
+    // vault without a remote has no strip, so this toast is its one notice.
+    if (Capacitor.isNativePlatform() && isLocal) toast.error(indexUnavailableText(err));
     // The search index is optional; durable conflict editing is not. The
     // same file journal is used before and after the database recovers.
     const settings = getMobileSettings();

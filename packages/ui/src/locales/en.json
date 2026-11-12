@@ -5063,8 +5063,8 @@
     "areaBody": "An error stopped it. The rest of Plainva keeps working, and the error is recorded under {{place}}.",
     "areaAgain": "It failed again after reloading. If it keeps failing, restart Plainva; the error is recorded under {{place}}.",
     "areaReload": "Reload this area",
-    "structureNeedsIndex": "This can't be done right now: the search index could not be opened on this device, so the sync could not carry a deletion, rename or move to your other devices. Restart the app to try again; your notes themselves are untouched.",
-    "indexClosedNotice": "The search index could not be opened on this device. You can read, write and create notes; deleting, renaming and moving stay unavailable until it opens. Restart the app to try again; your notes are untouched.",
+    "structureNeedsIndex": "This can't be done right now: the search index could not be opened on this device, so the sync could not carry a deletion, a rename, a move or a new folder to your other devices. Restart the app to try again; your notes themselves are untouched.",
+    "indexClosedNotice": "The search index could not be opened on this device. You can read, write and create notes; deleting, renaming, moving and new folders stay unavailable until it opens. Restart the app to try again; your notes are untouched.",
     "background": {
       "aiKeyNotRemoved": "The key for {{provider}} could not be removed from this device, so {{provider}} stays on the list: {{reason}}",
       "accountSignInKept": "The account was removed, but its sign-in could not be deleted from this device: {{reason}}",

@@ -44,10 +44,14 @@ import type { WorkspaceStateStore } from "../workspace/state.js";
  * local vault, a picked folder) has nobody to tell: `storage → versions →
  * conflict-guard`, everything allowed. An encrypted workspace's vault gets the
  * same chain in that state: its permission state lives in the same database,
- * so no link could check a change; a write made meanwhile is judged at the
- * next start as a change from outside (`authorizeExternalChange`: queued if
- * allowed, kept as a local fork if not), and a deletion or a rename cannot
- * happen at all.
+ * so no link could check a change. A write made meanwhile is picked up at the
+ * next start by `initializePersonalWorkspaceMigration`, which every
+ * `startWorker` runs: it compares the files with the object map by hash and
+ * queues what differs, without `authorizeExternalChange`. A write the member
+ * may not make is therefore not kept as a local fork; its push fails on the
+ * worker's authorization assert ("local mutation is not permitted by the
+ * active workspace policy"). A deletion or a rename
+ * cannot happen at all (the refusal link).
  *
  * What the app writes goes through `files`, the top. What lies below it is
  * handed out by type: `reader` can only read, `versions` can only take and

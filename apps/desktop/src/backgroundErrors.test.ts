@@ -94,6 +94,36 @@ describe("reportBackground", () => {
     expect(lines).not.toMatch(/AZURESECRETSIG|AKIAEXAMPLE|S3SECRETSIG|AIzaHEADERKEY|DROPBOXSECRET|hunter2secret|AGphbmUA|jane\.doe/);
     expect(lines).toContain("status code=403");
   });
+
+  it("keeps out the shapes the third review found, and leaves paths, status codes and error codes readable (review 2026-11-12)", () => {
+    const shapes = [
+      // A tester's address in a WebDAV path, percent-encoded: the one that matters most.
+      "PROPFIND https://cloud.example.com/remote.php/dav/files/first.last%40example.com/Notes 401",
+      "GET https://acct.blob.core.windows.net/c/f?sv=2020&sig%3DENCODEDSASSIG%2F",
+      "redirect http://localhost/cb#code=FRAGMENTCODE&state=1",
+      "refresh_token: 1//COLONREFRESH0123",
+      "token: ya29.COLONTOKEN0123",
+      "Dropbox token sl.u.AbC-DOTTEDDROPBOX123",
+      'a1 LOGIN "user@example.com" "QUOTED IMAPPASS"',
+      '{"password":"a\\"b ESCAPEDJSONPASS"}',
+      "passwd=PASSWDVALUE app_password=APPPASSWORDVALUE",
+      "Cookie: session=COOKIEVALUE; other=COOKIETWO",
+      "set-cookie: sid=SETCOOKIEVALUE; Path=/",
+      "id_token eyJhbGciOiJSUzI1NiJ9.eyJlbWFpbCI6IkpXVEFERFJFU1MifQ.JWTSIGNATURE",
+      "Authorization: AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE/20261112/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=AWSHEADERSIG",
+    ];
+    for (const shape of shapes) logDiagnostic("provider", shape);
+    // Redacted before the cut at 500 characters: a secret across the cut leaves no half behind.
+    logDiagnostic("provider", `${"x".repeat(480)} password=ACROSSTHECUTSECRET`);
+    const lines = getDiagnostics().map((e) => e.message).join("\n");
+    expect(lines).not.toMatch(/first\.last|ENCODEDSASSIG|FRAGMENTCODE|COLONREFRESH|COLONTOKEN|DOTTEDDROPBOX|IMAPPASS|ESCAPEDJSONPASS|PASSWDVALUE|APPPASSWORDVALUE|COOKIEVALUE|COOKIETWO|SETCOOKIEVALUE|JWTSIGNATURE|eyJlbWFp|AWSHEADERSIG|AKIAEXAMPLE|ACROSSTHECUT/);
+    expect(lines).toContain("dav/files/[email]/Notes 401");
+
+    clearDiagnosticsForTests();
+    const readable = ["request failed with status code=403", "PUT /remote.php/dav/files/Notes/Plan.md 412", "ENOENT: no such file, open 'Projects/Plan.md'", "first pass: 3 files"];
+    for (const line of readable) logDiagnostic("provider", line);
+    expect(getDiagnostics().map((e) => e.message)).toEqual(readable);
+  });
 });
 
 describe("reportVisible", () => {

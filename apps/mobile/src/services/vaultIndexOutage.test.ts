@@ -24,6 +24,8 @@ import type { VaultEntry } from "./vaultRegistry";
 
 const registry = vi.hoisted(() => ({ vaults: [] as VaultEntry[], activeId: "cloud-1", fresh: new Set<string>() }));
 const containers = vi.hoisted(() => new Map<string, unknown>());
+/** The workspace status the boot reads: null for a plain vault. */
+const ws = vi.hoisted(() => ({ status: null as unknown }));
 
 vi.mock("../adapters/CapacitorVaultAdapter", async () => {
   const { MemoryVaultAdapter } = await import("../../../../packages/core/test/helpers/memoryVault");
@@ -55,7 +57,10 @@ const anyFn = () => new Proxy({} as Record<string, unknown>, {
   has: () => true,
 });
 vi.mock("./syncService", () => anyFn());
-vi.mock("./mobileWorkspaceSecurity", () => anyFn());
+vi.mock("./mobileWorkspaceSecurity", () => {
+  const rest = anyFn();
+  return new Proxy(rest, { get: (target, key) => (key === "getMobileWorkspaceStatus" ? async () => ws.status : Reflect.get(target, key)) });
+});
 vi.mock("./profileImportJournal", () => anyFn());
 vi.mock("./mobileSettingsSync", () => ({ mobileSyncDeviceId: async () => "device-1", clearMobileSyncState: vi.fn() }));
 vi.mock("./mobileSettings", async (original) => ({
@@ -63,8 +68,8 @@ vi.mock("./mobileSettings", async (original) => ({
   reloadMobileSettingsForActiveVault: async () => {},
 }));
 
-/** The phone's SQLite, kept across boots; `failing` makes it refuse to open. */
-const sql = { dbs: new Map<string, Promise<IDatabaseAdapter>>(), failing: false };
+/** The phone's SQLite, kept across boots; `failing` makes it refuse to open, `failAt` fail one statement after it opened. */
+const sql = { dbs: new Map<string, Promise<IDatabaseAdapter>>(), failing: false, failAt: null as string | null };
 function installSqlBridge(): void {
   const open = (name: string) => {
     let db = sql.dbs.get(name);
@@ -74,7 +79,10 @@ function installSqlBridge(): void {
   const refuse = () => { throw new Error("unable to open database file"); };
   (globalThis as Record<string, unknown>).__plainvaFixtureSql = {
     exec: async (name: string, statement: string, params: unknown[]) => { if (sql.failing) refuse(); await (await open(name)).execute(statement, params); },
-    all: async (name: string, statement: string, params: unknown[]) => { if (sql.failing) refuse(); return (await open(name)).query(statement, params); },
+    all: async (name: string, statement: string, params: unknown[]) => {
+      if (sql.failing) refuse();
+      if (sql.failAt && statement.includes(sql.failAt)) throw new Error("database disk image is malformed");
+      return (await open(name)).query(statement, params); },
   };
 }
 
@@ -83,6 +91,8 @@ beforeEach(() => {
   containers.clear();
   sql.dbs.clear();
   sql.failing = false;
+  sql.failAt = null;
+  ws.status = null;
   installSqlBridge();
   registry.vaults = [{ id: "cloud-1", name: "Notes", provider: "webdav" } as VaultEntry];
   registry.activeId = "cloud-1";
@@ -144,6 +154,12 @@ function sync(vault: Vault) {
     vault.markFirstSyncComplete();
   };
   worker.onFilesChanged = (paths) => void vault.reindexPaths(paths);
+  // Before the start's pass, unlike the app: there the warm pass is set off at
+  // boot (vaultService, `afterFirstPaint`) and the queue is enabled later
+  // (hooks/useVaultBoot.ts, syncService), and a deletion the pass reports
+  // before that returns early and is never queued again. That race is older
+  // than the refusal; the tx strand's deletion marks close it (not on main
+  // yet). This pins what the chain and the sync do once the queue is on.
   vault.enableSyncEnqueue();
   return {
     /** The start's index pass, then cycles until the queue is empty. */
@@ -269,4 +285,27 @@ describe("the phone without its index database", () => {
     await sync(vault).run();
     expect(changesSent()).toEqual(sent);
   }, 120_000);
+
+  it("keeps nothing of a database that opened and then failed its first query: workspace state, permission check and queue go, the database is closed", async () => {
+    // An encrypted workspace's vault (locked: no runtime), whose database opens and is malformed.
+    ws.status = { workspaceId: "w-1" };
+    sql.failAt = "SELECT COUNT(*) AS n FROM files";
+    vi.resetModules();
+    const fixture = await import("../adapters/FixtureSqliteAdapter");
+    const close = vi.spyOn(fixture.FixtureSqliteAdapter.prototype, "close");
+    const service = await import("./vaultService");
+    const vault = await service.getMobileVault();
+    opened.push(vault);
+    expect(close).toHaveBeenCalled();
+    expect(vault.db).toBeNull();
+    expect(vault.syncQueue).toBeNull();
+    expect(vault.workspaceState).toBeNull();
+    expect(vault.indexClosed).toBe(true);
+    // It runs on the chain without the database: the locked workspace's check
+    // is gone with it (a write goes through), and a deletion is refused.
+    await service.vaultOps.save(vault, "New.md", "# New\n");
+    expect(await (await container()).readTextFile("New.md")).toBe("# New\n");
+    await expect(service.vaultOps.remove(vault, "New.md", { confirmed: true })).rejects.toSatisfy(isStructureNeedsIndexError);
+    expect(await (await container()).exists("New.md")).toBe(true);
+  }, 60_000);
 });

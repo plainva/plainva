@@ -5063,8 +5063,8 @@
     "areaBody": "Een fout heeft het gestopt. De rest van Plainva blijft werken, en de fout staat onder {{place}}.",
     "areaAgain": "Het mislukte opnieuw na het herladen. Blijft het mislukken, herstart Plainva dan; de fout staat onder {{place}}.",
     "areaReload": "Dit gedeelte opnieuw laden",
-    "structureNeedsIndex": "Dit kan nu niet: de zoekindex kon op dit apparaat niet worden geopend, dus de synchronisatie zou een verwijdering, hernoeming of verplaatsing niet naar je andere apparaten kunnen brengen. Start de app opnieuw om het opnieuw te proberen; je notities zelf zijn onaangeroerd.",
-    "indexClosedNotice": "De zoekindex kon op dit apparaat niet worden geopend. Je kunt notities lezen, schrijven en aanmaken; verwijderen, hernoemen en verplaatsen blijven uit tot hij opent. Start de app opnieuw om het opnieuw te proberen; je notities zijn onaangeroerd.",
+    "structureNeedsIndex": "Dit kan nu niet: de zoekindex kon op dit apparaat niet worden geopend, dus de synchronisatie zou een verwijdering, hernoeming, verplaatsing of nieuwe map niet naar je andere apparaten kunnen brengen. Start de app opnieuw om het opnieuw te proberen; je notities zelf zijn onaangeroerd.",
+    "indexClosedNotice": "De zoekindex kon op dit apparaat niet worden geopend. Je kunt notities lezen, schrijven en aanmaken; verwijderen, hernoemen, verplaatsen en nieuwe mappen blijven uit tot hij opent. Start de app opnieuw om het opnieuw te proberen; je notities zijn onaangeroerd.",
     "background": {
       "aiKeyNotRemoved": "De sleutel voor {{provider}} kon niet van dit apparaat worden verwijderd, dus {{provider}} blijft in de lijst: {{reason}}",
       "accountSignInKept": "Het account is verwijderd, maar de aanmelding ervan kon niet van dit apparaat worden gewist: {{reason}}",

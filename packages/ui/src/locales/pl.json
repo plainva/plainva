@@ -5277,8 +5277,8 @@
     "areaBody": "Zatrzymał go błąd. Reszta Plainva działa dalej, a błąd jest zapisany w {{place}}.",
     "areaAgain": "Po ponownym załadowaniu znów się nie udało. Jeśli tak zostanie, uruchom Plainva ponownie; błąd jest zapisany w {{place}}.",
     "areaReload": "Załaduj ten obszar ponownie",
-    "structureNeedsIndex": "Teraz nie można tego zrobić: nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu, więc synchronizacja nie mogłaby przekazać usunięcia, zmiany nazwy ani przeniesienia na inne urządzenia. Uruchom aplikację ponownie, aby spróbować jeszcze raz; same notatki pozostały nietknięte.",
-    "indexClosedNotice": "Nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu. Możesz czytać, pisać i tworzyć notatki; usuwanie, zmiana nazwy i przenoszenie są niedostępne, dopóki indeks się nie otworzy. Uruchom aplikację ponownie, aby spróbować jeszcze raz; notatki pozostały nietknięte.",
+    "structureNeedsIndex": "Teraz nie można tego zrobić: nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu, więc synchronizacja nie mogłaby przekazać usunięcia, zmiany nazwy, przeniesienia ani nowego folderu na inne urządzenia. Uruchom aplikację ponownie, aby spróbować jeszcze raz; same notatki pozostały nietknięte.",
+    "indexClosedNotice": "Nie udało się otworzyć indeksu wyszukiwania na tym urządzeniu. Możesz czytać, pisać i tworzyć notatki; usuwanie, zmiana nazwy, przenoszenie i tworzenie folderów są niedostępne, dopóki indeks się nie otworzy. Uruchom aplikację ponownie, aby spróbować jeszcze raz; notatki pozostały nietknięte.",
     "background": {
       "aiKeyNotRemoved": "Nie udało się usunąć klucza {{provider}} z tego urządzenia, więc {{provider}} pozostaje na liście: {{reason}}",
       "accountSignInKept": "Konto zostało usunięte, ale jego logowania nie udało się usunąć z tego urządzenia: {{reason}}",

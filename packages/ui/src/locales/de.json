@@ -5063,8 +5063,8 @@
     "areaBody": "Ein Fehler hat ihn angehalten. Der Rest von Plainva arbeitet weiter, und der Fehler steht unter {{place}}.",
     "areaAgain": "Auch nach dem Neuladen ging es nicht. Wenn es so bleibt, starte Plainva neu; der Fehler steht unter {{place}}.",
     "areaReload": "Diesen Bereich neu laden",
-    "structureNeedsIndex": "Das geht gerade nicht: Der Suchindex ließ sich auf diesem Gerät nicht öffnen, deshalb könnte die Synchronisation ein Löschen, Umbenennen oder Verschieben nicht an Deine anderen Geräte weitergeben. Starte die App neu, um es erneut zu versuchen; Deine Notizen selbst sind unberührt.",
-    "indexClosedNotice": "Der Suchindex ließ sich auf diesem Gerät nicht öffnen. Du kannst Notizen lesen, schreiben und anlegen; Löschen, Umbenennen und Verschieben bleiben aus, bis er sich öffnen lässt. Starte die App neu, um es erneut zu versuchen; Deine Notizen sind unberührt.",
+    "structureNeedsIndex": "Das geht gerade nicht: Der Suchindex ließ sich auf diesem Gerät nicht öffnen, deshalb könnte die Synchronisation ein Löschen, Umbenennen, Verschieben oder einen neuen Ordner nicht an Deine anderen Geräte weitergeben. Starte die App neu, um es erneut zu versuchen; Deine Notizen selbst sind unberührt.",
+    "indexClosedNotice": "Der Suchindex ließ sich auf diesem Gerät nicht öffnen. Du kannst Notizen lesen, schreiben und anlegen; Löschen, Umbenennen, Verschieben und neue Ordner bleiben aus, bis er sich öffnen lässt. Starte die App neu, um es erneut zu versuchen; Deine Notizen sind unberührt.",
     "background": {
       "aiKeyNotRemoved": "Der Schlüssel für {{provider}} ließ sich nicht von diesem Gerät entfernen, deshalb bleibt {{provider}} in der Liste: {{reason}}",
       "accountSignInKept": "Das Konto ist entfernt, aber seine Anmeldung ließ sich nicht von diesem Gerät löschen: {{reason}}",
