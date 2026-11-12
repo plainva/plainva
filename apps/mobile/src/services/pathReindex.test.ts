@@ -938,9 +938,9 @@ describe("the wiring: one door, and everything goes through it", () => {
     expect(service).toContain("turns: indexTurns,");
     expect(service).toContain("const announce = createAnnouncer(indexTurns, {");
     expect(service).toContain("whenIdle: async () => { await indexer?.whenIdle(); },");
-    expect(service).toContain("void announce(() => plain.queueWrite(path))");
+    expect(service).toContain("await announce(() => plain.queueWrite(path))");
     // A deletion that waited is asked whether the file is still gone.
-    expect(service).toContain("void announce(() => plain.queueDelete(path), stillGone(path))");
+    expect(service).toContain("await announce(() => plain.queueDelete(path), stillGone(path))");
     expect(service).toContain("const stillGone = (path: string) => () => adapter.exists(path).then((there) => !there);");
     // Nothing the index announces is queued past the announcer.
     expect(service).not.toMatch(/indexTurns\.take\(/);

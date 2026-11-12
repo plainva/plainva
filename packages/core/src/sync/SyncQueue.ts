@@ -137,6 +137,8 @@ export class SyncQueue {
           [path]
         );
       }
+      // Queued (or queued already): the index's mark that it was owed goes (R22).
+      for (const path of new Set(paths)) await tx.execute(`DELETE FROM index_removed WHERE path = ?`, [path]);
     });
   }
 
@@ -458,6 +460,25 @@ export class SyncQueue {
    * clears the paths' sync_state so the next full listing re-downloads the files
    * (the reconcile skips paths whose recorded remote_etag still matches).
    */
+  /**
+   * The held mass deletion's "restore": drops the selected DELETEs and the sync
+   * rows of their paths in ONE transaction (stability plan R22, review B1). They
+   * used to go in two steps, the sync rows one by one; an app that ended in
+   * between, or one statement that failed, left sync rows of files that are
+   * not on disk and not queued — for exactly the files the user had chosen to
+   * restore. Returns the paths.
+   */
+  async discardDeletesForRestore(ids: ReadonlySet<number>): Promise<string[]> {
+    return this.db.transaction(async (tx) => {
+      const rows = (await tx.query<SyncOperation>(`SELECT * FROM offline_queue WHERE operation = 'delete' ORDER BY id`))
+        .filter((op) => ids.has(op.id));
+      for (const row of rows) await tx.execute(`DELETE FROM offline_queue WHERE id = ? AND operation = 'delete'`, [row.id]);
+      const paths = [...new Set(rows.map((row) => row.file_path))];
+      for (const path of paths) await tx.execute(`DELETE FROM sync_state WHERE path = ?`, [path]);
+      return paths;
+    });
+  }
+
   async discardPendingDeletes(ids?: ReadonlySet<number>): Promise<string[]> {
     if (ids) {
       const rows = (await this.getPendingDeleteOperations()).filter((op) => ids.has(op.id));

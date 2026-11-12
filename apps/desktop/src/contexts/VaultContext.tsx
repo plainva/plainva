@@ -996,7 +996,8 @@ export const VaultProvider: React.FC<{
         const queued = workspaceStateStore
           ? workspaceStateStore.enqueue("write", changedPath)
           : syncQueue.queueWrite(changedPath);
-        queued
+        // Resolves once the entry is made: the sweep of what is owed asks right after (R22).
+        await queued
           .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
           .catch((e) => console.error("[VaultContext] failed to enqueue local change", e));
       };

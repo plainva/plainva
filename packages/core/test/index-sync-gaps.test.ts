@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { realSqlite } from "./helpers/realSqlite.js";
+import { beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
 import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
@@ -69,6 +69,8 @@ function handlers(over: Partial<OwedSweepHandlers> = {}) {
 }
 
 describe("1 — a deletion the index committed and the app ended before it was queued", () => {
+  const markOf = async (p: string) => (await db.query("SELECT path FROM index_removed WHERE path = ?", [p])).length;
+
   /** The pass removes the row; the host never hears of it: the app ended right after the commit. */
   async function lostDeletion(p: string) {
     await synced(p);
@@ -76,7 +78,7 @@ describe("1 — a deletion the index committed and the app ended before it was q
     await fs.rm(onDisk(p));
     await new VaultIndexer(vault, db, { onLocalFileDeleted: () => {} }).indexVaultFull("automatic refresh");
     expect(await db.query("SELECT path FROM files WHERE path = ?", [p]), "the scene: the row is gone").toEqual([]);
-    // The next start: a pass has nothing left to report, and the sweep of the plain sync queues no deletion.
+    // The next start: a pass has nothing left to report.
     const reported: string[] = [];
     await new VaultIndexer(vault, db, { onLocalFileDeleted: (gone) => void reported.push(gone) }).indexVaultFull("open");
     expect(reported).toEqual([]);
@@ -89,45 +91,127 @@ describe("1 — a deletion the index committed and the app ended before it was q
     expect(await db.query("SELECT path FROM sync_state WHERE path = 'Gone.md'"), "the remote copy is still owed its deletion").toHaveLength(1);
   });
 
-  it("is queued by the sweep of what is owed, once, and only for the file that went", async () => {
+  it("the index marks it in the transaction that removes the row; the sweep queues it once and the mark goes", async () => {
     await lostDeletion("Gone.md");
+    expect(await markOf("Gone.md")).toBe(1);
     const { h, removed } = handlers();
     expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 1, writes: 0 });
     expect(removed).toEqual(["Gone.md"]);
     expect(await queued()).toEqual(["delete Gone.md"]);
-    // Queued: the next sweep finds nothing owed.
+    expect(await markOf("Gone.md")).toBe(0);
     expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
     expect(await queued()).toEqual(["delete Gone.md"]);
   });
 
-  it("queues nothing for a file that is there without a row (an index still being read), nor while the vault's folder is away", async () => {
-    await synced("Known.md");
-    // Rows gone, files there: a rebuilt index the first scan has not reached.
-    await db.execute("DELETE FROM files");
-    const { h } = handlers();
+  it("a deletion the host did queue leaves no mark: queueing takes it off in its own transaction", async () => {
+    await synced("Gone.md");
+    await fs.rm(onDisk("Gone.md"));
+    const queue = new SyncQueue(db);
+    const later: Promise<void>[] = [];
+    await new VaultIndexer(vault, db, { onLocalFileDeleted: (p) => void later.push(queue.queueDelete(p)) }).indexVaultFull("automatic refresh");
+    await Promise.all(later);
+    expect(await markOf("Gone.md")).toBe(0);
+    expect(await queued()).toEqual(["delete Gone.md"]);
+  });
+
+  it("rests on the mark, not on absence: internal paths with sync rows the index never held are left alone (review M3)", async () => {
+    await synced("Note.md");
+    // Pulled from a remote whose listing skips none of them; never indexed; gone from disk.
+    for (const p of [".git/objects/ab/cdef", ".obsidian/plugins/old/main.js", ".vscode/settings.json", "._Note.md", "node_modules/x/index.js"]) {
+      await db.execute("INSERT OR REPLACE INTO sync_state (path, remote_etag) VALUES (?, 'e')", [p]);
+    }
+    await new VaultIndexer(vault, db).indexVaultFull("open");
+    const { h, removed } = handlers();
     expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
-    await fs.rm(onDisk("Known.md"));
-    expect(await sweepPlainOwed(db, { ...h, vaultIsThere: async () => false })).toEqual({ deletions: 0, writes: 0 });
-    // A folder that drops between the looks proves nothing either.
-    let asked = 0;
-    expect(await sweepPlainOwed(db, { ...h, vaultIsThere: async () => ++asked === 1 })).toEqual({ deletions: 0, writes: 0 });
-    // A look that fails proves nothing.
-    expect(await sweepPlainOwed(db, { ...h, stillGone: async () => { throw new Error("share dropped"); } })).toEqual({ deletions: 0, writes: 0 });
+    expect(removed).toEqual([]);
     expect(await queued()).toEqual([]);
   });
 
-  it("queues nothing for what is on its way already: a queued rename away from it, or the worker's own mirrored deletion", async () => {
-    await synced("Moved.md");
-    await synced("Mirrored.md");
-    await fs.rename(onDisk("Moved.md"), onDisk("Elsewhere.md"));
-    await new SyncQueue(db).queueRename("Moved.md", "Elsewhere.md");
-    // The worker mirrors a remote deletion: its sync row goes first, then the file.
-    await db.execute("DELETE FROM sync_state WHERE path = 'Mirrored.md'");
-    await fs.rm(onDisk("Mirrored.md"));
+  it("an interrupted restore of a held mass deletion leaves nothing owed, and the restore itself is one transaction (review B1)", async () => {
+    const held = Array.from({ length: 12 }, (_, i) => `Folder/n${i}.md`);
+    for (const p of held) await synced(p);
+    for (const p of held) await fs.rm(onDisk(p));
+    // The pass reports them, the host queues them: the guard holds the deletions.
+    const queue = new SyncQueue(db);
+    // One after the other, as the app's transactions take turns (this SQLite refuses a second one).
+    let later: Promise<void> = Promise.resolve();
+    await new VaultIndexer(vault, db, { onLocalFileDeleted: (p) => { later = later.then(() => queue.queueDelete(p)); } }).indexVaultFull("automatic refresh");
+    await later;
+    const ids = new Set((await queue.getPendingDeleteOperations()).map((op) => op.id));
+    expect(ids.size).toBe(12);
+    // "Restore": both go together, or neither does.
+    const restore = beforeEveryWrite(db, (sql, params) => {
+      if (/DELETE FROM sync_state/.test(sql) && params[0] === "Folder/n7.md") throw new Error("the app ended here");
+    });
+    await expect(queue.discardDeletesForRestore(ids)).rejects.toThrow("the app ended here");
+    restore();
+    expect(await queued()).toHaveLength(12);
+    expect(await db.query("SELECT path FROM sync_state WHERE path LIKE 'Folder/%'")).toHaveLength(12);
+    // The sync rows that a two-step restore left behind owe nothing: the marks went with the queueing.
+    await db.execute("DELETE FROM offline_queue");
+    for (const p of held.slice(0, 7)) await db.execute("DELETE FROM sync_state WHERE path = ?", [p]);
+    const { h, removed } = handlers();
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
+    expect(removed).toEqual([]);
+    // The restore that goes through takes both.
+    for (const p of held.slice(0, 2)) await queue.queueDelete(p);
+    const again = new Set((await queue.getPendingDeleteOperations()).map((op) => op.id));
+    expect(await queue.discardDeletesForRestore(again)).toEqual(held.slice(0, 2));
+    expect(await queued()).toEqual([]);
+  });
+
+  it("queues the same unconfirmed entries a report queues: the mass-deletion guard counts 30 owed like 30 reported", async () => {
+    const names = Array.from({ length: 30 }, (_, i) => `Bulk/n${i}.md`);
+    for (const p of names) await synced(p);
+    for (const p of names) await fs.rm(onDisk(p));
     await new VaultIndexer(vault, db, { onLocalFileDeleted: () => {} }).indexVaultFull("automatic refresh");
     const { h } = handlers();
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 30, writes: 0 });
+    const owed = await new SyncQueue(db).getPendingDeleteOperations();
+    // The guard holds unconfirmed deletions (SyncWorker, MASS_DELETE_MIN): these are unconfirmed, as reported ones are.
+    expect(owed).toHaveLength(30);
+    expect(owed.every((op) => op.delete_confirmed_at == null)).toBe(true);
+  });
+
+  it("drops marks that are settled: the worker's own mirrored deletion, a path indexed again, a file back, a queued rename", async () => {
+    for (const p of ["Mirrored.md", "Again.md", "Back.md", "Moved.md"]) await synced(p);
+    for (const p of ["Mirrored.md", "Again.md", "Back.md", "Moved.md"]) await fs.rm(onDisk(p));
+    await new VaultIndexer(vault, db, { onLocalFileDeleted: () => {} }).indexVaultFull("automatic refresh");
+    // The worker mirrored a remote deletion: its sync row went first (review m5).
+    await db.execute("DELETE FROM sync_state WHERE path = 'Mirrored.md'");
+    // Written again and indexed; back on disk without a row; renamed away in the queue.
+    await vault.writeTextFile("Again.md", "# again\n");
+    await new VaultIndexer(vault, db).indexFile(await vault.getFileInfo("Again.md"));
+    await fs.writeFile(onDisk("Back.md"), "# back\n", "utf8");
+    await db.execute("INSERT INTO offline_queue (file_path, operation, new_path, queued_at) VALUES ('Moved.md', 'rename', 'Elsewhere.md', 1)");
+    const { h, removed } = handlers();
     expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
-    expect(await queued()).toEqual(["rename Moved.md -> Elsewhere.md"]);
+    expect(removed).toEqual([]);
+    expect(await db.query("SELECT path FROM index_removed")).toEqual([]);
+  });
+
+  it("decides nothing while the vault's folder is away, or a look fails: the marks wait", async () => {
+    await lostDeletion("Gone.md");
+    const { h } = handlers();
+    expect(await sweepPlainOwed(db, { ...h, vaultIsThere: async () => false })).toEqual({ deletions: 0, writes: 0 });
+    let asked = 0;
+    expect(await sweepPlainOwed(db, { ...h, vaultIsThere: async () => ++asked === 1 })).toEqual({ deletions: 0, writes: 0 });
+    expect(await markOf("Gone.md")).toBe(1);
+    // A handler that fails keeps the mark for the next start.
+    expect(await sweepPlainOwed(db, { ...h, remove: async () => { throw new Error("database is locked"); } })).toEqual({ deletions: 0, writes: 0 });
+    expect(await markOf("Gone.md")).toBe(1);
+    expect(await queued()).toEqual([]);
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 1, writes: 0 });
+  });
+
+  it("an older build's removal carries no mark and stays inert, as it always was", async () => {
+    await synced("Old.md");
+    await fs.rm(onDisk("Old.md"));
+    // v0.8.7 removes the row and writes no mark.
+    await db.execute("DELETE FROM files WHERE path = 'Old.md'");
+    const { h, removed } = handlers();
+    expect(await sweepPlainOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
+    expect(removed).toEqual([]);
   });
 });
 
@@ -186,7 +270,7 @@ describe("3 — the encrypted workspace's queue and the index's local_ahead", ()
     expect(await markOf(p), "the scene: the index marked the change").toBe("local_ahead");
   }
 
-  it("a committed entry takes the mark off its path — it never did — and a discarded one too", async () => {
+  it("a committed entry takes the mark off its path where it committed the row's content — it never did — and a discarded one too", async () => {
     const state = new SqlWorkspaceStateStore(db);
     await vault.writeTextFile("a.md", "# a\n");
     await vault.writeTextFile("b.md", "# b\n");
@@ -203,6 +287,24 @@ describe("3 — the encrypted workspace's queue and the index's local_ahead", ()
     expect(await markOf("b.md")).toBe("synced");
   });
 
+  it("a commit of older content leaves the mark of a newer change the index wrote meanwhile (review m1)", async () => {
+    const state = new SqlWorkspaceStateStore(db);
+    await vault.writeTextFile("a.md", "# S1\n");
+    await new VaultIndexer(vault, db).indexVaultFull("open");
+    const s1 = await sha("a.md");
+    const entry = await state.enqueue("write", "a.md");
+    // While S1 uploads, another program writes S2 and the index marks it; the app ends before its entry.
+    await fs.writeFile(onDisk("a.md"), "# S2\n", "utf8");
+    await fs.utimes(onDisk("a.md"), new Date(), new Date(Date.now() + 5000));
+    await new VaultIndexer(vault, db, { onExternalModification: () => {} }).indexVaultFull("automatic refresh");
+    await commit(state, entry, "a.md", s1);
+    expect(await markOf("a.md")).toBe("local_ahead");
+    const queuedNow: string[] = [];
+    const { h } = handlers({ write: async (p) => { queuedNow.push(p); await state.enqueue("write", p); } });
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 0, writes: 1 });
+    expect(queuedNow).toEqual(["a.md"]);
+  });
+
   it("a change the index marked and an ended app never queued is queued by the sweep — before R22, nothing ever did", async () => {
     const state = new SqlWorkspaceStateStore(db);
     await lostChange(state, "Note.md");
@@ -215,23 +317,37 @@ describe("3 — the encrypted workspace's queue and the index's local_ahead", ()
     expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
   });
 
-  it("a mark on content that is the object's already goes without an entry; a deletion owed to the workspace is queued", async () => {
+  it("a change the workspace's policy refuses is offered once: no second fork at the next start (review M2)", async () => {
     const state = new SqlWorkspaceStateStore(db);
-    await vault.writeTextFile("Up.md", "# up\n");
-    await vault.writeTextFile("Gone.md", "# gone\n");
+    await lostChange(state, "Theirs.md");
+    // The permission check refuses, keeps a fork and queues nothing.
+    const forks: string[] = [];
+    const { h } = handlers({ write: async (p) => { forks.push(p); }, remove: async (p) => { forks.push(`delete ${p}`); } });
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
+    expect(forks).toEqual(["Theirs.md"]);
+    expect(await markOf("Theirs.md")).toBe("synced");
+  });
+
+  it("a deletion owed to the workspace is queued once, by its mark; a refused one is not offered again; a mark on content that is up goes", async () => {
+    const state = new SqlWorkspaceStateStore(db);
+    for (const p of ["Up.md", "Gone.md", "Refused.md"]) await vault.writeTextFile(p, `# ${p}\n`);
     await new VaultIndexer(vault, db).indexVaultFull("open");
-    await commit(state, await state.enqueue("write", "Up.md"), "Up.md", await sha("Up.md"));
-    await commit(state, await state.enqueue("write", "Gone.md"), "Gone.md", await sha("Gone.md"));
+    for (const p of ["Up.md", "Gone.md", "Refused.md"]) await commit(state, await state.enqueue("write", p), p, await sha(p));
     // An index older than R22 left the mark on a change that went up.
     await db.execute("UPDATE files SET sync_state = 'local_ahead' WHERE path = 'Up.md'");
-    await fs.rm(onDisk("Gone.md"));
+    for (const p of ["Gone.md", "Refused.md"]) await fs.rm(onDisk(p));
     await new VaultIndexer(vault, db, { onLocalFileDeleted: () => {} }).indexVaultFull("automatic refresh");
-    const removed: string[] = [];
-    const { h, written } = handlers({ remove: async (p) => { removed.push(p); await state.enqueue("delete", p); } });
-    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 1, writes: 0 });
+    const asked: string[] = [];
+    const { h, written } = handlers({
+      remove: async (p) => { asked.push(p); if (p === "Gone.md") await state.enqueue("delete", p); },
+    });
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 2, writes: 0 });
     expect(written).toEqual([]);
-    expect(removed).toEqual(["Gone.md"]);
+    expect(asked).toEqual(["Gone.md", "Refused.md"]);
     expect(await markOf("Up.md")).toBe("synced");
     expect((await state.listQueue()).map((e) => `${e.operation} ${e.path}`)).toEqual(["delete Gone.md"]);
+    expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 0, writes: 0 });
+    expect(asked).toEqual(["Gone.md", "Refused.md"]);
   });
 });

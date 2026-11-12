@@ -959,11 +959,9 @@ export class SyncWorker {
    * files come back immediately instead of at the next periodic full pass.
    */
   public async discardMassDeletion(): Promise<number> {
-    const paths = await this.queue.discardPendingDeletes(new Set(this.massDeletionPromptIds));
+    // The entries and their sync rows in one transaction (R22, review B1).
+    const paths = await this.queue.discardDeletesForRestore(new Set(this.massDeletionPromptIds));
     this.massDeletionPromptIds = [];
-    for (const p of paths) {
-      await this.stateRepo.deleteSyncState(p);
-    }
     this.massDeletionSignaled = false;
     this.cursor = undefined; // full listing next cycle -> immediate restore
     if (paths.length > 0) this.triggerImmediate();

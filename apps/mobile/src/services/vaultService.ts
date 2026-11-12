@@ -799,18 +799,20 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const queueLocalDeletion = async (path: string): Promise<void> => {
     if (!syncEnqueueEnabled || isInternal(path)) return;
     const plain = queue;
+    // Resolves once the entry is made (or given up): the sweep of what is owed asks right after.
     if (permissioned) {
       const allowed = await permissioned.authorizeExternalChange(path, false).catch(() => false);
-      if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path));
-    } else if (plain) void announce(() => plain.queueDelete(path), stillGone(path));
+      if (allowed) await announce(() => workspaceState!.enqueue("delete", path), stillGone(path));
+    } else if (plain) await announce(() => plain.queueDelete(path), stillGone(path));
   };
 
   const enqueueLocal = async (path: string) => {
     if (!syncEnqueueEnabled || isInternal(path)) return;
     if (permissioned && !await permissioned.authorizeExternalChange(path, true)) return;
     const sealed = workspaceState, plain = queue;
-    if (sealed) void announce(() => sealed.enqueue("write", path));
-    else if (plain) void announce(() => plain.queueWrite(path));
+    // Resolves once the entry is made (or given up): the sweep of what is owed asks right after.
+    if (sealed) await announce(() => sealed.enqueue("write", path));
+    else if (plain) await announce(() => plain.queueWrite(path));
   };
 
   let files: IVaultAdapter;

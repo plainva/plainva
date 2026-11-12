@@ -126,7 +126,8 @@ describe("SyncWorker", () => {
         id: i + 1, file_path, operation: "delete", queued_at: 1, retry_count: 0, next_retry_at: 0, delete_confirmed_at: null,
       }))),
       markDeletesJournaled: vi.fn().mockResolvedValue(undefined),
-      discardPendingDeletes: vi.fn().mockResolvedValue([])
+      discardPendingDeletes: vi.fn().mockResolvedValue([]),
+      discardDeletesForRestore: vi.fn().mockResolvedValue([])
     };
 
     addConflictFixture(stateRepo, vault);
@@ -1914,7 +1915,8 @@ describe("SyncWorker", () => {
     });
 
     it("discardMassDeletion drops the deletes, clears their sync_state and forces a full listing", async () => {
-      queue.discardPendingDeletes.mockResolvedValue(["a.md", "b.md"]);
+      queue.discardDeletesForRestore.mockResolvedValue(["a.md", "b.md"]);
+      worker["massDeletionPromptIds"] = [4, 5];
       worker["cursor"] = "c0";
       worker["isRunning"] = false; // triggerImmediate is a no-op in the unit test
 
@@ -1923,9 +1925,11 @@ describe("SyncWorker", () => {
       expect(discarded).toBe(2);
       // Clearing sync_state is what makes the restore work: the reconcile skips
       // paths whose recorded remote_etag still matches, so a stale row would
-      // block the re-download forever.
-      expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("a.md");
-      expect(stateRepo.deleteSyncState).toHaveBeenCalledWith("b.md");
+      // block the re-download forever. The queue drops the entries and the
+      // sync rows in ONE transaction (R22, review B1: one by one, an ended
+      // app left sync rows of files nobody had queued).
+      expect(queue.discardDeletesForRestore).toHaveBeenCalledWith(new Set([4, 5]));
+      expect(stateRepo.deleteSyncState).not.toHaveBeenCalled();
       expect(worker["cursor"]).toBeUndefined(); // next cycle full-lists -> immediate restore
     });
   });

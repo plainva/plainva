@@ -86,6 +86,23 @@ export interface IDatabaseAdapter extends SqlStatements {
    *
    * Both shells' transactions are real (the desktop's since stability plan
    * R1, on a connection Rust holds for it): a body that fails wrote nothing.
+   *
+   * What a read sent to the adapter itself — outside any body — sees while
+   * another flow's transaction is open differs between the shells (review
+   * m4): the desktop reads what is committed (its own connection, WAL), the
+   * phone's single connection also what that transaction wrote so far. A
+   * caller may rely on neither: only on what is committed, read once the
+   * transaction that writes it is through, and on its own body's handle,
+   * which sees what the body wrote.
+   *
+   * A body should read no files and wait for nothing but its statements
+   * (review M1): every other writer waits for it, and on the desktop a
+   * transaction that sends nothing for two minutes is rolled back under it.
+   * Read first, then open the transaction, and let the body decide whether
+   * the reading is still the one to write (`VaultIndexer.indexOne`,
+   * `claimWrite`). The single-path routes of the index do; the full scan
+   * still reads inside its short transactions until its read-ahead moves the
+   * reads in front of them.
    */
   transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T>;
 }
