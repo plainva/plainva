@@ -32,7 +32,7 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   stat: async () => ({ mtime: new Date() }),
 }));
 
-import { clearDraft, draftJournalFile, legacyPathHash, readDraft, recordDraft, releaseLeftoverDrafts, relocateDrafts, relocatedPath, takeLeftoverDrafts } from "./draftJournal";
+import { clearDraft, draftJournalFile, flushDrafts, flushDraftsOnLeave, legacyPathHash, readDraft, recordDraft, releaseLeftoverDrafts, relocateDrafts, relocatedPath, takeLeftoverDrafts, writeDraft } from "./draftJournal";
 
 const VAULT = "C:/vaults/main";
 const NOTE = "Notes/A.md";
@@ -357,5 +357,40 @@ describe("a journal file per note and vault, without collisions (open-items plan
     await clearDraft(VAULT, B, 5, "old-b");
     expect(await readDraft(VAULT, B)).toBeNull();
     expect(await readDraft(VAULT, A)).toMatchObject({ text: "A from the old journal" });
+  });
+});
+
+describe("the way out: what is buffered goes to disk (review 2026-11-12)", () => {
+  beforeEach(() => files.clear());
+  const fileOf = (note: string) => `APPDATA/drafts/${draftJournalFile(VAULT, note)}`;
+  const textOf = (note: string) => (files.has(fileOf(note)) ? JSON.parse(files.get(fileOf(note))!).entries.map((e: { text: string }) => e.text) : []);
+
+  it("flushDrafts writes a snapshot still waiting for its interval, at once", async () => {
+    writeDraft(VAULT, "Big.md", "first", 1, "e");
+    await new Promise((done) => setTimeout(done, 20));
+    writeDraft(VAULT, "Big.md", "buffered", 2, "e");
+    expect(textOf("Big.md")).toEqual(["first"]);
+    await flushDrafts(VAULT);
+    expect(textOf("Big.md")).toEqual(["buffered"]);
+  });
+
+  it("the page going away or going hidden starts the flush", async () => {
+    const page = new EventTarget();
+    const doc = Object.assign(new EventTarget(), { visibilityState: "visible" });
+    const off = flushDraftsOnLeave(page, doc);
+    writeDraft(VAULT, "Leave.md", "first", 1, "e");
+    await new Promise((done) => setTimeout(done, 20));
+    writeDraft(VAULT, "Leave.md", "typed before the window went", 2, "e");
+    page.dispatchEvent(new Event("pagehide"));
+    await new Promise((done) => setTimeout(done, 20));
+    expect(textOf("Leave.md")).toEqual(["typed before the window went"]);
+    writeDraft(VAULT, "Hide.md", "first", 1, "e");
+    await new Promise((done) => setTimeout(done, 20));
+    writeDraft(VAULT, "Hide.md", "typed before it was hidden", 2, "e");
+    doc.visibilityState = "hidden";
+    doc.dispatchEvent(new Event("visibilitychange"));
+    await new Promise((done) => setTimeout(done, 20));
+    expect(textOf("Hide.md")).toEqual(["typed before it was hidden"]);
+    off();
   });
 });

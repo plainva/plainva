@@ -1,7 +1,7 @@
 import { SyncEngine } from "./SyncEngine.js";
 import { ISyncTarget, type ListingMetrics, type PullResult, type RemotePresence } from "./ISyncTarget.js";
 import type { OwnDeletionRegister } from "./ownDeletions.js";
-import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
+import type { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";

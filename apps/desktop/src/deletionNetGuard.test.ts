@@ -153,13 +153,13 @@ describe("every deletion goes through its net (D1)", () => {
     expect(factory).toMatch(/new StructureRefusingVaultAdapter\(versions\)/);
     expect(factory).toMatch(/new ConflictAwareVaultAdapter\(refusing \?\? versions,/);
     const desktop = asking("apps/desktop/src/contexts/VaultContext.tsx");
-    expect(desktop).toMatch(/buildVaultChain\(\{\s*storage: tauriVaultAdapter,/);
+    expect(desktop).toMatch(/buildVaultChain\(desktopChainPorts\(\{\s*vaultPath: path,\s*storage: tauriVaultAdapter,/);
     expect(desktop).toMatch(/const backupVaultAdapter = chain\.belowChain;/);
     expect(desktop).toMatch(/new SyncWorker\(engine, target, syncRepo, backupVaultAdapter,/);
     expect(desktop).not.toMatch(/tauriVaultAdapter\.deleteItem/);
 
     const phone = asking("apps/mobile/src/services/vaultService.ts");
-    expect((phone.match(/buildVaultChain\(\{\s*storage: adapter,/g) ?? []).length).toBe(2);
+    expect((phone.match(/buildVaultChain\(mobileChainPorts\(\{\s*storage: adapter,/g) ?? []).length).toBe(2);
     expect((phone.match(/backup = chain\.belowChain;/g) ?? []).length).toBe(2);
     expect(phone).toMatch(/^\s*belowChain: BackupVaultAdapter;$/m);
     expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new SyncWorker\(engine, target, v\.syncRepo!, v\.belowChain,/);

@@ -812,12 +812,12 @@ it("boot hands its chain the reporter, as the desktop's vault context does: an e
   const built = all(serviceFile, ts.isCallExpression)
     .filter((node) => node.expression.getText(serviceFile) === "buildVaultChain")
     .map((node) => node.getText(serviceFile));
-  // With the index database, and without it (no queue there).
+  // With the index database, and without it (no queue there) — both with the phone's ports (`mobileChainPorts`),
+  // which carry the reporter.
   expect(built).toHaveLength(2);
   expect(built.filter((call) => /index: \{ db, queue \}/.test(call))).toHaveLength(1);
-  for (const call of built.filter((text) => /index: \{ db, queue \}/.test(text))) {
-    expect(call).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
-  }
+  for (const call of built) expect(call).toMatch(/^buildVaultChain\(mobileChainPorts\(/);
+  expect(readFileSync(resolve("src/services/mobileChainPorts.ts"), "utf8")).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
 });
 
 /**
