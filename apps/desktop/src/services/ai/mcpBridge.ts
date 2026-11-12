@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { WRITE_REFUSALS, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient, type ToolOutcome } from "@plainva/core";
+import { WRITE_REFUSALS, contentPathRefusal, isInternalSegment, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient, type ToolOutcome } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { aiVaultKey, mcpSkillPrompts, type AiSession, type AiVaultHost, type PlanQuestion, type WriteRun } from "@plainva/ui";
 import { samePlan, type McpPlanQuestion, type McpPlans } from "./mcpPlans";
@@ -18,6 +18,29 @@ import { samePlan, type McpPlanQuestion, type McpPlans } from "./mcpPlans";
  * a draft, or a plan the user confirms in this window — and each is signed
  * with the client's own id.
  */
+
+/**
+ * Whether the MCP server's wall judges a vault path AS IT STANDS — the rule of `exact_rel_path` in
+ * `src-tauri/src/mcp/paths.rs`: no white space a trim removes at either end, no leading `./`, NFC, at most 1024 UTF-16
+ * units, no backslash, colon, NUL or leading `/`, no empty, `.` or `..` segment, no segment that ends in a dot or a
+ * space or starts with a dot, no control character, none of the app's internal folders. A folder that fails it cannot
+ * be granted, and a note that fails it is left out of what an app sees. Pinned against the native rule on the shared
+ * list (`mcpPathSpelling.fixture.json`).
+ */
+export function mcpNameAccepted(path: string): boolean {
+  if (!path || path !== path.trim() || path.startsWith("./") || path.length > 1024) return false;
+  if (path.normalize("NFC") !== path) return false;
+  if (path.startsWith("/") || path.includes("\0") || path.includes("\\") || path.includes(":")) return false;
+  for (const part of path.split("/")) {
+    if (!part || part === "." || part === ".." || part.endsWith(".") || part.endsWith(" ") || part.startsWith(".")) return false;
+    if (/\p{Cc}/u.test(part)) return false;
+  }
+  return contentPathRefusal(path) !== "internal";
+}
+
+/** What an answer adds when notes were left out because their names cannot be judged as they stand. */
+export const MCP_LEFT_OUT = (count: number) =>
+  `${count === 1 ? "One note was" : `${count} notes were`} left out: an app cannot be given a name that ends in a space or a dot, holds a colon, or is not in composed Unicode form.`;
 
 /** The tools as the native side serves them: the core manifests of the "mcp" surface. */
 export function mcpToolSpecs() {
@@ -184,13 +207,26 @@ export async function runMcpCall(host: AiVaultHost | null, request: McpCallReque
   // from conversations with the internet, does not exist for it. What the program does with what it reads is not Plainva's to see.
   const recipient: EgressRecipient = { kind: "cloud", provider: `mcp:${request.client}`, model: request.client };
   const paths = new Set<string>();
-  const scope = { inside: (path: string) => insideFolders(path, request.folders), passed: (path: string) => void paths.add(path) };
+  // A note whose name the native wall could not judge as it stands is left out of what the app sees, and counted:
+  // only one inside the app's folders, so the count says nothing about the rest of the vault (review of R19).
+  const leftOut = new Set<string>();
+  const scope = {
+    inside: (path: string) => {
+      if (!insideFolders(path, request.folders)) return false;
+      if (mcpNameAccepted(path)) return true;
+      leftOut.add(path);
+      return false;
+    },
+    passed: (path: string) => void paths.add(path),
+  };
   const execute = async (run?: WriteRun): Promise<ToolOutcome | null> => {
     const tools = host.tools(recipient, scope, undefined, true, undefined, undefined, run);
     return tools ? tools.executor.execute(tool, parsed.value, { type: "tool_call", id: request.requestId, name: tool.name, args: parsed.value }) : null;
   };
   const answered = (outcome: ToolOutcome | null): McpCallAnswer =>
-    outcome ? { content: outcome.content, isError: Boolean(outcome.isError), paths: [...paths], ...(outcome.declined ? { declined: true } : {}) } : failed("This vault offers no tools.");
+    outcome
+      ? { content: leftOut.size && !outcome.isError ? `${outcome.content}\n\n${MCP_LEFT_OUT(leftOut.size)}` : outcome.content, isError: Boolean(outcome.isError), paths: [...paths], ...(outcome.declined ? { declined: true } : {}) }
+      : failed("This vault offers no tools.");
   try {
     if (kind === "read" || !writing) return answered(await execute());
     // Signed with the app's id and the name the user paired it under — said with what it is, so that a card
@@ -318,12 +354,16 @@ export function vaultName(path: string): string {
   return trimmed.slice(Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\")) + 1);
 }
 
-/** Tells the native side what to serve: on or off, the open vault, the tools. */
-export function configureMcp(enabled: boolean, vault: { path: string; name: string } | null): Promise<void> {
+/**
+ * Tells the native side what to serve: on or off, the open vault, the tools. In an encrypted workspace (`sealed`),
+ * which takes no suggestion, draft or plan of anyone outside it yet (E32), only the tools that read: a tool that
+ * would be refused at every call is not offered at all, as the assistant offers none there (`writeTools.ts`).
+ */
+export function configureMcp(enabled: boolean, vault: { path: string; name: string } | null, options: { sealed?: boolean } = {}): Promise<void> {
   return invoke("mcp_configure", {
     enabled,
     vault: vault ? { key: aiVaultKey(vault.path), name: vault.name, root: vault.path } : null,
-    tools: mcpToolSpecs(),
+    tools: mcpToolSpecs().filter((spec) => !options.sealed || spec.kind === "read"),
     // The core skills as prompts (plan P1.5), in the app's language.
     prompts: mcpSkillPrompts((key, vars) => i18n.t(key, vars)),
   });
@@ -381,7 +421,10 @@ export function topLevelFolders(all: readonly string[]): string[] {
   const top = new Set<string>();
   for (const folder of all) {
     const first = folder.replace(/^\/+/, "").split("/")[0];
-    if (first && !first.startsWith(".")) top.add(first);
+    // Plainva's own and the tools' folders (`node_modules`, `$RECYCLE.BIN`, …) are no folder an app can be given:
+    // the native side refuses such a grant (review of R19).
+    // Nor one the native side could not keep as it is named (` Notes`, `Notes.`, a colon): it would refuse the grant.
+    if (first && !first.startsWith(".") && !isInternalSegment(first) && mcpNameAccepted(first)) top.add(first);
   }
   return [...top].sort((a, b) => a.localeCompare(b));
 }

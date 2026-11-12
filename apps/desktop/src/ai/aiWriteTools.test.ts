@@ -1158,6 +1158,12 @@ describe("the name of a note, and where it would go", () => {
     for (const bad of ["", "   ", "a/b", "a\\b", "a:b", 'say "x"', "what?", ".hidden", "ends.", "..", "x".repeat(201), `bell${String.fromCharCode(7)}`]) expect(noteNameOf(bad), JSON.stringify(bad)).toBeNull();
   });
 
+  it("takes no name Windows reads as a device or a short name (review of R19)", () => {
+    for (const bad of ["aux", "NUL", "com1", "CON.md", "Draft~1", "NOTES~12"]) expect(noteNameOf(bad), bad).toBeNull();
+    // A note file is `<name>.md`, which no internal folder is called: `node_modules.md` is the user's.
+    for (const good of ["Auxiliary", "COM10", "Draft~", "LongerName~1", "Nulls", "node_modules", "Thumbs.db"]) expect(noteNameOf(good), good).toBe(good);
+  });
+
   it("plans a rename without doing it — a change of letter case is the same file, not another note's", async () => {
     const none = { getBacklinks: async () => [] as never };
     const all = async () => true;
