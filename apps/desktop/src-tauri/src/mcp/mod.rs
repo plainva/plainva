@@ -1384,7 +1384,7 @@ mod tests {
         let no_link = !cfg!(unix);
         assert_eq!(verdicts, vec![true, true, false, false, no_link, false, true]);
         // Once the call is answered, nothing of it can be asked any more.
-        assert!(app.state::<McpState>().lock().judging.get(&id).is_none());
+        assert!(!app.state::<McpState>().lock().judging.contains_key(&id));
         assert!(app.state::<McpState>().lock().judging.is_empty());
     }
 

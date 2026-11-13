@@ -743,17 +743,25 @@ pub(crate) mod tests {
     }
 
     /// The real place of a path is judged as the disk spells it: a folder ` Notes` is not `Notes` because a trim
-    /// would make it so.
+    /// would make it so — not even for a client given the whole vault, which no folder's real place limits (review of
+    /// R19, wave 2: with `Notes` granted, the disk's decision alone refused the link, and the test held without the
+    /// rule it is named for).
     #[cfg(unix)]
     #[test]
     fn a_real_folder_whose_name_a_trim_would_change_is_no_granted_one() {
         let vault = shaped_vault();
         std::fs::create_dir_all(vault.path().join(" Notes")).unwrap();
         std::fs::create_dir_all(vault.path().join("Notes")).unwrap();
+        std::fs::create_dir_all(vault.path().join("Plain")).unwrap();
         link_dir(&vault.path().join(" Notes"), &vault.path().join("Notes").join("side"));
+        link_dir(&vault.path().join("Plain"), &vault.path().join("Notes").join("plain"));
         let granted = folders(&["Notes"]);
         assert!(real(vault.path(), "Notes/new.md", &granted));
         assert!(!real(vault.path(), "Notes/side/new.md", &granted), "the link leads into ` Notes`");
+        let all = folders(&[""]);
+        assert!(!real(vault.path(), "Notes/side/new.md", &all), "` Notes` is not a place to be named, whole vault or not");
+        assert!(!real_inside_answer(vault.path(), "Notes/side/new.md", &all));
+        assert!(real(vault.path(), "Notes/plain/new.md", &all), "a link to a folder named as it stands leads where it says");
     }
 
     /// After a confirmed deletion, rename or move, the answer names a note that is gone: a name of unusual shape the
@@ -934,7 +942,7 @@ pub(crate) mod tests {
         let granted = folders(&["Projects"]);
         for rel in ["Projects/private/aux.md", "Projects/private/Draft~1/x.md", "Projects/private/com1.txt"] {
             assert_eq!(real_inside(vault.path(), rel, &granted), Inside::Outside, "{rel}");
-            assert_eq!(real_inside_answer(vault.path(), rel, &granted), false, "{rel}");
+            assert!(!real_inside_answer(vault.path(), rel, &granted), "{rel}");
         }
         // Inside the folders the shape is still the reason a client hears.
         assert_eq!(real_inside(vault.path(), "Projects/aux.md", &granted), Inside::Shape);
