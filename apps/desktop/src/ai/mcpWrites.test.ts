@@ -18,7 +18,11 @@ import {
 import i18n from "@plainva/ui/i18n";
 import { memoryFiles } from "./mcpTestHost";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+// The native wall's verdict on the paths of an answer (`mcp_judge_paths`): this vault holds no folder link, so the disk
+// says what the name says, and the web view's own first look has decided that already.
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(async (command: string, args: { paths?: string[] }) => (command === "mcp_judge_paths" ? (args.paths ?? []).map(() => true) : undefined)),
+}));
 
 const { MCP_NOT_WAITING, MCP_OPEN_PROPOSALS_MAX, MCP_PLAN_CHANGED, MCP_TOO_MANY_WAITING, mcpToolSpecs, quietLeft, runMcpCall } = await import("../services/ai/mcpBridge");
 const { MCP_PLAN_TTL_MS, McpPlans, samePlan } = await import("../services/ai/mcpPlans");

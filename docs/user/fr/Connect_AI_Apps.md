@@ -1,6 +1,6 @@
 # Connecter des apps d'IA (bêta)
 
-Dernière mise à jour : 2026-11-06
+Dernière mise à jour : 2026-11-13
 
 Les apps d'IA de votre ordinateur — Claude Code, Claude Desktop, Cursor, VS Code et d'autres qui parlent le Model Context Protocol (MCP) — peuvent lire votre vault à travers Plainva : y chercher, lire des notes et leurs sections, des plans, des backlinks, des bases de données, des tâches et les notes récentes, et ouvrir une note dans Plainva. D'elles-mêmes, elles ne modifient rien : une app que vous y autorisez peut proposer des modifications, et celles-ci attendent votre décision (voir plus bas). Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
 
@@ -28,7 +28,7 @@ L'app garde un secret dans le trousseau du système pour la prochaine fois. Les 
 
 ## Ce qu'une app voit
 
-Uniquement les dossiers que vous avez autorisés, et uniquement ce que vos règles de confidentialité laissent partir vers un modèle cloud qui peut accéder à Internet — une app est traitée comme tel, car Plainva ne voit pas ce qu'elle fait de ce qu'elle lit : les notes avec `cloud: deny` ou `web: deny`, ou dans un dossier avec l'une de ces règles, n'existent pas pour une app — ni leur texte ni leurs titres —, les liens vers elles sont retenus, et les lieux du journal ne partent jamais. Les dossiers propres à Plainva (`.plainva`, `.agent`) et les règles elles-mêmes ne sont jamais lisibles. Chaque chemin d'une requête et d'une réponse est vérifié deux fois : dans la fenêtre de l'app et dans la partie native de Plainva.
+Uniquement les dossiers que vous avez autorisés, et uniquement ce que vos règles de confidentialité laissent partir vers un modèle cloud qui peut accéder à Internet — une app est traitée comme tel, car Plainva ne voit pas ce qu'elle fait de ce qu'elle lit : les notes avec `cloud: deny` ou `web: deny`, ou dans un dossier avec l'une de ces règles, n'existent pas pour une app — ni leur texte ni leurs titres —, les liens vers elles sont retenus, et les lieux du journal ne partent jamais. Les dossiers propres à Plainva (`.plainva`, `.agent`) et les règles elles-mêmes ne sont jamais lisibles. Chaque chemin d'une requête et d'une réponse est vérifié deux fois : dans la fenêtre de l'app et dans la partie native de Plainva. Un lien de dossier qui, dans un dossier autorisé, mène ailleurs n'est pas suivi, et une base de données ne répond qu'avec des valeurs calculées à partir de notes que l'app peut lire : un nombre ou une somme sur des liens vers d'autres dossiers laisse ces notes de côté.
 
 Les paramètres listent les apps autorisées avec leurs dossiers et les dernières requêtes. **Retirer** reprend l'autorisation d'une app dans tous les vaults. Cela vaut aussitôt — y compris pour une app connectée à ce moment-là.
 

@@ -1,6 +1,6 @@
 # Łączenie aplikacji AI (beta)
 
-Stan na: 2026-11-06
+Stan na: 2026-11-13
 
 Aplikacje AI na Twoim komputerze — Claude Code, Claude Desktop, Cursor, VS Code i inne, które mówią protokołem Model Context Protocol (MCP) — mogą czytać Twój vault przez Plainva: przeszukiwać go, czytać notatki i ich sekcje, konspekty, linki zwrotne, bazy danych, zadania i ostatnie notatki oraz otwierać notatkę w Plainva. Same niczego nie zmieniają: aplikacja, której na to pozwolisz, może proponować zmiany, a te czekają, aż zdecydujesz (zob. niżej). To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -28,7 +28,7 @@ Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery pr
 
 ## Co widzi aplikacja
 
-Tylko foldery, na które zezwolono, i tylko to, co Twoje zasady prywatności puszczają do modelu w chmurze, który może sięgać do internetu — aplikacja jest traktowana jak taki model, bo Plainva nie widzi, co robi z tym, co przeczyta: notatki z `cloud: deny` albo `web: deny`, albo w folderze z jedną z tych reguł, dla aplikacji nie istnieją — ani ich tekst, ani tytuły —, linki do nich są zatrzymywane, a miejsca z dziennika nigdy nie wychodzą. Własne foldery Plainva (`.plainva`, `.agent`) i same reguły nigdy nie są czytelne. Każda ścieżka w zapytaniu i w odpowiedzi jest sprawdzana dwa razy: w oknie aplikacji i w natywnej części Plainva.
+Tylko foldery, na które zezwolono, i tylko to, co Twoje zasady prywatności puszczają do modelu w chmurze, który może sięgać do internetu — aplikacja jest traktowana jak taki model, bo Plainva nie widzi, co robi z tym, co przeczyta: notatki z `cloud: deny` albo `web: deny`, albo w folderze z jedną z tych reguł, dla aplikacji nie istnieją — ani ich tekst, ani tytuły —, linki do nich są zatrzymywane, a miejsca z dziennika nigdy nie wychodzą. Własne foldery Plainva (`.plainva`, `.agent`) i same reguły nigdy nie są czytelne. Każda ścieżka w zapytaniu i w odpowiedzi jest sprawdzana dwa razy: w oknie aplikacji i w natywnej części Plainva. Link do folderu w dozwolonym folderze, który prowadzi gdzie indziej, nie jest śledzony, a baza danych odpowiada tylko wartościami obliczonymi z notatek, które aplikacja może czytać: liczba lub suma po linkach do innych folderów pomija te notatki.
 
 Ustawienia pokazują dozwolone aplikacje z ich folderami i ostatnie zapytania. **Usuń** cofa zgodę aplikacji we wszystkich vaultach. Obowiązuje to od razu — także dla aplikacji, która jest w tej chwili połączona.
 

@@ -1,6 +1,6 @@
 # KI-Apps verbinden (Beta)
 
-Stand: 2026-11-06
+Stand: 2026-11-13
 
 KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und andere, die das Model Context Protocol (MCP) sprechen — können Deinen Vault über Plainva lesen: ihn durchsuchen, Notizen und ihre Abschnitte lesen, Gliederungen, Backlinks, Datenbanken, Aufgaben und zuletzt benutzte Notizen, und eine Notiz in Plainva öffnen. Von sich aus ändern sie nichts: eine App, der Du es erlaubst, darf Änderungen vorschlagen, und die warten, bis Du entscheidest (siehe unten). Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -28,7 +28,7 @@ Die App bewahrt für das nächste Mal ein Geheimnis im Schlüsselbund des System
 
 ## Was eine App sieht
 
-Nur die Ordner, die Du erlaubt hast, und nur, was Deine Datenschutzregeln an ein Cloud-Modell gehen lassen, das ins Internet kann — als ein solches gilt eine App, denn Plainva sieht nicht, was sie mit dem Gelesenen tut: Notizen mit `cloud: deny` oder `web: deny` oder in einem Ordner mit einer dieser Regeln gibt es für eine App nicht — weder ihren Text noch ihre Titel —, Links auf sie werden zurückgehalten, und Ortsangaben aus dem Journal gehen nie mit. Plainvas eigene Ordner (`.plainva`, `.agent`) und die Regeln selbst sind nie lesbar. Jeder Pfad in einer Anfrage und in einer Antwort wird zweimal geprüft: im App-Fenster und im nativen Teil von Plainva.
+Nur die Ordner, die Du erlaubt hast, und nur, was Deine Datenschutzregeln an ein Cloud-Modell gehen lassen, das ins Internet kann — als ein solches gilt eine App, denn Plainva sieht nicht, was sie mit dem Gelesenen tut: Notizen mit `cloud: deny` oder `web: deny` oder in einem Ordner mit einer dieser Regeln gibt es für eine App nicht — weder ihren Text noch ihre Titel —, Links auf sie werden zurückgehalten, und Ortsangaben aus dem Journal gehen nie mit. Plainvas eigene Ordner (`.plainva`, `.agent`) und die Regeln selbst sind nie lesbar. Jeder Pfad in einer Anfrage und in einer Antwort wird zweimal geprüft: im App-Fenster und im nativen Teil von Plainva. Ein Ordner-Link in einem erlaubten Ordner, der woandershin führt, wird nicht verfolgt, und eine Datenbank antwortet nur mit Werten aus Notizen, die die App lesen darf: eine Anzahl oder Summe über Links in andere Ordner lässt diese Notizen aus.
 
 Die Einstellungen listen die erlaubten Apps mit ihren Ordnern und die letzten Anfragen. **Entfernen** nimmt einer App die Erlaubnis in jedem Vault zurück. Das gilt sofort — auch für eine App, die in dem Moment verbunden ist.
 

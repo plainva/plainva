@@ -389,6 +389,12 @@ describe("what a server may be asked", () => {
     expect(mcpCallDecision(request({ grant: { ...grant, folders: [""] }, vaultPaths: ["Private/Diary.md"] }))).toEqual({ allowed: true, preview: true });
   });
 
+  it("gives a server nothing of a folder that only folds to a granted one (review of R19, wave 2)", () => {
+    for (const path of ["projects/Offer.md", "PROJECTS/Offer.md", "Projects\\Offer.md"]) {
+      expect(mcpCallDecision(request({ vaultPaths: [path] })), path).toEqual({ allowed: false, reason: "path-outside-grant" });
+    }
+  });
+
   it("is a cloud recipient to the privacy gate, a local program included", () => {
     const recipient = mcpRecipient("github");
     expect(isCloudRecipient(recipient)).toBe(true);

@@ -1,6 +1,6 @@
 # Connecting AI apps (Beta)
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-13
 
 AI apps on your computer — Claude Code, Claude Desktop, Cursor, VS Code and others that speak the Model Context Protocol (MCP) — can read your vault through Plainva: search it, read notes and their sections, outlines, backlinks, databases, tasks and recent notes, and open a note in Plainva. They change nothing by themselves: where you allow it, an app may propose changes, and those wait until you decide (see below). This is part of the experimental AI features and works on the desktop only.
 
@@ -28,7 +28,7 @@ The app keeps a secret in the system keychain for the next time. Folders are gra
 
 ## What an app can see
 
-Only the folders you allowed, and only what your privacy rules let go to a cloud model that can reach the internet — an app counts as one, because Plainva cannot see what it does with what it reads: notes with `cloud: deny` or `web: deny`, or in a folder with one of these rules, do not exist for an app — neither their text nor their titles —, links to them are withheld, and place stamps from the journal never go. Plainva's own folders (`.plainva`, `.agent`) and the rules themselves can never be read. Every path in a request and in an answer is checked twice: in the app window and in Plainva's native part.
+Only the folders you allowed, and only what your privacy rules let go to a cloud model that can reach the internet — an app counts as one, because Plainva cannot see what it does with what it reads: notes with `cloud: deny` or `web: deny`, or in a folder with one of these rules, do not exist for an app — neither their text nor their titles —, links to them are withheld, and place stamps from the journal never go. Plainva's own folders (`.plainva`, `.agent`) and the rules themselves can never be read. Every path in a request and in an answer is checked twice: in the app window and in Plainva's native part. A folder link inside an allowed folder that leads elsewhere is not followed, and a database answers only with values made of notes the app may read: a count or a sum over links into other folders leaves those notes out.
 
 The settings list the allowed apps with their folders and the last requests. **Remove** takes an app's permission back in every vault. That holds at once — also for an app that is connected at that moment.
 

@@ -1,6 +1,6 @@
 # Conectar apps de IA (Beta)
 
-Última actualización: 2026-11-06
+Última actualización: 2026-11-13
 
 Las apps de IA de tu ordenador —Claude Code, Claude Desktop, Cursor, VS Code y otras que hablan el Model Context Protocol (MCP)— pueden leer tu vault a través de Plainva: buscar en ella, leer notas y sus secciones, esquemas, retroenlaces, bases de datos, tareas y notas recientes, y abrir una nota en Plainva. Por sí solas no cambian nada: una app a la que se lo permitas puede sugerir cambios, y esos esperan hasta que decidas (ver más abajo). Forma parte de las funciones experimentales de IA y solo funciona en el escritorio.
 
@@ -28,7 +28,7 @@ La app guarda un secreto en el llavero del sistema para la próxima vez. Las car
 
 ## Lo que ve una app
 
-Solo las carpetas que permitiste, y solo lo que tus reglas de privacidad dejan ir a un modelo en la nube que puede llegar a Internet —una app cuenta como tal, porque Plainva no ve qué hace con lo que lee—: las notas con `cloud: deny` o `web: deny`, o en una carpeta con una de esas reglas, no existen para una app —ni su texto ni sus títulos—, los enlaces a ellas se retienen y los lugares del diario nunca se envían. Las carpetas propias de Plainva (`.plainva`, `.agent`) y las propias reglas nunca se pueden leer. Cada ruta de una solicitud y de una respuesta se comprueba dos veces: en la ventana de la app y en la parte nativa de Plainva.
+Solo las carpetas que permitiste, y solo lo que tus reglas de privacidad dejan ir a un modelo en la nube que puede llegar a Internet —una app cuenta como tal, porque Plainva no ve qué hace con lo que lee—: las notas con `cloud: deny` o `web: deny`, o en una carpeta con una de esas reglas, no existen para una app —ni su texto ni sus títulos—, los enlaces a ellas se retienen y los lugares del diario nunca se envían. Las carpetas propias de Plainva (`.plainva`, `.agent`) y las propias reglas nunca se pueden leer. Cada ruta de una solicitud y de una respuesta se comprueba dos veces: en la ventana de la app y en la parte nativa de Plainva. Un enlace de carpeta dentro de una carpeta permitida que lleva a otro sitio no se sigue, y una base de datos responde solo con valores hechos de notas que la app puede leer: un recuento o una suma sobre enlaces a otras carpetas deja fuera esas notas.
 
 La configuración muestra las apps permitidas con sus carpetas y las últimas solicitudes. **Quitar** retira el permiso de una app en todos los vaults. Eso vale al instante, también para una app que esté conectada en ese momento.
 

@@ -57,16 +57,34 @@ function host(): AiVaultHost {
 /** Whether each call was made as one that may reach the internet. */
 const gates: boolean[] = [];
 
-const call = (tool: string, args: unknown, folders = ["Projects"]) => runMcpCall(host(), { requestId: "r1", clientId: "c1", client: "Test client", vaultKey: "vault-key", tool, args, folders });
+/** The native wall as a vault without folder links has it: the name decides (`answer_path_allowed`). */
+const byName = (folders: readonly string[]) => async (paths: readonly string[]) => paths.map((path) => insideFolders(path, folders));
+const call = (tool: string, args: unknown, folders = ["Projects"], judge = byName(folders)) => runMcpCall(host(), { requestId: "r1", clientId: "c1", client: "Test client", vaultKey: "vault-key", tool, args, folders }, undefined, judge);
 
 describe("the MCP bridge", () => {
   it("a folder grants itself and below, never a sibling that shares its prefix", () => {
     expect(insideFolders("Projects/Offer.md", ["Projects"])).toBe(true);
+    expect(insideFolders("Projects", ["Projects"])).toBe(true);
     expect(insideFolders("ProjectsArchive/Old.md", ["Projects"])).toBe(false);
     expect(insideFolders("Anything.md", [""])).toBe(true);
-    expect(insideFolders("projects/offer.md", ["Projects"])).toBe(true);
-    expect(insideFolders("Cafe\u0301/x.md", ["Caf\u00e9"])).toBe(true);
     expect(insideFolders("x.md", [])).toBe(false);
+  });
+
+  it("compares exactly as both are spelled: a folder that only folds to the granted one is another (review of R19, wave 2)", () => {
+    // Another real folder on a case-sensitive disk, and `ẞ`/`ß`, the Kelvin sign and `K` everywhere.
+    for (const [path, folder] of [
+      ["projects/offer.md", "Projects"],
+      ["STRA\u1e9eE/x.md", "Stra\u00dfe"],
+      ["\u212aELVIN/x.md", "Kelvin"],
+      // A backslash is a character of a name, never a separator; an NFD name is another spelling.
+      ["Projects\\secret.md", "Projects"],
+      ["Cafe\u0301/x.md", "Caf\u00e9"],
+      // A folder spelled in a way no vault path is grants nothing.
+      ["Projects/x.md", "/Projects"],
+      ["Projects/x.md", "Projects/"],
+    ]) {
+      expect(insideFolders(path!, [folder!]), `${path} in ${folder}`).toBe(false);
+    }
   });
 
   it("serves the tools of the MCP surface, says which of them only read, and names the arguments that are paths", () => {
@@ -113,6 +131,58 @@ describe("the MCP bridge", () => {
     expect(search.content).not.toMatch(/Salaries|Secret|ProjectsArchive/);
   });
 
+  it("a twin folder's notes do not exist for a call, so its answer is never withheld for them (review of R19, wave 2)", async () => {
+    files["projects/Twin.md"] = "# Twin\n\nsecretword";
+    try {
+      // The stand-in index returns every note for any query: the twin's hit is in what it found.
+      const twin = await call("search_vault", { query: "secretword", limit: 10 });
+      expect(twin.isError).toBe(false);
+      expect(twin.paths).not.toContain("projects/Twin.md");
+      expect(twin.paths.every((path) => path.startsWith("Projects/"))).toBe(true);
+      expect(twin.content).not.toContain("Twin");
+    } finally {
+      delete files["projects/Twin.md"];
+    }
+  });
+
+  it("a path the native wall refuses is left out before the answer is built, like a note that is not there (review of R19, wave 2)", async () => {
+    // `Projects/link` is a folder link into a folder the app was not given: by name inside, on the disk outside.
+    files["Projects/link/Inner.md"] = "# Inner\n\nsecretword";
+    try {
+      const wall = async (paths: readonly string[]) => paths.map((path) => insideFolders(path, ["Projects"]) && !path.startsWith("Projects/link"));
+      const linked = await call("search_vault", { query: "secretword", limit: 10 }, ["Projects"], wall);
+      expect(linked.paths).not.toContain("Projects/link/Inner.md");
+      expect(linked.content).not.toContain("Inner");
+      const read = await call("read_note", { path: "Projects/link/Inner.md" }, ["Projects"], wall);
+      expect(read).toEqual(await call("read_note", { path: "Projects/Nowhere.md" }, ["Projects"], wall));
+      // A wall that cannot answer is a no.
+      const silent = await call("read_note", { path: "Projects/Offer.md" }, ["Projects"], () => Promise.reject(new Error("closed")));
+      expect(silent.isError).toBe(true);
+      expect(silent.paths).toEqual([]);
+    } finally {
+      delete files["Projects/link/Inner.md"];
+    }
+  });
+
+  it("counts a note left out for its name only where the gate lets it through and the wall judges its folder inside (review of R19, wave 2)", async () => {
+    files["Projects/Kept:1.md"] = "---\nplainva:\n  ai:\n    cloud: deny\n---\nOffer";
+    files["Projects/link/Draft./Odd.md"] = "# Odd\n\nOffer";
+    files["Projects/link/Odd:2.md"] = "# Odd\n\nOffer";
+    files["projects/Odd:3.md"] = "# Odd\n\nOffer";
+    try {
+      const wall = async (paths: readonly string[]) => paths.map((path) => insideFolders(path, ["Projects"]) && !path.startsWith("Projects/link"));
+      const answer = await call("search_vault", { query: "Offer" }, ["Projects"], wall);
+      expect(answer.isError).toBe(false);
+      // Kept by its rules, under a folder link out of the grant, in a twin folder: nothing is counted.
+      expect(answer.content).not.toContain("left out");
+      files["Projects/Odd:1.md"] = "# Odd\n\nOffer";
+      const counted = await call("search_vault", { query: "Offer" }, ["Projects"], wall);
+      expect(counted.content).toContain(MCP_LEFT_OUT(1));
+    } finally {
+      for (const path of ["Projects/Kept:1.md", "Projects/link/Draft./Odd.md", "Projects/link/Odd:2.md", "projects/Odd:3.md", "Projects/Odd:1.md"]) delete files[path];
+    }
+  });
+
   it("refuses what is not a tool of this surface, bad arguments and a missing vault", async () => {
     expect((await call("run_command", { id: "open-graph" })).isError).toBe(true);
     expect((await call("write_note", { path: "Projects/Offer.md" })).isError).toBe(true);
@@ -130,16 +200,20 @@ describe("the MCP bridge", () => {
   });
 
   it("leaves out, and counts, a note whose name the native wall could not judge as it stands (review of R19)", async () => {
+    files["Projects/Draft:1.md"] = "# Odd\n\nOffer";
+    // In a folder whose own name cannot be judged: where that folder leads is not known, so it is left out, uncounted.
     files["Projects/Draft./Odd.md"] = "# Odd\n\nOffer";
     try {
       const answer = await call("search_vault", { query: "Offer" });
       expect(answer.isError).toBe(false);
+      expect(answer.paths).not.toContain("Projects/Draft:1.md");
       expect(answer.paths).not.toContain("Projects/Draft./Odd.md");
       expect(answer.content).toContain(MCP_LEFT_OUT(1));
       // Outside the app's folders nothing is counted: the count says nothing about the rest of the vault.
       const elsewhere = await call("search_vault", { query: "Offer" }, ["Finance"]);
       expect(elsewhere.content).not.toContain("left out");
     } finally {
+      delete files["Projects/Draft:1.md"];
       delete files["Projects/Draft./Odd.md"];
     }
   });

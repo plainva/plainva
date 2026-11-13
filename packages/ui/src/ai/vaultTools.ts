@@ -96,7 +96,11 @@ export interface DatabaseReach {
 }
 
 export interface VaultToolDeps {
-  search(query: string, limit: number, offset: number): Promise<{ path: string; title: string; snippet?: string | null }[]>;
+  /**
+   * `within`: the folders a run is confined to, compared exactly (`ToolScope.folders`) — the index is asked for hits
+   * there alone, so how long a search takes says nothing of the notes outside them. Absent: the whole vault.
+   */
+  search(query: string, limit: number, offset: number, within?: readonly string[]): Promise<{ path: string; title: string; snippet?: string | null }[]>;
   /** The note's text as the adapter chain reads it; null when there is none. */
   readNote(path: string): Promise<string | null>;
   /** Where a tap on a link leads in this shell: the one note a command opens. */
@@ -210,6 +214,19 @@ export interface ToolScope {
    * showed to the gate.
    */
   gave?(path: string): void;
+  /**
+   * The last word on a path that `inside` let through and the gate passed, asked before anything of it is used —
+   * a line of an answer, a value a database computes from it, a link left in a text (review of R19, wave 2). The
+   * MCP server's wall answers it, which knows the disk: a folder link inside a granted folder that leads out of it
+   * is outside, and the native side would withhold a whole answer that named it. So the two never disagree, and
+   * "withheld" tells an app nothing about what lies beyond its folders. A path it says no to does not exist for
+   * the run. Absent: `inside` and the gate decide.
+   */
+  confirm?(path: string): Promise<boolean>;
+  /** Asks `confirm` ahead for many paths at once (a batch of search hits): a cache, it decides nothing itself. */
+  prefetch?(paths: readonly string[]): Promise<void>;
+  /** The folders `inside` admits, compared exactly as it compares them ("" is the whole vault): an index may be asked for those alone. */
+  folders?: readonly string[];
 }
 
 /** The tools a new conversation carries; a conversation's own list never changes afterwards. */
@@ -370,6 +387,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     if (decision === undefined) {
       const effective = await deps.policyOf(path, text);
       decision = { ok: gateDecision(effective, run).allowed, rules: AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny") };
+      // Asked only of a path the gate lets through: what the confirming side hears of says nothing of the notes kept from this run.
+      if (decision.ok && scope?.confirm && !(await scope.confirm(path).catch(() => false))) decision = { ok: false, rules: decision.rules };
       decisions.set(path, decision);
     }
     if (decision.ok) scope?.passed?.(path, decision.rules, text);
@@ -384,7 +403,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const placeAllowed = async (path: string, text?: string): Promise<boolean> => {
     if (isAiHiddenPath(path)) return false;
     if (scope && !scope.inside(path)) return false;
-    return gateDecision(await deps.policyOf(path, text), run).allowed;
+    if (!gateDecision(await deps.policyOf(path, text), run).allowed) return false;
+    return !scope?.confirm || (await scope.confirm(path).catch(() => false));
   };
   /**
    * What any vault text passes: place stamps withheld for everyone, links to
@@ -488,8 +508,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const wanted = offset + limit + 1;
           const batch = Math.max(limit, 25);
           const passedHits: Awaited<ReturnType<typeof deps.search>> = [];
+          const within = scope?.folders ? [...scope.folders] : undefined;
           for (let read = 0; passedHits.length < wanted && read < SEARCH_SCAN_MAX; ) {
-            const hits = await deps.search(query, batch, read);
+            const hits = await deps.search(query, batch, read, within);
+            await scope?.prefetch?.(hits.map((hit) => hit.path).filter((path) => !isAiHiddenPath(path) && scope.inside(path))).catch(() => undefined);
             for (const hit of hits) {
               if (passedHits.length >= wanted) break;
               if (await allowed(hit.path)) passedHits.push(hit);
@@ -566,6 +588,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const lines: string[] = [];
           const listed: { title: string; path: string; properties: Record<string, string> }[] = [];
           let passed = 0;
+          await scope?.prefetch?.(rows.map((row) => String(row["file.path"] ?? "")).filter((rowPath) => rowPath && scope.inside(rowPath))).catch(() => undefined);
           for (const row of rows) {
             const rowPath = String(row["file.path"] ?? "");
             if (!rowPath || !(await allowed(rowPath))) continue;

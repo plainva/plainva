@@ -548,8 +548,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         notesContaining: (needles) => query.notesContaining(needles),
       },
       toolDeps: {
-        async search(q, limit, offset) {
-          const hits = await query.searchFullText(q, limit, offset);
+        async search(q, limit, offset, within) {
+          const hits = await query.searchFullText(q, limit, offset, false, null, within);
           return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
         },
         readNote: read,

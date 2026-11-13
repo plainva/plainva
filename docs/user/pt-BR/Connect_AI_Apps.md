@@ -1,6 +1,6 @@
 # Conectar apps de IA (Beta)
 
-Última revisão: 2026-11-06
+Última revisão: 2026-11-13
 
 Apps de IA no seu computador — Claude Code, Claude Desktop, Cursor, VS Code e outros que falam o Model Context Protocol (MCP) — podem ler o seu vault pelo Plainva: pesquisar nele, ler notas e suas seções, estruturas, backlinks, bancos de dados, tarefas e notas recentes, e abrir uma nota no Plainva. Sozinhos eles não mudam nada: um app a que você permitir pode sugerir alterações, e elas esperam até você decidir (veja abaixo). Isso faz parte das funções experimentais de IA e funciona só no desktop.
 
@@ -28,7 +28,7 @@ O app guarda um segredo no chaveiro do sistema para a próxima vez. As pastas va
 
 ## O que um app vê
 
-Só as pastas que você permitiu, e só o que suas regras de privacidade deixam ir para um modelo na nuvem que pode acessar a internet — um app é tratado como tal, porque o Plainva não vê o que ele faz com o que lê: notas com `cloud: deny` ou `web: deny`, ou numa pasta com uma dessas regras, não existem para um app — nem o texto nem os títulos —, links para elas são retidos, e lugares do diário nunca vão. As pastas do próprio Plainva (`.plainva`, `.agent`) e as próprias regras nunca podem ser lidas. Cada caminho de uma solicitação e de uma resposta é verificado duas vezes: na janela do app e na parte nativa do Plainva.
+Só as pastas que você permitiu, e só o que suas regras de privacidade deixam ir para um modelo na nuvem que pode acessar a internet — um app é tratado como tal, porque o Plainva não vê o que ele faz com o que lê: notas com `cloud: deny` ou `web: deny`, ou numa pasta com uma dessas regras, não existem para um app — nem o texto nem os títulos —, links para elas são retidos, e lugares do diário nunca vão. As pastas do próprio Plainva (`.plainva`, `.agent`) e as próprias regras nunca podem ser lidas. Cada caminho de uma solicitação e de uma resposta é verificado duas vezes: na janela do app e na parte nativa do Plainva. Um link de pasta dentro de uma pasta permitida que leva a outro lugar não é seguido, e um banco de dados responde só com valores feitos de notas que o app pode ler: uma contagem ou uma soma sobre links para outras pastas deixa essas notas de fora.
 
 As configurações listam os apps permitidos com suas pastas e as últimas solicitações. **Remover** retira a permissão de um app em todos os vaults. Isso vale na hora — também para um app que esteja conectado naquele momento.
 

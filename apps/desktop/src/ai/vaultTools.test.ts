@@ -475,6 +475,23 @@ describe("values a database computes from other notes", () => {
     expect(out.content).not.toContain("9003");
   });
 
+  it("an app's folders bound the reach as well: a note outside them, or one the wall refuses, is no note to compute from", async () => {
+    const reached: Record<string, boolean> = {};
+    const scope = {
+      inside: (path: string) => path.startsWith("Projects/"),
+      confirm: async (path: string) => path !== "Projects/link/Hidden.md",
+    };
+    await createVaultToolExecutor(
+      withBoard(async (_config, options) => {
+        for (const path of ["Archive/Old.md", "Projects/link/Hidden.md", "Projects/Offer.md"]) reached[path] = (await options?.reach?.(path)) === true;
+        return [];
+      }),
+      { recipient: cloud, webTools: true },
+      scope,
+    ).execute(toolByName("query_base")!, { base: "Projects/Board.base", limit: 20 }, { type: "tool_call", id: "c", name: "query_base", args: {} });
+    expect(reached).toEqual({ "Archive/Old.md": false, "Projects/link/Hidden.md": false, "Projects/Offer.md": true });
+  });
+
   it("the task list is computed with the same reach", async () => {
     let asked: boolean | null = null;
     await run(
@@ -489,5 +506,49 @@ describe("values a database computes from other notes", () => {
       }),
     );
     expect(asked).toBe(false);
+  });
+});
+
+/** A scope's last word (review of R19, wave 2): a path it refuses does not exist for the run. */
+describe("a scope that confirms each path", () => {
+  it("is asked only for a path the gate let through, and a refused path is left out like a missing one", async () => {
+    const confirmed: string[] = [];
+    const passed: string[] = [];
+    const scope = {
+      inside: () => true,
+      confirm: async (path: string) => {
+        confirmed.push(path);
+        return path !== "Projects/Offer.md";
+      },
+      passed: (path: string) => void passed.push(path),
+    };
+    const executor = createVaultToolExecutor(deps(), { recipient: cloud, webTools: false }, scope);
+    const out = await executor.execute(toolByName("search_vault")!, { query: "rates", limit: 10 }, { type: "tool_call", id: "c", name: "search_vault", args: {} });
+    expect(out.content).toBe("No matching notes.");
+    // The private note is kept by the gate: the confirming side never hears of it.
+    expect(confirmed).not.toContain("Private/Client.md");
+    expect(confirmed).toContain("Projects/Offer.md");
+    expect(passed).toEqual([]);
+    const read = await executor.execute(toolByName("read_note")!, { path: "Projects/Offer.md", maxChars: 8000 }, { type: "tool_call", id: "c", name: "read_note", args: {} });
+    expect(read.isError).toBe(true);
+  });
+
+  it("a confirmation that fails is a no", async () => {
+    const executor = createVaultToolExecutor(deps(), { recipient: cloud, webTools: false }, { inside: () => true, confirm: () => Promise.reject(new Error("gone")) });
+    const read = await executor.execute(toolByName("read_note")!, { path: "Projects/Offer.md", maxChars: 8000 }, { type: "tool_call", id: "c", name: "read_note", args: {} });
+    expect(read.isError).toBe(true);
+  });
+
+  it("a search asks the index for the scope's folders alone", async () => {
+    const within: unknown[] = [];
+    const d = deps({
+      async search(_query, _limit, _offset, folders) {
+        within.push(folders);
+        return [];
+      },
+    });
+    await createVaultToolExecutor(d, { recipient: cloud, webTools: false }, { inside: () => true, folders: ["Projects"] }).execute(toolByName("search_vault")!, { query: "x", limit: 10 }, { type: "tool_call", id: "c", name: "search_vault", args: {} });
+    await createVaultToolExecutor(d, { recipient: cloud, webTools: false }).execute(toolByName("search_vault")!, { query: "x", limit: 10 }, { type: "tool_call", id: "c", name: "search_vault", args: {} });
+    expect(within).toEqual([["Projects"], undefined]);
   });
 });

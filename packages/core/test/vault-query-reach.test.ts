@@ -139,4 +139,20 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
       for (const row of rows) expect(Object.keys(row).some((key) => key.startsWith("formula."))).toBe(false);
     });
   });
+
+  it("a search asks for hits in the reader's folders alone, compared exactly as they are spelled", async () => {
+    await withVault(async (query) => {
+      const paths = async (q: string, within?: readonly string[] | null) => (await query.searchFullText(q, 50, 0, false, null, within)).map((hit) => hit.path);
+      expect(await paths("Salary")).toEqual(["Private/Salary.md"]);
+      expect(await paths("Salary", ["Projects"])).toEqual([]);
+      expect(await paths("Task", ["Projects"])).toEqual(["Projects/Task.md"]);
+      // Another spelling is another folder; a LIKE wildcard is a character of a name; nothing is no folder.
+      expect(await paths("Task", ["projects"])).toEqual([]);
+      expect(await paths("Task", ["Pro_ects"])).toEqual([]);
+      expect(await paths("Task", ["Proj"])).toEqual([]);
+      expect(await paths("Task", [])).toEqual([]);
+      expect(await paths("Task", [""])).toEqual(["Projects/Task.md"]);
+      expect(await paths("Task", null)).toEqual(["Projects/Task.md"]);
+    });
+  });
 });

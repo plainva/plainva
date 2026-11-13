@@ -5811,6 +5811,9 @@ test('AI apps on this computer: an app the user allowed proposes and drafts unde
         return null;
       }
       if (cmd === 'mcp_call_answer') { server.answers.push({ requestId: args.requestId, ...args.answer }); return null; }
+      // The wall's verdict on each path an answer may name (`mcp_judge_paths`): this vault holds no folder link, so
+      // its name decides — every call here is made for the folder `Projects`.
+      if (cmd === 'mcp_judge_paths') return (args.paths as string[]).map((path) => path === 'Projects' || path.startsWith('Projects/'));
       return orig(cmd, args, options);
     };
   }, { offer: OFFER });

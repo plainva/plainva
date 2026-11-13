@@ -222,6 +222,21 @@ function epochMs(value: unknown): number {
 /** The same in SQL: a row's file time as milliseconds, for a comparison and an order the unit of an old row does not upset. */
 const MTIME_MS = "(CASE WHEN mtime_local > 0 AND mtime_local < 100000000000 THEN mtime_local * 1000 ELSE mtime_local END)";
 
+/**
+ * A path in one of the folders, compared exactly: `=` and `substr` compare the bytes (SQLite's BINARY collation),
+ * never a case fold, and a LIKE wildcard in a folder's name is a character like any other.
+ */
+function withinFoldersSql(column: string, folders: readonly string[]): { sql: string; params: string[] } {
+  if (folders.some((folder) => folder === "")) return { sql: "1=1", params: [] };
+  if (folders.length === 0) return { sql: "0=1", params: [] };
+  const params: string[] = [];
+  const one = folders.map((folder) => {
+    params.push(folder, `${folder}/`, `${folder}/`);
+    return `(${column} = ? OR substr(${column}, 1, length(?)) = ?)`;
+  });
+  return { sql: `(${one.join(" OR ")})`, params };
+}
+
 /** A reader's `reach`, asked once per note and never throwing: a note it cannot answer for is out of reach. */
 interface Reach {
   has(path: string): Promise<boolean>;
@@ -270,7 +285,13 @@ export class VaultQueryService {
    * parseSearchQuery — every text term becomes a quoted prefix token, so
    * results appear while typing and no input can raise FTS5 syntax errors.
    */
-  async searchFullText(query: string, limit: number = 50, offset = 0, includeSource = false, order?: SearchOrder | null): Promise<SearchResult[]> {
+  /**
+   * `within`: only notes in these folders are hits — a folder and everything below it, compared exactly as the
+   * path is spelled ("" is the whole vault, an empty list nothing). A reader confined to some folders (an app over
+   * MCP) is not made to wait for hits it could never see: how long a search takes then says nothing of the rest of
+   * the vault (review of R19, wave 2). Absent: the whole vault.
+   */
+  async searchFullText(query: string, limit: number = 50, offset = 0, includeSource = false, order?: SearchOrder | null, within?: readonly string[] | null): Promise<SearchResult[]> {
     const parsed = parseSearchQuery(query);
     if (isEmptySearchQuery(parsed)) return [];
 
@@ -314,6 +335,11 @@ export class VaultQueryService {
     const operators = operatorClauses(parsed);
     where.push(...operators.where);
     params.push(...operators.params);
+    if (within) {
+      const clause = withinFoldersSql("f.path", within);
+      where.push(clause.sql);
+      params.push(...clause.params);
+    }
 
     const sql = `
       SELECT ${select}${includeSource ? `, ${parsed.match !== null ? "fn.content" : `(SELECT content FROM fts_notes WHERE rowid = ${fullTextRowOf("f")} AND path = f.path)`} AS sourceContent` : ""}

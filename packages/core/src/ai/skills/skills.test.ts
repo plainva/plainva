@@ -13,7 +13,7 @@ import {
   switchInstruction,
 } from "./approvals.js";
 import { catalogEntry, pendingInstructions, resolveInstructions, skillCatalog, SKILL_CATALOG_MAX_CHARS } from "./catalog.js";
-import { skillGrant, withinFolders } from "./narrowing.js";
+import { skillGrant, withinFolders, withinFoldersExactly } from "./narrowing.js";
 import { blockingProblems, parseSkillFile, serializeSkillFile, type SkillDefinition } from "./skillFile.js";
 import { appSkillSource, scanInstruction, scanVaultInstructions, SKILL_MAX_FILES, type InstructionIO } from "./sources.js";
 import { hiddenCharacters } from "../trust.js";
@@ -235,6 +235,28 @@ describe("a skill creates no rights", () => {
     expect(withinFolders("Café/a.md", ["Cafe\u0301/"])).toBe(true);
     expect(withinFolders("a.md", [])).toBe(false);
     expect(withinFolders("a.md", [""])).toBe(true);
+  });
+
+  it("a grant's folders are compared exactly: what a fold or a backslash makes of a name is another folder (review of R19, wave 2)", () => {
+    expect(withinFoldersExactly("Projekte/Angebot.md", ["Projekte"])).toBe(true);
+    expect(withinFoldersExactly("Projekte", ["Projekte"])).toBe(true);
+    expect(withinFoldersExactly("a.md", [""])).toBe(true);
+    for (const [path, folder] of [
+      ["projekte/a.md", "Projekte"],
+      ["STRA\u1e9eE/a.md", "Stra\u00dfe"],
+      ["\u212aELVIN/a.md", "Kelvin"],
+      ["Caf\u00e9/a.md", "Cafe\u0301"],
+      ["Projekte\\a.md", "Projekte"],
+      ["Projekte-Alt/a.md", "Projekte"],
+      ["Projekte/a.md", "Projekte/"],
+      ["Projekte/a.md", "/Projekte"],
+      ["a.md", "x"],
+    ] as [string, string][]) {
+      expect(withinFoldersExactly(path, [folder]), `${path} in ${folder}`).toBe(false);
+    }
+    expect(withinFoldersExactly("a.md", [])).toBe(false);
+    // A skill's own folders, written by hand, still read leniently: narrowing gives nothing away.
+    expect(withinFolders("projekte/a.md", ["Projekte"])).toBe(true);
   });
 });
 

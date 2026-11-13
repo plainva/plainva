@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { WRITE_REFUSALS, contentPathRefusal, isInternalSegment, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient, type ToolOutcome } from "@plainva/core";
+import { WRITE_REFUSALS, contentPathRefusal, isInternalSegment, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFoldersExactly, type EgressRecipient, type ToolOutcome } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { aiVaultKey, mcpSkillPrompts, type AiSession, type AiVaultHost, type PlanQuestion, type WriteRun } from "@plainva/ui";
 import { samePlan, type McpPlanQuestion, type McpPlans } from "./mcpPlans";
@@ -61,12 +61,6 @@ export function mcpToolSpecs() {
   });
 }
 
-/**
- * The native folder rule, once more in the web view: "" grants the whole
- * vault, a folder grants itself and everything below it, never a sibling that
- * only shares a prefix. Compared NFC and case-folded; the native side, which
- * knows the file system, is stricter where case matters (Linux).
- */
 /** A path without separators at either end (trimmed in code: an unanchored pattern would be quadratic). */
 export function trimSlashes(value: string): string {
   let start = 0;
@@ -76,9 +70,76 @@ export function trimSlashes(value: string): string {
   return value.slice(start, end);
 }
 
-/** The one folder rule of the harness (a skill's folders read the same way, plan KI-Harness P3). */
+/**
+ * The web view's first look at whether a vault path lies in an app's folders: "" grants the whole vault, a folder
+ * grants itself and everything below it, never a sibling that only shares a prefix — compared exactly as both are
+ * spelled, never case-folded, and only `/` separates (review of R19, wave 2). A fold took `projects` beside a granted
+ * `Projects` for inside; the native wall refused it and withheld the whole answer, so whether an answer was withheld
+ * told an app, word by word through `search_vault`, what the other folder holds. Only a first look: the native wall
+ * has the last word on every path that passes it (`mcpCallScope`).
+ */
 export function insideFolders(path: string, folders: readonly string[]): boolean {
-  return withinFolders(path, folders);
+  return withinFoldersExactly(path, folders);
+}
+
+/**
+ * The native wall's verdict on paths an answer of this call may name — the very check it runs on the answer
+ * (`answer_path_allowed` in `src-tauri/src/mcp/paths.rs`): a folder link inside a granted folder that leads out of
+ * it is outside. One verdict per path; a path the native side cannot judge for this call is outside.
+ */
+export type McpJudge = (paths: readonly string[]) => Promise<boolean[]>;
+
+const nativeJudge = (requestId: string): McpJudge => (paths) => invoke<boolean[]>("mcp_judge_paths", { requestId, paths: [...paths] });
+
+/** The folder a vault path lies in ("" for the vault itself). */
+const parentOf = (path: string): string => path.slice(0, Math.max(0, path.lastIndexOf("/")));
+
+/**
+ * The scope of one call (`ToolScope`): the exact first look, then the native wall's verdict, asked once per path
+ * and only for a path the privacy gate let through. A note whose name the wall could not judge as it stands is left
+ * out of what the app sees — and counted, but only where the folder it lies in is one the wall judges inside: so
+ * the count says nothing of a note kept from the app by its rules, nor of a folder outside its grant that a link
+ * inside it leads to (review of R19, wave 2: it counted every such name, inside or not).
+ */
+export function mcpCallScope(folders: readonly string[], judge: McpJudge) {
+  const verdicts = new Map<string, Promise<boolean>>();
+  const ask = (paths: readonly string[]): void => {
+    const fresh = [...new Set(paths)].filter((path) => !verdicts.has(path));
+    if (fresh.length === 0) return;
+    const answer = judge(fresh).then(
+      (said) => (Array.isArray(said) && said.length === fresh.length ? said.map((yes) => yes === true) : fresh.map(() => false)),
+      () => fresh.map(() => false),
+    );
+    fresh.forEach((path, i) => verdicts.set(path, answer.then((said) => said[i] ?? false)));
+  };
+  const verdict = (path: string): Promise<boolean> => {
+    ask([path]);
+    return verdicts.get(path)!;
+  };
+  // A name the wall cannot judge stands for itself only through the folder it lies in.
+  const stand = (path: string): string | null => (mcpNameAccepted(path) ? path : parentOf(path) === "" || mcpNameAccepted(parentOf(path)) ? parentOf(path) : null);
+  const leftOut = new Set<string>();
+  const passed = new Set<string>();
+  return {
+    leftOut,
+    paths: passed,
+    scope: {
+      folders: [...folders],
+      inside: (path: string) => insideFolders(path, folders),
+      prefetch: async (paths: readonly string[]) => {
+        ask(paths.map(stand).filter((place): place is string => place !== null && place !== ""));
+      },
+      confirm: async (path: string) => {
+        if (mcpNameAccepted(path)) return verdict(path);
+        const parent = stand(path);
+        // The vault itself lies in an app's folders only where it was given the whole vault.
+        const counted = parent === "" ? folders.includes("") : parent !== null && (await verdict(parent));
+        if (counted) leftOut.add(path);
+        return false;
+      },
+      passed: (path: string) => void passed.add(path),
+    },
+  };
 }
 
 export interface McpCallRequest {
@@ -191,7 +252,7 @@ const stable = (value: unknown): string => JSON.stringify(value, (_key, item: un
 export const MCP_VAULT_CHANGED = "Plainva's settings or its open vault changed. Restart the connection.";
 
 /** Runs one forwarded call against the open vault — only the vault the client's connection was admitted for. */
-export async function runMcpCall(host: AiVaultHost | null, request: McpCallRequest, writing?: McpWriting): Promise<McpCallAnswer> {
+export async function runMcpCall(host: AiVaultHost | null, request: McpCallRequest, writing?: McpWriting, judge: McpJudge = nativeJudge(request.requestId)): Promise<McpCallAnswer> {
   if (!host) return failed("Plainva has no vault open.");
   // Another vault opened since the client was admitted, and the native side has not heard of it yet: nothing of
   // this vault answers a call made for the one before.
@@ -206,19 +267,7 @@ export async function runMcpCall(host: AiVaultHost | null, request: McpCallReque
   // An outside client is a recipient like a cloud provider that may reach the internet: a note kept from the cloud, or
   // from conversations with the internet, does not exist for it. What the program does with what it reads is not Plainva's to see.
   const recipient: EgressRecipient = { kind: "cloud", provider: `mcp:${request.client}`, model: request.client };
-  const paths = new Set<string>();
-  // A note whose name the native wall could not judge as it stands is left out of what the app sees, and counted:
-  // only one inside the app's folders, so the count says nothing about the rest of the vault (review of R19).
-  const leftOut = new Set<string>();
-  const scope = {
-    inside: (path: string) => {
-      if (!insideFolders(path, request.folders)) return false;
-      if (mcpNameAccepted(path)) return true;
-      leftOut.add(path);
-      return false;
-    },
-    passed: (path: string) => void paths.add(path),
-  };
+  const { scope, paths, leftOut } = mcpCallScope(request.folders, judge);
   const execute = async (run?: WriteRun): Promise<ToolOutcome | null> => {
     const tools = host.tools(recipient, scope, undefined, true, undefined, undefined, run);
     return tools ? tools.executor.execute(tool, parsed.value, { type: "tool_call", id: request.requestId, name: tool.name, args: parsed.value }) : null;
