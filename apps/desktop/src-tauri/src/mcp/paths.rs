@@ -230,24 +230,29 @@ pub fn effective_grant(root: &std::path::Path, stored: &[String], as_chosen: boo
     stored.iter().filter(|folder| grantable(folder) && (as_chosen || !trimmed_sibling(root, folder))).cloned().collect()
 }
 
-/// Whether a folder of the grant, or a folder above it, has a sibling on disk whose name a 0.8.7 build stored as this
-/// one's: the same after `safe_rel_path`, another name before it. A folder that cannot be listed counts as having one.
+/// Whether a folder of the grant, or a folder above it, may stand for more than one folder on disk: an older build
+/// (before R19) stored `trim()` and NFC of the name the user chose, so every entry of the parent folder that it would
+/// have stored under this segment's name is a folder the entry may mean — ` Notes` and `Notes`, and on a disk that
+/// keeps both forms an NFD `Café` and an NFC `Café` (review of R19, wave 2: an NFD sibling was not counted, so the
+/// entry kept granting the NFC twin). One such folder, in whatever spelling, is the one the user chose; two are
+/// ambiguous. A folder that cannot be listed counts as ambiguous.
 fn trimmed_sibling(root: &std::path::Path, folder: &str) -> bool {
+    let stored_as = |name: &str| -> String { name.trim().nfc().collect() };
     let mut dir = root.to_path_buf();
     for segment in folder.split('/').filter(|segment| !segment.is_empty()) {
         let Ok(entries) = std::fs::read_dir(&dir) else {
             return true;
         };
-        let sibling = entries.flatten().any(|entry| {
-            entry.file_name().to_str().is_some_and(|name| name.nfc().collect::<String>() != segment && safe_rel_path(name).as_deref() == Some(segment))
-        });
-        if sibling {
-            return true;
-        }
-        dir.push(segment);
-        if !dir.is_dir() {
-            // Nothing below a folder that is not there (or is stored in another spelling): no sibling to stand for.
-            break;
+        let meant: Vec<std::ffi::OsString> = entries.flatten().map(|entry| entry.file_name()).filter(|name| name.to_str().is_some_and(|name| stored_as(name) == segment)).collect();
+        match meant.as_slice() {
+            [] => break,
+            [one] => {
+                dir.push(one);
+                if !dir.is_dir() {
+                    break;
+                }
+            }
+            _ => return true,
         }
     }
     false
@@ -1005,6 +1010,27 @@ pub(crate) mod tests {
         let gone = tempfile::tempdir().unwrap();
         let unreadable = gone.path().join("not-there");
         assert!(effective_grant(&unreadable, &folders(&["Plain"]), false).is_empty(), "a vault that cannot be listed vouches for nothing");
+    }
+
+    /// A grant an older build stored as NFC grants nothing where the disk keeps the NFD and the NFC form of the name
+    /// side by side: which of the two the user chose cannot be told (review of R19, wave 2). Alone, either form is the
+    /// one chosen.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_stored_grant_that_two_forms_of_one_name_could_mean_grants_nothing() {
+        let vault = shaped_vault();
+        let nfc = "Caf\u{e9}";
+        std::fs::create_dir_all(vault.path().join("Cafe\u{301}")).unwrap();
+        assert_eq!(effective_grant(vault.path(), &folders(&[nfc]), false), folders(&[nfc]), "the NFD folder alone is the one chosen");
+        std::fs::create_dir_all(vault.path().join(nfc)).unwrap();
+        assert!(effective_grant(vault.path(), &folders(&[nfc]), false).is_empty(), "NFD and NFC side by side");
+        assert_eq!(effective_grant(vault.path(), &folders(&[nfc]), true), folders(&[nfc]), "chosen under this build, as it stands");
+        // Below a folder stored in its other form, the walk goes on through that form.
+        std::fs::remove_dir(vault.path().join(nfc)).unwrap();
+        for name in ["Inner", "Inner "] {
+            std::fs::create_dir_all(vault.path().join("Cafe\u{301}").join(name)).unwrap();
+        }
+        assert!(effective_grant(vault.path(), &folders(&[&format!("{nfc}/Inner")]), false).is_empty());
     }
 
     #[test]

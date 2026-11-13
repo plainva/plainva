@@ -963,6 +963,9 @@ pub struct ClientView {
     folders: Vec<String>,
     /// May propose changes in the vault open now.
     writes: bool,
+    /// Stored folders of the vault open now that grant nothing any more (`paths::effective_grant`): the user has to
+    /// choose them again.
+    stale: usize,
 }
 
 #[derive(Serialize)]
@@ -977,6 +980,29 @@ pub struct McpStatus {
     audit: Vec<store::AuditEntry>,
 }
 
+/// The paired clients as the settings show them, for the vault open now: what holds at a call (`grant`) — the stored
+/// folders that still grant something, and the leave to propose only with them — and how many stored ones no longer
+/// count, so the user is told to choose them again (review of R19, wave 2). Without a vault, none.
+fn client_views(clients: Vec<ClientRecord>, grants: &store::Grants, root: Option<&std::path::Path>) -> Vec<ClientView> {
+    clients
+        .into_iter()
+        .map(|c| {
+            let stored = grants.folders.get(&c.id).cloned().unwrap_or_default();
+            let folders = root.map(|root| paths::effective_grant(root, &stored, grants.as_chosen.contains(&c.id))).unwrap_or_default();
+            ClientView {
+                writes: grants.may_write(&c.id) && !folders.is_empty(),
+                stale: stored.len() - folders.len(),
+                folders,
+                id: c.id,
+                name: c.name,
+                program: c.program,
+                created_at: c.created_at,
+                last_seen: c.last_seen,
+            }
+        })
+        .collect()
+}
+
 #[tauri::command]
 pub fn mcp_status(app: AppHandle, window: tauri::Window, state: tauri::State<'_, McpState>) -> Result<McpStatus, String> {
     only_main(&window)?;
@@ -984,20 +1010,8 @@ pub fn mcp_status(app: AppHandle, window: tauri::Window, state: tauri::State<'_,
     let vault = state.lock().vault.clone();
     let store = state.store(&app)?;
     let grants = vault.as_ref().map(|v| store.grants(&v.key)).unwrap_or_default();
-    let clients = store
-        .clients()
-        .clients
-        .into_iter()
-        .map(|c| ClientView {
-            folders: grants.folders.get(&c.id).cloned().unwrap_or_default(),
-            writes: grants.may_write(&c.id),
-            id: c.id,
-            name: c.name,
-            program: c.program,
-            created_at: c.created_at,
-            last_seen: c.last_seen,
-        })
-        .collect();
+    let root = vault.as_ref().map(|v| std::path::PathBuf::from(&v.root));
+    let clients = client_views(store.clients().clients, &grants, root.as_deref());
     let mut audit = vault.as_ref().map(|v| store.audit(&v.key)).unwrap_or_default();
     audit.reverse();
     audit.truncate(100);
@@ -1386,6 +1400,29 @@ mod tests {
         // Once the call is answered, nothing of it can be asked any more.
         assert!(!app.state::<McpState>().lock().judging.contains_key(&id));
         assert!(app.state::<McpState>().lock().judging.is_empty());
+    }
+
+    /// The settings show what holds at a call, not what the file says (review of R19, wave 2): a stored folder that
+    /// grants nothing any more is not shown as granted, the leave to propose goes with the last one, and the user is
+    /// told how many no longer count.
+    #[test]
+    fn the_settings_show_the_folders_that_hold_and_how_many_no_longer_count() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["Notes", " Notes", "Plain"] {
+            std::fs::create_dir_all(dir.path().join(name)).unwrap();
+        }
+        let record = |id: &str| ClientRecord { id: id.into(), name: id.into(), program: "p".into(), secret_sha256: String::new(), created_at: String::new(), last_seen: String::new() };
+        let mut grants = store::Grants::default();
+        // Written by an older build: `/`, and a `Notes` that may stand for ` Notes`.
+        grants.folders.insert("old".into(), vec!["/".into(), "Notes".into(), "Plain".into()]);
+        grants.folders.insert("gone".into(), vec!["/".into()]);
+        grants.writes.insert("gone".into());
+        grants.grant("new", vec!["Notes".into()]);
+        let views = client_views(vec![record("old"), record("gone"), record("new")], &grants, Some(dir.path()));
+        assert_eq!((views[0].folders.clone(), views[0].stale), (vec!["Plain".to_string()], 2));
+        assert_eq!((views[1].folders.clone(), views[1].stale, views[1].writes), (Vec::<String>::new(), 1, false));
+        assert_eq!((views[2].folders.clone(), views[2].stale), (vec!["Notes".to_string()], 0));
+        assert!(client_views(vec![record("new")], &grants, None)[0].folders.is_empty(), "no vault open, no folders");
     }
 
     #[tokio::test]
