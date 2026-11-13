@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
+import { reportingTo } from "@plainva/ui";
 import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, Link2, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, FolderInput, MessageSquare, PenLine } from "lucide-react";
 import { printElement } from "../services/printView";
 
@@ -214,15 +215,13 @@ export const Editor: React.FC<{
       parkWriteTimer.current = null;
       const db = vaultContext.queryService?.db;
       if (!db || base === null) return;
-      void parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch((error) => {
-        console.warn("[Editor] parking the suggestion copy failed", error);
-      });
+      void parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
     }, 500);
   };
   const forgetPark = (path: string) => {
     if (parkWriteTimer.current !== null) { window.clearTimeout(parkWriteTimer.current); parkWriteTimer.current = null; }
     const db = vaultContext.queryService?.db;
-    if (db) void clearEditorSuggestion(db, path, vaultPath).catch(() => {});
+    if (db) void clearEditorSuggestion(db, path, vaultPath).catch(reportingTo("suggestions:unpark"));
   };
   const suggestParkRef = useRef(new Map<string, { copy: string; note: string; base?: string }>());
   /** Open suggestions drawn in the text (K5, decision E4: on by default), remembered per vault. */
@@ -560,6 +559,7 @@ export const Editor: React.FC<{
       await navigator.clipboard.writeText(activePath);
       toast.info(t("fileTree.pathCopied", "Pfad kopiert."));
     } catch (err) {
+      // silent: no "copied" notice appears, which is what the person sees; nothing was changed.
       console.warn("[Editor] copying the path failed", err);
     }
   };
@@ -990,7 +990,8 @@ export const Editor: React.FC<{
     });
   };
 
-  const scheduleSave = (getText: () => string) => {
+  const scheduleSave = (text: string | (() => string)) => {
+    const getText = typeof text === "string" ? () => text : text;
     if (saveState.transferFrozen) return;
     if (saveTimeoutRef.current) window.clearTimeout(saveTimeoutRef.current);
     if (!activePath || !vaultAdapter) return;
@@ -1006,18 +1007,23 @@ export const Editor: React.FC<{
     // covers the revision takes the buffered snapshot back and clears the
     // entry up to the revision it wrote; newer snapshots survive (latest wins).
     //
-    // The snapshot is bound to THIS note (review of 2026-11-11, M1): a getter
-    // like `liveText` reads whatever the pane shows when it is called, and the
-    // writer calls it up to an interval later. Once this editor lifetime no
-    // longer holds the note — another file loaded into the pane, the note moved
-    // on, the pane closed — it answers null and the snapshot is dropped, never
-    // written under this note's name.
+    // The snapshot is bound to THIS note (reviews of 2026-11-11 and -12):
+    // - a text handed as a value (a read-mode edit, a ticked box) already is
+    //   this note's text and is written as it is, whatever the pane does next —
+    //   read mode has no editor session whose teardown would journal it;
+    // - a getter like `liveText` reads whatever the pane shows when it is
+    //   called, and the writer calls it up to an interval later. Once this
+    //   editor lifetime no longer holds the note — another file loaded into the
+    //   pane, the note moved on, the pane closed — it answers null and the
+    //   snapshot is dropped, never written under this note's name; the live
+    //   editor's teardown journals the final text itself (`persistText`).
     if (vaultPath) {
       const draftVault = vaultPath;
       const draftPath = activePath;
       const holds = () => saveState.isActive() && loadedPathRef.current === draftPath;
+      const snapshot = typeof text === "string" ? text : () => (holds() ? text() : null);
       void import("../services/draftJournal")
-        .then(({ writeDraft }) => writeDraft(draftVault, draftPath, () => (holds() ? getText() : null), rev, saveState.id))
+        .then(({ writeDraft }) => writeDraft(draftVault, draftPath, snapshot, rev, saveState.id))
         .catch(() => {});
     }
   };
@@ -1061,7 +1067,7 @@ export const Editor: React.FC<{
     if (activePath) dirtyStore.set(activePath, true, saveState.id);
     contentRef.current = val;
     setContent(val);
-    scheduleSave(() => val);
+    scheduleSave(val);
   };
 
   // Read-mode task checkbox clicked (P3.1): flip the matching [ ]/[x] marker
@@ -1547,7 +1553,7 @@ export const Editor: React.FC<{
   // Open the .base picker (/ menu) or create one directly (@ / slash "new base").
   useEffect(() => {
     const openPicker = (e: Event) => { if (isCommandTarget()) setBasePicker({ pos: (e as CustomEvent).detail?.pos ?? 0 }); };
-    const createBase = (e: Event) => { if (isCommandTarget()) createAndEmbedBase((e as CustomEvent).detail?.pos ?? 0); };
+    const createBase = (e: Event) => { if (isCommandTarget()) void createAndEmbedBase((e as CustomEvent).detail?.pos ?? 0); };
     window.addEventListener("plainva-open-base-picker", openPicker);
     window.addEventListener("plainva-create-inline-base", createBase);
     return () => {
@@ -3230,7 +3236,7 @@ export const Editor: React.FC<{
   // the restore runs after that effect, with the same triggers.
   useEffect(() => {
     if (isLoading || isReadMode || !activePath) return;
-    if (suggestParkRef.current.has(activePath) && !suggestingRef.current) { startSuggesting(); return; }
+    if (suggestParkRef.current.has(activePath) && !suggestingRef.current) { void startSuggesting(); return; }
     // No copy in memory: the vault database may hold one from before the app
     // was closed (C34). It is OFFERED, never restored on its own - the note may
     // have changed since, and the reader decides whether the round still holds.
@@ -3262,7 +3268,7 @@ export const Editor: React.FC<{
       : storedPark.note;
     suggestParkRef.current.set(activePath, { copy: reconciled.copy, note, base: session.view.state.doc.toString() });
     setStoredPark(null);
-    startSuggesting();
+    void startSuggesting();
     if (reconciled.orphaned.length > 0) toast.info(t("comments.suggestParkedOrphaned", { n: reconciled.orphaned.length, count: reconciled.orphaned.length }));
   }, [activePath, storedPark, startSuggesting, t]);
   const discardParked = useCallback(() => {
@@ -3494,7 +3500,7 @@ export const Editor: React.FC<{
               <IconButton
                 label={t("comments.suggestMode")}
                 active={suggesting}
-                onClick={() => { if (suggesting) void discardSuggestions(); else startSuggesting(); }}
+                onClick={() => { if (suggesting) void discardSuggestions(); else void startSuggesting(); }}
                 data-testid="editor-suggest-mode"
                 style={suggesting ? { background: "var(--warning-bg)", color: "var(--warning-text)" } : undefined}
               >
@@ -4072,7 +4078,7 @@ export const Editor: React.FC<{
         <AreaBoundary area="editor:basePicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setBasePicker(null) }}>
         <BasePicker
           onPick={(path) => { embedBaseAtPos(path, basePicker.pos); setBasePicker(null); }}
-          onCreate={() => { const pos = basePicker.pos; setBasePicker(null); createAndEmbedBase(pos); }}
+          onCreate={() => { const pos = basePicker.pos; setBasePicker(null); void createAndEmbedBase(pos); }}
           onClose={() => setBasePicker(null)}
         />
         </AreaBoundary>

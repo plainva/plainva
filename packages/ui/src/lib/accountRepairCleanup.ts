@@ -1,3 +1,4 @@
+import { reportingTo } from "../services/backgroundErrors";
 import type {
   IDatabaseAdapter,
   PimAccountCacheSnapshot,
@@ -104,7 +105,8 @@ export async function recoverAccountRepairCleanup(
   }
   if (journal.state === "prepared") await restorePrepared(resources, journal);
   await clearJournal(resources);
-  await resources.credentials.removeSecret(journal.backupSlot).catch(() => undefined);
+  // A backup copy of the sign-ins left in the keychain; nothing reads it once the journal is gone.
+  await resources.credentials.removeSecret(journal.backupSlot).catch(reportingTo("account:repair-backup"));
   return true;
 }
 
@@ -183,14 +185,15 @@ export async function cleanupRepairedAccount(
     journal.state = "cleaned";
     await persistJournal(resources, journal);
     await clearJournal(resources);
-    await resources.credentials.removeSecret(resources.backupSlot).catch(() => undefined);
+    await resources.credentials.removeSecret(resources.backupSlot).catch(reportingTo("account:repair-backup"));
   } catch (error) {
     try {
       await restorePrepared(resources, journal);
       await clearJournal(resources);
-      await resources.credentials.removeSecret(resources.backupSlot).catch(() => undefined);
+      await resources.credentials.removeSecret(resources.backupSlot).catch(reportingTo("account:repair-backup"));
     } catch {
-      // Keep both durable journals for startup recovery; neither is logged.
+      // silent: keep both durable journals for startup recovery; neither is logged.
+      // The repair's own error is thrown below and said by the caller.
     }
     throw error;
   }

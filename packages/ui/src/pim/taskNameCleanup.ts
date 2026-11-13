@@ -1,3 +1,4 @@
+import { reportingTo } from "../services/backgroundErrors";
 import {
   foldPathForCollision,
   isOwnLegacyTaskNoteName,
@@ -244,7 +245,7 @@ async function renameOne(item: JournalItem, run: TaskNameCleanupRunner, result: 
   } catch (e) {
     // Still at the old name: the stored path goes back with it. Already moved:
     // it stays on the new name, and the journal finishes the rest next time.
-    if (await run.exists(item.from)) await run.moveTaskNotePath(item.to, item.from).catch(() => undefined);
+    if (await run.exists(item.from)) await run.moveTaskNotePath(item.to, item.from).catch(reportingTo("tasks:name-cleanup"));
     throw e;
   }
 }

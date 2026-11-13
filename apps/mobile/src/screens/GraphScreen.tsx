@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
-import { AreaBoundary, appendWikiLink, errorText, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink, consumeGraphTrail, GRAPH_TRAIL_EVENT, trailFocus, trailFolders, type VaultMapFocus } from "@plainva/ui";
+import { AreaBoundary, appendWikiLink, errorText, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink, consumeGraphTrail, GRAPH_TRAIL_EVENT, trailFocus, trailFolders, type VaultMapFocus, reportingTo } from "@plainva/ui";
 import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, Button, GroupCard, ICON, IconButton, Row, RowList, SearchField, Switch } from "@plainva/ui";
 import { AlertTriangle, ChevronRight, Clock, Crosshair, FileText, Flame, ImageDown, Maximize2, Minus, MousePointerSquareDashed, PinOff, Plus, SlidersHorizontal, Trash2, Link2, Waypoints } from "lucide-react";
 import { mActions, mConfirm, mSelect } from "../services/mobileDialogs";
@@ -241,7 +241,7 @@ export function GraphScreen({
     return () => {
       alive = false;
       // A pin set a moment before leaving the map must survive it.
-      void created?.flush().catch(() => {});
+      void created?.flush().catch(reportingTo("graph:state"));
     };
   }, [vault, bump, reload]);
 

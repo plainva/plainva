@@ -82,7 +82,7 @@ export function createAcpConnection(port: AcpPort, peer: AcpPeer): AcpConnection
 
   const answer = (id: number | string, method: string, params: Record<string, unknown>) => {
     if (inflight >= ACP_MAX_INFLIGHT) {
-      void write({ jsonrpc: "2.0", id, error: { code: ACP_ERROR_INTERNAL, message: "Too many requests at once." } }).catch(() => undefined);
+      void write({ jsonrpc: "2.0", id, error: { code: ACP_ERROR_INTERNAL, message: "Too many requests at once." } }).catch(() => { /* silent: a pipe that fails is an agent that ended; its exit is said */ });
       return;
     }
     inflight++;
@@ -215,7 +215,7 @@ export function createAcpConnection(port: AcpPort, peer: AcpPeer): AcpConnection
     },
     async notify(method, params) {
       if (!started) return;
-      await write({ jsonrpc: "2.0", method, params }).catch(() => undefined);
+      await write({ jsonrpc: "2.0", method, params }).catch(() => { /* silent: a pipe that fails is an agent that ended; its exit is said */ });
     },
     async close() {
       if (closed) return;

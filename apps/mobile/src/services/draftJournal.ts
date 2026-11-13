@@ -46,6 +46,8 @@ export interface NoteDraft {
 
 /** This run's saver. Its revisions count from 1 again in the next run. */
 const RUN_SESSION = `run-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
+/** How long a move waits for a moved note's snapshot that is still being written (see the shared journal). */
+const MOVE_WAIT_MS = 2_000;
 
 const dirOf = (v: MobileVault) => `drafts/${v.vaultId}`;
 
@@ -105,7 +107,7 @@ const layout: DraftJournalLayout<MobileVault> = {
 let made: { journal: DraftJournal<MobileVault>; writer: DraftWriter<MobileVault> } | null = null;
 function journalAndWriter() {
   if (!made) {
-    const journal = createDraftJournal<MobileVault>({ storage, layout });
+    const journal = createDraftJournal<MobileVault>({ storage, layout, moveWaitMs: MOVE_WAIT_MS });
     made = { journal, writer: createDraftWriter<MobileVault>(journal, layout) };
   }
   return made;
@@ -185,7 +187,9 @@ export function relocatedPath(path: string, move: { from: string; to: string }):
  */
 export async function relocateDrafts(v: MobileVault, moves: ReadonlyArray<{ from: string; to: string }>): Promise<void> {
   if (moves.length === 0) return;
-  await flushDrafts(v).catch(() => {});
+  // Only the moved notes' buffered snapshots, and not longer than a moment: a
+  // write that never settles must not hold up the end of the rename.
+  await writer().flush((scope) => scope.vaultId === v.vaultId, { notes: (path) => moves.some((m) => relocatedDraftPath(path, m) !== null), waitMs: MOVE_WAIT_MS }).catch(() => {});
   await journal().relocate(v, moves);
 }
 

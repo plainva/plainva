@@ -1,4 +1,4 @@
-import { readContentBinary } from "@plainva/ui";
+import { readContentBinary, reportingTo } from "@plainva/ui";
 import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
@@ -1270,7 +1270,7 @@ export function BaseScreen({
         // The appointment exists either way — a failed anchor is a warning, not
         // a claim that nothing happened.
         toast.info(res.anchored ? t("pim.entryScheduled") : t("pim.blockNotAnchored"));
-        await vault.reindexPaths([p]).catch(() => undefined);
+        await vault.reindexPaths([p]).catch(reportingTo("index:paths"));
         if (res.anchored) syncSoon();
         if (loaded) requery(loaded.config, viewIndex);
       } catch (e) {

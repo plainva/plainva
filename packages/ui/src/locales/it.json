@@ -5169,7 +5169,14 @@
     "areaTitle": "Impossibile mostrare quest’area",
     "areaBody": "Un errore l’ha interrotta. Il resto di Plainva continua a funzionare e l’errore è registrato in {{place}}.",
     "areaAgain": "Non è riuscita di nuovo dopo il ricaricamento. Se continua, riavvia Plainva; l’errore è registrato in {{place}}.",
-    "areaReload": "Ricarica quest’area"
+    "areaReload": "Ricarica quest’area",
+    "structureNeedsIndex": "Non è possibile ora: non è stato possibile aprire l'indice di ricerca su questo dispositivo, quindi la sincronizzazione non potrebbe portare un'eliminazione, una rinomina, uno spostamento o una nuova cartella sugli altri tuoi dispositivi. Riavvia l'app per riprovare; le tue note non sono state toccate.",
+    "indexClosedNotice": "Impossibile aprire l'indice di ricerca su questo dispositivo. Puoi leggere, scrivere e creare note; eliminare, rinominare, spostare e creare cartelle restano non disponibili finché non si apre. Riavvia l'app per riprovare; le tue note non sono state toccate.",
+    "background": {
+      "aiKeyNotRemoved": "Impossibile rimuovere la chiave di {{provider}} da questo dispositivo, quindi {{provider}} resta nell'elenco: {{reason}}",
+      "accountSignInKept": "L'account è stato rimosso, ma il suo accesso non è stato eliminato da questo dispositivo: {{reason}}",
+      "taskNoteNotRestored": "Impossibile recuperare “{{name}}”: {{reason}}"
+    }
   },
   "palette": {
     "title": "Comandi",

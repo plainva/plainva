@@ -1,12 +1,12 @@
-import { Directory, Filesystem } from "@capacitor/filesystem";
 import { forgetProfileNotice } from "./profileNoticeStore";
-import { barLayoutKey, getPlatformServices, taskViewStateKey, forgetTaskViewState } from "@plainva/ui";
+import { barLayoutKey, getPlatformServices, taskViewStateKey, forgetTaskViewState, reportBackground } from "@plainva/ui";
 import { mailAccountsKey, mailSecretKey } from "@plainva/ui/mail";
 
 import { accountSecretKey } from "./accountBroker";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { mobileWorkspaceSecretKeys } from "./mobileWorkspaceSecurity";
 import { profileJournalPath } from "./profileImportJournal";
+import { removeDataFile, removeDataFolder } from "../platform/dataFiles";
 
 /**
  * Everything a forgotten vault leaves behind (finding 2026-08-19).
@@ -77,19 +77,21 @@ export async function forgetVaultStoreKeys(vaultId: string): Promise<void> {
 
 /** Drafts and the import journal — both live outside the container. */
 export async function forgetVaultFiles(vaultId: string): Promise<void> {
-  await Filesystem.rmdir({ path: `drafts/${vaultId}`, directory: Directory.Data, recursive: true }).catch(() => {
-    // No drafts were ever written for this vault.
-  });
-  await Filesystem.deleteFile({ path: profileJournalPath(vaultId), directory: Directory.Data }).catch(() => {
-    // No interrupted import to clean up after.
-  });
+  // Absent is fine (no drafts were ever written, no import was interrupted).
+  // Drafts hold note text: a folder that stays behind fails, after the
+  // journal had its turn (stability plan R4).
+  const drafts = removeDataFolder(`drafts/${vaultId}`).then(() => null, (error: unknown) => error);
+  const journal = removeDataFile(profileJournalPath(vaultId)).then(() => null, (error: unknown) => error);
+  const failed = (await drafts) ?? (await journal);
+  if (failed) throw failed;
 }
 
 export async function forgetVaultSecrets(secretKeys: string[]): Promise<void> {
   const { credentials } = getPlatformServices();
   for (const key of secretKeys) {
-    await credentials.removeSecret(key).catch(() => {
+    await credentials.removeSecret(key).catch((error: unknown) => {
       // Best effort: one unreachable slot must not stop the others.
+      reportBackground("credentials:forget", error);
     });
   }
 }

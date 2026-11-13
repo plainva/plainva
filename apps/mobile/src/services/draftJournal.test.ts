@@ -378,7 +378,7 @@ describe("review of 2026-11-11: the phone's journal through its own wiring", () 
     expect(await readDraft(vault, "Elsewhere.md")).toMatchObject({ text: "stays" });
   });
 
-  it("waits for a snapshot still being written, and carries it", async () => {
+  it("a move carries a snapshot still being written (its own flush of the moved note waits for it, bounded)", async () => {
     const { Filesystem } = await import("@capacitor/filesystem");
     let release!: () => void;
     const held = new Promise<void>((done) => { release = done; });
@@ -393,7 +393,7 @@ describe("review of 2026-11-11: the phone's journal through its own wiring", () 
     expect(await readDraft(vault, "Slow.md")).toBeNull();
   });
 
-  it("M1: each note's snapshot holds its own text — the saver hands the text itself, bound when it is scheduled", async () => {
+  it("the saver hands each note's text as a value: a snapshot holds the text it was scheduled with", async () => {
     writeDraft(vault, "A.md", "A typed", 1);
     writeDraft(vault, "A.md", "A typed more", 2);
     writeDraft(vault, "B.md", "B typed", 1);

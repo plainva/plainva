@@ -148,7 +148,7 @@ function AgentSignIn({ current }: { current: AiAcpSession }) {
   const copy = (text: string) => {
     void navigator.clipboard.writeText(text).then(
       () => toast.success(t("ai.mcp.copied")),
-      () => undefined,
+      () => /* silent: a refused clipboard shows no "copied" notice; nothing was changed. */ undefined,
     );
   };
   return (

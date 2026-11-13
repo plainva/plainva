@@ -12,8 +12,7 @@ import {
   groupRecentsByDay,
   recentDayLabel,
   recentTimeLabel,
-  type RecentDayGroup,
-} from "@plainva/ui";
+  type RecentDayGroup, reportingTo } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SwipeRow } from "../components/SwipeRow";
 import { loadRecentList, type RecentListEntry } from "../lib/recentList";
@@ -86,7 +85,7 @@ export function RecentScreen({
     onOpenBase,
     // Only a note that was OPENED is on the list; a first run shows recently
     // changed notes instead, and there is nothing to take off.
-    onRemoveFromList: shown?.opened ? (path) => void vaultOps.forgetRecent(vault, path).catch(() => {}) : undefined,
+    onRemoveFromList: shown?.opened ? (path) => void vaultOps.forgetRecent(vault, path).catch(reportingTo("recent:forget")) : undefined,
   });
 
   const words = { today: t("mobile.today"), yesterday: t("mobile.yesterday"), earlier: t("mobile.recentEarlier") };

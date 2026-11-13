@@ -101,7 +101,7 @@ export function TagTree({ onSelectPath, filter, focusTag }: TagTreeProps) {
       }
     };
     
-    fetchTags();
+    void fetchTags();
     return () => { active = false; };
   }, [queryService, fileTreeVersion, selectedTag]);
 

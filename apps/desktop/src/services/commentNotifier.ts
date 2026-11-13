@@ -174,6 +174,7 @@ async function announce(
   try {
     sendNotification({ title: text.title, body: text.body });
   } catch (error) {
+    // silent: the in-app notice below says the same; only the system's banner is missing.
     console.warn("[commentNotifier] notification failed", error);
   }
   toast.info(`${text.title} · ${text.body}`, { label: i18n.t("commentNotify.actionOpen"), run: open });

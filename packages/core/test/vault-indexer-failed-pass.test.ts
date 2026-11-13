@@ -12,54 +12,53 @@ import { VaultIndexer } from "../src/vault/VaultIndexer.js";
  *
  * A pass says what it found — a file that went, a new one, one changed
  * elsewhere — once its transaction is through; the host queues uploads and
- * remote deletions from that. On the phone the transaction is one: a pass
- * that fails is rolled back, wrote nothing and has nothing to say.
+ * remote deletions from that. A transaction that fails is rolled back, wrote
+ * nothing and has nothing to say; a full scan in several short transactions
+ * (performance plan L4) says what the ones that went through wrote.
  *
- * The desktop's database adapter cannot hold a transaction (a pool; every
- * call may get another connection). There `transaction()` only keeps a second
- * one out, every statement is committed as it runs, and a full scan hands its
- * writes over in batches of some thousand statements, each batch a native
- * transaction of its own. A scan that fails later — a file that vanished
- * between the listing and its read is enough — has written what it had
- * handed over, and said nothing:
- *  - the rows of the files that went were in the first batch. Gone from the
- *    index, never reported: the sync rows stay, no remote deletion is queued,
- *    and the next scan no longer knows the paths. The files stay on the
- *    remote and on every other device;
- *  - the files of the batches that got through are indexed and were never
- *    announced: a new one waits for the sweep of the next sync start, a
- *    change made by another program is not uploaded at all — the next scan
- *    finds the file as it indexed it.
+ * The desktop's database adapter used to hold no transaction (a pool; every
+ * call may get another connection): `transaction()` only kept a second one
+ * out, every statement committed as it ran, and a scan that failed after a
+ * batch had to say what that batch had written (`keepsWhatAFailedTransactionWrote`).
+ * Its transactions are real since stability plan R1, on a connection Rust
+ * holds for each; the model below gives the real SQLite the desktop's shape
+ * (the scan's batches through the body's handle, counted, and one of them
+ * refused), and both shells answer the same.
  *
- * Real files, a real SQLite; the wrapper below gives it the desktop's manners.
- * Nothing here depends on the order a folder is listed in.
+ * Real files, a real SQLite. Nothing here depends on the order a folder is
+ * listed in.
  */
 
 /**
- * `TauriDatabaseAdapter`: a turn instead of a transaction, each statement
- * committed as it runs, `runBatch` atomic on its own. `refuseBatch` names the
- * batch (counted over the adapter's life) that the database refuses — a disk
- * that is full, a lock that is not let go.
+ * `TauriDatabaseAdapter` since R1: a real transaction, a batch from its body
+ * running in it (`db_tx_batch`), a batch of its own a transaction of its own
+ * (`db_batch`). `refuseBatch` names the batch (counted over the adapter's
+ * life) that the database refuses — a disk that is full, a lock that is not
+ * let go. `flush` is where every batch goes; a test may step in there.
  */
-function desktopLike(inner: IDatabaseAdapter): IDatabaseAdapter & { batches: number; refuseBatch?: number } {
-  let last: Promise<unknown> = Promise.resolve();
-  const db: IDatabaseAdapter & { batches: number; refuseBatch?: number } = {
+type DesktopLike = IDatabaseAdapter & {
+  batches: number;
+  refuseBatch?: number;
+  flush: (statements: BatchStatement[], tx: SqlStatements | null) => Promise<void>;
+};
+function desktopLike(inner: IDatabaseAdapter): DesktopLike {
+  const db: DesktopLike = {
     ...inner,
     batches: 0,
-    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
-      const run = last.then(() => fn(db));
-      last = run.catch(() => undefined);
-      return run;
-    },
-    async runBatch(statements: BatchStatement[]): Promise<void> {
+    async flush(statements, tx) {
       if (statements.length === 0) return;
       if (db.batches + 1 === db.refuseBatch) throw new Error("disk full");
-      await inner.transaction(async (tx) => {
-        for (const s of statements) await tx.execute(s.sql, s.params ?? []);
-      });
+      const run = async (on: SqlStatements) => {
+        for (const st of statements) await on.execute(st.sql, st.params ?? []);
+      };
+      if (tx) await run(tx);
+      else await inner.transaction(run);
       db.batches += 1;
     },
-    keepsWhatAFailedTransactionWrote: true,
+    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
+      return inner.transaction((tx) => fn({ ...tx, runBatch: (statements) => db.flush(statements, tx) }));
+    },
+    runBatch: (statements: BatchStatement[]) => db.flush(statements, null),
   };
   return db;
 }
@@ -79,12 +78,14 @@ let gone: string[];
 /** Five notes a batch: the scan's batches are the same at forty statements as at its four thousand. */
 const BATCH = 40;
 
-const hooks = () => ({
+const hooks = (scanTransactionMs = Number.POSITIVE_INFINITY) => ({
   scanBatchStatements: BATCH,
   // These scenes count the scan's batches of statements: in ONE transaction,
   // so that the count does not depend on the clock. A scan in several short
   // transactions fails the same way: vault-indexer-short-transactions.test.ts.
-  scanTransactionMs: Number.POSITIVE_INFINITY,
+  // The scenes of an index owed a scan pass 0: a transaction per file, so
+  // that a refused batch is one transaction and the ones before it stay.
+  scanTransactionMs,
   onNewLocalFile: (p: string) => void fresh.push(p),
   onExternalModification: (p: string) => void foreign.push(p),
   onLocalFileDeleted: (p: string) => void gone.push(p),
@@ -163,7 +164,7 @@ describe("a full scan that fails after part of its writes", () => {
     return { indexer, last: order[order.length - 1] };
   }
 
-  it("the desktop's database keeps what was handed over: the scan says so before it passes the failure on", async () => {
+  it("the desktop's database takes back what was handed over (R1): the scan says nothing, and the next one says everything", async () => {
     const db = desktopLike(sqlite);
     const { indexer } = await scene(db);
     const before = db.batches;
@@ -172,25 +173,6 @@ describe("a full scan that fails after part of its writes", () => {
 
     await expect(indexer.indexVaultFull("return to the app")).rejects.toThrow("disk full");
     expect(db.batches, "the scene: a batch went through before the scan failed").toBe(before + 1);
-    await expectToldWhatTheIndexHolds(db);
-    expect(fresh.length, "the scene: the batch that went through held new notes").toBeGreaterThan(0);
-
-    // The next scan reads the rest and says the rest: every file once.
-    db.refuseBatch = undefined;
-    await indexer.indexVaultFull("return to the app");
-    expect([...gone].sort()).toEqual(VANISHED);
-    expect(foreign).toEqual(["Known.md"]);
-    expect([...fresh].sort()).toEqual(Array.from({ length: NOTES }, (_, i) => name(i + 1)));
-  });
-
-  it("…and a scan whose first batch is refused has written nothing and says nothing", async () => {
-    const db = desktopLike(sqlite);
-    const { indexer } = await scene(db);
-    const before = db.batches;
-    db.refuseBatch = before + 1;
-
-    await expect(indexer.indexVaultFull("return to the app")).rejects.toThrow("disk full");
-    expect(db.batches).toBe(before);
     expect(gone).toEqual([]);
     expect(fresh).toEqual([]);
     expect(foreign).toEqual([]);
@@ -200,7 +182,7 @@ describe("a full scan that fails after part of its writes", () => {
     await indexer.indexVaultFull("return to the app");
     expect([...gone].sort()).toEqual(VANISHED);
     expect(foreign).toEqual(["Known.md"]);
-    expect(fresh).toHaveLength(NOTES);
+    expect([...fresh].sort()).toEqual(Array.from({ length: NOTES }, (_, i) => name(i + 1)));
   });
 
   it("where the transaction is one (the phone), the failed scan is rolled back as a whole and the next one says everything", async () => {
@@ -241,14 +223,15 @@ describe("a folder re-read that fails after part of its writes", () => {
     expect([...fresh].sort(), "the new files that are indexed").toEqual(rows.filter(isNew).sort());
   };
 
-  it("the desktop's database keeps what ran: the re-read says so before it passes the failure on", async () => {
+  it("the desktop's database takes back what ran (R1): nothing is said, and the next re-read says it all", async () => {
     const db = desktopLike(sqlite);
     const { indexer, last } = await scene(db);
     const restore = refuseEveryWriteOf(db, last);
 
     await expect(indexer.reconcileFolder("Folder")).rejects.toThrow("disk full");
     restore();
-    expect((await db.query("SELECT path FROM files")).length, "the scene: the re-read had written before it failed").not.toBe(2);
+    expect(gone).toEqual([]);
+    expect(fresh).toEqual([]);
     await told(db);
 
     await indexer.reconcileFolder("Folder");
@@ -276,7 +259,7 @@ describe("an index owed a full scan (issue 125)", () => {
   it("is owed one while its first scan has not gone through — the rows that scan kept do not make it whole", async () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
-    const indexer = new VaultIndexer(vault, db, hooks());
+    const indexer = new VaultIndexer(vault, db, hooks(0));
     // The first scan's second batch is refused: the first one stays written.
     db.refuseBatch = 2;
     await expect(indexer.indexVaultFull("open, empty index")).rejects.toThrow("disk full");
@@ -291,7 +274,7 @@ describe("an index owed a full scan (issue 125)", () => {
   it("is owed one again once it was empty, and an unchanged scan writes nothing for it", async () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
-    const indexer = new VaultIndexer(vault, db, hooks());
+    const indexer = new VaultIndexer(vault, db, hooks(0));
     await indexer.indexVaultFull("open, empty index");
     expect(await indexer.indexComplete()).toBe(true);
 
@@ -316,24 +299,24 @@ describe("an index owed a full scan (issue 125)", () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
     // The second batch never comes back: the process ended while it ran.
-    const runBatch = db.runBatch!.bind(db);
+    const flush = db.flush;
     let ended!: () => void;
     const end = new Promise<void>((resolve) => { ended = resolve; });
-    db.runBatch = async (statements) => {
+    db.flush = async (statements, tx) => {
       if (db.batches === 1) { ended(); return new Promise<void>(() => {}); }
-      return runBatch(statements);
+      return flush(statements, tx);
     };
-    void new VaultIndexer(vault, db, hooks()).indexVaultFull("open, empty index");
+    void new VaultIndexer(vault, db, hooks(0)).indexVaultFull("open, empty index");
     await end;
     // The next start finds the rows of the first batch, and no scan that went through.
     expect((await sqlite.query<{ path: string }>("SELECT path FROM files")).length).toBeGreaterThan(0);
-    expect(await new VaultIndexer(vault, sqlite, hooks()).indexComplete()).toBe(false);
+    expect(await new VaultIndexer(vault, sqlite, hooks(0)).indexComplete()).toBe(false);
   });
 
   it("is owed one when a small first scan fails in its only batch — a note saved afterwards does not make it whole", async () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= 3; i++) await vault.writeTextFile(name(i), note(i));
-    const indexer = new VaultIndexer(vault, db, hooks());
+    const indexer = new VaultIndexer(vault, db, hooks(0));
     // A few notes fit into the tail: refused, it was the scan's only batch.
     db.refuseBatch = 1;
     await expect(indexer.indexVaultFull("open, empty index")).rejects.toThrow("disk full");
@@ -351,7 +334,7 @@ describe("an index owed a full scan (issue 125)", () => {
   it("stays whole through a scan that writes and one that fails, once a scan went through on it", async () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= 3; i++) await vault.writeTextFile(name(i), note(i));
-    const indexer = new VaultIndexer(vault, db, hooks());
+    const indexer = new VaultIndexer(vault, db, hooks(0));
     await indexer.indexVaultFull("open, empty index");
     expect(await indexer.indexComplete()).toBe(true);
 
@@ -373,7 +356,7 @@ describe("an index owed a full scan (issue 125)", () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= 3; i++) await vault.writeTextFile(name(i), note(i));
     const failed: unknown[] = [];
-    const indexer = new VaultIndexer(vault, db, { ...hooks(), onFullScanFailed: (info) => void failed.push(info.error) });
+    const indexer = new VaultIndexer(vault, db, { ...hooks(0), onFullScanFailed: (info) => void failed.push(info.error) });
     db.refuseBatch = 1;
     const execute = db.execute.bind(db);
     db.execute = async (sql, params) => {
@@ -387,7 +370,7 @@ describe("an index owed a full scan (issue 125)", () => {
   it("is owed one when the first scan's walk fails, and whole after a scan that found nothing left to write", async () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= 3; i++) await vault.writeTextFile(name(i), note(i));
-    const indexer = new VaultIndexer(vault, db, hooks());
+    const indexer = new VaultIndexer(vault, db, hooks(0));
     const listDir = vault.listDir.bind(vault);
     vault.listDir = async () => { throw new Error("folder not mounted"); };
     await expect(indexer.indexVaultFull("open, empty index")).rejects.toThrow("folder not mounted");

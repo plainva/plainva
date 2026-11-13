@@ -68,7 +68,7 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
       options: NOTE_HEAD_BUTTONS.map((b) => ({ value: b, label: headLabel(b) })),
       value: settings.noteHeadButton,
     }).then((v) => {
-      if (v !== null) update({ noteHeadButton: v as NoteHeadButton });
+      if (v !== null) void update({ noteHeadButton: v as NoteHeadButton });
     });
   };
   const pickDefaultView = () => {
@@ -77,7 +77,7 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
       options: (["read", "edit"] as DefaultView[]).map((m) => ({ value: m, label: viewLabel(m) })),
       value: settings.defaultView,
     }).then((v) => {
-      if (v !== null) update({ defaultView: v as DefaultView });
+      if (v !== null) void update({ defaultView: v as DefaultView });
     });
   };
   return (
@@ -206,7 +206,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       });
       if (picked === null) return;
       if (picked !== CREATE_TASK_DB) {
-        update({ taskDatabase: picked });
+        void update({ taskDatabase: picked });
         return;
       }
       const name = await mPrompt({
@@ -224,7 +224,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         return null;
       });
       if (!path) return;
-      update({ taskDatabase: path });
+      void update({ taskDatabase: path });
       // The phone has no watcher to find the new file: the index is told
       // here, so the tasks area sees it now and the sync takes it along.
       void vault.reindexPaths([path]);
@@ -406,7 +406,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         <FolderPickerSheet
           onClose={() => setPickFor(null)}
           onPick={(path) => {
-            if (path) update({ [pickFor]: path });
+            if (path) void update({ [pickFor]: path });
           }}
           title={t("settings.browseFolders")}
           vault={vault}
@@ -440,7 +440,7 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
       })),
       value: String(settings.backupIntervalSeconds),
     }).then((v) => {
-      if (v !== null) update({ backupIntervalSeconds: Number(v) });
+      if (v !== null) void update({ backupIntervalSeconds: Number(v) });
     });
   };
   const pickBackupCount = () => {
@@ -450,7 +450,7 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
       options: choicesWith(VERSION_MAX_COUNT_CHOICES, settings.backupMaxPerFile).map((n) => ({ value: String(n), label: String(n) })),
       value: String(settings.backupMaxPerFile),
     }).then((v) => {
-      if (v !== null) update({ backupMaxPerFile: Number(v) });
+      if (v !== null) void update({ backupMaxPerFile: Number(v) });
     });
   };
   const pickBackupAge = () => {
@@ -463,7 +463,7 @@ export function BackupAreaScreen({ vault, onBack }: { vault: MobileVault; onBack
       })),
       value: String(settings.backupMaxAgeDays),
     }).then((v) => {
-      if (v !== null) update({ backupMaxAgeDays: Number(v) });
+      if (v !== null) void update({ backupMaxAgeDays: Number(v) });
     });
   };
   return (

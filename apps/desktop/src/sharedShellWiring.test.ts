@@ -45,7 +45,8 @@ const contracts = [
   // own — is converted by the first write that changes it (2026-10-12). Both
   // shells hand the one notice to the top of their adapter chain, where every
   // write of the app passes; a shell that stops doing so converts in silence.
-  ["sayLineEndsConverted", "contexts/VaultContext.tsx", "services/vaultService.ts"],
+  // Since stability plan R2 in each shell's chain ports (`desktopChainPorts`, `mobileChainPorts`).
+  ["sayLineEndsConverted", "services/vaultChainPorts.ts", "services/mobileChainPorts.ts"],
 ] as const;
 
 /**

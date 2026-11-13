@@ -1,3 +1,4 @@
+import { reportBackground } from "../services/backgroundErrors";
 import {
   DEFAULT_SEARCH_MODE,
   EMBEDDING_BUDGETS,
@@ -761,8 +762,9 @@ export class LocalEmbeddings {
     this.feedbackLane = this.feedbackLane.then(async () => {
       try {
         await store.save(this.feedback);
-      } catch {
+      } catch (error) {
         // The word counts until the vault closes even when app data cannot be written.
+        reportBackground("ai:related-feedback", error);
       }
     });
     return this.feedbackLane;

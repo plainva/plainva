@@ -8,6 +8,7 @@
 export * from "./components/DriveDestinationDialog";
 export * from "./lib/bookmarksFile";
 export * from "./lib/deleteThreshold";
+export * from "./lib/transactionTurns";
 export * from "./lib/calendarGrid";
 export * from "./lib/cloudAccounts";
 export * from "./lib/cloudAccountsLabels";
@@ -445,6 +446,7 @@ export * from "./lib/noteEmbed";
 export * from "./lib/useSearchPages";
 export * from "./components/tableModel";
 export * from "./services/diagnosticsLog";
+export * from "./services/backgroundErrors";
 export * from "./lib/buildInfo";
 export * from "./services/retiredStorage";
 export * from "./services/listingReport";

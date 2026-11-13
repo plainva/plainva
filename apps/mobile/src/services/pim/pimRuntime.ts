@@ -224,5 +224,5 @@ export async function restartPimAccountAfterLogin(vaultId: string, accountId: st
   if (runtime !== target) return;
   if (state.status === "off") setPimState({ status: "idle", message: null });
   target.worker.start();
-  target.worker.triggerImmediate();
+  void target.worker.triggerImmediate();
 }

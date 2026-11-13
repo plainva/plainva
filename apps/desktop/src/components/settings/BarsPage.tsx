@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { settingNotSaved } from "../../services/settingNotSaved";
 import { useTranslation } from "react-i18next";
 import { GripVertical, Eye, EyeOff, Square, type LucideIcon } from "lucide-react";
 import {
@@ -256,7 +257,7 @@ export const BarsPage: React.FC<{ isActiveVault: boolean; vaultPath: string | nu
   const change = (bar: BarId, next: AreaOrder) => {
     setLayouts((prev) => (prev ? { ...prev, [bar]: next } : prev));
     setInherited((prev) => ({ ...prev, [bar]: false }));
-    void saveBarLayout(bar, vaultPath, next);
+    void saveBarLayout(bar, vaultPath, next).catch(settingNotSaved("settings:bar-layout"));
   };
 
   const reset = (bar: BarId) => {
@@ -265,7 +266,7 @@ export const BarsPage: React.FC<{ isActiveVault: boolean; vaultPath: string | nu
 
   const saveDefault = (bar: BarId) => {
     const value = layouts?.[bar];
-    if (value) void saveBarLayoutAsDefault(bar, value);
+    if (value) void saveBarLayoutAsDefault(bar, value).catch(settingNotSaved("settings:bar-layout"));
   };
 
   return (

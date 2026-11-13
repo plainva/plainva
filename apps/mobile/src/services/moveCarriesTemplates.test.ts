@@ -70,6 +70,8 @@ beforeEach(async () => {
     notifyFileOps: () => {},
     toast: { error: (text: string) => { warnings.push(text); }, warning: (text: string) => { warnings.push(text); } },
     i18n: { t: (key: string) => key },
+    // The diagnostics of a failed index step are not what is asked here (stability plan R4).
+    reportingTo: () => () => {}, reportBackground: () => {},
     window, CustomEvent, console: { error: () => {}, warn: () => {} },
   };
   phone = (new Function(...Object.keys(deps), `${compiled}\nreturn vaultOps;`)(...Object.values(deps))) as Phone;

@@ -1,3 +1,4 @@
+import { reportBackground } from "../services/backgroundErrors";
 import { useEffect, useState } from "react";
 import { routineDays, routineDraftProblems, type ModelChoice, type RoutineDay, type RoutineDraft, type RoutineDraftProblem } from "@plainva/core";
 import type { AiSession, RoutinePreview, RoutinePreviewRefusal, RoutineSaved } from "./aiSession";
@@ -127,7 +128,9 @@ export function useRoutineForm(session: AiSession, initial: RoutineDraft, option
       setSaving(true);
       try {
         return await session.saveRoutine(draft, preview, id);
-      } catch {
+      } catch (error) {
+        // Said on the form as "failed"; the reason goes into the diagnostics.
+        reportBackground("ai:routine-save", error);
         return "failed";
       } finally {
         setSaving(false);

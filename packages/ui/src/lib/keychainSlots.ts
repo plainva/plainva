@@ -1,3 +1,4 @@
+import { reportingTo } from "../services/backgroundErrors";
 import { trimEndChars } from "@plainva/core";
 /**
  * Readable names for the entries Plainva puts in the OS keychain (plan P6, E1).
@@ -202,5 +203,5 @@ export async function removeSlot(
   legacy: string,
 ): Promise<void> {
   await credentials.removeSecret(readable);
-  if (legacy !== readable) await credentials.removeSecret(legacy).catch(() => undefined);
+  if (legacy !== readable) await credentials.removeSecret(legacy).catch(reportingTo("credentials:legacy-slot"));
 }

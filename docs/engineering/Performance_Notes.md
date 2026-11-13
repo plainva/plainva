@@ -229,13 +229,14 @@ flag — one batch. If it fails at any step the vault
 still opens: the full-text table is dropped and made anew, every note is handed to the next full
 pass, and the failure is recorded in `meta` under `index-diagnostic:fts-numbering` as a count and a date; both shells put it into the diagnostics export ("About & diagnostics") when the vault opens (`readIndexDiagnostics`, `logIndexDiagnostics`), with no path and no text.
 
-Not covered, as in v0.8.7: on the desktop `transaction()` is a turn, not a transaction, so a
-kill between a note's `INSERT INTO files` and its search row leaves a note with a current
-`mtime_local` and no row, unsearchable until it is edited; the sweep that hands such notes to the
-next pass runs only on a flagged start. Run at every start it would cost 60 ms (by number) to
-80 ms (by number and path) at 10 000 notes on a reopened index here
-(`scripts/perf/numbering-cost.ts`, `sweepByNumberMs`, `sweepByNumberAndPathMs`) — too much for
-every start; real transactions on the desktop close it at the cause (R1).
+Closed at the cause since stability plan R1: on the desktop `transaction()` used to be a turn, not
+a transaction, so a kill between a note's `INSERT INTO files` and its search row left a note with a
+current `mtime_local` and no row, unsearchable until it was edited (also in v0.8.7, which can still
+leave such a note behind on a shared index). The desktop's transactions are real now
+(`src-tauri/src/db_tx.rs`); a kill leaves neither row, and the next pass reads the note as new
+(`apps/desktop/src/adapters/TauriDatabaseAdapter.test.ts`). A sweep at every start was not taken:
+it would cost 60 ms (by number) to 80 ms (by number and path) at 10 000 notes on a reopened index
+here (`scripts/perf/numbering-cost.ts`, `sweepByNumberMs`, `sweepByNumberAndPathMs`).
 
 Orphan rows — a row the delete trigger kept because its path belongs to another file now — are
 harmless to readers, which all join on number and path, and only `rebuildIndex` (or a flagged

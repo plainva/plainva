@@ -1,4 +1,4 @@
-import { readContentBinary } from "@plainva/ui";
+import { readContentBinary, reportingTo } from "@plainva/ui";
 import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll, scrolledToEnd } from "./services/chromeScroll";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
@@ -237,12 +237,12 @@ export function EditorHost({
       if (!session || !db || !suggestingRef.current) return;
       const { base } = session.suggestion();
       if (base === null) return;
-      void writeParkedSuggestion(db, { path, base, copy: session.view.state.doc.toString(), note: suggestNoteRef.current, savedAt: new Date().toISOString() }).catch(() => {});
+      void writeParkedSuggestion(db, { path, base, copy: session.view.state.doc.toString(), note: suggestNoteRef.current, savedAt: new Date().toISOString() }).catch(reportingTo("suggestion:park"));
     }, 500);
   }, [path, vault]);
   const forgetPark = useCallback(() => {
     if (parkTimerRef.current !== null) { window.clearTimeout(parkTimerRef.current); parkTimerRef.current = null; }
-    if (vault.db) void clearParkedSuggestion(vault.db, path).catch(() => {});
+    if (vault.db) void clearParkedSuggestion(vault.db, path).catch(reportingTo("suggestion:park"));
   }, [path, vault]);
   // The .base picker of the insert menu (S19): the slash entry existed and
   // did nothing, because it fires an event only the desktop listened to.

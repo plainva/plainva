@@ -14,6 +14,10 @@ export { formatQueueEntryReport, type QueueEntryKind, type QueueEntryReport } fr
  * Operating-system bookkeeping (`.DS_Store`, …; issue #110, E10) never travels either —
  * an import may copy it into the vault, and deleting it here deletes nothing remotely.
  */
+export function isQueueLocalOnlyPath(path: string): boolean {
+  return isLocalOnly(path);
+}
+
 function isLocalOnly(path: string): boolean {
   // An encrypted workspace's namespace is never part of the plain vault (R8):
   // a `.pvws/` copied in, restored from a backup or pulled before the rule

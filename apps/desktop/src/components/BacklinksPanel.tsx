@@ -115,7 +115,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
       }
     };
 
-    fetchBacklinks();
+    void fetchBacklinks();
 
     return () => {
       active = false;

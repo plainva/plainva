@@ -1,7 +1,7 @@
 import { SyncEngine } from "./SyncEngine.js";
 import { ISyncTarget, type ListingMetrics, type PullResult, type RemotePresence } from "./ISyncTarget.js";
 import type { OwnDeletionRegister } from "./ownDeletions.js";
-import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
+import type { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
@@ -827,7 +827,7 @@ export class SyncWorker {
     this.engine.resetRefusals?.();
     this.queue.resetStuckOperations()
       .catch((e) => console.error("[SyncWorker] resetStuckOperations failed:", e))
-      .finally(() => { if (this.isRunning) this.executeCycle(); });
+      .finally(() => { if (this.isRunning) void this.executeCycle(); });
   }
 
   /**
@@ -959,11 +959,9 @@ export class SyncWorker {
    * files come back immediately instead of at the next periodic full pass.
    */
   public async discardMassDeletion(): Promise<number> {
-    const paths = await this.queue.discardPendingDeletes(new Set(this.massDeletionPromptIds));
+    // The entries and their sync rows in one transaction (R22, review B1).
+    const paths = await this.queue.discardDeletesForRestore(new Set(this.massDeletionPromptIds));
     this.massDeletionPromptIds = [];
-    for (const p of paths) {
-      await this.stateRepo.deleteSyncState(p);
-    }
     this.massDeletionSignaled = false;
     this.cursor = undefined; // full listing next cycle -> immediate restore
     if (paths.length > 0) this.triggerImmediate();
@@ -998,7 +996,7 @@ export class SyncWorker {
       clearTimeout(this.timeoutId);
       this.timeoutId = undefined;
     }
-    this.executeCycle();
+    void this.executeCycle();
   }
 
   /** The wait before the next cycle. Named because the failure path has to
@@ -1020,7 +1018,7 @@ export class SyncWorker {
       console.log(`[SyncWorker] backoff: next cycle in ${Math.round(delay / 1000)}s after ${this.consecutiveFailures} failure(s)`);
     }
     this.timeoutId = setTimeout(() => {
-      this.executeCycle();
+      void this.executeCycle();
     }, delay);
   }
 
@@ -2245,6 +2243,7 @@ export class SyncWorker {
       try {
         known.set(path, await this.stateRepo.markUnsyncable(path, reason, etag, now));
       } catch (e) {
+        // silent: kept in memory above, so this cycle's status names it; the next cycle records it again.
         console.warn(`[SyncWorker] could not record ${path} as unsyncable`, e);
       }
     };
@@ -2253,6 +2252,7 @@ export class SyncWorker {
       try {
         await this.stateRepo.clearUnsyncable(path);
       } catch (e) {
+        // silent: the mark in memory is gone for this cycle; the stored one is asked again and cleared by the next pull that gets through.
         console.warn(`[SyncWorker] could not clear the unsyncable mark of ${path}`, e);
       }
     };

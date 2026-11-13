@@ -504,7 +504,7 @@ export class EncryptedWorkspaceWorker {
     if (meta) {
       meta.lastError = message.slice(0, 1000);
       meta.lastSyncFailure = { kind, message: meta.lastError, at };
-      await this.state.saveMeta(meta).catch(() => undefined);
+      await this.state.saveMeta(meta).catch(() => { /* silent: the failure is said below through onStatusChange; only its stored copy is missing */ });
     }
     this.onStatusChange?.(kind === "transient" ? "retrying" : "error", message, undefined, this.retryAt, kind);
   }
@@ -1243,7 +1243,7 @@ export class EncryptedWorkspaceWorker {
     }, meta, prepared.absorbedQueueIds ?? []);
     if (prepared.objectLocalPath) {
       const folder = prepared.objectLocalPath.split("/").slice(0, -1).join("/");
-      await this.vault.deleteItem(folder, true).catch(() => undefined);
+      await this.vault.deleteItem(folder, true).catch(() => { /* silent: a staging folder left over after the object was committed; nothing reads it */ });
     }
   }
 

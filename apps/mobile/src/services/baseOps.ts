@@ -144,7 +144,7 @@ export async function commitCellValue(
  * index, and the plugin of the phone's single database connection refused a
  * second transaction while one was open — the note was changed on disk and
  * counted as failed. The database's transactions take their turns since
- * (`adapters/transactionTurns.ts`), so the selection writes several notes at
+ * (`packages/ui/src/lib/transactionTurns.ts`), so the selection writes several notes at
  * a time again, with the desktop's gate, and none is refused
  * (`vaultChainWrites.test.ts`). Measured on 2026-10-19 with a probe outside
  * the repository, against the simulated connection with 1 and 3 ms added to

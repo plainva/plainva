@@ -470,7 +470,11 @@ export function VaultDetailScreen({
       if (!ok) return;
       setBusy(true);
       await deleteVault(vaultId)
-        .then(onBack)
+        .then((left) => {
+          // What stayed of its app data is said, in the desktop's words (stability plan R4).
+          if (left.length > 0) toast.warning(t("splash.removeForgetPartial", { name, what: left.join(", ") }));
+          onBack();
+        })
         .finally(() => setBusy(false));
     })();
   };

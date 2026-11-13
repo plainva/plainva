@@ -16,7 +16,6 @@ import { SyncWorker } from "../../src/sync/SyncWorker.js";
 import { WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
 import type { ISyncTarget, SyncContentRef, SyncOperation } from "../../src/sync/ISyncTarget.js";
 import type { IVaultAdapter } from "../../src/vault/IVaultAdapter.js";
-import type { IDatabaseAdapter, SqlStatements } from "../../src/db/IDatabaseAdapter.js";
 
 /**
  * The merge base of a file: the version this device and the remote last
@@ -61,29 +60,10 @@ const windows1252 = (text: string) => [...text].map((char) => char.charCodeAt(0)
 
 type Row = { local_sha256: string | null; base_sha256: string | null; base_etag: string | null; base_text: string | null; remote_etag: string | null };
 
-/**
- * The desktop's manners (`TauriDatabaseAdapter`): a transaction is a turn
- * without a rollback, its body's handle the adapter itself, and a statement
- * from elsewhere lands while it runs.
- */
-function desktopLike(inner: IDatabaseAdapter): IDatabaseAdapter {
-  let last: Promise<unknown> = Promise.resolve();
-  const db: IDatabaseAdapter = {
-    ...inner,
-    keepsWhatAFailedTransactionWrote: true,
-    transaction<T>(fn: (tx: SqlStatements) => Promise<T>): Promise<T> {
-      const run = last.then(() => fn(db));
-      last = run.catch(() => undefined);
-      return run;
-    },
-  };
-  return db;
-}
-
-async function device(dav: ByteExactDav, options: { indexerFiles?: (raw: LocalVaultAdapter) => IVaultAdapter; desktop?: boolean } = {}) {
+async function device(dav: ByteExactDav, options: { indexerFiles?: (raw: LocalVaultAdapter) => IVaultAdapter } = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-base-"));
   const sqlite = await realSqlite();
-  const db = options.desktop ? desktopLike(sqlite) : sqlite;
+  const db = sqlite;
   closers.push(async () => {
     await db.close();
     await fs.rm(root, { recursive: true, force: true });
@@ -253,49 +233,9 @@ describe("a streamed upload leaves no text of an earlier version (Sammelplan § 
 });
 
 describe("a full index pass and a first upload that ends while it runs (Sammelplan § 3.102 no. 3)", () => {
-  it("the pass leaves the base the upload recorded", async () => {
-    const w = world();
-    let upload: (() => Promise<void>) | null = null;
-    // The pass has taken its look at the sync rows; while it reads the file,
-    // the file's first upload ends — its base is the version it uploaded. On
-    // the desktop, whose transaction is a turn without a rollback, the
-    // upload's statement lands while the pass runs. (On the phone it waits
-    // for the pass and lands after it, Datensicherheit D3: the test below.)
-    const a = await device(w.dav, {
-      desktop: true,
-      indexerFiles: (raw) => new Proxy(raw, {
-        get(target, key, receiver) {
-          const value = Reflect.get(target, key, receiver);
-          if (key !== "readBinaryFile" && key !== "readTextFile") return typeof value === "function" ? value.bind(target) : value;
-          return async (p: string) => {
-            if (p === "Note.md" && upload) {
-              const run = upload;
-              upload = null;
-              await run();
-            }
-            return (value as (p: string) => Promise<unknown>).call(target, p);
-          };
-        },
-      }),
-    });
-    const first = "first\n", later = "first\nchanged since\n";
-    await a.put("Note.md", utf8(later));
-    upload = async () => {
-      await a.db.execute(
-        `INSERT INTO sync_state (path, local_sha256, base_sha256, base_etag, remote_etag, base_text) VALUES (?, ?, ?, 'e1', 'e1', ?)
-         ON CONFLICT(path) DO UPDATE SET local_sha256 = excluded.local_sha256, base_sha256 = excluded.base_sha256,
-           base_etag = excluded.base_etag, remote_etag = excluded.remote_etag, base_text = excluded.base_text`,
-        ["Note.md", await sha256(utf8(first)), await sha256(utf8(first)), first]);
-    };
-    await a.index();
-    expect(upload).toBeNull();
-    const row = (await a.row("Note.md"))!;
-    expect(row.base_sha256).toBe(await sha256(utf8(first)));
-    expect(row.base_text).toBe(first);
-    expect(await holdsOneVersion(row)).toBe(true);
-  });
-
-  it("on the phone the upload's base waits for the pass, and is not rolled back with it (Datensicherheit D3)", async () => {
+  // The desktop answered otherwise until its transactions became real (stability plan R1):
+  // a turn without a rollback, where the upload's statement landed while the pass ran.
+  it("the upload's base waits for the pass, and is not rolled back with it — in both shells (Datensicherheit D3, R1)", async () => {
     const w = world();
     let upload: (() => Promise<void>) | null = null;
     let landed: Promise<void> | null = null;

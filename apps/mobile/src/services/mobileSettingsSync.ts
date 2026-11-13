@@ -1,4 +1,4 @@
-import { isVaultPathSetting, setForeignLegacyComments } from "@plainva/ui";
+import { isVaultPathSetting, setForeignLegacyComments, reportingTo } from "@plainva/ui";
 import {
   ENCRYPTION_MANIFEST_PATH,
   EncryptingSyncTarget,
@@ -517,7 +517,7 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
     },
     deletePimAccount: async (accountId) => {
       if (cache) await cache.deleteAccount(accountId);
-      await clearPimCredentials(vaultId, accountId).catch(() => {});
+      await clearPimCredentials(vaultId, accountId).catch(reportingTo("credentials:pim-clear"));
     },
     listCalendars: async (accountId) => (cache ? cache.listCalendars(accountId) : []),
     setCalendarSelected: async (accountId, id, selected) => {
@@ -800,12 +800,16 @@ export function createMobileProfilePort(vault: MobileVault, memberId: string | n
         await store.set(unknownKey(vaultId), unknown);
         await store.save();
         await applyVaultSettings(vaultId, patch);
-        await clearProfileJournal(vaultId);
       } catch (error) {
         await restoreProfileSnapshot(vault, snapshot);
-        await clearProfileJournal(vaultId);
+        // The import's own failure is the one to say: a journal that will not
+        // close as well is written down, never put in its place (R4).
+        await clearProfileJournal(vaultId).catch(reportingTo("profile:journal"));
         throw error;
       }
+      // The import went through: ending its journal is outside the rollback,
+      // or a journal that will not close would undo what was applied (R4).
+      await clearProfileJournal(vaultId);
       // The accounts exist now; the runtimes have to be told, or the calendar
       // The design register joins after the rollback-able profile import; a
       // retry is idempotent and cannot roll back a concurrent local choice.

@@ -14,6 +14,7 @@
  */
 import { test as base, type BrowserContext } from "@playwright/test";
 import { TEST_NOW_MS, installPageDate, realDateNow, releasePageDate } from "../../../../scripts/test-clock.mjs";
+import { installTauriTransactionCommands } from "./tauriTransactions";
 
 export * from "@playwright/test";
 
@@ -48,6 +49,8 @@ export const test = base.extend<{ testClock: "fixed" | "real"; installTestClock:
   testClock: ["fixed", { option: true }],
   installTestClock: [
     async ({ context, testClock }, use) => {
+      // The desktop's transaction commands, handed on to the spec's stand-in of the SQL plugin (R1).
+      await context.addInitScript(installTauriTransactionCommands);
       if (testClock === "real") {
         anchor = null;
         await use();

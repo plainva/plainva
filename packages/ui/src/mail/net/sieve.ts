@@ -163,7 +163,7 @@ export async function sieveConnect(creds: SieveCreds, timeoutMs = 30_000): Promi
           .filter((s): s is { name: string; active: boolean } => s !== null);
       },
       async close() {
-        await sock.writeText("LOGOUT" + CRLF).catch(() => undefined);
+        await sock.writeText("LOGOUT" + CRLF).catch(() => { /* silent: a goodbye on a connection that is closed next; nothing to keep */ });
         await sock.close();
       },
     };

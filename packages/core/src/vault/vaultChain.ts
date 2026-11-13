@@ -4,6 +4,7 @@ import { ConflictFileStore } from "./ConflictFileStore.js";
 import type { IVaultAdapter, VaultStorageReader } from "./IVaultAdapter.js";
 import { QueueingVaultAdapter } from "./QueueingVaultAdapter.js";
 import { SyncStateRepository } from "./SyncStateRepository.js";
+import { StructureRefusingVaultAdapter } from "./StructureRefusingVaultAdapter.js";
 import { WORKSPACE_FORKS_FOLDER } from "./backupNaming.js";
 import type { QueueEntryReport } from "./owedQueueEntries.js";
 import type { TextFileShape } from "../textFileShape.js";
@@ -34,8 +35,23 @@ import type { WorkspaceStateStore } from "../workspace/state.js";
  *                    ends), the merge base kept by the sync state
  *
  * A vault without its index database (the phone, when SQLite does not open)
- * has no queue: `storage → versions → conflict-guard`, its conflict state kept
- * in files under `.plainva/conflicts`.
+ * has no queue: `storage → versions → structure-refusal → conflict-guard`,
+ * its conflict state kept in files under `.plainva/conflicts`. What only the
+ * queue can carry to the other devices — a deletion, a rename, a move — is
+ * refused there before it touches the disk (`StructureRefusingVaultAdapter`,
+ * stability plan R5); writing and creating go through and reach the sync at
+ * the next start with the database. A vault that syncs with no remote (a
+ * local vault, a picked folder) has nobody to tell: `storage → versions →
+ * conflict-guard`, everything allowed. An encrypted workspace's vault gets the
+ * same chain in that state: its permission state lives in the same database,
+ * so no link could check a change. A write made meanwhile is picked up at the
+ * next start by `initializePersonalWorkspaceMigration`, which every
+ * `startWorker` runs: it compares the files with the object map by hash and
+ * queues what differs, without `authorizeExternalChange`. A write the member
+ * may not make is therefore not kept as a local fork; its push fails on the
+ * worker's authorization assert ("local mutation is not permitted by the
+ * active workspace policy"). A deletion or a rename
+ * cannot happen at all (the refusal link).
  *
  * What the app writes goes through `files`, the top. What lies below it is
  * handed out by type: `reader` can only read, `versions` can only take and
@@ -45,14 +61,16 @@ import type { WorkspaceStateStore } from "../workspace/state.js";
  */
 
 /** The links of a chain, bottom first. */
-export type VaultChainLink = "storage" | "versions" | "permissions" | "sync-queue" | "workspace-queue" | "conflict-guard";
+export type VaultChainLink = "storage" | "versions" | "permissions" | "sync-queue" | "workspace-queue" | "structure-refusal" | "conflict-guard";
 
 /** The order every vault with an index database gets, bottom first. */
 export const PLAIN_VAULT_CHAIN: readonly VaultChainLink[] = ["storage", "versions", "sync-queue", "conflict-guard"];
 /** The order of an encrypted workspace's vault, bottom first. */
 export const WORKSPACE_VAULT_CHAIN: readonly VaultChainLink[] = ["storage", "versions", "permissions", "workspace-queue", "conflict-guard"];
 /** The order of a vault whose index database did not open, bottom first. */
-export const UNINDEXED_VAULT_CHAIN: readonly VaultChainLink[] = ["storage", "versions", "conflict-guard"];
+export const UNINDEXED_VAULT_CHAIN: readonly VaultChainLink[] = ["storage", "versions", "structure-refusal", "conflict-guard"];
+/** The order of a vault without its index database that syncs with no remote, bottom first. */
+export const UNINDEXED_LOCAL_VAULT_CHAIN: readonly VaultChainLink[] = ["storage", "versions", "conflict-guard"];
 
 /**
  * The versions layer's own controls, for the app: read a file, take a version
@@ -84,6 +102,12 @@ export interface VaultChainPorts {
    * open — conflict state goes to files, and nothing is queued.
    */
   index: { db: IDatabaseAdapter; queue: SyncQueue } | null;
+  /**
+   * The vault syncs with a remote. Only asked without an index database: then
+   * a deletion, a rename or a move is refused (R5), because the queue that
+   * would carry it to the remote is in that database.
+   */
+  remote?: boolean;
   /** An encrypted workspace: its permission check and its own queue replace the sync queue. */
   workspace?: VaultChainWorkspace | null;
   /** Told about every entry of a queue that had to be made up for or was given up (D2). */
@@ -139,8 +163,11 @@ export function buildVaultChain(ports: VaultChainPorts): VaultChain {
     // No database: the conflict guard keeps its sessions in files, below the
     // versions layer's net — which leaves the app's own files alone (`.plainva`).
     const conflictFiles = new ConflictFileStore(versions, ports.deviceId);
-    const files = new ConflictAwareVaultAdapter(versions, conflictFiles, ports.onAutoMerged, versions, ports.kind, ports.onLineEndsConverted);
-    return { files, belowChain: versions, queueing: null, permissions: null, syncRepo: null, links: UNINDEXED_VAULT_CHAIN };
+    // No queue to carry a deletion, a rename or a move to a remote: refused
+    // (R5). A workspace vault in this state gets the same chain (see the header).
+    const refusing = ports.remote ? new StructureRefusingVaultAdapter(versions) : null;
+    const files = new ConflictAwareVaultAdapter(refusing ?? versions, conflictFiles, ports.onAutoMerged, versions, ports.kind, ports.onLineEndsConverted);
+    return { files, belowChain: versions, queueing: null, permissions: null, syncRepo: null, links: refusing ? UNINDEXED_VAULT_CHAIN : UNINDEXED_LOCAL_VAULT_CHAIN };
   }
 
   const workspace = ports.workspace ?? null;

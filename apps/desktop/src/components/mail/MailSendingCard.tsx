@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { settingNotSaved } from "../../services/settingNotSaved";
 import { useTranslation } from "react-i18next";
 import { ChipField, SettingCard, SettingRow } from "@plainva/ui";
 import { normalizeSenderAddress, senderOptions, updateMailAccount, type MailAccountConfig } from "@plainva/ui/mail";
@@ -38,7 +39,13 @@ export function MailSendingCard({ vaultPath, account, onChanged }: { vaultPath: 
   }, [account, sigAddress]);
 
   const persist = useCallback(async (patch: Partial<MailAccountConfig>) => {
-    await updateMailAccount(vaultPath, account.id, patch);
+    try {
+      await updateMailAccount(vaultPath, account.id, patch);
+    } catch (error) {
+      // The field shows the new value; the account keeps the old one.
+      settingNotSaved("mail:account-settings")(error);
+      return;
+    }
     onChanged();
   }, [vaultPath, account.id, onChanged]);
 

@@ -1,3 +1,5 @@
+import { errorText } from "../lib/errorText";
+import { reportVisible } from "../services/backgroundErrors";
 import { UndoSendQueue, secondsLeft, UNDO_SEND_MS } from "../mail/undoSend";
 import { toast } from "../services/toastStore";
 import { readProviderTaskAnchor, type ProviderTaskAnchor } from "./providerTask";
@@ -193,7 +195,9 @@ async function restore(batch: PendingDeletion[]): Promise<void> {
       await deps?.writeTextFile(p.order.notePath, p.content);
       restored.push(p.order.notePath);
     } catch (e) {
-      console.error("[taskDeletion] restoring the note failed", p.order.notePath, e);
+      // "Undo" said the note comes back: one that did not is named (stability plan R4).
+      const name = (p.order.notePath.split("/").pop() ?? p.order.notePath).replace(/\.md$/i, "");
+      reportVisible("tasks:undo-delete", e, i18n.t("errors.background.taskNoteNotRestored", { name, reason: errorText(e) }));
     }
   }
   if (restored.length > 0) deps?.onRestored?.(restored);

@@ -24,7 +24,12 @@ class MemoryDrafts implements DraftJournalStorage {
     if (this.unreadable.has(file)) throw new Error("I/O error");
     return this.files.get(file)?.text ?? null;
   }
-  async write(file: string, text: string) { this.writes += 1; this.files.set(file, { text, mtimeMs: this.now() }); }
+  /** Files whose write never settles (a native call that never answers). */
+  readonly hanging = new Set<string>();
+  async write(file: string, text: string) {
+    if (this.hanging.has(file)) return new Promise<void>(() => {});
+    this.writes += 1; this.files.set(file, { text, mtimeMs: this.now() });
+  }
   async remove(file: string) { this.files.delete(file); }
   async list(dir: string) {
     return [...this.files].filter(([file]) => file.startsWith(`${dir}/`) && !file.slice(dir.length + 1).includes("/"))
@@ -270,7 +275,7 @@ describe("review of 2026-11-11", () => {
     expect(storage.files.has(layout.file(VAULT, "B.md"))).toBe(false);
   });
 
-  it("M2: entries of different sessions meeting at a destination both stay", async () => {
+  it("entries of different sessions meeting at a destination both stay (as before the rework: withDraftEntry never touched another session)", async () => {
     const journal = journalOf();
     await journal.record(VAULT, "B.md", "B in pane one", 5, "pane-1");
     clock += 10;
@@ -279,12 +284,43 @@ describe("review of 2026-11-11", () => {
     expect(storage.entries(layout.file(VAULT, "B.md")).map((e) => `${e.sessionId}:${e.text}`).sort()).toEqual(["pane-1:B in pane one", "pane-2:A in pane two"]);
   });
 
-  it("M2: the same entry moved twice is kept once", async () => {
+  it("a move that ended between writing the destination and clearing the source is not doubled by the next move", async () => {
     const journal = journalOf();
-    await journal.record(VAULT, "A.md", "text", 1, "s");
+    // The entry was written to B already, and the app ended before A's file lost it.
+    const entry = { vaultPath: VAULT, notePath: "A.md", text: "text", revision: 1, savedAt: clock, sessionId: "s" };
+    storage.files.set(layout.file(VAULT, "A.md"), { text: encodeDraftJournal([entry]), mtimeMs: clock });
+    storage.files.set(layout.file(VAULT, "B.md"), { text: encodeDraftJournal([{ ...entry, notePath: "B.md" }]), mtimeMs: clock });
     await journal.relocate(VAULT, [{ from: "A.md", to: "B.md" }]);
-    await journal.relocate(VAULT, [{ from: "B.md", to: "C.md" }]);
-    expect(storage.entries(layout.file(VAULT, "C.md")).map((e) => e.text)).toEqual(["text"]);
+    expect(storage.entries(layout.file(VAULT, "B.md")).map((e) => e.text)).toEqual(["text"]);
+    expect(storage.files.has(layout.file(VAULT, "A.md"))).toBe(false);
+  });
+
+  it("a move does not hang on a snapshot of a moved note whose write never settles; it goes on after its bound (review 2026-11-12)", async () => {
+    const journal = createDraftJournal<string>({ storage, layout, now, runStartedAt: clock, moveWaitMs: 2_000 });
+    storage.hanging.add(layout.file(VAULT, "A.md"));
+    void journal.record(VAULT, "A.md", "never lands", 1, "s");
+    let moved = false;
+    void journal.relocate(VAULT, [{ from: "A.md", to: "B.md" }]).then(() => { moved = true; });
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(moved).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_100);
+    expect(moved).toBe(true);
+  });
+
+  it("a move waits for no snapshot of another note or another vault (review 2026-11-12)", async () => {
+    const journal = createDraftJournal<string>({ storage, layout, now, runStartedAt: clock, moveWaitMs: 60_000 });
+    await journal.record(VAULT, "A.md", "unsaved A", 1, "s");
+    storage.hanging.add(layout.file(VAULT, "Other.md"));
+    storage.hanging.add(layout.file("Another vault", "A.md"));
+    void journal.record(VAULT, "Other.md", "never lands", 1, "s");
+    void journal.record("Another vault", "A.md", "never lands either", 1, "s");
+    let moved = false;
+    void journal.relocate(VAULT, [{ from: "A.md", to: "B.md" }]).then(() => { moved = true; });
+    // No timer runs: the move does not wait at all.
+    for (let i = 0; i < 20 && !moved; i++) await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(moved).toBe(true);
+    expect(storage.entries(layout.file(VAULT, "B.md")).map((e) => e.text)).toEqual(["unsaved A"]);
   });
 
   it("clearing: a confirmation leaves the entry on disk while a newer snapshot of the session is buffered, and that snapshot replaces it", async () => {

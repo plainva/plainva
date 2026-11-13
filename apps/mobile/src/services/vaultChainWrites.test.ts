@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, utimes } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -725,9 +725,13 @@ describe.each(["android", "ios"] as const)("one connection, two flows (%s)", (pl
 
   it("a new note, a rename, a confirmed deletion, a new folder and an attachment that meet an index pass each get their entry", async () => {
     let pulled = 0;
-    // The index follows a file a pull just wrote — a new one each time.
+    // The index follows a file a pull just wrote — a new one each time, with
+    // a time of its own: two writes can share a modification time, and a
+    // file with the time the index has is one it has read already.
     const indexPass = async () => {
       await raw.writeTextFile("Projects/Gamma.md", note("Gamma", "open", `Grace ${++pulled}`));
+      const at = new Date(Date.UTC(2026, 0, 1) + pulled * 60_000);
+      await utimes(join(root, "Projects/Gamma.md"), at, at);
       return indexer.indexPath("Projects/Gamma.md");
     };
     const meet = async (flow: () => Promise<unknown>) => {
@@ -808,12 +812,12 @@ it("boot hands its chain the reporter, as the desktop's vault context does: an e
   const built = all(serviceFile, ts.isCallExpression)
     .filter((node) => node.expression.getText(serviceFile) === "buildVaultChain")
     .map((node) => node.getText(serviceFile));
-  // With the index database, and without it (no queue there).
+  // With the index database, and without it (no queue there) — both with the phone's ports (`mobileChainPorts`),
+  // which carry the reporter.
   expect(built).toHaveLength(2);
   expect(built.filter((call) => /index: \{ db, queue \}/.test(call))).toHaveLength(1);
-  for (const call of built.filter((text) => /index: \{ db, queue \}/.test(text))) {
-    expect(call).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
-  }
+  for (const call of built) expect(call).toMatch(/^buildVaultChain\(mobileChainPorts\(/);
+  expect(readFileSync(resolve("src/services/mobileChainPorts.ts"), "utf8")).toMatch(/onQueueEntry: \(report\) => logDiagnostic\("sync", formatQueueEntryReport\(report\)\)/);
 });
 
 /**

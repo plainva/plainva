@@ -1,4 +1,5 @@
 import { trimEndChars, trimChars, checkedContentPath } from "@plainva/core";
+import { reportVisible, reportingTo } from "@plainva/ui";
 import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
@@ -981,7 +982,7 @@ export function BaseViewer({
       const done = new Set(result.written);
       setDbData((prev) => prev.map((r) => (done.has(String(r["file.path"])) ? { ...r, [column]: value } : r)));
       if (indexer) {
-        for (const p of result.written) await indexer.indexPath(p).catch(() => {});
+        for (const p of result.written) await indexer.indexPath(p).catch(reportingTo("index:bulk-write"));
         triggerFileTreeUpdate(result.written);
       }
     }
@@ -1026,7 +1027,7 @@ export function BaseViewer({
     const views = [...ensureViews(dbConfig)];
     views.push({ type, name: defaultViewName(t, type) });
     setActiveViewIndex(views.length - 1);
-    saveConfig({ ...dbConfig, views });
+    void saveConfig({ ...dbConfig, views });
   };
   // The name comes from the inline rename input in the view tabs — native
   // window.prompt is unreliable in WebView2 (plan W6).
@@ -1034,7 +1035,7 @@ export function BaseViewer({
     if (!dbConfig) return;
     const views = ensureViews(dbConfig);
     const next = views.map((v: any, idx: number) => (idx === i ? { ...v, name: name.trim() || undefined } : v));
-    saveConfig({ ...dbConfig, views: next });
+    void saveConfig({ ...dbConfig, views: next });
   };
   const duplicateView = (i: number) => {
     if (!dbConfig) return;
@@ -1044,7 +1045,7 @@ export function BaseViewer({
     const next = [...views];
     next.splice(i + 1, 0, copy);
     setActiveViewIndex(i + 1);
-    saveConfig({ ...dbConfig, views: next });
+    void saveConfig({ ...dbConfig, views: next });
   };
   /** Set or clear a column footer on the ACTIVE view (Obsidian-native). */
   const setSummary = (col: string, name: string | null) => {
@@ -1058,7 +1059,7 @@ export function BaseViewer({
     if (Object.keys(sums).length > 0) view.summaries = sums;
     else delete view.summaries;
     next[activeViewIndex] = view;
-    saveConfig({ ...dbConfig, views: next });
+    void saveConfig({ ...dbConfig, views: next });
   };
   const deleteView = (i: number) => {
     if (!dbConfig) return;
@@ -1066,7 +1067,7 @@ export function BaseViewer({
     if (views.length <= 1) return; // always keep at least one view
     const next = views.filter((_: any, idx: number) => idx !== i);
     setActiveViewIndex((prev) => Math.max(0, Math.min(prev >= i ? prev - 1 : prev, next.length - 1)));
-    saveConfig({ ...dbConfig, views: next });
+    void saveConfig({ ...dbConfig, views: next });
   };
   const reorderView = (from: number, to: number) => {
     if (from === to || !dbConfig) return;
@@ -1079,7 +1080,7 @@ export function BaseViewer({
       if (from > prev && to <= prev) return prev + 1;
       return prev;
     });
-    saveConfig({ ...dbConfig, views });
+    void saveConfig({ ...dbConfig, views });
   };
 
   // --- Table column order/width persistence (views[i].order / views[i].widths) ---
@@ -1093,7 +1094,7 @@ export function BaseViewer({
       const base = Array.isArray(dbConfig.views) && dbConfig.views.length > 0 ? dbConfig.views : [{ type: currentViewType }];
       const i0 = Math.min(activeViewIndex, base.length - 1);
       const views = base.map((v: any, i: number) => (i === i0 ? { ...v, order: cols } : v));
-      saveConfig({ ...dbConfig, views });
+      void saveConfig({ ...dbConfig, views });
     }
   };
   const persistColumnWidth = (col: string, finalW: number) => {
@@ -1102,7 +1103,7 @@ export function BaseViewer({
     const i = clampIdx(views);
     const prevW = views[i].widths && typeof views[i].widths === "object" ? views[i].widths : {};
     views[i] = { ...views[i], widths: { ...prevW, [col]: finalW } };
-    saveConfig({ ...dbConfig, views });
+    void saveConfig({ ...dbConfig, views });
   };
 
   // Persist board grouping / gallery cover per view (point 3) so they survive reloads.
@@ -1112,7 +1113,7 @@ export function BaseViewer({
     const views = [...ensureViews(dbConfig)];
     const i = clampIdx(views);
     views[i] = { ...views[i], groupBy: col };
-    saveConfig({ ...dbConfig, views });
+    void saveConfig({ ...dbConfig, views });
   };
   const setCoverImagePersisted = (col: string | null) => {
     setCoverImageProperty(col);
@@ -1123,7 +1124,7 @@ export function BaseViewer({
     if (col) nv.coverImage = col;
     else delete nv.coverImage;
     views[i] = nv;
-    saveConfig({ ...dbConfig, views });
+    void saveConfig({ ...dbConfig, views });
   };
 
   /** The layout a view keeps beside the database's config - its type, its columns, its grouping, its cover - as the config says it. */
@@ -1167,7 +1168,7 @@ export function BaseViewer({
   // only clones, applies and saves. Source conditions are never touched.
   const mutateFilters = (mutate: (cfg: any) => any) => {
     if (!dbConfig) return;
-    saveConfig(mutate(JSON.parse(JSON.stringify(dbConfig))));
+    void saveConfig(mutate(JSON.parse(JSON.stringify(dbConfig))));
   };
 
   // --- New items (plan Base-Neu P4/P5, Notion model) -----------------------
@@ -1467,7 +1468,7 @@ export function BaseViewer({
     const nc = JSON.parse(JSON.stringify(dbConfig));
     if (path) nc.newItemTemplate = path;
     else delete nc.newItemTemplate;
-    saveConfig(nc);
+    void saveConfig(nc);
   };
 
   // Stable identity: the dropdown re-loads the list each time it opens. The
@@ -1546,7 +1547,7 @@ export function BaseViewer({
     views[i] = { ...views[i], order: [...baseOrder.filter((c: string) => c !== name), name] };
     newConfig.views = views;
     setVisibleColumns((prev) => (prev.includes(name) ? prev : [...prev, name]));
-    saveConfig(newConfig);
+    void saveConfig(newConfig);
     // A fresh relation needs its target/cardinality/show-on right away — open
     // the column editor for it (Notion opens the relation config on create too).
     if (input === "relation") setEditingColumn(name);
@@ -1556,11 +1557,11 @@ export function BaseViewer({
     let isMounted = true;
     getSettingsStore().then(store => {
       if (!isMounted) return;
-      store.get<boolean>(SHOW_COMPATIBILITY_WARNING_KEY).then(show => {
+      void store.get<boolean>(SHOW_COMPATIBILITY_WARNING_KEY).then(show => {
         if (show !== undefined && show !== null) setShowCompatWarning(show);
       });
       if (vaultPath) {
-        store.get<boolean>(extendedDatabasesKey(vaultPath)).then(ext => {
+        void store.get<boolean>(extendedDatabasesKey(vaultPath)).then(ext => {
           if (ext !== undefined && ext !== null) setExtendedDbEnabled(ext);
         });
       }
@@ -1762,7 +1763,7 @@ export function BaseViewer({
       const views = [...ensureViews(dbConfig)];
       const i = clampIdx(views);
       views[i] = { ...views[i], order: newCols };
-      saveConfig({ ...dbConfig, views });
+      void saveConfig({ ...dbConfig, views });
     }
   };
 
@@ -1783,7 +1784,7 @@ export function BaseViewer({
         if (!hasSelectField) {
           const statusCol = availableColumns.find(c => c.toLowerCase() === "status");
           if (statusCol) {
-            applyRequirement(statusCol, false, "select", type);
+            void applyRequirement(statusCol, false, "select", type);
             return;
           }
           missingType = "select";
@@ -1796,7 +1797,7 @@ export function BaseViewer({
         if (!hasDate) {
           const dateCol = availableColumns.find(c => ["date", "datum", "created", "deadline", "start"].includes(c.toLowerCase()));
           if (dateCol) {
-            applyRequirement(dateCol, false, "date", type);
+            void applyRequirement(dateCol, false, "date", type);
             return;
           }
           missingType = "date";
@@ -1891,7 +1892,7 @@ export function BaseViewer({
       if (!Array.isArray(newConfig.views) || newConfig.views.length === 0) newConfig.views = [{}];
       const i = Math.min(activeViewIndex, newConfig.views.length - 1);
       newConfig.views[i] = { ...newConfig.views[i], type };
-      saveConfig(newConfig);
+      void saveConfig(newConfig);
     }
   };
 
@@ -1912,7 +1913,7 @@ export function BaseViewer({
     const i = Math.min(activeViewIndex, newConfig.views.length - 1);
     if (rules.length > 0) newConfig.views[i].sort = rules.map((r) => ({ property: r.property, direction: r.direction }));
     else delete newConfig.views[i].sort;
-    saveConfig(newConfig);
+    void saveConfig(newConfig);
   };
 
   // Table header sort: clicking a header makes that column the PRIMARY rule and
@@ -2041,7 +2042,9 @@ export function BaseViewer({
             );
           }
         } catch (e) {
-          console.warn("[BaseViewer] repairing reverse columns after the rename failed", e);
+          // The column is renamed here; a sibling database still points at the old
+          // name, and its reverse column stays empty until it is repaired.
+          reportVisible("base:reverse-rename", e, t("writeFailed.databaseSave", { reason: errorText(e) }));
         }
       }
       return true;
@@ -2111,7 +2114,9 @@ export function BaseViewer({
             return rev ? removeReverseColumnFromConfig(cfg, rev) : null;
           });
         } catch (e) {
-          console.error("[BaseViewer] removing the reverse column in the target base failed", ask.reverseInTarget.base, e);
+          // The column is gone here and the person was told the reverse column goes
+          // with it: the other database keeps it, so this is said.
+          reportVisible("base:reverse-delete", e, t("writeFailed.databaseSave", { reason: errorText(e) }));
         }
       }
       // 3. Frontmatter cleanup over the source scope (checkbox, default ON).
@@ -2244,7 +2249,7 @@ export function BaseViewer({
     });
     const nc = withCols;
     nc.views = ensureViews(nc).map((v: any) => ({ ...v, subItemsProperty: parentProperty }));
-    saveConfig(nc);
+    void saveConfig(nc);
   };
 
   // OFF / property switch: the view key changes on ALL views (database-global,
@@ -2259,7 +2264,7 @@ export function BaseViewer({
       else delete nv.subItemsProperty;
       return nv;
     });
-    saveConfig(nc);
+    void saveConfig(nc);
   };
 
   // Per-view date display format (plan W2/P12, decision F2): default | long | iso | relative.
@@ -2270,7 +2275,7 @@ export function BaseViewer({
     const i = Math.min(activeViewIndex, newConfig.views.length - 1);
     if (fmt && fmt !== "default") newConfig.views[i].dateFormat = fmt;
     else delete newConfig.views[i].dateFormat;
-    saveConfig(newConfig);
+    void saveConfig(newConfig);
   };
 
   // The name comes from the board's inline input (plan W6, no window.prompt).
@@ -2284,7 +2289,7 @@ export function BaseViewer({
     const optArray = newConfig.columns[boardGroupBy].options;
     if (!optArray.some((o: any) => o.label === name || o.value === name)) {
       optArray.push({ value: name });
-      saveConfig(newConfig);
+      void saveConfig(newConfig);
     }
   };
 
@@ -2312,7 +2317,7 @@ export function BaseViewer({
       const vi = Math.min(activeViewIndex, nc.views.length - 1);
       nc.views[vi] = { ...nc.views[vi], boardColumnOrder: orderedKeys };
     }
-    saveConfig(nc);
+    void saveConfig(nc);
   };
 
   // ── Putting an entry in the calendar (S19, plan P9b) ─────────────────────
@@ -2470,7 +2475,7 @@ export function BaseViewer({
     if (existing !== "date" && existing !== "datetime") {
       newConfig.columns[col] = { ...newConfig.columns[col], input: "date" };
     }
-    saveConfig(newConfig);
+    void saveConfig(newConfig);
   };
 
   // Switch the active date field(s) between date-only and date & time. Switching the
@@ -2558,7 +2563,7 @@ export function BaseViewer({
     } else {
       delete newConfig.views[vi].endField;
     }
-    saveConfig(newConfig);
+    void saveConfig(newConfig);
   };
 
   // Per-view options (graph P8, board color mode WP3): keys live on the active
@@ -2573,7 +2578,7 @@ export function BaseViewer({
       if (value === undefined) delete newConfig.views[vi][key];
       else newConfig.views[vi][key] = value;
     }
-    saveConfig(newConfig);
+    void saveConfig(newConfig);
   };
 
   // Collapsed swimlanes (issue #83, P6): per file, app-side like the active view.

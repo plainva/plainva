@@ -1,4 +1,5 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
+import { reportingTo } from "@plainva/ui";
 import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow, type IPimTarget } from "@plainva/core";
 import { calendarGrantProbe } from "../accountBroker";
 import { restartPimAccountAfterLogin, type PimRuntime } from "./pimRuntime";
@@ -253,9 +254,10 @@ export async function connectMicrosoftAccount(
 export async function removePimAccount(runtime: PimRuntime, vaultPath: string, accountId: string): Promise<void> {
   // Before it is gone: the tombstone stops the next profile import putting it
   // back, which is what made deleted calendar accounts keep returning (P2).
-  await noteAccountRemovedLocally(vaultPath, "pim", accountId).catch(() => {});
+  await noteAccountRemovedLocally(vaultPath, "pim", accountId).catch(reportingTo("pim:remove-tombstone"));
   await runtime.cache.deleteAccount(accountId);
-  await clearPimCredentials(vaultPath, accountId).catch(() => {});
+  // A sign-in left in the keychain of an account that is gone: for the diagnostics.
+  await clearPimCredentials(vaultPath, accountId).catch(reportingTo("pim:remove-credentials"));
 }
 
 export async function setPimAccountEnabled(runtime: PimRuntime, account: PimAccountRow, enabled: boolean): Promise<void> {

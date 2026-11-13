@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { reportVisible } from "@plainva/ui";
+import { settingNotSaved } from "../services/settingNotSaved";
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
@@ -332,7 +334,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       await writeTextFile(target, perfExportJson());
       toast.success(t("settings.diagnosticsExported"));
     } catch (e) {
-      console.error("[Settings] perf export failed", e);
+      reportVisible("settings:perf-export", e, t("settings.diagnosticsExportFailed", { error: errorText(e) }));
     }
   };
 
@@ -375,7 +377,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // Load theme + which vaults already have sync configured.
   useEffect(() => {
     getStoredThemePref().then(setThemePref).catch(() => {});
-    (async () => {
+    void (async () => {
       const set = new Set<string>();
       for (const v of vaults) {
         try {
@@ -428,7 +430,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
 
   useEffect(() => {
     if (section === GENERAL) return;
-    (async () => {
+    void (async () => {
       await reloadAccountState(section);
 
       const store = await getSettingsStore().catch(() => null);
@@ -515,9 +517,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   // Escape/overlay-close come from <Modal> (plan Designsprache P4); its modal
   // stack lets child modals own Escape while they are open.
 
+  // A setting that shows its new value but did not reach the store is back to
+  // the old one after a restart: said on screen, as the phone says it.
+  const settingFailed = settingNotSaved("settings:save");
+
   const handleThemeChange = (value: ThemePref) => {
     setThemePref(value);
-    setStoredThemePref(value).catch(console.error);
+    setStoredThemePref(value).catch(settingFailed);
   };
 
   const handleLanguageChange = async (lang: string) => {
@@ -528,7 +534,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       await store.set("appLanguage", lang);
       await store.save();
     } catch (e) {
-      console.error("Failed to save language setting", e);
+      settingFailed(e);
     }
   };
 
@@ -556,7 +562,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
         if (target === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-features-saved"));
       }, 600);
     } catch (e) {
-      console.error("Failed to save setting", e);
+      settingFailed(e);
     }
   };
 
@@ -569,7 +575,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
       await store.save();
       if (target === vaultPathRef.current) window.dispatchEvent(new CustomEvent("plainva-backup-settings-changed"));
     } catch (e) {
-      console.error("Failed to save backup setting", e);
+      settingFailed(e);
     }
   };
 
@@ -843,7 +849,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                   <SettingsPage area="appearance" active={inAppWorld && appPage === "appearance"}>
                     <AppearancePage
                       themeName={themeName}
-                      onThemeName={(name) => { setThemeName(name); setStoredThemeName(name).catch(console.error); }}
+                      onThemeName={(name) => { setThemeName(name); setStoredThemeName(name).catch(settingFailed); }}
                       customTheme={customTheme}
                       onEditCustomTheme={() => setAppPage("customTheme")}
                       themePref={themePref}
@@ -1060,7 +1066,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                           try {
                             // The folder only exists after the first backup ran;
                             // create it so Explorer never errors on a missing path.
-                            await mkdir(dir, { recursive: true }).catch(() => {});
+                            await mkdir(dir, { recursive: true }).catch(() => {
+                              // silent: a folder that cannot be made fails `openPath` below, which says so.
+                            });
                             await openPath(dir);
                           } catch (e) {
                             toast.error(String(e));

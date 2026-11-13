@@ -127,6 +127,14 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       value TEXT
     );`,
 
+    // Files the index found gone and reported, until their remote deletion is
+    // queued (stability plan R22, sync/owedToRemote.ts). An older build neither
+    // writes nor reads it.
+    `CREATE TABLE IF NOT EXISTS index_removed (
+      path       TEXT PRIMARY KEY,
+      removed_at INTEGER NOT NULL
+    );`,
+
     // Encrypted Workspace P3. The index DB contains public protocol state,
     // ciphertext staging references and the resumable mutation queue only.
     // Device, recovery and group private keys are never persisted here.

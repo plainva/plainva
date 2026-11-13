@@ -109,13 +109,19 @@ impl Clients {
     }
 }
 
-/// A vault key as it may appear in a file name.
+/// A vault key as it may appear in a file name — one file per key: a key the app makes (`aiVaultKey`, `v` and hex)
+/// is its own name; any other is named by its hash, so that two keys never share a vault's grants (`a/b` and `a_b`
+/// did, and so did two keys alike in their first 80 characters). `h-` is the hashed names' own prefix.
 pub fn vault_file_key(vault_key: &str) -> String {
-    vault_key
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
-        .take(80)
-        .collect()
+    let plain = !vault_key.is_empty()
+        && vault_key.len() <= 80
+        && !vault_key.starts_with("h-")
+        && vault_key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    if plain {
+        vault_key.to_string()
+    } else {
+        format!("h-{}", hash_secret(vault_key))
+    }
 }
 
 pub struct Store {
@@ -163,13 +169,14 @@ impl Store {
         if let Ok(entries) = fs::read_dir(&self.dir) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if let Some(key) = name.strip_prefix("grants-").and_then(|n| n.strip_suffix(".json")) {
+                if name.starts_with("grants-") && name.ends_with(".json") {
+                    // Written back to the file it was read from: a file name is no key to make a name from again.
                     let path = entry.path();
                     let mut grants: Grants = read_json(&path).unwrap_or_default();
                     let read = grants.folders.remove(client_id).is_some();
                     let wrote = grants.writes.remove(client_id);
                     if read || wrote {
-                        write_json(&self.dir, &self.grants_path(key), &grants)?;
+                        write_json(&self.dir, &path, &grants)?;
                     }
                 }
             }
@@ -276,6 +283,30 @@ mod tests {
         assert!(!store.grants("vault one").folders.contains_key("a"));
         assert!(!store.grants("vault/two").folders.contains_key("a"));
         assert!(store.grants("vault one").folders.contains_key("b"));
+    }
+
+    /// A client's folders in one vault are never another vault's (R19): two keys that a file name could not tell
+    /// apart — punctuation, length — keep files of their own. Keys as the app makes them (`aiVaultKey`) keep theirs.
+    #[test]
+    fn each_vault_key_has_a_file_of_its_own() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::new(dir.path().join("mcp"));
+        let long = "v".repeat(80);
+        let keys = ["a/b".to_string(), "a_b".to_string(), "a:b".to_string(), "".to_string(), format!("{long}1"), format!("{long}2"), "h-abc".to_string()];
+        for (i, key) in keys.iter().enumerate() {
+            let mut grants = Grants::default();
+            grants.folders.insert(format!("client{i}"), vec!["Projects".into()]);
+            store.save_grants(key, &grants).unwrap();
+        }
+        for (i, key) in keys.iter().enumerate() {
+            let clients: Vec<String> = store.grants(key).folders.into_keys().collect();
+            assert_eq!(clients, vec![format!("client{i}")], "{key:?}");
+        }
+        assert_eq!(vault_file_key("v0123456789abcdef"), "v0123456789abcdef", "a key the app makes keeps its file name");
+        // Revoking finds every file, whatever its name is made of.
+        store.revoke("client0").unwrap();
+        assert!(store.grants("a/b").folders.is_empty());
+        assert_eq!(store.grants("a_b").folders.len(), 1);
     }
 
     #[test]

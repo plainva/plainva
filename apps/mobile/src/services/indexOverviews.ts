@@ -7,6 +7,7 @@ import {
   toast,
   withPinnedLinks,
   type FolderIndexState,
+  reportingTo,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { mConfirmOption } from "./mobileDialogs";
@@ -48,7 +49,7 @@ export async function writeOverview(v: MobileVault, folder: string): Promise<{ p
     subfoldersHeading: i18n.t("indexMd.subfoldersHeading"),
   });
   // Index and tree first — the note screen may be showing this very file.
-  await v.reindexPaths([result.indexPath]).catch(() => {});
+  await v.reindexPaths([result.indexPath]).catch(reportingTo("index:paths"));
   window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path: result.indexPath } }));
   window.dispatchEvent(new CustomEvent("m-vault-changed"));
   return { path: result.indexPath, entries: result.entries, overwrote: result.overwrote };

@@ -1,4 +1,4 @@
-import { TaskNameCleanupNotice, errorText, toast, useTaskNameCleanup } from "@plainva/ui";
+import { TaskNameCleanupNotice, errorText, toast, useTaskNameCleanup, reportingTo } from "@plainva/ui";
 import { mConfirm } from "../services/mobileDialogs";
 import { getPimCache } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
@@ -32,7 +32,7 @@ export function TaskNamesNotice({ vault, reloadKey, onChanged }: { vault: Mobile
     reindex: async (moved, added) => {
       // The index follows the rename; it does not report the old name as
       // deleted (a queued remote DELETE, issue 113).
-      for (const { from, to } of moved) await vault.indexer?.relocatePathInIndex(from, to).catch(() => undefined);
+      for (const { from, to } of moved) await vault.indexer?.relocatePathInIndex(from, to).catch(reportingTo("index:relocate"));
       await vault.reindexPaths([...moved.map((m) => m.to), ...added]);
     },
     onChanged: () => {

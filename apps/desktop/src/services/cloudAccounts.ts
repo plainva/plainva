@@ -1,4 +1,5 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
+import { reportingTo } from "@plainva/ui";
 import {
   ONEDRIVE_DEFAULT_SCOPE,
   refreshDriveAccessToken,
@@ -161,7 +162,8 @@ export async function refreshCloudAccounts(vaultPath: string, pimRuntime: PimRun
   // A calendar switched off for the vault on another device stops here too (E3).
   if (pimRuntime?.isActive()) {
     const rows = await pimRuntime.cache.listAccounts().catch(() => []);
-    for (const { row, enabled } of calendarSwitches(next, rows)) await pimRuntime.cache.upsertAccount({ ...row, enabled }).catch(() => undefined);
+    // One that fails is switched again by the next refresh, which asks the same question.
+    for (const { row, enabled } of calendarSwitches(next, rows)) await pimRuntime.cache.upsertAccount({ ...row, enabled }).catch(reportingTo("pim:calendar-switch"));
   }
   // `stored` comes back from the store with sorted keys; a text comparison saw
   // a change on every refresh and saved again (finding 2026-09-24).

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { settingNotSaved } from "../../services/settingNotSaved";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, RefreshCw } from "lucide-react";
 import { AccountFailureNote, Banner, Button, EmptyState, ICON, MEETING_TEMPLATE_TOKENS, SettingCard, SettingCardActions, SettingCardBlock, SettingCardNote, SettingRow, TextInput, listTemplates, logDiagnostic, needsReauthorisation, pimAccountFailure, pimProviderName, refuseVaultPathSetting, reviewDuplicatePimRows, type CloudServiceId } from "@plainva/ui";
@@ -394,7 +395,7 @@ export function PimAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccount
                 value={meetingTemplate}
                 onChange={(v) => {
                   setMeetingTemplate(v);
-                  void persistMeetingTemplate(v);
+                  void persistMeetingTemplate(v).catch(settingNotSaved("settings:meeting-template"));
                 }}
                 // A typed path that is not in the folder stays visible instead of
                 // turning into "—" behind the person's back.

@@ -98,6 +98,8 @@ function harness(vault: MobileVault) {
     window: events, CustomEvent,
     LOCAL_VAULT_ID: "local",
     getActiveVaultEntry: async () => ({ id: "current", name: "" }),
+    // The diagnostics of a failed index step are not what is asked here (stability plan R4).
+    reportingTo: () => () => {}, reportBackground: () => {},
     console: { error: () => {} },
   };
   const result = new Function(...Object.keys(deps), compiled +

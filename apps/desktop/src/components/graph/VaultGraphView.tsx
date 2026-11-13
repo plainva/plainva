@@ -130,7 +130,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   useEffect(() => {
     if (!graphService || !queryService) return;
     let alive = true;
-    (async () => {
+    void (async () => {
       try {
         await graphState?.load();
         if (alive && graphState) setPinModeState(graphState.getPinMode(PIN_CONTEXT));
