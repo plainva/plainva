@@ -562,16 +562,19 @@ describe("where a table ends", () => {
   it("reads a table over its budget as text, never as another block", () => {
     // Read as written, a row of `==` or `--` would underline the rows above
     // it as a heading of 60 KB, for the outline and the anchors.
+    // Rows of sixteen cells, so that some 1 300 lines are over the budget: read as written, a paragraph of many lines costs micromark the square of its lines.
+    const dense = `|${"a|".repeat(16)}`;
+    const count = Math.ceil((1.2 * TABLE_READ_BUDGET) / tableReadCost(dense, 0, dense.length));
     for (const underline of ["==", "--", "="]) {
-      const rows = Array.from({ length: 16_000 }, (_, i) => (i === 8_000 ? underline : `|a${i}|`));
-      const text = `# T\n\n| h |\n|---|\n${rows.join("\n")}\n\nbelow\n`;
+      const rows = Array.from({ length: count }, (_, i) => (i === count >> 1 ? underline : dense));
+      const text = `# T\n\n|${"h|".repeat(16)}\n|${"-|".repeat(16)}\n${rows.join("\n")}\n\nbelow\n`;
       expect(overBudgetInlineRanges(text), underline).toHaveLength(1);
       for (const tree of [parseMarkdownTree(text), parseMarkdownAst(text, { preserveObsidianSyntax: true })]) {
         expect((tree.children as MarkdownTreeNode[]).map((node) => node.type), underline).toEqual(["heading", "paragraph", "paragraph"]);
         expect(textsOf(tree.children![1] as MarkdownTreeNode).join(""), underline).toContain(`\n${underline}\n`);
       }
     }
-  });
+  }, 60 * SECONDS);
 
   it("keeps a paragraph whole where its lazy lines look like a table (a guard: a table interrupts a paragraph only in its own block)", () => {
     // In a quote, `]]]] | x` over `-|-` without the marker is text of the
