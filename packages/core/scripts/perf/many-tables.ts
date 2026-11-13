@@ -101,7 +101,7 @@ interface Row { series: string; case: string; lines: number; kb: number; ms: Rec
 async function main(): Promise<void> {
 const args = process.argv.slice(2);
 // The table budget's calibration under a capped heap (`table-budget.ts`).
-if (args.includes("--calibrate") || args.includes("--check")) {
+if (args.includes("--calibrate") || args.includes("--check") || args.includes("--hunt")) {
   runTableBudget(args);
   return;
 }

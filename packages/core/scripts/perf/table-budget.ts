@@ -37,7 +37,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
 import { readFileSync } from "node:fs";
-import { boundMarkdownForParse, READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, opensNoContainers, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { boundMarkdownForParse, READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_LINK_WEIGHT, TABLE_MATH_WEIGHT, TABLE_REFERENCE_WEIGHT, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, TABLE_WORD_WEIGHT, opensNoContainers, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
 import { toHast } from "mdast-util-to-hast";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
@@ -47,6 +47,21 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
+import { createRequire } from "node:module";
+
+/**
+ * The reading view's math, as the desktop app loads it for a note with math
+ * (`loadReaderMath` in `markdownReaderModel.ts`): `remark-math`, and
+ * `remark-rehype` with `rehype-katex` for its page — KaTeX makes dozens of
+ * elements of each formula. Resolved from the desktop app, whose packages they are.
+ */
+const desktop = createRequire(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../apps/desktop/package.json"));
+const fromDesktop = async (name: string, from = desktop) => ((await import(pathToFileURL(from.resolve(name)).href)) as { default: unknown }).default;
+const remarkMath = await fromDesktop("remark-math");
+const rehypeKatex = await fromDesktop("rehype-katex");
+const remarkRehype = await fromDesktop("remark-rehype", createRequire(desktop.resolve("react-markdown")));
+/** The reading view's test for math in a note (`MarkdownReader.tsx`). */
+const HAS_MATH = /\$\$[\s\S]+?\$\$|(?<![\\$])\$(?!\s)[^$\n]+?(?<!\s)\$(?!\d)/;
 
 /** The V8 old space every parse must fit into. */
 export const HEAP_MB = 128;
@@ -59,6 +74,11 @@ interface Shape {
   before?: string;
   /** Lines at the very start of the note, before its heading (an unclosed `---`). */
   start?: string;
+  /** Lines right behind the table, before the blank line (a footnote's definition its rows refer to). */
+  after?: string;
+  /** The note's line ends are `\r\n`; it starts with a byte order mark. */
+  crlf?: boolean;
+  bom?: boolean;
 }
 
 const BS = "\\";
@@ -133,6 +153,39 @@ export const SHAPES: Record<string, Shape> = {
   wwws: { header: "| h |\n|---|", row: () => `| ${"www.a.b ".repeat(100)}|` },
   urls: { header: "| h |\n|---|", row: () => `| ${"https://a.b ".repeat(60)}|` },
   wwwcaps: { header: "| h |\n|---|", row: () => `| ${"WWW.a.b ".repeat(100)}|` },
+  // Words: at each start of a run of letters and digits the parser tries an address and holds the cell in pieces (review, 2026-11-13).
+  aw: { header: "| h |\n|---|", row: () => `| ${"a ".repeat(150)}|` },
+  nums: { header: "| h |\n|---|", row: (i) => `| ${Array.from({ length: 100 }, (_, k) => String(((i * 7 + k) % 90) + 10)).join(" ")} |` },
+  eng: { header: "| h |\n|---|", row: () => `| ${"the cat sat on a mat and it was so ok to do ".repeat(7)}|` },
+  de: { header: "| h |\n|---|", row: () => `| ${"Die Besprechung am Montag wurde auf den nächsten Termin verschoben, weil keiner Zeit hatte. ".repeat(3)}|` },
+  dots: { header: "| h |\n|---|", row: () => `| ${".. ".repeat(100)}|` },
+  // Other scripts, numbers with separators, emoji, combining marks: ten languages, Japanese and Chinese among them.
+  cyrillic: { header: "| h |\n|---|", row: () => `| ${"это слово и ещё одно ".repeat(12)}|` },
+  greek: { header: "| h |\n|---|", row: () => `| ${"αβ γδ εζ ηθ ".repeat(25)}|` },
+  cjk: { header: "| h |\n|---|", row: () => `| ${"会議は月曜日に延期されました。".repeat(15)}|` },
+  cjkspaced: { header: "| h |\n|---|", row: () => `| ${"中文 ".repeat(100)}|` },
+  numsep: { header: "| h |\n|---|", row: (i) => `| ${Array.from({ length: 30 }, (_, k) => `1.234,${(i + k) % 90 + 10} 12:30 2026-11-${(k % 28) + 1}`).join(" ")} |` },
+  emoji: { header: "| h |\n|---|", row: () => `| ${"😀 ".repeat(100)}|` },
+  combining: { header: "| h |\n|---|", row: () => `| ${"e\u0301 ".repeat(100)}|` },
+  // Footnote references with their definition below the table: each is a reference node.
+  fnref: { header: "| h |\n|---|", row: () => `| ${"[^1] ".repeat(100)}|`, after: "\n[^1]: x" },
+  fnmany: { header: "| h |\n|---|", row: (i) => `| ${Array.from({ length: 50 }, (_, k) => `[^${i * 50 + k}]`).join(" ")} |`, after: "\n[^1]: x" },
+  refs: { header: "| h |\n|---|", row: () => `| ${"[a] ".repeat(100)}|`, after: "\n[a]: u" },
+  // Addresses and `www.` without blanks between: one word a row, a literal each.
+  emailc: { header: "| h |\n|---|", row: () => `| ${"a@b.cc,".repeat(100)}|` },
+  wwwshort: { header: "| h |\n|---|", row: () => `| ${"www.a,".repeat(100)}|` },
+  // Formulas: KaTeX makes dozens of elements of each in the reading view.
+  mathfrac: { header: "| h |\n|---|", row: () => `| ${"$\\frac{a}{b}$ ".repeat(40)}|` },
+  // Markdown links, a node with a child each, and many events.
+  mdlinks: { header: "| h |\n|---|", row: () => `| ${"[l](u) ".repeat(80)}|` },
+  autolinked: { header: "| h |\n|---|", row: () => `| ${"<http://a.b> ".repeat(60)}|` },
+  images: { header: "| h |\n|---|", row: () => `| ${"![i](p) ".repeat(80)}|` },
+  // What only the reading view's plugins make nodes of; to the parsers here they are text.
+  tagsplain: { header: "| h |\n|---|", row: () => `| ${"#a ".repeat(100)}|` },
+  mathplain: { header: "| h |\n|---|", row: () => `| ${"$a$ ".repeat(100)}|` },
+  marksplain: { header: "| h |\n|---|", row: () => `| ${"==a== ".repeat(100)}|` },
+  // Line ends and a byte order mark.
+  crlfshort: { header: "| h | h |\n|---|---|", row: (i) => `| row ${i} | [[n${i}]] |`, crlf: true, bom: true },
   // A wide header over short rows: the reading view fills every row to the header's columns.
   wide100: { header: `|${"h|".repeat(100)}\n|${"-|".repeat(100)}`, row: () => "|" },
   wide20: { header: `|${"h|".repeat(20)}\n|${"-|".repeat(20)}`, row: () => "|a|" },
@@ -171,7 +224,16 @@ function random(...keys: number[]): () => number {
 /** Where a generated table stands. */
 const WRAPS = ["none", "quote", "quote2", "quote3", "list", "callout"] as const;
 
-interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number] }
+interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number]; units: string | null; crlf: boolean; bom: boolean }
+
+/**
+ * What a cell may be made of besides letters: words and numbers between
+ * blanks, every kind of autolink literal in either case, footnote references
+ * (the table's note defines them), links, wiki links, tags, formulas,
+ * highlights, entities, CJK, emoji, a long word. `units` names one of them
+ * for a cell made of it alone, or "mix" for a cell of all of them.
+ */
+const UNITS = ["a", "ab", "12", "the", "word", "WWW.a.b", "www.c.d", "HTTP://a.b", "https://a.b/c", "a@b.cc", "MAILTO:a@b.cc", "xmpp:a@b.cc", "[^1]", "[l](u)", "[[n]]", "#tag", "$x$", "==m==", "&amp;", "&#123;", "中文", "😀", "x".repeat(40)] as const;
 
 /** How many of the first generated shapes are forced to one or two columns of 0 to 3 characters: the most rows per weight. */
 const FORCED_SHORT = 8;
@@ -196,6 +258,10 @@ function settingsOf(seed: number, k: number): GeneratedSettings {
     code: pick([0, 0.3]),
     empty: pick([0, 0.3, 0.7]),
     wrap: k < WRAPS.length ? WRAPS[k] : pick(WRAPS),
+    // From the twelfth shape on, about half are made of units.
+    units: k >= 12 && r() < 0.5 ? (r() < 0.4 ? "mix" : pick(UNITS)) : null,
+    crlf: r() < 0.1,
+    bom: r() < 0.1,
   };
 }
 
@@ -208,6 +274,12 @@ function generatedShape(seed: number, k: number): Shape {
   const cell = (i: number, c: number) => {
     const r = random(seed, k, i, c);
     if (c > 0 && r() < s.empty) return "";
+    if (s.units) {
+      const count = 1 + Math.floor(r() * (s.length + 1));
+      const one = () => (s.units === "mix" ? UNITS[Math.floor(r() * UNITS.length)] : s.units!);
+      // A row without outer pipes must not begin like another block.
+      return `c ${Array.from({ length: count }, one).join(" ")}`;
+    }
     let text = "";
     const length = Math.floor(r() * (s.length + 1));
     for (let n = 0; n < length; n++) {
@@ -222,6 +294,10 @@ function generatedShape(seed: number, k: number): Shape {
   // The markers of the block the table stands in: on the header line, and on every line after it.
   const [first, rest] = { none: ["", ""], quote: ["> ", "> "], quote2: ["> > ", "> > "], quote3: ["> > > ", "> > > "], list: ["- ", "  "], callout: ["> ", "> "] }[s.wrap];
   return {
+    crlf: s.crlf,
+    bom: s.bom,
+    // The references of a table's cells have their definition below it.
+    after: s.units === "[^1]" || s.units === "mix" ? `${rest}\n${rest}[^1]: x` : undefined,
     before: s.wrap === "callout" ? "> [!info] Generated" : undefined,
     header: `${first}${join(Array.from({ length: s.columns }, () => "h"))}\n${rest}${join(Array.from({ length: s.columns }, () => "---"))}`,
     row: (i) => rest + join(Array.from({ length: s.columns }, (_, c) => cell(i, c))),
@@ -239,7 +315,8 @@ function shapeOf(name: string): Shape {
 
 export function shapeTable(name: string, rows: number): string {
   const shape = shapeOf(name);
-  return `${shape.start ?? ""}# Table\n\n${shape.before ? `${shape.before}\n` : ""}${shape.header}\n${Array.from({ length: rows }, (_, i) => shape.row(i)).join("\n")}\n\nbelow [[Link]]\n`;
+  const text = `${shape.start ?? ""}# Table\n\n${shape.before ? `${shape.before}\n` : ""}${shape.header}\n${Array.from({ length: rows }, (_, i) => shape.row(i)).join("\n")}\n${shape.after ? `${shape.after}\n` : ""}\nbelow [[Link]]\n`;
+  return `${shape.bom ? "\uFEFF" : ""}${shape.crlf ? text.replace(/\n/g, "\r\n") : text}`;
 }
 
 /** What a table line weighs as the app weighs it: its row behind the markers of the blocks it stands in, and the markers. */
@@ -255,15 +332,15 @@ function columnsOf(shape: Shape): number {
 }
 
 /** The parts of a table's weight, summed; `markers` is what the markers weigh beyond their characters at a marker weight of one. */
-type Parts = { rows: number; chars: number; cells: number; syntax: number; markers: number; literals: number };
+export type Parts = { rows: number; chars: number; cells: number; syntax: number; markers: number; literals: number; words: number; references: number; links: number; maths: number };
 
 /** What the markers of `prefix` count, beyond their characters (`tableMarkerCost` at a marker weight of one). */
 const markersOf = (prefix: string): number => (prefix.match(/>/g)?.length ?? 0) + (prefix.replace(/>[ \t]?/g, "").length > 0 ? 1 : 0);
 
 /** The parts of a shape's header and first `rows` rows, summed: what its table's weight is made of, under any weights. */
-function tableParts(name: string, rows: number): Parts {
+export function tableParts(name: string, rows: number): Parts {
   const shape = shapeOf(name);
-  const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0, literals: 0 };
+  const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0, literals: 0, words: 0, references: 0, links: 0, maths: 0 };
   const header = shape.header.split("\n")[0];
   const containers = !opensNoContainers(shapeTable(name, 0));
   const columns = columnsOf(shape);
@@ -276,11 +353,17 @@ function tableParts(name: string, rows: number): Parts {
     sum.cells += Math.max(parts.cells, columns);
     sum.syntax += parts.syntax;
     sum.literals += parts.literals;
+    sum.words += parts.words;
+    sum.references += parts.references;
+    sum.links += parts.links;
+    sum.maths += parts.maths;
   }
   return sum;
 }
 
-const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker = 0, literal = 0) => row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers + literal * parts.literals;
+/** The weight of `parts` under a set of weights; what the reading view's own plugins weigh (tags, formulas, highlights) is calibrated in the desktop app and left out here. */
+const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker = 0, literal = 0, word = 0, reference = 0, link = 0, math = 0) =>
+  row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers + literal * parts.literals + word * parts.words + reference * parts.references + link * parts.links + math * parts.maths;
 
 /** The rows of a shape whose table weighs `target` by the constants as they stand. */
 function rowsAt(name: string, target: number): number {
@@ -345,16 +428,39 @@ function calibrate(args: string[]): void {
     limits[name] = tableParts(name, rows);
     console.log(`limit    ${name.padEnd(10)} ${String(rows).padStart(7)} rows under ${HEAP_MB} MB${known.has(name) ? " (from the log)" : ""}`);
   }
+  // Generated shapes an earlier search measured (their limits in the log) count as fixed ones.
+  for (const [name, rows] of known) {
+    if (!name.startsWith("gen:")) continue;
+    limits[name] = tableParts(name, rows);
+    console.log(`limit    ${name.padEnd(10)} ${String(rows).padStart(7)} rows under ${HEAP_MB} MB (from the log)`);
+  }
+  // `--search <n>`: n generated shapes of a seed of their own, each measured
+  // like a fixed one — so that the weights are chosen over what a search
+  // finds, not only over the shapes someone thought of. Each costs a limit
+  // search (about a minute).
+  if (args.includes("--search")) {
+    const count = Number(args[args.indexOf("--search") + 1]);
+    const searchSeed = args.includes("--search-seed") ? Number(args[args.indexOf("--search-seed") + 1]) : Date.now() % 1_000_000;
+    console.log(`search   ${count} generated shapes, seed ${searchSeed}`);
+    for (let k = 0; k < count; k++) {
+      const name = `gen:${searchSeed}:${k}`;
+      const rows = limitOf(name);
+      limits[name] = tableParts(name, rows);
+      console.log(`limit    ${name.padEnd(10)} ${String(rows).padStart(7)} rows under ${HEAP_MB} MB  ${JSON.stringify(settingsOf(searchSeed, k))}`);
+    }
+  }
   const short = tableParts("short", 1000);
   // For each set of weights the budget is nine tenths of the lightest limit
   // among the shapes without block markers; keep the set that leaves a word
   // and a link the most rows. Then the marker weight: the least that lifts
   // every shape behind markers to the budget / 0.9 as well.
   let best = { row: 0, cell: 0, syntax: 0, budget: 0, shortRows: 0 };
-  const plain = Object.values(limits).filter((parts) => parts.markers === 0 && parts.literals === 0);
-  for (let row = 0; row <= 300; row += 2) {
-    for (let cell = 0; cell <= 120; cell++) {
-      for (let syntax = 0; syntax <= 40; syntax++) {
+  // The base set: no block markers, no literals, no references, and few starts of words (a word and a link has three a row; a row of a hundred numbers a hundred).
+  const plain = Object.values(limits).filter((parts) => parts.markers === 0 && parts.literals === 0 && parts.references === 0 && parts.links === 0 && parts.maths === 0 && parts.words <= 10 * parts.rows);
+  // Wide enough that the best set lies inside it: the weights are relative to one per character.
+  for (let row = 0; row <= 1_000; row += 8) {
+    for (let cell = 0; cell <= 300; cell += 3) {
+      for (let syntax = 0; syntax <= 150; syntax += 2) {
         let lightest = Infinity;
         for (const parts of plain) lightest = Math.min(lightest, weigh(parts, row, cell, syntax));
         const budget = 0.9 * lightest;
@@ -363,27 +469,71 @@ function calibrate(args: string[]): void {
       }
     }
   }
-  // The marker and the literal weight: each the least that lifts every shape with markers or literals to the budget / 0.9 as well.
-  let marker = 0;
-  for (const parts of Object.values(limits)) {
-    if (parts.markers > 0 && parts.literals === 0) marker = Math.max(marker, Math.ceil((best.budget / 0.9 - weigh(parts, best.row, best.cell, best.syntax)) / parts.markers));
+  // Then the weights of the other parts, each the least that lifts every
+  // shape still short of the budget / 0.9: first those a word and a link has
+  // none of — references, links, formulas, literals —, then words (a row of
+  // numbers is short by its words), block markers last, so that a table in a
+  // quote or a callout is not made small for what its words cost
+  // (2026-11-13: in the other order 1 430 rows of a word and a link in a
+  // quote at the budget, in this one 3 305).
+  const extra = { reference: 0, link: 0, math: 0, word: 0, marker: 0, literal: 0 };
+  const current = (parts: Parts) => weigh(parts, best.row, best.cell, best.syntax, extra.marker, extra.literal, extra.word, extra.reference, extra.link, extra.math);
+  for (const [key, count] of [["reference", (parts: Parts) => parts.references], ["link", (parts: Parts) => parts.links], ["math", (parts: Parts) => parts.maths], ["literal", (parts: Parts) => parts.literals], ["word", (parts: Parts) => parts.words], ["marker", (parts: Parts) => parts.markers]] as const) {
+    let need = 0;
+    for (const parts of Object.values(limits)) if (count(parts) > 0) need = Math.max(need, Math.ceil((best.budget / 0.9 - current(parts)) / count(parts)));
+    extra[key] = need;
   }
-  let literal = 0;
-  for (const parts of Object.values(limits)) {
-    if (parts.literals > 0) literal = Math.max(literal, Math.ceil((best.budget / 0.9 - weigh(parts, best.row, best.cell, best.syntax, marker)) / parts.literals));
-  }
+  const { reference, link, math, word, marker, literal } = extra;
+  const final = (parts: Parts) => weigh(parts, best.row, best.cell, best.syntax, marker, literal, word, reference, link, math);
   const budget = Math.floor(best.budget / 10_000) * 10_000;
-  console.log(`weights  row ${best.row}, cell ${best.cell}, syntax ${best.syntax}, marker ${marker}, literal ${literal}: proposed budget ${budget} (a word and a link: about ${Math.round(best.shortRows)} rows)`);
-  for (const [name, parts] of Object.entries(limits)) console.log(`         ${name.padEnd(10)} limit weighs ${(weigh(parts, best.row, best.cell, best.syntax, marker, literal) / budget).toFixed(2)} x the budget`);
+  console.log(`weights  row ${best.row}, cell ${best.cell}, syntax ${best.syntax}, marker ${marker}, literal ${literal}, word ${word}, reference ${reference}, link ${link}, math ${math}: proposed budget ${budget} (a word and a link: about ${Math.round((best.budget / final(short)) * 1000)} rows)`);
+  for (const [name, parts] of Object.entries(limits)) console.log(`         ${name.padEnd(10)} limit weighs ${(final(parts) / budget).toFixed(2)} x the budget`);
 }
 
-function check(args: string[]): boolean {
+/**
+ * The shapes this budget reads as a table at more rows than the scan of
+ * `origin/main` does: `git show` gives that scan, read from a file of its
+ * own. `null` where git or the branch is not at hand.
+ */
+async function mainComparison(names: string[]): Promise<string[] | null> {
+  const { execFileSync } = await import("node:child_process");
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  let source: string;
+  try {
+    source = execFileSync("git", ["show", "origin/main:packages/core/src/inlineParseBudget.ts"], { cwd: CORE, encoding: "utf8" });
+  } catch {
+    console.log("main     origin/main not at hand: no comparison");
+    return null;
+  }
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "table-budget-main-")), "inlineParseBudget.ts");
+  writeFileSync(file, source);
+  const main = (await import(pathToFileURL(file).href)) as { overBudgetInlineRanges: (text: string) => unknown[] };
+  const beyond: string[] = [];
+  for (const name of names) {
+    const ours = rowsAt(name, TABLE_READ_BUDGET);
+    // Where main begins to read the table as written: the fewest rows it puts in a range.
+    let lo = 0;
+    let hi = Math.max(1, ours);
+    const bounded = (rows: number) => main.overBudgetInlineRanges(shapeTable(name, rows)).length > 0;
+    if (!bounded(hi)) continue;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (bounded(mid)) hi = mid;
+      else lo = mid;
+    }
+    if (ours >= hi) beyond.push(`${name} (main ${hi}, here ${ours})`);
+  }
+  return beyond;
+}
+
+async function check(args: string[]): Promise<boolean> {
   const at = (flag: string, fallback: number) => (args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : fallback);
   const seed = at("--seed", 20261112);
   const generated = at("--generated", 36);
   const started = performance.now();
   let all = true;
-  console.log(`check    budget ${TABLE_READ_BUDGET}, row ${TABLE_ROW_WEIGHT}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, marker ${TABLE_MARKER_WEIGHT}, literal ${TABLE_LITERAL_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
+  console.log(`check    budget ${TABLE_READ_BUDGET}, row ${TABLE_ROW_WEIGHT}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, marker ${TABLE_MARKER_WEIGHT}, literal ${TABLE_LITERAL_WEIGHT}, word ${TABLE_WORD_WEIGHT}, reference ${TABLE_REFERENCE_WEIGHT}, link ${TABLE_LINK_WEIGHT}, math ${TABLE_MATH_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
   // What the generated shapes cover, axis by axis.
   const covered = new Map<string, Set<string>>();
   for (let k = 0; k < generated; k++) {
@@ -398,6 +548,9 @@ function check(args: string[]): boolean {
       code: String(s.code > 0),
       empty: String(s.empty),
       wrap: s.wrap,
+      units: s.units ?? "letters",
+      crlf: String(s.crlf),
+      bom: String(s.bom),
     };
     for (const [axis, value] of Object.entries(values)) {
       if (!covered.has(axis)) covered.set(axis, new Set());
@@ -422,6 +575,10 @@ function check(args: string[]): boolean {
       console.log(`           ${a.why || b.why}; ${fixed ? "" : `seed ${seed}, shape ${name.split(":")[2]}, ${JSON.stringify(settingsOf(seed, Number(name.split(":")[2])))}; `}first row ${JSON.stringify(shape.row(0))}`);
     }
   }
+  // Against the scan of `origin/main`: where it reads a table as written and
+  // this one reads it as a table, the table at this budget must pass above.
+  const beyond = await mainComparison(names);
+  if (beyond !== null) console.log(`main     ${beyond.length} of ${names.length} shapes are read as a table here beyond the size main reads as written${beyond.length ? `: ${beyond.slice(0, 12).join(", ")}` : ""}; each passes at the budget above or the check failed`);
   console.log(`check    ${all ? "every shape passes" : "FAILED"} in ${Math.round((performance.now() - started) / 1000)} s`);
   return all;
 }
@@ -439,6 +596,13 @@ const unbounded = {
   tree: (text: string) => unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks).parse(text),
   // The reading view's parser (GFM without the properties block, MarkdownReader.tsx) and its HTML tree, which fills every row to the header's columns.
   reader: (text: string) => {
+    // With math, as the reading view runs it: remark-math in the parse, KaTeX for the page.
+    if (HAS_MATH.test(text)) {
+      const processor = unified().use(remarkParse).use(remarkGfm).use(remarkMath as never).use(remarkRehype as never).use(rehypeKatex as never);
+      const tree = processor.parse(text);
+      processor.runSync(tree);
+      return tree;
+    }
     const tree = unified().use(remarkParse).use(remarkGfm).parse(text);
     toHast(tree);
     return tree;
@@ -464,9 +628,46 @@ function child(name: string, rows: number, parse: string, bounded: boolean): voi
 }
 
 /** `perf:tables -- --calibrate` and `--check` (`many-tables.ts` hands them here). */
-export function runTableBudget(args: string[]): void {
+/**
+ * `--hunt <n> [--minutes <m>] [--seed <s>]`: n generated tables of a seed
+ * drawn anew (or given), each at the budget, read by every parser under the
+ * capped heap — what the performance workflow runs on every push, so that the
+ * next shape the weight misses is found by a run, not by a review. Stops
+ * after m minutes; a table that does not pass is printed with its seed, its
+ * number and its settings, and the run fails.
+ */
+function hunt(args: string[]): boolean {
+  const at = (flag: string, fallback: number) => (args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : fallback);
+  const count = at("--hunt", 50);
+  const minutes = at("--minutes", 20);
+  const seed = at("--seed", Date.now() % 1_000_000);
+  const started = performance.now();
+  let tried = 0;
+  const failed: string[] = [];
+  console.log(`hunt     ${count} generated tables, seed ${seed}, at most ${minutes} min; budget ${TABLE_READ_BUDGET}`);
+  for (let k = 0; k < count && performance.now() - started < minutes * 60_000; k++) {
+    const name = `gen:${seed}:${k}`;
+    const rows = rowsAt(name, TABLE_READ_BUDGET);
+    const run = passes(name, rows, true);
+    tried++;
+    if (!run.ok) {
+      failed.push(name);
+      console.log(`FAIL     ${name} at ${rows} rows: ${run.why}; ${JSON.stringify(settingsOf(seed, k))}; first row ${JSON.stringify(shapeOf(name).row(0).slice(0, 200))}`);
+    }
+  }
+  console.log(`hunt     ${tried} tables in ${Math.round((performance.now() - started) / 1000)} s: ${failed.length ? `${failed.length} FAILED (${failed.join(", ")}) — take each into SHAPES and calibrate anew` : "every table passes"}`);
+  return failed.length === 0;
+}
+
+export async function runTableBudget(args: string[]): Promise<void> {
+  if (args.includes("--hunt")) {
+    if (!hunt(args)) process.exitCode = 1;
+    return;
+  }
   if (args.includes("--calibrate")) calibrate(args);
-  if (!check(args)) process.exitCode = 1;
+  // `--no-check`: the calibration alone, for constants not yet set.
+  if (args.includes("--no-check")) return;
+  if (!(await check(args))) process.exitCode = 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

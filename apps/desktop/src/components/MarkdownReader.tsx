@@ -1,8 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
 import { boundReaderMarkdown, resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, embedTargetKindOf, FileEmbedCard, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
 import { markdownLinkTarget, prepareReaderSource, resolveMarkdownLinkIndexed, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
@@ -18,7 +16,7 @@ import { CodeBlock } from './CodeBlock';
 import { MermaidDiagram } from './MermaidDiagram';
 import { BaseViewer } from './BaseViewer';
 import { formatRelativeDate } from '@plainva/ui';
-import { isDoneTaskItem, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, remarkTaskStates } from './markdownReaderModel';
+import { isDoneTaskItem, loadReaderMath, READER_REMARK_PLUGINS } from './markdownReaderModel';
 import { openLink } from '../services/openLink';
 import { TasksQueryView } from './tasks/TasksQueryView';
 import { DocIcon, isRenderableDocIcon } from '@plainva/ui';
@@ -349,13 +347,11 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
   React.useEffect(() => {
     if (!hasMath || mathPlugins) return;
     let alive = true;
-    void Promise.all([
-      import("remark-math"),
-      import("rehype-katex"),
-      import("katex/dist/katex.min.css"),
-    ]).then(([rm, rk]) => {
-      if (alive) setMathPlugins({ remark: rm.default, rehype: rk.default });
-    }).catch((e) => console.warn("[MarkdownReader] loading KaTeX failed", e));
+    void Promise.all([loadReaderMath(), import("katex/dist/katex.min.css")])
+      .then(([math]) => {
+        if (alive) setMathPlugins(math);
+      })
+      .catch((e) => console.warn("[MarkdownReader] loading KaTeX failed", e));
     return () => {
       alive = false;
     };
@@ -434,9 +430,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       }}
       style={{ padding: '2rem', maxWidth: fullWidth ? 'none' : '800px', margin: '0 auto', fontSize: 'var(--content-font-size, 16px)', lineHeight: '1.6', color: 'var(--text-main)', fontFamily: 'var(--font-content)' }}>
       <ReactMarkdown
-        remarkPlugins={mathPlugins
-          ? [bounded.remarkRestore, remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
-          : [bounded.remarkRestore, remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills]}
+        remarkPlugins={[bounded.remarkRestore, ...READER_REMARK_PLUGINS, ...(mathPlugins ? [mathPlugins.remark as never] : [])]}
         rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{

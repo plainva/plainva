@@ -7,6 +7,7 @@
  */
 import { findInlineTags, readHtmlCheckbox } from "@plainva/core";
 import { tagColorAttrs, tagSegments } from "@plainva/ui";
+import remarkGfm from "remark-gfm";
 
 /**
  * Percent-encodes a wiki target for use inside a generated markdown link
@@ -327,4 +328,27 @@ export function remarkHtmlCheckbox() {
     };
     walk(tree);
   };
+}
+
+/**
+ * The reading view's remark plugins behind the restore of the parse budget,
+ * in their order: the one list `MarkdownReader.tsx` runs and the test of the
+ * table budget measures (`readerTableBudget.test.ts`), so that the budget is
+ * held against what the reading view really makes of a table.
+ */
+export const READER_REMARK_PLUGINS = [
+  remarkGfm,
+  remarkTaskStates,
+  remarkMappedBreaks,
+  remarkStripHtmlComments,
+  remarkBrToBreak,
+  remarkHtmlCheckbox,
+  remarkStripHighlightMarks,
+  remarkTagPills,
+] as const;
+
+/** The reading view's math: `remark-math` and `rehype-katex`, loaded when a note has math (KaTeX's CSS loads beside them). */
+export async function loadReaderMath(): Promise<{ remark: unknown; rehype: unknown }> {
+  const [remarkMath, rehypeKatex] = await Promise.all([import("remark-math"), import("rehype-katex")]);
+  return { remark: remarkMath.default, rehype: rehypeKatex.default };
 }

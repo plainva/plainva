@@ -410,6 +410,9 @@ importers:
       mdast-util-to-hast:
         specifier: 13.2.1
         version: 13.2.1
+      micromark:
+        specifier: 4.0.2
+        version: 4.0.2
       sqlite:
         specifier: ^5.1.1
         version: 5.1.1

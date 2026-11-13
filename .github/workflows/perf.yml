@@ -88,3 +88,35 @@ jobs:
           name: perf-bundle
           path: ${{ runner.temp }}/perf-bundle.json
           if-no-files-found: ignore
+
+  tables:
+    name: Table budget search
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Generated tables of a seed drawn anew on every run, each at the table
+      # budget, read by every parser of the app under a heap of 128 MB
+      # (scripts/perf/table-budget.ts, `--hunt`). No count the unit tests can
+      # make sees every cost of a table (a cell of many words); this run
+      # measures the heap. A table that does not pass names its seed and
+      # shape: it goes into `--check` as a fixed shape, and the weights are
+      # calibrated anew (Performance_Notes.md, "Many tables in one note").
+      - name: Tables at the budget under a capped heap
+        run: pnpm --filter @plainva/core perf:tables -- --hunt 200 --minutes 20

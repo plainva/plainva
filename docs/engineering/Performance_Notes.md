@@ -459,13 +459,41 @@ lines behind the table that would continue its paragraph or underline it (`---`,
 code, an empty item) are read as written with it: before, a `---` under such a table made all of it
 one heading of 130 KB.
 
-`inline-parse-budget.test.ts` holds the weight against what the parsers make of a table, besides the
-scan against where they read one (the gauge, 1 500 generated tables of words, every kind of
-autolink literal in either case, entities, links, wiki links, emphasis, code, HTML, CJK, emoji,
-headers of up to 60 columns over short rows and rows of `|`, in quotes, lists and callouts, behind
-an unclosed `---`): the weight of each must be at least the number of nodes of the note's tree,
-the reading view's tree and its HTML tree, times the smallest ratio any calibrated shape has, less
-a tenth. It fails on `4ecaa1501` (109 of 3 000 tables) and on each of the review's forms. Until then the scan ended a table at the first such line
+What a table costs the parser is not only its characters, cells and syntax (2026-11-13, fourth
+review). At the start of each word of a cell — a run of characters other than blanks and pipes, in
+any script — the parser holds the cell's text in a piece of its own until the cell is read (and at
+an ASCII word it tries an e-mail address there): 999 rows of `| a a a … |` (150 words), 1 498 rows
+of a hundred numbers, 1 443 rows of `中文 中文 …` fill 128 MB, where their characters weighed a
+quarter of the budget; the scan of `origin/main` read them as written, this one read them as a
+table and ran out of memory. A footnote reference with its definition (`[^1]`) and a Markdown link
+or image (`[l](u)`, 151 rows of 80 fill 128 MB) are nodes of their own with many events. So a row
+weighs its words, its references and its links as well (`tableRowParts`). These costs are not in
+micromark's events: after the parse `| a a … |` keeps 18 events a row, fewer than a word and a link
+(30); the pieces live while the cell is read. No count the tests can make sees them, so the
+calibration measures the heap: besides the fixed shapes, `--calibrate --search <n>` measures the
+limits of n generated tables (words, numbers, every kind of literal, references with their
+definition, tags, formulas, highlights, entities, CJK, emoji, long words, CRLF, a byte order mark,
+in quotes, lists and callouts) and chooses the weights over all of them, and the performance
+workflow runs `--hunt` on every push: 200 generated tables of a seed drawn anew, each at the budget
+under 128 MB in every reading, at most 20 minutes; a table that does not pass names its seed and
+shape, and goes into the fixed shapes. `--check` also compares with the scan of `origin/main`
+(read through `git show`): every shape this scan reads as a table at more rows than main does must
+pass at the budget.
+
+The tests hold the weight against what can be counted. `inline-parse-budget.test.ts` (the gauge,
+1 500 generated tables of the same kinds; the seed is fixed in the suite and drawn anew in CI)
+holds each table's weight against the events micromark keeps for it (with the note's extensions)
+and against the nodes of the note's tree, the reading view's tree and its HTML tree: none may make
+more per weight than the densest calibrated shape, less a tenth. `readerTableBudget.test.tsx` in
+the desktop app holds the same against the page the reading view renders with its own plugins
+(`READER_REMARK_PLUGINS` of `markdownReaderModel.ts`, which `MarkdownReader.tsx` runs: tag pills,
+highlights, and KaTeX for formulas): what tag pills and highlights make of `#a` and `==a==` is
+covered by the word weight, so their own weights (`TABLE_TAG_WEIGHT`, `TABLE_MARK_WEIGHT`) are 0.
+Formulas the node count does not hold: KaTeX's memory while it lays out a formula is far more than
+the elements it leaves (a table of `$a$` at the budget passed the node count and ran the reading
+view out of memory). So the calibration's reading view runs `remark-math` and KaTeX for a note with
+math, as the desktop app does (`loadReaderMath`), and a formula weighs on its own
+(`TABLE_MATH_WEIGHT`). What React and the DOM hold beyond the page is not measured. Until then the scan ended a table at the first such line
 and weighed no table in a quote, a list item or a footnote at all — older than the table budget:
 the rows-times-length rule of 2026-11-01 had the same hole. Where the scan is sure of the blocks (a
 table behind quote markers or list items only, starting a paragraph or interrupting one in the same
@@ -478,45 +506,63 @@ measure can hide lines from the other. `inline-parse-budget.test.ts` holds this 
 over 3 000 generated notes (block markers and lines drawn at random); a scratch run of 160 000
 found no table the scan missed and no paragraph a table split.
 
-Calibrated 2026-11-13 over 64 shapes and three parses (index, note source, reading view with its
-HTML tree): weights one per character, 64 per row (a row of the HTML tree is nodes of its own), 38
-per cell, 11 per character of inline syntax, 14 per block marker in front of a line, 11 per autolink
-literal. The calibration proposed a budget of 850 000; it is set to **720 000**, 15 % lower (decided
-2026-11-13 by the coordination, for the maintainer to revisit): 128 MB is an assumption measured on
-Node's heap, and the WebView carries the DOM and React besides; three reviews in a row found shapes
-the weight lacked, and with 9 to 14 % to spare known shapes stood at 119 and 125 of 128 MB; the
-reading view is new in the criterion. Against the rule before L13 (about 2 500 rows of a word and a
-link) that is still 40 % more, and L14 calibrates the whole note with a measurement in the phone's
-WebView, where the number may rise.
+Calibrated 2026-11-13 over 119 shapes (89 fixed, 30 from a search) and three parses (index, note
+source, reading view with its HTML tree, and with `remark-math` and KaTeX for a note with math): one
+per character, 832 per row, 204 per cell, 122 per character of inline syntax, 1 391 per footnote
+reference, 487 per link or image destination, 1 329 per `$` of a formula, 181 per autolink literal,
+180 per word; block markers 0 (the other parts lift every such shape). The weights are chosen in
+that order — the base over shapes without markers, literals, references, links, formulas and with
+few words, then references, links, formulas and literals (a word and a link has none), then
+words, then block markers — each the least that lifts every shape to the budget / 0.9, so that a
+word and a link keeps the most rows and a table in a quote or a callout is not made small for what
+its words cost (with markers before words: 1 430 rows in a quote instead of 3 305). The
+calibration proposed 8 160 000; the budget is **6 970 000**, so that the lightest measured shape
+sits about 30 % above it (decided with the coordination 2026-11-13, for the maintainer to
+revisit; the reasons for the margin stand above). A word and a link is read as a table up to
+about 3 000 rows, a fifth more than before L13 — and this time with the shapes the reviews found
+inside the criterion.
 
 | Shape | Limit under 128 MB | Limit weighs | At the budget |
 |---|---|---|---|
-| a word and a link | 7 859 rows | 2.27 × the budget | 3 471 rows |
-| four short cells and a link | 4 573 | 1.81 × | 2 529 |
-| four cells of words | 4 178 | 1.95 × | 2 149 |
-| links and emphasis in every cell | 1 527 | 1.75 × | 879 |
-| one long cell of prose | 2 435 | 1.38 × | 1 758 |
-| sixteen one-character cells, no blanks | 1 413 | 1.38 × | 1 020 |
-| no outer pipes | 6 583 | 1.75 × | 3 774 |
-| `\\|` boundaries | 2 331 | 1.79 × | 1 301 |
-| 150 `~a` per row | 462 | 1.32 × | 350 |
-| 400 unclosed `[` and `*` per row | 296 | 2.11 × | 139 |
-| one short cell between two pipes | 17 940 | 2.62 × | 6 856 |
-| a line without a pipe | 20 256 | 2.89 × | 6 989 |
-| a word and a link in a quote or a list item | 7 718 | 2.36 × | 3 267 |
-| sixteen one-character cells in a quote | 1 315 | 1.32 × | 997 |
-| one short cell in two quotes | 12 999 | 2.48 × | 5 254 |
-| one short cell in five quotes | 8 919 | 2.29 × | 3 890 |
-| one short cell in a list item | 16 692 | 2.81 × | 5 949 |
-| a delimiter row `:-`, rows of `a` | 19 762 | 2.82 × | 6 989 |
-| a hundred `a@b.cc` per row | 515 | 1.36 × | 377 |
-| a hundred `WWW.a.b` per row | 485 | 1.35 × | 359 |
-| `- a` and `> b` behind an unclosed `---` | 8 700 | 1.31 × | 6 614 |
-| rows of `\|` under a header of 100 columns | 5 292 | 28.4 × | 185 |
-| rows of `\|a\|` under a header of 20 columns | 17 640 | 20.3 × | 869 |
+| a word and a link | 7 859 rows | 2.58 × the budget | 3 041 rows |
+| four short cells and a link | 4 573 | 1.89 × | 2 418 |
+| four cells of words | 4 178 | 2.84 × | 1 472 |
+| links and emphasis in every cell | 1 527 | 2.60 × | 588 |
+| one long cell of prose | 2 435 | 4.31 × | 565 |
+| sixteen one-character cells, no blanks | 1 413 | 1.42 × | 993 |
+| 150 `~a` per row | 462 | 1.32 × | 351 |
+| 400 unclosed `[` and `*` per row | 296 | 2.18 × | 136 |
+| one short cell between two pipes | 17 940 | 3.14 × | 5 716 |
+| a line without a pipe | 20 256 | 3.54 × | 5 726 |
+| a word and a link in a quote or a list item | 7 718 | 2.34 × | 3 302 |
+| sixteen one-character cells in a quote | 1 315 | 1.32 × | 993 |
+| one short cell in two quotes | 12 999 | 2.28 × | 5 698 |
+| a hundred `a@b.cc` per row | 515 | 2.80 × | 184 |
+| a hundred `WWW.a.b` per row | 485 | 2.65 × | 183 |
+| a hundred `a@b.cc,` without blanks | 509 | 1.46 × | 348 |
+| `- a` and `> b` behind an unclosed `---` | 8 700 | 1.75 × | 4 967 |
+| rows of `\|` under a header of 100 columns | 5 292 | 16.23 × | 326 |
+| 150 words `a` per row | 999 | 4.08 × | 245 |
+| a hundred numbers per row | 1 498 | 4.16 × | 360 |
+| a row of English | 1 633 | 4.16 × | 393 |
+| a row of German | 3 422 | 4.36 × | 785 |
+| a hundred `中文` per row | 1 443 | 4.01 × | 360 |
+| a row of Russian | 2 394 | 4.16 × | 576 |
+| a hundred `[^1]` with the definition below | 184 | 4.84 × | 38 |
+| 80 `[l](u)` per row | 151 | 1.62 × | 93 |
+| a hundred `$a$` per row (reading view with KaTeX) | 88 | 4.00 × | 22 |
+| 40 `$\frac{a}{b}$` per row (reading view with KaTeX) | 74 | 1.40 × | 53 |
 
-The lightest limits — `- a` and `> b` behind an unclosed `---`, `~` runs, sixteen one-character
-cells in a quote — sit 31 % above the budget (the limit search is exact to 4 %). That is the parse alone: the heap a WebView gives the app is
+The lightest limits — `~` runs, sixteen one-character cells, KaTeX fractions — sit 30 % above the
+budget (the limit search is exact to 4 %).
+
+The scan runs on every open and every index pass, for every note. For an ordinary note it costs
+what it cost on `origin/main`: 1 MB of prose 4 to 8 ms (main 9 to 14 ms), a note of 2 000 small
+tables 11 to 25 ms (main 4 to 7 ms); a table line is weighed only where the line under it may be a
+delimiter row, and a line that starts with a letter or a pipe is asked nothing more. Shapes made to
+cost it stay linear but cost more than on main: 100 000 two-line tables 0.2 to 0.3 s (main 0.04 s),
+40 000 tables in quotes behind an unclosed `---` 0.1 to 0.3 s (main 0.02 s), a header of 1 000
+columns over 100 000 rows of `|` 0.1 s (`review-tables-4/lin4.mts`, timings on a shared machine). That is the parse alone: the heap a WebView gives the app is
 not known here, so raising the budget needs a measurement in the phone's WebView first. A table
 over the budget is read as written, as before: in the index it has no links, and the reading view
 shows its lines as one paragraph of text with the pipes in it, no table, its quote or list around
@@ -546,7 +592,7 @@ is a package of its own with its own corpus check, not part of this one. Lists a
 class as tables for memory (20 000 list items with a link: 409 MB at the peak), with no budget of
 their own.
 
-`inline-parse-budget.test.ts` reads a table at the budget (about 3 500 rows) as a table with every
+`inline-parse-budget.test.ts` reads a table at the budget (about 3 000 rows) as a table with every
 link, the same table one row longer as written — one paragraph, every other block of the note as
 before — within 5 s on the reference core, and times a table of 4 000 rows apart from those (3 s on
 the reference core, about half a second here).
