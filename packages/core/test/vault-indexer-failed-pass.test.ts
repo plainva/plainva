@@ -299,6 +299,59 @@ describe("an index owed a full scan (issue 125)", () => {
     expect(atTheKill).toEqual({ complete: false, marks: ["index_scan_owed"] });
   });
 
+  it("a scan that could not list a folder goes through, and the index is not whole: what it did not see is unknown (fourth review of 11.11.)", async () => {
+    for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
+    await vault.createDir("Shared");
+    await vault.writeTextFile("Shared/Target.md", "# Target\n");
+    const indexer = new VaultIndexer(vault, sqlite, hooks());
+    // A network share, a provider's folder that does not answer: listed as unreadable.
+    const list = vault.listDir.bind(vault);
+    (vault as unknown as { listDirReport: unknown }).listDirReport = async (p: string, recursive: boolean) => ({
+      files: (await list(p, recursive)).filter((f) => !f.path.startsWith("Shared")),
+      skipped: [{ path: "Shared", reason: "unreadable" }],
+    });
+    const report = await indexer.indexVaultFull("open, empty index");
+    expect(report.whole).toBe(false);
+    expect(report.skipped).toEqual([{ path: "Shared", reason: "unreadable" }]);
+    // Through for the first uploads (issue 125), not whole for what plans a write.
+    expect(await indexer.indexComplete()).toBe(true);
+    expect(await indexer.indexWhole()).toBe(false);
+    // Readable again: the next scan makes it whole.
+    delete (vault as unknown as { listDirReport?: unknown }).listDirReport;
+    expect((await indexer.indexVaultFull("open")).whole).toBe(true);
+    expect(await indexer.indexWhole()).toBe(true);
+  });
+
+  it("…nor where a single file could not be read", async () => {
+    for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
+    const indexer = new VaultIndexer(vault, sqlite, hooks());
+    // Refused as a permission is: every way the indexer reads a file says no.
+    const refuse = (p: string) => Object.assign(new Error(`Access is denied: ${p}`), { code: "PERMISSION_DENIED" });
+    const readText = vault.readTextFile.bind(vault);
+    vault.readTextFile = async (p) => { if (p === name(2)) throw refuse(p); return readText(p); };
+    const readBinary = vault.readBinaryFile.bind(vault);
+    vault.readBinaryFile = async (p) => { if (p === name(2)) throw refuse(p); return readBinary(p); };
+    const report = await indexer.indexVaultFull("open, empty index");
+    expect(report.whole).toBe(false);
+    expect(report.skipped.map((s) => s.path)).toEqual([name(2)]);
+    expect(await indexer.indexWhole()).toBe(false);
+    // And an unchanged scan after it does not make it whole either.
+    expect((await indexer.indexVaultFull("open")).whole).toBe(false);
+    expect(await indexer.indexWhole()).toBe(false);
+  });
+
+  it("a rebuild called off half way leaves an index that is neither complete nor whole", async () => {
+    for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
+    const indexer = new VaultIndexer(vault, sqlite, hooks());
+    await indexer.indexVaultFull("open, empty index");
+    expect(await indexer.indexWhole()).toBe(true);
+    // The scan that follows the reset fails: every row is marked to be read again.
+    vault.listDir = async () => { throw new Error("the share dropped"); };
+    await expect(indexer.rebuildIndex()).rejects.toThrow("the share dropped");
+    expect(await indexer.indexComplete()).toBe(false);
+    expect(await indexer.indexWhole()).toBe(false);
+  });
+
   it("an index without the mark — left by a build up to 0.8.7 — is not whole until a full scan went through on it", async () => {
     for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
     const indexer = new VaultIndexer(vault, sqlite, hooks());
@@ -306,7 +359,7 @@ describe("an index owed a full scan (issue 125)", () => {
     expect(await marks(sqlite)).toEqual(["index_scan_whole"]);
     expect(await indexer.indexComplete()).toBe(true);
     // What an older build leaves: rows, and no mark either way.
-    await sqlite.execute(`DELETE FROM meta WHERE key IN ('index_scan_owed', 'index_scan_whole')`);
+    await sqlite.execute(`DELETE FROM meta WHERE key IN ('index_scan_owed', 'index_scan_whole', 'index_scan_through')`);
     expect(await indexer.indexComplete()).toBe(false);
     // The warm scan of the next open is its build, and says so when it went through.
     await indexer.indexVaultFull("open");

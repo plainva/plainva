@@ -65,6 +65,9 @@ export const WRITE_REFUSALS = {
   declined: EFFECT_DECLINED,
   nobody: "Nobody is there to confirm this, so it was not done.",
   failed: "Plainva could not do it.",
+  // Which notes a rename or a move rewrites is read from the index: not over half of one (performance plan L3).
+  "index-not-whole":
+    "Plainva is still reading this vault, so it cannot yet tell which notes link here. Nothing was changed. Tell the user to try again once the vault has been read.",
   // A routine (plan "KI direkt schreiben", E3): nobody is there to look at a suggestion, so it changes only where a folder lets it.
   "not-direct":
     "A routine changes and creates notes only in folders whose rule lets the assistant change without asking, and this place has none. Nothing was changed. Say in your answer what you would have changed.",

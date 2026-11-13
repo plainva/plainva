@@ -347,13 +347,19 @@ describe("a full scan that reads ahead", () => {
       onProgress: (current) => { if (current === 4) leaving.abort(); },
     });
     await expect(indexer.indexVaultFull()).rejects.toThrow();
-    // Ended means ended: nothing it began is still in flight.
-    expect(vault.inFlight).toBe(0);
+    // Ended does not wait for a read in flight (a read that never answers must
+    // not hold the close, fourth review of 11.11.), and begins nothing new.
     const callsAtAbort = vault.calls.length;
     const begunAtAbort = vault.begun.length;
+    // The calls in flight end in their own time (each file a few turns).
+    for (let i = 0; i < 400 && vault.inFlight > 0; i++) await tick();
     for (let i = 0; i < 40; i++) await tick();
+    expect(vault.inFlight).toBe(0);
     expect(vault.calls.length).toBe(callsAtAbort);
-    expect(vault.begun.length).toBe(begunAtAbort);
+    // What the calls in flight held is read to their end; no file outside them.
+    const held = vault.calls.flat().length;
+    expect(begunAtAbort).toBeLessThanOrEqual(held);
+    expect(vault.begun.length).toBeLessThanOrEqual(held);
   });
 
   it("reads nothing more once it was called off or failed", async () => {
@@ -537,5 +543,131 @@ describe("whose reading stands: the one whose look at the file began later (thir
     await indexer.indexVaultFull();
     expect(done).toBe(true);
     expect(await indexed(db, F)).toContain("c3 written elsewhere");
+  });
+});
+
+describe("the fourth review of 11.11.", () => {
+  it("a note the app renames while the scan reads it ahead is not written back under its old name — the queue's rename takes no place", async () => {
+    const vault = new SlowVault(1_700_000_000_000);
+    await fill(vault);
+    const db = takingTurns(await realSqlite());
+    const created: string[] = [];
+    const indexer = new VaultIndexer(vault, db, { onNewLocalFile: (p) => void created.push(p) });
+    await indexer.indexVaultFull();
+    for (const name of names) await vault.writeTextFile(name, `# ${name}\nchanged elsewhere\n`);
+    const queue = new SyncQueue(db);
+    const T = names[20];
+    const TO = "moved.md";
+    let renamed = false;
+    vault.afterRead = async (path) => {
+      if (path !== T || renamed) return;
+      // The scan holds T's reading; the person renames T: the disk, then the queue
+      // moves the row. The index hears of it later (relocatePathInIndex), after the scan.
+      renamed = true;
+      await vault.renameItem(T, TO);
+      await queue.queueRename(T, TO);
+    };
+    created.length = 0;
+    await indexer.indexVaultFull();
+    expect(renamed).toBe(true);
+    expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [T])).toBeNull();
+    expect(created).not.toContain(T);
+    await indexer.relocatePathInIndex(T, TO);
+    expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [TO])).not.toBeNull();
+    // No search row and no sync row left for a file that is not there.
+    expect((await db.query(`SELECT path FROM fts_notes WHERE path = ?`, [T])).length).toBe(0);
+    expect(await db.queryOne(`SELECT path FROM sync_state WHERE path = ?`, [T])).toBeNull();
+  });
+
+  it("a file read by a call for many files whose order against a save cannot be told is read again (the desktop's one read path)", async () => {
+    // The call is made; the app saves T and its pass reads and writes it; another
+    // program writes T again; the call then reads T. The call says when it began
+    // and ended, not when it read T: the two readings are not ordered by a guess.
+    class SequentialMany extends SlowVault {
+      beforeEach?: (path: string) => Promise<void>;
+      async readFilesForIndex(requests: readonly IndexReadRequest[]): Promise<IndexReadResult[]> {
+        const out: IndexReadResult[] = [];
+        for (const request of requests) {
+          await this.beforeEach?.(request.path);
+          if (!request.text) { out.push({ kind: "fallback" }); continue; }
+          const text = await MemoryVaultAdapter.prototype.readTextFile.call(this, request.path);
+          out.push({ kind: "text", text, sha256: await sha256Hex(new TextEncoder().encode(text)) });
+        }
+        return out;
+      }
+    }
+    const vault = new SequentialMany(1_700_000_000_000);
+    await fill(vault);
+    const db = takingTurns(await realSqlite());
+    const indexer = new VaultIndexer(vault, db, {});
+    await indexer.indexVaultFull();
+    for (const name of names) await vault.writeTextFile(name, `# ${name}\nchanged elsewhere\n`);
+    const T = names[5];
+    let saved = false;
+    vault.beforeEach = async (path) => {
+      if (path !== T || saved) return;
+      saved = true;
+      await vault.writeTextFile(T, "# T\nc2 saved in the app\n");
+      await indexer.indexFile(await vault.getFileInfo(T));
+      await vault.writeTextFile(T, "# T\nc3 written elsewhere, the newest\n");
+    };
+    await indexer.indexVaultFull();
+    expect(saved).toBe(true);
+    const content = (await db.query<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [T])).map((r) => r.content).join(" | ");
+    expect(content).toContain("c3 written elsewhere");
+  });
+
+  it("a file the index let go of before the scan began to read it, and that is there again, gets its row from the scan", async () => {
+    // The row went in a change of the index's own (a watcher's delete) whose
+    // place lies before the scan's reading: that reading is newer, and the
+    // row it writes stands — the row is not "gone" (`changedBefore`).
+    const vault = new SlowVault(1_700_000_000_000);
+    await fill(vault);
+    const db = takingTurns(await realSqlite());
+    const indexer = new VaultIndexer(vault, db, {});
+    await indexer.indexVaultFull();
+    for (const name of names) await vault.writeTextFile(name, `# ${name}\nchanged elsewhere\n`);
+    const X = names[40];
+    let removed = false;
+    vault.beforeRead = async (path) => {
+      if (path !== names[1] || removed) return;
+      removed = true;
+      await indexer.removePathFromIndex(X);
+    };
+    await indexer.indexVaultFull();
+    expect(removed).toBe(true);
+    expect(vault.begun.indexOf(X)).toBeGreaterThan(vault.begun.indexOf(names[1]));
+    const row = await db.queryOne<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [X]);
+    expect(row?.content).toContain("changed elsewhere");
+  });
+
+  it("a vault closed while a read ahead never answers: the scan ends, and so does whenIdle, which the close waits for", async () => {
+    // A provider that hangs on one file, a share that dropped without an
+    // error: the first scan reads ahead, the person closes the vault while the
+    // scan holds a later file. Before the fourth review of 11.11. the scan's
+    // finally waited for the hung read, and the close with it.
+    const closing = new AbortController();
+    class HangVault extends MemoryVaultAdapter {
+      armed = false;
+      override async readTextFile(path: string): Promise<string> {
+        if (this.armed && path === "n05.md") return new Promise<string>(() => {});
+        const text = await super.readTextFile(path);
+        for (let i = 0; i < 2; i++) await tick();
+        if (this.armed && path === "n07.md") closing.abort();
+        return text;
+      }
+    }
+    const vault = new HangVault(1_700_000_000_000);
+    await vault.initialize();
+    for (let i = 0; i < 20; i++) await vault.writeTextFile(`n${String(i).padStart(2, "0")}.md`, `# ${i}\n`);
+    const db = await realSqlite();
+    const indexer = new VaultIndexer(vault, db, { scanSignal: closing.signal });
+    vault.armed = true;
+    const within = <T>(p: Promise<T>, ms: number) => Promise.race([p.then(() => "settled", () => "settled"), new Promise<string>((r) => setTimeout(() => r("still waiting"), ms))]);
+    const scan = indexer.indexVaultFull("open");
+    expect(await within(scan, 2000)).toBe("settled");
+    await expect(scan).rejects.toThrow();
+    expect(await within(indexer.whenIdle(), 500)).toBe("settled");
+    expect(closing.signal.aborted).toBe(true);
   });
 });

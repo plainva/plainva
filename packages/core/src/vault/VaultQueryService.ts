@@ -1,6 +1,6 @@
 import { trimEndChars } from "../textScan.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { ALWAYS_WHOLE, IndexNotWholeError, markPartialRows, requireWholeIndex, untilWholeIndex, type IndexWholeness, type IndexWholenessState } from "./indexWholeness.js";
+import { ALWAYS_WHOLE, IndexNotWholeError, requireWholeIndex, untilWholeIndex, type IndexWholeness, type IndexWholenessState } from "./indexWholeness.js";
 import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, isWholeVaultFolder, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
 import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
@@ -323,18 +323,7 @@ export class VaultQueryService {
       const view = Object.create(this) as Record<string, unknown>;
       const proto = VaultQueryService.prototype as unknown as Record<string, unknown>;
       for (const name of indexReadMethodNames()) {
-        const read = proto[name] as (...args: unknown[]) => Promise<unknown>;
-        Object.defineProperty(view, name, {
-          configurable: true,
-          writable: true,
-          // What is read while the index is not whole carries that (`markPartialRows`):
-          // it may be shown, never written from (third review of 11.11.).
-          value: (...args: unknown[]) => {
-            const partial = this.wholeness.state().kind !== "whole";
-            const result = read.apply(view, args);
-            return partial ? result.then(markPartialRows) : result;
-          },
-        });
+        Object.defineProperty(view, name, { configurable: true, writable: true, value: proto[name] });
       }
       Object.defineProperty(view, "db", { configurable: true, value: this.indexDb });
       Object.defineProperty(view, "partialIndex", { value: true });

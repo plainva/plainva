@@ -239,9 +239,9 @@ describe("a full scan that fails says so, once (issue #125)", () => {
     const scans: string[] = [];
     indexer = new VaultIndexer(vault, db, { scanSignal: closing.signal, onFullScan: (info) => void scans.push(info.trigger) });
     // Past its last look at the signal: the vault closes while the scan writes
-    // its last statement, the mark that the index is whole (the rows may come
+    // its last statement, the mark that the scan went through (the rows may come
     // in several transactions, and the owed mark comes before the walk).
-    const restore = beforeEveryWrite(db, (sql, params) => { if (/^\s*INSERT/.test(sql) && params.includes("index_scan_whole")) closing.abort(); });
+    const restore = beforeEveryWrite(db, (sql, params) => { if (/^\s*INSERT/.test(sql) && params.includes("index_scan_through")) closing.abort(); });
     const report = await indexer.indexVaultFull("open, empty index");
     restore();
     expect(report.added).toBeGreaterThan(0);

@@ -126,25 +126,20 @@ describe("createReadAhead", () => {
     expect(reader.pending.length).toBe(0);
   });
 
-  it("stop resolves only once the reads in flight have settled (third review of 11.11.)", async () => {
+  it("stop waits for nothing, also not for a read that never answers; nothing reads on after it (fourth review of 11.11.)", async () => {
     const reader = controlledReader();
     const ahead = createReadAhead(Array.from({ length: 10 }, (_, i) => i), reader.read, { groups: 3 });
     void ahead.take(0);
     await flush();
     expect(reader.pending.length).toBe(3);
-    let stopped = false;
-    const stopping = ahead.stop().then(() => { stopped = true; });
+    // The vault closes: one of the three never answers. Stop returns at once.
+    expect(ahead.stop()).toBeUndefined();
     reader.answer(0);
     reader.answer(0);
     await flush();
-    expect(stopped).toBe(false);
-    reader.answer(0);
-    await stopping;
-    expect(stopped).toBe(true);
-    expect(reader.inFlight()).toBe(0);
-    // With nothing in flight it resolves at once.
-    await ahead.stop();
-    expect(reader.pending.length).toBe(0);
+    // What came in starts nothing new; the third read stays out for good.
+    expect(reader.pending.length).toBe(1);
+    expect(reader.inFlight()).toBe(1);
   });
 
   it("weighs a reading by what was read once it is in, not by the listing (third review of 11.11., K3)", async () => {

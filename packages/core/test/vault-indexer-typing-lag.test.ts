@@ -212,11 +212,11 @@ describe("a full scan says what it changed", () => {
   it("writes one diagnostics line with counts and no name of anything", () => {
     const line = formatFullScan({
       trigger: "watcher: folder created or renamed", added: 2, changed: 1, removed: 0,
-      skipped: [{ path: "Secret Folder/private", reason: "unreadable" }], durationMs: 412.4, walked: 20120, foldersChanged: true,
+      skipped: [{ path: "Secret Folder/private", reason: "unreadable" }], durationMs: 412.4, walked: 20120, foldersChanged: true, whole: false,
     });
     expect(line).toBe("full scan (watcher: folder created or renamed): 20120 files walked in 412 ms — 2 added, 1 changed, 0 removed, folders changed, 1 skipped");
     expect(line).not.toContain("Secret");
-    expect(formatFullScan({ trigger: "automatic refresh", added: 0, changed: 0, removed: 0, skipped: [], durationMs: 80, walked: 5000, foldersChanged: false }))
+    expect(formatFullScan({ trigger: "automatic refresh", added: 0, changed: 0, removed: 0, skipped: [], durationMs: 80, walked: 5000, foldersChanged: false, whole: true }))
       .toBe("full scan (automatic refresh): 5000 files walked in 80 ms — nothing changed");
   });
 });

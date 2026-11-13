@@ -83,6 +83,14 @@ export interface IndexScanReport {
    * reloading at all (issue #122: an unchanged scan must reload nothing).
    */
   foldersChanged: boolean;
+  /**
+   * The index is whole after this scan (fourth review of 11.11.): nothing the
+   * scan was to see was left out — no folder it could not list, no file it
+   * could not read. One decision, here: the hosts take it, never their own.
+   * A link cycle hides nothing (its target was walked). Where it is false,
+   * `skipped` names what keeps the index from being whole.
+   */
+  whole: boolean;
 }
 
 /** True when a full scan left the index and the folder list exactly as they were. */
@@ -245,10 +253,23 @@ type FileReading =
 /** A file that is there and could not be read (`readOrNote`). */
 const UNREADABLE = "unreadable" as const;
 
+/**
+ * Where a reading stands among an indexer's reads (`claimWrite`): one moment
+ * for a read of one file, the span of the call for a read of many files in
+ * one call (the desktop's `readFilesForIndex`), which reads them one after the
+ * other and does not say when each.
+ */
+interface ReadPlace {
+  from: number;
+  until: number;
+}
+
 /** What the full scan read of a file, and the place of that read among the indexer's reads (`claimWrite`). */
 interface ScanReading {
   reading: FileReading | typeof UNREADABLE | null;
   from: number;
+  /** Where the read ended among the reads: the end of a call for many files, else `from`. */
+  until: number;
 }
 
 /** Whether a pass reads `file` as text: a note, or a file that is text by its name. */
@@ -267,6 +288,24 @@ const SCAN_UNKNOWN_SIZE_WEIGHT = 1024 * 1024;
 
 /** A file this large read whole by the ordinary read waits for any other such read of the scan (`createSerialGate`). */
 const SCAN_HEAVY_FILE_BYTES = 8 * 1024 * 1024;
+
+/**
+ * `promise`, or the signal's reason once it is aborted: closing a vault never
+ * waits for a read (fourth review of 11.11.) — a read that never answers held
+ * the scan, `whenIdle` and with them the close of the database for ever.
+ */
+function unlessAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => { signal.removeEventListener("abort", onAbort); resolve(value); },
+      (error: unknown) => { signal.removeEventListener("abort", onAbort); reject(error); },
+    );
+  });
+}
 
 /** Runs the tasks handed to it one after the other. */
 type SerialGate = <T>(task: () => Promise<T>) => Promise<T>;
@@ -332,6 +371,18 @@ const INDEX_OWED_KEY = "index_scan_owed";
  */
 const INDEX_WHOLE_KEY = "index_scan_whole";
 
+/**
+ * The `meta` key that says a full scan went through, whether or not it had to
+ * leave a folder or a file out (fourth review of 11.11.): what the deferred
+ * first uploads wait for (`indexComplete`, issue 125) — an index held as owed
+ * until one dead link can be read would hold the task notes of that vault
+ * back for good. "Whole" (`INDEX_WHOLE_KEY`) is more: nothing left out.
+ */
+const INDEX_THROUGH_KEY = "index_scan_through";
+
+/** Entries a full scan left out that hide something: a folder or file it could not read (a cycle hides nothing). */
+const leftOut = (skipped: readonly VaultWalkSkip[]) => skipped.filter((s) => s.reason === "unreadable");
+
 /** A row of the index as a full scan finds it when it begins. */
 interface IndexedAtScanStart {
   rowid?: number | null;
@@ -371,7 +422,12 @@ export class VaultIndexer {
    * is under way, like `touchedAt`.
    */
   private readClock = 0;
-  private readonly writtenFrom = new Map<string, number>();
+  private readonly writtenFrom = new Map<string, ReadPlace>();
+  /**
+   * Paths whose order of reads could not be told (`claimWrite`, a read of many
+   * files in one call): read again once the passes under way are through.
+   */
+  private readonly readAgain = new Set<string>();
 
   constructor(
     private readonly vaultAdapter: IVaultAdapter,
@@ -391,7 +447,25 @@ export class VaultIndexer {
       if (--this.openPasses === 0) {
         this.touchedAt.clear();
         this.writtenFrom.clear();
+        // Read again what nobody could order, now that every pass is through.
+        if (this.readAgain.size > 0) void this.readTheUnorderedAgain();
       }
+    }
+  }
+
+  /**
+   * Reads again each path whose readings could not be ordered (`claimWrite`):
+   * by a single path whose read begins after all of them, so the file as it
+   * is now is what stands. A failure leaves it to the next pass.
+   */
+  private async readTheUnorderedAgain(): Promise<void> {
+    const paths = [...this.readAgain];
+    this.readAgain.clear();
+    for (const path of paths) {
+      await this.indexPath(path).catch((e: unknown) => {
+        // silent: nothing is lost — the row stands as the scan wrote it, and the next pass reads the file again.
+        console.warn("[VaultIndexer] a file read again after an unordered read failed; the next pass reads it", e);
+      });
     }
   }
 
@@ -412,12 +486,25 @@ export class VaultIndexer {
    * what undoes the claim when that transaction does not go through, or null
    * where the reading is not to be written.
    */
-  private claimWrite(path: string, from: number): (() => void) | null {
+  private claimWrite(path: string, from: number, until: number = from): (() => void) | null {
     const before = this.writtenFrom.get(path);
-    if (before !== undefined && before > from) return null;
-    this.writtenFrom.set(path, from);
+    if (before !== undefined) {
+      // The reading written began later than this one ended: it stands.
+      if (before.from > until) return null;
+      // The two may have been read in either order: one call read many files
+      // and says when it began and ended, not when it read this one (fourth
+      // review of 11.11.). Neither is guessed: the file is read again, by a
+      // pass whose read begins after both. A reading of such a call yields;
+      // a single path's, read at one moment, is written meanwhile.
+      if (before.until >= from && (before.from !== before.until || from !== until)) {
+        this.readAgain.add(path);
+        if (from !== until) return null;
+      }
+    }
+    const place: ReadPlace = { from, until };
+    this.writtenFrom.set(path, place);
     return () => {
-      if (this.writtenFrom.get(path) !== from) return;
+      if (this.writtenFrom.get(path) !== place) return;
       if (before === undefined) this.writtenFrom.delete(path);
       else this.writtenFrom.set(path, before);
     };
@@ -437,6 +524,12 @@ export class VaultIndexer {
     const from = this.readBegins();
     const undos = [...new Set(paths)].map((path) => this.claimWrite(path, from)).filter((undo): undo is () => void => undo !== null);
     return () => { for (const undo of undos) undo(); };
+  }
+
+  /** Whether this indexer changed `path`'s row (`claimWrite`, `claimChange`) in a span that ended before `from`. */
+  private changedBefore(path: string, from: number): boolean {
+    const place = this.writtenFrom.get(path);
+    return place !== undefined && place.until < from;
   }
 
   /** A single path was asked about `path` and found a file there, a row was written for it, or it was reported gone. */
@@ -1454,7 +1547,7 @@ export class VaultIndexer {
   private async readScanGroup(group: readonly VaultFileInfo[], heavy: SerialGate): Promise<ScanReading[]> {
     const placed = async (file: VaultFileInfo): Promise<ScanReading> => {
       const from = this.readBegins();
-      return { reading: await this.readOrNote(file), from };
+      return { reading: await this.readOrNote(file), from, until: from };
     };
     // A large file read whole by the ordinary read waits for any other such
     // read of the scan: two films never lie in memory at once, whichever
@@ -1463,13 +1556,16 @@ export class VaultIndexer {
     const many = this.vaultAdapter.readFilesForIndex?.bind(this.vaultAdapter);
     if (!many) return Promise.all(group.map(ordinary));
     const requests: IndexReadRequest[] = group.map((file) => ({ path: file.path, text: readsAsText(file) }));
+    // The call reads the files one after the other and does not say when it
+    // read which: its readings stand for its whole span (`ReadPlace`).
     const from = this.readBegins();
     const answers = await many(requests).catch(() => null);
+    const until = this.readBegins();
     const out: ScanReading[] = [];
     for (let i = 0; i < group.length; i++) {
       const answer = answers?.[i];
-      if (answer?.kind === "text" && requests[i].text) out.push({ reading: { kind: "text", read: { sha256: answer.sha256, text: answer.text, exact: true } }, from });
-      else if (answer?.kind === "bytes" && !requests[i].text) out.push({ reading: { kind: "bytes", sha256: answer.sha256 }, from });
+      if (answer?.kind === "text" && requests[i].text) out.push({ reading: { kind: "text", read: { sha256: answer.sha256, text: answer.text, exact: true } }, from, until });
+      else if (answer?.kind === "bytes" && !requests[i].text) out.push({ reading: { kind: "bytes", sha256: answer.sha256 }, from, until });
       else out.push(await ordinary(group[i]));
     }
     return out;
@@ -1995,25 +2091,51 @@ export class VaultIndexer {
    * dead link back for good.
    */
   async indexComplete(): Promise<boolean> {
-    const rows = await this.dbAdapter.query<{ key: string; value?: string | null }>(
-      `SELECT key, value FROM meta WHERE key IN (?, ?)`,
-      [INDEX_WHOLE_KEY, INDEX_OWED_KEY],
-    );
-    const said = (key: string) => rows.some((row) => row.key === key && row.value === "1");
-    // Unknown is not whole: only the mark a scan that went through writes counts.
-    return said(INDEX_WHOLE_KEY) && !said(INDEX_OWED_KEY);
+    const marks = await this.indexMarks();
+    // Unknown is not complete: only the mark a scan that went through writes counts.
+    return marks.through && !marks.owed;
   }
 
   /**
-   * A full scan went through: the index owes none and is whole
-   * (`INDEX_WHOLE_KEY`). Written only where that is not said already — an
-   * unchanged scan writes nothing. The owed mark goes first: a process that
-   * ends between the two leaves neither, which is not whole.
+   * Whether the index holds the whole vault (third and fourth review of
+   * 11.11.): a full scan went through AND left nothing out. What plans a
+   * write from the index waits for this; the hosts ask it when a vault opens
+   * and take a scan's `whole` after (`IndexScanReport.whole`).
    */
-  private async markWhole(db: IDatabaseAdapter): Promise<void> {
-    if (await this.indexComplete()) return;
-    await db.execute(`DELETE FROM meta WHERE key = ?`, [INDEX_OWED_KEY]);
-    await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, [INDEX_WHOLE_KEY]);
+  async indexWhole(): Promise<boolean> {
+    const marks = await this.indexMarks();
+    return marks.whole && !marks.owed;
+  }
+
+  private async indexMarks(): Promise<{ owed: boolean; through: boolean; whole: boolean }> {
+    const rows = await this.dbAdapter.query<{ key: string; value?: string | null }>(
+      `SELECT key, value FROM meta WHERE key IN (?, ?, ?)`,
+      [INDEX_OWED_KEY, INDEX_THROUGH_KEY, INDEX_WHOLE_KEY],
+    );
+    const said = (key: string) => rows.some((row) => row.key === key && row.value === "1");
+    return { owed: said(INDEX_OWED_KEY), through: said(INDEX_THROUGH_KEY), whole: said(INDEX_WHOLE_KEY) };
+  }
+
+  /** The marks of a full scan that went through, `whole` where it left nothing out (`throughMarks`). */
+  private static throughMarks(whole: boolean): BatchStatement[] {
+    return [
+      { sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] },
+      { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_THROUGH_KEY] },
+      whole
+        ? { sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_WHOLE_KEY] }
+        : { sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_WHOLE_KEY] },
+    ];
+  }
+
+  /**
+   * A full scan with nothing to write went through: its marks, written only
+   * where they differ — an unchanged scan writes nothing. The owed mark goes
+   * first: a process that ends in between leaves an index that is not whole.
+   */
+  private async markThrough(db: IDatabaseAdapter, whole: boolean): Promise<void> {
+    const marks = await this.indexMarks();
+    if (!marks.owed && marks.through && marks.whole === whole) return;
+    for (const statement of VaultIndexer.throughMarks(whole)) await db.execute(statement.sql, statement.params as unknown[]);
   }
 
   /**
@@ -2042,6 +2164,9 @@ export class VaultIndexer {
   async rebuildIndex(trigger = "index rebuild"): Promise<IndexScanReport> {
     await this.whenIdle();
     await this.dbAdapter.transaction(async (tx) => {
+      // Owed a scan from here: a rebuild called off half way left old text
+      // under rows that look read (fourth review of 11.11.).
+      await tx.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, [INDEX_OWED_KEY]);
       await tx.execute(`UPDATE files SET mtime_local = 0`);
       // A search row belongs to the file that names its number and has its
       // path (index format 9); any other is left over — except the sentinel
@@ -2086,10 +2211,13 @@ export class VaultIndexer {
     if (startsEmpty) {
       await this.dbAdapter.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, [INDEX_OWED_KEY])
         .catch((e: unknown) => console.warn("[VaultIndexer] could not note that the index is owed a full scan", e));
-      await this.dbAdapter.execute(`DELETE FROM meta WHERE key = ?`, [INDEX_WHOLE_KEY]);
+      await this.dbAdapter.execute(`DELETE FROM meta WHERE key IN (?, ?)`, [INDEX_WHOLE_KEY, INDEX_THROUGH_KEY]);
     }
     try {
-      return await this.scanFrom(pass, dbFiles, startedAt);
+      const report = await this.scanFrom(pass, dbFiles, startedAt);
+      // Before the scan counts as done: what it could not order is read again.
+      if (this.readAgain.size > 0) await this.readTheUnorderedAgain();
+      return report;
     } catch (error) {
       // However far a first scan got — its walk, its lookups, a tail that was
       // its only batch —, the rows that saves and the watcher write after it
@@ -2234,13 +2362,14 @@ export class VaultIndexer {
         durationMs: Date.now() - startedAt,
         walked: candidates.length,
         foldersChanged,
+        whole: leftOut(skipped).length === 0 && unreadable.length === 0,
       };
     };
 
     if (mdToIndex.length === 0 && attachmentsToIndex.length === 0 && filesToDelete.length === 0) {
       // Nothing to do — but the walk still reports what it skipped, and an
       // index that was owed a scan has had one now.
-      await this.markWhole(this.dbAdapter);
+      await this.markThrough(this.dbAdapter, leftOut(skipped).length === 0);
       return report();
     }
 
@@ -2315,10 +2444,10 @@ export class VaultIndexer {
         // open for as long as it took; second review of 11.11.).
         // The first group of it too, so that a slow disk makes fewer, not smaller, transactions.
         if (next < work.length) {
-          await ahead.ready(next);
+          await unlessAborted(ahead.ready(next), signal);
           // Only what is already being read: waiting starts nothing past the read-ahead's bounds.
           const group = Math.min(work.length - 1, next + (oneAtATime ? 0 : SCAN_READS_AT_ONCE - 1));
-          if (ahead.started(group)) await ahead.ready(group);
+          if (ahead.started(group)) await unlessAborted(ahead.ready(group), signal);
         }
         signal?.throwIfAborted();
         const claims: Array<() => void> = [];
@@ -2387,7 +2516,7 @@ export class VaultIndexer {
             // the loop used to run to its end for a vault nobody had open, and
             // the open that was called off went on behind it.
             signal?.throwIfAborted();
-            const { reading, from } = await ahead.take(next);
+            const { reading, from, until } = await unlessAborted(ahead.take(next), signal);
             next++;
             if (reading === UNREADABLE) unreadable.push({ path: file.path, reason: "unreadable" });
             // Written unless a pass whose look at the file began later has
@@ -2395,7 +2524,16 @@ export class VaultIndexer {
             // R1): one rule, whoever wrote. A check of the row against the one
             // the scan began with took a save's OLDER reading for the newer and
             // dropped the scan's newer one (third review of 11.11., S1).
-            const undo = reading && reading !== UNREADABLE ? this.claimWrite(file.path, from) : null;
+            // A row the scan saw at the path when it began and that is gone now
+            // was removed or moved since — by this indexer (its place says when)
+            // or by somebody who takes none: the queue's rename moves the row in
+            // place, and the index hears of it later (`relocatePathInIndex`).
+            // Unknown is not "before": only a removal known to be older than
+            // this reading lets it bring the row back (fourth review of 11.11.;
+            // the scan wrote a moved note back under its old name, a ghost the
+            // sync then uploaded and deleted).
+            const gone = dbFileMap.has(file.path) && !lookups.fileStateByPath.has(file.path) && !this.changedBefore(file.path, from);
+            const undo = reading && reading !== UNREADABLE && !gone ? this.claimWrite(file.path, from, until) : null;
             if (undo) claims.push(undo);
             if (undo && reading && reading !== UNREADABLE) {
               if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
@@ -2456,9 +2594,9 @@ export class VaultIndexer {
             }
 
             // The scan has gone through once its last rows are in: the index owes
-            // no more, and says that it is whole (`INDEX_WHOLE_KEY`).
-            batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
-            batch.push({ sql: `INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')`, params: [INDEX_WHOLE_KEY] });
+            // no more, and says whether it is whole — not where the walk or a
+            // read left something out (fourth review of 11.11.).
+            batch.push(...VaultIndexer.throughMarks(leftOut(skipped).length === 0 && unreadable.length === 0));
             done = true;
           }
 
@@ -2479,9 +2617,9 @@ export class VaultIndexer {
       throw error;
     } finally {
       // However the loop ends — through, failed, called off — nothing more is
-      // read, and what is in flight has settled before the scan ends: a scan
-      // that follows does not read beside reads nobody takes any more.
-      await ahead.stop();
+      // read. What is in flight is not waited for (fourth review of 11.11.):
+      // nobody takes it, and a read that never answers must not hold the close.
+      ahead.stop();
     }
 
     // Fire host callbacks AFTER the transaction so their DB work (enqueue) does not nest

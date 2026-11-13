@@ -27,11 +27,13 @@
  * the listing, or whose size was not known, holds the bound with what was
  * really read (third review of 11.11., K3).
  *
- * `stop()` starts nothing more; what is already in flight can still be taken.
- * It resolves once the reads in flight have settled: the full scan waits for
- * them however it ends, so a scan that follows a failed one does not read
- * beside reads that nobody takes any more. Whose reading is written is decided
- * by the order in which reads began (`claimWrite` in VaultIndexer).
+ * `stop()` starts nothing more; what is already in flight can still be taken,
+ * and what nobody takes settles unseen. It does NOT wait for the reads in
+ * flight (fourth review of 11.11.): a read that never answers — a provider
+ * that hangs, a share that dropped without an error — would hold the close of
+ * the vault for ever. Their results reach nothing: only `take` hands a
+ * reading on, and nobody takes after the stop. Whose reading is written is
+ * decided by the order in which reads began (`claimWrite` in VaultIndexer).
  *
  * The reader must not reject: every failure is an answer (`readOrNote`). A
  * reading nobody takes any more (the pass was called off) simply settles.
@@ -62,8 +64,8 @@ export interface ReadAhead<R> {
    * opens a transaction, so that no transaction waits for a read.
    */
   ready(index: number): Promise<void>;
-  /** Starts nothing more; resolves once the reads in flight have settled. */
-  stop(): Promise<void>;
+  /** Starts nothing more; never waits for the reads in flight. */
+  stop(): void;
 }
 
 export const READ_AHEAD_MAX_WEIGHT = 16 * 1024 * 1024;
@@ -78,8 +80,6 @@ export function createReadAhead<T, R>(
   const maxWeight = options.maxWeight ?? READ_AHEAD_MAX_WEIGHT;
   const weightOf = options.weightOf ?? (() => 0);
   const weighResult = options.weighResult;
-  /** Settles once no read is in flight. */
-  let idle: { promise: Promise<void>; resolve: () => void } | null = null;
   const readings: Array<Promise<R>> = [];
   const inAlready: boolean[] = [];
   /** The weight each started item still holds against the bound, until it is taken. */
@@ -135,7 +135,6 @@ export function createReadAhead<T, R>(
     }
     void answer.then(() => undefined, () => undefined).then(() => {
       inFlight--;
-      if (inFlight === 0 && idle) { idle.resolve(); idle = null; }
       fill();
     });
     return true;
@@ -173,15 +172,8 @@ export function createReadAhead<T, R>(
       while (index >= issued) startGroup(true);
       return readings[index].then(() => undefined, () => undefined);
     },
-    stop(): Promise<void> {
+    stop(): void {
       stopped = true;
-      if (inFlight === 0) return Promise.resolve();
-      if (!idle) {
-        let resolve: () => void = () => {};
-        const promise = new Promise<void>((r) => { resolve = r; });
-        idle = { promise, resolve };
-      }
-      return idle.promise;
     },
   };
 }
