@@ -24,7 +24,8 @@ const source = {
       .map((value) => ({ value, count: 3 }));
   },
 };
-const vault = { vaultId: "property-fixture", queryService: source } as unknown as MobileVault;
+// Suggestions are shown, so they come from the index as it stands (`indexView`).
+const vault = { vaultId: "property-fixture", queryService: source, indexView: source } as unknown as MobileVault;
 const columns = { Status: { input: "status", options: [{ value: "Curated" }] } };
 type Options = { shell: "desktop" | "mobile"; mode: "name" | "value"; type?: PropertyType; curated?: CuratedOption[]; path?: string };
 function Probe({ options }: { options: Options }) {

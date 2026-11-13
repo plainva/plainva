@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PinboardCache, clearPinboardCache, pinboardCache } from "../../../../packages/ui/src/base/pinboardCache";
 const row = (path: string, revision = "one") => ({ "file.path": path, "file.revision": revision });
 const data = (content = "saved text") => ({ content, tags: ["tag"], ctime: 1 });
@@ -72,5 +75,40 @@ describe("pinboard navigation cache", () => {
     finish({ b: data("late") }); await pending;
     expect(cache.get(row("b"))).toBeUndefined();
     expect(pinboardCache(owner)).not.toBe(cache);
+  });
+});
+
+describe("one pinboard cache per vault, in both shells", () => {
+  // The cache is kept per index object. The database screen, the board and the
+  // close of a vault must name the SAME object: the phone's board once took the
+  // reader while its database screen took the view (performance plan L3), and
+  // the entry page lost the board's active label (CI smoke, 13.11.).
+  it("is keyed by the index as it is shown (the view), never by the reader", () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        if (name === "node_modules" || name === "dist") continue;
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.(ts|tsx)$/.test(name) && !/\.test\.|\.spec\./.test(name)) files.push(full);
+      }
+    };
+    for (const shell of ["apps/desktop/src", "apps/mobile/src"]) walk(join(root, shell));
+    // Each call's argument, read to its closing parenthesis.
+    const argument = (text: string, open: number): string => {
+      let depth = 1;
+      for (let i = open + 1; i < text.length; i++) {
+        if (text[i] === "(") depth++;
+        else if (text[i] === ")" && --depth === 0) return text.slice(open + 1, i);
+      }
+      return text.slice(open + 1);
+    };
+    const calls = files.flatMap((file) => {
+      const text = readFileSync(file, "utf8");
+      return [...text.matchAll(/\b(?:clearPinboardCache|pinboardCache)\(/g)].map((m) => argument(text, m.index! + m[0].length - 1));
+    });
+    expect(calls.length).toBeGreaterThanOrEqual(5);
+    expect(calls.filter((call) => /queryService/.test(call.replace(/queryService\??\.view\(\)/g, "")))).toEqual([]);
   });
 });

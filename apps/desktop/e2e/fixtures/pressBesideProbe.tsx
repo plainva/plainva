@@ -240,7 +240,9 @@ function TableSizeStation() {
 }
 
 /** The one thing of the vault the picker reads: the `.base` files. */
-const pickerVault = { queryService: { db: { query: async () => [{ path: "Board.base", title: "Board" }] } } };
+// The picker lists the databases to pick from: shown, from the index as it stands (`indexView`).
+const pickerIndex = { db: { query: async () => [{ path: "Board.base", title: "Board" }] } };
+const pickerVault = { queryService: pickerIndex, indexView: pickerIndex };
 
 function BasePickerStation() {
   const [open, setOpen] = useState(false);

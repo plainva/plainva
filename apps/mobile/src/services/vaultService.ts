@@ -1150,7 +1150,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       },
     }),
     dispose: async () => {
-      clearPinboardCache(queryService ?? files);
+      // The boards cache under the index as it is shown (`indexView`, PinboardView and BaseScreen).
+      clearPinboardCache(queryService?.view() ?? files);
       indexAbort.abort();
       await indexer?.whenIdle();
       // An entry that waits for its next attempt is no transaction the

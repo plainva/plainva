@@ -722,7 +722,8 @@ export const VaultProvider: React.FC<{
     autoOpenLastVault: false,
   });
 
-  useEffect(() => () => clearPinboardCache(state.queryService), [state.queryService]);
+  // The boards cache under the index as it is shown (`indexView`, BaseViewer and BasePinboardView).
+  useEffect(() => () => clearPinboardCache(state.queryService?.view()), [state.queryService]);
 
   // Raw (unwrapped) sync target of the open vault, captured before the content-E2E
   // decorator wraps it. Held on a ref (not state) so the encryption activation can

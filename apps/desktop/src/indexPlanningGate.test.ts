@@ -72,6 +72,7 @@ const VIEW_USES: Record<string, string> = {
   "apps/mobile/src/lib/useLinkTargetLookup.ts": "which links lead nowhere: drawn",
   "apps/mobile/src/screens/AiPolicyScreen.tsx": "the folders offered for the AI's scope: a list to pick from",
   "apps/mobile/src/screens/base/BaseConfigSheet.tsx": "the values and tags offered while a database is configured",
+  "apps/mobile/src/screens/base/PinboardView.tsx": "the cards, their previews and the board's search: shown, in the database screen's cache (one per index object)",
   "apps/mobile/src/screens/base/BaseScreen.tsx": "the rows, search, map and link lookup of a database; a new row's link text takes the reader",
   "apps/mobile/src/screens/base/CellEditSheet.tsx": "suggestions and the relation picker; a pick's link text is written as a path while the index is not whole (pathsForLinkText)",
   "apps/mobile/src/screens/BrowseScreen.tsx": "the folder's notes and icons; the deletion threshold counts on the reader",

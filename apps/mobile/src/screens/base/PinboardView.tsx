@@ -153,9 +153,10 @@ export function PinboardView({
   const paths = useMemo(() => rows.map(rowPath).filter(Boolean), [rows]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const cache = useMemo(() => pinboardCache(vault.queryService ?? vault.files), [vault.queryService, vault.files]);
+  // The same cache as the database screen (one per index object, `BaseScreen`): the view of the index, which shows.
+  const cache = useMemo(() => pinboardCache(vault.indexView ?? vault.files), [vault.indexView, vault.files]);
   const session = useMemo(() => cache.session(viewKey), [cache, viewKey]);
-  const previews = usePinboardCards(vault.queryService ?? vault.files, vault.queryService, rows, containerRef);
+  const previews = usePinboardCards(vault.indexView ?? vault.files, vault.indexView, rows, containerRef);
   const cardData = previews.data;
   usePinboardScroll(containerRef, cache, viewKey);
 
@@ -242,7 +243,7 @@ export function PinboardView({
   const searchRevision = useMemo(() => JSON.stringify(rows.map(row => [row["file.path"], cardRevision(row)])), [rows]);
   // The rows arrive already narrowed by the database head's search
   // (finding 2026-09-22); what is left here is the label filter.
-  const search = useBaseSearch(vault.queryService, paths, "", searchMetadata, cache, viewKey, searchRevision);
+  const search = useBaseSearch(vault.indexView, paths, "", searchMetadata, cache, viewKey, searchRevision);
   const visibleSections = useMemo(
     () => ({
       pinned: filterCardPathsByText(filterCardPaths(sections.pinned, labelsByPath, selectedLabels), search.matches),

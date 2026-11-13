@@ -41,14 +41,15 @@ const source = {
   },
 };
 const files = { async readBinaryFile(path: string) { imageReads++; imageRequests.push(path); if (externalImage) return externalImage(path); return Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="), c => c.charCodeAt(0)); } };
-const vault = { vaultId: "pinboard-probe", queryService: source, files, adapter: files } as unknown as MobileVault;
+// A board shows: its cards come from the index as it stands (`indexView`).
+const vault = { vaultId: "pinboard-probe", queryService: source, indexView: source, files, adapter: files } as unknown as MobileVault;
 const view = { type: "pinboard", name: "Notes" };
 const config = { views: [view], filters: {} };
 function render() {
   const props = { viewKey: "fixture#Notes", onOpenNote() { app?.unmount(); app = null; }, onPatchView() {} };
   const child = current.shell === "mobile"
     ? <PinboardView {...props} vault={vault} rows={rows} view={view} config={config} onMutated={() => {}} askStorageFolder={async () => null} />
-    : <VaultContext.Provider value={{ vaultAdapter: files, queryService: source, triggerFileTreeUpdate() {} } as unknown as React.ContextType<typeof VaultContext>}>
+    : <VaultContext.Provider value={{ vaultAdapter: files, queryService: source, indexView: source, triggerFileTreeUpdate() {} } as unknown as React.ContextType<typeof VaultContext>}>
       <BasePinboardView {...props} dbData={rows} activeView={view} dbConfig={config} embedded={current.embedded} />
     </VaultContext.Provider>;
   if (!app) app = createRoot(document.getElementById("host")!);
