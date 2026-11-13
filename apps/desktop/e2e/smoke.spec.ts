@@ -183,13 +183,17 @@ test.beforeEach(async ({ page }) => {
           const bytes = await (window as any).__TAURI_INTERNALS__.invoke("plugin:fs|read_text_file", { path });
           return typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
         }
+        // A folder is there when it is named, or when a file of the mock lies
+        // in it (a test that adds `Ideen/idee.md` adds the folder `Ideen`):
+        // the walk must not see a folder as a file it cannot read.
+        const impliedDir = (p: string) => Object.keys(fs).some((k) => k.startsWith(p + '/'));
         if (cmd === 'plugin:fs|exists') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
-          return !!fs[p];
+          return !!fs[p] || impliedDir(p);
         }
         if (cmd === 'plugin:fs|stat') {
           const p = args.path.endsWith('/') ? args.path.slice(0, -1) : args.path;
-          const file = fs[p];
+          const file = fs[p] ?? (impliedDir(p) ? { isDir: true } : undefined);
           if (!file) throw new Error("File not found");
           const times = (window as any).mockFileTimes[p.replace('/test-vault/', '')];
           return { isDirectory: !!file.isDir, isFile: !file.isDir, mtime: times?.mtime_local ?? 1750000000000, size: typeof file === 'string' ? file.length : 0 };
@@ -203,7 +207,7 @@ test.beforeEach(async ({ page }) => {
               const name = relative.split('/')[0];
               if (!entries[name]) {
                 const childPath = `${p}/${name}`;
-                const isDir = !!fs[childPath]?.isDir;
+                const isDir = !!fs[childPath]?.isDir || relative.includes('/');
                 entries[name] = { name, isDirectory: isDir, isFile: !isDir, isSymlink: false };
               }
             }
