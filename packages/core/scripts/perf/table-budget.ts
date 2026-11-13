@@ -35,7 +35,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
 import { readFileSync } from "node:fs";
-import { TABLE_CELL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, opensNoContainers, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
 import remarkObsidianPreserve from "../../src/remark-obsidian-preserve.js";
@@ -54,6 +54,8 @@ interface Shape {
   row: (i: number) => string;
   /** Lines before the header in the same block (a callout's head). */
   before?: string;
+  /** Lines at the very start of the note, before its heading (an unclosed `---`). */
+  start?: string;
 }
 
 const BS = "\\";
@@ -117,6 +119,16 @@ export const SHAPES: Record<string, Shape> = {
   lqdense: { header: `- > |${"h|".repeat(16)}\n  > |${"-|".repeat(16)}`, row: () => `  > |${"a|".repeat(16)}` },
   qldense: { header: `> - |${"h|".repeat(16)}\n>   |${"-|".repeat(16)}`, row: () => `>   |${"a|".repeat(16)}` },
   fdense: { header: `[^1]: |${"h|".repeat(16)}\n    |${"-|".repeat(16)}`, row: () => `    |${"a|".repeat(16)}` },
+  // A delimiter row without a pipe (`:-`), rows of a lone pipe or two.
+  colonbare: { header: "h\n:-", row: () => "a" },
+  pipeonly: { header: "| h |\n|---|", row: () => "|" },
+  dpipe: { header: "| h |\n|---|", row: () => "||" },
+  // Behind an unclosed `---` on the first line the parser opens no quote or list: `- a` and `> b` are rows.
+  nocontainers: { start: "---\n", header: "| h |\n|---|", row: (i) => (i % 2 ? `- a${i}` : `> b${i}`) },
+  // Autolink literals: links without a character of syntax.
+  emails: { header: "| h |\n|---|", row: () => `| ${"a@b.cc ".repeat(100)}|` },
+  wwws: { header: "| h |\n|---|", row: () => `| ${"www.a.b ".repeat(100)}|` },
+  urls: { header: "| h |\n|---|", row: () => `| ${"https://a.b ".repeat(60)}|` },
   // One short cell per row behind block markers: each marker is events of its own on every line (found in review: two quotes ran out of memory at the budget).
   q1one: { header: "> | h |\n> |---|", row: () => "> |a|" },
   q2one: { header: "> > | h |\n> > |---|", row: () => "> > |a|" },
@@ -220,17 +232,17 @@ function shapeOf(name: string): Shape {
 
 export function shapeTable(name: string, rows: number): string {
   const shape = shapeOf(name);
-  return `# Table\n\n${shape.before ? `${shape.before}\n` : ""}${shape.header}\n${Array.from({ length: rows }, (_, i) => shape.row(i)).join("\n")}\n\nbelow [[Link]]\n`;
+  return `${shape.start ?? ""}# Table\n\n${shape.before ? `${shape.before}\n` : ""}${shape.header}\n${Array.from({ length: rows }, (_, i) => shape.row(i)).join("\n")}\n\nbelow [[Link]]\n`;
 }
 
 /** What a table line weighs as the app weighs it: its row behind the markers of the blocks it stands in, and the markers. */
-function lineCost(line: string, first: boolean): number {
-  const at = tableLineStart(line, first).at;
+function lineCost(line: string, first: boolean, containers = true): number {
+  const at = tableLineStart(line, first, containers).at;
   return tableReadCost(line, at, line.length) + tableMarkerCost(line.slice(0, at));
 }
 
 /** The parts of a table's weight, summed; `markers` is what the markers weigh beyond their characters at a marker weight of one. */
-type Parts = { rows: number; chars: number; cells: number; syntax: number; markers: number };
+type Parts = { rows: number; chars: number; cells: number; syntax: number; markers: number; literals: number };
 
 /** What the markers of `prefix` count, beyond their characters (`tableMarkerCost` at a marker weight of one). */
 const markersOf = (prefix: string): number => (prefix.match(/>/g)?.length ?? 0) + (prefix.replace(/>[ \t]?/g, "").length > 0 ? 1 : 0);
@@ -238,31 +250,34 @@ const markersOf = (prefix: string): number => (prefix.match(/>/g)?.length ?? 0) 
 /** The parts of a shape's header and first `rows` rows, summed: what its table's weight is made of, under any weights. */
 function tableParts(name: string, rows: number): Parts {
   const shape = shapeOf(name);
-  const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0 };
+  const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0, literals: 0 };
   const header = shape.header.split("\n")[0];
+  const containers = !opensNoContainers(shapeTable(name, 0));
   for (const [i, row] of [header, ...Array.from({ length: rows }, (_, i) => shape.row(i))].entries()) {
-    const at = tableLineStart(row, i === 0).at;
+    const at = tableLineStart(row, i === 0, containers).at;
     const parts = tableRowParts(row, at, row.length);
     sum.rows += 1;
     sum.chars += parts.chars + at;
     sum.markers += markersOf(row.slice(0, at));
     sum.cells += parts.cells;
     sum.syntax += parts.syntax;
+    sum.literals += parts.literals;
   }
   return sum;
 }
 
-const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker = 0) => row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers;
+const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker = 0, literal = 0) => row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers + literal * parts.literals;
 
 /** The rows of a shape whose table weighs `target` by the constants as they stand. */
 function rowsAt(name: string, target: number): number {
   const shape = shapeOf(name);
   const header = shape.header.split("\n")[0];
-  let weight = lineCost(header, true);
+  const containers = !opensNoContainers(shapeTable(name, 0));
+  let weight = lineCost(header, true, containers);
   let rows = 0;
   for (;;) {
     const row = shape.row(rows);
-    const next = weight + lineCost(row, false);
+    const next = weight + lineCost(row, false, containers);
     if (next > target) return rows;
     weight = next;
     rows++;
@@ -321,7 +336,7 @@ function calibrate(args: string[]): void {
   // and a link the most rows. Then the marker weight: the least that lifts
   // every shape behind markers to the budget / 0.9 as well.
   let best = { row: 0, cell: 0, syntax: 0, budget: 0, shortRows: 0 };
-  const plain = Object.values(limits).filter((parts) => parts.markers === 0);
+  const plain = Object.values(limits).filter((parts) => parts.markers === 0 && parts.literals === 0);
   for (let row = 0; row <= 300; row += 2) {
     for (let cell = 0; cell <= 120; cell++) {
       for (let syntax = 0; syntax <= 40; syntax++) {
@@ -333,13 +348,18 @@ function calibrate(args: string[]): void {
       }
     }
   }
+  // The marker and the literal weight: each the least that lifts every shape with markers or literals to the budget / 0.9 as well.
   let marker = 0;
   for (const parts of Object.values(limits)) {
-    if (parts.markers > 0) marker = Math.max(marker, Math.ceil((best.budget / 0.9 - weigh(parts, best.row, best.cell, best.syntax)) / parts.markers));
+    if (parts.markers > 0 && parts.literals === 0) marker = Math.max(marker, Math.ceil((best.budget / 0.9 - weigh(parts, best.row, best.cell, best.syntax)) / parts.markers));
+  }
+  let literal = 0;
+  for (const parts of Object.values(limits)) {
+    if (parts.literals > 0) literal = Math.max(literal, Math.ceil((best.budget / 0.9 - weigh(parts, best.row, best.cell, best.syntax, marker)) / parts.literals));
   }
   const budget = Math.floor(best.budget / 10_000) * 10_000;
-  console.log(`weights  row ${best.row}, cell ${best.cell}, syntax ${best.syntax}, marker ${marker}: proposed budget ${budget} (a word and a link: about ${Math.round(best.shortRows)} rows)`);
-  for (const [name, parts] of Object.entries(limits)) console.log(`         ${name.padEnd(10)} limit weighs ${(weigh(parts, best.row, best.cell, best.syntax, marker) / budget).toFixed(2)} x the budget`);
+  console.log(`weights  row ${best.row}, cell ${best.cell}, syntax ${best.syntax}, marker ${marker}, literal ${literal}: proposed budget ${budget} (a word and a link: about ${Math.round(best.shortRows)} rows)`);
+  for (const [name, parts] of Object.entries(limits)) console.log(`         ${name.padEnd(10)} limit weighs ${(weigh(parts, best.row, best.cell, best.syntax, marker, literal) / budget).toFixed(2)} x the budget`);
 }
 
 function check(args: string[]): boolean {
@@ -348,7 +368,7 @@ function check(args: string[]): boolean {
   const generated = at("--generated", 36);
   const started = performance.now();
   let all = true;
-  console.log(`check    budget ${TABLE_READ_BUDGET}, row ${TABLE_ROW_WEIGHT}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, marker ${TABLE_MARKER_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
+  console.log(`check    budget ${TABLE_READ_BUDGET}, row ${TABLE_ROW_WEIGHT}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, marker ${TABLE_MARKER_WEIGHT}, literal ${TABLE_LITERAL_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
   // What the generated shapes cover, axis by axis.
   const covered = new Map<string, Set<string>>();
   for (let k = 0; k < generated; k++) {
@@ -413,7 +433,7 @@ function child(name: string, rows: number, parse: string, bounded: boolean): voi
   // A table the budget reads as written costs what plain text costs: only a table read as a table counts, in whatever block it stands.
   const hasTable = (node: { type: string; children?: unknown[] } | undefined): boolean =>
     !!node && (node.type === "table" || (node.children ?? []).some((child) => hasTable(child as { type: string; children?: unknown[] })));
-  if (!hasTable(tree.children?.[1])) throw new Error(`not read as a table: ${tree.children?.[1]?.type}`);
+  if (!hasTable(tree as { type: string; children?: unknown[] })) throw new Error(`not read as a table: ${tree.children?.map((node) => node.type).join(", ")}`);
   console.log(`ok ${Math.round(performance.now() - started)}`);
 }
 

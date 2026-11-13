@@ -63,7 +63,12 @@ const PINS: Record<string, string> = {
   "fixture:long": "bb12057a4c3d82fdad1aa7ca42fa8b5883947320de146e9e3d2c87322a501356",
 };
 
-describe("GFM tables are read as before, in time linear in the note", () => {
+// Guards of the parser upgrade to GFM tables 2.1.2, not of the parse budget:
+// the two pins hold the trees 2.1.1 made (green before and after the upgrade
+// on purpose), the third holds the time. None bounds memory: the long notes
+// here do not fit a heap of 128 MB (Performance_Notes.md, "Many tables in one
+// note": the budget holds one table alone, not a note of many).
+describe("GFM tables are read as before, in time linear in the note (guards of the upgrade)", () => {
   it("every hard table reads into the tree it read into before", () => {
     const actual = Object.fromEntries(Object.keys(NASTY_TABLES).map((name) => [name, treeDigest(NASTY_TABLES[name])]));
     const pinned = Object.fromEntries(Object.keys(NASTY_TABLES).map((name) => [name, PINS[name]]));
@@ -82,7 +87,7 @@ describe("GFM tables are read as before, in time linear in the note", () => {
     expect({ all: all.digest("hex"), long }).toEqual({ all: PINS["fixture:all"], long: PINS["fixture:long"] });
   }, 60_000);
 
-  it("80 tables of 50 rows read in well under a second, not in the square of their cells", () => {
+  it("80 tables of 50 rows read in well under a second, not in the square of their cells (time only, the heap uncapped)", () => {
     // Quadratic, this note took 19-39 s on the reference machine (Performance_Notes.md,
     // "Many tables in one note"); linear, about 0.6 s. The budget is five times that,
     // scaled to a slower core by within(), and still misses the quadratic parse.

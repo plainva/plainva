@@ -411,11 +411,13 @@ during the parse, retained = heap after a forced collection with the tree kept):
 | 2 000 rows with links and emphasis in every cell, 282 KB | 1 005 ms / 395 MB / 22 MB | 45 MB |
 | 1 000 rows of 400 unclosed `[` and `*`, 594 KB | 1 915 ms / 636 MB / 76 MB | 181 MB |
 
-The peak follows the characters, the cells and the inline syntax, and each row and each block
-marker in front of a line adds events of its own. The budget is set by a criterion that can be
-re-run (`scripts/perf/table-budget.ts`): a table of every shape at the budget is read by the index
-parse and by the note-source parse, each in a process of its own under
-`node --max-old-space-size=128`. `pnpm --filter @plainva/core perf:tables -- --calibrate` finds the
+The peak follows the characters, the cells and the inline syntax, and each row, each block marker
+in front of a line and each autolink literal (`a@b.cc`, `www.`, `://`) adds events of its own. The
+budget is set by a criterion that can be re-run (`scripts/perf/table-budget.ts`): a table of every
+shape at the budget, **alone in an otherwise empty note**, is read by the index parse and by the
+note-source parse, each in a process of its own under `node --max-old-space-size=128`. That is all
+it holds: the budget is per table, and the memory of a parse is per note (below, "One note, many
+tables"). `pnpm --filter @plainva/core perf:tables -- --calibrate` finds the
 largest such table of each fixed shape and chooses the weights of `tableReadCost` as an upper
 bound, not as a fit: over the shapes without block markers, for every set of row, cell and syntax
 weights the budget is nine tenths of the lightest limit, so every limit weighs at least the
@@ -434,9 +436,14 @@ without outer pipes has one cell more than boundaries.
 
 Which lines a table has is the parser's answer, and the scan of the budget follows it
 (2026-11-13): a line without a pipe under a table is a row (`bar` is a row of one cell), and so are
-lines that begin with `*a*`, `_x_`, `<b>`, `=` or `-a`; a header needs no pipe when its delimiter
-row has one (`a` over `|-`); a table stands in a quote or callout, a list item, a footnote, and
-behind a paragraph line in the same block. Until then the scan ended a table at the first such line
+lines that begin with `*a*`, `_x_`, `<b>`, `=` or `-a`; `|` alone is a row of one cell; a header
+needs no pipe when its delimiter row has one (`a` over `|-`), and a delimiter row needs none when
+it has a colon (`h` over `:-`; `--` underlines a heading); white space is a blank or a tab only (a
+no-break space behind `-|-` makes it no delimiter row); a table stands in a quote or callout, a
+list item, a footnote, and behind a paragraph line in the same block. A note whose first line is
+`---` with nothing to close it starts a properties block that never ends, and from there on the
+parser opens no quote, list item or footnote: `- a` and `> b` are rows under a table
+(`opensNoContainers`). Until then the scan ended a table at the first such line
 and weighed no table in a quote, a list item or a footnote at all — older than the table budget:
 the rows-times-length rule of 2026-11-01 had the same hole. Where the scan is sure of the blocks (a
 table behind quote markers or list items only, starting a paragraph or interrupting one in the same
@@ -449,9 +456,9 @@ measure can hide lines from the other. `inline-parse-budget.test.ts` holds this 
 over 3 000 generated notes (block markers and lines drawn at random); a scratch run of 160 000
 found no table the scan missed and no paragraph a table split.
 
-Calibrated 2026-11-13 over 54 shapes: weights one per character, 8 per row, 34 per cell, 9 per
-character of inline syntax, 9 per block marker in front of a line; the calibration proposed a
-budget of 710 000, set to 680 000:
+Calibrated 2026-11-13 over 61 shapes: weights one per character, 8 per row, 34 per cell, 9 per
+character of inline syntax, 9 per block marker in front of a line, 9 per autolink literal; the
+calibration proposed a budget of 710 000, set to 680 000:
 
 | Shape | Limit under 128 MB | Limit weighs | At the budget |
 |---|---|---|---|
@@ -473,13 +480,29 @@ budget of 710 000, set to 680 000:
 | one short cell in two quotes | 12 835 | 1.26 × | 10 148 |
 | one short cell in five quotes | 9 442 | 1.39 × | 6 798 |
 | one short cell in a list item | 17 089 | 1.41 × | 12 141 |
+| a delimiter row `:-`, rows of `a` | 20 256 | 1.28 × | 15 812 |
+| a hundred `a@b.cc` per row | 513 | 1.24 × | 413 |
+| a hundred `www.a.b` per row | 502 | 1.28 × | 389 |
+| `- a` and `> b` behind an unclosed `---` | 19 575 | 1.42 × | 13 821 |
 
 The lightest limits — `~` runs, sixteen one-character cells in a quote — sit 17 % above the budget
 (the limit search is exact to 4 %). That is the parse alone: the heap a WebView gives the app is
 not known here, so raising the budget needs a measurement in the phone's WebView first. A table
 over the budget is read as written, as before: in the index it has no links, and the reading view
 shows its lines as one paragraph of text with the pipes in it, no table, its quote or list around
-it as it was. Read as written, 12 000 such rows take 0.3 s and about 120 MB of resident memory at
+it as it was — and no other block: its `=` and `-` are read as written as well, so that a row of
+`==` cannot underline the rows above it as a heading.
+
+**One note, many tables (open, 2026-11-13).** The memory of a parse is the note's, and the budget
+is the table's. Measured under the same criterion (each parse in its own process, 128 MB): one
+table at the budget passes, two do not; at half the budget three tables of a word and a link
+pass, at a tenth seventeen; of sixteen one-character cells per row, two at half, twelve at a
+tenth. What a parse holds at its peak adds up over the tables of a note — the tree it keeps is
+small, 7 to 10 MB a table at the budget, the peak about ten times that. The fixture's long table
+note (80 × 200 rows) does not pass, 22 of its 80 sections do; a list of 9 500 linked items without
+any table does not either. Before L13 the same was true with the lower rule: three tables of 2 500
+rows passed, four did not. Nothing bounds the memory of a whole note; that is a package of its
+own. Read as written, 12 000 such rows take 0.3 s and about 120 MB of resident memory at
 the peak.
 
 What the written reading costs above the budget is the one thing not linear here, and it is not the
