@@ -110,14 +110,17 @@ test.beforeEach(async ({ page }) => {
            // so a link to a file of the mock vault opens it and any other
            // offers to create the note.
            // A folder's log (VaultQueryService.getNotesChangedIn, AI harness P8-2): the notes of the mock vault with
-           // the times a test gave them, changed after the instant asked, newest first — of one folder, or of all.
+           // the times a test gave them, changed after the instant asked, newest first — of one folder, or of all —,
+           // one page of them: the last two values are the page's size and where it starts.
            if (q.includes('SELECT path, title, mtime_local, ctime FROM files')) {
              const values = (args.values ?? []) as unknown[];
              const since = Number(values[0]);
-             const prefixes = values.slice(1, -1).map((value) => String(value).replace(/\\/g, '').replace(/%$/, ''));
+             const [limit, offset] = values.slice(-2).map(Number);
+             const prefixes = values.slice(1, -2).map((value) => String(value).replace(/\\/g, '').replace(/%$/, ''));
              return Object.entries((window as any).mockFileTimes as Record<string, { mtime_local: number; ctime?: number }>)
                .filter(([path, times]) => /\.md$/i.test(path) && fs[`/test-vault/${path}`] !== undefined && times.mtime_local > since && (prefixes.length === 0 || prefixes.some((prefix) => path.startsWith(prefix))))
-               .sort((a, b) => b[1].mtime_local - a[1].mtime_local)
+               .sort((a, b) => b[1].mtime_local - a[1].mtime_local || (a[0] < b[0] ? -1 : 1))
+               .slice(offset, offset + limit)
                .map(([path, times]) => ({ path, title: path.split('/').pop()!.replace(/\.md$/i, ''), mtime_local: times.mtime_local, ctime: times.ctime ?? null }));
            }
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
