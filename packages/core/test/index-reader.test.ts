@@ -90,3 +90,27 @@ describe("the reader and its view", () => {
     expect(true).toBe(true);
   });
 });
+
+describe("rows of the view while the index is not whole (third review of 11.11.)", () => {
+  it("carry where they come from: shown, never written from — a filter or a sort keeps it", async () => {
+    const { markPartialRows: _mark, requireWholeRows, rowsFromPartialIndex } = await import("../src/vault/indexWholeness.js");
+    const db = await indexWithANote();
+    const qs = new VaultQueryService(db);
+    const build = building();
+    qs.setIndexWholeness(build.wholeness);
+    const partial = await qs.view().queryDatabaseFiles({});
+    expect(partial.length).toBe(1);
+    expect(rowsFromPartialIndex(partial)).toBe(true);
+    // A board's rows after the head's search or its sort: the same row objects.
+    expect(rowsFromPartialIndex(partial.filter(() => true))).toBe(true);
+    expect(rowsFromPartialIndex([...partial].reverse())).toBe(true);
+    const refused = (() => { try { requireWholeRows(partial); return null; } catch (e) { return e; } })();
+    expect(isIndexNotWholeError(refused)).toBe(true);
+    // Read again once the index is whole: written from.
+    build.whole();
+    const whole = await qs.view().queryDatabaseFiles({});
+    expect(rowsFromPartialIndex(whole)).toBe(false);
+    expect(requireWholeRows(whole)).toEqual({ wholeRows: true });
+    await db.close();
+  });
+});

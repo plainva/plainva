@@ -18,7 +18,9 @@ class BatchingMockAdapter extends MockDatabaseAdapter {
   }
 }
 
-const isWrite = (sql: string) => /^\s*(INSERT|DELETE)/i.test(sql);
+// The scan's own rows. The marks of an index that begins empty go out one by
+// one before the walk (VaultIndexer, third review of 11.11.), on both paths.
+const isWrite = (sql: string) => /^\s*(INSERT|DELETE)/i.test(sql) && !/\bmeta\b/i.test(sql);
 const key = (s: { sql: string; params: unknown[] }) => JSON.stringify(s);
 
 describe("VaultIndexer cold-scan batching", () => {
@@ -55,7 +57,7 @@ describe("VaultIndexer cold-scan batching", () => {
     await new VaultIndexer(vaultAdapter, batching).indexVaultFull();
 
     // Every write, in the exact same order — the batch changes delivery, not content.
-    expect(batching.batched.map(key)).toEqual(plainWrites.map(key));
+    expect(batching.batched.filter((s) => isWrite(s.sql)).map(key)).toEqual(plainWrites.map(key));
     expect(batching.batched.length).toBeGreaterThan(3);
     // And with runBatch present, no write went out one-at-a-time via execute().
     expect(batching.queries.filter((q) => isWrite(q.query))).toHaveLength(0);

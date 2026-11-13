@@ -1,6 +1,6 @@
 import { trimEndChars } from "../textScan.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { ALWAYS_WHOLE, IndexNotWholeError, requireWholeIndex, untilWholeIndex, type IndexWholeness, type IndexWholenessState } from "./indexWholeness.js";
+import { ALWAYS_WHOLE, IndexNotWholeError, markPartialRows, requireWholeIndex, untilWholeIndex, type IndexWholeness, type IndexWholenessState } from "./indexWholeness.js";
 import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, isWholeVaultFolder, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
 import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
@@ -323,7 +323,18 @@ export class VaultQueryService {
       const view = Object.create(this) as Record<string, unknown>;
       const proto = VaultQueryService.prototype as unknown as Record<string, unknown>;
       for (const name of indexReadMethodNames()) {
-        Object.defineProperty(view, name, { configurable: true, writable: true, value: proto[name] });
+        const read = proto[name] as (...args: unknown[]) => Promise<unknown>;
+        Object.defineProperty(view, name, {
+          configurable: true,
+          writable: true,
+          // What is read while the index is not whole carries that (`markPartialRows`):
+          // it may be shown, never written from (third review of 11.11.).
+          value: (...args: unknown[]) => {
+            const partial = this.wholeness.state().kind !== "whole";
+            const result = read.apply(view, args);
+            return partial ? result.then(markPartialRows) : result;
+          },
+        });
       }
       Object.defineProperty(view, "db", { configurable: true, value: this.indexDb });
       Object.defineProperty(view, "partialIndex", { value: true });
@@ -2035,4 +2046,25 @@ export function wholeIndexReader<T extends object>(reader: T): T & { readonly wh
   if (!("indexWholeness" in fake)) fake.indexWholeness = () => ({ kind: "whole" });
   if (!("view" in fake)) fake.view = () => reader;
   return reader as never;
+}
+
+/**
+ * A hand-made reader whose index is being built — the fake a test hands a
+ * planner to show that it refuses and writes nothing (third review of
+ * 11.11.). Every member of `reader` that is a function rejects (or, where it
+ * answers at once, throws) with `IndexNotWholeError`, as the real reader's
+ * reads do; the wholeness members say "building"; its view answers as
+ * `reader` does. Nothing else uses it.
+ */
+export function buildingIndexReader<T extends object>(reader: T = {} as T): T & { readonly wholeIndex: true } & Pick<VaultQueryService, "requireWholeIndex" | "untilWholeIndex" | "indexWholeness"> & { view(): T & { readonly partialIndex: true } } {
+  const state = { kind: "building", done: 1, total: 9 } as const;
+  const refusing: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(reader)) {
+    refusing[name] = typeof value === "function" ? () => Promise.reject(new IndexNotWholeError(state)) : value;
+  }
+  refusing.requireWholeIndex = () => { throw new IndexNotWholeError(state); };
+  refusing.untilWholeIndex = () => new Promise<void>(() => {});
+  refusing.indexWholeness = () => state;
+  refusing.view = () => reader;
+  return refusing as never;
 }

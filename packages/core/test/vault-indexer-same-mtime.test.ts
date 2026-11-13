@@ -55,6 +55,18 @@ describe("a file written again within the same tick", () => {
       expect(row!.size_bytes).toBe("one and two\n".length);
     });
 
+    it(`is read again by a folder re-read when its size changed (${kind}, third review of 11.11.)`, async () => {
+      const { root, db, indexer } = await vault();
+      await fs.mkdir(path.join(root, "Folder"));
+      const inFolder = `Folder/${name}`;
+      await writeAt(root, inFolder, "one\n", at);
+      await indexer.indexVaultFull();
+      await writeAt(root, inFolder, "one and two\n", at);
+      expect((await indexer.reconcileFolder("Folder")).indexed).toEqual([inFolder]);
+      const row = await db.queryOne<{ size_bytes: number }>("SELECT size_bytes FROM files WHERE path = ?", [inFolder]);
+      expect(row!.size_bytes).toBe("one and two\n".length);
+    });
+
     it(`is read again by a single path when its size changed (${kind})`, async () => {
       const { root, db, indexer } = await vault();
       await writeAt(root, name, "one\n", at);

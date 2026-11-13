@@ -126,6 +126,51 @@ describe("createReadAhead", () => {
     expect(reader.pending.length).toBe(0);
   });
 
+  it("stop resolves only once the reads in flight have settled (third review of 11.11.)", async () => {
+    const reader = controlledReader();
+    const ahead = createReadAhead(Array.from({ length: 10 }, (_, i) => i), reader.read, { groups: 3 });
+    void ahead.take(0);
+    await flush();
+    expect(reader.pending.length).toBe(3);
+    let stopped = false;
+    const stopping = ahead.stop().then(() => { stopped = true; });
+    reader.answer(0);
+    reader.answer(0);
+    await flush();
+    expect(stopped).toBe(false);
+    reader.answer(0);
+    await stopping;
+    expect(stopped).toBe(true);
+    expect(reader.inFlight()).toBe(0);
+    // With nothing in flight it resolves at once.
+    await ahead.stop();
+    expect(reader.pending.length).toBe(0);
+  });
+
+  it("weighs a reading by what was read once it is in, not by the listing (third review of 11.11., K3)", async () => {
+    const MB = 1024 * 1024;
+    // The listing says nothing; each file read is 20 MB, more than the bound.
+    const reader = { pending: [] as Array<{ group: number[]; resolve: (r: number[]) => void }> };
+    const read = (group: readonly number[]) => new Promise<number[]>((resolve) => reader.pending.push({ group: [...group], resolve }));
+    const ahead = createReadAhead(Array.from({ length: 20 }, (_, i) => i), read, {
+      groups: 4, maxWeight: 16 * MB, weightOf: () => 0, weighResult: (bytes: number) => bytes,
+    });
+    void ahead.take(0);
+    await flush();
+    // The listing weighs nothing: four reads start, the count bound.
+    expect(reader.pending.flatMap((c) => c.group)).toEqual([0, 1, 2, 3]);
+    for (const call of reader.pending.splice(0)) call.resolve(call.group.map(() => 20 * MB));
+    await flush();
+    await flush();
+    // What came in holds the bound with its real weight: nothing more starts
+    // while readings beyond the bound are ahead.
+    expect(reader.pending.length).toBe(0);
+    const takenNext = ahead.take(1);
+    await flush();
+    await takenNext;
+    expect(reader.pending.length).toBe(0);
+  });
+
   it("a reading taken after stop that was never begun is read all the same", async () => {
     const ahead = createReadAhead([0, 1], async (group) => group.map(String), { groups: 1 });
     ahead.stop();

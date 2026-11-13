@@ -23,9 +23,10 @@ describe("an index after a format migration", () => {
     await db.close();
   });
 
-  it("is not owed one when nothing waits", async () => {
+  it("is not owed one when nothing waits: an index a scan went through stays whole", async () => {
     const db = await realSqlite();
     await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', '3')`);
+    await db.execute(`INSERT OR REPLACE INTO meta (key, value) VALUES ('index_scan_whole', '1')`);
     await initializeSchema(db);
     expect(await new VaultIndexer({} as never, db).indexComplete()).toBe(true);
     await db.close();

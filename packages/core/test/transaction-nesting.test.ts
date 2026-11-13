@@ -301,7 +301,7 @@ describe("no transaction inside another one's body, and every statement of a bod
 
   it("knows what runs statements and has to be handed the handle in a body: the index's helpers, the sync rows", () => {
     const users = statementUsers(layer);
-    for (const name of ["loadBulkLookups", "indexOwed", "isVanishedAppleDouble", "rowIdFor", "deleteIndexRows", "getSyncState", "getAllStates", "deleteSyncState", "recordSyncedBase"]) {
+    for (const name of ["loadBulkLookups", "isVanishedAppleDouble", "rowIdFor", "deleteIndexRows", "getSyncState", "getAllStates", "deleteSyncState", "recordSyncedBase"]) {
       expect(users.has(name), name).toBe(true);
     }
   });

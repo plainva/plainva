@@ -80,3 +80,46 @@ export async function untilWholeIndex(wholeness: IndexWholeness): Promise<void> 
     state = await wholeness.changed();
   }
 }
+
+/**
+ * Rows that come from an index which was not whole when they were read
+ * (`VaultQueryService.view` tags them, third review of 11.11.). They are
+ * shown — a database's rows, a board's cards — and must never flow into a
+ * write: a board that saves its arrangement from them drops the entries of
+ * every note not read yet, "fill the column in every note" misses those notes,
+ * a board's column order keeps only the groups seen so far.
+ *
+ * The tag is on the array and on each row object, so it survives a filter or
+ * a sort of the rows; whatever writes from rows asks `requireWholeRows`, which
+ * refuses with the reason and hands out the proof (`WholeRows`) that the
+ * shared writers take as a parameter: rows that were not asked cannot reach
+ * them.
+ */
+const PARTIAL_ROWS = new WeakSet<object>();
+
+/** Tags `rows` (the array and each object in it) as read from an index that was not whole. */
+export function markPartialRows<T>(rows: T): T {
+  if (Array.isArray(rows)) {
+    PARTIAL_ROWS.add(rows);
+    for (const row of rows) if (row !== null && typeof row === "object") PARTIAL_ROWS.add(row as object);
+  }
+  return rows;
+}
+
+/** Whether any of `rows` (or the array) was read from an index that was not whole. */
+export function rowsFromPartialIndex(rows: readonly unknown[]): boolean {
+  if (PARTIAL_ROWS.has(rows as object)) return true;
+  return rows.some((row) => row !== null && typeof row === "object" && PARTIAL_ROWS.has(row as object));
+}
+
+/** The proof that the rows a write is planned from are whole (`requireWholeRows`). */
+export interface WholeRows {
+  readonly wholeRows: true;
+}
+const WHOLE_ROWS: WholeRows = Object.freeze({ wholeRows: true as const });
+
+/** Refuses (`IndexNotWholeError`) where `rows` were read from an index that was not whole; else the proof. */
+export function requireWholeRows(rows: readonly unknown[]): WholeRows {
+  if (rowsFromPartialIndex(rows)) throw new IndexNotWholeError({ kind: "building", done: 0, total: 0 });
+  return WHOLE_ROWS;
+}

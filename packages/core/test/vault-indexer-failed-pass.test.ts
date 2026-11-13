@@ -256,6 +256,63 @@ describe("a folder re-read that fails after part of its writes", () => {
 });
 
 describe("an index owed a full scan (issue 125)", () => {
+  // "Whole" is a mark a scan that went through writes; never the absence of
+  // "owed" (third review of 11.11.). Each kill point of a first scan leaves an
+  // index that is not whole, whatever saves wrote into it meanwhile.
+  const marks = async (db: IDatabaseAdapter) =>
+    (await db.query<{ key: string }>(`SELECT key FROM meta WHERE key IN ('index_scan_owed', 'index_scan_whole') AND value = '1' ORDER BY key`)).map((r) => r.key);
+
+  it("a first scan called off during its walk leaves an index that is not whole, a save's row in it notwithstanding", async () => {
+    for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
+    const leaving = new AbortController();
+    const indexer = new VaultIndexer(vault, sqlite, { ...hooks(), scanSignal: leaving.signal });
+    const list = vault.listDir.bind(vault);
+    vault.listDir = async (...args) => {
+      // During the walk a note is saved (quick capture, a journal entry), and the vault is closed.
+      await new VaultIndexer(vault, sqlite, hooks()).indexFile(await vault.getFileInfo(name(1)));
+      leaving.abort();
+      return list(...args);
+    };
+    await expect(indexer.indexVaultFull("open, empty index")).rejects.toThrow();
+    expect((await sqlite.query<{ path: string }>("SELECT path FROM files")).map((r) => r.path)).toEqual([name(1)]);
+    // The next open, a new indexer on the same index.
+    expect(await new VaultIndexer(vault, sqlite, hooks()).indexComplete()).toBe(false);
+    expect(await marks(sqlite)).toEqual(["index_scan_owed"]);
+  });
+
+  it("a process that ends during the first scan's walk, before its first rows, leaves an index that is not whole", async () => {
+    for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
+    const indexer = new VaultIndexer(vault, sqlite, hooks());
+    const atTheKill: { complete?: boolean; marks?: string[] } = {};
+    let killed!: () => void;
+    const kill = new Promise<void>((resolve) => { killed = resolve; });
+    vault.listDir = async () => {
+      // A save writes a row; then the process ends: nothing after this line runs.
+      await new VaultIndexer(vault, sqlite, hooks()).indexFile(await vault.getFileInfo(name(2)));
+      atTheKill.complete = await new VaultIndexer(vault, sqlite, hooks()).indexComplete();
+      atTheKill.marks = await marks(sqlite);
+      killed();
+      return new Promise(() => {});
+    };
+    void indexer.indexVaultFull("open, empty index");
+    await kill;
+    expect(atTheKill).toEqual({ complete: false, marks: ["index_scan_owed"] });
+  });
+
+  it("an index without the mark — left by a build up to 0.8.7 — is not whole until a full scan went through on it", async () => {
+    for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));
+    const indexer = new VaultIndexer(vault, sqlite, hooks());
+    await indexer.indexVaultFull("open, empty index");
+    expect(await marks(sqlite)).toEqual(["index_scan_whole"]);
+    expect(await indexer.indexComplete()).toBe(true);
+    // What an older build leaves: rows, and no mark either way.
+    await sqlite.execute(`DELETE FROM meta WHERE key IN ('index_scan_owed', 'index_scan_whole')`);
+    expect(await indexer.indexComplete()).toBe(false);
+    // The warm scan of the next open is its build, and says so when it went through.
+    await indexer.indexVaultFull("open");
+    expect(await indexer.indexComplete()).toBe(true);
+  });
+
   it("is owed one while its first scan has not gone through — the rows that scan kept do not make it whole", async () => {
     const db = desktopLike(sqlite);
     for (let i = 1; i <= NOTES; i++) await vault.writeTextFile(name(i), note(i));

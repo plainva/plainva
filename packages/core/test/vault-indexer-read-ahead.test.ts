@@ -334,6 +334,28 @@ describe("a full scan that reads ahead", () => {
     expect(file?.mtime_local).toBe((await vault.getFileInfo(target)).mtime);
   });
 
+  it("reads nothing more once it was called off, where the host reads many files in one call (third review of 11.11.)", async () => {
+    // Groups of eight, two at a time: the bound of what is read and not taken
+    // is sixteen files, and a group that ends makes room for the next. Without
+    // the stop the reads went on behind a scan that had ended.
+    const vault = new ManyAtOnceVault(1_700_000_000_000);
+    await fill(vault);
+    const db = takingTurns(await realSqlite());
+    const leaving = new AbortController();
+    const indexer = new VaultIndexer(vault, db, {
+      scanSignal: leaving.signal,
+      onProgress: (current) => { if (current === 4) leaving.abort(); },
+    });
+    await expect(indexer.indexVaultFull()).rejects.toThrow();
+    // Ended means ended: nothing it began is still in flight.
+    expect(vault.inFlight).toBe(0);
+    const callsAtAbort = vault.calls.length;
+    const begunAtAbort = vault.begun.length;
+    for (let i = 0; i < 40; i++) await tick();
+    expect(vault.calls.length).toBe(callsAtAbort);
+    expect(vault.begun.length).toBe(begunAtAbort);
+  });
+
   it("reads nothing more once it was called off or failed", async () => {
     const vault = new SlowVault(1_700_000_000_000);
     await fill(vault);
@@ -352,14 +374,34 @@ describe("a full scan that reads ahead", () => {
     expect(vault.begun.length).toBeLessThanOrEqual(4 + 8);
   });
 
-  it("keeps no transaction open while it waits for a read (second review of 11.11.)", async () => {
+  it.each([
+    ["one read per call", false, 100],
+    ["one read per call, a bound the scan never reaches", false, 60_000],
+    ["many reads per call (the desktop)", true, 100],
+    ["many reads per call, a bound the scan never reaches", true, 60_000],
+  ] as const)("keeps no transaction open while it waits for a read: %s (second and third review of 11.11.)", async (_name, many, txMs) => {
     // A transaction used to wait inside itself for the reading of the file it
     // was at: a large file on slow media held it open for as long as the read
-    // took, and every other writer of the index waited behind it.
-    const vault = new SlowVault(1_700_000_000_000);
-    await fill(vault);
-    const inner = takingTurns(await realSqlite());
+    // took, and every other writer of the index waited behind it. Here a read
+    // can only END while no transaction is open: a transaction that waited
+    // for one would wait for ever (the test runs into its timeout). With the
+    // files the ordinary way goes for: refused, gone since the listing, two
+    // large ones, text that is no UTF-8.
     let open = 0;
+    const betweenTransactions = async () => { while (open > 0) await tick(); };
+    const vault = many ? new ManyAtOnceVault(1_700_000_000_000) : new SlowVault(1_700_000_000_000);
+    await fill(vault);
+    await vault.writeBinaryFile("films/a.bin", new Uint8Array(9 * 1024 * 1024));
+    await vault.writeBinaryFile("films/b.bin", new Uint8Array(9 * 1024 * 1024).fill(1));
+    vault.refuse = new Set([names[7], "pictures/a.png"]);
+    if (many) (vault as ManyAtOnceVault).leaveToOrdinary = new Set([names[7], names[13], "pictures/a.png"]);
+    const vanishing = names[13];
+    // Gone between the listing and the read: left out without a word.
+    vault.beforeRead = async (path) => {
+      if (path === vanishing && (await vault.exists(path))) await vault.deleteItem(path);
+    };
+    vault.afterRead = betweenTransactions;
+    const inner = takingTurns(await realSqlite());
     const db: IDatabaseAdapter = {
       ...inner,
       transaction: <T,>(fn: (tx: SqlStatements) => Promise<T>) => inner.transaction(async (tx) => {
@@ -367,18 +409,133 @@ describe("a full scan that reads ahead", () => {
         try { return await fn(tx); } finally { open--; }
       }),
     };
-    const slow = names[5];
-    const openWhileHeld: boolean[] = [];
-    vault.beforeRead = async (path) => {
-      if (path !== slow) return;
-      for (let i = 0; i < 5; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 15));
-        openWhileHeld.push(open > 0);
+    const report = await new VaultIndexer(vault, db, { scanTransactionMs: txMs }).indexVaultFull();
+    expect(report.skipped.map((s) => s.path).sort()).toEqual([names[7], "pictures/a.png"].sort());
+    const rows = (await db.query<{ path: string }>("SELECT path FROM files")).map((r) => r.path);
+    expect(rows).toContain("films/a.bin");
+    expect(rows).toContain("data/latin1.csv");
+    expect(rows).not.toContain(names[7]);
+    expect(rows).not.toContain(vanishing);
+    expect(rows.filter((p) => p.startsWith("notes/")).length).toBe(NOTES - 2);
+  });
+});
+
+describe("whose reading stands: the one whose look at the file began later (third review of 11.11.)", () => {
+  /** A vault indexed once, then changed elsewhere note by note, so the next full scan reads every note. */
+  async function changedEverywhere(vault: SlowVault): Promise<{ db: IDatabaseAdapter; indexer: VaultIndexer }> {
+    await fill(vault);
+    const db = takingTurns(await realSqlite());
+    const indexer = new VaultIndexer(vault, db, {});
+    await indexer.indexVaultFull();
+    for (const name of names) await vault.writeTextFile(name, `# ${name}\nchanged elsewhere\n`);
+    return { db, indexer };
+  }
+  const indexed = async (db: IDatabaseAdapter, path: string) =>
+    (await db.query<{ content: string }>(`SELECT content FROM fts_notes WHERE path = ?`, [path])).map((r) => r.content).join(" | ");
+
+  it("a save whose read began EARLIER does not stand over the scan's newer reading (S1)", async () => {
+    // The app saves T and indexes it: its read begins. Another program writes
+    // T again. The scan reads that, the newest, ahead. The save's pass writes
+    // its older reading first. A check of the row against the one the scan
+    // began with took that for "indexed meanwhile" and dropped the scan's
+    // newer reading: the index kept an older text than the disk — on the
+    // phone, which has no watcher, until the next full scan.
+    const vault = new SlowVault(1_700_000_000_000);
+    const { db, indexer } = await changedEverywhere(vault);
+    const T = names[20];
+    let save: Promise<unknown> | null = null;
+    let saveReadsT = false;
+    let scanReadT = 0;
+    vault.afterRead = async (path) => {
+      if (path === names[3] && !save) {
+        await vault.writeTextFile(T, "# T\nc2 saved in the app\n");
+        saveReadsT = true;
+        save = indexer.indexFile(await vault.getFileInfo(T));
+        return;
+      }
+      if (path === T && saveReadsT) {
+        // The save has its reading (c2); another program writes c3 after it.
+        saveReadsT = false;
+        await vault.writeTextFile(T, "# T\nc3 written elsewhere, the newest\n");
+        return;
+      }
+      if (path === T) {
+        scanReadT++;
+        // The scan holds c3; the save writes c2 before the scan writes T.
+        await save;
       }
     };
-    // A bound the scan never reaches: only a reading not in yet ends a transaction here.
-    await new VaultIndexer(vault, db, { scanTransactionMs: 60_000 }).indexVaultFull();
-    // The last looks, once the files before it are written: nothing is open.
-    expect(openWhileHeld.slice(-2)).toEqual([false, false]);
+    await indexer.indexVaultFull();
+    await save;
+    expect(scanReadT).toBe(1);
+    expect(await vault.readTextFile(T)).toContain("c3");
+    expect(await indexed(db, T)).toContain("c3 written elsewhere");
+  });
+
+  it("a file the app removed while its reading was ahead is not brought back into the index", async () => {
+    const vault = new SlowVault(1_700_000_000_000);
+    const { db, indexer } = await changedEverywhere(vault);
+    const X = names[6];
+    let removed = false;
+    vault.afterRead = async (path) => {
+      if (path !== X || removed) return;
+      // The scan holds X's text. The app deletes X and takes it out of the index.
+      removed = true;
+      await vault.deleteItem(X);
+      await indexer.removePathFromIndex(X);
+    };
+    await indexer.indexVaultFull();
+    expect(removed).toBe(true);
+    expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [X])).toBeNull();
+    expect(await indexed(db, X)).toBe("");
+  });
+
+  it("a file the app moved while its reading was ahead is not written back at its old place", async () => {
+    const vault = new SlowVault(1_700_000_000_000);
+    const { db, indexer } = await changedEverywhere(vault);
+    const A = names[6];
+    const B = "moved/n06.md";
+    let moved = false;
+    vault.afterRead = async (path) => {
+      if (path !== A || moved) return;
+      moved = true;
+      await vault.renameItem(A, B);
+      await indexer.relocatePathInIndex(A, B);
+    };
+    await indexer.indexVaultFull();
+    expect(moved).toBe(true);
+    expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [A])).toBeNull();
+    expect(await db.queryOne(`SELECT path FROM files WHERE path = ?`, [B])).not.toBeNull();
+  });
+
+  it("a file the one call leaves to the ordinary read takes its place where that read begins (K1)", async () => {
+    // The desktop reads a group in one call; a file it does not answer is read
+    // the ordinary way afterwards. Its place among the reads was the group's —
+    // taken before the call — so a save read between the two counted as
+    // later, and its older reading stood over the newer one the scan read.
+    class HookedMany extends ManyAtOnceVault {
+      beforeCall?: (requests: readonly IndexReadRequest[]) => Promise<void>;
+      async readFilesForIndex(requests: readonly IndexReadRequest[]): Promise<IndexReadResult[]> {
+        await this.beforeCall?.(requests);
+        return super.readFilesForIndex(requests);
+      }
+    }
+    const vault = new HookedMany(1_700_000_000_000);
+    const { db, indexer } = await changedEverywhere(vault);
+    const F = names[2];
+    vault.leaveToOrdinary = new Set([F]);
+    let done = false;
+    vault.beforeCall = async (requests) => {
+      if (done || !requests.some((r) => r.path === F)) return;
+      done = true;
+      // The call is made: the app saves F and its pass reads and writes it…
+      await vault.writeTextFile(F, "# F\nc2 saved in the app\n");
+      await indexer.indexFile(await vault.getFileInfo(F));
+      // …then another program writes F; the ordinary read of F comes after.
+      await vault.writeTextFile(F, "# F\nc3 written elsewhere, the newest\n");
+    };
+    await indexer.indexVaultFull();
+    expect(done).toBe(true);
+    expect(await indexed(db, F)).toContain("c3 written elsewhere");
   });
 });

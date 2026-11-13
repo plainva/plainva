@@ -13,7 +13,8 @@ describe("index lifetime", () => {
     const vault = { listDirReport: async () => ({ files: [], skipped: [{ path: "offline", reason: "unreadable" }] }) } as unknown as IVaultAdapter;
     const result = await new VaultIndexer(vault, db, { onLocalFileDeleted: deleted }).indexVaultFull();
     expect(result.removed).toBe(0);
-    expect(execute).not.toHaveBeenCalled();
+    // Nothing but the index's marks of a scan that went through (third review of 11.11.).
+    expect(execute.mock.calls.filter(([sql]) => !/\bmeta\b/.test(String(sql)))).toEqual([]);
     expect(deleted).not.toHaveBeenCalled();
   });
   it("cancels through the adapter wrapper before deleting or indexing any rows", async () => {
@@ -29,7 +30,8 @@ describe("index lifetime", () => {
     const indexer = new VaultIndexer(new BackupVaultAdapter(raw), db, { scanSignal: controller.signal });
     await expect(indexer.indexVaultFull()).rejects.toMatchObject({ name: "AbortError" });
     await indexer.whenIdle();
-    expect(execute).not.toHaveBeenCalled();
+    // Nothing but the mark that the index, empty, is owed a scan (third review of 11.11.).
+    expect(execute.mock.calls.filter(([sql]) => !/\bmeta\b/.test(String(sql)))).toEqual([]);
     await expect(indexer.indexVaultFull()).rejects.toMatchObject({ name: "AbortError" });
     expect(listDirReport).toHaveBeenCalledTimes(1);
   });
