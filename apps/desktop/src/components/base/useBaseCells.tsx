@@ -766,7 +766,7 @@ export function useBaseCells({
           value={editValue}
           onChange={e => setEditValue(e.target.value)}
           onBlur={() => handleCellSave(path, col, editValue)}
-          onKeyDown={e => { if (e.key === 'Enter') handleCellSave(path, col, editValue); if (e.key === 'Escape') setEditingCell(null); }}
+          onKeyDown={e => { if (e.key === 'Enter') void handleCellSave(path, col, editValue); if (e.key === 'Escape') setEditingCell(null); }}
           onClick={e => e.stopPropagation()}
           onDoubleClick={e => e.stopPropagation()}
         />
@@ -814,7 +814,7 @@ export function useBaseCells({
         onClick={(e) => {
           e.stopPropagation();
           if (isEditing || isReadOnly) return;
-          if (isCheckbox) { handleCellSave(path, col, !(val === true)); return; }
+          if (isCheckbox) { void handleCellSave(path, col, !(val === true)); return; }
           startEditing(path, col, val);
         }}
         style={{ cursor: isReadOnly ? 'default' : (isCheckbox ? 'pointer' : 'text'), width: '100%', minHeight: '1.2em', overflowWrap: 'anywhere' }}

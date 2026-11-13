@@ -16,6 +16,10 @@ vi.mock("@capacitor/filesystem", () => ({
     deleteFile: vi.fn(async ({ path }: { path: string }) => {
       files.delete(path);
     }),
+    stat: vi.fn(async ({ path }: { path: string }) => {
+      if (!files.has(path)) throw new Error("not found");
+      return { type: "file" };
+    }),
     readdir: vi.fn(async () => ({ files: [] })),
   },
 }));
@@ -178,6 +182,27 @@ describe("the way back out of a half-finished settings import (finding 2026-08-1
     expect(await recoverProfileImportIfNeeded(vault)).toBe(true);
     expect((await store.get<Record<string, unknown>>(`mobile-vault-${VAULT}`))?.dailyFolder).toBe("Journal");
     expect(files.has(profileJournalPath(VAULT))).toBe(false);
+  });
+
+  it("clearing finds nothing to do when the journal is absent, closes one that stays, and fails only when neither works (stability plan R4)", async () => {
+    const { Filesystem } = await import("@capacitor/filesystem");
+    const deleteFile = vi.mocked(Filesystem.deleteFile);
+    const writeFile = vi.mocked(Filesystem.writeFile);
+    // Absent: the plugin refuses, and that is the goal of a removal.
+    deleteFile.mockRejectedValueOnce(new Error("File does not exist"));
+    await expect(clearProfileJournal(VAULT)).resolves.toBeUndefined();
+    // Refused while it is there: closed in place, and the next start rolls nothing back.
+    const vault = mobileVault();
+    await writeProfileJournal(VAULT, await captureProfileSnapshot(vault));
+    deleteFile.mockRejectedValueOnce(new Error("permission denied"));
+    await expect(clearProfileJournal(VAULT)).resolves.toBeUndefined();
+    expect(JSON.parse(files.get(profileJournalPath(VAULT))!)).toEqual({ done: true });
+    expect(await recoverProfileImportIfNeeded(vault)).toBe(false);
+    // Neither removed nor closed: that is a failure, and it says why the file stayed.
+    await writeProfileJournal(VAULT, await captureProfileSnapshot(vault));
+    deleteFile.mockRejectedValueOnce(new Error("permission denied"));
+    writeFile.mockRejectedValueOnce(new Error("disk full"));
+    await expect(clearProfileJournal(VAULT)).rejects.toThrow("permission denied");
   });
 
   it("does nothing when there is no journal, and refuses a torn one", async () => {

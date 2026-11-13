@@ -1,4 +1,5 @@
 import { isIndexNotWholeError } from "@plainva/core";
+import { reportBackground } from "../services/backgroundErrors";
 import {
   frontmatterSpan,
   hasOkfVersionKey,
@@ -154,7 +155,8 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
         }
       } catch (e) {
         if (isIndexNotWholeError(e)) deferred.push(folder);
-        else console.warn("[indexMdAutoUpdate] refresh failed for", folder, e);
+        // The overview stays as it was; the next change in the folder writes it again.
+        else reportBackground("index-md:auto-update", e);
       }
     }
     if (deferred.length > 0) {

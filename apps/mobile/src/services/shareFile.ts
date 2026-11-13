@@ -50,7 +50,9 @@ async function shareBytes(name: string, bytes: Uint8Array, mime: string): Promis
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   const staged = `share/${name}`;
-  await Filesystem.mkdir({ path: "share", directory: Directory.Cache, recursive: true }).catch(() => {});
+  await Filesystem.mkdir({ path: "share", directory: Directory.Cache, recursive: true }).catch(() => {
+    // silent: it exists already, or the write below fails and says why.
+  });
   await Filesystem.writeFile({ path: staged, data: btoa(binary), directory: Directory.Cache });
   const { uri } = await Filesystem.getUri({ path: staged, directory: Directory.Cache });
   try {

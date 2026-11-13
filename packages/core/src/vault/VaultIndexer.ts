@@ -17,6 +17,7 @@ import { encodeIndexedProperty } from "./indexedProperty.js";
 import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
 import { fullTextRowOf, INSERT_FULL_TEXT_ROW } from "../db/fullTextRows.js";
+import { INDEX_REMOVED_TABLE } from "../sync/owedToRemote.js";
 
 /** U+0000, built here so that no source line has to carry the character. */
 const NUL = String.fromCharCode(0);
@@ -360,6 +361,13 @@ export class VaultIndexer {
   private touchClock = 0;
   private readonly touchedAt = new Map<string, number>();
   private openPasses = 0;
+  /**
+   * The order in which this indexer's reads of files began, and for each path
+   * the read whose reading was written last (`claimWrite`). Kept while a pass
+   * is under way, like `touchedAt`.
+   */
+  private readClock = 0;
+  private readonly writtenFrom = new Map<string, number>();
 
   constructor(
     private readonly vaultAdapter: IVaultAdapter,
@@ -376,8 +384,39 @@ export class VaultIndexer {
       return await work({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock });
     } finally {
       // Nobody is left who read the index before one of these moments.
-      if (--this.openPasses === 0) this.touchedAt.clear();
+      if (--this.openPasses === 0) {
+        this.touchedAt.clear();
+        this.writtenFrom.clear();
+      }
     }
+  }
+
+  /** A read of a file begins: its place among this indexer's reads (`claimWrite`). */
+  private readBegins(): number {
+    return ++this.readClock;
+  }
+
+  /**
+   * Whether the reading of `path` whose read began at `from` may be written
+   * (stability plan R1, review M1). Files are read before the transaction that
+   * writes them, so two passes over one path — a save's and a scan's, the
+   * watcher's and a folder re-read — can write in another order than they
+   * read. A reading is written unless a reading begun LATER was written
+   * already: a save that lands between a read and its write is followed by a
+   * pass whose read begins after it, and that pass's reading stands, whichever
+   * transaction comes first. Called inside the writing transaction; returns
+   * what undoes the claim when that transaction does not go through, or null
+   * where the reading is not to be written.
+   */
+  private claimWrite(path: string, from: number): (() => void) | null {
+    const before = this.writtenFrom.get(path);
+    if (before !== undefined && before > from) return null;
+    this.writtenFrom.set(path, from);
+    return () => {
+      if (this.writtenFrom.get(path) !== from) return;
+      if (before === undefined) this.writtenFrom.delete(path);
+      else this.writtenFrom.set(path, before);
+    };
   }
 
   /** A single path was asked about `path` and found a file there, a row was written for it, or it was reported gone. */
@@ -705,10 +744,7 @@ export class VaultIndexer {
       // does not report it gone, and where it has not decided yet it leaves
       // the row too (stillMine) — also when this pass fails.
       this.touch(fileInfo.path);
-      await this.dbAdapter.transaction(async (tx) => {
-        if (fileInfo.name.endsWith(".md")) await this._indexFileInternal(fileInfo, pass, tx);
-        else await this._indexAttachmentInternal(fileInfo, pass, tx);
-      });
+      await this.indexOne(fileInfo, pass);
       this.flushCallbacks(pass);
       return pass.metadataChanged;
     });
@@ -1206,6 +1242,7 @@ export class VaultIndexer {
         // (one that drops and returns between the two questions does not).
         if (!(await this.vaultIsThere()) || (await this.lookAt(path)) || !(await this.vaultIsThere())) return "unchanged";
         await this.deleteIndexRows([path], tx);
+        await this.markRemoved([path], tx);
         gone = indexedRowStamp(known.mtime_local);
         return "reported";
       });
@@ -1238,13 +1275,7 @@ export class VaultIndexer {
     );
     if (sameAsIndexed(knownRow, info)) return "unchanged";
 
-    await this.dbAdapter.transaction(async (tx) => {
-      if (info!.name.endsWith(".md")) {
-        await this._indexFileInternal(info!, pass, tx);
-      } else if (!isInternalPath(info!.path)) {
-        await this._indexAttachmentInternal(info!, pass, tx);
-      }
-    });
+    if (info.name.endsWith(".md") || !isInternalPath(info.path)) await this.indexOne(info, pass);
     this.flushCallbacks(pass);
     return "indexed";
   }
@@ -1279,6 +1310,38 @@ export class VaultIndexer {
       if (there) throw error;
       return null;
     }
+  }
+
+  /**
+   * Indexes one file: read first, then written in a transaction of its own
+   * (stability plan R1, review M1).
+   *
+   * The read used to happen inside the transaction. A file on a share that
+   * answers slowly, a film of two gigabytes, a folder whose provider fetches
+   * the file first: for as long as the read took, every other writer waited
+   * for its turn — a save's entry in the sync queue, the sync marking an
+   * upload done — and gave up after a minute; on the desktop the transaction
+   * that sent nothing for two minutes was rolled back under its body. Nothing
+   * is read inside a transaction now.
+   *
+   * A save that lands between the read and the write is followed by its own
+   * pass, whose read begins later; whichever transaction comes first, the
+   * reading begun later stands (`claimWrite`). The file's timestamps cannot
+   * decide that: another program may set an older one.
+   */
+  private async indexOne(fileInfo: VaultFileInfo, pass: IndexPass): Promise<void> {
+    const from = this.readBegins();
+    const reading = await this.readForIndex(fileInfo);
+    let undo: (() => void) | null = null;
+    await this.dbAdapter.transaction(async (tx) => {
+      undo = this.claimWrite(fileInfo.path, from);
+      if (!undo) return;
+      if (fileInfo.name.endsWith(".md")) await this._indexFileInternal(fileInfo, pass, tx, undefined, tx, reading);
+      else await this._indexAttachmentInternal(fileInfo, pass, tx, undefined, tx, reading);
+    }).catch((error: unknown) => {
+      (undo as (() => void) | null)?.();
+      throw error;
+    });
   }
 
   /** Reads a file the way its kind is indexed: as text where its name says so, else as bytes. */
@@ -1405,7 +1468,11 @@ export class VaultIndexer {
     // also reached too far in the other direction: after a rename, sha256 of the
     // OLD path is the id a row now sitting at the NEW path still carries, so
     // de-indexing the old path deleted a note that exists.
-    await this.deleteIndexRows([path], this.dbAdapter);
+    // The row and the mark that it was reported go in one transaction (R22).
+    await this.dbAdapter.transaction(async (tx) => {
+      await this.deleteIndexRows([path], tx);
+      if (!isInternalPath(path)) await this.markRemoved([path], tx);
+    });
     // Same contract as the full scan: sync_state stays (the remote delete must
     // be pushed first); the host reacts via onLocalFileDeleted. Measured from
     // now: the caller knows the file went, whatever a pass under way has read.
@@ -1477,6 +1544,26 @@ export class VaultIndexer {
    * telling the sync layer anything. Callers decide whether the removal is a
    * deletion the remote must learn about; this only forgets.
    */
+  /**
+   * Records, in the transaction that removes their rows, that the index
+   * decided these files left the vault and reports them (stability plan R22).
+   * The host queues the remote deletion from the report, in a transaction of
+   * its own; an app that ends in between leaves the mark, and the first cycle
+   * of the next sync queues what is marked (`sync/owedToRemote.ts`). Only
+   * what is reported is marked: a path the index removes silently — an
+   * internal folder, a sidecar, one that became excluded — never is. Queueing
+   * the deletion takes the mark off (`SyncQueue.queueDeletePaths`, the
+   * workspace's `enqueue`). An index row written for the path again makes the
+   * mark moot; the sweep drops such marks. An older build removes rows
+   * without marking: what it left owed stays as inert as it always was.
+   */
+  private async markRemoved(paths: readonly string[], writer: SqlWriter): Promise<void> {
+    const at = this.touchClock;
+    for (const path of paths) {
+      await writer.execute(`INSERT OR REPLACE INTO ${INDEX_REMOVED_TABLE} (path, removed_at) VALUES (?, ?)`, [path, at]);
+    }
+  }
+
   private async deleteIndexRows(paths: string[], writer: SqlWriter): Promise<void> {
     const CHUNK = 400;
     for (let k = 0; k < paths.length; k += CHUNK) {
@@ -1646,13 +1733,23 @@ export class VaultIndexer {
     // The files this re-read indexed, and the ones that are there and could not be read (readOrLeaveOut).
     const indexed: string[] = [];
     const unreadable: VaultWalkSkip[] = [];
+    // Read before the transaction, not inside it (review M1, `indexOne`).
+    const readings: Array<{ f: VaultFileInfo; reading: FileReading; from: number }> = [];
+    for (const f of toIndex) {
+      const from = this.readBegins();
+      const reading = await this.readOrLeaveOut(f, unreadable);
+      if (reading) readings.push({ f, reading, from });
+    }
+    const claims: Array<() => void> = [];
     const mine = await this.dbAdapter.transaction(async (tx) => {
       // Asked as late as it can be: what another pass indexed or reported
       // since this one began is not this one's to remove (stillMine).
       const mine = new Set(this.stillMine([...vanished, ...silent], pass));
-      for (const f of toIndex) {
-        const reading = await this.readOrLeaveOut(f, unreadable);
-        if (!reading) continue;
+      for (const { f, reading, from } of readings) {
+        // A reading begun later and written already stands (`claimWrite`).
+        const undo = this.claimWrite(f.path, from);
+        if (!undo) continue;
+        claims.push(undo);
         if (f.name.endsWith(".md")) await this._indexFileInternal(f, pass, tx, undefined, tx, reading);
         else await this._indexAttachmentInternal(f, pass, tx, undefined, tx, reading);
         indexed.push(f.path);
@@ -1660,10 +1757,12 @@ export class VaultIndexer {
       // The rows of what went leave last, as in the full scan: a re-read that
       // fails on a file has not removed what it never gets to report.
       await this.deleteIndexRows([...mine], tx);
+      await this.markRemoved(vanished.filter((path) => mine.has(path)), tx);
       return mine;
     }).catch((error: unknown) => {
-      // No batches here: whatever ran is in.
-      this.announceWhatStays(pass, { news: pass.newLocalFiles.length, mods: pass.externalMods.length });
+      // One transaction, rolled back: nothing of it stands, and nothing is said.
+      for (const undo of claims) undo();
+      this.announceWhatStays(pass, { news: 0, mods: 0 });
       throw error;
     });
     this.flushCallbacks(pass);
@@ -1714,26 +1813,18 @@ export class VaultIndexer {
   }
 
   /**
-   * What a pass that FAILED still has to say (finding 2026-10-12).
-   *
-   * Where its transaction took everything back, nothing: it wrote nothing,
-   * and the next pass finds every file as this one did. The desktop's database
-   * keeps what a failed transaction wrote
-   * (`IDatabaseAdapter.keepsWhatAFailedTransactionWrote`): the files this pass
-   * had indexed stay indexed, the next pass finds them as it left them and
-   * has nothing to say about them — a new file was not queued for upload
-   * before the sweep of the next sync start, a change another program made
-   * to a known file not at all. So what the pass found about the files it
-   * wrote is said now. `written` is how far its finds had been handed to the
-   * database when it failed; the rows of files that went are removed last by
-   * every pass and are never part of it.
+   * What a pass that FAILED still has to say (finding 2026-10-12): what the
+   * transactions that went through wrote. A full scan writes in several
+   * (performance plan L4); the one that failed took back everything it wrote
+   * on both shells (the desktop's transactions are real since stability plan
+   * R1). Its finds are cut to what was committed, and said: a new file is
+   * queued for upload, a change another program made to a known file goes up.
+   * The rows of files that went are removed last by every pass and are never
+   * part of it.
    */
-  private announceWhatStays(pass: IndexPass, written: { news: number; mods: number }, committed = false): void {
-    // `committed`: what transactions that went through wrote stands on any
-    // adapter (a full scan writes in several, performance plan L4).
-    if (!committed && !this.dbAdapter.keepsWhatAFailedTransactionWrote) return;
-    pass.newLocalFiles.length = Math.min(pass.newLocalFiles.length, written.news);
-    pass.externalMods.length = Math.min(pass.externalMods.length, written.mods);
+  private announceWhatStays(pass: IndexPass, committed: { news: number; mods: number }): void {
+    pass.newLocalFiles.length = Math.min(pass.newLocalFiles.length, committed.news);
+    pass.externalMods.length = Math.min(pass.externalMods.length, committed.mods);
     this.flushCallbacks(pass);
   }
 
@@ -2117,7 +2208,13 @@ export class VaultIndexer {
     const oneAtATime = TRANSACTION_MS <= 0;
     const many = !!this.vaultAdapter.readFilesForIndex;
     const heavyReads = createSerialGate();
-    const ahead = createReadAhead(work, (group) => this.readScanGroup(group.map((w) => w.file), heavyReads), {
+    // Each group's place among this indexer's reads is taken when its read
+    // begins (`claimWrite`): a save read after it and written first stands.
+    const ahead = createReadAhead(work, async (group) => {
+      const from = this.readBegins();
+      const readings = await this.readScanGroup(group.map((w) => w.file), heavyReads);
+      return readings.map((reading) => ({ reading, from }));
+    }, {
       groups: oneAtATime ? 1 : many ? SCAN_GROUPS_AT_ONCE : SCAN_READS_AT_ONCE,
       groupSize: oneAtATime ? 1 : many ? SCAN_READS_AT_ONCE : 1,
       // A file the host hashes on its own side (`readFilesForIndex` for
@@ -2126,6 +2223,7 @@ export class VaultIndexer {
     });
     try {
       for (let first = true, done = false; !done; first = false) {
+        const claims: Array<() => void> = [];
         await this.dbAdapter.transaction(async (tx) => {
           // The scan's writes (file/fts/links/tags/properties rows + the
           // sync_state upsert for new files) are recorded into a buffer and
@@ -2194,11 +2292,16 @@ export class VaultIndexer {
             // the loop used to run to its end for a vault nobody had open, and
             // the open that was called off went on behind it.
             signal?.throwIfAborted();
-            const reading = await ahead.take(next);
+            const { reading, from } = await ahead.take(next);
             next++;
-            if (reading === UNREADABLE) {
-              unreadable.push({ path: file.path, reason: "unreadable" });
-            } else if (reading && !indexedMeanwhile(dbFileMap.get(file.path), lookups.fileStateByPath.get(file.path))) {
+            if (reading === UNREADABLE) unreadable.push({ path: file.path, reason: "unreadable" });
+            // Not written over a row another pass wrote since the scan began
+            // (`indexedMeanwhile`), nor over a reading begun later by another
+            // pass and written already (`claimWrite`, stability plan R1).
+            const fresh = reading && reading !== UNREADABLE && !indexedMeanwhile(dbFileMap.get(file.path), lookups.fileStateByPath.get(file.path));
+            const undo = fresh ? this.claimWrite(file.path, from) : null;
+            if (undo) claims.push(undo);
+            if (undo && reading && reading !== UNREADABLE) {
               if (attachment) await this._indexAttachmentInternal(file, pass, tx, lookups, sink, reading);
               else await this._indexFileInternal(file, pass, tx, lookups, sink, reading);
               counted(file);
@@ -2250,7 +2353,11 @@ export class VaultIndexer {
             if (!first) for (const path of this.movedAway(filesToDelete, dbFileMap, { pathByRow: await this.rowLocations(tx) })) moved.add(path);
             if (filesToDelete.length > moved.size) for (const path of await this.renamedAway(filesToDelete, tx)) moved.add(path);
             removedRows = new Set(this.stillMine(filesToDelete.filter((path) => !moved.has(path)), pass));
-            if (removedRows.size > 0) await this.deleteIndexRows([...removedRows], sink);
+            if (removedRows.size > 0) {
+              await this.deleteIndexRows([...removedRows], sink);
+              // Marked where they are reported (below, once this commits): R22.
+              await this.markRemoved(vanishedFromDisk.filter((path) => removedRows.has(path)), sink);
+            }
 
             // The scan has gone through once its last rows are in: the index owes no more.
             if (startsEmpty || owedBefore) batch.push({ sql: `DELETE FROM meta WHERE key = ?`, params: [INDEX_OWED_KEY] });
@@ -2259,15 +2366,18 @@ export class VaultIndexer {
 
           // Flush the tail (all writes when runBatch is unavailable).
           await flush();
+        }).catch((error: unknown) => {
+          // Rolled back: what it claimed was never written (`claimWrite`).
+          for (const undo of claims) undo();
+          throw error;
         });
         committed.news = flushed.news;
         committed.mods = flushed.mods;
       }
     } catch (error: unknown) {
-      // What the transactions that went through wrote stays on every adapter;
-      // on one that keeps what a failed transaction wrote, its flushes too.
-      if (this.dbAdapter.keepsWhatAFailedTransactionWrote) this.announceWhatStays(pass, flushed);
-      else this.announceWhatStays(pass, committed, true);
+      // What the transactions that went through wrote stays; the one that
+      // failed took its flushes back with it.
+      this.announceWhatStays(pass, committed);
       throw error;
     } finally {
       // However the loop ends — through, failed, called off — nothing more is read.

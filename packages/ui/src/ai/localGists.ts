@@ -1,3 +1,4 @@
+import { reportBackground } from "../services/backgroundErrors";
 import {
   appendAiLedgerEntry,
   EMPTY_USAGE,
@@ -238,8 +239,9 @@ export class LocalGists {
           usage,
         }),
       );
-    } catch {
-      // The gists count even when app data cannot be written.
+    } catch (error) {
+      // The gists count even when app data cannot be written; the month's totals then lack this run.
+      reportBackground("ai:gists-ledger", error);
     }
   }
 }

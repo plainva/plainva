@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { reportingTo } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { openExternalUrl as openUrl } from "../../services/openExternal";
 import { CalendarRange, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Users } from "lucide-react";
@@ -309,7 +310,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   useEffect(() => {
     let stale = false;
-    (async () => {
+    void (async () => {
       if (!pimRuntime) return;
       try {
         const [acc, cals, evs, notFresh] = await Promise.all([
@@ -448,7 +449,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       overlaysHydrated.current = vaultPath ?? null;
       setOverlayKeys((prev) => {
         const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-        if (vaultPath) void saveCalendarOverlays(vaultPath, next).catch(() => {});
+        if (vaultPath) void saveCalendarOverlays(vaultPath, next).catch(reportingTo("settings:calendar-overlays"));
         return next;
       });
     },

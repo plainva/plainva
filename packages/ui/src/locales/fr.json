@@ -5169,7 +5169,14 @@
     "areaTitle": "Cette zone ne peut pas être affichée",
     "areaBody": "Une erreur l’a arrêtée. Le reste de Plainva continue de fonctionner, et l’erreur est consignée dans {{place}}.",
     "areaAgain": "Elle a de nouveau échoué après le rechargement. Si cela persiste, redémarrez Plainva ; l’erreur est consignée dans {{place}}.",
-    "areaReload": "Recharger cette zone"
+    "areaReload": "Recharger cette zone",
+    "structureNeedsIndex": "Impossible pour le moment : l'index de recherche n'a pas pu être ouvert sur cet appareil, la synchronisation ne pourrait donc pas transmettre une suppression, un renommage, un déplacement ou un nouveau dossier à vos autres appareils. Redémarrez l'app pour réessayer ; vos notes elles-mêmes sont intactes.",
+    "indexClosedNotice": "L'index de recherche n'a pas pu être ouvert sur cet appareil. Vous pouvez lire, écrire et créer des notes ; supprimer, renommer, déplacer et créer des dossiers restent indisponibles jusqu'à son ouverture. Redémarrez l'app pour réessayer ; vos notes sont intactes.",
+    "background": {
+      "aiKeyNotRemoved": "La clé de {{provider}} n'a pas pu être retirée de cet appareil, {{provider}} reste donc dans la liste : {{reason}}",
+      "accountSignInKept": "Le compte a été retiré, mais sa connexion n'a pas pu être supprimée de cet appareil : {{reason}}",
+      "taskNoteNotRestored": "« {{name}} » n'a pas pu être restaurée : {{reason}}"
+    }
   },
   "palette": {
     "title": "Commandes",

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { announceOkfRollback, Button, Checkbox, errorText, Modal, toast } from "@plainva/ui";
+import { announceOkfRollback, Button, Checkbox, errorText, Modal, reportingTo, toast } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import {
   okfMigrationPending,
@@ -78,14 +78,12 @@ export const OkfMigrationModal: React.FC<{
     });
     setReport(result);
     // Refresh index + open editors so the changed frontmatter is visible everywhere.
-    try {
-      await indexer?.indexVaultFull("OKF migration");
-      triggerFileTreeUpdate();
-      for (const path of result.changed) {
-        window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
-      }
-    } catch (e) {
-      console.warn("[OkfMigration] re-index after migration failed", e);
+    // The index catches up on its next pass; the open editors must hear of the
+    // changed files whatever the index did, or their next save writes the old text back.
+    await indexer?.indexVaultFull("OKF migration").catch(reportingTo("index:okf:migration-run"));
+    triggerFileTreeUpdate();
+    for (const path of result.changed) {
+      window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
     }
     setStep("report");
     onMigrated?.();
@@ -98,14 +96,12 @@ export const OkfMigrationModal: React.FC<{
     try {
       const result = await rollbackOkfConversion(vaultAdapter, report.backupDir, report.recipe);
       announceOkfRollback(result, report.backupDir, t);
-      try {
-        await indexer?.indexVaultFull("OKF migration");
-        triggerFileTreeUpdate();
-        for (const path of result.restored) {
-          window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
-        }
-      } catch (e) {
-        console.warn("[OkfMigration] re-index after undo failed", e);
+      // The index catches up on its next pass; the open editors must hear of the
+      // changed files whatever the index did, or their next save writes the old text back.
+      await indexer?.indexVaultFull("OKF migration").catch(reportingTo("index:okf:migration-undo"));
+      triggerFileTreeUpdate();
+      for (const path of result.restored) {
+        window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
       }
       onMigrated?.();
     } catch (e) {

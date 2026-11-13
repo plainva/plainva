@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { reportingTo } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { RotateCcw, Copy, ExternalLink } from "lucide-react";
 import { comparisonPath } from "../services/comparisonWindow";
@@ -342,7 +343,7 @@ export const CompareModal: React.FC<{
       isDirectory: false,
       mtime: Date.now(),
       size,
-    }).catch(() => {});
+    }).catch(reportingTo("index:restore-version"));
     triggerFileTreeUpdate();
   };
 

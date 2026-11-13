@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { newEntries, type NewHandlers } from "@plainva/ui";
+import { newEntries, type NewHandlers, reportingTo, reportVisible } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { newInTab, tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
@@ -212,8 +212,8 @@ export default function App() {
   const onBarLayout = useCallback((next: AreaOrder) => {
     setBarLayout(next);
     mirrorLegacyBarFields(next);
-    void saveMobileBar(vault?.vaultId ?? null, next);
-  }, [vault]);
+    void saveMobileBar(vault?.vaultId ?? null, next).catch((error: unknown) => reportVisible("settings:bar", error, t("mobile.settingSaveFailed")));
+  }, [vault, t]);
 
   useBackupSchedule(vault, vaultName);
   usePinboardDraftSweep(vault); // what a crash left of a pinboard entry (E15)
@@ -284,7 +284,7 @@ export default function App() {
   useEffect(() => {
     const onChoose = () => setOauthPick(true);
     window.addEventListener("plainva-oauth-choose-folder", onChoose);
-    void restorePendingConnect().catch(e => console.error("[boot] pending connection", e));
+    void restorePendingConnect().catch(reportingTo("connect:pending"));
     return () => window.removeEventListener("plainva-oauth-choose-folder", onChoose);
   }, []);
 
@@ -641,7 +641,7 @@ export default function App() {
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <AreaBoundary area="shell:shareInbox" size="quiet"><ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} /></AreaBoundary>
-      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} /></AreaBoundary>
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vault.vaultId} indexClosed={vault.indexClosed} /></AreaBoundary>
       {!onboarded && <AreaBoundary area="shell:onboarding" placeClassName="m-onboarding"><OnboardingChoice onChoose={finishOnboarding} /></AreaBoundary>}
 
       <AdaptiveLayout activeTab={nav.activeTab} ctx={routeCtx} nav={nav} top={top} twoColumn={twoColumn} />

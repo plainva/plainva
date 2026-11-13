@@ -348,7 +348,7 @@ export class LocalVaultAdapter implements IVaultAdapter {
       const watcher = (await import("node:fs")).promises.watch(this.basePath, { recursive: true, signal: abortController.signal });
       
       // We consume the async iterator without awaiting it so we don't block
-      (async () => {
+      void (async () => {
         try {
           for await (const event of watcher) {
             if (event.filename) {

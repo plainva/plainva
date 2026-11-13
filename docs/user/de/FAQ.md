@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-11-11
+Stand: 2026-11-12
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -110,7 +110,7 @@ Zusätzlich gleicht Plainva automatisch ab, sobald Du aus einem anderen Programm
 
 Beim Einlesen folgt Plainva Links so, wie das System es tut: Ein Link auf einen Ordner wird als dieser Ordner gelesen, ein Link auf eine Datei als diese Datei — am Desktop und in einem Ordner, den Du am iPhone ausgewählt hast. Was sich nicht lesen lässt, lässt Plainva aus und nennt es: einen Link auf einen Ort, den es auf diesem Gerät nicht gibt (etwa einen Ordner, der nur auf einem anderen Rechner liegt und hier als Link angekommen ist) oder einen Ordner ohne Zugriff. Ein Hinweis nennt sie einmal — **ließ sich nicht lesen und fehlt im Suchindex** —, der Rest des Vaults wird wie gewohnt erfasst. Nichts unter einem solchen Eintrag gilt als gelöscht, weder für den Index noch für den Sync eines verschlüsselten Workspace.
 
-Lässt sich der Index gar nicht aktualisieren, sagt der Hinweis, warum (**Der Suchindex konnte nicht aktualisiert werden: …**); der Vault bleibt mit dem offen, was der Index schon enthält, und beim nächsten Einlesen versucht Plainva es erneut. Am Telefon wird auch ein Suchindex genannt, der sich nicht öffnen lässt: Suche, Tags, Datenbanken, die Synchronisation und der Kalender bleiben dann aus, bis Plainva ihn öffnen kann.
+Lässt sich der Index gar nicht aktualisieren, sagt der Hinweis, warum (**Der Suchindex konnte nicht aktualisiert werden: …**); der Vault bleibt mit dem offen, was der Index schon enthält, und beim nächsten Einlesen versucht Plainva es erneut. Am Telefon wird auch ein Suchindex genannt, der sich nicht öffnen lässt: Suche, Tags, Datenbanken, die Synchronisation und der Kalender bleiben dann aus, bis Plainva ihn öffnen kann. Bis dahin kannst Du Notizen lesen, schreiben und anlegen, und sie erreichen die Synchronisation beim nächsten Start, der den Index öffnet; in einem Vault, der synchronisiert, bleiben Löschen, Umbenennen, Verschieben und neue Ordner bis dahin aus, und der Streifen oben sagt es.
 
 **Einen Vault zum ersten Mal öffnen.** Ein Vault ohne Suchindex — zum ersten Mal geöffnet oder nachdem seine App-Daten vergessen wurden — öffnet sofort, und Plainva liest ihn im Hintergrund ein. Bis das fertig ist, zählt ein Streifen oben die gelesenen Dateien; Suche, Tags, Rückverweise, Datenbanken und der Graph antworten aus dem, was bisher gelesen ist, und der Dateibaum zeigt schon jede Datei. Was Notizen anhand des ganzen Vaults ändern würde, wird bis dahin mit Begründung abgelehnt und geht, sobald der Index vollständig ist: Umbenennen oder Verschieben mit dem Anpassen der Links, Übersichten, das Aufräumen, Suchen und Ersetzen, das OKF-Format, das Löschen einer Notiz samt dem, was dazugehört, und eine neue Notiz für einen Link, der noch ins Leere führt. Erinnerungen werden neu geplant, sobald der Index vollständig ist. Läuft das Einlesen nicht durch, sagt der Streifen das, bis der Vault erneut eingelesen ist. Ein minimiertes Fenster liest weiter. Am Telefon ist es genauso, auch in einem zweiten Fenster am Desktop.
 

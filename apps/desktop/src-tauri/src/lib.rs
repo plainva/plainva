@@ -16,6 +16,7 @@ mod checked_fs;
 mod index_read;
 mod backup;
 mod db_batch;
+mod db_tx;
 mod embedding;
 mod linux_appimage;
 #[cfg(target_os = "macos")]
@@ -445,7 +446,11 @@ pub fn run() {
         .manage(model_store::ModelDownloads::default())
         .manage(window_state::WindowStateStore::default())
         .manage(note_links::NoteLinks::default())
+        .manage(db_tx::DbTransactions::default())
         .setup(|app| {
+            // Transactions of the index database that nobody ends are rolled
+            // back after a while (src/db_tx.rs).
+            db_tx::start_reaper(app.handle());
             // The isolated dev build (tauri.dev.conf.json, identifier
             // com.plainva.desktop.dev) and the Labs build of a feature branch
             // (tauri.labs.conf.json, com.plainva.desktop.labs) keep their own
@@ -465,8 +470,18 @@ pub fn run() {
             note_links::arrive(app.handle(), note_links::note_link_args(std::env::args().skip(1)));
             Ok(())
         })
+        // A webview that loads a page has lost the JavaScript that knew its
+        // open transactions: they go back (src/db_tx.rs).
+        .on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started {
+                db_tx::release_owner_later(webview.app_handle(), webview.label().to_string(), "its page loaded");
+            }
+        })
         .on_window_event(|window, event| {
             window_state::track(window, event);
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                db_tx::release_owner_later(window.app_handle(), window.label().to_string(), "its window was closed");
+            }
             // Only captured while a tray icon is actually registered — see
             // src/tray.rs. Without one, closing quits as it always has.
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -576,6 +591,13 @@ pub fn run() {
             sync_upload::sync_file_sha256,
             backup::create_vault_zip,
             db_batch::db_batch,
+            db_tx::db_tx_begin,
+            db_tx::db_tx_execute,
+            db_tx::db_tx_select,
+            db_tx::db_tx_batch,
+            db_tx::db_tx_commit,
+            db_tx::db_tx_rollback,
+            db_tx::db_tx_close,
             unzip::extract_archive,
             unzip::discard_extracted_archive,
             mail_imap::mail_check_login,

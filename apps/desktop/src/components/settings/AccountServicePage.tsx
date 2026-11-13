@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
+import { settingNotSaved } from "../../services/settingNotSaved";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import {
   Banner,
@@ -218,7 +219,7 @@ function FilesPart({ vaultPath, record, on }: { vaultPath: string; record: Cloud
           allowRoot={provider === "s3"}
           onSelect={(picked) => {
             setShowPicker(false);
-            void saveSyncRootFolder(vaultPath, provider, picked).then(() => reload());
+            void saveSyncRootFolder(vaultPath, provider, picked).then(() => reload(), settingNotSaved("sync:root-folder"));
           }}
           onCancel={() => setShowPicker(false)}
         />

@@ -33,7 +33,7 @@ export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
       options: START_VIEWS.map((v) => ({ value: v, label: startLabel(v) })),
       value: settings.startView,
     }).then((v) => {
-      if (v !== null) update({ startView: v as StartView });
+      if (v !== null) void update({ startView: v as StartView });
     });
   };
   return (

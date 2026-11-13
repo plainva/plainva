@@ -175,7 +175,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   const [okfTypeOptions, setOkfTypeOptions] = useState<CuratedOption[]>([]);
   useEffect(() => {
     let alive = true;
-    (async () => {
+    void (async () => {
       try {
         const configured = [
           await getConfiguredNoteType(vaultPath ?? ""),

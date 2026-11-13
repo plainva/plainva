@@ -1578,4 +1578,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "the same reconcile, so the phone keeps the gesture.",
     verified: "2026-10-29",
   },
+  {
+    id: "vault-without-index-database",
+    title: "Opening a vault whose index database does not open",
+    area: "vault",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "The desktop does not open such a vault: the database not opening fails the vault " +
+      "open, and the splash names the error. The phone opens it restricted (stability plan " +
+      "R5): reading, writing and creating notes work and reach the sync at the next start " +
+      "with a database; deleting, renaming and moving are refused by the chain " +
+      "(StructureRefusingVaultAdapter) and the strip says so, because the sync queue lives " +
+      "in that database. Whether the phone keeps opening such a vault, or the desktop " +
+      "opens it the same way, is the maintainer's decision (collection plan, R5 rest item).",
+    mobile: "yes",
+    verified: "2026-11-12",
+  },
 ];

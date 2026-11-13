@@ -136,8 +136,9 @@ describe("what both shells say about the search index", () => {
     expect(desktop).toContain("let coldIndexOwed = true;");
     expect(desktop).toMatch(/if \(await indexer\.indexComplete\(\)\.catch\(\(\) => false\)\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*\}/);
     // Every first scan runs behind the open vault (issue 143, performance plan L3) and keeps what it got.
+    // Quiet on purpose: the scan's failure is said by onFullScanFailed (the handler says so, R4).
     expect(mobile).not.toContain('await indexer.indexVaultFull("open, empty index")');
-    expect(mobile).toMatch(/indexWhole = indexer\s*\.indexVaultFull\("open, empty index"\)[\s\S]{0,600}\.catch\(\(\) => \{\}\)/);
+    expect(mobile).toMatch(/indexWhole = indexer\s*\.indexVaultFull\("open, empty index"\)[\s\S]{0,600}\.catch\(\(\) => \{ \/\* silent: [^*]*\*\/ \}\)/);
     expect(mobile).toContain("toast.error(indexUnavailableText(err))");
     // Until a full scan has gone through, the task reconciler creates no notes:
     // the anchors it looks for come from the index.

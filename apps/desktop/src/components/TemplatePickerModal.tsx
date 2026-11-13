@@ -60,7 +60,7 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
       }
     };
     
-    fetchTemplates();
+    void fetchTemplates();
     return () => { active = false; };
   }, [query, vaultAdapter, vaultPath, isOpen]);
 
@@ -112,7 +112,7 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (results.length > 0 && results[selectedIndex]) {
-        handleChoose(results[selectedIndex].path);
+        void handleChoose(results[selectedIndex].path);
       }
     }
   };

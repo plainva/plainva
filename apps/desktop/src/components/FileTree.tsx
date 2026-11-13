@@ -485,7 +485,7 @@ export const FileTree: React.FC<{
     }
     let cancelled = false;
     walking.current = true;
-    (async () => {
+    void (async () => {
       try {
         const { folders, files } = treeDiskEntries(await vaultAdapter.listDir("", true));
         if (!cancelled) {
@@ -571,7 +571,7 @@ export const FileTree: React.FC<{
       }
     };
 
-    fetchFiles();
+    void fetchFiles();
     return () => { cancelled = true; };
   }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders, sort.key, treeDiskFiles]);
 
@@ -1276,6 +1276,7 @@ export const FileTree: React.FC<{
       await navigator.clipboard.writeText(path);
       toast.info(t("fileTree.pathCopied", "Pfad kopiert."));
     } catch (error) {
+      // silent: no "copied" notice appears, which is what the person sees; nothing was changed.
       console.warn("Failed to copy file path", error);
     } finally {
       setContextMenu(null);
@@ -1522,7 +1523,7 @@ export const FileTree: React.FC<{
                 onKeyDown={e => { if (e.key === "Escape") { setNewItemParams(null); setNewItemError(null); } }}
                 onBlur={() => {
                   if (newItemName.trim()) {
-                    handleNewItemSubmit();
+                    void handleNewItemSubmit();
                   } else {
                     setNewItemParams(null);
                     setNewItemError(null);

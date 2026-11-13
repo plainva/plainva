@@ -21,6 +21,8 @@ import {
   withPinnedLinks,
   type FolderIndexInfo,
   type FolderIndexState,
+  reportBackground,
+  reportingTo,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { pinLinksBeforeNewOverviews, writeOverview } from "../services/indexOverviews";
@@ -133,7 +135,8 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
           await writeOverview(vault, folder);
           done++;
         } catch (e) {
-          console.warn("[mobile] overview skipped", folder, e);
+          // The count said afterwards leaves this folder out; why goes into the diagnostics.
+          reportBackground("overview:write", e);
         }
       }
       return withPinnedLinks(t, written(done), pins.pinned);
@@ -177,7 +180,7 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
           prepare: answer.checked,
           afterMove: (from, to) => vaultOps.followNoteMove(vault, from, to),
         });
-        await vault.indexer?.indexVaultFull("index.md generation").catch(() => {});
+        await vault.indexer?.indexVaultFull("index.md generation").catch(reportingTo("index:full"));
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
         // Said as after any rename: a link that could not be followed still names the old file.
         if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));

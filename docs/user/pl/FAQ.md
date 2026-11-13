@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-11-11
+Stan na: 2026-11-12
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -110,7 +110,7 @@ Dodatkowo Plainva uzgadnia stan automatycznie za każdym razem, gdy wracasz do o
 
 Podczas wczytywania vaultu Plainva podąża za linkami tak jak system: link do folderu jest czytany jako ten folder, a link do pliku jako ten plik — na komputerze i w folderze wybranym na iPhonie. To, czego nie da się odczytać, pomija i nazywa: link do miejsca, którego nie ma na tym urządzeniu (na przykład folder, który istnieje tylko na innym komputerze i dotarł tu jako link) lub folder bez dostępu. Powiadomienie nazywa je raz — **pominięto w indeksie wyszukiwania** — a reszta vaultu jest indeksowana jak zwykle. Nic, co leży pod takim wpisem, nie jest traktowane jako usunięte — ani przez indeks, ani przez synchronizację zaszyfrowanej przestrzeni roboczej.
 
-Jeśli indeksu w ogóle nie da się zaktualizować, powiadomienie podaje powód (**Nie udało się zaktualizować indeksu wyszukiwania: …**); vault pozostaje otwarty z tym, co indeks już zawiera, a przy następnym wczytaniu vaultu Plainva spróbuje ponownie. Na telefonie nazwany zostaje też indeks wyszukiwania, którego nie da się otworzyć: wyszukiwanie, tagi, bazy danych, synchronizacja i kalendarz pozostają wtedy wyłączone, dopóki Plainva nie zdoła go otworzyć.
+Jeśli indeksu w ogóle nie da się zaktualizować, powiadomienie podaje powód (**Nie udało się zaktualizować indeksu wyszukiwania: …**); vault pozostaje otwarty z tym, co indeks już zawiera, a przy następnym wczytaniu vaultu Plainva spróbuje ponownie. Na telefonie nazwany zostaje też indeks wyszukiwania, którego nie da się otworzyć: wyszukiwanie, tagi, bazy danych, synchronizacja i kalendarz pozostają wtedy wyłączone, dopóki Plainva nie zdoła go otworzyć. W tym czasie możesz czytać, pisać i tworzyć notatki, a trafią one do synchronizacji przy następnym uruchomieniu, które otworzy indeks; w synchronizowanym vaulcie usuwanie, zmiana nazwy, przenoszenie i tworzenie folderów pozostają do tego czasu niedostępne, a pasek u góry o tym informuje.
 
 **Pierwsze otwarcie vaulta.** Vault bez indeksu wyszukiwania — otwierany po raz pierwszy albo po zapomnieniu danych aplikacji — otwiera się od razu, a Plainva wczytuje go w tle. Dopóki to trwa, pasek u góry liczy wczytane pliki; wyszukiwanie, tagi, linki zwrotne, bazy danych i graf odpowiadają na podstawie tego, co już wczytano, a drzewo plików pokazuje już każdy plik. To, co zmieniałoby notatki na podstawie całego vaulta, jest do tego czasu odrzucane z podaniem powodu i jest możliwe, gdy indeks będzie kompletny: zmiana nazwy lub przeniesienie z aktualizacją linków, przeglądy, porządkowanie, znajdź i zamień, format OKF, usunięcie notatki razem z tym, co do niej należy, oraz utworzenie notatki dla linku, który jeszcze donikąd nie prowadzi. Przypomnienia są planowane ponownie, gdy indeks będzie kompletny. Jeśli wczytywanie się nie powiedzie, pasek mówi o tym, dopóki vault nie zostanie wczytany ponownie. Zminimalizowane okno wczytuje dalej. Na telefonie jest tak samo, także w drugim oknie na komputerze.
 

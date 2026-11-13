@@ -39,7 +39,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
           readBinding: async () => ({ provider: "s3" }),
           withPassword: (value, secretAccessKey) => ({ ...value, creds: { ...value.creds, secretAccessKey } }),
           verify: async (value, _binding, secretAccessKey) => {
-            allowHttpOrigin(value.creds.endpoint);
+            void allowHttpOrigin(value.creds.endpoint);
             await new S3SyncTarget({ ...value.creds, secretAccessKey }, webdavFetch).listFolders("");
           },
           beforeWrite: async () => {
@@ -56,7 +56,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
           readBinding: async () => ({ provider: "webdav" }),
           withPassword: (value, pass) => ({ ...value, creds: { ...value.creds, pass } }),
           verify: async (value, _binding, pass) => {
-            allowHttpOrigin(value.creds.url);
+            void allowHttpOrigin(value.creds.url);
             await new WebDavSyncTarget({ ...value.creds, pass }, webdavFetch).listFolders("");
           },
           beforeWrite: async () => {
@@ -75,7 +75,7 @@ export function mobilePasswordChangePorts(vaultId: string, record: CloudAccountR
             readBinding: async () => ({ pimAccountId: id }),
             withPassword: (value, pass) => ({ ...value, pass, loginRevision: crypto.randomUUID() }),
             verify: async (value, _binding, pass) => {
-              allowHttpOrigin(value.url);
+              void allowHttpOrigin(value.url);
               const calendars = await new CalDavPimTarget({ ...value, pass }, webdavFetch).listCalendars();
               if (!calendars.length) throw new PasswordChangeError("verification", service);
             },

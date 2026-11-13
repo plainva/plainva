@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-11-11
+Ultimo aggiornamento: 2026-11-12
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -110,7 +110,7 @@ Inoltre, Plainva riconcilia automaticamente ogni volta che torni alla finestra d
 
 Quando legge il vault, Plainva segue i link come fa il sistema: un link a una cartella viene letto come quella cartella, un link a un file come quel file — sul desktop e in una cartella che hai scelto sull'iPhone. Ciò che non riesce a leggere lo lascia fuori e lo nomina: un link a un percorso che non esiste su questo dispositivo (ad esempio una cartella che esiste solo su un altro computer ed è arrivata qui come link) o una cartella senza accesso. Un avviso li nomina una volta — **resta fuori dall'indice di ricerca** — e il resto del vault viene indicizzato come sempre. Nulla di ciò che si trova sotto una voce del genere viene considerato eliminato, né dall'indice né dalla sincronizzazione di uno spazio di lavoro cifrato.
 
-Se l'indice non può essere aggiornato affatto, l'avviso dice perché (**Impossibile aggiornare l'indice di ricerca: …**); il vault resta aperto con ciò che l'indice contiene già e, alla prossima lettura del vault, Plainva riprova. Sul telefono viene nominato anche un indice di ricerca che non si riesce ad aprire: ricerca, tag, database, sincronizzazione e calendario restano allora disattivati finché Plainva non riesce ad aprirlo.
+Se l'indice non può essere aggiornato affatto, l'avviso dice perché (**Impossibile aggiornare l'indice di ricerca: …**); il vault resta aperto con ciò che l'indice contiene già e, alla prossima lettura del vault, Plainva riprova. Sul telefono viene nominato anche un indice di ricerca che non si riesce ad aprire: ricerca, tag, database, sincronizzazione e calendario restano allora disattivati finché Plainva non riesce ad aprirlo. Nel frattempo puoi leggere, scrivere e creare note, e arrivano alla sincronizzazione al prossimo avvio che apre l'indice; in un vault che si sincronizza, eliminare, rinominare, spostare e creare cartelle restano non disponibili fino ad allora, e la striscia in alto lo segnala.
 
 **Aprire un vault per la prima volta.** Un vault senza indice di ricerca — aperto per la prima volta o dopo averne dimenticato i dati dell'app — si apre subito, e Plainva lo legge in background. Finché non ha finito, una striscia in alto conta i file letti; ricerca, tag, backlink, database e grafo rispondono con quanto letto finora, e l'albero dei file mostra già ogni file. Ciò che modificherebbe note in base all'intero vault viene rifiutato fino ad allora, con il motivo, ed è possibile appena l'indice è completo: rinominare o spostare con l'aggiornamento dei link, le panoramiche, la pulizia, trova e sostituisci, il formato OKF, eliminare una nota con ciò che le appartiene e creare una nota per un link che non porta ancora da nessuna parte. I promemoria vengono ripianificati appena l'indice è completo. Se la lettura non va a buon fine, la striscia lo dice finché il vault non viene riletto. Una finestra ridotta a icona continua a leggere. Sul telefono è lo stesso, e anche in una seconda finestra sul desktop.
 

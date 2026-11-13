@@ -1,5 +1,5 @@
 import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from "@capacitor-community/sqlite";
-import { TransactionTurns } from "./transactionTurns";
+import { TransactionTurns } from "@plainva/ui";
 
 /**
  * Every database the phone opens goes through ONE `SQLiteConnection`

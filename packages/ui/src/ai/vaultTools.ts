@@ -283,6 +283,9 @@ export function withoutBrokenLinks(text: string): string {
   return out;
 }
 
+/** How many index hits one search_vault call reads at most while it looks for results this run may see. */
+const SEARCH_SCAN_MAX = 2000;
+
 /** Search snippets carry sentinel characters around the matches; the model gets plain text. */
 export const unmarkSnippet = (snippet: string) => snippet.split(VaultQueryService.SNIPPET_MARK_START).join("").split(VaultQueryService.SNIPPET_MARK_END).join("");
 
@@ -468,17 +471,35 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
         case "search_vault": {
           const limit = Number(a.limit) || 10;
           const offset = offsetOf(a.cursor);
-          const folder = typeof a.folder === "string" && a.folder.trim() ? ` path:"${a.folder.trim().replace(/"/g, "")}"` : "";
-          const hits = await deps.search(`${String(a.query)}${folder}`, limit, offset);
+          // The folder as it was given (the MCP server's wall checked and forwarded exactly this spelling): a quote,
+          // which the query syntax cannot carry, is refused rather than taken out (review of R19).
+          const folderName = typeof a.folder === "string" ? a.folder.trim() : "";
+          if (folderName.includes('"')) return { content: NOT_FOUND, isError: true };
+          const folder = folderName ? ` path:"${folderName}"` : "";
+          // The cursor counts results this run may see, never the index's hits: whether there are more is said only
+          // of what passes the gate, so it tells nothing about notes kept from this run (review of R19). The index is
+          // read in batches until one result past the page passed, or up to a bound.
+          const query = `${String(a.query)}${folder}`;
+          const wanted = offset + limit + 1;
+          const batch = Math.max(limit, 25);
+          const passedHits: Awaited<ReturnType<typeof deps.search>> = [];
+          for (let read = 0; passedHits.length < wanted && read < SEARCH_SCAN_MAX; ) {
+            const hits = await deps.search(query, batch, read);
+            for (const hit of hits) {
+              if (passedHits.length >= wanted) break;
+              if (await allowed(hit.path)) passedHits.push(hit);
+            }
+            read += hits.length;
+            if (hits.length < batch) break;
+          }
           const lines: string[] = [];
           const results: { title: string; path: string; snippet: string }[] = [];
-          for (const hit of hits) {
-            if (!(await allowed(hit.path))) continue;
+          for (const hit of passedHits.slice(offset, offset + limit)) {
             const snippet = hit.snippet ? (await withhold(withoutBrokenLinks(unmarkSnippet(hit.snippet)), hit.path)).replace(/\s+/g, " ").trim() : "";
             lines.push(`- [[${hit.title}]] (${hit.path})${snippet ? ` — ${snippet}` : ""}`);
             results.push({ title: hit.title, path: hit.path, snippet });
           }
-          const next = hits.length === limit ? String(offset + limit) : null;
+          const next = passedHits.length > offset + limit ? String(offset + limit) : null;
           const more = next ? `\n\nMore results: call search_vault again with cursor "${next}".` : "";
           return result(tool.name, lines.length ? `${lines.join("\n")}${more}` : `No matching notes.${more}`, { results, next });
         }

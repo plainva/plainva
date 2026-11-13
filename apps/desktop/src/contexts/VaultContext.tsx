@@ -1,15 +1,17 @@
-import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact, workspaceWriteAuthorizer } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
+import { reportBackground, reportingTo } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { projectPublicationFeedbackForOwner, sameStoredValue, updateVaultText } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
-import { relocateDrafts } from "../services/draftJournal";
+import { flushDrafts, relocateDrafts } from "../services/draftJournal";
+import { desktopChainPorts } from "../services/vaultChainPorts";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { isIndexNotWholeError, VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, formatQueueEntryReport, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { isIndexNotWholeError, VaultIndexer, VaultQueryService, GraphService, initializeSchema, type BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -31,7 +33,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText, b
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson } from "@plainva/core";
+import { CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -867,36 +869,16 @@ export const VaultProvider: React.FC<{
       // with the workspace's permission check above them, the queue, and the
       // conflict guard on top. What the worker brings from another device is
       // nothing the index reports for this one (finding 2026-10-12).
-      const chain = buildVaultChain({
+      const chain = buildVaultChain(desktopChainPorts({
+        vaultPath: path,
         storage: tauriVaultAdapter,
         versions: versionsOptions,
         deviceId: await getDeviceId(),
-        index: { db: dbAdapter, queue: syncQueue },
-        workspace: workspaceStateStore
-          ? {
-            state: workspaceStateStore,
-            authorize: workspaceWriteAuthorizer(workspaceRuntime, workspaceStateStore, (question) => appConfirm({ ...question, kind: "warning" })),
-          }
-          : null,
-        // The encrypted workspace's queue makes up for its entries the same way (D2).
-        onQueueEntry: (report) => logDiagnostic("sync", formatQueueEntryReport(report)),
-        // The adapter auto-merged external + local changes and wrote the result to disk.
-        // Tell the editor so it adopts the merged content instead of overwriting it on the next save.
-        onAutoMerged: (mergedPath, mergedText) => {
-          window.dispatchEvent(new CustomEvent("plainva-auto-merged", { detail: { path: mergedPath, mergedText } }));
-        },
-        // A write turned line ends the file's shape does not keep (a carriage
-        // return of its own) — every line of the file, unasked: said here for
-        // every writer of the app at once, in this window and in the auxiliary
-        // windows on this vault, whose saves come through this chain as well.
-        onLineEndsConverted: (convertedPath, lineEnd) => {
-          sayLineEndsConverted(convertedPath, lineEnd);
-          void getWindowBus()
-            .then((bus) => bus.broadcast("line-ends-converted", { path: convertedPath, eol: lineEnd }, path))
-            .catch(() => { /* no bus (browser/test): a single window has said it */ });
-        },
-        kind: "external-folder",
-      });
+        db: dbAdapter,
+        queue: syncQueue,
+        workspace: workspaceStateStore ? { state: workspaceStateStore, runtime: workspaceRuntime } : null,
+        confirm: (question) => appConfirm({ ...question, kind: "warning" }),
+      }));
       const backupVaultAdapter = chain.belowChain;
       const permissionedWorkspaceAdapter = chain.permissions;
       const syncRepo = chain.syncRepo!;
@@ -959,16 +941,23 @@ export const VaultProvider: React.FC<{
 
       // Files created/modified outside Plainva's own write path (another editor, the OS)
       // are indexed but were never enqueued. Push them when this vault has a sync target.
-      const enqueueLocalChange = async (changedPath: string) => {
-        if (!queuesChanges || changedPath.includes(".plainva") || changedPath.includes(".CONFLICT")) return;
-        if (permissionedWorkspaceAdapter && !await permissionedWorkspaceAdapter.authorizeExternalChange(changedPath, true)) return;
-        const queued = workspaceStateStore
-          ? workspaceStateStore.enqueue("write", changedPath)
-          : syncQueue.queueWrite(changedPath);
-        queued
-          .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-          .catch((e) => console.error("[VaultContext] failed to enqueue local change", e));
-      };
+      // The index's callbacks and the sweep of what an ended app left owed
+      // (`sweepOwedToRemote`, R22) queue through this one place, which says
+      // what came of each entry: queued, refused, or failed (review F1).
+      const localQueueing = createLocalQueueing({
+        queuesChanges: () => queuesChanges,
+        permission: () => permissionedWorkspaceAdapter
+          ? (p, isChange) => permissionedWorkspaceAdapter.authorizeExternalChange(p, isChange)
+          : null,
+        workspace: () => workspaceStateStore,
+        plain: () => syncQueue,
+        // No sync target: just drop the stale state row.
+        withoutTarget: (p) => syncRepo.deleteSyncState(p),
+        onQueued: () => window.dispatchEvent(new CustomEvent("plainva-sync-queued")),
+        // Into the diagnostics as every failure on a write path (stability plan R4).
+        onError: (what, e) => reportBackground(`sync:queue-${what}`, e),
+      });
+      const enqueueLocalChange = (changedPath: string) => localQueueing.change(changedPath);
 
       // Only the first index of an empty index reports progress (P3), into the
       // shared store of the first build (performance plan L3) — never into
@@ -992,6 +981,31 @@ export const VaultProvider: React.FC<{
       let localOnlySwept = false;
       // What a full scan left out, or why it failed, said once on screen (issue 125).
       const indexNotices = createIndexNotices(toast);
+      // A file that left the vault, queued the way its index pass reports it:
+      // the remote deletion, or — without a sync target — the stale sync row.
+      // The index's `onLocalFileDeleted` and the sweep of what an ended app
+      // left owed (`sweepOwedToRemote`, R22) both come here.
+      const queueLocalDeletion = (deletedPath: string) => localQueueing.deletion(deletedPath);
+      // What the index decided and committed while the queue never heard of it
+      // — the app ended between the two (stability plan R22): deletions, and in
+      // an encrypted workspace also changes. Run at the first cycle of the
+      // vault's sync, through the handlers the index's callbacks use.
+      const sweepOwedToRemote = (kind: "plain" | "workspace") => {
+        if (!queuesChanges) return;
+        const handlers = {
+          vaultIsThere: () => vaultAdapter.exists("").catch(() => false),
+          stillGone: async (p: string) => !(await vaultAdapter.exists(p)),
+          remove: queueLocalDeletion,
+          removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),
+          write: enqueueLocalChange,
+        };
+        (kind === "plain" ? sweepPlainOwed(dbAdapter, handlers) : sweepWorkspaceOwed(dbAdapter, handlers))
+          .then((report: OwedSweepReport) => {
+            if (report.deletions + report.writes > 0) logDiagnostic("sync", `queued what the index had found and nobody queued: ${report.deletions} deletion(s), ${report.writes} change(s)`);
+            if (report.failed > 0) logDiagnostic("sync", `could not queue ${report.failed} change(s) or deletion(s) the index had found; they wait for the next start`);
+          })
+          .catch((e) => console.error("[VaultContext] sweep of owed changes failed", e));
+      };
       // What the sync worker removes itself is not the user's deletion (finding
       // 2026-09-20): the worker marks a path before it mirrors a remote deletion,
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
@@ -1019,31 +1033,13 @@ export const VaultProvider: React.FC<{
           // E9) — moved or deleted outside Plainva while open. It looks for
           // the file; the owner bridge carries the event to other windows.
           if (!path.includes(".plainva")) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
-          if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
+          if (!queuesForTheRemote(path)) return;
           // The worker mirrored a remote deletion: its sync_state is already
           // gone and the remote has nothing left to delete. Asked for the row
           // the index removed: the mark answers for the file the worker took
           // away, not for a later one of that name (finding 2026-10-12).
           if (ownDeletions.consume(path, row)) return;
-          if (queuesChanges) {
-            if (permissionedWorkspaceAdapter) {
-              void permissionedWorkspaceAdapter.authorizeExternalChange(path, false).then((allowed) => {
-                if (!allowed) return;
-                return workspaceStateStore!.enqueue("delete", path).then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")));
-              }).catch((e) => console.error("[VaultContext] failed to authorize local delete", e));
-              return;
-            }
-            // Propagate the deletion to the remote; sync_state is cleaned after the push.
-            const queued = workspaceStateStore
-              ? workspaceStateStore.enqueue("delete", path)
-              : syncQueue.queueDelete(path);
-            queued
-              .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-              .catch((e) => console.error("[VaultContext] failed to enqueue local delete", e));
-          } else {
-            // No sync target: just drop the stale state row.
-            syncRepo.deleteSyncState(path).catch(() => {});
-          }
+          void queueLocalDeletion(path);
         },
         // One line per full scan (issue 122): what set it off, how much it
         // walked, how long it took and what it changed. Counts only. On
@@ -1062,7 +1058,8 @@ export const VaultProvider: React.FC<{
             if (localOnlySwept) {
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-                .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+                .catch(reportingTo("sync:queue-local-only"));
+              sweepOwedToRemote("plain");
             }
           }
           logDiagnostic("index", formatFullScan(info));
@@ -1601,6 +1598,9 @@ export const VaultProvider: React.FC<{
                   });
                 };
                 worker.onProgress = (progress) => syncStatusStore.set(path, { progress });
+                // The first cycle has looked: what the index found and an ended
+                // app never queued goes into the workspace's queue (R22).
+                worker.onFirstCycleComplete = () => sweepOwedToRemote("workspace");
                 // A queued remark published or failed, or one arrived from another
                 // device: the open column and the overview refresh themselves (K6).
                 worker.onCommentsChanged = (paths) => {
@@ -1629,7 +1629,7 @@ export const VaultProvider: React.FC<{
                     console.error("[VaultContext] background encrypted workspace start failed", e);
                     const message = e instanceof Error ? e.message : String(e);
                     const errored = { ...activeSecurityStatus, phase: "error" as const, lastError: message.slice(0, 1000) };
-                    await saveWorkspaceSecurityStatus(path, errored).catch(() => undefined);
+                    await saveWorkspaceSecurityStatus(path, errored).catch(reportingTo("workspace:status"));
                     syncStatusStore.set(path, { status: "error", message, provider: syncProvider });
                     setState((s) => (s.vaultPath === path ? { ...s, workspaceSecurityStatus: errored } : s));
                   });
@@ -1691,7 +1691,8 @@ export const VaultProvider: React.FC<{
               if (!root) return;
               resolvedDriveRoot = null;
               writeSyncRootFolder(path, "drive", root.path, root.id)
-                .catch((e) => console.error("[VaultContext] could not store the Drive folder id", e));
+                // The folder stays addressed by name until the next listing that holds.
+                .catch(reportingTo("sync:drive-folder-id"));
             };
             // Reported every cycle, empty included, so a renamed pair takes the
             // card down again by itself. Not on the encrypted worker: that one
@@ -1739,7 +1740,8 @@ export const VaultProvider: React.FC<{
               // without the fresh-index mass-overwrite risk.
               syncQueue.enqueueLocalOnlyFiles()
                 .then(() => window.dispatchEvent(new CustomEvent("plainva-sync-queued")))
-                .catch((e) => console.error("[VaultContext] enqueueLocalOnlyFiles failed", e));
+                .catch(reportingTo("sync:queue-local-only"));
+              sweepOwedToRemote("plain");
               localOnlySwept = true;
               // Never silently: the copies kept where both sides differed (review 2026-10-27).
               sayFirstSyncConflictCopies(outcome.conflictCopies, (key, options) => i18n.t(key, options), (copy) =>
@@ -1869,7 +1871,7 @@ export const VaultProvider: React.FC<{
         if (workspaceSecurityStatus) {
           const message = e instanceof Error ? e.message : String(e);
           resolvedWorkspaceSecurityStatus = { ...workspaceSecurityStatus, phase: "error", lastError: message.slice(0, 1000) };
-          await saveWorkspaceSecurityStatus(path, resolvedWorkspaceSecurityStatus).catch(() => undefined);
+          await saveWorkspaceSecurityStatus(path, resolvedWorkspaceSecurityStatus).catch(reportingTo("workspace:status"));
           syncStatusStore.set(path, { status: "error", message, provider: syncProvider });
         }
       }
@@ -2310,7 +2312,7 @@ export const VaultProvider: React.FC<{
       }
     };
 
-    startWatching();
+    void startWatching();
 
     return () => {
       clearTimeout(debounceTimer);
@@ -2405,7 +2407,7 @@ export const VaultProvider: React.FC<{
         }
         const customEvent = e as CustomEvent;
         const isNew = customEvent.detail?.isNewConnection;
-        loadVault(state.vaultPath, isNew);
+        void loadVault(state.vaultPath, isNew);
       }
     };
 
@@ -2434,7 +2436,7 @@ export const VaultProvider: React.FC<{
       if (!state.vaultPath || !state.syncWorker) return;
       const worker = state.syncWorker;
       if (!(worker instanceof SyncWorker)) {
-        loadVault(state.vaultPath);
+        void loadVault(state.vaultPath);
         return;
       }
       buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: state.belowChainAdapter, memberId: workspaceRuntimeRef.current?.memberId ?? null })
@@ -2453,7 +2455,7 @@ export const VaultProvider: React.FC<{
       // this event, to avoid a double reload).
       if (!state.vaultPath) return;
       if (state.syncWorker) state.syncWorker.stop();
-      loadVault(state.vaultPath);
+      void loadVault(state.vaultPath);
     };
 
     const handleWorkspaceSecurityChanged = () => {
@@ -2554,6 +2556,9 @@ export const VaultProvider: React.FC<{
     settingsOnlyRef.current = null;
     settingsOnly?.stop();
     const drain = (async () => {
+      // What the draft journal still buffers for this vault goes to disk first
+      // (bounded): with the vault gone, nobody writes it later.
+      if (path) await flushDrafts(path).catch(() => {});
       if (path) await settlePendingWrites(path);
       await worker?.stopAndDrain();
       await settingsOnly?.stopAndDrain();
@@ -3726,7 +3731,7 @@ export const VaultProvider: React.FC<{
       ?.listPublications()
       .then((records) => records.map((record) => record.publicationId))
       .catch(() => [] as string[]);
-    await workspaceStateRef.current?.clearWorkspaceState().catch(() => undefined);
+    await workspaceStateRef.current?.clearWorkspaceState().catch(reportingTo("workspace:teardown"));
     lockWorkspaceRuntime(path);
     await clearPublicationRuntimes(path, publicationIds ?? []);
     await clearWorkspaceRuntime(path);

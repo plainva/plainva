@@ -1,5 +1,5 @@
 import { Preferences } from "@capacitor/preferences";
-import { getPlatformServices } from "@plainva/ui";
+import { getPlatformServices, reportingTo } from "@plainva/ui";
 
 /**
  * Vault registry (M3.5 isolation rework): every cloud connection gets its
@@ -117,7 +117,7 @@ export async function loadRegistry(): Promise<RegistryState> {
   await persist(fresh);
   const creds = getPlatformServices().credentials;
   for (const key of PRE_ISOLATION_SECRET_KEYS) {
-    await creds.removeSecret(key).catch(() => {});
+    await creds.removeSecret(key).catch(reportingTo("credentials:forget"));
   }
   return fresh;
 }

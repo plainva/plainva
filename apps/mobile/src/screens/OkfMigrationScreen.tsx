@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { App as CapApp } from "@capacitor/app";
 import { okfMigrationPending, type OkfVersionState } from "@plainva/core";
-import { announceOkfRollback, Button, Checkbox, GroupCard, Row, RowList, SectionLabel, okfVersionBreakdown, errorText, toast, type OkfRunRecipe } from "@plainva/ui";
+import { announceOkfRollback, Button, Checkbox, GroupCard, Row, RowList, SectionLabel, okfVersionBreakdown, errorText, toast, type OkfRunRecipe, reportBackground } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import {
@@ -77,8 +77,9 @@ export function OkfMigrationScreen({ vault, onBack }: { vault: MobileVault; onBa
   const refreshIndex = async (paths: string[]) => {
     try {
       await vault.indexer?.indexVaultFull("OKF migration");
-    } catch {
+    } catch (error) {
       // The index catches up on the next pass; the files themselves are written.
+      reportBackground("index:full", error);
     }
     window.dispatchEvent(new CustomEvent("m-index-changed"));
     for (const path of paths) {

@@ -28,6 +28,7 @@ import {
 } from "@plainva/core";
 import { Capacitor } from "@capacitor/core";
 import i18n from "@plainva/ui/i18n";
+import { reportVisible } from "@plainva/ui";
 import { mPrompt } from "./mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
 import { mobileCommentsMode, mobileSyncDeviceId } from "./mobileSettingsSync";
@@ -111,7 +112,8 @@ export async function ensureMobileCommentAuthorName(vault: MobileVault): Promise
     placeholder: i18n.t("comments.authorNamePlaceholder"),
   });
   if (res.cancelled || !res.value.trim()) return;
-  updateMobileSettings({ verifierName: res.value.trim() });
+  // The name shows at once; one that was not kept is said (stability plan R4).
+  await updateMobileSettings({ verifierName: res.value.trim() }).catch((error: unknown) => reportVisible("settings:author-name", error, i18n.t("mobile.settingSaveFailed")));
 }
 
 /**

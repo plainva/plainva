@@ -21,6 +21,7 @@
 import { isIndexNotWholeError, type IndexNotWholeError } from "@plainva/core";
 import { indexNotWholeText } from "./indexBuild";
 import { connectionErrorText } from "./connectionErrorText";
+import { isStructureNeedsIndexError } from "@plainva/core";
 import i18n from "i18next";
 
 const INPUT_REJECTIONS = new Map([
@@ -127,6 +128,9 @@ function inputErrorText(message: string): string {
 export function errorText(err: unknown): string {
   // A refusal over an index that is not whole says why, in the person's language (L3).
   if (isIndexNotWholeError(err) && (err as { state?: unknown }).state) return indexNotWholeText((err as IndexNotWholeError).state);
+  // A deletion, rename or move refused while the index database is closed
+  // (stability plan R5): one sentence that says why and what to do, wherever it surfaces.
+  if (isStructureNeedsIndexError(err)) return i18n.t("errors.structureNeedsIndex");
   const connection = connectionErrorText(err);
   if (connection) return connection;
   if (typeof err === "string") return inputErrorText(err.trim() || "unknown error");

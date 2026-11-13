@@ -882,6 +882,37 @@ function laterTouches(paths: ReadonlyArray<string | null>): { sql: string; param
 }
 
 /** SQLite-backed crash-safe P3 repository. Private keys never enter these tables. */
+/**
+ * Takes the index's `local_ahead` mark off the paths of the queue entries
+ * `ids` once nothing else is queued for them (stability plan R22), as the plain
+ * queue's `markSynced` does. The workspace's queue never did: the mark stayed
+ * on every file the index found changed, and the sweep that queues what the
+ * index found and nobody queued (`sweepWorkspaceOwed`) could not tell a change
+ * that went up from one that was lost. Runs before the entries are deleted, in
+ * the same batch.
+ */
+// Only where the row holds the content that went up (`committed`, the
+// plaintext's hash; review m1): the index may have written a newer change while
+// this one was uploading, and its mark is that change's only record. A
+// discarded entry (nothing to push) takes the mark off where the row holds the
+// object's current content.
+function consumedMarks(ids: readonly number[], committed?: { sha256: string | null }): Array<{ sql: string; params: unknown[] }> {
+  if (ids.length === 0) return [];
+  const list = ids.map(() => "?").join(",");
+  const content = committed
+    ? { sql: `AND files.sha256 IS NOT NULL AND files.sha256 = ?`, params: [committed.sha256] as unknown[] }
+    : { sql: `AND EXISTS (SELECT 1 FROM workspace_object o WHERE o.path = files.path AND o.deleted = 0 AND o.plaintext_sha256 = files.sha256)`, params: [] as unknown[] };
+  return [{
+    sql: `UPDATE files SET sync_state = 'synced'
+           WHERE sync_state = 'local_ahead'
+             ${content.sql}
+             AND path IN (SELECT path FROM workspace_queue WHERE id IN (${list})
+                          UNION SELECT new_path FROM workspace_queue WHERE id IN (${list}) AND new_path IS NOT NULL)
+             AND NOT EXISTS (SELECT 1 FROM workspace_queue q WHERE q.id NOT IN (${list}) AND (q.path = files.path OR q.new_path = files.path))`,
+    params: [...content.params, ...ids, ...ids, ...ids],
+  }];
+}
+
 export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   constructor(private readonly db: IDatabaseAdapter) {}
 
@@ -1104,6 +1135,10 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
       [operation, path, target],
     );
     if (!row) throw new Error("workspace queue insert did not return an id");
+    // A deletion queued: the index's mark that it was owed goes (R22). After
+    // the entry, in its own statement: an app that ends between the two leaves
+    // a mark the next sweep finds queued and drops.
+    if (operation === "delete") await this.db.execute(`DELETE FROM index_removed WHERE path = ?`, [path]);
     return row.id;
   }
   async listQueue(limit = Number.MAX_SAFE_INTEGER): Promise<WorkspaceQueuedMutation[]> {
@@ -1127,7 +1162,7 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
     ]);
   }
   async discardQueue(queueId: number): Promise<void> {
-    await this.db.execute(`DELETE FROM workspace_queue WHERE id = ?`, [queueId]);
+    await runStatementsAtomic(this.db, [...consumedMarks([queueId]), { sql: `DELETE FROM workspace_queue WHERE id = ?`, params: [queueId] }]);
   }
   async markQueueFailed(queueId: number, message: string): Promise<void> {
     await this.db.execute(`UPDATE workspace_queue SET retry_count = retry_count + 1, last_error = ? WHERE id = ?`, [message.slice(0, 1000), queueId]);
@@ -1137,7 +1172,10 @@ export class SqlWorkspaceStateStore implements WorkspaceStateStore {
   }
   async commitQueued(queueId: number, mutation: CommitWorkspaceMutation, meta: WorkspaceRuntimeMeta, absorbedQueueIds: number[] = []): Promise<void> {
     const completed = [...new Set([queueId, ...absorbedQueueIds])];
-    await this.commitMutation(mutation, true, meta, completed.map((id) => ({ sql: `DELETE FROM workspace_queue WHERE id = ?`, params: [id] })));
+    await this.commitMutation(mutation, true, meta, [
+      ...consumedMarks(completed, { sha256: mutation.object.deleted ? null : mutation.object.plaintextSha256 }),
+      ...completed.map((id) => ({ sql: `DELETE FROM workspace_queue WHERE id = ?`, params: [id] })),
+    ]);
   }
   async recordIncoming(mutation: CommitWorkspaceMutation, setCurrent: boolean, meta: WorkspaceRuntimeMeta): Promise<void> {
     await this.commitMutation(mutation, setCurrent, meta, []);

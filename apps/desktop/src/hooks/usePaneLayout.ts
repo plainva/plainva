@@ -472,7 +472,7 @@ export function usePaneLayout({ vaultPath, validatePath, onOpenPath, onRequestPi
     // StrictMode re-run asks the same question. The stored tabs are not
     // overwritten by the empty start; the window's first change is saved.
     const empty = startsEmpty(layoutScope);
-    (async () => {
+    void (async () => {
       const restored = empty ? await Promise.resolve(null) : await restoreLayout(vaultPath, validateRef.current, layoutScope);
       if (cancelled) return;
       markFirstHydrate(layoutScope);

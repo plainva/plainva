@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { sweepMobilePinboardDrafts } from "./baseOps";
 import type { MobileVault } from "./vaultService";
+import { reportingTo } from "@plainva/ui";
 
 /**
  * Finishes what an app that was closed or killed during a pinboard entry left
@@ -15,6 +16,6 @@ import type { MobileVault } from "./vaultService";
 export function usePinboardDraftSweep(vault: MobileVault | null): void {
   useEffect(() => {
     if (!vault) return;
-    void sweepMobilePinboardDrafts(vault).catch((e) => console.warn("[pinboard] finishing drafts failed", e));
+    void sweepMobilePinboardDrafts(vault).catch(reportingTo("pinboard:drafts"));
   }, [vault]);
 }

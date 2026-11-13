@@ -24,7 +24,7 @@ import {
   type JournalCheckResult,
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
-import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts } from "@plainva/ui";
+import { connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
 import { assertEmptyRemoteVault } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -590,7 +590,7 @@ async function adoptOrForget(vaultId: string, adopt?: (vaultId: string) => Promi
   try {
     await adopt(vaultId);
   } catch (error) {
-    await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId)).catch(() => undefined);
+    await getPlatformServices().credentials.removeSecret(credKeyFor(vaultId)).catch(reportingTo("credentials:forget"));
     throw error;
   }
 }
@@ -900,7 +900,7 @@ export function syncNow(): void {
   // has no other button that would (2026-07-16). fullResync = reset stuck
   // queue ops + drop the cursor + immediate cycle.
   if (worker?.fullResync) void worker.fullResync().catch((e) => console.error("[sync] resync failed", e));
-  else { worker?.retryFailed(); worker?.triggerImmediate(); }
+  else { void worker?.retryFailed(); worker?.triggerImmediate(); }
 }
 
 let lastForegroundSyncAt = 0;
@@ -916,7 +916,7 @@ export function foregroundSync(): void {
   if (now - lastForegroundSyncAt < 60_000) return;
   lastForegroundSyncAt = now;
   if (worker.fullResync) void worker.fullResync().catch((e) => console.error("[sync] foreground resync failed", e));
-  else { worker.retryFailed(); worker.triggerImmediate(); }
+  else { void worker.retryFailed(); worker.triggerImmediate(); }
 }
 
 let kickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1338,7 +1338,11 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     encrypted.onFilesChanged = (paths) => { void v.reindexPaths(paths); notifyPulledFiles(paths); };
     // The first cycle has looked: a file the index finds as new from now on
     // goes into the workspace queue at once, as with the plain worker (3.119).
-    encrypted.onFirstCycleComplete = () => v.markFirstSyncComplete();
+    encrypted.onFirstCycleComplete = () => {
+      v.markFirstSyncComplete();
+      // What the index found and an ended app never queued (R22).
+      v.sweepOwedToRemote("workspace");
+    };
     worker = encrypted;
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
@@ -1418,7 +1422,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     if (!root) return;
     resolvedDriveRoot = null;
     void writeSyncRootFolder(v.vaultId, "drive", root.path, root.id)
-      .catch((e) => console.error("[syncService] could not store the Drive folder id", e));
+      // The next start finds the folder by its path again.
+      .catch(reportingTo("sync:drive-folder"));
   };
   journalChecker = (onProgress) => w.verifyDeletionJournal(onProgress);
   nameTwinResolver = (action) => w.resolveNameCollisions(action);
@@ -1432,7 +1437,10 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   w.onFirstCycleComplete = (outcome) => {
     // From now on a missing cloud folder is an error, never a new one (fifth review, 2).
     void markMobileSyncedBefore(v.vaultId).catch((e) => console.error("[syncService] could not record the first sync", e));
-    void v.syncQueue!.enqueueLocalOnlyFiles().catch(() => {});
+    // Owed changes not queued now are queued by the next start's first cycle; a trace says why they waited.
+    void v.syncQueue!.enqueueLocalOnlyFiles().catch(reportingTo("sync:queue-owed"));
+    // The deletions the index committed and an ended app never queued (R22).
+    v.sweepOwedToRemote("plain");
     v.markFirstSyncComplete();
     // The remote content is here now, so anchored notes exist and can be
     // ADOPTED rather than imported a second time.

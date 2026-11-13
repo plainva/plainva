@@ -122,6 +122,7 @@ export function announceReminder(reminder: PlannedReminder, deps: ReminderSchedu
     // No `schedule` — see the note at the top of this file. This call fires now.
     sendNotification({ title, body });
   } catch (e) {
+    // silent: the in-app notice below says the same; only the system's banner is missing.
     console.warn("[reminderScheduler] notification failed", e);
   }
 

@@ -7,6 +7,9 @@ import {
   PLAIN_VAULT_CHAIN,
   QueueingVaultAdapter,
   SyncQueue,
+  StructureNeedsIndexError,
+  StructureRefusingVaultAdapter,
+  UNINDEXED_LOCAL_VAULT_CHAIN,
   UNINDEXED_VAULT_CHAIN,
   VaultPermissionDeniedError,
   WORKSPACE_VAULT_CHAIN,
@@ -50,6 +53,7 @@ function linksOf(chain: VaultChain, storage: IVaultAdapter): string[] {
     else if (link instanceof WorkspaceQueueingVaultAdapter) names.push("workspace-queue");
     else if (link instanceof PermissionedVaultAdapter) names.push("permissions");
     else if (link instanceof BackupVaultAdapter) names.push("versions");
+    else if (link instanceof StructureRefusingVaultAdapter) names.push("structure-refusal");
     else throw new Error("a link the chain does not know");
     const own = link as unknown as { inner?: unknown; raw?: unknown };
     link = own.inner ?? own.raw;
@@ -92,11 +96,21 @@ describe("buildVaultChain", () => {
     expect(linksOf(chain, storage)).toEqual(chain.links);
   });
 
-  it("without an index database: versions and the conflict guard, nothing queued", () => {
+  it("without an index database: versions, the refusal of what only a queue could carry, the conflict guard; nothing queued", async () => {
     const storage = new RecordingStorage(1_000);
-    const chain = buildVaultChain({ storage, deviceId: "device-a", index: null, kind: "container" });
-    expect(chain.links).toEqual(["storage", "versions", "conflict-guard"]);
+    const chain = buildVaultChain({ storage, deviceId: "device-a", index: null, remote: true, kind: "container" });
+    expect(chain.links).toEqual(["storage", "versions", "structure-refusal", "conflict-guard"]);
+    await storage.writeTextFile("Note.md", "one\n");
+    storage.log.length = 0;
+    await expect(chain.files.deleteItem("Note.md", false, { confirmed: true })).rejects.toBeInstanceOf(StructureNeedsIndexError);
+    await expect(chain.files.renameItem("Note.md", "Other.md")).rejects.toBeInstanceOf(StructureNeedsIndexError);
+    await chain.files.writeTextFile("Note.md", "two\n");
+    expect(storage.userWrites()).toEqual(["write Note.md"]);
     expect(UNINDEXED_VAULT_CHAIN).toEqual(chain.links);
+    // A vault with no remote has nobody to tell: nothing is refused.
+    const local = buildVaultChain({ storage: new RecordingStorage(1_000), deviceId: "device-a", index: null, kind: "external-folder" });
+    expect(local.links).toEqual(UNINDEXED_LOCAL_VAULT_CHAIN);
+    expect(UNINDEXED_LOCAL_VAULT_CHAIN).toEqual(["storage", "versions", "conflict-guard"]);
     expect(linksOf(chain, storage)).toEqual(chain.links);
     expect(chain.queueing).toBeNull();
     expect(chain.syncRepo).toBeNull();

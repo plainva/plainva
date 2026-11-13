@@ -46,6 +46,17 @@ export function sqlBridge(): SqlBridge {
       return [Number(result.changes), Number(result.lastInsertRowid)];
     }
     if (cmd === 'plugin:sql|select') return plain(db.prepare(String(args.query)).all(...((args.values ?? []) as never[])));
+    // The desktop's transactions (R1): one at a time (the adapter's turns), on this one connection.
+    if (cmd === 'db_tx_begin') { db.exec('BEGIN IMMEDIATE'); return 1; }
+    if (cmd === 'db_tx_execute') return Number(db.prepare(String(args.sql)).run(...((args.params ?? []) as never[])).changes);
+    if (cmd === 'db_tx_select') return plain(db.prepare(String(args.sql)).all(...((args.params ?? []) as never[])));
+    if (cmd === 'db_tx_batch') {
+      for (const statement of args.statements as { sql: string; params: unknown[] }[]) db.prepare(statement.sql).run(...((statement.params ?? []) as never[]));
+      return null;
+    }
+    if (cmd === 'db_tx_commit') { db.exec('COMMIT'); return null; }
+    if (cmd === 'db_tx_rollback') { if (db.isTransaction) db.exec('ROLLBACK'); return null; }
+    if (cmd === 'db_tx_close') return null;
     if (cmd === 'db_batch') {
       db.exec('BEGIN');
       try {
@@ -108,7 +119,7 @@ export async function installStandIn(page: Page, files: Record<string, string>, 
       if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
       if (cmd === 'plugin:dialog|message') return 'Ok';
       if (cmd === 'plugin:sql|load') return args.db;
-      if (cmd === 'plugin:sql|execute' || cmd === 'plugin:sql|select' || cmd === 'db_batch') return (window as any).__perfSql(cmd, args);
+      if (cmd === 'plugin:sql|execute' || cmd === 'plugin:sql|select' || cmd === 'db_batch' || cmd.startsWith('db_tx_')) return (window as any).__perfSql(cmd, args);
       if (cmd === 'plugin:sql|select_one') return null;
       if (cmd === 'register_write_root') return 'mock-root:' + String(args.path).replace(/\/$/, '');
       if (cmd === 'read_files_for_index') {

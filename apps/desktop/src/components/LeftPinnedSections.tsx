@@ -1,4 +1,5 @@
 import type { BookmarkEntry } from "@plainva/ui";
+import { settingNotSaved } from "../services/settingNotSaved";
 import { useId, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { copyDesktopNoteLink } from "../services/noteLinkReceiver";
 import { ChevronDown, Clock, Bookmark, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
@@ -142,7 +143,7 @@ export function LeftPinnedSections({
   const persist = useCallback(
     (next: AreaOrder) => {
       setLayout(next);
-      void saveBarLayout("leftSections", vaultPath, next, source);
+      void saveBarLayout("leftSections", vaultPath, next, source).catch(settingNotSaved("settings:bar-layout"));
     },
     [vaultPath, source],
   );
@@ -221,6 +222,7 @@ export function LeftPinnedSections({
       await navigator.clipboard.writeText(path);
       toast.info(t("fileTree.pathCopied", "Pfad kopiert."));
     } catch (err) {
+      // silent: no "copied" notice appears, which is what the person sees; nothing was changed.
       console.warn("Failed to copy file path", err);
     }
   }, [t]);

@@ -1,4 +1,5 @@
 import { isVaultPathSetting, setForeignLegacyComments } from "@plainva/ui";
+import { reportingTo } from "@plainva/ui";
 /**
  * Desktop profile-sync port (settings-sync plan P1). Bridges the vault's
  * syncable per-vault settings (content placement, backup retention, sync
@@ -830,7 +831,7 @@ function desktopAccountPorts(store: ISettingsStore, vaultPath: string, pimRuntim
     },
     deletePimAccount: async (accountId) => {
       if (pimRuntime) await pimRuntime.cache.deleteAccount(accountId);
-      await clearPimCredentials(vaultPath, accountId).catch(() => {});
+      await clearPimCredentials(vaultPath, accountId).catch(reportingTo("pim:remove-credentials"));
     },
     listCalendars: async (accountId) => (pimRuntime ? pimRuntime.cache.listCalendars(accountId) : []),
     setCalendarSelected: async (accountId, id, selected) => {

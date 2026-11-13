@@ -46,7 +46,7 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
   useEffect(() => {
     let alive = true;
     if (!graphService) return;
-    (async () => {
+    void (async () => {
       try {
         // An orphan is a note the index knows no link to: over half an index,
         // a wrong offer to delete — refused there (performance plan L3).

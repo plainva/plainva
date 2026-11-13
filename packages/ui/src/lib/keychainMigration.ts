@@ -59,6 +59,7 @@ export async function migrateKeychainSlot(
   try {
     await credentials.writeSecret(to, existing);
   } catch {
+    // silent: the credential stays under its old name, where it keeps working; the next start tries again.
     return "kept-old";
   }
 

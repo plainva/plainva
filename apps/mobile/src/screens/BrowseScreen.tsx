@@ -14,7 +14,7 @@ import {
   X,
   ArrowUpDown,
 } from "lucide-react";
-import { AreaBoundary, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
+import { AreaBoundary, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, GroupCard, reportBackground, toast, ICON, IconButton, isConflictCopyPath, isLargeDeletion, Row, RowList, SearchField, SectionLabel } from "@plainva/ui";
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, resolveOpenAction, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countVaultFiles } from "../lib/folderDeletion";
 import { folderContents } from "../lib/folderContents";
@@ -252,12 +252,22 @@ export function BrowseScreen({
         });
         if (!sure) return;
       }
+      // A file that could not be deleted does not stop the others, and it is
+      // said: the person believes every selected file gone (stability plan R4).
+      const failed: string[] = [];
+      let firstError: unknown = null;
       for (const p of selected) {
         try {
           await vaultOps.remove(vault, p, { confirmed: true });
-        } catch {
-          /* keep going; the sync chain surfaces persistent failures */
+        } catch (error) {
+          reportBackground("delete:selection", error);
+          if (failed.length === 0) firstError = error;
+          failed.push(p);
         }
+      }
+      if (failed.length > 0) {
+        const names = failed.slice(0, 3).join(", ") + (failed.length > 3 ? ", …" : "");
+        toast.error(t("dialogs.deleteFailedMsg", { error: `${names}: ${errorText(firstError)}` }));
       }
       setSelected(null);
     })();

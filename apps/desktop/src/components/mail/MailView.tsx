@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { reportingTo } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, PenLine, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
 import { AreaBoundary, Banner, Button, EmptyState, ICON, IconButton, mailboxesSwitchedOn, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, useStableHandler, useWeekStartDay, type LinkTarget, type MailRowCaps } from "@plainva/ui";
@@ -459,7 +460,8 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           const parsed = parseSnoozeState(raw);
           const pruned = pruneSnoozes(parsed, Date.now());
           setSnoozed(pruned);
-          if (pruned.length !== parsed.length) void persistSnoozes(pruned);
+          // Pruning what has run out is tidying: the next load prunes again.
+          if (pruned.length !== parsed.length) void persistSnoozes(pruned).catch(reportingTo("mail:snoozes"));
         })
         .catch(() => {});
     load();

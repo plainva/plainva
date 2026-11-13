@@ -1,3 +1,6 @@
+import i18n from "../i18n";
+import { errorText } from "./errorText";
+import { reportVisible } from "../services/backgroundErrors";
 import type { CloudServiceId } from "./cloudAccounts";
 import type { ProtectedSecretStore } from "./passwordChangeJournal";
 import { replaceProtectedCredential } from "./protectedCredentialUpdate";
@@ -151,6 +154,10 @@ export async function removeAccountCard(ports: AccountRemovalPorts): Promise<voi
   for (const service of ["files", "calendar", "mail"] as const) {
     if (ports.services.includes(service)) await ports.disable(service);
   }
-  await ports.clearCardGrant().catch(() => undefined);
+  // The card goes either way (a card without its grant is what an earlier
+  // version left, and removing it must not stop there) — but a grant that is
+  // still on the device is said: the person believes the sign-in is gone.
+  await ports.clearCardGrant().catch((error: unknown) =>
+    reportVisible("account:grant", error, i18n.t("errors.background.accountSignInKept", { reason: errorText(error) })));
   await ports.dropRecord();
 }

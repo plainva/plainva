@@ -42,6 +42,7 @@ const CALLS: Record<string, { count: number; kind: Kind; why: string }> = {
   "packages/core/src/vault/BackupVaultAdapter.ts": { count: 6, kind: "asks", why: "the net rule itself, and the rotation of its own snapshots under .plainva" },
   "packages/core/src/vault/ConflictAwareVaultAdapter.ts": { count: 6, kind: "chain", why: "top of the chain; a conflict copy goes below with withoutSnapshot only where its text was kept or the person said so" },
   "packages/core/src/vault/QueueingVaultAdapter.ts": { count: 1, kind: "chain", why: "hands the deletion down, then queues it" },
+  "packages/core/src/vault/StructureRefusingVaultAdapter.ts": { count: 1, kind: "chain", why: "refuses a deletion while the index database is closed (R5); hands a device-local one down" },
   "packages/core/src/workspace/authorization.ts": { count: 1, kind: "chain", why: "checks the right, hands the deletion down" },
   "packages/core/src/workspace/queueingVaultAdapter.ts": { count: 1, kind: "chain", why: "hands the deletion down, then queues it" },
   "apps/desktop/src/services/ownerBus.ts": { count: 1, kind: "chain", why: "another window's deletion, carried out in the chain; a refusal goes back as data (windowBus noNet)" },
@@ -148,15 +149,17 @@ describe("every deletion goes through its net (D1)", () => {
     expect(factory).toMatch(/const versions = new BackupVaultAdapter\(ports\.storage,/);
     expect(factory).toMatch(/new PermissionedVaultAdapter\(versions,/);
     expect(factory).toMatch(/new QueueingVaultAdapter\(versions,/);
-    expect(factory).toMatch(/new ConflictAwareVaultAdapter\(versions,/);
+    // Without an index database the refusal of what only a queue could carry sits between them (R5).
+    expect(factory).toMatch(/new StructureRefusingVaultAdapter\(versions\)/);
+    expect(factory).toMatch(/new ConflictAwareVaultAdapter\(refusing \?\? versions,/);
     const desktop = asking("apps/desktop/src/contexts/VaultContext.tsx");
-    expect(desktop).toMatch(/buildVaultChain\(\{\s*storage: tauriVaultAdapter,/);
+    expect(desktop).toMatch(/buildVaultChain\(desktopChainPorts\(\{\s*vaultPath: path,\s*storage: tauriVaultAdapter,/);
     expect(desktop).toMatch(/const backupVaultAdapter = chain\.belowChain;/);
     expect(desktop).toMatch(/new SyncWorker\(engine, target, syncRepo, backupVaultAdapter,/);
     expect(desktop).not.toMatch(/tauriVaultAdapter\.deleteItem/);
 
     const phone = asking("apps/mobile/src/services/vaultService.ts");
-    expect((phone.match(/buildVaultChain\(\{\s*storage: adapter,/g) ?? []).length).toBe(2);
+    expect((phone.match(/buildVaultChain\(mobileChainPorts\(\{\s*storage: adapter,/g) ?? []).length).toBe(2);
     expect((phone.match(/backup = chain\.belowChain;/g) ?? []).length).toBe(2);
     expect(phone).toMatch(/^\s*belowChain: BackupVaultAdapter;$/m);
     expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new SyncWorker\(engine, target, v\.syncRepo!, v\.belowChain,/);

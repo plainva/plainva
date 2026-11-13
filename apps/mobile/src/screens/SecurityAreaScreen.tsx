@@ -8,7 +8,7 @@ import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { QuarantineList } from "../components/QuarantineList";
 import type { WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
 import { useLongPress } from "../lib/useLongPress";
-import { AreaBoundary, Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, workspaceDeparture, dismissEncryptedRemote, encryptedRemoteDismissable, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup } from "@plainva/ui";
+import { AreaBoundary, Banner, Button, errorText, GroupCard, ICON, IconButton, publicationStatusText, workspaceDeparture, dismissEncryptedRemote, encryptedRemoteDismissable, Segmented, QrImage, Row, RowList, SectionLabel, SettingField, TextInput, toast, InfoTip, SECURITY_AREA_GROUPS, type SecurityAreaGroup, reportingTo } from "@plainva/ui";
 import { decodeWorkspaceInvite, encodeWorkspaceInvite, listBrokenWorkspaceSlices, loadWorkspaceSliceObjects, type PersonalWorkspaceRuntime, type PublicationRecipient, type WorkspaceObjectStore, type WorkspacePublicationRecord, type WorkspaceRole } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { useForeignLegacyComments } from "@plainva/ui";
@@ -1306,7 +1306,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           onResolved={(touched) => {
             const fork = compareFork;
             setCompareFork(null);
-            void vault.reindexPaths(touched).catch(() => {});
+            void vault.reindexPaths(touched).catch(reportingTo("index:paths"));
             void discardMobileLocalFork(vault, fork.forkId).then(() => refresh()).catch((error) => toast.error(errorText(error)));
           }}
         />

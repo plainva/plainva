@@ -16,7 +16,19 @@ export interface DiagEntry {
 const MAX_ENTRIES = 200;
 const entries: DiagEntry[] = [];
 
-const SECRET_FIELD = "password|pass|secret|client[_-]?id|client[_-]?secret|access[_-]?token|refresh[_-]?token|id[_-]?token|token|api[_-]?key|authorization";
+const SECRET_FIELD = "password|passwd|app[_-]?password|pass|secret|client[_-]?id|client[_-]?secret|access[_-]?token|refresh[_-]?token|id[_-]?token|token|api[_-]?key|authorization|signature";
+/**
+ * URL query parameters that carry a credential, redacted only in a query or a
+ * fragment (after `?`, `&` or `#`, also percent-encoded inside another URL):
+ * Google's `key`, an OAuth `code`, an Azure SAS `sig`, an S3 presigned URL's
+ * signature, credential and session token. A "status code=403" in prose is no
+ * credential and stays.
+ */
+const SECRET_QUERY = "key|code|sig|x-amz-signature|x-amz-credential|x-amz-security-token";
+/** Request headers that carry an API key on their own line. */
+const SECRET_HEADER = "x-goog-api-key|x-api-key|api-key|ocp-apim-subscription-key";
+/** A quoted string, an escaped quote inside it included. */
+const QUOTED = String.raw`"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'`;
 
 /** Best-effort redaction before diagnostic text enters the in-memory buffer.
  * The exporter never reads credential stores; this additionally protects
@@ -24,9 +36,32 @@ const SECRET_FIELD = "password|pass|secret|client[_-]?id|client[_-]?secret|acces
 export function redactDiagnosticText(input: string): string {
   return input
     .replace(/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)[^\s/@]+@/gi, "$1[REDACTED]@")
+    // An AWS signature header carries its signature among commas: the whole value goes.
+    .replace(/(authorization\s*[:=]\s*)AWS4-HMAC-SHA256\s+[^\r\n]+/gi, "$1[REDACTED]")
     .replace(/(authorization\s*[:=]\s*)(?:bearer|basic)\s+[^\s,;]+/gi, "$1[REDACTED]")
-    .replace(new RegExp(`(["']?(?:${SECRET_FIELD})["']?\\s*[:=]\\s*)["'][^"']*["']`, "gi"), "$1\"[REDACTED]\"")
-    .replace(new RegExp(`((?:^|[?&\\s,;])(?:${SECRET_FIELD})\\s*=\\s*)[^&\\s,;]+`, "gi"), "$1[REDACTED]");
+    // A cookie header: every cookie on the line.
+    .replace(/(\b(?:set-)?cookie\s*:\s*)[^\r\n]+/gi, "$1[REDACTED]")
+    .replace(new RegExp(`(["']?\\b(?:${SECRET_FIELD})["']?\\s*[:=]\\s*)(?:${QUOTED})`, "gi"), "$1\"[REDACTED]\"")
+    .replace(new RegExp(`((?:^|[?&#\\s,;])(?:${SECRET_FIELD})\\s*=\\s*)(?!"\\[REDACTED\\]")[^&\\s,;]+`, "gi"), "$1[REDACTED]")
+    // `token: 1//0g…` without quotes; a value this long is no word of prose ("first pass: 3 files" stays).
+    .replace(new RegExp(`((?:^|[\\s,;{(])(?:${SECRET_FIELD})\\s*:\\s*)(?!"\\[REDACTED\\]")[^\\s,;&"'}]{8,}`, "gi"), "$1[REDACTED]")
+    .replace(new RegExp(`([?&#](?:${SECRET_QUERY})=)[^&\\s,;#"']+`, "gi"), "$1[REDACTED]")
+    // The same inside a URL that is itself percent-encoded (`%3Fsig%3D…%26`).
+    .replace(new RegExp(`((?:%3F|%26|%23|[?&#])(?:${SECRET_QUERY}|${SECRET_FIELD})%3D)(?:(?!%26|%23)[^&\\s,;#"'])+`, "gi"), "$1[REDACTED]")
+    .replace(new RegExp(`(\\b(?:${SECRET_HEADER})\\s*:\\s*)[^\\s,;]+`, "gi"), "$1[REDACTED]")
+    // A bearer token on its own, without the header's name (a provider's error that quotes it).
+    .replace(/(\bbearer\s+)[\w.~+/-]+=*/gi, "$1[REDACTED]")
+    // A JSON web token on its own (an id_token carries the address it was issued to).
+    .replace(/\beyJ[\w-]*\.[\w-]+\.[\w-]*/g, "[REDACTED]")
+    // A Dropbox token on its own (`sl.` or `sl.u.` and a long run of token characters).
+    .replace(/(?<![\w.])sl\.(?=[\w.-]{20})[\w-]+(?:\.[\w-]+)*/g, "[REDACTED]")
+    // IMAP and SMTP sign-in lines a server or library echoes: `a1 LOGIN user pass`, quoted or not; `AUTH PLAIN <base64>`.
+    .replace(new RegExp(`(\\b[A-Za-z]?\\d+\\s+LOGIN\\s+)(?:${QUOTED}|\\S+)\\s+(?:${QUOTED}|\\S+)`, "gi"), "$1[REDACTED]")
+    .replace(/(\bAUTH(?:ENTICATE)?\s+(?:PLAIN|LOGIN|XOAUTH2)\s+)\S+/gi, "$1[REDACTED]")
+    // An e-mail address (an IMAP or SMTP reply that names the mailbox, a WebDAV
+    // path with the user's name), also quoted-printable (`=40`) and
+    // percent-encoded (`%40`) for `@`: whose it is belongs in no bug report.
+    .replace(/(?<![\w.%+-])[\w.%+-]+(?:@|=40|%40)[\w-]+(?:\.[\w-]+)+/gi, "[email]");
 }
 
 export function logDiagnostic(source: string, message: string): void {
@@ -51,6 +86,33 @@ export async function logIndexDiagnostics(db: IDatabaseAdapter): Promise<void> {
   for (const diagnostic of await readIndexDiagnostics(db)) {
     logDiagnostic("index", `${diagnostic.kind}: the full-text index was built anew after a failed numbering (${diagnostic.count}×)`);
   }
+}
+
+/** The line of each repeated report, by what it reports: the count goes on the line, not a new line. */
+const counted = new WeakMap<DiagEntry, { base: string; count: number }>();
+
+/**
+ * Like `logDiagnostic`, but a report that repeats anywhere in the buffer —
+ * the same source and message, with other lines in between — counts on its
+ * first line ("… (3×)") instead of taking a line each: an index pass that
+ * fails the same way for a thousand files leaves one line.
+ */
+export function logDiagnosticCounted(source: string, message: string): void {
+  const safe = redactDiagnosticText(message);
+  const base = safe.length > 500 ? `${safe.slice(0, 500)}…` : safe;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]!;
+    const seen = counted.get(entry);
+    if (entry.source !== source || !seen || seen.base !== base) continue;
+    seen.count += 1;
+    entry.ts = Date.now();
+    entry.message = `${base} (${seen.count}×)`;
+    return;
+  }
+  const entry: DiagEntry = { ts: Date.now(), source, message: base };
+  counted.set(entry, { base, count: 1 });
+  entries.push(entry);
+  if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
 }
 
 export function getDiagnostics(): readonly DiagEntry[] {

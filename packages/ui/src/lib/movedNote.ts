@@ -1,3 +1,4 @@
+import { reportBackground } from "../services/backgroundErrors";
 import { searchMissingFile, VaultFileNotFoundError, type KnownFileIdentity, type MissingFileDeps, type MissingFileOutcome, type MissingFileSearch } from "@plainva/core";
 import { sweepPinboardRefs, type PinboardSweepDeps } from "../base/pinboardSweep";
 import { notifyFileOps } from "./indexMdAutoUpdate";
@@ -87,13 +88,14 @@ export async function adoptExternalMove(deps: ExternalMoveDeps, from: string, to
   try {
     swept = await sweepPinboardRefs(deps.pinboard, [{ from, to }]);
   } catch (e) {
-    console.warn("[movedNote] pinboard arrangements did not follow the move", e);
+    reportBackground("pinboard:follow-move", e);
   }
   if (swept.length > 0 && deps.reindex) {
     try {
       await deps.reindex(swept);
-    } catch {
+    } catch (e) {
       // The next index pass repairs it.
+      reportBackground("index:follow-move", e);
     }
   }
   notifyFileOps([{ type: "move", from, to }]);

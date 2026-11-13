@@ -5169,7 +5169,14 @@
     "areaTitle": "Não foi possível mostrar esta área",
     "areaBody": "Um erro a interrompeu. O resto do Plainva continua funcionando, e o erro fica registrado em {{place}}.",
     "areaAgain": "Falhou de novo depois de recarregar. Se continuar falhando, reinicie o Plainva; o erro fica registrado em {{place}}.",
-    "areaReload": "Recarregar esta área"
+    "areaReload": "Recarregar esta área",
+    "structureNeedsIndex": "Não é possível agora: o índice de busca não pôde ser aberto neste dispositivo, então a sincronização não conseguiria levar uma exclusão, renomeação, movimentação ou nova pasta aos seus outros dispositivos. Reinicie o app para tentar de novo; suas notas não foram alteradas.",
+    "indexClosedNotice": "Não foi possível abrir o índice de busca neste dispositivo. Você pode ler, escrever e criar notas; excluir, renomear, mover e criar pastas ficam indisponíveis até que ele abra. Reinicie o app para tentar de novo; suas notas não foram alteradas.",
+    "background": {
+      "aiKeyNotRemoved": "Não foi possível remover a chave de {{provider}} deste dispositivo, por isso {{provider}} continua na lista: {{reason}}",
+      "accountSignInKept": "A conta foi removida, mas o login dela não pôde ser apagado deste dispositivo: {{reason}}",
+      "taskNoteNotRestored": "Não foi possível recuperar “{{name}}”: {{reason}}"
+    }
   },
   "palette": {
     "title": "Comandos",

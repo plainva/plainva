@@ -1,5 +1,5 @@
 import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "@plainva/core";
-import { TransactionTurns, takeStatement, transactionLabel } from "./transactionTurns";
+import { TransactionTurns, takeStatement, transactionLabel } from "@plainva/ui";
 
 /**
  * IDatabaseAdapter over a REAL SQLite that lives outside the browser.

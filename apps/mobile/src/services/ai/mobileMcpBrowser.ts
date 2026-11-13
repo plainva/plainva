@@ -72,7 +72,7 @@ export function createMobileMcpBrowser(): McpOAuthBrowser {
           if (waiting === own) waiting = null;
           clearTimeout(timer);
           signal?.removeEventListener("abort", stop);
-          void closed?.remove().catch(() => undefined);
+          void closed?.remove().catch(() => /* silent: a listener of a browser that is gone, nothing holds on to it */ undefined);
         };
         const own: Waiter = {
           resolve: (redirect) => {
@@ -99,7 +99,7 @@ export function createMobileMcpBrowser(): McpOAuthBrowser {
           timer = setTimeout(() => own.reject(new Error("cancelled")), CLOSED_GRACE_MS);
         }).then((handle) => {
           if (waiting === own) closed = handle;
-          else void handle.remove().catch(() => undefined);
+          else void handle.remove().catch(() => /* silent: as above */ undefined);
         });
       });
     },

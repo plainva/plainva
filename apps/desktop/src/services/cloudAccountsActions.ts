@@ -1,4 +1,5 @@
 import { sameStoredValue, type DriveSyncTarget } from "@plainva/core";
+import { reportingTo } from "@plainva/ui";
 import {
   PLAINVA_ONEDRIVE_CLIENT_ID,
   PLAINVA_DROPBOX_APP_KEY,
@@ -228,7 +229,8 @@ export async function connectMicrosoftMailAccount(vaultPath: string, clientId: s
   } catch (err) {
     // The token cannot read the mailbox: undo the half-connected account.
     forgetGraphMailRuntime(vaultPath, id);
-    await removeMailAccount(vaultPath, id).catch(() => undefined);
+    // The connect's own failure is what the person is told; a half account left behind is for the diagnostics.
+    await removeMailAccount(vaultPath, id).catch(reportingTo("mail:undo-connect"));
     throw err;
   }
 }

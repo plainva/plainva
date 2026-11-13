@@ -174,7 +174,7 @@ export async function connectDevicePimAccount(label: string): Promise<{ ok: true
   });
   if (getPimStatus().status === "off") setPimState({ status: "idle", message: null });
   runtime.worker.start();
-  runtime.worker.triggerImmediate();
+  void runtime.worker.triggerImmediate();
   return { ok: true };
 }
 

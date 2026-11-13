@@ -23,7 +23,7 @@ import { FixtureSqliteAdapter, isFixtureSqliteAvailable } from "./adapters/Fixtu
  * first, where the phone's connection refused it. Two flows of the app then
  * shared one transaction in every run on this bridge, and none of those runs
  * could show what a device does when two transactions meet. They take turns
- * now, as on the device (adapters/transactionTurns.ts).
+ * now, as on the device (packages/ui/src/lib/transactionTurns.ts).
  */
 
 const BRIDGE_KEY = "__plainvaFixtureSql";

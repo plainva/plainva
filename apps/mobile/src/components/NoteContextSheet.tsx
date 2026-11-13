@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { AreaBoundary, isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
+import { AreaBoundary, reportVisible, isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, PenLine, Plus } from "lucide-react";
@@ -307,7 +307,7 @@ export function NoteContextSheet({
         if (res.cancelled) return;
         name = res.value.trim();
         if (!name) return;
-        updateMobileSettings({ verifierName: name });
+        void updateMobileSettings({ verifierName: name }).catch((error: unknown) => reportVisible("settings:verifier-name", error, t("mobile.settingSaveFailed")));
       }
       const current = props.find(([k]) => k === "verified")?.[1];
       try {
