@@ -1146,18 +1146,29 @@ export const FileTree: React.FC<{
       else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
       return;
     }
-    const { moved, errors, followUpErrors, linkUpdateFailed } = await moveItems(
-      {
-        adapter: vaultAdapter,
-        queryService,
-        indexer,
-        isFolder: (path) => folderPaths.has(path),
-        onMoved: (from, to) => onRenameTabPrefix?.(from, to),
-        templateFolder: async () => (vaultPath ? await getTemplateFolder(vaultPath) : undefined),
-      },
-      candidates,
-      targetFolderPath,
-    );
+    let result: Awaited<ReturnType<typeof moveItems>>;
+    try {
+      result = await moveItems(
+        {
+          adapter: vaultAdapter,
+          queryService,
+          indexer,
+          isFolder: (path) => folderPaths.has(path),
+          onMoved: (from, to) => onRenameTabPrefix?.(from, to),
+          templateFolder: async () => (vaultPath ? await getTemplateFolder(vaultPath) : undefined),
+        },
+        candidates,
+        targetFolderPath,
+      );
+    } catch (err) {
+      // Refused before anything moved — over an index that is not whole the
+      // boards that hold a file cannot be found (L3) — or failed outright:
+      // said, never only logged (third review of 11.11.; the phone says it
+      // with `reportMoveFailure`).
+      toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
+      return;
+    }
+    const { moved, errors, followUpErrors, linkUpdateFailed } = result;
     if (moved.length > 0) {
       triggerFileTreeUpdate();
       notifyFileOps(moved);

@@ -14,7 +14,7 @@ import {
   type ReminderSubject,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import type { PimCacheRepository } from "@plainva/core";
+import { isIndexNotWholeError, type PimCacheRepository } from "@plainva/core";
 import { getSettingsStore } from "./settingsStore";
 import { loadReminderSettings } from "./reminderSettings";
 import { loadTaskOverlay, type DueTaskDeps } from "./pim/taskOverlay";
@@ -429,9 +429,14 @@ async function collectSubjects(
       subjects.push(...taskReminderSubjects(overlay?.tasks ?? [], { now, windowEndTs, snoozes: readTaskSnoozes(deps.vaultPath, now) }));
     } catch (e) {
       // An unreadable task database must never cost the appointments — but it
-      // must not pass unmentioned either, which is what it used to do.
-      reason = "taskDbUnreadable";
-      console.warn("[reminderScheduler] due tasks unavailable", e);
+      // must not pass unmentioned either, which is what it used to do. An
+      // index that is still built is no unreadable database (third review of
+      // 11.11.): the tasks are planned the moment it is whole (`untilWholeIndex`
+      // above), and nothing is said meanwhile.
+      if (!isIndexNotWholeError(e)) {
+        reason = "taskDbUnreadable";
+        console.warn("[reminderScheduler] due tasks unavailable", e);
+      }
     }
   }
 
@@ -443,7 +448,8 @@ async function collectSubjects(
       const notes = await deps.queryService.listTasks();
       subjects.push(...checkboxReminderSubjects(notes, { now, windowEndTs, snoozes: readTaskSnoozes(deps.vaultPath, now) }));
     } catch (e) {
-      console.warn("[reminderScheduler] checkbox tasks unavailable", e);
+      // Planned again once the index is whole; only another failure is noted.
+      if (!isIndexNotWholeError(e)) console.warn("[reminderScheduler] checkbox tasks unavailable", e);
     }
   }
 

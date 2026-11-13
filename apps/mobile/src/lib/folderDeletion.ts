@@ -1,4 +1,4 @@
-import type { VaultFileInfo } from "@plainva/core";
+import { isIndexNotWholeError, type VaultFileInfo } from "@plainva/core";
 
 /**
  * How much a folder deletion actually removes (S4).
@@ -29,13 +29,22 @@ export function countFolderFiles(entries: ReadonlyArray<VaultFileInfo>): number 
  * That is the honest answer: a share of an unknown total is not a number.
  */
 export async function countVaultFiles(
-  queryService: { db: { query<T>(sql: string): Promise<T[]> } } | null | undefined
+  queryService: { db: { query<T>(sql: string): Promise<T[]> }; view?(): { db: { query<T>(sql: string): Promise<T[]> } } } | null | undefined
 ): Promise<number> {
   if (!queryService) return 0;
   try {
     const rows = await queryService.db.query<{ n: number }>(`SELECT COUNT(*) AS n FROM files`);
     return Number(rows[0]?.n ?? 0);
-  } catch {
+  } catch (error) {
+    // The reader refuses while the index is not whole (third review of
+    // 11.11.: the refusal used to be swallowed into 0, and the 20 % half of
+    // the threshold fell away). The rows read so far are counted instead: a
+    // total that is too small makes every deletion a larger share — the
+    // question comes more often, never less.
+    if (isIndexNotWholeError(error) && queryService.view) {
+      const rows = await queryService.view().db.query<{ n: number }>(`SELECT COUNT(*) AS n FROM files`).catch(() => [] as { n: number }[]);
+      return Number(rows[0]?.n ?? 0);
+    }
     return 0;
   }
 }

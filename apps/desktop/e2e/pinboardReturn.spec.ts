@@ -118,3 +118,22 @@ for (const shell of ["desktop"] as const) {
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 }
+
+test("desktop: a board read from an index that is not whole saves no arrangement (third review of 11.11.)", async ({ page }) => {
+  // Its rows are the notes read so far. Pinning used to save the board's lists
+  // healed to those rows: the entries of every note not read yet were gone
+  // from the .base file, and the sync carried that on.
+  await page.setViewportSize({ width: 900, height: 812 });
+  await loadPinboardProbe(page);
+  const order = ["Inbox/Not-read-yet.md", "Inbox/Note-1.md"];
+  await page.evaluate(order => (window as PinboardProbeWindow).pinboardProbe.mount({ shell: "desktop", count: 4, partial: true, order }), order);
+  const card = page.locator('[data-pinboard-path="Inbox/Note-0.md"]');
+  await card.hover();
+  await card.locator(".pv-pinboard-pin").click();
+  await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.patches.length)).toBe(0);
+  // The same board over whole rows: the pin is saved (and the list healed to what is there).
+  await page.evaluate(order => (window as PinboardProbeWindow).pinboardProbe.mount({ shell: "desktop", count: 4, order }), order);
+  await card.hover();
+  await card.locator(".pv-pinboard-pin").click();
+  await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.patches)).toEqual([{ pinboardOrder: ["Inbox/Note-1.md"], pinboardPinned: ["Inbox/Note-0.md"] }]);
+});

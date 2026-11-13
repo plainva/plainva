@@ -10,7 +10,7 @@ import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
-import { isIndexNotWholeError, PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
+import { isIndexNotWholeError, PLAINVA_NAMESPACE_KEY, requireWholeRows, updateVaultText, type WholeRows, type WorkspaceCommentRecord } from "@plainva/core";
 import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
@@ -1831,13 +1831,31 @@ export function BaseViewer({
   // ones got it. A note that turns out to hold a value there — the index was
   // behind — keeps it.
   // The loop is the phone's too (`fillMissingProperty`).
-  const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string): Promise<string[]> => {
-    const result = await fillMissingProperty(adapter, paths, col);
+  const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string, whole: WholeRows): Promise<string[]> => {
+    const result = await fillMissingProperty(adapter, paths, col, whole);
     reportRewrite(result, "Failed to add property to file");
     return result.written;
   };
 
+  /**
+   * The rows of the database, asked whether they are whole before anything is
+   * written from them (third review of 11.11.): "in every note", a board's
+   * column order — over the rows of an index that is not whole they reach only
+   * the notes read so far. Refused with the reason while the index is built.
+   */
+  const wholeRowsOrSay = (): WholeRows | null => {
+    try {
+      return requireWholeRows(dbData);
+    } catch (e) {
+      toast.error(errorText(e));
+      return null;
+    }
+  };
+
   const applyRequirement = async (selectedColumn: string, isNew: boolean, requiredType: string, targetViewType: string, dateInput?: "date" | "datetime") => {
+    // A new column is written into every note: only from whole rows.
+    const whole = isNew ? wholeRowsOrSay() : null;
+    if (isNew && !whole) return;
     const newConfig = dbConfig ? JSON.parse(JSON.stringify(dbConfig)) : {};
     if (!newConfig.columns || Array.isArray(newConfig.columns)) newConfig.columns = {};
 
@@ -1860,7 +1878,7 @@ export function BaseViewer({
       if (vaultAdapter) {
         // Run asynchronously so we don't block the UI
         setTimeout(() => {
-          void fillPropertyIn(vaultAdapter, notesMissingProperty(dbData, selectedColumn), selectedColumn);
+          if (whole) void fillPropertyIn(vaultAdapter, notesMissingProperty(dbData, selectedColumn), selectedColumn, whole);
         }, 0);
       }
     }
@@ -1936,6 +1954,8 @@ export function BaseViewer({
   // that lacks it. Never triggered implicitly.
   const materializeColumn = async (col: string) => {
     if (!vaultAdapter) return;
+    const whole = wholeRowsOrSay();
+    if (!whole) return;
     const missing = notesMissingProperty(dbData, col);
     if (missing.length === 0) return;
     const ok = await appConfirm({
@@ -1944,7 +1964,7 @@ export function BaseViewer({
       kind: "warning",
     });
     if (!ok) return;
-    const written = new Set(await fillPropertyIn(vaultAdapter, missing, col));
+    const written = new Set(await fillPropertyIn(vaultAdapter, missing, col, whole));
     // Reflect the new (empty) values right away — the re-index lags the writes.
     // Only in the notes that got one: the others still lack the property.
     setDbData((prev) => prev.map((r) => (r[col] === undefined && written.has(String(r["file.path"])) ? { ...r, [col]: "" } : r)));
@@ -2320,6 +2340,9 @@ export function BaseViewer({
   // views[i].plainva.boardColumnOrder instead.
   const handleReorderBoardColumns = (orderedKeys: string[]) => {
     if (!boardGroupBy || !dbConfig) return;
+    // The board's groups are the rows' groups: a group of a note not read yet
+    // would lose its place (third review of 11.11.).
+    if (!wholeRowsOrSay()) return;
     const nc = JSON.parse(JSON.stringify(dbConfig));
     const col = nc.columns && !Array.isArray(nc.columns) ? nc.columns[boardGroupBy] : undefined;
     const optKey = (o: any) => o?.label || o?.value || String(o);

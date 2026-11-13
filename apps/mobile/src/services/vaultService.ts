@@ -979,7 +979,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     queryService = new VaultQueryService(db);
     // Whether the index is whole, for whoever plans a write from it (L3):
     // this vault's entry of the shared store. A vault that closes refuses
-    // whoever still waits for it.
+    // whoever still waits for it. Not whole from its first moment until the
+    // index says it is (third review of 11.11.): unknown is not whole.
+    beginIndexBuild(entry.id);
     queryService.setIndexWholeness(indexWholenessFor(entry.id));
     indexAbort.signal.addEventListener("abort", () => markIndexClosed(entry.id), { once: true });
     // `file.day` (plan Journal-Erweiterungen, X8): the two settings that name a
@@ -999,7 +1001,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       const warmIndexer = indexer;
       // An index a first scan never got through (issue 125) is not whole: the
       // warm pass is its build, counted and gated like a first one (L3).
-      if (!(await indexer.indexComplete().catch(() => /* silent: an answer nobody can give counts as not whole, and the warm pass is the build */ false))) beginIndexBuild(entry.id);
+      // The build began with the reader; a whole index ends it here.
+      if (await indexer.indexComplete().catch(() => /* silent: an answer nobody can give counts as not whole, and the warm pass is the build */ false)) markIndexWhole(entry.id);
       afterFirstPaint(() => {
         if (indexAbort.signal.aborted) return;
         void warmIndexer
@@ -1052,6 +1055,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     workspaceState = null;
     permissioned = null;
     ownQueue = null;
+    // No index to be whole: the build that began with the reader ends here
+    // (the strip says that the index is closed, `indexClosed`).
+    markIndexClosed(entry.id);
     const half = db;
     db = null;
     if (half) await half.close().catch(reportingTo("index:close"));

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { requireWholeRows } from "@plainva/core";
 import { convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, fillMissingProperty, notesMissingProperty, type PropertyWriteAdapter } from "@plainva/ui";
 
 /**
@@ -118,7 +119,7 @@ describe("fillMissingProperty", () => {
       "c.md": "---\nOwner:\n---\n",
       "d.md": "---\nowner: Ann\n---\n",
     });
-    const result = await fillMissingProperty(adapter, ["a.md", "b.md", "c.md", "d.md"], "owner");
+    const result = await fillMissingProperty(adapter, ["a.md", "b.md", "c.md", "d.md"], "owner", requireWholeRows([]));
     expect(result.written.sort()).toEqual(["a.md", "b.md"]);
     expect(store.get("a.md")).toMatch(/^---\nstatus: open\nowner: ("")?\n---\n# A\n\nBody stays\.\n$/);
     expect(store.get("b.md")).toMatch(/^---\nowner: ("")?\n---\n# No block\n$/);

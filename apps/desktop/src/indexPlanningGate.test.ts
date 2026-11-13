@@ -31,6 +31,7 @@ const read = (rel: string) => readFileSync(join(REPO, rel), "utf8");
 
 /** Every file that takes the view, with what it shows from it and why nothing is written from it. */
 const VIEW_USES: Record<string, string> = {
+  "apps/mobile/src/lib/folderDeletion.ts": "the count of the rows read so far, while the reader refuses: the deletion threshold's total, too small and so asking more often",
   "packages/core/src/vault/GraphService.ts": "forIndex takes the view's database for the map; its own planners (clean-up verdicts, mentions) ask the wholeness it is given",
   "apps/desktop/src/App.tsx": "the conflict rows of the error dialog: a list to look at",
   "apps/desktop/src/AppShell.tsx": "a plainva:// link opens a note the index holds (noteLinkReceiver resolves, never creates)",
@@ -125,7 +126,7 @@ const RAW_SQL: Record<string, string> = {
   "apps/desktop/src/services/fileActions.ts": "the reader's handle (refuses)",
   "apps/desktop/src/services/okfConversion.ts": "the reader's handle (refuses)",
   "apps/desktop/src/services/okfMigration.ts": "the reader's handle (refuses)",
-  "apps/mobile/src/lib/folderDeletion.ts": "the reader's handle (refuses): the deletion threshold",
+  "apps/mobile/src/lib/folderDeletion.ts": "the reader's handle for the deletion threshold; while it refuses, the view's count of the rows read so far — a smaller total makes the question come more often, never less",
   "apps/mobile/src/services/okfConversion.ts": "the reader's handle (refuses)",
   "apps/mobile/src/services/okfMigration.ts": "the reader's handle (refuses)",
   "apps/mobile/src/services/vaultService.ts": "its own handle at open: whether the index is warm",
@@ -209,3 +210,71 @@ describe("reading the index (performance plan L3, second review of 11.11.)", () 
     expect(mobile).toContain("indexView: queryService ? queryService.view() : null");
   });
 });
+
+describe("rows of the view never reach a write (third review of 11.11.)", () => {
+  // A judgement per file was not enough: BaseViewer and the boards show rows
+  // of the view AND saved an arrangement, a column order and "every note" from
+  // them. The rows of a view read while the index is not whole carry that
+  // (core `markPartialRows`); every writer from shown rows takes the proof
+  // `WholeRows`, which only `requireWholeRows` hands out.
+  const files = sourceFiles();
+  const ROW_WRITERS = ["applyPin", "applyUnpin", "spliceIntoSequence", "fillMissingProperty"];
+
+  it("the shared writers from shown rows take the proof by their type", () => {
+    const sources = ["packages/ui/src/base/pinboardModel.ts", "packages/ui/src/base/columnFill.ts"].map(read).join("\n");
+    for (const writer of ROW_WRITERS) {
+      const signature = new RegExp(`export function ${writer}\\([\\s\\S]*?\\)[^{]*\\{`).exec(sources)?.[0] ?? "";
+      expect(signature, writer).toMatch(/: WholeRows\b/);
+    }
+  });
+
+  it("every file that writes from shown rows asks requireWholeRows, and nobody makes the proof by hand", () => {
+    const writing = files.filter((f) => !f.startsWith("packages/") && new RegExp(`\\b(${[...ROW_WRITERS, "fillBaseProperty"].join("|")})\\(`).test(code(read(f))));
+    expect(writing.length).toBeGreaterThanOrEqual(4);
+    for (const f of writing) {
+      // baseOps hands the proof its caller got on; it does not make one.
+      if (f === "apps/mobile/src/services/baseOps.ts") continue;
+      expect(code(read(f)), f).toMatch(/\brequireWholeRows\(/);
+    }
+    const forged = files.filter((f) => f !== "packages/core/src/vault/indexWholeness.ts" && /\bas WholeRows\b|wholeRows:\s*true/.test(code(read(f))));
+    expect(forged).toEqual([]);
+  });
+
+  it("the board's column order and the column fill of the desktop ask before they write", () => {
+    const viewer = code(read("apps/desktop/src/components/BaseViewer.tsx"));
+    for (const fn of ["handleReorderBoardColumns", "materializeColumn", "applyRequirement"]) {
+      const body = viewer.slice(viewer.indexOf(`const ${fn} = `), viewer.indexOf(`const ${fn} = `) + 900);
+      expect(body, fn).toMatch(/wholeRowsOrSay\(\)/);
+    }
+  });
+});
+
+describe("a refusal over half an index reaches the person (third review of 11.11.)", () => {
+  it("a move in the desktop's tree that is refused is said, never only logged", () => {
+    const tree = code(read("apps/desktop/src/components/FileTree.tsx"));
+    const run = tree.slice(tree.indexOf("const runMove = "), tree.indexOf("const handleDrop = "));
+    expect(run).toMatch(/try \{\s*result = await moveItems\(/);
+    expect(run).toMatch(/catch \(err\) \{\s*toast\.error\(/);
+  });
+
+  it("the quick switcher opens a note that is there before it asks whether the index is whole", () => {
+    const switcher = code(read("apps/desktop/src/components/QuickSwitcher.tsx"));
+    const create = switcher.slice(switcher.indexOf("const handleCreate = "));
+    expect(create.indexOf("vaultAdapter.exists(path)")).toBeGreaterThan(-1);
+    expect(create.indexOf("vaultAdapter.exists(path)")).toBeLessThan(create.indexOf("requireWholeIndex()"));
+  });
+
+  it("the desktop's reminders say nothing wrong while the index is built: no unreadable task database", () => {
+    const scheduler = code(read("apps/desktop/src/services/reminderScheduler.ts"));
+    // (String literals are blanked by `code`.)
+    expect(scheduler).toMatch(/if \(!isIndexNotWholeError\(e\)\) \{\s*reason = "";\s*console\.warn\(/);
+  });
+
+  it("the phone's security screen goes on past slices it cannot count yet", () => {
+    const screen = code(read("apps/mobile/src/screens/SecurityAreaScreen.tsx"));
+    expect(screen).toMatch(/await sliceObjects\(\)\.then\(\(objects\) => refreshMobileWorkspaceSliceCounts\(/);
+    expect(screen).not.toMatch(/objects: await sliceObjects\(\)/);
+  });
+});
+
+

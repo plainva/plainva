@@ -165,14 +165,16 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
     if (!vaultAdapter || !createName) return;
     const path = `${createName}.md`;
     try {
-      // A note of a name the vault may hold in a note not read yet: not made
-      // over an index that is not whole (performance plan L3).
-      queryService?.requireWholeIndex();
+      // A note that is there opens, read into the index or not (third review
+      // of 11.11.: the rule of a link, a note that exists opens).
       if (await vaultAdapter.exists(path)) {
         onOpenPath(path, newTab);
         onClose();
         return;
       }
+      // A NEW note of a name the vault may hold in a note not read yet: not
+      // made over an index that is not whole (performance plan L3).
+      queryService?.requireWholeIndex();
       // Folder and type rules apply here too (plan Vorlagen-Engine P4/P4b) —
       // the switcher files into the vault root, so a root rule reaches it.
       const built = await buildNewNoteFromTemplate({

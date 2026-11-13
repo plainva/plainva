@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import type { TextChange } from "@plainva/core";
+import type { TextChange, WholeRows } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
 import { configuredNoteType } from "./newNote";
 import {
@@ -202,8 +202,8 @@ function noteFiles(v: MobileVault): PropertyWriteAdapter {
  * through the same shared loop. Answers the notes written and the notes that
  * failed; the caller says them.
  */
-export async function fillBaseProperty(v: MobileVault, paths: readonly string[], col: string): Promise<RewriteResult> {
-  const result = await fillMissingProperty(noteFiles(v), paths, col);
+export async function fillBaseProperty(v: MobileVault, paths: readonly string[], col: string, whole: WholeRows): Promise<RewriteResult> {
+  const result = await fillMissingProperty(noteFiles(v), paths, col, whole);
   if (result.written.length > 0) syncSoon();
   return result;
 }

@@ -47,6 +47,17 @@ describe("countVaultFiles (S4)", () => {
     expect(await countVaultFiles(undefined)).toBe(0);
   });
 
+  it("counts the rows read so far while the index is built — a smaller total asks more often, never less (third review of 11.11.)", async () => {
+    const { IndexNotWholeError } = await import("@plainva/core");
+    // The reader refuses; the refusal used to be swallowed into 0, and the
+    // 20 % half of the threshold fell away for every deletion of the build.
+    const reader = {
+      db: { query: async () => { throw new IndexNotWholeError({ kind: "building", done: 40, total: 500 }); } },
+      view: () => ({ db: { query: async <T,>() => [{ n: 40 }] as T[] } }),
+    };
+    expect(await countVaultFiles(reader as never)).toBe(40);
+  });
+
   it("answers 0 when the query fails instead of blocking the deletion", async () => {
     expect(
       await countVaultFiles(

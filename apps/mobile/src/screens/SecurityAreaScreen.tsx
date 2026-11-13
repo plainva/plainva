@@ -185,7 +185,10 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     // A vault without a sync provider has no store to count against (issue 143).
     const store = await findMobileWorkspaceObjectStore(vault.vaultId);
     const rt = vault.workspaceRuntime;
-    if (store && rt) await refreshMobileWorkspaceSliceCounts({ vaultId: vault.vaultId, store, runtime: rt, objects: await sliceObjects() }).catch(() => false);
+    // The slices' objects are read from the index: refused while it is not
+    // whole, and the rest of this refresh goes on (third review of 11.11.: the
+    // refusal used to end it without a word). The counts come with the next refresh.
+    if (store && rt) await sliceObjects().then((objects) => refreshMobileWorkspaceSliceCounts({ vaultId: vault.vaultId, store, runtime: rt, objects })).catch(() => false);
     /* AFTER the materialization refresh, not before: coverage is read from the
        slice`s materialized ids, so a count taken first would describe the
        previous rule. */

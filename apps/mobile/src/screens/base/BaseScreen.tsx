@@ -59,7 +59,7 @@ import { syncSoon } from "../../services/syncService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments, listMobileCommentAuthors, noteWorkspaceCapabilities } from "../../services/mobileComments";
-import { wikiLinkParts, type WorkspaceCommentRecord } from "@plainva/core";
+import { requireWholeRows, wikiLinkParts, type WholeRows, type WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
@@ -569,6 +569,15 @@ export function BaseScreen({
    */
   const createViewColumn = (kind: "date" | "select") => {
     void (async () => {
+      // The column is written into every note: only from whole rows (third
+      // review of 11.11.). Refused with the reason while the index is built.
+      let whole: WholeRows;
+      try {
+        whole = requireWholeRows(rows ?? []);
+      } catch (e) {
+        toast.error(errorText(e));
+        return;
+      }
       const { value, cancelled } = await mPrompt({ title: t("database.createNewField"), placeholder: t("database.newFieldName") });
       const name = value.trim();
       if (cancelled || !name) return;
@@ -590,7 +599,7 @@ export function BaseScreen({
         input = picked;
       }
       try {
-        sayRewriteOutcome(await fillBaseProperty(vault, notesMissingProperty(rows ?? [], name), name), toast);
+        sayRewriteOutcome(await fillBaseProperty(vault, notesMissingProperty(rows ?? [], name), name, whole), toast);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }

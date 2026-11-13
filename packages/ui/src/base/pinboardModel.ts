@@ -1,4 +1,4 @@
-import { trimEndChars } from "@plainva/core";
+import { trimEndChars, type WholeRows } from "@plainva/core";
 /**
  * Pure pinboard view-model helpers (plan Pinboard P3/P5), shared by both
  * shells.
@@ -66,7 +66,9 @@ export type PinboardDropSlot = { kind: "before"; path: string } | { kind: "end" 
  * first-drag materialization: the result always lists every card of the
  * sequence explicitly.
  */
-export function spliceIntoSequence(sequence: string[], moved: string[], slot: PinboardDropSlot): string[] {
+export function spliceIntoSequence(sequence: string[], moved: string[], slot: PinboardDropSlot, _whole: WholeRows): string[] {
+  // `_whole`: the sequence is the board's rows; over rows of an index that is
+  // not whole it would drop every card not read yet (`requireWholeRows`).
   const movedSet = new Set(moved);
   const rest = sequence.filter((p) => !movedSet.has(p));
   if (slot.kind === "end") return [...rest, ...moved];
@@ -81,7 +83,10 @@ export function applyPin(
   pinned: string[] | undefined,
   path: string,
   presentPaths: ReadonlySet<string>,
+  _whole: WholeRows,
 ): { order: string[]; pinned: string[] } {
+  // Heals the lists to the present cards: only over whole rows (`requireWholeRows`,
+  // third review of 11.11.) — over half an index it dropped the notes not read yet.
   const heal = (list: string[] | undefined) => (list ?? []).filter((p) => presentPaths.has(p) && p !== path);
   return { order: heal(order), pinned: [path, ...heal(pinned)] };
 }
@@ -92,6 +97,7 @@ export function applyUnpin(
   pinned: string[] | undefined,
   path: string,
   presentPaths: ReadonlySet<string>,
+  _whole: WholeRows,
 ): { order: string[]; pinned: string[] } {
   const heal = (list: string[] | undefined) => (list ?? []).filter((p) => presentPaths.has(p) && p !== path);
   return { order: [path, ...heal(order)], pinned: heal(pinned) };

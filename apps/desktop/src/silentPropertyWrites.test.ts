@@ -157,7 +157,7 @@ const SITES: Site[] = [
   {
     file: "apps/mobile/src/screens/base/PropertyEditSheet.tsx", writer: "fillBaseProperty", calls: 1,
     how: "one message that counts the notes written and the notes that failed, or the reason of an error",
-    says: [/^vault, missing, column\), toast\);/, SAID], within: 260,
+    says: [/^vault, missing, column, whole\), toast\);/, SAID], within: 260,
   },
   {
     file: "apps/mobile/src/screens/base/BaseScreen.tsx", writer: "fillBaseProperty", calls: 1,

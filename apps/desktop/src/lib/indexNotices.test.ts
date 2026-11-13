@@ -134,7 +134,10 @@ describe("what both shells say about the search index", () => {
     expect(desktop).not.toContain('await perfMeasure("initial full index (cold)"');
     // Owed a full scan from the start; a warm index only counts as whole once a scan went through on it.
     expect(desktop).toContain("let coldIndexOwed = true;");
-    expect(desktop).toMatch(/if \(await indexer\.indexComplete\(\)\.catch\(\(\) => false\)\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*\}/);
+    expect(desktop).toMatch(/if \(await indexer\.indexComplete\(\)\.catch\(\(\) => false\)\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*markIndexWhole\(path\);\s*\}/);
+    // Not whole from the reader's first moment until the index says it is (third review of 11.11.).
+    expect(desktop).toMatch(/beginIndexBuild\(path\);\s*queryService\.setIndexWholeness\(indexWholenessFor\(path\)\);/);
+    expect(mobile).toMatch(/beginIndexBuild\(entry\.id\);\s*queryService\.setIndexWholeness\(indexWholenessFor\(entry\.id\)\);/);
     // Every first scan runs behind the open vault (issue 143, performance plan L3) and keeps what it got.
     // Quiet on purpose: the scan's failure is said by onFullScanFailed (the handler says so, R4).
     expect(mobile).not.toContain('await indexer.indexVaultFull("open, empty index")');

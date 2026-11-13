@@ -100,7 +100,7 @@ export async function adoptExternalMove(deps: ExternalMoveDeps, from: string, to
           await deps.untilWholeIndex();
           continue;
         } catch {
-          // silent: the vault closed before its index was whole; its next open walks the arrangements again
+          // silent: the vault closed before its index was whole — the boards keep the old path until the note is moved again or the board is arranged anew
           break;
         }
       }

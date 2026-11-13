@@ -1097,7 +1097,10 @@ export const VaultProvider: React.FC<{
       // Whether the index is whole, for whoever plans a write from it
       // (performance plan L3): this vault's entry of the shared store, which
       // the windows that show it mirror. A vault that closes refuses whoever
-      // still waits for it.
+      // still waits for it. Not whole from its first moment until the index
+      // says it is (third review of 11.11.): unknown is not whole, and work
+      // that starts early — the calendar's worker — waits instead of reading.
+      beginIndexBuild(path);
       queryService.setIndexWholeness(indexWholenessFor(path));
       currentAbortSignal.addEventListener("abort", () => markIndexClosed(path), { once: true });
       const graphService = GraphService.forIndex(queryService);
@@ -1285,6 +1288,7 @@ export const VaultProvider: React.FC<{
         if (await indexer.indexComplete().catch(() => false)) {
           coldIndexOwed = false;
           deferInitialEnqueue = false;
+          markIndexWhole(path);
         } else {
           // Not whole either for whoever plans a write from it (performance
           // plan L3): this pass is its build, counted and gated like a first one.

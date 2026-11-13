@@ -7,6 +7,7 @@ import { mActions, mConfirm, mPrompt, mSelect } from "../../services/mobileDialo
 import { convertBaseDateColumn, deleteBaseProperty, fillBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
 import { vaultOps } from "../../services/vaultService";
 import type { MobileVault } from "../../services/vaultService";
+import { requireWholeRows } from "@plainva/core";
 
 /**
  * Light schema authoring for one .base property (M3E package E3): field type,
@@ -133,7 +134,9 @@ export function PropertyEditSheet({
       });
       if (!ok) return;
       try {
-        sayRewriteOutcome(await fillBaseProperty(vault, missing, column), toast);
+        // "Every note" only from whole rows (third review of 11.11.): refused, with the reason, while the index is built.
+        const whole = requireWholeRows(rows);
+        sayRewriteOutcome(await fillBaseProperty(vault, missing, column, whole), toast);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         return;
