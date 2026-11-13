@@ -222,6 +222,34 @@ function epochMs(value: unknown): number {
 /** The same in SQL: a row's file time as milliseconds, for a comparison and an order the unit of an old row does not upset. */
 const MTIME_MS = "(CASE WHEN mtime_local > 0 AND mtime_local < 100000000000 THEN mtime_local * 1000 ELSE mtime_local END)";
 
+/** A reader's `reach`, asked once per note and never throwing: a note it cannot answer for is out of reach. */
+interface Reach {
+  has(path: string): Promise<boolean>;
+  filter<T>(items: readonly T[], pathOf: (item: T) => string): Promise<T[]>;
+}
+
+function reachOf(ask: (path: string) => boolean | Promise<boolean>): Reach {
+  const answers = new Map<string, Promise<boolean>>();
+  const has = (path: string): Promise<boolean> => {
+    let answer = answers.get(path);
+    if (!answer) {
+      answer = Promise.resolve()
+        .then(() => ask(path))
+        .then((yes) => yes === true, () => false);
+      answers.set(path, answer);
+    }
+    return answer;
+  };
+  return {
+    has,
+    async filter(items, pathOf) {
+      const kept: (typeof items)[number][] = [];
+      for (const item of items) if (await has(pathOf(item))) kept.push(item);
+      return kept;
+    },
+  };
+}
+
 export class VaultQueryService {
   /** Sentinels wrapping matches in `snippet`/`titleHighlighted` (see ftsQuery.ts).
    *  Exposed here so UI code can consume them without a package-root export. */
@@ -1156,7 +1184,7 @@ export class VaultQueryService {
    * format, and a cycle would be a hang rather than a wrong number. Such a
    * column simply stays empty.
    */
-  private async _enrichRollups(config: any, result: any[]): Promise<void> {
+  private async _enrichRollups(config: any, result: any[], reach: Reach | null = null): Promise<void> {
     const columns = (config?.columns ?? {}) as Record<string, any>;
     const specs: Array<[string, RollupSpec]> = [];
     for (const [name, col] of Object.entries(columns)) {
@@ -1192,6 +1220,8 @@ export class VaultQueryService {
           if (!target) continue;
           const resolved = linkedNote(row["file.path"] || "", target);
           if (!resolved) continue;
+          // A note the reader may not see is no link of this row for it: neither counted nor aggregated.
+          if (reach && !(await reach.has(resolved))) continue;
           targets.push(resolved);
           linkedPaths.add(resolved);
         }
@@ -1612,8 +1642,17 @@ export class VaultQueryService {
        * carries `file.day`, and no picker offers it.
        */
       dayOfPath?: (path: string) => string | null;
+      /**
+       * The notes a value computed for a row may be made of (review of R19, wave 2). A reverse column lists, and a
+       * rollup aggregates, only notes this says yes to; a note it says no to — or throws for — counts as no link at
+       * all, so the filters and the sort that run on such a column cannot tell it apart from one that is not there.
+       * The caller is a reader with a narrower view than the vault's own (an assistant run, an app over MCP): what a
+       * row shows must not be computed from a note that reader may not see. Absent: every note of the vault.
+       */
+      reach?: (path: string) => boolean | Promise<boolean>;
     } = {},
   ): Promise<any[]> {
+    const reach = options.reach ? reachOf(options.reach) : null;
     let sql = `
       SELECT f.id, f.path AS path, f.title, f.mtime_local, f.size_bytes, f.sha256, f.ctime
       FROM files f
@@ -1814,7 +1853,8 @@ export class VaultQueryService {
       for (const [name, col] of reverseCols) {
         const map = await this._getRelationSources(targetPaths, col.reverseOf.property, files);
         for (const row of result) {
-          const sources = map.get(row["file.path"]) ?? [];
+          const linking = map.get(row["file.path"]) ?? [];
+          const sources = reach ? await reach.filter(linking, (s) => s.path) : linking;
           row[name] = sources.map((s) => {
             const target = wikiTargetForPath(s.path, allFilePaths);
             return s.title && s.title !== target ? `[[${target}|${s.title}]]` : `[[${target}]]`;
@@ -1827,7 +1867,7 @@ export class VaultQueryService {
     // columns, because a rollup almost always runs over one — "how many of the
     // tasks that point at me are still open". Like the reverse column the value
     // is computed here and stored in no note.
-    await this._enrichRollups(config, result);
+    await this._enrichRollups(config, result, reach);
 
     let finalResult = result;
 

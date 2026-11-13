@@ -445,3 +445,49 @@ describe("the redaction the reader chose for a conversation (P2b-6)", () => {
     expect((await call(new Set(["Projects/Offer.md"]), "get_tasks", { range: "all" })).content).toContain("DE89 3704");
   });
 });
+
+/** What a database computes from other notes (review of R19, wave 2): only from notes this run may see. */
+describe("values a database computes from other notes", () => {
+  const board = 'views:\n  - type: table\n    name: Open\n';
+  const withBoard = (queryDatabase: VaultToolDeps["queryDatabase"]) =>
+    deps({
+      async readNote(path) {
+        return path === "Projects/Board.base" ? board : (files[path] ?? null);
+      },
+      queryDatabase,
+    });
+
+  it("a reverse column or a rollup reaches only notes the gate lets through: the run's reach goes to the query", async () => {
+    const reached: Record<string, boolean> = {};
+    const out = await run(
+      "query_base",
+      { base: "Projects/Board.base", limit: 20 },
+      cloud,
+      withBoard(async (_config, options) => {
+        // As the query service does: each note a computed column would be made of is asked for first.
+        for (const path of ["Private/Client.md", "Projects/Offer.md"]) reached[path] = (await options?.reach?.(path)) === true;
+        const hours = reached["Private/Client.md"] ? 9003 : 3;
+        return [{ "file.name": "Offer", "file.path": "Projects/Offer.md", hours }];
+      }),
+    );
+    expect(reached).toEqual({ "Private/Client.md": false, "Projects/Offer.md": true });
+    expect(out.content).toContain("hours: 3");
+    expect(out.content).not.toContain("9003");
+  });
+
+  it("the task list is computed with the same reach", async () => {
+    let asked: boolean | null = null;
+    await run(
+      "get_tasks",
+      { range: "all" },
+      cloud,
+      deps({
+        async taskRows(options) {
+          asked = (await options?.reach?.("Private/Client.md")) === true;
+          return [];
+        },
+      }),
+    );
+    expect(asked).toBe(false);
+  });
+});

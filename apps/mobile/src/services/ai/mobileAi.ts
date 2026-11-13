@@ -48,6 +48,7 @@ import {
   watchRoutineReady,
   withCloudDenied,
   type AiFileStore,
+  type DatabaseReach,
   type AppCommand,
   type AreaOrder,
   type VaultPolicyHost,
@@ -395,10 +396,10 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         neighbors: (path, limit) => query.getLinkNeighbors(path, limit),
       });
     /** Checkbox tasks and the task database, as every task view reads them. */
-    const taskRows = async () => {
+    const taskRows = async (options?: DatabaseReach) => {
       const db = getMobileSettings().taskDatabase.trim();
       const [dbRows, notes] = await Promise.all([
-        db ? read(db).then((text) => databaseTaskRows(text, (config) => query.queryDatabaseFiles(config))) : Promise.resolve([]),
+        db ? read(db).then((text) => databaseTaskRows(text, (config) => query.queryDatabaseFiles(config, options))) : Promise.resolve([]),
         query
           .listTasks()
           .then((tasks) => plannerRowsFromTasks(tasks.filter((task) => !task.excluded)))
@@ -556,7 +557,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         todayKey: () => calendarDay(),
         commands,
         backlinks: (path) => query.getBacklinks(path),
-        queryDatabase: (config) => query.queryDatabaseFiles(config),
+        queryDatabase: (config, options) => query.queryDatabaseFiles(config, options),
         events,
         moodKey,
         // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.

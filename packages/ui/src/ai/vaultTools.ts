@@ -90,6 +90,11 @@ export interface AiNavigationCommand {
   run(args?: Record<string, string | number | boolean>): boolean | Promise<boolean>;
 }
 
+/** The notes a value computed for a database row may be made of (`VaultQueryService.queryDatabaseFiles`). */
+export interface DatabaseReach {
+  reach?: (path: string) => Promise<boolean>;
+}
+
 export interface VaultToolDeps {
   search(query: string, limit: number, offset: number): Promise<{ path: string; title: string; snippet?: string | null }[]>;
   /** The note's text as the adapter chain reads it; null when there is none. */
@@ -102,8 +107,8 @@ export interface VaultToolDeps {
    */
   linkCandidates?(target: string, fromPath: string): Promise<readonly string[]>;
   policyOf(path: string, text?: string): Promise<EffectivePolicy>;
-  /** Checkbox tasks and the task database, as planner rows. */
-  taskRows(): Promise<PlannerRow[]>;
+  /** Checkbox tasks and the task database, as planner rows; `reach` as for `queryDatabase`. */
+  taskRows(options?: DatabaseReach): Promise<PlannerRow[]>;
   todayKey(): string;
   commands(): AiNavigationCommand[];
   /** Links into a note, one row per occurrence (the index). */
@@ -123,8 +128,8 @@ export interface VaultToolDeps {
   history?: NoteHistorySource;
   /** Appointments between two instants, from the connected calendars. */
   events?(from: Date, to: Date): Promise<SituationEventInput[]>;
-  /** Rows of a database query (`queryDatabaseFiles`). */
-  queryDatabase?(config: unknown): Promise<unknown[]>;
+  /** Rows of a database query (`queryDatabaseFiles`); `reach` as there: the notes a computed column may be made of. */
+  queryDatabase?(config: unknown, options?: DatabaseReach): Promise<unknown[]>;
   /** The property the vault rates its days in; it stays behind like the usual mood names. */
   moodKey?(): Promise<string | null>;
   /** The vault's mail accounts (plan KI-Harness P4-4); absent in a shell without mail. */
@@ -552,7 +557,9 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           if (wanted && !view) return { content: `No view "${String(a.view)}". Views: ${views.map((v) => v.name ?? "").filter(Boolean).join(", ") || "none"}.`, isError: true };
           // What the view shows: the sources AND the view's own filters, like the database views do.
           const merged = { ...config, filters: combineFilters(config.filters, view?.filters), views: view ? [view] : [] };
-          const rows = (await deps.queryDatabase(merged)) as Record<string, unknown>[];
+          // A reverse column and a rollup are computed only from notes this run may see: a sum over a relation into a
+          // folder kept from it would otherwise carry that folder's numbers out, and its filters and sort would too.
+          const rows = (await deps.queryDatabase(merged, { reach: (linked) => allowed(linked) })) as Record<string, unknown>[];
           const columns = (view?.order ?? []).filter((c) => !c.startsWith("file.") && !c.startsWith("formula.")).map((c) => c.replace(/^note\./, ""));
           const limit = Number(a.limit) || 20;
           const offset = offsetOf(a.cursor);
@@ -584,7 +591,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const offset = offsetOf(a.cursor);
           const today = deps.todayKey();
           const rows: PlannerRow[] = [];
-          for (const row of await deps.taskRows()) if (await allowed(row.path)) rows.push(row);
+          for (const row of await deps.taskRows({ reach: (linked) => allowed(linked) })) if (await allowed(row.path)) rows.push(row);
           const planner = buildPlanner(rows, today);
           const listed =
             range === "all"

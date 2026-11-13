@@ -6,7 +6,7 @@ import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT, updateVaul
 import type { DirectWriteFiles } from "@plainva/core";
 import { dirtyStore } from "../dirtyStore";
 import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, PimEventRow, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
-import type { EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
+import type { DatabaseReach, EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
   aiDefaultSettings,
   AiSession,
@@ -473,10 +473,10 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       }
     : undefined;
   /** Checkbox tasks and the task database, as every task view reads them. */
-  const taskRows = async () => {
+  const taskRows = async (options?: DatabaseReach) => {
     const [db, notes] = await Promise.all([
       getTaskDatabasePath(input.vaultPath)
-        .then(async (dbPath) => databaseTaskRows(dbPath ? await read(dbPath) : null, (config) => input.query.queryDatabaseFiles(config)))
+        .then(async (dbPath) => databaseTaskRows(dbPath ? await read(dbPath) : null, (config) => input.query.queryDatabaseFiles(config, options)))
         .catch(() => []),
       input.query
         .listTasks()
@@ -709,7 +709,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       todayKey: () => calendarDay(),
       commands: input.commands,
       backlinks: (path) => input.query.getBacklinks(path),
-      queryDatabase: (config) => input.query.queryDatabaseFiles(config),
+      queryDatabase: (config, options) => input.query.queryDatabaseFiles(config, options),
       events: (from, to) => input.events(from, to),
       moodKey,
       // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
