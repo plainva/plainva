@@ -1,4 +1,4 @@
-import { frontmatterKeys, readFrontmatterPath, type SituationInput } from "@plainva/core";
+import { frontmatterKeys, gateDecision, isAiHiddenPath, readFrontmatterPath, type EffectivePolicy, type GateRun, type SituationInput } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveTaskCompletionModel, taskDbRows } from "../lib/taskDatabase";
 import { addDaysToKey, type PlannerRow } from "../lib/taskPlanner";
@@ -120,6 +120,9 @@ const clock = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 /** Days of tasks ahead that count as due in the situation. */
 export const SITUATION_TASK_DAYS = 7;
+
+/** How many due tasks the situation gathers at most; the context package sends the first twelve the gate lets through. */
+export const SITUATION_TASKS_GATHERED = 200;
 /** Appointments shown: from two hours ago to the end of tomorrow. */
 const EVENT_PAST_MS = 2 * 3_600_000;
 
@@ -139,7 +142,8 @@ export function situationFrom(src: SituationSources): SituationInput {
   const tasks = (src.taskRows ?? [])
     .filter((row) => (row.state === "open" || row.state === "progress") && row.due !== null && row.due <= horizon)
     .sort((a, b) => (a.due ?? "").localeCompare(b.due ?? "") || (a.priority || 9) - (b.priority || 9))
-    .slice(0, 12)
+    // Cut wide: the package cuts to what goes only after the gate, so a task kept back takes no place of one that goes.
+    .slice(0, SITUATION_TASKS_GATHERED)
     .map((row) => ({ title: row.title, path: row.path, due: row.due }));
   const endOfTomorrow = new Date(src.now.getFullYear(), src.now.getMonth(), src.now.getDate() + 2).getTime();
   const events = (src.events ?? [])
@@ -188,4 +192,19 @@ export async function databaseTaskRows(baseText: string | null, query: (config: 
   } catch {
     return [];
   }
+}
+
+/**
+ * The reach of the situation's task database for one run (review of R19, wave 2): the notes the gate lets through
+ * for that recipient. A value the database computes from other notes — and so its filters and its sort — is made of
+ * those alone (`VaultQueryService.queryDatabaseFiles`).
+ */
+export function situationReach(policyOf: (path: string) => Promise<EffectivePolicy>, run: GateRun): { reach: (paths: readonly string[]) => Promise<ReadonlySet<string>> } {
+  return {
+    async reach(paths) {
+      const yes = new Set<string>();
+      for (const path of paths) if (!isAiHiddenPath(path) && gateDecision(await policyOf(path), run).allowed) yes.add(path);
+      return yes;
+    },
+  };
 }

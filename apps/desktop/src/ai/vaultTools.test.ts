@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildLinkNameIndex, effectivePolicy, filesALinkCouldMean, notePolicyFrom, parsePolicyFile, SITUATION_SOURCE, toolByName, type EgressRecipient } from "@plainva/core";
-import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, situationEvents, withoutBrokenLinks, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
+import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, situationEvents, situationFrom, situationReach, withoutBrokenLinks, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "---\nstatus: draft\nclient: \"[[Private/Client]]\"\n---\n# Offer\n\nIntro\n\n## Costs\n\n### 2026\n\nRates as in [[Private/Client]].\n\n## Notes\n\nlater",
@@ -458,54 +458,55 @@ describe("values a database computes from other notes", () => {
     });
 
   it("a reverse column or a rollup reaches only notes the gate lets through: the run's reach goes to the query", async () => {
-    const reached: Record<string, boolean> = {};
+    let reached: ReadonlySet<string> | null = null;
     const out = await run(
       "query_base",
       { base: "Projects/Board.base", limit: 20 },
       cloud,
       withBoard(async (_config, options) => {
-        // As the query service does: each note a computed column would be made of is asked for first.
-        for (const path of ["Private/Client.md", "Projects/Offer.md"]) reached[path] = (await options?.reach?.(path)) === true;
-        const hours = reached["Private/Client.md"] ? 9003 : 3;
+        // As the query service does: the notes a computed column would be made of are asked for first, together.
+        reached = await options!.reach!(["Private/Client.md", "Projects/Offer.md"]);
+        const hours = reached.has("Private/Client.md") ? 9003 : 3;
         return [{ "file.name": "Offer", "file.path": "Projects/Offer.md", hours }];
       }),
     );
-    expect(reached).toEqual({ "Private/Client.md": false, "Projects/Offer.md": true });
+    expect([...reached!]).toEqual(["Projects/Offer.md"]);
     expect(out.content).toContain("hours: 3");
     expect(out.content).not.toContain("9003");
   });
 
   it("an app's folders bound the reach as well: a note outside them, or one the wall refuses, is no note to compute from", async () => {
-    const reached: Record<string, boolean> = {};
+    let reached: ReadonlySet<string> | null = null;
     const scope = {
       inside: (path: string) => path.startsWith("Projects/"),
       confirm: async (path: string) => path !== "Projects/link/Hidden.md",
     };
     await createVaultToolExecutor(
       withBoard(async (_config, options) => {
-        for (const path of ["Archive/Old.md", "Projects/link/Hidden.md", "Projects/Offer.md"]) reached[path] = (await options?.reach?.(path)) === true;
+        reached = await options!.reach!(["Archive/Old.md", "Projects/link/Hidden.md", "Projects/Offer.md"]);
         return [];
       }),
       { recipient: cloud, webTools: true },
       scope,
     ).execute(toolByName("query_base")!, { base: "Projects/Board.base", limit: 20 }, { type: "tool_call", id: "c", name: "query_base", args: {} });
-    expect(reached).toEqual({ "Archive/Old.md": false, "Projects/link/Hidden.md": false, "Projects/Offer.md": true });
+    expect([...reached!]).toEqual(["Projects/Offer.md"]);
   });
 
   it("the task list is computed with the same reach", async () => {
-    let asked: boolean | null = null;
+    let reached: ReadonlySet<string> | null = null;
     await run(
       "get_tasks",
       { range: "all" },
       cloud,
       deps({
         async taskRows(options) {
-          asked = (await options?.reach?.("Private/Client.md")) === true;
+          // Without the run's reach this throws: the task database would be computed over the whole vault.
+          reached = await options!.reach!(["Private/Client.md", "Projects/Offer.md"]);
           return [];
         },
       }),
     );
-    expect(asked).toBe(false);
+    expect([...reached!]).toEqual(["Projects/Offer.md"]);
   });
 });
 
@@ -513,6 +514,7 @@ describe("values a database computes from other notes", () => {
 describe("a scope that confirms each path", () => {
   it("is asked only for a path the gate let through, and a refused path is left out like a missing one", async () => {
     const confirmed: string[] = [];
+    const ready: string[][] = [];
     const passed: string[] = [];
     const scope = {
       inside: () => true,
@@ -520,23 +522,25 @@ describe("a scope that confirms each path", () => {
         confirmed.push(path);
         return path !== "Projects/Offer.md";
       },
+      prefetch: async (paths: readonly string[]) => void ready.push([...paths]),
       passed: (path: string) => void passed.push(path),
     };
     const executor = createVaultToolExecutor(deps(), { recipient: cloud, webTools: false }, scope);
     const out = await executor.execute(toolByName("search_vault")!, { query: "rates", limit: 10 }, { type: "tool_call", id: "c", name: "search_vault", args: {} });
     expect(out.content).toBe("No matching notes.");
-    // The private note is kept by the gate: the confirming side never hears of it.
+    // The private note is kept by the gate: the confirming side never hears of it, ahead of time neither.
     expect(confirmed).not.toContain("Private/Client.md");
+    expect(ready.flat()).not.toContain("Private/Client.md");
+    expect(ready.flat()).toContain("Projects/Offer.md");
     expect(confirmed).toContain("Projects/Offer.md");
     expect(passed).toEqual([]);
     const read = await executor.execute(toolByName("read_note")!, { path: "Projects/Offer.md", maxChars: 8000 }, { type: "tool_call", id: "c", name: "read_note", args: {} });
     expect(read.isError).toBe(true);
   });
 
-  it("a confirmation that fails is a no", async () => {
+  it("a confirmation that fails fails the tool: it is never taken for a note that is not there", async () => {
     const executor = createVaultToolExecutor(deps(), { recipient: cloud, webTools: false }, { inside: () => true, confirm: () => Promise.reject(new Error("gone")) });
-    const read = await executor.execute(toolByName("read_note")!, { path: "Projects/Offer.md", maxChars: 8000 }, { type: "tool_call", id: "c", name: "read_note", args: {} });
-    expect(read.isError).toBe(true);
+    await expect(executor.execute(toolByName("read_note")!, { path: "Projects/Offer.md", maxChars: 8000 }, { type: "tool_call", id: "c", name: "read_note", args: {} })).rejects.toThrow("gone");
   });
 
   it("a search asks the index for the scope's folders alone", async () => {
@@ -550,5 +554,81 @@ describe("a scope that confirms each path", () => {
     await createVaultToolExecutor(d, { recipient: cloud, webTools: false }, { inside: () => true, folders: ["Projects"] }).execute(toolByName("search_vault")!, { query: "x", limit: 10 }, { type: "tool_call", id: "c", name: "search_vault", args: {} });
     await createVaultToolExecutor(d, { recipient: cloud, webTools: false }).execute(toolByName("search_vault")!, { query: "x", limit: 10 }, { type: "tool_call", id: "c", name: "search_vault", args: {} });
     expect(within).toEqual([["Projects"], undefined]);
+  });
+
+  it("reads no note outside the scope's folders, not even to refuse it", async () => {
+    const read: string[] = [];
+    const d = deps({
+      async readNote(path) {
+        read.push(path);
+        return files[path] ?? null;
+      },
+      async backlinks() {
+        return [{ source_path: "Private/Client.md", source_title: "Client", line_number: 1 }];
+      },
+    });
+    const executor = createVaultToolExecutor(d, { recipient: cloud, webTools: false }, { inside: (path) => path.startsWith("Projects/") });
+    await executor.execute(toolByName("get_backlinks")!, { path: "Projects/Offer.md", limit: 20 }, { type: "tool_call", id: "c", name: "get_backlinks", args: {} });
+    await executor.execute(toolByName("read_note")!, { path: "Private/Client.md", maxChars: 8000 }, { type: "tool_call", id: "c", name: "read_note", args: {} });
+    expect(read).not.toContain("Private/Client.md");
+    expect(read).toContain("Projects/Offer.md");
+  });
+});
+
+/** A list is cut to the answer after the gate, never before (review of R19, wave 2). */
+describe("lists that are read past what an answer shows", () => {
+  const newer = Array.from({ length: 30 }, (_, i) => ({ path: `Private/n${i}.md`, title: `n${i}`, mtime: 2_000 - i }));
+  const scope = { inside: (path: string) => path.startsWith("Projects/") };
+  const exec = (d: VaultToolDeps, name: string, args: unknown) => createVaultToolExecutor(d, { recipient: cloud, webTools: true }, scope).execute(toolByName(name)!, args, { type: "tool_call", id: "c", name, args });
+
+  it("the notes changed lately: as many notes outside in front change nothing", async () => {
+    const answer = async (outside: number) => {
+      const all = [...newer.slice(0, outside), { path: "Projects/Offer.md", title: "Offer", mtime: 1_000 }];
+      return (await exec(deps({ recentlyChanged: async (limit, offset = 0) => all.slice(offset, offset + limit) }), "get_recent", { kind: "edited", limit: 1 })).content;
+    };
+    expect(await answer(0)).toContain("Projects/Offer.md");
+    expect(await answer(2)).toBe(await answer(0));
+    expect(await answer(30)).toBe(await answer(0));
+  });
+
+  it("what changed in a period: as many changed notes outside in front change nothing", async () => {
+    const answer = async (outside: number) => {
+      const all = [...Array.from({ length: outside }, (_, i) => ({ path: `Private/c${i}.md`, title: `c${i}`, mtime: 5_000 - i, created: 0 })), { path: "Projects/Offer.md", title: "Offer", mtime: new Date(2026, 8, 22, 12).getTime(), created: 0 }];
+      const d = deps({
+        history: {
+          changedIn: async (_folder, _since, limit, offset = 0) => all.slice(offset, offset + limit),
+          created: async () => null,
+          versions: async () => [],
+          readVersion: async () => null,
+        },
+      });
+      return (await exec(d, "get_changes", { since: "2026-09-21", until: "2026-09-24", limit: 1 })).content;
+    };
+    expect(await answer(0)).toContain("Projects/Offer.md");
+    expect(await answer(300)).toBe(await answer(0));
+  });
+
+  it("the neighbours of a note: the busiest ones outside take no place of one inside", async () => {
+    const answer = async (outside: number) => {
+      const around = [...newer.slice(0, outside).map((n) => ({ path: n.path, title: n.title, incoming: 9, outgoing: 9 })), { path: "Projects/Plan.md", title: "Plan", incoming: 1, outgoing: 0 }];
+      return (await exec(deps({ neighbors: async (_path, limit) => around.slice(0, limit), readNote: async (path) => (path === "Projects/Offer.md" ? "# Offer" : null) }), "graph_neighborhood", { path: "Projects/Offer.md", limit: 1 })).content;
+    };
+    expect(await answer(0)).toContain("Projects/Plan.md");
+    expect(await answer(5)).toBe(await answer(0));
+  });
+});
+
+/** The situation's task database for a run (review of R19, wave 2): computed only from notes that run may see. */
+describe("the situation's reach", () => {
+  it("is the gate of the run: a note kept from the cloud is out of reach, a model on this device reaches it", async () => {
+    const policyOf = async (path: string) => effectivePolicy(path, notePolicyFrom({}), rules);
+    const paths = ["Private/Client.md", "Projects/Offer.md", ".agent/skills/x/SKILL.md"];
+    expect([...(await situationReach(policyOf, { recipient: cloud, webTools: false }).reach(paths))]).toEqual(["Projects/Offer.md"]);
+    expect([...(await situationReach(policyOf, { recipient: { kind: "local", provider: "ollama", model: "m" }, webTools: false }).reach(paths))]).toEqual(["Private/Client.md", "Projects/Offer.md"]);
+  });
+
+  it("gathers more than the twelve that go, so the package cuts after the gate", () => {
+    const rows: PlannerRow[] = Array.from({ length: 30 }, (_, i) => ({ id: String(i), source: "note", path: `N/${i}.md`, noteTitle: `${i}`, ordinal: 0, title: `t${i}`, state: "open", due: "2026-09-24", dueMinutes: null, priority: 0, tags: [] }));
+    expect(situationFrom({ now: new Date(2026, 8, 24, 9), active: null, taskRows: rows }).tasks).toHaveLength(30);
   });
 });

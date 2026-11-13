@@ -103,14 +103,27 @@ const parentOf = (path: string): string => path.slice(0, Math.max(0, path.lastIn
  */
 export function mcpCallScope(folders: readonly string[], judge: McpJudge) {
   const verdicts = new Map<string, Promise<boolean>>();
+  // Set once a verdict could not be had: the call then fails as a whole, whatever a tool made of the missing answer.
+  const state = { unsure: false };
   const ask = (paths: readonly string[]): void => {
     const fresh = [...new Set(paths)].filter((path) => !verdicts.has(path));
-    if (fresh.length === 0) return;
-    const answer = judge(fresh).then(
-      (said) => (Array.isArray(said) && said.length === fresh.length ? said.map((yes) => yes === true) : fresh.map(() => false)),
-      () => fresh.map(() => false),
-    );
-    fresh.forEach((path, i) => verdicts.set(path, answer.then((said) => said[i] ?? false)));
+    // In blocks the native side takes (`JUDGE_MAX`): a database of many rows is many questions, never a refusal.
+    for (let at = 0; at < fresh.length; at += MCP_JUDGE_BLOCK) {
+      const block = fresh.slice(at, at + MCP_JUDGE_BLOCK);
+      const answer = judge(block).then((said) => {
+        if (!Array.isArray(said) || said.length !== block.length) throw new Error("The native side's verdict does not fit the question.");
+        return said.map((yes) => yes === true);
+      });
+      block.forEach((path, i) => {
+        const one = answer.then((said) => said[i]!);
+        verdicts.set(path, one);
+        // A verdict that could not be had is never kept: the next question asks again.
+        one.catch(() => {
+          state.unsure = true;
+          if (verdicts.get(path) === one) verdicts.delete(path);
+        });
+      });
+    }
   };
   const verdict = (path: string): Promise<boolean> => {
     ask([path]);
@@ -123,8 +136,11 @@ export function mcpCallScope(folders: readonly string[], judge: McpJudge) {
   return {
     leftOut,
     paths: passed,
+    /** Whether a verdict of the native side could not be had during the call. */
+    unsure: () => state.unsure,
     scope: {
       folders: [...folders],
+      linksInReach: true,
       inside: (path: string) => insideFolders(path, folders),
       prefetch: async (paths: readonly string[]) => {
         ask(paths.map(stand).filter((place): place is string => place !== null && place !== ""));
@@ -141,6 +157,12 @@ export function mcpCallScope(folders: readonly string[], judge: McpJudge) {
     },
   };
 }
+
+/** How many paths one question to the native side names at most: well below its `JUDGE_MAX` (4096). */
+export const MCP_JUDGE_BLOCK = 1000;
+
+/** What a client is told when the native side's verdict on the paths of its answer could not be had. */
+export const MCP_UNSURE = "Plainva could not check this answer against the folders this app was given, so nothing of it was sent. Call the tool again.";
 
 export interface McpCallRequest {
   requestId: string;
@@ -267,13 +289,16 @@ export async function runMcpCall(host: AiVaultHost | null, request: McpCallReque
   // An outside client is a recipient like a cloud provider that may reach the internet: a note kept from the cloud, or
   // from conversations with the internet, does not exist for it. What the program does with what it reads is not Plainva's to see.
   const recipient: EgressRecipient = { kind: "cloud", provider: `mcp:${request.client}`, model: request.client };
-  const { scope, paths, leftOut } = mcpCallScope(request.folders, judge);
+  const { scope, paths, leftOut, unsure } = mcpCallScope(request.folders, judge);
   const execute = async (run?: WriteRun): Promise<ToolOutcome | null> => {
     const tools = host.tools(recipient, scope, undefined, true, undefined, undefined, run);
     return tools ? tools.executor.execute(tool, parsed.value, { type: "tool_call", id: request.requestId, name: tool.name, args: parsed.value }) : null;
   };
   const answered = (outcome: ToolOutcome | null): McpCallAnswer =>
-    outcome
+    // A verdict the native side could not give fails the call: a tool may have taken the missing answer for "no".
+    unsure()
+      ? failed(MCP_UNSURE)
+      : outcome
       ? { content: leftOut.size && !outcome.isError ? `${outcome.content}\n\n${MCP_LEFT_OUT(leftOut.size)}` : outcome.content, isError: Boolean(outcome.isError), paths: [...paths], ...(outcome.declined ? { declined: true } : {}) }
       : failed("This vault offers no tools.");
   try {
@@ -294,7 +319,7 @@ export async function runMcpCall(host: AiVaultHost | null, request: McpCallReque
     }
     return await runMcpPlan(host, request, writing, author, stable(parsed.value), execute, answered, paths);
   } catch {
-    return failed("The tool failed.");
+    return failed(unsure() ? MCP_UNSURE : "The tool failed.");
   }
 }
 
@@ -436,6 +461,8 @@ export interface McpClientView {
   folders: string[];
   /** The user allows this client to propose changes in the vault open now. */
   writes: boolean;
+  /** Stored folders of the vault open now that grant nothing any more: the user has to choose them again (review of R19, wave 2). */
+  stale?: number;
 }
 
 export interface McpAuditEntry {

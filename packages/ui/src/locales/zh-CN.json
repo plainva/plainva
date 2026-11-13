@@ -1732,6 +1732,7 @@
       "noClients": "还没有应用询问过。",
       "folders": "文件夹：{{folders}}",
       "noFolders": "在这个仓库中没有",
+      "foldersStale_other": "之前授予的 {{count}} 个文件夹已不再有效。请移除此应用；它会再次询问，你可以重新选择。",
       "wholeVault": "整个仓库",
       "lastSeen": "最近使用 {{when}}",
       "revokeLabel": "移除{{client}}",

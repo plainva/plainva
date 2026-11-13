@@ -1732,6 +1732,7 @@
       "noClients": "まだどのアプリも確認を求めていません。",
       "folders": "フォルダー: {{folders}}",
       "noFolders": "この保管庫にはなし",
+      "foldersStale_other": "以前許可したフォルダーのうち{{count}}件が無効になりました。アプリを削除してください。再度確認され、選び直せます。",
       "wholeVault": "保管庫全体",
       "lastSeen": "最終利用 {{when}}",
       "revokeLabel": "{{client}}を削除",

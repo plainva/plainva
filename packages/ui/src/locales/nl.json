@@ -1795,6 +1795,8 @@
       "noClients": "Nog geen app heeft gevraagd.",
       "folders": "Mappen: {{folders}}",
       "noFolders": "geen in deze vault",
+      "foldersStale_other": "{{count}} eerder gegeven mappen tellen niet meer. Verwijder de app; hij vraagt het opnieuw en je kiest opnieuw.",
+      "foldersStale_one": "Eén eerder gegeven map telt niet meer. Verwijder de app; hij vraagt het opnieuw en je kiest opnieuw.",
       "wholeVault": "de hele vault",
       "lastSeen": "laatst gebruikt {{when}}",
       "revokeLabel": "{{client}} verwijderen",

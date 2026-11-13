@@ -789,7 +789,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   if (tabs.length) lines.push(`Open tabs: ${tabs.slice(0, 10).join(", ")}.`);
   if (situation.dailyNote && (await allowed(situation.dailyNote.path))) lines.push(`Today's daily note: [[${situation.dailyNote.title}]] (${situation.dailyNote.path}).`);
   const tasks: string[] = [];
-  for (const task of situation.tasks.slice(0, 12)) {
+  // Twelve of those the gate lets through: cut after the gate, so a task kept back takes no place of one that goes.
+  for (const task of situation.tasks) {
+    if (tasks.length >= 12) break;
     if (task.path && !(await allowed(task.path))) continue;
     const due = task.due ? ` (due ${task.due}${task.due < situation.calendarDay ? ", overdue" : ""})` : "";
     tasks.push(`- [ ] ${situationText(task.title, task.path)}${due}${task.path ? ` — in [[${titleFromPath(task.path)}]]` : ""}`);

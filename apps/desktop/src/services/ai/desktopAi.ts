@@ -44,6 +44,7 @@ import {
   proposeSuggestionRound,
   protectedScriptKeys,
   situationFrom,
+  situationReach,
   spawnScriptWorker,
   vaultMailSource,
   withCloudDenied,
@@ -663,13 +664,13 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       const update = await updateVaultText(input.adapter, path, (text) => withCloudDenied(text));
       if (update.changed) await input.noteChanged?.(path);
     },
-    async situation() {
+    async situation(run) {
       const now = new Date();
       const path = input.documentPath();
       const kind = path && /\.base$/i.test(path) ? "base" : "note";
       const text = path && kind === "note" ? ((await note(path))?.text ?? null) : null;
       const [tasks, events, mood, dailyNotePath] = await Promise.all([
-        taskRows(),
+        taskRows(run ? situationReach((path) => policy.policyOf(path), run) : undefined),
         input.events(now, new Date(now.getTime() + 2 * 86_400_000)).catch(() => []),
         moodKey(),
         readDailyNoteConfig(input.vaultPath)
@@ -684,7 +685,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     retrieval: {
       searchCandidates: (terms, limit) => input.query.searchCandidates(terms, limit),
       linkNeighbors: (path, limit) => input.query.getLinkNeighbors(path, limit),
-      recentlyChanged: (limit) => input.query.getRecentlyChangedNotes(limit),
+      recentlyChanged: (limit, offset, within) => input.query.getRecentlyChangedNotes(limit, offset, within),
       async recentlyOpened() {
         try {
           return parseRecentsFile(await input.adapter.readTextFile(".plainva/recents.json"));

@@ -26,6 +26,7 @@ import {
   type ContextPolicyHost,
   type EffectivePolicy,
   type EgressRecipient,
+  type GateRun,
   type InstructionIO,
   type IVaultAdapter,
   type LinkNameIndex,
@@ -159,8 +160,8 @@ export interface AiVaultHostInput {
   /** The note open in the shell right now — its saved text. */
   activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
   readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
-  /** Where the user is: gathered by the shell, gated and written by the context package. */
-  situation(): Promise<SituationInput>;
+  /** Where the user is: gathered by the shell, gated and written by the context package; `run` as for `AiVaultHost.situation`. */
+  situation(run?: GateRun): Promise<SituationInput>;
   /** The vault's candidate sources; null in a shell without an index. */
   retrieval: CandidateRetrieval | null;
   /** The tools' access to the vault; null when this shell offers no tools. */
@@ -314,14 +315,14 @@ export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () =>
  */
 export function noteHistorySource(input: {
   index: {
-    getNotesChangedIn(folder: string, since: number, limit?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+    getNotesChangedIn(folder: string, since: number, limit?: number, offset?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
     getNoteCreated(path: string): Promise<number | null>;
   };
   versions: Pick<InstructionVersions, "list" | "read"> | null;
 }): NoteHistorySource {
   const { index, versions } = input;
   return {
-    changedIn: (folder, since, limit) => index.getNotesChangedIn(folder, since, limit),
+    changedIn: (folder, since, limit, offset) => index.getNotesChangedIn(folder, since, limit, offset),
     created: (path) => index.getNoteCreated(path),
     versions: async (path) => (versions ? (await versions.list(path)).map((version) => ({ id: version.id, at: version.at })) : []),
     readVersion: (id) => (versions ? versions.read(id) : Promise.resolve(null)),
@@ -379,7 +380,8 @@ export function withNoteRule(text: string, rule: AiPolicyDimension, set: boolean
 export interface CandidateRetrieval {
   searchCandidates(terms: readonly string[], limit: number): Promise<{ path: string; title: string; score: number; snippet: string | null }[]>;
   linkNeighbors(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
-  recentlyChanged(limit: number): Promise<{ path: string; title: string; mtime: number }[]>;
+  /** `offset` and `within` (exact folders) as `VaultQueryService.getRecentlyChangedNotes` takes them. */
+  recentlyChanged(limit: number, offset?: number, within?: readonly string[]): Promise<{ path: string; title: string; mtime: number }[]>;
   /** Opened on this device, newest first (`.plainva/recents.json`). */
   recentlyOpened(): Promise<{ path: string; openedAt: number }[]>;
   now(): number;

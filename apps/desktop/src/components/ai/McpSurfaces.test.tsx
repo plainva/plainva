@@ -254,6 +254,18 @@ describe("the apps in the settings", () => {
     await until(() => $("mcp-writes-switch")!.getAttribute("aria-checked") === "false");
   });
 
+  it("says when folders given before no longer count, and how many (review of R19, wave 2)", async () => {
+    const stale = { ...status(false), clients: [{ ...status(false).clients[0]!, folders: [], stale: 2 }, { ...status(false).clients[1]!, stale: 0 }] };
+    invoke.mockImplementation(async (command: string) => (command === "mcp_status" ? stale : undefined));
+    await mount(<McpSettingsCard session={session} enabled />);
+    await until(() => (host!.textContent ?? "").includes("Claude Code"));
+    expect(host!.textContent).toContain("Folders: none in this vault");
+    expect(host!.textContent).toContain("2 folders given before no longer count. Remove the app; it asks again and you choose anew.");
+    expect((host!.textContent ?? "").match(/no longer count/g)).toHaveLength(1);
+    // Nothing that holds, nothing to switch.
+    expect($$("mcp-writes-switch")).toHaveLength(0);
+  });
+
   it("the record says what became of a request: a plan that asked, a no, a refusal — never a path or a text", async () => {
     invoke.mockImplementation(async (command: string) => (command === "mcp_status" ? status(true) : undefined));
     await mount(<McpSettingsCard session={session} enabled />);

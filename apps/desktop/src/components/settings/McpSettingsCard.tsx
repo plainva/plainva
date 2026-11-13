@@ -106,7 +106,11 @@ export function McpSettingsCard({ session, enabled, resting = false }: { session
           ) : (
             status!.clients.map((client) => (
               <Fragment key={client.id}>
-                <SettingRow label={client.name} desc={`${t("ai.mcp.folders", { folders: folderText(client.folders) })} · ${t("ai.mcp.lastSeen", { when: when(client.lastSeen) })}`}>
+                {/* What holds at a call: folders an older build stored that grant nothing any more are said, never shown as given. */}
+                <SettingRow
+                  label={client.name}
+                  desc={`${t("ai.mcp.folders", { folders: folderText(client.folders) })} · ${t("ai.mcp.lastSeen", { when: when(client.lastSeen) })}${client.stale ? ` · ${t("ai.mcp.foldersStale", { count: client.stale })}` : ""}`}
+                >
                   <IconButton label={t("ai.mcp.revokeLabel", { client: client.name })} onClick={() => revoke(client.id, client.name)}>
                     <Trash2 size={ICON.ui} />
                   </IconButton>

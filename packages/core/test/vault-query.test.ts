@@ -153,17 +153,17 @@ describe("VaultQueryService", () => {
     // An older row keeps seconds: the comparison and the order read every row as milliseconds.
     expect(query).toContain("CASE WHEN mtime_local > 0 AND mtime_local < 100000000000 THEN mtime_local * 1000 ELSE mtime_local END) > ?");
     expect(query).toContain("ORDER BY (CASE WHEN");
-    expect(params).toEqual([1_757_500_000_000, "Projects/%", 50]);
+    expect(params).toEqual([1_757_500_000_000, "Projects/%", 50, 0]);
   });
 
   it("asks for a folder's notes by both spellings of its letters, a wildcard taken literally, and for the whole vault without a folder", async () => {
     db.mockedResults.push([], []);
     await queryService.getNotesChangedIn("Café_1", 0, 5);
     expect(db.queries[0].query).toContain("(path LIKE ? ESCAPE '\\' OR path LIKE ? ESCAPE '\\')");
-    expect(db.queries[0].params).toEqual([0, `${"Café\\_1".normalize("NFC")}/%`, `${"Café\\_1".normalize("NFD")}/%`, 5]);
+    expect(db.queries[0].params).toEqual([0, `${"Café\\_1".normalize("NFC")}/%`, `${"Café\\_1".normalize("NFD")}/%`, 5, 0]);
     await queryService.getNotesChangedIn("", 0);
     expect(db.queries[1].query).not.toContain("ESCAPE");
-    expect(db.queries[1].params).toEqual([0, 100]);
+    expect(db.queries[1].params).toEqual([0, 100, 0]);
   });
 
   it("finds backlinks", async () => {

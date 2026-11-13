@@ -293,7 +293,13 @@ export async function linkCandidatesOf(host: LinkHost, target: string, fromPath:
  * about (`LINK_CANDIDATE_LIMIT`), which of them the link means cannot be
  * told — and "cannot tell" is never "none": the link is withheld.
  */
-export async function linkNamesDeniedNote(host: LinkHost, target: string, fromPath: string, isAllowed: (path: string) => Promise<boolean>): Promise<boolean> {
+export async function linkNamesDeniedNote(
+  host: LinkHost,
+  target: string,
+  fromPath: string,
+  isAllowed: (path: string) => Promise<boolean>,
+  rule: LinkRule = "any-kept-back",
+): Promise<boolean> {
   let paths: readonly string[];
   try {
     paths = await linkCandidatesOf(host, target, fromPath);
@@ -301,11 +307,25 @@ export async function linkNamesDeniedNote(host: LinkHost, target: string, fromPa
     // The vault could not say what the link means: it is not sent.
     return true;
   }
+  if (rule === "in-reach") {
+    for (const path of paths.slice(0, LINK_CANDIDATE_LIMIT)) if (await isAllowed(path)) return false;
+    return true;
+  }
   for (const path of paths.slice(0, LINK_CANDIDATE_LIMIT)) {
     if (!(await isAllowed(path))) return true;
   }
   return paths.length > LINK_CANDIDATE_LIMIT;
 }
+
+/**
+ * Which links are withheld. `any-kept-back` (the assistant's own rule): a link that could mean a note kept back —
+ * so a kept note's name never travels in a neighbour's text. `in-reach` (a reader outside Plainva, an app over MCP):
+ * a link stays only where it means a note the reader may see; any other is withheld, a link to no note at all among
+ * them. Then what the reader is told depends on nothing outside its reach — under the first rule, whether a link
+ * was withheld said that a note of that name lies outside (review of R19, wave 2). The name such a link shows is the
+ * name of a note in reach, so it tells nothing of one outside.
+ */
+export type LinkRule = "any-kept-back" | "in-reach";
 
 export interface AssembledContext {
   /** The part that goes before the user's words; null when nothing may be sent. */
@@ -337,6 +357,7 @@ export async function withholdDeniedLinks(
   fromPath: string,
   host: LinkHost,
   isAllowed: (path: string) => Promise<boolean>,
+  rule: LinkRule = "any-kept-back",
 ): Promise<{ text: string; redacted: number }> {
   // First pass: collect every target exactly as the redactor parses it (wiki
   // and Markdown links alike), so what is resolved and what is replaced can
@@ -349,7 +370,7 @@ export async function withholdDeniedLinks(
   // A link is withheld where any note it could mean is kept back — not only
   // the one a tap would open in this shell (`linkNamesDeniedNote`).
   const denied = new Map<string, boolean>();
-  for (const target of targets) denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed));
+  for (const target of targets) denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed, rule));
   return redactDeniedLinks(text, (target) => denied.get(target.trim()) ?? false);
 }
 

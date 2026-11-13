@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/event", () => ({
   }),
 }));
 
-const { MCP_LEFT_OUT, MCP_VAULT_CHANGED, configureMcp, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { MCP_JUDGE_BLOCK, MCP_LEFT_OUT, MCP_UNSURE, MCP_VAULT_CHANGED, configureMcp, mcpCallScope, insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -155,10 +155,9 @@ describe("the MCP bridge", () => {
       expect(linked.content).not.toContain("Inner");
       const read = await call("read_note", { path: "Projects/link/Inner.md" }, ["Projects"], wall);
       expect(read).toEqual(await call("read_note", { path: "Projects/Nowhere.md" }, ["Projects"], wall));
-      // A wall that cannot answer is a no.
+      // A wall that cannot answer fails the call, and says so: it never looks like a note that is not there.
       const silent = await call("read_note", { path: "Projects/Offer.md" }, ["Projects"], () => Promise.reject(new Error("closed")));
-      expect(silent.isError).toBe(true);
-      expect(silent.paths).toEqual([]);
+      expect(silent).toEqual({ content: MCP_UNSURE, isError: true, paths: [] });
     } finally {
       delete files["Projects/link/Inner.md"];
     }
@@ -180,6 +179,40 @@ describe("the MCP bridge", () => {
       expect(counted.content).toContain(MCP_LEFT_OUT(1));
     } finally {
       for (const path of ["Projects/Kept:1.md", "Projects/link/Draft./Odd.md", "Projects/link/Odd:2.md", "projects/Odd:3.md", "Projects/Odd:1.md"]) delete files[path];
+    }
+  });
+
+  it("asks the native side in blocks it takes, and never keeps a verdict it could not have (review of R19, wave 2)", async () => {
+    const questions: number[] = [];
+    let fail = true;
+    const judge = async (paths: readonly string[]) => {
+      questions.push(paths.length);
+      if (fail) throw new Error("not now");
+      return paths.map(() => true);
+    };
+    const { scope, unsure } = mcpCallScope([""], judge);
+    const many = Array.from({ length: 2 * MCP_JUDGE_BLOCK + 5 }, (_, i) => `n${i}.md`);
+    await scope.prefetch(many);
+    expect(questions).toEqual([MCP_JUDGE_BLOCK, MCP_JUDGE_BLOCK, 5]);
+    await expect(scope.confirm("n0.md")).rejects.toThrow("not now");
+    expect(unsure()).toBe(true);
+    // Asked again, not answered from what failed.
+    fail = false;
+    questions.length = 0;
+    expect(await scope.confirm("n0.md")).toBe(true);
+    expect(questions).toEqual([1]);
+  });
+
+  it("links in what an app reads stay only where they lead to a note it may read (review of R19, wave 2)", async () => {
+    files["Projects/Links.md"] = "# Links\n\nSee [[Projects/Plan]], [[Finance/Salaries]] and [[Nowhere at all]].";
+    try {
+      const note = await call("read_note", { path: "Projects/Links.md", maxChars: 8000 });
+      expect(note.content).toContain("[[Projects/Plan]]");
+      // Outside the app's folders, and leading nowhere: told alike, so neither says whether a note lies outside.
+      expect(note.content).not.toMatch(/Salaries|Nowhere/);
+      expect(note.content.match(/⟦withheld note⟧/g)).toHaveLength(2);
+    } finally {
+      delete files["Projects/Links.md"];
     }
   });
 

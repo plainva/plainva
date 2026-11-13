@@ -1795,6 +1795,8 @@
       "noClients": "Noch keine App hat gefragt.",
       "folders": "Ordner: {{folders}}",
       "noFolders": "keiner in diesem Vault",
+      "foldersStale_other": "{{count}} früher freigegebene Ordner gelten nicht mehr. Entferne die App; sie fragt wieder, und Du wählst neu.",
+      "foldersStale_one": "Ein früher freigegebener Ordner gilt nicht mehr. Entferne die App; sie fragt wieder, und Du wählst neu.",
       "wholeVault": "der ganze Vault",
       "lastSeen": "zuletzt {{when}}",
       "revokeLabel": "{{client}} entfernen",

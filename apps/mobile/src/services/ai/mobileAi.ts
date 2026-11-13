@@ -39,6 +39,7 @@ import {
   setImageExplainer,
   situationEvents,
   situationFrom,
+  situationReach,
   spawnScriptWorker,
   startableSkills,
   startRoutineScheduler,
@@ -511,13 +512,13 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       },
       // The phone's situation: the note the sheet opened over (one editor at a
       // time, no tabs), due tasks, the next appointments, today's daily note.
-      async situation() {
+      async situation(run) {
         const now = new Date();
         const path = sheetNote;
         const text = path ? ((await note(path))?.text ?? null) : null;
         const settings = getMobileSettings();
         const dailyPath = dailyNotePathFor(journalToday(now), { folder: settings.dailyFolder, format: settings.dailyFormat });
-        const [tasks, upcoming, dailyExists] = await Promise.all([taskRows(), events(now, new Date(now.getTime() + 2 * 86_400_000)), vault.files.exists(dailyPath).catch(() => false)]);
+        const [tasks, upcoming, dailyExists] = await Promise.all([taskRows(run ? situationReach((path) => vaultPolicy.policyOf(path), run) : undefined), events(now, new Date(now.getTime() + 2 * 86_400_000)), vault.files.exists(dailyPath).catch(() => false)]);
         return situationFrom({
           now,
           active: path ? { path, kind: "note", text } : null,
@@ -531,7 +532,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       retrieval: {
         searchCandidates: (terms, limit) => query.searchCandidates(terms, limit),
         linkNeighbors: (path, limit) => query.getLinkNeighbors(path, limit),
-        recentlyChanged: (limit) => query.getRecentlyChangedNotes(limit),
+        recentlyChanged: (limit, offset, within) => query.getRecentlyChangedNotes(limit, offset, within),
         async recentlyOpened() {
           try {
             return parseRecentsFile(await vault.adapter.readTextFile(".plainva/recents.json"));

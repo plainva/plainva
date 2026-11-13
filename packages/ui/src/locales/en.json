@@ -1795,6 +1795,8 @@
       "noClients": "No app has asked yet.",
       "folders": "Folders: {{folders}}",
       "noFolders": "none in this vault",
+      "foldersStale_one": "One folder given before no longer counts. Remove the app; it asks again and you choose anew.",
+      "foldersStale_other": "{{count}} folders given before no longer count. Remove the app; it asks again and you choose anew.",
       "wholeVault": "the whole vault",
       "lastSeen": "last used {{when}}",
       "revokeLabel": "Remove {{client}}",

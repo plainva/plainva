@@ -38,7 +38,7 @@ class NodeSqliteAdapter implements IDatabaseAdapter {
 
 const note = (front: string, title: string) => `---\ntype: Note\n${front}---\n\n# ${title}\n`;
 
-async function withVault(run: (query: VaultQueryService) => Promise<void>) {
+async function withVault(run: (query: VaultQueryService) => Promise<void>, extra: Record<string, string> = {}) {
   const { DatabaseSync } = (await import("node:sqlite")) as any;
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-reach-"));
   const vault = new LocalVaultAdapter(tmpDir);
@@ -52,6 +52,7 @@ async function withVault(run: (query: VaultQueryService) => Promise<void>) {
     // Notes the reader may not see: one points at a project, one is pointed at.
     await vault.writeTextFile("Private/Salary.md", note('project: "[[Offer]]"\nhours: 9000\n', "Salary"));
     await vault.writeTextFile("Private/Client.md", note("revenue: 50000\n", "Client"));
+    for (const [path, text] of Object.entries(extra)) await vault.writeTextFile(path, text);
     await new VaultIndexer(vault, db).indexVaultFull();
     await run(new VaultQueryService(db as never));
   } finally {
@@ -73,7 +74,8 @@ const BASE = (extra: Record<string, unknown> = {}) => ({
   views: [{ type: "table", name: "T" }],
 });
 
-const visible = (path: string) => !path.startsWith("Private/");
+/** The reach of a reader who may not see `Private/`, asked for many notes at once as the query asks. */
+const visible = (paths: readonly string[]) => new Set(paths.filter((path) => !path.startsWith("Private/")));
 
 describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
   it("computes reverse columns and rollups only from the notes in reach", async () => {
@@ -115,21 +117,63 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
     });
   });
 
-  it("asks once per note, and a note it cannot answer for is out of reach", async () => {
+  it("asks once per note, in one question for many, and a reach that cannot answer fails the query", async () => {
     await withVault(async (query) => {
-      const asked: string[] = [];
-      const rows = await query.queryDatabaseFiles(BASE(), {
-        reach: async (path) => {
-          asked.push(path);
-          if (path === "Private/Client.md") throw new Error("no answer");
-          return path !== "Private/Salary.md";
+      const questions: string[][] = [];
+      await query.queryDatabaseFiles(BASE(), {
+        reach: async (paths) => {
+          questions.push([...paths]);
+          return visible(paths);
         },
       });
-      const offer = rows.find((r: any) => r["file.name"] === "Offer");
-      expect(offer.revenue).toBeNull();
-      expect(offer.hours).toBe(3);
-      expect(asked.filter((p) => p === "Private/Salary.md")).toHaveLength(1);
-      expect(asked).toContain("Private/Client.md");
+      const asked = questions.flat();
+      expect(new Set(asked).size).toBe(asked.length);
+      // One question for the reverse column's sources, one for what their links could mean, one for the rollups'.
+      expect(questions.length).toBeLessThanOrEqual(4);
+      // "Could not tell" is never "out of reach": the query fails, it does not answer with fewer notes.
+      await expect(query.queryDatabaseFiles(BASE(), { reach: () => Promise.reject(new Error("no answer")) })).rejects.toThrow("no answer");
+    });
+  });
+
+  it("a source is named alike whether a note of its name lies outside or not, and is named by its path (review of R19, wave 2)", async () => {
+    const named = async (twin: boolean) => {
+      let tasks: unknown;
+      await withVault(async (query) => {
+        tasks = (await query.queryDatabaseFiles(BASE(), { reach: visible })).find((r: any) => r["file.name"] === "Offer").tasks;
+      }, twin ? { "Private/Task.md": "# a private note of the same name\n" } : {});
+      return tasks;
+    };
+    expect(await named(false)).toEqual(["[[Projects/Task|Task]]"]);
+    expect(await named(true)).toEqual(await named(false));
+  });
+
+  it("a link is resolved among the notes in reach: a note of the same name outside changes nothing (review of R19, wave 2)", async () => {
+    const config = {
+      filters: { and: ['file.folder == "Board"'] },
+      columns: { rel: { input: "link" }, n: { rollup: { through: "rel", fn: "count" } }, h: { rollup: { through: "rel", of: "hours", fn: "sum" } } },
+      views: [{ type: "table", name: "T" }],
+    };
+    // The reader is given `Board/` only; the twin lies at the vault's root, where the rule finds it first.
+    const board = (paths: readonly string[]) => new Set(paths.filter((path) => path.startsWith("Board/")));
+    const measured = async (twin: boolean, narrow: boolean) => {
+      let row: any;
+      await withVault(async (query) => {
+        row = (await query.queryDatabaseFiles(config, narrow ? { reach: board } : {})).find((r: any) => r["file.path"] === "Board/Card.md");
+      }, { "Board/Card.md": note('rel: "[[Plan]]"\n', "Card"), "Board/sub/Plan.md": note("hours: 3\n", "Plan"), ...(twin ? { "Plan.md": note("hours: 9000\n", "Plan") } : {}) });
+      return { n: row.n, h: row.h };
+    };
+    // The vault's own view follows the link to the twin: the case the reader must not see a trace of.
+    expect(await measured(true, false)).toEqual({ n: 1, h: 9000 });
+    expect(await measured(false, true)).toEqual({ n: 1, h: 3 });
+    expect(await measured(true, true)).toEqual({ n: 1, h: 3 });
+  });
+
+  it("a filter on a link (`file.hasLink`) is no condition the query answers: the rows stand as without it", async () => {
+    await withVault(async (query) => {
+      const plain = (await query.queryDatabaseFiles(BASE(), { reach: visible })).map((r: any) => r["file.path"]).sort();
+      const filtered = { ...BASE(), filters: { and: ['file.folder == "Projects"', 'file.hasLink("Private/Client")'] } };
+      expect((await query.queryDatabaseFiles(filtered, { reach: visible })).map((r: any) => r["file.path"]).sort()).toEqual(plain);
+      expect((await query.queryDatabaseFiles(filtered)).map((r: any) => r["file.path"]).sort()).toEqual(plain);
     });
   });
 

@@ -90,9 +90,12 @@ export interface AiNavigationCommand {
   run(args?: Record<string, string | number | boolean>): boolean | Promise<boolean>;
 }
 
-/** The notes a value computed for a database row may be made of (`VaultQueryService.queryDatabaseFiles`). */
+/**
+ * The notes a value computed for a database row may be made of (`VaultQueryService.queryDatabaseFiles`), asked for
+ * many at once: the subset in reach. It throws where it cannot tell, and the query fails with it.
+ */
 export interface DatabaseReach {
-  reach?: (path: string) => Promise<boolean>;
+  reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>>;
 }
 
 export interface VaultToolDeps {
@@ -119,10 +122,11 @@ export interface VaultToolDeps {
   backlinks?(path: string): Promise<BacklinkOccurrence[]>;
   /** Notes linked to and from a note, with how often. */
   neighbors?(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
+  /* The lists above and below are read past what an answer shows: what is cut is cut after the gate (`passingPages`). */
   /** Opened on this device, newest first. */
   recentlyOpened?(): Promise<{ path: string; openedAt: number }[]>;
   /** Changed lately (file time), newest first. */
-  recentlyChanged?(limit: number): Promise<{ path: string; title: string; mtime: number }[]>;
+  recentlyChanged?(limit: number, offset?: number, within?: readonly string[]): Promise<{ path: string; title: string; mtime: number }[]>;
   /**
    * How notes developed (plan KI-Harness P9-1): the index's notes changed
    * after an instant, and the states the version history keeps of a note —
@@ -151,7 +155,7 @@ export interface VaultToolDeps {
 /** Where the tools on how notes developed read from (plan KI-Harness P9-1). */
 export interface NoteHistorySource {
   /** Notes changed after `since` (epoch milliseconds), in `folder` and below or in the whole vault (""), newest first. */
-  changedIn(folder: string, since: number, limit: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+  changedIn(folder: string, since: number, limit: number, offset?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
   /** When the index first saw a note (epoch milliseconds); null where it does not know. */
   created(path: string): Promise<number | null>;
   /** The states kept of a note, in any order. */
@@ -220,11 +224,20 @@ export interface ToolScope {
    * MCP server's wall answers it, which knows the disk: a folder link inside a granted folder that leads out of it
    * is outside, and the native side would withhold a whole answer that named it. So the two never disagree, and
    * "withheld" tells an app nothing about what lies beyond its folders. A path it says no to does not exist for
-   * the run. Absent: `inside` and the gate decide.
+   * the run. It rejects where it cannot tell, and the tool fails with it: "could not tell" never looks like
+   * "outside". Absent: `inside` and the gate decide.
    */
   confirm?(path: string): Promise<boolean>;
-  /** Asks `confirm` ahead for many paths at once (a batch of search hits): a cache, it decides nothing itself. */
+  /**
+   * Asks `confirm` ahead for many paths at once (a batch of search hits, the rows of a database): a cache, it
+   * decides nothing itself. Handed only paths the gate let through, like `confirm`.
+   */
   prefetch?(paths: readonly string[]): Promise<void>;
+  /**
+   * A reader outside Plainva (an app over MCP): a link in a text stays only where it means a note in reach
+   * (`LinkRule` "in-reach"), so nothing it is told depends on what lies outside (review of R19, wave 2).
+   */
+  linksInReach?: boolean;
   /** The folders `inside` admits, compared exactly as it compares them ("" is the whole vault): an index may be asked for those alone. */
   folders?: readonly string[];
 }
@@ -308,6 +321,33 @@ export function withoutBrokenLinks(text: string): string {
 /** How many index hits one search_vault call reads at most while it looks for results this run may see. */
 const SEARCH_SCAN_MAX = 2000;
 
+/** Neighbours of a note: all of them are asked for, and the answer is cut after the gate. */
+const NEIGHBOURS_ALL = 100_000;
+
+/** The changed notes of a period, read in pages of this many. */
+const CHANGES_PAGE = 200;
+
+/**
+ * Reads a list the index hands out page by page until `wanted` entries passed `keep`, or the list ends, or
+ * `SEARCH_SCAN_MAX` entries were looked at: a list is cut to the answer only after the gate and the scope decided,
+ * never before — a cut before them would say how many notes the reader may not see lie in front (review of R19,
+ * wave 2). `ready` sees each page first (the gate and the scope's last word for it, in one question).
+ */
+async function passingPages<T>(page: (offset: number, size: number) => Promise<T[]>, keep: (item: T) => boolean | Promise<boolean>, wanted: number, ready?: (items: T[]) => Promise<void>, size = 25): Promise<T[]> {
+  const kept: T[] = [];
+  for (let read = 0; kept.length < wanted && read < SEARCH_SCAN_MAX; ) {
+    const items = await page(read, size);
+    await ready?.(items);
+    for (const item of items) {
+      if (kept.length >= wanted) break;
+      if (await keep(item)) kept.push(item);
+    }
+    read += items.length;
+    if (items.length < size) break;
+  }
+  return kept;
+}
+
 /** Search snippets carry sentinel characters around the matches; the model gets plain text. */
 export const unmarkSnippet = (snippet: string) => snippet.split(VaultQueryService.SNIPPET_MARK_START).join("").split(VaultQueryService.SNIPPET_MARK_END).join("");
 
@@ -377,22 +417,54 @@ function dayStart(key: string): Date | null {
  */
 export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope, redact?: ReadonlySet<string>, further?: FurtherTools, writing?: WriteRun): ToolExecutor {
   const cloud = isCloudRecipient(run.recipient);
-  /** Per path: whether it passes here, and which of its rules deny it elsewhere. */
-  const decisions = new Map<string, { ok: boolean; rules: readonly AiPolicyDimension[] }>();
+  /** Whether a path can be looked at at all: nothing below a hidden root, nothing outside the scope's folders. */
+  const mayLookAt = (path: string): boolean => !isAiHiddenPath(path) && (!scope || scope.inside(path));
+  /** Per path: whether the gate lets it through, and which of its rules deny it elsewhere. */
+  const gates = new Map<string, Promise<{ ok: boolean; rules: readonly AiPolicyDimension[] }>>();
+  const gateOf = (path: string, text?: string) => {
+    let gate = gates.get(path);
+    if (!gate) {
+      gate = deps.policyOf(path, text).then((effective) => ({ ok: gateDecision(effective, run).allowed, rules: AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny") }));
+      gates.set(path, gate);
+    }
+    return gate;
+  };
+  /** The scope's last word, asked once per path (`ToolScope.confirm`); a rejection fails the tool. */
+  const confirmations = new Map<string, Promise<boolean>>();
+  const confirmed = (path: string): Promise<boolean> => {
+    if (!scope?.confirm) return Promise.resolve(true);
+    let answer = confirmations.get(path);
+    if (!answer) {
+      answer = scope.confirm(path);
+      confirmations.set(path, answer);
+    }
+    return answer;
+  };
   const allowed = async (path: string, text?: string): Promise<boolean> => {
     // A search hit, a neighbour or a task below a hidden root does not exist for the model either.
-    if (isAiHiddenPath(path)) return false;
-    if (scope && !scope.inside(path)) return false;
-    let decision = decisions.get(path);
-    if (decision === undefined) {
-      const effective = await deps.policyOf(path, text);
-      decision = { ok: gateDecision(effective, run).allowed, rules: AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny") };
-      // Asked only of a path the gate lets through: what the confirming side hears of says nothing of the notes kept from this run.
-      if (decision.ok && scope?.confirm && !(await scope.confirm(path).catch(() => false))) decision = { ok: false, rules: decision.rules };
-      decisions.set(path, decision);
-    }
-    if (decision.ok) scope?.passed?.(path, decision.rules, text);
-    return decision.ok;
+    if (!mayLookAt(path)) return false;
+    const gate = await gateOf(path, text);
+    // Asked only of a path the gate lets through: what the confirming side hears of says nothing of the notes kept from this run.
+    if (!gate.ok || !(await confirmed(path))) return false;
+    scope?.passed?.(path, gate.rules, text);
+    return true;
+  };
+  /**
+   * Readies the verdicts for many paths: the gate for each, then the scope's last word for those it let through,
+   * in one question (`ToolScope.prefetch`). Decides nothing itself; `allowed` reads what this cached.
+   */
+  const ready = async (paths: readonly string[]): Promise<void> => {
+    const looked = [...new Set(paths)].filter((path) => path && mayLookAt(path));
+    const passing: string[] = [];
+    for (const path of looked) if ((await gateOf(path)).ok) passing.push(path);
+    if (scope?.prefetch && passing.length) await scope.prefetch(passing.filter((path) => !confirmations.has(path)));
+  };
+  /** `allowed` for many paths at once: the subset that passes (a database's `reach`). */
+  const allowedOf = async (paths: readonly string[]): Promise<ReadonlySet<string>> => {
+    await ready(paths);
+    const yes = new Set<string>();
+    for (const path of paths) if (await allowed(path)) yes.add(path);
+    return yes;
   };
   /**
    * Whether a place passes where nothing was read: the folder a draft would
@@ -401,10 +473,9 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    * says it rests on, stay what they are.
    */
   const placeAllowed = async (path: string, text?: string): Promise<boolean> => {
-    if (isAiHiddenPath(path)) return false;
-    if (scope && !scope.inside(path)) return false;
+    if (!mayLookAt(path)) return false;
     if (!gateDecision(await deps.policyOf(path, text), run).allowed) return false;
-    return !scope?.confirm || (await scope.confirm(path).catch(() => false));
+    return confirmed(path);
   };
   /**
    * What any vault text passes: place stamps withheld for everyone, links to
@@ -417,7 +488,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const withhold = async (text: string, fromPath: string, situational = false): Promise<string> => {
     const places = withholdPlaces(text).text;
     if (!cloud && !run.webTools) return places;
-    const linked = (await withholdDeniedLinks(places, fromPath, deps, (path) => allowed(path))).text;
+    const linked = (await withholdDeniedLinks(places, fromPath, deps, (path) => allowed(path), scope?.linksInReach ? "in-reach" : "any-kept-back")).text;
     if (!cloud || !redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
     return redactSensitive(linked, sensitiveFindings(linked)).text;
   };
@@ -428,6 +499,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     // only where the vault knows exactly that file — on Windows `PLAINV~1/…`
     // would reach `.plainva` (F2 review). Every other name, as before.
     if (contentPathRefusal(path) !== null && (await deps.resolveLink(path, "").catch(() => null)) !== path) return null;
+    // Nothing outside the scope's folders is read at all: how long a refusal takes says nothing of a note there.
+    if (!mayLookAt(path)) return null;
     const text = await deps.readNote(path);
     if (text === null || !(await allowed(path, text))) return null;
     return { path, text };
@@ -511,7 +584,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const within = scope?.folders ? [...scope.folders] : undefined;
           for (let read = 0; passedHits.length < wanted && read < SEARCH_SCAN_MAX; ) {
             const hits = await deps.search(query, batch, read, within);
-            await scope?.prefetch?.(hits.map((hit) => hit.path).filter((path) => !isAiHiddenPath(path) && scope.inside(path))).catch(() => undefined);
+            await ready(hits.map((hit) => hit.path));
             for (const hit of hits) {
               if (passedHits.length >= wanted) break;
               if (await allowed(hit.path)) passedHits.push(hit);
@@ -581,14 +654,14 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const merged = { ...config, filters: combineFilters(config.filters, view?.filters), views: view ? [view] : [] };
           // A reverse column and a rollup are computed only from notes this run may see: a sum over a relation into a
           // folder kept from it would otherwise carry that folder's numbers out, and its filters and sort would too.
-          const rows = (await deps.queryDatabase(merged, { reach: (linked) => allowed(linked) })) as Record<string, unknown>[];
+          const rows = (await deps.queryDatabase(merged, { reach: allowedOf })) as Record<string, unknown>[];
           const columns = (view?.order ?? []).filter((c) => !c.startsWith("file.") && !c.startsWith("formula.")).map((c) => c.replace(/^note\./, ""));
           const limit = Number(a.limit) || 20;
           const offset = offsetOf(a.cursor);
           const lines: string[] = [];
           const listed: { title: string; path: string; properties: Record<string, string> }[] = [];
           let passed = 0;
-          await scope?.prefetch?.(rows.map((row) => String(row["file.path"] ?? "")).filter((rowPath) => rowPath && scope.inside(rowPath))).catch(() => undefined);
+          await ready(rows.map((row) => String(row["file.path"] ?? "")));
           for (const row of rows) {
             const rowPath = String(row["file.path"] ?? "");
             if (!rowPath || !(await allowed(rowPath))) continue;
@@ -614,7 +687,9 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const offset = offsetOf(a.cursor);
           const today = deps.todayKey();
           const rows: PlannerRow[] = [];
-          for (const row of await deps.taskRows({ reach: (linked) => allowed(linked) })) if (await allowed(row.path)) rows.push(row);
+          const all = await deps.taskRows({ reach: allowedOf });
+          await ready(all.map((row) => row.path));
+          for (const row of all) if (await allowed(row.path)) rows.push(row);
           const planner = buildPlanner(rows, today);
           const listed =
             range === "all"
@@ -679,7 +754,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const lines: string[] = [];
           const linked: { title: string; path: string; fromHere: number; toHere: number; via?: string }[] = [];
           const first: { path: string; title: string }[] = [];
-          for (const n of await deps.neighbors(note.path, limit)) {
+          // Every neighbour, then the gate, then the cut: a cut before it would say how many lie outside.
+          const around = await deps.neighbors(note.path, NEIGHBOURS_ALL);
+          await ready(around.map((n) => n.path));
+          for (const n of around) {
             if (seen.has(n.path) || !(await allowed(n.path))) continue;
             seen.add(n.path);
             first.push(n);
@@ -691,9 +769,13 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           if (Number(a.depth) === 2) {
             for (const via of first.slice(0, 8)) {
               if (lines.length >= limit) break;
-              for (const n of await deps.neighbors(via.path, 10)) {
-                if (lines.length >= limit) break;
+              const further = await deps.neighbors(via.path, NEIGHBOURS_ALL);
+              await ready(further.map((n) => n.path));
+              let taken = 0;
+              for (const n of further) {
+                if (lines.length >= limit || taken >= 10) break;
                 if (seen.has(n.path) || !(await allowed(n.path))) continue;
+                taken += 1;
                 seen.add(n.path);
                 lines.push(`- [[${n.title || titleOf(n.path)}]] (${n.path}) — two steps, via [[${via.title || titleOf(via.path)}]]`);
                 linked.push({ title: n.title || titleOf(n.path), path: n.path, fromHere: 0, toHere: 0, via: via.path });
@@ -727,10 +809,17 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
               recent.push({ title: titleOf(r.path), path: r.path, at: stampOf(r.openedAt) });
             }
           } else {
-            if (!deps.recentlyChanged) return unavailable(tool);
-            for (const r of await deps.recentlyChanged(limit * 2)) {
-              if (lines.length === limit) break;
-              if (!safeRelPath(r.path) || !(await allowed(r.path))) continue;
+            const recentlyChanged = deps.recentlyChanged;
+            if (!recentlyChanged) return unavailable(tool);
+            // Read in pages past what is shown, in the scope's folders alone: what is cut is cut after the gate.
+            const within = scope?.folders ? [...scope.folders] : undefined;
+            const changed = await passingPages(
+              (offset, size) => recentlyChanged(size, offset, within),
+              (r) => Boolean(safeRelPath(r.path)) && allowed(r.path),
+              limit,
+              (page) => ready(page.map((r) => r.path)),
+            );
+            for (const r of changed) {
               lines.push(`- [[${r.title || titleOf(r.path)}]] (${r.path}) — changed ${stampOf(r.mtime)}`);
               recent.push({ title: r.title || titleOf(r.path), path: r.path, at: stampOf(r.mtime) });
             }
@@ -759,8 +848,17 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             }
             return read;
           };
-          const asked = Math.min(200, limit * 5);
-          const rows = await history.changedIn(folder, since, asked);
+          // Every changed note of the period, page by page: the pages before the gate are never cut to the answer.
+          const rows: Awaited<ReturnType<typeof history.changedIn>> = [];
+          let ended = false;
+          for (let offset = 0; offset < SEARCH_SCAN_MAX; offset += CHANGES_PAGE) {
+            const page = await history.changedIn(folder, since, CHANGES_PAGE, offset);
+            rows.push(...page);
+            if (page.length < CHANGES_PAGE) {
+              ended = true;
+              break;
+            }
+          }
           const lines: string[] = [];
           const notes: { path: string; title: string; kind: "new" | "changed"; made: string | null; last: string | null; added: number | null; removed: number | null; gained: string }[] = [];
           let looked = 0;
@@ -770,6 +868,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             const path = safeRelPath(row.path);
             if (!path || !isNotePath(path)) continue;
             if (row.created !== null && row.created > end) continue;
+            if (!mayLookAt(path)) continue;
             const now = await deps.readNote(path);
             if (now === null || !(await allowed(path, now))) continue;
             const kept = await history.versions(path).catch(() => []);
@@ -801,8 +900,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const sinceKey = localDay(sinceDay);
           const untilText = localDay(untilDay);
           const head = `Notes created or changed from ${sinceKey} to ${untilText}${folder ? ` in ${folder}` : ""}:`;
-          // The index was asked for no more, or the answer stopped at its limit: there may be more.
-          const more = rows.length === asked || looked < rows.length ? "\n\nMore may have changed: ask for a shorter period or a folder." : "";
+          // The index was read to its bound, or the answer stopped at its limit: there may be more.
+          const more = !ended || looked < rows.length ? "\n\nMore may have changed: ask for a shorter period or a folder." : "";
           const content = notes.length ? `${head}\n${lines.join("\n")}\n\n${LOST_LINES}${more}` : `No note was created or changed from ${sinceKey} to ${untilText}${folder ? ` in ${folder}` : ""}.`;
           return result(tool.name, content, { since: sinceKey, until: untilText, notes });
         }

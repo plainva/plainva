@@ -27,7 +27,8 @@ import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
-import { buildLinkTargetIndex, linkTargetName, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
+import { buildLinkTargetIndex, linkTargetName, noteLinkResolver, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
+import { buildLinkNameIndex, filesALinkCouldMean } from "../ai/linkNames.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -237,32 +238,46 @@ function withinFoldersSql(column: string, folders: readonly string[]): { sql: st
   return { sql: `(${one.join(" OR ")})`, params };
 }
 
-/** A reader's `reach`, asked once per note and never throwing: a note it cannot answer for is out of reach. */
+/**
+ * A reader's `reach`, asked once per note and in one question for many: the notes a value computed for it may be
+ * made of. A reach that cannot answer fails the query — a note it could not judge is never taken for one out of
+ * reach, which would make "could not tell" look like "not there" (review of R19, wave 2).
+ */
 interface Reach {
-  has(path: string): Promise<boolean>;
-  filter<T>(items: readonly T[], pathOf: (item: T) => string): Promise<T[]>;
+  ask(paths: readonly string[]): Promise<ReadonlySet<string>>;
 }
 
-function reachOf(ask: (path: string) => boolean | Promise<boolean>): Reach {
-  const answers = new Map<string, Promise<boolean>>();
-  const has = (path: string): Promise<boolean> => {
-    let answer = answers.get(path);
-    if (!answer) {
-      answer = Promise.resolve()
-        .then(() => ask(path))
-        .then((yes) => yes === true, () => false);
-      answers.set(path, answer);
-    }
-    return answer;
-  };
+function reachOf(question: (paths: readonly string[]) => ReadonlySet<string> | Promise<ReadonlySet<string>>): Reach {
+  const known = new Map<string, boolean>();
   return {
-    has,
-    async filter(items, pathOf) {
-      const kept: (typeof items)[number][] = [];
-      for (const item of items) if (await has(pathOf(item))) kept.push(item);
-      return kept;
+    async ask(paths) {
+      const fresh = [...new Set(paths)].filter((path) => !known.has(path));
+      if (fresh.length) {
+        const yes = await question(fresh);
+        for (const path of fresh) known.set(path, yes.has(path));
+      }
+      return new Set(paths.filter((path) => known.get(path) === true));
     },
   };
+}
+
+/**
+ * Where the links of a reader with a narrower view lead: among the notes it may reach, never through the rest
+ * (review of R19, wave 2). A link is resolved by the one rule (ADR 0027) over the files it could mean that are in
+ * reach — so whether a note of the same name lies outside, or whether one exists there at all, changes nothing a
+ * row shows. Every file a link could mean is asked about, uncapped: a cap would make the answer depend on how many
+ * share the name outside.
+ */
+async function reachableResolver(
+  files: readonly (LinkCorpusFile & { mode?: string | null })[],
+  links: readonly { from: string; target: string }[],
+  reach: Reach,
+): Promise<(sourcePath: string, linkTarget: string) => string | null> {
+  const names = buildLinkNameIndex(files);
+  const candidates = new Set<string>();
+  for (const link of links) for (const path of filesALinkCouldMean(names, linkTargetName(link.target), link.from)) candidates.add(path);
+  const reachable = await reach.ask([...candidates]);
+  return noteLinkResolver(files.filter((file) => reachable.has(file.path)));
 }
 
 export class VaultQueryService {
@@ -497,13 +512,18 @@ export class VaultQueryService {
     return rows.map((row) => ({ path: row.path, title: row.title, score: Number(row.score) || 0, snippet: row.snippet ?? null, mtime: epochMs(row.mtime_local) }));
   }
 
-  /** Notes by their last change on disk, newest first (a sync counts as a change). */
-  async getRecentlyChangedNotes(limit = 20): Promise<{ path: string; title: string; mtime: number }[]> {
+  /**
+   * Notes by their last change on disk, newest first (a sync counts as a change). `offset` reads further pages;
+   * `within`: only notes in these folders, compared exactly (`searchFullText`). A reader with a narrower view reads
+   * page after page until enough passed its gate, never a list cut before it (review of R19, wave 2).
+   */
+  async getRecentlyChangedNotes(limit = 20, offset = 0, within?: readonly string[] | null): Promise<{ path: string; title: string; mtime: number }[]> {
+    const scoped = within ? withinFoldersSql("path", within) : null;
     const rows = await this.db.query<{ path: string; title: string; mtime_local: number }>(
       `SELECT path, title, mtime_local FROM files
-       WHERE path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0)
-       ORDER BY mtime_local DESC LIMIT ?`,
-      [limit],
+       WHERE path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0)${scoped ? ` AND ${scoped.sql}` : ""}
+       ORDER BY mtime_local DESC, path ASC LIMIT ? OFFSET ?`,
+      [...(scoped?.params ?? []), limit, Math.max(0, Math.floor(offset) || 0)],
     );
     return rows.map((row) => ({ path: row.path, title: row.title, mtime: epochMs(row.mtime_local) }));
   }
@@ -520,7 +540,7 @@ export class VaultQueryService {
    * in; the folder by both spellings of its letters, a wildcard in its name
    * taken literally.
    */
-  async getNotesChangedIn(folder: string, since: number, limit = 100): Promise<{ path: string; title: string; mtime: number; created: number | null }[]> {
+  async getNotesChangedIn(folder: string, since: number, limit = 100, offset = 0): Promise<{ path: string; title: string; mtime: number; created: number | null }[]> {
     const conditions = ["path LIKE '%.md'", "(is_deleted IS NULL OR is_deleted = 0)", `${MTIME_MS} > ?`];
     const params: unknown[] = [since];
     if (folder) {
@@ -529,8 +549,8 @@ export class VaultQueryService {
       params.push(...variants.map((variant) => `${escapeLikePrefix(variant)}/%`));
     }
     const rows = await this.db.query<{ path: string; title: string; mtime_local: number; ctime: number | null }>(
-      `SELECT path, title, mtime_local, ctime FROM files WHERE ${conditions.join(" AND ")} ORDER BY ${MTIME_MS} DESC LIMIT ?`,
-      [...params, Math.max(1, Math.min(500, Math.floor(limit) || 100))],
+      `SELECT path, title, mtime_local, ctime FROM files WHERE ${conditions.join(" AND ")} ORDER BY ${MTIME_MS} DESC, path ASC LIMIT ? OFFSET ?`,
+      [...params, Math.max(1, Math.min(500, Math.floor(limit) || 100)), Math.max(0, Math.floor(offset) || 0)],
     );
     return rows.map((row) => ({ path: row.path, title: row.title, mtime: epochMs(row.mtime_local), created: row.ctime == null ? null : epochMs(row.ctime) }));
   }
@@ -1199,6 +1219,45 @@ export class VaultQueryService {
   }
 
   /**
+   * `_getRelationSources` as a reader with a narrower view sees it (`reach`): only sources in reach, each link of
+   * theirs resolved among the notes in reach (`reachableResolver`), so a note of the same name outside can neither
+   * take a source away nor be one.
+   */
+  private async _getRelationSourcesInReach(
+    targetPaths: string[],
+    propertyKey: string,
+    files: readonly LinkTargetRow[],
+    reach: Reach
+  ): Promise<Map<string, RelationSource[]>> {
+    const result = new Map<string, RelationSource[]>();
+    if (targetPaths.length === 0 || !propertyKey) return result;
+    const rows = await this.db.query<{ source_path: string; source_title: string | null; target_path: string }>(
+      `SELECT f.path AS source_path, f.title AS source_title, l.target_path AS target_path
+       FROM links l
+       JOIN files f ON f.id = l.source_id
+       WHERE l.property_key = ?`,
+      [propertyKey]
+    );
+    const inReach = await reach.ask(rows.map((row) => row.source_path));
+    const linking = rows.filter((row) => inReach.has(row.source_path));
+    const resolve = await reachableResolver(files, linking.map((row) => ({ from: row.source_path, target: row.target_path })), reach);
+    const targets = new Set(targetPaths);
+    const seen = new Set<string>();
+    for (const row of linking) {
+      const resolved = resolve(row.source_path, row.target_path);
+      if (!resolved || !targets.has(resolved) || resolved === row.source_path) continue;
+      const key = `${resolved}\n${row.source_path}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const bucket = result.get(resolved) ?? [];
+      bucket.push({ path: row.source_path, title: row.source_title || row.source_path });
+      result.set(resolved, bucket);
+    }
+    for (const bucket of result.values()) bucket.sort((a, b) => a.title.localeCompare(b.title));
+    return result;
+  }
+
+  /**
    * Fill the rollup columns of one result set.
    *
    * A rollup reaches through a link column of THIS base (a stored relation or a
@@ -1224,8 +1283,27 @@ export class VaultQueryService {
     // Every link value that any rollup needs to follow, resolved once — by
     // the link rule over the one corpus. A rollup reaches through to NOTES
     // only: an attachment or a database carries no properties.
-    const { noteLinkResolver } = await import("./LinkResolver.js");
-    const linkedNote = noteLinkResolver(await this.linkTargets());
+    const corpus = await this.linkTargets();
+    const throughOf = (row: any, through: string): unknown => {
+      let raw = row[through];
+      if (raw === undefined) {
+        // A hidden through-property need not be a visible/configured column.
+        // Apply the same case fallback as for the linked value itself.
+        const key = Object.keys(row).find((key) => key.toLowerCase() === through.toLowerCase());
+        if (key !== undefined) raw = row[key];
+      }
+      return raw;
+    };
+    const linksOf = (raw: unknown): string[] =>
+      (Array.isArray(raw) ? raw : raw == null ? [] : [raw]).map((one) => wikiLinkTarget(one)).filter((target): target is string => Boolean(target));
+    // A reader with a narrower view follows a link only to notes in reach, resolved among them (`reachableResolver`).
+    const linkedNote = reach
+      ? await reachableResolver(
+          corpus,
+          result.flatMap((row) => specs.flatMap(([, spec]) => linksOf(throughOf(row, spec.through)).map((target) => ({ from: row["file.path"] || "", target })))),
+          reach
+        )
+      : noteLinkResolver(corpus);
 
     const linkedPaths = new Set<string>();
     const perRow = new Map<any, Map<string, string[]>>();
@@ -1233,21 +1311,10 @@ export class VaultQueryService {
       const byThrough = new Map<string, string[]>();
       for (const [, spec] of specs) {
         if (byThrough.has(spec.through)) continue;
-        let raw = row[spec.through];
-        if (raw === undefined) {
-          // A hidden through-property need not be a visible/configured column.
-          // Apply the same case fallback as for the linked value itself.
-          const key = Object.keys(row).find(key => key.toLowerCase() === spec.through.toLowerCase());
-          if (key !== undefined) raw = row[key];
-        }
         const targets: string[] = [];
-        for (const one of Array.isArray(raw) ? raw : raw == null ? [] : [raw]) {
-          const target = wikiLinkTarget(one);
-          if (!target) continue;
+        for (const target of linksOf(throughOf(row, spec.through))) {
           const resolved = linkedNote(row["file.path"] || "", target);
           if (!resolved) continue;
-          // A note the reader may not see is no link of this row for it: neither counted nor aggregated.
-          if (reach && !(await reach.has(resolved))) continue;
           targets.push(resolved);
           linkedPaths.add(resolved);
         }
@@ -1669,13 +1736,14 @@ export class VaultQueryService {
        */
       dayOfPath?: (path: string) => string | null;
       /**
-       * The notes a value computed for a row may be made of (review of R19, wave 2). A reverse column lists, and a
-       * rollup aggregates, only notes this says yes to; a note it says no to — or throws for — counts as no link at
-       * all, so the filters and the sort that run on such a column cannot tell it apart from one that is not there.
-       * The caller is a reader with a narrower view than the vault's own (an assistant run, an app over MCP): what a
-       * row shows must not be computed from a note that reader may not see. Absent: every note of the vault.
+       * The notes a value computed for a row may be made of, asked for many at once: the subset in reach (review of
+       * R19, wave 2). The caller is a reader with a narrower view than the vault's own (an assistant run, an app
+       * over MCP): nothing a row shows may depend on a note it may not see. So a reverse column lists, and a rollup
+       * aggregates, only notes in reach; their links are resolved among the notes in reach (`reachableResolver`);
+       * a source is named by its path, which needs no look at the rest of the vault; and the filters and the sort
+       * run on those values. A reach that throws fails the query. Absent: every note of the vault, as before.
        */
-      reach?: (path: string) => boolean | Promise<boolean>;
+      reach?: (paths: readonly string[]) => ReadonlySet<string> | Promise<ReadonlySet<string>>;
     } = {},
   ): Promise<any[]> {
     const reach = options.reach ? reachOf(options.reach) : null;
@@ -1877,12 +1945,14 @@ export class VaultQueryService {
       const targetPaths = result.map((r) => r["file.path"]);
       const { wikiTargetForPath } = await import("./LinkResolver.js");
       for (const [name, col] of reverseCols) {
-        const map = await this._getRelationSources(targetPaths, col.reverseOf.property, files);
+        const map = reach
+          ? await this._getRelationSourcesInReach(targetPaths, col.reverseOf.property, files, reach)
+          : await this._getRelationSources(targetPaths, col.reverseOf.property, files);
         for (const row of result) {
-          const linking = map.get(row["file.path"]) ?? [];
-          const sources = reach ? await reach.filter(linking, (s) => s.path) : linking;
+          const sources = map.get(row["file.path"]) ?? [];
           row[name] = sources.map((s) => {
-            const target = wikiTargetForPath(s.path, allFilePaths);
+            // In reach, a source is named by its path: whether its name is unique is a question about the whole vault.
+            const target = reach ? s.path.replace(/\.md$/i, "") : wikiTargetForPath(s.path, allFilePaths);
             return s.title && s.title !== target ? `[[${target}|${s.title}]]` : `[[${target}]]`;
           });
         }

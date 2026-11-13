@@ -445,8 +445,12 @@ export interface AiVaultHost {
   /** The note open right now, if any. */
   activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
   readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
-  /** Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. */
-  situation(): Promise<SituationInput>;
+  /**
+   * Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. `run`: the recipient and
+   * whether it may reach the internet — a value the shell computes from several notes (the task database's view)
+   * is computed only from notes that run may see (review of R19, wave 2).
+   */
+  situation(run?: GateRun): Promise<SituationInput>;
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
   /** The recipient decides whether a cloud embedding model may see the question (plan P2b). */
   candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
@@ -6637,7 +6641,7 @@ export class AiSession {
     const budget = contextBudgetFor(this.windowOf(provider, choice.model), platform ? undefined : conversation.carried);
     // The tools the conversation carries — what the model may call, as the overview lists them.
     const tools = toolless ? [] : conversation.tools;
-    const situation = conversation.bare ? this.bareSituation() : await vault.situation().catch(() => this.bareSituation());
+    const situation = conversation.bare ? this.bareSituation() : await vault.situation({ recipient, webTools: web }).catch(() => this.bareSituation());
     const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
     const candidates =
       conversation.bare || conversation.pinsOnly ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);

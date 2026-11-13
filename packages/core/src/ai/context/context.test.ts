@@ -104,6 +104,16 @@ describe("sections", () => {
 });
 
 describe("the context package", () => {
+  it("sends the first twelve due tasks the gate lets through: a task kept back takes no place (review of R19, wave 2)", async () => {
+    const kept = Array.from({ length: 12 }, (_, i) => ({ title: `Kept ${i}`, path: "Private/Salaries.md", due: "2026-09-27" }));
+    const pack = await buildContextPackage(
+      { question: "What is due?", recipient: cloud, situation: situation({ tasks: [...kept, { title: "Send offer", path: "Projects/Offer.md", due: "2026-09-28" }] }), candidates: [], pins: [] },
+      host(),
+    );
+    expect(pack.part.text).toContain("Send offer");
+    expect(pack.part.text).not.toContain("Kept");
+  });
+
   it("never lets a denied note in, whatever it would have scored (hard-gate eval)", async () => {
     const maxed = { path: "Private/Salaries.md", title: "Salaries", signals: { active: 1, pinned: 1, lexical: 1, graph: 1, opened: 1, edited: 1, urgency: 1, daily: 1, tab: 1 }, snippet: "secret salaries" };
     const pack = await buildContextPackage(
