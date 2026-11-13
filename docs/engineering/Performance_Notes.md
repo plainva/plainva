@@ -410,44 +410,76 @@ during the parse, retained = heap after a forced collection with the tree kept):
 | 2 000 rows with links and emphasis in every cell, 282 KB | 1 005 ms / 395 MB / 22 MB | 45 MB |
 | 1 000 rows of 400 unclosed `[` and `*`, 594 KB | 1 915 ms / 636 MB / 76 MB | 181 MB |
 
-The peak follows the characters, the cells and the inline syntax, not the rows. The budget is set
-by a criterion that can be re-run (`scripts/perf/table-budget.ts`): a table of every shape at the
-budget is read by the index parse and by the note-source parse, each in a process of its own under
+The peak follows the characters, the cells and the inline syntax, and each row and each block
+marker in front of a line adds events of its own. The budget is set by a criterion that can be
+re-run (`scripts/perf/table-budget.ts`): a table of every shape at the budget is read by the index
+parse and by the note-source parse, each in a process of its own under
 `node --max-old-space-size=128`. `pnpm --filter @plainva/core perf:tables -- --calibrate` finds the
 largest such table of each fixed shape and chooses the weights of `tableReadCost` as an upper
-bound, not as a fit: for every pair of weights the budget is nine tenths of the lightest limit, so
-every limit weighs at least the budget / 0.9, and of those pairs the one that leaves a word and a
-link the most rows wins — the costliest shape of each part decides its weight. `-- --check` (about
-four minutes) holds the constants against the 22 fixed shapes at the budget and at the budget / 0.9
-and against 36 generated shapes at the budget: seeded (seed and template printed on a failure),
-1 to 24 columns, cells of 0 to 80 characters, outer pipes and blanks on and off, pipes escaped with
-one, two and three backslashes, four syntax densities, code spans, empty cells among filled ones.
-A cell is counted the way the parser counts it: a `|` behind an even number of backslashes is a
-boundary (`\\|` is one, `\|` and `\\\|` are not, also in a code span), and a row without outer
-pipes has one cell more than boundaries. Calibrated 2026-11-12, weights one per character, 30 per
-cell, 8 per character of inline syntax, budget 600 000:
+bound, not as a fit: over the shapes without block markers, for every set of row, cell and syntax
+weights the budget is nine tenths of the lightest limit, so every limit weighs at least the
+budget / 0.9, and of those sets the one that leaves a word and a link the most rows wins — the
+costliest shape of each part decides its weight; then the marker weight is the least that lifts
+every shape behind quotes, list items and footnotes to the budget / 0.9 as well. The limit search
+takes about a minute a shape; `-- --calibrate --limits <log>` takes the limits an earlier log holds
+and searches only the new shapes. `-- --check` (about four minutes) holds the constants against the
+54 fixed shapes at the budget and at the budget / 0.9 and against 36 generated shapes at the budget:
+seeded (seed and template printed on a failure), 1 to 24 columns, cells of 0 to 80 characters,
+outer pipes and blanks on and off, pipes escaped with one, two and three backslashes, four syntax
+densities, code spans, empty cells among filled ones, at the top, in one to three quotes, a callout
+and a list item. A cell is counted the way the parser counts it: a `|` behind an even number of
+backslashes is a boundary (`\\|` is one, `\|` and `\\\|` are not, also in a code span), and a row
+without outer pipes has one cell more than boundaries.
+
+Which lines a table has is the parser's answer, and the scan of the budget follows it
+(2026-11-13): a line without a pipe under a table is a row (`bar` is a row of one cell), and so are
+lines that begin with `*a*`, `_x_`, `<b>`, `=` or `-a`; a header needs no pipe when its delimiter
+row has one (`a` over `|-`); a table stands in a quote or callout, a list item, a footnote, and
+behind a paragraph line in the same block. Until then the scan ended a table at the first such line
+and weighed no table in a quote, a list item or a footnote at all — older than the table budget:
+the rows-times-length rule of 2026-11-01 had the same hole. Where the scan is sure of the blocks (a
+table behind quote markers or list items only, starting a paragraph or interrupting one in the same
+block) it ends a table where the table parser does (`endsTable`, `exactRow`: tabs behind `>`
+counted as CommonMark counts them, a line less indented than its item ends the table). Everywhere
+else — a line that may continue a paragraph lazily, HTML, fenced code, the parser's quirks (behind
+indented code a lone `-` is a table's header) — it weighs a table generously, over every line that
+could be one of its rows, and measures the same lines as paragraph text as well, so neither
+measure can hide lines from the other. `inline-parse-budget.test.ts` holds this against the parser
+over 3 000 generated notes (block markers and lines drawn at random); a scratch run of 160 000
+found no table the scan missed and no paragraph a table split.
+
+Calibrated 2026-11-13 over 54 shapes: weights one per character, 8 per row, 34 per cell, 9 per
+character of inline syntax, 9 per block marker in front of a line; the calibration proposed a
+budget of 710 000, set to 680 000:
 
 | Shape | Limit under 128 MB | Limit weighs | At the budget |
 |---|---|---|---|
-| a word and a link | 8 565 rows | 1.65 × the budget | 5 190 rows |
-| four short cells and a link | 4 672 | 1.37 × | 3 395 |
-| four cells of words | 4 465 | 1.69 × | 2 642 |
-| links and emphasis in every cell | 1 517 | 1.49 × | 1 024 |
-| one long cell of prose | 2 391 | 1.34 × | 1 778 |
-| sixteen one-character cells, no blanks | 1 384 | 1.19 × | 1 168 |
-| no outer pipes | 6 756 | 1.16 × | 5 835 |
-| `\\|` boundaries | 2 321 | 1.48 × | 1 565 |
-| 150 `~a` per row | 455 | 1.17 × | 390 |
-| 400 unclosed `[` and `*` per row | 297 | 1.91 × | 155 |
+| a word and a link | 8 794 rows | 1.75 × the budget | 5 015 rows |
+| four short cells and a link | 4 599 | 1.39 × | 3 321 |
+| four cells of words | 4 458 | 1.67 × | 2 665 |
+| links and emphasis in every cell | 1 569 | 1.50 × | 1 044 |
+| one long cell of prose | 2 359 | 1.21 × | 1 945 |
+| sixteen one-character cells, no blanks | 1 435 | 1.23 × | 1 161 |
+| no outer pipes | 6 922 | 1.25 × | 5 536 |
+| `\\|` boundaries | 2 366 | 1.52 × | 1 555 |
+| 150 `~a` per row | 470 | 1.17 × | 400 |
+| 400 unclosed `[` and `*` per row | 294 | 1.85 × | 158 |
+| one short cell between two pipes | 18 135 | 1.20 × | 15 110 |
+| a line without a pipe | 21 000 | 1.33 × | 15 812 |
+| a word and a link in a quote | 7 857 | 1.66 × | 4 736 |
+| a word and a link in a list item | 8 075 | 1.70 × | 4 736 |
+| sixteen one-character cells in a quote | 1 337 | 1.17 × | 1 139 |
+| one short cell in two quotes | 12 835 | 1.26 × | 10 148 |
+| one short cell in five quotes | 9 442 | 1.39 × | 6 798 |
+| one short cell in a list item | 17 089 | 1.41 × | 12 141 |
 
-Every fixed shape passes at the budget and at the budget / 0.9, every generated one at the budget.
-The lightest limits — no outer pipes, `~` runs, sixteen one-character cells — sit 16 to 19 % above
-the budget. The budget is the calibration's 620 000 rounded down for the spread between runs (the
-limit search is exact to 4 %). That is the parse alone: the heap a WebView gives the app is not known
-here, so raising the budget needs a measurement in the phone's WebView first. A table over the budget
-is read as written, as before: in the index it has no links, and the reading view shows its lines as
-one paragraph of text with the pipes in it, no table. Read as written, 12 000 such rows take 0.3 s
-and about 120 MB of resident memory at the peak.
+The lightest limits — `~` runs, sixteen one-character cells in a quote — sit 17 % above the budget
+(the limit search is exact to 4 %). That is the parse alone: the heap a WebView gives the app is
+not known here, so raising the budget needs a measurement in the phone's WebView first. A table
+over the budget is read as written, as before: in the index it has no links, and the reading view
+shows its lines as one paragraph of text with the pipes in it, no table, its quote or list around
+it as it was. Read as written, 12 000 such rows take 0.3 s and about 120 MB of resident memory at
+the peak.
 
 What the written reading costs above the budget is the one thing not linear here, and it is not the
 table's: micromark's text initializer (`resolveAllText`, 4.0.2) merges adjacent `data` events with
@@ -460,7 +492,7 @@ is a package of its own with its own corpus check, not part of this one. Lists a
 class as tables for memory (20 000 list items with a link: 409 MB at the peak), with no budget of
 their own.
 
-`inline-parse-budget.test.ts` reads a table at the budget (about 5 200 rows) as a table with every
+`inline-parse-budget.test.ts` reads a table at the budget (about 5 000 rows) as a table with every
 link, the same table one row longer as written — one paragraph, every other block of the note as
 before — within 5 s on the reference core, and times a table of 4 000 rows apart from those (3 s on
 the reference core, about half a second here).

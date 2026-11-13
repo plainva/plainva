@@ -10,7 +10,11 @@ import {
   restoreBoundedTree,
   restoreBoundedValue,
   TABLE_CELL_WEIGHT,
+  TABLE_MARKER_WEIGHT,
+  tableMarkerCost,
   TABLE_READ_BUDGET,
+  TABLE_ROW_WEIGHT,
+  tableLineStart,
   TABLE_SYNTAX_WEIGHT,
   tableReadCost,
   tableRowParts,
@@ -18,6 +22,11 @@ import {
 import { parseCommonMarkTree, parseMarkdownAst, parseMarkdownTree, type MarkdownTreeNode } from "../src/markdown-parser.ts";
 import { extractLinksAndTags } from "../src/ast-scanner.ts";
 import { analyzeNoteOutline, analyzeNoteSource } from "../src/noteSource.ts";
+import { remarkWikiLinks } from "../src/wikiLinkSyntax.ts";
+import remarkFrontmatter from "remark-frontmatter";
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import { unified } from "unified";
 
 /**
  * The parse budget (open-items plan 3.133 no. 4): a line of 100 000 `]` held
@@ -89,9 +98,20 @@ describe("the inline parse budget", () => {
 
   it("weighs a table by its characters, its cells and its inline syntax", () => {
     const row = "| [[a]] | *b* |";
-    // 15 characters, 2 cells, 4 brackets and 2 stars.
-    expect(tableReadCost(row, 0, row.length)).toBe(15 + 2 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT);
+    // One row, 15 characters, 2 cells, 4 brackets and 2 stars.
+    expect(tableReadCost(row, 0, row.length)).toBe(TABLE_ROW_WEIGHT + 15 + 2 * TABLE_CELL_WEIGHT + 6 * TABLE_SYNTAX_WEIGHT);
+    // A row costs on its own: one short cell is still a row (the review's `|a|`, 18 000 of them).
+    expect(tableReadCost("|a|", 0, 3)).toBe(TABLE_ROW_WEIGHT + 3 + TABLE_CELL_WEIGHT);
+    expect(TABLE_ROW_WEIGHT).toBeGreaterThan(0);
     expect(tableReadCost(`x${row}x`, 1, row.length + 1)).toBe(tableReadCost(row, 0, row.length));
+    // Each block marker in front of a line is events of its own on every line: two quotes around `|a|` ran out of memory at the budget.
+    expect(TABLE_MARKER_WEIGHT).toBeGreaterThan(0);
+    expect(tableMarkerCost("")).toBe(0);
+    expect(tableMarkerCost("> > ")).toBe(4 + 2 * TABLE_MARKER_WEIGHT);
+    expect(tableMarkerCost("  ")).toBe(2 + TABLE_MARKER_WEIGHT);
+    expect(tableMarkerCost("- > ")).toBe(4 + 2 * TABLE_MARKER_WEIGHT);
+    const deep = `> > | h |\n> > |---|\n${Array.from({ length: Math.ceil(TABLE_READ_BUDGET / (tableReadCost("|a|", 0, 3) + tableMarkerCost("> > "))) + 1 }, () => "> > |a|").join("\n")}\n`;
+    expect(overBudgetInlineRanges(deep)).toHaveLength(1);
   });
 
   it("counts a row's cells the way the table parser does", () => {
@@ -111,15 +131,32 @@ describe("the inline parse budget", () => {
     // An empty cell between two boundaries is a cell; blanks before the first and after the last boundary are not.
     expect(parts("| | a |")).toEqual({ cells: 2, boundaries: 3 });
     expect(parts("|||")).toEqual({ cells: 2, boundaries: 3 });
-    // Quote markers in front of a row hold nothing.
-    expect(parts("> | a | b |")).toEqual({ cells: 2, boundaries: 3 });
+    // A `>` is content here: what is a quote marker is decided once, by tableLineStart.
+    const startOf = (line: string, first: boolean) => {
+      const { depth, at } = tableLineStart(line, first);
+      return { depth, at };
+    };
+    expect(parts("\\>a | b")).toEqual({ cells: 2, boundaries: 1 });
+    expect(parts("> | a | b |")).toEqual({ cells: 3, boundaries: 3 });
+    expect(startOf(">a | b", true)).toEqual({ depth: 1, at: 1 });
+    expect(startOf("\\>a | b", true)).toEqual({ depth: 0, at: 0 });
+    expect(startOf("- > | a |", true)).toEqual({ depth: 1, at: 4 });
+    expect(startOf("  > | a |", false)).toEqual({ depth: 1, at: 4 });
+    expect(startOf("[^1]: | a |", true)).toEqual({ depth: 0, at: 6 });
+    // A list marker opens a block on a table's first line only.
+    expect(startOf("- | a |", false)).toEqual({ depth: 0, at: 0 });
+    // What the table's later lines must repeat: the item's content column, a footnote's four blanks, each quote marker.
+    expect(tableLineStart("- | a |", true).prefix).toEqual([2]);
+    expect(tableLineStart("10.  | a |", true).prefix).toEqual([5]);
+    expect(tableLineStart("[^1]: | a |", true).prefix).toEqual([4]);
+    expect(tableLineStart("> - | a |", true).prefix).toEqual([-1, 2]);
     // The parser reads `|a\\|a\\|a|` as three cells, as the review found.
     const parsed = parseMarkdownTree("|h|h|h|\n|-|-|-|\n|a\\\\|a\\\\|a|\n");
     expect(parsed.children![0].children![1].children).toHaveLength(parts("|a\\\\|a\\\\|a|").cells);
   });
 
   // Rows of a word and a link, added until the table is at the budget (L13):
-  // about 5 200 of them. Until GFM tables 2.1.2 the rule was rows times
+  // about 5 000 of them. Until GFM tables 2.1.2 the rule was rows times
   // length, for a parse that grew with the square of the cells, and a table
   // of more than about 2 500 such rows was read as written — no table, and
   // none of its links in the index.
@@ -160,6 +197,48 @@ describe("the inline parse budget", () => {
     // handful of nodes where the table held more than 100 000.
     expect(typesOf(tree.children![1]).length).toBeLessThan(10);
     expect(typesOf(tree.children![2])).toContain("wikiLink");
+  }, 240 * SECONDS);
+
+  it("weighs a table wherever one can stand, and reads one over its budget as written with its quote or list around it", () => {
+    // Sixteen one-character cells, over the budget: in a quote or a list item
+    // the table was not weighed at all, and its parse ran out of memory
+    // (found in review; the rows-times-length rule had the same hole).
+    const dense = (first: string, rest: string, rows: number) => [`${first}|${"h|".repeat(16)}`, `${rest}|${"-|".repeat(16)}`, ...Array.from({ length: rows }, () => `${rest}|${"a|".repeat(16)}`)];
+    const textsIn = (node: MarkdownTreeNode): string => textsOf(node).join("");
+    const placements: Array<[string, string, string, string, string[]]> = [
+      ["a quote", "> ", "> ", "", ["blockquote"]],
+      ["a callout", "> ", "> ", "> [!note] Numbers\n", ["blockquote"]],
+      ["a list item", "- ", "  ", "", ["list", "listItem"]],
+      ["a quote in a list", "- > ", "  > ", "", ["list", "listItem", "blockquote"]],
+      ["a list in a quote", "> - ", ">   ", "", ["blockquote", "list", "listItem"]],
+      ["a footnote", "[^1]: ", "    ", "", ["footnoteDefinition"]],
+      ["behind a paragraph line", "", "", "A line before it\n", []],
+    ];
+    for (const [where, first, rest, before, containers] of placements) {
+      const row = `|${"a|".repeat(16)}`;
+      const lines = dense(first, rest, Math.ceil((1.5 * TABLE_READ_BUDGET) / tableReadCost(row, 0, row.length)));
+      const note = `# T\n\n${before}${lines.join("\n")}\n\nbelow [[Link]]\n`;
+      const ranges = overBudgetInlineRanges(note);
+      expect(ranges, where).toHaveLength(1);
+      // The range is the table's lines behind the markers of the first line: the markers stay as written.
+      const tableStart = note.indexOf(lines[0]) + first.length;
+      expect(ranges[0], where).toEqual({ from: tableStart, to: note.lastIndexOf(lines[lines.length - 1]) + lines[lines.length - 1].length });
+      const tree = parseMarkdownTree(note);
+      let node = tree.children![1];
+      for (const container of containers) {
+        expect(node.type, where).toBe(container);
+        node = node.children![0];
+      }
+      expect(typesOf(tree.children![1]), where).not.toContain("table");
+      // What the parse gives back is what was written, behind the markers.
+      const written = lines.map((line, i) => line.slice(tableLineStart(line, i === 0).at)).join("\n");
+      expect(textsIn(tree.children![1]), where).toContain(written);
+      expect(typesOf(tree.children![2]), where).toContain("wikiLink");
+    }
+    // A table in a quote under its budget stays a table.
+    const small = `# T\n\n${dense("> ", "> ", 20).join("\n")}\n`;
+    expect(overBudgetInlineRanges(small)).toEqual([]);
+    expect(typesOf(parseMarkdownTree(small))).toContain("table");
   }, 240 * SECONDS);
 
   it("reads a long table in time linear in its cells", () => {
@@ -258,8 +337,9 @@ describe("what counts as one paragraph", () => {
     expect(overBudgetInlineRanges(["| a | b | c |", "|---|---|", ...rows].join("\n"))).toHaveLength(1);
     // A delimiter row without a pipe makes a heading underline, no table.
     expect(overBudgetInlineRanges(["a", "---", ...costly].join("\n"))).toHaveLength(1);
-    // A line without a pipe after the table is measured with what follows it.
-    expect(overBudgetInlineRanges(["| a |", "|---|", "| b |", ...costly].join("\n"))).toHaveLength(1);
+    // A line without a pipe under a table is one of its rows, as the parser reads it: weighed with the table.
+    const pipeless = ["| a |", "|---|", "| b |", ...costly].join("\n");
+    expect(overBudgetInlineRanges(pipeless)).toEqual([{ from: 0, to: pipeless.length }]);
     // A header that starts a list item is no table.
     expect(overBudgetInlineRanges(["- a | b", "--|--", ...rows].join("\n"))).toHaveLength(1);
     // A single row over the budget is that row.
@@ -325,3 +405,159 @@ describe("the measure and the stand-ins", () => {
     expect(textsOf(tree).join("")).toBe(String.fromCharCode(0xfffd) + "]".repeat(20_000));
   });
 });
+
+describe("where a table ends", () => {
+  // The table scan of the parse budget against the table parser (L13). A row
+  // the scan ends too early escapes the table's weight — its parse ran out of
+  // memory under a capped heap; a line it takes for a table where the parser
+  // reads a paragraph splits the paragraph's measure. Found in review:
+  // lines without a pipe, and lines that begin with `*a*`, `<b>` or `=`, are
+  // rows to the parser and ended the table in the scan.
+  // The table parser itself, without the budget: what the scan must agree with.
+  const rawParser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks);
+  const rawTree = (text: string) => rawParser.parse(text) as unknown as MarkdownTreeNode;
+  const tablesOf = (tree: MarkdownTreeNode, into: Array<[number, number]> = []): Array<[number, number]> => {
+    const place = (tree as { position?: { start: { line: number }; end: { line: number } } }).position;
+    if (tree.type === "table" && place) into.push([place.start.line - 1, place.end.line - 1]);
+    for (const child of tree.children ?? []) tablesOf(child, into);
+    return into;
+  };
+  const paragraphsOf = (tree: MarkdownTreeNode, into: Array<[number, number]> = []): Array<[number, number]> => {
+    const place = (tree as { position?: { start: { line: number }; end: { line: number } } }).position;
+    if (tree.type === "paragraph" && place && place.end.line > place.start.line) into.push([place.start.line - 1, place.end.line - 1]);
+    for (const child of tree.children ?? []) paragraphsOf(child, into);
+    return into;
+  };
+  const rowsOf = (text: string): number => {
+    const tree = rawTree(text);
+    const table = tablesOf(tree)[0];
+    return table ? table[1] - table[0] : -1;
+  };
+  const over = (row: string, header = "| h |\n|---|") => {
+    const rows = Math.ceil((1.2 * TABLE_READ_BUDGET) / tableReadCost(row, 0, row.length));
+    return `${header}\n${Array.from({ length: rows }, () => row).join("\n")}\n`;
+  };
+
+  it("weighs every row the parser reads, with or without a pipe", () => {
+    // The parser keeps these lines in the table (one header, one delimiter, three rows).
+    for (const row of ["a", "bar", "*a* | b", "_x_ | y", "<b>q</b> | z", "=", "-a | b", "+a | b", "<x-y> | b", "[x]: http://a | b", "1234567890. a | b"]) {
+      expect(rowsOf(`| h | h |\n|---|---|\n| a | b |\n${row}\n| z | z |\n`), row).toBe(4);
+      const text = over(row, "| h | h |\n|---|---|");
+      expect(overBudgetInlineRanges(text), row).toEqual([{ from: 0, to: text.length - 1 }]);
+    }
+    // A header without a pipe over a delimiter with one is a table too.
+    expect(rowsOf("a\n|-\n| b |\n")).toBe(2);
+    const headless = over("a", "a\n|-");
+    expect(overBudgetInlineRanges(headless)).toEqual([{ from: 0, to: headless.length - 1 }]);
+    // Over its budget, the parse reads them as written: no table.
+    expect(typesOf(parseMarkdownTree(over("a")))).not.toContain("table");
+  });
+
+  it("ends a table at a line that begins another block, as the parser does", () => {
+    for (const row of ["", "    a | b", "> q | y", "# h | x", "- x | y", "-", "1.", "2. a | b", "***", "```", "~~~ | b", "[^1]: a | b", "<div>|", "<!-- c | b", "<divx>"]) {
+      expect(rowsOf(`| h | h |\n|---|---|\n| a | b |\n${row}\n| z | z |\n`), JSON.stringify(row)).toBe(2);
+    }
+    // A table over the budget behind such a line is weighed from its own header.
+    const behind = `| h |\n|---|\n- x\n${over("a")}`;
+    expect(overBudgetInlineRanges(behind)).toEqual([{ from: behind.indexOf("| h |", 4), to: behind.length - 1 }]);
+  });
+
+  it("weighs a table the parser reads where a reader would not expect one", () => {
+    // Behind indented code, `-` is a table's header; behind `<!X`, a fence is
+    // HTML and the table under it a table; a tab behind `>` gives the marker
+    // one column, so `>\t|a|` is a row and no indented code.
+    const cases: Array<[string, string]> = [
+      ["    x\n-\n|-|", "|a|"],
+      ["<!X\n~~~\nx>\n| h |\n|-|", "|a|"],
+      ["> | h |\n> |-|", ">\t|a|"],
+      ["> | h |\n> |-|", "> \t|a|"],
+    ];
+    for (const [before, row] of cases) {
+      // Weighed behind its quote markers, as the scan weighs it.
+      const body = row.slice(row.indexOf("|"));
+      const text = `${before}\n${Array.from({ length: Math.ceil((1.2 * TABLE_READ_BUDGET) / tableReadCost(body, 0, body.length)) }, () => row).join("\n")}\n`;
+      const small = tablesOf(rawTree(`${before}\n${row}\n${row}\n`));
+      expect(small.length, before).toBe(1);
+      // The header, the delimiter and both rows.
+      expect(small[0][1] - small[0][0], before).toBe(3);
+      const ranges = overBudgetInlineRanges(text);
+      expect(ranges.length, before).toBeGreaterThan(0);
+      expect(ranges[ranges.length - 1].to, before).toBe(text.length - 1);
+      expect(typesOf(parseMarkdownTree(text)), before).not.toContain("table");
+    }
+  }, 120 * SECONDS);
+
+  it("weighs a table right behind a byte order mark", () => {
+    // The mark was a character of the header to the scan: one cell more than the delimiter row, so no table, and its parse ran out of memory.
+    const text = `\uFEFF${over("|a|")}`;
+    expect(tablesOf(rawTree("\uFEFF| h |\n|---|\n|a|\n"))).toHaveLength(1);
+    expect(overBudgetInlineRanges(text)).toEqual([{ from: 1, to: text.length - 1 }]);
+  });
+
+  it("keeps a paragraph whole where its lazy lines look like a table", () => {
+    // In a quote, `]]]] | x` over `-|-` without the marker is text of the
+    // quote's paragraph, not a table: the scan split the paragraph at each
+    // pair, and its parse looked back over all of it at every `]`.
+    const pairs = Array.from({ length: 3_000 }, () => "]]]] | x\n-|-").join("\n");
+    const text = `> q\n${pairs}\n\nbelow [[Link]]\n`;
+    expect(tablesOf(rawTree(`> q\n]]]] | x\n-|-\n]]]] | x\n-|-\n`))).toEqual([]);
+    const ranges = overBudgetInlineRanges(text);
+    expect(ranges).toHaveLength(1);
+    expect(ranges[0].to).toBe(text.indexOf("\n\nbelow"));
+    const tree = within(5 * SECONDS, () => parseMarkdownTree(text));
+    expect(typesOf(tree.children![1])).toContain("wikiLink");
+  }, 60 * SECONDS);
+
+  it("ends a table where the table parser ends it, over generated notes", () => {
+    // Lines and block markers drawn at random, seeded: every table the parser
+    // reads lies inside one the scan weighs, and every paragraph of more than
+    // one line inside one run the scan measures, unless the scan was unsure
+    // and weighed the table generously (then it measures the run as well).
+    const contents = ["| a | b |", "|---|---|", "a | b", "--|--", "|-", "-|", "a", "bar", "*a* | b", "_x_ | y", "<b>q</b> | z", "<div>", "<divx>", "<x-y> | b", "# h", "#a | x", "- x | y", "-", "- ", "1. a", "2. a", "1)", "10.", "***", "---", "===", "```", "~~~", "``", "[^1]: a", "[^ x]: a", "[x]: http://a", "", "    a | b", "  a | b", "\t| a |", "<!-- c", "<!-- a -->", "<?x", "<!X", "<!", "* * *", "+a", "| `a\\|b` |", "\\| a |", "> [!note] t", "h|h", "-|-", "|:-:|", "| x |", "x |", "<p/>", "</td>", "[^a b]: x", " | a |", "   |-|", "+", "1.", "    x", "\tx", "x\\", "- [ ] |"];
+    const prefixes = ["", "", "", "> ", "- ", "  ", "> > ", ">", "   ", "1. ", "    ", "\t", "- > ", "> - ", ">   "];
+    let seed = 20261113;
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) >>> 0;
+      let t = seed;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const pick = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
+    const inside = ([a, b]: [number, number], spans: Array<[number, number]>) => spans.some(([c, d]) => c <= a && b <= d);
+    const meets = ([a, b]: [number, number], spans: Array<[number, number]>) => spans.some(([c, d]) => c <= b && a <= d);
+    const failures: string[] = [];
+    for (let k = 0; k < 3_000; k++) {
+      const lines: string[] = [];
+      const count = 3 + Math.floor(random() * 8);
+      while (lines.length < count) {
+        if (random() < 0.35) {
+          const first = pick(prefixes);
+          const rest = random() < 0.7 ? first.replace(/^(\d+\.|-) /, (marker) => " ".repeat(marker.length)) : pick(prefixes);
+          lines.push(first + pick(["| a | b |", "a | b", "h|h", "a", "| x |", "x |", "*a* | b"]), rest + pick(["|---|---|", "--|--", "-|-", "|-", "-|", "|:-:|"]));
+        } else {
+          lines.push((random() < 0.5 ? pick(prefixes) : "") + pick(contents));
+        }
+      }
+      // An unclosed `---` on the first line puts the frontmatter reader in a mode of its own.
+      if (/^---[ \t]*$/.test(lines[0])) lines[0] = "x";
+      const text = `${lines.join("\n")}\n`;
+      const tree = rawTree(text);
+      const tables: Array<[number, number]> = [];
+      const exact: Array<[number, number]> = [];
+      const runs: Array<[number, number]> = [];
+      overBudgetInlineRanges(text, {
+        table: (first, last, sure) => {
+          tables.push([first, last]);
+          if (sure) exact.push([first, last]);
+        },
+        run: (first, last) => runs.push([first, last]),
+      });
+      const missed = tablesOf(tree).filter((table) => !inside(table, tables));
+      const split = paragraphsOf(tree).filter((paragraph) => !inside(paragraph, runs) && meets(paragraph, exact));
+      if (missed.length + split.length > 0) failures.push(JSON.stringify({ text, missed, split }));
+    }
+    expect(failures.slice(0, 5)).toEqual([]);
+  }, 120 * SECONDS);
+});
+

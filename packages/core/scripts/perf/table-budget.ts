@@ -4,6 +4,7 @@
  *
  *   pnpm --filter @plainva/core perf:tables -- --calibrate   # search limits, choose weights, check (about half an hour)
  *   pnpm --filter @plainva/core perf:tables -- --check       # check the constants only (minutes)
+ *       [--limits <calibration log>]                         # with --calibrate: take the limits a log holds, search the rest
  *       [--seed <n>] [--generated <count>]                   # the generated shapes of the check
  *
  * The criterion: a table of every shape below, at the budget, is read by the
@@ -33,7 +34,8 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
-import { TABLE_CELL_WEIGHT, TABLE_READ_BUDGET, TABLE_SYNTAX_WEIGHT, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { readFileSync } from "node:fs";
+import { TABLE_CELL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
 import remarkObsidianPreserve from "../../src/remark-obsidian-preserve.js";
@@ -47,9 +49,11 @@ import { unified } from "unified";
 export const HEAP_MB = 128;
 
 interface Shape {
-  /** The header row and the delimiter row. */
+  /** The header row and the delimiter row, with the markers of the blocks the table stands in. */
   header: string;
   row: (i: number) => string;
+  /** Lines before the header in the same block (a callout's head). */
+  before?: string;
 }
 
 const BS = "\\";
@@ -91,6 +95,45 @@ export const SHAPES: Record<string, Shape> = {
   amps: { header: cols(1), row: () => repeatCell("&a") },
   angles: { header: cols(1), row: () => repeatCell("<a") },
   bangs: { header: cols(1), row: () => repeatCell("![") },
+  // Rows: one short cell each (the most rows per weight), one empty cell, two short cells.
+  onecell: { header: "| h |\n|---|", row: () => "|a|" },
+  emptycol: { header: "| h |\n|---|", row: () => "| |" },
+  twoshort: { header: "| h | h |\n|---|---|", row: () => "|a|b|" },
+  // Rows without a pipe: under a table, `a` is a row of one cell; and a header without one (`a` over `|-`).
+  bare: { header: "| h |\n|---|", row: () => "a" },
+  barewords: { header: cols(4), row: (i) => `item ${i} and some words` },
+  nohead: { header: "a\n|-", row: () => "a" },
+  // Rows with far fewer cells than the header: the parser does not pad them.
+  ragged: { header: cols(64), row: () => "|a|" },
+  ragged8: { header: cols(8), row: () => "|a|" },
+  // Rows with far more cells than the header.
+  excess: { header: "| h |\n|---|", row: () => `|${"a|".repeat(40)}` },
+  // Containers: a quote, a callout, a list item, a quote in a list, a list in a quote, a footnote.
+  quote: { header: "> | h | h |\n> |---|---|", row: (i) => `> | a${i} | [[n${i}]] |` },
+  listed: { header: "- | h | h |\n  |---|---|", row: (i) => `  | a${i} | [[n${i}]] |` },
+  qdense: { header: `> |${"h|".repeat(16)}\n> |${"-|".repeat(16)}`, row: () => `> |${"a|".repeat(16)}` },
+  cdense: { before: "> [!note] Numbers", header: `> |${"h|".repeat(16)}\n> |${"-|".repeat(16)}`, row: () => `> |${"a|".repeat(16)}` },
+  ldense: { header: `- |${"h|".repeat(16)}\n  |${"-|".repeat(16)}`, row: () => `  |${"a|".repeat(16)}` },
+  lqdense: { header: `- > |${"h|".repeat(16)}\n  > |${"-|".repeat(16)}`, row: () => `  > |${"a|".repeat(16)}` },
+  qldense: { header: `> - |${"h|".repeat(16)}\n>   |${"-|".repeat(16)}`, row: () => `>   |${"a|".repeat(16)}` },
+  fdense: { header: `[^1]: |${"h|".repeat(16)}\n    |${"-|".repeat(16)}`, row: () => `    |${"a|".repeat(16)}` },
+  // One short cell per row behind block markers: each marker is events of its own on every line (found in review: two quotes ran out of memory at the budget).
+  q1one: { header: "> | h |\n> |---|", row: () => "> |a|" },
+  q2one: { header: "> > | h |\n> > |---|", row: () => "> > |a|" },
+  q3one: { header: "> > > | h |\n> > > |---|", row: () => "> > > |a|" },
+  q5one: { header: "> > > > > | h |\n> > > > > |---|", row: () => "> > > > > |a|" },
+  q3bare: { header: "> > > | h |\n> > > |---|", row: () => "> > > a" },
+  lone: { header: "- | h |\n  |---|", row: () => "  |a|" },
+  l2one: { header: "- - | h |\n    |---|", row: () => "    |a|" },
+  lqone: { header: "- > | h |\n  > |---|", row: () => "  > |a|" },
+  ql2one: { header: "> - - | h |\n>     |---|", row: () => ">     |a|" },
+  fone: { header: "[^1]: | h |\n    |---|", row: () => "    |a|" },
+  // Padding and content the review tried.
+  tabs: { header: "|\th\t|\th\t|\th\t|\n|---|---|---|", row: (i) => `|\ta${i}\t|\tb\t|\tc\t|` },
+  entity: { header: cols(2), row: (i) => `| &amp;&lt;&gt;&quot; &#${100 + (i % 20)}; | &copy; x |` },
+  nopipewide: { header: Array(20).fill("h").join("|") + "\n" + Array(20).fill("-").join("|"), row: () => Array(20).fill("ab").join("|") },
+  wikialias: { header: cols(3), row: (i) => `| [[Note ${i}${BS}|alias ${i}]] | [[Other${BS}|o]] | #tag |` },
+  trail: { header: cols(3), row: (i) => `| a${i}${BS} | b${BS}${BS} | c   |   ` },
 };
 
 /** A seeded generator (mulberry32) over a list of integers. */
@@ -106,7 +149,13 @@ function random(...keys: number[]): () => number {
   };
 }
 
-interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number }
+/** Where a generated table stands. */
+const WRAPS = ["none", "quote", "quote2", "quote3", "list", "callout"] as const;
+
+interface GeneratedSettings { columns: number; length: number; outer: boolean; blanks: boolean; escape: number; escapeRate: number; syntax: number; code: number; empty: number; wrap: (typeof WRAPS)[number] }
+
+/** How many of the first generated shapes are forced to one or two columns of 0 to 3 characters: the most rows per weight. */
+const FORCED_SHORT = 8;
 
 const SYNTAX_CHARS = "[]*_~`<&!$";
 const LETTERS = "abcdefghij klmno pqrst uvwxyz";
@@ -115,10 +164,11 @@ const LETTERS = "abcdefghij klmno pqrst uvwxyz";
 function settingsOf(seed: number, k: number): GeneratedSettings {
   const r = random(seed, k);
   const pick = <T>(list: readonly T[]) => list[Math.floor(r() * list.length)];
-  const columns = 1 + Math.floor(r() * 24);
+  const short = k < FORCED_SHORT;
+  const columns = short ? 1 + (k % 2) : 1 + Math.floor(r() * 24);
   return {
     columns,
-    length: Math.floor(r() * 81),
+    length: short ? Math.floor(r() * 4) : Math.floor(r() * 81),
     outer: columns === 1 || r() < 0.5,
     blanks: r() < 0.5,
     escape: Math.floor(r() * 4),
@@ -126,6 +176,7 @@ function settingsOf(seed: number, k: number): GeneratedSettings {
     syntax: pick([0, 0.05, 0.2, 0.5]),
     code: pick([0, 0.3]),
     empty: pick([0, 0.3, 0.7]),
+    wrap: k < WRAPS.length ? WRAPS[k] : pick(WRAPS),
   };
 }
 
@@ -149,9 +200,12 @@ function generatedShape(seed: number, k: number): Shape {
     // A row without outer pipes must not begin like another block (a list item, a quote, a heading).
     return c === 0 ? `c${text}` : text;
   };
+  // The markers of the block the table stands in: on the header line, and on every line after it.
+  const [first, rest] = { none: ["", ""], quote: ["> ", "> "], quote2: ["> > ", "> > "], quote3: ["> > > ", "> > > "], list: ["- ", "  "], callout: ["> ", "> "] }[s.wrap];
   return {
-    header: `${join(Array.from({ length: s.columns }, () => "h"))}\n${join(Array.from({ length: s.columns }, () => "---"))}`,
-    row: (i) => join(Array.from({ length: s.columns }, (_, c) => cell(i, c))),
+    before: s.wrap === "callout" ? "> [!info] Generated" : undefined,
+    header: `${first}${join(Array.from({ length: s.columns }, () => "h"))}\n${rest}${join(Array.from({ length: s.columns }, () => "---"))}`,
+    row: (i) => rest + join(Array.from({ length: s.columns }, (_, c) => cell(i, c))),
   };
 }
 
@@ -166,36 +220,49 @@ function shapeOf(name: string): Shape {
 
 export function shapeTable(name: string, rows: number): string {
   const shape = shapeOf(name);
-  return `# Table\n\n${shape.header}\n${Array.from({ length: rows }, (_, i) => shape.row(i)).join("\n")}\n\nbelow [[Link]]\n`;
+  return `# Table\n\n${shape.before ? `${shape.before}\n` : ""}${shape.header}\n${Array.from({ length: rows }, (_, i) => shape.row(i)).join("\n")}\n\nbelow [[Link]]\n`;
 }
 
-type Parts = { chars: number; cells: number; syntax: number };
+/** What a table line weighs as the app weighs it: its row behind the markers of the blocks it stands in, and the markers. */
+function lineCost(line: string, first: boolean): number {
+  const at = tableLineStart(line, first).at;
+  return tableReadCost(line, at, line.length) + tableMarkerCost(line.slice(0, at));
+}
+
+/** The parts of a table's weight, summed; `markers` is what the markers weigh beyond their characters at a marker weight of one. */
+type Parts = { rows: number; chars: number; cells: number; syntax: number; markers: number };
+
+/** What the markers of `prefix` count, beyond their characters (`tableMarkerCost` at a marker weight of one). */
+const markersOf = (prefix: string): number => (prefix.match(/>/g)?.length ?? 0) + (prefix.replace(/>[ \t]?/g, "").length > 0 ? 1 : 0);
 
 /** The parts of a shape's header and first `rows` rows, summed: what its table's weight is made of, under any weights. */
 function tableParts(name: string, rows: number): Parts {
   const shape = shapeOf(name);
-  const sum = { chars: 0, cells: 0, syntax: 0 };
+  const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0 };
   const header = shape.header.split("\n")[0];
-  for (const row of [header, ...Array.from({ length: rows }, (_, i) => shape.row(i))]) {
-    const parts = tableRowParts(row, 0, row.length);
-    sum.chars += parts.chars;
+  for (const [i, row] of [header, ...Array.from({ length: rows }, (_, i) => shape.row(i))].entries()) {
+    const at = tableLineStart(row, i === 0).at;
+    const parts = tableRowParts(row, at, row.length);
+    sum.rows += 1;
+    sum.chars += parts.chars + at;
+    sum.markers += markersOf(row.slice(0, at));
     sum.cells += parts.cells;
     sum.syntax += parts.syntax;
   }
   return sum;
 }
 
-const weigh = (parts: Parts, cell: number, syntax: number) => parts.chars + cell * parts.cells + syntax * parts.syntax;
+const weigh = (parts: Parts, row: number, cell: number, syntax: number, marker = 0) => row * parts.rows + parts.chars + cell * parts.cells + syntax * parts.syntax + marker * parts.markers;
 
 /** The rows of a shape whose table weighs `target` by the constants as they stand. */
 function rowsAt(name: string, target: number): number {
   const shape = shapeOf(name);
   const header = shape.header.split("\n")[0];
-  let weight = tableReadCost(header, 0, header.length);
+  let weight = lineCost(header, true);
   let rows = 0;
   for (;;) {
     const row = shape.row(rows);
-    const next = weight + tableReadCost(row, 0, row.length);
+    const next = weight + lineCost(row, false);
     if (next > target) return rows;
     weight = next;
     rows++;
@@ -232,26 +299,47 @@ function limitOf(name: string): number {
   return lo;
 }
 
-function calibrate(): void {
+/**
+ * `--limits <file>` takes the limits of the shapes a calibration log already
+ * holds (its `limit` lines) and searches only the others: the limit search is
+ * what takes the time.
+ */
+function calibrate(args: string[]): void {
+  const known = new Map<string, number>();
+  if (args.includes("--limits")) {
+    for (const m of readFileSync(args[args.indexOf("--limits") + 1], "utf8").matchAll(/^limit\s+(\S+)\s+(\d+) rows/gm)) known.set(m[1], Number(m[2]));
+  }
   const limits: Record<string, Parts> = {};
   for (const name of Object.keys(SHAPES)) {
-    const rows = limitOf(name);
+    const rows = known.get(name) ?? limitOf(name);
     limits[name] = tableParts(name, rows);
-    console.log(`limit    ${name.padEnd(10)} ${String(rows).padStart(7)} rows under ${HEAP_MB} MB`);
+    console.log(`limit    ${name.padEnd(10)} ${String(rows).padStart(7)} rows under ${HEAP_MB} MB${known.has(name) ? " (from the log)" : ""}`);
   }
   const short = tableParts("short", 1000);
-  // For each pair of weights the budget is nine tenths of the lightest limit; keep the pair that leaves a word and a link the most rows.
-  let best = { cell: 0, syntax: 0, budget: 0, shortRows: 0 };
-  for (let cell = 0; cell <= 120; cell++) {
-    for (let syntax = 0; syntax <= 40; syntax++) {
-      const budget = 0.9 * Math.min(...Object.values(limits).map((parts) => weigh(parts, cell, syntax)));
-      const shortRows = (budget / weigh(short, cell, syntax)) * 1000;
-      if (shortRows > best.shortRows) best = { cell, syntax, budget, shortRows };
+  // For each set of weights the budget is nine tenths of the lightest limit
+  // among the shapes without block markers; keep the set that leaves a word
+  // and a link the most rows. Then the marker weight: the least that lifts
+  // every shape behind markers to the budget / 0.9 as well.
+  let best = { row: 0, cell: 0, syntax: 0, budget: 0, shortRows: 0 };
+  const plain = Object.values(limits).filter((parts) => parts.markers === 0);
+  for (let row = 0; row <= 300; row += 2) {
+    for (let cell = 0; cell <= 120; cell++) {
+      for (let syntax = 0; syntax <= 40; syntax++) {
+        let lightest = Infinity;
+        for (const parts of plain) lightest = Math.min(lightest, weigh(parts, row, cell, syntax));
+        const budget = 0.9 * lightest;
+        const shortRows = (budget / weigh(short, row, cell, syntax)) * 1000;
+        if (shortRows > best.shortRows) best = { row, cell, syntax, budget, shortRows };
+      }
     }
   }
+  let marker = 0;
+  for (const parts of Object.values(limits)) {
+    if (parts.markers > 0) marker = Math.max(marker, Math.ceil((best.budget / 0.9 - weigh(parts, best.row, best.cell, best.syntax)) / parts.markers));
+  }
   const budget = Math.floor(best.budget / 10_000) * 10_000;
-  console.log(`weights  cell ${best.cell}, syntax ${best.syntax}: proposed budget ${budget} (a word and a link: about ${Math.round(best.shortRows)} rows)`);
-  for (const [name, parts] of Object.entries(limits)) console.log(`         ${name.padEnd(10)} limit weighs ${(weigh(parts, best.cell, best.syntax) / budget).toFixed(2)} x the budget`);
+  console.log(`weights  row ${best.row}, cell ${best.cell}, syntax ${best.syntax}, marker ${marker}: proposed budget ${budget} (a word and a link: about ${Math.round(best.shortRows)} rows)`);
+  for (const [name, parts] of Object.entries(limits)) console.log(`         ${name.padEnd(10)} limit weighs ${(weigh(parts, best.row, best.cell, best.syntax, marker) / budget).toFixed(2)} x the budget`);
 }
 
 function check(args: string[]): boolean {
@@ -260,7 +348,28 @@ function check(args: string[]): boolean {
   const generated = at("--generated", 36);
   const started = performance.now();
   let all = true;
-  console.log(`check    budget ${TABLE_READ_BUDGET}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
+  console.log(`check    budget ${TABLE_READ_BUDGET}, row ${TABLE_ROW_WEIGHT}, cell ${TABLE_CELL_WEIGHT}, syntax ${TABLE_SYNTAX_WEIGHT}, marker ${TABLE_MARKER_WEIGHT}, ${HEAP_MB} MB; ${Object.keys(SHAPES).length} fixed shapes, ${generated} generated (seed ${seed})`);
+  // What the generated shapes cover, axis by axis.
+  const covered = new Map<string, Set<string>>();
+  for (let k = 0; k < generated; k++) {
+    const s = settingsOf(seed, k);
+    const values: Record<string, string> = {
+      columns: s.columns <= 2 ? "1-2" : s.columns <= 8 ? "3-8" : s.columns <= 16 ? "9-16" : "17-24",
+      length: s.length <= 3 ? "0-3" : s.length <= 20 ? "4-20" : "21-80",
+      outer: String(s.outer),
+      blanks: String(s.blanks),
+      escape: s.escapeRate === 0 ? "none" : `${s.escape}x\\`,
+      syntax: String(s.syntax),
+      code: String(s.code > 0),
+      empty: String(s.empty),
+      wrap: s.wrap,
+    };
+    for (const [axis, value] of Object.entries(values)) {
+      if (!covered.has(axis)) covered.set(axis, new Set());
+      covered.get(axis)!.add(value);
+    }
+  }
+  console.log(`covered  ${[...covered].map(([axis, values]) => `${axis}: ${[...values].sort().join(" ")}`).join("; ")}`);
   const names = [...Object.keys(SHAPES), ...Array.from({ length: generated }, (_, k) => `gen:${seed}:${k}`)];
   for (const name of names) {
     const fixed = !name.startsWith("gen:");
@@ -301,14 +410,16 @@ function child(name: string, rows: number, parse: string, bounded: boolean): voi
   const tree = (bounded
     ? parse === "index" ? parseMarkdownAst(text, { preserveObsidianSyntax: true }) : parseMarkdownTree(text)
     : unbounded[parse as keyof typeof unbounded](text)) as { children?: Array<{ type: string }> };
-  // A table the budget reads as written costs what plain text costs: only a table read as a table counts.
-  if (tree.children?.[1]?.type !== "table") throw new Error(`not read as a table: ${tree.children?.[1]?.type}`);
+  // A table the budget reads as written costs what plain text costs: only a table read as a table counts, in whatever block it stands.
+  const hasTable = (node: { type: string; children?: unknown[] } | undefined): boolean =>
+    !!node && (node.type === "table" || (node.children ?? []).some((child) => hasTable(child as { type: string; children?: unknown[] })));
+  if (!hasTable(tree.children?.[1])) throw new Error(`not read as a table: ${tree.children?.[1]?.type}`);
   console.log(`ok ${Math.round(performance.now() - started)}`);
 }
 
 /** `perf:tables -- --calibrate` and `--check` (`many-tables.ts` hands them here). */
 export function runTableBudget(args: string[]): void {
-  if (args.includes("--calibrate")) calibrate();
+  if (args.includes("--calibrate")) calibrate(args);
   if (!check(args)) process.exitCode = 1;
 }
 
