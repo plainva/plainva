@@ -315,14 +315,14 @@ export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () =>
  */
 export function noteHistorySource(input: {
   index: {
-    getNotesChangedIn(folder: string, since: number, limit?: number, offset?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+    getNotesChangedIn(folder: string, since: number, limit?: number, offset?: number, within?: readonly string[]): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
     getNoteCreated(path: string): Promise<number | null>;
   };
   versions: Pick<InstructionVersions, "list" | "read"> | null;
 }): NoteHistorySource {
   const { index, versions } = input;
   return {
-    changedIn: (folder, since, limit, offset) => index.getNotesChangedIn(folder, since, limit, offset),
+    changedIn: (folder, since, limit, offset, within) => index.getNotesChangedIn(folder, since, limit, offset, within),
     created: (path) => index.getNoteCreated(path),
     versions: async (path) => (versions ? (await versions.list(path)).map((version) => ({ id: version.id, at: version.at })) : []),
     readVersion: (id) => (versions ? versions.read(id) : Promise.resolve(null)),
@@ -379,7 +379,8 @@ export function withNoteRule(text: string, rule: AiPolicyDimension, set: boolean
 /** Where candidates come from (plan §8.1): the index, and what this device opened. */
 export interface CandidateRetrieval {
   searchCandidates(terms: readonly string[], limit: number): Promise<{ path: string; title: string; score: number; snippet: string | null }[]>;
-  linkNeighbors(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
+  /** `reach` as `VaultQueryService.getLinkNeighbors` takes it. */
+  linkNeighbors(path: string, limit: number, options?: { reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>> }): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
   /** `offset` and `within` (exact folders) as `VaultQueryService.getRecentlyChangedNotes` takes them. */
   recentlyChanged(limit: number, offset?: number, within?: readonly string[]): Promise<{ path: string; title: string; mtime: number }[]>;
   /** Opened on this device, newest first (`.plainva/recents.json`). */

@@ -263,21 +263,36 @@ function reachOf(question: (paths: readonly string[]) => ReadonlySet<string> | P
 
 /**
  * Where the links of a reader with a narrower view lead: among the notes it may reach, never through the rest
- * (review of R19, wave 2). A link is resolved by the one rule (ADR 0027) over the files it could mean that are in
- * reach — so whether a note of the same name lies outside, or whether one exists there at all, changes nothing a
- * row shows. Every file a link could mean is asked about, uncapped: a cap would make the answer depend on how many
- * share the name outside.
+ * (review of R19, wave 2). A link is resolved by the one rule (ADR 0027), by the way it is written, over the files
+ * it could mean that are in reach — so whether a note of the same name lies outside, or whether one exists there at
+ * all, changes nothing a reader with that reach is told: a rollup, a reverse column, a backlink, a neighbour. Every
+ * file a link could mean is asked about, uncapped (a cap would make the answer depend on how many share the name
+ * outside), and the file the whole vault's rule finds, so a link to a folder's `index.md` is not lost.
  */
+async function reachableFiles<F extends LinkCorpusFile>(
+  files: readonly F[],
+  links: readonly { from: string; target: string; type?: string | null }[],
+  reach: Reach,
+): Promise<F[]> {
+  const names = buildLinkNameIndex(files);
+  const whole = buildLinkTargetIndex(files);
+  const candidates = new Set<string>();
+  for (const link of links) {
+    for (const path of filesALinkCouldMean(names, linkTargetName(link.target), link.from)) candidates.add(path);
+    const found = resolveLinkRow(link.from, link.target, link.type, whole);
+    if (found) candidates.add(found);
+  }
+  const reachable = await reach.ask([...candidates]);
+  return files.filter((file) => reachable.has(file.path));
+}
+
+/** A note's links resolved among the notes in reach (`reachableFiles`): what a rollup follows. */
 async function reachableResolver(
   files: readonly (LinkCorpusFile & { mode?: string | null })[],
   links: readonly { from: string; target: string }[],
   reach: Reach,
 ): Promise<(sourcePath: string, linkTarget: string) => string | null> {
-  const names = buildLinkNameIndex(files);
-  const candidates = new Set<string>();
-  for (const link of links) for (const path of filesALinkCouldMean(names, linkTargetName(link.target), link.from)) candidates.add(path);
-  const reachable = await reach.ask([...candidates]);
-  return noteLinkResolver(files.filter((file) => reachable.has(file.path)));
+  return noteLinkResolver(await reachableFiles(files, links, reach));
 }
 
 export class VaultQueryService {
@@ -540,9 +555,15 @@ export class VaultQueryService {
    * in; the folder by both spellings of its letters, a wildcard in its name
    * taken literally.
    */
-  async getNotesChangedIn(folder: string, since: number, limit = 100, offset = 0): Promise<{ path: string; title: string; mtime: number; created: number | null }[]> {
+  async getNotesChangedIn(folder: string, since: number, limit = 100, offset = 0, within?: readonly string[] | null): Promise<{ path: string; title: string; mtime: number; created: number | null }[]> {
     const conditions = ["path LIKE '%.md'", "(is_deleted IS NULL OR is_deleted = 0)", `${MTIME_MS} > ?`];
     const params: unknown[] = [since];
+    // A reader confined to folders reads changes there alone (`searchFullText`): none outside counts against a page.
+    if (within) {
+      const scoped = withinFoldersSql("path", within);
+      conditions.push(scoped.sql);
+      params.push(...scoped.params);
+    }
     if (folder) {
       const variants = [...new Set([folder.normalize("NFC"), folder.normalize("NFD")])];
       conditions.push(`(${variants.map(() => "path LIKE ? ESCAPE '\\'").join(" OR ")})`);
@@ -577,7 +598,12 @@ export class VaultQueryService {
    * links, resolved as the graph resolves them. One entry per note with both
    * counts, the busiest first. The graph source of the AI's context package.
    */
-  async getLinkNeighbors(path: string, limit = 30): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]> {
+  /** `reach` as for `getBacklinks`: both directions resolved among the notes in reach. */
+  async getLinkNeighbors(
+    path: string,
+    limit = 30,
+    options: { reach?: (paths: readonly string[]) => ReadonlySet<string> | Promise<ReadonlySet<string>> } = {}
+  ): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]> {
     const counts = new Map<string, { incoming: number; outgoing: number }>();
     const bump = (other: string, key: "incoming" | "outgoing") => {
       if (other === path) return;
@@ -585,7 +611,10 @@ export class VaultQueryService {
       entry[key] += 1;
       counts.set(other, entry);
     };
-    for (const link of await this.getBacklinks(path)) bump(link.source_path, "incoming");
+    const reach = options.reach ? reachOf(options.reach) : null;
+    // One reach for both directions: each note is asked once.
+    const asked = reach ? (paths: readonly string[]) => reach.ask(paths) : undefined;
+    for (const link of await this.getBacklinks(path, asked ? { reach: asked } : {})) bump(link.source_path, "incoming");
     const outgoing = await this.db.query<{ target_path: string; link_type: string | null }>(
       `SELECT l.target_path AS target_path, l.link_type AS link_type FROM links l JOIN files f ON f.id = l.source_id WHERE f.path = ?`,
       [path],
@@ -593,7 +622,9 @@ export class VaultQueryService {
     if (outgoing.length) {
       // The one rule over its one corpus (ADR 0027), each link by the way it is written — as the backlinks
       // above read theirs, so a link is a neighbour in both directions or in neither.
-      const corpus = await this.linkLookup();
+      const corpus = reach
+        ? buildLinkTargetIndex(await reachableFiles(await this.linkTargets(), outgoing.map((row) => ({ from: path, target: row.target_path, type: row.link_type })), reach))
+        : await this.linkLookup();
       for (const row of outgoing) {
         const resolved = resolveLinkRow(path, row.target_path, row.link_type, corpus);
         if (resolved && /\.md$/i.test(resolved)) bump(resolved, "outgoing");
@@ -1069,7 +1100,12 @@ export class VaultQueryService {
    * (E8). A rename or a rewrite asks without it: a link in a hidden note is
    * still a link, and it must follow the note it leads to.
    */
-  async getBacklinks(targetPath: string, options: { visibleOnly?: boolean } = {}): Promise<LinkRecord[]> {
+  /**
+   * `reach`: a reader with a narrower view (`queryDatabaseFiles`) — each link is resolved among the notes in reach
+   * (`reachableFiles`), so a note of the same name outside takes no backlink away and gives none (review of R19,
+   * wave 2). A reach that throws fails the call.
+   */
+  async getBacklinks(targetPath: string, options: { visibleOnly?: boolean; reach?: (paths: readonly string[]) => ReadonlySet<string> | Promise<ReadonlySet<string>> } = {}): Promise<LinkRecord[]> {
     // 1. The files a link can lead to — the one corpus of the link rule
     // (`linkTargets`). `.base` files are indexed as attachments but ARE
     // legitimate link targets (embeds, template assignments): without them a
@@ -1120,7 +1156,11 @@ export class VaultQueryService {
     // index is built ONCE (P2.3) — resolving per candidate against the raw
     // array was O(candidates × files) and ran on every file switch.
     const resolvedLinks: LinkRecord[] = [];
-    const corpus = buildLinkTargetIndex(files);
+    const corpus = buildLinkTargetIndex(
+      options.reach
+        ? await reachableFiles(files, candidateLinks.map((link) => ({ from: link.source_path, target: link.target_path, type: link.link_type })), reachOf(options.reach))
+        : files
+    );
 
     for (const link of candidateLinks) {
       // By the way the link was written (`link_type`): a Markdown link is read

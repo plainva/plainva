@@ -531,7 +531,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       },
       retrieval: {
         searchCandidates: (terms, limit) => query.searchCandidates(terms, limit),
-        linkNeighbors: (path, limit) => query.getLinkNeighbors(path, limit),
+        linkNeighbors: (path, limit, options) => query.getLinkNeighbors(path, limit, options),
         recentlyChanged: (limit, offset, within) => query.getRecentlyChangedNotes(limit, offset, within),
         async recentlyOpened() {
           try {
@@ -557,7 +557,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         taskRows,
         todayKey: () => calendarDay(),
         commands,
-        backlinks: (path) => query.getBacklinks(path),
+        backlinks: (path, options) => query.getBacklinks(path, options),
         queryDatabase: (config, options) => query.queryDatabaseFiles(config, options),
         events,
         moodKey,

@@ -492,6 +492,21 @@ describe("values a database computes from other notes", () => {
     expect([...reached!]).toEqual(["Projects/Offer.md"]);
   });
 
+  it("a view of many rows puts no more of them to the gate than its answer reaches (review of R19, wave 2)", async () => {
+    const reads: string[] = [];
+    const rows = Array.from({ length: 3_000 }, (_, i) => ({ "file.name": `n${i}`, "file.path": `Projects/n${i}.md`, status: "open" }));
+    const d = {
+      ...withBoard(async () => rows),
+      async policyOf(path: string, text?: string) {
+        if (text === undefined) reads.push(path);
+        return effectivePolicy(path, notePolicyFrom({}), rules);
+      },
+    };
+    const out = await run("query_base", { base: "Projects/Board.base", limit: 20 }, cloud, d);
+    expect(out.content.split("\n").filter((line) => line.startsWith("- [[")).length).toBe(20);
+    expect(reads.length).toBeLessThan(100);
+  });
+
   it("the task list is computed with the same reach", async () => {
     let reached: ReadonlySet<string> | null = null;
     await run(
@@ -608,6 +623,61 @@ describe("lists that are read past what an answer shows", () => {
     expect(await answer(300)).toBe(await answer(0));
   });
 
+  it("what changed in a period is read in the scope's folders: thousands of changes outside change nothing (review of R19, wave 2)", async () => {
+    const answer = async (outside: number) => {
+      const all = [...Array.from({ length: outside }, (_, i) => ({ path: `Private/c${i}.md`, title: `c${i}`, mtime: 5_000 - i, created: 0 })), { path: "Projects/Offer.md", title: "Offer", mtime: new Date(2026, 8, 22, 12).getTime(), created: 0 }];
+      const d = deps({
+        history: {
+          // As the index answers: in the folders asked for alone, page by page.
+          changedIn: async (_folder, _since, limit, offset = 0, within) => all.filter((row) => !within || within.some((folder) => folder === "" || row.path.startsWith(`${folder}/`))).slice(offset, offset + limit),
+          created: async () => null,
+          versions: async () => [],
+          readVersion: async () => null,
+        },
+      });
+      return (await createVaultToolExecutor(d, { recipient: cloud, webTools: true }, { inside: (path) => path.startsWith("Projects/"), folders: ["Projects"] }).execute(toolByName("get_changes")!, { since: "2026-09-21", until: "2026-09-24", limit: 1 }, { type: "tool_call", id: "c", name: "get_changes", args: {} })).content;
+    };
+    expect(await answer(0)).toContain("Projects/Offer.md");
+    expect(await answer(2_010)).toBe(await answer(0));
+    expect(await answer(1_990)).toBe(await answer(0));
+  });
+
+  it("a busy note's neighbours are put to the gate page by page, as far as the answer reaches (review of R19, wave 2)", async () => {
+    const reads: string[] = [];
+    const hub = Array.from({ length: 3_000 }, (_, i) => ({ path: `Projects/n${i}.md`, title: `n${i}`, incoming: 1, outgoing: 0 }));
+    const d = deps({
+      neighbors: async () => hub,
+      readNote: async (path) => {
+        reads.push(path);
+        return `# ${path}`;
+      },
+      async policyOf(path, text) {
+        if (text === undefined) reads.push(path);
+        return effectivePolicy(path, notePolicyFrom({}), rules);
+      },
+    });
+    const out = await createVaultToolExecutor(d, { recipient: cloud, webTools: false }).execute(toolByName("graph_neighborhood")!, { path: "Projects/Hub.md", depth: 2, limit: 30 }, { type: "tool_call", id: "c", name: "graph_neighborhood", args: {} });
+    expect(out.content.split("\n").length - 1).toBe(30);
+    expect(reads.length).toBeLessThan(200);
+  });
+
+  it("backlinks and neighbours are asked for with the run's reach", async () => {
+    const asked: string[] = [];
+    const d = deps({
+      async backlinks(_path, options) {
+        asked.push([...(await options!.reach!(["Private/Client.md", "Projects/Offer.md"]))].join());
+        return [];
+      },
+      async neighbors(_path, _limit, options) {
+        asked.push([...(await options!.reach!(["Private/Client.md", "Projects/Offer.md"]))].join());
+        return [];
+      },
+    });
+    await createVaultToolExecutor(d, { recipient: cloud, webTools: false }).execute(toolByName("get_backlinks")!, { path: "Projects/Offer.md", limit: 20 }, { type: "tool_call", id: "c", name: "get_backlinks", args: {} });
+    await createVaultToolExecutor(d, { recipient: cloud, webTools: false }).execute(toolByName("graph_neighborhood")!, { path: "Projects/Offer.md", limit: 20 }, { type: "tool_call", id: "c", name: "graph_neighborhood", args: {} });
+    expect(asked).toEqual(["Projects/Offer.md", "Projects/Offer.md"]);
+  });
+
   it("the neighbours of a note: the busiest ones outside take no place of one inside", async () => {
     const answer = async (outside: number) => {
       const around = [...newer.slice(0, outside).map((n) => ({ path: n.path, title: n.title, incoming: 9, outgoing: 9 })), { path: "Projects/Plan.md", title: "Plan", incoming: 1, outgoing: 0 }];
@@ -627,8 +697,8 @@ describe("the situation's reach", () => {
     expect([...(await situationReach(policyOf, { recipient: { kind: "local", provider: "ollama", model: "m" }, webTools: false }).reach(paths))]).toEqual(["Private/Client.md", "Projects/Offer.md"]);
   });
 
-  it("gathers more than the twelve that go, so the package cuts after the gate", () => {
-    const rows: PlannerRow[] = Array.from({ length: 30 }, (_, i) => ({ id: String(i), source: "note", path: `N/${i}.md`, noteTitle: `${i}`, ordinal: 0, title: `t${i}`, state: "open", due: "2026-09-24", dueMinutes: null, priority: 0, tags: [] }));
-    expect(situationFrom({ now: new Date(2026, 8, 24, 9), active: null, taskRows: rows }).tasks).toHaveLength(30);
+  it("gathers every due task, so the package cuts after the gate (review of R19, wave 2)", () => {
+    const rows: PlannerRow[] = Array.from({ length: 300 }, (_, i) => ({ id: String(i), source: "note", path: `N/${i}.md`, noteTitle: `${i}`, ordinal: 0, title: `t${i}`, state: "open", due: "2026-09-24", dueMinutes: null, priority: 0, tags: [] }));
+    expect(situationFrom({ now: new Date(2026, 8, 24, 9), active: null, taskRows: rows }).tasks).toHaveLength(300);
   });
 });

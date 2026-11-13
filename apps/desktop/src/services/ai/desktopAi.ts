@@ -684,7 +684,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     },
     retrieval: {
       searchCandidates: (terms, limit) => input.query.searchCandidates(terms, limit),
-      linkNeighbors: (path, limit) => input.query.getLinkNeighbors(path, limit),
+      linkNeighbors: (path, limit, options) => input.query.getLinkNeighbors(path, limit, options),
       recentlyChanged: (limit, offset, within) => input.query.getRecentlyChangedNotes(limit, offset, within),
       async recentlyOpened() {
         try {
@@ -709,7 +709,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       taskRows,
       todayKey: () => calendarDay(),
       commands: input.commands,
-      backlinks: (path) => input.query.getBacklinks(path),
+      backlinks: (path, options) => input.query.getBacklinks(path, options),
       queryDatabase: (config, options) => input.query.queryDatabaseFiles(config, options),
       events: (from, to) => input.events(from, to),
       moodKey,

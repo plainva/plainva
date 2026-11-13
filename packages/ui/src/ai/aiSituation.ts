@@ -120,9 +120,6 @@ const clock = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 /** Days of tasks ahead that count as due in the situation. */
 export const SITUATION_TASK_DAYS = 7;
-
-/** How many due tasks the situation gathers at most; the context package sends the first twelve the gate lets through. */
-export const SITUATION_TASKS_GATHERED = 200;
 /** Appointments shown: from two hours ago to the end of tomorrow. */
 const EVENT_PAST_MS = 2 * 3_600_000;
 
@@ -141,9 +138,9 @@ export function situationFrom(src: SituationSources): SituationInput {
   const horizon = addDaysToKey(today, SITUATION_TASK_DAYS);
   const tasks = (src.taskRows ?? [])
     .filter((row) => (row.state === "open" || row.state === "progress") && row.due !== null && row.due <= horizon)
+    // Not cut here: the package cuts to what goes only after the gate, so a task kept back takes no place of one
+    // that goes (review of R19, wave 2) — the due tasks of a week, every one of them.
     .sort((a, b) => (a.due ?? "").localeCompare(b.due ?? "") || (a.priority || 9) - (b.priority || 9))
-    // Cut wide: the package cuts to what goes only after the gate, so a task kept back takes no place of one that goes.
-    .slice(0, SITUATION_TASKS_GATHERED)
     .map((row) => ({ title: row.title, path: row.path, due: row.due }));
   const endOfTomorrow = new Date(src.now.getFullYear(), src.now.getMonth(), src.now.getDate() + 2).getTime();
   const events = (src.events ?? [])

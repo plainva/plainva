@@ -119,9 +119,11 @@ export interface VaultToolDeps {
   todayKey(): string;
   commands(): AiNavigationCommand[];
   /** Links into a note, one row per occurrence (the index). */
-  backlinks?(path: string): Promise<BacklinkOccurrence[]>;
+  /** `reach`: each link resolved among the notes in reach (`VaultQueryService.getBacklinks`). */
+  backlinks?(path: string, options?: DatabaseReach): Promise<BacklinkOccurrence[]>;
   /** Notes linked to and from a note, with how often. */
-  neighbors?(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
+  /** `reach` as for `backlinks`. */
+  neighbors?(path: string, limit: number, options?: DatabaseReach): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
   /* The lists above and below are read past what an answer shows: what is cut is cut after the gate (`passingPages`). */
   /** Opened on this device, newest first. */
   recentlyOpened?(): Promise<{ path: string; openedAt: number }[]>;
@@ -155,7 +157,8 @@ export interface VaultToolDeps {
 /** Where the tools on how notes developed read from (plan KI-Harness P9-1). */
 export interface NoteHistorySource {
   /** Notes changed after `since` (epoch milliseconds), in `folder` and below or in the whole vault (""), newest first. */
-  changedIn(folder: string, since: number, limit: number, offset?: number): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
+  /** `within`: the scope's folders, compared exactly (`ToolScope.folders`). */
+  changedIn(folder: string, since: number, limit: number, offset?: number, within?: readonly string[]): Promise<{ path: string; title: string; mtime: number; created: number | null }[]>;
   /** When the index first saw a note (epoch milliseconds); null where it does not know. */
   created(path: string): Promise<number | null>;
   /** The states kept of a note, in any order. */
@@ -326,6 +329,9 @@ const NEIGHBOURS_ALL = 100_000;
 
 /** The changed notes of a period, read in pages of this many. */
 const CHANGES_PAGE = 200;
+
+/** How many entries of a long list are put to the gate at once (`ready`): the cost of one page beyond the answer. */
+const GATE_PAGE = 25;
 
 /**
  * Reads a list the index hands out page by page until `wanted` entries passed `keep`, or the list ends, or
@@ -661,8 +667,9 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const lines: string[] = [];
           const listed: { title: string; path: string; properties: Record<string, string> }[] = [];
           let passed = 0;
-          await ready(rows.map((row) => String(row["file.path"] ?? "")));
-          for (const row of rows) {
+          for (const [at, row] of rows.entries()) {
+            // The gate page by page, as far as the answer reaches: a view of many rows reads no more notes than it shows.
+            if (at % GATE_PAGE === 0) await ready(rows.slice(at, at + GATE_PAGE).map((r) => String(r["file.path"] ?? "")));
             const rowPath = String(row["file.path"] ?? "");
             if (!rowPath || !(await allowed(rowPath))) continue;
             passed += 1;
@@ -721,7 +728,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const lines: string[] = [];
           const linking: { title: string; path: string; links: number; places: { line: number; under: string; text: string }[] }[] = [];
           let passed = 0;
-          for (const group of groupBacklinks(await deps.backlinks(note.path))) {
+          // Resolved among the notes this run may reach: a note of the same name outside takes no backlink away.
+          for (const group of groupBacklinks(await deps.backlinks(note.path, { reach: allowedOf }))) {
             if (group.source_path === note.path) continue;
             const source = await readAllowed(group.source_path);
             if (!source) continue;
@@ -754,10 +762,12 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const lines: string[] = [];
           const linked: { title: string; path: string; fromHere: number; toHere: number; via?: string }[] = [];
           const first: { path: string; title: string }[] = [];
-          // Every neighbour, then the gate, then the cut: a cut before it would say how many lie outside.
-          const around = await deps.neighbors(note.path, NEIGHBOURS_ALL);
-          await ready(around.map((n) => n.path));
-          for (const n of around) {
+          // Every neighbour, resolved among the notes this run may reach; then the gate, page by page, and the cut
+          // once enough passed: a cut before the gate would say how many lie outside, a gate over all of them would
+          // read every note of a busy one (review of R19, wave 2).
+          const around = await deps.neighbors(note.path, NEIGHBOURS_ALL, { reach: allowedOf });
+          for (const [at, n] of around.entries()) {
+            if (at % GATE_PAGE === 0) await ready(around.slice(at, at + GATE_PAGE).map((m) => m.path));
             if (seen.has(n.path) || !(await allowed(n.path))) continue;
             seen.add(n.path);
             first.push(n);
@@ -769,11 +779,11 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           if (Number(a.depth) === 2) {
             for (const via of first.slice(0, 8)) {
               if (lines.length >= limit) break;
-              const further = await deps.neighbors(via.path, NEIGHBOURS_ALL);
-              await ready(further.map((n) => n.path));
+              const further = await deps.neighbors(via.path, NEIGHBOURS_ALL, { reach: allowedOf });
               let taken = 0;
-              for (const n of further) {
+              for (const [at, n] of further.entries()) {
                 if (lines.length >= limit || taken >= 10) break;
+                if (at % GATE_PAGE === 0) await ready(further.slice(at, at + GATE_PAGE).map((m) => m.path));
                 if (seen.has(n.path) || !(await allowed(n.path))) continue;
                 taken += 1;
                 seen.add(n.path);
@@ -848,22 +858,28 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             }
             return read;
           };
-          // Every changed note of the period, page by page: the pages before the gate are never cut to the answer.
+          // The changed notes of the period page by page, in the scope's folders alone, read only as far as the
+          // answer needs: no note outside them counts against a page or the bound (review of R19, wave 2).
+          const within = scope?.folders ? [...scope.folders] : undefined;
           const rows: Awaited<ReturnType<typeof history.changedIn>> = [];
           let ended = false;
-          for (let offset = 0; offset < SEARCH_SCAN_MAX; offset += CHANGES_PAGE) {
-            const page = await history.changedIn(folder, since, CHANGES_PAGE, offset);
+          let read = 0;
+          const nextPage = async (): Promise<boolean> => {
+            if (ended || read >= SEARCH_SCAN_MAX) return false;
+            const page = await history.changedIn(folder, since, CHANGES_PAGE, read, within);
+            read += page.length;
             rows.push(...page);
-            if (page.length < CHANGES_PAGE) {
-              ended = true;
-              break;
-            }
-          }
+            if (page.length < CHANGES_PAGE) ended = true;
+            return page.length > 0;
+          };
+          await nextPage();
           const lines: string[] = [];
           const notes: { path: string; title: string; kind: "new" | "changed"; made: string | null; last: string | null; added: number | null; removed: number | null; gained: string }[] = [];
           let looked = 0;
-          for (const row of rows) {
-            if (notes.length >= limit) break;
+          for (let at = 0; notes.length < limit; at++) {
+            if (at >= rows.length && !(await nextPage())) break;
+            const row = rows[at];
+            if (!row) break;
             looked += 1;
             const path = safeRelPath(row.path);
             if (!path || !isNotePath(path)) continue;

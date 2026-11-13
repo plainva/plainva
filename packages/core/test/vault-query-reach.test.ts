@@ -168,6 +168,25 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
     expect(await measured(true, true)).toEqual({ n: 1, h: 3 });
   });
 
+  it("backlinks and neighbours are resolved among the notes in reach: a note of the same name outside changes nothing (review of R19, wave 2)", async () => {
+    const board = (paths: readonly string[]) => new Set(paths.filter((path) => path.startsWith("Board/")));
+    const seen = async (twin: boolean, narrow: boolean) => {
+      let out: { backlinks: string[]; neighbours: string[] } = { backlinks: [], neighbours: [] };
+      await withVault(async (query) => {
+        const options = narrow ? { reach: board } : {};
+        out = {
+          backlinks: (await query.getBacklinks("Board/sub/Plan.md", options)).map((link) => link.source_path),
+          neighbours: (await query.getLinkNeighbors("Board/Card.md", 30, options)).map((n) => n.path),
+        };
+      }, { "Board/Card.md": note("", "Card") + "See [[Plan]].\n", "Board/sub/Plan.md": note("", "Plan"), ...(twin ? { "Plan.md": note("", "Plan") } : {}) });
+      return out;
+    };
+    // The vault's own view follows the link to the twin at the root: the case a narrower reader must not see.
+    expect(await seen(true, false)).toEqual({ backlinks: [], neighbours: ["Plan.md"] });
+    expect(await seen(false, true)).toEqual({ backlinks: ["Board/Card.md"], neighbours: ["Board/sub/Plan.md"] });
+    expect(await seen(true, true)).toEqual(await seen(false, true));
+  });
+
   it("a filter on a link (`file.hasLink`) is no condition the query answers: the rows stand as without it", async () => {
     await withVault(async (query) => {
       const plain = (await query.queryDatabaseFiles(BASE(), { reach: visible })).map((r: any) => r["file.path"]).sort();
