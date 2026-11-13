@@ -48,6 +48,7 @@ import {
   VaultQueryService,
   MOOD_PROPERTY_NAMES,
   type LinkRule,
+  type LinkVerdicts,
   viewMatchesSearch,
   viewSearchSnippet,
   withholdDeniedLinksIn,
@@ -510,10 +511,12 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    * with every withheld part — a place stamp, a link, a redacted number — a piece of it that maps back to the raw
    * text (`ReaderView`). Every tool that shows, searches or changes a note's text works on it.
    */
+  /** This run's decisions about links, as long as the gate's own (`gates`): asked once per folder and target. */
+  const linkVerdicts: LinkVerdicts = new Map();
   const viewOf = async (text: string, fromPath: string, situational = false): Promise<ReaderView> => {
     const places = withholdPlacesIn(ReaderView.of(text)).view;
     if (!cloud && !run.webTools) return places;
-    const linked = (await withholdDeniedLinksIn(places, fromPath, deps, (path) => allowed(path), scope?.linksInReach ? "in-reach" : "any-kept-back")).view;
+    const linked = (await withholdDeniedLinksIn(places, fromPath, deps, (path) => allowed(path), scope?.linksInReach ? "in-reach" : "any-kept-back", linkVerdicts)).view;
     if (!cloud || !redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
     return redactSensitiveIn(linked, sensitiveFindings(linked.text)).view;
   };

@@ -125,6 +125,42 @@ describe("the reader-view guard: no tool gives a reader with a narrower view wha
     });
   }
 
+  it("a search through a view costs the same whatever its hits hold back: no note read again, a link decided once per folder, a bound per call (review of R19, wave 2)", async () => {
+    const many: Record<string, string> = { "Private/Salary 2026.md": "# Salary\n" };
+    for (let i = 0; i < 2_000; i++) many[`Projects/n${i}.md`] = `# n${i}\n\nbudget line ${i} with [[Private/Salary 2026]] and words.\n`;
+    const counted = { reads: 0, candidates: 0, scanned: 0 };
+    const d = deps({
+      search: async (query, limit, offset) => {
+        const words = query.split(/\s+/).filter(Boolean).map((w) => w.toLowerCase());
+        const hits = Object.entries(many)
+          .filter(([path, text]) => words.every((w) => `${path}\n${text}`.toLowerCase().includes(w)))
+          .slice(offset, offset + limit)
+          .map(([path, text]) => ({ path, title: path, snippet: null, content: text }));
+        counted.scanned += hits.length;
+        return hits;
+      },
+      readNote: async (path) => {
+        counted.reads++;
+        return many[path] ?? null;
+      },
+      linkCandidates: async (target) => {
+        counted.candidates++;
+        return many[`${target}.md`] !== undefined ? [`${target}.md`] : [];
+      },
+    });
+    for (const [who, recipient, web, scope] of readers) {
+      for (const query of ["Kowalski", "Salary", "budget"]) {
+        Object.assign(counted, { reads: 0, candidates: 0, scanned: 0 });
+        await run("search_vault", { query, limit: 10 }, recipient, web, scope, d);
+        // The text comes with the hit; the link to the kept note is decided once for the whole folder.
+        expect(counted.reads, `${who} ${query}`).toBe(0);
+        expect(counted.candidates, `${who} ${query}`).toBeLessThanOrEqual(1);
+        // Hits that the view does not answer are looked at up to a fixed number per call, not through the whole vault.
+        expect(counted.scanned, `${who} ${query}`).toBeLessThanOrEqual(500 + 25);
+      }
+    }
+  });
+
   it("a model on this device with nothing kept from it reads, finds and names as before", async () => {
     const note = await run("read_note", { path: "Projects/Pay.md", maxChars: 8000 }, local, false);
     expect(note.content).toContain(`[[Private/Salary 2026|${SECRET}]]`);

@@ -14,6 +14,7 @@
  */
 import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { aiVisibleSql } from "../hiddenPaths.js";
+import { fullTextRowOf } from "../../db/fullTextRows.js";
 import { checkGist, gistInstruction, gistOfGists, gistSections, GIST_MIN_SOURCE, type GistLevel } from "./gists.js";
 import { GistStore, type StoredGist } from "./gistStore.js";
 
@@ -225,5 +226,21 @@ export class GistReader {
 
   async vault(): Promise<string | null> {
     return this.fresh(VAULT_GIST_KEY, () => this.newest("1 = 1", []));
+  }
+
+  /**
+   * The notes an area's gist stands for — the same notes `area` and `vault` measure freshness on —, each with the text
+   * the index holds of it (null where it holds none); null where there are more than `max` (`PackageGists.notes`).
+   */
+  async notes(area: string | null, max: number): Promise<{ path: string; text: string | null }[] | null> {
+    const prefix = area === null ? null : `${area.replace(/[\\%_]/g, "\\$&")}/%`;
+    const rows = await this.db.query<{ path: string; text: string | null }>(
+      `SELECT f.path AS path, n.content AS text FROM files f LEFT JOIN fts_notes n ON n.rowid = ${fullTextRowOf("f")} AND n.path = f.path
+       WHERE f.mode != 'attachment' AND f.path LIKE '%.md' AND (f.is_deleted IS NULL OR f.is_deleted = 0) AND ${aiVisibleSql("f.path")}${prefix === null ? "" : " AND f.path LIKE ? ESCAPE '\\'"}
+       LIMIT ?`,
+      prefix === null ? [max + 1] : [prefix, max + 1],
+    );
+    if (rows.length > max) return null;
+    return rows.map((row) => ({ path: String(row.path), text: typeof row.text === "string" ? row.text : null }));
   }
 }

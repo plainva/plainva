@@ -22,6 +22,8 @@ function gistsWith(sections: Record<string, string>, notes: Record<string, strin
     note: async (path) => notes[path] ?? null,
     area: async (area) => areas[area] ?? null,
     vault: async () => vault,
+    // The notes an area's gist stands for, with their text: what decides whether it may go to a cloud.
+    notes: async (area) => Object.keys(files).filter((path) => area === null || path.startsWith(`${area}/`)).map((path) => ({ path, text: files[path]! })),
   };
 }
 
@@ -83,6 +85,15 @@ describe("gists in the package", () => {
     expect(pack.part.text).toContain("- [[Plan]] (Projects/Plan.md) — (gist) A plan to shoot in spring.");
     expect(pack.part.text).not.toContain("Film projects of the studio.");
     expect(pack.part.text).not.toContain("Notes of a small film studio.");
+  });
+
+  it("sends an area's gist to a cloud only where the index can say what all its notes hold (review of R19, wave 2)", async () => {
+    const unknown = { ...gistsWith({}, {}, { Projects: "Film projects of the studio." }, "Notes of a small film studio."), notes: async () => null };
+    const ask = (recipient: EgressRecipient) =>
+      buildContextPackage({ question: "what is the rate", recipient, situation, candidates, pins: [], budget: { cards: 0, evidence: 0 } }, host(unknown));
+    // More notes than are looked through, or an index that cannot say: it does not go.
+    expect((await ask(cloud)).part.text).not.toMatch(/Film projects|small film studio/);
+    expect((await ask({ kind: "local", provider: "ollama", model: "m" })).part.text).toContain("Film projects of the studio.");
   });
 
   it("sends no gist at all without a model on this computer", async () => {

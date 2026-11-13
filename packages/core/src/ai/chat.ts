@@ -359,10 +359,22 @@ export async function withholdDeniedLinks(
   host: LinkHost,
   isAllowed: (path: string) => Promise<boolean>,
   rule: LinkRule = "any-kept-back",
+  verdicts?: LinkVerdicts,
 ): Promise<{ text: string; redacted: number }> {
-  const { view, redacted } = await withholdDeniedLinksIn(ReaderView.of(text), fromPath, host, isAllowed, rule);
+  const { view, redacted } = await withholdDeniedLinksIn(ReaderView.of(text), fromPath, host, isAllowed, rule, verdicts);
   return { text: view.text, redacted };
 }
+
+/**
+ * What one reader decided about links, kept for as long as that reader's question is answered (one tool call, one
+ * context package): a link means what it means from the FOLDER it stands in — every rule a link is followed by reads
+ * that folder and the vault, never the note's own name (`filesALinkCouldMean`, `resolveLinkTargetIndexed`) —, so a
+ * thousand notes of one folder that link to the same note ask about it once (review of R19, wave 2: a search through a
+ * view resolved the same link in every hit). Only for one `isAllowed`: a map belongs to one reader.
+ */
+export type LinkVerdicts = Map<string, Promise<boolean>>;
+
+const verdictKey = (rule: LinkRule, fromPath: string, target: string) => `${rule}\u0000${fromPath.slice(0, fromPath.lastIndexOf("/") + 1)}\u0000${target}`;
 
 /** `withholdDeniedLinks` on a reader's view: each withheld link becomes a withheld piece of it (`ReaderView`). */
 export async function withholdDeniedLinksIn(
@@ -371,6 +383,7 @@ export async function withholdDeniedLinksIn(
   host: LinkHost,
   isAllowed: (path: string) => Promise<boolean>,
   rule: LinkRule = "any-kept-back",
+  verdicts?: LinkVerdicts,
 ): Promise<{ view: ReaderView; redacted: number }> {
   // First pass: collect every target exactly as the redactor parses it (wiki
   // and Markdown links alike), so what is resolved and what is replaced can
@@ -383,7 +396,19 @@ export async function withholdDeniedLinksIn(
   // A link is withheld where any note it could mean is kept back — not only
   // the one a tap would open in this shell (`linkNamesDeniedNote`).
   const denied = new Map<string, boolean>();
-  for (const target of targets) denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed, rule));
+  for (const target of targets) {
+    if (!verdicts) {
+      denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed, rule));
+      continue;
+    }
+    const key = verdictKey(rule, fromPath, target);
+    let verdict = verdicts.get(key);
+    if (!verdict) {
+      verdict = linkNamesDeniedNote(host, target, fromPath, isAllowed, rule);
+      verdicts.set(key, verdict);
+    }
+    denied.set(target, await verdict);
+  }
   return redactDeniedLinksIn(view, (target) => denied.get(target.trim()) ?? false);
 }
 

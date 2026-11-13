@@ -1,5 +1,6 @@
 import type { TextPart } from "../conversation.js";
-import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost } from "../chat.js";
+import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost, type LinkVerdicts } from "../chat.js";
+import { frontmatterKeys } from "../../frontmatter-surgical.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
 import { fenceUntrusted, payload } from "../trust.js";
 import { isAiHiddenPath } from "../hiddenPaths.js";
@@ -117,7 +118,16 @@ export interface PackageGists {
   note(path: string): Promise<string | null>;
   area(area: string): Promise<string | null>;
   vault(): Promise<string | null>;
+  /**
+   * The notes an area's gist stands for (`area` null: the vault's), each with the text the index holds of it — at
+   * most `max`; null where there are more, or where the index cannot say. What decides whether an area's gist may
+   * go to a reader with a narrower view (review of R19, wave 2). Absent: no area's gist goes to such a reader.
+   */
+  notes?(area: string | null, max: number): Promise<{ path: string; text: string | null }[] | null>;
 }
+
+/** The most notes an area is looked through for whether its gist may go to a reader with a narrower view. */
+export const GIST_AREA_CHECK_MAX = 2_000;
 
 /** Map handles that may carry their note's gist, and areas that may be named with theirs. */
 const MAP_GISTS = 4;
@@ -434,6 +444,8 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     return decision.allowed;
   };
   /** What any vault text passes before it goes: place stamps withheld; for a cloud or a run with the internet, links to denied notes too. */
+  /** This package's decisions about links (`LinkVerdicts`): one reader, one question. */
+  const linkVerdicts: LinkVerdicts = new Map();
   /**
    * A text as this run may see it, without counting what it withholds: what PICKS a part of a note — the line that
    * holds a word of the question — and what NAMES one — a title, a section's headings — is read on it, so neither
@@ -443,13 +455,48 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const seenOf = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text).text;
     if (!cloud && !run.webTools) return places;
-    return (await withholdDeniedLinks(places, fromPath, host, (path) => allowed(path))).text;
+    return (await withholdDeniedLinks(places, fromPath, host, (path) => allowed(path), "any-kept-back", linkVerdicts)).text;
+  };
+  /**
+   * Whether a note holds anything back from this reader: a place stamp, a link the reader may not follow (read as the
+   * view reads links, in the text and in the properties), a mood, or numbers the reader redacts for it. A gist is
+   * written from the whole note, and says in its own words what a link names ("the Kowalski pay talk"): to a reader
+   * with a narrower view a gist goes only where its note holds back nothing (decision of 2026-11-13, review of R19,
+   * wave 2) — decided now, with the note and the rules as they are now, whenever the gist was written.
+   */
+  const holdsBack = async (path: string, text: string): Promise<boolean> => {
+    if (withholdPlaces(text).withheld > 0) return true;
+    if (withoutSensitiveProperties(Object.fromEntries(frontmatterKeys(text).map((key) => [key, true])), situation.moodKey).withheld > 0) return true;
+    if (input.redact?.has(path) && sensitiveFindings(text).length > 0) return true;
+    return (await withholdDeniedLinks(text, path, host, (target) => allowed(target), "any-kept-back", linkVerdicts)).redacted > 0;
+  };
+  /** Whether a note's gist may go to this reader: always to a model on this device; else only where its note holds nothing back. */
+  const gistMayGo = async (path: string, text: string | null | undefined): Promise<boolean> => {
+    if (!cloud && !run.webTools) return true;
+    if (typeof text !== "string") return false;
+    return !(await holdsBack(path, text));
+  };
+  /**
+   * Whether an area's gist (or the vault's: `area` null) may go to this reader: only where every note it stands for
+   * is one the reader may see and holds nothing back — from the index, at most `GIST_AREA_CHECK_MAX` of them; more, or
+   * an index that cannot say, and it does not go.
+   */
+  const areaGistMayGo = async (area: string | null): Promise<boolean> => {
+    if (!cloud && !run.webTools) return true;
+    const notes = host.gists?.notes ? await host.gists.notes(area, GIST_AREA_CHECK_MAX).catch(() => null) : null;
+    if (!notes) return false;
+    for (const note of notes) {
+      if (note.text === null) return false;
+      if (!gateDecision(await host.policyOf(note.path, note.text), run).allowed) return false;
+      if (await holdsBack(note.path, note.text)) return false;
+    }
+    return true;
   };
   const clean = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text);
     redactions.places += places.withheld;
     if (!cloud && !run.webTools) return places.text;
-    const links = await withholdDeniedLinks(places.text, fromPath, host, (path) => allowed(path));
+    const links = await withholdDeniedLinks(places.text, fromPath, host, (path) => allowed(path), "any-kept-back", linkVerdicts);
     redactions.withheldLinks += links.redacted;
     return links.text;
   };
@@ -522,7 +569,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (!(cloud || run.webTools) || (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0) return false;
     const lexical = (c.signals.lexical ?? 0) > 0;
     if (!lexical && !((c.signals.semantic ?? 0) > 0)) return false;
-    const view = await withholdDeniedLinks(text, c.path, host, (path) => allowed(path));
+    const view = await withholdDeniedLinks(text, c.path, host, (path) => allowed(path), "any-kept-back", linkVerdicts);
     if (view.redacted === 0) return false;
     if (!lexical) return true;
     // Words compared as the full-text index compares them — letter case, diacritics and scripts without spaces
@@ -714,7 +761,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     let text = cardText(contextCard(await clean(found.text, candidate.path), chain)).replace(/\s+/g, " ").trim();
     // A checked gist of exactly this section goes instead when it is shorter, unless the reader asked for the original (P2b-3).
     let gisted = false;
-    if (host.gists && !input.originals?.has(candidate.path)) {
+    if (host.gists && !input.originals?.has(candidate.path) && (await gistMayGo(candidate.path, read.text))) {
       const raw = await host.gists.section(gistKey(found.text)).catch(() => null);
       if (raw && checkGist("section", found.text, raw).ok) {
         const gist = (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim();
@@ -762,13 +809,15 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   for (const candidate of mapped) {
     if (named >= budget.map) break;
     // As for evidence and cards: a note found by its words or its meaning that withholds a link is not named either.
+    let read: { text: string } | null = null;
     if (cloud || run.webTools) {
-      const read = await host.readNote(candidate.path);
+      read = await host.readNote(candidate.path);
       if (read && (await foundThroughWithheld(candidate, read.text))) continue;
     }
     named++;
     // The first handles may carry their note's gist (P2b-3): a line instead of a bare name, where one exists.
-    const raw = host.gists && mapGists < MAP_GISTS && !input.originals?.has(candidate.path) ? await host.gists.note(candidate.path).catch(() => null) : null;
+    const raw =
+      host.gists && mapGists < MAP_GISTS && !input.originals?.has(candidate.path) && (await gistMayGo(candidate.path, read?.text)) ? await host.gists.note(candidate.path).catch(() => null) : null;
     const screened = screen(raw ? (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim() : "", candidate.path);
     const gist = screened.text;
     if (gist) mapGists++;
@@ -791,10 +840,11 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       if (area) counts.set(area, (counts.get(area) ?? 0) + 1);
     }
     for (const [area] of [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, AREA_GISTS)) {
+      if (!(await areaGistMayGo(area))) continue;
       const gist = await host.gists.area(area).catch(() => null);
       if (gist && quiet(gist)) areaLines.push(`- ${area}/ — ${gist.replace(/\s+/g, " ").trim()}`);
     }
-    const vault = await host.gists.vault().catch(() => null);
+    const vault = (await areaGistMayGo(null)) ? await host.gists.vault().catch(() => null) : null;
     if (vault && quiet(vault)) areaLines.unshift(`- The vault — ${vault.replace(/\s+/g, " ").trim()}`);
   }
 
