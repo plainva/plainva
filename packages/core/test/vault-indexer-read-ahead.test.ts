@@ -18,8 +18,9 @@ import { SyncStateRepository } from "../src/vault/SyncStateRepository.js";
  * What must hold, as before:
  *  - the index is row for row the one a scan that reads one file at a time
  *    writes, in the same order (rowids);
- *  - a reading is written in the transaction that read it: a note saved while
- *    the scan reads is indexed after it, never overwritten by an older reading;
+ *  - a note saved and indexed while the scan reads it ahead keeps that row,
+ *    never overwritten by an older reading (a check at write time);
+ *  - no transaction waits for a read: it is waited for before the transaction opens;
  *  - a file gone between the listing and the read is left out without a word,
  *    a file that cannot be read is named — in the order of the pass, whatever
  *    order the reads come back in;
@@ -311,14 +312,18 @@ describe("a full scan that reads ahead", () => {
     // One file per transaction: the next file is read while the transaction
     // before it is open, and written in a transaction of its own.
     const indexer: VaultIndexer = new VaultIndexer(vault, db, { scanTransactionMs: 0 });
-    vault.afterRead = (path) => {
+    vault.afterRead = async (path) => {
       if (path !== target || saved) return;
       // The scan holds the old text; the save writes and indexes the new one
-      // in a transaction that takes its turn before the scan writes the note.
+      // before the scan's reading is handed over, so the scan's transaction
+      // for the note comes after the save's (since L2 the scan waits for a
+      // reading outside its transactions: without waiting here, the save's
+      // slower disk write came last and the scan's stale text never met it).
       saved = (async () => {
         await vault.writeTextFile(target, "# Saved\nafter the scan read ahead\n");
         await indexer.indexFile(await vault.getFileInfo(target));
       })();
+      await saved;
     };
     await indexer.indexVaultFull();
     expect(saved).not.toBeNull();
@@ -345,5 +350,35 @@ describe("a full scan that reads ahead", () => {
     // What was in flight settles; nothing new begins (the reads ahead are at most 8).
     expect(vault.begun.length).toBe(begunAtAbort);
     expect(vault.begun.length).toBeLessThanOrEqual(4 + 8);
+  });
+
+  it("keeps no transaction open while it waits for a read (second review of 11.11.)", async () => {
+    // A transaction used to wait inside itself for the reading of the file it
+    // was at: a large file on slow media held it open for as long as the read
+    // took, and every other writer of the index waited behind it.
+    const vault = new SlowVault(1_700_000_000_000);
+    await fill(vault);
+    const inner = takingTurns(await realSqlite());
+    let open = 0;
+    const db: IDatabaseAdapter = {
+      ...inner,
+      transaction: <T,>(fn: (tx: SqlStatements) => Promise<T>) => inner.transaction(async (tx) => {
+        open++;
+        try { return await fn(tx); } finally { open--; }
+      }),
+    };
+    const slow = names[5];
+    const openWhileHeld: boolean[] = [];
+    vault.beforeRead = async (path) => {
+      if (path !== slow) return;
+      for (let i = 0; i < 5; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 15));
+        openWhileHeld.push(open > 0);
+      }
+    };
+    // A bound the scan never reaches: only a reading not in yet ends a transaction here.
+    await new VaultIndexer(vault, db, { scanTransactionMs: 60_000 }).indexVaultFull();
+    // The last looks, once the files before it are written: nothing is open.
+    expect(openWhileHeld.slice(-2)).toEqual([false, false]);
   });
 });

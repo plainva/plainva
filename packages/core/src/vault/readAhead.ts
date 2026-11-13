@@ -46,6 +46,14 @@ export interface ReadAhead<R> {
   take(index: number): Promise<R>;
   /** Whether item `index` has been started (and so may still be taken after `stop`). */
   started(index: number): boolean;
+  /** Whether the reading of item `index` is in: taking it then waits for nothing. */
+  settled(index: number): boolean;
+  /**
+   * Resolves once the reading of item `index` is in, without taking it (it
+   * starts that read if it has not begun). The full scan waits here before it
+   * opens a transaction, so that no transaction waits for a read.
+   */
+  ready(index: number): Promise<void>;
   /** Starts nothing more. */
   stop(): void;
 }
@@ -62,6 +70,7 @@ export function createReadAhead<T, R>(
   const maxWeight = options.maxWeight ?? READ_AHEAD_MAX_WEIGHT;
   const weightOf = options.weightOf ?? (() => 0);
   const readings: Array<Promise<R>> = [];
+  const inAlready: boolean[] = [];
   /** The weight each started item still holds against the bound, until it is taken. */
   const held: number[] = [];
   let issued = 0;
@@ -106,6 +115,7 @@ export function createReadAhead<T, R>(
       const reading = answer.then((results) => results[i - from]);
       // A reading nobody takes (the pass was called off) settles unseen.
       reading.catch(() => undefined);
+      void reading.then(() => { inAlready[i] = true; }, () => { inAlready[i] = true; });
       readings[i] = reading;
     }
     return true;
@@ -134,6 +144,14 @@ export function createReadAhead<T, R>(
     },
     started(index: number): boolean {
       return index < issued;
+    },
+    settled(index: number): boolean {
+      return inAlready[index] === true;
+    },
+    ready(index: number): Promise<void> {
+      if (index < taken || index >= items.length) return Promise.resolve();
+      while (index >= issued) startGroup(true);
+      return readings[index].then(() => undefined, () => undefined);
     },
     stop(): void {
       stopped = true;

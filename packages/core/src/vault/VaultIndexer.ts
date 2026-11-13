@@ -223,7 +223,7 @@ interface BulkIndexLookups {
    * file's stored creation time by the file system's and dropped the mark
    * that an upload waits (finding 2026-10-12).
    */
-  fileStateByPath: Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null }>;
+  fileStateByPath: Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null; size_bytes?: number | null }>;
   /** Where each row sits now, by SQLite's rowid — how a scan tells a row that moved from a file that vanished (`movedAway`). */
   pathByRow: Map<number, string>;
   /** Where the row with each id sits — whether a path's own id is still another row's (`rowIdFor`). */
@@ -279,13 +279,16 @@ function createSerialGate(): SerialGate {
  * `SyncQueue.queueRename`) is read by the scan as before.
  */
 function indexedMeanwhile(
-  atStart: { rowid?: number | null; mtime_local: number } | undefined,
-  now: { rowid?: number | null; mtime_local?: number | null } | undefined,
+  atStart: { rowid?: number | null; mtime_local: number; size_bytes?: number | null } | undefined,
+  now: { rowid?: number | null; mtime_local?: number | null; size_bytes?: number | null } | undefined,
 ): boolean {
   if (!now) return !!atStart;
   if (!now.mtime_local) return false;
   if (!atStart) return true;
-  return (now.rowid ?? null) !== (atStart.rowid ?? null) || now.mtime_local !== atStart.mtime_local;
+  // The row as the scan began, by what tells two rows apart (`sameAsIndexed`):
+  // its place, its time and its size. A row written again in the same clock
+  // tick on the highest rowid (DELETE and INSERT) differs in its size at the least.
+  return (now.rowid ?? null) !== (atStart.rowid ?? null) || now.mtime_local !== atStart.mtime_local || (now.size_bytes ?? null) !== (atStart.size_bytes ?? null);
 }
 
 /**
@@ -540,14 +543,14 @@ export class VaultIndexer {
    */
   private async loadBulkLookups(tx: SqlStatements, paths?: readonly string[]): Promise<BulkIndexLookups> {
     if (paths) return this.loadLookupsFor(tx, paths);
-    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null; mtime_local?: number | null }>(
-      `SELECT rowid, id, path, sync_state, ctime, mtime_local FROM files`
+    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null; mtime_local?: number | null; size_bytes?: number | null }>(
+      `SELECT rowid, id, path, sync_state, ctime, mtime_local, size_bytes FROM files`
     );
-    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null }>();
+    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null; size_bytes?: number | null }>();
     const pathByRow = new Map<number, string>();
     const pathById = new Map<string, string>();
     for (const r of fileRows) {
-      fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null, rowid: r.rowid ?? null, mtime_local: r.mtime_local ?? null });
+      fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null, rowid: r.rowid ?? null, mtime_local: r.mtime_local ?? null, size_bytes: r.size_bytes ?? null });
       if (r.rowid !== undefined && r.rowid !== null) pathByRow.set(Number(r.rowid), r.path);
       if (r.id) pathById.set(r.id, r.path);
     }
@@ -574,7 +577,7 @@ export class VaultIndexer {
    * `pathByRow` stays empty: only the end of the scan asks it (`rowLocations`).
    */
   private async loadLookupsFor(tx: SqlStatements, paths: readonly string[]): Promise<BulkIndexLookups> {
-    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null }>();
+    const fileStateByPath = new Map<string, { sync_state: string | null; ctime: number | null; rowid?: number | null; mtime_local?: number | null; size_bytes?: number | null }>();
     const pathById = new Map<string, string>();
     const queuedPaths = new Set<string>();
     const syncStateByPath = new Map<string, SyncState>();
@@ -582,13 +585,13 @@ export class VaultIndexer {
     if (paths.length === 0) return lookups;
     const ids = await Promise.all(paths.map((path) => this.generateFileId(path)));
     const marks = (n: number) => Array.from({ length: n }, () => "?").join(", ");
-    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null; mtime_local?: number | null }>(
-      `SELECT rowid, id, path, sync_state, ctime, mtime_local FROM files WHERE path IN (${marks(paths.length)}) OR id IN (${marks(ids.length)})`,
+    const fileRows = await tx.query<{ rowid?: number | null; id?: string | null; path: string; sync_state: string | null; ctime?: number | null; mtime_local?: number | null; size_bytes?: number | null }>(
+      `SELECT rowid, id, path, sync_state, ctime, mtime_local, size_bytes FROM files WHERE path IN (${marks(paths.length)}) OR id IN (${marks(ids.length)})`,
       [...paths, ...ids],
     );
     const wanted = new Set(paths);
     for (const r of fileRows) {
-      if (wanted.has(r.path)) fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null, rowid: r.rowid ?? null, mtime_local: r.mtime_local ?? null });
+      if (wanted.has(r.path)) fileStateByPath.set(r.path, { sync_state: r.sync_state ?? null, ctime: r.ctime ?? null, rowid: r.rowid ?? null, mtime_local: r.mtime_local ?? null, size_bytes: r.size_bytes ?? null });
       if (r.id) pathById.set(r.id, r.path);
     }
     const queueRows = await tx.query<{ file_path: string; new_path: string | null }>(
@@ -2206,6 +2209,9 @@ export class VaultIndexer {
     // pass wrote what was there after it (`indexedMeanwhile`).
     // A transaction of one file (a test's `scanTransactionMs: 0`) reads one at a time.
     const oneAtATime = TRANSACTION_MS <= 0;
+    // A transaction that may hold the whole scan (a test's `scanTransactionMs:
+    // Infinity`) has no bound to keep: it waits for its reads inside, as one.
+    const bounded = Number.isFinite(TRANSACTION_MS);
     const many = !!this.vaultAdapter.readFilesForIndex;
     const heavyReads = createSerialGate();
     // Each group's place among this indexer's reads is taken when its read
@@ -2223,6 +2229,17 @@ export class VaultIndexer {
     });
     try {
       for (let first = true, done = false; !done; first = false) {
+        // The reading the transaction begins with is waited for outside it: no
+        // transaction waits for a read (a large file on slow media held one
+        // open for as long as it took; second review of 11.11.).
+        // The first group of it too, so that a slow disk makes fewer, not smaller, transactions.
+        if (next < work.length) {
+          await ahead.ready(next);
+          // Only what is already being read: waiting starts nothing past the read-ahead's bounds.
+          const group = Math.min(work.length - 1, next + (oneAtATime ? 0 : SCAN_READS_AT_ONCE - 1));
+          if (ahead.started(group)) await ahead.ready(group);
+        }
+        signal?.throwIfAborted();
         const claims: Array<() => void> = [];
         await this.dbAdapter.transaction(async (tx) => {
           // The scan's writes (file/fts/links/tags/properties rows + the
@@ -2277,6 +2294,8 @@ export class VaultIndexer {
           };
           const began = Date.now();
           for (let k = 0; k < slice.length; k++) {
+            // A reading not in yet ends the transaction; the next one waits for it outside.
+            if (k > 0 && bounded && !ahead.settled(next)) break;
             const { file, attachment } = slice[k];
             if (!attachment) {
               if (this.options?.onProgress) {

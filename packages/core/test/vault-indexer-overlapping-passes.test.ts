@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
+import { atTheNextTransactionWrite, beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
 import type { IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
@@ -75,6 +75,9 @@ function aroundTheScanListing(before: () => Promise<void>, after: () => Promise<
   };
 }
 
+/** Runs `work` once inside the next full scan's transaction, as it writes what it read (`atTheNextTransactionWrite`). */
+const atTheScanWrite = (target: IDatabaseAdapter, work: () => Promise<void>) => atTheNextTransactionWrite(target, work);
+
 /** Runs `work` once inside the next pass's transaction: before the file read as the `nth` is read. */
 function beforeTheNthRead(nth: number, work: () => Promise<void>): void {
   const read = vault.readTextFile.bind(vault);
@@ -114,9 +117,9 @@ describe("what a pass found is its own", () => {
     await vault.writeTextFile("Settings.ini", "[view]\nzoom=1\n");
     const settings = await vault.getFileInfo("Settings.ini");
 
-    // Five notes into the scan a save arrives. Its transaction is refused — one
+    // As the scan writes what it found, a save arrives. Its transaction is refused — one
     // is open — and it used to have emptied the scan's list before it asked.
-    beforeTheNthRead(6, async () => {
+    atTheScanWrite(db, async () => {
       await expect(indexer.indexFile(settings)).rejects.toThrow();
     });
     await indexer.indexVaultFull();
@@ -136,7 +139,7 @@ describe("what a pass found is its own", () => {
     await vault.writeTextFile("Settings.ini", "[view]\nzoom=1\n");
     const settings = await vault.getFileInfo("Settings.ini");
 
-    beforeTheNthRead(6, async () => {
+    atTheScanWrite(db, async () => {
       await expect(indexer.indexFile(settings)).rejects.toThrow();
     });
     await indexer.indexVaultFull();
@@ -145,18 +148,20 @@ describe("what a pass found is its own", () => {
   });
 
   it("…also where the single path waits for the scan instead of being refused: each file is announced, and once", async () => {
-    const patient = new VaultIndexer(vault, waiting(db), { onNewLocalFile: (p) => fresh.push(p) });
+    const turns = waiting(db);
+    const patient = new VaultIndexer(vault, turns, { onNewLocalFile: (p) => fresh.push(p) });
     for (const name of names) await vault.writeTextFile(name, `# ${name}\n`);
     await vault.writeTextFile("Settings.ini", "[view]\nzoom=1\n");
     const settings = await vault.getFileInfo("Settings.ini");
 
     const save: { done?: Promise<boolean> } = {};
-    beforeTheNthRead(6, async () => {
+    atTheScanWrite(turns, async () => {
       save.done = patient.indexFile(settings);
       // The save has got as far as it can: it waits for the scan's transaction.
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     await patient.indexVaultFull();
+    expect(save.done, "the save met the scan's transaction").toBeDefined();
     await save.done;
 
     // The scan announced the settings file with its own finds; the save that came after found nothing new.
@@ -241,18 +246,36 @@ describe("a file that went is reported once", () => {
   });
 
   it("by the full scan, not again by a single path that waited behind it (a database that makes the second wait)", async () => {
-    const patient = new VaultIndexer(vault, waiting(db), { onLocalFileDeleted: (p) => gone.push(p) });
+    const late: { path?: Promise<string> } = {};
+    let patient: VaultIndexer | null = null;
+    const turns = waiting(db);
+    // While the scan's transaction is open — it reads the index's rows for the
+    // files it is about to write — the watcher's single path for the missing
+    // file arrives and waits its turn. (The scan reads its files outside its
+    // transactions since L2; the moment is the transaction's, not a read's.)
+    const meetingTheScan: IDatabaseAdapter = {
+      ...turns,
+      transaction: <T,>(fn: (tx: SqlStatements) => Promise<T>) => turns.transaction((tx) => fn(new Proxy(tx, {
+        get(target, prop, receiver) {
+          const value = Reflect.get(target, prop, receiver);
+          if (prop !== "query" || typeof value !== "function") return typeof value === "function" ? value.bind(target) : value;
+          return async (sql: string, params?: unknown[]) => {
+            if (!late.path && /FROM files$/.test(sql.trim()) && sql.includes("sync_state, ctime")) {
+              late.path = patient!.indexPath("Old.md");
+              await new Promise((resolve) => setTimeout(resolve, 20));
+            }
+            return value.call(target, sql, params);
+          };
+        },
+      }))),
+    };
+    patient = new VaultIndexer(vault, meetingTheScan, { onLocalFileDeleted: (p) => gone.push(p) });
     await fs.rm(onDisk("Old.md"));
-    // Another program changed a note, so the scan has a file to read inside its transaction…
+    // Another program changed a note, so the scan has a file to write in its transaction.
     await fs.writeFile(onDisk("Keep.md"), "# Keep\n\nchanged elsewhere\n", "utf8");
     await fs.utimes(onDisk("Keep.md"), new Date(), new Date(Date.now() + 5000));
-    const late: { path?: Promise<string> } = {};
-    // …and while it reads, the watcher's single path for the missing file arrives and waits its turn.
-    beforeTheNthRead(1, async () => {
-      late.path = patient.indexPath("Old.md");
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
     await patient.indexVaultFull();
+    expect(late.path, "the single path met the scan's transaction").toBeDefined();
     expect(await late.path).toBe("unchanged");
     expect(gone).toEqual(["Old.md"]);
   });

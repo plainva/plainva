@@ -134,3 +134,30 @@ export function beforeEveryWrite(
     await run();
   });
 }
+
+/**
+ * Runs `work` once inside the next transaction that writes — the full scan's,
+ * as it writes the rows of what it read: what the scan found is noted by
+ * then. The scan reads its files ahead and outside its transactions
+ * (performance plan L2), so a read is no moment inside one any more. Returns
+ * whether `work` has run.
+ */
+export function atTheNextTransactionWrite(db: IDatabaseAdapter, work: () => Promise<unknown>): () => boolean {
+  const open = db.transaction;
+  let fired = false;
+  db.transaction = <T,>(fn: (tx: SqlStatements) => Promise<T>) => open.call(db, (tx: SqlStatements) => fn(fired ? tx : new Proxy(tx, {
+    get(inner, prop, receiver) {
+      const value = Reflect.get(inner, prop, receiver);
+      if (typeof value !== "function") return value;
+      if (fired || (prop !== "runBatch" && prop !== "execute")) return value.bind(inner);
+      return async (...args: unknown[]) => {
+        if (!fired) {
+          fired = true;
+          await work();
+        }
+        return value.apply(inner, args);
+      };
+    },
+  }))) as Promise<T>;
+  return () => fired;
+}
