@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
-import { mimeTypeForPath, readFrontmatterPath, requireWholeRows, resolveTaskOrdinal, setFrontmatterPath, deleteFrontmatterPath, type WholeRows } from "@plainva/core";
+import { mimeTypeForPath, readFrontmatterPath, resolveTaskOrdinal, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
 import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, noteTaskTick, type PlannerTaskLine, errorText, toast, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
@@ -352,18 +352,7 @@ export function PinboardView({
     if (next.pinned) patch.pinboardPinned = next.pinned.length > 0 ? next.pinned : undefined;
     onPatchView(patch);
   }, [onPatchView]);
-  const presentSet = useMemo(() => new Set(paths), [paths]);
-  // The arrangement is saved from the board's rows: only rows of a whole
-  // index may say which cards are gone (third review of 11.11.). While the
-  // index is built, pinning and moving are refused, with the reason.
-  const wholeRowsOrSay = useCallback((): WholeRows | null => {
-    try {
-      return requireWholeRows(rows);
-    } catch (e) {
-      toast.error(errorText(e));
-      return null;
-    }
-  }, [rows]);
+
 
   const pickColor = useCallback(async (path: string) => {
     const options = [
@@ -465,9 +454,8 @@ export function PinboardView({
       ],
     });
     if (picked === "pin") {
-      const whole = wholeRowsOrSay();
-      if (!whole) return;
-      const next = isPinned ? applyUnpin(order, pinnedList, path, presentSet, whole) : applyPin(order, pinnedList, path, presentSet, whole);
+      // The stored lists with this one card moved: nothing the board does not show is dropped (fourth review of 11.11.).
+      const next = isPinned ? applyUnpin(order, pinnedList, path) : applyPin(order, pinnedList, path);
       persistSections(next);
     } else if (picked === "labels") {
       await editLabels(path);
@@ -484,7 +472,7 @@ export function PinboardView({
       );
       if (done) onMutated();
     }
-  }, [sections, order, pinnedList, presentSet, persistSections, wholeRowsOrSay, editLabels, pickColor, vault, t, onMutated]);
+  }, [sections, order, pinnedList, persistSections, editLabels, pickColor, vault, t, onMutated]);
 
   // ── Long-press: no movement = action sheet, movement = drag reorder ──
   const [drag, setDrag] = useState<{ path: string; x: number; y: number; moved: boolean } | null>(null);
@@ -583,10 +571,8 @@ export function PinboardView({
       }
       // "tap": the card's click opens the note. "move" without a slot: nothing.
       if (!hit || hit.section !== section) return;
-      const whole = wholeRowsOrSay();
-      if (!whole) return;
       haptics.light();
-      const next = spliceIntoSequence(sections[section], [path], hit.slot, whole);
+      const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, sections[section], [path], hit.slot);
       persistSections(section === "pinned" ? { pinned: next } : { order: next });
     };
     el.addEventListener("pointerdown", onDown);
@@ -602,7 +588,7 @@ export function PinboardView({
       el.removeEventListener("touchmove", onTouchMove);
       clear();
     };
-  }, [sections, canDrag, slotAt, openActions, persistSections, wholeRowsOrSay]);
+  }, [sections, canDrag, slotAt, openActions, persistSections, order, pinnedList]);
 
   const cardLabels = useMemo(
     () => ({

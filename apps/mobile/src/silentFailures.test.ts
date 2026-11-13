@@ -208,8 +208,10 @@ describe("a write that fails is said for what it is", () => {
     // Sammelplan § 3.71 no. 1–3: each loop goes on past a note it cannot
     // write, and the screen says the count — never a quiet rejection.
     const sheet = strip(read("screens", "base", "PropertyEditSheet.tsx"));
-    const fill = from(sheet, "const fillMissing = () => {", 900);
-    expect(fill).toMatch(/sayRewriteOutcome\(await fillBaseProperty\(vault, missing, column, whole\), toast\);/);
+    const fill = from(sheet, "const fillMissing = () => {", 1400);
+    // Every row of the view from the reader first, refused and said while the index is not whole (fourth review of 11.11.).
+    expect(fill).toMatch(/whole = await wholeViewRows\(vault, config, viewIndex\);\s*\} catch \(e\) \{\s*toast\.error\(errorText\(e\)\);/);
+    expect(fill).toMatch(/sayRewriteOutcome\(await fillBaseProperty\(vault, whole, column\), toast\);/);
     expect(fill).toMatch(/toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/);
     const type = from(sheet, "const setType = (type: string) => {", 1300);
     expect(type, "a time is dropped only after a question").toMatch(/dateSwitchLosesTime\(to\) && !\(await mConfirm\(/);
@@ -219,7 +221,8 @@ describe("a write that fails is said for what it is", () => {
     expect(reverse).toMatch(/if \(outcome\) sayReverseRelationOutcome\(outcome, toast\);/);
     expect(reverse).toMatch(/toast\.error\(t\("mobile\.propertyWriteFailed", \{ message: errorText\(e\) \}\)\);/);
     const create = from(screen, "const createViewColumn = (kind:", 1800);
-    expect(create).toMatch(/sayRewriteOutcome\(await fillBaseProperty\(vault, notesMissingProperty\(rows \?\? \[\], name\), name, whole\), toast\);/);
+    expect(create).toMatch(/whole = await wholeViewRows\(vault, loaded\?\.config, viewIndex\);\s*\} catch \(e\) \{\s*toast\.error\(errorText\(e\)\);/);
+    expect(create).toMatch(/sayRewriteOutcome\(await fillBaseProperty\(vault, whole, name\), toast\);/);
     // The service hands every count back; none of its loops catches.
     const ops = strip(read("services", "baseOps.ts"));
     for (const fn of ["fillBaseProperty", "convertBaseDateColumn", "editReverseCell"]) {

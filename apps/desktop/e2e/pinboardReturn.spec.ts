@@ -119,21 +119,19 @@ for (const shell of ["desktop"] as const) {
   });
 }
 
-test("desktop: a board read from an index that is not whole saves no arrangement (third review of 11.11.)", async ({ page }) => {
-  // Its rows are the notes read so far. Pinning used to save the board's lists
-  // healed to those rows: the entries of every note not read yet were gone
-  // from the .base file, and the sync carried that on.
+test("desktop: a board that shows some of its cards saves a pin and keeps every entry it does not show (fourth review of 11.11.)", async ({ page }) => {
+  // The board shows what the head's search, a chip or an index still being
+  // built let through. A pin used to write the lists healed to the cards on
+  // screen: every other card's place left the .base file, and the sync carried it on.
   await page.setViewportSize({ width: 900, height: 812 });
   await loadPinboardProbe(page);
-  const order = ["Inbox/Not-read-yet.md", "Inbox/Note-1.md"];
-  await page.evaluate(order => (window as PinboardProbeWindow).pinboardProbe.mount({ shell: "desktop", count: 4, partial: true, order }), order);
+  const order = ["Inbox/Not-shown.md", "Inbox/Note-1.md", "Inbox/Also-not-shown.md"];
+  const pinned = ["Inbox/Pinned-not-shown.md"];
+  await page.evaluate(({ order, pinned }) => (window as PinboardProbeWindow).pinboardProbe.mount({ shell: "desktop", count: 4, order, pinned }), { order, pinned });
   const card = page.locator('[data-pinboard-path="Inbox/Note-0.md"]');
   await card.hover();
   await card.locator(".pv-pinboard-pin").click();
-  await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.patches.length)).toBe(0);
-  // The same board over whole rows: the pin is saved (and the list healed to what is there).
-  await page.evaluate(order => (window as PinboardProbeWindow).pinboardProbe.mount({ shell: "desktop", count: 4, order }), order);
-  await card.hover();
-  await card.locator(".pv-pinboard-pin").click();
-  await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.patches)).toEqual([{ pinboardOrder: ["Inbox/Note-1.md"], pinboardPinned: ["Inbox/Note-0.md"] }]);
+  await expect.poll(() => page.evaluate(() => (window as PinboardProbeWindow).pinboardProbe.patches)).toEqual([
+    { pinboardOrder: order, pinboardPinned: ["Inbox/Note-0.md", ...pinned] },
+  ]);
 });

@@ -256,7 +256,6 @@ describe("the notes a rename or a removal goes through", () => {
       wholeIndexReader({ queryDatabaseFiles: async (config: unknown) => { asked.push(config); return SOURCE_ROWS; } }),
       CONFIG,
       "prio",
-      [{ "file.path": "Tasks/a.md", prio: 2 }],
     );
     // A note whose value is empty carries the property; one the index lists without it does not.
     expect(paths).toEqual(["Tasks/a.md", "Tasks/hidden.md", "Tasks/empty.md"]);
@@ -272,8 +271,8 @@ describe("the notes a rename or a removal goes through", () => {
     };
     const rows = [{ "file.path": "Tasks/a.md", open: 0, back: [] }];
     const query = wholeIndexReader({ queryDatabaseFiles: async () => rows });
-    expect(await notesCarryingProperty(query, config, "open", rows)).toEqual([]);
-    expect(await notesCarryingProperty(query, config, "back", rows)).toEqual([]);
+    expect(await notesCarryingProperty(query, config, "open")).toEqual([]);
+    expect(await notesCarryingProperty(query, config, "back")).toEqual([]);
   });
 
   it("are found by the key in any casing: a column a view merely names keeps the note's spelling", async () => {
@@ -281,11 +280,12 @@ describe("the notes a rename or a removal goes through", () => {
     expect(await notesCarryingProperty(wholeIndexReader({ queryDatabaseFiles: async () => rows }), CONFIG, "prio")).toEqual(["Tasks/upper.md", "Tasks/a.md"]);
   });
 
-  it("are the rows on screen that carry it, where the index cannot be asked", async () => {
-    const shown = [{ "file.path": "Tasks/a.md", prio: 2 }, { "file.path": "Tasks/list.md" }];
-    expect(await notesCarryingProperty(null, CONFIG, "prio", shown)).toEqual(["Tasks/a.md"]);
+  it("are refused where the index cannot be asked — the rows on screen never stand in (fourth review of 11.11.)", async () => {
+    // The rows on screen are what the search and the filters let through: a
+    // rename over them left every other note with the old key.
+    await expect(notesCarryingProperty(null, CONFIG, "prio")).rejects.toThrow(/not open/);
     const failing = wholeIndexReader({ queryDatabaseFiles: async (): Promise<Record<string, unknown>[]> => { throw new Error("database is locked"); } });
-    expect(await notesCarryingProperty(failing, CONFIG, "prio", shown)).toEqual(["Tasks/a.md"]);
+    await expect(notesCarryingProperty(failing, CONFIG, "prio")).rejects.toThrow("database is locked");
   });
 
   it("are refused while the index is not whole — never the rows on screen, never the notes read so far (second review of 11.11.)", async () => {
@@ -299,8 +299,7 @@ describe("the notes a rename or a removal goes through", () => {
     );
     const reader = new VaultQueryService(db);
     reader.setIndexWholeness({ state: () => ({ kind: "building", done: 1, total: 2 }), changed: () => new Promise(() => {}) });
-    const shown = [{ "file.path": "Tasks/a.md", prio: 2 }];
-    const refused = await notesCarryingProperty(reader, CONFIG, "prio", shown).then(() => null, (e: unknown) => e);
+    const refused = await notesCarryingProperty(reader, CONFIG, "prio").then(() => null, (e: unknown) => e);
     expect(isIndexNotWholeError(refused)).toBe(true);
     await db.close();
   });

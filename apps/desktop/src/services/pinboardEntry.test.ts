@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
-import { editorTextOf } from "@plainva/core";
+import { IndexNotWholeError, editorTextOf } from "@plainva/core";
 import {
   applyPinboardEntryTitle,
   discardPinboardEntry,
@@ -403,8 +403,17 @@ describe("finalizePinboardEntry: ending an entry", () => {
     const draft = await ready(files);
     const racing: PinboardEntryFiles = { ...files, rename: async () => { throw new Error("already exists"); } };
     const result = await finalizePinboardEntry(racing, { draft, title: "Neu", intent: "save" });
-    expect(result).toEqual({ outcome: "kept", path: draft.path, renameFailed: true });
+    expect(result).toEqual({ outcome: "kept", path: draft.path, renameFailed: true, renameError: "already exists" });
     expect(store.get(draft.path)).toContain("# Neu");
+  });
+
+  it("a rename the index refuses keeps the timestamp name and says why (fourth review of 11.11.)", async () => {
+    const { files } = memoryFiles();
+    const draft = await ready(files);
+    const refused = new IndexNotWholeError({ kind: "building", done: 2, total: 5 });
+    const result = await finalizePinboardEntry({ ...files, rename: async () => { throw refused; } }, { draft, title: "Neu", intent: "save" });
+    expect(result).toMatchObject({ outcome: "kept", path: draft.path, renameFailed: true });
+    expect(result.renameError).toMatch(/\b2\b.*\b5\b/);
   });
 
   it("text in the editor whose save has not landed yet is never read as empty", async () => {

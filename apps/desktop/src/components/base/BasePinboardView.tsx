@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { IndexReading, NoteCardData } from "@plainva/core";
 import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, errorText, toast, noteTaskTick, type PlannerTaskLine, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
-import { requireWholeRows, setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, resolveTaskOrdinal, updateVaultText, type WholeRows } from "@plainva/core";
+import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, resolveTaskOrdinal, updateVaultText } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
 import { useVault } from "../../contexts/VaultContext";
@@ -399,18 +399,6 @@ export function BasePinboardView({
     }
   }, [vaultAdapter, afterCardWrite, t]);
 
-  const presentSet = useMemo(() => new Set(paths), [paths]);
-  // The arrangement is saved from the board's rows: only rows of a whole
-  // index may say which cards are gone (third review of 11.11.). While the
-  // index is built, pinning and dragging are refused, with the reason.
-  const wholeRowsOrSay = useCallback((): WholeRows | null => {
-    try {
-      return requireWholeRows(dbData);
-    } catch (e) {
-      toast.error(errorText(e));
-      return null;
-    }
-  }, [dbData]);
   const persistSections = useCallback((next: { order?: string[]; pinned?: string[] }) => {
     const patch: Record<string, unknown> = {};
     if (next.order) patch.pinboardOrder = next.order.length > 0 ? next.order : undefined;
@@ -419,11 +407,11 @@ export function BasePinboardView({
   }, [onPatchView]);
 
   const handlePinToggle = useCallback((path: string, pin: boolean) => {
-    const whole = wholeRowsOrSay();
-    if (!whole) return;
-    const next = pin ? applyPin(order, pinnedList, path, presentSet, whole) : applyUnpin(order, pinnedList, path, presentSet, whole);
+    // The stored lists with this one card moved: nothing the board does not
+    // show is dropped (fourth review of 11.11.).
+    const next = pin ? applyPin(order, pinnedList, path) : applyUnpin(order, pinnedList, path);
     persistSections(next);
-  }, [order, pinnedList, presentSet, persistSections, wholeRowsOrSay]);
+  }, [order, pinnedList, persistSections]);
 
   const handleDelete = useCallback(async (path: string) => {
     if (!vaultAdapter || !indexer) return;
@@ -544,9 +532,7 @@ export function BasePinboardView({
         window.setTimeout(() => window.removeEventListener("click", suppress, { capture: true }), 0);
         if (!hit || hit.section !== section) return;
         const seq = sections[section];
-        const whole = wholeRowsOrSay();
-        if (!whole) return;
-        const next = spliceIntoSequence(seq, [d.path], hit.slot, whole);
+        const next = spliceIntoSequence(section === "pinned" ? pinnedList : order, seq, [d.path], hit.slot);
         persistSections(section === "pinned" ? { pinned: next } : { order: next });
       };
       const onCancel = (ev: PointerEvent) => { if (ev.pointerId === d.pointerId) cleanup(); };

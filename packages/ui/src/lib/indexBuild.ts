@@ -93,6 +93,30 @@ export function markIndexFailed(vaultId: string, reason: string): void {
 }
 
 /**
+ * What a full scan that went through says about the index (fourth review of
+ * 11.11.): whole where it left nothing out, else not whole, naming what it
+ * could not read. The decision is the core's (`IndexScanReport.whole`); both
+ * shells hand every scan's report here and decide nothing of their own.
+ */
+export function takeFullScan(vaultId: string, report: { whole: boolean; skipped: readonly { path: string; reason: string }[] }): void {
+  if (report.whole) {
+    markIndexWhole(vaultId);
+    return;
+  }
+  const leftOut = report.skipped.filter((s) => s.reason === "unreadable").map((s) => s.path || "/");
+  states.set(vaultId, { kind: "failed", reason: `left out: ${leftOut.join(", ")}`, leftOut });
+  changed(vaultId);
+}
+
+/** "“Shared”", or "“Shared” and 2 more": what a scan left out, for a sentence. */
+export function leftOutText(leftOut: readonly string[]): string {
+  const first = leftOut[0] ?? "/";
+  return leftOut.length > 1
+    ? i18n.t("mobile.indexLeftOutMore", { path: first, more: leftOut.length - 1 })
+    : i18n.t("mobile.indexLeftOutOne", { path: first });
+}
+
+/**
  * The vault was closed (or another one opened in its place): whoever waits for
  * it is refused, and the entry goes — a vault opened again starts over.
  */
@@ -140,7 +164,11 @@ export function indexNotWholeText(state: IndexNotWholeState): string {
       ? i18n.t("mobile.indexNotWhole", { done: state.done, total: state.total })
       : i18n.t("mobile.indexNotWholeWalk");
   }
-  if (state.kind === "failed") return i18n.t("mobile.indexNotWholeFailed");
+  if (state.kind === "failed") {
+    return state.leftOut && state.leftOut.length > 0
+      ? i18n.t("mobile.indexNotWholeLeftOut", { what: leftOutText(state.leftOut) })
+      : i18n.t("mobile.indexNotWholeFailed");
+  }
   return i18n.t("mobile.indexNotWholeClosed");
 }
 

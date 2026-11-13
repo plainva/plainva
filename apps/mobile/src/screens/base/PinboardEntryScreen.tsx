@@ -84,7 +84,7 @@ export function PinboardEntryScreen({ vault, entry, onBack }: { vault: MobileVau
     try {
       const result = await finalizeMobilePinboardEntry(vault, draft, { title, removedChips, intent });
       endedRef.current = true;
-      if (result.renameFailed) toast.warning(t("pinboard.entryRenameFailed"));
+      if (result.renameFailed) toast.warning(result.renameError ? `${t("pinboard.entryRenameFailed")} — ${result.renameError}` : t("pinboard.entryRenameFailed"));
       leave();
     } catch (e) {
       // Nothing was thrown away; the page stays so the text is still here.

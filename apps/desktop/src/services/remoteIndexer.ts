@@ -46,6 +46,9 @@ const EMPTY_REPORT: IndexScanReport = {
   durationMs: 0,
   walked: 0,
   foldersChanged: false,
+  // This window scans nothing: whether the index is whole is the owner's to
+  // say (indexBuildMirror), never this empty answer's.
+  whole: false,
 };
 
 /** Creates the no-op indexer described above. */

@@ -172,6 +172,20 @@ describe("adoptExternalMove", () => {
     reported.mockRestore();
   });
 
+  it("owes the sweep a close cut short, for the next whole index — never dropped (fourth review of 11.11.)", async () => {
+    let owed: { from: string; to: string }[] = [{ from: "x.md", to: "y.md" }];
+    await adoptExternalMove({
+      retargetBookmarks: async () => undefined,
+      pinboard: {
+        adapter: { readTextFile: async () => "", writeTextFile: async () => undefined },
+        queryService: { listBaseFilePaths: async () => [], requireWholeIndex: () => { throw new IndexNotWholeError({ kind: "building", done: 0, total: 0 }); } },
+      },
+      untilWholeIndex: () => Promise.reject(new IndexNotWholeError({ kind: "closed" })),
+      owed: { load: () => owed, save: (next) => { owed = [...next]; } },
+    }, "a.md", "b/a.md");
+    expect(owed).toEqual([{ from: "x.md", to: "y.md" }, { from: "a.md", to: "b/a.md" }]);
+  });
+
   it("still reports the move when the bookmark store cannot be written", async () => {
     const ops: unknown[] = [];
     const onOps = (e: Event) => ops.push(...((e as CustomEvent).detail?.ops ?? []));

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { adoptExternalMove, movedFolderLabel, renameBookmarksOnDisk, toast, useMissingFile, type MissingFile } from "@plainva/ui";
+import { adoptExternalMove, owedPinboardSweepsIn, movedFolderLabel, renameBookmarksOnDisk, toast, useMissingFile, type MissingFile } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import type { MobileVault } from "../services/vaultService";
 
@@ -37,6 +37,7 @@ export function useOpenFileLookup(vault: MobileVault, path: string, opts: OpenFi
         pinboard: { adapter: vault.files, queryService: vault.queryService },
         reindex: (paths) => vault.reindexPaths(paths),
         untilWholeIndex: () => vault.queryService ? vault.queryService.untilWholeIndex() : Promise.resolve(),
+        owed: owedPinboardSweepsIn(vault.vaultId),
       }, from, to);
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     },

@@ -29,7 +29,7 @@ import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpl
 import { createIndexNotices, errorText, indexFailureSaid, createLimiter, entryEventWindow, runEntryEventSync, formatListingReport, formatTaskSync, logDiagnostic, logIndexDiagnostics, noteLargeFileTrimmed, plainvaProducer, profileDefault, sayLineEndsConverted, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
-import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText, beginIndexBuild, indexBuildState, indexWholenessFor, markIndexClosed, markIndexFailed, markIndexWhole, reportIndexBuild } from "@plainva/ui";
+import { keptDeletionsDiagnostic, keptDeletionsText, workspaceSyncFailureText, beginIndexBuild, indexBuildState, indexWholenessFor, markIndexClosed, markIndexFailed, markIndexWhole, reportIndexBuild, takeFullScan } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
@@ -1053,8 +1053,9 @@ export const VaultProvider: React.FC<{
         // walked, how long it took and what it changed. Counts only. On
         // screen, what it left out, by name (issue 125).
         onFullScan: (info) => {
-          // Whole for whoever plans a write from it (performance plan L3).
-          markIndexWhole(path);
+          // Whole for whoever plans a write from it (performance plan L3) —
+          // where the core says the scan left nothing out (`takeFullScan`).
+          takeFullScan(path, info);
           // First, so that a line or a notice that fails cannot keep the
           // deferral up for the rest of the session.
           if (coldIndexOwed) {
@@ -1288,10 +1289,13 @@ export const VaultProvider: React.FC<{
         if (await indexer.indexComplete().catch(() => false)) {
           coldIndexOwed = false;
           deferInitialEnqueue = false;
+        }
+        // Whole for whoever plans a write from it only where a scan went
+        // through and left nothing out (`indexWhole`, fourth review of 11.11.);
+        // else this pass is its build, counted and gated like a first one.
+        if (await indexer.indexWhole().catch(() => /* silent: an answer nobody can give counts as not whole, and the warm pass is the build */ false)) {
           markIndexWhole(path);
         } else {
-          // Not whole either for whoever plans a write from it (performance
-          // plan L3): this pass is its build, counted and gated like a first one.
           reportInitialProgress = true;
           beginIndexBuild(path);
         }
@@ -2612,7 +2616,7 @@ export const VaultProvider: React.FC<{
   const refreshVault = async (opts?: { silent?: boolean; skipCloud?: boolean }): Promise<VaultRefreshResult> => {
     const indexer = state.indexer;
     if (!indexer) {
-      return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false }, cloud: "none" };
+      return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false, whole: false }, cloud: "none" };
     }
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
     const run = (async () => {
@@ -3838,7 +3842,7 @@ export const VaultProvider: React.FC<{
         await bus.request("reindex", { scope: "refresh" });
         // The owner reports what it found; this window learns of the result
         // through `index-changed`, so there is nothing local to hand back.
-        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false }, cloud: "none" };
+        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false, whole: false }, cloud: "none" };
       },
       rebuildIndex: async () => {
         const bus = await getWindowBus();

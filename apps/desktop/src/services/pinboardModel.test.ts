@@ -14,10 +14,7 @@ import {
   retargetPinboardPaths,
   spliceIntoSequence,
 } from "@plainva/ui";
-import { requireWholeRows } from "@plainva/core";
-
-/** Rows a whole index gave: the proof every write from a board's rows takes (third review of 11.11.). */
-const WHOLE = requireWholeRows([]);
+import { reorderShown } from "@plainva/ui";
 
 const row = (path: string, ctime: number | null, mtime = 0) => ({ path, ctime, mtime });
 
@@ -27,7 +24,7 @@ it("composes text and label filters without losing the hidden order during a dra
   expect(filterCardPathsByText(filterCardPaths(sequence, labels, ["topic"]), new Set(["b", "c"]))).toEqual(["c"]);
   expect(filterCardPathsByText(sequence, null)).toBe(sequence);
   expect(pinboardTextMatches(["Status: Offen", "#MÜLLER"], "müller")).toBe(true);
-  expect(spliceIntoSequence(sequence, ["d"], { kind: "before", path: "a" }, WHOLE)).toEqual(["d", "a", "b", "c"]);
+  expect(spliceIntoSequence(sequence, sequence, ["d"], { kind: "before", path: "a" })).toEqual(["d", "a", "b", "c"]);
 });
 
 describe("orderCards (§3 order semantics)", () => {
@@ -61,35 +58,66 @@ describe("orderCards (§3 order semantics)", () => {
 describe("spliceIntoSequence (D3 splice semantics)", () => {
   const seq = ["a.md", "b.md", "c.md", "d.md"];
   it("moves the dragged card before the target and keeps everything else stable", () => {
-    expect(spliceIntoSequence(seq, ["d.md"], { kind: "before", path: "b.md" }, WHOLE)).toEqual(["a.md", "d.md", "b.md", "c.md"]);
+    expect(spliceIntoSequence(seq, seq, ["d.md"], { kind: "before", path: "b.md" })).toEqual(["a.md", "d.md", "b.md", "c.md"]);
   });
   it("moves to the end for the end slot and for unknown targets", () => {
-    expect(spliceIntoSequence(seq, ["a.md"], { kind: "end" }, WHOLE)).toEqual(["b.md", "c.md", "d.md", "a.md"]);
-    expect(spliceIntoSequence(seq, ["a.md"], { kind: "before", path: "zz.md" }, WHOLE)).toEqual(["b.md", "c.md", "d.md", "a.md"]);
+    expect(spliceIntoSequence(seq, seq, ["a.md"], { kind: "end" })).toEqual(["b.md", "c.md", "d.md", "a.md"]);
+    expect(spliceIntoSequence(seq, seq, ["a.md"], { kind: "before", path: "zz.md" })).toEqual(["b.md", "c.md", "d.md", "a.md"]);
   });
-  it("materializes the full sequence — a chip-filtered view never loses hidden positions", () => {
-    // The caller always passes the FULL unfiltered sequence; the result lists it completely.
-    const out = spliceIntoSequence(["u1.md", "u2.md", "a.md"], ["a.md"], { kind: "before", path: "u1.md" }, WHOLE);
+  it("materializes the unarranged cards it shows on the first drag, in the order drawn", () => {
+    const out = spliceIntoSequence(undefined, ["u1.md", "u2.md", "a.md"], ["a.md"], { kind: "before", path: "u1.md" });
     expect(out).toEqual(["a.md", "u1.md", "u2.md"]);
   });
 });
 
 describe("pin/unpin mutators", () => {
-  const present = new Set(["a.md", "b.md", "c.md"]);
   it("pin puts the card on top of the pinned section and removes it from the order", () => {
-    const r = applyPin(["a.md", "b.md"], ["c.md"], "a.md", present, WHOLE);
+    const r = applyPin(["a.md", "b.md"], ["c.md"], "a.md");
     expect(r.pinned).toEqual(["a.md", "c.md"]);
     expect(r.order).toEqual(["b.md"]);
   });
   it("unpin returns the card to the top of the unpinned section", () => {
-    const r = applyUnpin(["b.md"], ["a.md", "c.md"], "a.md", present, WHOLE);
+    const r = applyUnpin(["b.md"], ["a.md", "c.md"], "a.md");
     expect(r.pinned).toEqual(["c.md"]);
     expect(r.order).toEqual(["a.md", "b.md"]);
   });
-  it("both mutators self-heal stale entries while writing", () => {
-    const r = applyPin(["weg.md", "b.md"], ["auch-weg.md"], "a.md", present, WHOLE);
-    expect(r.order).toEqual(["b.md"]);
-    expect(r.pinned).toEqual(["a.md"]);
+});
+
+describe("a board's arrangement keeps every entry it does not show (fourth review of 11.11.)", () => {
+  // The board shows what the head's search, a label chip or an index still
+  // being built let through; the .base holds every card. A pin, an unpin and a
+  // drag used to write the lists "healed" to the cards on screen: one pin while
+  // searching dropped every other card's place from the file (since 0.8.4).
+  const storedOrder = ["B/a.md", "B/b.md", "B/c.md", "B/d.md"];
+  const storedPinned = ["B/p1.md", "B/p2.md"];
+  const shown = ["B/a.md", "B/p1.md", "B/x.md"]; // "groceries" typed into the head's search
+
+  it("a pin while searching", () => {
+    const r = applyPin(storedOrder, storedPinned, "B/x.md");
+    expect(r.order).toEqual(storedOrder);
+    expect(r.pinned).toEqual(["B/x.md", ...storedPinned]);
+  });
+
+  it("an unpin while searching", () => {
+    const r = applyUnpin(storedOrder, storedPinned, "B/p1.md");
+    expect(r.order).toEqual(["B/p1.md", ...storedOrder]);
+    expect(r.pinned).toEqual(["B/p2.md"]);
+  });
+
+  it("a drag while searching moves the card among the shown ones and leaves the hidden ones where they are", () => {
+    const drawn = orderCards(shown.map((p, i) => row(p, 100 - i)), storedOrder, storedPinned).unpinned;
+    const out = spliceIntoSequence(storedOrder, drawn, ["B/a.md"], { kind: "end" });
+    expect(out.filter((p) => storedOrder.includes(p) || p === "B/x.md").sort()).toEqual([...storedOrder, "B/x.md"].sort());
+    expect(out[out.length - 1]).toBe("B/a.md");
+    expect(out.indexOf("B/b.md")).toBeLessThan(out.indexOf("B/c.md"));
+    expect(out.indexOf("B/c.md")).toBeLessThan(out.indexOf("B/d.md"));
+  });
+
+  it("a board's columns reordered while searching keep the place of every column not shown", () => {
+    // Shown: Doing and Done (Todo has no card that matches); Done is dragged before Doing.
+    expect(reorderShown(["Todo", "Doing", "Done", "Later"], ["Done", "Doing"])).toEqual(["Todo", "Done", "Doing", "Later"]);
+    // A group new to the stored order goes to the end.
+    expect(reorderShown(["Todo", "Doing"], ["New", "Doing"])).toEqual(["Todo", "Doing", "New"]);
   });
 });
 
@@ -168,20 +196,5 @@ describe("captureFileName (P4 naming)", () => {
   it("returns null when nothing usable remains", () => {
     expect(captureFileName("   \n\n")).toBeNull();
     expect(captureFileName("###")).toBeNull();
-  });
-});
-
-describe("a board's arrangement is written only from whole rows (third review of 11.11.)", () => {
-  it("rows of an index that is not whole give no proof, and the writers take none other", async () => {
-    const { markPartialRows, isIndexNotWholeError } = await import("@plainva/core");
-    // The board's rows while the index is built: two notes of five read so far.
-    const rows = markPartialRows([{ "file.path": "Board/a.md" }, { "file.path": "Board/c.md" }]);
-    const refused = (() => { try { requireWholeRows(rows); return null; } catch (e) { return e; } })();
-    expect(isIndexNotWholeError(refused)).toBe(true);
-    // The writers ask for the proof by their type: what was not asked cannot reach them.
-    // @ts-expect-error the proof is missing
-    expect(() => applyPin(["Board/b.md", "Board/a.md"], [], "Board/a.md", new Set(["Board/a.md"]))).not.toThrow();
-    // @ts-expect-error the proof is missing
-    expect(spliceIntoSequence(["Board/a.md"], ["Board/a.md"], { kind: "end" })).toEqual(["Board/a.md"]);
   });
 });

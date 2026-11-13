@@ -46,6 +46,7 @@ import {
   type VaultQueryService,
   type WriteDraftBody,
   type WriteRefusal,
+  isIndexNotWholeError,
 } from "@plainva/core";
 import type { SuggestionChunk } from "../components/suggestMode";
 import { parseTaskCapture, type CaptureVocabulary } from "../lib/taskCapture";
@@ -940,7 +941,18 @@ async function asked(run: WriteRun, ctx: WriteToolContext, question: PlanQuestio
     record("declined");
     return refuse(answer === "nobody" ? "nobody" : "declined");
   }
-  const result = await act().catch(() => null);
+  // A rename or a move after the yes asks the index again; while it is not
+  // whole the shell refuses (performance plan L3). That reason goes on to the
+  // conversation (the tool's catch says it) — never the bare "failed".
+  let notWhole: unknown = null;
+  const result = await act().catch((error: unknown) => {
+    if (isIndexNotWholeError(error)) notWhole = error;
+    return null;
+  });
+  if (notWhole) {
+    record("failed");
+    throw notWhole;
+  }
   if (result === null || result === false) {
     // A delete dialog the user closed is a no, not a failure.
     record(question.plan === "delete" ? "declined" : "failed");
@@ -1026,8 +1038,11 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
       default:
         return refuse("unavailable");
     }
-  } catch {
-    // Whatever went wrong inside the app is not the model's to read.
+  } catch (error) {
+    // An index that is not whole yet is a reason the model can pass on — a
+    // plan read from it, or the rename after the yes (fourth review of 11.11.).
+    if (isIndexNotWholeError(error)) return refuse("index-not-whole");
+    // Whatever else went wrong inside the app is not the model's to read.
     return refuse("failed");
   }
 }

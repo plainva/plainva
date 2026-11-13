@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  IndexNotWholeError,
   WRITE_REFUSALS,
   WRITE_RESULTS,
   buildLinkNameIndex,
@@ -742,6 +743,21 @@ describe("a rename, a move and a deletion are a question", () => {
     expect(v.acts).toEqual(["rename Projects/Offer.md -> Offer 2027"]);
     expect(out).toEqual({ content: WRITE_RESULTS.renamed("Projects/Offer 2027.md") });
     expect(w.run.writes.plans).toEqual([{ kind: "rename", path: "Projects/Offer.md", outcome: "done" }]);
+  });
+
+  it("a rename or a move the index refuses after the yes says why, not only that it failed (fourth review of 11.11.)", async () => {
+    const notWhole = new IndexNotWholeError({ kind: "building", done: 3, total: 9 });
+    const v = vault({ rename: async () => { throw notWhole; }, move: async () => { throw notWhole; } });
+    const w = writer();
+    for (const [name, args] of [["rename_note", { path: "Projects/Offer.md", title: "Offer 2027" }], ["move_note", { path: "Projects/Offer.md", folder: "Archive" }]] as const) {
+      expect(await call(v, w.run, name, args)).toEqual(refused("index-not-whole"));
+    }
+    expect(w.run.writes.plans.map((plan) => plan.outcome)).toEqual(["failed", "failed"]);
+    // …and so does a plan the index refuses before anything is asked.
+    const asking = writer();
+    const planless = vault({ renamePlan: async () => { throw notWhole; } });
+    expect(await call(planless, asking.run, "rename_note", { path: "Projects/Offer.md", title: "Offer 2027" })).toEqual(refused("index-not-whole"));
+    expect(asking.asked).toEqual([]);
   });
 
   it("does nothing after a no, and nothing where nobody is there to ask", async () => {

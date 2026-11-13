@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Banner } from "./ui/Banner";
 import { Button } from "./ui/Button";
-import { indexBuildState, subscribeIndexBuild } from "../lib/indexBuild";
+import { indexBuildState, leftOutText, subscribeIndexBuild } from "../lib/indexBuild";
 
 /**
  * The strip on top of the app while the index of the open vault is not whole
@@ -25,7 +25,10 @@ export function IndexBuildNotice({ vaultId, className, onReadAgain }: { vaultId:
     >
       <span data-testid="index-build-notice">
         {state.kind === "failed"
-          ? t("mobile.indexBuildFailed")
+          ? state.leftOut && state.leftOut.length > 0
+            // What keeps the index from being whole, and what to do (fourth review of 11.11.).
+            ? t("mobile.indexLeftOut", { what: leftOutText(state.leftOut) })
+            : t("mobile.indexBuildFailed")
           : state.total > 0
             ? t("mobile.indexBuilding", { done: state.done, total: state.total })
             : t("mobile.indexBuildingWalk")}

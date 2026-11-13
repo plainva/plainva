@@ -140,7 +140,7 @@ describe("the shared planners refuse over an index that is not whole", () => {
     ["graphRelationTargets: writeRelationLink", () => writeRelationLink(files, query, "a.md", "b.md", "related", false)],
     ["relationLinks: addRelationLink", () => addRelationLink({ adapter: files, queryService: query, notePath: "a.md", propertyKey: "related", targetNotePath: "b.md" })],
     ["relationLinks: removeRelationLinksToNote", () => removeRelationLinksToNote({ adapter: files, queryService: query, notePath: "a.md", propertyKey: "related", targetNotePath: "b.md" })],
-    ["noteRewrite: notesCarryingProperty", () => notesCarryingProperty(query, { filters: { and: ['file.folder == "Tasks"'] } }, "prio", [{ "file.path": "Tasks/a.md", prio: 2 }])],
+    ["noteRewrite: notesCarryingProperty", () => notesCarryingProperty(query, { filters: { and: ['file.folder == "Tasks"'] } }, "prio")],
     ["writeTools: noteRenamePlan", () => noteRenamePlan(query, async (path) => { writes.push(`exists ${path}`); return false; }, "Old.md", "New")],
     ["core sliceObjects: loadWorkspaceSliceObjects", () => loadWorkspaceSliceObjects([{ path: "a.md" } as never], query as never)],
   ])("%s", async (_name, run) => {
@@ -312,6 +312,15 @@ describe("the desktop's own planners refuse over an index that is not whole", ()
   it("fileActions: renameToName refuses before a note, a heading or a link moves", async () => {
     const { renameToName } = await import("./services/fileActions");
     await expectRefused(() => renameToName({ adapter: files as never, queryService: query, oldPath: "Old.md", newName: "New", isFolder: false, carryHeading: true }));
+  });
+
+  it("fileActions: a note this flow just made (a new board entry) is renamed while the index is built — nothing links to it yet (fourth review of 11.11.)", async () => {
+    const { renameToName } = await import("./services/fileActions");
+    const files = recorder();
+    const result = await renameToName({ adapter: files, queryService: query, oldPath: "Board/2026-11-13 1015.md", newName: "Idea", isFolder: false, fresh: true });
+    expect(result).toMatchObject({ ok: true, newPath: "Board/Idea.md" });
+    expect(writes).toContain("renameItem Board/2026-11-13 1015.md");
+    expect(dbReads).toEqual([]);
   });
 
   it("fileActions: moveItems refuses before the first item moves, and says nothing of a move that cannot happen", async () => {

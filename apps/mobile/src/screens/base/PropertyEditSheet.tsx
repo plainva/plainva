@@ -4,10 +4,10 @@ import { useTranslation } from "react-i18next";
 import { FilePlus2, Pencil, Trash2, X, Sparkles } from "lucide-react";
 import { baseStemOf, sayRewriteOutcome, Button, Chip, chipPaletteIndex, type CuratedOption, dateInputSwitch, dateSwitchLosesTime, errorText, ICON, IconButton, isPropertyColumn, isValidNewPropertyName, notesMissingProperty, isValidReverseColumnName, mergeObservedOptions, notesCarryingProperty, PALETTE_NAMES, parseBaseConfig, type PropertyType, renameRefusedText, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
 import { mActions, mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
-import { convertBaseDateColumn, deleteBaseProperty, fillBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
+import { convertBaseDateColumn, deleteBaseProperty, fillBaseProperty, wholeViewRows, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
 import { vaultOps } from "../../services/vaultService";
 import type { MobileVault } from "../../services/vaultService";
-import { requireWholeRows } from "@plainva/core";
+import type { WholeViewRows } from "@plainva/ui";
 
 /**
  * Light schema authoring for one .base property (M3E package E3): field type,
@@ -48,6 +48,7 @@ export function PropertyEditSheet({
   vault,
   basePath,
   config,
+  viewIndex,
   column,
   rows,
   columnLabel,
@@ -65,6 +66,8 @@ export function PropertyEditSheet({
   vault: MobileVault;
   basePath: string;
   config: any;
+  /** The view the sheet was opened from: "every note" is every note of it. */
+  viewIndex: number;
   column: string;
   rows: any[];
   columnLabel: (col: string) => string;
@@ -112,7 +115,7 @@ export function PropertyEditSheet({
     void (async () => {
       if (dateSwitchLosesTime(to) && !(await mConfirm({ title: t("common.confirm"), message: t("database.confirmDropTime") }))) return;
       try {
-        const paths = await notesCarryingProperty(vault.queryService, config, column, rows);
+        const paths = await notesCarryingProperty(vault.queryService, config, column);
         sayRewriteOutcome(await convertBaseDateColumn(vault, paths, column, to), toast);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
@@ -128,15 +131,25 @@ export function PropertyEditSheet({
   const missing = !locked && isPropertyColumn(column, schema) && !schema.reverseOf ? notesMissingProperty(rows, column) : [];
   const fillMissing = () => {
     void (async () => {
+      // "Every note" is every note of the view, read for it — not the rows the
+      // search narrowed — and refused, with the reason, before anything is asked
+      // while the index is not whole (fourth review of 11.11.; the desktop's way).
+      let whole: WholeViewRows;
+      try {
+        whole = await wholeViewRows(vault, config, viewIndex);
+      } catch (e) {
+        toast.error(errorText(e));
+        return;
+      }
+      const lacking = notesMissingProperty(whole.rows, column);
+      if (lacking.length === 0) return;
       const ok = await mConfirm({
         title: t("common.confirm"),
-        message: t("database.confirmFillMissing", { column: columnLabel(column), count: missing.length }),
+        message: t("database.confirmFillMissing", { column: columnLabel(column), count: lacking.length }),
       });
       if (!ok) return;
       try {
-        // "Every note" only from whole rows (third review of 11.11.): refused, with the reason, while the index is built.
-        const whole = requireWholeRows(rows);
-        sayRewriteOutcome(await fillBaseProperty(vault, missing, column, whole), toast);
+        sayRewriteOutcome(await fillBaseProperty(vault, whole, column), toast);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         return;
@@ -206,7 +219,7 @@ export function PropertyEditSheet({
       // left the notes its filters hide behind and asked notes that do not
       // carry the property at all (finding 2026-10-21).
       try {
-        const paths = await notesCarryingProperty(vault.queryService, config, column, rows);
+        const paths = await notesCarryingProperty(vault.queryService, config, column);
         const outcome = await renameBaseProperty(vault, basePath, config, column, name, paths);
         if (outcome.status === "refused") {
           toast.error(renameRefusedText(column, outcome.refused));
@@ -328,7 +341,7 @@ export function PropertyEditSheet({
       // nothing written, while the index is not whole.
       let paths: string[];
       try {
-        paths = await notesCarryingProperty(vault.queryService, config, column, rows);
+        paths = await notesCarryingProperty(vault.queryService, config, column);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         return;

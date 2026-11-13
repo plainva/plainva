@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, frontmatterKeys, FrontmatterSurgicalError, renameFrontmatterKey, updateVaultText, VaultFileNotFoundError, isIndexNotWholeError, type IndexReader } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterKeys, FrontmatterSurgicalError, renameFrontmatterKey, updateVaultText, VaultFileNotFoundError, type IndexReader } from "@plainva/core";
 import i18n from "i18next";
 import { errorText } from "../lib/errorText";
 import { noteDisplayName } from "../lib/noteTitle";
@@ -99,7 +99,9 @@ export type DatabaseNoteQuery = IndexReader<"queryDatabaseFiles">;
  * phone took the view's rows, finding 2026-10-21). And not a note that does
  * not carry the property: a rename asks every note it is handed first, and a
  * note whose block cannot be read would stop a rename it has nothing to do
- * with. Where the index cannot be asked, the rows on screen stand in.
+ * with. Where the index cannot be asked, nothing is written: the rows on
+ * screen never stand in (fourth review of 11.11.) — they are what the search
+ * and the filters let through, and a rename over them left notes behind.
  *
  * A computed column — the links back of a relation, a rollup over one — is
  * stored in no note, and goes through none: the index fills it on every row.
@@ -108,22 +110,14 @@ export async function notesCarryingProperty(
   queryService: DatabaseNoteQuery | null | undefined,
   config: unknown,
   name: string,
-  shown: readonly Record<string, unknown>[] = []
 ): Promise<string[]> {
   const columns = (config as { columns?: unknown } | null | undefined)?.columns;
   const schema = columns && typeof columns === "object" && !Array.isArray(columns) ? (columns as Record<string, any>)[name] : undefined;
   if (!isPropertyColumn(name, schema)) return [];
-  let rows: readonly Record<string, unknown>[] = shown;
-  if (queryService) {
-    try {
-      rows = await queryService.queryDatabaseFiles(stripPropertyFilters(config));
-    } catch (e) {
-      // An index that is not whole is no failure to stand in for: the rows on
-      // screen are as partial as it is. The change is refused, before anything is written.
-      if (isIndexNotWholeError(e)) throw e;
-      console.warn("[noteRewrite] the database's source query failed — using the rows on screen", e);
-    }
-  }
+  // No index, or a query that fails or refuses (one that is not whole): the
+  // change is refused, before anything is written, with the reason.
+  if (!queryService) throw new Error("The search index is not open: the notes of the database cannot be found.");
+  const rows = await queryService.queryDatabaseFiles(stripPropertyFilters(config));
   // By the key in any casing: the index brings a column of the schema onto
   // its own spelling, a column a view merely names it leaves as the note
   // spells it (`Prio` for `prio`).

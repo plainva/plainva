@@ -78,6 +78,47 @@ export interface ExternalMoveDeps {
   reindex?(paths: string[]): Promise<unknown>;
   /** Resolves once the index is whole (`VaultQueryService.untilWholeIndex`): the sweep plans from it. */
   untilWholeIndex(): Promise<void>;
+  /**
+   * Where a sweep that lost its wait to a close is kept (`owedPinboardSweepsIn`):
+   * it runs at the next whole index (`createIndexAutoUpdater`), never dropped.
+   */
+  owed?: OwedPinboardSweeps;
+}
+
+/** The pinboard sweeps still owed to an index that was not whole when a move was found. */
+export interface OwedPinboardSweeps {
+  load(): Array<{ from: string; to: string }>;
+  save(moves: ReadonlyArray<{ from: string; to: string }>): void;
+}
+
+/**
+ * The owed pinboard sweeps of one vault on this device, in the app's local
+ * storage (fourth review of 11.11.): a move found while the index was built,
+ * and the vault closed before it was whole — the boards still named the old
+ * path, and the next arrangement lost the card's place. A storage that cannot
+ * be read or written keeps nothing.
+ */
+export function owedPinboardSweepsIn(vaultKey: string, storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null = typeof localStorage === "undefined" ? null : localStorage): OwedPinboardSweeps {
+  const key = `plainva.pinboardSweep.owed.${vaultKey}`;
+  return {
+    load() {
+      try {
+        const raw = storage?.getItem(key);
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list.filter((m): m is { from: string; to: string } => typeof m?.from === "string" && typeof m?.to === "string") : [];
+      } catch {
+        return [];
+      }
+    },
+    save(moves) {
+      try {
+        if (moves.length === 0) storage?.removeItem(key);
+        else storage?.setItem(key, JSON.stringify(moves));
+      } catch {
+        // Kept for as long as the vault is open, then.
+      }
+    },
+  };
 }
 
 export async function adoptExternalMove(deps: ExternalMoveDeps, from: string, to: string): Promise<void> {
@@ -100,7 +141,9 @@ export async function adoptExternalMove(deps: ExternalMoveDeps, from: string, to
           await deps.untilWholeIndex();
           continue;
         } catch {
-          // silent: the vault closed before its index was whole — the boards keep the old path until the note is moved again or the board is arranged anew
+          // The vault closed before its index was whole: owed, and swept at
+          // the next whole index (`createIndexAutoUpdater`), never dropped.
+          deps.owed?.save([...deps.owed.load(), { from, to }]);
           break;
         }
       }

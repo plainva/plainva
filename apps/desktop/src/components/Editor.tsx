@@ -14,7 +14,7 @@ import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
-  adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, vaultDisplayName, type KnownFileIdentity, type MissingFileSearch,
+  adoptExternalMove, owedPinboardSweepsIn, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, vaultDisplayName, type KnownFileIdentity, type MissingFileSearch,
   type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase, notePathsForLinkText } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
@@ -2240,6 +2240,7 @@ export const Editor: React.FC<{
       pinboard: { adapter: vaultAdapter, queryService },
       reindex: async (paths) => { if (indexer) await applyIndexChanges(indexer, { added: paths }); },
       untilWholeIndex: () => queryService ? queryService.untilWholeIndex() : Promise.resolve(),
+      owed: owedPinboardSweepsIn(vaultContext.vaultPath ?? ""),
     }, from, to);
   });
   /** One search for this path, shared with every other surface that asks. */

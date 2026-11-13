@@ -366,6 +366,7 @@ export * from "./hooks/useFocusTrap";
 export * from "./hooks/useTaskDuplicates";
 export * from "./hooks/useTaskNameCleanup";
 export * from "./hooks/useTemplateKeyCleanup";
+export * from "./hooks/useIndexWholeEpoch";
 export * from "./hooks/useTodayKey";
 export * from "./hooks/useMinuteClock";
 export * from "./hooks/useJournalFeed";

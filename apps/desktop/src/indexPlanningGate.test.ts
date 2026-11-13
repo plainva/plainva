@@ -211,41 +211,36 @@ describe("reading the index (performance plan L3, second review of 11.11.)", () 
   });
 });
 
-describe("rows of the view never reach a write (third review of 11.11.)", () => {
-  // A judgement per file was not enough: BaseViewer and the boards show rows
-  // of the view AND saved an arrangement, a column order and "every note" from
-  // them. The rows of a view read while the index is not whole carry that
-  // (core `markPartialRows`); every writer from shown rows takes the proof
-  // `WholeRows`, which only `requireWholeRows` hands out.
+describe("shown rows never reach a write (third and fourth review of 11.11.)", () => {
+  // The rows on screen are what the head's search, a chip, an index still
+  // being built or a copy let through. A judgement per file, and then a mark on
+  // the rows, were not enough: a board healed its lists to the cards shown
+  // (since 0.8.4, with the search), and a copy lost the mark. So: an
+  // arrangement is never healed to the shown rows — only the moved entry
+  // changes —, and a write that means "every note" reads every row of the
+  // view from the reader, which refuses while the index is not whole.
   const files = sourceFiles();
-  const ROW_WRITERS = ["applyPin", "applyUnpin", "spliceIntoSequence", "fillMissingProperty"];
 
-  it("the shared writers from shown rows take the proof by their type", () => {
-    const sources = ["packages/ui/src/base/pinboardModel.ts", "packages/ui/src/base/columnFill.ts"].map(read).join("\n");
-    for (const writer of ROW_WRITERS) {
-      const signature = new RegExp(`export function ${writer}\\([\\s\\S]*?\\)[^{]*\\{`).exec(sources)?.[0] ?? "";
-      expect(signature, writer).toMatch(/: WholeRows\b/);
-    }
+  it("the board's writers take the stored lists and the moved entry, no set of shown cards", () => {
+    const model = code(read("packages/ui/src/base/pinboardModel.ts"));
+    expect(model).toMatch(/export function applyPin\(\s*order: string\[\] \| undefined,\s*pinned: string\[\] \| undefined,\s*path: string,\s*\)/);
+    expect(model).toMatch(/export function applyUnpin\(\s*order: string\[\] \| undefined,\s*pinned: string\[\] \| undefined,\s*path: string,\s*\)/);
+    expect(model).toMatch(/export function spliceIntoSequence\(stored: string\[\] \| undefined, shown: string\[\], moved: string\[\], slot: PinboardDropSlot\)/);
+    expect(model).not.toMatch(/presentPaths/);
   });
 
-  it("every file that writes from shown rows asks requireWholeRows, and nobody makes the proof by hand", () => {
-    const writing = files.filter((f) => !f.startsWith("packages/") && new RegExp(`\\b(${[...ROW_WRITERS, "fillBaseProperty"].join("|")})\\(`).test(code(read(f))));
-    expect(writing.length).toBeGreaterThanOrEqual(4);
-    for (const f of writing) {
-      // baseOps hands the proof its caller got on; it does not make one.
-      if (f === "apps/mobile/src/services/baseOps.ts") continue;
-      expect(code(read(f)), f).toMatch(/\brequireWholeRows\(/);
-    }
-    const forged = files.filter((f) => f !== "packages/core/src/vault/indexWholeness.ts" && /\bas WholeRows\b|wholeRows:\s*true/.test(code(read(f))));
+  it("a fill of every note takes the rows the reader reads for it, and nobody makes them by hand", () => {
+    const fill = code(read("packages/ui/src/base/columnFill.ts"));
+    expect(fill).toMatch(/export function fillMissingProperty\(adapter: PropertyWriteAdapter, view: WholeViewRows, col: string\)/);
+    expect(fill).toMatch(/rows: await reader\.queryDatabaseFiles\(/);
+    const forged = files.filter((f) => f !== "packages/ui/src/base/columnFill.ts" && /\bwholeView:\s*true\b|\bas WholeViewRows\b/.test(code(read(f))));
     expect(forged).toEqual([]);
   });
 
-  it("the board's column order and the column fill of the desktop ask before they write", () => {
+  it("the board's column order keeps every column it does not show, in the desktop", () => {
     const viewer = code(read("apps/desktop/src/components/BaseViewer.tsx"));
-    for (const fn of ["handleReorderBoardColumns", "materializeColumn", "applyRequirement"]) {
-      const body = viewer.slice(viewer.indexOf(`const ${fn} = `), viewer.indexOf(`const ${fn} = `) + 900);
-      expect(body, fn).toMatch(/wholeRowsOrSay\(\)/);
-    }
+    const reorder = viewer.slice(viewer.indexOf("const handleReorderBoardColumns = "), viewer.indexOf("const handleReorderBoardColumns = ") + 1500);
+    expect(reorder.match(/reorderShown\(/g)?.length).toBe(2);
   });
 });
 

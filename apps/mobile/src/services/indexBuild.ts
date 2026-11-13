@@ -13,4 +13,5 @@ export {
   markIndexWhole,
   reportIndexBuild,
   subscribeIndexBuild,
+  takeFullScan,
 } from "@plainva/ui";

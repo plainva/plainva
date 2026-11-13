@@ -35,7 +35,7 @@ import {
 import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
-import { isValidNewPropertyName, notesMissingProperty, sayReverseRelationOutcome, sayRewriteOutcome, toast } from "@plainva/ui";
+import { isValidNewPropertyName, sayReverseRelationOutcome, sayRewriteOutcome, toast, type WholeViewRows } from "@plainva/ui";
 import { buildWikiTargetSet, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
@@ -48,6 +48,7 @@ import {
   createBaseItem,
   editReverseCell,
   fillBaseProperty,
+  wholeViewRows,
   loadBase,
   planMobilePinboardEntry,
   queryView,
@@ -59,7 +60,7 @@ import { syncSoon } from "../../services/syncService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments, listMobileCommentAuthors, noteWorkspaceCapabilities } from "../../services/mobileComments";
-import { requireWholeRows, wikiLinkParts, type WholeRows, type WorkspaceCommentRecord } from "@plainva/core";
+import { wikiLinkParts, type WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
@@ -569,11 +570,12 @@ export function BaseScreen({
    */
   const createViewColumn = (kind: "date" | "select") => {
     void (async () => {
-      // The column is written into every note: only from whole rows (third
-      // review of 11.11.). Refused with the reason while the index is built.
-      let whole: WholeRows;
+      // The column is written into every note of the view: all its rows, read
+      // for it — not the rows the search narrowed —, refused with the reason
+      // while the index is not whole (fourth review of 11.11.).
+      let whole: WholeViewRows;
       try {
-        whole = requireWholeRows(rows ?? []);
+        whole = await wholeViewRows(vault, loaded?.config, viewIndex);
       } catch (e) {
         toast.error(errorText(e));
         return;
@@ -599,7 +601,7 @@ export function BaseScreen({
         input = picked;
       }
       try {
-        sayRewriteOutcome(await fillBaseProperty(vault, notesMissingProperty(rows ?? [], name), name, whole), toast);
+        sayRewriteOutcome(await fillBaseProperty(vault, whole, name), toast);
       } catch (e) {
         toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
       }
@@ -2810,6 +2812,7 @@ export function BaseScreen({
           column={propEdit}
           columnLabel={columnLabel}
           config={config}
+          viewIndex={viewIndex}
           fill={(() => {
             const fillable = fillColumnFor(propEdit);
             // The plan is a question above the database: the property's sheet and the configuration step aside for it.

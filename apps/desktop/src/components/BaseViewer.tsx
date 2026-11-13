@@ -10,9 +10,9 @@ import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
-import { isIndexNotWholeError, PLAINVA_NAMESPACE_KEY, requireWholeRows, updateVaultText, type WholeRows, type WorkspaceCommentRecord } from "@plainva/core";
-import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
-import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
+import { isIndexNotWholeError, PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
+import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, readWholeViewRows, reorderShown, type WholeViewRows, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { buildPropertyCommentCells, errorText, findPropertyCommentThread, useIndexWholeEpoch, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
 import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
@@ -382,14 +382,23 @@ export function BaseViewer({
       toast.error(t("dialogs.moveBlockedUnsaved", { name: moveItemName(path), error: errorText(e) }));
       return;
     }
-    const result = await renameToName({
-      adapter: vaultAdapter,
-      queryService: queryService ?? null,
-      oldPath: path,
-      newName: next,
-      isFolder: false,
-      carryHeading: true,
-    });
+    let result: Awaited<ReturnType<typeof renameToName>>;
+    try {
+      result = await renameToName({
+        adapter: vaultAdapter,
+        queryService: queryService ?? null,
+        oldPath: path,
+        newName: next,
+        isFolder: false,
+        carryHeading: true,
+      });
+    } catch (e) {
+      // Refused before anything moved (over an index that is not whole the
+      // links to rewrite cannot be found) or failed: said, never only logged
+      // (fourth review of 11.11.; the phone says it the same way).
+      toast.error(t("dialogs.renameErrorMsg", { error: errorText(e) }));
+      return;
+    }
     if (!result.ok) {
       toast.error(result.reason === "already-exists" ? t("dialogs.alreadyExistsMsg") : t("dialogs.invalidNameMsg"));
       return;
@@ -660,11 +669,14 @@ export function BaseViewer({
   // The query reads views[0] for sort and config.filters for filtering, so hand
   // it the active view AND merge that view's per-view property filters with the
   // file-level sources (folder/tag) — combineFilters AND-joins both.
-  const queryForActiveView = async (cfg: any, idx: number): Promise<any[]> => {
-    if (!indexView) return [];
+  const mergedQuery = (cfg: any, idx: number): any => {
     const views = Array.isArray(cfg?.views) ? cfg.views : [];
     const active = views[idx] || views[0] || {};
-    const merged = { ...cfg, filters: combineFilters(cfg?.filters, active?.filters), views: [active] };
+    return { ...cfg, filters: combineFilters(cfg?.filters, active?.filters), views: [active] };
+  };
+  const queryForActiveView = async (cfg: any, idx: number): Promise<any[]> => {
+    if (!indexView) return [];
+    const merged = mergedQuery(cfg, idx);
     const data = await import("../services/perfMetrics").then(({ perfMeasure }) =>
       perfMeasure("base query", () => indexView.queryDatabaseFiles(merged))
     );
@@ -689,6 +701,19 @@ export function BaseViewer({
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileTreeVersion]);
+
+  // Read again the moment the index becomes whole (fourth review of 11.11.):
+  // rows read while it was built — a restored tab — stayed half, since a warm
+  // scan that changed nothing bumps no tree version. The phone hears it as
+  // `m-vault-changed`.
+  const wholeEpoch = useIndexWholeEpoch(vaultPath);
+  useEffect(() => {
+    if (wholeEpoch === 0 || !dbConfig || !indexView || cells.editingCell) return;
+    let alive = true;
+    queryForActiveView(dbConfig, activeViewIndex).then((data) => { if (alive) setDbData(data); }).catch(reportingTo("database:query"));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wholeEpoch]);
 
   // Forced local re-query after an in-embed mutation (new item). Unconditional
   // (no baseNeedsRefresh gate) because a detached-root embed never sees the
@@ -1332,7 +1357,7 @@ export function BaseViewer({
       write: (p, text) => vaultAdapter.writeTextFile(p, text),
       update: (p, change) => updateVaultText(vaultAdapter, p, change),
       rename: async (p, stem) => {
-        const result = await renameToName({ adapter: vaultAdapter, queryService: queryService ?? null, oldPath: p, newName: stem, isFolder: false });
+        const result = await renameToName({ adapter: vaultAdapter, queryService: queryService ?? null, oldPath: p, newName: stem, isFolder: false, fresh: true });
         if (!result.ok) throw new Error(result.reason);
         let followUpError = result.followUpError;
         if (indexer) {
@@ -1427,7 +1452,7 @@ export function BaseViewer({
       // Detached-root embeds don't see the fileTreeVersion bump — refresh locally.
       setRefreshTick((n) => n + 1);
     })();
-    if (result.renameFailed) toast.warning(t("pinboard.entryRenameFailed"));
+    if (result.renameFailed) toast.warning(result.renameError ? `${t("pinboard.entryRenameFailed")} — ${result.renameError}` : t("pinboard.entryRenameFailed"));
   };
 
   const confirmFolderDialog = async (folder: string) => {
@@ -1831,21 +1856,28 @@ export function BaseViewer({
   // ones got it. A note that turns out to hold a value there — the index was
   // behind — keeps it.
   // The loop is the phone's too (`fillMissingProperty`).
-  const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string, whole: WholeRows): Promise<string[]> => {
-    const result = await fillMissingProperty(adapter, paths, col, whole);
-    reportRewrite(result, "Failed to add property to file");
-    return result.written;
+  const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, view: WholeViewRows, col: string): Promise<string[]> => {
+    try {
+      const result = await fillMissingProperty(adapter, view, col);
+      reportRewrite(result, "Failed to add property to file");
+      return result.written;
+    } catch (e) {
+      // Nothing written past what the loop reports: said, never only logged.
+      toast.error(errorText(e));
+      return [];
+    }
   };
 
   /**
-   * The rows of the database, asked whether they are whole before anything is
-   * written from them (third review of 11.11.): "in every note", a board's
-   * column order — over the rows of an index that is not whole they reach only
-   * the notes read so far. Refused with the reason while the index is built.
+   * Every row of the active view, read again from the reader for a write that
+   * means "every note" (fourth review of 11.11.): never the rows on screen,
+   * which the head's search or a chip narrows. Refused while the index is not
+   * whole, with the state it is in.
    */
-  const wholeRowsOrSay = (): WholeRows | null => {
+  const wholeViewRowsOrSay = async (): Promise<WholeViewRows | null> => {
+    if (!queryService || !dbConfig) return null;
     try {
-      return requireWholeRows(dbData);
+      return await readWholeViewRows(queryService, mergedQuery(dbConfig, activeViewIndex));
     } catch (e) {
       toast.error(errorText(e));
       return null;
@@ -1853,8 +1885,8 @@ export function BaseViewer({
   };
 
   const applyRequirement = async (selectedColumn: string, isNew: boolean, requiredType: string, targetViewType: string, dateInput?: "date" | "datetime") => {
-    // A new column is written into every note: only from whole rows.
-    const whole = isNew ? wholeRowsOrSay() : null;
+    // A new column is written into every note of the view: all its rows, read for it.
+    const whole = isNew ? await wholeViewRowsOrSay() : null;
     if (isNew && !whole) return;
     const newConfig = dbConfig ? JSON.parse(JSON.stringify(dbConfig)) : {};
     if (!newConfig.columns || Array.isArray(newConfig.columns)) newConfig.columns = {};
@@ -1878,7 +1910,7 @@ export function BaseViewer({
       if (vaultAdapter) {
         // Run asynchronously so we don't block the UI
         setTimeout(() => {
-          if (whole) void fillPropertyIn(vaultAdapter, notesMissingProperty(dbData, selectedColumn), selectedColumn, whole);
+          if (whole) void fillPropertyIn(vaultAdapter, whole, selectedColumn);
         }, 0);
       }
     }
@@ -1954,9 +1986,9 @@ export function BaseViewer({
   // that lacks it. Never triggered implicitly.
   const materializeColumn = async (col: string) => {
     if (!vaultAdapter) return;
-    const whole = wholeRowsOrSay();
+    const whole = await wholeViewRowsOrSay();
     if (!whole) return;
-    const missing = notesMissingProperty(dbData, col);
+    const missing = notesMissingProperty(whole.rows, col);
     if (missing.length === 0) return;
     const ok = await appConfirm({
       title: t("common.confirm", { defaultValue: "Bestätigen" }),
@@ -1964,7 +1996,7 @@ export function BaseViewer({
       kind: "warning",
     });
     if (!ok) return;
-    const written = new Set(await fillPropertyIn(vaultAdapter, missing, col, whole));
+    const written = new Set(await fillPropertyIn(vaultAdapter, whole, col));
     // Reflect the new (empty) values right away — the re-index lags the writes.
     // Only in the notes that got one: the others still lack the property.
     setDbData((prev) => prev.map((r) => (r[col] === undefined && written.has(String(r["file.path"])) ? { ...r, [col]: "" } : r)));
@@ -2008,7 +2040,7 @@ export function BaseViewer({
     }
     renameBusyRef.current = true;
     try {
-      const affected = await notesCarryingProperty(queryService, dbConfig, oldName, dbData);
+      const affected = await notesCarryingProperty(queryService, dbConfig, oldName);
       // A self-relation's reverse column lives in THIS base (e.g. sub-items),
       // so retarget its reverseOf pointer here too — the sibling-base loop
       // below skips activePath. renamePropertyInConfig already carried the
@@ -2100,7 +2132,7 @@ export function BaseViewer({
     let affected = 0;
     if (!isReverse) {
       try {
-        affected = (await notesCarryingProperty(queryService, dbConfig, column, dbData)).length;
+        affected = (await notesCarryingProperty(queryService, dbConfig, column)).length;
       } catch (e) {
         // No question over half an index: what it would count is not what it would change.
         if (isIndexNotWholeError(e)) { toast.error(errorText(e)); return; }
@@ -2134,7 +2166,7 @@ export function BaseViewer({
       //    notes already read lost the key).
       let affected: string[] = [];
       try {
-        if (cleanupFrontmatter && !ask.isReverse) affected = await notesCarryingProperty(queryService, dbConfig, column, dbData);
+        if (cleanupFrontmatter && !ask.isReverse) affected = await notesCarryingProperty(queryService, dbConfig, column);
       } catch (e) {
         if (isIndexNotWholeError(e)) { toast.error(errorText(e)); return; }
         throw e;
@@ -2340,26 +2372,22 @@ export function BaseViewer({
   // views[i].plainva.boardColumnOrder instead.
   const handleReorderBoardColumns = (orderedKeys: string[]) => {
     if (!boardGroupBy || !dbConfig) return;
-    // The board's groups are the rows' groups: a group of a note not read yet
-    // would lose its place (third review of 11.11.).
-    if (!wholeRowsOrSay()) return;
+    // The board shows the groups its rows let through (search, chips, an index
+    // still being built): the new order of those is written into the stored
+    // one, and every group not shown keeps its place (fourth review of 11.11.).
     const nc = JSON.parse(JSON.stringify(dbConfig));
     const col = nc.columns && !Array.isArray(nc.columns) ? nc.columns[boardGroupBy] : undefined;
     const optKey = (o: any) => o?.label || o?.value || String(o);
     const isOptionCol = col && ["select", "status", "multiselect"].includes(col.input) && Array.isArray(col.options) && col.options.length > 0;
     if (isOptionCol) {
-      const remaining = new Map<string, any>(col.options.map((o: any) => [optKey(o), o]));
-      const reordered: any[] = [];
-      for (const k of orderedKeys) {
-        const o = remaining.get(k);
-        if (o) { reordered.push(o); remaining.delete(k); }
-      }
-      for (const o of col.options) if (remaining.has(optKey(o))) { reordered.push(o); remaining.delete(optKey(o)); }
-      nc.columns[boardGroupBy] = { ...col, options: reordered };
+      const byKey = new Map<string, any>(col.options.map((o: any) => [optKey(o), o]));
+      const keys = reorderShown(col.options.map(optKey), orderedKeys.filter((k) => byKey.has(k)));
+      nc.columns[boardGroupBy] = { ...col, options: keys.map((k) => byKey.get(k)) };
     } else {
       if (!Array.isArray(nc.views) || nc.views.length === 0) nc.views = [{ type: currentViewType }];
       const vi = Math.min(activeViewIndex, nc.views.length - 1);
-      nc.views[vi] = { ...nc.views[vi], boardColumnOrder: orderedKeys };
+      const stored: string[] = Array.isArray(nc.views[vi]?.boardColumnOrder) ? nc.views[vi].boardColumnOrder.map(String) : [];
+      nc.views[vi] = { ...nc.views[vi], boardColumnOrder: reorderShown(stored, orderedKeys) };
     }
     void saveConfig(nc);
   };
@@ -2570,7 +2598,7 @@ export function BaseViewer({
     if (vaultAdapter) {
       const paths = new Set<string>();
       try {
-        for (const f of fields) for (const p of await notesCarryingProperty(queryService, dbConfig, f, dbData)) paths.add(p);
+        for (const f of fields) for (const p of await notesCarryingProperty(queryService, dbConfig, f)) paths.add(p);
       } catch (e) {
         // Refused before any note is converted; the type stays as it is.
         if (isIndexNotWholeError(e)) { toast.error(errorText(e)); return null; }

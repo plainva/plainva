@@ -27,7 +27,13 @@ const read = (name: string) => readFileSync(join(__dirname, name), "utf-8");
 function methodBody(source: string, name: string): string {
   const start = source.indexOf(`async ${name}(`);
   expect(start, `${name} must exist`).toBeGreaterThan(-1);
-  const open = source.indexOf("{", start);
+  // The body begins after the parameter list, which may hold braces of its own (`opts?: { fresh?: boolean }`).
+  let close = source.indexOf("(", start);
+  for (let parens = 0; close < source.length; close++) {
+    if (source[close] === "(") parens++;
+    else if (source[close] === ")" && --parens === 0) break;
+  }
+  const open = source.indexOf("{", close);
   let depth = 0;
   for (let i = open; i < source.length; i++) {
     if (source[i] === "{") depth++;
@@ -89,7 +95,7 @@ describe("vaultOps: pending saves land before a path changes", () => {
     // reports — what a batch rename needs (plan Befunde 2026-09-24, E12). The
     // flush lives in the one that does the work, guarded above.
     const body = methodBody(source, "rename");
-    expect(body).toMatch(/await vaultOps\.renameReport\(v, oldPath, newTitle\)/);
+    expect(body).toMatch(/await vaultOps\.renameReport\(v, oldPath, newTitle(?:, opts)?\)/);
     expect(body).not.toMatch(/v\.files\.|renameFileWithLinkUpdates\(/);
   });
 

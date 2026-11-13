@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { adoptExternalMove, movedFolderLabel, toast, useMissingFile, vaultDisplayName, type MissingFile } from "@plainva/ui";
+import { adoptExternalMove, owedPinboardSweepsIn, movedFolderLabel, toast, useMissingFile, vaultDisplayName, type MissingFile } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { retargetDesktopBookmarks } from "../services/bookmarks";
 import { applyIndexChanges } from "../services/fileActions";
@@ -47,6 +47,7 @@ export function useOpenFileLookup(path: string, opts: OpenFileLookupOptions): Mi
         pinboard: { adapter: vaultAdapter, queryService },
         reindex: async (paths) => { if (indexer) await applyIndexChanges(indexer, { added: paths }); },
         untilWholeIndex: () => queryService ? queryService.untilWholeIndex() : Promise.resolve(),
+        owed: owedPinboardSweepsIn(vaultPath ?? ""),
       }, from, to);
     },
     carry: opts.carry,

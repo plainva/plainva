@@ -127,6 +127,7 @@ async function mount(notes: Record<string, string>, opts: { index?: Record<strin
         vault={vault}
         basePath={BASE}
         config={parseBaseConfig(BASE_TEXT)}
+        viewIndex={0}
         column="prio"
         rows={opts.shown ?? indexRows}
         columnLabel={(col) => col}

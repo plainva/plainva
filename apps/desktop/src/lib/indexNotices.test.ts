@@ -128,13 +128,15 @@ describe("what both shells say about the search index", () => {
     // a scan that fails is logged unless the load was called off, and the build ends either way.
     expect(desktop).toMatch(/beginIndexBuild\(path\);\s*void perfMeasure\("initial full index \(cold\)", \(\) => indexer\.indexVaultFull\("open, empty index"\)\)\s*\.then\(\(\) => undefined, \(error: unknown\) => \{\s*if \(!currentAbortSignal\.aborted\)[^\n]*\n\s*\}\)/);
     // Its end is the scan's to say: whole when one goes through, failed when it does not, closed with the vault.
-    expect(desktop).toMatch(/onFullScan: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*markIndexWhole\(path\);/);
+    expect(desktop).toMatch(/onFullScan: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*takeFullScan\(path, info\);/);
     expect(desktop).toMatch(/onFullScanFailed: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*if \(indexBuildState\(path\)\.kind !== "whole"\) markIndexFailed\(path, errorText\(info\.error\)\);/);
     expect(desktop).toContain(`currentAbortSignal.addEventListener("abort", () => markIndexClosed(path), { once: true });`);
     expect(desktop).not.toContain('await perfMeasure("initial full index (cold)"');
     // Owed a full scan from the start; a warm index only counts as whole once a scan went through on it.
     expect(desktop).toContain("let coldIndexOwed = true;");
-    expect(desktop).toMatch(/if \(await indexer\.indexComplete\(\)\.catch\(\(\) => false\)\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*markIndexWhole\(path\);\s*\}/);
+    expect(desktop).toMatch(/if \(await indexer\.indexComplete\(\)\.catch\(\(\) => false\)\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*\}/);
+    // Whole only where the core says a scan went through and left nothing out (fourth review of 11.11.).
+    expect(desktop).toMatch(/if \(await indexer\.indexWhole\(\)\.catch\([\s\S]{0,200}?\)\) \{\s*markIndexWhole\(path\);\s*\} else \{\s*reportInitialProgress = true;\s*beginIndexBuild\(path\);/);
     // Not whole from the reader's first moment until the index says it is (third review of 11.11.).
     expect(desktop).toMatch(/beginIndexBuild\(path\);\s*queryService\.setIndexWholeness\(indexWholenessFor\(path\)\);/);
     expect(mobile).toMatch(/beginIndexBuild\(entry\.id\);\s*queryService\.setIndexWholeness\(indexWholenessFor\(entry\.id\)\);/);
@@ -153,8 +155,8 @@ describe("what both shells say about the search index", () => {
     // The scan that goes through lifts the gate and the deferral first — a
     // line or a notice that fails must not keep them up — and on the desktop
     // it sends up what the first sync's sweep could not see yet.
-    expect(mobile).toMatch(/onFullScan: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*indexPassSettled = true;\s*(?:\/\/[^\n]*\n\s*)*markIndexWhole\(entry\.id\);\s*logDiagnostic\("index", formatFullScan\(info\)\);\s*indexNotices\.scanned\(info\);/);
-    expect(desktop).toMatch(/onFullScan: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*markIndexWhole\(path\);\s*(?:\/\/[^\n]*\n\s*)*if \(coldIndexOwed\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*(?:\/\/[^\n]*\n\s*)*if \(localOnlySwept\) \{\s*syncQueue\.enqueueLocalOnlyFiles\(\)/);
+    expect(mobile).toMatch(/onFullScan: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*indexPassSettled = true;\s*(?:\/\/[^\n]*\n\s*)*takeFullScan\(entry\.id, info\);\s*logDiagnostic\("index", formatFullScan\(info\)\);\s*indexNotices\.scanned\(info\);/);
+    expect(desktop).toMatch(/onFullScan: \(info\) => \{\s*(?:\/\/[^\n]*\n\s*)*takeFullScan\(path, info\);\s*(?:\/\/[^\n]*\n\s*)*if \(coldIndexOwed\) \{\s*coldIndexOwed = false;\s*deferInitialEnqueue = false;\s*(?:\/\/[^\n]*\n\s*)*if \(localOnlySwept\) \{\s*syncQueue\.enqueueLocalOnlyFiles\(\)/);
     const scanned = desktop.indexOf("onFullScan: (info) => {");
     expect(desktop.indexOf("if (coldIndexOwed) {", scanned)).toBeLessThan(desktop.indexOf('logDiagnostic("index", formatFullScan(info));', scanned));
     expect(desktop).toMatch(/fileWorker\.onFirstCycleComplete = \(outcome\) => \{[^}]*?syncQueue\.enqueueLocalOnlyFiles\(\)[\s\S]{0,400}?localOnlySwept = true;\s*(?:\/\/[^\n]*\n\s*)*sayFirstSyncConflictCopies\(outcome\.conflictCopies,[\s\S]{0,300}?\};/);

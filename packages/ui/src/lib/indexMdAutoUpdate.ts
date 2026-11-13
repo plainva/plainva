@@ -1,5 +1,7 @@
 import { isIndexNotWholeError } from "@plainva/core";
 import { reportBackground } from "../services/backgroundErrors";
+import { sweepPinboardRefs } from "../base/pinboardSweep";
+import type { OwedPinboardSweeps } from "./movedNote";
 import {
   frontmatterSpan,
   hasOkfVersionKey,
@@ -89,6 +91,12 @@ export interface IndexAutoUpdaterDeps {
    * index — its notes are indexed by then and no change would bring it back.
    */
   owed: OwedListings;
+  /**
+   * The pinboard sweeps a move found while the index was built and a close
+   * cut short (`owedPinboardSweepsIn`): run at the next whole index, with the
+   * owed listings (fourth review of 11.11.).
+   */
+  owedSweeps?: OwedPinboardSweeps;
 }
 
 /** Where the folders whose listing waits for a whole index are kept. */
@@ -137,6 +145,21 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
   const pendingFolders = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
+  // The pinboard sweeps an earlier session owed: run once this index is whole.
+  if ((deps.owedSweeps?.load().length ?? 0) > 0) {
+    void deps.queryService.untilWholeIndex().then(async () => {
+      if (disposed || !deps.owedSweeps) return;
+      const moves = deps.owedSweeps.load();
+      try {
+        const swept = await sweepPinboardRefs({ adapter: deps.adapter as never, queryService: deps.queryService }, moves);
+        deps.owedSweeps.save(deps.owedSweeps.load().filter((m) => !moves.some((x) => x.from === m.from && x.to === m.to)));
+        for (const path of swept) deps.onWritten?.(path);
+      } catch (e) {
+        // Still owed: the next whole index tries again.
+        reportBackground("pinboard:owed-sweep", e);
+      }
+    }, () => { /* closed again: still owed */ });
+  }
   // What an earlier session owed: written once this index is whole.
   const owedAtStart = deps.owed.load();
   if (owedAtStart.length > 0) {

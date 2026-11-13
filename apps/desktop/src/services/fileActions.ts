@@ -161,8 +161,16 @@ export async function renameToName(opts: {
    * themselves is never touched.
    */
   carryHeading?: boolean;
+  /**
+   * A note this flow made a moment ago (a new pinboard entry): nothing links
+   * to it and no board holds it yet, so nothing is found in the index to
+   * rewrite — it is renamed without the index, also while that is being built
+   * (fourth review of 11.11.: the entry kept its time-stamp name for good).
+   */
+  fresh?: boolean;
 }): Promise<RenameToNameResult> {
-  const { adapter, queryService, oldPath, isFolder } = opts;
+  const { adapter, oldPath, isFolder } = opts;
+  const queryService = opts.fresh ? null : opts.queryService;
   // A typed name is created in NFC on both shells (ADR 0016, P6e).
   const name = toPathIdentity(opts.newName.trim());
   if (!name) return { ok: false, reason: "invalid-name" };
@@ -473,7 +481,7 @@ export async function promptRenameFile(path: string, ctx: PromptRenameContext): 
     ctx.notify?.([{ type: "move", from: path, to: result.newPath }]);
   } catch (err) {
     console.error("[fileActions] rename failed", err);
-    ctx.toast.error(ctx.t("dialogs.renameErrorMsg", { error: (err as Error).message }));
+    ctx.toast.error(ctx.t("dialogs.renameErrorMsg", { error: errorText(err) }));
   }
 }
 

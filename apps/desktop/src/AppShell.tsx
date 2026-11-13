@@ -67,7 +67,7 @@ import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
-import { markFreshNote, wikiTargetToPath } from "@plainva/ui";
+import { markFreshNote, owedPinboardSweepsIn, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { errorText, styleOutcomeText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
@@ -745,6 +745,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       vaultName: () => vaultPath?.split(/[/\\]/).pop() ?? "Vault",
       subfoldersHeading: () => t("indexMd.subfoldersHeading"),
       owed: owedListingsIn(vaultPath ?? ""),
+      owedSweeps: owedPinboardSweepsIn(vaultPath ?? ""),
       onWritten: (indexPath) => {
         triggerFileTreeUpdate();
         window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: indexPath } }));

@@ -6,6 +6,7 @@ import { resolveNewItemTarget } from "./baseRelations";
 import { viewPrefill } from "./newItemPrefill";
 import { sweepPinboardDrafts, type PinboardDraftLedger, type PinboardDraftSweepFiles } from "./pinboardDraftLedger";
 import { captureFileName, captureTimestampName } from "./pinboardModel";
+import { errorText } from "../lib/errorText";
 
 /**
  * A new pinboard entry — ONE core for both shells (plan Befunde 2026-09-24,
@@ -386,6 +387,8 @@ export interface PinboardEntryResult {
   path: string | null;
   /** The title could not become the file name (a name taken in the meantime); the entry kept its timestamp name. */
   renameFailed?: boolean;
+  /** Why the rename failed, for the person (fourth review of 11.11.: it used to be swallowed). */
+  renameError?: string;
 }
 
 /** Ends an entry; see the module comment. The shell flushes its editor first. */
@@ -435,8 +438,8 @@ async function endPinboardEntry(files: PinboardEntryFiles, opts: FinalizePinboar
   try {
     const path = await files.rename(draft.path, stem);
     return { outcome: "kept", path };
-  } catch {
-    return { outcome: "kept", path: draft.path, renameFailed: true };
+  } catch (e) {
+    return { outcome: "kept", path: draft.path, renameFailed: true, renameError: errorText(e) };
   }
 }
 

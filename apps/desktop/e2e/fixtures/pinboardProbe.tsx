@@ -1,5 +1,5 @@
 import React from "react";
-import { markPartialRows, type NoteCardData } from "@plainva/core";
+import type { NoteCardData } from "@plainva/core";
 import type { MobileVault } from "../../../mobile/src/services/vaultService";
 import { createRoot, type Root } from "react-dom/client";
 import { PinboardView } from "../../../mobile/src/screens/base/PinboardView";
@@ -13,7 +13,7 @@ import "../../../mobile/src/mobile.css";
 import "../../../../packages/ui/src/i18n";
 
 let app: Root | null = null;
-let current: { shell: "mobile" | "desktop"; count: number; embedded?: boolean; partial?: boolean; order?: string[] };
+let current: { shell: "mobile" | "desktop"; count: number; embedded?: boolean; order?: string[]; pinned?: string[] };
 /** What the board asked to save (`onPatchView`). */
 const patches: Record<string, unknown>[] = [];
 let rows: Record<string, unknown>[] = [];
@@ -45,7 +45,7 @@ const source = {
 const files = { async readBinaryFile(path: string) { imageReads++; imageRequests.push(path); if (externalImage) return externalImage(path); return Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="), c => c.charCodeAt(0)); } };
 // A board shows: its cards come from the index as it stands (`indexView`).
 const vault = { vaultId: "pinboard-probe", queryService: source, indexView: source, files, adapter: files } as unknown as MobileVault;
-const view: { type: string; name: string; pinboardOrder?: string[] } = { type: "pinboard", name: "Notes" };
+const view: { type: string; name: string; pinboardOrder?: string[]; pinboardPinned?: string[] } = { type: "pinboard", name: "Notes" };
 const config = { views: [view], filters: {} };
 function render() {
   const props = { viewKey: "fixture#Notes", onOpenNote() { app?.unmount(); app = null; }, onPatchView(patch: Record<string, unknown>) { patches.push(patch); } };
@@ -63,9 +63,8 @@ export const pinboardProbe = {
     app?.unmount(); app = null; current = options;
     document.documentElement.dataset.density = options.shell === "mobile" ? "touch" : "compact";
     rows = externalRows?.slice(0, options.count) ?? Array.from({ length: options.count }, (_, n) => ({ "file.path": `Inbox/Note-${n}.md`, "file.name": `Note ${n}`, "file.mtime": 1, "file.ctime": 1, "file.size": 500, "file.revision": `rev-${versions.get(`Inbox/Note-${n}.md`) ?? 0}`, "file.tags": ["#fixture", "#group" + n % 2] }));
-    // The rows of an index that is not whole, as the view hands them out (core `markPartialRows`).
-    if (options.partial) markPartialRows(rows);
     view.pinboardOrder = options.order;
+    view.pinboardPinned = options.pinned;
     patches.length = 0;
     render();
   },

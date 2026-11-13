@@ -80,7 +80,7 @@ const serviceCode =
 // The phone's property writers and the query a database screen runs.
 const baseOpsFile = sourceOf("src/services/baseOps.ts");
 const baseOpsCode = all(baseOpsFile, ts.isFunctionDeclaration)
-  .filter((f) => ["noteFiles", "commitCellValue", "commitBulkValue", "queryView", "saveBaseConfig"].includes(f.name?.text ?? ""))
+  .filter((f) => ["noteFiles", "commitCellValue", "commitBulkValue", "viewQuery", "queryView", "saveBaseConfig"].includes(f.name?.text ?? ""))
   .map((f) => f.getText(baseOpsFile).replace(/^export /, ""))
   .join("\n");
 

@@ -1,4 +1,4 @@
-import { trimEndChars, type WholeRows } from "@plainva/core";
+import { trimEndChars } from "@plainva/core";
 /**
  * Pure pinboard view-model helpers (plan Pinboard P3/P5), shared by both
  * shells.
@@ -11,12 +11,15 @@ import { trimEndChars, type WholeRows } from "@plainva/core";
  *   ON TOP, newest first by ctime (E5 — ctime, not mtime, so checking a box
  *   or editing a label never reorders the board under the user's finger),
  *   followed by the listed cards.
- * - A drag SPLICES into the full unfiltered sequence (D3): the first drag
- *   materializes the whole current unpinned order once; chip-filtered views
- *   never lose the positions of filtered-out cards because the splice operates
- *   on the full sequence, not the visible subset.
- * - Self-heal: entries whose file no longer exists / left the source set are
- *   dropped whenever a mutator writes.
+ * - What is written is the stored list with the one card that moved: a pin,
+ *   an unpin or a drag never drops an entry the board does not show (fourth
+ *   review of 11.11.). The board shows what the head's search, a label chip
+ *   or an index that is still being built let through — the stored lists
+ *   hold every card. They used to be "healed" to the cards on screen: one pin
+ *   while searching took the place of every other card out of the .base file,
+ *   and the sync carried that on (since 0.8.4). An entry whose file is gone
+ *   stays in the list and is not drawn (`orderCards` draws present cards
+ *   only); a move follows it (`retargetPinboardPaths`).
  */
 
 export interface PinboardRowLike {
@@ -60,47 +63,55 @@ export function orderCards(
 export type PinboardDropSlot = { kind: "before"; path: string } | { kind: "end" };
 
 /**
- * Splice `moved` into the FULL section sequence (D3). `sequence` is the
- * complete unfiltered section order as currently rendered (orderCards output);
- * the return value is the new persisted list for that section. Also the
- * first-drag materialization: the result always lists every card of the
- * sequence explicitly.
+ * A drag (D3): the stored list of the section with `moved` taken out and put
+ * before the slot's card — or at the end. `shown` is the section as drawn:
+ * its cards that the list does not hold yet (unarranged, drawn on top) are
+ * written in front, in the order drawn, so the first drag materializes what
+ * the person saw. Every entry of the stored list stays, shown or not.
  */
-export function spliceIntoSequence(sequence: string[], moved: string[], slot: PinboardDropSlot, _whole: WholeRows): string[] {
-  // `_whole`: the sequence is the board's rows; over rows of an index that is
-  // not whole it would drop every card not read yet (`requireWholeRows`).
+export function spliceIntoSequence(stored: string[] | undefined, shown: string[], moved: string[], slot: PinboardDropSlot): string[] {
+  const kept = stored ?? [];
+  const listed = new Set(kept);
   const movedSet = new Set(moved);
-  const rest = sequence.filter((p) => !movedSet.has(p));
+  const rest = [...shown.filter((p) => !listed.has(p)), ...kept].filter((p) => !movedSet.has(p));
   if (slot.kind === "end") return [...rest, ...moved];
   const at = rest.indexOf(slot.path);
   if (at < 0) return [...rest, ...moved];
   return [...rest.slice(0, at), ...moved, ...rest.slice(at)];
 }
 
-/** Pin a card: it enters the pinned section on top (Keep) and leaves the order list. */
+/** Pin a card: it enters the pinned section on top (Keep) and leaves the order list; every other entry stays. */
 export function applyPin(
   order: string[] | undefined,
   pinned: string[] | undefined,
   path: string,
-  presentPaths: ReadonlySet<string>,
-  _whole: WholeRows,
 ): { order: string[]; pinned: string[] } {
-  // Heals the lists to the present cards: only over whole rows (`requireWholeRows`,
-  // third review of 11.11.) — over half an index it dropped the notes not read yet.
-  const heal = (list: string[] | undefined) => (list ?? []).filter((p) => presentPaths.has(p) && p !== path);
-  return { order: heal(order), pinned: [path, ...heal(pinned)] };
+  const without = (list: string[] | undefined) => (list ?? []).filter((p) => p !== path);
+  return { order: without(order), pinned: [path, ...without(pinned)] };
 }
 
-/** Unpin a card: it returns to the TOP of the unpinned section (visible, predictable). */
+/** Unpin a card: it returns to the TOP of the unpinned section (visible, predictable); every other entry stays. */
 export function applyUnpin(
   order: string[] | undefined,
   pinned: string[] | undefined,
   path: string,
-  presentPaths: ReadonlySet<string>,
-  _whole: WholeRows,
 ): { order: string[]; pinned: string[] } {
-  const heal = (list: string[] | undefined) => (list ?? []).filter((p) => presentPaths.has(p) && p !== path);
-  return { order: [path, ...heal(order)], pinned: heal(pinned) };
+  const without = (list: string[] | undefined) => (list ?? []).filter((p) => p !== path);
+  return { order: [path, ...without(order)], pinned: without(pinned) };
+}
+
+/**
+ * A new order of the shown keys (a board's columns) written into the stored
+ * order: the shown keys take the places shown keys held, in their new order;
+ * every key not shown — a group whose cards the search or the index has not
+ * let through — keeps its place. Keys new to the stored order go at the end.
+ */
+export function reorderShown(stored: readonly string[], shownInNewOrder: readonly string[]): string[] {
+  const shown = new Set(shownInNewOrder);
+  const next = shownInNewOrder.filter((k) => stored.includes(k));
+  let i = 0;
+  const out = stored.map((k) => (shown.has(k) ? next[i++] : k));
+  return [...out, ...shownInNewOrder.filter((k) => !stored.includes(k))];
 }
 
 /** Rewrite vault paths in order/pinned after a rename/move (P5 sweep helper). */

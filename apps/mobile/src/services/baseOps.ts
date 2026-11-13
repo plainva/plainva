@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import type { TextChange, WholeRows } from "@plainva/core";
+import type { TextChange } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
 import { configuredNoteType } from "./newNote";
 import {
@@ -37,6 +37,8 @@ import {
   convertDateColumns,
   editReverseRelation,
   fillMissingProperty,
+  readWholeViewRows,
+  type WholeViewRows,
   type DateInput,
   type ReverseRelationOutcome,
   type RewriteResult,
@@ -83,12 +85,25 @@ export async function loadBase(v: MobileVault, path: string): Promise<LoadedBase
 }
 
 /** Desktop queryForActiveView: sources AND the active view's own filters. */
-export async function queryView(v: MobileVault, config: any, viewIndex: number): Promise<any[]> {
-  if (!v.indexView) return [];
+export function viewQuery(config: any, viewIndex: number): any {
   const views = Array.isArray(config?.views) ? config.views : [];
   const active = views[viewIndex] || views[0] || {};
-  const merged = { ...config, filters: combineFilters(config?.filters, active?.filters), views: [active] };
-  return v.indexView.queryDatabaseFiles(merged);
+  return { ...config, filters: combineFilters(config?.filters, active?.filters), views: [active] };
+}
+
+export async function queryView(v: MobileVault, config: any, viewIndex: number): Promise<any[]> {
+  if (!v.indexView) return [];
+  return v.indexView.queryDatabaseFiles(viewQuery(config, viewIndex));
+}
+
+/**
+ * Every row of a view, read for a write that means "every note" (fourth
+ * review of 11.11.): from the reader, which refuses while the index is not
+ * whole — never the rows on screen, which the head's search narrows.
+ */
+export async function wholeViewRows(v: MobileVault, config: any, viewIndex: number): Promise<WholeViewRows> {
+  if (!v.queryService) throw new Error("no index");
+  return readWholeViewRows(v.queryService, viewQuery(config, viewIndex));
 }
 
 /**
@@ -202,8 +217,8 @@ function noteFiles(v: MobileVault): PropertyWriteAdapter {
  * through the same shared loop. Answers the notes written and the notes that
  * failed; the caller says them.
  */
-export async function fillBaseProperty(v: MobileVault, paths: readonly string[], col: string, whole: WholeRows): Promise<RewriteResult> {
-  const result = await fillMissingProperty(noteFiles(v), paths, col, whole);
+export async function fillBaseProperty(v: MobileVault, view: WholeViewRows, col: string): Promise<RewriteResult> {
+  const result = await fillMissingProperty(noteFiles(v), view, col);
   if (result.written.length > 0) syncSoon();
   return result;
 }
@@ -545,7 +560,8 @@ export function pinboardEntryFiles(v: MobileVault, background = false): Pinboard
     },
     write: (p, text) => vaultOps.save(v, p, text),
     update: (p, change) => vaultOps.update(v, p, change),
-    rename: (p, stem) => vaultOps.rename(v, p, stem),
+    // A draft this flow made: nothing links to it yet (`fresh`).
+    rename: (p, stem) => vaultOps.rename(v, p, stem, { fresh: true }),
     // The person's own draft with nothing in it, a confirmed discard, or what
     // an app that went away during an entry left behind unchanged.
     remove: async (p) => {

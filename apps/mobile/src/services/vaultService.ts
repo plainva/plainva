@@ -97,7 +97,7 @@ import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, typ
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 import { mobileChainPorts } from "./mobileChainPorts";
-import { beginIndexBuild, indexBuildState, indexWholenessFor, isIndexBuilding, markIndexClosed, markIndexFailed, markIndexWhole, reportIndexBuild } from "./indexBuild";
+import { beginIndexBuild, indexBuildState, indexWholenessFor, isIndexBuilding, markIndexClosed, markIndexFailed, markIndexWhole, reportIndexBuild, takeFullScan } from "./indexBuild";
 import { afterFirstPaint } from "./bootStagger";
 
 /**
@@ -936,8 +936,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
         // task reconciler waits for before it creates a note (taskSyncRuntime).
         // Said first: a line or a notice that fails must not keep it closed.
         indexPassSettled = true;
-        // And whole for whoever plans a write from it (performance plan L3).
-        markIndexWhole(entry.id);
+        // And whole for whoever plans a write from it (performance plan L3) —
+        // where the core says the scan left nothing out (`takeFullScan`).
+        takeFullScan(entry.id, info);
         logDiagnostic("index", formatFullScan(info));
         indexNotices.scanned(info);
       },
@@ -1001,8 +1002,9 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
       const warmIndexer = indexer;
       // An index a first scan never got through (issue 125) is not whole: the
       // warm pass is its build, counted and gated like a first one (L3).
-      // The build began with the reader; a whole index ends it here.
-      if (await indexer.indexComplete().catch(() => /* silent: an answer nobody can give counts as not whole, and the warm pass is the build */ false)) markIndexWhole(entry.id);
+      // The build began with the reader; a whole index ends it here — one a
+      // scan went through AND that left nothing out (fourth review of 11.11.).
+      if (await indexer.indexWhole().catch(() => /* silent: an answer nobody can give counts as not whole, and the warm pass is the build */ false)) markIndexWhole(entry.id);
       afterFirstPaint(() => {
         if (indexAbort.signal.aborted) return;
         void warmIndexer
@@ -1370,8 +1372,8 @@ export const vaultOps = {
    * SHARED renameFileWithLinkUpdates (package C — a mobile rename used to break
    * [[links]] silently); rewrites run through v.files, so backups + sync queue
    * see every touched referencing note. */
-  async rename(v: MobileVault, oldPath: string, newTitle: string): Promise<string> {
-    const result = await vaultOps.renameReport(v, oldPath, newTitle);
+  async rename(v: MobileVault, oldPath: string, newTitle: string, opts?: { fresh?: boolean }): Promise<string> {
+    const result = await vaultOps.renameReport(v, oldPath, newTitle, opts);
     if (result.followUpError) reportFollowUp(result.newPath, result.followUpError);
     else if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
     else if (result.changedFiles > 0)
@@ -1383,7 +1385,13 @@ export const vaultOps = {
    * The rename itself, reporting instead of telling — what a batch needs (the
    * clean-up of task-note names, E12): one message at the end, not one per note.
    */
-  async renameReport(v: MobileVault, oldPath: string, newTitle: string): Promise<NoteRenameReport> {
+  /**
+   * `fresh`: a note this flow made a moment ago (a new pinboard entry) —
+   * nothing links to it, no board holds it, so nothing is found in the index
+   * to rewrite: renamed without it, also while it is being built (fourth
+   * review of 11.11.; the desktop's `renameToName` the same).
+   */
+  async renameReport(v: MobileVault, oldPath: string, newTitle: string, opts?: { fresh?: boolean }): Promise<NoteRenameReport> {
     // S2: land the editor's pending text BEFORE the path moves. A queued save
     // that settles afterwards writes to the OLD path — which recreates the file
     // we just renamed away, and the sync queue then pushes that ghost.
@@ -1395,8 +1403,8 @@ export const vaultOps = {
     let changedPaths: string[] = [];
     let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     // Refused over an index that is not whole, before anything moves (issue 143, L3).
-    v.queryService?.requireWholeIndex();
-    const queryService = v.queryService;
+    if (!opts?.fresh) v.queryService?.requireWholeIndex();
+    const queryService = opts?.fresh ? null : v.queryService;
     const followUpError = await moveStep(v, oldPath, newPath, async () => {
       if (queryService) {
         const result = await renameFileWithLinkUpdates({
