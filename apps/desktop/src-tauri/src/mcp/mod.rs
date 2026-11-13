@@ -210,6 +210,14 @@ struct CallRequest {
     answer: Option<String>,
 }
 
+/// What the main window may ask about one call it runs: the vault that call's connection was admitted for and the
+/// client's folders at the call.
+#[derive(Clone)]
+struct Judging {
+    root: std::path::PathBuf,
+    folders: Vec<String>,
+}
+
 #[derive(Default)]
 struct Inner {
     enabled: bool,
@@ -218,6 +226,9 @@ struct Inner {
     tools: Vec<ToolSpec>,
     prompts: Vec<PromptSpec>,
     calls: HashMap<String, oneshot::Sender<CallAnswer>>,
+    /// For each call the main window is running: where and for which folders the paths of its answer are judged
+    /// (`mcp_judge_paths`). Kept and dropped together with `calls` — never longer than the call waits.
+    judging: HashMap<String, Judging>,
     pairing: Option<(String, oneshot::Sender<PairAnswer>)>,
     denied: HashMap<String, Instant>,
     next_id: u64,
@@ -301,7 +312,9 @@ struct Waiting<'a> {
 
 impl Drop for Waiting<'_> {
     fn drop(&mut self) {
-        self.state.lock().calls.remove(&self.request_id);
+        let mut inner = self.state.lock();
+        inner.calls.remove(&self.request_id);
+        inner.judging.remove(&self.request_id);
     }
 }
 
@@ -324,6 +337,8 @@ pub(crate) struct CallFrom<'a> {
     pub client: &'a ClientRecord,
     pub vault_key: &'a str,
     pub generation: u64,
+    /// The vault that key names on disk: what the paths of the answer are judged against.
+    pub root: &'a std::path::Path,
 }
 
 /// What a client's list of tools follows from: whether it reads in the vault, and whether it may propose changes there.
@@ -424,6 +439,7 @@ impl McpState {
             ended = inner.pairing.take().map(|(request_id, _)| request_id);
             // A call that waits for the main window was made for what is gone: its answer is not waited for.
             inner.calls.clear();
+            inner.judging.clear();
         }
         inner.enabled = enabled;
         let start = enabled && inner.listener.is_none();
@@ -489,10 +505,9 @@ impl McpState {
             let before = sees(&grants, client_id);
             if clean.is_empty() {
                 // A client that reads nothing proposes nothing.
-                grants.writes.remove(client_id);
-                grants.folders.remove(client_id);
+                grants.forget(client_id);
             } else {
-                grants.folders.insert(client_id.to_string(), clean);
+                grants.grant(client_id, clean);
             }
             store.save_grants(&vault.key, &grants)?;
             Ok((before, sees(&grants, client_id)))
@@ -540,12 +555,16 @@ impl McpState {
     /// what the user changed or took back in Plainva holds at once, also for a
     /// connection that is already open. No folders: the client has no place
     /// in this vault (any more).
-    pub(crate) fn grant<R: Runtime>(&self, app: &AppHandle<R>, vault_key: &str, client_id: &str) -> (Vec<String>, bool) {
+    /// What a client may do in a vault at this moment: its folders that still grant something there
+    /// (`paths::effective_grant` — a stored entry is checked again at every use), and whether it may propose changes.
+    pub(crate) fn grant<R: Runtime>(&self, app: &AppHandle<R>, vault_key: &str, root: &std::path::Path, client_id: &str) -> (Vec<String>, bool) {
         let Ok(store) = self.store(app) else {
             return (Vec::new(), false);
         };
         let grants = store.grants(vault_key);
-        (grants.folders.get(client_id).cloned().unwrap_or_default(), grants.may_write(client_id))
+        let folders = paths::effective_grant(root, grants.folders.get(client_id).map(Vec::as_slice).unwrap_or_default(), grants.as_chosen.contains(client_id));
+        let writes = grants.may_write(client_id) && !folders.is_empty();
+        (folders, writes)
     }
 
     fn next_id(&self, prefix: &str) -> String {
@@ -576,6 +595,7 @@ impl McpState {
                 return Err(CHANGED.into());
             }
             inner.calls.insert(request_id.clone(), tx);
+            inner.judging.insert(request_id.clone(), Judging { root: from.root.to_path_buf(), folders: folders.to_vec() });
         }
         let _waiting = Waiting { state: self, request_id: request_id.clone() };
         let request = CallRequest {
@@ -734,7 +754,7 @@ impl McpState {
             }
             let mut grants = store.grants(&vault.key);
             let before = sees(&grants, &client.id);
-            grants.folders.insert(client.id.clone(), folders.clone());
+            grants.grant(&client.id, folders.clone());
             // Proposing changes is its own answer in the same dialog, and off unless it was ticked there.
             if answer.writes {
                 grants.writes.insert(client.id.clone());
@@ -747,8 +767,7 @@ impl McpState {
                 clients.clients.push(client.clone());
                 if let Err(error) = store.save_clients(&clients) {
                     // Not kept after all: its grant goes with it, so that nothing names a client nobody is.
-                    grants.folders.remove(&client.id);
-                    grants.writes.remove(&client.id);
+                    grants.forget(&client.id);
                     let _ = store.save_grants(&vault.key, &grants);
                     return Err(NotKept::Store(error));
                 }
@@ -1014,6 +1033,33 @@ pub fn mcp_call_answer(window: tauri::Window, state: tauri::State<'_, McpState>,
         let _ = tx.send(answer);
     }
     Ok(())
+}
+
+/// The most paths one question may name: a page of search hits is 25, a database view a few hundred.
+pub const JUDGE_MAX: usize = 4096;
+
+/// The verdicts of the second wall on paths an answer of a running call may name, asked by the main window before
+/// anything of them goes into the answer (`answer_path_allowed`; review of R19, wave 2). So the web view and the wall
+/// never disagree: a folder link inside a granted folder that leads out of it does not exist for the call, and a
+/// withheld answer tells a client nothing of what lies beyond its folders. A call that does not wait any more has no
+/// path inside. The disk is looked at off the main thread.
+#[tauri::command]
+pub async fn mcp_judge_paths(window: tauri::Window, state: tauri::State<'_, McpState>, request_id: String, paths: Vec<String>) -> Result<Vec<bool>, String> {
+    only_main(&window)?;
+    if paths.len() > JUDGE_MAX {
+        return Err("Too many paths for one question.".into());
+    }
+    let Some(judging) = state.lock().judging.get(&request_id).cloned() else {
+        return Ok(vec![false; paths.len()]);
+    };
+    Ok(judge_paths(judging, paths).await)
+}
+
+async fn judge_paths(judging: Judging, paths: Vec<String>) -> Vec<bool> {
+    let count = paths.len();
+    tauri::async_runtime::spawn_blocking(move || paths.iter().map(|path| paths::answer_path_allowed(&judging.root, path, &judging.folders)).collect())
+        .await
+        .unwrap_or_else(|_| vec![false; count])
 }
 
 #[tauri::command]
@@ -1297,6 +1343,49 @@ mod tests {
         let audit = Store::new(dir.path().join("mcp")).audit("vault-key");
         assert_eq!(audit.iter().filter(|a| a.ok).count(), 1);
         assert!(audit.iter().all(|a| a.client_id == "c1" && a.tool == "read_note"));
+    }
+
+    /// The main window asks the second wall's verdict on the paths of a call it runs before it uses them
+    /// (`mcp_judge_paths`; review of R19, wave 2): the very check the answer meets, against the vault and the folders
+    /// of that call — and only while the call waits. A folder link inside the granted folder that leads out of it is
+    /// outside, so an answer built from what passed is never withheld for it.
+    #[tokio::test]
+    async fn the_main_window_hears_the_walls_verdict_on_a_running_calls_paths_and_only_while_it_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        vault(dir.path());
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(dir.path().join("vault/Private"), dir.path().join("vault/Projects/link")).unwrap();
+        pair(dir.path(), "s3cret");
+        let app = mock_app(dir.path());
+        let handle = app.handle().clone();
+        let seen: Arc<Mutex<Option<(String, Judging)>>> = Arc::default();
+        let kept = seen.clone();
+        app.listen_any("mcp-call", move |event| {
+            let request: serde_json::Value = serde_json::from_str(event.payload()).unwrap();
+            let id = request["requestId"].as_str().unwrap().to_string();
+            let state = handle.state::<McpState>();
+            let judging = state.lock().judging.get(&id).cloned();
+            *kept.lock().unwrap() = judging.map(|judging| (id.clone(), judging));
+            let tx = state.lock().calls.remove(&id);
+            if let Some(tx) = tx {
+                let _ = tx.send(CallAnswer { content: "ok".into(), is_error: false, paths: vec!["Projects/a.md".into()], pending: None, declined: false });
+            }
+        });
+        let (reply, mut client) = connect(&app, Some("s3cret")).await;
+        assert!(reply.ok, "{reply:?}");
+        initialize(&mut client).await;
+        let answer = call(&mut client, 2, "Projects/a.md").await;
+        assert_eq!(answer["result"]["isError"], false, "{answer}");
+        let (id, judging) = seen.lock().unwrap().clone().expect("the call could be judged while it ran");
+        assert_eq!(judging.folders, vec!["Projects".to_string()]);
+        let paths: Vec<String> = ["Projects/a.md", "Projects", "Private/b.md", "projects/a.md", "Projects/link/b.md", " Projects/a.md", "Projects/missing.md"].iter().map(|p| p.to_string()).collect();
+        let verdicts = judge_paths(judging, paths).await;
+        // Where no link could be made here (Windows without rights), the folder is merely missing: inside.
+        let no_link = !cfg!(unix);
+        assert_eq!(verdicts, vec![true, true, false, false, no_link, false, true]);
+        // Once the call is answered, nothing of it can be asked any more.
+        assert!(app.state::<McpState>().lock().judging.get(&id).is_none());
+        assert!(app.state::<McpState>().lock().judging.is_empty());
     }
 
     #[tokio::test]
@@ -1829,12 +1918,12 @@ mod tests {
         let extra = || CallExtra { writes: false, handle: None, answer: None };
         let args = serde_json::json!({ "path": "Projects/a.md" });
         let folders = vec!["Projects".to_string()];
-        let from = CallFrom { client: &client, vault_key: "vault-key", generation };
+        let from = CallFrom { client: &client, vault_key: "vault-key", generation, root: dir.path() };
         let answer = state.forward_call(app.handle(), from, "read_note", args.clone(), &folders, extra()).await;
         assert_eq!(answer.err().as_deref(), Some(CHANGED), "the call is no longer waited for");
         assert_eq!(named.lock().unwrap().as_slice(), ["vault-key"]);
         // A call of that connection after the switch is not handed on at all.
-        let from = CallFrom { client: &client, vault_key: "vault-key", generation };
+        let from = CallFrom { client: &client, vault_key: "vault-key", generation, root: dir.path() };
         let again = state.forward_call(app.handle(), from, "read_note", args, &folders, extra()).await;
         assert_eq!(again.err().as_deref(), Some(CHANGED));
         assert_eq!(named.lock().unwrap().len(), 1, "the main window never heard of it");

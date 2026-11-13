@@ -219,11 +219,52 @@ pub fn grant_folders(folders: &[String]) -> Result<Vec<String>, String> {
         .collect()
 }
 
-/// Checks every path a result names as it stands. One path outside the folders (or not a vault path as written)
-/// refuses the whole result: it would mean the web view's gate failed, and a half-filtered answer would hide that.
-/// (The web view leaves out, and counts, what this wall would refuse: `mcpNameAccepted`.)
+/// The folders of a stored grant that grant something at this use: each as it stands, or not at all — a stored entry
+/// is the file's word, and a file can be edited, or written by an older build (review of R19, wave 2). An entry
+/// `grant_folders` would refuse grants nothing: `"/"` is not the whole vault, ` Notes` not `Notes`. `as_chosen`: the
+/// client's folders were written by a build that keeps them as the user chose them. Otherwise a build that trimmed
+/// and normalised each (0.8.7) wrote them, and an entry whose folder has a sibling such a build would have made into
+/// it (` Notes` beside `Notes`) may stand for that sibling: it grants nothing until the user chooses again. Never
+/// written back: the file stays as it was.
+pub fn effective_grant(root: &std::path::Path, stored: &[String], as_chosen: bool) -> Vec<String> {
+    stored.iter().filter(|folder| grantable(folder) && (as_chosen || !trimmed_sibling(root, folder))).cloned().collect()
+}
+
+/// Whether a folder of the grant, or a folder above it, has a sibling on disk whose name a 0.8.7 build stored as this
+/// one's: the same after `safe_rel_path`, another name before it. A folder that cannot be listed counts as having one.
+fn trimmed_sibling(root: &std::path::Path, folder: &str) -> bool {
+    let mut dir = root.to_path_buf();
+    for segment in folder.split('/').filter(|segment| !segment.is_empty()) {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return true;
+        };
+        let sibling = entries.flatten().any(|entry| {
+            entry.file_name().to_str().is_some_and(|name| name.nfc().collect::<String>() != segment && safe_rel_path(name).as_deref() == Some(segment))
+        });
+        if sibling {
+            return true;
+        }
+        dir.push(segment);
+        if !dir.is_dir() {
+            // Nothing below a folder that is not there (or is stored in another spelling): no sibling to stand for.
+            break;
+        }
+    }
+    false
+}
+
+/// Checks every path a result names as it stands, by name. One path outside the folders (or not a vault path as
+/// written) refuses the whole result: it would mean the web view's gate failed, and a half-filtered answer would hide
+/// that. (The web view leaves out, and counts, what this wall would refuse: `mcpNameAccepted`.)
 pub fn result_paths_allowed(paths: &[String], folders: &[String]) -> bool {
     paths.iter().all(|p| exact_rel_path(p).is_some_and(|p| inside(p, folders)))
+}
+
+/// The second wall's whole verdict on one path an answer names: by name as it stands, and on the disk. The main
+/// window asks exactly this for each path before it uses it (`mcp_judge_paths`), so an answer it builds names no path
+/// this refuses — and an answer that is withheld says nothing of what lies outside a client's folders.
+pub fn answer_path_allowed(root: &std::path::Path, path: &str, folders: &[String]) -> bool {
+    result_paths_allowed(std::slice::from_ref(&path.to_string()), folders) && real_inside_answer(root, path, folders)
 }
 
 /// The file a vault path names, decided on the disk (ADR 0021): resolved through links and junctions and through
@@ -239,7 +280,7 @@ pub fn result_paths_allowed(paths: &[String], folders: &[String]) -> bool {
 ///
 /// `rel` is a path as `safe_rel_path` returned it: the spelling that is used.
 pub fn real_inside(root: &std::path::Path, rel: &str, folders: &[String]) -> Inside {
-    real_inside_as(root, rel, folders, Shapes::EveryName)
+    real_inside_as(root, rel, folders, Shapes::EveryName, FOLDS_CASE)
 }
 
 /// `real_inside` for a path an ANSWER names. A name of unusual shape that the vault holds no more — the note a
@@ -247,7 +288,7 @@ pub fn real_inside(root: &std::path::Path, rel: &str, folders: &[String]) -> Ins
 /// are told what happened (review of R19, minor 3). One that exists in any spelling must be held in exactly this one,
 /// as for a request; only "not found" counts as gone.
 pub fn real_inside_answer(root: &std::path::Path, rel: &str, folders: &[String]) -> bool {
-    real_inside_as(root, rel, folders, Shapes::ExistingNames) == Inside::Yes
+    real_inside_as(root, rel, folders, Shapes::ExistingNames, FOLDS_CASE) == Inside::Yes
 }
 
 /// What `real_inside` found.
@@ -269,15 +310,21 @@ enum Shapes {
 }
 
 /// The entry of `dir` whose name is `segment` in NFC — the vault's stored spelling of that identity (ADR 0016) — when
-/// the name as written does not exist. Exact after NFC: no case fold.
+/// the name as written does not exist. Exact after NFC: no case fold. Two such entries (two spellings that are not
+/// NFC and compose to the same name) are an error: which one a base adapter opens is not this wall's to guess, and a
+/// verdict on the other would be about another place (review of R19, wave 2).
 fn stored_spelling(dir: &std::path::Path, segment: &str) -> std::io::Result<Option<std::ffi::OsString>> {
+    let mut found = None;
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         if entry.file_name().to_str().is_some_and(|name| name.nfc().collect::<String>() == segment) {
-            return Ok(Some(entry.file_name()));
+            if found.is_some() {
+                return Err(std::io::Error::other("two stored spellings of one name"));
+            }
+            found = Some(entry.file_name());
         }
     }
-    Ok(None)
+    Ok(found)
 }
 
 /// Whether `dir`'s listing holds exactly `segment` (after NFC).
@@ -285,16 +332,23 @@ fn holds(dir: &std::path::Path, segment: &str) -> bool {
     std::fs::read_dir(dir).is_ok_and(|entries| entries.flatten().any(|entry| entry.file_name().to_str().is_some_and(|name| name.nfc().collect::<String>() == segment)))
 }
 
-/// Where a path lies, as the disk spells it: the real path of the nearest existing part, with the rest as named.
-/// `Err` with the verdict where it cannot be judged.
-fn real_place(root: &std::path::Path, segments: &[&str], shapes: Shapes) -> Result<std::path::PathBuf, Inside> {
+/// Where a path lies, as the disk spells it: the real path of the nearest existing part, with the rest as named —
+/// and whether a name of unusual shape stands in it that the vault does not hold in exactly that spelling. From such a
+/// name on, nothing is resolved: the rest follows as named, so the place is that of the folder the name is in. `Err`
+/// where it cannot be judged (outside, by definition).
+///
+/// Where a path lies comes first, its shape second (review of R19, wave 2): the shape was decided as soon as it was
+/// met, so a request into a folder outside the client's (by way of a link) heard "unusual name" where a name was
+/// missing there and "not available" where it was not — a word about a folder the client was not given.
+fn real_place(root: &std::path::Path, segments: &[&str], shapes: Shapes) -> Result<(std::path::PathBuf, bool), ()> {
     let mut existing = root.to_path_buf();
     let mut tail: Vec<&str> = Vec::new();
+    let mut shape = false;
     for segment in segments {
         if !tail.is_empty() {
             // Below a part that does not exist nothing exists: a shape there is a name to be created.
             if shapes == Shapes::EveryName && unusual_shape(segment) {
-                return Err(Inside::Shape);
+                shape = true;
             }
             tail.push(segment);
             continue;
@@ -302,31 +356,31 @@ fn real_place(root: &std::path::Path, segments: &[&str], shapes: Shapes) -> Resu
         let named = existing.join(segment);
         let found = match std::fs::symlink_metadata(&named) {
             Ok(_) => Some(std::ffi::OsString::from(*segment)),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => stored_spelling(&existing, segment).map_err(|_| Inside::Outside)?,
-            Err(_) => return Err(Inside::Outside),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => stored_spelling(&existing, segment).map_err(|_| ())?,
+            Err(_) => return Err(()),
         };
         match found {
-            Some(name) => {
-                // It exists in some spelling: one of unusual shape only in exactly this one.
-                if unusual_shape(segment) && !holds(&existing, segment) {
-                    return Err(Inside::Shape);
-                }
-                existing.push(name);
+            // It exists in some spelling: one of unusual shape only in exactly this one. Not followed if not: the
+            // place is the folder it stands in.
+            Some(_) if unusual_shape(segment) && !holds(&existing, segment) => {
+                shape = true;
+                tail.push(segment);
             }
+            Some(name) => existing.push(name),
             None => {
                 if shapes == Shapes::EveryName && unusual_shape(segment) {
-                    return Err(Inside::Shape);
+                    shape = true;
                 }
                 tail.push(segment);
             }
         }
     }
     // The existing part resolved through every link and junction. A link that leads nowhere fails here: no "not yet".
-    let mut real = std::fs::canonicalize(&existing).map_err(|_| Inside::Outside)?;
+    let mut real = std::fs::canonicalize(&existing).map_err(|_| ())?;
     for segment in tail {
         real.push(segment);
     }
-    Ok(real)
+    Ok((real, shape))
 }
 
 /// The real place of a granted folder: resolved as a request's path is, or — where it does not exist — under the
@@ -337,12 +391,16 @@ fn real_grant(root: &std::path::Path, real_root: &std::path::Path, folder: &str)
         return Some(real_root.to_path_buf());
     }
     let segments: Vec<&str> = folder.split('/').collect();
-    let real = real_place(root, &segments, Shapes::ExistingNames).ok()?;
+    let (real, shape) = real_place(root, &segments, Shapes::ExistingNames).ok()?;
+    if shape {
+        return None;
+    }
     // A granted folder that is itself a link out of the vault grants nothing outside it.
     real.starts_with(real_root).then_some(real)
 }
 
-fn real_inside_as(root: &std::path::Path, rel: &str, folders: &[String], shapes: Shapes) -> Inside {
+/// `fold_case`: the candidate check of the build (`FOLDS_CASE`); a test runs the folding builds' combination anywhere.
+fn real_inside_as(root: &std::path::Path, rel: &str, folders: &[String], shapes: Shapes, fold_case: bool) -> Inside {
     let Ok(real_root) = std::fs::canonicalize(root) else {
         return Inside::Outside;
     };
@@ -350,9 +408,8 @@ fn real_inside_as(root: &std::path::Path, rel: &str, folders: &[String], shapes:
         return Inside::Outside;
     }
     let segments: Vec<&str> = rel.split('/').filter(|segment| !segment.is_empty()).collect();
-    let real = match real_place(root, &segments, shapes) {
-        Ok(real) => real,
-        Err(verdict) => return verdict,
+    let Ok((real, shape)) = real_place(root, &segments, shapes) else {
+        return Inside::Outside;
     };
     let Ok(inner) = real.strip_prefix(&real_root) else {
         return Inside::Outside;
@@ -371,11 +428,11 @@ fn real_inside_as(root: &std::path::Path, rel: &str, folders: &[String], shapes:
     // The decision: under the real place of a granted folder, component by component — no case fold, no NFC.
     // The name's candidate check stays as a further limit (it never widens): a granted folder that is a link to
     // another folder of the vault does not open that one by its own name.
-    let granted = inside(&as_named, folders) && folders.iter().any(|folder| real_grant(root, &real_root, folder).is_some_and(|grant| real.starts_with(&grant)));
-    if granted {
-        Inside::Yes
-    } else {
-        Inside::Outside
+    let granted = inside_as(&as_named, folders, fold_case) && folders.iter().any(|folder| real_grant(root, &real_root, folder).is_some_and(|grant| real.starts_with(&grant)));
+    match (granted, shape) {
+        (false, _) => Inside::Outside,
+        (true, true) => Inside::Shape,
+        (true, false) => Inside::Yes,
     }
 }
 
@@ -753,8 +810,9 @@ pub(crate) mod tests {
 
     /// Folding finds a candidate and never decides (review of R19, blocker 2). Where the file system keeps apart what
     /// `to_lowercase` folds together — a case-sensitive directory, `ẞ` and `ß`, the Kelvin sign and `K` — the folded
-    /// candidate is another real folder, and the wall refuses it. The candidate check is run with the fold of the
-    /// builds that fold (Windows, macOS) on whatever runner this is.
+    /// candidate is another real folder, and the wall refuses it. The whole wall is run as the builds that fold
+    /// (Windows, macOS) run it, on whatever runner this is: on Linux the candidate check alone would refuse, and the
+    /// test would prove nothing of the disk's decision (review of R19, wave 2).
     #[test]
     fn a_folder_the_case_fold_takes_for_a_granted_one_is_refused_on_the_disk() {
         let vault = shaped_vault();
@@ -767,8 +825,13 @@ pub(crate) mod tests {
             let granted = folders(&[granted_name]);
             let path = format!("{other}/secret.md");
             assert!(inside_as(&path, &granted, true), "{other}: the folding builds take it for a candidate");
+            let folding = |rel: &str, shapes: Shapes| real_inside_as(vault.path(), rel, &granted, shapes, true);
+            assert_eq!(folding(&path, Shapes::EveryName), Inside::Outside, "{other}");
+            assert_eq!(folding(&format!("{other}/new.md"), Shapes::EveryName), Inside::Outside, "{other}: nor a new note there");
+            assert_eq!(folding(&path, Shapes::ExistingNames), Inside::Outside, "{other}: nor in an answer");
+            assert_eq!(folding(&format!("{granted_name}/open.md"), Shapes::EveryName), Inside::Yes, "{granted_name}");
+            // And as this build runs it.
             assert_eq!(real_inside(vault.path(), &path, &granted), Inside::Outside, "{other}");
-            assert_eq!(real_inside(vault.path(), &format!("{other}/new.md"), &granted), Inside::Outside, "{other}: nor a new note there");
             assert!(!real_inside_answer(vault.path(), &path, &granted), "{other}: nor in an answer");
             assert!(real(vault.path(), &format!("{granted_name}/open.md"), &granted), "{granted_name}");
         }
@@ -858,6 +921,82 @@ pub(crate) mod tests {
             let path = path.as_str().unwrap();
             assert_eq!(safe_rel_path(path), None, "{path:?}");
         }
+    }
+
+    /// Where a path lies is decided before its shape (review of R19, wave 2): a name of unusual shape under a folder
+    /// link out of the client's folders is "not available", whether or not the folder it leads to holds that name —
+    /// "unusual name" there was a word about a folder the client was not given.
+    #[test]
+    fn a_name_of_unusual_shape_beyond_a_link_out_of_the_folders_is_outside_whatever_lies_there() {
+        let vault = shaped_vault();
+        std::fs::create_dir_all(vault.path().join("Private")).unwrap();
+        link_dir(&vault.path().join("Private"), &vault.path().join("Projects").join("private"));
+        let granted = folders(&["Projects"]);
+        for rel in ["Projects/private/aux.md", "Projects/private/Draft~1/x.md", "Projects/private/com1.txt"] {
+            assert_eq!(real_inside(vault.path(), rel, &granted), Inside::Outside, "{rel}");
+            assert_eq!(real_inside_answer(vault.path(), rel, &granted), false, "{rel}");
+        }
+        // Inside the folders the shape is still the reason a client hears.
+        assert_eq!(real_inside(vault.path(), "Projects/aux.md", &granted), Inside::Shape);
+        assert_eq!(real_inside(vault.path(), "Projects/new/Draft~1/x.md", &granted), Inside::Shape);
+    }
+
+    /// Two names on disk that are both not NFC and compose to the same name (the marks of `ệ` in either order): which
+    /// one a base adapter opens is not the wall's to guess, so a path through either is not judged inside.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn two_stored_spellings_of_one_name_are_no_place_the_wall_decides_on() {
+        let vault = shaped_vault();
+        let one = "e\u{323}\u{302}";
+        let two = "e\u{302}\u{323}";
+        assert_eq!(one.nfc().collect::<String>(), two.nfc().collect::<String>());
+        assert_ne!(one.nfc().collect::<String>(), one);
+        std::fs::create_dir_all(vault.path().join("Projects").join(one)).unwrap();
+        std::fs::create_dir_all(vault.path().join("Projects").join(two)).unwrap();
+        let granted = folders(&["Projects"]);
+        let nfc: String = one.nfc().collect();
+        assert_eq!(real_inside(vault.path(), &format!("Projects/{nfc}/x.md"), &granted), Inside::Outside);
+        assert!(!real_inside_answer(vault.path(), &format!("Projects/{nfc}/x.md"), &granted));
+        // One stored spelling alone is the identity it stands for (ADR 0016).
+        std::fs::remove_dir(vault.path().join("Projects").join(two)).unwrap();
+        assert_eq!(real_inside(vault.path(), &format!("Projects/{nfc}/x.md"), &granted), Inside::Yes);
+    }
+
+    /// The verdict the main window asks for each path before it uses it is the second wall's, whole.
+    #[test]
+    fn the_verdict_on_a_path_of_an_answer_is_by_name_and_on_the_disk() {
+        let vault = shaped_vault();
+        std::fs::create_dir_all(vault.path().join("Private")).unwrap();
+        std::fs::write(vault.path().join("Projects/a.md"), "a").unwrap();
+        link_dir(&vault.path().join("Private"), &vault.path().join("Projects").join("private"));
+        let granted = folders(&["Projects"]);
+        assert!(answer_path_allowed(vault.path(), "Projects/a.md", &granted));
+        assert!(answer_path_allowed(vault.path(), "Projects", &granted));
+        assert!(answer_path_allowed(vault.path(), "Projects/gone.md", &granted), "a note an action took away");
+        for bad in ["Projects/private/s.md", "Projects/private", "Private/s.md", " Projects/a.md", "Projects/a.md ", "Projects/Cafe\u{301}.md", ".plainva/sync/keyfile.json", "ProjectsX/a.md"] {
+            assert!(!answer_path_allowed(vault.path(), bad, &granted), "{bad:?}");
+        }
+    }
+
+    /// A stored grant grants, at every use, only what it names as it stands (review of R19, wave 2): `"/"` is not the
+    /// whole vault, ` Notes` not `Notes`; and a folder a 0.8.7 build wrote — it trimmed each — grants nothing where a
+    /// sibling such a build would have stored under the same name stands beside it. The user's own choice under this
+    /// build keeps it.
+    #[test]
+    fn a_stored_grant_grants_only_what_it_names_as_it_stands() {
+        let vault = shaped_vault();
+        for name in ["Notes", " Notes", "Plain", "Deep/Inner", "Deep/Inner "] {
+            std::fs::create_dir_all(vault.path().join(name)).unwrap();
+        }
+        let stored = folders(&["/", "", "Notes", " Notes", "Plain", "Plain/", "Deep/Inner", "Missing", "node_modules"]);
+        // Written by this build: every entry the rules keep, as it stands.
+        assert_eq!(effective_grant(vault.path(), &stored, true), folders(&["", "Notes", "Plain", "Deep/Inner", "Missing"]));
+        // Written by 0.8.7: `Notes` and `Deep/Inner` may stand for ` Notes` and `Deep/Inner `.
+        assert_eq!(effective_grant(vault.path(), &stored, false), folders(&["", "Plain", "Missing"]));
+        assert!(effective_grant(vault.path(), &folders(&["/"]), true).is_empty(), "\"/\" is no name of the whole vault");
+        let gone = tempfile::tempdir().unwrap();
+        let unreadable = gone.path().join("not-there");
+        assert!(effective_grant(&unreadable, &folders(&["Plain"]), false).is_empty(), "a vault that cannot be listed vouches for nothing");
     }
 
     #[test]

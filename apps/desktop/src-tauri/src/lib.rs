@@ -514,6 +514,7 @@ pub fn run() {
             mcp::mcp_status,
             mcp::mcp_pair_answer,
             mcp::mcp_call_answer,
+            mcp::mcp_judge_paths,
             mcp::mcp_set_folders,
             mcp::mcp_set_writes,
             mcp::mcp_revoke,
