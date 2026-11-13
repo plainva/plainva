@@ -114,6 +114,32 @@ describe("the context package", () => {
     expect((await build(local)).refs.map((r) => r.path)).toContain("Journal/2026-09-28.md");
   });
 
+  it("compares the question's words with the note as the index does: a diacritic it folds does not slip past (review of R19, wave 2)", async () => {
+    const found = { path: "Notes/Meeting.md", title: "Meeting", signals: { lexical: 1 }, snippet: "Rates" };
+    const build = (question: string) =>
+      buildContextPackage({ question, recipient: cloud, situation: situation({ active: null, tabs: [], tasks: [], dailyNote: null }), candidates: [[found]], pins: [] }, host({ "Notes/Meeting.md": "# Meeting\n\nRates with [[Salaries|Kowalski]].\n" }));
+    // "Kowalskí" finds "Kowalski" in the index; the view has neither, so the note was found through what it withholds.
+    for (const question of ["What did Kowalski say?", "What did Kowalskí say?", "What did KOWALSKI say?"]) {
+      expect((await build(question)).refs.map((r) => r.path), question).not.toContain("Notes/Meeting.md");
+    }
+    // A word the view holds too keeps it.
+    expect((await build("What about the rates?")).refs.map((r) => r.path)).toContain("Notes/Meeting.md");
+  });
+
+  it("names a note and its sections as the cloud may see them, and picks the part by what it may see (review of R19, wave 2)", async () => {
+    const text = "# Plan\n\nIntro.\n\n## Talk with [[Salaries]]\n\nThe rates for [[Salaries|Kowalski]].\n\n## Rates\n\nThe rates are 95.\n\n" + "Filler line.\n".repeat(400);
+    const found = { path: "Notes/Plan.md", title: "Plan with [[Salaries]]", signals: { lexical: 1 }, snippet: "rates" };
+    const situationWith = situation({ active: { path: "Notes/Plan.md", title: "Plan with [[Salaries]]", kind: "note", heading: "Plan > Talk with [[Salaries]]" }, tabs: [{ path: "Notes/Plan.md", title: "Plan with [[Salaries]]" }], tasks: [], dailyNote: null });
+    for (const signals of [{ lexical: 1 }, { active: 1 }]) {
+      const pack = await buildContextPackage({ question: "What are the rates?", recipient: cloud, situation: situationWith, candidates: [[{ ...found, signals }]], pins: [] }, host({ "Notes/Plan.md": text }));
+      expect(pack.part.text, JSON.stringify(signals)).not.toMatch(/Salaries|Kowalski/);
+      expect(JSON.stringify(pack.refs), JSON.stringify(signals)).not.toMatch(/Salaries|Kowalski/);
+    }
+    // A word of the question in a withheld link alone does not choose the section: "Kowalski" is nowhere the cloud sees.
+    const byHidden = await buildContextPackage({ question: "Kowalski rates", recipient: cloud, situation: situation({ active: null, tabs: [], tasks: [], dailyNote: null }), candidates: [[{ ...found, signals: { pinned: 0, lexical: 1 } }]], pins: [] }, host({ "Notes/Plan.md": text }));
+    expect(byHidden.part.text).not.toMatch(/Salaries|Kowalski/);
+  });
+
   it("sends the first twelve due tasks the gate lets through: a task kept back takes no place (review of R19, wave 2)", async () => {
     const kept = Array.from({ length: 12 }, (_, i) => ({ title: `Kept ${i}`, path: "Private/Salaries.md", due: "2026-09-27" }));
     const pack = await buildContextPackage(

@@ -291,9 +291,9 @@ export interface WriteToolContext {
   /** The id of the call that runs, where the run has one: a question about it is asked under it. */
   callId?: string;
   /**
-   * A note's text as this run may see it (`ReaderView`, decision A of 2026-11-13): present only for a reader with a
-   * narrower view than the vault's own. A change is then made on the view, and what touches a withheld part of it is
-   * refused alike whatever that part holds.
+   * A note's text as this run may see it (`ReaderView`, decision A of 2026-11-13): a change is made on the view, and
+   * what touches a withheld part of it is refused alike whatever that part holds. Every run has one — a model on
+   * this device sees place stamps withheld too.
    */
   viewOf?(path: string, text: string): Promise<ReaderView>;
 }
@@ -528,8 +528,12 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const seen = view ? view.text : base;
   const outcome = edits.length ? applyNoteEdits(seen, edits) : appendToNote(seen, append, typeof a.section === "string" ? a.section : undefined);
   if (!outcome.ok) return { content: editProblemSentence(outcome.problem, outcome.edit), isError: true };
-  const changed = view ? rawChangeOf(view, outcome.text) : outcome.text;
-  if (changed === null) return refuse("withheld-part");
+  let changed = outcome.text;
+  if (view) {
+    const back = rawChangeOf(view, outcome.text);
+    if (!back.ok) return refuse(back.problem);
+    changed = back.raw;
+  }
 
   // A round inherits nothing, so it may only go where the rules of what the conversation rests on already hold.
   if (!(await placeTakes(run, ctx, note.path, base))) return refuse("restricted");
@@ -543,7 +547,9 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   if (chunks.length === 0 && intended === base) return refuse("unchanged");
   if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
   // The source check: what the change ADDS as links. A link the note already had is not this run's claim.
-  const links = await linksNowhere(run, ctx, addedNoteTargets(base, intended), note.path);
+  // What the change adds as links, as this run sees the note: a link the note holds where it is withheld is no link
+  // of it for this run, so naming it again is told like naming any other (review of R19, wave 2).
+  const links = await linksNowhere(run, ctx, view ? addedNoteTargets(seen, outcome.text) : addedNoteTargets(base, intended), note.path);
   const passages = Math.max(1, chunks.length);
   if (leave && !reason) {
     const outcome = await applyDirectChange(deps.direct!, note.path, base, intended);
@@ -1029,8 +1035,10 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
   if (deps.sealed()) return refuse("sealed");
   if (!SERVED_WRITE_TOOLS.includes(tool.name)) return refuse("unavailable");
   if (!run) return refuse("nobody");
-  // A placeholder of a view stands for what a reader is not shown: it never reaches a file, a draft or a plan.
-  if (ctx.viewOf && carriesPlaceholder(a)) return refuse("withheld-part");
+  // A placeholder of a view stands for what a reader is not shown: it never reaches a file, a draft or a plan. The
+  // edits of a note are the exception, taken back to the raw text change by change (`rawChangeOf`): a placeholder
+  // that stays where it stood is the part it stands for, kept; one brought in or moved is refused there.
+  if (ctx.viewOf && carriesPlaceholder(tool.name === "propose_edit" ? { ...a, edits: undefined } : a)) return refuse("withheld-part");
   try {
     switch (tool.name) {
       case "propose_edit":

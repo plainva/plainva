@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ReaderView, diffHunks, rawChangeOf, redactDeniedLinks, redactDeniedLinksIn } from "../src/ai/index.ts";
 import { withholdPlaces, withholdPlacesIn } from "../src/ai/context/sensitive.ts";
 import { redactSensitive, redactSensitiveIn, sensitiveFindings } from "../src/ai/context/sensitiveHints.ts";
+import { within } from "./helpers/timeBudget.js";
 import { excludedSearchTermSpecs, viewMatchesSearch, viewSearchSnippet, withoutExcludedSearchTerms } from "../src/vault/searchOccurrences.ts";
 
 /**
@@ -29,6 +30,15 @@ describe("a reader's view of a note", () => {
     expect(ReaderView.of(RAW).withholds).toBe(false);
   });
 
+  it("reads a link's target as the index does: a bar kept in a table cell ends the name in front of its backslash (review of R19, wave 2)", () => {
+    for (const raw of ["| a | [[Private/Salary\\|Kowalski]] |", "| a | [[Private/Salary#Pay\\|Kowalski]] |", "![[Private/Salary\\|300]]", "[[ Private/Salary |Kowalski]]"]) {
+      // Denied is exactly the note the index would open: a target read as "Private/Salary\\" is no note.
+      expect(redactDeniedLinks(raw, (target) => target === "Private/Salary").text, raw).not.toMatch(/Kowalski|Salary/);
+    }
+    // A link to a place in the note itself names no other note.
+    expect(redactDeniedLinks("See [[#Private]].", denied).text).toBe("See [[#Private]].");
+  });
+
   it("maps every part it shows back to the raw text, and no part it withholds", () => {
     const view = viewOf(RAW);
     const at = view.text.indexOf("for the numbers.");
@@ -43,17 +53,19 @@ describe("a reader's view of a note", () => {
 
   it("takes a change made on the view back to the raw text, and refuses one that touches a withheld part", () => {
     const view = viewOf(RAW);
+    const raw = (changed: string) => {
+      const out = rawChangeOf(view, changed);
+      return out.ok ? out.raw : out.problem;
+    };
     const changed = view.text.replace("for the numbers.", "for all numbers.").replace("# Pay\n", "# Pay 2026\n");
-    expect(rawChangeOf(view, changed)).toBe(RAW.replace("for the numbers.", "for all numbers.").replace("# Pay\n", "# Pay 2026\n"));
-    // The hidden parts stay as they were.
-    expect(rawChangeOf(view, changed)).toContain("[[Private/Salary 2026|Kowalski]]");
-    // Touching one — taking it away, editing next to and into it — is refused.
-    expect(rawChangeOf(view, view.text.replace("See ⟦withheld note⟧ for", "See for"))).toBeNull();
-    expect(rawChangeOf(view, view.text.replace("⟦withheld note⟧ for", "⟦withheld note⟧, for"))).not.toBeNull();
-    expect(rawChangeOf(view, view.text.replace("withheld note⟧ for", "withheld note!⟧ for"))).toBeNull();
+    expect(raw(changed)).toBe(RAW.replace("for the numbers.", "for all numbers.").replace("# Pay\n", "# Pay 2026\n"));
+    // Touching one — taking it away, editing into it — is refused; beside it is not.
+    expect(raw(view.text.replace("See ⟦withheld note⟧ for", "See for"))).toBe("withheld-part");
+    expect(raw(view.text.replace("⟦withheld note⟧ for", "⟦withheld note⟧, for"))).toBe(RAW.replace("Kowalski]] for", "Kowalski]], for"));
+    expect(raw(view.text.replace("withheld note⟧ for", "withheld note!⟧ for"))).toBe("withheld-part");
     // A placeholder never reaches the raw text, wherever it is put.
-    expect(rawChangeOf(view, `${view.text}Copy: ⟦withheld note⟧\n`)).toBeNull();
-    expect(rawChangeOf(view, view.text)).toBe(RAW);
+    expect(raw(`${view.text}Copy: ⟦withheld note⟧\n`)).toBe("withheld-part");
+    expect(raw(view.text)).toBe(RAW);
   });
 
   it("keeps changes far apart apart, so a withheld part between them is not taken for touched", () => {
@@ -63,7 +75,21 @@ describe("a reader's view of a note", () => {
       { from: before.indexOf("c"), to: before.indexOf("c") + 1, with: "C" },
     ]);
     const view = viewOf("a\nb [[Private/X]]\nc\n");
-    expect(rawChangeOf(view, view.text.replace("a\n", "A\n").replace("c\n", "C\n"))).toBe("A\nb [[Private/X]]\nc\n".replace("c\n", "C\n"));
+    expect(rawChangeOf(view, view.text.replace("a\n", "A\n").replace("c\n", "C\n"))).toEqual({ ok: true, raw: "A\nb [[Private/X]]\nC\n" });
+  });
+
+  it("compares only the changed middle, bounded, and a view that withholds nothing not at all (review of R19, wave 2)", () => {
+    const lines = Array.from({ length: 20_000 }, (_, i) => `line ${i}\n`).join("");
+    const plain = ReaderView.of(lines);
+    const withheld = redactDeniedLinksIn(ReaderView.of(`[[Private/X]]\n${lines}`), denied).view;
+    const everything = withheld.text.replace(/line /g, "LINE ");
+    within(2_000, () => {
+      expect(rawChangeOf(plain, lines.replace("line 9999\n", "line 9999!\n"))).toEqual({ ok: true, raw: lines.replace("line 9999\n", "line 9999!\n") });
+      expect(rawChangeOf(plain, `${lines}x ⟦withheld note⟧\n`)).toEqual({ ok: false, problem: "withheld-part" });
+      expect(rawChangeOf(withheld, withheld.text.replace("line 19999\n", "line 19999!\n"))).toMatchObject({ ok: true });
+      // A change that rewrites everything is no edit of a passage: refused rather than compared line by line with every line.
+      expect(rawChangeOf(withheld, everything)).toEqual({ ok: false, problem: "too-long" });
+    });
   });
 
   it("widens a replacement that reaches into a placeholder to the whole of it, and never cuts one", () => {

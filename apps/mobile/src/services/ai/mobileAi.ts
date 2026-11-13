@@ -550,8 +550,9 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       },
       toolDeps: {
         async search(q, limit, offset, within) {
-          const hits = await query.searchFullText(q, limit, offset, false, null, within);
-          return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
+          // With the text the index holds: a search read through a view tests each hit on it.
+          const hits = await query.searchFullText(q, limit, offset, true, null, within);
+          return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null, content: hit.sourceContent ?? null }));
         },
         readNote: read,
         taskRows,

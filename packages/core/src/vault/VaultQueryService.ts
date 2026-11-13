@@ -29,6 +29,9 @@ import { likeAnySpelling } from "../db/likeEscape.js";
 import { FILE_AND_FULL_TEXT_ROW, fullTextRowOf, FULL_TEXT_ROW_IS_FILED } from "../db/fullTextRows.js";
 import { buildLinkTargetIndex, linkTargetName, noteLinkResolver, resolveLinkRow, resolveLinkTargetIndexed, resolveMarkdownLinkIndexed, type LinkCorpusFile, type LinkTargetIndex, type MarkdownLinkAnswer } from "./LinkResolver.js";
 import { buildLinkNameIndex, filesALinkCouldMean } from "../ai/linkNames.js";
+import { redactDeniedLinksIn } from "../ai/egressGate.js";
+import type { LinkRule } from "../ai/chat.js";
+import { ReaderView } from "../ai/readerView.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
@@ -236,6 +239,13 @@ function withinFoldersSql(column: string, folders: readonly string[]): { sql: st
     return `(${column} = ? OR substr(${column}, 1, length(?)) = ?)`;
   });
   return { sql: `(${one.join(" OR ")})`, params };
+}
+
+/** The texts a row's value holds: a string, or the strings of a list. */
+function stringsOf(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
+  return [];
 }
 
 /**
@@ -1298,6 +1308,67 @@ export class VaultQueryService {
   }
 
   /**
+   * A row's own values as a reader with a narrower view may see them (`queryDatabaseFiles` `withhold`): each link in
+   * a property withheld where the rule says so — under "in-reach" where it means no note in reach, under
+   * "any-kept-back" where it could mean one out of reach —, read by the one reading of a link the views use
+   * (`redactDeniedLinksIn`), the note's name (`file.name`, a title of its properties) the same way, and the hidden
+   * keys set to nothing. Computed columns (reverse, rollup) are left as they
+   * are: they are made of notes in reach already.
+   */
+  private async _withholdRowValues(result: any[], reach: Reach, withhold: { rule: LinkRule; hiddenKeys?: readonly string[] }): Promise<void> {
+    const hidden = new Set((withhold.hiddenKeys ?? []).map((key) => key.toLowerCase()));
+    // A note's own values: its properties, and its name — which is the title of its properties where it has one, and
+    // holds a link like any of them (review of R19, wave 2). The other `file.` fields are its path, made by nobody.
+    const own = (key: string) => key === "file.name" || (!key.startsWith("file.") && !key.startsWith("formula."));
+    // 1. Every link target of every value, by row.
+    const asked: { from: string; target: string }[] = [];
+    for (const row of result) {
+      const from = String(row["file.path"] ?? "");
+      for (const [key, value] of Object.entries(row)) {
+        if (!own(key) || hidden.has(key.toLowerCase())) continue;
+        for (const text of stringsOf(value)) {
+          redactDeniedLinksIn(ReaderView.of(text), (target) => {
+            asked.push({ from, target });
+            return false;
+          });
+        }
+      }
+    }
+    // 2. What each could mean, and which of those are in reach — in one question.
+    const files = asked.length ? await this.linkTargets() : [];
+    const names = buildLinkNameIndex(files);
+    const meanings = new Map<string, string[]>();
+    const all = new Set<string>();
+    for (const { from, target } of asked) {
+      const key = `${from}\u0000${target}`;
+      if (meanings.has(key)) continue;
+      const paths = filesALinkCouldMean(names, linkTargetName(target), from);
+      meanings.set(key, paths);
+      for (const path of paths) all.add(path);
+    }
+    const inReach = all.size ? await reach.ask([...all]) : new Set<string>();
+    const denied = (from: string, target: string): boolean => {
+      const paths = meanings.get(`${from}\u0000${target}`) ?? [];
+      return withhold.rule === "in-reach" ? !paths.some((path) => inReach.has(path)) : paths.some((path) => !inReach.has(path));
+    };
+    // 3. The values, withheld.
+    for (const row of result) {
+      const from = String(row["file.path"] ?? "");
+      const shown = (text: string) => redactDeniedLinksIn(ReaderView.of(text), (target) => denied(from, target)).view.text;
+      for (const key of Object.keys(row)) {
+        if (!own(key)) continue;
+        if (hidden.has(key.toLowerCase())) {
+          row[key] = null;
+          continue;
+        }
+        const value = row[key];
+        if (typeof value === "string") row[key] = shown(value);
+        else if (Array.isArray(value)) row[key] = value.map((item) => (typeof item === "string" ? shown(item) : item));
+      }
+    }
+  }
+
+  /**
    * Fill the rollup columns of one result set.
    *
    * A rollup reaches through a link column of THIS base (a stored relation or a
@@ -1784,6 +1855,13 @@ export class VaultQueryService {
        * run on those values. A reach that throws fails the query. Absent: every note of the vault, as before.
        */
       reach?: (paths: readonly string[]) => ReadonlySet<string> | Promise<ReadonlySet<string>>;
+      /**
+       * With a reach: the values a row shows as that reader may see them, BEFORE the filters and the sort run on them
+       * (review of R19, wave 2) — a link in a property that the reader may not see becomes the placeholder
+       * (`WITHHELD_LINK`) under `rule`, and the properties in `hiddenKeys` (the mood, Plainva's own) are no values at
+       * all. So neither a row's place nor its being there depends on what is withheld.
+       */
+      withhold?: { rule: LinkRule; hiddenKeys?: readonly string[] };
     } = {},
   ): Promise<any[]> {
     const reach = options.reach ? reachOf(options.reach) : null;
@@ -2004,6 +2082,8 @@ export class VaultQueryService {
     // tasks that point at me are still open". Like the reverse column the value
     // is computed here and stored in no note.
     await this._enrichRollups(config, result, reach);
+
+    if (reach && options.withhold) await this._withholdRowValues(result, reach, options.withhold);
 
     let finalResult = result;
 

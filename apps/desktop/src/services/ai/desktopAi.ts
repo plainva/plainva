@@ -702,8 +702,9 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     },
     toolDeps: {
       async search(query, limit, offset, within) {
-        const hits = await input.query.searchFullText(query, limit, offset, false, null, within);
-        return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
+        // With the text the index holds: a search read through a view tests each hit on it.
+        const hits = await input.query.searchFullText(query, limit, offset, true, null, within);
+        return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null, content: hit.sourceContent ?? null }));
       },
       readNote: read,
       taskRows,

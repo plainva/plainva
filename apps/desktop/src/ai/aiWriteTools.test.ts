@@ -189,6 +189,28 @@ describe("a change to a note is a suggestion round", () => {
     expect(accepted(v.proposed[1]!)).toBe(OFFER.replace("status: draft\n", "status: draft\nowner: Tom\n"));
   });
 
+  it("lets a model on this device change the line it was shown beside a place stamp, and write no placeholder (review of R19, wave 2)", async () => {
+    const DAY = "# Monday\n\n- 09:12 Walk\n📍 52.5200, 13.4050\n\nEnd.\n";
+    const v = vault({ current: async (path) => (path === "Daily/Monday.md" ? DAY : (NOTES[path] ?? null)) });
+    v.deps.readNote = async (path) => (path === "Daily/Monday.md" ? DAY : (NOTES[path] ?? null));
+    const w = writer();
+    // The place is withheld from every model; the note is read as that view.
+    const read = await call(v, w.run, "read_note", { path: "Daily/Monday.md" }, local);
+    expect(read.content).toContain("⟦place withheld⟧");
+    expect(read.content).not.toContain("52.52");
+    // An edit of the line it was shown is laid on the raw text, the stamp kept.
+    expect((await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "- 09:12 Walk\n📍 ⟦place withheld⟧", replace: "- 09:12 Long walk\n📍 ⟦place withheld⟧" }] }, local)).content).toContain("Proposed on Daily/Monday.md");
+    expect(accepted(v.proposed[0]!)).toBe(DAY.replace("Walk", "Long walk"));
+    // Changing the stamp, or taking the placeholder along anywhere else, is refused — never written into a file.
+    expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "⟦place withheld⟧", replace: "Berlin" }] }, local)).toEqual(refused("withheld-part"));
+    expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "End.", replace: "End. 📍 ⟦place withheld⟧" }] }, local)).toEqual(refused("withheld-part"));
+    expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", edits: [{ find: "- 09:12 Walk\n📍 ⟦place withheld⟧", replace: "📍 ⟦place withheld⟧\n- 09:12 Walk" }] }, local)).toEqual(refused("withheld-part"));
+    expect(await call(v, w.run, "propose_edit", { path: "Daily/Monday.md", append: "Copied: ⟦place withheld⟧" }, local)).toEqual(refused("withheld-part"));
+    expect(await call(v, w.run, "create_note", { title: "Walks", content: "- 09:12 Walk\n⟦place withheld⟧\n" }, local)).toEqual(refused("withheld-part"));
+    expect(w.drafts).toHaveLength(0);
+    expect(v.proposed).toHaveLength(1);
+  });
+
   it("lays the change on the note and changes nothing — the answer names the count, never the words", async () => {
     const v = vault();
     const w = writer();

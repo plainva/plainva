@@ -173,44 +173,71 @@ function merged(pieces: readonly ViewPiece[]): ViewPiece[] {
 /** Placeholders a view writes: a text that carries one of them was made from a view, and is never written to a file. */
 export const VIEW_PLACEHOLDER = /⟦(?:withheld [^⟧\n]*|place withheld)⟧/u;
 
+/** What `rawChangeOf` makes of a change on the view. */
+export type RawChange = { ok: true; raw: string } | { ok: false; problem: "withheld-part" | "too-long" };
+
+/** How many cells the comparison of the changed middle of two views may take at most (lines × lines). */
+export const VIEW_DIFF_CELLS_MAX = 1_000_000;
+
 /**
  * Applies a change made on the view's text to the raw text: the changed ranges (from a diff of the two view texts)
- * go back through `toRaw`. Null where a change touches a withheld piece, or where the new text carries a placeholder
- * — what is withheld is never changed, and never written, from a view.
+ * go back through `toRaw`. Refused where a change touches a withheld piece, or where the new text carries a
+ * placeholder — what is withheld is never changed, and never written, from a view. A view that withholds nothing is
+ * the raw text: the change is taken as it is, without a comparison. The comparison runs over the lines between the
+ * common start and the common end of the two texts, bounded (`VIEW_DIFF_CELLS_MAX`, review of R19, wave 2: a whole
+ * note's lines compared with each other took a second and 200 MB at 6 000 lines).
  */
-export function rawChangeOf(view: ReaderView, changed: string): string | null {
+export function rawChangeOf(view: ReaderView, changed: string): RawChange {
   const before = view.text;
-  if (changed === before) return view.raw;
+  if (changed === before) return { ok: true, raw: view.raw };
+  if (!view.withholds) {
+    // Nothing withheld: only a placeholder brought in is refused.
+    return placeholders(changed) > placeholders(before) ? { ok: false, problem: "withheld-part" } : { ok: true, raw: changed };
+  }
   const hunks = diffHunks(before, changed);
+  if (!hunks) return { ok: false, problem: "too-long" };
   let out = "";
   let at = 0;
   for (const hunk of hunks) {
-    if (VIEW_PLACEHOLDER.test(hunk.with)) return null;
+    if (VIEW_PLACEHOLDER.test(hunk.with)) return { ok: false, problem: "withheld-part" };
     const raw = view.toRaw(hunk.from, hunk.to);
-    if (!raw) return null;
+    if (!raw) return { ok: false, problem: "withheld-part" };
     out += view.raw.slice(at, raw.from) + hunk.with;
     at = raw.to;
   }
-  return out + view.raw.slice(at);
+  return { ok: true, raw: out + view.raw.slice(at) };
+}
+
+/** How many placeholders a text carries. */
+function placeholders(text: string): number {
+  return text.match(new RegExp(VIEW_PLACEHOLDER.source, "gu"))?.length ?? 0;
 }
 
 /**
- * The changes from `before` to `after` as ranges of `before` and their new text, line by line (an LCS over lines,
- * then the common start and end of each changed block), so that changes far apart stay apart and a withheld piece
- * between them is not taken for touched.
+ * The changes from `before` to `after` as ranges of `before` and their new text, line by line: the common start
+ * and end lines aside, an LCS over the lines between, then the common start and end of each changed block — so that
+ * changes far apart stay apart and a withheld piece between them is not taken for touched. Null where the middle is
+ * larger than `VIEW_DIFF_CELLS_MAX` cells.
  */
-export function diffHunks(before: string, after: string): ViewReplacement[] {
-  const a = splitKeep(before);
-  const b = splitKeep(after);
+export function diffHunks(before: string, after: string): ViewReplacement[] | null {
+  const all = splitKeep(before);
+  const bAll = splitKeep(after);
+  let head = 0;
+  while (head < all.length && head < bAll.length && all[head] === bAll[head]) head++;
+  let tail = 0;
+  while (tail < all.length - head && tail < bAll.length - head && all[all.length - 1 - tail] === bAll[bAll.length - 1 - tail]) tail++;
+  const a = all.slice(head, all.length - tail);
+  const b = bAll.slice(head, bAll.length - tail);
   const n = a.length;
   const m = b.length;
-  // LCS table over lines; notes are small enough, and a view is compared once per change.
-  const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) lcs[i]![j] = a[i] === b[j] ? lcs[i + 1]![j + 1]! + 1 : Math.max(lcs[i + 1]![j]!, lcs[i]![j + 1]!);
+  if ((n + 1) * (m + 1) > VIEW_DIFF_CELLS_MAX) return null;
+  const width = m + 1;
+  const lcs = new Uint32Array((n + 1) * width);
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) lcs[i * width + j] = a[i] === b[j] ? lcs[(i + 1) * width + j + 1]! + 1 : Math.max(lcs[(i + 1) * width + j]!, lcs[i * width + j + 1]!);
   const hunks: ViewReplacement[] = [];
   let i = 0;
   let j = 0;
-  let offA = 0;
+  let offA = all.slice(0, head).reduce((sum, line) => sum + line.length, 0);
   let pending: { from: number; to: number; with: string } | null = null;
   const close = () => {
     if (!pending) return;
@@ -230,7 +257,7 @@ export function diffHunks(before: string, after: string): ViewReplacement[] {
       offA += a[i]!.length;
       i++;
       j++;
-    } else if (j < m && (i >= n || lcs[i]![j + 1]! >= lcs[i + 1]![j]!)) {
+    } else if (j < m && (i >= n || lcs[i * width + j + 1]! >= lcs[(i + 1) * width + j]!)) {
       pending ??= { from: offA, to: offA, with: "" };
       pending.with += b[j]!;
       j++;

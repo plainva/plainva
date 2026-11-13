@@ -1,3 +1,4 @@
+import { wikiLinkParts } from "../wikiLink.js";
 import { ReaderView } from "./readerView.js";
 import type { AiPolicyDimension, EffectivePolicy, PolicySource } from "./policy.js";
 
@@ -94,7 +95,12 @@ export function hardGate<T>(
 /** What a withheld link becomes: says that something was there, not what. */
 export const WITHHELD_LINK = "⟦withheld note⟧";
 
-const WIKI_LINK = /!?\[\[([^[\]|#\n]+)(?:#[^[\]|\n]*)?(?:\|[^[\]\n]*)?\]\]/g;
+/**
+ * A wiki link: what stands between `[[` and `]]` on one line. Its target is read by the index's own reading
+ * (`wikiLinkParts`), never by a pattern of its own — a bar kept in a table cell (`[[Note\|alias]]`) ends the name in
+ * front of its backslash there as here (review of R19, wave 2: the pattern read `Note\` and found no note).
+ */
+const WIKI_LINK = /!?\[\[([^[\]\n]+)\]\]/g;
 /**
  * A Markdown link: its destination in angle brackets — where it may hold
  * blanks — or as a run without blanks, with one level of round brackets; then
@@ -149,7 +155,11 @@ export function redactDeniedLinksIn(view: ReaderView, isDenied: (target: string)
     redacted++;
     return WITHHELD_LINK;
   };
-  let out = view.replace(WIKI_LINK, (match, target: string) => (isDenied(target.trim()) ? withheld() : match));
+  // A link to a place in the note itself (`[[#Heading]]`) names no other note.
+  let out = view.replace(WIKI_LINK, (match, inner: string) => {
+    const target = wikiLinkParts(inner).target;
+    return target && isDenied(target) ? withheld() : match;
+  });
   out = out.replace(INLINE_LINK, (match, _label: string, angled: string | undefined, bare: string | undefined) => {
     const target = vaultTarget(angled ?? bare ?? "");
     return target && isDenied(target) ? withheld() : match;

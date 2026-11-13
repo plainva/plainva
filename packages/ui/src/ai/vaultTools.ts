@@ -46,7 +46,8 @@ import {
   toolByName,
   toolInputJsonSchema,
   VaultQueryService,
-  excludedSearchTermSpecs,
+  MOOD_PROPERTY_NAMES,
+  type LinkRule,
   viewMatchesSearch,
   viewSearchSnippet,
   withholdDeniedLinksIn,
@@ -101,14 +102,18 @@ export interface AiNavigationCommand {
  */
 export interface DatabaseReach {
   reach?: (paths: readonly string[]) => Promise<ReadonlySet<string>>;
+  /** The values as the reader may see them before the filters and the sort (`queryDatabaseFiles` `withhold`). */
+  withhold?: { rule: LinkRule; hiddenKeys?: readonly string[] };
 }
 
 export interface VaultToolDeps {
   /**
    * `within`: the folders a run is confined to, compared exactly (`ToolScope.folders`) — the index is asked for hits
    * there alone, so how long a search takes says nothing of the notes outside them. Absent: the whole vault.
+   * `content`: the text the index holds of the note, where the shell hands it along — a search read through a view
+   * tests each hit on it without reading the note again.
    */
-  search(query: string, limit: number, offset: number, within?: readonly string[]): Promise<{ path: string; title: string; snippet?: string | null }[]>;
+  search(query: string, limit: number, offset: number, within?: readonly string[]): Promise<{ path: string; title: string; snippet?: string | null; content?: string | null }[]>;
   /** The note's text as the adapter chain reads it; null when there is none. */
   readNote(path: string): Promise<string | null>;
   /** Where a tap on a link leads in this shell: the one note a command opens. */
@@ -329,6 +334,9 @@ export function withoutBrokenLinks(text: string): string {
 /** How many index hits one search_vault call reads at most while it looks for results this run may see. */
 const SEARCH_SCAN_MAX = 2000;
 
+/** How many index hits a search read through a view looks at, at most (review of R19, wave 2). */
+const SEARCH_SCAN_MAX_VIEWED = 500;
+
 /** Neighbours of a note: all of them are asked for, and the answer is cut after the gate. */
 const NEIGHBOURS_ALL = 100_000;
 
@@ -515,6 +523,21 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    * from it works as it always did.
    */
   const restricted = cloud || run.webTools || Boolean(scope?.linksInReach);
+  /**
+   * Rows of the index with their titles as this run may see them (review of R19, wave 2): the index takes a note's
+   * title from its properties, and a title holds a link like any text — withheld the same way, before a search tests
+   * a hit on it and before any list names a note by it.
+   */
+  const titled = async <R extends object>(rows: R[], pathKey: keyof R & string, titleKey: keyof R & string): Promise<R[]> => {
+    if (!restricted) return rows;
+    return Promise.all(
+      rows.map(async (row) => {
+        const title = row[titleKey];
+        if (typeof title !== "string" || !title) return row;
+        return { ...row, [titleKey]: await withhold(title, String(row[pathKey] ?? "")) };
+      }),
+    );
+  };
   const readAllowed = async (raw: unknown): Promise<{ path: string; text: string } | null> => {
     const path = typeof raw === "string" ? safeRelPath(raw) : null;
     if (!path) return null;
@@ -533,17 +556,20 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    * title and its path, which it may see — answers the query too, and with a snippet from the view. A note that
    * withholds nothing answers as the index found it; one that does is read, and left out in doubt.
    */
-  const searchedView = async <H extends { path: string; title: string; snippet?: string | null }>(hit: H, input: string): Promise<H | null> => {
-    const text = await deps.readNote(hit.path);
+  const searchedView = async <H extends { path: string; title: string; snippet?: string | null; content?: string | null }>(hit: H, input: string): Promise<H | null> => {
+    // The text the index found the hit in, where the shell hands it along; the note read otherwise.
+    const text = hit.content ?? (await deps.readNote(hit.path));
     if (text === null) return null;
-    // The note's text without its properties: those go to a reader only as `propertyLines` withholds them.
-    const view = await viewOf(stripFrontmatter(text), hit.path);
-    if (!view.withholds && excludedSearchTermSpecs(input).length === 0) {
-      return { ...hit, snippet: hit.snippet ? await withhold(withoutBrokenLinks(unmarkSnippet(hit.snippet)), hit.path) : hit.snippet };
-    }
-    const seen = `${hit.title}\n${hit.path}\n${view.text}`;
+    // Every hit is tested on what this run may see of it — whatever the note holds back or not: the index holds the
+    // properties too, and a link in one of them is withheld like one in the text (review of R19, wave 2). What the
+    // run sees: the title, the path, the properties as `propertyLines` gives them (the mood and Plainva's own left
+    // out, links withheld) and the view of the text.
+    const body = stripFrontmatter((await viewOf(text, hit.path)).text);
+    const properties = (await propertyLines(notePropertiesOf(text, 64), hit.path)).join("\n");
+    const seen = `${hit.title}\n${hit.path}\n${properties}\n${body}`;
     if (!viewMatchesSearch(seen, input)) return null;
-    return { ...hit, snippet: viewSearchSnippet(view.text, input) ?? "" };
+    const { content: _content, ...rest } = hit;
+    return { ...rest, snippet: viewSearchSnippet(`${properties}\n${body}`, input) ?? "" } as unknown as H;
   };
   let mood: Promise<string | null> | null = null;
   /** Properties as `- key: value` lines, without the plainva namespace and the mood. */
@@ -625,11 +651,16 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const batch = Math.max(limit, 25);
           const passedHits: Awaited<ReturnType<typeof deps.search>> = [];
           const within = scope?.folders ? [...scope.folders] : undefined;
-          for (let read = 0; passedHits.length < wanted && read < SEARCH_SCAN_MAX; ) {
-            const hits = await deps.search(query, batch, read, within);
+          // Read through a view, every hit costs a look at its note and may be left out: the scan is bounded tighter,
+          // by a number that says nothing of what is withheld.
+          const scanMax = restricted ? SEARCH_SCAN_MAX_VIEWED : SEARCH_SCAN_MAX;
+          for (let read = 0; passedHits.length < wanted && read < scanMax; ) {
+            const hits = await titled(await deps.search(query, batch, read, within), "path", "title");
             await ready(hits.map((hit) => hit.path));
             for (const hit of hits) {
               if (passedHits.length >= wanted) break;
+              // The gate reads the note's own rules from the note itself: the index's text may be older than a rule
+              // just written into it.
               if (!(await allowed(hit.path))) continue;
               if (restricted) {
                 const shown = await searchedView(hit, asked);
@@ -703,7 +734,12 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const merged = { ...config, filters: combineFilters(config.filters, view?.filters), views: view ? [view] : [] };
           // A reverse column and a rollup are computed only from notes this run may see: a sum over a relation into a
           // folder kept from it would otherwise carry that folder's numbers out, and its filters and sort would too.
-          const rows = (await deps.queryDatabase(merged, { reach: allowedOf })) as Record<string, unknown>[];
+          // Read through a view, the rows' values are withheld before the view's filters and its sort run on them:
+          // neither a row's place nor its being there depends on what is withheld (review of R19, wave 2).
+          mood ??= deps.moodKey ? deps.moodKey().catch(() => null) : Promise.resolve(null);
+          const moodKey = await mood;
+          const withheldValues = restricted ? { withhold: { rule: (scope?.linksInReach ? "in-reach" : "any-kept-back") as LinkRule, hiddenKeys: [...MOOD_PROPERTY_NAMES, ...(moodKey ? [moodKey] : []), "plainva"] } } : {};
+          const rows = (await deps.queryDatabase(merged, { reach: allowedOf, ...withheldValues })) as Record<string, unknown>[];
           const columns = (view?.order ?? []).filter((c) => !c.startsWith("file.") && !c.startsWith("formula.")).map((c) => c.replace(/^note\./, ""));
           const limit = Number(a.limit) || 20;
           const offset = offsetOf(a.cursor);
@@ -772,7 +808,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const linking: { title: string; path: string; links: number; places: { line: number; under: string; text: string }[] }[] = [];
           let passed = 0;
           // Resolved among the notes this run may reach: a note of the same name outside takes no backlink away.
-          for (const group of groupBacklinks(await deps.backlinks(note.path, { reach: allowedOf }))) {
+          for (const group of groupBacklinks(await titled(await deps.backlinks(note.path, { reach: allowedOf }), "source_path", "source_title"))) {
             if (group.source_path === note.path) continue;
             const source = await readAllowed(group.source_path);
             if (!source) continue;
@@ -808,7 +844,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           // Every neighbour, resolved among the notes this run may reach; then the gate, page by page, and the cut
           // once enough passed: a cut before the gate would say how many lie outside, a gate over all of them would
           // read every note of a busy one (review of R19, wave 2).
-          const around = await deps.neighbors(note.path, NEIGHBOURS_ALL, { reach: allowedOf });
+          const around = await titled(await deps.neighbors(note.path, NEIGHBOURS_ALL, { reach: allowedOf }), "path", "title");
           for (const [at, n] of around.entries()) {
             if (at % GATE_PAGE === 0) await ready(around.slice(at, at + GATE_PAGE).map((m) => m.path));
             if (seen.has(n.path) || !(await allowed(n.path))) continue;
@@ -822,7 +858,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           if (Number(a.depth) === 2) {
             for (const via of first.slice(0, 8)) {
               if (lines.length >= limit) break;
-              const further = await deps.neighbors(via.path, NEIGHBOURS_ALL, { reach: allowedOf });
+              const further = await titled(await deps.neighbors(via.path, NEIGHBOURS_ALL, { reach: allowedOf }), "path", "title");
               let taken = 0;
               for (const [at, n] of further.entries()) {
                 if (lines.length >= limit || taken >= 10) break;
@@ -867,7 +903,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             // Read in pages past what is shown, in the scope's folders alone: what is cut is cut after the gate.
             const within = scope?.folders ? [...scope.folders] : undefined;
             const changed = await passingPages(
-              (offset, size) => recentlyChanged(size, offset, within),
+              async (offset, size) => titled(await recentlyChanged(size, offset, within), "path", "title"),
               (r) => Boolean(safeRelPath(r.path)) && allowed(r.path),
               limit,
               (page) => ready(page.map((r) => r.path)),
@@ -909,7 +945,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           let read = 0;
           const nextPage = async (): Promise<boolean> => {
             if (ended || read >= SEARCH_SCAN_MAX) return false;
-            const page = await history.changedIn(folder, since, CHANGES_PAGE, read, within);
+            const page = await titled(await history.changedIn(folder, since, CHANGES_PAGE, read, within), "path", "title");
             read += page.length;
             rows.push(...page);
             if (page.length < CHANGES_PAGE) ended = true;
@@ -1128,8 +1164,9 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           // The writing tools (plan P5): none of them changes the vault — a proposal, a draft, or a plan the user confirms.
           const written = await writeToolOutcome(deps.writes, writing, tool, a, {
             readAllowed,
-            // A reader with a narrower view changes a note on what it may see of it (decision A of 2026-11-13).
-            ...(restricted ? { viewOf: (path: string, text: string) => viewOf(text, path) } : {}),
+            // A note is changed on what this run may see of it (decision A of 2026-11-13) — also a model on this
+            // device, which sees a place stamp withheld and could not change the line otherwise.
+            viewOf: (path: string, text: string) => viewOf(text, path),
             safeFolder: (raw) => (typeof raw === "string" ? safeRelPath(withoutTrailingSlashes(raw.trim())) : null),
             allowed: placeAllowed,
             policyOf: deps.policyOf,

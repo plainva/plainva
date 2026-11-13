@@ -10,6 +10,7 @@ import { cardText, contextCard } from "./cards.js";
 import { checkGist, gistKey } from "./gists.js";
 import { areaOf } from "./gistWriter.js";
 import { atxHeading, firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
+import { findSearchOccurrences } from "../../vault/searchOccurrences.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
 import { goingKinds, redactSensitive, SENSITIVE_KINDS, sensitiveFindings, sensitiveKinds, SITUATION_SOURCE, type SensitiveKind } from "./sensitiveHints.js";
 import { questionTerms } from "./terms.js";
@@ -346,9 +347,10 @@ function propertyLine(key: string, value: unknown): string {
 }
 
 /** The section a card is cut from: where the question's words are, else where its meaning was, else the note's start. */
-function cardSource(text: string, title: string, candidate: RankedCandidate, terms: readonly string[]): { chain: string; text: string } {
+function cardSource(text: string, title: string, candidate: RankedCandidate, terms: readonly string[], seenBody = noteBody(text)): { chain: string; text: string } {
   const body = noteBody(text);
-  const line = firstLineWith(body, terms);
+  // The line is looked for in what the reader may see of the note, which has the note's lines.
+  const line = firstLineWith(seenBody, terms);
   if (line >= 0) return sectionAt(body, line);
   if (candidate.chunk) {
     const chunk = chunkNote(title, text).find((c) => c.ordinal === candidate.chunk!.ordinal);
@@ -432,6 +434,17 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     return decision.allowed;
   };
   /** What any vault text passes before it goes: place stamps withheld; for a cloud or a run with the internet, links to denied notes too. */
+  /**
+   * A text as this run may see it, without counting what it withholds: what PICKS a part of a note — the line that
+   * holds a word of the question — and what NAMES one — a title, a section's headings — is read on it, so neither
+   * the choice nor the name depends on what is withheld (review of R19, wave 2). A withheld link stands in its line,
+   * a place stamp is a line of its own: the lines are the note's lines.
+   */
+  const seenOf = async (text: string, fromPath: string): Promise<string> => {
+    const places = withholdPlaces(text).text;
+    if (!cloud && !run.webTools) return places;
+    return (await withholdDeniedLinks(places, fromPath, host, (path) => allowed(path))).text;
+  };
   const clean = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text);
     redactions.places += places.withheld;
@@ -512,9 +525,11 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     const view = await withholdDeniedLinks(text, c.path, host, (path) => allowed(path));
     if (view.redacted === 0) return false;
     if (!lexical) return true;
-    const raw = text.toLowerCase();
-    const seen = `${c.title}\n${c.path}\n${view.text}`.toLowerCase();
-    return terms.some((term) => term.length >= 3 && raw.includes(term.toLowerCase()) && !seen.includes(term.toLowerCase()));
+    // Words compared as the full-text index compares them — letter case, diacritics and scripts without spaces
+    // alike (`findSearchOccurrences`): a spelling the index folds must not find the note around the check.
+    const seen = `${await seenOf(c.title, c.path)}\n${c.path}\n${view.text}`;
+    const has = (where: string, term: string) => findSearchOccurrences(where, term, { limit: 1 }).length > 0;
+    return terms.some((term) => has(text, term) && !has(seen, term));
   };
   const strong = (c: RankedCandidate) =>
     (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0 || (c.signals.lexical ?? 0) >= 0.3 || (c.signals.semantic ?? 0) >= 0.5;
@@ -536,6 +551,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (await foundThroughWithheld(candidate, read.text)) continue;
     const hash = noteHash(read.text);
     const body = noteBody(read.text);
+    const seenBody = noteBody(await seenOf(read.text, candidate.path));
     bodyBytes.set(candidate.path, utf8Length(body));
     const room = budget.evidenceChars - evidenceChars;
     let text: string;
@@ -554,7 +570,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       fromNote = text;
       whole = !clipped.clipped;
     } else if ((candidate.signals.active ?? 0) > 0) {
-      const line = firstLineWith(body, terms);
+      const line = firstLineWith(seenBody, terms);
       const outline = outlineOf(body).map((h) => `${"  ".repeat(h.level - 1)}- ${h.text}`);
       if (line >= 0 && body.length > budget.activeChars) {
         const found = sectionAt(body, line);
@@ -569,7 +585,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
         if (clipped.clipped && outline.length) text = `Sections:\n${outline.join("\n")}\n\n${text}`;
       }
     } else {
-      const line = firstLineWith(body, terms);
+      const line = firstLineWith(seenBody, terms);
       // Found by meaning and not by a word: the section the meaning came from, not the note's beginning.
       const chunk = line < 0 && candidate.chunk ? chunkNote(read.title || candidate.title, read.text).find((c) => c.ordinal === candidate.chunk!.ordinal) : undefined;
       if (chunk && chunk.to > chunk.from) {
@@ -603,6 +619,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // a place stamp or a link that is withheld is no part of a note that was left out.
     const chosenChars = text.length;
     text = await clean(text, candidate.path);
+    if (section) section = await seenOf(section, candidate.path);
     // The same words, however the lines end: a copied section is one source.
     const sameText = contextStamp(text.replace(/\s+/g, " ").trim());
     // What the user put there (a pin, the open note) always goes; only what the search found gives way.
@@ -620,7 +637,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // (P9-6). What the part is goes into the hash, so a stamp of the older form, which did not say it, never matches.
     // One hash token: a stamp's path is what stands before its last "#".
     const stamp = `${candidate.path}#${contextStamp(`${whole ? "whole" : "part"}\n${text}`)}${whole ? contextStamp(body) : ""}`;
-    const title = read.title || candidate.title;
+    const title = await seenOf(read.title || candidate.title, candidate.path);
     const label = whole ? "the whole note" : section ? `section "${section}"` : "the beginning";
     if (input.alreadySent?.has(stamp)) {
       // Nothing of it goes again; the hint stays only where the reader redacts it, so the choice can be taken back.
@@ -688,12 +705,13 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     // 2026-11-13, review of R19): it may have been found by what the link says, and its being chosen would tell.
     if (await foundThroughWithheld(candidate, read.text)) continue;
     const hash = noteHash(read.text);
-    const title = read.title || candidate.title;
+    const title = await seenOf(read.title || candidate.title, candidate.path);
     const body = noteBody(read.text);
     bodyBytes.set(candidate.path, utf8Length(body));
-    const found = cardSource(read.text, title, candidate, terms);
+    const found = cardSource(read.text, read.title || candidate.title, candidate, terms, noteBody(await seenOf(read.text, candidate.path)));
+    const chain = found.chain ? await seenOf(found.chain, candidate.path) : "";
     // Cleaned line by line before it is cut: a place stamp is a line of its own, and a card joins its lines.
-    let text = cardText(contextCard(await clean(found.text, candidate.path), found.chain)).replace(/\s+/g, " ").trim();
+    let text = cardText(contextCard(await clean(found.text, candidate.path), chain)).replace(/\s+/g, " ").trim();
     // A checked gist of exactly this section goes instead when it is shorter, unless the reader asked for the original (P2b-3).
     let gisted = false;
     if (host.gists && !input.originals?.has(candidate.path)) {
@@ -719,7 +737,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     went(screened);
     sentBytes += utf8Length(text);
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
-    cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${gisted ? "(gist) " : ""}${text}` : ""}`);
+    cards.push(`- [[${title}]] (${candidate.path})${chain ? ` › ${chain}` : ""} — ${why}${text ? `: ${gisted ? "(gist) " : ""}${text}` : ""}`);
     refs.push({
       path: candidate.path,
       title,
@@ -727,7 +745,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       reasons: candidate.reasons,
       score: candidate.score,
       chars: text.length,
-      section: found.chain,
+      section: chain,
       noteChars: body.length,
       // A card with no sentence named the note and sent nothing of it: no part of it was left out by a choice.
       ...(cardChars > 0 ? leftOf(body, cardChars) : {}),
@@ -756,7 +774,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (gist) mapGists++;
     went(screened);
     sentBytes += utf8Length(gist);
-    map.push(`- [[${candidate.title}]] (${candidate.path})${gist ? ` — (gist) ${gist}` : ""}`);
+    map.push(`- [[${await seenOf(candidate.title, candidate.path)}]] (${candidate.path})${gist ? ` — (gist) ${gist}` : ""}`);
     refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: gist.length, ...(gist ? { gist: true } : {}), ...hintOf(screened) });
   }
   // The areas the sources come from, and the vault, as gists (P2b-3): written only from notes a cloud may see.
@@ -798,8 +816,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const lines: string[] = [`Now: ${situation.weekday}, ${situation.now}. Today for appointments and due dates: ${situation.calendarDay}; the journal's day: ${situation.journalDay}.`];
   const active = situation.active && !input.leaveOut?.has(situation.active.path) ? situation.active : null;
   if (active && (await allowed(active.path))) {
-    lines.push(active.kind === "base" ? `Open: the database [[${active.title}]] (${active.path}) — query_base reads it.` : `Open: [[${active.title}]] (${active.path}).`);
-    if (active.heading) lines.push(`The cursor is in the section "${active.heading}".`);
+    const activeTitle = await seenOf(active.title, active.path);
+    lines.push(active.kind === "base" ? `Open: the database [[${activeTitle}]] (${active.path}) — query_base reads it.` : `Open: [[${activeTitle}]] (${active.path}).`);
+    if (active.heading) lines.push(`The cursor is in the section "${await seenOf(active.heading, active.path)}".`);
     if (active.selection && active.selection.trim()) {
       const read = await host.readNote(active.path);
       if (!read || (await allowedText(active.path, read.text))) {
@@ -816,9 +835,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
   }
   const tabs: string[] = [];
-  for (const tab of situation.tabs) if (tab.path !== active?.path && (await allowed(tab.path))) tabs.push(`[[${tab.title}]]`);
+  for (const tab of situation.tabs) if (tab.path !== active?.path && (await allowed(tab.path))) tabs.push(`[[${await seenOf(tab.title, tab.path)}]]`);
   if (tabs.length) lines.push(`Open tabs: ${tabs.slice(0, 10).join(", ")}.`);
-  if (situation.dailyNote && (await allowed(situation.dailyNote.path))) lines.push(`Today's daily note: [[${situation.dailyNote.title}]] (${situation.dailyNote.path}).`);
+  if (situation.dailyNote && (await allowed(situation.dailyNote.path))) lines.push(`Today's daily note: [[${await seenOf(situation.dailyNote.title, situation.dailyNote.path)}]] (${situation.dailyNote.path}).`);
   const tasks: string[] = [];
   // Twelve of those the gate lets through: cut after the gate, so a task kept back takes no place of one that goes.
   for (const task of situation.tasks) {

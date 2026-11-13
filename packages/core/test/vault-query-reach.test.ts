@@ -117,6 +117,40 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
     });
   });
 
+  it("sorts and filters a note's own values as the reader sees them: a withheld link, a hidden key, a title (review of R19, wave 2)", async () => {
+    for (const rule of ["in-reach", "any-kept-back"] as const) {
+      const rows = async (hidden: string) => {
+        let out: string[][] = [];
+        await withVault(
+          async (query) => {
+            const config = { filters: { and: ['file.folder == "Board"'] }, views: [{ type: "table", name: "T", sort: [{ property: "owner", direction: "ASC" }, { property: "file.path", direction: "ASC" }] }] } as any;
+            const withhold = { rule, hiddenKeys: ["mood"] };
+            const sorted = await query.queryDatabaseFiles(config, { reach: visible, withhold });
+            config.filters = { and: ['file.folder == "Board"', 'contains(owner, "Z")'] };
+            const containsZ = await query.queryDatabaseFiles(config, { reach: visible, withhold });
+            config.filters = { and: ['file.folder == "Board"', "mood > 3"] };
+            const moody = await query.queryDatabaseFiles(config, { reach: visible, withhold });
+            config.filters = { and: ['file.folder == "Board"'] };
+            config.views = [{ type: "table", name: "T", sort: [{ property: "file.name", direction: "ASC" }, { property: "file.path", direction: "ASC" }] }];
+            const byName = await query.queryDatabaseFiles(config, { reach: visible, withhold });
+            out = [sorted, containsZ, moody, byName].map((list) => list.map((r: any) => `${r["file.path"]}=${r["file.name"]}|${r.owner ?? ""}|${r.mood ?? ""}`));
+          },
+          {
+            [`Private/${hidden}.md`]: note("", hidden),
+            "Board/A.md": note(`owner: "[[${hidden}]]"\nmood: 5\n`, "A"),
+            "Board/B.md": note('owner: "[[Projects/Idle]]"\nmood: 1\n', "B"),
+            "Board/C.md": `---\ntitle: "[[${hidden}]]"\n---\n# C\n`,
+          },
+        );
+        return out;
+      };
+      // One hidden name sorts before every visible value, one after it: the answers are the same.
+      const [aaron, zora] = [await rows("Aaron"), await rows("Zora")];
+      expect(JSON.stringify(aaron), rule).not.toMatch(/Aaron|Zora/);
+      expect(aaron, rule).toEqual(zora);
+    }
+  });
+
   it("asks once per note, in one question for many, and a reach that cannot answer fails the query", async () => {
     await withVault(async (query) => {
       const questions: string[][] = [];
