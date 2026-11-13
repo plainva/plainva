@@ -37,7 +37,8 @@ import {
   WRITE_TOOL_NAMES,
   outlineOf,
   payload,
-  redactSensitive,
+  ReaderView,
+  redactSensitiveIn,
   sectionOf,
   contentPathRefusal,
   sensitiveFindings,
@@ -45,8 +46,12 @@ import {
   toolByName,
   toolInputJsonSchema,
   VaultQueryService,
-  withholdDeniedLinks,
-  withholdPlaces,
+  excludedSearchTermSpecs,
+  viewMatchesSearch,
+  viewSearchSnippet,
+  withholdDeniedLinksIn,
+  withholdPlacesIn,
+  withoutExcludedSearchTerms,
   withoutSensitiveProperties,
   WRITE_REFUSALS,
   type AiPolicyDimension,
@@ -491,13 +496,25 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
    * (`situational`: tasks and appointments, which the situation's choice
    * covers too).
    */
-  const withhold = async (text: string, fromPath: string, situational = false): Promise<string> => {
-    const places = withholdPlaces(text).text;
+  const withhold = async (text: string, fromPath: string, situational = false): Promise<string> => (await viewOf(text, fromPath, situational)).text;
+  /**
+   * The one place a text becomes what this run may see of it (decision A of 2026-11-13, review of R19): the view,
+   * with every withheld part — a place stamp, a link, a redacted number — a piece of it that maps back to the raw
+   * text (`ReaderView`). Every tool that shows, searches or changes a note's text works on it.
+   */
+  const viewOf = async (text: string, fromPath: string, situational = false): Promise<ReaderView> => {
+    const places = withholdPlacesIn(ReaderView.of(text)).view;
     if (!cloud && !run.webTools) return places;
-    const linked = (await withholdDeniedLinks(places, fromPath, deps, (path) => allowed(path), scope?.linksInReach ? "in-reach" : "any-kept-back")).text;
+    const linked = (await withholdDeniedLinksIn(places, fromPath, deps, (path) => allowed(path), scope?.linksInReach ? "in-reach" : "any-kept-back")).view;
     if (!cloud || !redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
-    return redactSensitive(linked, sensitiveFindings(linked)).text;
+    return redactSensitiveIn(linked, sensitiveFindings(linked.text)).view;
   };
+  /**
+   * Whether this run reads through a narrower view than the vault's own: a cloud, a run with the internet, an app
+   * outside Plainva. Only then does a tool search and change on the view; a model on this device with nothing kept
+   * from it works as it always did.
+   */
+  const restricted = cloud || run.webTools || Boolean(scope?.linksInReach);
   const readAllowed = async (raw: unknown): Promise<{ path: string; text: string } | null> => {
     const path = typeof raw === "string" ? safeRelPath(raw) : null;
     if (!path) return null;
@@ -510,6 +527,23 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     const text = await deps.readNote(path);
     if (text === null || !(await allowed(path, text))) return null;
     return { path, text };
+  };
+  /**
+   * A search hit as a reader with a narrower view may have it (review of R19, wave 2): only where its view — with its
+   * title and its path, which it may see — answers the query too, and with a snippet from the view. A note that
+   * withholds nothing answers as the index found it; one that does is read, and left out in doubt.
+   */
+  const searchedView = async <H extends { path: string; title: string; snippet?: string | null }>(hit: H, input: string): Promise<H | null> => {
+    const text = await deps.readNote(hit.path);
+    if (text === null) return null;
+    // The note's text without its properties: those go to a reader only as `propertyLines` withholds them.
+    const view = await viewOf(stripFrontmatter(text), hit.path);
+    if (!view.withholds && excludedSearchTermSpecs(input).length === 0) {
+      return { ...hit, snippet: hit.snippet ? await withhold(withoutBrokenLinks(unmarkSnippet(hit.snippet)), hit.path) : hit.snippet };
+    }
+    const seen = `${hit.title}\n${hit.path}\n${view.text}`;
+    if (!viewMatchesSearch(seen, input)) return null;
+    return { ...hit, snippet: viewSearchSnippet(view.text, input) ?? "" };
   };
   let mood: Promise<string | null> | null = null;
   /** Properties as `- key: value` lines, without the plainva namespace and the mood. */
@@ -583,7 +617,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           // The cursor counts results this run may see, never the index's hits: whether there are more is said only
           // of what passes the gate, so it tells nothing about notes kept from this run (review of R19). The index is
           // read in batches until one result past the page passed, or up to a bound.
-          const query = `${String(a.query)}${folder}`;
+          // Read through a view, the index is not asked to leave out what a term excludes: the raw text must not decide
+          // it. Each hit is then tested against the view (`viewMatchesSearch`), and left out in doubt.
+          const asked = String(a.query);
+          const query = `${restricted ? withoutExcludedSearchTerms(asked) : asked}${folder}`;
           const wanted = offset + limit + 1;
           const batch = Math.max(limit, 25);
           const passedHits: Awaited<ReturnType<typeof deps.search>> = [];
@@ -593,7 +630,12 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             await ready(hits.map((hit) => hit.path));
             for (const hit of hits) {
               if (passedHits.length >= wanted) break;
-              if (await allowed(hit.path)) passedHits.push(hit);
+              if (!(await allowed(hit.path))) continue;
+              if (restricted) {
+                const shown = await searchedView(hit, asked);
+                if (!shown) continue;
+                passedHits.push(shown);
+              } else passedHits.push(hit);
             }
             read += hits.length;
             if (hits.length < batch) break;
@@ -601,7 +643,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const lines: string[] = [];
           const results: { title: string; path: string; snippet: string }[] = [];
           for (const hit of passedHits.slice(offset, offset + limit)) {
-            const snippet = hit.snippet ? (await withhold(withoutBrokenLinks(unmarkSnippet(hit.snippet)), hit.path)).replace(/\s+/g, " ").trim() : "";
+            // Read through a view, the snippet is the view's already (`searchedView`).
+            const snippet = hit.snippet ? (restricted ? unmarkSnippet(hit.snippet) : await withhold(withoutBrokenLinks(unmarkSnippet(hit.snippet)), hit.path)).replace(/\s+/g, " ").trim() : "";
             lines.push(`- [[${hit.title}]] (${hit.path})${snippet ? ` — ${snippet}` : ""}`);
             results.push({ title: hit.title, path: hit.path, snippet });
           }
@@ -612,13 +655,14 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
         case "read_note": {
           const note = await readAllowed(a.path);
           if (!note) return { content: NOT_FOUND, isError: true };
-          let text = stripFrontmatter(note.text);
+          // The section is found in the view, as get_outline names it: a heading's withheld link is a placeholder in
+          // both, and what a placeholder stands for names no section (review of R19, wave 2).
+          let text = (await viewOf(stripFrontmatter(note.text), note.path)).text;
           if (typeof a.section === "string" && a.section.trim()) {
             const section = sectionOf(text, a.section);
             if (section === null) return { content: `No section "${a.section}" in this note; get_outline lists them.`, isError: true };
             text = section;
           }
-          text = await withhold(text, note.path);
           const maxChars = Number(a.maxChars) || 8000;
           const offset = offsetOf(a.cursor);
           const slice = text.slice(offset, offset + maxChars);
@@ -630,15 +674,14 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
         case "get_outline": {
           const note = await readAllowed(a.path);
           if (!note) return { content: NOT_FOUND, isError: true };
-          const outline = outlineOf(stripFrontmatter(note.text));
+          // The outline of the view: a heading can link too ("## See [[Salaries]]"), and its section is named as
+          // read_note finds it — with the placeholder where the link was (review of R19, wave 2).
+          const outline = outlineOf((await viewOf(stripFrontmatter(note.text), note.path)).text);
           const headings = outline.map((h) => `${"  ".repeat(h.level - 1)}- ${h.text}  (section: "${h.chain}")`);
           const props = await propertyLines(notePropertiesOf(note.text, 64), note.path);
           const properties = props.length ? `Properties:\n${props.join("\n")}\n\n` : "";
-          // A heading can link too ("## See [[Salaries]]"): it goes through the same gate as the text.
-          const sections = headings.length ? await withhold(`Sections:\n${headings.join("\n")}`, note.path) : "No headings.";
-          // As values: each heading through that gate on its own — the text of a heading and the handle that finds its section.
-          const listed: { level: number; text: string; section: string }[] = [];
-          for (const h of outline) listed.push({ level: h.level, text: await withhold(h.text, note.path), section: await withhold(h.chain, note.path) });
+          const sections = headings.length ? `Sections:\n${headings.join("\n")}` : "No headings.";
+          const listed: { level: number; text: string; section: string }[] = outline.map((h) => ({ level: h.level, text: h.text, section: h.chain }));
           return result(tool.name, `${note.path}\n\n${properties}${sections}`, { path: note.path, properties: propertyValues(props), sections: listed });
         }
         case "query_base": {
@@ -899,7 +942,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             const fresh = made !== null;
             // Without any earlier state, a change after the period cannot be told from one in it.
             if (!fresh && before === null && row.mtime > end) continue;
-            const item = logItem({ path, title: row.title || titleOf(path), fresh, text: atEnd, before });
+            // Counted and shown on the views: a change inside a withheld part is no line gained or lost for this reader.
+            const seenAtEnd = restricted ? (await viewOf(atEnd, path)).text : atEnd;
+            const seenBefore = restricted && before !== null ? (await viewOf(before, path)).text : before;
+            const item = logItem({ path, title: row.title || titleOf(path), fresh, text: seenAtEnd, before: seenBefore });
             if (!logItemSaysSomething(item)) continue;
             const lastWrite = row.mtime <= end ? row.mtime : lastKeptWithin(kept, since, end);
             const last = lastWrite === null ? null : localDay(new Date(lastWrite));
@@ -959,9 +1005,14 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             }
             return (await read) ?? note.text;
           };
-          const start = await textAt(sinceDay.getTime());
+          // Each state as this run may see it: a change inside a withheld part is no line gained or lost for this reader.
+          const seenAt = async (t: number): Promise<string> => {
+            const text = await textAt(t);
+            return restricted && text ? (await viewOf(text, note.path)).text : text;
+          };
+          const start = await seenAt(sinceDay.getTime());
           const points: { day: string; text: string }[] = [];
-          for (const day of days) points.push({ day, text: await textAt(endOfLocalDay(startOfLocalDay(day)!).getTime()) });
+          for (const day of days) points.push({ day, text: await seenAt(endOfLocalDay(startOfLocalDay(day)!).getTime()) });
           const changes = dayChanges(start, points);
           const listed: { day: string; added: number; removed: number; gained: string }[] = [];
           const lines: string[] = [];
@@ -1077,6 +1128,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           // The writing tools (plan P5): none of them changes the vault — a proposal, a draft, or a plan the user confirms.
           const written = await writeToolOutcome(deps.writes, writing, tool, a, {
             readAllowed,
+            // A reader with a narrower view changes a note on what it may see of it (decision A of 2026-11-13).
+            ...(restricted ? { viewOf: (path: string, text: string) => viewOf(text, path) } : {}),
             safeFolder: (raw) => (typeof raw === "string" ? safeRelPath(withoutTrailingSlashes(raw.trim())) : null),
             allowed: placeAllowed,
             policyOf: deps.policyOf,

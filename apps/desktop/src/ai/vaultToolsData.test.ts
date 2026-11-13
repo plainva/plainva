@@ -191,7 +191,8 @@ describe("the read tools' results as values", () => {
   });
 
   it("search: the hits that passed, each with its excerpt as the text has it, and where the list goes on", async () => {
-    expect((await run("search_vault", { query: "rates", limit: 10 })).data).toEqual({ results: [{ title: "Offer", path: "Projects/Offer.md", snippet: "Rates as in ⟦withheld note⟧" }], next: null });
+    // Read through a view, the excerpt is the view's: the line the match stands in, with the link withheld.
+    expect((await run("search_vault", { query: "rates", limit: 10 })).data).toEqual({ results: [{ title: "Offer", path: "Projects/Offer.md", snippet: "Rates as in ⟦withheld note⟧." }], next: null });
     // Whether the list goes on is said of the hits that pass, never of the index's hits (review of R19): two hits of
     // which one is withheld are one result and no further page. Where more pass, the next page is named
     // (mcpBridge.test.ts, "says there are more search results only where there are more it may see").

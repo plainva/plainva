@@ -1,5 +1,6 @@
 import type { Conversation, TextPart } from "./conversation.js";
-import { gateDecision, isCloudRecipient, redactDeniedLinks, type EgressRecipient, type GateDecision } from "./egressGate.js";
+import { gateDecision, isCloudRecipient, redactDeniedLinksIn, type EgressRecipient, type GateDecision } from "./egressGate.js";
+import { ReaderView } from "./readerView.js";
 import { LINK_CANDIDATE_LIMIT } from "./linkNames.js";
 import { isMcpExposedToolName } from "./mcp/names.js";
 import type { EffectivePolicy } from "./policy.js";
@@ -359,11 +360,23 @@ export async function withholdDeniedLinks(
   isAllowed: (path: string) => Promise<boolean>,
   rule: LinkRule = "any-kept-back",
 ): Promise<{ text: string; redacted: number }> {
+  const { view, redacted } = await withholdDeniedLinksIn(ReaderView.of(text), fromPath, host, isAllowed, rule);
+  return { text: view.text, redacted };
+}
+
+/** `withholdDeniedLinks` on a reader's view: each withheld link becomes a withheld piece of it (`ReaderView`). */
+export async function withholdDeniedLinksIn(
+  view: ReaderView,
+  fromPath: string,
+  host: LinkHost,
+  isAllowed: (path: string) => Promise<boolean>,
+  rule: LinkRule = "any-kept-back",
+): Promise<{ view: ReaderView; redacted: number }> {
   // First pass: collect every target exactly as the redactor parses it (wiki
   // and Markdown links alike), so what is resolved and what is replaced can
   // never disagree about where a link starts or ends.
   const targets = new Set<string>();
-  redactDeniedLinks(text, (target) => {
+  redactDeniedLinksIn(view, (target) => {
     targets.add(target.trim());
     return false;
   });
@@ -371,7 +384,7 @@ export async function withholdDeniedLinks(
   // the one a tap would open in this shell (`linkNamesDeniedNote`).
   const denied = new Map<string, boolean>();
   for (const target of targets) denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed, rule));
-  return redactDeniedLinks(text, (target) => denied.get(target.trim()) ?? false);
+  return redactDeniedLinksIn(view, (target) => denied.get(target.trim()) ?? false);
 }
 
 /**

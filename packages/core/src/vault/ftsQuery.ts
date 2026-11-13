@@ -89,6 +89,20 @@ export function ftsExactTerm(text: string): string | null {
 const TOKEN_RE = /(-)?(path:|tag:)?(?:"([^"]*)("|$)|([^\s"]+))/gi;
 
 /** Matching rules for individual source occurrences, using the search grammar. */
+/** The plain terms a query excludes (`-term`), as `searchTermSpecs` gives the ones it asks for. */
+export function excludedSearchTermSpecs(input: string): { text: string; prefix: boolean }[] {
+  return [...input.matchAll(TOKEN_RE)].filter((m) => m[1] === "-" && !m[2]).map((m) => ({ text: (m[3] ?? m[5] ?? "").trim(), prefix: m[3] === undefined || m[4] !== '"' })).filter((term) => /[\p{L}\p{N}]/u.test(term.text));
+}
+
+/**
+ * The query without its excluded plain terms (`-term`); `path:` and `tag:` stay, negated or not. For a reader that
+ * sees a note through a view (`ReaderView`): what a note's raw text holds must not decide that it is left out — the
+ * caller tests the excluded terms against the view instead (`viewMatchesSearch`).
+ */
+export function withoutExcludedSearchTerms(input: string): string {
+  return (input ?? "").replace(TOKEN_RE, (match, negated?: string, op?: string) => (negated === "-" && !op ? "" : match)).replace(/\s+/g, " ").trim();
+}
+
 export function searchTermSpecs(input: string): { text: string; prefix: boolean }[] {
   return [...input.matchAll(TOKEN_RE)].filter((m) => !m[1] && !m[2]).map((m) => ({ text: (m[3] ?? m[5] ?? "").trim(), prefix: m[3] === undefined || m[4] !== '"' })).filter((term) => /[\p{L}\p{N}]/u.test(term.text));
 }

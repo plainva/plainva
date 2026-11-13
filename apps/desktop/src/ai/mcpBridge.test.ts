@@ -257,7 +257,8 @@ describe("the MCP bridge", () => {
     expect(first.content).not.toContain("More results");
     const outside = await call("search_vault", { query: "Offer", limit: 1 }, ["Finance"]);
     expect(outside.content).not.toContain("More results");
-    const inside = await call("search_vault", { query: "Offer", limit: 1 });
+    // Two notes the app may see answer "Plan": the offer that links to it, and the plan.
+    const inside = await call("search_vault", { query: "Plan", limit: 1 });
     expect(inside.content).toContain("More results");
   });
 

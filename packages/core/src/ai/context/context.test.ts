@@ -104,6 +104,16 @@ describe("sections", () => {
 });
 
 describe("the context package", () => {
+  it("leaves out a note found by its words or its meaning that withholds a link from a cloud (decision A, review of R19, wave 2)", async () => {
+    const found = { path: "Journal/2026-09-28.md", title: "Monday", signals: { lexical: 1 }, snippet: "See [[Salaries]]" };
+    const build = (recipient: EgressRecipient) =>
+      buildContextPackage({ question: "What about the salaries?", recipient, situation: situation({ active: null, tabs: [], tasks: [], dailyNote: null }), candidates: [[found]], pins: [] }, host());
+    // It may have been found by what the withheld link says: that it was chosen would tell.
+    expect((await build(cloud)).refs.map((r) => r.path)).not.toContain("Journal/2026-09-28.md");
+    // A model on this device is told everything, as before.
+    expect((await build(local)).refs.map((r) => r.path)).toContain("Journal/2026-09-28.md");
+  });
+
   it("sends the first twelve due tasks the gate lets through: a task kept back takes no place (review of R19, wave 2)", async () => {
     const kept = Array.from({ length: 12 }, (_, i) => ({ title: `Kept ${i}`, path: "Private/Salaries.md", due: "2026-09-27" }));
     const pack = await buildContextPackage(

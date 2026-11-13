@@ -1,6 +1,6 @@
 import { analyzeNoteSource } from "../noteSource.js";
 import { stripAnchorMarkers } from "../workspace/commentAnchor.js";
-import { searchTermSpecs, SNIPPET_MARK_END, SNIPPET_MARK_START } from "./ftsQuery.js";
+import { excludedSearchTermSpecs, searchTermSpecs, SNIPPET_MARK_END, SNIPPET_MARK_START } from "./ftsQuery.js";
 import { matchTerm, piecedTerm, piecedWord, SEARCH_WORD, type PiecedTerm } from "./spacelessText.js";
 
 export interface SearchOccurrence {
@@ -86,3 +86,36 @@ export function findSearchOccurrences(raw: string, query: string, options: { fro
     return { occurrence: { from, to, line, quote: raw.slice(from, to), before: raw.slice(Math.max(0, from - 32), from), after: raw.slice(to, to + 32), headings: chain.map((h) => h.text) }, snippet: `${position.from > 60 ? "…" : ""}${before}${SNIPPET_MARK_START}${clean.text.slice(position.from, position.to)}${SNIPPET_MARK_END}${after}${position.to + 100 < clean.text.length ? "…" : ""}` };
   });
 }
+
+/** One term of a query as a query of its own. */
+const termQuery = (term: { text: string; prefix: boolean }) => (term.prefix ? term.text : `"${term.text}"`);
+
+/**
+ * Whether a text answers a query as the index would — every term it asks for found in it, none it excludes — with
+ * the words of the full-text search (`spacelessText.ts`). For a reader that sees a note through a view: a hit the
+ * index found in the raw text stays only where its view answers too, and is left out in doubt (review of R19,
+ * wave 2). `text` is what the reader may see of the note: its title, its path and its view.
+ */
+export function viewMatchesSearch(text: string, input: string): boolean {
+  for (const term of searchTermSpecs(input)) if (findSearchOccurrences(text, termQuery(term), { limit: 1 }).length === 0) return false;
+  for (const term of excludedSearchTermSpecs(input)) if (findSearchOccurrences(text, termQuery(term), { limit: 1 }).length > 0) return false;
+  return true;
+}
+
+/**
+ * The first place a text answers a query, as a snippet with the search's marks: the line it stands in, cut to at
+ * most 60 characters before and 100 after the match. Null where the text answers nowhere.
+ */
+export function viewSearchSnippet(text: string, input: string): string | null {
+  const first = findSearchOccurrences(text, searchTermSpecs(input).map(termQuery).join(" "), { limit: 1 })[0];
+  if (!first) return null;
+  const { from, to } = first.occurrence;
+  const lineStart = text.lastIndexOf("\n", from - 1) + 1;
+  const lineEnd = text.indexOf("\n", to) < 0 ? text.length : text.indexOf("\n", to);
+  const start = Math.max(lineStart, from - 60);
+  const end = Math.min(lineEnd, to + 100);
+  return `${start > lineStart ? "…" : ""}${text.slice(start, from)}${SNIPPET_MARK_START}${text.slice(from, to)}${SNIPPET_MARK_END}${text.slice(to, end)}${end < lineEnd ? "…" : ""}`.trim();
+}
+
+/** What a reader with a view sends to the index, and tests against the view itself. */
+export { excludedSearchTermSpecs, withoutExcludedSearchTerms } from "./ftsQuery.js";

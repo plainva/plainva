@@ -1,3 +1,4 @@
+import { ReaderView } from "./readerView.js";
 import type { AiPolicyDimension, EffectivePolicy, PolicySource } from "./policy.js";
 
 /**
@@ -137,12 +138,18 @@ function vaultTarget(href: string): string | null {
  * merely stands in the text. Neither is link syntax of a Markdown vault.
  */
 export function redactDeniedLinks(text: string, isDenied: (target: string) => boolean): { text: string; redacted: number } {
+  const { view, redacted } = redactDeniedLinksIn(ReaderView.of(text), isDenied);
+  return { text: view.text, redacted };
+}
+
+/** `redactDeniedLinks` on a reader's view: each withheld link becomes a withheld piece of it (`ReaderView`). */
+export function redactDeniedLinksIn(view: ReaderView, isDenied: (target: string) => boolean): { view: ReaderView; redacted: number } {
   let redacted = 0;
   const withheld = () => {
     redacted++;
     return WITHHELD_LINK;
   };
-  let out = text.replace(WIKI_LINK, (match, target: string) => (isDenied(target.trim()) ? withheld() : match));
+  let out = view.replace(WIKI_LINK, (match, target: string) => (isDenied(target.trim()) ? withheld() : match));
   out = out.replace(INLINE_LINK, (match, _label: string, angled: string | undefined, bare: string | undefined) => {
     const target = vaultTarget(angled ?? bare ?? "");
     return target && isDenied(target) ? withheld() : match;
@@ -161,5 +168,5 @@ export function redactDeniedLinks(text: string, isDenied: (target: string) => bo
     out = out.replace(REFERENCE_USE, (match, shown: string, label: string) => (deniedLabels.has(referenceLabel(label || shown)) ? withheld() : match));
     out = out.replace(REFERENCE_SHORT, (match, label: string) => (deniedLabels.has(referenceLabel(label)) ? withheld() : match));
   }
-  return { text: out, redacted };
+  return { view: out, redacted };
 }

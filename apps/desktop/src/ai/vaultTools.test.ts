@@ -44,7 +44,8 @@ const run = (name: string, args: unknown, recipient: EgressRecipient = cloud, d 
 describe("vault tools behind the hard gate", () => {
   it("search leaves denied notes out entirely and withholds links to them", async () => {
     const out = await run("search_vault", { query: "rates", limit: 10 });
-    expect(out.content).toBe("- [[Offer]] (Projects/Offer.md) — Rates as in ⟦withheld note⟧");
+    // The excerpt is the view's: the line the match stands in, with the link withheld.
+    expect(out.content).toBe("- [[Offer]] (Projects/Offer.md) — Rates as in ⟦withheld note⟧.");
     expect(out.origin).toEqual({ kind: "tool", tool: "search_vault" });
   });
 
@@ -192,8 +193,9 @@ describe("vault tools behind the hard gate", () => {
       },
     });
     for (const recipient of [cloud, { kind: "local", provider: "ollama", model: "m" } as EgressRecipient]) {
-      const search = await run("search_vault", { query: "skill", limit: 10 }, recipient, d);
-      expect(search.content).toBe("- [[Offer]] (Projects/Offer.md) — Rates");
+      const search = await run("search_vault", { query: "rates", limit: 10 }, recipient, d);
+      expect(search.content).toMatch(/^- \[\[Offer\]\] \(Projects\/Offer\.md\) — Rates/);
+      expect(search.content).not.toMatch(/skill|\.agent/i);
       const tasks = await run("get_tasks", { range: "all", limit: 25 }, recipient, d);
       expect(tasks.content).toContain("Send offer");
       expect(tasks.content).not.toMatch(/Skill step|\.agent/);

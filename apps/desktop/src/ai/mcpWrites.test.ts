@@ -42,7 +42,7 @@ const OFFER = "# Offer\n\nThe day rate is 1,800 euros.\n";
 const BRIEF = "---\nstage: open\n---\n# Brief\n\nShort.\n";
 const rules = parsePolicyFile("folders:\n  Projects/Kept/:\n    cloud: deny\n  Projects/Offline/:\n    web: deny\n").rules;
 
-function mcpVault(options: { sealed?: boolean; deletes?: boolean } = {}) {
+function mcpVault(options: { sealed?: boolean; deletes?: boolean; extra?: Record<string, string> } = {}) {
   const notes: Record<string, string> = {
     "Projects/Offer.md": OFFER,
     "Projects/Brief.md": BRIEF,
@@ -51,6 +51,7 @@ function mcpVault(options: { sealed?: boolean; deletes?: boolean } = {}) {
     "Projects/Sub/Other.md": "# Other\n",
     "Archive/Old.md": "# Old\n\nSee [[Offer]].\n",
     "Private/Client.md": "# Client\n",
+    ...options.extra,
   };
   /** Who links to the offer — one of them outside the folders the program reads. */
   const links = [
@@ -308,6 +309,51 @@ describe("a program the user allowed to propose changes", () => {
     expect(await w.call("create_note", { title: "T", content: "x" })).toEqual(refused("sealed"));
     expect(await w.call("rename_note", { path: "Projects/Offer.md", title: "Offer 2027" })).toEqual(refused("sealed"));
     expect(w.plans.current()).toBeNull();
+  });
+});
+
+/** Decision A of 2026-11-13 (review of R19, wave 2): a program changes a note on what it may see of it. */
+describe("a change made on the view a program has of a note", () => {
+  const PAY = "# Pay\n\n## Pay talk with [[Private/Salary 2026]]\n\nSee [[Private/Salary 2026|Kowalski]] for the numbers.\n";
+  const pay = () => window({ extra: { "Projects/Pay.md": PAY } });
+  const edit = (find: string, replace: string) => ({ path: "Projects/Pay.md", edits: [{ find, replace }] });
+
+  it("a passage inside a withheld link is not in the note, whether the change would change it or not", async () => {
+    const w = await pay();
+    for (const [hidden, nowhere] of [
+      [edit("[[Private/Salary 2026]]", "[[Private/Salary 2026]]"), edit("[[Private/Salary 2025]]", "[[Private/Salary 2025]]")],
+      [edit("Kowalski", "Nowak"), edit("Smithson", "Nowak")],
+      [edit("[[Private/Salary 2026|Kowalski]] for", "x for"), edit("[[Private/Salary 2025|Kowalski]] for", "x for")],
+    ] as const) {
+      expect(await w.call("propose_edit", hidden)).toEqual(await w.call("propose_edit", nowhere));
+    }
+    expect(w.proposed).toEqual([]);
+  });
+
+  it("a change beside a withheld part goes into the note as it is, the part untouched", async () => {
+    const w = await pay();
+    const out = await w.call("propose_edit", edit("for the numbers.", "for all numbers."));
+    expect(out.content).toBe(WRITE_RESULTS.proposed("Projects/Pay.md", 1, 0));
+    const round = w.proposed[0]!;
+    expect(round.base).toBe(PAY);
+    let intended = round.base;
+    for (const chunk of [...round.chunks].sort((a, b) => b.fromA - a.fromA)) intended = intended.slice(0, chunk.fromA) + chunk.replacement + intended.slice(chunk.toA);
+    expect(intended).toBe(PAY.replace("for the numbers.", "for all numbers."));
+    // And at the end of the section the outline names, with the placeholder where the link is.
+    const added = await w.call("propose_edit", { path: "Projects/Pay.md", append: "Ask again in May.", section: "Pay > Pay talk with ⟦withheld note⟧" });
+    expect(added.isError).toBe(false);
+    expect(JSON.stringify(w.proposed[1]!.chunks)).not.toContain("⟦");
+  });
+
+  it("a change that touches a withheld part, or carries a placeholder anywhere, is refused alike", async () => {
+    const w = await pay();
+    const refusal = { content: WRITE_REFUSALS["withheld-part"], isError: true };
+    expect(await w.call("propose_edit", edit("See ⟦withheld note⟧ for", "See for"))).toMatchObject(refusal);
+    expect(await w.call("propose_edit", edit("See ⟦withheld note⟧ for", "See ⟦withheld note⟧ for"))).toMatchObject({ isError: true });
+    expect((await w.call("propose_edit", { path: "Projects/Pay.md", append: "Copy: ⟦withheld note⟧" })).content).toBe(WRITE_REFUSALS["withheld-part"]);
+    expect((await w.call("create_note", { title: "Copy", content: "See ⟦withheld note⟧ and 📍 ⟦place withheld⟧." })).content).toBe(WRITE_REFUSALS["withheld-part"]);
+    expect(w.proposed).toEqual([]);
+    expect(w.s.getState().drafts.drafts).toEqual([]);
   });
 });
 

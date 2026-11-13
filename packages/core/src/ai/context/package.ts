@@ -499,6 +499,23 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     return left > 0 ? { left } : {};
   };
   const missing = new Set<string>();
+  /**
+   * Whether a note found by a word or a meaning may have been found by what a withheld link of it says, for a cloud
+   * or a run with the internet (decision A of 2026-11-13, review of R19): by a word of the question that its text holds
+   * only where the link is withheld, or by its meaning alone, which cannot be told apart. Such a note stays out, in
+   * doubt — its being chosen would tell what the link says.
+   */
+  const foundThroughWithheld = async (c: RankedCandidate, text: string): Promise<boolean> => {
+    if (!(cloud || run.webTools) || (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0) return false;
+    const lexical = (c.signals.lexical ?? 0) > 0;
+    if (!lexical && !((c.signals.semantic ?? 0) > 0)) return false;
+    const view = await withholdDeniedLinks(text, c.path, host, (path) => allowed(path));
+    if (view.redacted === 0) return false;
+    if (!lexical) return true;
+    const raw = text.toLowerCase();
+    const seen = `${c.title}\n${c.path}\n${view.text}`.toLowerCase();
+    return terms.some((term) => term.length >= 3 && raw.includes(term.toLowerCase()) && !seen.includes(term.toLowerCase()));
+  };
   const strong = (c: RankedCandidate) =>
     (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0 || (c.signals.lexical ?? 0) >= 0.3 || (c.signals.semantic ?? 0) >= 0.5;
   /** Texts already chosen as evidence: the same section in two notes (a copy, a template) goes once (plan P2b). */
@@ -514,6 +531,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       continue;
     }
     if (!(await allowedText(candidate.path, read.text))) continue;
+    // Found by its words or its meaning, a note that withholds a link from this run stays out (decision A of
+    // 2026-11-13, review of R19): it may have been found by what the link says, and its being chosen would tell.
+    if (await foundThroughWithheld(candidate, read.text)) continue;
     const hash = noteHash(read.text);
     const body = noteBody(read.text);
     bodyBytes.set(candidate.path, utf8Length(body));
@@ -664,6 +684,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
     // The gate on the text that would go, as for evidence (the editor may hold an unsaved rule).
     if (!(await allowedText(candidate.path, read.text))) continue;
+    // Found by its words or its meaning, a note that withholds a link from this run stays out (decision A of
+    // 2026-11-13, review of R19): it may have been found by what the link says, and its being chosen would tell.
+    if (await foundThroughWithheld(candidate, read.text)) continue;
     const hash = noteHash(read.text);
     const title = read.title || candidate.title;
     const body = noteBody(read.text);
@@ -717,7 +740,15 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const map: string[] = [];
   const mapped = rest.filter((c) => !carded.has(c.path) && !missing.has(c.path) && decisions.get(c.path)?.allowed !== false);
   let mapGists = 0;
-  for (const candidate of mapped.slice(0, budget.map)) {
+  let named = 0;
+  for (const candidate of mapped) {
+    if (named >= budget.map) break;
+    // As for evidence and cards: a note found by its words or its meaning that withholds a link is not named either.
+    if (cloud || run.webTools) {
+      const read = await host.readNote(candidate.path);
+      if (read && (await foundThroughWithheld(candidate, read.text))) continue;
+    }
+    named++;
     // The first handles may carry their note's gist (P2b-3): a line instead of a bare name, where one exists.
     const raw = host.gists && mapGists < MAP_GISTS && !input.originals?.has(candidate.path) ? await host.gists.note(candidate.path).catch(() => null) : null;
     const screened = screen(raw ? (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim() : "", candidate.path);

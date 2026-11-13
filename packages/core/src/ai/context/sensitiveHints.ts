@@ -1,3 +1,5 @@
+import { ReaderView } from "../readerView.js";
+
 /**
  * Sensitivity hints (plan KI-Harness P2b-6): local patterns that suggest a
  * text had better stay on this device — account and card numbers, passwords
@@ -174,14 +176,21 @@ export function goingKinds(kinds: readonly SensitiveKind[], redacted: boolean): 
 
 /** Replaces what can be redacted with a placeholder naming its kind; health words stay — the topic is the note's. */
 export function redactSensitive(text: string, findings: readonly SensitiveFinding[]): { text: string; redacted: number } {
-  let out = "";
+  const { view, redacted } = redactSensitiveIn(ReaderView.of(text), findings);
+  return { text: view.text, redacted };
+}
+
+/**
+ * `redactSensitive` on a reader's view: `findings` are of the view's text (`sensitiveFindings(view.text)`), and each
+ * redacted one becomes a withheld piece of it (`ReaderView`).
+ */
+export function redactSensitiveIn(view: ReaderView, findings: readonly SensitiveFinding[]): { view: ReaderView; redacted: number } {
+  const ranges: { from: number; to: number; with: string }[] = [];
   let at = 0;
-  let redacted = 0;
   for (const f of findings) {
     if (!REDACTABLE.has(f.kind) || f.from < at) continue;
-    out += `${text.slice(at, f.from)}⟦withheld ${f.kind}⟧`;
+    ranges.push({ from: f.from, to: f.to, with: `⟦withheld ${f.kind}⟧` });
     at = f.to;
-    redacted++;
   }
-  return { text: out + text.slice(at), redacted };
+  return { view: view.replaceRanges(ranges), redacted: ranges.length };
 }
