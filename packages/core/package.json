@@ -76,6 +76,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "mdast-util-to-hast": "13.2.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1",
     "tsx": "^4.23.15",

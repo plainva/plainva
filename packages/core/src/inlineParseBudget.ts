@@ -330,13 +330,32 @@ const HTML_BLOCK_NAMES = new Set(
 const LONE_TAG = /^(?:<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ \t"'=<>`]+|'[^']*'|"[^"]*"))?)*[ \t]*\/?>|<\/[A-Za-z][A-Za-z0-9-]*[ \t]*>)[ \t]*$/;
 
 /** Whether `text`, a line behind its blanks, opens an HTML block. */
-function opensHtmlBlock(text: string): boolean {
+function opensHtmlBlock(text: string, loneTag = true): boolean {
   if (text[0] !== "<") return false;
   if (/^<(?:script|pre|style|textarea)(?:[ \t>]|$)/i.test(text)) return true;
   if (text.startsWith("<!--") || text.startsWith("<?") || text.startsWith("<![CDATA[") || /^<![A-Za-z]/.test(text)) return true;
   const named = /^<\/?([A-Za-z][A-Za-z0-9]*)(?:[ \t>]|\/>|$)/.exec(text);
   if (named && HTML_BLOCK_NAMES.has(named[1].toLowerCase())) return true;
-  return LONE_TAG.test(text);
+  // A lone tag opens a block of its own only where no paragraph is open: it cannot interrupt one.
+  return loneTag && LONE_TAG.test(text);
+}
+
+/**
+ * Whether `content` (a line behind the quote markers of the paragraph before
+ * it) ends that paragraph, as the parser reads it: a heading, a fence, a
+ * thematic break of `*`, `_` or `- - -`, an HTML block of the first six kinds,
+ * and — where the parser opens blocks within blocks — a list item with
+ * something written in it, numbered from 1 if numbered. Every other line
+ * continues the paragraph, and `---` or `===` underlines it as a heading.
+ */
+function interruptsParagraph(content: string, containers: boolean): boolean {
+  if (isBlank(content)) return true;
+  if (indentOf(content) > 3) return false;
+  const text = content.slice(textStart(content));
+  if (isAtxHeading(text) || fenceOpening(text) || opensHtmlBlock(text, false)) return true;
+  if (/^(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(text)) return true;
+  if (/^(?:-[ \t]*){3,}$/.test(text) && !/^-+[ \t]*$/.test(text)) return true;
+  return containers && /^(?:[-+*]|0*1[.)])[ \t]+[^ \t]/.test(text);
 }
 
 /**
@@ -513,19 +532,19 @@ function delimiterRowCells(line: string): number | null {
 const TABLE_SYNTAX = "\\[]*_~`<&!$";
 
 /** What a row weighs against a character: each row is a node of its own, with its own events. */
-export const TABLE_ROW_WEIGHT = 8;
+export const TABLE_ROW_WEIGHT = 64;
 
 /** What a cell weighs against a character, filled or empty: each cell's content is a parse of its own, with its own events. */
-export const TABLE_CELL_WEIGHT = 34;
+export const TABLE_CELL_WEIGHT = 38;
 
 /** What a character of inline syntax weighs against a plain one. */
-export const TABLE_SYNTAX_WEIGHT = 9;
+export const TABLE_SYNTAX_WEIGHT = 11;
 
 /** What each autolink literal a row may hold weighs (`tableRowParts`): a link node of its own, without a character of syntax. */
-export const TABLE_LITERAL_WEIGHT = 9;
+export const TABLE_LITERAL_WEIGHT = 11;
 
 /** What each block marker in front of a table line weighs: a quote's `>`, a list item's or a footnote's indent; each is events of its own on every line. */
-export const TABLE_MARKER_WEIGHT = 9;
+export const TABLE_MARKER_WEIGHT = 14;
 
 /**
  * What the markers in front of a table line weigh (`prefix`, the line up to
@@ -570,7 +589,12 @@ export function tableRowParts(text: string, from: number, to: number): { chars: 
       held = false;
     } else {
       if (TABLE_SYNTAX.includes(ch)) syntax++;
-      if (ch === "@" || (ch === "w" && text.startsWith("ww.", i + 1)) || (ch === ":" && text.startsWith("//", i + 1)) || (ch === "m" && text.startsWith("ailto:", i + 1)) || (ch === "x" && text.startsWith("mpp:", i + 1))) literals++;
+      if (ch === "@" || (ch === ":" && text.startsWith("//", i + 1))) literals++;
+      else if (ch === "w" || ch === "W" || ch === "m" || ch === "M" || ch === "x" || ch === "X") {
+        // The parser links `www.`, `mailto:` and `xmpp:` in any case: `WWW.a.b` is a link.
+        const ahead = text.slice(i, i + 7).toLowerCase();
+        if (ahead.startsWith("www.") || ahead === "mailto:" || ahead.startsWith("xmpp:")) literals++;
+      }
       if (ch !== " " && ch !== "\t") held = true;
     }
     backslashes = ch === "\\" ? backslashes + 1 : 0;
@@ -586,13 +610,14 @@ export function tableRowParts(text: string, from: number, to: number): { chars: 
  * one per character, `TABLE_CELL_WEIGHT` per cell, `TABLE_SYNTAX_WEIGHT` per
  * character of inline syntax; the markers in front of it weigh on their own
  * (`tableMarkerCost`). The weights are an upper bound, not a fit (`scripts/perf/table-budget.ts`,
- * measured 2026-11-13 over 61 shapes): they are chosen so that the largest table the parse reads
+ * measured 2026-11-13 over 64 shapes and three parses): they are chosen so that the largest table the parse reads
  * under a capped heap weighs at least `TABLE_READ_BUDGET / 0.9` for every
  * measured shape — the costliest shape of each part decides its weight.
  */
-export function tableReadCost(text: string, from: number, to: number): number {
+export function tableReadCost(text: string, from: number, to: number, columns = 0): number {
   const parts = tableRowParts(text, from, to);
-  return TABLE_ROW_WEIGHT + parts.chars + TABLE_CELL_WEIGHT * parts.cells + TABLE_SYNTAX_WEIGHT * parts.syntax + TABLE_LITERAL_WEIGHT * parts.literals;
+  // The reading view fills every row up to the header's columns (`mdast-util-to-hast`): a row weighs at least that many cells.
+  return TABLE_ROW_WEIGHT + parts.chars + TABLE_CELL_WEIGHT * Math.max(parts.cells, columns) + TABLE_SYNTAX_WEIGHT * parts.syntax + TABLE_LITERAL_WEIGHT * parts.literals;
 }
 
 /**
@@ -609,16 +634,23 @@ export function tableReadCost(text: string, from: number, to: number): number {
  * note. That is the parse alone; the heap a WebView gives the app is not
  * known here, so raising the budget needs a measurement in the phone's
  * WebView first. In rows (2026-11-13): about
- * 5 000 rows of a word and a link, 3 300 rows of four short cells and a link,
- * 2 650 rows of four cells of words, 1 050 rows with links and emphasis in
- * every cell, 1 150 rows of sixteen one-character cells, 15 000 rows of one
- * short cell or of a line without a pipe, 4 700 rows of a word and a link in
- * a quote or a list item, 10 000 rows of one short cell in two quotes, 400
- * rows of a hundred e-mail addresses, 150 rows of 400 unclosed `[` and `*`.
+ * 3 500 rows of a word and a link, 2 500 rows of four short cells and a link,
+ * 2 150 rows of four cells of words, 880 rows with links and emphasis in
+ * every cell, 1 000 rows of sixteen one-character cells, 6 900 rows of one
+ * short cell or of a line without a pipe, 3 250 rows of a word and a link in
+ * a quote or a list item, 5 250 rows of one short cell in two quotes, 370
+ * rows of a hundred e-mail addresses, 185 rows of `|` under a header of 100
+ * columns, 140 rows of 400 unclosed `[` and `*`. The budget is the
+ * calibration's 850 000 set lower by 15 % (decided 2026-11-13, for the
+ * maintainer to revisit): 128 MB is an assumption measured on Node's heap and
+ * the WebView carries the DOM and React besides; three reviews found shapes
+ * the weight lacked, and with 9 to 14 % to spare known shapes stood at 119
+ * and 125 of 128 MB; the reading view is new in the criterion. L14 calibrates
+ * the whole note with a measurement in the phone's WebView, where it may rise.
  * Before GFM tables 2.1.2 the rule was rows times length (5 × 10⁸), about
  * 2 500 short rows, for the time a quadratic parse took.
  */
-export const TABLE_READ_BUDGET = 680_000;
+export const TABLE_READ_BUDGET = 720_000;
 
 /** An HTML block of tags (CommonMark's sixth and seventh kind): it ends at a blank line. */
 const HTML_ENDS_AT_BLANK = /$^/;
@@ -646,10 +678,29 @@ function htmlBlockOpening(text: string): RegExp | null {
   return opensHtmlBlock(text) ? HTML_ENDS_AT_BLANK : null;
 }
 
+/**
+ * Which parser a text is weighed for: the parsers that read a note differ in
+ * what they read, and a stretch weighed for one may cost another more. The
+ * index and the note source read tables and the properties block
+ * (`NOTE_READING`), the reading view tables without the block
+ * (`READER_READING`: behind an unclosed `---` it opens quotes and lists, the
+ * others do not), an import of another program's CommonMark neither
+ * (`COMMONMARK_READING`: its tables are paragraphs).
+ */
+export interface MarkdownReading {
+  /** GFM tables. */
+  tables: boolean;
+  /** The properties block (`remark-frontmatter`), with its mode behind an unclosed `---` (`opensNoContainers`). */
+  properties: boolean;
+}
+export const NOTE_READING: MarkdownReading = { tables: true, properties: true };
+export const READER_READING: MarkdownReading = { tables: true, properties: false };
+export const COMMONMARK_READING: MarkdownReading = { tables: false, properties: false };
+
 /** What `overBudgetInlineRanges` can report about its scan, by line (counted from 0): the tests hold it against the parser. */
 export interface InlineScanObserver {
-  /** Every table the scan weighs: its header and its last line. */
-  table?: (first: number, last: number, exact: boolean) => void;
+  /** Every table the scan weighs: its header and its last line, whether it read it exactly, and what it weighs. */
+  table?: (first: number, last: number, exact: boolean, cost: number) => void;
   /** Every run of lines the scan measures as one paragraph. */
   run?: (first: number, last: number) => void;
 }
@@ -683,12 +734,15 @@ const behindMarkers = (line: string): number => {
  * over every line that could be one of its rows, and measures the same
  * lines as paragraph text as well.
  */
-export function overBudgetInlineRanges(text: string, observe?: InlineScanObserver): BoundedRange[] {
-  // Nothing in a text this short can reach either budget.
-  if (!observe && text.length * text.length <= INLINE_PARSE_BUDGET) return [];
+export function overBudgetInlineRanges(text: string, observe?: InlineScanObserver, reading: MarkdownReading = NOTE_READING): BoundedRange[] {
+  // Nothing in a text this short can reach the paragraph budget — but a short
+  // table can reach its own: the reading view fills each row to the header's
+  // columns, and 4 KB of header and rows of `|` make a million cells. A table
+  // needs a delimiter row, and every delimiter row holds a `-` next to a `|` or a `:`, blanks between allowed.
+  if (!observe && text.length * text.length <= INLINE_PARSE_BUDGET && !/[|:][ \t]*-|-[ \t]*[|:]/.test(text)) return [];
   const ranges: BoundedRange[] = [];
   const lines = splitLines(text);
-  const containers = !opensNoContainers(text);
+  const containers = !(reading.properties && opensNoContainers(text));
   let run: { from: number; to: number; first: number; last: number } | null = null;
   const flush = () => {
     if (run) {
@@ -745,13 +799,25 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       if (endsTable(row, start.indent, containers)) break;
       const range = { from: line.from + start.at, to: line.to };
       content.push(range);
-      cost += tableReadCost(text, range.from, range.to) + tableMarkerCost(line.text.slice(0, start.at));
+      cost += tableReadCost(text, range.from, range.to, delimiterCells ?? 0) + tableMarkerCost(line.text.slice(0, start.at));
       if (exceedsInlineParseBudget(text, range.from, range.to)) costly.push(range);
       last = at;
     }
-    observe?.table?.(index, last, exact);
+    observe?.table?.(index, last, exact, cost);
     if (cost > TABLE_READ_BUDGET) {
       // One range where only blanks, line ends and markers that are no markup lie between two lines.
+      // Read as written, the table is a paragraph, and the lines behind it
+      // that end a table but not a paragraph continue it — indented code, a
+      // lone tag, a numbered item from 2, an empty item — or underline it as
+      // a heading (`---`, `===`). They are read as written with it, so the
+      // paragraph stays text and nothing becomes a heading.
+      const depth = containers ? peelQuotes(header.text).depth : 0;
+      for (let at = last + 1; at < lines.length; at++) {
+        const line = lines[at];
+        const peeled = containers ? peelQuotes(line.text) : { depth: 0, content: line.text };
+        if (peeled.depth > depth || interruptsParagraph(peeled.content, containers)) break;
+        content.push({ from: line.from + line.text.length - peeled.content.length, to: line.to });
+      }
       for (const range of content) {
         const previous = ranges[ranges.length - 1];
         const between = previous && previous.to <= range.from ? text.slice(previous.to, range.from) : null;
@@ -877,7 +943,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     const sure = depthHere >= 0 && (chain === -2 || (chain >= 0 && chain <= depthHere));
     // Behind a list item the next line may continue it lazily.
     chain = sure && plain >= 0 ? plain : -1;
-    if (index > tableUntil) {
+    if (reading.tables && index > tableUntil) {
       // Sure of the blocks: a table starts here, or interrupts the paragraph before it in the same quote, as the table parser reads it.
       if (sure) {
         const last = tableAt(index, true);
@@ -976,8 +1042,8 @@ export interface BoundedMarkdown {
  * stretch already becomes U+FFFD (none shows as anything). Outside the
  * stretches nothing changes; a note a person writes comes back as it is.
  */
-export function boundMarkdownForParse(text: string): BoundedMarkdown {
-  const ranges = overBudgetInlineRanges(text);
+export function boundMarkdownForParse(text: string, reading: MarkdownReading = NOTE_READING): BoundedMarkdown {
+  const ranges = overBudgetInlineRanges(text, undefined, reading);
   if (ranges.length === 0) return { text, ranges };
   let out = "";
   let at = 0;

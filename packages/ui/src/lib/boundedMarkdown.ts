@@ -1,5 +1,5 @@
 import type { markdown } from "@codemirror/lang-markdown";
-import { boundMarkdownForParse, exceedsInlineParseBudget, restoreBoundedTree, type BoundedMarkdown } from "@plainva/core";
+import { boundMarkdownForParse, exceedsInlineParseBudget, READER_READING, restoreBoundedTree, type BoundedMarkdown } from "@plainva/core";
 
 /**
  * The parse budget (`inlineParseBudget.ts` in core) for the two parsers that
@@ -20,7 +20,8 @@ import { boundMarkdownForParse, exceedsInlineParseBudget, restoreBoundedTree, ty
  * it was, so the reader's source mapping holds.
  */
 export function boundReaderMarkdown(text: string): BoundedMarkdown & { remarkRestore: () => (tree: unknown) => void } {
-  const bounded = boundMarkdownForParse(text);
+  // Weighed for the reading view's own parser: GFM without the properties block (MarkdownReader.tsx), which opens quotes and lists behind an unclosed `---`.
+  const bounded = boundMarkdownForParse(text, READER_READING);
   const { ranges } = bounded;
   return {
     ...bounded,

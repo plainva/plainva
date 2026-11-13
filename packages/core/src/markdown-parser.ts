@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified } from "unified";
-import { boundMarkdownForParse, restoreBoundedTree } from "./inlineParseBudget.ts";
+import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type MarkdownReading } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
@@ -84,12 +84,12 @@ interface PlacedNode {
  * place. (Cutting the mark off before the parse would hand the parser that
  * second one to skip.)
  */
-function parsedInText<Tree>(parse: (text: string) => Tree, text: string): Tree {
+function parsedInText<Tree>(parse: (text: string) => Tree, text: string, reading: MarkdownReading = NOTE_READING): Tree {
   // What is no text is the parser's to answer for, as it always was.
   if (typeof text !== "string") return parse(text);
   // A stretch whose inline syntax would cost the parser more than the budget
   // is read as written (`inlineParseBudget.ts`); every place stays where it is.
-  const bounded = boundMarkdownForParse(text);
+  const bounded = boundMarkdownForParse(text, reading);
   if (text.charCodeAt(0) !== BYTE_ORDER_MARK) {
     const tree = parse(bounded.text);
     restoreBoundedTree(tree, bounded.ranges);
@@ -143,5 +143,6 @@ export function parseMarkdownTree(text: string): MarkdownTreeNode {
  * Every position is a place in `text`.
  */
 export function parseCommonMarkTree(text: string): MarkdownTreeNode {
-  return parsedInText((source) => commonMarkParser.parse(source), text) as unknown as MarkdownTreeNode;
+  // Weighed for CommonMark: its tables are paragraphs, and the measure of a paragraph must see their lines.
+  return parsedInText((source) => commonMarkParser.parse(source), text, COMMONMARK_READING) as unknown as MarkdownTreeNode;
 }

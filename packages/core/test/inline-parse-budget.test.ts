@@ -20,7 +20,12 @@ import {
   TABLE_SYNTAX_WEIGHT,
   tableReadCost,
   tableRowParts,
+  COMMONMARK_READING,
+  READER_READING,
+  type MarkdownReading,
 } from "../src/inlineParseBudget.ts";
+import { toHast } from "mdast-util-to-hast";
+import { SHAPES, shapeTable } from "../scripts/perf/table-budget.ts";
 import { parseCommonMarkTree, parseMarkdownAst, parseMarkdownTree, type MarkdownTreeNode } from "../src/markdown-parser.ts";
 import { extractLinksAndTags } from "../src/ast-scanner.ts";
 import { analyzeNoteOutline, analyzeNoteSource } from "../src/noteSource.ts";
@@ -158,7 +163,7 @@ describe("the inline parse budget", () => {
   });
 
   // Rows of a word and a link, added until the table is at the budget (L13):
-  // about 5 000 of them. Until GFM tables 2.1.2 the rule was rows times
+  // about 3 500 of them. Until GFM tables 2.1.2 the rule was rows times
   // length, for a parse that grew with the square of the cells, and a table
   // of more than about 2 500 such rows was read as written — no table, and
   // none of its links in the index.
@@ -177,7 +182,7 @@ describe("the inline parse budget", () => {
   const noteOf = (rows: string[]) => `# Data\n\n${[HEADER, "|---|---|", ...rows].join("\n")}\n\nbelow [[Link]]\n`;
 
   it("reads a table at its budget as a table, with the link of every cell", () => {
-    expect(atBudget.rows.length).toBeGreaterThan(4_000);
+    expect(atBudget.rows.length).toBeGreaterThan(3_000);
     const note = noteOf(atBudget.rows);
     expect(overBudgetInlineRanges(note)).toEqual([]);
     const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });
@@ -246,10 +251,10 @@ describe("the inline parse budget", () => {
   }, 240 * SECONDS);
 
   it("reads a long table in time linear in its cells", () => {
-    // 4 000 rows take about half a second; the budget leaves five times that,
-    // scaled to a slower core. Quadratic, as before GFM tables 2.1.2, they took
-    // seconds.
-    const note = noteOf(Array.from({ length: 4_000 }, (_, i) => `| row ${i} | [[n${i}]] |`));
+    // 3 000 rows, under the budget, take under half a second; the budget leaves
+    // more than five times that, scaled to a slower core. Quadratic, as before
+    // GFM tables 2.1.2, they took seconds.
+    const note = noteOf(Array.from({ length: 3_000 }, (_, i) => `| row ${i} | [[n${i}]] |`));
     const tree = within(3 * SECONDS, () => parseMarkdownTree(note));
     expect(tree.children![1].type).toBe("table");
   }, 240 * SECONDS);
@@ -420,6 +425,9 @@ describe("where a table ends", () => {
   // The table parser itself, without the budget: what the scan must agree with.
   const rawParser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks);
   const rawTree = (text: string) => rawParser.parse(text) as unknown as MarkdownTreeNode;
+  // The reading view's parser: GFM without the properties block (MarkdownReader.tsx).
+  const readerParser = unified().use(remarkParse).use(remarkGfm);
+  const readerTree = (text: string) => readerParser.parse(text) as unknown as MarkdownTreeNode;
   const tablesOf = (tree: MarkdownTreeNode, into: Array<[number, number]> = []): Array<[number, number]> => {
     const place = (tree as { position?: { start: { line: number }; end: { line: number } } }).position;
     if (tree.type === "table" && place) into.push([place.start.line - 1, place.end.line - 1]);
@@ -576,6 +584,140 @@ describe("where a table ends", () => {
     }
   }, 60 * SECONDS);
 
+  it("weighs a note for each parser that reads the ranges: the reading view behind an unclosed `---`, CommonMark without tables", () => {
+    // Behind an unclosed `---` the note's parsers open no quote, the reading
+    // view's does (it reads no properties block): there `> ]]]…` is a quote's
+    // paragraph, not a table row, and it must stay in a paragraph's measure.
+    // The scan read for the note's parsers only, and the reading view took
+    // 18 s for 800 such lines. CommonMark reads no table at all: its rows are
+    // one paragraph (10 s for 800 rows).
+    const quoted = `---\n|h|\n|-|\n${Array.from({ length: 800 }, () => `> ${"]".repeat(40)}`).join("\n")}\n`;
+    expect(readerTree(quoted).children!.map((node) => node.type)).toEqual(["thematicBreak", "table", "blockquote"]);
+    expect(boundMarkdownForParse(quoted, READER_READING).ranges).toEqual([{ from: quoted.indexOf(">"), to: quoted.length - 1 }]);
+    const rows = `|h|\n|-|\n${Array.from({ length: 800 }, () => `|${"]".repeat(40)}|`).join("\n")}\n`;
+    expect(boundMarkdownForParse(rows, COMMONMARK_READING).ranges).toEqual([{ from: 0, to: rows.length - 1 }]);
+    expect(within(3 * SECONDS, () => parseCommonMarkTree(rows)).children!.map((node) => node.type)).toEqual(["paragraph"]);
+    // For the note's own parsers both stay a table under its budget.
+    expect(overBudgetInlineRanges(rows)).toEqual([]);
+  }, 60 * SECONDS);
+
+  it("reads the lines behind a table over its budget with it, where they would continue its paragraph or underline it", () => {
+    // Read as written, the table is a paragraph: `---` behind it underlined
+    // all of it as a heading of 130 KB (also before L13), `    code`, `-` and
+    // `2. x` continued it. They are read as written with it; a heading before
+    // the table and the paragraph after a blank line stay what they are.
+    const dense = `|${"a|".repeat(16)}`;
+    const count = Math.ceil((1.2 * TABLE_READ_BUDGET) / tableReadCost(dense, 0, dense.length));
+    for (const after of ["---", " ---", "--- ", "----------", "==", "-", "2. x", "    code", "<divx>"]) {
+      const text = `## Before\n\n|${"h|".repeat(16)}\n|${"-|".repeat(16)}\n${Array.from({ length: count }, () => dense).join("\n")}\n${after}\n\nbelow\n`;
+      expect(overBudgetInlineRanges(text), after).toHaveLength(1);
+      expect(overBudgetInlineRanges(text)[0].to, after).toBe(text.indexOf("\n\nbelow"));
+      for (const tree of [parseMarkdownTree(text), parseMarkdownAst(text, { preserveObsidianSyntax: true })]) {
+        expect((tree.children as MarkdownTreeNode[]).map((node) => node.type), after).toEqual(["heading", "paragraph", "paragraph"]);
+        expect((tree.children![0] as { depth?: number }).depth, after).toBe(2);
+      }
+    }
+    // A line that ends a paragraph stays its own block: a thematic break of stars, a heading, a list item.
+    for (const [after, type] of [["***", "thematicBreak"], ["# h", "heading"], ["- x", "list"]] as const) {
+      const text = `|${"h|".repeat(16)}\n|${"-|".repeat(16)}\n${Array.from({ length: count }, () => dense).join("\n")}\n${after}\n`;
+      expect(parseMarkdownTree(text).children!.map((node) => node.type), after).toEqual(["paragraph", type]);
+    }
+  }, 60 * SECONDS);
+
+  it("weighs the links of `www.`, `mailto:` and `xmpp:` in any case", () => {
+    // The parser links `WWW.a.b` and `Www.a.b`; 804 rows of a hundred of them ran the parse out of memory at the budget.
+    const literals = "WWW.a.b Www.c.d MAILTO:a@b.cc XMPP:c@d.ee HTTP://e.f";
+    // `@` counts once for each address: `MAILTO:a@b` is two, `XMPP:c@d` two.
+    expect(tableRowParts(literals, 0, literals.length).literals).toBe(7);
+    expect(rawTree(`| h |\n|---|\n| ${literals} |\n`).children![0].children![1].children![0].children!.filter((node) => node.type === "link")).toHaveLength(5);
+    const text = over(`| ${"WWW.a.b ".repeat(100)}|`);
+    expect(overBudgetInlineRanges(text)).toEqual([{ from: 0, to: text.length - 1, table: true }]);
+  });
+
+  it("weighs every row with the header's columns: the reading view fills each row to them", () => {
+    // `mdast-util-to-hast` makes as many cells of every row as the header has
+    // columns. A header of 100 columns over 15 000 rows of `|` — a note of
+    // 31 KB — made 1.5 million cells and ran the reading view out of memory.
+    const header = `|${"h|".repeat(100)}\n|${"-|".repeat(100)}`;
+    const hast = toHast(readerTree(`${header}\n|\n`).children![0] as never) as unknown as { children: Array<{ tagName?: string; children?: Array<{ tagName?: string }> }> };
+    const body = hast.children.find((child) => child.tagName === "tbody")!;
+    expect(body.children!.find((row) => row.tagName === "tr")!).toMatchObject({ tagName: "tr" });
+    expect((body.children!.find((row) => row.tagName === "tr") as { children: Array<{ tagName?: string }> }).children.filter((cell) => cell.tagName === "td")).toHaveLength(100);
+    expect(tableReadCost("|", 0, 1, 100)).toBe(TABLE_ROW_WEIGHT + 1 + 100 * TABLE_CELL_WEIGHT);
+    const rows = Math.ceil(TABLE_READ_BUDGET / tableReadCost("|", 0, 1, 100)) + 1;
+    const text = `${header}\n${Array.from({ length: rows }, () => "|").join("\n")}\n`;
+    expect(overBudgetInlineRanges(text)).toHaveLength(1);
+  });
+
+  it("weighs a table at least as much as the parsers make of it, over generated tables (the gauge)", () => {
+    // The weight models the parsers; every place it reads otherwise was a hole
+    // a review found (`WWW.`, the lone pipe, the wide header). Here the weight
+    // of each generated table is held against the nodes the three readings
+    // make of it — the note's tree, the reading view's tree and its HTML tree
+    // (`mdast-util-to-hast`, which fills rows to the header). The bound is the
+    // calibrated shapes' own: no generated table may make more nodes per
+    // weight than the densest shape the budget was measured on, with a tenth
+    // to spare. A table that does is a shape the calibration lacks.
+    const count = (node: { children?: unknown[] }): number => 1 + (node.children ?? []).reduce<number>((sum, child) => sum + count(child as { children?: unknown[] }), 0);
+    const tablesIn = (node: MarkdownTreeNode, into: MarkdownTreeNode[] = []): MarkdownTreeNode[] => {
+      if (node.type === "table") into.push(node);
+      for (const child of node.children ?? []) tablesIn(child, into);
+      return into;
+    };
+    const readings: Array<[string, MarkdownReading | undefined, (text: string) => MarkdownTreeNode, boolean]> = [
+      ["note", undefined, rawTree, false],
+      ["reader", READER_READING, readerTree, false],
+      ["hast", READER_READING, readerTree, true],
+    ];
+    const ratios = (text: string): Record<string, number[]> => {
+      const out: Record<string, number[]> = { note: [], reader: [], hast: [] };
+      for (const [name, reading, parse, html] of readings) {
+        const spans: Array<[number, number, number]> = [];
+        overBudgetInlineRanges(text, { table: (first, last, _sure, cost) => spans.push([first, last, cost]) }, reading);
+        for (const table of tablesIn(parse(text))) {
+          const place = (table as { position: { start: { line: number }; end: { line: number } } }).position;
+          const span = spans.find(([first, last]) => first <= place.start.line - 1 && place.end.line - 1 <= last);
+          // A table the scan does not weigh at all is a hole of its own.
+          out[name].push(span ? span[2] / count(html ? (toHast(table as never) as { children?: unknown[] }) : table) : 0);
+        }
+      }
+      return out;
+    };
+    const bound: Record<string, number> = { note: Infinity, reader: Infinity, hast: Infinity };
+    for (const name of Object.keys(SHAPES)) {
+      const shape = ratios(shapeTable(name, 40));
+      for (const key of Object.keys(bound)) for (const ratio of shape[key]) if (ratio > 0) bound[key] = Math.min(bound[key], 0.9 * ratio);
+    }
+    let seed = 20261114;
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) >>> 0;
+      let t = seed;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const pick = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
+    const units = ["word", "WWW.a.b", "Www.x.y", "www.c.d", "HTTP://a.b", "https://a.b/c", "a@b.cc", "MAILTO:a@b.c", "xmpp:a@b.c", "&amp;", "&#123;", "[[n]]", "[l](u)", "*e*", "**s**", "`c`", "<b>x</b>", "![i](p)", "[^1]", "~~d~~", "\\|", "中文", "😀", "<http://a.b>", "#tag", "$x$", ""];
+    const failures: string[] = [];
+    for (let k = 0; k < 1_500; k++) {
+      const columns = random() < 0.3 ? 1 + Math.floor(random() * 60) : 1 + Math.floor(random() * 6);
+      const per = random() < 0.5 ? 1 : 1 + Math.floor(random() * 20);
+      const [first, rest] = pick([["", ""], ["", ""], ["> ", "> "], ["- ", "  "], ["> > ", "> > "]]);
+      const lead = random() < 0.15 ? "---\n" : random() < 0.1 ? "> [!note] t\n" : "";
+      const same = random() < 0.4 ? pick(units) : null;
+      const cell = () => Array.from({ length: same ? per * 3 : per }, () => same ?? pick(units)).join(" ");
+      const row = () => {
+        const cells = random() < 0.2 ? 0 : 1 + Math.floor(random() * columns);
+        return cells === 0 ? pick(["|", "||", "a", " |"]) : `|${Array.from({ length: cells }, cell).join("|")}|`;
+      };
+      const lines = [`${first}|${"h|".repeat(columns)}`, `${rest}|${"-|".repeat(columns)}`, ...Array.from({ length: 3 + Math.floor(random() * 15) }, () => rest + row())];
+      const text = `${lead}${lines.join("\n")}\n`;
+      const found = ratios(text);
+      for (const key of Object.keys(bound)) for (const ratio of found[key]) if (ratio < bound[key]) failures.push(`${key} ${ratio.toFixed(2)} < ${bound[key].toFixed(2)}: ${JSON.stringify(text.slice(0, 200))}`);
+    }
+    expect(failures.slice(0, 5)).toEqual([]);
+  }, 180 * SECONDS);
+
   it("keeps a paragraph whole where its lazy lines look like a table (a guard: a table interrupts a paragraph only in its own block)", () => {
     // In a quote, `]]]] | x` over `-|-` without the marker is text of the
     // quote's paragraph, not a table. The scan of `origin/main` read no
@@ -627,20 +769,31 @@ describe("where a table ends", () => {
       if (random() < 0.15) lines.unshift(pick(["---", "---  ", "\uFEFF---", "----"]));
       if (random() < 0.05) lines.push("---");
       const text = `${lines.join("\n")}\n`;
-      const tree = rawTree(text);
-      const tables: Array<[number, number]> = [];
-      const exact: Array<[number, number]> = [];
-      const runs: Array<[number, number]> = [];
-      overBudgetInlineRanges(text, {
-        table: (first, last, sure) => {
-          tables.push([first, last]);
-          if (sure) exact.push([first, last]);
-        },
-        run: (first, last) => runs.push([first, last]),
-      });
-      const missed = tablesOf(tree).filter((table) => !inside(table, tables));
-      const split = paragraphsOf(tree).filter((paragraph) => !inside(paragraph, runs) && meets(paragraph, exact));
-      if (missed.length + split.length > 0) failures.push(JSON.stringify({ text, missed, split }));
+      // Each parser that takes the scan's ranges, against the scan for it: the note's (index, note source), the reading view's (no properties block).
+      for (const [reading, parse] of [[undefined, rawTree], [READER_READING, readerTree]] as const) {
+        const tree = parse(text);
+        const tables: Array<[number, number]> = [];
+        const exact: Array<[number, number]> = [];
+        const runs: Array<[number, number]> = [];
+        overBudgetInlineRanges(
+          text,
+          {
+            table: (first, last, sure) => {
+              tables.push([first, last]);
+              if (sure) exact.push([first, last]);
+            },
+            run: (first, last) => runs.push([first, last]),
+          },
+          reading,
+        );
+        const missed = tablesOf(tree).filter((table) => !inside(table, tables));
+        const split = paragraphsOf(tree).filter((paragraph) => !inside(paragraph, runs) && meets(paragraph, exact));
+        if (missed.length + split.length > 0) failures.push(JSON.stringify({ reading: reading ? "reader" : "note", text, missed, split }));
+      }
+      // CommonMark reads no table: every line stays in the measure of its paragraph.
+      let weighed = 0;
+      overBudgetInlineRanges(text, { table: () => weighed++ }, COMMONMARK_READING);
+      if (weighed > 0) failures.push(JSON.stringify({ reading: "commonmark", text }));
     }
     expect(failures.slice(0, 5)).toEqual([]);
   }, 120 * SECONDS);

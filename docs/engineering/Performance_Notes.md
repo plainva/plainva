@@ -414,8 +414,10 @@ during the parse, retained = heap after a forced collection with the tree kept):
 The peak follows the characters, the cells and the inline syntax, and each row, each block marker
 in front of a line and each autolink literal (`a@b.cc`, `www.`, `://`) adds events of its own. The
 budget is set by a criterion that can be re-run (`scripts/perf/table-budget.ts`): a table of every
-shape at the budget, **alone in an otherwise empty note**, is read by the index parse and by the
-note-source parse, each in a process of its own under `node --max-old-space-size=128`. That is all
+shape at the budget, **alone in an otherwise empty note**, is read by the index parse, by the
+note-source parse and by the reading view's parser with its HTML tree (`mdast-util-to-hast`, which
+fills every row to the header's columns), each in a process of its own under
+`node --max-old-space-size=128`. That is all
 it holds: the budget is per table, and the memory of a parse is per note (below, "One note, many
 tables"). `pnpm --filter @plainva/core perf:tables -- --calibrate` finds the
 largest such table of each fixed shape and chooses the weights of `tableReadCost` as an upper
@@ -443,7 +445,27 @@ no-break space behind `-|-` makes it no delimiter row); a table stands in a quot
 list item, a footnote, and behind a paragraph line in the same block. A note whose first line is
 `---` with nothing to close it starts a properties block that never ends, and from there on the
 parser opens no quote, list item or footnote: `- a` and `> b` are rows under a table
-(`opensNoContainers`). Until then the scan ended a table at the first such line
+(`opensNoContainers`). That mode belongs to the parsers with the properties block; the reading view
+reads no such block and opens quotes and lists there, and CommonMark (an import of another program's
+notes) reads no table at all. So the scan weighs for the parser that takes its ranges
+(`NOTE_READING` for the index and the note source, `READER_READING` for the reading view,
+`COMMONMARK_READING` for `parseCommonMarkTree`): weighed for the note's parsers only, 800 quoted lines
+behind an unclosed `---` held the reading view for 18 s, and 800 table rows a CommonMark import for
+10 s. Every row weighs at least the header's columns in cells, because the reading view makes that
+many of it (a header of 100 columns over rows of `|`, a note of 31 KB, made 1.5 million cells). The
+links `www.`, `mailto:` and `xmpp:` are weighed in any case (`WWW.a.b` is a link). A text short
+enough for the paragraph budget is still scanned when it may hold a table. Over the budget, the
+lines behind the table that would continue its paragraph or underline it (`---`, `===`, indented
+code, an empty item) are read as written with it: before, a `---` under such a table made all of it
+one heading of 130 KB.
+
+`inline-parse-budget.test.ts` holds the weight against what the parsers make of a table, besides the
+scan against where they read one (the gauge, 1 500 generated tables of words, every kind of
+autolink literal in either case, entities, links, wiki links, emphasis, code, HTML, CJK, emoji,
+headers of up to 60 columns over short rows and rows of `|`, in quotes, lists and callouts, behind
+an unclosed `---`): the weight of each must be at least the number of nodes of the note's tree,
+the reading view's tree and its HTML tree, times the smallest ratio any calibrated shape has, less
+a tenth. It fails on `4ecaa1501` (109 of 3 000 tables) and on each of the review's forms. Until then the scan ended a table at the first such line
 and weighed no table in a quote, a list item or a footnote at all — older than the table budget:
 the rows-times-length rule of 2026-11-01 had the same hole. Where the scan is sure of the blocks (a
 table behind quote markers or list items only, starting a paragraph or interrupting one in the same
@@ -456,37 +478,45 @@ measure can hide lines from the other. `inline-parse-budget.test.ts` holds this 
 over 3 000 generated notes (block markers and lines drawn at random); a scratch run of 160 000
 found no table the scan missed and no paragraph a table split.
 
-Calibrated 2026-11-13 over 61 shapes: weights one per character, 8 per row, 34 per cell, 9 per
-character of inline syntax, 9 per block marker in front of a line, 9 per autolink literal; the
-calibration proposed a budget of 710 000, set to 680 000:
+Calibrated 2026-11-13 over 64 shapes and three parses (index, note source, reading view with its
+HTML tree): weights one per character, 64 per row (a row of the HTML tree is nodes of its own), 38
+per cell, 11 per character of inline syntax, 14 per block marker in front of a line, 11 per autolink
+literal. The calibration proposed a budget of 850 000; it is set to **720 000**, 15 % lower (decided
+2026-11-13 by the coordination, for the maintainer to revisit): 128 MB is an assumption measured on
+Node's heap, and the WebView carries the DOM and React besides; three reviews in a row found shapes
+the weight lacked, and with 9 to 14 % to spare known shapes stood at 119 and 125 of 128 MB; the
+reading view is new in the criterion. Against the rule before L13 (about 2 500 rows of a word and a
+link) that is still 40 % more, and L14 calibrates the whole note with a measurement in the phone's
+WebView, where the number may rise.
 
 | Shape | Limit under 128 MB | Limit weighs | At the budget |
 |---|---|---|---|
-| a word and a link | 8 794 rows | 1.75 × the budget | 5 015 rows |
-| four short cells and a link | 4 599 | 1.39 × | 3 321 |
-| four cells of words | 4 458 | 1.67 × | 2 665 |
-| links and emphasis in every cell | 1 569 | 1.50 × | 1 044 |
-| one long cell of prose | 2 359 | 1.21 × | 1 945 |
-| sixteen one-character cells, no blanks | 1 435 | 1.23 × | 1 161 |
-| no outer pipes | 6 922 | 1.25 × | 5 536 |
-| `\\|` boundaries | 2 366 | 1.52 × | 1 555 |
-| 150 `~a` per row | 470 | 1.17 × | 400 |
-| 400 unclosed `[` and `*` per row | 294 | 1.85 × | 158 |
-| one short cell between two pipes | 18 135 | 1.20 × | 15 110 |
-| a line without a pipe | 21 000 | 1.33 × | 15 812 |
-| a word and a link in a quote | 7 857 | 1.66 × | 4 736 |
-| a word and a link in a list item | 8 075 | 1.70 × | 4 736 |
-| sixteen one-character cells in a quote | 1 337 | 1.17 × | 1 139 |
-| one short cell in two quotes | 12 835 | 1.26 × | 10 148 |
-| one short cell in five quotes | 9 442 | 1.39 × | 6 798 |
-| one short cell in a list item | 17 089 | 1.41 × | 12 141 |
-| a delimiter row `:-`, rows of `a` | 20 256 | 1.28 × | 15 812 |
-| a hundred `a@b.cc` per row | 513 | 1.24 × | 413 |
-| a hundred `www.a.b` per row | 502 | 1.28 × | 389 |
-| `- a` and `> b` behind an unclosed `---` | 19 575 | 1.42 × | 13 821 |
+| a word and a link | 7 859 rows | 2.27 × the budget | 3 471 rows |
+| four short cells and a link | 4 573 | 1.81 × | 2 529 |
+| four cells of words | 4 178 | 1.95 × | 2 149 |
+| links and emphasis in every cell | 1 527 | 1.75 × | 879 |
+| one long cell of prose | 2 435 | 1.38 × | 1 758 |
+| sixteen one-character cells, no blanks | 1 413 | 1.38 × | 1 020 |
+| no outer pipes | 6 583 | 1.75 × | 3 774 |
+| `\\|` boundaries | 2 331 | 1.79 × | 1 301 |
+| 150 `~a` per row | 462 | 1.32 × | 350 |
+| 400 unclosed `[` and `*` per row | 296 | 2.11 × | 139 |
+| one short cell between two pipes | 17 940 | 2.62 × | 6 856 |
+| a line without a pipe | 20 256 | 2.89 × | 6 989 |
+| a word and a link in a quote or a list item | 7 718 | 2.36 × | 3 267 |
+| sixteen one-character cells in a quote | 1 315 | 1.32 × | 997 |
+| one short cell in two quotes | 12 999 | 2.48 × | 5 254 |
+| one short cell in five quotes | 8 919 | 2.29 × | 3 890 |
+| one short cell in a list item | 16 692 | 2.81 × | 5 949 |
+| a delimiter row `:-`, rows of `a` | 19 762 | 2.82 × | 6 989 |
+| a hundred `a@b.cc` per row | 515 | 1.36 × | 377 |
+| a hundred `WWW.a.b` per row | 485 | 1.35 × | 359 |
+| `- a` and `> b` behind an unclosed `---` | 8 700 | 1.31 × | 6 614 |
+| rows of `\|` under a header of 100 columns | 5 292 | 28.4 × | 185 |
+| rows of `\|a\|` under a header of 20 columns | 17 640 | 20.3 × | 869 |
 
-The lightest limits — `~` runs, sixteen one-character cells in a quote — sit 17 % above the budget
-(the limit search is exact to 4 %). That is the parse alone: the heap a WebView gives the app is
+The lightest limits — `- a` and `> b` behind an unclosed `---`, `~` runs, sixteen one-character
+cells in a quote — sit 31 % above the budget (the limit search is exact to 4 %). That is the parse alone: the heap a WebView gives the app is
 not known here, so raising the budget needs a measurement in the phone's WebView first. A table
 over the budget is read as written, as before: in the index it has no links, and the reading view
 shows its lines as one paragraph of text with the pipes in it, no table, its quote or list around
@@ -516,7 +546,7 @@ is a package of its own with its own corpus check, not part of this one. Lists a
 class as tables for memory (20 000 list items with a link: 409 MB at the peak), with no budget of
 their own.
 
-`inline-parse-budget.test.ts` reads a table at the budget (about 5 000 rows) as a table with every
+`inline-parse-budget.test.ts` reads a table at the budget (about 3 500 rows) as a table with every
 link, the same table one row longer as written — one paragraph, every other block of the note as
 before — within 5 s on the reference core, and times a table of 4 000 rows apart from those (3 s on
 the reference core, about half a second here).

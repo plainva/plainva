@@ -10,7 +10,9 @@
  * The criterion: a table of every shape below, at the budget, is read by the
  * index parse (`parseMarkdownAst` with Obsidian syntax) and by the note-source
  * parse (`parseMarkdownTree`) in a process whose V8 old space is capped at
- * `HEAP_MB`. Each parse runs in a child process of its own with
+ * `HEAP_MB` — and by the reading view's parser with its HTML tree
+ * (`mdast-util-to-hast`, which fills every row to the header's columns). Each
+ * parse runs in a child process of its own with
  * `--max-old-space-size`; one that runs out of memory fails.
  *
  * `--calibrate` finds, for each fixed shape, the most rows both parses read
@@ -35,7 +37,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as path from "node:path";
 import { readFileSync } from "node:fs";
-import { TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, opensNoContainers, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { boundMarkdownForParse, READER_READING, TABLE_CELL_WEIGHT, TABLE_LITERAL_WEIGHT, TABLE_MARKER_WEIGHT, TABLE_READ_BUDGET, TABLE_ROW_WEIGHT, TABLE_SYNTAX_WEIGHT, opensNoContainers, tableLineStart, tableMarkerCost, tableReadCost, tableRowParts } from "../../src/inlineParseBudget.js";
+import { toHast } from "mdast-util-to-hast";
 import { markdownAstSchema } from "../../src/markdown-ast.js";
 import { parseMarkdownAst, parseMarkdownTree } from "../../src/markdown-parser.js";
 import remarkObsidianPreserve from "../../src/remark-obsidian-preserve.js";
@@ -129,6 +132,10 @@ export const SHAPES: Record<string, Shape> = {
   emails: { header: "| h |\n|---|", row: () => `| ${"a@b.cc ".repeat(100)}|` },
   wwws: { header: "| h |\n|---|", row: () => `| ${"www.a.b ".repeat(100)}|` },
   urls: { header: "| h |\n|---|", row: () => `| ${"https://a.b ".repeat(60)}|` },
+  wwwcaps: { header: "| h |\n|---|", row: () => `| ${"WWW.a.b ".repeat(100)}|` },
+  // A wide header over short rows: the reading view fills every row to the header's columns.
+  wide100: { header: `|${"h|".repeat(100)}\n|${"-|".repeat(100)}`, row: () => "|" },
+  wide20: { header: `|${"h|".repeat(20)}\n|${"-|".repeat(20)}`, row: () => "|a|" },
   // One short cell per row behind block markers: each marker is events of its own on every line (found in review: two quotes ran out of memory at the budget).
   q1one: { header: "> | h |\n> |---|", row: () => "> |a|" },
   q2one: { header: "> > | h |\n> > |---|", row: () => "> > |a|" },
@@ -236,9 +243,15 @@ export function shapeTable(name: string, rows: number): string {
 }
 
 /** What a table line weighs as the app weighs it: its row behind the markers of the blocks it stands in, and the markers. */
-function lineCost(line: string, first: boolean, containers = true): number {
+function lineCost(line: string, first: boolean, containers = true, columns = 0): number {
   const at = tableLineStart(line, first, containers).at;
-  return tableReadCost(line, at, line.length) + tableMarkerCost(line.slice(0, at));
+  return tableReadCost(line, at, line.length, columns) + tableMarkerCost(line.slice(0, at));
+}
+
+/** The columns of a shape's table: the cells of its delimiter row, which every row of the reading view is filled to. */
+function columnsOf(shape: Shape): number {
+  const delimiter = shape.header.split("\n")[1];
+  return tableRowParts(delimiter, tableLineStart(delimiter, false).at, delimiter.length).cells;
 }
 
 /** The parts of a table's weight, summed; `markers` is what the markers weigh beyond their characters at a marker weight of one. */
@@ -253,13 +266,14 @@ function tableParts(name: string, rows: number): Parts {
   const sum = { rows: 0, chars: 0, cells: 0, syntax: 0, markers: 0, literals: 0 };
   const header = shape.header.split("\n")[0];
   const containers = !opensNoContainers(shapeTable(name, 0));
+  const columns = columnsOf(shape);
   for (const [i, row] of [header, ...Array.from({ length: rows }, (_, i) => shape.row(i))].entries()) {
     const at = tableLineStart(row, i === 0, containers).at;
     const parts = tableRowParts(row, at, row.length);
     sum.rows += 1;
     sum.chars += parts.chars + at;
     sum.markers += markersOf(row.slice(0, at));
-    sum.cells += parts.cells;
+    sum.cells += Math.max(parts.cells, columns);
     sum.syntax += parts.syntax;
     sum.literals += parts.literals;
   }
@@ -273,11 +287,12 @@ function rowsAt(name: string, target: number): number {
   const shape = shapeOf(name);
   const header = shape.header.split("\n")[0];
   const containers = !opensNoContainers(shapeTable(name, 0));
+  const columns = columnsOf(shape);
   let weight = lineCost(header, true, containers);
   let rows = 0;
   for (;;) {
     const row = shape.row(rows);
-    const next = weight + lineCost(row, false, containers);
+    const next = weight + lineCost(row, false, containers, columns);
     if (next > target) return rows;
     weight = next;
     rows++;
@@ -290,7 +305,7 @@ const CORE = path.resolve(path.dirname(HERE), "../..");
 /** Whether both parses read `rows` rows of `name` under the cap, each in a process of its own. */
 function passes(name: string, rows: number, bounded: boolean): { ok: boolean; ms: number; why: string } {
   let ms = 0;
-  for (const parse of ["index", "tree"]) {
+  for (const parse of ["index", "tree", "reader"]) {
     const run = spawnSync(process.execPath, [`--max-old-space-size=${HEAP_MB}`, "--import", "tsx", HERE, bounded ? "--child" : "--child-unbounded", name, String(rows), parse], { cwd: CORE, encoding: "utf8", timeout: 300_000 });
     const out = /^ok (\d+)/m.exec(run.stdout ?? "");
     if (run.status !== 0 || !out) {
@@ -422,13 +437,24 @@ const unbounded = {
     return markdownAstSchema.parse(processor.runSync(processor.parse(text)));
   },
   tree: (text: string) => unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]).use(remarkWikiLinks).parse(text),
+  // The reading view's parser (GFM without the properties block, MarkdownReader.tsx) and its HTML tree, which fills every row to the header's columns.
+  reader: (text: string) => {
+    const tree = unified().use(remarkParse).use(remarkGfm).parse(text);
+    toHast(tree);
+    return tree;
+  },
 };
+
+/** The reading view as the app runs it: weighed for its own parser, then the same two steps. */
+function boundedReader(text: string) {
+  return unbounded.reader(boundMarkdownForParse(text, READER_READING).text);
+}
 
 function child(name: string, rows: number, parse: string, bounded: boolean): void {
   const text = shapeTable(name, rows);
   const started = performance.now();
   const tree = (bounded
-    ? parse === "index" ? parseMarkdownAst(text, { preserveObsidianSyntax: true }) : parseMarkdownTree(text)
+    ? parse === "index" ? parseMarkdownAst(text, { preserveObsidianSyntax: true }) : parse === "reader" ? boundedReader(text) : parseMarkdownTree(text)
     : unbounded[parse as keyof typeof unbounded](text)) as { children?: Array<{ type: string }> };
   // A table the budget reads as written costs what plain text costs: only a table read as a table counts, in whatever block it stands.
   const hasTable = (node: { type: string; children?: unknown[] } | undefined): boolean =>

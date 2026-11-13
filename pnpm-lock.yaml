@@ -407,6 +407,9 @@ importers:
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
+      mdast-util-to-hast:
+        specifier: 13.2.1
+        version: 13.2.1
       sqlite:
         specifier: ^5.1.1
         version: 5.1.1
