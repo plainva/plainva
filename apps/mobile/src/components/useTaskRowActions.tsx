@@ -23,8 +23,7 @@ import { AreaBoundary,
   type RepeatRule,
   type TaskBlockValues,
   type TaskPriority,
-  type TaskRowSheet,
-} from "@plainva/ui";
+  type TaskRowSheet, notePathsForLinkText } from "@plainva/ui";
 import {
   resolveTaskOrdinal,
   setChecklistTaskPriority,
@@ -134,9 +133,7 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
       if (!target) return;
       const provider = await pimTargetForCalendarKey(calendarKey);
       if (!provider) throw new Error(t("pim.eventWriteFailed"));
-      const allPaths = vault.queryService
-        ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
-        : [target.linkPath];
+      const allPaths = vault.queryService ? await notePathsForLinkText(vault.queryService) : [target.linkPath];
       const res = await createTaskTimeBlock({
         adapter: vault.files,
         target: provider,
@@ -280,9 +277,7 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
       if (row.source !== "note" || !row.line) return;
       const task = { ordinal: row.line.ordinal, text: row.line.text, tags: [...row.tags], due: row.due, done: row.state === "done" };
       void (async () => {
-        const allNotePaths = vault.queryService
-          ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
-          : [];
+        const allNotePaths = await notePathsForLinkText(vault.queryService);
         const res = await promoteTask({
           adapter: vaultTextFiles(vault),
           sourcePath: row.path,
@@ -331,7 +326,7 @@ export function useTaskRowActions(o: TaskRowActionsOptions) {
    * that belonged elsewhere had to be moved by hand afterwards.
    */
   const promoteInto = async (row: PlannerRow) => {
-    const bases = vault.queryService ? await vault.queryService.listBases().catch(() => []) : [];
+    const bases = vault.indexView ? await vault.indexView.listBases().catch(() => []) : [];
     if (bases.length === 0) {
       toast.info(t("sidebar.noDatabases"));
       return;

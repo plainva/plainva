@@ -1,4 +1,4 @@
-import { readContentBinary, reportingTo } from "@plainva/ui";
+import { notePathsForLinkText, readContentBinary, reportingTo } from "@plainva/ui";
 import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
@@ -182,7 +182,7 @@ export function BaseScreen({
 }) {
   const { t, i18n: i18nInstance } = useTranslation();
   const title = path.split("/").pop()!.replace(/\.base$/i, "");
-  const cache = useMemo(() => pinboardCache(vault.queryService ?? vault.files), [vault.queryService, vault.files]);
+  const cache = useMemo(() => pinboardCache(vault.indexView ?? vault.files), [vault.indexView, vault.files]);
   const snapshot = useMemo(() => cache.base<{ loaded: LoadedBase; rows: Row[]; viewIndex: number }>(path), [cache, path]);
   const [loaded, setLoaded] = useState<LoadedBase | null>(() => snapshot?.loaded ?? null);
   const [viewIndex, setViewIndex] = useState(() => snapshot?.viewIndex ?? 0);
@@ -236,7 +236,7 @@ export function BaseScreen({
   const searchPaths = useMemo(() => (allRows ?? []).map((r) => String(r["file.path"] ?? "")), [allRows]);
   const searchMetadata = useMemo(() => baseSearchMetadata(allRows ?? [], searchColumns, (row, col) => plainCellText(row[col])), [allRows, searchColumns]);
   const searchRevision = useMemo(() => baseSearchRevision(allRows ?? []), [allRows]);
-  const baseSearch = useBaseSearch(vault.queryService, searchPaths, searchText, searchMetadata, cache, searchKey, searchRevision);
+  const baseSearch = useBaseSearch(vault.indexView, searchPaths, searchText, searchMetadata, cache, searchKey, searchRevision);
   const rows = useMemo(
     () => (allRows === null ? null : filterRowsBySearch(allRows, baseSearch.matches)),
     [allRows, baseSearch.matches]
@@ -1265,7 +1265,7 @@ export function BaseScreen({
           day: when.day,
           minutes: when.minutes,
           dateField: when.field,
-          allPaths: (await vault.queryService?.listNotes())?.map((n: { path: string }) => n.path) ?? [p],
+          allPaths: vault.queryService ? await notePathsForLinkText(vault.queryService) : [p],
         });
         // The appointment exists either way — a failed anchor is a warning, not
         // a claim that nothing happened.
@@ -1285,10 +1285,10 @@ export function BaseScreen({
   // it needs the resolved vault graph (relation edges) from the core service.
   const [vaultGraph, setVaultGraph] = useState<any | null>(null);
   useEffect(() => {
-    if (render !== "graph" || !vault.queryService) return;
+    if (render !== "graph" || !vault.indexView) return;
     let stale = false;
     void import("@plainva/core").then(({ GraphService }) =>
-      GraphService.forIndex(vault.queryService!).loadGraph().then((g) => {
+      GraphService.forIndex(vault.indexView!).loadGraph().then((g) => {
         if (!stale) setVaultGraph(g);
       }),
     );
@@ -1313,7 +1313,7 @@ export function BaseScreen({
   const needsLinkLookup = !!subItemsProperty || !!coverCol;
   const [linkState, setLinkState] = useState<{ rows: Row[]; lookup: WikiTargetSet | null } | null>(null);
   useEffect(() => {
-    const qs = vault.queryService;
+    const qs = vault.indexView;
     if (!needsLinkLookup || !qs || !allRows) return;
     let stale = false;
     void qs.linkTargets().then((files) => {
@@ -1325,7 +1325,7 @@ export function BaseScreen({
       stale = true;
     };
   }, [vault, allRows, needsLinkLookup]);
-  const linkLookup: WikiTargetSet | null | undefined = !vault.queryService ? null : linkState && linkState.rows === allRows ? linkState.lookup : undefined;
+  const linkLookup: WikiTargetSet | null | undefined = !vault.indexView ? null : linkState && linkState.rows === allRows ? linkState.lookup : undefined;
 
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const coverUrlsRef = useRef<string[]>([]);
@@ -2528,7 +2528,7 @@ export function BaseScreen({
       {/* The view is an area of its own (stability plan R3): the bar with its
           views stays, and another view can be picked. */}
       <AreaBoundary area={`base:${effectiveRender}`} resetKey={`${viewIndex}:${effectiveRender}`}>{() => (
-      rows === null ? null : !vault.queryService ? (
+      rows === null ? null : !vault.indexView ? (
         /* NOT "coming in a later step": databases are shipped, this vault's
            search index simply is not there yet — a `.base` is a QUERY, and the
            query service is what the failed index build takes with it (N7). */

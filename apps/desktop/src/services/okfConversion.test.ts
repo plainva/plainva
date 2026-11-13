@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 
 const storeValues: Record<string, unknown> = {};
 vi.mock("@tauri-apps/plugin-store", () => {
@@ -39,9 +40,9 @@ describe("scanVaultOkf", () => {
       "a.md": "# x\n",
       "Templates/t.md": "# t\n",
     });
-    const queryService = {
+    const queryService = wholeIndexReader({
       db: { query: async () => [{ path: "a.md" }, { path: "Templates/t.md" }] },
-    } as any;
+    } as any);
     const result = await scanVaultOkf({ vaultPath: "/v", queryService, adapter });
     expect(result.scanned).toBe(1);
     expect(result.violations).toEqual([{ path: "a.md", kind: "missing-frontmatter" }]);

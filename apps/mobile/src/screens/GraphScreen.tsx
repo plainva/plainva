@@ -118,11 +118,11 @@ export function GraphScreen({
   // Tag facet resolves to note paths (the shared filter contract).
   useEffect(() => {
     let alive = true;
-    if (!vault.queryService || !tag) {
+    if (!vault.indexView || !tag) {
       setTagPaths(null);
       return;
     }
-    vault.queryService
+    vault.indexView
       .getFilesByTag(tag)
       .then((files) => {
         if (alive) setTagPaths(new Set(files.map((x) => x.path)));
@@ -229,7 +229,7 @@ export function GraphScreen({
         // The icons a note carries, same as the tree and the search list show
         // them. The map stayed empty here until the engine could draw icon-set
         // references at all (P3.1) — an emoji worked, a "lucide:…" name did not.
-        const icons = await vault.queryService!.getDocumentIcons().catch(() => new Map<string, { icon: string; color?: string }>());
+        const icons = await vault.indexView!.getDocumentIcons().catch(() => new Map<string, { icon: string; color?: string }>());
         if (alive) {
           setPins(store.getPins(PIN_CONTEXT));
           setData({ graph, overview, icons, dates });
@@ -343,7 +343,7 @@ export function GraphScreen({
   };
   const pickTag = () => {
     void (async () => {
-      const rows = (await vault.queryService?.getAllTags().catch(() => [])) ?? [];
+      const rows = (await vault.indexView?.getAllTags().catch(() => [])) ?? [];
       const tags = rows.map((r) => r.tag).sort();
       const v = await mSelect({
         title: t("graph.filterTag"),

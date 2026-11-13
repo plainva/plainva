@@ -52,7 +52,7 @@ export function taskJumpTerm(row: PlannerRow): string | null {
 }
 
 export async function loadPhoneDueTasks(vault: MobileVault): Promise<PhoneDueTasks> {
-  const service = vault.queryService;
+  const service = vault.indexView;
   const db = getMobileSettings().taskDatabase.trim();
   if (!service) return { rows: [], dueKey: null, database: db !== "", databaseTickable: false };
   const fromDatabase = async () => {

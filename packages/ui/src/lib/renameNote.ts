@@ -135,7 +135,7 @@ export async function planLinkUpdates(
   // The links onto a file are found in the index: never planned over half of
   // one (performance plan L3). Refused before anything is asked — outside the
   // `failed` below, which goes on without link updates.
-  queryService.requireWholeIndex?.();
+  queryService.requireWholeIndex();
   let backlinks: { source_path: string; target_path: string; link_type?: string | null; property_key?: string | null }[] = [];
   let allPaths: string[] = [];
   let failed = false;
@@ -370,7 +370,7 @@ export async function renameFileWithLinkUpdates(opts: {
   const { adapter, queryService, oldPath, newPath } = opts;
 
   // Refused over an index that is not whole, before the file moves (L3).
-  queryService.requireWholeIndex?.();
+  queryService.requireWholeIndex();
   const { plan, failed: planFailed } = await planLinkUpdates(queryService, oldPath, newPath);
 
   await adapter.renameItem(oldPath, newPath);

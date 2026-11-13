@@ -32,7 +32,7 @@ export async function scanVaultOkf(opts: {
   const store = await getSettingsStore();
   const templateFolder = (await store.get<string>(templateFolderKey(opts.vaultPath))) || "Templates";
   // The list of notes comes from the index: refused over one that is not whole (L3).
-  opts.queryService.requireWholeIndex?.();
+  opts.queryService.requireWholeIndex();
   const rows = await opts.queryService.db.query<{ path: string }>(
     `SELECT path FROM files WHERE mode != 'attachment'`
   );

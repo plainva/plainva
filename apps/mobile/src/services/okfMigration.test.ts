@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { OKF_VERSION, okfMigrationPending } from "@plainva/core";
+import { OKF_VERSION, okfMigrationPending, wholeIndexReader } from "@plainva/core";
 import { migrateVaultOkf, scanVaultOkfVersion, undoOkfMigration } from "./okfMigration";
 import type { MobileVault } from "./vaultService";
 
@@ -48,7 +48,7 @@ function fakeVault(initial: Record<string, string>) {
   const vault = {
     vaultId: "fixture-vault",
     files: adapter,
-    queryService: {
+    queryService: wholeIndexReader({
       db: {
         // The `properties` table would list every note whose frontmatter
         // carries the key; the fake derives that from the content.
@@ -57,7 +57,7 @@ function fakeVault(initial: Record<string, string>) {
             .filter(([p, c]) => p.endsWith(".md") && !p.startsWith(".plainva") && /(^|\n)okf_version:/.test(c))
             .map(([path]) => ({ path })),
       },
-    },
+    }),
   } as unknown as MobileVault;
   return { vault, files };
 }

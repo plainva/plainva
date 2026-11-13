@@ -52,7 +52,8 @@ async function phoneVault(files: Record<string, string>, opts: { index?: boolean
   const adapter = new MemoryVaultAdapter(1_000);
   for (const [path, text] of Object.entries(files)) await adapter.writeTextFile(path, text);
   if (opts.index !== false) await new VaultIndexer(adapter, db).indexVaultFull();
-  const vault = { vaultId: "fixture", files: adapter, db, queryService: opts.index === false ? null : new VaultQueryService(db) } as unknown as MobileVault;
+  const queryService = opts.index === false ? null : new VaultQueryService(db);
+  const vault = { vaultId: "fixture", files: adapter, db, queryService, indexView: queryService ? queryService.view() : null } as unknown as MobileVault;
   return { vault, adapter, db };
 }
 

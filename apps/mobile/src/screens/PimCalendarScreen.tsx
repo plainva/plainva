@@ -284,7 +284,7 @@ export function PimCalendarScreen({
     void (async () => {
       try {
         const vault = await getMobileVault();
-        const qs = vault.queryService;
+        const qs = vault.indexView;
         if (!qs) return;
         const bases = await qs.listBases();
         const cands: OverlayCandidate[] = [];
@@ -317,7 +317,7 @@ export function PimCalendarScreen({
       void (async () => {
         try {
           const vault = await getMobileVault();
-          const qs = vault.queryService;
+          const qs = vault.indexView;
           if (!qs) return;
           setOvEntries(next.length ? await loadBaseOverlay(next, await qs.listBases(), { vaultAdapter: vault.files, queryService: qs }) : []);
         } catch {

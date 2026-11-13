@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import { REPO } from "../test-sourceTree";
 import i18n from "@plainva/ui/i18n";
 import {
   notesCarryingProperty,
@@ -11,7 +15,7 @@ import {
   sayRewriteOutcome,
   type PropertyWriteAdapter,
 } from "@plainva/ui";
-import { renameFrontmatterKey, VaultFileNotFoundError } from "@plainva/core";
+import { isIndexNotWholeError, renameFrontmatterKey, VaultFileNotFoundError, VaultQueryService, wholeIndexReader } from "@plainva/core";
 
 /**
  * A property renamed across the notes of a database, and one removed from
@@ -249,7 +253,7 @@ describe("the notes a rename or a removal goes through", () => {
   it("are the notes of the database's sources that carry the property, whatever a view's filters hide", async () => {
     const asked: unknown[] = [];
     const paths = await notesCarryingProperty(
-      { queryDatabaseFiles: async (config) => { asked.push(config); return SOURCE_ROWS; } },
+      wholeIndexReader({ queryDatabaseFiles: async (config: unknown) => { asked.push(config); return SOURCE_ROWS; } }),
       CONFIG,
       "prio",
       [{ "file.path": "Tasks/a.md", prio: 2 }],
@@ -267,21 +271,50 @@ describe("the notes a rename or a removal goes through", () => {
       columns: { open: { rollup: { through: "tasks", fn: "count" } }, back: { reverseOf: { base: "Other.base", property: "project" } } },
     };
     const rows = [{ "file.path": "Tasks/a.md", open: 0, back: [] }];
-    const query = { queryDatabaseFiles: async () => rows };
+    const query = wholeIndexReader({ queryDatabaseFiles: async () => rows });
     expect(await notesCarryingProperty(query, config, "open", rows)).toEqual([]);
     expect(await notesCarryingProperty(query, config, "back", rows)).toEqual([]);
   });
 
   it("are found by the key in any casing: a column a view merely names keeps the note's spelling", async () => {
     const rows = [{ "file.path": "Tasks/upper.md", Prio: 3 }, { "file.path": "Tasks/a.md", prio: 2 }, { "file.path": "Tasks/none.md" }];
-    expect(await notesCarryingProperty({ queryDatabaseFiles: async () => rows }, CONFIG, "prio")).toEqual(["Tasks/upper.md", "Tasks/a.md"]);
+    expect(await notesCarryingProperty(wholeIndexReader({ queryDatabaseFiles: async () => rows }), CONFIG, "prio")).toEqual(["Tasks/upper.md", "Tasks/a.md"]);
   });
 
   it("are the rows on screen that carry it, where the index cannot be asked", async () => {
     const shown = [{ "file.path": "Tasks/a.md", prio: 2 }, { "file.path": "Tasks/list.md" }];
     expect(await notesCarryingProperty(null, CONFIG, "prio", shown)).toEqual(["Tasks/a.md"]);
-    const failing = { queryDatabaseFiles: async () => { throw new Error("database is locked"); } };
+    const failing = wholeIndexReader({ queryDatabaseFiles: async (): Promise<Record<string, unknown>[]> => { throw new Error("database is locked"); } });
     expect(await notesCarryingProperty(failing, CONFIG, "prio", shown)).toEqual(["Tasks/a.md"]);
+  });
+
+  it("are refused while the index is not whole — never the rows on screen, never the notes read so far (second review of 11.11.)", async () => {
+    // A rename, a delete or a date conversion of a column during the first
+    // index rewrote the database and only the notes already read: every other
+    // note kept the old key under a column that no longer exists. The reader
+    // both shells hand out refuses; nothing is written.
+    const db = await realSqlite();
+    await db.execute(
+      `INSERT INTO files (id, path, title, sha256, mtime_local, ctime, size_bytes, is_cached, mode, sync_state, fts_rowid) VALUES ('a', 'Tasks/a.md', 'a', 'x', 1, 1, 1, 1, 'obsidian', 'synced', 0)`,
+    );
+    const reader = new VaultQueryService(db);
+    reader.setIndexWholeness({ state: () => ({ kind: "building", done: 1, total: 2 }), changed: () => new Promise(() => {}) });
+    const shown = [{ "file.path": "Tasks/a.md", prio: 2 }];
+    const refused = await notesCarryingProperty(reader, CONFIG, "prio", shown).then(() => null, (e: unknown) => e);
+    expect(isIndexNotWholeError(refused)).toBe(true);
+    await db.close();
+  });
+
+  it("are asked before the database is written, in every column change of the desktop", () => {
+    // The delete saved the database first and asked for the notes after it:
+    // a refusal there left the column gone and every note with its key.
+    const viewer = readFileSync(join(REPO, "apps/desktop/src/components/BaseViewer.tsx"), "utf8");
+    const remove = viewer.slice(viewer.indexOf("const performDeleteColumn = async"), viewer.indexOf("// \"Auf Ziel anzeigen\""));
+    expect(remove.indexOf("notesCarryingProperty(")).toBeGreaterThan(-1);
+    expect(remove.indexOf("notesCarryingProperty(")).toBeLessThan(remove.indexOf("saveConfig("));
+    const rename = viewer.slice(viewer.indexOf("const renameColumn = async"), viewer.indexOf("const performDeleteColumn = async"));
+    const renamed = rename.slice(rename.indexOf("renameBusyRef.current = true;"));
+    expect(renamed.indexOf("notesCarryingProperty(")).toBeLessThan(renamed.indexOf("saveConfig("));
   });
 });
 

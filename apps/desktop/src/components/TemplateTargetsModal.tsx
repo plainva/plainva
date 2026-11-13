@@ -17,7 +17,7 @@ import { applyIndexChanges } from "../services/fileActions";
  */
 export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: string; onClose: () => void }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, indexer } = useVault();
+  const { vaultAdapter, queryService, indexer, indexView } = useVault();
   const [content, setContent] = useState<string | null>(null);
   const [bases, setBases] = useState<{ path: string; title: string }[]>([]);
   const [query, setQuery] = useState("");
@@ -28,7 +28,7 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
       try {
         const [raw, baseList] = await Promise.all([
           vaultAdapter ? checkedContentPath(templatePath, (f) => vaultAdapter.listDir(f, false)).then((p) => vaultAdapter.readTextFile(p)) : Promise.resolve(""),
-          queryService ? queryService.listBases() : Promise.resolve([] as { path: string; title: string }[]),
+          indexView ? indexView.listBases() : Promise.resolve([] as { path: string; title: string }[]),
         ]);
         if (!alive) return;
         setContent(raw);
@@ -40,7 +40,7 @@ export function TemplateTargetsModal({ templatePath, onClose }: { templatePath: 
     return () => {
       alive = false;
     };
-  }, [vaultAdapter, queryService, templatePath]);
+  }, [vaultAdapter, indexView, templatePath]);
 
   const targets = useMemo(() => (content === null ? [] : parseTemplateForTargets(content)), [content]);
 

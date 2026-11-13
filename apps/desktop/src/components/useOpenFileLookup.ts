@@ -30,10 +30,12 @@ export interface OpenFileLookupOptions {
  */
 export function useOpenFileLookup(path: string, opts: OpenFileLookupOptions): MissingFile {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, indexer, vaultPath, triggerFileTreeUpdate } = useVault();
-  const db = queryService?.db;
+  const { vaultAdapter, queryService, indexView, indexer, vaultPath, triggerFileTreeUpdate } = useVault();
   const missing = useMissingFile(path, {
-    deps: opts.enabled && vaultAdapter && indexer && db ? { exists: (p) => vaultAdapter.exists(p), db, indexer } : null,
+    // Read from the view, decided once the index is whole (`searchMissingFile`).
+    deps: opts.enabled && vaultAdapter && indexer && queryService && indexView
+      ? { exists: (p) => vaultAdapter.exists(p), db: indexView.db, untilWholeIndex: () => queryService.untilWholeIndex(), indexer }
+      : null,
     scope: vaultPath ?? "",
     // What a move made in Plainva carries along — bookmarks, pinboard places,
     // the file operation — for a move made elsewhere. Links in other notes
@@ -44,6 +46,7 @@ export function useOpenFileLookup(path: string, opts: OpenFileLookupOptions): Mi
         retargetBookmarks: (f, target) => retargetDesktopBookmarks(vaultAdapter, f, target),
         pinboard: { adapter: vaultAdapter, queryService },
         reindex: async (paths) => { if (indexer) await applyIndexChanges(indexer, { added: paths }); },
+        untilWholeIndex: () => queryService ? queryService.untilWholeIndex() : Promise.resolve(),
       }, from, to);
     },
     carry: opts.carry,

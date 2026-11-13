@@ -29,7 +29,7 @@ interface BacklinkItem {
 
 export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange }: BacklinksPanelProps) {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter, fileTreeVersion } = useVault();
+  const { indexView, vaultAdapter, fileTreeVersion } = useVault();
   const [backlinks, setBacklinks] = useState<BacklinkItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Where each occurrence stands (Build-91 feedback, P7): the heading chain,
@@ -95,14 +95,14 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
     let active = true;
 
     const fetchBacklinks = async () => {
-      if (!queryService || !activePath) {
+      if (!indexView || !activePath) {
         if (active) setBacklinks([]);
         return;
       }
 
       try {
         setLoadError(null);
-        const links = await queryService.getBacklinks(activePath, { visibleOnly: true });
+        const links = await indexView.getBacklinks(activePath, { visibleOnly: true });
         if (active) {
           setBacklinks(links);
         }
@@ -120,7 +120,7 @@ export function BacklinksPanel({ activePath, onOpenPath, embedded, onCountChange
     return () => {
       active = false;
     };
-  }, [activePath, queryService, fileTreeVersion]);
+  }, [activePath, indexView, fileTreeVersion]);
 
   // One row per file, and under it its places (P7): the heading chain and the
   // parent list items as a muted breadcrumb, the line itself below; a click

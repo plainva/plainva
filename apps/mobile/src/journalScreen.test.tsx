@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { toast, type JournalFiles } from "@plainva/ui";
@@ -57,7 +58,8 @@ vi.mock("./services/vaultService", () => ({
 }));
 vi.mock("@capacitor/browser", () => ({ Browser: { open: vi.fn(async () => undefined) } }));
 
-const vault = { vaultId: "v1", adapter: {}, queryService: { listNotes: async () => [...store.keys()].map((path) => ({ path })) } } as never;
+const queryService = wholeIndexReader({ listNotes: async () => [...store.keys()].map((path) => ({ path })) });
+const vault = { vaultId: "v1", adapter: {}, queryService, indexView: queryService.view() } as never;
 
 let host: HTMLDivElement;
 let root: Root;

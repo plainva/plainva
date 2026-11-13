@@ -48,7 +48,7 @@ function App() {
   const {
     vaultPath, loadingPath, loadingProgress, isLoading,
     openVault, closeVault, recentVaults,
-    vaultAdapter, queryService, syncWorker, resetConnectionEncryption,
+    vaultAdapter, queryService, indexView, syncWorker, resetConnectionEncryption,
   } = useVault();
   const { heldVaults, isBooting, shownVault, recentVaults: appRecentVaults } = useApp();
 
@@ -121,6 +121,8 @@ function App() {
     okfPromptCheckedRef.current = vaultPath;
     void (async () => {
       try {
+        // Asked of the whole vault: the offer waits for the first index (a closed vault ends the wait).
+        await queryService.untilWholeIndex();
         // An interrupted conversion comes first — and instead of the offer,
         // never on top of it. It leaves a vault where some notes carry the OKF
         // fields and some do not, with nothing on screen saying so; the offer
@@ -177,17 +179,17 @@ function App() {
   }, [vaultPath]);
   // Fill the dialog's conflict rows from the index whenever it opens (P3.11).
   useEffect(() => {
-    if (!showErrorModal || !queryService) {
+    if (!showErrorModal || !indexView) {
       setDialogConflicts([]);
       return;
     }
     let alive = true;
-    Promise.all([queryService.db
+    Promise.all([indexView.db
       .query<{ path: string }>(`SELECT path FROM files WHERE path LIKE ? ORDER BY path LIMIT 5`, ["%.CONFLICT-%"]), vaultAdapter?.listConflictSessions?.() ?? Promise.resolve([])])
       .then(([rows, sessions]) => { if (alive) setDialogConflicts([...new Set([...sessions.map(s => s.workingCopyPath), ...rows.map((r) => r.path)])].slice(0, 5)); })
       .catch(() => { if (alive) setDialogConflicts([]); });
     return () => { alive = false; };
-  }, [showErrorModal, queryService, vaultAdapter]);
+  }, [showErrorModal, indexView, vaultAdapter]);
   // The status bar's "Offline" button routes here: same error dialog as the
   // vault-switcher warning triangle.
   useEffect(() => {

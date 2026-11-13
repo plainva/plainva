@@ -21,7 +21,8 @@ import { ExternalAddDialog, ExternalReviewDialog } from "./ExternalToolsDialogs"
 // The vault's services keep their identity between renders, as the real context's do.
 const { appConfirm, vaultContext } = vi.hoisted(() => ({
   appConfirm: vi.fn(async (_options: { title: string }) => true),
-  vaultContext: { queryService: { getAllFolders: async () => ["Projects", "Projects/2026", ".agent/skills", "Clients"] } },
+  // The folder list is shown, so it comes from the index as it stands (`indexView`).
+  vaultContext: { indexView: { getAllFolders: async () => ["Projects", "Projects/2026", ".agent/skills", "Clients"] } },
 }));
 vi.mock("../../contexts/VaultContext", () => ({ useVault: () => vaultContext }));
 vi.mock("../../services/appDialogs", () => ({ appConfirm }));

@@ -35,7 +35,7 @@ import { copyPhoneNoteLink } from "../services/noteLinkRoute";
 import { Share } from "@capacitor/share";
 import { buildMailtoUrl, noteMailPrefill, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { addressesAi, suggestedProperties, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch, reportBackground, reportingTo } from "@plainva/ui";
+import { addressesAi, suggestedProperties, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch, reportBackground, reportingTo, notePathsForLinkText } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
@@ -647,13 +647,14 @@ export function NoteScreen({
       retargetBookmarks: (f, tt) => renameBookmarksOnDisk(vault.belowChain, f, tt),
       pinboard: { adapter: vault.files, queryService: vault.queryService },
       reindex: (paths) => vault.reindexPaths(paths),
+      untilWholeIndex: () => vault.queryService ? vault.queryService.untilWholeIndex() : Promise.resolve(),
     }, from, to);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   });
   /** One search for this note, shared with every other surface that asks. */
   const searchFor = useStableHandler((): Promise<MissingFileSearch> | null => {
     if (!vault.indexer || !vault.db) return null;
-    return healMissingNote(path, { exists: (p) => vault.adapter.exists(p), db: vault.db, indexer: vault.indexer }, vault.vaultId,
+    return healMissingNote(path, { exists: (p) => vault.adapter.exists(p), db: vault.db, untilWholeIndex: () => vault.queryService ? vault.queryService.untilWholeIndex() : Promise.resolve(), indexer: vault.indexer }, vault.vaultId,
       { known: knownIdentityRef.current, onProvenMove: adoptMove });
   });
   useEffect(() => {
@@ -1098,9 +1099,7 @@ export function NoteScreen({
       toast.info(t("tasks.promoteNoDb"));
       return;
     }
-    const notes = vault.queryService
-      ? (await vault.queryService.listNotes().catch(() => [])).map((n) => n.path)
-      : [];
+    const notes = await notePathsForLinkText(vault.queryService);
     const title = commentTaskTitle(comment.body, t("comments.commentTaskFallback"));
     // Through the vault's save, as the task view creates one: the index hears
     // of the note at once (finding 2026-10-12).

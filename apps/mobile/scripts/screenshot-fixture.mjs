@@ -679,8 +679,13 @@ function seedPimAccounts(db) {
  * transaction its predecessor left open is rolled back, as the death of the
  * connection would have done. One context drives one live document at a time.
  */
-export async function installSqlBridge(context) {
+export async function installSqlBridge(context, { holdIndexWrites = false } = {}) {
   const dbs = new Map();
+  // Held: the first row the index writes waits until released — the first
+  // full scan stays under way, for as long as a spec needs to look at the app
+  // while its index is being built. Reads take no turn and go on.
+  let releaseHold = null;
+  const held = holdIndexWrites ? new Promise((resolve) => { releaseHold = resolve; }) : null;
 
   const open = (name) => {
     let db = dbs.get(name);
@@ -711,7 +716,8 @@ export async function installSqlBridge(context) {
     waiting.set(name, [...(waiting.get(name) ?? []), run]);
   };
 
-  await context.exposeFunction(`${BRIDGE_KEY}__exec`, (name, sql, params) => {
+  await context.exposeFunction(`${BRIDGE_KEY}__exec`, async (name, sql, params) => {
+    if (held && /^\s*INSERT INTO files\b/i.test(sql)) await held;
     open(name).prepare(sql).run(...params);
     // Only reached when the statement succeeded: a refused BEGIN opens nothing.
     if (/^\s*BEGIN\b/i.test(sql)) inTransaction.add(name);
@@ -769,6 +775,8 @@ export async function installSqlBridge(context) {
   );
 
   return {
+    /** Lets the index write again (`holdIndexWrites`). */
+    releaseIndexWrites() { releaseHold?.(); },
     /**
      * Row count of a table — the run's own proof that indexing happened.
      *

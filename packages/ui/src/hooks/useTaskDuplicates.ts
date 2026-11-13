@@ -87,7 +87,7 @@ export function useTaskDuplicates(deps: TaskDuplicatesDeps): TaskDuplicatesState
     if (!queryService || !db) return null;
     // Which copies are removed is planned from the index: never from half of
     // one, where the copy that is kept may not be read yet (performance plan L3).
-    queryService.requireWholeIndex?.();
+    queryService.requireWholeIndex();
     const [anchorsByUid, bound] = await Promise.all([queryService.getTaskAnchors(), deps.listBoundTaskNotes()]);
     const boundByTask = new Map(bound.map((b) => [JSON.stringify([b.listId, b.uid]), b.notePath]));
     return {

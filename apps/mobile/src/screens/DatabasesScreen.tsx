@@ -39,8 +39,8 @@ export function DatabasesScreen({
 
   useEffect(() => {
     let stale = false;
-    if (!vault.queryService) return;
-    void vault.queryService.listBases().then((rows) => {
+    if (!vault.indexView) return;
+    void vault.indexView.listBases().then((rows) => {
       if (!stale) setBases(rows);
     });
     return () => {

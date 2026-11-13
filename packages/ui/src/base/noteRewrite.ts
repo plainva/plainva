@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, frontmatterKeys, FrontmatterSurgicalError, renameFrontmatterKey, updateVaultText, VaultFileNotFoundError } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterKeys, FrontmatterSurgicalError, renameFrontmatterKey, updateVaultText, VaultFileNotFoundError, isIndexNotWholeError, type IndexReader } from "@plainva/core";
 import i18n from "i18next";
 import { errorText } from "../lib/errorText";
 import { noteDisplayName } from "../lib/noteTitle";
@@ -80,10 +80,14 @@ export interface NoteRewriteOptions {
 
 const reasonOf = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
-/** Where the notes of a database are asked for: the index (`VaultQueryService`). */
-export interface DatabaseNoteQuery {
-  queryDatabaseFiles(config: any): Promise<Record<string, unknown>[]>;
-}
+/**
+ * Where the notes of a database are asked for: the index, whole
+ * (`IndexReader`). A view (`VaultQueryService.view`) does not fit: a rename
+ * planned from half an index rewrote only the notes already read, and every
+ * other note kept the old key under a column that no longer exists (second
+ * review of 11.11.).
+ */
+export type DatabaseNoteQuery = IndexReader<"queryDatabaseFiles">;
 
 /**
  * The notes a property is renamed in or removed from: every note of the
@@ -114,6 +118,9 @@ export async function notesCarryingProperty(
     try {
       rows = await queryService.queryDatabaseFiles(stripPropertyFilters(config));
     } catch (e) {
+      // An index that is not whole is no failure to stand in for: the rows on
+      // screen are as partial as it is. The change is refused, before anything is written.
+      if (isIndexNotWholeError(e)) throw e;
       console.warn("[noteRewrite] the database's source query failed — using the rows on screen", e);
     }
   }

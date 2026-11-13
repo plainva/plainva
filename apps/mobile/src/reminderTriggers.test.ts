@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 
 /**
  * When the phone plans its reminders again (Sammelplan § 3.145 Nr. 1, E3).
@@ -38,7 +39,7 @@ vi.mock("@capacitor/app", () => ({
 vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => settings }));
 vi.mock("./services/pim/pimService", () => ({ getPimCache: () => null }));
 vi.mock("./services/vaultService", () => ({
-  getMobileVault: async () => ({ vaultId: "v1", queryService: { listTasks: async () => [] } }),
+  getMobileVault: async () => ({ vaultId: "v1", queryService: wholeIndexReader({ listTasks: async () => [] }) }),
   vaultOps: { read: async () => "" },
 }));
 

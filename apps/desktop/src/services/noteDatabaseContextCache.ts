@@ -1,4 +1,4 @@
-import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
+import type { IndexReading, IVaultAdapter } from "@plainva/core";
 import { buildNoteDatabaseContext, EMPTY_NOTE_DATABASE_CONTEXT, type NoteDatabaseContext } from "@plainva/ui";
 import { buildDesktopPlanDeps } from "./cascadeDelete";
 
@@ -17,7 +17,7 @@ const MAX_ENTRIES = 64;
 
 export function loadNoteDatabaseContextCached(
   adapter: IVaultAdapter,
-  queryService: VaultQueryService,
+  queryService: IndexReading,
   notePath: string,
   version: number
 ): Promise<NoteDatabaseContext> {

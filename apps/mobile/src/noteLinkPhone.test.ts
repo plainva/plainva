@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { requestAnchorJump, resetNoteLinkInbox } from "@plainva/ui";
 
 /**
@@ -24,17 +25,19 @@ afterEach(() => resetNoteLinkInbox());
 
 function fakeVault(indexed: string[]) {
   const asked: string[][] = [];
+  const queryService = wholeIndexReader({
+    fileRecords: async (paths: readonly string[]) => {
+      asked.push([...paths]);
+      return new Map(paths.filter((p) => indexed.includes(p)).map((p) => [p, {}]));
+    },
+  });
   return {
     asked,
     vault: {
       vaultId: "local",
       files: { exists: async () => false },
-      queryService: {
-        fileRecords: async (paths: readonly string[]) => {
-          asked.push([...paths]);
-          return new Map(paths.filter((p) => indexed.includes(p)).map((p) => [p, {}]));
-        },
-      },
+      queryService,
+      indexView: queryService.view(),
     } as never,
   };
 }

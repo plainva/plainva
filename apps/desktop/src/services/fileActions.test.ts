@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VaultFileNotFoundError } from "@plainva/core";
+import { VaultFileNotFoundError, wholeIndexReader } from "@plainva/core";
 import { applyIndexChanges, carryMirroredHeading, duplicateFile, moveItems, movableInto, promptRenameFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
 
 /** In-memory adapter: text files as strings, binaries as Uint8Array. */
@@ -84,12 +84,12 @@ describe("renameToName", () => {
       "Templates/Task.md": '---\nplainva:\n  templateFor:\n    - "[[Tasks.base]]"\n---\n# {{title}}\n',
       "Templates/Other.md": '---\nplainva:\n  templateFor: "[[Other.base]]"\n---\nx',
     });
-    const queryService = {
+    const queryService = wholeIndexReader({
       getBacklinks: async () => [
         { source_path: "Note.md", target_path: "Tasks.base", link_type: "embed", anchor: null, property_key: null },
       ],
       db: { query: async () => [...files.keys()].filter((p) => p !== "Templates").map((path) => ({ path })) },
-    } as never;
+    } as never);
     const r = await renameToName({
       adapter,
       queryService,
@@ -117,10 +117,10 @@ describe("renameToName", () => {
 
   it("skips the templateFor sweep when no template folder is provided (plain .base link update)", async () => {
     const { adapter, files } = makeAdapter({ "db/Tasks.base": "views: []" });
-    const queryService = {
+    const queryService = wholeIndexReader({
       getBacklinks: async () => [],
       db: { query: async () => [...files.keys()].map((path) => ({ path })) },
-    } as never;
+    } as never);
     const r = await renameToName({ adapter, queryService, oldPath: "db/Tasks.base", newName: "X.base", isFolder: false });
     expect(r.ok).toBe(true);
     expect(files.has("db/X.base")).toBe(true);
@@ -137,10 +137,10 @@ describe("renameToName", () => {
     const { adapter } = makeAdapter({ "Old.md": "# Old" });
     // Minimal query service: one backlink (target_path is the RAW link target
     // as indexed — "Old" for the bare wikilink), no basename collision.
-    const queryService = {
+    const queryService = wholeIndexReader({
       getBacklinks: async () => [{ source_path: "Ref.md", target_path: "Old" }],
       db: { query: async () => [{ path: "Old.md" }, { path: "Ref.md" }] },
-    } as never;
+    } as never);
     const files = (adapter as unknown as { readTextFile(p: string): Promise<string> });
     // Referencing note exists for the rewrite pass.
     await adapter.writeTextFile("Ref.md", "See [[Old]].");
@@ -159,10 +159,10 @@ describe("renameToName", () => {
 
   it("renames anyway but flags linkUpdateFailed when backlink collection throws (P1.9)", async () => {
     const { adapter, files } = makeAdapter({ "Old.md": "# Old" });
-    const queryService = {
+    const queryService = wholeIndexReader({
       getBacklinks: async () => { throw new Error("index locked"); },
       db: { query: async () => [] },
-    } as never;
+    } as never);
 
     const r = await renameToName({ adapter, queryService, oldPath: "Old.md", newName: "New", isFolder: false });
 
@@ -520,7 +520,7 @@ describe("a database that moves takes its template assignments along (3.71 no. 4
   /** The index as it was before the move: it relocates only afterwards. */
   const indexOf = (files: Map<string, unknown>) => {
     const bases = [...files.keys()].filter((p) => p.endsWith(".base"));
-    return { listBaseFilePaths: async () => bases, getBacklinks: async () => [], db: { query: async () => [] } } as never;
+    return wholeIndexReader({ listBaseFilePaths: async () => bases, getBacklinks: async () => [], db: { query: async () => [] } } as never);
   };
   const folderRenames = (base: FileActionAdapter, files: Map<string, string | Uint8Array>): FileActionAdapter => ({
     ...base,

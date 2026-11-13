@@ -26,7 +26,7 @@ export interface OpenFileLookupOptions {
 export function useOpenFileLookup(vault: MobileVault, path: string, opts: OpenFileLookupOptions): MissingFile {
   const { t } = useTranslation();
   const missing = useMissingFile(path, {
-    deps: vault.indexer && vault.db ? { exists: (p) => vault.adapter.exists(p), db: vault.db, indexer: vault.indexer } : null,
+    deps: vault.indexer && vault.db ? { exists: (p) => vault.adapter.exists(p), db: vault.db, untilWholeIndex: () => vault.queryService ? vault.queryService.untilWholeIndex() : Promise.resolve(), indexer: vault.indexer } : null,
     scope: vault.vaultId,
     // What a move made in Plainva carries along — bookmarks, pinboard places,
     // the file operation — for a move made elsewhere. Links in other notes
@@ -36,6 +36,7 @@ export function useOpenFileLookup(vault: MobileVault, path: string, opts: OpenFi
         retargetBookmarks: (f, target) => renameBookmarksOnDisk(vault.belowChain, f, target),
         pinboard: { adapter: vault.files, queryService: vault.queryService },
         reindex: (paths) => vault.reindexPaths(paths),
+        untilWholeIndex: () => vault.queryService ? vault.queryService.untilWholeIndex() : Promise.resolve(),
       }, from, to);
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     },

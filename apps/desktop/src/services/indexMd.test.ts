@@ -12,7 +12,7 @@ import {
   withPinnedLinks,
   type IndexMdAdapter,
 } from "./indexMd";
-import { resolveLinkTarget } from "@plainva/core";
+import { resolveLinkTarget, wholeIndexReader } from "@plainva/core";
 
 describe("foldersMissingIndex (WP4)", () => {
   it("returns only the folders without an index.md, preserving order", () => {
@@ -48,7 +48,7 @@ function makeVault(files: Record<string, string>, properties: { path: string; va
     createDir: async (p) => { dirs.add(p); },
     exists: async (p) => store.has(p) || dirs.has(p),
   };
-  const queryService = {
+  const queryService = wholeIndexReader({
     getBacklinks: async () => [],
     // The link rule's corpus, as the index holds it (VaultQueryService.linkTargets).
     linkTargets: async () =>
@@ -68,7 +68,7 @@ function makeVault(files: Record<string, string>, properties: { path: string; va
           .map((path) => ({ path }));
       },
     },
-  } as any;
+  } as any);
   return { store, adapter, queryService };
 }
 

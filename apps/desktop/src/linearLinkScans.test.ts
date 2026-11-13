@@ -5,6 +5,7 @@ import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { CompletionContext } from "@codemirror/autocomplete";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
+import { wholeIndexReader } from "@plainva/core";
 import { parseInlineMarkdown, removeLinksTo, setPlatformServices, wikiLinkCompletionSource, wikiLinkPlugin, wikiQueryBefore } from "@plainva/ui";
 import { composeLinkPlugin } from "@plainva/ui/mail";
 
@@ -63,7 +64,7 @@ describe("the `[[` completion", () => {
   });
 
   it("stays quick on a long line of openers", async () => {
-    const source = wikiLinkCompletionSource({ getQueryService: () => ({ db: { query: async () => [] }, getAllTags: async () => [] }) });
+    const source = wikiLinkCompletionSource({ getQueryService: () => wholeIndexReader({ db: { query: async () => [] }, getAllTags: async () => [] }) });
     await within(1_000, () => source(ctx("[[".repeat(N / 2))));
   });
 });
@@ -104,7 +105,7 @@ describe("unlinking in the graph", () => {
       readTextFile: async (path: string) => files[path],
       writeTextFile: async (path: string, content: string) => { files[path] = content; },
     } as unknown as IVaultAdapter;
-    const query = { listNotes: async () => [], linkTargets: async () => [] } as unknown as VaultQueryService;
+    const query = wholeIndexReader({ listNotes: async () => [], linkTargets: async () => [] } as unknown as VaultQueryService);
     await within(1_000, async () => expect(await removeLinksTo(adapter, query, "a.md", "x.md")).toBe(0));
     await within(1_000, async () => expect(await removeLinksTo(adapter, query, "b.md", "x.md")).toBe(0));
   });

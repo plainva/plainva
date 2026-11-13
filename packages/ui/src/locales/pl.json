@@ -5757,6 +5757,7 @@
     "indexNotWholeFailed": "Indeks wyszukiwania jest niepełny: ostatnie pełne wczytanie vaulta się nie powiodło. Ta operacja potrzebuje całego indeksu – wczytaj vault ponownie i spróbuj jeszcze raz.",
     "indexNotWholeClosed": "Vault został zamknięty, zanim jego indeks wyszukiwania był kompletny.",
     "indexBuildFailed": "Indeks wyszukiwania jest niepełny: ostatnie pełne wczytanie vaulta się nie powiodło. Wyszukiwanie, tagi i bazy danych mogą pomijać notatki, dopóki vault nie zostanie wczytany ponownie.",
+    "indexReadAgain": "Wczytaj vault ponownie",
     "stepOf": "Krok {{n}} z {{total}}",
     "tabDatabases": "Bazy danych",
     "tabCalendar": "Kalendarz",

@@ -41,6 +41,7 @@ function vault(files: Record<string, Row>) {
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([path, r]) => ({ path, mtime_local: r.mtime })),
     },
+    untilWholeIndex: async () => {},
     indexer: {
       reconcileFolder: vi.fn(async (folder: string) => sync(folder)),
       indexVaultFull: vi.fn(async () => sync(null)),

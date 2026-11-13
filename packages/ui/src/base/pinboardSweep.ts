@@ -43,7 +43,7 @@ export async function sweepPinboardRefs(
 
   // The boards that hold a moved file are found in the index: refused over half
   // of one, before the `catch` below that goes on without them (L3).
-  deps.queryService.requireWholeIndex?.();
+  deps.queryService.requireWholeIndex();
   let basePaths: string[];
   try {
     basePaths = await deps.queryService.listBaseFilePaths();

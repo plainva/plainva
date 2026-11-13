@@ -26,7 +26,7 @@ import {
   formatFullScanFailure,
   scanChangedNothing,
 } from "@plainva/core";
-import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
+import { type IndexView, isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
 import { sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
@@ -152,6 +152,12 @@ export interface MobileVault {
   db: IDatabaseAdapter | null;
   indexer: VaultIndexer | null;
   queryService: VaultQueryService | null;
+  /**
+   * The index as it stands, also during the first full scan (`VaultQueryService.view`):
+   * for a screen that only shows. `queryService` refuses until the index is whole —
+   * whatever plans or writes takes that one (second review of 11.11.).
+   */
+  indexView: IndexView | null;
   searchAvailable: boolean;
   /**
    * The vault syncs and runs without its index database (stability plan R5):
@@ -1101,6 +1107,7 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     db,
     indexer,
     queryService,
+    indexView: queryService ? queryService.view() : null,
     searchAvailable,
     indexClosed: db === null && !isLocal,
     enableSyncEnqueue: () => {
@@ -1303,7 +1310,7 @@ export const vaultOps = {
       .sort();
     // Half an index counts half the notes (issue 143): while the first one is
     // built, the shallow count below says what lies in the folder itself.
-    const deep = v.queryService && !isIndexBuilding(v.vaultId) ? await v.queryService.countNotesPerSubfolder(folder) : null;
+    const deep = v.indexView && !isIndexBuilding(v.vaultId) ? await v.indexView.countNotesPerSubfolder(folder) : null;
     const shallowCount = async (path: string): Promise<number> => {
       try {
         return (await v.files.listDir(path)).filter((e) => !e.isDirectory && /\.md$/i.test(e.name)).length;
@@ -1314,7 +1321,7 @@ export const vaultOps = {
     // Attachments beside the notes (finding X10, review 2026-11-10): a folder
     // of pictures said "0 notes" and nothing else, as if it were empty. Same
     // predicate as the listing's own `attachments` below.
-    const deepFiles = deep && v.queryService ? await v.queryService.countAttachmentsPerSubfolder(folder) : null;
+    const deepFiles = deep && v.indexView ? await v.indexView.countAttachmentsPerSubfolder(folder) : null;
     const shallowFiles = async (path: string): Promise<number> => {
       try {
         return (await v.files.listDir(path)).filter((e) => !e.isDirectory && !e.name.startsWith(".") && !/\.(md|base)$/i.test(e.name)).length;
@@ -1381,7 +1388,7 @@ export const vaultOps = {
     let changedPaths: string[] = [];
     let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     // Refused over an index that is not whole, before anything moves (issue 143, L3).
-    v.queryService?.requireWholeIndex?.();
+    v.queryService?.requireWholeIndex();
     const queryService = v.queryService;
     const followUpError = await moveStep(v, oldPath, newPath, async () => {
       if (queryService) {
@@ -1493,7 +1500,7 @@ export const vaultOps = {
     // lands first. With nothing pending this costs nothing.
     await flushBeforeMove(v, oldPath, true);
     // Refused over an index that is not whole, before anything moves (issue 143, L3).
-    v.queryService?.requireWholeIndex?.();
+    v.queryService?.requireWholeIndex();
     const followUpError = await moveStep(v, oldPath, newPath, () => v.files.renameItem(oldPath, newPath));
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
@@ -1539,7 +1546,7 @@ export const vaultOps = {
     const newPath = targetFolder ? `${targetFolder}/${name}` : name;
     if (newPath === path) return path;
     // Refused over an index that is not whole, before anything moves (issue 143, L3).
-    v.queryService?.requireWholeIndex?.();
+    v.queryService?.requireWholeIndex();
     const followUpError = await moveStep(v, path, newPath, () => v.files.renameItem(path, newPath));
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch((error: unknown) => { reportBackground("pinboard:sweep", error); return [] as string[]; });
@@ -1856,7 +1863,7 @@ export const vaultOps = {
   async createNoteFromWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
     // A note of a name the vault may hold in a note not read yet: not made over
     // an index that is not whole (performance plan L3, as on the desktop).
-    v.queryService?.requireWholeIndex?.();
+    v.queryService?.requireWholeIndex();
     const { path, title } = wikiTargetToPath(target, hostPath);
     if (!title) return null;
     return this.createNoteAt(v, path, title);
@@ -1928,7 +1935,7 @@ export const vaultOps = {
    */
   async resolveMarkdownLink(v: MobileVault, target: string, hostPath?: string): Promise<MarkdownLinkAnswer> {
     if (!target.trim()) return null;
-    const viaIndex = v.queryService ? await v.queryService.resolveMarkdownLink(target, hostPath).catch(() => null) : null;
+    const viaIndex = v.indexView ? await v.indexView.resolveMarkdownLink(target, hostPath).catch(() => null) : null;
     if (viaIndex) return viaIndex;
     // The app's own folders are no link targets — the index never holds them,
     // and the listing must not hand them in.
@@ -1965,7 +1972,7 @@ export const vaultOps = {
       if (answer !== null) return answer.kind === "file" ? answer.path : answer.index;
       if (kind === "markdown") return null;
     }
-    const viaIndex = v.queryService ? await v.queryService.resolveNotePath(target, hostPath).catch(() => null) : null;
+    const viaIndex = v.indexView ? await v.indexView.resolveNotePath(target, hostPath).catch(() => null) : null;
     if (viaIndex) return viaIndex;
     // The index follows a save by one pass, and the web build has none: the
     // same rule over the files on disk, so a note that exists is opened
@@ -1977,8 +1984,8 @@ export const vaultOps = {
   },
 
   async search(v: MobileVault, query: string): Promise<SearchResult[]> {
-    if (!v.queryService) return [];
-    return v.queryService.searchFullText(query, 30);
+    if (!v.indexView) return [];
+    return v.indexView.searchFullText(query, 30);
   },
 };
 

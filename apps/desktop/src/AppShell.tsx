@@ -21,7 +21,7 @@ import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
 import { ActiveSearchModeSwitch, AiSessionContext, AreaBoundary, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, IndexBuildNotice, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, startAiConversation, useAiWaitingCount, useStableHandler } from "@plainva/ui";
-import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
+import { createIndexAutoUpdater, notifyFileOps, owedListingsIn, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
 import { LeftPinnedSections } from "./components/LeftPinnedSections";
@@ -107,7 +107,7 @@ const recentsModule = () => import("./services/recents");
 export function AppShell({ capabilities, children }: { capabilities: ShellCapabilities; children?: React.ReactNode }) {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, getCommentStoreState, workspaceSecurityStatus, discardLocalFork } = useVault();
+  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, indexView, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, getCommentStoreState, workspaceSecurityStatus, discardLocalFork } = useVault();
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -744,6 +744,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       queryService,
       vaultName: () => vaultPath?.split(/[/\\]/).pop() ?? "Vault",
       subfoldersHeading: () => t("indexMd.subfoldersHeading"),
+      owed: owedListingsIn(vaultPath ?? ""),
       onWritten: (indexPath) => {
         triggerFileTreeUpdate();
         window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: indexPath } }));
@@ -1266,7 +1267,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   useQuickCaptureSink();
   // Note links (F2, ADR 0037): from the system and clicked anywhere in the app.
   const { recentVaults, openVault } = useVault();
-  useDesktopNoteLinks({ vaultPath, recentVaults, openVault, queryService, vaultAdapter, openNote: (path) => openInFocusedPane(path, false) });
+  useDesktopNoteLinks({ vaultPath, recentVaults, openVault, queryService: indexView, vaultAdapter, openNote: (path) => openInFocusedPane(path, false) });
   // This vault's day boundary, published once for every way into the journal (X2).
   useDayBoundary();
   useEffect(() => {
@@ -1506,7 +1507,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       />
       </AreaBoundary>
       {/* While the first index of the vault is built behind the open app (performance plan L3). */}
-      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vaultPath} /></AreaBoundary>
+      <AreaBoundary area="shell:indexNotice" size="quiet"><IndexBuildNotice vaultId={vaultPath} onReadAgain={() => { void refreshVault().catch(() => {}); }} /></AreaBoundary>
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
       <AreaBoundary area="shell:ribbon" size="icon">
       <AppRibbon

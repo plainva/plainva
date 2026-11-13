@@ -77,13 +77,13 @@ export function SearchScreen({
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     inputRef.current?.focus();
-    void vault.queryService?.getDocumentIcons().then(setDocIcons).catch(() => {});
+    void vault.indexView?.getDocumentIcons().then(setDocIcons).catch(() => {});
     // The name corpus is loaded ONCE per open (the desktop quick switcher's
     // rule): fuzzy matching over a live query would re-read the index on every
     // keystroke.
     // `listNotes` also answers link pickers that must know every note; the
     // names offered here leave a hidden file out (E8).
-    void vault.queryService?.listNotes().then((notes) => setCorpus(notes.filter((n) => !isHiddenPath(n.path)))).catch(() => {});
+    void vault.indexView?.listNotes().then((notes) => setCorpus(notes.filter((n) => !isHiddenPath(n.path)))).catch(() => {});
     void loadRecentSearches(vault.vaultId).then(setRecent).catch(() => {});
   }, [vault, revision]);
   // The order of the hits (finding 2026-09-19): relevance unless chosen
@@ -108,8 +108,8 @@ export function SearchScreen({
   const meaningOn = meaningActive(embeddingState);
   const searchMode = embeddingState?.mode;
   const searchService = useMemo(
-    () => (embeddings && meaningOn ? { mode: searchMode, searchOccurrencesPage: embeddings.search.searchOccurrencesPage.bind(embeddings.search) } : vault.queryService),
-    [embeddings, meaningOn, searchMode, vault.queryService],
+    () => (embeddings && meaningOn ? { mode: searchMode, searchOccurrencesPage: embeddings.search.searchOccurrencesPage.bind(embeddings.search) } : vault.indexView),
+    [embeddings, meaningOn, searchMode, vault.indexView],
   );
   const searchPage = useSearchPages(searchService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision, 40, sort);
   const results = searchPage.hits;

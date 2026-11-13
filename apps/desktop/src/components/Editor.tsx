@@ -15,7 +15,7 @@ import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn
   CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
   adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, vaultDisplayName, type KnownFileIdentity, type MissingFileSearch,
-  type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
+  type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase, notePathsForLinkText } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
 import { parkEditorSuggestion, clearEditorSuggestion } from "../services/editorSuggestionPark";
@@ -161,7 +161,7 @@ export const Editor: React.FC<{
   // the shared sidebar/status-bar selection stats.
   const channel = docChannel ?? activeDocument;
   const ownsGlobalStats = channel === activeDocument;
-  const { vaultPath, queryService, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, commentOperations, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState } = vaultContext;
+  const { vaultPath, queryService, indexView, vaultAdapter, indexer, pimRuntime, triggerFileTreeUpdate, workspaceSecurityStatus, getWorkspaceCapabilities, listWorkspaceComments, listPublicationComments, listWorkspaceMembers, getCommentSelfId, postWorkspaceComment, commentOperations, retryWorkspaceComment, discardWorkspaceComment, getCommentStoreState } = vaultContext;
   const { t, i18n } = useTranslation();
   // Performance telemetry removed to reduce console noise
   const [content, setContent] = useState<string>("");
@@ -213,14 +213,14 @@ export const Editor: React.FC<{
     if (parkWriteTimer.current !== null) window.clearTimeout(parkWriteTimer.current);
     parkWriteTimer.current = window.setTimeout(() => {
       parkWriteTimer.current = null;
-      const db = vaultContext.queryService?.db;
+      const db = vaultContext.indexView?.db;
       if (!db || base === null) return;
       void parkEditorSuggestion(db, { path, base, copy, note, savedAt: new Date().toISOString() }, vaultPath).catch(reportingTo("suggestions:park"));
     }, 500);
   };
   const forgetPark = (path: string) => {
     if (parkWriteTimer.current !== null) { window.clearTimeout(parkWriteTimer.current); parkWriteTimer.current = null; }
-    const db = vaultContext.queryService?.db;
+    const db = vaultContext.indexView?.db;
     if (db) void clearEditorSuggestion(db, path, vaultPath).catch(reportingTo("suggestions:unpark"));
   };
   const suggestParkRef = useRef(new Map<string, { copy: string; note: string; base?: string }>());
@@ -422,12 +422,12 @@ export const Editor: React.FC<{
   useEffect(() => {
     let alive = true;
     setGoverningColumns(null);
-    if (!activePath || !queryService || !vaultAdapter) return;
-    resolveGoverningBase(activePath, queryService, vaultAdapter)
+    if (!activePath || !indexView || !vaultAdapter) return;
+    resolveGoverningBase(activePath, indexView, vaultAdapter)
       .then((base) => { if (alive) setGoverningColumns((base?.columns as Record<string, unknown>) ?? null); })
       .catch(() => { if (alive) setGoverningColumns(null); });
     return () => { alive = false; };
-  }, [activePath, queryService, vaultAdapter, governingVersion]);
+  }, [activePath, indexView, vaultAdapter, governingVersion]);
 
   const propertyResolutions = useMemo(() => {
     const map = new Map<string, WorkspacePropertyAnchorResolution>();
@@ -1244,7 +1244,7 @@ export const Editor: React.FC<{
   // Read as three values, not as `vaultContext`: the context object is a new
   // identity on every provider render, which would rebuild the context (and
   // re-parse every `.base`) on unrelated state changes.
-  const { vaultAdapter: dbCtxAdapter, queryService: dbCtxQuery, fileTreeVersion: dbCtxVersion } = vaultContext;
+  const { vaultAdapter: dbCtxAdapter, indexView: dbCtxQuery, fileTreeVersion: dbCtxVersion } = vaultContext;
   useEffect(() => {
     const adapter = dbCtxAdapter;
     const queryService = dbCtxQuery;
@@ -1626,7 +1626,7 @@ export const Editor: React.FC<{
   const copyLinkAt = useStableHandler(async (pos: number, mode: LineLinkMode) => {
     const view = sessionRef.current?.view;
     if (!view || !activePath) return;
-    const notes = queryService ? await queryService.listNotes().then((list) => list.map((n) => n.path)).catch(() => [] as string[]) : [];
+    const notes = await notePathsForLinkText(queryService);
     if (sessionRef.current?.view !== view) return;
     await copyLineLink(view, pos, mode, { notePath: activePath, vaultName: desktopVaultLinkName(vaultPath), wikiName: wikiTargetForPath(activePath, [...notes, activePath]) });
   });
@@ -2195,13 +2195,13 @@ export const Editor: React.FC<{
 
   // The identity of what was just loaded, kept for the day the file vanishes.
   useEffect(() => {
-    if (isLoading || loadError || !activePath || loadedPathRef.current !== activePath || !queryService?.db) return;
+    if (isLoading || loadError || !activePath || loadedPathRef.current !== activePath || !indexView?.db) return;
     let stale = false;
-    void readIndexedIdentity(queryService.db, activePath)
+    void readIndexedIdentity(indexView.db, activePath)
       .then((identity) => { if (!stale && identity) knownIdentityRef.current = identity; })
       .catch(() => {});
     return () => { stale = true; };
-  }, [isLoading, loadError, activePath, queryService]);
+  }, [isLoading, loadError, activePath, indexView]);
 
   // A file that could not be read is looked for before the missing state is
   // shown (issue 110, E9) — moved outside Plainva, it sits somewhere else
@@ -2239,16 +2239,17 @@ export const Editor: React.FC<{
       retargetBookmarks: (f, tt) => retargetDesktopBookmarks(vaultAdapter, f, tt),
       pinboard: { adapter: vaultAdapter, queryService },
       reindex: async (paths) => { if (indexer) await applyIndexChanges(indexer, { added: paths }); },
+      untilWholeIndex: () => queryService ? queryService.untilWholeIndex() : Promise.resolve(),
     }, from, to);
   });
   /** One search for this path, shared with every other surface that asks. */
   const searchFor = useStableHandler((path: string): Promise<MissingFileSearch> | null => {
-    if (!vaultAdapter || !indexer || !queryService?.db) return null;
-    return healMissingNote(path, { exists: (p) => vaultAdapter.exists(p), db: queryService.db, indexer }, vaultPath ?? "",
+    if (!vaultAdapter || !indexer || !queryService || !indexView) return null;
+    return healMissingNote(path, { exists: (p) => vaultAdapter.exists(p), db: indexView.db, untilWholeIndex: () => queryService.untilWholeIndex(), indexer }, vaultPath ?? "",
       { known: knownIdentityRef.current, onProvenMove: adoptMove });
   });
   /** A failed load can be looked into: the lookup below runs for it. */
-  const canLookForMissing = !!(activePath && vaultAdapter && indexer && queryService?.db);
+  const canLookForMissing = !!(activePath && vaultAdapter && indexer && queryService && indexView);
   useEffect(() => {
     const path = activePath;
     const search = loadError && path ? searchFor(path) : null;
@@ -2375,8 +2376,8 @@ export const Editor: React.FC<{
     dirtyStore.set(path, false, saveState.id);
     setSaveError(null);
     setVanished(null);
-    if (queryService?.db) {
-      const identity = await readIndexedIdentity(queryService.db, path).catch(() => null);
+    if (indexView?.db) {
+      const identity = await readIndexedIdentity(indexView.db, path).catch(() => null);
       if (identity) knownIdentityRef.current = identity;
     }
     if (vaultPath) {
@@ -2454,13 +2455,13 @@ export const Editor: React.FC<{
       const d = (event as CustomEvent<{ path?: string; vaultPath?: string }>).detail;
       if (!activePath || d?.path !== activePath || (d.vaultPath !== undefined && d.vaultPath !== (vaultPath ?? ""))) return;
       setVanished(null);
-      if (queryService?.db) {
-        void readIndexedIdentity(queryService.db, activePath).then((identity) => { if (identity) knownIdentityRef.current = identity; }).catch(() => {});
+      if (indexView?.db) {
+        void readIndexedIdentity(indexView.db, activePath).then((identity) => { if (identity) knownIdentityRef.current = identity; }).catch(() => {});
       }
     };
     window.addEventListener("plainva-note-saved", onSaved);
     return () => window.removeEventListener("plainva-note-saved", onSaved);
-  }, [activePath, vaultPath, queryService]);
+  }, [activePath, vaultPath, indexView]);
 
   // Listen for external updates
   useEffect(() => {
@@ -2648,7 +2649,8 @@ export const Editor: React.FC<{
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     sessionDepsRef.current = {
-      queryService,
+      // Completion and the triggers only show; a link's spelling is decided whole or written as a path (`pathsSharingNames`).
+      queryService: indexView,
       vaultContext,
       hostPath: activePath ?? undefined,
       onOpenPath,
@@ -2699,7 +2701,7 @@ export const Editor: React.FC<{
       // as Obsidian writes it, by bare basename anywhere in the vault.
       imageLookup: () => ({
         notePath: activePath ?? "",
-        resolveByName: (name) => vaultContext.queryService?.findByFileName(name, activePath ?? undefined) ?? Promise.resolve(null),
+        resolveByName: (name) => vaultContext.indexView?.findByFileName(name, activePath ?? undefined) ?? Promise.resolve(null),
       }),
       onOpenImage: (absolutePath: string) => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); },
       onImageContext: (e, absolutePath) => {
@@ -2959,7 +2961,7 @@ export const Editor: React.FC<{
       toast.info(t("tasks.promoteNoDb"));
       return;
     }
-    const allNotePaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [];
+    const allNotePaths = await notePathsForLinkText(queryService);
     const title = commentTaskTitle(comment.body, t("comments.commentTaskFallback"));
     const res = await createTaskInDatabase({
       adapter: vaultAdapter,
@@ -3240,7 +3242,7 @@ export const Editor: React.FC<{
     // No copy in memory: the vault database may hold one from before the app
     // was closed (C34). It is OFFERED, never restored on its own - the note may
     // have changed since, and the reader decides whether the round still holds.
-    const db = vaultContext.queryService?.db;
+    const db = vaultContext.indexView?.db;
     if (!db || suggestingRef.current) return;
     let alive = true;
     void readParkedSuggestion(db, activePath).then((record) => { if (alive) setStoredPark(record); }).catch(() => {});
@@ -3326,7 +3328,7 @@ export const Editor: React.FC<{
         base: suggestionBase(session.view.state) ?? undefined,
       } : undefined;
       if (proposal) {
-        const db = vaultContext.queryService?.db;
+        const db = vaultContext.indexView?.db;
         if (!db || proposal.base === undefined) throw new Error("The suggestion cannot be preserved");
         await parkEditorSuggestion(db, { path: activePath, base: proposal.base, copy: proposal.copy, note: proposal.note, savedAt: new Date().toISOString() }, vaultPath);
       }
@@ -3370,7 +3372,7 @@ export const Editor: React.FC<{
       const session = sessionRef.current;
       if (document.suggestion && session) {
         const proposal = document.suggestion;
-        const db = vaultContext.queryService?.db;
+        const db = vaultContext.indexView?.db;
         if (!db) throw new Error("The target suggestion store is unavailable");
         await parkEditorSuggestion(db, { path: activePath, base: proposal.base ?? document.text, copy: proposal.copy, note: proposal.note, savedAt: new Date().toISOString() }, vaultPath);
         session.applyExternalText(proposal.base ?? document.text);

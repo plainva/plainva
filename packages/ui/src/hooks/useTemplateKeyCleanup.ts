@@ -8,6 +8,7 @@ import {
   type TemplateKeyNote,
 } from "../lib/templateKeys";
 import { useStableHandler } from "../lib/useStableHandler";
+import { isIndexNotWholeError } from "@plainva/core";
 
 /**
  * "Keys taken over from templates" for a tasks view (open-items plan 3.136
@@ -22,7 +23,7 @@ export interface TemplateKeyCleanupDeps {
   /** Anything that means "the index may have changed". */
   reloadKey: unknown;
   /** The vault's query service. Must be stable across renders. */
-  queryService: { listTemplateKeyNotes?(): Promise<TemplateKeyNote[]> } | null;
+  queryService: { listTemplateKeyNotes?(): Promise<TemplateKeyNote[]>; untilWholeIndex?(): Promise<void> } | null;
   /** The vault's template folder ("" where none is set). */
   templateFolder: string;
   /** The vault's entry for a change of a note that exists. */
@@ -63,13 +64,17 @@ export function useTemplateKeyCleanup(deps: TemplateKeyCleanupDeps): TemplateKey
     if (typeof queryService?.listTemplateKeyNotes !== "function") return;
     let stale = false;
     const source = { vault, reloadKey, tick, templateFolder };
+    // What it offers to rewrite is planned from the index, so it is asked of a
+    // whole one (performance plan L3): while the first index is built the
+    // notice waits and comes then; a vault closed first ends the wait unsaid.
     Promise.resolve()
+      .then(() => queryService.untilWholeIndex?.())
       .then(() => queryService.listTemplateKeyNotes!())
       .then((notes) => {
         if (!stale) setLoaded({ source, items: templateKeyNotesOutside(notes, templateFolder) });
       })
       .catch((e: unknown) => {
-        if (!stale) onError(e);
+        if (!stale && !isIndexNotWholeError(e)) onError(e);
       });
     return () => {
       stale = true;

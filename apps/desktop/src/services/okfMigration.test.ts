@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { OKF_VERSION } from "@plainva/core";
+import { OKF_VERSION, wholeIndexReader } from "@plainva/core";
 import type { OkfConversionAdapter } from "@plainva/ui";
 import {
   okfBundleStatusLines,
@@ -52,14 +52,14 @@ function makeAdapter(files: Record<string, string>) {
   };
   // The index: `properties` holds every frontmatter key of every note, so the
   // candidate query returns exactly the notes whose frontmatter carries the key.
-  const queryService = {
+  const queryService = wholeIndexReader({
     db: {
       query: async () =>
         [...store.entries()]
           .filter(([p, c]) => p.endsWith(".md") && !p.startsWith(".plainva") && /(^|\n)okf_version:/.test(c))
           .map(([path]) => ({ path })),
     },
-  } as any;
+  } as any);
   return { store, dirs, adapter, queryService };
 }
 

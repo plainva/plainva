@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
@@ -23,9 +24,11 @@ const rows = [
 ];
 
 // One stable object: a fresh one per render would change the effect deps on every pass.
+const queryService = wholeIndexReader({ getBacklinks: async () => rows });
 const vaultContext = {
   fileTreeVersion: 0,
-  queryService: { getBacklinks: async () => rows },
+  queryService,
+  indexView: queryService.view(),
   vaultAdapter: { readTextFile: async () => "" },
 };
 vi.mock("../contexts/VaultContext", () => ({ useVault: () => vaultContext }));

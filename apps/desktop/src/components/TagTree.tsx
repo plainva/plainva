@@ -19,7 +19,7 @@ interface TagTreeProps {
 
 export function TagTree({ onSelectPath, filter, focusTag }: TagTreeProps) {
   const { t } = useTranslation();
-  const { queryService, fileTreeVersion, vaultAdapter, triggerFileTreeUpdate } = useVault();
+  const { queryService, fileTreeVersion, vaultAdapter, triggerFileTreeUpdate, indexView } = useVault();
   const [tagTree, setTagTree] = useState<Record<string, TagNode>>({});
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [filesForTag, setFilesForTag] = useState<{path: string, title: string}[]>([]);
@@ -51,9 +51,9 @@ export function TagTree({ onSelectPath, filter, focusTag }: TagTreeProps) {
   useEffect(() => {
     let active = true;
     const fetchTags = async () => {
-      if (!queryService) return;
+      if (!indexView) return;
       try {
-        const rawTags = await queryService.getAllTags();
+        const rawTags = await indexView.getAllTags();
         if (!active) return;
         
         const tree: Record<string, TagNode> = {};
@@ -103,11 +103,11 @@ export function TagTree({ onSelectPath, filter, focusTag }: TagTreeProps) {
     
     void fetchTags();
     return () => { active = false; };
-  }, [queryService, fileTreeVersion, selectedTag]);
+  }, [indexView, fileTreeVersion, selectedTag]);
 
   useEffect(() => {
-    if (selectedTag && queryService) {
-      queryService.getFilesByTag(selectedTag).then(files => {
+    if (selectedTag && indexView) {
+      indexView.getFilesByTag(selectedTag).then(files => {
         setFilesForTag(files);
       }).catch(err => {
         console.error("Failed to fetch files for tag", err);
@@ -115,7 +115,7 @@ export function TagTree({ onSelectPath, filter, focusTag }: TagTreeProps) {
     } else {
       setFilesForTag([]);
     }
-  }, [selectedTag, queryService, fileTreeVersion]);
+  }, [selectedTag, indexView, fileTreeVersion]);
 
   const isFiltering = !!filter && filter.trim() !== "";
   const visibleTree = useMemo(() => pruneTagTree(tagTree, filter ?? ""), [tagTree, filter]);

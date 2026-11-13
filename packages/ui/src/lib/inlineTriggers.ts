@@ -19,6 +19,8 @@ import { pathsSharingNames, wikiLinkTextFor } from "./wikiLinkText";
 export interface TriggerQuerySource {
   db: { query: (sql: string, params?: unknown[]) => Promise<any[]> };
   getAllTags: () => Promise<{ tag: string; count: number }[]>;
+  /** Whether the index is whole: a link's text is decided over the whole vault only (`pathsSharingNames`). */
+  indexWholeness(): { kind: string };
 }
 
 export interface InlineTrigger {

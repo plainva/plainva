@@ -3,6 +3,7 @@ import {
   updateVaultText,
   type IVaultAdapter,
 
+  type IndexReading,
   type VaultQueryService,
   trimEndChars,
 } from "@plainva/core";
@@ -36,7 +37,9 @@ import type { IndexerApi } from "./remoteIndexer";
  * cleanup writes, the deletions and the silent `.base` tidy-ups.
  */
 
-export function buildDesktopPlanDeps(adapter: IVaultAdapter, queryService: VaultQueryService): DeletionPlanDeps {
+// Read by the deletion plan, which asks requireWholeIndex itself before it reads (a view refuses there too),
+// and by the database context of a note, which only shows: so the view is taken as well.
+export function buildDesktopPlanDeps(adapter: IVaultAdapter, queryService: IndexReading): DeletionPlanDeps {
   // One resolver corpus per plan build — getOutgoingRelationTargets runs per
   // cascade candidate and must not re-list the vault every time.
   let corpus: Promise<ReturnType<typeof noteLinkResolver>> | null = null;

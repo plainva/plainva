@@ -36,7 +36,8 @@ export function useMobileGists(vault: MobileVault | null, loaded: AiAppSettings 
       readText,
       policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), fileNames: () => names.linkTargets(), encrypted }),
       encrypted,
-      ready: nextTurn,
+      // Background work over the whole vault: it starts once the index is whole (a closed vault ends it).
+      ready: () => names.untilWholeIndex().then(nextTurn),
       ledger: stores.ledger,
       now: () => new Date(),
       newId: () => crypto.randomUUID(),

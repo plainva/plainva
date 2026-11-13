@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
+import { wholeIndexReader } from "@plainva/core";
 import { writeRelationLink } from "@plainva/ui";
 import { shippedSources } from "../test-sourceTree";
 
@@ -23,10 +24,10 @@ function files(initial: Record<string, string>) {
     writeTextFile: async (p: string, text: string) => { disk.set(p, text); },
   } as unknown as IVaultAdapter;
   // The index knows the notes, and nothing of the host's properties.
-  const queryService = {
+  const queryService = wholeIndexReader({
     listNotes: async () => [...disk.keys()].map((path) => ({ path })),
     getFileProperties: async () => ({}),
-  } as unknown as VaultQueryService;
+  } as unknown as VaultQueryService);
   return { disk, adapter, queryService };
 }
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { EditorState } from "@codemirror/state";
 import { CompletionContext } from "@codemirror/autocomplete";
 import { atMentionCompletionSource } from "@plainva/ui";
@@ -8,7 +9,7 @@ function ctx(doc: string, pos = doc.length) {
   return new CompletionContext(state, pos, false);
 }
 
-const mockQS = (rows: any[]) => ({ getQueryService: () => ({ db: { query: async () => rows } }) });
+const mockQS = (rows: any[]) => ({ getQueryService: () => wholeIndexReader({ db: { query: async () => rows } }) });
 
 describe("atMentionCompletionSource", () => {
   it("offers the four date entries for a bare @", async () => {

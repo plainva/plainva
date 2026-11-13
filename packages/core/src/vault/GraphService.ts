@@ -190,8 +190,8 @@ export class GraphService {
   constructor(public readonly db: IDatabaseAdapter, private readonly wholeness: IndexWholeness = ALWAYS_WHOLE) {}
 
   /** The graph over the index a query service reads, with its wholeness. */
-  static forIndex(queryService: { db: IDatabaseAdapter; indexWholenessSource(): IndexWholeness }): GraphService {
-    return new GraphService(queryService.db, queryService.indexWholenessSource());
+  static forIndex(queryService: { view(): { db: IDatabaseAdapter }; indexWholenessSource(): IndexWholeness }): GraphService {
+    return new GraphService(queryService.view().db, queryService.indexWholenessSource());
   }
 
   /**

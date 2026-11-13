@@ -192,7 +192,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
    *  desktop has, so the tasks area shows entries and can promote into it. */
   const pickTaskDatabase = () => {
     void (async () => {
-      const bases = await vault.queryService?.listBases().catch(() => []);
+      const bases = await vault.indexView?.listBases().catch(() => []);
       const picked = await mSelect({
         title: t("settings.taskDatabase"),
         options: [

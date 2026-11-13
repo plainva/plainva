@@ -1,5 +1,5 @@
 import { reportBackground } from "../services/backgroundErrors";
-import { searchMissingFile, VaultFileNotFoundError, type KnownFileIdentity, type MissingFileDeps, type MissingFileOutcome, type MissingFileSearch } from "@plainva/core";
+import { searchMissingFile, VaultFileNotFoundError, type KnownFileIdentity, type MissingFileDeps, type MissingFileOutcome, type MissingFileSearch, isIndexNotWholeError } from "@plainva/core";
 import { sweepPinboardRefs, type PinboardSweepDeps } from "../base/pinboardSweep";
 import { notifyFileOps } from "./indexMdAutoUpdate";
 
@@ -76,6 +76,8 @@ export interface ExternalMoveDeps {
   pinboard: PinboardSweepDeps;
   /** Re-indexes the database files the pinboard sweep rewrote. */
   reindex?(paths: string[]): Promise<unknown>;
+  /** Resolves once the index is whole (`VaultQueryService.untilWholeIndex`): the sweep plans from it. */
+  untilWholeIndex(): Promise<void>;
 }
 
 export async function adoptExternalMove(deps: ExternalMoveDeps, from: string, to: string): Promise<void> {
@@ -85,10 +87,26 @@ export async function adoptExternalMove(deps: ExternalMoveDeps, from: string, to
     console.warn("[movedNote] bookmarks did not follow the move", e);
   }
   let swept: string[] = [];
-  try {
-    swept = await sweepPinboardRefs(deps.pinboard, [{ from, to }]);
-  } catch (e) {
-    reportBackground("pinboard:follow-move", e);
+  // Refused over an index that is not whole, the sweep waits for it and runs
+  // then (second review of 11.11.): it used to be dropped, and the pinboard
+  // cards kept the old path for good. A vault closed first ends the wait.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      swept = await sweepPinboardRefs(deps.pinboard, [{ from, to }]);
+      break;
+    } catch (e) {
+      if (isIndexNotWholeError(e)) {
+        try {
+          await deps.untilWholeIndex();
+          continue;
+        } catch {
+          // silent: the vault closed before its index was whole; its next open walks the arrangements again
+          break;
+        }
+      }
+      reportBackground("pinboard:follow-move", e);
+      break;
+    }
   }
   if (swept.length > 0 && deps.reindex) {
     try {

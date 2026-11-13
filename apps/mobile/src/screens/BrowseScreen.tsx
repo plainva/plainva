@@ -117,7 +117,7 @@ export function BrowseScreen({
   useEffect(() => {
     let stale = false;
     // Custom note icons (desktop tree parity): one indexed map per load.
-    void vault.queryService
+    void vault.indexView
       ?.getDocumentIcons()
       .then((m) => {
         if (!stale) setDocIcons(m);
@@ -148,7 +148,7 @@ export function BrowseScreen({
     if (folder) setConflicts([]);
     else {
       // Conflict badge (P5): vault-wide scan for .CONFLICT copies.
-      void Promise.all([vault.queryService?.listNotes() ?? vault.files.listDir("", true), vault.files.listConflictSessions?.() ?? Promise.resolve([])]).then(([rows, sessions]) => {
+      void Promise.all([vault.indexView?.listNotes() ?? vault.files.listDir("", true), vault.files.listConflictSessions?.() ?? Promise.resolve([])]).then(([rows, sessions]) => {
         if (!stale) setConflicts([...new Set([...sessions.map(s => s.workingCopyPath), ...rows.map((r) => r.path).filter(isConflictCopyPath)])]);
       }).catch(() => { /* Keep the last known count if the provider cannot be read. */ });
     }

@@ -30,7 +30,7 @@ export type { OkfRunReport, OkfRollbackReport, OkfVersionState };
 export async function scanVaultOkfVersion(vault: MobileVault): Promise<OkfVersionState> {
   if (!vault.queryService) throw new Error("no index");
   // Refused over an index that is not whole (issue 143, L3).
-  vault.queryService.requireWholeIndex?.();
+  vault.queryService.requireWholeIndex();
   const rows = await vault.queryService.db.query<{ path: string }>(
     `SELECT DISTINCT f.path AS path
      FROM properties p JOIN files f ON f.id = p.file_id

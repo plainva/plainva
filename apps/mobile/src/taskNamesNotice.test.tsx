@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createHash } from "node:crypto";
-import { taskNoteKey, type TaskAnchorRecord } from "@plainva/core";
+import { taskNoteKey, wholeIndexReader, type TaskAnchorRecord } from "@plainva/core";
 import { __resetTaskSyncPauseForTest } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
@@ -60,14 +60,16 @@ function anchors(): Map<string, TaskAnchorRecord[]> {
   return out;
 }
 
-const vault = {
-  vaultId: "vault-phone",
-  queryService: {
+const queryService = wholeIndexReader({
     getTaskAnchors: async () => anchors(),
     listNotes: async () => [...env.files.keys()].map((path) => ({ path })),
     getBacklinks: async () => [],
     db: { query: async () => [...env.files.keys()].map((path) => ({ path })) },
-  },
+});
+const vault = {
+  vaultId: "vault-phone",
+  queryService,
+  indexView: queryService.view(),
   files: { exists: async (p: string) => env.files.has(p) },
   indexer: null,
   reindexPaths: vi.fn(async () => {}),

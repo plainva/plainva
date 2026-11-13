@@ -56,7 +56,8 @@ export function useDesktopGists({
       readText,
       policy: createVaultPolicy({ readFile: readText, resolveLink: (target) => queryService.resolveNotePath(target), fileNames: () => queryService.linkTargets(), encrypted }),
       encrypted,
-      ready: idleMoment,
+      // Background work over the whole vault: it starts once the index is whole (a closed vault ends it).
+      ready: () => queryService.untilWholeIndex().then(idleMoment),
       ledger: stores.ledger,
       now: () => new Date(),
       newId: () => crypto.randomUUID(),

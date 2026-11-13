@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
+import { wholeIndexReader } from "@plainva/core";
 import {
   appendJournalEntry,
   appendTaskLine,
@@ -66,12 +67,12 @@ const bytes = async (path: string) => [...await readFile(join(root, path))];
 /** The index, as far as these writers ask it: which notes there are, and what they are called. */
 function indexOf(paths: string[]): VaultQueryService {
   const rows = paths.map((path) => ({ path, title: path.split("/").pop()!.replace(/\.md$/i, "") }));
-  return {
+  return wholeIndexReader({
     listNotes: async () => rows,
     linkTargets: async () => paths,
     getBacklinks: async () => [],
     db: { query: async (sql: string) => (sql.includes("p.key = 'description'") ? [] : rows) },
-  } as unknown as VaultQueryService;
+  } as unknown as VaultQueryService);
 }
 
 describe("a line added to a note ends the way the note's lines end", () => {

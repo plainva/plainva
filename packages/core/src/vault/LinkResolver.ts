@@ -1,9 +1,19 @@
 /**
+ * Stands in a list of the vault's paths for "which names are taken is not
+ * known": the index is not whole yet (second review of 11.11.). Every name
+ * counts as shared, so every link Plainva writes then is the path — a bare
+ * `[[Foo]]` written over half an index could lead to a second Foo.md not
+ * read yet. No file has this path.
+ */
+export const NAMES_NOT_KNOWN = "\u0000names not known";
+
+/**
  * Wiki target text for a vault path: the bare basename when it is unique
  * vault-wide, else the path without `.md` so the link stays unambiguous.
  * Used wherever Plainva writes wiki links itself (relations, reverse columns).
  */
 export function wikiTargetForPath(path: string, allFilePaths: readonly string[]): string {
+  if (allFilePaths.includes(NAMES_NOT_KNOWN)) return path.replace(/\.md$/i, "");
   const base = path.split(/[/\\]/).pop()!.replace(/\.md$/i, "");
   const baseNorm = `${base.toLowerCase().normalize("NFC")}.md`;
   const collision = allFilePaths.some(
@@ -18,6 +28,7 @@ export function wikiTargetForPath(path: string, allFilePaths: readonly string[])
  * one pass per pick (a relation picker asks for every row it shows).
  */
 export function wikiTargetChooser(allFilePaths: readonly string[]): (path: string) => string {
+  if (allFilePaths.includes(NAMES_NOT_KNOWN)) return (path) => path.replace(/\.md$/i, "");
   const nameOf = (p: string) => (p.split(/[/\\]/).pop() ?? "").toLowerCase().normalize("NFC");
   const listed = new Set(allFilePaths);
   const count = new Map<string, number>();
@@ -41,6 +52,7 @@ export function wikiTargetChooser(allFilePaths: readonly string[]): (path: strin
  * nor detect collisions between same-named `.base` files.
  */
 export function wikiTargetForFile(path: string, allFilePaths: string[]): string {
+  if (allFilePaths.includes(NAMES_NOT_KNOWN)) return path;
   const base = path.split(/[/\\]/).pop()!;
   const baseNorm = base.toLowerCase().normalize("NFC");
   const collision = allFilePaths.some(

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { EditorState } from "@codemirror/state";
 import { CompletionContext, Completion } from "@codemirror/autocomplete";
 import { closersToConsume, wikiLinkCompletionSource, embedCompletionSource, tagCompletionSource, emojiColonCompletionSource } from "@plainva/ui";
@@ -7,7 +8,7 @@ function ctx(doc: string, pos = doc.length) {
   return new CompletionContext(EditorState.create({ doc }), pos, false);
 }
 const deps = (rows: any[], tags: { tag: string; count: number }[] = []) => ({
-  getQueryService: () => ({ db: { query: async () => rows }, getAllTags: async () => tags }),
+  getQueryService: () => wholeIndexReader({ db: { query: async () => rows }, getAllTags: async () => tags }),
 });
 
 /** Runs an option's apply function against a minimal view built on a real
@@ -86,7 +87,7 @@ describe("wikiLinkCompletionSource", () => {
     // without a single test noticing.
     let sql = "";
     const src = wikiLinkCompletionSource({
-      getQueryService: () => ({
+      getQueryService: () => wholeIndexReader({
         db: { query: async (q: string) => { sql = q; return []; } },
         getAllTags: async () => [],
       }),

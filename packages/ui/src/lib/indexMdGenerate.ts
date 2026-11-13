@@ -33,7 +33,7 @@ export async function listMarkdownPaths(queryService: VaultQueryService): Promis
   // What an overview lists, and what an adoption may link to: never from half
   // an index (performance plan L3) — a listing written now would miss every
   // note not read yet, and stay that way.
-  queryService.requireWholeIndex?.();
+  queryService.requireWholeIndex();
   const rows = await queryService.db.query<{ path: string }>(
     `SELECT path FROM files WHERE mode != 'attachment'`,
   );

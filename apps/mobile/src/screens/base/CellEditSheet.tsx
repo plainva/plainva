@@ -7,7 +7,7 @@ import { asSingleLineValue, Button, calendarDay, contactPropertyHref, type Curat
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
-import { buildWikiTargetSet, wikiLinkTextFor, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
+import { buildWikiTargetSet, pathsForLinkText, wikiLinkTextFor, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 import { sameStoredValue, wikiTargetChooser } from "@plainva/core";
 
 /**
@@ -146,13 +146,13 @@ export function CellEditSheet({
   const [candidates, setCandidates] = useState<Array<{ path: string; title: string }>>([]);
 
   const usingCurated = target.curated ?? target.options.length > 0;
-  const loadSuggestions = useCallback(async (key: string, all = false) => vault.queryService
-    ? vault.queryService.getDistinctPropertyValues(key.replace(/^note\./, ""), all ? undefined : propertyFolder(target.notePath), propertyIndexTypes(input)) : [],
+  const loadSuggestions = useCallback(async (key: string, all = false) => vault.indexView
+    ? vault.indexView.getDistinctPropertyValues(key.replace(/^note\./, ""), all ? undefined : propertyFolder(target.notePath), propertyIndexTypes(input)) : [],
   [vault, target.notePath, input]);
   const suggestions = usePropertyValues(!usingCurated && !isRelation && !isDate, col, loadSuggestions);
   const options = useMemo<CuratedOption[]>(() => usingCurated ? target.options
-    : vault.queryService ? suggestions.values.map((v) => ({ value: v.value })) : inlineOptionsFrom([], rows, col),
-  [usingCurated, target.options, vault.queryService, suggestions.values, rows, col]);
+    : vault.indexView ? suggestions.values.map((v) => ({ value: v.value })) : inlineOptionsFrom([], rows, col),
+  [usingCurated, target.options, vault.indexView, suggestions.values, rows, col]);
   const needle = (isMulti || isSelect ? free : text).trim().toLocaleLowerCase();
   const matches = options.filter((o) => !needle || (o.label ?? o.value).toLocaleLowerCase().includes(needle));
 
@@ -186,16 +186,16 @@ export function CellEditSheet({
   // the title and compared by title, and a note that was linked under its
   // file's name got linked a second time.
   const [links, setLinks] = useState<{ lookup: WikiTargetSet; textFor: (c: { path: string; title: string }) => string } | null | undefined>(
-    () => (vault.queryService ? undefined : null),
+    () => (vault.indexView ? undefined : null),
   );
   useEffect(() => {
-    const qs = vault.queryService;
+    const qs = vault.indexView;
     if (!isRelation || !qs) return;
     let stale = false;
     void qs.linkTargets().then((files) => {
       if (stale) return;
       // The names are counted once: every row of the list asks what a pick would write.
-      const targetFor = wikiTargetChooser(files.filter((f) => f.mode !== "attachment").map((f) => f.path));
+      const targetFor = wikiTargetChooser(pathsForLinkText(qs, files.filter((f) => f.mode !== "attachment").map((f) => f.path)));
       setLinks({ lookup: buildWikiTargetSet(files), textFor: (c) => wikiLinkTextFor(c.path, c.title, targetFor) });
     }).catch(() => {
       if (!stale) setLinks(null);

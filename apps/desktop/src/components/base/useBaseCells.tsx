@@ -11,7 +11,7 @@ import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } fr
 import { CustomDatePicker } from "../DatePicker";
 import { Select, type SelectOption } from "../Select";
 import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShared";
-import { segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
+import { pathsForLinkText, segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
 import { FILE_DAY, parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
 import { isWikiTargetResolved, wikiTargetPath } from "@plainva/ui";
@@ -77,7 +77,7 @@ export function useBaseCells({
   onOpenProposedCell?: (cell: ProposedCell, anchor: HTMLElement) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate, indexView } = useVault();
 
   // Vault-wide note index for the relation editors: the raw path list and the
   // collision-safe link text over it (the names are counted once — a list of
@@ -86,17 +86,18 @@ export function useBaseCells({
   const [noteIndex, setNoteIndex] = useState<{ paths: string[]; targetFor: (path: string) => string } | null>(null);
   useEffect(() => {
     let alive = true;
-    if (!queryService) { setNoteIndex(null); return; }
-    queryService
+    if (!indexView) { setNoteIndex(null); return; }
+    indexView
       .listNotes()
       .then((notes) => {
         if (!alive) return;
-        const paths = notes.map((n) => n.path);
+        // Read from the view: during the first index every pick is written as its path (pathsForLinkText).
+        const paths = pathsForLinkText(indexView, notes.map((n) => n.path));
         setNoteIndex({ paths, targetFor: wikiTargetChooser(paths) });
       })
       .catch(() => { if (alive) setNoteIndex(null); });
     return () => { alive = false; };
-  }, [queryService, fileTreeVersion]);
+  }, [indexView, fileTreeVersion]);
 
   // Which chip is "broken" is the link rule's answer, over the lookup the
   // editor draws its links with: a chip is marked exactly where a click finds
@@ -124,7 +125,7 @@ export function useBaseCells({
   const openNoteLink = async (target: string, ev?: React.MouseEvent, fromPath?: string) => {
     let path = /\.(md|base)$/i.test(target) ? target : `${target}.md`;
     try {
-      const resolved = await queryService?.resolveNotePath(target, fromPath);
+      const resolved = await indexView?.resolveNotePath(target, fromPath);
       if (resolved) path = resolved;
     } catch (e) {
       console.warn("[BaseViewer] resolving a cell link failed", target, e);
@@ -195,9 +196,9 @@ export function useBaseCells({
     ? "relation" : getColumnInput(col) ?? inferType(value, col);
   const editingInput = editingCell ? cellInput(editingCell.col, dbData.find((r) => r["file.path"] === editingCell.path)?.[editingCell.col]) : "text";
   const editingCurated = editingCell ? getColumnSchema(editingCell.col)?.options : undefined;
-  const loadSuggestions = useCallback(async (key: string, all = false) => queryService
-    ? queryService.getDistinctPropertyValues(key.replace(/^note\./, ""), all ? undefined : propertyFolder(editingCell?.path ?? ""), propertyIndexTypes(editingInput)) : [],
-  [queryService, editingCell?.path, editingInput]);
+  const loadSuggestions = useCallback(async (key: string, all = false) => indexView
+    ? indexView.getDistinctPropertyValues(key.replace(/^note\./, ""), all ? undefined : propertyFolder(editingCell?.path ?? ""), propertyIndexTypes(editingInput)) : [],
+  [indexView, editingCell?.path, editingInput]);
   const suggestions = usePropertyValues(!!editingCell && editingCurated === undefined && editingInput !== "relation" && editingInput !== "link", editingCell?.col ?? "", loadSuggestions);
   const scopeAction = editingCurated === undefined && !suggestions.wholeVault
     ? <Button variant="ghost" className="pv-popover-row" onClick={suggestions.expand}>{t("properties.searchWholeVault")}</Button> : null;
@@ -363,7 +364,7 @@ export function useBaseCells({
   // per-base member list is cached until the next re-index. Link text is
   // collision-safe via wikiTargetForPath.
   const searchCandidatesForBase = async (q: string, basePath: string): Promise<RelationSearchResult[]> => {
-    if (!queryService) return [];
+    if (!indexView) return [];
     try {
       const cache = candCacheRef.current;
       if (cache.version !== fileTreeVersion) {
@@ -374,12 +375,12 @@ export function useBaseCells({
       if (!list) {
         if (basePath && vaultAdapter) {
           const config = parseBaseConfig(await vaultAdapter.readTextFile(basePath));
-          const data = await queryService.queryDatabaseFiles(config);
+          const data = await indexView.queryDatabaseFiles(config);
           list = data
             .map((d: any) => ({ path: String(d["file.path"] ?? ""), title: String(d["file.name"] ?? d["file.path"] ?? "") }))
             .filter((c) => c.path);
         } else {
-          list = await queryService.listNotes(300);
+          list = await indexView.listNotes(300);
         }
         cache.map.set(basePath, list);
       }

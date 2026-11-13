@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Banner, IndexBuildNotice as SharedIndexBuildNotice } from "@plainva/ui";
+import { refreshVaultAction } from "../lib/usePullToRefresh";
 
 /**
  * The strip on top of the app while the first index of the open vault is
@@ -20,5 +21,6 @@ export function IndexBuildNotice({ vaultId, indexClosed = false }: { vaultId: st
       </Banner>
     );
   }
-  return <SharedIndexBuildNotice vaultId={vaultId} className="m-index-notice" />;
+  // "Read the vault again": the full read pull-to-refresh starts; its failure is said by the scan (onFullScanFailed).
+  return <SharedIndexBuildNotice vaultId={vaultId} className="m-index-notice" onReadAgain={() => { void refreshVaultAction().catch(() => { /* silent: a failed full read is said by the indexer itself (onFullScanFailed) */ }); }} />;
 }

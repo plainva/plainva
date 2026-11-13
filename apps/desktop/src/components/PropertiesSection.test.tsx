@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
@@ -45,7 +46,7 @@ const baseYaml = [
   "",
 ].join("\n");
 
-const queryService = {
+const queryService = wholeIndexReader({
   db: { query: async () => [{ path: "Tagebuch/Tagebuch_Liste.base" }] },
   // The membership query: held back until the test lets it answer, so the
   // moment "a lookup is running" lasts as long as the test needs it to.
@@ -56,9 +57,9 @@ const queryService = {
   },
   getAllTags: async () => [],
   getDistinctPropertyValues: async () => [],
-};
+});
 const vaultAdapter = { readTextFile: async () => baseYaml };
-const vaultContext = { fileTreeVersion: 0, vaultPath: "/vault", queryService, vaultAdapter };
+const vaultContext = { fileTreeVersion: 0, vaultPath: "/vault", queryService, indexView: queryService.view(), vaultAdapter };
 vi.mock("../contexts/VaultContext", () => ({
   useVault: () => ({ ...vaultContext }),
   verifierNameKey: (vault: string) => `verifierName_${vault}`,

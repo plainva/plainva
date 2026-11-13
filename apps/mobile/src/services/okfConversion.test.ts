@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 
 const stored = new Map<string, string>();
 vi.mock("@capacitor/filesystem", () => ({
@@ -79,13 +80,13 @@ function fakeVault(initial: Record<string, string>) {
   const vault = {
     vaultId: VAULT,
     files: adapter,
-    queryService: {
+    queryService: wholeIndexReader({
       db: {
         // Only notes; the scan filters attachments itself, and the fake has none.
         query: async () =>
           [...files.keys()].filter((p) => p.endsWith(".md") && !p.startsWith(".plainva")).map((path) => ({ path })),
       },
-    },
+    }),
   } as unknown as MobileVault;
   return { vault, files, adapter };
 }

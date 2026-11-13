@@ -22,18 +22,18 @@ interface Props {
  */
 export function DatabasesList({ query, activePath, onOpen, onCreate }: Props) {
   const { t } = useTranslation();
-  const { queryService, fileTreeVersion, vaultPath } = useVault();
+  const { indexView, fileTreeVersion, vaultPath } = useVault();
   const docIcons = useDocumentIcons();
   const [bases, setBases] = useState<Array<{ path: string; title: string }>>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    if (!queryService) {
+    if (!indexView) {
       setBases([]);
       return;
     }
-    queryService
+    indexView
       .listBases()
       .then((rows) => {
         if (alive) { setBases(rows); setLoadError(null); }
@@ -46,7 +46,7 @@ export function DatabasesList({ query, activePath, onOpen, onCreate }: Props) {
     return () => {
       alive = false;
     };
-  }, [queryService, fileTreeVersion, vaultPath]);
+  }, [indexView, fileTreeVersion, vaultPath]);
 
   const q = query.toLowerCase();
   const filtered = bases.filter((b) => b.path.toLowerCase().includes(q));

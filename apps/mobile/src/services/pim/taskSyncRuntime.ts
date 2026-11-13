@@ -98,6 +98,13 @@ export async function runMobileTaskSync(): Promise<void> {
       logDiagnostic("tasks", "reconcile skipped: no index yet");
       return;
     }
+    // Reconciled against the whole vault only: a run over half an index reads
+    // the tasks of the notes not read yet as gone. It runs again once the index is.
+    if (query.indexWholeness().kind !== "whole") {
+      logDiagnostic("tasks", "reconcile waits: the index is not whole yet");
+      void query.untilWholeIndex().then(() => runMobileTaskSync(), () => {});
+      return;
+    }
     const started = performance.now();
     const mayCreateNotes = firstSyncSettled() && w.vault.indexSettled();
 
@@ -183,6 +190,14 @@ export async function runMobileEntryEventSync(): Promise<void> {
   if (!w) return;
   if (entryEventsRunning) {
     entryEventsQueued = true;
+    return;
+  }
+  // The entries are read from the index: over half of one, the entries of the
+  // notes not read yet would look gone and their appointments removed. It runs
+  // once the index is whole (the desktop waits in the same place).
+  const query = w.vault.queryService;
+  if (query && query.indexWholeness().kind !== "whole") {
+    void query.untilWholeIndex().then(() => runMobileEntryEventSync(), () => {});
     return;
   }
   entryEventsRunning = true;

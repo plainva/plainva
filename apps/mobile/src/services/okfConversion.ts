@@ -44,7 +44,7 @@ async function excludedFolders(vaultId: string): Promise<string[]> {
 export async function scanVaultOkf(vault: MobileVault): Promise<OkfScanResult> {
   if (!vault.queryService) throw new Error("no index");
   // The list of notes comes from the index: refused over one that is not whole (issue 143, L3).
-  vault.queryService.requireWholeIndex?.();
+  vault.queryService.requireWholeIndex();
   const rows = await vault.queryService.db.query<{ path: string }>(
     `SELECT path FROM files WHERE mode != 'attachment'`,
   );

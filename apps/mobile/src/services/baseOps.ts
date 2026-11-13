@@ -84,11 +84,11 @@ export async function loadBase(v: MobileVault, path: string): Promise<LoadedBase
 
 /** Desktop queryForActiveView: sources AND the active view's own filters. */
 export async function queryView(v: MobileVault, config: any, viewIndex: number): Promise<any[]> {
-  if (!v.queryService) return [];
+  if (!v.indexView) return [];
   const views = Array.isArray(config?.views) ? config.views : [];
   const active = views[viewIndex] || views[0] || {};
   const merged = { ...config, filters: combineFilters(config?.filters, active?.filters), views: [active] };
-  return v.queryService.queryDatabaseFiles(merged);
+  return v.indexView.queryDatabaseFiles(merged);
 }
 
 /**
@@ -255,16 +255,16 @@ export async function relationCandidates(
   v: MobileVault,
   relationBase: string | undefined,
 ): Promise<Array<{ path: string; title: string }>> {
-  if (!v.queryService) return [];
-  if (!relationBase) return v.queryService.listNotes(300);
+  if (!v.indexView) return [];
+  if (!relationBase) return v.indexView.listNotes(300);
   try {
     const raw = await vaultOps.read(v, relationBase);
-    const rows = await v.queryService.queryDatabaseFiles(parseBaseConfig(raw));
+    const rows = await v.indexView.queryDatabaseFiles(parseBaseConfig(raw));
     return rows
       .map((r: any) => ({ path: String(r["file.path"] ?? ""), title: String(r["file.name"] ?? "") }))
       .filter((r: { path: string }) => !!r.path);
   } catch {
-    return v.queryService.listNotes(300);
+    return v.indexView.listNotes(300);
   }
 }
 
@@ -331,7 +331,7 @@ export async function scopedEmbedRows(
   embeddedBasePath: string,
   hostNotePath: string,
 ): Promise<Array<{ path: string; title: string }>> {
-  const qs = v.queryService;
+  const qs = v.indexView;
   if (!qs) return [];
   const cfg = parseBaseConfig(await vaultOps.read(v, embeddedBasePath));
   const rows = await qs.queryDatabaseFiles(cfg);
@@ -384,9 +384,9 @@ export async function resolveGoverningBaseOf(
 
 /** Every `.base` of the vault — the relation target candidates. */
 export async function listBasePaths(v: MobileVault): Promise<Array<{ path: string; title: string }>> {
-  if (!v.queryService) return [];
+  if (!v.indexView) return [];
   try {
-    return await v.queryService.listBases();
+    return await v.indexView.listBases();
   } catch {
     return [];
   }

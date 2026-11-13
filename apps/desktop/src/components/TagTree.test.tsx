@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
@@ -32,14 +33,16 @@ const vaultState = {
 
 // One stable object for the whole file: a fresh one per render would change
 // the effect deps on every pass and spin the component forever.
+const queryService = wholeIndexReader({
+  getAllTags: async () => [{ tag: "work", count: vaultState.notes.size }],
+  findNotesWithTag: async () => [...vaultState.notes.keys()],
+  getFilesByTag: async () => [...vaultState.notes.keys()].map((p) => ({ path: p, title: p })),
+});
 const vaultContext = {
   fileTreeVersion: 0,
   triggerFileTreeUpdate: () => {},
-  queryService: {
-    getAllTags: async () => [{ tag: "work", count: vaultState.notes.size }],
-    findNotesWithTag: async () => [...vaultState.notes.keys()],
-    getFilesByTag: async () => [...vaultState.notes.keys()].map((p) => ({ path: p, title: p })),
-  },
+  queryService,
+  indexView: queryService.view(),
   vaultAdapter: {
     readTextFile: async (p: string) => vaultState.notes.get(p) ?? "",
     writeTextFile: async (p: string, c: string) => {

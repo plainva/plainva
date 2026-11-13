@@ -47,7 +47,7 @@ export interface ReminderActionHost {
 async function currentLine(line: ReminderLine): Promise<ReminderLine> {
   try {
     const vault = await getMobileVault();
-    const notes = await vault.queryService?.listTasks();
+    const notes = await vault.indexView?.listTasks();
     return (notes && relocateReminderLine(notes, line)) || line;
   } catch {
     return line;

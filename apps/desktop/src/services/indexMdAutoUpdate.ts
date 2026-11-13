@@ -5,6 +5,7 @@ export {
   affectedFolders,
   createIndexAutoUpdater,
   notifyFileOps,
+  owedListingsIn,
   updateAllManagedIndexes,
   type FileOp,
   type IndexAutoUpdater,

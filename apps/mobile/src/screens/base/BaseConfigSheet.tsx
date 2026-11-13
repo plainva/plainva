@@ -109,12 +109,12 @@ export function BaseConfigSheet({
   const [filterRows, setFilterRows] = useState<Record<string, unknown>[]>([]);
   useEffect(() => {
     let alive = true;
-    if (!vault.queryService) return;
-    vault.queryService.queryDatabaseFiles(stripPropertyFilters(config), { includeFilterMetadata: true })
+    if (!vault.indexView) return;
+    vault.indexView.queryDatabaseFiles(stripPropertyFilters(config), { includeFilterMetadata: true })
       .then((rows) => { if (alive) setFilterRows(rows); })
       .catch(() => { if (alive) setFilterRows([]); });
     return () => { alive = false; };
-  }, [config, vault.queryService]);
+  }, [config, vault.indexView]);
   const filterFields = baseFilterCatalog(
     [...columnsPool, ...filterRows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith("file.") && key !== "plainva"))],
     columnLabel, t, view.pinboardFilterBy,
@@ -298,7 +298,7 @@ export function BaseConfigSheet({
 
   const addTagSource = (logic: "and" | "or") => {
     void (async () => {
-      const rows = vault.queryService ? await vault.queryService.getAllTags() : [];
+      const rows = vault.indexView ? await vault.indexView.getAllTags() : [];
       const tags = rows.map((r: { tag: string }) => r.tag);
       if (tags.length === 0) return;
       // The tag a new source clause will name: the target of "add" (E20).

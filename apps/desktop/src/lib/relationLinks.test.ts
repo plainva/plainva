@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { addRelationLink, editReverseRelation, removeRelationLinksToNote, sayReverseRelationOutcome, type RelationWriteAdapter } from "@plainva/ui";
 
@@ -15,11 +16,11 @@ function makeVault(files: Record<string, string>) {
       store.set(p, c);
     },
   };
-  const queryService = {
+  const queryService = wholeIndexReader({
     db: { query: async () => Array.from(store.keys()).map((path) => ({ path })) },
     // The link rule's corpus, as the index holds it: a note's title is its file's name.
     linkTargets: async () => Array.from(store.keys()).map((path) => ({ path, title: path.split("/").pop()!.replace(/\.md$/, ""), mode: "obsidian" })),
-  } as any;
+  } as any);
   return { store, adapter, queryService };
 }
 

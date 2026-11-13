@@ -138,7 +138,7 @@ function SourceLine({ source }: { source: OkfSource }) {
  */
 export function PropertiesSection({ onCountChange, onOpenPath, channel = activeDocument }: PropertiesSectionProps) {
   const { t, i18n } = useTranslation();
-  const { queryService, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
+  const { vaultAdapter, vaultPath, fileTreeVersion, indexView } = useVault();
   // The link rule's lookup, as the editor draws its links with it.
   const linkLookup = useWikiResolver();
   const [doc, setDoc] = useState<ActiveDoc>(() => channel.get());
@@ -165,10 +165,10 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // Vault-wide tags for the tag-pill autocomplete (loaded once per vault).
   useEffect(() => {
     let alive = true;
-    if (queryService) queryService.getAllTags().then((rows) => { if (alive) setTagSuggestions(rows); }).catch((e) => { console.warn("[PropertiesSection] loading tag suggestions failed", e); });
+    if (indexView) indexView.getAllTags().then((rows) => { if (alive) setTagSuggestions(rows); }).catch((e) => { console.warn("[PropertiesSection] loading tag suggestions failed", e); });
     else setTagSuggestions([]);
     return () => { alive = false; };
-  }, [queryService, vaultPath]);
+  }, [indexView, vaultPath]);
 
   // Known `type` values for the locked system row's dropdown: the two
   // configured defaults plus every value already used in the vault.
@@ -181,7 +181,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
           await getConfiguredNoteType(vaultPath ?? ""),
           await getConfiguredDailyNoteType(vaultPath ?? ""),
         ];
-        const used = queryService ? await queryService.getDistinctPropertyValues("type", "") : [];
+        const used = indexView ? await indexView.getDistinctPropertyValues("type", "") : [];
         const values = [...new Set([...configured, ...used.map((u) => String(u.value))])].filter(Boolean);
         const next = values.map((value) => ({ value }));
         // An index update that changes nothing must not hand the `type` row a
@@ -192,7 +192,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       }
     })();
     return () => { alive = false; };
-  }, [vaultPath, queryService, fileTreeVersion]);
+  }, [vaultPath, indexView, fileTreeVersion]);
 
   // Which `.base` governs this note — its column schema drives typed rendering.
   //
@@ -205,8 +205,8 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // the new answer is there, and an equal answer changes nothing at all.
   const governingKey = doc.kind === "markdown" && doc.path ? doc.path : null;
   const resolveGoverning = useCallback(
-    (path: string) => resolveGoverningBase(path, queryService, vaultAdapter),
-    [queryService, vaultAdapter]
+    (path: string) => resolveGoverningBase(path, indexView, vaultAdapter),
+    [indexView, vaultAdapter]
   );
   const governing: GoverningBase | null = useKeptResolution(governingKey, fileTreeVersion, resolveGoverning, governingBaseMemory);
   // The add popover belongs to the note it was opened on.
@@ -375,14 +375,14 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   }, [doc.path]);
 
   const getValueSuggestions = useCallback(async (key: string, wholeVault = false) => {
-    if (!queryService) return [];
-    try { return await queryService.getDistinctPropertyValues(key, wholeVault ? undefined : folderPrefix, propertyIndexTypes(baseInputToType(governing?.columns?.[key]?.input) ?? typeReg[key] ?? inferType(normalizeFrontmatterValue(properties[key]), key))); } catch { return []; }
-  }, [queryService, folderPrefix, governing, typeReg, properties]);
+    if (!indexView) return [];
+    try { return await indexView.getDistinctPropertyValues(key, wholeVault ? undefined : folderPrefix, propertyIndexTypes(baseInputToType(governing?.columns?.[key]?.input) ?? typeReg[key] ?? inferType(normalizeFrontmatterValue(properties[key]), key))); } catch { return []; }
+  }, [indexView, folderPrefix, governing, typeReg, properties]);
 
   // Relation candidates: from the target `.base`'s notes if the column declares one,
   // else any note in the vault. Cached per scope; filtered by the typed query.
   const relationCandidates = useCallback(async (query: string, relationBase?: string, current?: unknown): Promise<RelationCandidate[]> => {
-    if (!queryService) return [];
+    if (!indexView) return [];
     // The notes the value links already — by the link rule, read from this
     // note: a stored link may name its note by file name, path or title.
     const stored = Array.isArray(current) ? current : current == null || current === "" ? [] : [current];
@@ -394,10 +394,10 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
         if (relationBase && vaultAdapter) {
           const text = await vaultAdapter.readTextFile(relationBase);
           const config = parseBaseConfig(text);
-          const data = await queryService.queryDatabaseFiles(config);
+          const data = await indexView.queryDatabaseFiles(config);
           list = data.map((d: any) => ({ path: d["file.path"], title: d["file.name"] ?? d["file.path"] }));
         } else {
-          list = await queryService.listNotes();
+          list = await indexView.listNotes();
         }
         list = (list || []).filter((c) => c.path);
       } catch (e) {
@@ -413,21 +413,21 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       .slice(0, 30);
     // What a pick writes: the file's name, the title as the link's text where
     // it reads otherwise — a target that leads back to the picked note.
-    const sharing = await pathsSharingNames(queryService, shown.map((c) => c.path)).catch(() => shown.map((c) => c.path));
+    const sharing = await pathsSharingNames(indexView, shown.map((c) => c.path)).catch(() => shown.map((c) => c.path));
     return shown.map((c) => ({ ...c, link: wikiLinkTextFor(c.path, c.title === c.path ? null : c.title, sharing) }));
-  }, [queryService, vaultAdapter, doc.path, linkLookup]);
+  }, [indexView, vaultAdapter, doc.path, linkLookup]);
 
   // Relation chips open a note: resolve the wikilink target like the editor does.
   const onOpenLink = useCallback(async (target: string) => {
-    if (!onOpenPath || !queryService) return;
+    if (!onOpenPath || !indexView) return;
     const search = target.split("#")[0].trim();
     try {
-      const path = await queryService.resolveNotePath(search, doc.path ?? undefined);
+      const path = await indexView.resolveNotePath(search, doc.path ?? undefined);
       if (path) onOpenPath(path, false);
     } catch (e) {
       console.warn("[PropertiesSection] resolving relation link target failed", e);
     }
-  }, [onOpenPath, queryService, doc.path]);
+  }, [onOpenPath, indexView, doc.path]);
 
   const locale = i18n.language || "de";
 
@@ -572,7 +572,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       <PropActionRow icon={<Plus size={ICON.ui} />} buttonRef={addBtnRef} expanded={showAdd} onClick={() => setShowAdd((s) => !s)}>
         {t("properties.addProperty")}
       </PropActionRow>
-      {showAdd && <AddPropertyPopover source={queryService} columns={governing?.columns} registry={typeReg} existing={Object.keys(properties)} onAdd={onAddProp} onClose={() => setShowAdd(false)} t={t} anchorRef={addBtnRef} />}
+      {showAdd && <AddPropertyPopover source={indexView} columns={governing?.columns} registry={typeReg} existing={Object.keys(properties)} onAdd={onAddProp} onClose={() => setShowAdd(false)} t={t} anchorRef={addBtnRef} />}
     </div>
   );
 }

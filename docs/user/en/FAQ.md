@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-11-12
+Last reviewed: 2026-11-13
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -112,7 +112,7 @@ When Plainva reads the vault it follows links the way the system does: a link to
 
 If the index cannot be updated at all, the notice says why (**The search index could not be updated: …**); the vault stays open with what the index already holds, and the next time the vault is read Plainva tries again. On the phone a search index that cannot be opened is named as well: search, tags, databases, the sync and the calendar then stay off until Plainva can open it. Meanwhile you can read, write and create notes, and they reach the sync at the next start that opens the index; in a vault that syncs, deleting, renaming, moving and new folders stay unavailable until then, and the strip on top says so.
 
-**Opening a vault for the first time.** A vault without a search index — opened for the first time, or after its app data was forgotten — opens at once, and Plainva reads it in the background. Until it is done, a strip at the top counts the files read; search, tags, backlinks, databases and the graph answer from what has been read so far, and the file tree already shows every file. What would change notes based on the whole vault is refused until then, with the reason, and can be done once the index is complete: renaming or moving with the link updates, overviews, the clean-up, find and replace, the OKF format, deleting a note together with what belongs to it, and creating a note for a link that leads nowhere yet. Reminders are planned again once the index is complete. If the read does not go through, the strip says so until the vault is read again. A minimised window keeps reading. The phone does the same, also in a second window on the desktop.
+**Opening a vault for the first time.** A vault without a search index — opened for the first time, or after its app data was forgotten — opens at once, and Plainva reads it in the background. Until it is done, a strip at the top counts the files read; search, tags, backlinks, databases and the graph answer from what has been read so far, and the file tree already shows every file. What would change notes based on the whole vault is refused until then, with the reason, and can be done once the index is complete: renaming or moving with the link updates, overviews, the clean-up, find and replace, the OKF format, deleting a note together with what belongs to it, and creating a note for a link that leads nowhere yet. Reminders of tasks and checkboxes are planned again once the index is complete; reminders of appointments are planned as always. A note moved outside Plainva is looked for once the index is complete, and links picked from a list in the meantime are written with their path. If the read does not go through, the strip says so, with **Read the vault again**. A minimised window keeps reading. The phone does the same, also in a second window on the desktop.
 
 Remove or repair the entry the notice names, then use **Read the vault again** (on the phone: pull down a list).
 

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { createIndexAutoUpdater, type FileOp } from "@plainva/ui";
+import { createIndexAutoUpdater, owedListingsIn, type FileOp } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import type { MobileVault } from "./vaultService";
 
@@ -29,6 +29,7 @@ export function useIndexAutoUpdate(vault: MobileVault | null, vaultName: string)
       queryService: vault.queryService,
       vaultName: () => vaultName,
       subfoldersHeading: () => i18n.t("indexMd.subfoldersHeading"),
+      owed: owedListingsIn(vault.vaultId),
       onWritten: (indexPath) => {
         // The listing changed on disk; a note screen showing it reloads, and
         // the tree picks up a file that may have just been created.

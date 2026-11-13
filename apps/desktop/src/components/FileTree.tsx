@@ -387,7 +387,7 @@ export const FileTree: React.FC<{
 }> = ({ onSelect, onCloseTabsByPrefix, onRenameTabPrefix, activePath, externalQuery, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onExpandedStateChange, sort = DEFAULT_FOLDER_SORT, searchSort = null }) => {
   const { t } = useTranslation();
   // Performance telemetry removed to reduce console noise
-  const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder } = useVault();
+  const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder, indexView } = useVault();
   const docIcons = useDocumentIcons();
   const [treeFiles, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null; occurrence?: SearchOccurrence; found?: SearchResult["found"] }[]>([]);
   const [pendingPaths, setPendingPaths] = useState<Set<string>>(new Set());
@@ -438,8 +438,8 @@ export const FileTree: React.FC<{
   const meaningOn = meaningActive(embeddingState);
   const searchMode = embeddingState?.mode;
   const searchService = useMemo(
-    () => (embeddings && meaningOn ? { mode: searchMode, searchOccurrencesPage: embeddings.search.searchOccurrencesPage.bind(embeddings.search) } : queryService),
-    [embeddings, meaningOn, searchMode, queryService],
+    () => (embeddings && meaningOn ? { mode: searchMode, searchOccurrencesPage: embeddings.search.searchOccurrencesPage.bind(embeddings.search) } : indexView),
+    [embeddings, meaningOn, searchMode, indexView],
   );
   const searchPage = useSearchPages(searchService, effectiveQuery, fileTreeVersion, 40, searchSort);
   // Derive search rows in the same render as the query. An effect mirror
@@ -509,7 +509,7 @@ export const FileTree: React.FC<{
   const treeDiskFiles = indexBuilding ? diskOnlyFiles : null;
 
   useEffect(() => {
-    if (!queryService) return;
+    if (!indexView) return;
     // Guards against out-of-order responses while typing: only the latest
     // query may write results (plan Suche P4).
     let cancelled = false;
@@ -517,7 +517,7 @@ export const FileTree: React.FC<{
     const fetchFiles = async () => {
       try {
         if (effectiveQuery.trim() === "") {
-          const dbFiles = await queryService.db.query<{ path: string; title: string; mode: string }>(
+          const dbFiles = await indexView.db.query<{ path: string; title: string; mode: string }>(
             `SELECT path, title, mode FROM files ORDER BY path ASC`
           );
           // The times only matter under a time sort (P11) — asked separately so
@@ -526,7 +526,7 @@ export const FileTree: React.FC<{
           const times = new Map<string, { mtime: number | null; ctime: number | null }>();
           if (sort.key !== "title") {
             try {
-              const rows = await queryService.db.query<{ path: string; mtime_local: number | null; ctime: number | null }>(
+              const rows = await indexView.db.query<{ path: string; mtime_local: number | null; ctime: number | null }>(
                 `SELECT path, mtime_local, ctime FROM files`
               );
               for (const r of rows) times.set(r.path, { mtime: r.mtime_local, ctime: r.ctime });
@@ -554,7 +554,7 @@ export const FileTree: React.FC<{
         // Pending (local_ahead) indicator only makes sense with an active sync
         // target; without one every edited file would stay "local_ahead" forever.
         if (syncWorker) {
-          const pending = await queryService.db.query<{ path: string }>(
+          const pending = await indexView.db.query<{ path: string }>(
             `SELECT path FROM files WHERE sync_state IS NOT NULL AND sync_state != 'synced'`
           );
           if (!cancelled) setPendingPaths((prev) => {
@@ -573,7 +573,7 @@ export const FileTree: React.FC<{
 
     void fetchFiles();
     return () => { cancelled = true; };
-  }, [queryService, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders, sort.key, treeDiskFiles]);
+  }, [indexView, effectiveQuery, isLoading, fileTreeVersion, syncWorker, diskFolders, sort.key, treeDiskFiles]);
 
   const folderPaths = useMemo(() => collectFolderPaths(files), [files]);
   // Which folders already carry an overview note: the context menu says "refresh" there (shared row list).

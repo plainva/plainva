@@ -148,7 +148,7 @@ async function computeCascade(deps: DeletionPlanDeps, seeds: string[]): Promise<
  * assigned/linked group per source base.
  */
 export async function buildDeletionPlan(deps: DeletionPlanDeps, targetPaths: string[]): Promise<DeletionPlan> {
-  deps.requireWholeIndex?.();
+  deps.requireWholeIndex();
   const targets = [...new Set(targetPaths.map(normPath))];
   const baseTargets = targets.filter(isBasePath);
   const noteTargets = targets.filter((p) => !isBasePath(p));

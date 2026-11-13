@@ -41,8 +41,8 @@ const settled = async (promise: Promise<unknown>) => {
 };
 
 /** A query service over the store's entry for `vault`, as both shells build it. */
-function service(vault: string): VaultQueryService {
-  const queryService = new VaultQueryService({} as never);
+function service(vault: string, db: unknown = {}): VaultQueryService {
+  const queryService = new VaultQueryService(db as never);
   queryService.setIndexWholeness(indexWholenessFor(vault));
   return queryService;
 }
@@ -168,10 +168,9 @@ describe("a rename while the index is not whole", () => {
 describe("what plans a write from the index refuses over one that is not whole", () => {
   const building = () => {
     beginIndexBuild("/a");
-    const queryService = service("/a");
     const reads: string[] = [];
     const db = { query: async (sql: string) => { reads.push(sql); return []; }, queryOne: async () => null, execute: async () => {} };
-    Object.assign(queryService, { db });
+    const queryService = service("/a", db);
     return { queryService, reads };
   };
 

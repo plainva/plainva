@@ -43,7 +43,7 @@ const sameDay = (a: Date, b: Date) =>
 
 export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onOpenCalendarDay, onOpenNote, loadMarkedDates, activeDate, refreshToken, weekRow = false }) => {
   const { t, i18n } = useTranslation();
-  const { pimRuntime, vaultPath, vaultAdapter, queryService, fileTreeVersion } = useVault();
+  const { pimRuntime, vaultPath, vaultAdapter, indexView, fileTreeVersion } = useVault();
   const today = new Date();
   const [viewDate, setViewDate] = useState<Date>(startOfMonth(today));
   const [marked, setMarked] = useState<Set<string>>(new Set());
@@ -151,8 +151,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   const menuOpen = menu !== null;
   useEffect(() => {
     let alive = true;
-    if (!menuOpen || !vaultPath || !vaultAdapter || !queryService) return;
-    void loadDueTasks({ vaultPath, vaultAdapter, queryService }, { notes: true })
+    if (!menuOpen || !vaultPath || !vaultAdapter || !indexView) return;
+    void loadDueTasks({ vaultPath, vaultAdapter, queryService: indexView }, { notes: true })
       .then((out) => {
         if (alive) setTaskRead({ vault: vaultPath, tasks: out });
       })
@@ -162,7 +162,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
     return () => {
       alive = false;
     };
-  }, [menuOpen, vaultPath, vaultAdapter, queryService, fileTreeVersion, pimTick]);
+  }, [menuOpen, vaultPath, vaultAdapter, indexView, fileTreeVersion, pimTick]);
 
   const eventsByDay = useMemo(() => bucketEventsByDay(events), [events]);
   const tasksByDay = useMemo(() => {

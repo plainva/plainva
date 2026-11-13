@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
 
 /** In-memory adapter + minimal query-service stub. */
@@ -23,10 +24,10 @@ function makeVault(
       store.set(newPath, c);
     },
   };
-  const queryService = {
+  const queryService = wholeIndexReader({
     getBacklinks: async () => backlinks,
     db: { query: async () => Array.from(store.keys()).map((path) => ({ path })) },
-  } as any;
+  } as any);
   return { store, adapter, queryService };
 }
 
@@ -258,12 +259,12 @@ describe("renameFileWithLinkUpdates", () => {
 
   it("still renames when backlink collection fails", async () => {
     const { store, adapter } = makeVault({ "Note.md": "x\n" }, []);
-    const failingQueryService = {
+    const failingQueryService = wholeIndexReader({
       getBacklinks: async () => {
         throw new Error("db down");
       },
       db: { query: async () => [] },
-    } as any;
+    } as any);
 
     const result = await renameFileWithLinkUpdates({
       adapter,

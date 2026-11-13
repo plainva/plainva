@@ -47,7 +47,7 @@ export function BookmarksScreen({
     let alive = true;
     const read = () => void vaultOps.getBookmarks(vault).then((m) => { if (alive) setMarks(m); }).catch(() => { if (alive) toast.error(t("sidebar.bookmarkSaveFailed")); });
     read(); window.addEventListener("m-bookmarks-changed", read);
-    void vault.queryService?.getDocumentIcons().then((m) => { if (alive) setDocIcons(m); }).catch(() => {});
+    void vault.indexView?.getDocumentIcons().then((m) => { if (alive) setDocIcons(m); }).catch(() => {});
     return () => { alive = false; window.removeEventListener("m-bookmarks-changed", read); };
   }, [vault, bump, t]);
 

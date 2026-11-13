@@ -5641,6 +5641,7 @@
     "indexNotWholeFailed": "El índice de búsqueda está incompleto: la última lectura completa del vault no terminó. Esto necesita el índice completo; vuelve a leer el vault e inténtalo otra vez.",
     "indexNotWholeClosed": "El vault se cerró antes de que su índice de búsqueda estuviera completo.",
     "indexBuildFailed": "El índice de búsqueda está incompleto: la última lectura completa del vault no terminó. La búsqueda, las etiquetas y las bases de datos pueden omitir notas hasta que se vuelva a leer el vault.",
+    "indexReadAgain": "Volver a leer el vault",
     "stepOf": "Paso {{n}} de {{total}}",
     "tabDatabases": "Bases de datos",
     "tabCalendar": "Calendario",

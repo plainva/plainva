@@ -19,7 +19,7 @@ import { listenQuietly, mcpAnswerPairing, topLevelFolders, type McpPairRequest }
  */
 export function McpPairing() {
   const { t } = useTranslation();
-  const { queryService } = useVault();
+  const { indexView } = useVault();
   const [request, setRequest] = useState<McpPairRequest | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -40,9 +40,9 @@ export function McpPairing() {
   useEffect(() => listenQuietly<string>("mcp-pair-ended", (requestId) => setRequest((open) => (open?.requestId === requestId ? null : open))), []);
 
   useEffect(() => {
-    if (!request || !queryService) return;
+    if (!request || !indexView) return;
     let alive = true;
-    void queryService
+    void indexView
       .getAllFolders()
       .catch(() => [] as string[])
       .then((all) => {
@@ -51,7 +51,7 @@ export function McpPairing() {
     return () => {
       alive = false;
     };
-  }, [request, queryService]);
+  }, [request, indexView]);
 
   if (!request) return null;
   const whole = chosen.includes("");

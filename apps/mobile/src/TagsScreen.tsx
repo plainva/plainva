@@ -69,16 +69,16 @@ export function TagsScreen({
 
   useEffect(() => {
     let stale = false;
-    if (!vault.queryService) return;
+    if (!vault.indexView) return;
     if (tag) {
-      void vault.queryService.getFilesByTag(tag).then((rows) => {
+      void vault.indexView.getFilesByTag(tag).then((rows) => {
         if (!stale) setFiles(rows.map((r) => ({ path: r.path, title: r.title })));
       });
-      void vault.queryService.getDocumentIcons().then((m) => {
+      void vault.indexView.getDocumentIcons().then((m) => {
         if (!stale) setDocIcons(m);
       }).catch(() => {});
     } else {
-      void vault.queryService.getAllTags().then((rows) => {
+      void vault.indexView.getAllTags().then((rows) => {
         if (!stale) setTags(rows);
       });
     }

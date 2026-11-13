@@ -65,12 +65,12 @@ type LineChange = (text: string, ordinal: number) => ChecklistMutationResult;
 
 export function TasksQueryView({ source, notePath, readOnly, onOpenPath, onEditQuery, changeNote }: TasksQueryViewProps) {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter, fileTreeVersion, indexer, triggerFileTreeUpdate } = useVault();
+  const { queryService, vaultAdapter, fileTreeVersion, indexer, triggerFileTreeUpdate, indexView } = useVault();
   const today = useTodayKey();
   const weekStart = useWeekStartDay();
   const key = String(fileTreeVersion);
-  const loadTasks = useMemo(() => (queryService ? () => queryService.listTasks() : null), [queryService]);
-  const { tasks } = useTasksForQueries(queryService, key, loadTasks);
+  const loadTasks = useMemo(() => (indexView ? () => indexView.listTasks() : null), [indexView]);
+  const { tasks } = useTasksForQueries(indexView, key, loadTasks);
   const readSettings = useMemo(() => (vaultAdapter ? () => vaultAdapter.readTextFile(TASKS_PLUGIN_SETTINGS_PATH).catch(() => null) : null), [vaultAdapter]);
   const pluginSettings = useTasksPluginSettings(vaultAdapter, key, readSettings);
   const linkLookup = useWikiResolver();

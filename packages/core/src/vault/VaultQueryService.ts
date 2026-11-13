@@ -1,6 +1,6 @@
 import { trimEndChars } from "../textScan.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { ALWAYS_WHOLE, requireWholeIndex, untilWholeIndex, type IndexWholeness, type IndexWholenessState } from "./indexWholeness.js";
+import { ALWAYS_WHOLE, IndexNotWholeError, requireWholeIndex, untilWholeIndex, type IndexWholeness, type IndexWholenessState } from "./indexWholeness.js";
 import { applySortRules, buildFilterNodePredicate, filterNeedsTags, isSourceFilter, isWholeVaultFolder, normalizeSortRules, parseDatabaseSourceFilter } from "./databaseQueryHelpers.js";
 import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
@@ -223,13 +223,115 @@ function epochMs(value: unknown): number {
 /** The same in SQL: a row's file time as milliseconds, for a comparison and an order the unit of an old row does not upset. */
 const MTIME_MS = "(CASE WHEN mtime_local > 0 AND mtime_local < 100000000000 THEN mtime_local * 1000 ELSE mtime_local END)";
 
+/**
+ * The class's own methods that read the index and are handed out refusing
+ * (`VaultQueryService` constructor): every asynchronous method of the class
+ * except the ones about wholeness itself. Derived from the class, so a read
+ * added later refuses by default.
+ */
+const NOT_INDEX_READS = new Set(["constructor", "setIndexWholeness", "indexWholenessSource", "indexWholeness", "requireWholeIndex", "untilWholeIndex", "view", "setDayOfPath"]);
+let readNames: readonly string[] | null = null;
+export function indexReadMethodNames(): readonly string[] {
+  if (!readNames) {
+    const proto = VaultQueryService.prototype as unknown as Record<string, unknown>;
+    readNames = Object.getOwnPropertyNames(proto).filter((name) => {
+      if (NOT_INDEX_READS.has(name)) return false;
+      const descriptor = Object.getOwnPropertyDescriptor(proto, name);
+      return typeof descriptor?.value === "function" && descriptor.value.constructor?.name === "AsyncFunction";
+    });
+  }
+  return readNames;
+}
+
 export class VaultQueryService {
   /** Sentinels wrapping matches in `snippet`/`titleHighlighted` (see ftsQuery.ts).
    *  Exposed here so UI code can consume them without a package-root export. */
   static readonly SNIPPET_MARK_START = SNIPPET_MARK_START;
   static readonly SNIPPET_MARK_END = SNIPPET_MARK_END;
 
-  constructor(public readonly db: IDatabaseAdapter) {}
+  /** The index itself. Every method of this class reads it; what is handed out is `db` (refusing) or the view's `db` (partial). */
+  private readonly indexDb: IDatabaseAdapter;
+
+  /**
+   * Carried in type only, by the reader and never by its view (`IndexView`):
+   * whatever plans a write from the index takes a parameter that asks for it
+   * (`IndexReader`, or this class), so a view cannot be handed in.
+   */
+  declare readonly wholeIndex: true;
+
+  constructor(db: IDatabaseAdapter) {
+    this.indexDb = db;
+    // The reader refuses while its index is not whole (performance plan L3,
+    // second review of 11.11.): every read of the index the class offers
+    // rejects with `IndexNotWholeError` until the vault's first full scan
+    // went through. A surface that only shows takes the view instead
+    // (`view()`), by a name that says so.
+    const proto = VaultQueryService.prototype as unknown as Record<string, unknown>;
+    for (const name of indexReadMethodNames()) {
+      const read = proto[name] as (...args: unknown[]) => Promise<unknown>;
+      Object.defineProperty(this, name, {
+        configurable: true,
+        writable: true,
+        value: (...args: unknown[]) => {
+          const state = this.wholeness.state();
+          if (state.kind !== "whole") return Promise.reject(new IndexNotWholeError(state));
+          return read.apply(this, args);
+        },
+      });
+    }
+  }
+
+  private refusingDb: IDatabaseAdapter | null = null;
+  /**
+   * The index's database, refusing like the reader: a query on it rejects
+   * while the index is not whole. Writes go through untouched (the index's
+   * own tables are written by the indexer, never through here).
+   */
+  get db(): IDatabaseAdapter {
+    if (!this.refusingDb) {
+      const raw = this.indexDb;
+      const refuse = () => {
+        const state = this.wholeness.state();
+        return state.kind === "whole" ? null : new IndexNotWholeError(state);
+      };
+      this.refusingDb = new Proxy(raw, {
+        get(target, prop, receiver) {
+          const value = Reflect.get(target, prop, receiver);
+          if ((prop === "query" || prop === "queryOne") && typeof value === "function") {
+            return (...args: unknown[]) => {
+              const refused = refuse();
+              return refused ? Promise.reject(refused) : (value as (...a: unknown[]) => unknown).apply(target, args);
+            };
+          }
+          return typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+        },
+      });
+    }
+    return this.refusingDb;
+  }
+
+  private partialView: IndexView | null = null;
+  /**
+   * The same index, read as it stands — also while the first full scan is
+   * still under way. For surfaces that only SHOW (the tree, search, a
+   * database's rows, a count): nothing that plans or writes takes it, and its
+   * type keeps it out of every parameter that asks for `IndexReader`. Its
+   * `db` is the index's database, unrefused.
+   */
+  view(): IndexView {
+    if (!this.partialView) {
+      const view = Object.create(this) as Record<string, unknown>;
+      const proto = VaultQueryService.prototype as unknown as Record<string, unknown>;
+      for (const name of indexReadMethodNames()) {
+        Object.defineProperty(view, name, { configurable: true, writable: true, value: proto[name] });
+      }
+      Object.defineProperty(view, "db", { configurable: true, value: this.indexDb });
+      Object.defineProperty(view, "partialIndex", { value: true });
+      Object.defineProperty(view, "view", { value: () => view });
+      this.partialView = view as unknown as IndexView;
+    }
+    return this.partialView;
+  }
 
   /**
    * Whether this index holds the whole vault (performance plan L3,
@@ -312,7 +414,7 @@ export class VaultQueryService {
     `;
     params.push(limit);
     if (offset > 0) params.push(offset);
-    const rows: SearchResult[] = await this.db.query(sql, params);
+    const rows: SearchResult[] = await this.indexDb.query(sql, params);
     // A match in the pair columns leaves FTS5's title highlight without a
     // mark; the title is marked from the text itself then.
     if (parsed.match !== null && parsed.terms.some(hasSpacelessText)) {
@@ -335,7 +437,7 @@ export class VaultQueryService {
     const out = new Set<string>();
     for (let i = 0; i < paths.length; i += 200) {
       const group = paths.slice(i, i + 200);
-      const rows = await this.db.query<{ path: string }>(
+      const rows = await this.indexDb.query<{ path: string }>(
         `SELECT f.path AS path FROM files f WHERE f.path IN (${group.map(() => "?").join(", ")}) AND ${where.join(" AND ")}`,
         [...group, ...params],
       );
@@ -346,7 +448,7 @@ export class VaultQueryService {
 
   /** The size of all notes together, in bytes: a vault's measure for estimates (search by meaning's load dialog). */
   async noteBytes(): Promise<number> {
-    const row = await this.db.queryOne<{ bytes: number | null }>(
+    const row = await this.indexDb.queryOne<{ bytes: number | null }>(
       `SELECT SUM(size_bytes) AS bytes FROM files WHERE mode != 'attachment' AND path NOT LIKE '%.base'`,
     );
     return Number(row?.bytes ?? 0) || 0;
@@ -357,7 +459,7 @@ export class VaultQueryService {
     const out = new Map<string, FileRecord>();
     for (let i = 0; i < paths.length; i += 200) {
       const group = paths.slice(i, i + 200);
-      const rows = await this.db.query<FileRecord>(
+      const rows = await this.indexDb.query<FileRecord>(
         `SELECT id, path, title, mtime_local, size_bytes FROM files WHERE path IN (${group.map(() => "?").join(", ")})`,
         group,
       );
@@ -411,7 +513,7 @@ export class VaultQueryService {
         mtime_local DESC
       LIMIT ?
     `;
-    return await this.db.query(sql, [likeQuery, likeQuery, `${query}%`, limit]);
+    return await this.indexDb.query(sql, [likeQuery, likeQuery, `${query}%`, limit]);
   }
 
   /**
@@ -425,7 +527,7 @@ export class VaultQueryService {
       ORDER BY mtime_local DESC
       LIMIT ?
     `;
-    return await this.db.query(sql, [limit]);
+    return await this.indexDb.query(sql, [limit]);
   }
 
   /**
@@ -446,7 +548,7 @@ export class VaultQueryService {
       else conditions.add(`${ftsPhrase(term)}*`);
     }
     const match = [...conditions].slice(0, 48).join(" OR ");
-    const rows = await this.db.query<{ path: string; title: string; score: number; snippet: string | null; mtime_local: number }>(
+    const rows = await this.indexDb.query<{ path: string; title: string; score: number; snippet: string | null; mtime_local: number }>(
       `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local,
          -bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0) AS score,
          snippet(fts_notes, 0, char(1), char(2), '…', 16) AS snippet
@@ -461,7 +563,7 @@ export class VaultQueryService {
 
   /** Notes by their last change on disk, newest first (a sync counts as a change). */
   async getRecentlyChangedNotes(limit = 20): Promise<{ path: string; title: string; mtime: number }[]> {
-    const rows = await this.db.query<{ path: string; title: string; mtime_local: number }>(
+    const rows = await this.indexDb.query<{ path: string; title: string; mtime_local: number }>(
       `SELECT path, title, mtime_local FROM files
        WHERE path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0)
        ORDER BY mtime_local DESC LIMIT ?`,
@@ -490,7 +592,7 @@ export class VaultQueryService {
       conditions.push(`(${variants.map(() => "path LIKE ? ESCAPE '\\'").join(" OR ")})`);
       params.push(...variants.map((variant) => `${escapeLikePrefix(variant)}/%`));
     }
-    const rows = await this.db.query<{ path: string; title: string; mtime_local: number; ctime: number | null }>(
+    const rows = await this.indexDb.query<{ path: string; title: string; mtime_local: number; ctime: number | null }>(
       `SELECT path, title, mtime_local, ctime FROM files WHERE ${conditions.join(" AND ")} ORDER BY ${MTIME_MS} DESC LIMIT ?`,
       [...params, Math.max(1, Math.min(500, Math.floor(limit) || 100))],
     );
@@ -505,7 +607,7 @@ export class VaultQueryService {
    */
   async getNoteCreated(path: string): Promise<number | null> {
     const variants = [...new Set([path.normalize("NFC"), path.normalize("NFD")])];
-    const rows = await this.db.query<{ ctime: number | null }>(
+    const rows = await this.indexDb.query<{ ctime: number | null }>(
       `SELECT ctime FROM files WHERE path IN (${variants.map(() => "?").join(", ")}) AND (is_deleted IS NULL OR is_deleted = 0) LIMIT 1`,
       variants,
     );
@@ -528,7 +630,7 @@ export class VaultQueryService {
       counts.set(other, entry);
     };
     for (const link of await this.getBacklinks(path)) bump(link.source_path, "incoming");
-    const outgoing = await this.db.query<{ target_path: string; link_type: string | null }>(
+    const outgoing = await this.indexDb.query<{ target_path: string; link_type: string | null }>(
       `SELECT l.target_path AS target_path, l.link_type AS link_type FROM links l JOIN files f ON f.id = l.source_id WHERE f.path = ?`,
       [path],
     );
@@ -545,7 +647,7 @@ export class VaultQueryService {
     const titles = new Map<string, string>();
     for (let i = 0; i < ranked.length; i += 400) {
       const chunk = ranked.slice(i, i + 400).map(([p]) => p);
-      const rows = await this.db.query<{ path: string; title: string }>(
+      const rows = await this.indexDb.query<{ path: string; title: string }>(
         `SELECT path, title FROM files WHERE path IN (${chunk.map(() => "?").join(",")})`,
         chunk,
       );
@@ -558,7 +660,7 @@ export class VaultQueryService {
    * Lists the paths of all `.base` database files in the vault.
    */
   async listBaseFilePaths(): Promise<string[]> {
-    const rows = await this.db.query<{ path: string }>(
+    const rows = await this.indexDb.query<{ path: string }>(
       `SELECT path FROM files WHERE path LIKE '%.base'`,
     );
     return rows.map((r) => r.path).filter(Boolean);
@@ -573,7 +675,7 @@ export class VaultQueryService {
     const sql =
       `SELECT path, title FROM files WHERE mode != 'attachment' AND path NOT LIKE '%.base' ORDER BY title` +
       (limit !== undefined ? ` LIMIT ?` : ``);
-    const rows = await this.db.query<{ path: string; title: string | null }>(
+    const rows = await this.indexDb.query<{ path: string; title: string | null }>(
       sql,
       limit !== undefined ? [limit] : [],
     );
@@ -593,7 +695,7 @@ export class VaultQueryService {
     fromMs: number,
     toMs: number,
   ): Promise<{ path: string; title: string; editedAt: number }[]> {
-    const rows = await this.db.query<{ path: string; title: string | null; edited_at: number }>(
+    const rows = await this.indexDb.query<{ path: string; title: string | null; edited_at: number }>(
       `SELECT path, title, edited_at FROM (
          SELECT f.path AS path, f.title AS title, ${EDITED_AT_SQL} AS edited_at
            FROM files f LEFT JOIN sync_state s ON s.path = f.path
@@ -635,7 +737,7 @@ export class VaultQueryService {
    */
   async countNotesPerSubfolder(folder: string): Promise<Map<string, number>> {
     const prefix = folder ? `${trimEndChars(folder, "/")}/` : "";
-    const rows = await this.db.query<{ folder: string; n: number }>(
+    const rows = await this.indexDb.query<{ folder: string; n: number }>(
       `SELECT substr(rest, 1, instr(rest, '/') - 1) AS folder, COUNT(*) AS n
        FROM (SELECT substr(path, ?) AS rest FROM files
              WHERE mode != 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\' AND ${visiblePathSql("path")})
@@ -656,7 +758,7 @@ export class VaultQueryService {
    */
   async countAttachmentsPerSubfolder(folder: string): Promise<Map<string, number>> {
     const prefix = folder ? `${trimEndChars(folder, "/")}/` : "";
-    const rows = await this.db.query<{ folder: string; n: number }>(
+    const rows = await this.indexDb.query<{ folder: string; n: number }>(
       `SELECT substr(rest, 1, instr(rest, '/') - 1) AS folder, COUNT(*) AS n
        FROM (SELECT substr(path, ?) AS rest FROM files
              WHERE mode = 'attachment' AND path NOT LIKE '%.base' AND path LIKE ? ESCAPE '\\' AND ${visiblePathSql("path")})
@@ -670,7 +772,7 @@ export class VaultQueryService {
   }
 
   async getVaultStats(): Promise<{ notes: number; attachments: number }> {
-    const rows = await this.db.query<{ mode: string; n: number }>(
+    const rows = await this.indexDb.query<{ mode: string; n: number }>(
       `SELECT mode, COUNT(*) AS n FROM files GROUP BY mode`,
       [],
     );
@@ -684,7 +786,7 @@ export class VaultQueryService {
   }
 
   async listBases(): Promise<{ path: string; title: string }[]> {
-    const rows = await this.db.query<{ path: string; title: string | null }>(
+    const rows = await this.indexDb.query<{ path: string; title: string | null }>(
       `SELECT path, title FROM files WHERE path LIKE '%.base' AND ${visiblePathSql("path")} ORDER BY path`,
       [],
     );
@@ -705,7 +807,7 @@ export class VaultQueryService {
     // order the notes came into the index, as it was before index format 9;
     // rows kept from an older index keep their own numbers (fullTextRows.ts).
     // The other readers of the whole table below read the same way.
-    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
+    const rows = await this.indexDb.query<{ path: string; title: string | null; content: string | null }>(
       `SELECT path, title, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
@@ -744,7 +846,7 @@ export class VaultQueryService {
    * note's text, as `listTasks` reads it.
    */
   async listTemplateKeyNotes(): Promise<Array<{ path: string; title: string; hidesTasks: boolean; templateFor: boolean }>> {
-    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
+    const rows = await this.indexDb.query<{ path: string; title: string | null; content: string | null }>(
       `SELECT path, title, content FROM fts_notes WHERE (content LIKE '%templateFor%' OR content LIKE '%tasks%') AND ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
@@ -773,7 +875,7 @@ export class VaultQueryService {
       const chunk = paths.slice(i, i + chunkSize);
       const placeholders = chunk.map(() => "?").join(",");
       // From each file to its row by number (index format 9): no scan.
-      const contentRows = await this.db.query<{ path: string; content: string | null }>(
+      const contentRows = await this.indexDb.query<{ path: string; content: string | null }>(
         `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${placeholders})`,
         chunk,
       );
@@ -809,7 +911,7 @@ export class VaultQueryService {
     for (let i = 0; i < unique.length; i += 200) {
       if (signal?.aborted) throw new DOMException("Search cancelled", "AbortError");
       const chunk = unique.slice(i, i + 200);
-      const rows = await this.db.query<{ path: string; content: string | null }>(
+      const rows = await this.indexDb.query<{ path: string; content: string | null }>(
         `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${chunk.map(() => "?").join(",")}) ORDER BY n.rowid DESC`, chunk,
       );
       for (const row of rows) {
@@ -827,7 +929,7 @@ export class VaultQueryService {
     for (let i = 0; i < paths.length; i += chunkSize) {
       const chunk = paths.slice(i, i + chunkSize);
       const placeholders = chunk.map(() => "?").join(",");
-      const contentRows = await this.db.query<{ path: string; content: string | null }>(
+      const contentRows = await this.indexDb.query<{ path: string; content: string | null }>(
         `SELECT n.path AS path, n.content AS content FROM ${FILE_AND_FULL_TEXT_ROW} WHERE f.path IN (${placeholders})`,
         chunk,
       );
@@ -835,7 +937,7 @@ export class VaultQueryService {
         if (!r.path) continue;
         out[r.path] = { content: r.content ?? "", tags: [], ctime: null };
       }
-      const fileRows = await this.db.query<{ path: string; ctime: number | null }>(
+      const fileRows = await this.indexDb.query<{ path: string; ctime: number | null }>(
         `SELECT path, ctime FROM files WHERE path IN (${placeholders})`,
         chunk,
       );
@@ -844,7 +946,7 @@ export class VaultQueryService {
         if (!out[r.path]) out[r.path] = { content: "", tags: [], ctime: null, indexStatus: "missing" };
         out[r.path].ctime = r.ctime ?? null;
       }
-      const tagRows = await this.db.query<{ path: string; tag: string }>(
+      const tagRows = await this.indexDb.query<{ path: string; tag: string }>(
         `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE f.path IN (${placeholders})`,
         chunk,
       );
@@ -865,7 +967,7 @@ export class VaultQueryService {
     // The set of files a replace writes: never from half an index (L3).
     this.requireWholeIndex();
     if (!query) return [];
-    const rows = await this.db.query<{ path: string; title: string | null; content: string | null }>(
+    const rows = await this.indexDb.query<{ path: string; title: string | null; content: string | null }>(
       `SELECT path, title, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
@@ -895,7 +997,7 @@ export class VaultQueryService {
    * caller re-reads each candidate before rewriting it.
    */
   async findNotesWithTag(tag: string): Promise<string[]> {
-    const rows = await this.db.query<{ path: string; content: string | null }>(
+    const rows = await this.indexDb.query<{ path: string; content: string | null }>(
       `SELECT path, content FROM fts_notes WHERE ${FULL_TEXT_ROW_IS_FILED} ORDER BY rowid DESC`,
       [],
     );
@@ -918,7 +1020,7 @@ export class VaultQueryService {
    * (`buildLinkNameIndex`): one read for a whole text's links.
    */
   async linkTargets(): Promise<LinkTargetRow[]> {
-    return this.db.query<LinkTargetRow>(`SELECT path, title, mode FROM files WHERE is_deleted IS NULL OR is_deleted = 0`);
+    return this.indexDb.query<LinkTargetRow>(`SELECT path, title, mode FROM files WHERE is_deleted IS NULL OR is_deleted = 0`);
   }
 
   /**
@@ -998,7 +1100,7 @@ export class VaultQueryService {
   async notesContaining(needles: readonly string[], limit = 200): Promise<{ paths: string[]; truncated: boolean }> {
     const wanted = [...new Set(needles.filter((needle) => needle.length > 0))].slice(0, 8);
     if (wanted.length === 0) return { paths: [], truncated: false };
-    const rows = await this.db.query<{ path: string }>(
+    const rows = await this.indexDb.query<{ path: string }>(
       `SELECT path FROM fts_notes WHERE (${wanted.map(() => "content LIKE ? ESCAPE '\\'").join(" OR ")}) AND ${FULL_TEXT_ROW_IS_FILED} ORDER BY path LIMIT ?`,
       [...wanted.map((needle) => `%${needle.replace(/[\\%_]/g, "\\$&")}%`), limit + 1],
     );
@@ -1058,7 +1160,7 @@ export class VaultQueryService {
       WHERE (${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")})${options.visibleOnly ? ` AND ${visiblePathSql("f.path")}` : ""}
       ORDER BY f.path COLLATE NOCASE ASC, l.line_number ASC
     `;
-    const candidateLinks = await this.db.query<LinkRecord>(sql, [...patterns]);
+    const candidateLinks = await this.indexDb.query<LinkRecord>(sql, [...patterns]);
 
     // 3. Resolve each link and filter by exact match to targetPath. The corpus
     // index is built ONCE (P2.3) — resolving per candidate against the raw
@@ -1101,7 +1203,7 @@ export class VaultQueryService {
       }
     }
     if (patterns.size === 0) return [];
-    return this.db.query<LinkRecord>(
+    return this.indexDb.query<LinkRecord>(
       `SELECT f.path as source_path, l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
        FROM links l
        JOIN files f ON f.id = l.source_id
@@ -1135,7 +1237,7 @@ export class VaultQueryService {
     const result = new Map<string, RelationSource[]>();
     if (targetPaths.length === 0 || !propertyKey) return result;
 
-    const rows = await this.db.query<{ source_path: string; source_title: string | null; target_path: string }>(
+    const rows = await this.indexDb.query<{ source_path: string; source_title: string | null; target_path: string }>(
       `SELECT f.path AS source_path, f.title AS source_title, l.target_path AS target_path
        FROM links l
        JOIN files f ON f.id = l.source_id
@@ -1231,7 +1333,7 @@ export class VaultQueryService {
     for (let i = 0; i < paths.length; i += chunk) {
       const slice = paths.slice(i, i + chunk);
       const placeholders = slice.map(() => "?").join(",");
-      const rows = await this.db.query<any>(
+      const rows = await this.indexDb.query<any>(
         `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local, f.size_bytes AS size_bytes,
                 p.key AS key, p.value AS value, p.type AS type
          FROM files f LEFT JOIN properties p ON p.file_id = f.id
@@ -1287,7 +1389,7 @@ export class VaultQueryService {
     if (targetPaths.length === 0) return result;
 
     const files = await this.linkTargets();
-    const rows = await this.db.query<{
+    const rows = await this.indexDb.query<{
       source_path: string;
       source_title: string | null;
       target_path: string;
@@ -1334,7 +1436,7 @@ export class VaultQueryService {
       JOIN files f ON f.id = t.file_id
       WHERE (t.tag = ? OR t.tag LIKE ?) AND ${visiblePathSql("f.path")}
     `;
-    return await this.db.query(sql, [tag, `${tag}/%`]);
+    return await this.indexDb.query(sql, [tag, `${tag}/%`]);
   }
 
   /**
@@ -1348,7 +1450,7 @@ export class VaultQueryService {
       GROUP BY tag
       ORDER BY tag ASC
     `;
-    return await this.db.query(sql, []);
+    return await this.indexDb.query(sql, []);
   }
 
   /**
@@ -1356,7 +1458,7 @@ export class VaultQueryService {
    */
   async getAllFolders(): Promise<string[]> {
     const sql = `SELECT DISTINCT path FROM files`;
-    const files = await this.db.query<{path: string}>(sql, []);
+    const files = await this.indexDb.query<{path: string}>(sql, []);
     const folders = new Set<string>();
     for (const f of files) {
       if (f.path.includes("/")) {
@@ -1382,7 +1484,7 @@ export class VaultQueryService {
       JOIN files f ON f.id = p.file_id
       WHERE f.path = ?
     `;
-    const rows = await this.db.query(sql, [path]);
+    const rows = await this.indexDb.query(sql, [path]);
     
     const props: Record<string, any> = {};
     for (const row of rows) {
@@ -1413,7 +1515,7 @@ export class VaultQueryService {
    * throwing, exactly like getDocumentIcons.
    */
   async getTaskAnchors(): Promise<Map<string, TaskAnchorRecord[]>> {
-    const rows = await this.db.query(
+    const rows = await this.indexDb.query(
       `SELECT f.path AS path, f.ctime AS ctime, p.value AS value
        FROM properties p
        JOIN files f ON f.id = p.file_id
@@ -1469,7 +1571,7 @@ export class VaultQueryService {
    * ignore.
    */
   async getOwnAiRules(): Promise<Map<string, { ai: unknown }>> {
-    const rows = await this.db.query(
+    const rows = await this.indexDb.query(
       `SELECT f.path AS path, p.value AS value
        FROM properties p
        JOIN files f ON f.id = p.file_id
@@ -1504,7 +1606,7 @@ export class VaultQueryService {
       JOIN files f ON f.id = p.file_id
       WHERE p.key = ?
     `;
-    const rows = await this.db.query(sql, [PLAINVA_NAMESPACE_KEY]);
+    const rows = await this.indexDb.query(sql, [PLAINVA_NAMESPACE_KEY]);
     const icons = new Map<string, { icon: string; color?: string }>();
     for (const row of rows) {
       const path = String(row.path ?? row.PATH ?? "");
@@ -1531,7 +1633,7 @@ export class VaultQueryService {
    * exactly where a click would create the note.
    */
   async getDocumentTitles(): Promise<Map<string, { title: string; mode: string }>> {
-    const rows = await this.db.query<{ path: string; title: string | null; mode: string | null }>(
+    const rows = await this.indexDb.query<{ path: string; title: string | null; mode: string | null }>(
       `SELECT path, title, mode FROM files WHERE is_deleted IS NULL OR is_deleted = 0`,
       [],
     );
@@ -1554,7 +1656,7 @@ export class VaultQueryService {
    * not mix vocabularies. An empty/omitted prefix keeps the vault-global behaviour.
    */
   async getKnownProperties(query = "", limit = 80): Promise<{ name: string; type: string; count: number }[]> {
-    const rows = await this.db.query<{ name: string; type: string; count: number }>(
+    const rows = await this.indexDb.query<{ name: string; type: string; count: number }>(
       `WITH used AS (
         SELECT key, type, COUNT(DISTINCT file_id) AS uses FROM properties
         WHERE key LIKE ? ESCAPE '\\' GROUP BY key, type
@@ -1587,7 +1689,7 @@ export class VaultQueryService {
       conditions.push(`p.type IN (${types.map(() => "?").join(",")})`);
       params.push(...types);
     }
-    const rows = await this.db.query<{ value: string; count: number }>(
+    const rows = await this.indexDb.query<{ value: string; count: number }>(
       `WITH scoped AS (
         SELECT p.file_id, p.type, p.value FROM properties p JOIN files f ON f.id = p.file_id
         WHERE ${conditions.join(" AND ")}
@@ -1723,7 +1825,7 @@ export class VaultQueryService {
     const sortRules = normalizeSortRules(config.views?.[0]?.sort);
     const sortSql = " ORDER BY f.mtime_local DESC"; // default fallback
 
-    const rawRows = await this.db.query(sql + (sortRules.length === 0 ? sortSql : ""), params);
+    const rawRows = await this.indexDb.query(sql + (sortRules.length === 0 ? sortSql : ""), params);
     // OKF reserved files (index.md/log.md) are folder-listing infrastructure,
     // never database rows. A folder source matches recursively, so a folder's
     // managed index.md would otherwise appear as a row — exclude reserved names
@@ -1756,7 +1858,7 @@ export class VaultQueryService {
         WHERE file_id IN (${placeholders})
       `;
       
-      const propRows = await this.db.query(propsSql, chunk);
+      const propRows = await this.indexDb.query(propsSql, chunk);
       for (const pr of propRows) {
         const fileId = pr.file_id;
         if (!propsByFileId[fileId]) propsByFileId[fileId] = {};
@@ -1870,7 +1972,7 @@ export class VaultQueryService {
         const chunk = fileIds.slice(i, i + chunkSize);
         if (chunk.length === 0) break;
         const placeholders = chunk.map(() => "?").join(",");
-        const tagRows = await this.db.query(
+        const tagRows = await this.indexDb.query(
           `SELECT f.path AS path, t.tag AS tag FROM tags t JOIN files f ON f.id = t.file_id WHERE t.file_id IN (${placeholders})`,
           chunk
         );
@@ -1904,4 +2006,33 @@ export class VaultQueryService {
 
     return finalResult;
   }
+}
+
+/**
+ * What may read the index as it stands (`VaultQueryService.view`) or whole —
+ * the parameter type of a function that only shows. A reader passed to it is
+ * as good as a view.
+ */
+export type IndexReading = Omit<VaultQueryService, "wholeIndex" | "setIndexWholeness" | "setDayOfPath">;
+
+/** The index as it stands, also during the first full scan: for surfaces that only show (`VaultQueryService.view`). */
+export type IndexView = IndexReading & { readonly partialIndex: true };
+
+/** The part of the reader a planner reads, whole: a view does not fit. */
+export type IndexReader<K extends keyof VaultQueryService> = Pick<VaultQueryService, K | "wholeIndex">;
+
+/**
+ * A hand-made reader declared whole — the one fake every test uses for the
+ * index, and the one way for a wrapper of the reader that refuses as the reader
+ * does. What the fake does not bring of the wholeness members is added: whole,
+ * never waiting, its own view. Nothing else uses it: a view made whole by a
+ * cast is exactly the leak the type is there to stop.
+ */
+export function wholeIndexReader<T extends object>(reader: T): T & { readonly wholeIndex: true } & Pick<VaultQueryService, "requireWholeIndex" | "untilWholeIndex" | "indexWholeness"> & { view(): T & { readonly partialIndex: true } } {
+  const fake = reader as Record<string, unknown>;
+  if (!("requireWholeIndex" in fake)) fake.requireWholeIndex = () => {};
+  if (!("untilWholeIndex" in fake)) fake.untilWholeIndex = () => Promise.resolve();
+  if (!("indexWholeness" in fake)) fake.indexWholeness = () => ({ kind: "whole" });
+  if (!("view" in fake)) fake.view = () => reader;
+  return reader as never;
 }

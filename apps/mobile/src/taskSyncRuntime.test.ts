@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 
 /**
  * The gate on note CREATION, and the single-flight around it.
@@ -81,10 +82,10 @@ function fakeVault(): MobileVault {
       exists: async () => true,
       createDir: async () => {},
     },
-    queryService: {
+    queryService: wholeIndexReader({
       listNotes: async () => [{ path: "Aufgaben/A.md" }],
       getTaskAnchors: async () => new Map(),
-    },
+    }),
     indexSettled: () => indexDone,
     reindexPaths: async (paths: string[]) => {
       reindexed.push(paths);

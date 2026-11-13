@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { parseBaseConfig } from "@plainva/ui";
-import type { VaultQueryService, IVaultAdapter } from "@plainva/core";
+import type { IndexReading, IVaultAdapter } from "@plainva/core";
 
 export interface DocIconEntry {
   icon: string;
@@ -16,33 +16,33 @@ const EMPTY: Map<string, DocIconEntry> = new Map();
 // Shared load cache. useDocumentIcons is mounted by 3-4 components at once
 // (Editor, FileTree, tab strips, TitleBar); without this each instance would
 // run getDocumentIcons() AND re-read every `.base` from disk on every index
-// bump — 3-4x the work. Keyed by (vaultPath, fileTreeVersion) + queryService
+// bump — 3-4x the work. Keyed by (vaultPath, fileTreeVersion) + indexView
 // identity so a reopened vault (fresh service, version reset to 0) recomputes.
 let cacheKey = "";
 let cacheService: unknown = null;
 let cachePromise: Promise<Map<string, DocIconEntry>> | null = null;
 
 function loadDocumentIcons(
-  queryService: VaultQueryService,
+  indexView: IndexReading,
   vaultAdapter: IVaultAdapter | null,
   vaultPath: string | null,
   version: number
 ): Promise<Map<string, DocIconEntry>> {
   const key = `${vaultPath ?? ""}::${version}`;
-  if (key === cacheKey && cacheService === queryService && cachePromise) return cachePromise;
+  if (key === cacheKey && cacheService === indexView && cachePromise) return cachePromise;
   cacheKey = key;
-  cacheService = queryService;
+  cacheService = indexView;
   cachePromise = (async () => {
     let map: Map<string, DocIconEntry>;
     try {
-      map = new Map(await queryService.getDocumentIcons());
+      map = new Map(await indexView.getDocumentIcons());
     } catch (e) {
       console.warn("[useDocumentIcons] loading icons failed", e);
       map = new Map();
     }
     if (vaultAdapter) {
       try {
-        const basePaths = await queryService.listBaseFilePaths();
+        const basePaths = await indexView.listBaseFilePaths();
         await Promise.all(
           basePaths.map(async (p) => {
             let color: string | undefined;
@@ -76,16 +76,16 @@ function loadDocumentIcons(
  * module cache above, so the `.base` disk reads happen once per bump.
  */
 export function useDocumentIcons(): Map<string, DocIconEntry> {
-  const { queryService, vaultAdapter, fileTreeVersion, vaultPath } = useVault();
+  const { indexView, vaultAdapter, fileTreeVersion, vaultPath } = useVault();
   const [icons, setIcons] = useState<Map<string, DocIconEntry>>(EMPTY);
 
   useEffect(() => {
     let alive = true;
-    if (!queryService) {
+    if (!indexView) {
       setIcons(EMPTY);
       return;
     }
-    loadDocumentIcons(queryService, vaultAdapter, vaultPath, fileTreeVersion)
+    loadDocumentIcons(indexView, vaultAdapter, vaultPath, fileTreeVersion)
       .then((map) => {
         if (alive) setIcons(map);
       })
@@ -93,7 +93,7 @@ export function useDocumentIcons(): Map<string, DocIconEntry> {
     return () => {
       alive = false;
     };
-  }, [queryService, vaultAdapter, fileTreeVersion, vaultPath]);
+  }, [indexView, vaultAdapter, fileTreeVersion, vaultPath]);
 
   return icons;
 }

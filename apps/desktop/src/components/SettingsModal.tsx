@@ -102,7 +102,7 @@ const SettingsPage: React.FC<{ area: string; active: boolean; children: React.Re
 );
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId, initialConnect }) => {
-  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex, openVault, closeVault, removeRecentVault } = useVault();
+  const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex, openVault, closeVault, removeRecentVault, indexView } = useVault();
   const [reindexRunning, setReindexRunning] = useState(false);
   const [syncQueueSnapshot, setSyncQueueSnapshot] = useState<{ total: number; items: Array<{ operation: string; file_path: string; retry_count: number }> } | null>(null);
   const { t, i18n } = useTranslation();
@@ -308,16 +308,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     return () => { alive = false; };
   }, []);
   useEffect(() => {
-    if (!queryService) { setVaultStats(null); return; }
+    if (!indexView) { setVaultStats(null); return; }
     let alive = true;
     // The counting rule lives in the query service (S39) so the phone answers
     // the same question the same way.
-    queryService
+    indexView
       .getVaultStats()
       .then((stats) => { if (alive) setVaultStats(stats); })
       .catch(() => { if (alive) setVaultStats(null); });
     return () => { alive = false; };
-  }, [queryService]);
+  }, [indexView]);
 
   const [perfStats, setPerfStats] = useState<import("../services/perfMetrics").PerfStat[] | null>(null);
   const refreshPerfStats = async () => {

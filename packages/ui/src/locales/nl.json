@@ -5525,6 +5525,7 @@
     "indexNotWholeFailed": "De zoekindex is onvolledig: de laatste volledige inlezing van de vault is niet gelukt. Dit heeft de hele index nodig – lees de vault opnieuw in en probeer het dan nog eens.",
     "indexNotWholeClosed": "De vault is gesloten voordat de zoekindex volledig was.",
     "indexBuildFailed": "De zoekindex is onvolledig: de laatste volledige inlezing van de vault is niet gelukt. Zoeken, tags en databases kunnen notities missen tot de vault opnieuw is ingelezen.",
+    "indexReadAgain": "Vault opnieuw inlezen",
     "stepOf": "Stap {{n}} van {{total}}",
     "tabDatabases": "Databases",
     "tabCalendar": "Kalender",

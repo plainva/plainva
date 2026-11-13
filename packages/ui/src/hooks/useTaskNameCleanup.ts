@@ -98,7 +98,7 @@ export function useTaskNameCleanup(deps: TaskNameCleanupDeps): TaskNameCleanupSt
     // of one nothing is resumed and nothing offered (performance plan L3). The
     // view scans again when the index changes — the end of the build included.
     try {
-      deps.queryService?.requireWholeIndex?.();
+      deps.queryService?.requireWholeIndex();
     } catch {
       return [];
     }

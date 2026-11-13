@@ -37,6 +37,8 @@ export interface EditorTriggerDeps {
     getAllTags: () => Promise<{ tag: string; count: number }[]>;
     /** Where a link leads (`VaultQueryService.resolveNotePath`) — which note `[[Note#` means. */
     resolveNotePath?: (target: string, sourcePath?: string) => Promise<string | null>;
+    /** Whether the index is whole: a link's text is decided over the whole vault only (`pathsSharingNames`). */
+    indexWholeness(): { kind: string };
   } | null;
   /** A note's text, for the headings behind `[[Note#` (issue #92); absent = no heading completion for other notes. */
   readNote?: (path: string) => Promise<string | null>;

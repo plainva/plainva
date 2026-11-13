@@ -1,5 +1,5 @@
 import { contentPathRefusal, wikiTargetForPath, type LinkVault } from "@plainva/core";
-import { copyLineLink, copyNoteLink, openNoteLink, requestAnchorJump, setNoteLinkHandler, type LineLinkMode } from "@plainva/ui";
+import { copyLineLink, copyNoteLink, notePathsForLinkText, openNoteLink, requestAnchorJump, setNoteLinkHandler, type LineLinkMode } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { vaultOps, switchVault, type MobileVault } from "./vaultService";
 import { getActiveVaultEntry, listVaults, type VaultEntry } from "./vaultRegistry";
@@ -74,7 +74,7 @@ export function phoneNoteLinkHandler(
         // not taken in yet is asked of the disk — never for an internal folder
         // or a name of an unusual shape (F2 review).
         exists: async (path) => {
-          if (vault.queryService && (await vault.queryService.fileRecords([path])).has(path)) return true;
+          if (vault.indexView && (await vault.indexView.fileRecords([path])).has(path)) return true;
           return contentPathRefusal(path) === null && (await vault.files.exists(path).catch(() => false));
         },
         resolveName: (name) => vaultOps.resolveWikiTarget(vault, name, "", "wiki"),
@@ -118,7 +118,7 @@ export async function copyPhoneNoteLink(path: string): Promise<void> {
 export async function copyPhoneLineLink(view: Parameters<typeof copyLineLink>[0], pos: number, mode: LineLinkMode, vault: MobileVault, path: string): Promise<void> {
   const [vaultName, notes] = await Promise.all([
     activeVaultLinkName(),
-    vault.queryService ? vault.queryService.listNotes().then((list) => list.map((n) => n.path)).catch(() => [] as string[]) : Promise.resolve([] as string[]),
+    notePathsForLinkText(vault.queryService),
   ]);
   await copyLineLink(view, pos, mode, { notePath: path, vaultName, wikiName: wikiTargetForPath(path, [...notes, path]) });
 }

@@ -67,7 +67,7 @@ function currentValues(content: string, key: string): unknown[] {
 
 async function linkRule(queryService: VaultQueryService): Promise<{ allFilePaths: string[]; linkedNote: LinkedNote }> {
   // Which spelling a link is written in, and which values lead to a note, is read from the index: never over half of one (performance plan L3).
-  queryService.requireWholeIndex?.();
+  queryService.requireWholeIndex();
   // The link rule's corpus: what a stored value leads to is asked of every
   // file, what a new link is called of the notes alone.
   const files = await queryService.linkTargets();

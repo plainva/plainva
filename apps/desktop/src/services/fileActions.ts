@@ -180,7 +180,7 @@ export async function renameToName(opts: {
   if (await adapter.exists(newPath)) return { ok: false, reason: "already-exists" };
   // What a rename rewrites is found in the index (links, boards, template
   // assignments): refused over one that is not whole, before anything moves (L3).
-  queryService?.requireWholeIndex?.();
+  queryService?.requireWholeIndex();
 
   // Before the move, while the old name is still the truth.
   if (opts.carryHeading && wasNote) {
@@ -537,7 +537,7 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
   const followUpErrors: MoveItemsResult["followUpErrors"] = [];
   // The boards that hold a moved file are found in the index: refused over an
   // index that is not whole, before anything moves (performance plan L3).
-  if (movableInto(sources, target).length > 0) deps.queryService?.requireWholeIndex?.();
+  if (movableInto(sources, target).length > 0) deps.queryService?.requireWholeIndex();
   for (const from of movableInto(sources, target)) {
     const name = from.split(/[/\\]/).pop();
     if (!name) continue;

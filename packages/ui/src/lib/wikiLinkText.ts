@@ -1,4 +1,4 @@
-import { likeAnySpelling, wikiTargetForPath } from "@plainva/core";
+import { isIndexNotWholeError, likeAnySpelling, NAMES_NOT_KNOWN, wikiTargetForPath } from "@plainva/core";
 
 /**
  * The text Plainva writes for a link to a note someone picked from a list.
@@ -18,9 +18,33 @@ import { likeAnySpelling, wikiTargetForPath } from "@plainva/core";
  * title that reads differently is kept as the link's text: `[[Brief|Angebotsbrief]]`.
  */
 
-/** The slice of the query service this needs; both shells' service satisfies it. */
+/** The slice of the query service this needs; both shells' reader and view satisfy it. */
 export interface LinkTextSource {
   db: { query: (sql: string, params?: any[]) => Promise<any[]> };
+  /** Whether the index holds the whole vault: over half of one, no name is known to be the only one. */
+  indexWholeness(): { kind: string };
+}
+
+/** What a list of the vault's paths is while the index is not whole: every name taken (`NAMES_NOT_KNOWN`). */
+function everyNameShared(paths: readonly string[]): string[] {
+  return [...paths, NAMES_NOT_KNOWN];
+}
+
+/**
+ * Every note path of the vault, for the link text of a note Plainva writes a
+ * link to (`wikiTargetForPath`): from the reader, whole — or, while the
+ * index is not whole, the stand-in that makes every such link a path
+ * (`NAMES_NOT_KNOWN`). An index that cannot be asked gives an empty list,
+ * as the callers had it.
+ */
+export async function notePathsForLinkText(source: { listNotes(): Promise<Array<{ path: string }>>; indexWholeness(): { kind: string } } | null | undefined): Promise<string[]> {
+  if (!source) return [];
+  if (source.indexWholeness().kind !== "whole") return [NAMES_NOT_KNOWN];
+  try {
+    return (await source.listNotes()).map((n) => n.path);
+  } catch (e) {
+    return isIndexNotWholeError(e) ? [NAMES_NOT_KNOWN] : [];
+  }
 }
 
 /**
@@ -42,10 +66,17 @@ export async function pathsSharingNames(source: LinkTextSource, paths: readonly 
     }
   }
   if (patterns.size === 0) return [];
-  const rows = await source.db.query(
-    `SELECT path FROM files WHERE ${[...patterns].map(() => "path LIKE ? ESCAPE '\\'").join(" OR ")}`,
-    [...patterns],
-  );
+  if (source.indexWholeness().kind !== "whole") return everyNameShared(paths);
+  let rows: Array<{ path?: unknown }>;
+  try {
+    rows = await source.db.query(
+      `SELECT path FROM files WHERE ${[...patterns].map(() => "path LIKE ? ESCAPE '\\'").join(" OR ")}`,
+      [...patterns],
+    );
+  } catch (e) {
+    if (isIndexNotWholeError(e)) return everyNameShared(paths);
+    throw e;
+  }
   return (rows ?? []).map((row: { path?: unknown }) => String(row.path ?? "")).filter(Boolean);
 }
 
@@ -60,4 +91,14 @@ export function wikiLinkTextFor(path: string, title: string | null | undefined, 
   const shown = (title ?? "").trim();
   // A text that would end the link or read as its alias mark cannot be one.
   return shown === "" || shown === target || /[[\]|\r\n]/.test(shown) ? `[[${target}]]` : `[[${target}|${shown}]]`;
+}
+
+/**
+ * A list of paths read from the view (`VaultQueryService.view`), for link
+ * text: as it is once the index is whole, with every name counted as taken
+ * while it is not (`NAMES_NOT_KNOWN`) — a pick from a list shown during the
+ * first index writes the path.
+ */
+export function pathsForLinkText(view: { indexWholeness(): { kind: string } }, paths: readonly string[]): string[] {
+  return view.indexWholeness().kind === "whole" ? [...paths] : [...paths, NAMES_NOT_KNOWN];
 }

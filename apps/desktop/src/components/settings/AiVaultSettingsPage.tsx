@@ -153,7 +153,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
     requestMemoryView();
     onClose?.();
   };
-  const { vaultAdapter, queryService, workspaceSecurityStatus } = useVault();
+  const { vaultAdapter, indexView, workspaceSecurityStatus } = useVault();
   const session = getDesktopAiSession();
   const aiState = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
   const [rules, setRules] = useState<FolderPolicyRule[] | null>(null);
@@ -172,8 +172,8 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
     const parsed = text === null ? { rules: [], problems: [] } : parsePolicyFile(text);
     setRules(parsed.rules);
     setProblems(parsed.problems);
-    setFolders(queryService ? await queryService.getAllFolders().catch(() => []) : []);
-  }, [vaultAdapter, queryService]);
+    setFolders(indexView ? await indexView.getAllFolders().catch(() => []) : []);
+  }, [vaultAdapter, indexView]);
 
   useEffect(() => {
     void load();

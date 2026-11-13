@@ -23,7 +23,7 @@ async function harness() {
   const deleted: string[] = [];
   const indexer = new VaultIndexer(vault, db, { onLocalFileDeleted: (p) => deleted.push(p) });
   const rows = async () => (await db.query<{ path: string }>("SELECT path FROM files ORDER BY path")).map((r) => r.path);
-  const deps = { exists: (p: string) => vault.exists(p), db, indexer };
+  const deps = { exists: (p: string) => vault.exists(p), db, indexer, untilWholeIndex: async () => {} };
   return {
     tmpDir, vault, db, indexer, deps, rows, deleted,
     move: (from: string, to: string) => fs.rename(path.join(tmpDir, from), path.join(tmpDir, to)),
@@ -207,6 +207,57 @@ describe("searchMissingFile", () => {
       expect(fullDone).toBe(false);
       expect(await search.settled).toEqual({ kind: "moved", to: "4 blog/taken/link-50.md" });
       expect(fullDone).toBe(true);
+    } finally {
+      await h.dispose();
+    }
+  });
+});
+
+describe("a note moved outside Plainva while the index is not whole (second review of 11.11.)", () => {
+  it("gives no verdict before the index is whole: an Explorer copy is not taken for the moved note", async () => {
+    const h = await harness();
+    try {
+      await h.vault.createDir("Projects");
+      await h.vault.writeTextFile("Note.md", "# Plan\n");
+      await h.indexer.indexVaultFull();
+      // Moved into a folder the first index has not read yet, and copied in
+      // Explorer — same content, same modification time — into one it has.
+      await h.move("Note.md", "Projects/Note.md");
+      const copied = path.join(h.tmpDir, "Copy of Note.md");
+      await fs.copyFile(path.join(h.tmpDir, "Projects/Note.md"), copied);
+      const stat = await fs.stat(path.join(h.tmpDir, "Projects/Note.md"));
+      await fs.utimes(copied, stat.atime, stat.mtime);
+      await h.indexer.indexPath("Copy of Note.md");
+      // The index is being built: the copy is indexed, the real destination is not.
+      let whole: () => void = () => {};
+      const becameWhole = new Promise<void>((resolve) => { whole = resolve; });
+      let answered = false;
+      const search = searchMissingFile("Note.md", { ...h.deps, untilWholeIndex: () => becameWhole }).then((found) => { answered = true; return found; });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Still looking: nothing was decided over half an index.
+      expect(answered).toBe(false);
+      // The build reads the rest, then the index is whole.
+      await h.indexer.indexVaultFull();
+      whole();
+      const { first, settled } = await search;
+      expect(first.kind).toBe("ambiguous");
+      expect(first.kind === "ambiguous" ? [...first.candidates].sort() : []).toEqual(["Copy of Note.md", "Projects/Note.md"]);
+      // The settled answer reads the vault once more; it is awaited before the database closes.
+      expect((await settled)?.kind).toBe("ambiguous");
+    } finally {
+      await h.dispose();
+    }
+  });
+
+  it("ends without a verdict when the vault is closed first", async () => {
+    const h = await harness();
+    try {
+      await h.vault.writeTextFile("Note.md", "# Plan\n");
+      await h.indexer.indexVaultFull();
+      await fs.rm(path.join(h.tmpDir, "Note.md"));
+      const closed = Promise.reject(new Error("closed"));
+      closed.catch(() => {});
+      await expect(searchMissingFile("Note.md", { ...h.deps, untilWholeIndex: () => closed })).rejects.toThrow("closed");
     } finally {
       await h.dispose();
     }

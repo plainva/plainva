@@ -24,7 +24,7 @@ export function BaseCreateWizard({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter } = useVault();
+  const { indexView, vaultAdapter } = useVault();
 
   const [clauses, setClauses] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -37,9 +37,9 @@ export function BaseCreateWizard({
   const cancel = useDiscardGuard(clauses.length > 0 || tags.length > 0 || newColumns.length > 0 || newPropName.trim() !== "", onCancel);
 
   useEffect(() => {
-    if (!queryService) return;
-    queryService.getAllTags().then((all) => setTags(all.map((x) => x.tag))).catch(console.error);
-  }, [queryService]);
+    if (!indexView) return;
+    indexView.getAllTags().then((all) => setTags(all.map((x) => x.tag))).catch(console.error);
+  }, [indexView]);
 
   // Folder picking browses the live file system (2026-07-17): a folder created
   // moments ago — still empty, so unknown to the index — is pickable as the
@@ -52,12 +52,12 @@ export function BaseCreateWizard({
   // done implicitly; P1 requires at least one folder or tag).
   useEffect(() => {
     let cancelled = false;
-    if (!queryService || clauses.length === 0) {
+    if (!indexView || clauses.length === 0) {
       setMatchCount(null);
       setColumns([]);
       return;
     }
-    queryService
+    indexView
       .queryDatabaseFiles({ filters: { and: clauses }, views: [{ type: "table" }] })
       .then((rows) => {
         if (cancelled) return;
@@ -66,7 +66,7 @@ export function BaseCreateWizard({
       })
       .catch((e) => { if (!cancelled) { console.error("Wizard probe query failed", e); setMatchCount(null); } });
     return () => { cancelled = true; };
-  }, [queryService, clauses]);
+  }, [indexView, clauses]);
 
   const createFolder = async (path: string): Promise<boolean> => {
     if (!vaultAdapter) return false;

@@ -3,7 +3,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import { AreaBoundary, areaCrashSeam, clearDiagnosticsForTests, describeAreaError, FloatingWindow, getDiagnostics, Modal, toast, toastStore } from "@plainva/ui";
+import { AreaBoundary, areaCrashSeam, beginIndexBuild, clearDiagnosticsForTests, describeAreaError, FloatingWindow, getDiagnostics, markIndexWhole, Modal, resetIndexBuildsForTests, toast, toastStore } from "@plainva/ui";
+import { IndexNotWholeError } from "@plainva/core";
 
 /**
  * The one error boundary of both shells (stability plan 2026-11-10, R3).
@@ -245,5 +246,27 @@ describe("describeAreaError", () => {
     expect(describeAreaError(new TypeError("x is undefined\nsecond line with text"), stack)).toBe("TypeError: x is undefined (in Cell < Row < TableView < BaseViewer)");
     expect(describeAreaError("plain", null)).toBe("string: plain");
     expect(describeAreaError(new Error("a".repeat(400))).length).toBeLessThan(200);
+  });
+});
+
+describe("an area that read the index while it is not whole (second review of 11.11.)", () => {
+  it("says that it waits, writes no crash line, and comes back once the index is whole", async () => {
+    // A surface that took the reader instead of the view: its read refuses
+    // during the first index. That is no white surface and no crash card.
+    resetIndexBuildsForTests();
+    beginIndexBuild("/v");
+    let whole = false;
+    function Reads() {
+      if (!whole) throw new IndexNotWholeError({ kind: "building", done: 3, total: 10 });
+      return <p data-testid="area-content">content</p>;
+    }
+    await render(<AreaBoundary area="test:reads"><Reads /></AreaBoundary>);
+    expect(q("area-index-wait")?.textContent).toMatch(/being built/i);
+    expect(q("area-fallback")).toBeNull();
+    expect(getDiagnostics().some((entry) => JSON.stringify(entry).includes("test:reads"))).toBe(false);
+    whole = true;
+    await act(async () => { markIndexWhole("/v"); });
+    expect(q("area-content")?.textContent).toBe("content");
+    resetIndexBuildsForTests();
   });
 });

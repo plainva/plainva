@@ -59,7 +59,7 @@ interface MapData {
 
 export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: VaultGraphViewProps) {
   const { t } = useTranslation();
-  const { graphService, queryService, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
+  const { graphService, queryService, indexView, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
   const graphState = vaultAdapter ? getGraphState(vaultAdapter) : null;
 
   const [data, setData] = useState<MapData | null>(null);
@@ -128,7 +128,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   // ---- data -------------------------------------------------------------------
 
   useEffect(() => {
-    if (!graphService || !queryService) return;
+    if (!graphService || !indexView) return;
     let alive = true;
     void (async () => {
       try {
@@ -138,7 +138,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
         const graph = await loadGraphCached(graphService, fileTreeVersion, { includeAttachments: false });
         const [overview, icons, dates, orphans] = await Promise.all([
           graphService.getFolderOverview(graph),
-          queryService.getDocumentIcons(),
+          indexView.getDocumentIcons(),
           graphService.getEffectiveDates(),
           graphService.getOrphans(graph),
         ]);
@@ -150,15 +150,15 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     return () => {
       alive = false;
     };
-  }, [graphService, queryService, graphState, fileTreeVersion]);
+  }, [graphService, indexView, graphState, fileTreeVersion]);
 
   useEffect(() => {
     let alive = true;
-    if (!queryService || !tag) {
+    if (!indexView || !tag) {
       setTagPaths(null);
       return;
     }
-    queryService
+    indexView
       .getFilesByTag(tag)
       .then((files) => {
         if (alive) setTagPaths(new Set(files.map((f) => f.path)));
@@ -169,7 +169,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     return () => {
       alive = false;
     };
-  }, [queryService, tag, fileTreeVersion]);
+  }, [indexView, tag, fileTreeVersion]);
 
   // Replay range from the data.
   const dateRange = useMemo(() => {
@@ -603,7 +603,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   const [allTags, setAllTags] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
-    queryService
+    indexView
       ?.getAllTags()
       .then((tags) => {
         if (alive) setAllTags(tags.map((x) => x.tag));
@@ -612,7 +612,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
     return () => {
       alive = false;
     };
-  }, [queryService, fileTreeVersion]);
+  }, [indexView, fileTreeVersion]);
 
   const bundleEntries = useMemo(() => {
     if (!bundlePopover || !sceneModel) return [];

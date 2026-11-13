@@ -14,8 +14,8 @@ import type { MobileVault } from "../services/vaultService";
  * counts as resolved (`isWikiTargetResolved`), never flashes as missing.
  */
 export function useLinkTargetLookup(vault: MobileVault, reloadKey: unknown): WikiTargetSet | null {
-  const qs = vault.queryService ?? null;
-  const [state, setState] = useState<{ source: NonNullable<MobileVault["queryService"]>; lookup: WikiTargetSet | null } | null>(null);
+  const qs = vault.indexView ?? null;
+  const [state, setState] = useState<{ source: NonNullable<MobileVault["indexView"]>; lookup: WikiTargetSet | null } | null>(null);
   useEffect(() => {
     if (!qs) return;
     let stale = false;

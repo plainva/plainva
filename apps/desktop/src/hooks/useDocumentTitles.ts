@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useVault } from "../contexts/VaultContext";
-import type { VaultQueryService } from "@plainva/core";
+import type { IndexReading } from "@plainva/core";
 
 export interface DocTitleEntry {
   /** Frontmatter `title` or, by default, the file name (may still carry an
@@ -13,7 +13,7 @@ export interface DocTitleEntry {
 const EMPTY: Map<string, DocTitleEntry> = new Map();
 
 // Shared load cache, mirroring useDocumentIcons: keyed by (vaultPath,
-// fileTreeVersion) + queryService identity so a reopened vault (fresh service,
+// fileTreeVersion) + indexView identity so a reopened vault (fresh service,
 // version reset to 0) recomputes and concurrent consumers share ONE query per
 // index bump.
 let cacheKey = "";
@@ -21,17 +21,17 @@ let cacheService: unknown = null;
 let cachePromise: Promise<Map<string, DocTitleEntry>> | null = null;
 
 function loadDocumentTitles(
-  queryService: VaultQueryService,
+  indexView: IndexReading,
   vaultPath: string | null,
   version: number
 ): Promise<Map<string, DocTitleEntry>> {
   const key = `${vaultPath ?? ""}::${version}`;
-  if (key === cacheKey && cacheService === queryService && cachePromise) return cachePromise;
+  if (key === cacheKey && cacheService === indexView && cachePromise) return cachePromise;
   cacheKey = key;
-  cacheService = queryService;
+  cacheService = indexView;
   cachePromise = (async () => {
     try {
-      return await queryService.getDocumentTitles();
+      return await indexView.getDocumentTitles();
     } catch (e) {
       console.warn("[useDocumentTitles] loading titles failed", e);
       return new Map<string, DocTitleEntry>();
@@ -48,16 +48,16 @@ function loadDocumentTitles(
  * instances share ONE query per (vault, index version) via the module cache.
  */
 export function useDocumentTitles(): Map<string, DocTitleEntry> {
-  const { queryService, fileTreeVersion, vaultPath } = useVault();
+  const { indexView, fileTreeVersion, vaultPath } = useVault();
   const [titles, setTitles] = useState<Map<string, DocTitleEntry>>(EMPTY);
 
   useEffect(() => {
     let alive = true;
-    if (!queryService) {
+    if (!indexView) {
       setTitles(EMPTY);
       return;
     }
-    loadDocumentTitles(queryService, vaultPath, fileTreeVersion)
+    loadDocumentTitles(indexView, vaultPath, fileTreeVersion)
       .then((map) => {
         if (alive) setTitles(map);
       })
@@ -65,7 +65,7 @@ export function useDocumentTitles(): Map<string, DocTitleEntry> {
     return () => {
       alive = false;
     };
-  }, [queryService, fileTreeVersion, vaultPath]);
+  }, [indexView, fileTreeVersion, vaultPath]);
 
   return titles;
 }

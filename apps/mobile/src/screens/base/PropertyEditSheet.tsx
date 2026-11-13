@@ -321,8 +321,15 @@ export function PropertyEditSheet({
 
   const remove = () => {
     void (async () => {
-      // The notes the property is taken out of: see `rename`.
-      const paths = await notesCarryingProperty(vault.queryService, config, column, rows);
+      // The notes the property is taken out of: see `rename`. Refused, with
+      // nothing written, while the index is not whole.
+      let paths: string[];
+      try {
+        paths = await notesCarryingProperty(vault.queryService, config, column, rows);
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return;
+      }
       const mode = await mActions({
         title: t("properties.deleteProperty"),
         message: t("properties.deletePropertyConfirm", { column: columnLabel(column) }),

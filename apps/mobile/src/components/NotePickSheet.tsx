@@ -36,7 +36,7 @@ export function NotePickSheet({
 
   useEffect(() => {
     let stale = false;
-    const listed = vault.queryService ? vault.queryService.listNotes() : Promise.resolve([]);
+    const listed = vault.indexView ? vault.indexView.listNotes() : Promise.resolve([]);
     void listed
       .then((list) => {
         if (!stale) setNotes(list);

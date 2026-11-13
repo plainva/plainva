@@ -323,7 +323,7 @@ export function TodayScreen({
   useEffect(() => {
     let stale = false;
     // Custom note icons (desktop tree parity) — same source as Home/folders.
-    void vault.queryService
+    void vault.indexView
       ?.getDocumentIcons()
       .then((m) => {
         if (!stale) setDocIcons(m);
@@ -335,8 +335,8 @@ export function TodayScreen({
     const [y, m, d] = selectedIso.split("-").map(Number);
     const start = new Date(y, m - 1, d).getTime();
     const end = start + 24 * 60 * 60 * 1000;
-    if (vault.queryService) {
-      void vault.queryService.listNotesModifiedBetween(start, end).then((rows) => {
+    if (vault.indexView) {
+      void vault.indexView.listNotesModifiedBetween(start, end).then((rows) => {
         if (!stale) setEdited(rows.filter((r) => r.path !== dailyPath));
       });
     }

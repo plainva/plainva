@@ -36,9 +36,9 @@ interface ResultItem {
 export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }: QuickSwitcherProps) {
   const { t } = useTranslation();
   const mod = isMac ? "⌘" : t("shortcuts.modCtrl", { defaultValue: "Strg" });
-  const { queryService, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate } = useVault();
+  const { queryService, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, indexView } = useVault();
   const [query, setQuery] = useState("");
-  const searchPage = useSearchPages(queryService, isOpen ? query : "", 0, 8);
+  const searchPage = useSearchPages(indexView, isOpen ? query : "", 0, 8);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   // Full title/path corpus, loaded ONCE per open (P3.3): fuzzy matching like
@@ -57,9 +57,9 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !queryService) return;
+    if (!isOpen || !indexView) return;
     let active = true;
-    queryService.db
+    indexView.db
       .query<{ path: string; title: string | null }>(`SELECT path, title FROM files`)
       .then((rows) => {
         // A hidden file (a dot file, a file in a dot folder) is not offered (E8).
@@ -67,16 +67,16 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
       })
       .catch((e) => console.error("Error loading switcher corpus", e));
     return () => { active = false; };
-  }, [isOpen, queryService]);
+  }, [isOpen, indexView]);
 
   useEffect(() => {
     let active = true;
     const fetchResults = async () => {
-      if (!queryService) return;
+      if (!indexView) return;
       if (!query.trim()) {
         try {
           // Provide in-memory recents with a fallback to DB recents
-          const dbRecents = await queryService.getRecentFiles(20);
+          const dbRecents = await indexView.getRecentFiles(20);
           if (active) {
             // Map recentPaths to results, fallback to dbRecents if recentPaths is empty
             const items: ResultItem[] = [];
@@ -133,7 +133,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
       active = false;
       clearTimeout(timeout);
     };
-  }, [query, queryService, isOpen, recentPaths, corpus, searchPage.hits]);
+  }, [query, indexView, isOpen, recentPaths, corpus, searchPage.hits]);
 
   if (!isOpen) return null;
 
@@ -167,7 +167,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
     try {
       // A note of a name the vault may hold in a note not read yet: not made
       // over an index that is not whole (performance plan L3).
-      queryService?.requireWholeIndex?.();
+      queryService?.requireWholeIndex();
       if (await vaultAdapter.exists(path)) {
         onOpenPath(path, newTab);
         onClose();

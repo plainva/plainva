@@ -768,7 +768,10 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   if (stored >= INDEX_FORMAT_VERSION) {
     // Only what an older build may have left on this index since (version 9).
     const flagged = await db.queryOne(`SELECT value FROM meta WHERE key = ?`, [UNNUMBERED_FLAG]);
-    if (flagged) await numberFullTextRowsOrRebuild(db, { adoptUnnamed: false });
+    if (flagged) {
+      await numberFullTextRowsOrRebuild(db, { adoptUnnamed: false });
+      await markScanOwedIfRowsWait(db);
+    }
     return;
   }
 
@@ -809,6 +812,21 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   await db.execute(
     `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`,
     [String(INDEX_FORMAT_VERSION)]
+  );
+  await markScanOwedIfRowsWait(db);
+}
+
+/**
+ * A migration that hands notes to the next full pass (`mtime_local` 0, a
+ * full-text table made anew) leaves the index owed a full scan, and says so
+ * the way a first index does (`VaultIndexer`, key `index_scan_owed`): the
+ * app holds such an index as being built until a scan went through (second
+ * review of 11.11.). Before, it counted as whole, and find-and-replace ran
+ * over an empty full text.
+ */
+async function markScanOwedIfRowsWait(db: IDatabaseAdapter): Promise<void> {
+  await db.execute(
+    `INSERT OR REPLACE INTO meta (key, value) SELECT 'index_scan_owed', '1' WHERE EXISTS (SELECT 1 FROM files WHERE mtime_local = 0)`
   );
 }
 

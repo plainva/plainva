@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
-import { beginIndexBuild, indexBuildState, markIndexWhole, reportIndexBuild, resetIndexBuildsForTests } from "@plainva/ui";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { beginIndexBuild, indexBuildState, markIndexFailed, markIndexWhole, reportIndexBuild, resetIndexBuildsForTests } from "@plainva/ui";
 import type { IndexWholenessState } from "@plainva/core";
 
 import { installIndexBuildMirror, mirrorOwnerIndexBuild } from "./indexBuildMirror";
+import { withinAsync } from "../../../../packages/core/test/helpers/timeBudget";
 
 /**
  * Whether the index of a vault is whole is said by the window that runs the
@@ -29,7 +30,9 @@ describe("the owner", () => {
     await new Promise((resolve) => setTimeout(resolve, 250));
     markIndexWhole("/owner");
     expect(said.every((s) => s.vault === "/owner")).toBe(true);
-    expect(said[0].state).toEqual({ kind: "building", done: 0, total: 0 });
+    // Said once at once, as it stands, then on every change.
+    expect(said[0].state).toEqual({ kind: "whole" });
+    expect(said[1].state).toEqual({ kind: "building", done: 0, total: 0 });
     expect(said[said.length - 1].state).toEqual({ kind: "whole" });
     expect(said.some((s) => s.state.kind === "building" && s.state.done === 5)).toBe(true);
     off();
@@ -53,7 +56,7 @@ describe("a client window", () => {
   it("takes the owner's answer, then every change it hears for its vault", async () => {
     const fake = fakeBus(async () => ({ kind: "building", done: 1, total: 9 }));
     const stop = await mirrorOwnerIndexBuild(fake.bus as never, "/v");
-    expect(indexBuildState("/v")).toEqual({ kind: "building", done: 1, total: 9 });
+    await vi.waitFor(() => expect(indexBuildState("/v")).toEqual({ kind: "building", done: 1, total: 9 }));
     fake.say({ kind: "building", done: 2, total: 9 }, "/other");
     expect(indexBuildState("/v")).toEqual({ kind: "building", done: 1, total: 9 });
     fake.say({ kind: "whole" });
@@ -70,6 +73,7 @@ describe("a client window", () => {
     fake.say({ kind: "whole" });
     answer({ kind: "building", done: 0, total: 0 });
     await opening;
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(indexBuildState("/v").kind).toBe("whole");
   });
 
@@ -81,5 +85,58 @@ describe("a client window", () => {
     const waiting = untilWholeIndex(indexWholenessFor("/v"));
     stop();
     await expect(waiting).rejects.toThrow(/closed/);
+  });
+
+  it("is not whole before it has heard the owner, and does not wait for the owner to open", async () => {
+    // Unknown is not whole (second review of 11.11.): a question that failed
+    // used to leave the vault "as it was" — whole —, and the window waited up
+    // to 15 s for an answer before it opened the vault.
+    const fake = fakeBus(() => new Promise<IndexWholenessState>(() => {}));
+    // The owner never answers: the mirror is installed at once all the same.
+    const stop = await withinAsync(1000, () => mirrorOwnerIndexBuild(fake.bus as never, "/v"));
+    expect(indexBuildState("/v").kind).toBe("building");
+    stop();
+  });
+
+  it("asks again where the owner has no answer yet, and stays not whole meanwhile", async () => {
+    // The first hold of a vault, windows restored at start: the client asks
+    // before the owner's handler exists. Its question fails; it asks again.
+    let answers = 0;
+    const fake = fakeBus(async () => {
+      answers += 1;
+      if (answers < 3) throw new Error("no handler for index-build-state");
+      return { kind: "whole" };
+    });
+    const queued: Array<() => void> = [];
+    const stop = await mirrorOwnerIndexBuild(fake.bus as never, "/v", { setTimeout: (fn) => { queued.push(fn); return queued.length; }, clearTimeout: () => {} });
+    await vi.waitFor(() => expect(queued.length).toBe(1));
+    expect(indexBuildState("/v").kind).toBe("building");
+    queued.shift()!();
+    await vi.waitFor(() => expect(queued.length).toBe(1));
+    expect(indexBuildState("/v").kind).toBe("building");
+    queued.shift()!();
+    await vi.waitFor(() => expect(indexBuildState("/v").kind).toBe("whole"));
+    expect(answers).toBe(3);
+    stop();
+  });
+
+  it("hears that the owner's index failed, also when it failed before the owner's mirror was set up", async () => {
+    // The owner says its state when its mirror is installed: a client that
+    // asked before that hears "failed" all the same, and says it.
+    const said: IndexWholenessState[] = [];
+    const ownerBus = {
+      handle: async () => () => {},
+      broadcast: async (_channel: string, payload: { state: IndexWholenessState }) => { said.push(payload.state); },
+    };
+    beginIndexBuild("/owner");
+    markIndexFailed("/owner", "disk I/O error");
+    const off = await installIndexBuildMirror(ownerBus as never, "/owner", { vaultPath: "/owner" });
+    expect(said).toEqual([{ kind: "failed", reason: "disk I/O error" }]);
+    off();
+    const fake = fakeBus(() => new Promise<IndexWholenessState>(() => {}));
+    const stop = await mirrorOwnerIndexBuild(fake.bus as never, "/v");
+    fake.say(said[0]);
+    expect(indexBuildState("/v")).toEqual({ kind: "failed", reason: "disk I/O error" });
+    stop();
   });
 });

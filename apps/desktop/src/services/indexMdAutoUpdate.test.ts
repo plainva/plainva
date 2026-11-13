@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { IndexNotWholeError, PLAINVA_INDEX_MARKER } from "@plainva/core";
 import {
+  owedListingsIn,
   affectedFolders,
   createIndexAutoUpdater,
   updateAllManagedIndexes,
@@ -50,6 +51,7 @@ const deps = (v: ReturnType<typeof makeVault>, extra?: Partial<Parameters<typeof
   queryService: v.queryService as any,
   vaultName: () => "Vault",
   subfoldersHeading: () => "Unterordner",
+  owed: owedListingsIn("test", null),
   ...extra,
 });
 
@@ -189,5 +191,35 @@ describe("a listing while the index is not whole (performance plan L3)", () => {
     await vi.waitFor(() => expect(v.writes).toContain("P/index.md"));
     expect(v.store.get("P/index.md")).toContain("B");
     updater.dispose();
+  });
+
+  it("is written at the next whole index when the vault closed first (second review of 11.11.)", async () => {
+    // The wait for the whole index lost to a close: the folder was dropped, and
+    // at the next open its notes were indexed already — nothing brought the
+    // listing back. It is owed now, kept on the device, and written then.
+    const kept = new Map<string, string>();
+    const storage = { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v), removeItem: (k: string) => void kept.delete(k) };
+    const v = makeVault({ "index.md": ROOT_OKF_INDEX, "P/index.md": managedIndex("P"), "P/A.md": "# A" });
+    const closed = Promise.reject(new Error("closed"));
+    closed.catch(() => {});
+    const building = {
+      ...v.queryService,
+      requireWholeIndex: () => { throw new IndexNotWholeError({ kind: "building", done: 1, total: 3 }); },
+      untilWholeIndex: () => closed,
+    };
+    const first = createIndexAutoUpdater(deps(v, { queryService: building as any, debounceMs: 1, owed: owedListingsIn("v", storage) }));
+    first.notify([{ type: "create", path: "P/B.md" }]);
+    await first.flush();
+    first.dispose();
+    expect(v.writes).toEqual([]);
+    expect(owedListingsIn("v", storage).load()).toEqual(["P"]);
+    // The next open: the index is whole.
+    v.store.set("P/B.md", "# B");
+    const whole = { ...v.queryService, requireWholeIndex: () => {}, untilWholeIndex: () => Promise.resolve() };
+    const second = createIndexAutoUpdater(deps(v, { queryService: whole as any, debounceMs: 1, owed: owedListingsIn("v", storage) }));
+    await vi.waitFor(() => expect(v.writes).toContain("P/index.md"));
+    expect(v.store.get("P/index.md")).toContain("B");
+    await vi.waitFor(() => expect(owedListingsIn("v", storage).load()).toEqual([]));
+    second.dispose();
   });
 });

@@ -23,7 +23,16 @@ export type MissingFileOutcome =
 export interface MissingFileDeps {
   /** Checked existence: throws when the disk cannot answer (never guesses). */
   exists(path: string): Promise<boolean>;
+  /** The index's database, read as it stands (the view's): it is asked for a verdict only once the index is whole. */
   db: Pick<IDatabaseAdapter, "query" | "queryOne">;
+  /**
+   * Resolves once the index is whole, rejects when the vault is closed first
+   * (`VaultQueryService.untilWholeIndex`). No verdict is given over half an
+   * index (second review of 11.11.): the real destination of a move may not
+   * be read yet, and an Explorer copy — same content, same time — was then
+   * the "exactly one" candidate the note followed, unsaved text and all.
+   */
+  untilWholeIndex(): Promise<void>;
   indexer: {
     reconcileFolder(folder: string, opts?: { recursive?: boolean }): Promise<unknown>;
     indexVaultFull(): Promise<unknown>;
@@ -111,9 +120,13 @@ export async function searchMissingFile(path: string, deps: MissingFileDeps, kno
   }
   if (present) return { first: { kind: "present" }, settled: null };
 
+  // What the index knew of the file, read before anything reconciles — and
+  // before the wait: the first full scan removes the row of a file gone.
   const row = await readIndexedIdentity(deps.db, path);
   const hash = row?.sha256 ?? known?.sha256 ?? null;
   const mtime = row ? row.mtime : (known?.mtime ?? null);
+  // Meanwhile the note stays "missing, looking": the surface waits for this answer.
+  await deps.untilWholeIndex();
 
   await deps.indexer.reconcileFolder(parentOf(path), { recursive: false });
   if (!hash || hash === EMPTY_SHA256) return { first: { kind: "gone" }, settled: null };

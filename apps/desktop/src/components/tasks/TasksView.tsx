@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as R
 import { useTranslation } from "react-i18next";
 import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
 import { type PimSyncProblem, isOpenTaskState, taskNameText, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, updateVaultText, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
-import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex } from "@plainva/ui";
+import { CalendarSyncNotice, syncProblemsFor, errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, Checkbox, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, notePathsForLinkText } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { appPrompt } from "../../services/appDialogs";
@@ -91,15 +91,15 @@ function DueLabel({ due }: { due: string }) {
 
 export function TasksView({ onOpenPath, onRenamed }: Props) {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime } = useVault();
+  const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime, indexView } = useVault();
   // The list stays on screen while it reloads (finding 2026-09-20): `loading`
   // used to be raised on EVERY index change and the list drew nothing while it
   // was up — a blink normally, minutes of flicker while a sync moved 900 files.
   // The rows remember which query service they came from; only another vault
   // blanks the view, and a failed reload keeps what is there (lib/keptList).
-  const [taskList, setTaskList] = useState(() => emptyKeptList<TaskRecord, NonNullable<typeof queryService>>());
-  const tasks = useMemo(() => keptListRows(taskList, queryService ?? null), [taskList, queryService]);
-  const loading = keptListLoading(taskList, queryService ?? null);
+  const [taskList, setTaskList] = useState(() => emptyKeptList<TaskRecord, NonNullable<typeof indexView>>());
+  const tasks = useMemo(() => keptListRows(taskList, indexView ?? null), [taskList, indexView]);
+  const loading = keptListLoading(taskList, indexView ?? null);
   const setTasks = useCallback((change: (prev: TaskRecord[]) => TaskRecord[]) => setTaskList((prev) => keptListMap(prev, change)), []);
   const { status, text, folder, tag, dueOnly, showHidden, subtasks, details, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setSubtasks, setDetails, setList, resetFilters } = useTaskViewState(vaultPath);
   const [templateFolder, setTemplateFolder] = useState("Templates");
@@ -211,8 +211,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   useEffect(() => {
     let alive = true;
     const versionAtStart = taskMutationGate.value;
-    if (!queryService) return;
-    const source = queryService;
+    if (!indexView) return;
+    const source = indexView;
     source
       .listTasks()
       .then((rows) => {
@@ -226,7 +226,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     return () => {
       alive = false;
     };
-  }, [queryService, fileTreeVersion, refreshTick, taskMutationGate]);
+  }, [indexView, fileTreeVersion, refreshTick, taskMutationGate]);
 
   useEffect(() => {
     if (!vaultPath) return;
@@ -258,13 +258,13 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       if (!alive) return;
       setTaskDb(db);
       setTaskDbFor(vaultPath);
-      if (!db || !queryService || !vaultAdapter) {
+      if (!db || !indexView || !vaultAdapter) {
         setDbRows(null);
         return;
       }
       try {
         const config = parseBaseConfig(await vaultAdapter.readTextFile(db));
-        const rows = await queryService.queryDatabaseFiles(config);
+        const rows = await indexView.queryDatabaseFiles(config);
         // Completion uses the SAME shared model as the task reconciler
         // (checkbox column preferred, status options as fallback) so the view
         // can never disagree with the sync about what "done" means — and the
@@ -295,7 +295,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     return () => {
       alive = false;
     };
-  }, [vaultPath, queryService, vaultAdapter, fileTreeVersion, refreshTick]);
+  }, [vaultPath, indexView, vaultAdapter, fileTreeVersion, refreshTick]);
 
   // Writable calendars for "block time" — the SAME rule the calendar tab uses
   // (shared pure helpers), so the two pickers can never disagree about which
@@ -336,7 +336,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       const account = accounts.find((a) => a.id === accountId);
       const provider = account ? await pimRuntime.buildTarget(account) : null;
       if (!provider) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-      const allPaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [target.linkPath];
+      const allPaths = queryService ? await notePathsForLinkText(queryService) : [target.linkPath];
       const res = await createTaskTimeBlock({
         adapter: vaultAdapter,
         target: provider,
@@ -412,7 +412,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         return;
       }
       try {
-        const allNotePaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [];
+        const allNotePaths = await notePathsForLinkText(queryService);
         const res = await promoteTask({
           adapter: vaultAdapter,
           sourcePath: task.path,
@@ -583,7 +583,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   const openPromoteMenu = useCallback(
     async (task: TaskRecord, at: { x: number; y: number }) => {
       try {
-        setAllBases(queryService ? await queryService.listBases() : []);
+        setAllBases(indexView ? await indexView.listBases() : []);
         setBasesError(null);
       } catch (err) {
         // S18: the promote menu said "no databases" — and the one thing the
@@ -593,7 +593,7 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       }
       setPromoteMenu({ task, at });
     },
-    [queryService]
+    [indexView]
   );
 
   const visibleTasks = useMemo(

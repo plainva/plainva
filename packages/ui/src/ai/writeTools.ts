@@ -181,7 +181,7 @@ export type DirectTarget = { path: string } | { folder: string | null } | { unkn
  */
 export async function noteRenamePlan(query: Pick<VaultQueryService, "getBacklinks" | "requireWholeIndex">, exists: (path: string) => Promise<boolean>, path: string, title: string): Promise<RenamePlan | PlanProblem> {
   // Which notes change with the rename is read from the index: not over half of one (L3).
-  query.requireWholeIndex?.();
+  query.requireWholeIndex();
   const folder = path.slice(0, Math.max(0, path.lastIndexOf("/")));
   const target = `${folder ? `${folder}/` : ""}${title}.md`;
   if (target === path) return "same-place";

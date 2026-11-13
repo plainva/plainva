@@ -5525,6 +5525,7 @@
     "indexNotWholeFailed": "Der Suchindex ist unvollständig: Das letzte vollständige Einlesen des Vaults ist nicht durchgelaufen. Das hier braucht den ganzen Index – lies den Vault erneut ein und versuch es dann noch einmal.",
     "indexNotWholeClosed": "Der Vault wurde geschlossen, bevor sein Suchindex vollständig war.",
     "indexBuildFailed": "Der Suchindex ist unvollständig: Das letzte vollständige Einlesen des Vaults ist nicht durchgelaufen. Suche, Tags und Datenbanken können Notizen auslassen, bis der Vault erneut eingelesen ist.",
+    "indexReadAgain": "Vault erneut einlesen",
     "stepOf": "Schritt {{n}} von {{total}}",
     "tabDatabases": "Datenbanken",
     "tabCalendar": "Kalender",

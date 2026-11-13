@@ -100,7 +100,7 @@ const AnchorRegions: React.FC<{ regions: string | undefined; onActivate?: (comme
  * a blob URL cannot show a stale cache after a save.
  */
 function useVaultMedia(path: string, fallbacks: string[] | undefined, basename: string | null | undefined) {
-  const { vaultAdapter, queryService } = useVault();
+  const { vaultAdapter, indexView } = useVault();
   const [url, setUrl] = React.useState<string | null>(null);
   const [loadedPath, setLoadedPath] = React.useState(path);
   const [failed, setFailed] = React.useState(false);
@@ -115,8 +115,8 @@ function useVaultMedia(path: string, fallbacks: string[] | undefined, basename: 
     void (async () => {
       const candidates = [path, ...(fallbackKey ? fallbackKey.split('\n') : [])];
       // The index answers last: it is the only candidate that costs a query.
-      if (basename && queryService) {
-        const indexed = await queryService.findByFileName(basename, path).catch(() => null);
+      if (basename && indexView) {
+        const indexed = await indexView.findByFileName(basename, path).catch(() => null);
         if (indexed && !candidates.includes(indexed)) candidates.push(indexed);
       }
       for (const candidate of candidates) {
@@ -137,7 +137,7 @@ function useVaultMedia(path: string, fallbacks: string[] | undefined, basename: 
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, queryService, path, fallbackKey, basename]);
+  }, [vaultAdapter, indexView, path, fallbackKey, basename]);
 
   return { url, loadedPath, failed };
 }
@@ -206,7 +206,7 @@ const VaultImage: React.FC<{
 };
 
 export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?: (path: string, newTab: boolean) => void; hostPath?: string }> = ({ target, depth, onOpenPath, hostPath }) => {
-  const { vaultAdapter, queryService, fileTreeVersion } = useVault();
+  const { vaultAdapter, indexView, fileTreeVersion } = useVault();
   const { t } = useTranslation();
   const [result, setResult] = React.useState<{ path?: string; anchor?: string | null; content?: string; error?: string; file?: { size: number | null } } | null>(null);
   React.useEffect(() => {
@@ -215,7 +215,7 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
     if (depth >= 3) { setResult({ error: t("noteEmbed.depth") }); return; }
     if (!vaultAdapter) return;
     void (async () => {
-      const resolved = await resolveNoteEmbed(target, hostPath, { resolve: async (name, from) => queryService ? queryService.resolveNotePath(name, from) : null });
+      const resolved = await resolveNoteEmbed(target, hostPath, { resolve: async (name, from) => indexView ? indexView.resolveNotePath(name, from) : null });
       if (!alive) return;
       if (resolved.status !== "found") { setResult({ error: t("noteEmbed." + resolved.status, { target }) }); return; }
       // A file that is no note (a PDF, an archive, a spreadsheet) is a card
@@ -232,7 +232,7 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
       setResult(fragment.status === "found" ? { ...resolved, content: fragment.text } : { ...resolved, error: t("noteEmbed." + fragment.status, { target }) });
     })().catch(() => { if (alive) setResult({ error: t("noteEmbed.unreadable", { target }) }); });
     return () => { alive = false; };
-  }, [target, hostPath, depth, vaultAdapter, queryService, fileTreeVersion, t]);
+  }, [target, hostPath, depth, vaultAdapter, indexView, fileTreeVersion, t]);
   const open = () => {
     if (!result?.path) return;
     onOpenPath?.(result.path, false);

@@ -58,6 +58,49 @@ test('a vault opens before its first index is built, says so, and has the index 
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath('first-open-whole.png') });
 });
 
+test('every area shows while the first index is being built (second review of 11.11.)', async ({ page }, testInfo) => {
+  // The reader refuses while the index is not whole; a surface that only
+  // shows takes the view. A surface that was missed would be a white surface a
+  // person finds: every area is opened while the build is held, none may fall
+  // to its boundary, and no refusal may reach the console.
+  test.setTimeout(180_000);
+  const files = standInFiles(COUNT, 2);
+  const sql = sqlBridge();
+  await installStandIn(page, files, sql, { holdIndexReads: true });
+  const refusals: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (/IndexNotWholeError|INDEX_NOT_WHOLE|still being built/.test(text)) refusals.push(text);
+  });
+  await page.goto('/');
+  const tree = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(tree.getByText('Start note', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('index-build-notice')).toBeVisible();
+  const fallen = page.getByTestId('area-fallback');
+  // A note, and every tab of the left sidebar.
+  await tree.getByText('Start note', { exact: true }).first().click();
+  const tabs = await page.locator('[data-left-tab]').evaluateAll((els) => els.map((el) => el.getAttribute('data-left-tab')!));
+  expect(tabs.length).toBeGreaterThan(1);
+  for (const tab of tabs) {
+    await page.locator(`[data-left-tab="${tab}"]`).first().click();
+    await page.waitForTimeout(500);
+    await expect(fallen, `left tab ${tab} fell to its boundary`).toHaveCount(0);
+  }
+  // The areas of the ribbon that open a tab.
+  for (const id of ['ribbon-graph', 'ribbon-tasks', 'ribbon-journal', 'ribbon-calendar', 'ribbon-comments']) {
+    const button = page.getByTestId(id);
+    if ((await button.count()) === 0) continue;
+    await button.first().click();
+    await page.waitForTimeout(700);
+    await expect(fallen, `${id} fell to its boundary`).toHaveCount(0);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath(`first-open-${id}.png`) });
+  }
+  await expect(page.getByTestId('index-build-notice')).toBeVisible();
+  expect(refusals).toEqual([]);
+  await releaseIndexReads(page);
+  await expect(page.getByTestId('index-build-notice')).toBeHidden({ timeout: 120_000 });
+});
+
 test('the same with a host that reads one file per call (an older native side)', async ({ page }) => {
   test.setTimeout(180_000);
   const files = standInFiles(120, 1);

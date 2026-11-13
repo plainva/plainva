@@ -76,7 +76,7 @@ export function AiPolicyScreen({
     const parsed = text === null ? { rules: [], problems: [] } : parsePolicyFile(text);
     setRules(parsed.rules);
     setProblems(parsed.problems);
-    setFolders(vault.queryService ? await vault.queryService.getAllFolders().catch(() => []) : []);
+    setFolders(vault.indexView ? await vault.indexView.getAllFolders().catch(() => []) : []);
   }, [vault]);
 
   useEffect(() => {

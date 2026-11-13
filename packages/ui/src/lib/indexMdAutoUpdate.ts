@@ -82,6 +82,48 @@ export interface IndexAutoUpdaterDeps {
   /** Called per rewritten index.md (tree refresh + editor reload). */
   onWritten?: (indexPath: string) => void;
   debounceMs?: number;
+  /**
+   * The listings still owed to an index that was not whole, kept across a
+   * closed vault (`owedListingsIn`): a folder whose listing waited for the
+   * first index and lost the wait to a close is written at the next whole
+   * index — its notes are indexed by then and no change would bring it back.
+   */
+  owed: OwedListings;
+}
+
+/** Where the folders whose listing waits for a whole index are kept. */
+export interface OwedListings {
+  load(): string[];
+  save(folders: readonly string[]): void;
+}
+
+/**
+ * The owed listings of one vault on this device, in the app's local storage
+ * (never in the vault: another device has its own index). A storage that
+ * cannot be read or written keeps nothing, and the listing waits only as long
+ * as the vault is open.
+ */
+export function owedListingsIn(vaultKey: string, storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null = typeof localStorage === "undefined" ? null : localStorage): OwedListings {
+  const key = `plainva.indexMd.owed.${vaultKey}`;
+  return {
+    load() {
+      try {
+        const raw = storage?.getItem(key);
+        const list = raw ? JSON.parse(raw) : [];
+        return Array.isArray(list) ? list.filter((f): f is string => typeof f === "string") : [];
+      } catch {
+        return [];
+      }
+    },
+    save(folders) {
+      try {
+        if (folders.length === 0) storage?.removeItem(key);
+        else storage?.setItem(key, JSON.stringify([...new Set(folders)]));
+      } catch {
+        // Kept for as long as the vault is open, then.
+      }
+    },
+  };
 }
 
 export interface IndexAutoUpdater {
@@ -95,6 +137,15 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
   const pendingFolders = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
+  // What an earlier session owed: written once this index is whole.
+  const owedAtStart = deps.owed.load();
+  if (owedAtStart.length > 0) {
+    void deps.queryService.untilWholeIndex().then(() => {
+      if (disposed) return;
+      for (const folder of owedAtStart) pendingFolders.add(folder);
+      void flush();
+    }, () => { /* closed again: still owed */ });
+  }
   let running: Promise<{ updated: string[] }> | null = null;
   let okfActiveCache: { value: boolean; at: number } | null = null;
 
@@ -159,12 +210,14 @@ export function createIndexAutoUpdater(deps: IndexAutoUpdaterDeps): IndexAutoUpd
         else reportBackground("index-md:auto-update", e);
       }
     }
+    // Owed is what waits; a folder written or found unmanaged is owed no more.
+    deps.owed.save([...deps.owed.load().filter((f) => !folders.includes(f)), ...deferred]);
     if (deferred.length > 0) {
       void deps.queryService.untilWholeIndex().then(() => {
         if (disposed) return;
         for (const folder of deferred) pendingFolders.add(folder);
         void flush();
-      }, () => { /* the vault closed first */ });
+      }, () => { /* the vault closed first: still owed, written at the next whole index */ });
     }
     return { updated };
   };

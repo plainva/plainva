@@ -5409,6 +5409,7 @@
     "indexNotWholeFailed": "搜索索引不完整：上一次完整读取仓库未能完成。此操作需要完整的索引，请重新读取仓库后再试。",
     "indexNotWholeClosed": "仓库在其搜索索引完整之前已关闭。",
     "indexBuildFailed": "搜索索引不完整：上一次完整读取仓库未能完成。在重新读取仓库之前，搜索、标签和数据库可能会遗漏笔记。",
+    "indexReadAgain": "重新读取仓库",
     "stepOf": "第 {{n}} 步，共 {{total}} 步",
     "tabDatabases": "数据库",
     "tabCalendar": "日历",

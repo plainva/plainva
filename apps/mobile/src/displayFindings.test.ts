@@ -106,7 +106,7 @@ describe("a folder row counts what the chevron leads to", () => {
     expect(text).toMatch(/countNotesPerSubfolder\(folder\)/);
     // Before the first scan there is no index; a shallow count still beats
     // showing nothing.
-    expect(text).toMatch(/v\.queryService \?[\s\S]{0,80}?: null/);
+    expect(text).toMatch(/v\.indexView && !isIndexBuilding\(v\.vaultId\) \?[\s\S]{0,80}?: null/);
     expect(text).toMatch(/deep \? \(deep\.get\(name\) \?\? 0\) : await shallowCount/);
   });
 });

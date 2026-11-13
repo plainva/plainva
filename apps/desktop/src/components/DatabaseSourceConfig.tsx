@@ -19,16 +19,16 @@ interface DatabaseSourceConfigProps {
 // the SOURCE conditions and leaves everything else in filters.and/or untouched.
 export const DatabaseSourceConfig: React.FC<DatabaseSourceConfigProps> = ({ dbConfig, onSaveConfig, alwaysExpanded }) => {
   const { t } = useTranslation();
-  const { queryService, vaultAdapter } = useVault();
+  const { indexView, vaultAdapter } = useVault();
 
   const [tags, setTags] = useState<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(!!alwaysExpanded);
 
   useEffect(() => {
-    if (queryService) {
-      queryService.getAllTags().then(t => setTags(t.map(x => x.tag))).catch(console.error);
+    if (indexView) {
+      indexView.getAllTags().then(t => setTags(t.map(x => x.tag))).catch(console.error);
     }
-  }, [queryService]);
+  }, [indexView]);
 
   // Folder picking browses the live file system (2026-07-17): empty folders
   // are pickable right away — the index-backed getAllFolders() only knew

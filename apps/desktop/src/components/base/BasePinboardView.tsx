@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
-import type { NoteCardData, VaultQueryService } from "@plainva/core";
+import type { IndexReading, NoteCardData } from "@plainva/core";
 import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, errorText, toast, noteTaskTick, type PlannerTaskLine, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath, resolveTaskOrdinal, updateVaultText } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
@@ -46,7 +46,7 @@ interface CardVM {
  * off-screen card costs a header rather than a picture.
  */
 function CardAudio({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
-  const { vaultAdapter, queryService } = useVault();
+  const { vaultAdapter, indexView } = useVault();
   const [url, setUrl] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!vaultAdapter) return;
@@ -68,7 +68,7 @@ function CardAudio({ target, alt, notePath }: { target: string; alt: string; not
         }
       };
       for (const rel of candidates) if (await load(rel)) return;
-      const named = await fileByName(target, notePath, queryService);
+      const named = await fileByName(target, notePath, indexView);
       if (alive && named && !candidates.includes(named) && (await load(named))) return;
       if (alive) setUrl(null);
     })();
@@ -76,7 +76,7 @@ function CardAudio({ target, alt, notePath }: { target: string; alt: string; not
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, queryService, target, notePath]);
+  }, [vaultAdapter, indexView, target, notePath]);
   return <AudioEmbed url={url} label={alt || target} compact place={{ notePath, target }} />;
 }
 
@@ -89,14 +89,14 @@ function CardAudio({ target, alt, notePath }: { target: string; alt: string; not
  * picture on the phone and its file name here. Asked last: it is the one
  * place that costs a query.
  */
-async function fileByName(target: string, notePath: string, queryService: VaultQueryService | null | undefined): Promise<string | null> {
+async function fileByName(target: string, notePath: string, indexView: IndexReading | null | undefined): Promise<string | null> {
   const byName = imageBasename(target);
-  if (!byName || !queryService) return null;
-  return queryService.findByFileName(byName, notePath).catch(() => null);
+  if (!byName || !indexView) return null;
+  return indexView.findByFileName(byName, notePath).catch(() => null);
 }
 
 function CardImage({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
-  const { vaultAdapter, queryService } = useVault();
+  const { vaultAdapter, indexView } = useVault();
   const { ref: imageRef, visible: imageVisible, loaded: onImageLoad, placeholderStyle } = useVisibleImage(vaultAdapter!, `${notePath}#${target}`);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -124,7 +124,7 @@ function CardImage({ target, alt, notePath }: { target: string; alt: string; not
         }
       };
       for (const p of candidates) if (await load(p)) return;
-      const named = await fileByName(target, notePath, queryService);
+      const named = await fileByName(target, notePath, indexView);
       if (alive && named && !candidates.includes(named) && (await load(named))) return;
       if (alive) setFailed(true);
     })();
@@ -132,7 +132,7 @@ function CardImage({ target, alt, notePath }: { target: string; alt: string; not
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, queryService, target, notePath, imageVisible]);
+  }, [vaultAdapter, indexView, target, notePath, imageVisible]);
   if (failed) return <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "var(--text-xs)" }}>{alt || target}</span>;
   if (!url) return <span ref={imageRef} aria-hidden="true" style={{ display: "block", height: 48, ...placeholderStyle }} />;
   return <img src={url} alt={alt} onLoad={onImageLoad} style={{ maxWidth: "100%", borderRadius: "var(--radius-xs)", display: "block" }} />;
@@ -171,12 +171,12 @@ export function BasePinboardView({
   viewKey?: string;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, indexer, triggerFileTreeUpdate } = useVault();
+  const { vaultAdapter, indexView, indexer, triggerFileTreeUpdate } = useVault();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const cache = useMemo(() => pinboardCache(queryService ?? vaultAdapter!), [queryService, vaultAdapter]);
+  const cache = useMemo(() => pinboardCache(indexView ?? vaultAdapter!), [indexView, vaultAdapter]);
   const session = useMemo(() => cache.session(viewKey), [cache, viewKey]);
-  const previews = usePinboardCards(queryService ?? vaultAdapter!, queryService, dbData, containerRef);
+  const previews = usePinboardCards(indexView ?? vaultAdapter!, indexView, dbData, containerRef);
   const cardData = previews.data;
   usePinboardScroll(containerRef, cache, viewKey);
   const paths = useMemo(() => dbData.map((r) => String(r["file.path"] ?? "")).filter(Boolean), [dbData]);
@@ -268,7 +268,7 @@ export function BasePinboardView({
   // pinboard gets its rows already narrowed by that head, like every other
   // view — it used to be the one exception, and that is what made the place of
   // the search depend on which view was open.
-  const search = useBaseSearch(queryService, paths, embedded ? searchText : "", searchMetadata, cache, viewKey, searchRevision);
+  const search = useBaseSearch(indexView, paths, embedded ? searchText : "", searchMetadata, cache, viewKey, searchRevision);
   const visibleSections = useMemo(
     () => ({
       pinned: filterCardPathsByText(filterCardPaths(sections.pinned, labelsByPath, selectedLabels), search.matches),

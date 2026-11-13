@@ -183,9 +183,10 @@ async function openPhone(database: IDatabaseAdapter): Promise<void> {
     onNewLocalFile: enqueue,
   });
   history = new VersionHistoryService(raw);
+  const queryService = new VaultQueryService(db);
   vault = {
     vaultId: "phone-vault", adapter: raw, files: chain, backup, belowChain: backup, syncQueue: queue, syncRepo: repo, db, indexer,
-    queryService: new VaultQueryService(db),
+    queryService, indexView: queryService.view(),
     reindexPaths: async (paths: string[]) => { for (const path of paths) await indexer.indexPath(path).catch(() => {}); },
   } as unknown as MobileVault;
   const syncSoon = () => { kicks += 1; };

@@ -70,7 +70,8 @@ export function useDesktopEmbeddings({
       db: dbAdapter,
       query: queryService,
       readText,
-      ready: idleMoment,
+      // Background work over the whole vault: it starts once the index is whole (a closed vault ends it).
+      ready: () => queryService.untilWholeIndex().then(idleMoment),
       related: stores.related,
       provider: {
         egress: session.egress,

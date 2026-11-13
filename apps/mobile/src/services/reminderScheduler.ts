@@ -336,12 +336,16 @@ async function runOnce(): Promise<void> {
   // notes not read yet would be cancelled and never come back (performance
   // plan L3). So nothing is replanned until the index is whole — what was
   // scheduled stays — and the run comes again the moment it is.
+  // Appointments do not come from the index: they are planned as always
+  // (second review of 11.11. — the whole run used to wait, and after a build
+  // that failed nothing was planned for the rest of the session).
+  let indexWhole = true;
   if (settings.remindTasks || settings.remindCheckboxes) {
     const { getMobileVault } = await import("./vaultService");
     const queryService = (await getMobileVault().catch(() => null))?.queryService;
-    if (queryService && (queryService.indexWholeness?.().kind ?? "whole") !== "whole") {
+    if (queryService && queryService.indexWholeness().kind !== "whole") {
+      indexWhole = false;
       void queryService.untilWholeIndex().then(() => rescheduleReminders(), () => {});
-      return;
     }
   }
 
@@ -382,22 +386,42 @@ async function runOnce(): Promise<void> {
   // "Switched off" only when neither kind of task reminds: with checkbox
   // reminders on, the task count is theirs and nothing is off.
   let taskReason: ReminderReason = settings.remindCheckboxes ? "ok" : "tasksOff";
-  if (settings.remindTasks) {
+  if (settings.remindTasks && indexWhole) {
     const tasks = await dueTaskSubjects(now, windowEndTs);
     taskReason = tasks.reason;
     subjects.push(...tasks.subjects);
   }
-  if (settings.remindCheckboxes) subjects.push(...(await checkboxSubjects(now, windowEndTs)));
+  if (settings.remindCheckboxes && indexWhole) subjects.push(...(await checkboxSubjects(now, windowEndTs)));
 
   const plan = planReminders(subjects, rule, { now, windowEndTs });
-  await clearPending();
-  if (plan.reminders.length > 0) {
-    await LocalNotifications.schedule({ notifications: plan.reminders.map(buildNotification) });
+  let keptTasks = 0;
+  if (indexWhole) {
+    await clearPending();
+    if (plan.reminders.length > 0) {
+      await LocalNotifications.schedule({ notifications: plan.reminders.map(buildNotification) });
+    }
+  } else {
+    // Only the appointments are planned anew; what the index planned stays
+    // until the index is whole and the next run plans it again.
+    const pending = (await LocalNotifications.getPending()).notifications;
+    const isEvent = (n: { extra?: unknown }) => (n.extra as { kind?: unknown } | undefined)?.kind === "event";
+    const events = pending.filter(isEvent);
+    if (events.length > 0) await LocalNotifications.cancel({ notifications: events });
+    const taken = new Set(pending.filter((n) => !isEvent(n)).map((n) => n.id));
+    keptTasks = taken.size;
+    let next = 1;
+    const notifications = plan.reminders.map((reminder, index) => {
+      while (taken.has(next)) next++;
+      const built = { ...buildNotification(reminder, index), id: next };
+      taken.add(next);
+      return built;
+    });
+    if (notifications.length > 0) await LocalNotifications.schedule({ notifications });
   }
-  const tasksPlanned = plan.reminders.filter((r) => r.subject.kind === "task").length;
+  const tasksPlanned = plan.reminders.filter((r) => r.subject.kind === "task").length + keptTasks;
   setState({
-    scheduled: plan.reminders.length,
-    events: plan.reminders.length - tasksPlanned,
+    scheduled: plan.reminders.length + keptTasks,
+    events: plan.reminders.length + keptTasks - tasksPlanned,
     tasks: tasksPlanned,
     lastRunTs: now,
     truncatedFrom: plan.truncatedFrom ?? null,

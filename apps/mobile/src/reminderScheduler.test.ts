@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 
 /**
  * The scheduler around the planner: what it does with the permission, how it
@@ -36,7 +37,7 @@ vi.mock("@capacitor/local-notifications", () => ({ LocalNotifications: notificat
 vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => settings }));
 vi.mock("./services/pim/pimService", () => ({ getPimCache: () => cache }));
 vi.mock("./services/vaultService", () => ({
-  getMobileVault: async () => ({ vaultId: "v1", queryService: { queryDatabaseFiles: taskDb.query, listTasks: taskDb.listTasks } }),
+  getMobileVault: async () => ({ vaultId: "v1", queryService: wholeIndexReader({ queryDatabaseFiles: taskDb.query, listTasks: taskDb.listTasks }) }),
   vaultOps: { read: async () => taskDb.base },
 }));
 

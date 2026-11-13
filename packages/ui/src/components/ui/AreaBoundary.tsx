@@ -11,6 +11,9 @@ import { logDiagnostic } from "../../services/diagnosticsLog";
 import { getPlatformServices, hasPlatformServices } from "../../platform/services";
 import { toast } from "../../services/toastStore";
 import i18n from "../../i18n";
+import { isIndexNotWholeError } from "@plainva/core";
+import { subscribeIndexBuild } from "../../lib/indexBuild";
+import { errorText } from "../../lib/errorText";
 
 /**
  * A way out of a failed area that does not depend on the area itself: close
@@ -121,6 +124,9 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
+    // A surface that reads the index refusing while it is built is no crash:
+    // it shows that it waits (`IndexWait`), and comes back by itself.
+    if (isIndexNotWholeError(error)) return;
     logDiagnostic(`area:${this.props.area}`, describeAreaError(error, info.componentStack));
     console.error(`[area ${this.props.area}] could not be shown`, error);
     if (this.props.size === "quiet") toastQuietFailure(this.props.area);
@@ -128,6 +134,11 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
 
   private reload = () => {
     this.setState((s) => ({ error: null, reloads: s.reloads + 1, generation: s.generation + 1 }));
+  };
+
+  /** Tried again once the index has moved on: not a reload the person asked for. */
+  private retryAfterIndex = () => {
+    this.setState((s) => ({ error: null, generation: s.generation + 1 }));
   };
 
   /**
@@ -144,6 +155,13 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
 
   render() {
     const { area, children, exit, placeClassName, size = "pane", testId } = this.props;
+    if (this.state.error && isIndexNotWholeError(this.state.error)) {
+      // An area that read the reader instead of the view while the index is
+      // not whole (second review of 11.11.): it says that it waits, and is
+      // shown again with every step of the build — never the crash card.
+      if (size === "quiet" || size === "icon") return <IndexWait error={this.state.error} onMoved={this.retryAfterIndex} quiet />;
+      return <IndexWait error={this.state.error} onMoved={this.retryAfterIndex} placeClassName={size === "dialog" ? undefined : placeClassName} size={size} area={area} />;
+    }
     if (this.state.error) {
       if (this.state.dismissed || size === "quiet") return null;
       return (
@@ -166,6 +184,21 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
       </Fragment>
     );
   }
+}
+
+/**
+ * What an area shows while the index it read refused (`IndexNotWholeError`):
+ * the sentence of the strip, and the area again as soon as the build has moved
+ * on. No crash card, no diagnostics line, no toast.
+ */
+function IndexWait({ error, onMoved, quiet, placeClassName, size, area }: { error: Error; onMoved: () => void; quiet?: boolean; placeClassName?: string; size?: AreaBoundarySize; area?: string }) {
+  useEffect(() => subscribeIndexBuild(onMoved), [onMoved]);
+  if (quiet) return null;
+  return (
+    <div className={cx("pv-areafail", `pv-areafail--${size ?? "pane"}`, placeClassName)} data-area={area} data-testid="area-index-wait" role="status">
+      <EmptyState>{errorText(error)}</EmptyState>
+    </div>
+  );
 }
 
 function RenderArea({ build }: { build: () => ReactNode }) {

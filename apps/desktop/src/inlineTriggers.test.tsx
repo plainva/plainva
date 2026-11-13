@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { wholeIndexReader } from "@plainva/core";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
@@ -36,10 +37,10 @@ const TAGS = [{ tag: "#client", count: 4 }, { tag: "#clinic", count: 1 }, { tag:
 
 function source(): TriggerQuerySource & { asked: Array<{ sql: string; params: unknown[] }> } {
   const asked: Array<{ sql: string; params: unknown[] }> = [];
-  return {
+  const fake = {
     asked,
     db: {
-      query: async (sql, params = []) => {
+      query: async (sql: string, params: unknown[] = []) => {
         asked.push({ sql, params });
         const term = String(params[0]).replace(/%/g, "").toLowerCase();
         return FILES.filter((file) => (file.title ?? file.path).toLowerCase().includes(term) || file.path.toLowerCase().includes(term));
@@ -47,6 +48,7 @@ function source(): TriggerQuerySource & { asked: Array<{ sql: string; params: un
     },
     getAllTags: async () => TAGS,
   };
+  return wholeIndexReader(fake);
 }
 
 describe("where a trigger stands", () => {

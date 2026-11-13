@@ -5525,6 +5525,7 @@
     "indexNotWholeFailed": "The search index is incomplete: the last full read of the vault did not go through. This needs the whole index — read the vault again, then try once more.",
     "indexNotWholeClosed": "The vault was closed before its search index was complete.",
     "indexBuildFailed": "The search index is incomplete: the last full read of the vault did not go through. Search, tags and databases may miss notes until the vault is read again.",
+    "indexReadAgain": "Read the vault again",
     "stepOf": "Step {{n}} of {{total}}",
     "tabDatabases": "Databases",
     "tabCalendar": "Calendar",

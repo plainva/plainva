@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import type { MissingFileDeps } from "@plainva/core";
+import { IndexNotWholeError, type MissingFileDeps } from "@plainva/core";
 import { adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote } from "@plainva/ui";
 
 /**
@@ -23,6 +23,7 @@ function movedDeps() {
       queryOne: vi.fn(async () => ({ sha256: "hash-n", mtime_local: STAMP })),
       query: vi.fn(async () => [{ path: "b/n.md", mtime_local: STAMP }]),
     },
+    untilWholeIndex: async () => {},
     indexer: {
       reconcileFolder: vi.fn(async () => { await gate; }),
       indexVaultFull: vi.fn(async () => undefined),
@@ -99,6 +100,7 @@ describe("adoptExternalMove", () => {
           queryService: { listBaseFilePaths: async () => ["Pinnwand.base"], requireWholeIndex: () => {} },
         },
         reindex,
+        untilWholeIndex: async () => {},
       }, "4 blog/link-50.md", "4 blog/taken/link-50.md");
     } finally {
       window.removeEventListener("plainva-file-ops", onOps);
@@ -112,6 +114,64 @@ describe("adoptExternalMove", () => {
     expect(files["Index.md"]).toBe("See [[4 blog/link-50]].\n");
   });
 
+  it("waits for a whole index before it sweeps the pinboards, and sweeps them then (second review of 11.11.)", async () => {
+    // A move found while the first index is built: the boards that hold the
+    // note are found in the index, which refuses. The sweep used to be dropped,
+    // and the pinboard kept the old path for good.
+    const files: Record<string, string> = {
+      "Pinnwand.base": ["views:", "  - type: table", "    name: Pinnwand", "    plainva:", "      render: pinboard", "      pinboardOrder:", '        - "a.md"', ""].join("\n"),
+    };
+    let whole = false;
+    let becameWhole: () => void = () => {};
+    const waited = new Promise<void>((resolve) => { becameWhole = resolve; });
+    const reindex = vi.fn(async () => undefined);
+    const moving = adoptExternalMove({
+      retargetBookmarks: async () => undefined,
+      pinboard: {
+        adapter: {
+          readTextFile: async (p: string) => { if (!(p in files)) throw new Error("not found"); return files[p]; },
+          writeTextFile: async (p: string, c: string) => { files[p] = c; },
+        },
+        queryService: {
+          listBaseFilePaths: async () => ["Pinnwand.base"],
+          requireWholeIndex: () => { if (!whole) throw new IndexNotWholeError({ kind: "building", done: 1, total: 9 }); },
+        },
+      },
+      reindex,
+      untilWholeIndex: () => waited,
+    }, "a.md", "b/a.md");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(files["Pinnwand.base"]).toContain('"a.md"');
+    whole = true;
+    becameWhole();
+    await moving;
+    expect(files["Pinnwand.base"]).toContain("b/a.md");
+    expect(files["Pinnwand.base"]).not.toContain('"a.md"');
+    expect(reindex).toHaveBeenCalledWith(["Pinnwand.base"]);
+  });
+
+  it("ends the wait without a word when the vault is closed before its index was whole", async () => {
+    const reported = vi.spyOn(console, "warn");
+    const ops: unknown[] = [];
+    const onOps = (e: Event) => ops.push(...((e as CustomEvent).detail?.ops ?? []));
+    window.addEventListener("plainva-file-ops", onOps);
+    try {
+      await adoptExternalMove({
+        retargetBookmarks: async () => undefined,
+        pinboard: {
+          adapter: { readTextFile: async () => "", writeTextFile: async () => undefined },
+          queryService: { listBaseFilePaths: async () => [], requireWholeIndex: () => { throw new IndexNotWholeError({ kind: "building", done: 0, total: 0 }); } },
+        },
+        untilWholeIndex: () => Promise.reject(new IndexNotWholeError({ kind: "closed" })),
+      }, "a.md", "b/a.md");
+    } finally {
+      window.removeEventListener("plainva-file-ops", onOps);
+    }
+    expect(reported).not.toHaveBeenCalled();
+    expect(ops).toEqual([{ type: "move", from: "a.md", to: "b/a.md" }]);
+    reported.mockRestore();
+  });
+
   it("still reports the move when the bookmark store cannot be written", async () => {
     const ops: unknown[] = [];
     const onOps = (e: Event) => ops.push(...((e as CustomEvent).detail?.ops ?? []));
@@ -120,6 +180,7 @@ describe("adoptExternalMove", () => {
       await adoptExternalMove({
         retargetBookmarks: async () => { throw new Error("disk full"); },
         pinboard: { adapter: { readTextFile: async () => "", writeTextFile: async () => undefined }, queryService: null },
+        untilWholeIndex: async () => {},
       }, "a.md", "b/a.md");
     } finally {
       window.removeEventListener("plainva-file-ops", onOps);

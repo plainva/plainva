@@ -348,7 +348,7 @@ export function EditorHost({
   }, [tasksQueryHost, vault, path, editable, onOpenNote, onEditAt]);
   useLayoutEffect(() => {
     depsRef.current = {
-      queryService: vault.queryService,
+      queryService: vault.indexView,
       // The `[[Note#` completion lists that note's headings (issue #92).
       readNote: (p) => vaultOps.read(vault, p).catch(() => null),
       vaultContext: null,
@@ -680,7 +680,7 @@ export function EditorHost({
     // Unresolved-link styling (maintainer 2026-07-18): push the set of existing
     // targets into the shared wiki plugin so links to not-yet-created notes read
     // muted (dashed). Same field the desktop editor feeds.
-    void vault.queryService?.getDocumentTitles().then((map) => {
+    void vault.indexView?.getDocumentTitles().then((map) => {
       if (sessionRef.current?.view !== session.view) return;
       const files: { title: string; path: string }[] = [];
       map.forEach((v, p) => files.push({ title: v.title, path: p }));
@@ -1331,7 +1331,7 @@ export function EditorHost({
   useEffect(() => {
     const openPicker = (e: Event) => {
       const pos = (e as CustomEvent).detail?.pos ?? 0;
-      void vault.queryService?.listBases().then((rows) => {
+      void vault.indexView?.listBases().then((rows) => {
         setBases(rows);
         setBasePick({ pos });
       }).catch(() => setBasePick({ pos }));

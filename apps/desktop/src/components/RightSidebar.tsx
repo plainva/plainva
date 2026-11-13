@@ -131,7 +131,7 @@ interface RightSidebarProps {
 
 export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSelectDate, onOpenCalendarDay, onOpenJournal, onCaptureJournal, loadMarkedDates, activeDailyDate, refreshToken, sections, ai }: RightSidebarProps) {
   const { t } = useTranslation();
-  const { queryService, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
+  const { indexView, fileTreeVersion, vaultAdapter, vaultPath } = useVault();
   // Which sections are shown and in which order — per vault, inherited from the
   // global default until this vault is adapted (plan § 3).
   const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
@@ -168,18 +168,18 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   }, [vaultPath, source]);
 
   useEffect(() => {
-    if (!activePath || !vaultAdapter || !queryService || !/\.md$/i.test(activePath)) {
+    if (!activePath || !vaultAdapter || !indexView || !/\.md$/i.test(activePath)) {
       setDbContext(EMPTY_NOTE_DATABASE_CONTEXT);
       return;
     }
     let cancelled = false;
-    void loadNoteDatabaseContextCached(vaultAdapter, queryService, activePath, fileTreeVersion).then((ctx) => {
+    void loadNoteDatabaseContextCached(vaultAdapter, indexView, activePath, fileTreeVersion).then((ctx) => {
       if (!cancelled) setDbContext(ctx);
     });
     return () => {
       cancelled = true;
     };
-  }, [activePath, vaultAdapter, queryService, fileTreeVersion]);
+  }, [activePath, vaultAdapter, indexView, fileTreeVersion]);
 
   // How much room the panel has — drives both the cosmetic degradation (via the
   // data attribute) and the calendar's structural switch (plan P3).
@@ -304,15 +304,15 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
 
   useEffect(() => {
     let alive = true;
-    if (queryService && activePath && /\.md$/i.test(activePath)) {
-      queryService.getBacklinks(activePath, { visibleOnly: true })
+    if (indexView && activePath && /\.md$/i.test(activePath)) {
+      indexView.getBacklinks(activePath, { visibleOnly: true })
         .then((l) => { if (alive) setBacklinksCount(l.length); })
         .catch(() => { if (alive) setBacklinksCount(0); });
     } else {
       setBacklinksCount(0);
     }
     return () => { alive = false; };
-  }, [activePath, queryService, fileTreeVersion, setBacklinksCount]);
+  }, [activePath, indexView, fileTreeVersion, setBacklinksCount]);
 
   const meta: Record<SectionId, { title: string; icon: ReactNode; count?: number; pad: boolean; action?: ReactNode }> = {
     calendar: { title: t("rightPanel.calendar", { defaultValue: "Kalender" }), icon: <CalendarDays size={ICON.ui} />, pad: false },

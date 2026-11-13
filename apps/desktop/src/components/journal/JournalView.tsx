@@ -29,7 +29,7 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
   onHandoverTask?: (text: string) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { vaultPath, vaultAdapter, queryService, fileTreeVersion, fileTreeVersionPaths } = useVault();
+  const { vaultPath, vaultAdapter, queryService, fileTreeVersion, fileTreeVersionPaths, indexView } = useVault();
   const files = useJournalFiles();
   const todayKey = useJournalDayKey();
   const weekStart = useWeekStartDay();
@@ -61,7 +61,7 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
     // stream that loaded without them would have no reason to load again.
     vaultKey: settings && vaultPath ? vaultPath : "",
     settings: settings ?? { folder: "", format: "YYYY-MM-DD", heading: "Journal" },
-    listNotePaths: useCallback(async () => (settings && queryService ? (await queryService.listNotes()).map((n) => n.path) : []), [settings, queryService]),
+    listNotePaths: useCallback(async () => (settings && indexView ? (await indexView.listNotes()).map((n) => n.path) : []), [settings, indexView]),
     readTextFile: useCallback((path: string) => (vaultAdapter ? vaultAdapter.readTextFile(path) : Promise.reject(new Error("no vault"))), [vaultAdapter]),
     version: fileTreeVersion,
     changedPaths: fileTreeVersionPaths,

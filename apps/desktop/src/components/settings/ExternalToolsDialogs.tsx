@@ -136,15 +136,15 @@ export function ExternalAddDialog({ session, programs, onClose, onAdded }: { ses
  */
 export function ExternalReviewDialog({ session, servers, serverId, onClose }: { session: AiSession; servers: readonly AiMcpServer[]; serverId: string; onClose: () => void }) {
   const { t } = useTranslation();
-  const { queryService } = useVault();
+  const { indexView } = useVault();
   const review = useExternalReview(session, servers, serverId, t);
   // Choices made here and not saved — tools, folders, on or off — are asked about, as on the phone (ExternalToolsSheets).
   const close = useDiscardGuard((review.dirty || review.secretTyped) && !review.busy, onClose);
   const [vaultFolders, setVaultFolders] = useState<string[]>([]);
   useEffect(() => {
-    if (!queryService) return;
+    if (!indexView) return;
     let alive = true;
-    void queryService
+    void indexView
       .getAllFolders()
       .catch(() => [] as string[])
       .then((all) => {
@@ -153,7 +153,7 @@ export function ExternalReviewDialog({ session, servers, serverId, onClose }: { 
     return () => {
       alive = false;
     };
-  }, [queryService]);
+  }, [indexView]);
 
   const { server } = review;
   if (!server) return null;

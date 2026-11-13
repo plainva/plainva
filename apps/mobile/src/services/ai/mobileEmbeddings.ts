@@ -42,7 +42,8 @@ export function useMobileEmbeddings(vault: MobileVault | null, loaded: AiAppSett
       db: vault.db,
       query: vault.queryService,
       readText,
-      ready: nextTurn,
+      // Background work over the whole vault: it starts once the index is whole (a closed vault ends it).
+      ready: () => names.untilWholeIndex().then(nextTurn),
       related: stores.related,
       provider: {
         egress: session.egress,

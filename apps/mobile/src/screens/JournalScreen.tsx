@@ -63,7 +63,7 @@ export function JournalScreen({
   const feed = useJournalFeed({
     vaultKey: vault.vaultId,
     settings,
-    listNotePaths: useCallback(async () => (vault.queryService ? (await vault.queryService.listNotes()).map((n) => n.path) : []), [vault]),
+    listNotePaths: useCallback(async () => (vault.indexView ? (await vault.indexView.listNotes()).map((n) => n.path) : []), [vault]),
     readTextFile: useCallback((path: string) => vaultOps.read(vault, path), [vault]),
     version: bump,
     changedPaths: null,

@@ -253,7 +253,7 @@ export async function adoptFileAsIndex(opts: {
   const { adapter, queryService, candidatePath, folder, prepare } = opts;
   // Every step below plans from the index — the links by title, the links it
   // turns into Markdown links, the move: refused over half of one (L3).
-  queryService.requireWholeIndex?.();
+  queryService.requireWholeIndex();
   const indexPath = folder ? `${folder}/index.md` : "index.md";
   if (await adapter.exists(indexPath)) throw new VaultFileExistsError(indexPath);
 
@@ -400,7 +400,7 @@ export async function planOverviewLinkPins(
 ): Promise<OverviewLinkPins> {
   // The links an overview would take over are found in the index: refused over
   // half of one, before the `failed` below that goes on without pinning (L3).
-  queryService.requireWholeIndex?.();
+  queryService.requireWholeIndex();
   const plan: LinkUpdatePlan = { oldPath: "", newPath: "", sources: [] };
   if (placements.length === 0) return { plan, links: 0, failed: false };
   let files: Awaited<ReturnType<VaultQueryService["linkTargets"]>>;

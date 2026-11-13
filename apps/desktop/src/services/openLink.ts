@@ -1,4 +1,4 @@
-import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
+import type { IVaultAdapter, IndexReader } from "@plainva/core";
 import { errorText, linkDiskProbe, planLinkOpen, requestAnchorJump, toast, type LinkToOpen } from "@plainva/ui";
 import { openExternalUrl as openUrl } from "./openExternal";
 
@@ -15,7 +15,8 @@ import { openExternalUrl as openUrl } from "./openExternal";
  */
 
 export interface DesktopLinkContext {
-  queryService: Pick<VaultQueryService, "resolveNotePath" | "resolveMarkdownLink" | "requireWholeIndex"> | null | undefined;
+  /** The reader: a link to a note the index holds opens from its view, also during the first index; creating one asks it whole. */
+  queryService: IndexReader<"requireWholeIndex" | "view"> | null | undefined;
   vaultAdapter: Pick<IVaultAdapter, "exists" | "getFileInfo" | "listDir"> | null | undefined;
   onOpenPath: (path: string, newTab: boolean) => void;
   /** Ctrl/Cmd+click. */
@@ -31,8 +32,8 @@ export async function openLink(link: LinkToOpen, ctx: DesktopLinkContext): Promi
   const { queryService, vaultAdapter, newTab } = ctx;
   if (!queryService) return;
   const outcome = await planLinkOpen(link, {
-    resolveWiki: (target, from) => queryService.resolveNotePath(target, from),
-    resolveMarkdown: (target, from) => queryService.resolveMarkdownLink(target, from),
+    resolveWiki: (target, from) => queryService.view().resolveNotePath(target, from),
+    resolveMarkdown: (target, from) => queryService.view().resolveMarkdownLink(target, from),
     ...(vaultAdapter ? linkDiskProbe(vaultAdapter) : noDisk),
     requireWholeIndex: () => queryService.requireWholeIndex(),
   });

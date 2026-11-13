@@ -18,7 +18,8 @@ const { invoke, events, vaultContext, appConfirm } = vi.hoisted(() => ({
   invoke: vi.fn(async (_command: string, _args?: unknown): Promise<unknown> => undefined),
   events: { handlers: new Map<string, (event: { payload: unknown }) => void>() },
   // The vault's services keep their identity between renders, as the real context's do.
-  vaultContext: { queryService: { getAllFolders: async () => ["Projects", "Projects/2026", "Clients", ".plainva"] } },
+  // The folder list is shown, so it comes from the index as it stands (`indexView`).
+  vaultContext: { indexView: { getAllFolders: async () => ["Projects", "Projects/2026", "Clients", ".plainva"] } },
   appConfirm: vi.fn(async () => true),
 }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));

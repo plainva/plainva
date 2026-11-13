@@ -12,7 +12,7 @@ const { cache, meetingNote, setTaskDone, toasts, vault, update, syncSoon, jump }
   meetingNote: vi.fn(),
   setTaskDone: vi.fn(),
   toasts: { info: vi.fn(), error: vi.fn() },
-  vault: { vaultId: "v1", queryService: { listTasks: vi.fn() } },
+  vault: { vaultId: "v1", indexView: { listTasks: vi.fn() } },
   update: vi.fn(),
   syncSoon: vi.fn(),
   jump: vi.fn(),
@@ -48,9 +48,9 @@ const intent = (over: Partial<Parameters<typeof runReminderIntent>[0]>) => ({
 
 describe("runReminderIntent", () => {
   beforeEach(() => {
-    for (const fn of [cache.getEventByUid, meetingNote, setTaskDone, host.openNote, host.openCalendar, toasts.info, toasts.error, vault.queryService.listTasks, update, syncSoon, jump]) fn.mockReset();
+    for (const fn of [cache.getEventByUid, meetingNote, setTaskDone, host.openNote, host.openCalendar, toasts.info, toasts.error, vault.indexView.listTasks, update, syncSoon, jump]) fn.mockReset();
     setTaskDone.mockResolvedValue({ changed: true });
-    vault.queryService.listTasks.mockResolvedValue([]);
+    vault.indexView.listTasks.mockResolvedValue([]);
   });
 
   it("ticks a task off from the notification and says so", async () => {
@@ -137,14 +137,14 @@ describe("runReminderIntent: a checkbox task", () => {
   });
 
   it("opens the note at the line on a plain tap", async () => {
-    vault.queryService.listTasks.mockResolvedValue([box("Haushalt.md", 1, line.text)]);
+    vault.indexView.listTasks.mockResolvedValue([box("Haushalt.md", 1, line.text)]);
     await runReminderIntent(intent({ kind: "task", uid: "checkbox:Haushalt.md#" + line.text, action: "open", line }), host);
     expect(jump).toHaveBeenCalledWith({ path: "Haushalt.md", term: line.text.slice(0, 40) });
     expect(host.openNote).toHaveBeenCalledWith("Haushalt.md");
   });
 
   it("follows the note it was renamed to since the reminder was planned", async () => {
-    vault.queryService.listTasks.mockResolvedValue([box("Archiv/Haushalt 2026.md", 0, line.text)]);
+    vault.indexView.listTasks.mockResolvedValue([box("Archiv/Haushalt 2026.md", 0, line.text)]);
     update.mockResolvedValue({ changed: true });
     await runReminderIntent(intent({ kind: "task", uid: "checkbox:Haushalt.md#" + line.text, action: "open", line }), host);
     expect(host.openNote).toHaveBeenCalledWith("Archiv/Haushalt 2026.md");

@@ -126,7 +126,7 @@ function MonthWeekColumn({ weeks }: { weeks: number[] }) {
 
 export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewProps) {
   const { t, i18n } = useTranslation();
-  const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, queryService, fileTreeVersion } = useVault();
+  const { pimRuntime, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, indexView } = useVault();
   const openDailyNote = useDailyNoteAction(onOpenPath);
   const loadDailyDays = useCallback(async (dates: Date[]) => {
     if (!vaultPath || !vaultAdapter) return new Set<string>();
@@ -349,13 +349,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // and the checkboxes in notes with a `📅`, chosen by the shared rule.
   useEffect(() => {
     let alive = true;
-    if (!showTasks || !vaultPath || !queryService || !vaultAdapter) {
+    if (!showTasks || !vaultPath || !indexView || !vaultAdapter) {
       setTasks([]);
       return;
     }
     void (async () => {
       try {
-        const out = await loadTaskOverlay({ vaultPath, vaultAdapter, queryService }, { notes: true });
+        const out = await loadTaskOverlay({ vaultPath, vaultAdapter, queryService: indexView }, { notes: true });
         if (alive) {
           setTasks(out.tasks);
           setTaskCompletion(out.completion);
@@ -372,7 +372,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     return () => {
       alive = false;
     };
-  }, [showTasks, vaultPath, queryService, vaultAdapter, fileTreeVersion, tick]);
+  }, [showTasks, vaultPath, indexView, vaultAdapter, fileTreeVersion, tick]);
 
   // Which database views COULD be shown, and which are. The candidates are read
   // from the databases themselves (a view qualifies when it is a calendar or a
@@ -380,13 +380,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // profile so both machines show the same calendar.
   useEffect(() => {
     let alive = true;
-    if (!vaultPath || !queryService || !vaultAdapter) {
+    if (!vaultPath || !indexView || !vaultAdapter) {
       setOverlayCands([]);
       return;
     }
     void (async () => {
       try {
-        const bases = await queryService.listBases();
+        const bases = await indexView.listBases();
         const out: OverlayCandidate[] = [];
         for (const b of bases) {
           try {
@@ -403,7 +403,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     return () => {
       alive = false;
     };
-  }, [vaultPath, queryService, vaultAdapter, fileTreeVersion]);
+  }, [vaultPath, indexView, vaultAdapter, fileTreeVersion]);
 
   // The stored selection is read ONCE per vault. Without the guard the async
   // read can land AFTER a click and quietly undo it — the settings store is
@@ -426,14 +426,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   useEffect(() => {
     let alive = true;
-    if (overlayKeys.length === 0 || !vaultPath || !queryService || !vaultAdapter) {
+    if (overlayKeys.length === 0 || !vaultPath || !indexView || !vaultAdapter) {
       setOverlayEntries([]);
       return;
     }
     void (async () => {
       try {
-        const bases = await queryService.listBases();
-        const rows = await loadBaseOverlay(overlayKeys, bases, { vaultAdapter, queryService });
+        const bases = await indexView.listBases();
+        const rows = await loadBaseOverlay(overlayKeys, bases, { vaultAdapter, queryService: indexView });
         if (alive) setOverlayEntries(rows);
       } catch {
         if (alive) setOverlayEntries([]);
@@ -442,7 +442,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     return () => {
       alive = false;
     };
-  }, [overlayKeys, vaultPath, queryService, vaultAdapter, fileTreeVersion, tick]);
+  }, [overlayKeys, vaultPath, indexView, vaultAdapter, fileTreeVersion, tick]);
 
   const toggleOverlay = useCallback(
     (key: string) => {
@@ -2446,7 +2446,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : createInitial ?? emptyEventForm(selectedDay, defaultCalKey)
           }
           calendarOptions={editCalendarOptions}
-          noteLinks={queryService ? { listNotes: () => queryService.listNotes(), vaultName: vaultPath ? vaultLabel(vaultPath) : null } : undefined}
+          noteLinks={indexView ? { listNotes: () => indexView.listNotes(), vaultName: vaultPath ? vaultLabel(vaultPath) : null } : undefined}
           onCancel={() => { setEditState(null); setCreateInitial(null); seedSaved.current = null; }}
           onSubmit={submitEventForm}
           onMeetingNote={

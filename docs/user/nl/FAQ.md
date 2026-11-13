@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-11-12
+Laatst bijgewerkt: 2026-11-13
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -112,7 +112,7 @@ Bij het inlezen volgt Plainva links zoals het systeem dat doet: een link naar ee
 
 Kan de index helemaal niet worden bijgewerkt, dan zegt de melding waarom (**De zoekindex kon niet worden bijgewerkt: …**); de vault blijft open met wat de index al bevat, en bij het volgende inlezen probeert Plainva het opnieuw. Op de telefoon wordt ook een zoekindex genoemd die niet kan worden geopend: zoeken, tags, databases, de synchronisatie en de kalender blijven dan uit tot Plainva hem kan openen. Intussen kun je notities lezen, schrijven en aanmaken, en ze bereiken de synchronisatie bij de volgende start die de index opent; in een vault die synchroniseert blijven verwijderen, hernoemen, verplaatsen en nieuwe mappen tot dan uit, en de strook bovenaan meldt het.
 
-**Een vault voor het eerst openen.** Een vault zonder zoekindex — voor het eerst geopend, of nadat de app-gegevens zijn vergeten — opent meteen, en Plainva leest hem op de achtergrond in. Tot dat klaar is, telt een strook bovenaan de gelezen bestanden; zoeken, tags, backlinks, databases en de graaf antwoorden met wat tot dan toe gelezen is, en de bestandsboom toont al elk bestand. Wat notities zou wijzigen op basis van de hele vault, wordt tot dan geweigerd, met de reden, en kan zodra de index volledig is: hernoemen of verplaatsen met het bijwerken van links, overzichten, het opruimen, zoeken en vervangen, het OKF-formaat, een notitie verwijderen samen met wat erbij hoort, en een notitie maken voor een link die nog nergens heen leidt. Herinneringen worden opnieuw gepland zodra de index volledig is. Lukt het inlezen niet, dan zegt de strook dat tot de vault opnieuw is ingelezen. Een geminimaliseerd venster blijft lezen. Op de telefoon gaat het net zo, ook in een tweede venster op de desktop.
+**Een vault voor het eerst openen.** Een vault zonder zoekindex — voor het eerst geopend, of nadat de app-gegevens zijn vergeten — opent meteen, en Plainva leest hem op de achtergrond in. Tot dat klaar is, telt een strook bovenaan de gelezen bestanden; zoeken, tags, backlinks, databases en de graaf antwoorden met wat tot dan toe gelezen is, en de bestandsboom toont al elk bestand. Wat notities zou wijzigen op basis van de hele vault, wordt tot dan geweigerd, met de reden, en kan zodra de index volledig is: hernoemen of verplaatsen met het bijwerken van links, overzichten, het opruimen, zoeken en vervangen, het OKF-formaat, een notitie verwijderen samen met wat erbij hoort, en een notitie maken voor een link die nog nergens heen leidt. Herinneringen aan taken en selectievakjes worden opnieuw gepland zodra de index volledig is; die aan afspraken zoals altijd. Een notitie die buiten Plainva is verplaatst, wordt gezocht zodra de index volledig is, en links die je intussen uit een lijst kiest, worden met hun pad geschreven. Lukt het inlezen niet, dan zegt de strook dat, met **Vault opnieuw inlezen**. Een geminimaliseerd venster blijft lezen. Op de telefoon gaat het net zo, ook in een tweede venster op de desktop.
 
 Verwijder of herstel het item dat de melding noemt en kies daarna **Vault opnieuw inlezen** (op de telefoon: trek een lijst omlaag).
 

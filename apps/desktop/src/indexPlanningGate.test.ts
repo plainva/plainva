@@ -1,194 +1,210 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Nothing plans a write from half an index (performance plan L3, review of 11.11.).
+ * Reading the index is safe by default (performance plan L3, second review of 11.11.).
  *
  * The first index of a vault is built behind the open app, and an index owed a
- * full scan is not whole either. What only SHOWS from the index says so (the
- * strip). What PLANS A WRITE from it — the links a rename rewrites, the listing
- * an overview writes, the files find and replace changes, what a slice gives
- * access to, which reminders stay — is refused over one that is not whole
- * (core `indexWholeness.ts`). The gate sits where a plan is made, not at each
- * feature: this file holds both halves of that.
+ * full scan is not whole either. Two reviews found a planner that read half an
+ * index because it was not on a list of planners: a list of planners is a
+ * deny-list, and whoever is not on it reads half an index without knowing.
+ * So the default is the other way round:
  *
- * 1. Every planner asks the gate (`requireWholeIndex`) before its first read of
- *    the index.
- * 2. Every file that reads the index in a way a plan can be made from is on a
- *    reviewed list, with what it does over half an index: a new reader fails
- *    here until somebody decided — gated (it calls a planner), refused, says
- *    "partial", or safe for a named reason.
+ * - The reader both shells hand out (`queryService`, core `VaultQueryService`)
+ *   refuses with `IndexNotWholeError` while its vault's index is not whole —
+ *   every read method of the class, and a query on its `db`.
+ * - A surface that only SHOWS asks for the view (`indexView`, `.view()`), by a
+ *   name that says so. A planner's parameter asks for the reader's type
+ *   (`IndexReader` or the class): the view does not fit it.
+ *
+ * This file therefore has nothing to say about planners — they cannot be
+ * handed a partial reader. It lists the other side: every file that takes the
+ * view, with what it shows from it and why nothing is written from it, and
+ * every file that queries the index's tables beside the query service, with the
+ * handle it takes. A new one fails here until somebody decided.
  */
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const read = (rel: string) => readFileSync(join(REPO, rel), "utf8");
 
-/** [file, the function or method that plans] — each must ask the gate before it reads. */
-const PLANNERS: Array<[string, string]> = [
-  ["packages/core/src/vault/VaultQueryService.ts", "async findInVault("],
-  ["packages/core/src/vault/VaultQueryService.ts", "async linksNamingFile("],
-  ["packages/core/src/vault/GraphService.ts", "async cleanupVerdicts("],
-  ["packages/core/src/vault/GraphService.ts", "async findUnlinkedMentions("],
-  ["packages/core/src/workspace/sliceObjects.ts", "export async function loadWorkspaceSliceObjects("],
-  ["packages/ui/src/lib/renameNote.ts", "export async function planLinkUpdates("],
-  ["packages/ui/src/lib/renameNote.ts", "export async function renameFileWithLinkUpdates("],
-  ["packages/ui/src/lib/indexMd.ts", "export async function adoptFileAsIndex("],
-  ["packages/ui/src/lib/indexMd.ts", "export async function planOverviewLinkPins("],
-  ["packages/ui/src/lib/indexMdGenerate.ts", "export async function listMarkdownPaths("],
-  ["packages/ui/src/base/pinboardSweep.ts", "export async function sweepPinboardRefs("],
-  ["packages/ui/src/base/deletionPlan.ts", "export async function buildDeletionPlan("],
-  ["packages/ui/src/base/relationLinks.ts", "async function linkRule("],
-  ["packages/ui/src/services/graphActions.ts", "export async function appendWikiLink("],
-  ["packages/ui/src/services/graphActions.ts", "export async function removeLinksTo("],
-  ["packages/ui/src/services/graphActions.ts", "export async function createBrokenLinkTarget("],
-  ["packages/ui/src/services/graphActions.ts", "export async function applyInlineLink("],
-  ["packages/ui/src/services/graphRelationTargets.ts", "export async function writeRelationLink("],
-  ["packages/ui/src/services/graphRelationTargets.ts", "export async function removeRelationLink("],
-  ["packages/ui/src/ai/writeTools.ts", "export async function noteRenamePlan("],
-  ["packages/ui/src/hooks/useTaskDuplicates.ts", "const options = async ("],
-  ["packages/ui/src/hooks/useTaskNameCleanup.ts", "const scan = useStableHandler("],
-  ["packages/ui/src/lib/linkOpen.ts", "function refusal("],
-  ["apps/desktop/src/services/fileActions.ts", "export async function renameToName("],
-  ["apps/desktop/src/services/fileActions.ts", "export async function moveItems("],
-  ["apps/desktop/src/services/okfConversion.ts", "export async function scanVaultOkf("],
-  ["apps/desktop/src/services/okfMigration.ts", "export async function scanVaultOkfVersion("],
-  ["apps/desktop/src/components/QuickSwitcher.tsx", "const handleCreate = async ("],
-  ["apps/mobile/src/services/okfConversion.ts", "export async function scanVaultOkf("],
-  ["apps/mobile/src/services/okfMigration.ts", "export async function scanVaultOkfVersion("],
-  ["apps/mobile/src/services/vaultService.ts", "async createNoteFromWikiTarget("],
-  ["apps/mobile/src/services/vaultService.ts", "async moveFolder("],
-  ["apps/mobile/src/services/vaultService.ts", "async moveNote("],
-];
-
-/** A read of the index a write can be planned from. */
-const PLANNING_READ = /\.(getBacklinks|linkTargets|linksNamingFile|getTaskAnchors|listTasks|findInVault|listBaseFilePaths|listNotes|getBrokenLinks|getOrphans)\(|\blistMarkdownPaths\(|\bfindUnlinkedMentions\(|\bcleanupVerdicts\(|\bloadWorkspaceSliceObjects\(/;
-
-/** The body of the planner whose header is `header`: up to the next declaration at its own depth or above. */
-function bodyOf(source: string, header: string): string {
-  const at = source.indexOf(header);
-  if (at < 0) return "";
-  const indent = source.slice(source.lastIndexOf("\n", at) + 1, at).match(/^\s*/)?.[0] ?? "";
-  const rest = source.slice(at + header.length);
-  const end = rest.search(new RegExp(`\\n${indent}(?:export |async |function |private |const |public |static |[a-zA-Z_]+\\()`));
-  return end < 0 ? rest : rest.slice(0, end);
-}
-
-/**
- * Every source file that reads the index a plan can be made from, and what it
- * does over half an index. Gated: it plans through a gated planner above (or
- * is one). Refuses / waits: its own gate. Partial: it only shows, and the strip
- * says the index is not whole. Safe: named.
- */
-const READERS: Record<string, string> = {
-  "apps/desktop/src/components/BacklinksPanel.tsx": "partial: shows the links found so far",
-  "apps/desktop/src/components/BaseViewer.tsx": "partial: shows rows; its writes go through gated relation/rename planners",
-  "apps/desktop/src/components/CascadeDeleteHost.tsx": "gated: the plan (buildDeletionPlan) refuses; the note count only makes the large-deletion question come sooner",
-  "apps/desktop/src/components/Editor.tsx": "partial: link completion and decorations; creating a note from a link goes through planLinkOpen",
-  "apps/desktop/src/components/PropertiesSection.tsx": "partial: suggestions; relation writes go through linkRule",
-  "apps/desktop/src/components/RightSidebar.tsx": "partial: shows",
-  "apps/desktop/src/components/VaultFindReplaceModal.tsx": "refuses: findInVault",
-  "apps/desktop/src/components/ai/useDesktopEmbeddings.ts": "safe: a derived cache under .plainva, filled again on every index change, the end of the build included",
-  "apps/desktop/src/components/ai/useDesktopGists.ts": "safe: as the embeddings",
-  "apps/desktop/src/components/base/useBaseCells.tsx": "partial: cell display; writes through linkRule",
-  "apps/desktop/src/components/graph/CleanupPanel.tsx": "refuses: cleanupVerdicts and findUnlinkedMentions, said in the panel",
-  "apps/desktop/src/components/graph/VaultGraphView.tsx": "partial: draws the graph and counts orphans; its rename goes through renameFileWithLinkUpdates",
-  "apps/desktop/src/components/journal/JournalView.tsx": "partial: shows",
-  "apps/desktop/src/components/pimcal/CalendarView.tsx": "partial: shows",
-  "apps/desktop/src/components/tasks/TasksQueryView.tsx": "partial: shows; a tick writes the line that is shown, in a note that was read",
-  "apps/desktop/src/components/tasks/TasksView.tsx": "partial: shows; clean-up and duplicates through their gated hooks",
-  "apps/desktop/src/contexts/VaultContext.tsx": "gated: slices refused (kept as published), task sync creates no note until a scan went through (coldIndexOwed), enqueueAllLocalFiles waits for the whole index",
-  "apps/desktop/src/hooks/useDocumentIcons.ts": "partial: shows",
-  "apps/desktop/src/services/ai/desktopAi.ts": "partial: the assistant reads what is there; its rename asks noteRenamePlan, its writes go through the write gate of the note itself",
-  "apps/desktop/src/services/cascadeDelete.ts": "gated: buildDeletionPlan",
-  "apps/desktop/src/services/commentNotifier.ts": "safe: notifications about remarks, read only",
-  "apps/desktop/src/services/reminderScheduler.ts": "waits: planned again the moment the index is whole (in-app timers, nothing cleared on the system)",
-  "apps/mobile/src/components/NoteContextSheet.tsx": "partial: shows",
-  "apps/mobile/src/components/NotePickSheet.tsx": "partial: a list to pick from",
-  "apps/mobile/src/components/PhoneTasksQuery.tsx": "partial: shows",
-  "apps/mobile/src/components/useTaskRowActions.tsx": "partial: acts on the row that is shown",
-  "apps/mobile/src/lib/useLinkTargetLookup.ts": "partial: draws links as resolved or not",
-  "apps/mobile/src/screens/BrowseScreen.tsx": "partial: shows",
-  "apps/mobile/src/screens/CleanupScreen.tsx": "refuses: cleanupVerdicts and findUnlinkedMentions, said on the screen",
-  "apps/mobile/src/screens/FindReplaceScreen.tsx": "refuses: findInVault",
-  "apps/mobile/src/screens/JournalScreen.tsx": "partial: shows",
-  "apps/mobile/src/screens/NoteScreen.tsx": "partial: shows",
-  "apps/mobile/src/screens/SearchScreen.tsx": "partial: search; creating a note refuses (createNoteFromWikiTarget)",
-  "apps/mobile/src/screens/SecurityAreaScreen.tsx": "refuses: loadWorkspaceSliceObjects; the slice counts are not re-published",
-  "apps/mobile/src/screens/TasksScreen.tsx": "partial: shows",
-  "apps/mobile/src/screens/base/BaseScreen.tsx": "partial: shows; writes through gated planners",
-  "apps/mobile/src/screens/base/CellEditSheet.tsx": "partial: a list to pick from; the write goes through linkRule",
-  "apps/mobile/src/services/ai/mobileAi.ts": "partial: as the desktop assistant",
-  "apps/mobile/src/services/ai/mobileEmbeddings.ts": "safe: as the desktop embeddings",
-  "apps/mobile/src/services/ai/mobileGists.ts": "safe: as the desktop gists",
-  "apps/mobile/src/services/baseOps.ts": "partial: candidates for a relation cell; the write goes through linkRule",
-  "apps/mobile/src/services/cascadeDelete.ts": "gated: buildDeletionPlan",
-  "apps/mobile/src/services/commentNotifier.ts": "safe: as the desktop",
-  "apps/mobile/src/services/dueTasks.ts": "partial: shows",
-  "apps/mobile/src/services/noteLinkRoute.ts": "safe: opens a note an address names, read only",
-  "apps/mobile/src/services/pim/taskSyncRuntime.ts": "gated: creates no note until a full scan went through (indexPassSettled)",
-  "apps/mobile/src/services/reminderActions.ts": "partial: acts on the reminder that fired",
-  "apps/mobile/src/services/reminderScheduler.ts": "waits: replans nothing until the index is whole, so nothing scheduled is cleared",
-  "packages/ui/src/ai/writeTools.ts": "gated: noteRenamePlan",
-  "packages/ui/src/base/baseMembership.ts": "partial: membership for display; the deletion plan is gated",
-  "packages/ui/src/base/embedScope.ts": "partial: shows the rows of an embedded database",
-  "packages/ui/src/base/pinboardSweep.ts": "gated: sweepPinboardRefs",
-  "packages/ui/src/base/relationLinks.ts": "gated: linkRule",
-  "packages/ui/src/base/templateFiles.ts": "gated: runs with a move, which is refused before anything moves",
-  "packages/ui/src/hooks/useTaskDuplicates.ts": "gated: the removal; the count only shows",
-  "packages/ui/src/hooks/useTaskNameCleanup.ts": "gated: nothing resumed or offered",
-  "packages/ui/src/lib/commentNotifierCycle.ts": "safe: as the comment notifiers",
-  "packages/ui/src/lib/indexMd.ts": "gated: adoptFileAsIndex, planOverviewLinkPins, collectFolderIndexInfos through listMarkdownPaths",
-  "packages/ui/src/lib/indexMdGenerate.ts": "gated: listMarkdownPaths",
-  "packages/ui/src/lib/renameNote.ts": "gated: planLinkUpdates",
-  "packages/ui/src/pim/taskDuplicates.ts": "gated: through useTaskDuplicates",
-  "packages/ui/src/pim/taskNameCleanup.ts": "gated: through useTaskNameCleanup",
-  "packages/ui/src/pim/taskSync.ts": "gated: mayCreateNotes is false until a full scan went through",
-  "packages/ui/src/services/graphActions.ts": "gated: each writer",
-  "packages/ui/src/services/graphRelationTargets.ts": "gated: writeRelationLink, removeRelationLink",
+/** Every file that takes the view, with what it shows from it and why nothing is written from it. */
+const VIEW_USES: Record<string, string> = {
+  "packages/core/src/vault/GraphService.ts": "forIndex takes the view's database for the map; its own planners (clean-up verdicts, mentions) ask the wholeness it is given",
+  "apps/desktop/src/App.tsx": "the conflict rows of the error dialog: a list to look at",
+  "apps/desktop/src/AppShell.tsx": "a plainva:// link opens a note the index holds (noteLinkReceiver resolves, never creates)",
+  "apps/desktop/src/components/ai/McpPairing.tsx": "the top-level folders offered as a scope: a list to pick from",
+  "apps/desktop/src/components/BacklinksPanel.tsx": "the backlinks of the open note: a list",
+  "apps/desktop/src/components/base/BaseCreateWizard.tsx": "the tags offered as a source: a list to pick from",
+  "apps/desktop/src/components/base/BasePinboardView.tsx": "a card's file by its name: shown",
+  "apps/desktop/src/components/base/useBaseCells.tsx": "rows, values offered and the relation picker's list; a pick's link text is written as a path while the index is not whole (pathsForLinkText); the reverse-relation edit takes the reader",
+  "apps/desktop/src/components/BasePicker.tsx": "the databases to pick from: a list",
+  "apps/desktop/src/components/BaseViewer.tsx": "the rows, the search and the scope of a database; every column change, relation link and template assignment takes the reader",
+  "apps/desktop/src/components/CalendarWidget.tsx": "the tasks due in the widget's menu: a list",
+  "apps/desktop/src/components/DatabasesList.tsx": "the databases of the vault: a list",
+  "apps/desktop/src/components/DatabaseSourceConfig.tsx": "the tags offered as a source: a list to pick from",
+  "apps/desktop/src/components/Editor.tsx": "the governing database, the open note's indexed identity, the completion, the database context; parked suggestions use the unrefused handle for their own table; renames, overviews, tasks and the #110 verdict take the reader",
+  "apps/desktop/src/components/FileTree.tsx": "the tree and its search: shown; every move goes through fileActions with the reader",
+  "apps/desktop/src/components/graph/VaultGraphView.tsx": "icons and tags of the map; renames, connections and link removals take the reader",
+  "apps/desktop/src/components/journal/JournalView.tsx": "the journal's notes: shown; a link opens through the reader's view and refuses to create",
+  "apps/desktop/src/components/MarkdownReader.tsx": "embeds and links resolved for reading",
+  "apps/desktop/src/components/pimcal/CalendarView.tsx": "the task and database overlays of the calendar and the note picker; a pick's link text is decided whole or written as a path",
+  "apps/desktop/src/components/PropertiesSection.tsx": "suggestions, the governing database and the relation picker; a pick's spelling asks pathsSharingNames, which writes the path while the index is not whole",
+  "apps/desktop/src/components/QuickSwitcher.tsx": "search and recent files; creating a note takes the reader",
+  "apps/desktop/src/components/RightSidebar.tsx": "the database context and backlink count of the open note",
+  "apps/desktop/src/components/settings/AiVaultSettingsPage.tsx": "the folders offered for the AI's scope: a list to pick from",
+  "apps/desktop/src/components/settings/ExternalToolsDialogs.tsx": "the folders offered as a scope: a list to pick from",
+  "apps/desktop/src/components/SettingsModal.tsx": "the vault's numbers on the About page",
+  "apps/desktop/src/components/TagTree.tsx": "the tags and their notes; renaming a tag takes the reader",
+  "apps/desktop/src/components/tasks/TasksQueryView.tsx": "a query block's tasks: shown",
+  "apps/desktop/src/components/tasks/TasksView.tsx": "the task list and its databases; creating, promoting and blocking time take the reader",
+  "apps/desktop/src/components/TemplateTargetsModal.tsx": "the databases a template can be assigned to; the assignment's link text takes the reader",
+  "apps/desktop/src/components/useOpenFileLookup.ts": "the #110 search reads the view's database once the index is whole (searchMissingFile waits)",
+  "apps/desktop/src/contexts/VaultContext.tsx": "hands out the view; at open, how many rows the index holds decides whether it is cold",
+  "apps/desktop/src/hooks/useDocumentIcons.ts": "the icons of documents: shown",
+  "apps/desktop/src/hooks/useDocumentTitles.ts": "the titles of documents: shown",
+  "apps/desktop/src/services/openLink.ts": "a link to a note the index holds opens from the view; creating one refuses on the reader",
+  "apps/mobile/src/BookmarksScreen.tsx": "the icons of the bookmarks: shown",
+  "apps/mobile/src/components/NotePickSheet.tsx": "the notes to pick from: a list",
+  "apps/mobile/src/components/useTaskRowActions.tsx": "the databases a task can be sent to: a list; writing takes the reader",
+  "apps/mobile/src/EditorHost.tsx": "the completion, titles and databases of the editor: shown",
+  "apps/mobile/src/lib/useLinkTargetLookup.ts": "which links lead nowhere: drawn",
+  "apps/mobile/src/screens/AiPolicyScreen.tsx": "the folders offered for the AI's scope: a list to pick from",
+  "apps/mobile/src/screens/base/BaseConfigSheet.tsx": "the values and tags offered while a database is configured",
+  "apps/mobile/src/screens/base/BaseScreen.tsx": "the rows, search, map and link lookup of a database; a new row's link text takes the reader",
+  "apps/mobile/src/screens/base/CellEditSheet.tsx": "suggestions and the relation picker; a pick's link text is written as a path while the index is not whole (pathsForLinkText)",
+  "apps/mobile/src/screens/BrowseScreen.tsx": "the folder's notes and icons; the deletion threshold counts on the reader",
+  "apps/mobile/src/screens/DatabasesScreen.tsx": "the databases of the vault: a list",
+  "apps/mobile/src/screens/GraphScreen.tsx": "tags and icons of the map; connections take the reader",
+  "apps/mobile/src/screens/JournalScreen.tsx": "the journal's notes: shown",
+  "apps/mobile/src/screens/PimCalendarScreen.tsx": "the database overlays of the calendar",
+  "apps/mobile/src/screens/SearchScreen.tsx": "search, icons and the search corpus",
+  "apps/mobile/src/screens/SettingsAreaScreens.tsx": "the databases offered in a setting: a list to pick from",
+  "apps/mobile/src/screens/TodayScreen.tsx": "the notes changed today: shown",
+  "apps/mobile/src/services/baseOps.ts": "a database's rows and the relation picker's list; the reverse-relation edit takes the reader",
+  "apps/mobile/src/services/dueTasks.ts": "the tasks due on Today and in the widget: a list",
+  "apps/mobile/src/services/noteLinkRoute.ts": "a plainva:// link opens a note the index holds; a copied link's text takes the reader",
+  "apps/mobile/src/services/reminderActions.ts": "finds the task a tapped reminder belongs to (it exists: its reminder was planned from a whole index)",
+  "apps/mobile/src/services/vaultService.ts": "hands out the view; folder counts, search and resolving a link to open read it",
+  "apps/mobile/src/TagsScreen.tsx": "the tags and their notes; renaming a tag takes the reader",
 };
 
-function sourceFiles(root: string): string[] {
+/**
+ * Every file that queries the index's own tables beside the query service,
+ * with the handle it takes: the reader's `db` (refuses), the view's `db`
+ * (partial, named), or a handle of its own — then why that is no reading of
+ * the index as truth about the vault.
+ */
+const RAW_SQL: Record<string, string> = {
+  "packages/core/src/ai/context/gistWriter.ts": "its own handle; background work that starts once the index is whole (the shells' `ready` waits for it)",
+  "packages/core/src/ai/embeddings/pipeline.ts": "its own handle; background work that starts once the index is whole (the shells' `ready` waits for it)",
+  "packages/core/src/sync/owedToRemote.ts": "the sync's bookkeeping (deletion marks, `local_ahead` rows): a mark the index holds again is settled, any other is sent only once the disk says the file is gone (`stillGone`) — half an index decides nothing",
+  "packages/core/src/sync/SyncQueue.ts": "the sync's bookkeeping on a file's row (its stamp, its state): no plan from what the index says the vault holds",
+  "packages/core/src/vault/GraphService.ts": "the view's handle for the map; its planners ask the wholeness first",
+  "packages/core/src/vault/missingFile.ts": "the view's handle, read for a verdict only once the index is whole (untilWholeIndex)",
+  "packages/core/src/workspace/sliceObjects.ts": "asks requireWholeIndex of the reader before it reads",
+  "packages/ui/src/components/AtMentionPlugin.ts": "the completion's view: a list; the link text asks pathsSharingNames",
+  "packages/ui/src/components/editorTriggers.ts": "the completion's view: a list; an embed is written by its path",
+  "packages/ui/src/lib/indexMdAutoUpdate.ts": "the reader's handle (refuses); the listing waits, also across a close (owed listings)",
+  "packages/ui/src/lib/indexMdGenerate.ts": "the reader's handle (refuses)",
+  "packages/ui/src/lib/inlineTriggers.ts": "the completion's view: a list; the link text asks pathsSharingNames",
+  "packages/ui/src/lib/renameNote.ts": "the reader's handle (refuses)",
+  "packages/ui/src/lib/wikiLinkText.ts": "asks the wholeness first; over half an index every name counts as taken",
+  "packages/ui/src/pim/entryEventSync.ts": "its own handle; both shells run it only once the index is whole",
+  "apps/desktop/src/ai/embeddingTestVault.ts": "a test vault the evidence runs build; no vault of the person",
+  "apps/desktop/src/App.tsx": "the view's handle: the conflict rows of a dialog",
+  "apps/desktop/src/components/BasePicker.tsx": "the view's handle: the databases to pick from",
+  "apps/desktop/src/components/BaseViewer.tsx": "the reader's handle (refuses): the link text of a template assignment",
+  "apps/desktop/src/components/FileTree.tsx": "the view's handle: the tree",
+  "apps/desktop/src/components/QuickSwitcher.tsx": "the view's handle: recent files",
+  "apps/desktop/src/components/TemplateTargetsModal.tsx": "the reader's handle (refuses): the link text of a template assignment",
+  "apps/desktop/src/contexts/VaultContext.tsx": "the view's handle at open: how many rows the index holds decides whether it is cold",
+  "apps/desktop/src/services/baseSchema.ts": "the handle of whatever it is given: callers that show give the view, the governing database is shown",
+  "apps/desktop/src/services/fileActions.ts": "the reader's handle (refuses)",
+  "apps/desktop/src/services/okfConversion.ts": "the reader's handle (refuses)",
+  "apps/desktop/src/services/okfMigration.ts": "the reader's handle (refuses)",
+  "apps/mobile/src/lib/folderDeletion.ts": "the reader's handle (refuses): the deletion threshold",
+  "apps/mobile/src/services/okfConversion.ts": "the reader's handle (refuses)",
+  "apps/mobile/src/services/okfMigration.ts": "the reader's handle (refuses)",
+  "apps/mobile/src/services/vaultService.ts": "its own handle at open: whether the index is warm",
+};
+
+const SOURCE_ROOTS = ["packages/core/src", "packages/ui/src", "apps/desktop/src", "apps/mobile/src"];
+const INDEX_ITSELF = /^packages\/core\/src\/db\/|^packages\/core\/src\/vault\/(VaultIndexer|VaultQueryService)\.ts$/;
+
+function sourceFiles(): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
-    for (const name of readdirSync(dir)) {
-      if (name === "node_modules") continue;
-      const full = join(dir, name);
-      if (statSync(full).isDirectory()) walk(full);
-      else if (/\.(ts|tsx)$/.test(name) && !/\.test\.|\.d\.ts$|^test-/.test(name)) out.push(relative(REPO, full).replace(/\\/g, "/"));
+    for (const name of readdirSync(join(REPO, dir))) {
+      if (name === "node_modules" || name === "dist") continue;
+      const rel = `${dir}/${name}`;
+      if (statSync(join(REPO, rel)).isDirectory()) walk(rel);
+      else if (/\.(ts|tsx)$/.test(name) && !/\.test\.|\.spec\.|\.d\.ts$|^test-/.test(name)) out.push(rel);
     }
   };
-  walk(join(REPO, root));
+  for (const root of SOURCE_ROOTS) walk(root);
   return out;
 }
 
-describe("planning a write from the index (performance plan L3)", () => {
-  it.each(PLANNERS)("%s: %s asks the gate before it reads", (file, header) => {
-    const body = bodyOf(read(file), header);
-    expect(body, `${header} not found in ${file}`).not.toBe("");
-    // `?.()`: a query service that does not know wholeness (a test double) counts as whole, as before L3.
-    const gate = body.search(/requireWholeIndex(\?\.)?\(/);
-    expect(gate, `${header} in ${file} plans without asking whether the index is whole`).toBeGreaterThanOrEqual(0);
-    const firstRead = body.search(PLANNING_READ);
-    if (firstRead >= 0) expect(gate).toBeLessThan(firstRead);
+/** Code without its comments and strings: a mention in a comment takes nothing. */
+function code(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:\\])\/\/.*$/gm, "$1")
+    .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""');
+}
+
+const TAKES_VIEW = /\bindexView\b|\.view\(\)/;
+const INDEX_SQL = /\bFROM\s+(files|links|tags|properties|fts_notes)\b/;
+
+describe("reading the index (performance plan L3, second review of 11.11.)", () => {
+  const files = sourceFiles();
+
+  it("every file that takes the view says what it shows from it", () => {
+    const takers = files.filter((f) => TAKES_VIEW.test(code(read(f))));
+    expect(takers.filter((f) => !(f in VIEW_USES)), "takes the view without a decision in VIEW_USES").toEqual([]);
+    expect(Object.keys(VIEW_USES).filter((f) => !takers.includes(f)), "listed in VIEW_USES and takes no view any more").toEqual([]);
   });
 
-  it("every reader of the index a write can be planned from is decided", () => {
-    const readers = ["packages/ui/src", "apps/desktop/src", "apps/mobile/src"]
-      .flatMap(sourceFiles)
-      .filter((file) => PLANNING_READ.test(read(file)))
-      .sort();
-    const undecided = readers.filter((file) => !(file in READERS));
-    expect(undecided, "a new reader of the index: decide what it does over half an index and add it to READERS").toEqual([]);
-    const gone = Object.keys(READERS).filter((file) => !readers.includes(file));
-    expect(gone, "these no longer read the index: take them off READERS").toEqual([]);
+  it("every file that queries the index's tables beside the query service says which handle it takes", () => {
+    // Template strings stay in: the SQL is in them.
+    const querying = files.filter((f) => !INDEX_ITSELF.test(f) && INDEX_SQL.test(read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1")));
+    expect(querying.filter((f) => !(f in RAW_SQL)), "queries the index without a decision in RAW_SQL").toEqual([]);
+    expect(Object.keys(RAW_SQL).filter((f) => !querying.includes(f)), "listed in RAW_SQL and queries the index no more").toEqual([]);
   });
 
-  it("the app builds a graph service only with the index's wholeness", () => {
-    const bare = ["packages/ui/src", "apps/desktop/src", "apps/mobile/src"]
-      .flatMap(sourceFiles)
-      .filter((file) => /\bnew GraphService\(/.test(read(file)));
-    expect(bare, "use GraphService.forIndex(queryService)").toEqual([]);
+  it("no planner module takes the view", () => {
+    // The shared planners live here; a view in one of them would be a planner
+    // over half an index with a type cast around the brand.
+    const planners = files.filter((f) => /^packages\/ui\/src\/(lib|base|services|ai|hooks)\//.test(f) || /^packages\/core\/src\/(?!vault\/GraphService\.ts)/.test(f));
+    expect(planners.filter((f) => TAKES_VIEW.test(code(read(f))))).toEqual([]);
+  });
+
+  it("only tests declare a hand-made reader whole", () => {
+    const declaring = files.filter((f) => /\bwholeIndexReader\(/.test(code(read(f))));
+    // Its declaration (`wholeIndexReader<T …>(`) is no call: no source file calls it.
+    expect(declaring).toEqual([]);
+  });
+
+  it("the app builds a graph service only over the index's wholeness", () => {
+    const building = files.filter((f) => !f.startsWith("packages/core/") && /new GraphService\(/.test(code(read(f))));
+    expect(building).toEqual([]);
+  });
+
+  it("the view is kept out of a planner's parameter by its type", () => {
+    // The brand is declared in the class and missing from the view (core
+    // index-reader.test.ts holds the @ts-expect-error that proves it).
+    const service = read("packages/core/src/vault/VaultQueryService.ts");
+    expect(service).toContain("declare readonly wholeIndex: true;");
+    expect(service).toMatch(/export type IndexView = IndexReading & \{ readonly partialIndex: true \};/);
+    expect(service).toMatch(/export type IndexReader<K extends keyof VaultQueryService> = Pick<VaultQueryService, K \| "wholeIndex">;/);
+  });
+
+  it("hands out the reader and the view in both shells, and only the view is partial", () => {
+    const desktop = read("apps/desktop/src/contexts/VaultContext.tsx");
+    expect(desktop).toContain("indexView: state.queryService ? state.queryService.view() : null");
+    const mobile = read("apps/mobile/src/services/vaultService.ts");
+    expect(mobile).toContain("indexView: queryService ? queryService.view() : null");
   });
 });

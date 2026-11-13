@@ -21,7 +21,7 @@ import { pathsSharingNames, wikiLinkTextFor } from "../lib/wikiLinkText";
 
 export interface AtMentionDeps {
   /** Read the current query service (may be null before a vault is open). */
-  getQueryService: () => { db: { query: (sql: string, params?: any[]) => Promise<any[]> } } | null;
+  getQueryService: () => { db: { query: (sql: string, params?: any[]) => Promise<any[]> }; indexWholeness(): { kind: string } } | null;
 }
 
 export type AtCompletion = Completion & { description?: string };

@@ -22,7 +22,7 @@ interface Props {
 // einbetten"). The `@` menu lists `.base` results inline; this modal is the
 // slash-command equivalent and also offers creating a new inline database.
 export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
-  const { queryService } = useVault();
+  const { indexView } = useVault();
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<BaseRow[]>([]);
@@ -30,11 +30,11 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!queryService) return;
+    if (!indexView) return;
     let alive = true;
     const term = query.trim();
     const like = `%${term}%`;
-    queryService.db
+    indexView.db
       .query(
         `SELECT path, title FROM files
          WHERE (title LIKE ? OR path LIKE ?) AND path LIKE '%.base' AND ${visiblePathSql("path")}
@@ -47,7 +47,7 @@ export const BasePicker: React.FC<Props> = ({ onPick, onCreate, onClose }) => {
       // looked like an empty vault instead of a broken lookup.
       .catch((err) => { if (alive) { setRows([]); setLoadError(errorText(err)); } });
     return () => { alive = false; };
-  }, [query, queryService]);
+  }, [query, indexView]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } };

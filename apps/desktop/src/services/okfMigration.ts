@@ -20,7 +20,7 @@ export async function scanVaultOkfVersion(opts: {
   adapter: Pick<OkfConversionAdapter, "readTextFile">;
 }): Promise<OkfVersionState> {
   // The candidates come from the index: refused over one that is not whole (L3).
-  opts.queryService.requireWholeIndex?.();
+  opts.queryService.requireWholeIndex();
   const rows = await opts.queryService.db.query<{ path: string }>(
     `SELECT DISTINCT f.path AS path
      FROM properties p JOIN files f ON f.id = p.file_id

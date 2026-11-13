@@ -1,6 +1,6 @@
 import { trimEndChars, trimChars, checkedContentPath } from "@plainva/core";
 import { reportVisible, reportingTo } from "@plainva/ui";
-import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
+import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor, notePathsForLinkText } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
 import { applyTemplateInteractive } from "../services/templateInteractive";
@@ -10,7 +10,7 @@ import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
-import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
+import { isIndexNotWholeError, PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
 import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
@@ -147,8 +147,8 @@ export function BaseViewer({
   onCloseTab?: () => void;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, listWorkspaceMembers, getWorkspaceCapabilities, commentOperations, workspaceSecurityStatus } = useVault();
-  const cache = useMemo(() => queryService ? pinboardCache(queryService) : null, [queryService]);
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, listWorkspaceMembers, getWorkspaceCapabilities, commentOperations, workspaceSecurityStatus, indexView } = useVault();
+  const cache = useMemo(() => indexView ? pinboardCache(indexView) : null, [indexView]);
   const cacheKey = `${activePath}#${hostPath ?? ""}`;
   const snapshot = useMemo(() => cache?.base<{ config: any; rows: any[]; viewIndex: number }>(cacheKey), [cache, cacheKey]);
   const [content, setContent] = useState<string>("");
@@ -271,17 +271,17 @@ export function BaseViewer({
   // its own active value, or nothing at all once a filter matches zero rows.
   const [filterSourceRows, setFilterSourceRows] = useState<any[] | null>(null);
   useEffect(() => {
-    if (!showConfigPanel || !queryService || !dbConfig) {
+    if (!showConfigPanel || !indexView || !dbConfig) {
       setFilterSourceRows(null);
       return;
     }
     let alive = true;
-    queryService
+    indexView
       .queryDatabaseFiles(stripPropertyFilters(dbConfig), { includeFilterMetadata: true })
       .then((rows) => { if (alive) setFilterSourceRows(rows); })
       .catch(() => { if (alive) setFilterSourceRows(null); });
     return () => { alive = false; };
-  }, [showConfigPanel, dbConfig, queryService]);
+  }, [showConfigPanel, dbConfig, indexView]);
 
   // Notion-style multiple views (point 5): the .base `views[]` array with an active
   // index. The active view drives the rendered layout, visible columns, sort and
@@ -644,9 +644,9 @@ export function BaseViewer({
   const [baseFiles, setBaseFiles] = useState<string[]>([]);
   const openColumnEditor = async (col: string) => {
     setEditingColumn(col);
-    if (queryService) {
+    if (indexView) {
       try {
-        setBaseFiles(await queryService.listBaseFilePaths());
+        setBaseFiles(await indexView.listBaseFilePaths());
       } catch (e) {
         console.warn("[BaseViewer] listing .base files for the column editor failed", e);
       }
@@ -661,12 +661,12 @@ export function BaseViewer({
   // it the active view AND merge that view's per-view property filters with the
   // file-level sources (folder/tag) — combineFilters AND-joins both.
   const queryForActiveView = async (cfg: any, idx: number): Promise<any[]> => {
-    if (!queryService) return [];
+    if (!indexView) return [];
     const views = Array.isArray(cfg?.views) ? cfg.views : [];
     const active = views[idx] || views[0] || {};
     const merged = { ...cfg, filters: combineFilters(cfg?.filters, active?.filters), views: [active] };
     const data = await import("../services/perfMetrics").then(({ perfMeasure }) =>
-      perfMeasure("base query", () => queryService.queryDatabaseFiles(merged))
+      perfMeasure("base query", () => indexView.queryDatabaseFiles(merged))
     );
     if (data.length <= 4000) cache?.rememberBase(cacheKey, { config: cfg, rows: data, viewIndex: idx });
     return data;
@@ -677,7 +677,7 @@ export function BaseViewer({
   // bumps fileTreeVersion. Skipped while a cell editor is open so an in-flight
   // edit never gets reset under the user's cursor.
   useEffect(() => {
-    if (!dbConfig || !queryService || cells.editingCell) return;
+    if (!dbConfig || !indexView || cells.editingCell) return;
     // File-only bumps carry their paths (P2.7): a save that cannot affect this
     // database (outside its folder sources, no tag/relation columns) skips the
     // full re-query instead of reloading rows + reverse relations every time.
@@ -694,7 +694,7 @@ export function BaseViewer({
   // (no baseNeedsRefresh gate) because a detached-root embed never sees the
   // fileTreeVersion bump; the scope effect below also depends on refreshTick.
   useEffect(() => {
-    if (refreshTick === 0 || !dbConfig || !queryService || cells.editingCell) return;
+    if (refreshTick === 0 || !dbConfig || !indexView || cells.editingCell) return;
     let alive = true;
     queryForActiveView(dbConfig, activeViewIndex).then((d) => { if (alive) setDbData(d); }).catch(() => {});
     return () => { alive = false; };
@@ -710,7 +710,7 @@ export function BaseViewer({
   // through the fileTreeVersionPaths effect above.
   useEffect(() => {
     const isPinboard = (dbConfig?.views?.[activeViewIndex]?.type ?? dbConfig?.views?.[0]?.type) === "pinboard";
-    if (!isPinboard || !dbConfig || !queryService) return;
+    if (!isPinboard || !dbConfig || !indexView) return;
     let timer: number | null = null;
     const onSaved = (e: Event) => {
       const path = (e as CustomEvent).detail?.path;
@@ -726,18 +726,18 @@ export function BaseViewer({
       window.removeEventListener("plainva-note-saved", onSaved);
       if (timer != null) window.clearTimeout(timer);
     };
-  }, [dbConfig, activeViewIndex, queryService]);
+  }, [dbConfig, activeViewIndex, indexView]);
 
   // Detect which relations connect the embedded base to the host element's base
   // (both directions). resolveGoverningBase runs the host's base query (cached).
   useEffect(() => {
-    if (!embedded || !hostPath || !dbConfig || !queryService || !vaultAdapter) {
+    if (!embedded || !hostPath || !dbConfig || !indexView || !vaultAdapter) {
       setScopeRelations([]);
       return;
     }
     let alive = true;
     (async () => {
-      const hostBase = await resolveGoverningBase(hostPath, queryService, vaultAdapter);
+      const hostBase = await resolveGoverningBase(hostPath, indexView, vaultAdapter);
       if (!alive) return;
       if (!hostBase) { setScopeRelations([]); return; }
       const rels = detectEmbedScopeRelations({
@@ -750,7 +750,7 @@ export function BaseViewer({
       if (alive) setScopeRelations(rels);
     })().catch(() => { if (alive) setScopeRelations([]); });
     return () => { alive = false; };
-  }, [embedded, hostPath, activePath, dbConfig, queryService, vaultAdapter, fileTreeVersion, t]);
+  }, [embedded, hostPath, activePath, dbConfig, indexView, vaultAdapter, fileTreeVersion, t]);
 
   // Default to the first relation; reset when host or embedded base changes.
   useEffect(() => { setScopeSelection("0"); }, [hostPath, activePath]);
@@ -758,7 +758,7 @@ export function BaseViewer({
   // Compute the in-scope path set (link-index based). Explicit "Diese Notiz"
   // filters (contextFilters) win over auto-detection (E3) and AND-combine.
   useEffect(() => {
-    if (!queryService || !hostPath || scopeSelection === "off") { setScopePaths(null); return; }
+    if (!indexView || !hostPath || scopeSelection === "off") { setScopePaths(null); return; }
     let alive = true;
     const subtreeOf = (rel: EmbedScopeRelation) =>
       rel.selfRelation && (dbConfig?.views?.[activeViewIndex]?.subItemsProperty ?? null) === rel.column;
@@ -766,7 +766,7 @@ export function BaseViewer({
       const rels = contextFilters.map((prop) =>
         buildContextScopeRelation((dbConfig?.columns ?? {}) as Record<string, any>, prop, activePath, (k) => columnLabel(k, t, dbConfig))
       );
-      computeContextScope(queryService, hostPath, rels, new Set(rels.filter(subtreeOf).map((r) => r.column)))
+      computeContextScope(indexView, hostPath, rels, new Set(rels.filter(subtreeOf).map((r) => r.column)))
         .then((set) => { if (alive) setScopePaths(set); })
         .catch(() => { if (alive) setScopePaths(null); });
       return () => { alive = false; };
@@ -774,11 +774,11 @@ export function BaseViewer({
     const idx = Number(scopeSelection);
     const relation = Number.isInteger(idx) ? scopeRelations[idx] : undefined;
     if (!relation) { setScopePaths(null); return; }
-    computeScopePaths(queryService, hostPath, relation, { subtree: subtreeOf(relation) })
+    computeScopePaths(indexView, hostPath, relation, { subtree: subtreeOf(relation) })
       .then((set) => { if (alive) setScopePaths(set); })
       .catch(() => { if (alive) setScopePaths(null); });
     return () => { alive = false; };
-  }, [contextFilters, scopeRelations, scopeSelection, hostPath, queryService, fileTreeVersion, activeViewIndex, dbConfig, activePath, refreshTick, t]);
+  }, [contextFilters, scopeRelations, scopeSelection, hostPath, indexView, fileTreeVersion, activeViewIndex, dbConfig, activePath, refreshTick, t]);
 
   // The relation currently driving the scope (chip highlight + new-item link).
   // Explicit context filters take precedence; the first "down" one drives the
@@ -845,7 +845,7 @@ export function BaseViewer({
     [scopeRows, searchColumns, cells]
   );
   const searchRevision = useMemo(() => baseSearchRevision(scopeRows), [scopeRows]);
-  const baseSearch = useBaseSearch(queryService, searchPaths, baseSearchText, searchMetadata, searchCache, baseSearchKey, searchRevision);
+  const baseSearch = useBaseSearch(indexView, searchPaths, baseSearchText, searchMetadata, searchCache, baseSearchKey, searchRevision);
   const scopedData = useMemo(() => filterRowsBySearch(scopeRows, baseSearch.matches), [scopeRows, baseSearch.matches]);
   // The field is a row UNDER the head, opened by the magnifier beside
   // "Configure" — so its place never depends on how many views a database
@@ -1149,7 +1149,7 @@ export function BaseViewer({
     if (!didMountViewSync.current) { didMountViewSync.current = true; return; }
     if (suppressViewSyncRef.current) { suppressViewSyncRef.current = false; return; }
     if (!showViewLayout(dbConfig, activeViewIndex)) return;
-    if (queryService) queryForActiveView(dbConfig, activeViewIndex).then((d) => setDbData(d)).catch(console.error);
+    if (indexView) queryForActiveView(dbConfig, activeViewIndex).then((d) => setDbData(d)).catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeViewIndex]);
 
@@ -1202,7 +1202,7 @@ export function BaseViewer({
   const scopePrefills = async (): Promise<Record<string, unknown>> => {
     const scopeRel = activeScopeRelation;
     if (scopeRel && hostPath && queryService && scopeRel.direction === "down") {
-      const allPaths = (await queryService.listNotes()).map((n) => n.path);
+      const allPaths = await notePathsForLinkText(queryService);
       return relationPrefill(hostPath, allPaths, scopeRel);
     }
     return {};
@@ -1592,7 +1592,7 @@ export function BaseViewer({
           await vaultAdapter.acknowledgeExternalUpdate(activePath).catch(console.error);
         }
 
-        if (text && queryService) {
+        if (text && indexView) {
           try {
             // Per-view filters: distribute any legacy file-level property rules
             // into each view in-memory (idempotent). config.filters keeps only
@@ -1662,7 +1662,7 @@ export function BaseViewer({
 
     return () => { isMounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vaultAdapter, queryService, activePath, t, reloadTick]);
+  }, [vaultAdapter, indexView, activePath, t, reloadTick]);
 
   // Remember the active view per file (P6) — app-side, never written to the .base.
   useEffect(() => {
@@ -1720,7 +1720,7 @@ export function BaseViewer({
 
     // Re-query with new config. The database is written by now: a query that
     // fails is no failed save.
-    if (queryService) {
+    if (indexView) {
       try {
         const data = await queryForActiveView(newConfig, activeViewIndex);
         setDbData(data);
@@ -2050,6 +2050,8 @@ export function BaseViewer({
       return true;
     } catch (e) {
       if (e instanceof ColumnChangeNotDone) return false;
+      // Refused before anything was written: the index is not whole yet.
+      if (isIndexNotWholeError(e)) { toast.error(errorText(e)); return false; }
       throw e;
     } finally {
       renameBusyRef.current = false;
@@ -2075,7 +2077,16 @@ export function BaseViewer({
     if (!dbConfig || !vaultAdapter) return;
     const schema = dbConfig.columns && !Array.isArray(dbConfig.columns) ? dbConfig.columns[column] : undefined;
     const isReverse = !!schema?.reverseOf;
-    const affected = isReverse ? 0 : (await notesCarryingProperty(queryService, dbConfig, column, dbData)).length;
+    let affected = 0;
+    if (!isReverse) {
+      try {
+        affected = (await notesCarryingProperty(queryService, dbConfig, column, dbData)).length;
+      } catch (e) {
+        // No question over half an index: what it would count is not what it would change.
+        if (isIndexNotWholeError(e)) { toast.error(errorText(e)); return; }
+        throw e;
+      }
+    }
     let reverseInTarget: { base: string; name: string } | null = null;
     if (!isReverse && schema?.input === "relation" && schema.relationBase) {
       try {
@@ -2097,6 +2108,17 @@ export function BaseViewer({
     setDeleteColumnAsk(null);
     renameBusyRef.current = true; // shared latch: rename and delete both rewrite many files
     try {
+      // 0. The notes it is taken out of, asked before anything is written: an
+      //    index that is not whole refuses here, and the column stays (second
+      //    review of 11.11. — the database lost the column while only the
+      //    notes already read lost the key).
+      let affected: string[] = [];
+      try {
+        if (cleanupFrontmatter && !ask.isReverse) affected = await notesCarryingProperty(queryService, dbConfig, column, dbData);
+      } catch (e) {
+        if (isIndexNotWholeError(e)) { toast.error(errorText(e)); return; }
+        throw e;
+      }
       // 1. This base's config; a self-target reverse column folds into the same save.
       let nc = deletePropertyFromConfig(dbConfig, column);
       if (ask.reverseInTarget && ask.reverseInTarget.base === activePath) {
@@ -2126,7 +2148,6 @@ export function BaseViewer({
       //    was logged to the console, and every row was shown as cleaned).
       const kept = new Set<string>();
       if (cleanupFrontmatter && !ask.isReverse) {
-        const affected = await notesCarryingProperty(queryService, dbConfig, column, dbData);
         setDeleteProgress({ column, done: 0, total: affected.length });
         const result = await removePropertyAcrossNotes(vaultAdapter, affected, column, {
           onProgress: (done, total) => setDeleteProgress({ column, done, total }),
@@ -2398,7 +2419,7 @@ export function BaseViewer({
     const account = accounts.find((a) => a.id === accountId);
     const provider = account ? await pimRuntime.buildTarget(account) : null;
     if (!provider) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-    const allPaths = queryService ? (await queryService.listNotes()).map((n) => n.path) : [path];
+    const allPaths = queryService ? await notePathsForLinkText(queryService) : [path];
     const res = await createEntryEvent({
       adapter: vaultAdapter,
       createEvent: (_key, draft) => provider.createEvent(calendarKey.split(" ").slice(1).join(" "), draft),
@@ -2525,7 +2546,13 @@ export function BaseViewer({
     const notConverted = new Set<string>();
     if (vaultAdapter) {
       const paths = new Set<string>();
-      for (const f of fields) for (const p of await notesCarryingProperty(queryService, dbConfig, f, dbData)) paths.add(p);
+      try {
+        for (const f of fields) for (const p of await notesCarryingProperty(queryService, dbConfig, f, dbData)) paths.add(p);
+      } catch (e) {
+        // Refused before any note is converted; the type stays as it is.
+        if (isIndexNotWholeError(e)) { toast.error(errorText(e)); return null; }
+        throw e;
+      }
       // Each value under the key the note carries it, in any casing: a note
       // with `Frist:` under the column `frist` was left as it was (3.144 no. 3).
       const result = await convertDateColumns(vaultAdapter, [...paths], fields, inputType);
@@ -3305,7 +3332,7 @@ export function BaseViewer({
           onFillMissing={() => { void materializeColumn(editingColumn); }}
           allColumns={dbConfig?.columns && !Array.isArray(dbConfig.columns) ? dbConfig.columns : undefined}
           loadBaseConfig={vaultAdapter ? async (p) => parseBaseConfig(await vaultAdapter.readTextFile(p)) : undefined}
-          previewRollup={queryService ? async (spec) => {
+          previewRollup={indexView ? async (spec) => {
             // Runs the edited rollup down the REAL query path, so the preview
             // cannot show something the saved column would not compute.
             const cfg = { ...dbConfig, columns: { ...(dbConfig?.columns ?? {}), __rollupPreview: { rollup: spec } } };
